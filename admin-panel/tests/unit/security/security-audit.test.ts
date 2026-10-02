@@ -442,8 +442,9 @@ describe('Security Audit', () => {
   });
 
   describe('missing configuration', () => {
-    it('returns error when SUPABASE_URL is missing', async () => {
+    it('returns error when both runtime Supabase URL sources are missing', async () => {
       delete process.env.SUPABASE_URL;
+      delete process.env.NEXT_PUBLIC_SUPABASE_URL;
 
       const result = await runSecurityAudit();
 
