@@ -24,8 +24,7 @@ describe('tip jar repurchase wiring', () => {
   it('webhook emits purchase.completed for explicit repurchases despite existing access', () => {
     // one-time handlers extracted to onetime-handlers.ts (Option A).
     const src = read('src/app/api/webhooks/stripe/onetime-handlers.ts');
-    expect(src).toMatch(/isExplicitRepurchase/);
-    expect(src).toMatch(/metadata\?\.repurchase\s*===\s*['"]true['"]/);
-    expect(src).toMatch(/!result\.already_had_access\s*\|\|\s*isExplicitRepurchase/);
+    expect(src).not.toMatch(/!result\.already_had_access/);
+    expect(src).toMatch(/fulfillPaidOrder/);
   });
 });

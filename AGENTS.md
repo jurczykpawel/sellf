@@ -460,6 +460,23 @@ Two tables needed a product decision rather than a mechanical "keep vs remove" c
 - **`subscriptions.user_id`** blocks deletion only while Stripe is currently charging the account, or about to — a `BEFORE DELETE` trigger on `auth.users` (`prevent_delete_user_with_active_subscription()`, mirroring how `handle_new_user_registration()` is wired to `auth.users`) raises an exception when the user has a subscription in `trialing`, `active`, `past_due`, or `incomplete`. Those are the statuses where Stripe's own lifecycle (docs.stripe.com/billing/subscriptions/overview) is currently billing or about to bill the customer; `unpaid`, `canceled`, `incomplete_expired`, and `paused` are not blocking because Stripe has already stopped (or never started) attempting to collect. Once a subscription reaches a non-blocking status, the row is kept with `user_id` set to `NULL`, like the other financial tables above. The DELETE call itself gets back a generic `"Database error deleting user"` (500) — GoTrue does not forward the trigger's message to the API response — the specific reason ("an active Stripe subscription exists…") is only visible in the Postgres/GoTrue server logs.
 - **`seller_license_keys.seller_id`** is kept (`NULL`ed) rather than cascaded, so a deleted seller's buyers can keep verifying licenses issued before the deletion. A license token carries no seller claim (`src/lib/license-keys/format.ts`) — the buyer's verifier is handed the seller id once, out of band, at issuance — so nulling the live `seller_id` FK alone would silently break every already-issued license's lookup. Both `seller_license_keys` and `issued_licenses` carry a second column, `original_seller_id` (plain UUID, no foreign key, stamped once at insert by `stamp_original_seller_id()` and also set explicitly by `storeSellerKey()`/`issueLicense()`), which is what `GET /api/licenses/jwks?seller=<id>` (via `seller_license_public_keys()`) and the CRL/revocation lookup (`GET /api/licenses/revoked`, via `seller_revoked_orders()`) actually filter on — so verification and revocation keep working by the same seller id the buyer already has, regardless of what happens to the seller's account afterwards. New issuance still requires a live seller, obviously.
 
+### Outbound webhook delivery
+
+`WebhookService.trigger()` persists one `webhook_logs` delivery per
+order/event/endpoint before HTTP dispatch. `purchase.completed` uses the PI (or
+CS for orders without a PI); `invoice.paid` uses `invoice.stripeInvoiceId`.
+The queue row UUID is the top-level payload `id` and `X-Sellf-Delivery-Id` header.
+Automatic and manual retries reuse that ID. Receivers must **deduplicate on this
+id** and verify the existing signature against the raw body. Delivery is at least
+once; an accepted request can be retried after an interrupted sender.
+
+`payment_transactions.fulfillment_completed_at` records successful license
+issuance and durable delivery preparation independently of access granting.
+All paid-order completion paths resume unfinished fulfillment. Invoice retries
+also recover missing access and delivery. Endpoint customization cannot replace
+or remove the envelope `id`. The retry worker leases rows through the existing
+queue; interrupted attempts remain due after the lease expires.
+
 ### License Tier Registry
 
 A small set of admin-panel features are gated by a license tier (`free`, `registered`, `pro`, `business`). The registry lives in `admin-panel/src/lib/license/features.ts` and the resolver in `admin-panel/src/lib/license/resolve.ts`. Currently gated:
@@ -558,7 +575,7 @@ calls `issueLicense`, which signs a token (`payloadB64url.sigB64url`, claims
 seller uploads their own private key. Private keys are encrypted at rest with
 `APP_ENCRYPTION_KEY` (same mechanism as Stripe secrets) and never leave the service
 role; the public-keys endpoint reads only public material via a `SECURITY DEFINER`
-function. Issuance never breaks the payment webhook (fail-safe, logged).
+function. Issuance failures leave fulfillment unfinished and request another attempt.
 
 **Pieces:** `src/lib/license-keys/{format,keys,issue,sdk}.ts`, `src/app/api/licenses/jwks/route.ts`,
 `src/lib/actions/license-config.ts`, `src/components/ProductFormModal/sections/LicenseSection.tsx` +

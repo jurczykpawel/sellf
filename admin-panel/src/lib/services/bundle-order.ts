@@ -1,14 +1,9 @@
 /**
  * Shared bundle-order helpers for the purchase-completion emitters.
  *
- * Both `purchase.completed` emitters — the Stripe-webhook handlers
- * (`src/app/api/webhooks/stripe/onetime-handlers.ts`) and the buyer-redirect
- * confirmation path (`src/lib/payment/verify-payment.ts`) — are gated on the same
- * idempotent completion RPC + `!already_had_access` guard, so whichever wins the
- * completion race emits the event. They MUST therefore produce an identical bundle
- * payload shape: `componentProductIds` resolved from `bundle_items`, a license per
- * licensable product in `[productId, ...componentProductIds]`, and scoping widened
- * to include the component ids. These helpers are the single source of that logic.
+ * All completion paths resume license issuance and durable endpoint delivery from
+ * the canonical transaction. Licenses are idempotent per order/product and each
+ * endpoint delivery is deduplicated independently by the webhook queue.
  *
  * @see src/app/api/webhooks/stripe/onetime-handlers.ts
  * @see src/lib/payment/verify-payment.ts
@@ -23,8 +18,7 @@ type AnySupabaseClient = SupabaseClient<any, any, any>;
 
 /**
  * Resolve a bundle's component product ids (ordered by display_order). Returns [] for a
- * non-bundle product (no rows) or on a query error — a bundle purchase still grants the
- * bundle itself, so this is fail-safe and never blocks the purchase.completed emitter.
+ * non-bundle product (no rows). Query failures request another fulfillment attempt.
  */
 export async function resolveComponentProductIds(
   supabase: AnySupabaseClient,
@@ -37,7 +31,7 @@ export async function resolveComponentProductIds(
     .order('display_order', { ascending: true });
   if (error) {
     console.error('[bundle-order] Failed to resolve bundle component ids:', error);
-    return [];
+    throw new Error('Bundle components unavailable');
   }
   return (data ?? []).map((r: { component_product_id: string }) => r.component_product_id);
 }

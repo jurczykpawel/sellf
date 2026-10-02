@@ -1,33 +1,18 @@
 /**
  * One-time payment webhook handlers, extracted from route.ts (Option A).
  *
- * handleCheckoutSessionCompleted + handlePaymentIntentSucceeded (and the shared
- * revalidatePurchaseTags helper) live here so they are independently importable and
- * testable. route.ts imports them and dispatches from POST. Behavior is unchanged —
- * this is a 1:1 move; the behavioral suite tests/unit/webhooks/onetime-payment-handlers.behavioral
+ * handleCheckoutSessionCompleted + handlePaymentIntentSucceeded live here so they are independently importable and
+ * testable. route.ts imports them and dispatches from POST; the behavioral suite tests/unit/webhooks/onetime-payment-handlers.behavioral
  * is the regression net for it.
  *
  * @see src/app/api/webhooks/stripe/route.ts
  */
 
-import { revalidateTag } from 'next/cache';
-import type Stripe from 'stripe';
-import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
 import { getStripeServer } from '@/lib/stripe/server';
-import { WebhookService } from '@/lib/services/webhook-service';
-import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
-import { captureAndPersistOrderTax } from '@/lib/services/tax-snapshot';
-import { issueLicense } from '@/lib/license-keys/issue';
-import { resolveComponentProductIds, issueLicensesForOrder } from '@/lib/services/bundle-order';
-import { trackServerSideConversion, generatePurchaseEventId } from '@/lib/tracking';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { fulfillPaidOrder } from '@/lib/services/fulfill-paid-order';
+import type { createAdminClient } from '@/lib/supabase/admin';
 import { redactEmail } from '@/lib/logger';
-
-function revalidatePurchaseTags(productSlug: unknown): void {
-  if (typeof productSlug !== 'string' || productSlug.length === 0) return;
-  revalidateTag('recent-supporters', { expire: 0 });
-  revalidateTag(`product:${productSlug}`, { expire: 0 });
-}
+import type Stripe from 'stripe';
 
 /**
  * Process successful payment from checkout session.
@@ -54,30 +39,12 @@ export async function handleCheckoutSessionCompleted(
 
   const userId = session.metadata?.user_id || null;
 
-  // Idempotency check: Skip only if already completed (not pending).
-  // Checkout Sessions Elements creates a pending row before payment; the webhook
-  // must still process it and attach the eventual PaymentIntent ID.
+  // Read the pending row only for metadata recovery; the RPC owns reconciliation.
   const { data: existingTransaction } = await supabase
     .from('payment_transactions')
     .select('id, status, stripe_payment_intent_id, custom_field_values')
     .eq('session_id', sessionId)
     .maybeSingle();
-
-  if (existingTransaction?.status === 'completed') {
-    // Still try to issue license — covers purchases made before license feature was deployed.
-    // issueLicense is idempotent by (order_id, product_id), so this is safe to call on replay.
-    const replayPaymentIntentId = typeof session.payment_intent === 'string'
-      ? session.payment_intent
-      : (session.payment_intent as { id?: string } | null)?.id ?? null;
-    await issueLicense(supabase, {
-      productId,
-      email: customerEmail,
-      userId,
-      orderId: replayPaymentIntentId || sessionId,
-      customFieldValues: (existingTransaction.custom_field_values as Record<string, string> | null) ?? undefined,
-    });
-    return { processed: true, message: `Already processed: ${existingTransaction.id}` };
-  }
 
   // Extract metadata
   const bumpProductIdsStr = session.metadata?.bump_product_ids || '';
@@ -95,18 +62,6 @@ export async function handleCheckoutSessionCompleted(
   const stripePaymentIntentId = typeof session.payment_intent === 'object'
     ? session.payment_intent?.id
     : session.payment_intent;
-
-  if (existingTransaction?.status === 'pending' && stripePaymentIntentId) {
-    const { error: updatePendingError } = await supabase
-      .from('payment_transactions')
-      .update({ stripe_payment_intent_id: stripePaymentIntentId })
-      .eq('id', existingTransaction.id)
-      .eq('status', 'pending');
-
-    if (updatePendingError) {
-      console.error('[stripe-webhook] Failed to attach PaymentIntent ID to pending Checkout Session row:', updatePendingError);
-    }
-  }
 
   // Detect metadata truncation: bump_count tells us how many bumps were selected
   const expectedBumpCount = parseInt(session.metadata?.bump_count || '0', 10);
@@ -187,94 +142,13 @@ export async function handleCheckoutSessionCompleted(
     return { processed: false, message: (result?.error as string) || 'Payment processing failed' };
   }
 
-  // Resolve bundle components (ordered) — [] for a non-bundle product. A bundle grants
-  // the bundle + every component (DB), and we issue a license per licensable product below.
-  const componentProductIds = await resolveComponentProductIds(supabase, productId);
-
-  // Issue licenses — always, regardless of already_had_access. One per licensable product in
-  // [productId, ...componentProductIds]. issueLicense is idempotent by (order_id, product_id);
-  // replays return the existing token. Prefer payment-intent id: both webhook paths use it so the
-  // unique constraint backs idempotency.
-  const { data: txCustomFields } = await supabase
-    .from('payment_transactions')
-    .select('id, custom_field_values')
-    .eq('session_id', sessionId)
-    .maybeSingle();
-  const customFieldValues = (txCustomFields?.custom_field_values as Record<string, string> | null) ?? undefined;
-
-  const licenses = await issueLicensesForOrder(supabase, {
-    productIds: [productId, ...componentProductIds],
-    email: customerEmail,
-    userId,
-    orderId: stripePaymentIntentId || sessionId,
-    customFieldValues,
+  await fulfillPaidOrder({
+    source: 'stripe_webhook', supabase, stripe: await getStripeServer(), transactionId: result.transaction_id as string,
+    sessionId, paymentIntentId: stripePaymentIntentId, productId,
+    customerEmail, amount: session.amount_total || 0, currency: session.currency || 'usd',
+    metadata: session.metadata, customerDetails: session.customer_details,
+    isGuest: result.is_guest_purchase as boolean, couponId: hasCoupon ? couponId : null,
   });
-
-  const isExplicitRepurchase = session.metadata?.repurchase === 'true';
-
-  // Trigger internal webhook for purchase.completed
-  if (!result.already_had_access || isExplicitRepurchase) {
-    // VAT tax snapshot — capture Stripe's computed tax per line. Fail-safe.
-    const stripe = await getStripeServer();
-    const taxSnapshot = await captureAndPersistOrderTax({
-      stripe,
-      supabase,
-      transactionId: txCustomFields?.id,
-      sessionId,
-    });
-
-    // Pull buyer's custom-field answers so the webhook payload + admin UI can
-    // surface them. They were written by the checkout PaymentIntent flow on
-    // the same payment_transactions row keyed by session_id.
-    const webhookData = await buildPurchaseWebhookPayload({
-      supabaseClient: supabase,
-      customerEmail,
-      userId,
-      productId,
-      bumpProductIds,
-      componentProductIds,
-      metadata: session.metadata as Record<string, string | undefined> | null,
-      // Embed collects NIP/address via Stripe → carry them to the invoice section.
-      stripeCustomerDetails: session.customer_details,
-      amount: session.amount_total,
-      currency: session.currency,
-      sessionId,
-      taxSnapshot,
-      paymentIntentId: stripePaymentIntentId,
-      couponId: hasCoupon && couponId ? couponId : null,
-      isGuest: result.is_guest_purchase as boolean,
-      source: 'stripe_webhook',
-      customFieldValues: customFieldValues ?? null,
-    });
-
-    if (licenses.length) webhookData.licenses = licenses;
-
-    // Server-side Purchase tracking via Facebook CAPI
-    // Uses deterministic event_id for dedup with client-side (PaymentStatusView)
-    const baseUrl = getPublicBaseUrl();
-    const productSlug = 'slug' in webhookData.product ? webhookData.product.slug : null;
-    revalidatePurchaseTags(productSlug);
-    const productName = 'name' in webhookData.product ? webhookData.product.name : 'Unknown Product';
-    trackServerSideConversion({
-      eventName: 'Purchase',
-      eventId: generatePurchaseEventId(sessionId),
-      eventSourceUrl: productSlug ? `${baseUrl}/p/${productSlug}` : baseUrl,
-      value: (session.amount_total || 0) / 100,
-      currency: (session.currency || 'usd').toUpperCase(),
-      items: [{
-        item_id: productId,
-        item_name: productName,
-        price: (session.amount_total || 0) / 100,
-        quantity: 1,
-      }],
-      orderId: sessionId,
-      userEmail: customerEmail,
-    }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
-
-    WebhookService.trigger('purchase.completed', webhookData, supabase, [productId, ...componentProductIds, ...bumpProductIds])
-      .catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
-  }
-
   return { processed: true, message: `Payment processed: ${result.scenario}` };
 }
 
@@ -294,41 +168,25 @@ export async function handlePaymentIntentSucceeded(
 
   const userId = paymentIntent.metadata?.user_id || null;
 
-  // Fast idempotency check by PI ID (UNIQUE column — no multi-row risk from concurrent handlers).
+  const stripe = await getStripeServer();
+  const ownerSessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntent.id, limit: 1 });
+  const ownerSession = ownerSessions.data[0];
+  if (ownerSession?.mode === 'subscription') return { processed: true, message: 'Subscription payment handled by invoice events' };
+  const sessionId = ownerSession?.id || paymentIntent.id;
+
+  // Recover pending metadata by either Stripe identifier.
   const { data: byPI } = await supabase
     .from('payment_transactions')
     .select('id, status, custom_field_values')
     .eq('stripe_payment_intent_id', paymentIntent.id)
     .maybeSingle();
 
-  if (byPI?.status === 'completed') {
-    await issueLicense(supabase, {
-      productId,
-      email: customerEmail,
-      userId,
-      orderId: paymentIntent.id,
-      customFieldValues: (byPI.custom_field_values as Record<string, string> | null) ?? undefined,
-    });
-    return { processed: true, message: `Already processed: ${byPI.id}` };
-  }
-
   // Fallback: direct payment flow where PI id is also used as session_id.
   const { data: existingTransaction } = await supabase
     .from('payment_transactions')
     .select('id, status, custom_field_values')
-    .eq('session_id', paymentIntent.id)
+    .eq('session_id', sessionId)
     .maybeSingle();
-
-  if (existingTransaction?.status === 'completed') {
-    await issueLicense(supabase, {
-      productId,
-      email: customerEmail,
-      userId,
-      orderId: paymentIntent.id,
-      customFieldValues: (existingTransaction.custom_field_values as Record<string, string> | null) ?? undefined,
-    });
-    return { processed: true, message: `Already processed: ${existingTransaction.id}` };
-  }
 
   // Extract metadata (multi-bump aware)
   const bumpProductIdsStr = paymentIntent.metadata?.bump_product_ids || '';
@@ -369,18 +227,11 @@ export async function handlePaymentIntentSucceeded(
   // not the gross (Stripe adds VAT on top of exclusive prices, and the gross varies by
   // jurisdiction under Stripe Tax). Resolve the owning Checkout Session for amount_subtotal;
   // fail-safe → null falls back to the legacy gross check. (stripe is reused by capture below.)
-  const stripe = await getStripeServer();
-  let piAmountSubtotal: number | undefined;
-  try {
-    const ownerSessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntent.id, limit: 1 });
-    piAmountSubtotal = ownerSessions.data[0]?.amount_subtotal ?? undefined;
-  } catch {
-    /* leave undefined — validator falls back to gross */
-  }
+  const piAmountSubtotal = ownerSession?.amount_subtotal ?? undefined;
 
   // Process payment using database function (multi-bump aware)
   const { data: rawResult2, error } = await supabase.rpc('process_stripe_payment_completion_with_bump', {
-    session_id_param: paymentIntent.id,
+    session_id_param: sessionId,
     product_id_param: productId,
     customer_email_param: customerEmail,
     amount_total: paymentIntent.amount,
@@ -411,87 +262,12 @@ export async function handlePaymentIntentSucceeded(
     return { processed: false, message: (result?.error as string) || 'Payment processing failed' };
   }
 
-  // Resolve bundle components (ordered) — [] for a non-bundle product.
-  const componentProductIds = await resolveComponentProductIds(supabase, productId);
-
-  // Issue licenses — always, regardless of already_had_access. One per licensable product in
-  // [productId, ...componentProductIds]. issueLicense is idempotent by (order_id, product_id);
-  // replays return the existing token.
-  const { data: txCustomFields } = await supabase
-    .from('payment_transactions')
-    .select('id, session_id, custom_field_values')
-    .eq('stripe_payment_intent_id', paymentIntent.id)
-    .maybeSingle();
-  const customFieldValues = (txCustomFields?.custom_field_values as Record<string, string> | null) ?? undefined;
-
-  const licenses = await issueLicensesForOrder(supabase, {
-    productIds: [productId, ...componentProductIds],
-    email: customerEmail,
-    userId,
-    orderId: paymentIntent.id,
-    customFieldValues,
+  await fulfillPaidOrder({
+    source: 'stripe_webhook', supabase, stripe, transactionId: result.transaction_id as string, sessionId,
+    paymentIntentId: paymentIntent.id, productId,
+    customerEmail, amount: paymentIntent.amount, currency: paymentIntent.currency,
+    metadata: ownerSession?.metadata ?? paymentIntent.metadata, customerDetails: ownerSession?.customer_details,
+    isGuest: result.is_guest_purchase as boolean, couponId,
   });
-
-  const isExplicitRepurchase = paymentIntent.metadata?.repurchase === 'true';
-
-  // Trigger internal webhook for purchase.completed
-  if (!result.already_had_access || isExplicitRepurchase) {
-    // VAT tax snapshot — the stored session_id may be this PI's id (if this handler won
-    // the race over checkout.session.completed), so also pass the PI id: capture resolves
-    // the real Checkout Session from it and stays independent of Stripe event ordering.
-    // (stripe was created above for the subtotal lookup; reuse it.)
-    const taxSnapshot = await captureAndPersistOrderTax({
-      stripe,
-      supabase,
-      transactionId: txCustomFields?.id,
-      sessionId: txCustomFields?.session_id,
-      paymentIntentId: paymentIntent.id,
-    });
-
-    const webhookData = await buildPurchaseWebhookPayload({
-      supabaseClient: supabase,
-      customerEmail,
-      userId,
-      productId,
-      bumpProductIds,
-      componentProductIds,
-      metadata: paymentIntent.metadata as Record<string, string | undefined> | null,
-      amount: paymentIntent.amount,
-      currency: paymentIntent.currency,
-      paymentIntentId: paymentIntent.id,
-      taxSnapshot,
-      couponId: couponId || null,
-      isGuest: result.is_guest_purchase as boolean,
-      source: 'stripe_webhook',
-      customFieldValues: customFieldValues ?? null,
-    });
-
-    if (licenses.length) webhookData.licenses = licenses;
-
-    // Server-side Purchase tracking via Facebook CAPI
-    const baseUrl = getPublicBaseUrl();
-    const productSlug = 'slug' in webhookData.product ? webhookData.product.slug : null;
-    revalidatePurchaseTags(productSlug);
-    const productName = 'name' in webhookData.product ? webhookData.product.name : 'Unknown Product';
-    trackServerSideConversion({
-      eventName: 'Purchase',
-      eventId: generatePurchaseEventId(paymentIntent.id),
-      eventSourceUrl: productSlug ? `${baseUrl}/p/${productSlug}` : baseUrl,
-      value: (paymentIntent.amount || 0) / 100,
-      currency: (paymentIntent.currency || 'usd').toUpperCase(),
-      items: [{
-        item_id: productId,
-        item_name: productName,
-        price: (paymentIntent.amount || 0) / 100,
-        quantity: 1,
-      }],
-      orderId: paymentIntent.id,
-      userEmail: customerEmail,
-    }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
-
-    WebhookService.trigger('purchase.completed', webhookData, supabase, [productId, ...componentProductIds, ...bumpProductIds])
-      .catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
-  }
-
   return { processed: true, message: `Payment processed: ${result.scenario}` };
 }

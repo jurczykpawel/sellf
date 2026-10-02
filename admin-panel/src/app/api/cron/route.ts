@@ -224,6 +224,9 @@ export async function handleWebhookDeliveriesRetry(): Promise<CronJobResult> {
           return;
         }
 
+        const payload = { ...((delivery.payload ?? {}) as Record<string, unknown>), id: delivery.id };
+        const { error: payloadError } = await adminClient.from('webhook_logs').update({ payload }).eq('id', delivery.id);
+        if (payloadError) throw new Error('Delivery payload unavailable');
         const nextAttempt = delivery.attemptCount + 1;
         const result = await WebhookDispatcher.dispatch(
           // Carry the encrypted custom headers into the slice so retried
@@ -231,8 +234,8 @@ export async function handleWebhookDeliveriesRetry(): Promise<CronJobResult> {
           // unauthenticated (e.g. → 401 → DLQ, PII posted without auth).
           { id: endpoint.id, url: endpoint.url, secret: endpoint.secret, custom_headers_encrypted: endpoint.custom_headers_encrypted },
           delivery.eventType,
-          delivery.payload,
-          { attemptCount: nextAttempt },
+          payload,
+          { attemptCount: nextAttempt, deliveryId: delivery.id },
         );
 
         if (result.ok) {

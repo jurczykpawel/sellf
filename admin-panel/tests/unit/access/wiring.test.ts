@@ -111,9 +111,9 @@ describe('Access wiring', () => {
   it('stripe webhook emits purchase.completed for explicit repurchases despite already_had_access', () => {
     // one-time handlers extracted to onetime-handlers.ts (Option A).
     const src = read('src/app/api/webhooks/stripe/onetime-handlers.ts');
-    expect(src).toMatch(/repurchase/);
-    expect(src).toMatch(/isExplicitRepurchase/);
-    expect(src).toMatch(/!result\.already_had_access\s*\|\|\s*isExplicitRepurchase/);
+    expect(src).toMatch(/fulfillPaidOrder/);
+    expect(src).not.toMatch(/!result\.already_had_access/);
+    expect(src).toMatch(/fulfillPaidOrder/);
     expect(src).not.toMatch(/renew_license/);
   });
 

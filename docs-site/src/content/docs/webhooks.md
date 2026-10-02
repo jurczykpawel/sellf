@@ -11,11 +11,33 @@ Every delivery carries this envelope:
 
 ```json
 {
+  "id": "5cb0a355-840e-4d73-8ab9-34137a763c39",
   "event": "purchase.completed",
   "timestamp": "2026-05-23T12:34:56.789Z",
   "data": { /* event-specific */ }
 }
 ```
+
+### Delivery identity and deduplication
+
+Delivery is **at least once**. Sellf persists a delivery before making the HTTP
+request. Each endpoint receives its own stable UUID in the top-level `id` and the
+`X-Sellf-Delivery-Id` header. Automatic retries and manual retries reuse that ID
+and the stored event data. Payload customization cannot replace or remove `id`.
+This is an additive envelope field; the existing `event`, `timestamp`, `data`, and
+signature format stay the same.
+
+**Deduplicate on this id.** Verify the existing `X-Sellf-Signature` against the
+raw body, check that the header ID equals the signed payload ID, and store the ID
+with your receiver's work in one database transaction. A duplicate already handled
+successfully should return a 2xx without sending another email or repeating other
+work. A timeout or an interrupted sender after your endpoint accepts a request
+can cause another HTTP attempt with the same ID.
+
+For purchases, one logical delivery is recorded per order/event/endpoint; renewed
+subscriptions use the invoice ID as their order identity. A failed license attempt
+or interrupted fulfillment is recovered by a subsequent event or verification.
+An order recorded as completed does not imply its delivery has finished.
 
 ### `purchase.completed` — VAT tax snapshot
 
@@ -142,6 +164,7 @@ refunded amount so you can issue a credit note (faktura korygująca):
 |--------|-------|
 | `Content-Type` | `application/json` |
 | `X-Sellf-Event` | Event name, e.g. `purchase.completed` |
+| `X-Sellf-Delivery-Id` | Stable delivery UUID, equal to the top-level payload `id`. Deduplicate on this id. |
 | `X-Sellf-Signature` | `t=<unix_seconds>,v1=<sig>` — `v1` is `HMAC-SHA256(secret, "<t>.<raw_body>")` as lowercase hex. The send timestamp `t` is **inside** the signature (replay-resistant), and `v1=` is versioned so the algorithm can rotate. |
 | `X-Sellf-Retry-Attempt` | Present on attempts 2 through max; integer (`"2"`, `"3"`, …) |
 | `X-Sellf-Retry` | `"true"` on legacy admin Resend (the old `/retry` endpoint) |

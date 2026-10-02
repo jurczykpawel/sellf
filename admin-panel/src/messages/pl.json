@@ -1054,6 +1054,10 @@
     "invalidPrice": "Nieprawidłowa cena"
   },
   "paymentStatus": {
+    "paymentReceived": "Płatność otrzymana",
+    "preparingAccess": "Otrzymaliśmy Twoją płatność. Przygotowujemy dostęp. Strona odświeży się automatycznie.",
+    "orderNeedsReview": "Płatność otrzymana — zamówienie wymaga sprawdzenia",
+    "orderNeedsReviewDetails": "Otrzymaliśmy Twoją płatność, ale dane zamówienia wymagają sprawdzenia. Skontaktuj się z pomocą i podaj numer zamówienia.",
     "paymentSuccessful": "Płatność zakończona sukcesem!",
     "accessGranted": "Dostęp przyznany",
     "paymentFailed": "Płatność nieudana",

@@ -137,3 +137,18 @@ describe('WebhookDispatcher', () => {
     expect(init.headers['X-Sellf-Signature']).toMatch(/^t=\d+,v1=[a-f0-9]{64}$/);
   });
 });
+
+
+it('keeps the delivery id in the signed body and header across attempts', async () => {
+  vi.mocked(undiciFetch).mockImplementation(async () => mockResponse(200, 'ok') as never);
+  const id = '5cb0a355-840e-4d73-8ab9-34137a763c39';
+  const body = { ...payload, id };
+  for (const attemptCount of [1, 2]) {
+    await WebhookDispatcher.dispatch(endpoint, 'test.event', body, { attemptCount, deliveryId: id, extraHeaders: { 'x-sellf-delivery-id': 'custom' } });
+    const init = vi.mocked(undiciFetch).mock.calls.at(-1)![1] as unknown as { headers: Record<string,string>; body: string };
+    expect(init.headers['X-Sellf-Delivery-Id']).toBe(id);
+    expect(init.headers['x-sellf-delivery-id']).toBeUndefined();
+    expect(JSON.parse(init.body).id).toBe(id);
+    expect(verifyWebhookSignature(endpoint.secret, init.body, init.headers['X-Sellf-Signature'])).toBe(true);
+  }
+});

@@ -18,15 +18,16 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 // the capture wiring asserted here lives with them. Variable name kept for minimal churn.
 const route = read('src/app/api/webhooks/stripe/onetime-handlers.ts');
 const verify = read('src/lib/payment/verify-payment.ts');
+const fulfill = read('src/lib/services/fulfill-paid-order.ts');
 const updateMeta = read('src/app/api/update-payment-metadata/route.ts');
 
 describe('VAT capture wiring — completion entry points', () => {
   it('webhook session + PI handlers both call captureAndPersistOrderTax', () => {
-    expect((route.match(/captureAndPersistOrderTax/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    expect((route.match(/fulfillPaidOrder\(/g) ?? []).length).toBeGreaterThanOrEqual(2);
   });
 
   it('verify-payment session + PI paths both call captureAndPersistOrderTax', () => {
-    expect((verify.match(/captureAndPersistOrderTax/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    expect((verify.match(/fulfillPaidOrder\(/g) ?? []).length).toBeGreaterThanOrEqual(2);
   });
 
   it('net-priced validation: amount_subtotal_param is passed to the completion RPC (both paths)', () => {
@@ -35,8 +36,8 @@ describe('VAT capture wiring — completion entry points', () => {
   });
 
   it('the captured snapshot is threaded into the purchase webhook payload', () => {
-    expect(route).toMatch(/taxSnapshot/);
-    expect(verify).toMatch(/taxSnapshot/);
+    expect(fulfill).toMatch(/captureAndPersistOrderTax/);
+    expect(fulfill).toMatch(/taxSnapshot/);
   });
 
   it('PI→session resolution: capture receives paymentIntentId so the real cs_ can be resolved', () => {

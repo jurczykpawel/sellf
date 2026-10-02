@@ -17,6 +17,7 @@ interface EndpointSlice {
 
 interface DispatchOptions {
   attemptCount: number;
+  deliveryId?: string;
   timeoutMs?: number;
   extraHeaders?: Record<string, string>;
 }
@@ -78,6 +79,10 @@ export class WebhookDispatcher {
           'X-Sellf-Event': event,
           'X-Sellf-Signature': signature,
         };
+        for (const key of Object.keys(headers)) {
+          if (key.toLowerCase() === 'x-sellf-delivery-id') delete headers[key];
+        }
+        if (options.deliveryId) headers['X-Sellf-Delivery-Id'] = options.deliveryId;
         if (options.attemptCount > 1) {
           headers['X-Sellf-Retry-Attempt'] = String(options.attemptCount);
         }

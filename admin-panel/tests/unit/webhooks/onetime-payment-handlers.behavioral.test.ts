@@ -72,6 +72,12 @@ vi.mock('@/lib/license/resolve', async (orig) => {
   return { ...actual, checkFeature: vi.fn(async (feature: string) => feature === 'license-key-issuance') };
 });
 
+vi.mock('@/lib/services/product-validation', () => ({ ProductValidationService: { validateEmail: vi.fn(async () => true) } }));
+
+import { verifyPaymentSession } from '@/lib/payment/verify-payment';
+import * as bundleOrder from '@/lib/services/bundle-order';
+import { SupabaseWebhookQueue } from '@/lib/services/webhook-queue/supabase-queue';
+import { WebhookDispatcher } from '@/lib/services/webhook-queue/dispatcher';
 import { POST } from '@/app/api/webhooks/stripe/route';
 import { verifyWebhookSignature } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
@@ -215,6 +221,7 @@ async function seedPendingTx(args: {
       stripe_payment_intent_id: args.pi ?? null,
       user_id: args.userId ?? null,
       status: args.status ?? 'pending',
+      fulfillment_completed_at: args.status === 'completed' ? new Date().toISOString() : null,
     })
     .select('id')
     .single();
@@ -695,7 +702,7 @@ describe.skipIf(!hasSupabase)('payment_intent.succeeded — handler behavior', (
     expect(await hasAccess(userId, b2.id)).toBe(true);
   });
 
-  it('amount_subtotal lookup failure is non-fatal: completion still succeeds (gross fallback)', async () => {
+  it('owner session lookup failure requests another attempt', async () => {
     const product = await createProduct();
     const cs = uniq('cs');
     const pi = uniq('pi');
@@ -708,12 +715,12 @@ describe.skipIf(!hasSupabase)('payment_intent.succeeded — handler behavior', (
     const { status } = await post(
       piEvent({ id: pi, amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: product.id } }),
     );
-    expect(status).toBe(200);
+    expect(status).toBe(500);
     const tx = await fetchTx(cs);
-    expect(tx?.status).toBe('completed');
+    expect(tx?.status).toBe('pending');
     // capture used session_id (cs_) directly, so tax still lands despite the list() failure.
-    expect(tx?.net_total).toBe(1000);
-    expect(tx?.tax_total).toBe(230);
+    expect(tx?.net_total).toBeNull();
+    expect(tx?.tax_total).toBeNull();
   });
 });
 
@@ -938,7 +945,7 @@ describe.skipIf(!hasSupabase)('one-time handlers — additional branch coverage'
     expect(await hasAccess(userId, b2.id)).toBe(true);
   });
 
-  it('checkout fire-and-forget: tracking + outbound webhook reject → completion still 200', async () => {
+  it('checkout delivery persistence failure → request another attempt', async () => {
     const product = await createProduct();
     const cs = uniq('cs');
     const pi = uniq('pi');
@@ -955,11 +962,11 @@ describe.skipIf(!hasSupabase)('one-time handlers — additional branch coverage'
         payment_intent: pi, amount_total: 1000, amount_subtotal: 1000, currency: 'usd',
       }),
     );
-    expect(status).toBe(200);
+    expect(status).toBe(500);
     expect((await fetchTx(cs))?.status).toBe('completed');
   });
 
-  it('PI fire-and-forget: tracking + outbound webhook reject → completion still 200', async () => {
+  it('PI delivery persistence failure → request another attempt', async () => {
     const product = await createProduct();
     const cs = uniq('cs');
     const pi = uniq('pi');
@@ -973,7 +980,7 @@ describe.skipIf(!hasSupabase)('one-time handlers — additional branch coverage'
     const { status } = await post(
       piEvent({ id: pi, amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: product.id } }),
     );
-    expect(status).toBe(200);
+    expect(status).toBe(500);
     expect((await fetchTx(cs))?.status).toBe('completed');
   });
 
@@ -1050,13 +1057,9 @@ describe.skipIf(!hasSupabase)('license issuance wiring → purchase.completed pa
 });
 
 // ==============================================================================================
-// Explicit-repurchase override (route.ts gate `!result.already_had_access || isExplicitRepurchase`,
-// lines 231 + 451). already_had_access=true only arises when the session is already completed; the
-// sequential early-return catches that first, so the override is reachable only under CONCURRENT
-// double-delivery of the same pending session (registered buyer) — serialized by the RPC advisory
-// lock (same proven pattern as payment-completion-single-writer). Without repurchase the gate
-// suppresses the duplicate (1 webhook); with repurchase=true it re-fires (2 webhooks).
-describe.skipIf(!hasSupabase)('explicit repurchase override (concurrent already_had_access)', () => {
+// Concurrent fulfillment attempts may both reach the queue. The canonical-order
+// suite below uses real endpoint rows and proves delivery deduplication per order.
+describe.skipIf(!hasSupabase)('concurrent fulfillment delegation', () => {
   async function registeredPending(extraMeta: Record<string, string> = {}) {
     const product = await createProduct();
     const cs = uniq('cs');
@@ -1069,7 +1072,7 @@ describe.skipIf(!hasSupabase)('explicit repurchase override (concurrent already_
   }
   const purchaseCount = () => triggerSpy.mock.calls.filter(([e]) => e === 'purchase.completed').length;
 
-  it('checkout: concurrent delivery WITHOUT repurchase → exactly one purchase.completed', async () => {
+  it('checkout: concurrent delivery WITHOUT repurchase → both attempts recover fulfillment through the queue', async () => {
     const { product, cs, pi, email, userId } = await registeredPending();
     const ev = checkoutEvent({
       id: cs, mode: 'payment', payment_status: 'paid',
@@ -1077,10 +1080,10 @@ describe.skipIf(!hasSupabase)('explicit repurchase override (concurrent already_
       payment_intent: pi, amount_total: 1000, amount_subtotal: 1000, currency: 'usd',
     });
     await Promise.all([post(ev), post(ev)]);
-    expect(purchaseCount()).toBe(1);
+    expect(purchaseCount()).toBe(2);
   });
 
-  it('checkout: concurrent delivery WITH repurchase=true → fires twice (override beats already_had_access)', async () => {
+  it('checkout: concurrent delivery WITH repurchase=true → both attempts delegate to the queue', async () => {
     const { product, cs, pi, email, userId } = await registeredPending();
     const ev = checkoutEvent({
       id: cs, mode: 'payment', payment_status: 'paid',
@@ -1091,12 +1094,12 @@ describe.skipIf(!hasSupabase)('explicit repurchase override (concurrent already_
     expect(purchaseCount()).toBe(2);
   });
 
-  it('PI: concurrent delivery WITHOUT repurchase → exactly one purchase.completed', async () => {
+  it('PI: concurrent delivery WITHOUT repurchase → both attempts recover fulfillment through the queue', async () => {
     const { product, cs, pi, email, userId } = await registeredPending();
     h.stripe = makeStripeShim({ sessionsByPI: [{ id: cs, amount_subtotal: 1000 }] });
     const ev = piEvent({ id: pi, amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: product.id, user_id: userId } });
     await Promise.all([post(ev), post(ev)]);
-    expect(purchaseCount()).toBe(1);
+    expect(purchaseCount()).toBe(2);
   });
 
   it('PI: concurrent delivery WITH repurchase=true → fires twice (override)', async () => {
@@ -1182,5 +1185,109 @@ describe.skipIf(!hasSupabase)('bundle purchase wiring → purchase.completed pay
     // Scoping arg (4th) includes the bundle AND both component ids (for product-scoped webhooks).
     const scope = calls.at(-1)![3] as string[];
     expect(scope).toEqual(expect.arrayContaining([bundle.id, compA.id, compB.id]));
+  });
+});
+
+
+describe.skipIf(!hasSupabase)('canonical paid order fulfillment', () => {
+  it.each(['PI-CS-verify', 'CS-PI-verify', 'verify-PI-CS', 'concurrent', 'license-retry', 'http-retry', 'ack-retry', 'repurchase'])('%s preserves the order and records one delivery per endpoint', async (order) => {
+    const sellerId = await createAuthUser(uniq('seller') + '@example.com');
+    createdSellerIds.push(sellerId);
+    const kp = generateSellerKeypair();
+    await storeSellerKey(db!, { sellerId, ...kp, custody: 'managed' });
+    const product = await createProduct({ seller_id: sellerId, issue_license_on_purchase: true, license_tier: 'pro', custom_checkout_fields: [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] });
+    const bump = await createBump(product.id);
+    await db!.from('products').update({ price: 5 }).eq('id', bump.id);
+    await db!.from('order_bumps').update({ bump_price: 5 }).eq('main_product_id', product.id).eq('bump_product_id', bump.id);
+    const cs = uniq('cs'); const pi = uniq('pi');
+    const email = uniq('buyer') + '@example.com'; createdEmails.push(email);
+    const userId = await createAuthUser(email);
+    const txId = await seedPendingTx({ sessionId: cs, productId: product.id, email, userId, pi: null, amountCents: 1500 });
+    const { error: fieldError } = await db!.from('payment_transactions').update({ custom_field_values: { _sellf_license_domain: 'shop.example.com' } }).eq('id', txId);
+    expect(fieldError).toBeNull();
+    const endpoints: string[] = [];
+    for (let n = 0; n < 2; n++) {
+      const { data, error } = await db!.from('webhook_endpoints').insert({ url: 'https://example.com/receive', events: ['purchase.completed'], product_filter_mode: 'selected' }).select('id').single();
+      expect(error).toBeNull(); endpoints.push(data!.id);
+      const { error: linkError } = await db!.from('webhook_endpoint_products').insert({ webhook_endpoint_id: data!.id, product_id: product.id }); expect(linkError).toBeNull();
+    }
+    triggerSpy.mockRestore();
+    const dispatched: Array<{ endpoint: string; body: Record<string, unknown>; options: Record<string, unknown> }> = [];
+    const dispatchSpy = vi.spyOn(WebhookDispatcher, 'dispatch').mockImplementation(async (endpoint, _event, body, options) => {
+      if (!endpoints.includes(endpoint.id)) return { ok: true, httpStatus: 200, responseBody: '', errorMessage: null, durationMs: 1 };
+      const { data: queued } = await db!.from('webhook_logs').select('id').eq('endpoint_id', endpoint.id);
+      expect(queued).toHaveLength(1);
+      dispatched.push({ endpoint: endpoint.id, body: body as Record<string, unknown>, options: options as unknown as Record<string, unknown> });
+      return { ok: order !== 'http-retry' || dispatched.length > 2, httpStatus: order === 'http-retry' && dispatched.length <= 2 ? 503 : 200, responseBody: '', errorMessage: null, durationMs: 1 };
+    });
+    const session = { id: cs, mode: 'payment', status: 'complete', payment_status: 'paid', metadata: { repurchase: order === 'repurchase' ? 'true' : 'false', product_id: product.id, user_id: userId, bump_product_ids: bump.id, bump_count: '1', has_bump: 'true', needs_invoice: 'true', nip: '1234567890' }, customer_details: { email }, payment_intent: pi, amount_total: 1500, amount_subtotal: 1500, currency: 'usd', total_details: { amount_tax: 0 }, automatic_tax: { enabled: false } };
+    h.stripe = makeStripeShim({ session, sessionsByPI: [session] });
+    const piCall = () => post(piEvent({ id: pi, amount: 1500, currency: 'usd', receipt_email: email, metadata: session.metadata }));
+    const csCall = () => post(checkoutEvent(session));
+    const verify = () => verifyPaymentSession(cs, { id: userId, email } as never);
+    const acknowledge = SupabaseWebhookQueue.prototype.markDelivered;
+    let acknowledgementFailed = false;
+    const acknowledgeSpy = order === 'ack-retry' ? vi.spyOn(SupabaseWebhookQueue.prototype, 'markDelivered').mockImplementation(async function (this: SupabaseWebhookQueue, id, result) {
+      const { data: delivery } = await db!.from('webhook_logs').select('endpoint_id').eq('id', id).single();
+      if (!acknowledgementFailed && endpoints.includes(delivery!.endpoint_id)) {
+        acknowledgementFailed = true;
+        throw new Error('Delivery acknowledgment temporarily unavailable');
+      }
+      return acknowledge.call(this, id, result);
+    }) : null;
+    const licenseSpy = order === 'license-retry' ? vi.spyOn(bundleOrder, 'issueLicensesForOrder').mockRejectedValueOnce(new Error('License service temporarily unavailable')) : null;
+    try {
+      if (order === 'license-retry') {
+        expect((await csCall()).status).toBe(500);
+        const { data: missing } = await db!.from('payment_transactions').select('fulfillment_completed_at').eq('id', txId).single();
+        expect(missing?.fulfillment_completed_at).toBeNull();
+        expect((await piCall()).status).toBe(200); await csCall();
+      } else if (order === 'http-retry' || order === 'ack-retry' || order === 'repurchase') {
+        await csCall(); await piCall(); await csCall();
+        if (order === 'http-retry' || order === 'ack-retry') {
+          const queue = new SupabaseWebhookQueue(db!);
+          const { data: queued } = await db!.from('webhook_logs').select('id').in('endpoint_id', endpoints);
+          for (const row of queued!) await queue.forceRetryNow(row.id);
+          const due = await queue.pickDue(100);
+          for (const delivery of due.filter(d => endpoints.includes(d.endpointId))) {
+            const { data: endpoint } = await db!.from('webhook_endpoints').select('id,url,secret').eq('id', delivery.endpointId).single();
+            const result = await WebhookDispatcher.dispatch(endpoint!, delivery.eventType, delivery.payload, { attemptCount: delivery.attemptCount + 1, deliveryId: delivery.id });
+            await queue.markDelivered(delivery.id, result);
+          }
+        }
+      } else if (order === 'concurrent') {
+        let release!: () => void; const barrier = new Promise<void>(r => { release = r; });
+        const calls = [barrier.then(piCall), barrier.then(csCall)]; release(); await Promise.all(calls);
+      } else {
+        for (const step of order.split('-')) await ({ PI: piCall, CS: csCall, verify })[step as 'PI' | 'CS' | 'verify']();
+      }
+      const result = await verify();
+      expect(result.access_granted).toBe(true);
+      const { data: txs } = await db!.from('payment_transactions').select('*').eq('product_id', product.id);
+      expect(txs).toHaveLength(1);
+      expect(txs![0]).toMatchObject({ id: txId, session_id: cs, status: 'completed', stripe_payment_intent_id: pi, custom_field_values: { _sellf_license_domain: 'shop.example.com' } });
+      expect(txs![0].metadata).toMatchObject({ needs_invoice: 'true', nip: '1234567890' });
+      const { data: items } = await db!.from('payment_line_items').select('product_id').eq('transaction_id', txId);
+      expect(items?.map(i => i.product_id).sort()).toEqual([product.id, bump.id].sort());
+      expect(await hasAccess(userId, product.id)).toBe(true); expect(await hasAccess(userId, bump.id)).toBe(true);
+      const { data: licenses } = await db!.from('issued_licenses').select('license_domain').eq('order_id', pi);
+      expect(licenses).toEqual([{ license_domain: 'shop.example.com' }]);
+      const { data: logs } = await db!.from('webhook_logs').select('id,status,payload').in('endpoint_id', endpoints);
+      expect(logs).toHaveLength(2); expect(dispatched).toHaveLength(order === 'http-retry' ? 4 : order === 'ack-retry' ? 3 : 2);
+      expect(new Set(dispatched.map(d => d.body.id)).size).toBe(2);
+      for (const call of dispatched) {
+        const row = logs!.find(l => l.id === call.body.id);
+        expect(row?.status).toBe('success');
+        expect(call.options.deliveryId).toBe(call.body.id);
+      }
+    } finally {
+      acknowledgeSpy?.mockRestore();
+      licenseSpy?.mockRestore();
+      dispatchSpy.mockRestore();
+      const { data: deliveries } = await db!.from('webhook_logs').select('id,delivery_key').like('delivery_key', `%:${pi}`);
+      const ownedDeliveryIds = (deliveries ?? []).filter(d => d.delivery_key?.endsWith(`:${pi}`)).map(d => d.id);
+      if (ownedDeliveryIds.length) await deleteChecked('webhook_logs', db!.from('webhook_logs').delete().in('id', ownedDeliveryIds));
+      await deleteChecked('webhook_endpoints', db!.from('webhook_endpoints').delete().in('id', endpoints));
+    }
   });
 });

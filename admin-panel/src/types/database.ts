@@ -1242,6 +1242,7 @@ export type Database = {
           custom_field_values: Json
           customer_email: string
           expires_at: string | null
+          fulfillment_completed_at: string | null
           id: string
           metadata: Json
           net_total: number | null
@@ -1269,6 +1270,7 @@ export type Database = {
           custom_field_values?: Json
           customer_email: string
           expires_at?: string | null
+          fulfillment_completed_at?: string | null
           id?: string
           metadata?: Json
           net_total?: number | null
@@ -1296,6 +1298,7 @@ export type Database = {
           custom_field_values?: Json
           customer_email?: string
           expires_at?: string | null
+          fulfillment_completed_at?: string | null
           id?: string
           metadata?: Json
           net_total?: number | null
@@ -3032,6 +3035,32 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
+      claim_webhook_delivery: {
+        Args: { p_id: string }
+        Returns: {
+          attempt_count: number
+          created_at: string
+          delivery_key: string | null
+          duration_ms: number | null
+          endpoint_id: string | null
+          error_message: string | null
+          event_type: string
+          failed_permanently_at: string | null
+          http_status: number | null
+          id: string
+          max_attempts: number
+          next_retry_at: string | null
+          payload: Json | null
+          response_body: string | null
+          status: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "webhook_logs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       cleanup_application_rate_limits: { Args: never; Returns: number }
       cleanup_audit_logs: { Args: { retention_days?: number }; Returns: number }
       cleanup_captcha_nonces: { Args: never; Returns: number }
@@ -3053,6 +3082,39 @@ export type Database = {
       create_refund_request: {
         Args: { reason_param?: string; transaction_id_param: string }
         Returns: Json
+      }
+      enqueue_webhook_delivery: {
+        Args: {
+          p_delivery_key: string
+          p_endpoint_id: string
+          p_event_type: string
+          p_id: string
+          p_max_attempts?: number
+          p_payload: Json
+        }
+        Returns: {
+          attempt_count: number
+          created_at: string
+          delivery_key: string | null
+          duration_ms: number | null
+          endpoint_id: string | null
+          error_message: string | null
+          event_type: string
+          failed_permanently_at: string | null
+          http_status: number | null
+          id: string
+          max_attempts: number
+          next_retry_at: string | null
+          payload: Json | null
+          response_body: string | null
+          status: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "webhook_logs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       find_auto_apply_coupon: {
         Args: { customer_email_param: string; product_id_param: string }

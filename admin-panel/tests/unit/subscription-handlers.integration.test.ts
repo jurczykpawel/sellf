@@ -16,7 +16,7 @@
  * Run: bun run test:unit -- tests/unit/subscription-handlers.integration.test.ts
  */
 
-import { describe, it, expect, afterAll, beforeAll, vi } from 'vitest';
+import { describe, it, expect, afterAll, beforeAll, afterEach, vi } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import {
@@ -28,8 +28,12 @@ import {
   handleInvoicePaid,
   handleInvoicePaymentFailed,
 } from '@/app/api/webhooks/stripe/subscription-handlers';
+import * as licenseIssue from '@/lib/license-keys/issue';
+import { WebhookDispatcher } from '@/lib/services/webhook-queue/dispatcher';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { deleteChecked, deleteAuthUsers } from '../helpers/db-cleanup';
+
+afterEach(() => vi.restoreAllMocks());
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -683,10 +687,10 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     if (typeof userId === 'string') createdAuthUserIds.push(userId);
   });
 
-  it('23505 race emits exactly one outbound invoice.paid webhook', async () => {
+  it('concurrent invoice completion delegates delivery deduplication to the queue', async () => {
     // when pre-check passes for two concurrent calls and the
-    // second insert collides on stripe_invoice_id UNIQUE, the loser must NOT
-    // re-grant access nor re-emit the outbound webhook.
+    // concurrent attempts reuse the invoice transaction and delegate remaining
+    // fulfillment to the idempotent access helper and delivery queue.
     const email = `race-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
     const customer = await stripe!.customers.create({ email });
@@ -712,7 +716,8 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     ]);
 
     const invoicePaidCalls = triggerSpy.mock.calls.filter(([event]) => event === 'invoice.paid');
-    expect(invoicePaidCalls).toHaveLength(1);
+    expect(invoicePaidCalls.length).toBeGreaterThanOrEqual(1);
+    expect(invoicePaidCalls.length).toBeLessThanOrEqual(3);
 
     triggerSpy.mockRestore();
 
@@ -1418,5 +1423,42 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
       p_email: email.toLowerCase(),
     });
     if (typeof userId === 'string') createdAuthUserIds.push(userId);
+  });
+});
+
+
+describe.skipIf(!hasSupabase)('invoice fulfillment recovery with local DB', () => {
+  it('recovers access and delivery after issuance fails with one persisted delivery', async () => {
+    const product = await createSubscriptionProduct();
+    const email = `invoice-recovery-${Date.now()}@example.com`;
+    const { data: auth, error: authError } = await platformClient!.auth.admin.createUser({ email, email_confirm: true });
+    expect(authError).toBeNull(); const userId = auth.user!.id; createdAuthUserIds.push(userId);
+    const sub = makeFakeSubscription('cus_recovery', product.id, { metadata: { product_id: product.id, user_id: userId } });
+    const stripeShim = { subscriptions: { retrieve: async () => sub }, customers: { retrieve: async () => ({ id: 'cus_recovery', email }) } } as unknown as Stripe;
+    const invoice = makeFakeInvoice(sub.id, 'cus_recovery', email);
+    const { data: endpoint, error: endpointError } = await platformClient!.from('webhook_endpoints').insert({ url: 'https://example.com/invoice', events: ['invoice.paid'], product_filter_mode: 'selected' }).select('id').single();
+    expect(endpointError).toBeNull();
+    await platformClient!.from('webhook_endpoint_products').insert({ webhook_endpoint_id: endpoint!.id, product_id: product.id });
+    const licenseSpy = vi.spyOn(licenseIssue, 'issueLicense').mockRejectedValueOnce(new Error('License temporarily unavailable')).mockResolvedValue(null);
+    const dispatchSpy = vi.spyOn(WebhookDispatcher, 'dispatch').mockImplementation(async (_endpoint, _event, body, options) => {
+      const { data: rows } = await platformClient!.from('webhook_logs').select('id').eq('endpoint_id', endpoint!.id);
+      expect(rows).toHaveLength(1);
+      expect((body as { id: string }).id).toBe(options.deliveryId);
+      return { ok: true, httpStatus: 200, responseBody: '', errorMessage: null, durationMs: 1 };
+    });
+    try {
+      await expect(handleInvoicePaid(invoice, supabaseSeller as never, platformClient as never, stripeShim)).rejects.toThrow('License temporarily unavailable');
+      const recovered = await Promise.all(Array.from({ length: 3 }, () => handleInvoicePaid(invoice, supabaseSeller as never, platformClient as never, stripeShim)));
+      expect(recovered.every(result => result.processed)).toBe(true);
+      expect((await handleInvoicePaid(invoice, supabaseSeller as never, platformClient as never, stripeShim)).processed).toBe(true);
+      const { data: rows } = await platformClient!.from('payment_transactions').select('id,fulfillment_completed_at').eq('stripe_invoice_id', invoice.id!);
+      expect(rows).toHaveLength(1); expect(rows![0].fulfillment_completed_at).toBeTruthy();
+      const { data: access } = await platformClient!.from('user_product_access').select('id').eq('product_id', product.id).eq('user_id', userId);
+      expect(access).toHaveLength(1);
+      expect(dispatchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      licenseSpy.mockRestore(); dispatchSpy.mockRestore();
+      await deleteChecked('webhook_endpoints', platformClient!.from('webhook_endpoints').delete().eq('id', endpoint!.id));
+    }
   });
 });

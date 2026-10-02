@@ -1992,7 +1992,7 @@ describe('Pending payment conversion', () => {
     createdSessionIds.push(completionSessionId);
 
     const { data, error } = await callRpc(supabaseAdmin, {
-      session_id_param: completionSessionId,
+      session_id_param: paymentIntentId,
       product_id_param: mainProduct.id,
       customer_email_param: `pending-${TS}@example.com`,
       amount_total: 5000,

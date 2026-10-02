@@ -1,8 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { WEBHOOK_MOCK_PAYLOADS } from '@/lib/webhooks/mock-payloads';
 import { SupabaseWebhookQueue } from '@/lib/services/webhook-queue/supabase-queue';
 import { WebhookDispatcher } from '@/lib/services/webhook-queue/dispatcher';
-import { DEFAULT_MAX_ATTEMPTS } from '@/lib/services/webhook-queue/retry-policy';
+import { computeNextRetry } from '@/lib/services/webhook-queue/retry-policy';
 import { fetchEligibleEndpoints } from '@/lib/webhooks/endpoint-selection';
 import { buildEndpointBody } from '@/lib/webhooks/payload-customization';
 import { checkFeature } from '@/lib/license/resolve';
@@ -20,9 +21,8 @@ type SupabaseClientLike = any;
 export class WebhookService {
   /**
    * Trigger webhooks for an event to every active matching endpoint.
-   * Optimistic-dispatch + queue model: first attempt result is persisted
-   * through the queue. Failures land in pending_retry and the worker
-   * picks them up with exponential backoff.
+   * Every delivery is persisted before dispatch. Failed or interrupted attempts
+   * remain available to the worker with the same delivery id.
    */
   static async trigger(
     event: string,
@@ -33,58 +33,39 @@ export class WebhookService {
     const supabase = client || createAdminClient();
     const queue = new SupabaseWebhookQueue(supabase);
 
-    try {
-      const endpoints = await fetchEligibleEndpoints(supabase, event, productIds);
-      if (endpoints.length === 0) return;
-
-      const timestamp = new Date().toISOString();
-      const envelope: EnvelopePayload = { event, timestamp, data };
-
-      const isCustomized = (e: typeof endpoints[number]) =>
-        e.custom_headers_encrypted != null || e.custom_payload_fields != null || e.payload_field_selection != null;
-
-      const anyCustomized = endpoints.some(isCustomized);
-      const licenseOk = anyCustomized
-        ? await checkFeature('webhook-payload-customization', { dataClient: supabase })
-        : true;
-
-      const ctx: Record<string, string> = buildPlaceholderContext(data);
-      // Empty string (no order id) collapses to null so the delivery key stays
-      // null. Derived from the SAME helper as the {{order_id}} placeholder so the
-      // two can never drift.
-      const orderId = deriveOrderId(data) || null;
-
-      await Promise.allSettled(
-        endpoints.map(async (endpoint) => {
-          if (isCustomized(endpoint) && !licenseOk) {
-            console.warn(`[webhook] skipping customized endpoint ${endpoint.id}: license inactive`);
-            return;
-          }
-          const body = isCustomized(endpoint)
-            ? buildEndpointBody(
-                { event: envelope.event, timestamp: envelope.timestamp, data: (data ?? {}) as Record<string, unknown> },
-                endpoint,
-                ctx,
-              )
-            : envelope;
-          const result = await WebhookDispatcher.dispatch(endpoint, event, body, { attemptCount: 1 });
-          try {
-            await queue.recordFirstAttempt({
-              endpointId: endpoint.id,
-              eventType: event,
-              payload: body,
-              result,
-              maxAttempts: DEFAULT_MAX_ATTEMPTS,
-              deliveryKey: orderId ? `${endpoint.id}:${event}:${orderId}` : null,
-            });
-          } catch (recordErr) {
-            console.error('[WebhookService.trigger] Failed to record attempt:', recordErr);
-          }
-        }),
-      );
-    } catch (err) {
-      console.error('[WebhookService.trigger] Unexpected error:', err);
+    const endpoints = await fetchEligibleEndpoints(supabase, event, productIds);
+    const timestamp = new Date().toISOString();
+    const envelope: EnvelopePayload = { event, timestamp, data };
+    const isCustomized = (e: typeof endpoints[number]) =>
+      e.custom_headers_encrypted != null || e.custom_payload_fields != null || e.payload_field_selection != null;
+    const licenseOk = endpoints.some(isCustomized)
+      ? await checkFeature('webhook-payload-customization', { dataClient: supabase }) : true;
+    const ctx = buildPlaceholderContext(data);
+    const orderId = deriveOrderId(data) || null;
+    // Persist every eligible endpoint before any HTTP request begins.
+    const deliveries = [];
+    for (const endpoint of endpoints) {
+      if (isCustomized(endpoint) && !licenseOk) continue;
+      const id = randomUUID();
+      const body = {
+        ...(isCustomized(endpoint)
+          ? buildEndpointBody({ event, timestamp, data: (data ?? {}) as Record<string, unknown> }, endpoint, ctx)
+          : envelope),
+        id,
+      };
+      const delivery = await queue.enqueue({
+        endpointId: endpoint.id, eventType: event, payload: body, deliveryId: id,
+        deliveryKey: orderId ? `${endpoint.id}:${event}:${orderId}` : null,
+      });
+      if (delivery) deliveries.push({ endpoint, delivery });
     }
+    await Promise.all(deliveries.map(async ({ endpoint, delivery }) => {
+      const result = await WebhookDispatcher.dispatch(endpoint, event, delivery.payload, {
+        attemptCount: 1, deliveryId: delivery.id,
+      });
+      if (result.ok) await queue.markDelivered(delivery.id, result);
+      else await queue.markFailed(delivery.id, result, computeNextRetry(1));
+    }));
   }
 
   /** Send a test event to a specific endpoint (one-shot, no retry semantics). */
@@ -125,24 +106,20 @@ export class WebhookService {
         )
       : envelope;
 
-    const result = await WebhookDispatcher.dispatch(endpoint, eventType, body, { attemptCount: 1 });
+    const id = randomUUID();
+    const payload = { ...(body as Record<string, unknown>), id };
     const queue = new SupabaseWebhookQueue(supabase);
-    await queue.recordFirstAttempt({
-      endpointId,
-      eventType,
-      payload: body,
-      result,
-      maxAttempts: 1,
-    });
+    const delivery = await queue.enqueue({ endpointId, eventType, payload, deliveryId: id, deliveryKey: null, maxAttempts: 1 });
+    if (!delivery) throw new Error('Test delivery unavailable');
+    const result = await WebhookDispatcher.dispatch(endpoint, eventType, payload, { attemptCount: 1, deliveryId: id });
+    if (result.ok) await queue.markDelivered(id, result);
+    else await queue.markPermanentlyFailed(id, result);
     return { success: result.ok, status: result.httpStatus, error: result.errorMessage };
   }
 
   /**
-   * Legacy retry path for status='failed' rows (creates a NEW log entry
-   * and marks the old log 'retried'). Backward-compatible with the
-   * existing /api/v1/webhooks/logs/[id]/retry endpoint. New rows produced
-   * by trigger() land in 'pending_retry' instead and are handled by the
-   * worker; the admin /replay endpoint operates on those via the queue.
+   * Manual retry for legacy failed rows. Retains the same delivery id and
+   * updates the existing queue row.
    */
   static async retry(logId: string, client?: SupabaseClientLike) {
     const supabase = client || createAdminClient();
@@ -162,28 +139,21 @@ export class WebhookService {
       .single();
     if (endpointError || !endpoint) throw new Error('Endpoint not found');
 
-    const result = await WebhookDispatcher.dispatch(
-      // Include custom_headers_encrypted so manual retries re-apply the endpoint's
-      // configured headers (same defect as the cron retry path).
-      { id: endpoint.id, url: endpoint.url, secret: endpoint.secret, custom_headers_encrypted: endpoint.custom_headers_encrypted },
-      log.event_type,
-      log.payload,
-      { attemptCount: 1, extraHeaders: { 'X-Sellf-Retry': 'true' } },
-    );
-
-    const queue = new SupabaseWebhookQueue(supabase);
-    await queue.recordFirstAttempt({
-      endpointId: endpoint.id,
-      eventType: log.event_type,
-      payload: log.payload,
-      result,
-      maxAttempts: DEFAULT_MAX_ATTEMPTS,
+    const payload = { ...(log.payload ?? {}), id: logId };
+    const { error: prepareError } = await supabase.from('webhook_logs')
+      .update({ payload, status: 'pending_retry', next_retry_at: 'now' })
+      .eq('id', logId).eq('status', 'failed');
+    if (prepareError) throw new Error('Could not prepare delivery');
+    const { data: claims, error: claimError } = await supabase.rpc('claim_webhook_delivery', { p_id: logId });
+    if (claimError) throw new Error('Could not claim delivery');
+    const claim = claims?.[0];
+    if (!claim) return { success: false, status: 0, error: 'Delivery is already handled' };
+    const result = await WebhookDispatcher.dispatch(endpoint, log.event_type, payload, {
+      attemptCount: claim.attempt_count + 1, deliveryId: logId,
     });
-
-    if (result.ok || result.httpStatus > 0) {
-      await supabase.from('webhook_logs').update({ status: 'retried' }).eq('id', logId);
-    }
-
+    const queue = new SupabaseWebhookQueue(supabase);
+    if (result.ok) await queue.markDelivered(logId, result);
+    else await queue.markFailed(logId, result, computeNextRetry(claim.attempt_count + 1));
     return { success: result.ok, status: result.httpStatus, error: result.errorMessage };
   }
 }
@@ -230,7 +200,7 @@ export function buildPlaceholderContext(data: unknown): Record<string, string> {
  */
 export function deriveOrderId(data: unknown): string {
   const order = ((data ?? {}) as Record<string, any>).order ?? {};
-  return str(order.paymentIntentId ?? order.sessionId);
+  return str(order.paymentIntentId ?? order.sessionId ?? order.invoiceId ?? ((data ?? {}) as Record<string, any>).invoice?.stripeInvoiceId);
 }
 
 function str(v: unknown): string { return v == null ? '' : String(v); }

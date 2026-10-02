@@ -45,7 +45,8 @@ vi.mock('@/lib/license/resolve', async (orig) => {
   return { ...actual, checkFeature: vi.fn(async (feature: string) => feature === 'license-key-issuance') };
 });
 
-import { verifyPaymentSession, verifyPaymentIntent } from '@/lib/payment/verify-payment';
+import { verifyPaymentSession, verifyPaymentIntent, mapVerifiedPaymentToStatus } from '@/lib/payment/verify-payment';
+import * as adminModule from '@/lib/supabase/admin';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { ProductValidationService } from '@/lib/services/product-validation';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
@@ -193,6 +194,7 @@ async function seedPendingTx(args: {
       stripe_payment_intent_id: args.pi ?? null,
       user_id: args.userId ?? null,
       status: args.status ?? 'pending',
+      fulfillment_completed_at: args.status === 'completed' ? new Date().toISOString() : null,
     })
     .select('id')
     .single();
@@ -486,7 +488,7 @@ describe.skipIf(!hasSupabase)('verifyPaymentIntent — success-redirect capture 
     expect(purchaseCalls()).toHaveLength(0);
   });
 
-  it('amount_subtotal lookup failure is non-fatal: completion still succeeds, tax still lands via cs_', async () => {
+  it('owner session lookup failure keeps the pending transaction', async () => {
     const product = await createProduct();
     const cs = uniq('cs');
     const pi = uniq('pi');
@@ -498,11 +500,11 @@ describe.skipIf(!hasSupabase)('verifyPaymentIntent — success-redirect capture 
     h.stripe = piShim(cs, { id: pi, receipt_email: email, metadata: { product_id: product.id }, listThrows: true });
 
     const r = await verifyPaymentIntent(pi, null);
-    expect(r.error).toBeUndefined();
+    expect(r.error).toBe('Failed to process payment completion');
     const tx = await fetchTx(cs);
-    expect(tx?.status).toBe('completed');
-    expect(tx?.net_total).toBe(770);
-    expect(tx?.tax_total).toBe(230);
+    expect(tx?.status).toBe('pending');
+    expect(tx?.net_total).toBeNull();
+    expect(tx?.tax_total).toBeNull();
   });
 
   it('truncated bump metadata recovered from pending-tx metadata → bumps granted (registered)', async () => {
@@ -750,7 +752,7 @@ describe.skipIf(!hasSupabase)('verify-payment — additional branch coverage', (
     expect(await hasAccess(userId, b1.id)).toBe(true);
   });
 
-  it('outbound webhook rejection is non-fatal [session]', async () => {
+  it('delivery persistence failure returns received state [session]', async () => {
     const product = await createProduct();
     const cs = uniq('cs');
     const pi = uniq('pi');
@@ -761,11 +763,12 @@ describe.skipIf(!hasSupabase)('verify-payment — additional branch coverage', (
     triggerSpy.mockRejectedValueOnce(new Error('webhook down'));
 
     const r = await verifyPaymentSession(cs);
-    expect(r.error).toBeUndefined();
+    expect(r.error).toBe('Failed to process payment completion');
+    expect(mapVerifiedPaymentToStatus(r).paymentStatus).toBe('received');
     expect((await fetchTx(cs))?.status).toBe('completed');
   });
 
-  it('outbound webhook rejection is non-fatal [PI]', async () => {
+  it('PI delivery persistence failure returns received state', async () => {
     const product = await createProduct();
     const cs = uniq('cs');
     const pi = uniq('pi');
@@ -779,7 +782,8 @@ describe.skipIf(!hasSupabase)('verify-payment — additional branch coverage', (
     triggerSpy.mockRejectedValueOnce(new Error('webhook down'));
 
     const r = await verifyPaymentIntent(pi, null);
-    expect(r.error).toBeUndefined();
+    expect(r.error).toBe('Failed to process payment completion');
+    expect(mapVerifiedPaymentToStatus(r).paymentStatus).toBe('received');
     expect((await fetchTx(cs))?.status).toBe('completed');
   });
 
@@ -889,5 +893,37 @@ describe.skipIf(!hasSupabase)('bundle purchase wiring → purchase.completed pay
     // Scoping arg (4th) includes the bundle AND both component ids (for product-scoped webhooks).
     const scope = calls.at(-1)![3] as string[];
     expect(scope).toEqual(expect.arrayContaining([bundle.id, compA.id, compB.id]));
+  });
+});
+
+
+describe('paid session presentation', () => {
+  it('keeps transient paid reconciliation in received state', () => {
+    expect(mapVerifiedPaymentToStatus({ payment_status: 'paid', access_granted: false, error: 'Failed to process payment' } as never).paymentStatus).toBe('received');
+  });
+  it('shows paid data problems separately', () => {
+    expect(mapVerifiedPaymentToStatus({ payment_status: 'paid', access_granted: false, reconciliation_error: 'data', error: 'Order details need review' } as never).paymentStatus).toBe('data_error');
+  });
+});
+
+
+describe.skipIf(!hasSupabase)('paid reconciliation recovery against local DB', () => {
+  it('shows received after a transient RPC failure and completes on retry', async () => {
+    const product = await createProduct(); const cs = uniq('cs'); const pi = uniq('pi');
+    const email = uniq('reg') + '@example.com'; createdEmails.push(email);
+    const userId = await createAuthUser(email);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email, userId, pi: null });
+    h.stripe = makeStripeShim({ session: { id: cs, mode: 'payment', status: 'complete', payment_status: 'paid', amount_total: 1000, amount_subtotal: 1000, currency: 'usd', payment_intent: pi, customer_details: { email }, metadata: { product_id: product.id, user_id: userId }, total_details: { amount_tax: 0 } } });
+    const client = adminModule.createAdminClient();
+    const rpcSpy = vi.spyOn(client, 'rpc').mockImplementationOnce(() => Promise.resolve({ data: null, error: { code: '40001', message: 'Please retry' } }) as never);
+    const clientSpy = vi.spyOn(adminModule, 'createAdminClient').mockReturnValueOnce(client);
+    try {
+      const first = await verifyPaymentSession(cs, asUser(userId, email));
+      expect(first.payment_status).toBe('paid');
+      expect(mapVerifiedPaymentToStatus(first).paymentStatus).toBe('received');
+      expect((await fetchTx(cs))?.status).toBe('pending');
+    } finally { clientSpy.mockRestore(); rpcSpy.mockRestore(); }
+    const next = await verifyPaymentSession(cs, asUser(userId, email));
+    expect(next.access_granted).toBe(true); expect(next.error).toBeUndefined();
   });
 });

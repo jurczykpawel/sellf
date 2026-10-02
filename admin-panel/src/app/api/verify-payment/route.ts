@@ -15,6 +15,7 @@ const ANONYMOUS_FIELDS = [
   'scenario',
   'send_magic_link',
   'error',
+  'reconciliation_error',
 ] as const satisfies readonly (keyof PaymentVerificationResult)[];
 
 function pickAnonymousFields(result: PaymentVerificationResult): Partial<PaymentVerificationResult> {

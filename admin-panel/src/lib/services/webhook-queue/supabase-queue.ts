@@ -42,6 +42,17 @@ export class SupabaseWebhookQueue implements IWebhookDeliveryQueue {
     this.client = client ?? (createAdminClient() as SupabaseClientLike);
   }
 
+  async enqueue(input: { endpointId: string; eventType: string; payload: unknown; deliveryId: string; deliveryKey: string | null; maxAttempts?: number }): Promise<DueDelivery | null> {
+    const { data, error } = await this.client.rpc('enqueue_webhook_delivery', {
+      p_id: input.deliveryId, p_endpoint_id: input.endpointId, p_event_type: input.eventType,
+      p_payload: input.payload, p_delivery_key: input.deliveryKey,
+      p_max_attempts: input.maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
+    });
+    if (error) throw new Error(`enqueue failed: ${error.message}`);
+    const row = data?.[0];
+    return row ? { id: row.id, endpointId: row.endpoint_id, eventType: row.event_type, payload: row.payload, attemptCount: row.attempt_count, maxAttempts: row.max_attempts } : null;
+  }
+
   async recordFirstAttempt(input: FirstAttemptInput): Promise<RecordedDelivery> {
     const maxAttempts = input.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
     const { status, nextRetryAt, failedPermanentlyAt } = resolveInitialState(input.result, 1, maxAttempts);
@@ -136,7 +147,7 @@ export class SupabaseWebhookQueue implements IWebhookDeliveryQueue {
       .update({
         status: 'pending_retry',
         attempt_count: 0,
-        next_retry_at: new Date().toISOString(),
+        next_retry_at: 'now',
         failed_permanently_at: null,
       })
       .eq('id', deliveryId)
@@ -147,7 +158,7 @@ export class SupabaseWebhookQueue implements IWebhookDeliveryQueue {
   async forceRetryNow(deliveryId: string): Promise<void> {
     const { error } = await this.client
       .from('webhook_logs')
-      .update({ next_retry_at: new Date().toISOString() })
+      .update({ next_retry_at: 'now' })
       .eq('id', deliveryId)
       .eq('status', 'pending_retry');
     if (error) throw new Error(`forceRetryNow failed: ${error.message}`);

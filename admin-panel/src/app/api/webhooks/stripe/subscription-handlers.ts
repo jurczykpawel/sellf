@@ -892,7 +892,7 @@ export async function handleInvoicePaid(
   // subscription context so a prior license-issuance failure can be retried.
   const { data: existingTx } = await supabase
     .from('payment_transactions')
-    .select('id')
+    .select('id, fulfillment_completed_at')
     .eq('stripe_invoice_id', invoice.id!)
     .maybeSingle();
 
@@ -939,11 +939,6 @@ export async function handleInvoicePaid(
     });
   };
 
-  if (existingTx) {
-    if (!stripeSideTerminal && !dbSideTerminal) await issueRenewalLicense();
-    return { processed: true, message: `Invoice already booked: ${invoice.id}` };
-  }
-
   // Insert payment_transactions row (idempotent via UNIQUE on stripe_invoice_id).
   const paymentIntentId =
     typeof (invoice as unknown as { payment_intent?: string | { id: string } }).payment_intent ===
@@ -951,33 +946,35 @@ export async function handleInvoicePaid(
       ? ((invoice as unknown as { payment_intent: string }).payment_intent)
       : ((invoice as unknown as { payment_intent?: { id: string } }).payment_intent?.id ?? null);
 
-  const { data: insertedTx, error: txError } = await supabase.from('payment_transactions').insert({
-    user_id: ctx.userId,
-    product_id: ctx.productId,
-    subscription_id: subscriptionRowId,
-    stripe_invoice_id: invoice.id,
-    // Subscription renewals don't have a Checkout Session; use the invoice id
-    // directly (allowed by the extended session_id regex in subscriptions_mvp migration).
-    session_id: invoice.id!,
-    stripe_payment_intent_id: paymentIntentId,
-    // payment_transactions.amount is stored in minor units to match one-time
-    // payment rows. Stripe invoice.amount_paid is already in minor units.
-    amount: invoice.amount_paid ?? 0,
-    currency: (invoice.currency ?? 'usd').toUpperCase(),
-    status: 'completed',
-    customer_email: ctx.email,
-  }).select('id').single();
-  // payment_transactions.stripe_invoice_id has a partial UNIQUE index.
-  // If we lost the race to the primary processor, exit BEFORE access mutation
-  // and BEFORE outbound dispatch — the winner has already done both.
-  // Any other insert error is a hard failure: do not partially apply changes.
-  if (txError) {
-    if (txError.code === '23505') {
-      return { processed: true, message: `Invoice already booked (race): ${invoice.id}` };
+  let insertedTx = existingTx;
+  if (!insertedTx) {
+    const { data: newTx, error: txError } = await supabase.from('payment_transactions').insert({
+      user_id: ctx.userId,
+      product_id: ctx.productId,
+      subscription_id: subscriptionRowId,
+      stripe_invoice_id: invoice.id,
+      // Subscription renewals don't have a Checkout Session; use the invoice id
+      // directly (allowed by the extended session_id regex in subscriptions_mvp migration).
+      session_id: invoice.id!,
+      stripe_payment_intent_id: paymentIntentId,
+      // payment_transactions.amount is stored in minor units to match one-time
+      // payment rows. Stripe invoice.amount_paid is already in minor units.
+      amount: invoice.amount_paid ?? 0,
+      currency: (invoice.currency ?? 'usd').toUpperCase(),
+      status: 'completed',
+      customer_email: ctx.email,
+    }).select('id, fulfillment_completed_at').single();
+    insertedTx = newTx;
+    if (txError) {
+      if (txError.code !== '23505') return { processed: false, message: 'Payment transaction unavailable' };
+      const { data: winner, error: winnerError } = await supabase.from('payment_transactions')
+        .select('id, fulfillment_completed_at').eq('stripe_invoice_id', invoice.id!).single();
+      if (winnerError || !winner) return { processed: false, message: 'Invoice transaction unavailable' };
+      insertedTx = winner;
     }
-    console.error('[handleInvoicePaid] payment_transactions insert error:', txError);
-    return { processed: false, message: 'payment_transactions insert failed' };
   }
+  if (!insertedTx) return { processed: false, message: 'Invoice transaction unavailable' };
+  if (insertedTx.fulfillment_completed_at) return { processed: true, message: `Invoice already booked: ${invoice.id}` };
 
   // Grant or refresh access. user_product_access has UNIQUE (user_id, product_id)
   // (see core_schema.sql:164), so there is exactly one row per pair.
@@ -1020,6 +1017,9 @@ export async function handleInvoicePaid(
     taxSnapshot,
   });
   await WebhookService.trigger('invoice.paid', payload, supabase, payload.product.id);
+  const { error: fulfillmentError } = await supabase.from('payment_transactions')
+    .update({ fulfillment_completed_at: new Date().toISOString() }).eq('id', insertedTx.id);
+  if (fulfillmentError) return { processed: false, message: 'Invoice fulfillment state unavailable' };
 
   return {
     processed: true,

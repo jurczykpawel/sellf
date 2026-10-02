@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Confetti from 'react-confetti';
 import { useTranslations } from 'next-intl';
 import { usePaymentStatus } from '../hooks';
@@ -27,6 +28,12 @@ export default function PaymentStatusView({
   redirectUrl,
 }: PaymentStatusViewProps) {
   const t = useTranslations('paymentStatus');
+  const router = useRouter();
+  useEffect(() => {
+    if (paymentStatus !== 'received') return;
+    const timer = setInterval(() => router.refresh(), 3000);
+    return () => clearInterval(timer);
+  }, [paymentStatus, router]);
   const { track } = useTracking();
   const purchaseTracked = useRef(false);
 
@@ -80,6 +87,10 @@ export default function PaymentStatusView({
     }, purchaseEventId);
   }, [paymentStatus, accessGranted, product, sessionId, paymentIntentId, customerEmail, track]);
 
+  if (paymentStatus === 'data_error') {
+    return <PaymentStatusLayout product={product} statusInfo={statusInfo}><p className="text-sf-body">{t('orderNeedsReviewDetails')}</p></PaymentStatusLayout>;
+  }
+
   // Handle error states first
   if (errorMessage && (paymentStatus === 'failed' || paymentStatus === 'expired')) {
     return (
@@ -90,10 +101,10 @@ export default function PaymentStatusView({
   }
 
   // Handle processing state
-  if (paymentStatus === 'processing') {
+  if (paymentStatus === 'processing' || paymentStatus === 'received') {
     return (
       <PaymentStatusLayout product={product} statusInfo={statusInfo}>
-        <ProcessingStatus />
+        <ProcessingStatus received={paymentStatus === 'received'} />
       </PaymentStatusLayout>
     );
   }

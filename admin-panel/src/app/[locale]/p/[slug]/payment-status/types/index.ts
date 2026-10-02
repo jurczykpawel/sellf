@@ -1,4 +1,6 @@
 export type PaymentStatus = 
+  | 'received'
+  | 'data_error'
   | 'processing' 
   | 'completed' 
   | 'failed' 

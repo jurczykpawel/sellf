@@ -311,9 +311,10 @@ describe('Stripe Integration Security', () => {
       expect(TRANSACTION_LOOKUP_SOURCE).toContain('.maybeSingle()');
     });
 
-    it('should verify production webhook skips already-processed events', () => {
+    it('uses recoverable fulfillment for completed events', () => {
       // After finding an existing transaction, the handler returns early
-      expect(ONETIME_HANDLERS_SOURCE).toContain('Already processed');
+      expect(ONETIME_HANDLERS_SOURCE).toContain('fulfillPaidOrder');
+      expect(ONETIME_HANDLERS_SOURCE).not.toContain('Already processed');
     });
 
     it('resolves a transaction from a Stripe order id via parameterized lookups, not a string-built filter', () => {

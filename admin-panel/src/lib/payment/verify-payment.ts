@@ -6,20 +6,20 @@
  * Only use in Server Components and API Routes.
  */
 
-import Stripe from 'stripe';
 import { getStripeServer } from '@/lib/stripe/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { User } from '@supabase/supabase-js';
-import { WebhookService } from '@/lib/services/webhook-service';
-import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
-import { captureAndPersistOrderTax } from '@/lib/services/tax-snapshot';
-import { resolveComponentProductIds, issueLicensesForOrder } from '@/lib/services/bundle-order';
+import { fulfillPaidOrder } from '@/lib/services/fulfill-paid-order';
 import { redactEmail } from '@/lib/logger';
+import type Stripe from 'stripe';
+import type { User } from '@supabase/supabase-js';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
 /** Shape returned by process_stripe_payment_completion_with_bump RPC (JSONB) */
 interface PaymentRpcResult {
+  transaction_id?: string;
+  bump_product_ids?: string[];
+  error_kind?: string;
   success: boolean;
   error?: string;
   access_granted?: boolean;
@@ -139,6 +139,7 @@ export interface PaymentIntentVerificationResult {
   send_magic_link?: boolean;
   oto_info?: OtoInfo;
   error?: string;
+  reconciliation_error?: 'transient' | 'data';
 }
 
 export interface PaymentVerificationResult {
@@ -160,6 +161,7 @@ export interface PaymentVerificationResult {
   send_magic_link?: boolean;
   oto_info?: OtoInfo;
   error?: string;
+  reconciliation_error?: 'transient' | 'data';
 }
 
 /**
@@ -168,6 +170,8 @@ export interface PaymentVerificationResult {
  * Returns null if payment not found in database (needs Stripe verification).
  */
 export type PaymentStatusKind =
+  | 'received'
+  | 'data_error'
   | 'processing'
   | 'completed'
   | 'failed'
@@ -176,6 +180,9 @@ export type PaymentStatusKind =
   | 'email_validation_failed';
 
 interface VerifiedPaymentShape {
+  payment_status?: string | null;
+  status?: string;
+  reconciliation_error?: 'transient' | 'data';
   access_granted?: boolean;
   scenario?: string;
   is_guest_purchase?: boolean;
@@ -216,6 +223,10 @@ export function mapVerifiedPaymentToStatus(result: VerifiedPaymentShape): Mapped
 
   if (result.is_guest_purchase && result.send_magic_link) {
     return { paymentStatus: 'magic_link_sent', accessGranted: false, errorMessage: '' };
+  }
+
+  if (result.payment_status === 'paid' || result.status === 'succeeded') {
+    return { paymentStatus: result.reconciliation_error === 'data' ? 'data_error' : 'received', accessGranted: false, errorMessage: result.error || '' };
   }
 
   return {
@@ -277,6 +288,7 @@ async function getProcessedPaymentFromDatabase(
       amount,
       currency,
       status,
+      fulfillment_completed_at,
       created_at,
       products:product_id (
         id,
@@ -311,6 +323,8 @@ async function getProcessedPaymentFromDatabase(
       error: 'Session does not belong to current user'
     };
   }
+
+  if (transaction.fulfillment_completed_at === null) return null;
 
   // Check if user has access to the product
   const effectiveUserId = transaction.user_id || user?.id;
@@ -583,6 +597,7 @@ export async function verifyPaymentSession(
             return {
               ...baseResponse,
               access_granted: false,
+              reconciliation_error: paymentError.code?.startsWith('22') || ['P0001', '23505'].includes(paymentError.code) ? 'data' : 'transient',
               error: 'Failed to process payment'
             };
           }
@@ -596,74 +611,19 @@ export async function verifyPaymentSession(
             return {
               ...baseResponse,
               access_granted: false,
+              reconciliation_error: paymentResult?.error_kind === 'data' ? 'data' : 'transient',
               error: paymentResult?.error || 'Payment processing failed'
             };
           }
 
-          // Trigger webhook for new successful purchases
-          if (!paymentResult.already_had_access) {
-            const { data: txCustomFields } = await serviceClient
-              .from('payment_transactions')
-              .select('id, custom_field_values')
-              .eq('session_id', session.id)
-              .maybeSingle();
-            const customFieldValues = (txCustomFields?.custom_field_values as Record<string, string> | null) ?? undefined;
-
-            // Resolve bundle components (ordered) — [] for a non-bundle product. A bundle grants
-            // the bundle + every component (DB); we issue a license per licensable product below.
-            // Identical shape to the Stripe-webhook emitter so the winning path is irrelevant.
-            const componentProductIds = await resolveComponentProductIds(serviceClient, productId);
-
-            // Issue licenses — one per licensable product in [productId, ...componentProductIds].
-            // issueLicense is idempotent by (order_id, product_id); prefer the payment-intent id so
-            // the same key backs idempotency across both completion paths.
-            const licenses = await issueLicensesForOrder(serviceClient, {
-              productIds: [productId, ...componentProductIds],
-              email: customerEmail,
-              userId: user?.id || null,
-              orderId: stripePaymentIntentId || session.id,
-              customFieldValues,
-            });
-
-            // VAT tax snapshot — capture Stripe's computed tax per line. Fail-safe:
-            // never blocks access granting or the purchase webhook.
-            const taxSnapshot = await captureAndPersistOrderTax({
-              stripe,
-              supabase: serviceClient,
-              transactionId: txCustomFields?.id,
-              sessionId: session.id,
-            });
-
-            const webhookData = await buildPurchaseWebhookPayload({
-              supabaseClient: serviceClient,
-              customerEmail,
-              userId: user?.id || null,
-              productId,
-              bumpProductIds,
-              componentProductIds,
-              metadata: session.metadata as Record<string, string | undefined> | null,
-              // Embed collects NIP/address via Stripe → carry them to the invoice section.
-              stripeCustomerDetails: session.customer_details,
-              amount: session.amount_total,
-              currency: session.currency,
-              sessionId: session.id,
-              taxSnapshot,
-              paymentIntentId: stripePaymentIntentId,
-              couponId: hasCoupon && couponId ? couponId : null,
-              isGuest: paymentResult?.is_guest_purchase,
-              customFieldValues: customFieldValues ?? null,
-            });
-
-            if (licenses.length) webhookData.licenses = licenses;
-
-            WebhookService.trigger('purchase.completed', webhookData, serviceClient, [productId, ...componentProductIds, ...bumpProductIds])
-              .catch(err => console.error('Webhook trigger error:', err));
-
-            // NOTE: Server-side CAPI tracking for Purchase is handled in the
-            // Stripe webhook handler (webhooks/stripe/route.ts), NOT here.
-            // Both webhook and client-side use deterministic event_id based on
-            // Stripe session ID (generatePurchaseEventId) for Facebook dedup.
-          }
+          await fulfillPaidOrder({
+            supabase: serviceClient, stripe, transactionId: paymentResult.transaction_id,
+            sessionId: session.id, paymentIntentId: stripePaymentIntentId, productId,
+            customerEmail, amount: session.amount_total || 0,
+            currency: session.currency || 'usd', metadata: session.metadata,
+            customerDetails: session.customer_details, isGuest: paymentResult.is_guest_purchase,
+            couponId: hasCoupon ? couponId : null,
+          });
 
           if (user?.id && session.metadata) {
             await updateProfileWithCompanyData(
@@ -727,6 +687,7 @@ export async function verifyPaymentSession(
           return {
             ...baseResponse,
             access_granted: false,
+            reconciliation_error: error instanceof Error && error.message.includes('Invalid custom field') ? 'data' : 'transient',
             error: 'Failed to process payment completion'
           };
         }
@@ -736,6 +697,7 @@ export async function verifyPaymentSession(
       return {
         ...baseResponse,
         access_granted: false,
+        reconciliation_error: 'data',
         error: !productId ? 'Product ID missing from session metadata' : 'Customer email missing from session'
       };
     }
@@ -863,17 +825,14 @@ export async function verifyPaymentIntent(
 
           // Net subtotal: net-priced products validate the NET amount, not the gross. Resolve
           // the owning Checkout Session for amount_subtotal; fail-safe → null falls back to gross.
-          let piAmountSubtotal: number | undefined;
-          try {
-            const ownerSessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntent.id, limit: 1 });
-            piAmountSubtotal = ownerSessions.data[0]?.amount_subtotal ?? undefined;
-          } catch {
-            /* leave undefined — validator falls back to gross */
-          }
+          const ownerSessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntent.id, limit: 1 });
+          const ownerSession = ownerSessions.data[0];
+          const canonicalSessionId = ownerSession?.id || paymentIntent.id;
+          const piAmountSubtotal = ownerSession?.amount_subtotal ?? undefined;
 
           // Process payment using database function (multi-bump UUID array)
           const rpcParams = {
-            session_id_param: paymentIntent.id,
+            session_id_param: canonicalSessionId,
             product_id_param: productId,
             customer_email_param: customerEmail,
             amount_total: paymentIntent.amount,
@@ -899,6 +858,7 @@ export async function verifyPaymentIntent(
             return {
               ...baseResponse,
               access_granted: false,
+              reconciliation_error: paymentError.code?.startsWith('22') || ['P0001', '23505'].includes(paymentError.code) ? 'data' : 'transient',
               error: 'Failed to process payment'
             };
           }
@@ -912,70 +872,18 @@ export async function verifyPaymentIntent(
             return {
               ...baseResponse,
               access_granted: false,
+              reconciliation_error: paymentResult?.error_kind === 'data' ? 'data' : 'transient',
               error: paymentResult?.error || 'Payment processing failed'
             };
           }
 
-          // Trigger webhook for new successful purchases
-          if (!paymentResult.already_had_access) {
-            const { data: txCustomFields } = await serviceClient
-              .from('payment_transactions')
-              .select('id, session_id, custom_field_values')
-              .eq('stripe_payment_intent_id', paymentIntent.id)
-              .maybeSingle();
-            const customFieldValues = (txCustomFields?.custom_field_values as Record<string, string> | null) ?? undefined;
-
-            // Resolve bundle components (ordered) — [] for a non-bundle product. Identical shape
-            // to the Stripe-webhook PI emitter so the winning completion path is irrelevant.
-            const componentProductIds = await resolveComponentProductIds(serviceClient, productId);
-
-            // Issue licenses — one per licensable product in [productId, ...componentProductIds].
-            // issueLicense is idempotent by (order_id, product_id); orderId = the PI id (same key
-            // the PI webhook handler uses).
-            const licenses = await issueLicensesForOrder(serviceClient, {
-              productIds: [productId, ...componentProductIds],
-              email: customerEmail,
-              userId: user?.id || null,
-              orderId: paymentIntent.id,
-              customFieldValues,
-            });
-
-            // VAT tax snapshot — tax lives on the owning Checkout Session, not the PI.
-            // The stored session_id may be this PI's id, so pass paymentIntentId too:
-            // capture resolves the real cs_ session from it (same as the PI webhook handler).
-            const taxSnapshot = await captureAndPersistOrderTax({
-              stripe,
-              supabase: serviceClient,
-              transactionId: txCustomFields?.id,
-              sessionId: txCustomFields?.session_id,
-              paymentIntentId: paymentIntent.id,
-            });
-
-            const webhookData = await buildPurchaseWebhookPayload({
-              supabaseClient: serviceClient,
-              customerEmail,
-              userId: user?.id || null,
-              productId,
-              bumpProductIds,
-              componentProductIds,
-              metadata: paymentIntent.metadata as Record<string, string | undefined> | null,
-              amount: paymentIntent.amount,
-              currency: paymentIntent.currency,
-              paymentIntentId: paymentIntent.id,
-              taxSnapshot,
-              couponId: couponId || null,
-              isGuest: paymentResult?.is_guest_purchase,
-              customFieldValues: customFieldValues ?? null,
-            });
-
-            if (licenses.length) webhookData.licenses = licenses;
-
-            WebhookService.trigger('purchase.completed', webhookData, serviceClient, [productId, ...componentProductIds, ...bumpProductIds])
-              .catch(err => console.error('Webhook trigger error:', err));
-
-            // NOTE: Server-side CAPI tracking for Purchase is handled in the
-            // Stripe webhook handler (webhooks/stripe/route.ts).
-          }
+          await fulfillPaidOrder({
+            supabase: serviceClient, stripe, transactionId: paymentResult.transaction_id,
+            sessionId: canonicalSessionId, paymentIntentId: paymentIntent.id, productId,
+            customerEmail, amount: paymentIntent.amount,
+            currency: paymentIntent.currency, metadata: ownerSession?.metadata ?? paymentIntent.metadata,
+            customerDetails: ownerSession?.customer_details, isGuest: paymentResult.is_guest_purchase, couponId,
+          });
 
           // Update user profile with company data if invoice was requested
           if (user?.id && paymentIntent.metadata) {
@@ -994,7 +902,7 @@ export async function verifyPaymentIntent(
               const { data: transaction } = await serviceClient
                 .from('payment_transactions')
                 .select('id')
-                .eq('session_id', paymentIntent.id)
+                .eq('session_id', canonicalSessionId)
                 .single();
 
               if (transaction?.id) {
@@ -1038,6 +946,7 @@ export async function verifyPaymentIntent(
           return {
             ...baseResponse,
             access_granted: false,
+            reconciliation_error: error instanceof Error && error.message.includes('Invalid custom field') ? 'data' : 'transient',
             error: 'Failed to process payment completion'
           };
         }
@@ -1047,6 +956,7 @@ export async function verifyPaymentIntent(
       return {
         ...baseResponse,
         access_granted: false,
+        reconciliation_error: 'data',
         error: !productId ? 'Product ID missing from payment intent metadata' : 'Customer email missing from payment intent'
       };
     }

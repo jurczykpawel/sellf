@@ -18,7 +18,7 @@ export interface PayloadCustomization {
  * value — `buildEndpointBody` drops colliding custom fields, and
  * `validateCustomPayloadFields` (lib/validations/webhook.ts) rejects them at save time.
  */
-export const RESERVED_ENVELOPE_KEYS = ['event', 'timestamp', 'data'] as const;
+export const RESERVED_ENVELOPE_KEYS = ['id', 'event', 'timestamp', 'data'] as const;
 
 /** Keep only whitelisted keys of `data`; null selection = identity. */
 export function selectDataFields(
