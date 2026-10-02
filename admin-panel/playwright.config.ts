@@ -98,11 +98,18 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    ...(process.env.STRIPE_LIVE_E2E === '1' ? [{
+      name: 'stripe-live',
+      testMatch: '**/stripe-live/*.spec.ts',
+      use: { ...devices['Desktop Chrome'], trace: 'retain-on-failure' as const },
+      retries: 0,
+      timeout: 300000,
+    }] : []),
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
       // Rate-limiting, visual, accessibility, and route-heavy specs are excluded here
-      testIgnore: ['**/rate-limiting.spec.ts', '**/rate-limiting-v1.spec.ts', '**/accessibility.spec.ts', ...HEAVY_SPECS],
+      testIgnore: ['**/stripe-live/**', '**/rate-limiting.spec.ts', '**/rate-limiting-v1.spec.ts', '**/accessibility.spec.ts', ...HEAVY_SPECS],
     },
     {
       // Route-dense specs split off so the sharded runner can isolate them on their own
