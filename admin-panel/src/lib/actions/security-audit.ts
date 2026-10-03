@@ -269,17 +269,20 @@ async function checkEmailAutoconfirm(url: string, key: string): Promise<Security
       name: 'Email confirmation',
       status: autoconfirm ? 'fail' : 'pass',
       message: autoconfirm
-        ? 'Email autoconfirm is ON. Users can sign up without verifying their email, enabling account enumeration and impersonation.'
+        ? 'Email confirmation is OFF. New accounts can sign in before confirming their email address.'
         : 'Email confirmation is required. Users must verify their email before accessing the account.',
       fix: autoconfirm
-        ? 'In supabase/config.toml set [auth] enable_confirmations = true. In Supabase dashboard: Authentication > Settings > Enable email confirmations.'
+        ? 'Enable Confirm Email in the Supabase email provider. For CLI configuration, set [auth.email] enable_confirmations = true in supabase/config.toml.'
         : undefined,
       steps: autoconfirm ? [
         'Log into your Supabase dashboard (supabase.com/dashboard).',
-        'Select your project → Authentication → Settings.',
-        'Find "Email confirmations" and toggle it ON.',
+        'Select your project → Authentication → Sign In / Providers → Email.',
+        'Turn "Confirm Email" ON.',
         'Save changes.',
-        'For self-hosted: in supabase/config.toml, set [auth] enable_confirmations = true, then run: npx supabase db push',
+        'For local CLI: set [auth.email] enable_confirmations = true in supabase/config.toml, then run supabase stop and supabase start.',
+        'For a linked hosted project: review supabase/config.toml and run supabase config push --project-ref <project-ref>. This applies project configuration, not database migrations.',
+        'For self-hosted Docker: set GOTRUE_MAILER_AUTOCONFIRM=false on the Auth service and recreate that service to load the setting.',
+        'Install both Sellf confirmation and magic-link templates, then test a new address by opening the delivered /auth/callback link.',
       ] : undefined,
     };
   } catch {

@@ -95,7 +95,7 @@ enable_signup = true
 # Allow/disallow new user signups via email to your project.
 enable_signup = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+enable_confirmations = true
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

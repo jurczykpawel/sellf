@@ -110,7 +110,7 @@ async function findOrCreatePasswordlessUser(
 
   const { data: created, error: createErr } = await platformClient.auth.admin.createUser({
     email: normalizedEmail,
-    email_confirm: true,
+    email_confirm: false,
   });
   if (createErr || !created.user) {
     // Race: another webhook created the user between RPC + create. Retry RPC once.

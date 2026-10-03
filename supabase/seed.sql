@@ -1160,3 +1160,26 @@ INSERT INTO products (name, slug, description, long_description, icon, price, cu
 INSERT INTO bundle_items (bundle_product_id, component_product_id, display_order) VALUES
   ((SELECT id FROM products WHERE slug = 'starter-bundle'), (SELECT id FROM products WHERE slug = 'premium-course'), 0),
   ((SELECT id FROM products WHERE slug = 'starter-bundle'), (SELECT id FROM products WHERE slug = 'pro-toolkit'), 1);
+
+-- A guest buyer waiting to confirm their e-mail address.
+INSERT INTO auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  confirmation_token, recovery_token, email_change_token_new, email_change,
+  email_change_token_current, reauthentication_token,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) VALUES (
+  '00000000-0000-0000-0000-000000000000', 'cccccccc-0000-4000-a000-000000000000',
+  'authenticated', 'authenticated', 'pending@demo.sellf.app',
+  extensions.crypt('demo1234', extensions.gen_salt('bf')),
+  '', '', '', '', '', '', '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Pending Buyer"}', NOW(), NOW()
+) ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.payment_transactions(product_id, customer_email, amount, currency, status, session_id, metadata)
+SELECT id, 'pending@demo.sellf.app', price * 100, currency, 'completed', 'cs_seed_pending_confirmation',
+  '{"full_name":"Demo Customer","needs_invoice":"true","company_name":"Example Studio"}'::jsonb
+FROM public.products WHERE slug='premium-course'
+  AND NOT EXISTS (SELECT 1 FROM public.payment_transactions WHERE session_id='cs_seed_pending_confirmation');
+INSERT INTO public.guest_purchases(product_id, customer_email, session_id, transaction_amount)
+SELECT id, 'pending@demo.sellf.app', 'cs_seed_pending_confirmation', price * 100
+FROM public.products WHERE slug='premium-course'
+  AND NOT EXISTS (SELECT 1 FROM public.guest_purchases WHERE session_id='cs_seed_pending_confirmation');

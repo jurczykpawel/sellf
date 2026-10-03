@@ -74,7 +74,7 @@ afterAll(async () => {
     await deleteChecked('products', supabaseSeller.from('products').delete().in('id', createdProductIds));
   }
   if (createdAuthUserIds.length > 0 && platformClient) {
-    await deleteAuthUsers(platformClient, createdAuthUserIds);
+    await deleteAuthUsers(platformClient, [...new Set(createdAuthUserIds)]);
   }
 });
 
@@ -161,6 +161,13 @@ function makeFakeInvoice(
   } as unknown as Stripe.Invoice;
 }
 
+async function createConfirmedCustomer(email: string): Promise<Stripe.Customer> {
+  const created = await platformClient!.auth.admin.createUser({ email, email_confirm: true });
+  if (created.error) throw created.error;
+  createdAuthUserIds.push(created.data.user.id);
+  return stripe!.customers.create({ email });
+}
+
 describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
   it('handleSubscriptionCreated upserts subscription row + materializes auth user', async () => {
     const email = `sub-integ-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
@@ -192,6 +199,8 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     });
     expect(typeof authUser).toBe('string');
     if (typeof authUser === 'string') createdAuthUserIds.push(authUser);
+    const pending = await platformClient!.auth.admin.getUserById(authUser as string);
+    expect(pending.data.user?.email_confirmed_at).toBeFalsy();
   });
 
   it('handleSubscriptionCreated grants user_product_access for a trialing subscription', async () => {
@@ -201,7 +210,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     // entire trial.
     const email = `trial-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
 
     const sub = makeFakeSubscription(customer.id, product.id, {
@@ -236,7 +245,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     // the create event — only trialing or active should.
     const email = `past-due-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
 
     const sub = makeFakeSubscription(customer.id, product.id, { status: 'past_due' });
@@ -268,7 +277,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     // waiting for the next invoice.paid.
     const email = `incomplete-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
 
     const incomplete = makeFakeSubscription(customer.id, product.id, { status: 'incomplete' });
@@ -321,7 +330,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
   it('handleInvoicePaid grants access on first invoice + idempotent on replay', async () => {
     const email = `inv-paid-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
     const subStripe = makeFakeSubscription(customer.id, product.id);
 
@@ -394,7 +403,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     // with Stripe-computed tax must land net_total/tax_total/tax_snapshot_status on the booked tx.
     const email = `inv-tax-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
     const subStripe = makeFakeSubscription(customer.id, product.id);
     const stripeShim = {
@@ -431,7 +440,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
   it('handleInvoicePaid books a separate row for each renewal invoice', async () => {
     const email = `renew-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
     const subStripe = makeFakeSubscription(customer.id, product.id);
 
@@ -468,7 +477,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
   it('handleSubscriptionUpdated mirrors status + cancel_at_period_end into DB', async () => {
     const email = `upd-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
     const sub = makeFakeSubscription(customer.id, product.id, { status: 'trialing' });
     const stripeShim = {
@@ -506,7 +515,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
   it('handleSubscriptionTrialWillEnd dispatches webhook without DB writes', async () => {
     const email = `trial-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
     const trialEnd = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
     const sub = makeFakeSubscription(customer.id, product.id, { status: 'trialing', trial_end: trialEnd });
@@ -541,7 +550,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
   it('handleInvoiceUpcoming mirrors subscription and dispatches renewal warning webhook', async () => {
     const email = `upcoming-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
     const sub = makeFakeSubscription(customer.id, product.id, { status: 'active' });
     const stripeShim = {
@@ -597,7 +606,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
   it('handleInvoicePaymentFailed mirrors past_due status without revoking access', async () => {
     const email = `failed-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
     const sub = makeFakeSubscription(customer.id, product.id, { status: 'active' });
     const stripeShim = {
@@ -656,7 +665,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     // pricing data is rejected at the resolver.
     const email = `mismatch-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
 
     // Sub claims to be for `product` (via metadata) but priced at 99 PLN —
@@ -701,7 +710,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     // fulfillment to the idempotent access helper and delivery queue.
     const email = `race-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
     const sub = makeFakeSubscription(customer.id, product.id);
     const stripeShim = {
@@ -741,7 +750,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     // row (user is still paying through sub2).
     const email = `multisub-old-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
 
     const sub1 = makeFakeSubscription(customer.id, product.id, { id: `sub_old_${Date.now()}` });
@@ -822,7 +831,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
       .update({ stripe_price_id: `price_for_B_${Date.now()}` })
       .eq('id', productB.id);
 
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
 
     // Sub.items uses A's real price id — the subscription was actually created for product A.
@@ -880,7 +889,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     const email = `bind-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const productA = await createSubscriptionProduct();
     const productB = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
 
     const sub = makeFakeSubscription(customer.id, productA.id);
@@ -941,7 +950,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     const emailA = `pin-a-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const emailB = `pin-b-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email: emailA });
+    const customer = await createConfirmedCustomer(emailA);
     createdStripeCustomerIds.push(customer.id);
 
     const sub = makeFakeSubscription(customer.id, product.id);
@@ -1021,7 +1030,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     // sub1 is still active, the handler must relink access to sub1, NOT delete it.
     const email = `relink-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
 
     const sub1 = makeFakeSubscription(customer.id, product.id, { id: `sub_keep_${Date.now()}`, status: 'active' });
@@ -1095,7 +1104,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
       .update({ stripe_price_id: oldPriceId })
       .eq('id', product.id);
 
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
 
     const sub = makeFakeSubscription(customer.id, product.id);
@@ -1161,7 +1170,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     // transition and revoke access on its own.
     const email = `unpaid-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
 
     const active = makeFakeSubscription(customer.id, product.id, { status: 'active' });
@@ -1210,7 +1219,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     // relink user_product_access to the sibling instead of deleting it.
     const email = `relink-upd-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
 
     const old = makeFakeSubscription(customer.id, product.id, { id: `sub_old_${Date.now()}`, status: 'active' });
@@ -1273,7 +1282,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     // a late invoice.paid even if the Stripe API hands us 'active'.
     const email = `db-toctou-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
 
     const active = makeFakeSubscription(customer.id, product.id, { status: 'active' });
@@ -1337,7 +1346,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     // for a canceled / incomplete_expired / unpaid subscription.
     const email = `terminal-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
     const subStripe = makeFakeSubscription(customer.id, product.id);
     const stripeShim = {
@@ -1404,7 +1413,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
   it('handleSubscriptionDeleted revokes product access', async () => {
     const email = `del-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
-    const customer = await stripe!.customers.create({ email });
+    const customer = await createConfirmedCustomer(email);
     createdStripeCustomerIds.push(customer.id);
     const subStripe = makeFakeSubscription(customer.id, product.id);
     const stripeShim = {

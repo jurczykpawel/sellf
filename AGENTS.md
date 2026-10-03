@@ -443,11 +443,11 @@ To execute SQL queries directly on the local database, use `docker exec` with th
 
 1. Guest purchases product → stored in `payment_transactions` with email
 2. `guest_purchases` table links email to purchase
-3. User later registers with same email
-4. `handle_new_user_registration()` trigger automatically claims purchases
+3. User later registers with the same email and confirms it
+4. `handle_new_user_registration()` claims on confirmed INSERT; `handle_user_email_confirmation()` claims on NULL → confirmed UPDATE
 5. Access granted via `user_product_access` table
 
-This pattern allows purchasing before account creation, critical for conversion optimization.
+This pattern allows purchasing before account creation, critical for conversion optimization. Guest payment metadata migrates before the claim attaches transactions to the account. Subscription-created passwordless accounts remain pending; subscription access is deferred by `defer_subscription_access_until_confirmation()` and restored for active/trialing subscriptions on confirmation.
 
 ### First User Admin Assignment
 
@@ -1391,7 +1391,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 - **Strict Deployment**: No remote deployments (e.g., to "mikrus") are allowed without explicit user instruction after local verification.
 - **Production vs Local**: Configuration generation behaves differently (minification, obfuscation).
 - **First Run**: First user to register automatically becomes admin.
-- **Guest Purchases**: Purchases made before registration are auto-claimed on signup.
+- **Guest Purchases**: Purchases made before registration are claimed after e-mail confirmation.
 - **Rate Limits**: Aggressive rate limiting on public functions; adjust if needed for testing.
 - **Caching**: 5-minute TTL on access checks; clear cache when testing access changes.
 - **Locales**: Only English (en) and Polish (pl) are configured.

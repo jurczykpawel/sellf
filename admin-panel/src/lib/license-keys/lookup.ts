@@ -3,6 +3,7 @@ import type { createAdminClient } from '@/lib/supabase/admin';
 export interface IssuedLicenseLookupUser {
   id: string;
   email?: string | null;
+  email_confirmed_at?: string | null;
 }
 
 export interface IssuedLicenseRow {
@@ -23,8 +24,7 @@ export async function findIssuedLicense(
   user: IssuedLicenseLookupUser,
   columns = 'license_key, issued_at, expires_at',
 ): Promise<IssuedLicenseRow | null> {
-  // Prefer match by user_id (UUID, injection-safe); fall back only to guest
-  // email rows where user_id IS NULL. Do not replace this with raw .or().
+  // Prefer licenses assigned to the account; guest rows need a confirmed address.
   const { data: byUser } = await admin
     .from('issued_licenses')
     .select(columns)
@@ -38,7 +38,7 @@ export async function findIssuedLicense(
     return byUser as unknown as IssuedLicenseRow;
   }
 
-  if (!user.email) return null;
+  if (!user.email || !user.email_confirmed_at) return null;
 
   const { data: byEmail } = await admin
     .from('issued_licenses')

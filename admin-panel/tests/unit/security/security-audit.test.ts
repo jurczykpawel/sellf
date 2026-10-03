@@ -228,7 +228,10 @@ describe('Security Audit', () => {
       const check = result.checks.find(c => c.id === 'email-autoconfirm');
 
       expect(check?.status).toBe('fail');
-      expect(check?.fix).toContain('enable_confirmations');
+      expect(check?.fix).toContain('[auth.email]');
+      expect(check?.steps?.join(' ')).toContain('supabase config push');
+      expect(check?.steps?.join(' ')).toContain('supabase stop');
+      expect(check?.steps?.join(' ')).not.toContain('db push');
     });
 
     it('detects product count leak via Prefer header', async () => {
