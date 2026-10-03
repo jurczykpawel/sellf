@@ -3,6 +3,9 @@ title: "Uruchamianie sklepu Sellf — najprostszy sposób"
 description: "Ten przewodnik pokazuje krok po kroku tę najprostszą ścieżkę: wszystko w przeglądarce, bez instalowania programów, bez terminala."
 ---
 
+Włącz **Confirm Email** w Supabase i zainstaluj oba szablony: confirmation oraz magic-link. Zakupy gościa trafiają na konto po potwierdzeniu adresu użytego przy zakupie. Zobacz [konfigurację e-maili](/pl/email-setup/#włącz-potwierdzanie-adresów-e-mail).
+
+
 **Język:** 🇵🇱 Polski · [🇬🇧 English](/quick-start/)
 
 

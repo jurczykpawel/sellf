@@ -3,6 +3,9 @@ title: "Konfiguracja Supabase dla sklepu Sellf"
 description: "Sellf potrzebuje miejsca na przechowywanie Twoich produktów, klientów i zamówień. Tym miejscem jest Supabase — darmowa usługa, która daje Sellfowi…"
 ---
 
+Włącz **Confirm Email** w Supabase i zainstaluj szablony confirmation oraz magic-link. Zakupy gościa trafiają na konto po potwierdzeniu adresu użytego przy zakupie. Zobacz [konfigurację e-maili](/pl/email-setup/#włącz-potwierdzanie-adresów-e-mail).
+
+
 **Język:** 🇵🇱 Polski · [🇬🇧 English](/supabase-setup/)
 
 

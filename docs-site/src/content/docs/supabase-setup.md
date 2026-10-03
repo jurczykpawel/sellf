@@ -3,6 +3,9 @@ title: "Setting up Supabase for your Sellf store"
 description: "Sellf needs a place to store your products, customers, and orders. That place is called Supabase — a free service that gives you everything Sellf needs to…"
 ---
 
+Enable **Confirm Email** in Supabase and install the confirmation and magic-link templates. Guest purchases join the account after confirming the address used for the purchase. See [e-mail setup](/email-setup/#require-e-mail-confirmation).
+
+
 Sellf needs a place to store your products, customers, and orders. That place is called **Supabase** — a free service that gives you everything Sellf needs to run. You don't have to install or configure anything technical; Supabase runs on their computers, and Sellf simply talks to it over the internet.
 
 This guide shows you **three ways to set up Supabase**, ordered from easiest (no installing anything, just clicking buttons in your browser) to most technical (using your computer's terminal). Pick the one that matches how comfortable you are with computers.

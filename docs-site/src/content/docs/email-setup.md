@@ -48,6 +48,14 @@ GOTRUE_SMTP_SENDER_NAME=Your shop
 
 Use your provider's actual host and port. In the official Docker stack, `.env` uses `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_ADMIN_EMAIL`, and `SMTP_SENDER_NAME`; Compose maps them to `GOTRUE_SMTP_*`. Check your stack's mapping and recreate the Auth service to load changes. See the [Auth configuration reference](https://github.com/supabase/auth#email), [Docker Compose mapping](https://github.com/supabase/supabase/blob/master/docker/docker-compose.yml), and [full-stack guide](/full-stack/).
 
+### Require e-mail confirmation
+
+In Supabase Cloud, open **Authentication → Sign In / Providers → Email**, turn on **Confirm Email**, and save. Guest purchases join the account after confirming the address used for the purchase.
+
+For local CLI, set `enable_confirmations = true` under `[auth.email]` in `supabase/config.toml`, then run `supabase stop` and `supabase start`. For a linked Cloud project, review the configuration and apply `supabase config push --project-ref <project-ref>`. `supabase db push` applies database migrations, not Auth configuration. For Docker, set `GOTRUE_MAILER_AUTOCONFIRM=false` and recreate the Auth service.
+
+Install both Sellf templates: **Confirm sign up** (`confirmation.html`, `type=signup`) and **Magic link** (`magic-link.html`, `type=magiclink`). A new address logging in by magic link receives the confirmation template. Both links must go through `/auth/callback` with `RedirectTo`, `TokenHash`, and the appropriate `type`. Test a new address: guest purchases are unavailable before clicking the link and appear in the account afterwards. Password registration also requires the link; Google/GitHub confirm the address during their sign-in flow.
+
 ## 3. Choose an email provider
 
 Look for **transactional email through SMTP**, domain verification with **DKIM**, delivery/bounce logs, and limits that fit your shop. If EU processing matters, check the provider's region options and data-processing terms before choosing.

@@ -3,6 +3,9 @@ title: "Putting your Sellf store online — easiest way"
 description: "This guide walks you through that easiest path: everything in your web browser, no programs to install, no terminal."
 ---
 
+Enable **Confirm Email** in Supabase and install both confirmation and magic-link templates. Guest purchases join the account after confirming the address used for the purchase. See [e-mail setup](/email-setup/#require-e-mail-confirmation).
+
+
 > **Cost story up front:** you can start for **$0/month** (Vercel + free Supabase Cloud) and most small stores stay free for years. If you'd rather have the app on your own server, that's typically **around $5/month** for a cheap VPS — Supabase still stays on its free cloud tier handling the database. The only time you'd pay more is at real scale, covered later.
 >
 > ## 🏆 Easiest method (this guide)

@@ -3,6 +3,9 @@ title: "Sellf Deployment - Mikrus VPS (Optimized)"
 description: "This guide covers deployment of Sellf on Mikrus.us VPS with optimized configuration for high performance on resource-constrained environments."
 ---
 
+Enable **Confirm Email** in Supabase and install the confirmation and magic-link templates. Guest purchases join the account after confirming the address used for the purchase. See [e-mail setup](/email-setup/#require-e-mail-confirmation).
+
+
 **Last Updated**: 2026-01-15 (Performance Optimization Release)
 
 This guide covers deployment of Sellf on Mikrus.us VPS with optimized configuration for **high performance** on resource-constrained environments.

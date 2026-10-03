@@ -48,6 +48,14 @@ GOTRUE_SMTP_SENDER_NAME=Twój sklep
 
 Użyj rzeczywistego hosta i portu dostawcy. Oficjalny stos Docker przyjmuje w `.env` zmienne `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_ADMIN_EMAIL` i `SMTP_SENDER_NAME`; Compose mapuje je na `GOTRUE_SMTP_*`. Sprawdź mapowanie w swoim stosie i odtwórz usługę Auth, aby wczytała zmiany. Źródła: [konfiguracja Auth](https://github.com/supabase/auth#email), [mapowanie Docker Compose](https://github.com/supabase/supabase/blob/master/docker/docker-compose.yml) i [wdrożenie pełnego stosu](/full-stack/).
 
+### Włącz potwierdzanie adresów e-mail
+
+W Supabase Cloud otwórz **Authentication → Sign In / Providers → Email**, włącz **Confirm Email** i zapisz. Zakupy gościa trafiają na konto po potwierdzeniu adresu, którego użyto przy zakupie.
+
+Dla lokalnego CLI ustaw `enable_confirmations = true` w sekcji `[auth.email]` pliku `supabase/config.toml`, następnie uruchom `supabase stop` i `supabase start`. Dla powiązanego projektu Cloud przejrzyj konfigurację i zastosuj `supabase config push --project-ref <project-ref>`. `supabase db push` stosuje migracje bazy, nie konfigurację Auth. W Dockerze ustaw `GOTRUE_MAILER_AUTOCONFIRM=false` i odtwórz usługę Auth.
+
+Wgraj oba szablony Sellfa: **Confirm sign up** (`confirmation.html`, `type=signup`) i **Magic link** (`magic-link.html`, `type=magiclink`). Nowy adres logujący się magic linkiem otrzymuje szablon confirmation. Oba linki muszą prowadzić przez `/auth/callback` z `RedirectTo`, `TokenHash` i właściwym `type`. Przetestuj nowy adres: przed kliknięciem linku brak dostępu do zakupów gościa, po kliknięciu zakupy pojawiają się na koncie. Rejestracja hasłem również wymaga linku; Google/GitHub potwierdzają adres w swoim procesie logowania.
+
 ## 3. Wybierz dostawcę poczty
 
 Szukaj **poczty transakcyjnej przez SMTP**, weryfikacji domeny z **DKIM**, logów dostarczenia i odbić oraz limitów odpowiednich dla sklepu. Jeśli potrzebujesz przetwarzania w UE, sprawdź dostępne regiony i warunki przetwarzania danych przed wyborem.

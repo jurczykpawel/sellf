@@ -3,6 +3,9 @@ title: "Deploying Sellf to Coolify"
 description: "Coolify is a PaaS for managing applications on your own servers. It comes in two flavors:"
 ---
 
+Enable **Confirm Email** in Supabase and install both confirmation and magic-link templates. Guest purchases join the account after confirming the address used for the purchase. See [e-mail setup](/email-setup/#require-e-mail-confirmation).
+
+
 Coolify is a [PaaS](https://en.wikipedia.org/wiki/Platform_as_a_service) for managing applications on your own servers. It comes in two flavors:
 
 | | Coolify Self-Hosted | Coolify Cloud |

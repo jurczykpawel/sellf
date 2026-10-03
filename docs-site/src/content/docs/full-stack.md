@@ -3,6 +3,9 @@ title: "Sellf - Self-Hosted Supabase + Docker"
 description: "Full control over your infrastructure: official self-hosted Supabase plus the Sellf container, both on your own server."
 ---
 
+Enable **Confirm Email** in Supabase and install both confirmation and magic-link templates. Guest purchases join the account after confirming the address used for the purchase. See [e-mail setup](/email-setup/#require-e-mail-confirmation).
+
+
 This guide is for people who want **zero dependency on any cloud database
 provider** — data residency requirements (GDPR), an air-gapped/offline
 environment, or simply the preference to own the whole stack. Everything runs

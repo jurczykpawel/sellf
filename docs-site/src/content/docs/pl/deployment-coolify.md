@@ -3,6 +3,9 @@ title: "Wdrożenie Sellfa na Coolify"
 description: "Coolify to platforma PaaS do zarządzania aplikacjami na Twoich własnych serwerach. Dostępna w dwóch wariantach:"
 ---
 
+Włącz **Confirm Email** w Supabase i zainstaluj oba szablony: confirmation oraz magic-link. Zakupy gościa trafiają na konto po potwierdzeniu adresu użytego przy zakupie. Zobacz [konfigurację e-maili](/pl/email-setup/#włącz-potwierdzanie-adresów-e-mail).
+
+
 **Język:** 🇵🇱 Polski · [🇬🇧 English](/deployment-coolify/)
 
 

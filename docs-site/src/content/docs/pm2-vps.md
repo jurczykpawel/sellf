@@ -3,6 +3,9 @@ title: "Advanced PM2 Deployment - Production-Grade Setup"
 description: "Production-grade PM2 deployment for Sellf on a VPS — process management, clustering, zero-downtime reloads, and log handling."
 ---
 
+Enable **Confirm Email** in Supabase and install the confirmation and magic-link templates. Guest purchases join the account after confirming the address used for the purchase. See [e-mail setup](/email-setup/#require-e-mail-confirmation).
+
+
 **This is the ADVANCED guide for PM2 deployment.**
 For basic PM2 setup, see [DEPLOYMENT-MIKRUS.md](/deployment-mikrus/).
 

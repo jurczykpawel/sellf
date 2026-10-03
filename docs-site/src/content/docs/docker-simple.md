@@ -3,6 +3,9 @@ title: "Sellf - Simple Deploy (Docker + Supabase Cloud)"
 description: "Run the published Sellf image with docker compose against Supabase Cloud (or your own Supabase). One container, no build step."
 ---
 
+Enable **Confirm Email** in Supabase and install both confirmation and magic-link templates. Guest purchases join the account after confirming the address used for the purchase. See [e-mail setup](/email-setup/#require-e-mail-confirmation).
+
+
 **Use this** if you want Docker without self-hosting Supabase — Sellf runs
 from the published image, Supabase Cloud (or your own Supabase project)
 hosts the database.
