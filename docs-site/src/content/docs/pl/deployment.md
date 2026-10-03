@@ -3,6 +3,9 @@ title: "Opcje wdrożenia"
 description: "Ta strona pokazuje wszystkie wspierane sposoby na postawienie Sellfa online, w kolejności od najprostszego (kilka kliknięć w przeglądarce) do najbardziej…"
 ---
 
+> Aktualizacje z panelu: [obsługiwane środowiska, wykrywanie i migracje](/pl/ui-upgrades/). Kontenery nie wykonują migracji przy starcie.
+
+
 **Język:** 🇵🇱 Polski · [🇬🇧 English](/deployment/)
 
 

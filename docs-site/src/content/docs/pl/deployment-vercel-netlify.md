@@ -3,6 +3,9 @@ title: "Wdrożenie Sellfa na Vercel albo Netlify (one-click)"
 description: "Wymagany czas: ~15 minut jeśli masz już konta GitHub, Supabase, Stripe i Vercel/Netlify. Dodaj 5-10 minut za każde konto które trzeba założyć."
 ---
 
+> Aktualizacje z panelu: [obsługiwane środowiska, wykrywanie i migracje](/pl/ui-upgrades/). Kontenery nie wykonują migracji przy starcie.
+
+
 **Język:** 🇵🇱 Polski · [🇬🇧 English](/deployment-vercel-netlify/)
 
 

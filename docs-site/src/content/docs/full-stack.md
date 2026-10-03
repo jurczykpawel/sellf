@@ -3,6 +3,9 @@ title: "Sellf - Self-Hosted Supabase + Docker"
 description: "Full control over your infrastructure: official self-hosted Supabase plus the Sellf container, both on your own server."
 ---
 
+> Admin UI updates: [runtime selection, supported deployments and migrations](/ui-upgrades/). Containers do not apply migrations on startup.
+
+
 This guide is for people who want **zero dependency on any cloud database
 provider** — data residency requirements (GDPR), an air-gapped/offline
 environment, or simply the preference to own the whole stack. Everything runs
@@ -190,9 +193,11 @@ Two independent things to update:
   upgrade notes for the self-hosted stack. This is entirely outside Sellf's
   release cycle.
 - **Sellf** — bump `SELLF_VERSION` in `.env` (or override it at the shell:
-  `SELLF_VERSION=2026.10.0 docker compose up -d`) to pull a newer image, then
-  run any new migrations with `npx supabase db push --db-url ...` (or the
-  in-app updater if you installed via the release tarball elsewhere).
+  `SELLF_VERSION=2026.10.4 docker compose up -d`). First back up the database
+  and apply migrations from the target release with `bunx supabase db push
+  --db-url ...`, then `docker compose pull sellf` and `docker compose up -d
+  --force-recreate sellf`. The in-app updater applies migrations only for
+  a ready standalone PM2 installation, not for the Docker service.
 
 ## Backup
 

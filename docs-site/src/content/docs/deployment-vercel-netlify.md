@@ -3,6 +3,9 @@ title: "Deploying Sellf to Vercel or Netlify (one-click)"
 description: "Time required: ~15 minutes if you already have GitHub, Supabase, Stripe, and Vercel/Netlify accounts. Add 5–10 minutes per account you need to create."
 ---
 
+> Admin UI updates: [runtime selection, supported deployments and migrations](/ui-upgrades/). Containers do not apply migrations on startup.
+
+
 Time required: **~15 minutes** if you already have GitHub, Supabase, Stripe, and Vercel/Netlify accounts. Add 5–10 minutes per account you need to create.
 
 This guide covers the Vercel/Netlify "Deploy" buttons in the README. For VPS/PM2 deployment, see [DEPLOYMENT-MIKRUS.md](/deployment-mikrus/). For self-hosted Docker, see [FULL-STACK.md](/full-stack/).

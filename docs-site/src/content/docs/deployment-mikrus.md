@@ -3,6 +3,9 @@ title: "Sellf Deployment - Mikrus VPS (Optimized)"
 description: "This guide covers deployment of Sellf on Mikrus.us VPS with optimized configuration for high performance on resource-constrained environments."
 ---
 
+> Admin UI updates: [runtime selection, supported deployments and migrations](/ui-upgrades/). Containers do not apply migrations on startup.
+
+
 **Last Updated**: 2026-01-15 (Performance Optimization Release)
 
 This guide covers deployment of Sellf on Mikrus.us VPS with optimized configuration for **high performance** on resource-constrained environments.

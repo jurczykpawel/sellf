@@ -4279,6 +4279,18 @@
     }
   },
   "systemUpdate": {
+    "deployment": {
+          "docker": "Pull ghcr.io/jurczykpawel/sellf:{version}, then recreate your container with that image, preserving its environment, ports and networks. Restarting the existing container does not update Sellf.",
+          "compose": "Set SELLF_VERSION={version} in .env. Run docker compose pull sellf, then docker compose up -d --force-recreate sellf from the directory containing docker-compose.yml. Both docker-simple and full-stack use this Sellf service.",
+          "coolify": "In Coolify, set the Sellf image tag to {version} (or select the release commit for a Dockerfile build), then Redeploy. For a Compose resource, set SELLF_VERSION={version} and redeploy that resource.",
+          "vercel": "In Vercel, deploy the source at release v{version} using the existing project environment. Wait for the deployment to be Ready, then promote it to production.",
+          "netlify": "In Netlify, deploy the source at release v{version} using the existing site environment. Wait for the deploy to be Published.",
+          "pm2": "This PM2 installation is not ready for the standalone updater. From your Sellf source checkout at v{version}, run cd admin-panel, bun install --frozen-lockfile and bun run build, then restart your configured process with pm2 reload ecosystem.config.js (pm2 restart ecosystem.config.js for a single instance). For a StackPilot tarball installation, use deploy.sh sellf --update for this instance instead.",
+          "systemd": "Deploy the source at v{version}. In admin-panel run bun install --frozen-lockfile and bun run build, then sudo systemctl restart [your-sellf-service]. Use the service name and paths from your unit file.",
+          "manual": "Deploy release v{version} using the same procedure that installed this instance, then restart the application. Set SELLF_DEPLOYMENT_RUNTIME to see instructions for your deployment.",
+          "migrations": "Before starting the new version, back up the database and apply its Supabase migrations from that release checkout: bunx supabase db push --db-url [database-connection-url]. Containers and managed hosting do not apply migrations on startup. Verify the running version after redeployment.",
+          "docs": "Deployment guide"
+    },
     "modal": {
       "title": "New version available: v{version}",
       "currentVersion": "Current version: v{version}",

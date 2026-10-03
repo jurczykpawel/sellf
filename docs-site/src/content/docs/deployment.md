@@ -3,6 +3,9 @@ title: "Deployment Options"
 description: "This page lists every supported way to put Sellf online, ordered from easiest (just clicks in a browser) to most technical (terminal commands on a…"
 ---
 
+> Admin UI updates: [runtime selection, supported deployments and migrations](/ui-upgrades/). Containers do not apply migrations on startup.
+
+
 This page lists every supported way to put Sellf online, ordered from easiest (just clicks in a browser) to most technical (terminal commands on a server). All produce a working Sellf store.
 
 ## 👋 First time? Start here

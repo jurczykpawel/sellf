@@ -9,6 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getUpgradeCapability } from '@/lib/system/upgrade-runtime-server';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -17,6 +18,7 @@ import {
   API_SCOPES,
 } from '@/lib/api';
 import { isNewerVersion, APP_VERSION } from '@/lib/version';
+import type { UpgradeCapability } from '@/lib/system/upgrade-runtime';
 import { successResponse } from '@/lib/api/types';
 
 /** Prevent proxy/CDN caching of version info */
@@ -36,6 +38,7 @@ interface CachedRelease {
 }
 
 interface UpdateCheckData {
+  upgrade: UpgradeCapability;
   current_version: string;
   started_at: string;
   latest_version: string;
@@ -53,6 +56,7 @@ export async function OPTIONS(request: NextRequest) {
 
 function unknownUpstreamResponse(currentVersion: string): UpdateCheckData {
   return {
+    upgrade: getUpgradeCapability(),
     current_version: currentVersion,
     started_at: PROCESS_STARTED_AT,
     latest_version: currentVersion,
@@ -72,7 +76,7 @@ export async function GET(request: NextRequest) {
 
     // Return cached data if fresh
     if (!force && releaseCache && Date.now() - releaseCache.fetchedAt < CACHE_TTL_MS) {
-      const cached = { ...releaseCache.data, current_version: currentVersion, started_at: PROCESS_STARTED_AT };
+      const cached = { ...releaseCache.data, upgrade: getUpgradeCapability(), current_version: currentVersion, started_at: PROCESS_STARTED_AT };
       cached.update_available = isNewerVersion(currentVersion, cached.latest_version);
       return withNoStore(jsonResponse(successResponse(cached), request));
     }
@@ -85,7 +89,7 @@ export async function GET(request: NextRequest) {
     let response: Response;
     try {
       response = await fetch(
-        `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
+        process.env.SELLF_UPDATE_CHECK_URL || `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
         {
           headers: { 'Accept': 'application/vnd.github.v3+json' },
           cache: 'no-store', // module-level releaseCache handles TTL — skip Next.js Data Cache
@@ -119,6 +123,7 @@ export async function GET(request: NextRequest) {
       : null;
 
     const data: UpdateCheckData = {
+      upgrade: getUpgradeCapability(),
       current_version: currentVersion,
       started_at: PROCESS_STARTED_AT,
       latest_version: latestVersion,

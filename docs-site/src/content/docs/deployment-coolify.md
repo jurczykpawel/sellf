@@ -3,6 +3,9 @@ title: "Deploying Sellf to Coolify"
 description: "Coolify is a PaaS for managing applications on your own servers. It comes in two flavors:"
 ---
 
+> Admin UI updates: [runtime selection, supported deployments and migrations](/ui-upgrades/). Containers do not apply migrations on startup.
+
+
 Coolify is a [PaaS](https://en.wikipedia.org/wiki/Platform_as_a_service) for managing applications on your own servers. It comes in two flavors:
 
 | | Coolify Self-Hosted | Coolify Cloud |
@@ -155,13 +158,14 @@ https://supabase.com and skip to Step 3. No extra resource inside Coolify.
 4. Click **Deploy**. Coolify pulls the published image — no build step, so
    this takes well under a minute once the image layers are cached.
 5. **Run migrations once** — this is a manual step, not automatic on
-   restart. From your own machine (with `supabase` CLI installed) or a shell
-   inside the Sellf container:
+   restart. From a checkout of the target Sellf release on your own machine
+   (with `supabase` CLI installed):
    ```bash
    npx supabase db push --db-url "postgresql://postgres:<password>@<supabase-host>:5432/postgres"
    ```
    Do this again any time you upgrade Sellf to a version with new
-   migrations, before or right after redeploying.
+   migrations, before redeploying. Set `SELLF_DEPLOYMENT_RUNTIME=coolify`
+   in the Sellf resource environment for matching admin UI instructions.
 
 ## Step 4 — Sign up + register Stripe webhook (1 min, 1 click)
 

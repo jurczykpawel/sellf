@@ -987,6 +987,21 @@ The tar.gz contains: `.next/` (with `standalone/admin-panel/server.js`), `packag
 
 **Important:** The standalone output has a nested `admin-panel/` directory inside `.next/standalone/` because the CI builds from `admin-panel/` with a parent `package.json` at repo root. Next.js file tracing detects the parent and creates this nested structure.
 
+### Upgrade runtime release gate
+
+Run `cd admin-panel && bun run test:upgrade-matrix` before releasing changes to
+upgrades, deployment images or migration delivery. The suite builds local images,
+uses a disposable Supabase project on ports 55321/55322, checks authenticated
+API and real UI states, Compose version persistence and external migrations, and
+runs the signed updater with real PM2. See `tests/upgrade-matrix/README.md`.
+Never point it at the shared development stack. Raw SQL unit tests use
+`SUPABASE_DB_CONTAINER`; set it alongside the Supabase URL for isolated test runs.
+
+`SELLF_DEPLOYMENT_RUNTIME` selects deployment instructions; only preflight-ready
+standalone PM2 enables in-place upgrades. `SELLF_UPDATE_CHECK_URL` overrides only
+notification metadata. Containers and managed hosts require external migrations.
+See `docs-site/src/content/docs/ui-upgrades.md` and its Polish version.
+
 ### Release signing
 
 Before packaging and signing, the release build runs

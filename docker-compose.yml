@@ -22,6 +22,7 @@ services:
       - "${SELLF_BIND:-127.0.0.1}:${SELLF_PORT:-3000}:3000"
     environment:
       NODE_ENV: production
+      SELLF_DEPLOYMENT_RUNTIME: "${SELLF_DEPLOYMENT_RUNTIME:-compose}"
       # Sellf always runs behind a reverse proxy in this setup (Caddy/nginx/
       # Traefik/Coolify) — the port above binds to loopback by default so the
       # app is never reachable except through that proxy.

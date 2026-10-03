@@ -3,6 +3,9 @@ title: "Sellf - Simple Deploy (Docker + Supabase Cloud)"
 description: "Run the published Sellf image with docker compose against Supabase Cloud (or your own Supabase). One container, no build step."
 ---
 
+> Admin UI updates: [runtime selection, supported deployments and migrations](/ui-upgrades/). Containers do not apply migrations on startup.
+
+
 **Use this** if you want Docker without self-hosting Supabase — Sellf runs
 from the published image, Supabase Cloud (or your own Supabase project)
 hosts the database.
@@ -164,11 +167,13 @@ curl https://your-domain.com/api/runtime-config
 ```bash
 cd /opt/sellf
 
-# Bump the version, then:
-docker compose pull
-docker compose up -d
+# Back up the DB and check out the target release first.
+# Apply its new migrations as in Step 3, before starting the new container.
+# Set SELLF_VERSION in .env, then:
+docker compose pull sellf
+docker compose up -d --force-recreate sellf
 
-# Run any new migrations (see Step 3), then check logs:
+# Check logs and the running version in Settings → System:
 docker compose logs -f
 ```
 

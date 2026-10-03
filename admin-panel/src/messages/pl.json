@@ -4279,6 +4279,18 @@
     }
   },
   "systemUpdate": {
+    "deployment": {
+          "docker": "Pobierz ghcr.io/jurczykpawel/sellf:{version}, następnie odtwórz kontener z tego obrazu, zachowując zmienne, porty i sieci. Restart istniejącego kontenera nie aktualizuje Sellfa.",
+          "compose": "Ustaw SELLF_VERSION={version} w .env. W katalogu z docker-compose.yml uruchom docker compose pull sellf, następnie docker compose up -d --force-recreate sellf. Zarówno docker-simple, jak i full-stack używają tej usługi Sellf.",
+          "coolify": "W Coolify ustaw tag obrazu Sellf na {version} (albo wybierz commit wydania dla builda Dockerfile), następnie Redeploy. Dla zasobu Compose ustaw SELLF_VERSION={version} i wdroż go ponownie.",
+          "vercel": "W Vercel wdróż źródła wydania v{version}, zachowując zmienne projektu. Poczekaj na status Ready i promuj wdrożenie do produkcji.",
+          "netlify": "W Netlify wdróż źródła wydania v{version}, zachowując zmienne strony. Poczekaj na status Published.",
+          "pm2": "Ta instalacja PM2 nie jest gotowa do aktualizacji standalone. Ze źródeł Sellfa w wersji v{version} uruchom cd admin-panel, bun install --frozen-lockfile i bun run build, następnie pm2 reload ecosystem.config.js (pm2 restart ecosystem.config.js dla pojedynczej instancji). Dla instalacji z archiwum przez StackPilot użyj deploy.sh sellf --update dla tej instancji.",
+          "systemd": "Wdróż źródła v{version}. W admin-panel uruchom bun install --frozen-lockfile i bun run build, następnie sudo systemctl restart [twoja-usługa-sellf]. Użyj nazwy i ścieżek z pliku jednostki.",
+          "manual": "Wdróż wydanie v{version} tą samą procedurą, którą zainstalowano tę instancję, następnie zrestartuj aplikację. Ustaw SELLF_DEPLOYMENT_RUNTIME, aby zobaczyć instrukcje dla swojego wdrożenia.",
+          "migrations": "Przed uruchomieniem nowej wersji zrób kopię bazy i zastosuj migracje Supabase ze źródeł tego wydania: bunx supabase db push --db-url [adres-połączenia-z-bazą]. Kontenery i hosting zarządzany nie wykonują migracji przy starcie. Po wdrożeniu sprawdź uruchomioną wersję.",
+          "docs": "Przewodnik wdrożenia"
+    },
     "modal": {
       "title": "Dostępna nowa wersja: v{version}",
       "currentVersion": "Obecna wersja: v{version}",

@@ -19,6 +19,7 @@ import { randomUUID } from 'crypto';
 import { spawn } from 'child_process';
 import { existsSync, openSync, closeSync } from 'fs';
 import { resolve, basename, dirname, isAbsolute } from 'path';
+import { findUpgradeScript, getUpgradeInstallDir, getUpgradeCapability } from '@/lib/system/upgrade-runtime-server';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -30,36 +31,6 @@ import { createPlatformClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { getUpgradeLockFilePath, getUpgradeLogFilePath } from '@/lib/system/upgrade-paths';
 
-/**
- * Resolve upgrade script path dynamically based on process.cwd().
- * Supports both standalone (production) and development layouts:
- *   - Standalone: cwd = /opt/stacks/sellf-{name}/admin-panel/.next/standalone/admin-panel
- *     → script at ../../scripts/upgrade.sh (relative to install root)
- *   - Development: cwd = /path/to/admin-panel
- *     → script at ./scripts/upgrade.sh
- */
-function findUpgradeScript(): string | null {
-  const cwd = process.cwd();
-
-  // Candidate paths relative to cwd and common install roots
-  const candidates = [
-    // Standalone: script is alongside .next/ in the install dir
-    resolve(cwd, '..', '..', '..', 'scripts', 'upgrade.sh'),
-    // Standalone: script copied into standalone dir
-    resolve(cwd, 'scripts', 'upgrade.sh'),
-    // Development
-    resolve(cwd, '..', 'scripts', 'upgrade.sh'),
-  ];
-
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-  }
-
-  return null;
-}
-
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
 }
@@ -67,6 +38,11 @@ export async function OPTIONS(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const auth = await authenticate(request, [API_SCOPES.SYSTEM_WRITE]);
+
+    const upgrade = getUpgradeCapability();
+    if (upgrade.mode !== 'in-place') {
+      return jsonResponse({ error: { code: 'MANUAL_UPGRADE_REQUIRED', message: 'Use the deployment upgrade instructions for this runtime.' }, data: { upgrade } }, request, 409);
+    }
 
     // Rate limit: 1 request per 10 minutes
     const rateLimitOk = await checkRateLimit('system_upgrade', 1, 10, auth.admin.userId);
@@ -115,10 +91,7 @@ export async function POST(request: NextRequest) {
     // instead of sellf-tsa).
     // In standalone, cwd = <install>/admin-panel/.next/standalone/admin-panel
     // so three levels up = <install>/admin-panel
-    const cwd = process.cwd();
-    const installDir = cwd.includes('.next/standalone')
-      ? resolve(cwd, '..', '..', '..')
-      : null;
+    const installDir = getUpgradeInstallDir();
 
     // Check per-instance lock file (keyed on stack dir basename, not global).
     // installDir = /opt/stacks/sellf-tsa/admin-panel → parent = sellf-tsa
@@ -175,11 +148,15 @@ export async function POST(request: NextRequest) {
       '--',
       'bash', ...scriptArgs,
     ];
-    const child = spawn('systemd-run', systemdRunArgs, {
-      detached: true,
-      stdio: ['ignore', 'ignore', 'ignore'],
+    // Wait for the launcher to acknowledge creation of the transient service.
+    // --no-block still lets the upgrade run independently of this request.
+    await new Promise<void>((accept, reject) => {
+      const child = spawn('/usr/bin/systemd-run', systemdRunArgs, {
+        stdio: ['ignore', 'ignore', 'ignore'],
+      });
+      child.once('error', reject);
+      child.once('exit', code => code === 0 ? accept() : reject(new Error('Upgrade launcher failed')));
     });
-    child.unref();
 
     return jsonResponse(
       {

@@ -10,6 +10,7 @@
  */
 
 import { useTranslations } from 'next-intl';
+import UpgradeInstructions from '@/components/UpgradeInstructions';
 import type { UpdateInfo, UpgradeProgress } from '@/hooks/useUpdateCheck';
 
 interface UpdateNotificationModalProps {
@@ -68,6 +69,7 @@ export default function UpdateNotificationModal({
   onDismiss,
 }: UpdateNotificationModalProps) {
   const t = useTranslations('systemUpdate');
+  const canUpgrade = updateInfo.upgrade?.mode === 'in-place';
   const isFailed = upgradeProgress?.step === 'failed';
   const isDone = upgradeProgress?.step === 'done';
 
@@ -106,13 +108,15 @@ export default function UpdateNotificationModal({
               </div>
             )}
 
+            {!canUpgrade && <UpgradeInstructions updateInfo={updateInfo} />}
+
             {/* Warning */}
-            <div className="flex items-start gap-2 mb-5 p-3 bg-sf-warning-soft border border-sf-warning/20">
+            {canUpgrade && <div className="flex items-start gap-2 mb-5 p-3 bg-sf-warning-soft border border-sf-warning/20">
               <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
               <p className="text-sm text-sf-warning">{t('modal.backupWarning')}</p>
-            </div>
+            </div>}
 
             {/* Actions */}
             <div className="flex gap-3 justify-end">
@@ -122,12 +126,12 @@ export default function UpdateNotificationModal({
               >
                 {t('modal.remindLater')}
               </button>
-              <button
+              {canUpgrade && <button
                 onClick={onUpgrade}
                 className="px-4 py-2 text-sm font-medium text-white bg-sf-accent-bg hover:bg-sf-accent-hover transition-colors"
               >
                 {t('modal.upgradeNow')}
-              </button>
+              </button>}
             </div>
           </>
         ) : (
