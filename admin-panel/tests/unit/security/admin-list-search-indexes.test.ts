@@ -12,10 +12,11 @@
  * @see supabase/migrations/20260924000000_access_scope_tightening.sql
  */
 
+import { getTestDatabaseContainer } from '../../helpers/database-container';
 import { execSync } from 'child_process';
 import { describe, it, expect } from 'vitest';
 
-const CONTAINER = 'supabase_db_sellf';
+const CONTAINER = getTestDatabaseContainer();
 
 function queryRows(sql: string): string[] {
   const out = execSync(`docker exec -i ${CONTAINER} psql -U postgres -t -A`, {

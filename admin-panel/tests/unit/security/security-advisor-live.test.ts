@@ -15,6 +15,7 @@
  * ============================================================================
  */
 
+import { getTestDatabaseContainer } from '../../helpers/database-container';
 import { execSync } from 'child_process';
 import { describe, it, expect, beforeAll } from 'vitest';
 
@@ -22,7 +23,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 // Helpers
 // ============================================================================
 
-const CONTAINER = 'supabase_db_sellf';
+const CONTAINER = getTestDatabaseContainer();
 const SCHEMAS = "'public', 'public'";
 
 /**

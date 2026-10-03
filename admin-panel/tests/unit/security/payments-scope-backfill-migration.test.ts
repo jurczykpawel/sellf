@@ -14,11 +14,12 @@
  * @see supabase/migrations/20260924000000_access_scope_tightening.sql
  */
 
+import { getTestDatabaseContainer } from '../../helpers/database-container';
 import { randomUUID } from 'crypto';
 import { execSync } from 'child_process';
 import { afterAll, beforeAll, describe, it, expect } from 'vitest';
 
-const CONTAINER = 'supabase_db_sellf';
+const CONTAINER = getTestDatabaseContainer();
 const NAME_PREFIX = `scope-backfill-test-${Date.now()}`;
 
 function runSql(sql: string): string {
