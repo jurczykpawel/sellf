@@ -54,7 +54,11 @@ jobs:
         # and fails the build on any high/critical advisory in the resolved
         # dependency tree. Use `--ignore=<advisory id>` for a specific,
         # time-bound, reviewed exception — never continue-on-error again.
-        run: bun audit --audit-level=high
+        # Reviewed exception (2026-10-03): GHSA-vfj7-8cjw-p6xm (braces <=3.0.3, no
+        # fixed release yet) reaches only build/dev tooling (next-intl message
+        # extractor watcher, @next/eslint-plugin-next); absent from the standalone
+        # build and the Docker image. Remove once a fixed braces/micromatch ships.
+        run: bun audit --audit-level=high --ignore=GHSA-vfj7-8cjw-p6xm
 
       - name: Dependency audit (mcp-server)
         working-directory: ./mcp-server
