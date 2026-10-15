@@ -33,3 +33,21 @@ regression. It builds with placeholders, starts on 3777 with real runtime settin
 and checks Mailpit login/free-access emails, Stripe embed return URLs, sitemap and
 metadata. It requires running local Supabase with the 3777 Auth redirect allowlist and
 a test-mode Stripe key; it never resets the database.
+
+## Product discovery
+
+Submit `/sitemap.xml` for your installation to search engines. It links to chunks
+of up to 1,000 products. Only active, listed products whose availability window
+is currently open are included. Unlisted products remain accessible by direct link.
+English URLs use `/p/slug`; Polish URLs use `/pl/p/slug`, with language alternates.
+The sitemap uses each product's last modification date.
+
+Visitors without access see the existing purchase view directly on a listed
+product's `/p/slug` page. Buyers still see their content. Links containing `email`,
+`coupon`, or `oto` retain the checkout redirect and its context. Checkout URLs
+remain excluded from indexing.
+
+Product pages provide canonical URLs and schema.org Product data. Fixed-price
+Offers use the displayed price, including active sales and recurring subscription
+prices. Customer-chosen pricing has Product data without a fixed-price Offer.
+No personalized coupons or buyer content are included in structured data.

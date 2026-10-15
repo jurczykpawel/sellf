@@ -432,6 +432,15 @@ To execute SQL queries directly on the local database, use `docker exec` with th
 
 ## Key Implementation Details
 
+### Public Product Discovery
+
+`/sitemap.xml` is a dynamic index of `/sitemaps/<cursor>.xml` chunks (1,000 products
+per keyset query). Only active, listed, currently available products are included.
+English product canonicals are `/p/<slug>`, Polish canonicals `/pl/p/<slug>`.
+For listed products, visitors without access see the shared `ProductPurchasePage`
+at `/p/<slug>` with Product JSON-LD; existing buyers retain the content view.
+Contextual purchase links continue to redirect to the non-indexed checkout.
+
 ### Runtime Configuration
 
 **RuntimeConfig API** (`/api/runtime-config`):

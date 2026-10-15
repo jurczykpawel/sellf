@@ -265,6 +265,7 @@ export async function proxy(request: NextRequest) {
   if (
     pathname.startsWith('/api') ||
     pathname === '/sitemap.xml' ||
+    pathname.startsWith('/sitemaps/') ||
     pathname === '/robots.txt' ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/payment') ||
