@@ -45,6 +45,30 @@ describe('mapApiInputToProductRow', () => {
     expect(result.slug).toBe('sample');
   });
 
+  it.each(['create', 'update'] as const)('ignores legacy fields without product columns on %s', (context) => {
+    const unsupported = {
+      custom_price_label: 'Support us',
+      tip_icon: '☕',
+      suggested_amounts: [5, 10],
+      min_amount: 1,
+      metadata: { source: 'legacy-client' },
+    };
+    const result = mapApiInputToProductRow({ ...validBase, ...unsupported }, context);
+    for (const field of Object.keys(unsupported)) expect(result).not.toHaveProperty(field);
+    expect(result.price).toBe(10);
+  });
+
+  it('keeps validating recognized legacy values', () => {
+    expect(ProductUpdateDTO.safeParse({ custom_price_label: 'x'.repeat(81) }).success).toBe(false);
+    expect(ProductCreateDTO.safeParse({ ...validBase, suggested_amounts: [-1] }).success).toBe(false);
+  });
+
+  it.each(['create', 'update'] as const)('preserves v1 major currency units on %s', (context) => {
+    const money = { price: 49.99, sale_price: 29.99, recurring_price: 9.99, custom_price_min: 1.25, custom_price_presets: [5.5, 10] };
+    expect(mapApiInputToProductRow({ ...validBase, ...money, product_type: 'subscription' }, context))
+      .toMatchObject(money);
+  });
+
   it('lowercases slug and uppercases currency', () => {
     const result = mapApiInputToProductRow(
       { ...validBase, slug: 'AbC', currency: 'usd' },

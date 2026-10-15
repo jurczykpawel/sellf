@@ -84,7 +84,7 @@ describe('money contracts', () => {
 describe('product contracts', () => {
   it('offers only product fields backed by database columns', () => {
     for (const name of ['create_product', 'update_product']) {
-      for (const field of ['tip_icon', 'metadata']) {
+      for (const field of ['custom_price_label', 'tip_icon', 'suggested_amounts', 'min_amount', 'metadata']) {
         expect(tools.get(name)!.schema).not.toHaveProperty(field);
       }
     }
@@ -106,7 +106,7 @@ describe('product contracts', () => {
     expect(z.object(tools.get('update_product')!.schema).parse({ id: '11111111-1111-4111-8111-111111111111' })).not.toHaveProperty('is_active');
   });
   const dto = readFileSync(new URL('../../../../admin-panel/src/lib/api/dto/product.ts', import.meta.url), 'utf8');
-  const fields = [...dto.split('const baseShape = {')[1].split('export const ProductCreateDTO')[0].matchAll(/^  ([a-z_]+):/gm)].map(match => match[1]).filter(field => !['tip_icon', 'suggested_amounts', 'min_amount', 'metadata'].includes(field));
+  const fields = [...dto.split('const baseShape = {')[1].split('export const ProductCreateDTO')[0].matchAll(/^  ([a-z_]+):/gm)].map(match => match[1]).filter(field => !['custom_price_label', 'tip_icon', 'suggested_amounts', 'min_amount', 'metadata'].includes(field));
   for (const name of ['create_product', 'update_product']) {
     it(`${name} exposes every persisted DTO field`, () => {
       expect(Object.keys(tools.get(name)!.schema)).toEqual(expect.arrayContaining([...fields, 'categories', 'tags', 'bundleItemIds']));

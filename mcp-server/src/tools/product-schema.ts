@@ -74,7 +74,6 @@ const productShape = {
   show_price_presets: z.boolean().optional(),
   custom_price_min: z.number().nonnegative().optional(),
   custom_price_presets: z.array(z.number().nonnegative()).max(20).optional(),
-  custom_price_label: z.string().max(80).optional(),
   preview_video_config: z.record(z.string(), z.unknown()).nullable().optional(),
   checkout_template: z.string().max(40).optional(),
   custom_checkout_fields: z.array(z.record(z.string(), z.unknown())).max(20).optional(),
