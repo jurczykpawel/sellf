@@ -67,6 +67,6 @@ COPY supabase/templates ./supabase/templates/
 USER nextjs
 
 EXPOSE 3000
-ENV PORT=3000 HOSTNAME="0.0.0.0"
+ENV PORT=3000 HOSTNAME="0.0.0.0" SELLF_DEPLOYMENT_RUNTIME="docker"
 
 CMD ["node", "server.js"]

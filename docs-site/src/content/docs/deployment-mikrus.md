@@ -5,6 +5,8 @@ description: "This guide covers deployment of Sellf on Mikrus.us VPS with optimi
 
 Enable **Confirm Email** in Supabase and install the confirmation and magic-link templates. Guest purchases join the account after confirming the address used for the purchase. See [e-mail setup](/email-setup/#require-e-mail-confirmation).
 
+> Admin UI updates: [runtime selection, supported deployments and migrations](/ui-upgrades/). Containers do not apply migrations on startup.
+
 
 **Last Updated**: 2026-01-15 (Performance Optimization Release)
 

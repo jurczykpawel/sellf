@@ -9,6 +9,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useUpdateCheck } from '@/hooks/useUpdateCheck';
+import UpgradeInstructions from '@/components/UpgradeInstructions';
 import UpdateNotificationModal from '@/components/UpdateNotificationModal';
 
 export default function SystemUpdateSettings() {
@@ -24,6 +25,7 @@ export default function SystemUpdateSettings() {
  startUpgrade,
  } = useUpdateCheck(true);
 
+ const canUpgrade = updateInfo?.upgrade?.mode === 'in-place';
  const currentVersion = updateInfo?.current_version || process.env.NEXT_PUBLIC_APP_VERSION || 'unknown';
 
  return (
@@ -63,13 +65,13 @@ export default function SystemUpdateSettings() {
  </svg>
  <p className="text-sm text-sf-success">{t('settings.upToDate')}</p>
  </div>
- <button
+ {canUpgrade && <button
  onClick={startUpgrade}
  disabled={upgradeInProgress}
  className="px-3 py-1.5 text-xs font-medium text-sf-muted border border-sf-border-medium hover:bg-sf-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
  >
  {t('settings.reinstall')}
- </button>
+ </button>}
  </div>
  )}
 
@@ -83,15 +85,16 @@ export default function SystemUpdateSettings() {
  {t('settings.updateAvailable', { version: updateInfo.latest_version })}
  </p>
  </div>
- <button
+ {canUpgrade && <button
  onClick={startUpgrade}
  disabled={upgradeInProgress}
  className="px-4 py-2 text-sm font-medium text-white bg-sf-accent-bg hover:bg-sf-accent-hover transition-colors disabled:opacity-50"
  >
  {t('settings.upgradeNow')}
- </button>
+ </button>}
  </div>
  )}
+ {updateInfo?.update_available && !canUpgrade && <UpgradeInstructions updateInfo={updateInfo} />}
  </div>
  </div>
 

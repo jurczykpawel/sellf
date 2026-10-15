@@ -4,7 +4,11 @@ import { spawn } from 'child_process';
 import { dirname } from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('child_process', () => ({ spawn: vi.fn(() => ({ unref: vi.fn() })) }));
+vi.mock('child_process', () => ({ spawn: vi.fn(() => ({ once: vi.fn((event, callback) => { if (event === 'exit') callback(0); }) })) }));
+vi.mock('@/lib/system/upgrade-runtime-server', () => ({
+  getUpgradeCapability: vi.fn(() => ({ runtime: 'pm2', mode: 'in-place' })),
+  findUpgradeScript: () => '/install/scripts/upgrade.sh', getUpgradeInstallDir: () => '/install/admin-panel',
+}));
 vi.mock('fs', () => ({ existsSync: vi.fn((p: string) => p.endsWith('upgrade.sh')), openSync: vi.fn(() => 3), closeSync: vi.fn() }));
 vi.mock('@/lib/api', () => ({
   authenticate: vi.fn().mockResolvedValue({ admin: { userId: 'admin' } }),
@@ -15,6 +19,8 @@ vi.mock('@/lib/api', () => ({
 vi.mock('@/lib/supabase/admin', () => ({ createPlatformClient: () => ({ from: () => ({ insert: vi.fn() }) }) }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: vi.fn().mockResolvedValue(true) }));
 vi.mock('@/lib/system/upgrade-paths', () => ({ getUpgradeLockFilePath: () => '/lock', getUpgradeLogFilePath: () => '/log' }));
+import { getUpgradeCapability } from '@/lib/system/upgrade-runtime-server';
+import { checkRateLimit } from '@/lib/rate-limiting';
 import { POST } from '@/app/api/v1/system/upgrade/route';
 
 beforeEach(() => vi.clearAllMocks());
@@ -24,7 +30,7 @@ describe('upgrade unit PATH', () => {
     vi.stubEnv('PATH', '/usr/bin:/root/.bun/bin:/usr/bin');
     expect((await POST(new NextRequest('http://localhost/api/v1/system/upgrade', { method: 'POST' }))).status).toBe(202);
     const paths = [...new Set(['/usr/bin', '/root/.bun/bin', dirname(process.execPath)])];
-    expect(spawn).toHaveBeenCalledWith('systemd-run', expect.arrayContaining([`--setenv=PATH=${paths.join(':')}`]), expect.any(Object));
+    expect(spawn).toHaveBeenCalledWith('/usr/bin/systemd-run', expect.arrayContaining([`--setenv=PATH=${paths.join(':')}`]), expect.any(Object));
   });
   it.each([
     ['/usr/bin:', ['/usr/bin'], 1],
@@ -41,7 +47,23 @@ describe('upgrade unit PATH', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect((await POST(new NextRequest('http://localhost/api/v1/system/upgrade', { method: 'POST' }))).status).toBe(202);
     const paths = [...new Set([...validEntries, dirname(process.execPath)])];
-    expect(spawn).toHaveBeenCalledWith('systemd-run', expect.arrayContaining([`--setenv=PATH=${paths.join(':')}`]), expect.any(Object));
+    expect(spawn).toHaveBeenCalledWith('/usr/bin/systemd-run', expect.arrayContaining([`--setenv=PATH=${paths.join(':')}`]), expect.any(Object));
     expect(warn.mock.calls).toEqual([[`[system/upgrade] Skipped ${droppedCount} unusable PATH entries`]]);
+  });
+});
+
+
+describe('upgrade runtime API', () => {
+  it.each(['docker', 'compose', 'coolify', 'vercel', 'netlify', 'systemd', 'manual', 'pm2'] as const)('declines a manual %s runtime before rate limit or launch', async runtime => {
+    vi.mocked(getUpgradeCapability).mockReturnValueOnce({ runtime, mode: 'manual' });
+    const response = await POST(new NextRequest('http://localhost/api/v1/system/upgrade', { method: 'POST' }));
+    expect(response.status).toBe(409);
+    expect((await response.json()).error.code).toBe('MANUAL_UPGRADE_REQUIRED');
+    expect(spawn).not.toHaveBeenCalled();
+    expect(checkRateLimit).not.toHaveBeenCalled();
+  });
+  it('reports a launcher failure instead of accepting the upgrade', async () => {
+    vi.mocked(spawn).mockImplementationOnce(() => ({ once: (event: string, callback: (code: number) => void) => { if (event === 'exit') callback(1); } }) as ReturnType<typeof spawn>);
+    expect((await POST(new NextRequest('http://localhost/api/v1/system/upgrade', { method: 'POST' }))).status).toBe(500);
   });
 });

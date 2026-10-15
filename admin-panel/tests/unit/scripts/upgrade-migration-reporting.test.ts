@@ -26,7 +26,7 @@ interface MigrationFixture {
   httpError?: boolean;
 }
 
-async function runHarness(migrations: MigrationFixture[], applied: unknown = []) {
+async function runHarness(migrations: MigrationFixture[], applied: unknown = [], missingConfig = false) {
   const dir = mkdtempSync(path.join(tmpdir(), 'sellf-migration-report-'));
   directories.push(dir);
   const install = path.join(dir, 'install');
@@ -35,7 +35,7 @@ async function runHarness(migrations: MigrationFixture[], applied: unknown = [])
   mkdirSync(migrationDir, { recursive: true });
   mkdirSync(bin);
   mkdirSync(path.join(dir, 'scratch'));
-  writeFileSync(path.join(install, '.env.local'), 'SUPABASE_URL=http://fixture.invalid\nSUPABASE_SERVICE_ROLE_KEY=test-key\n');
+  writeFileSync(path.join(install, '.env.local'), missingConfig ? '' : 'SUPABASE_URL=http://fixture.invalid\nSUPABASE_SERVICE_ROLE_KEY=test-key\n');
   writeFileSync(path.join(dir, 'status.json'), JSON.stringify(applied));
   writeFileSync(path.join(dir, 'calls'), '');
   for (const migration of migrations) {
@@ -150,4 +150,10 @@ describe('upgrade.sh migration reporting', () => {
     expect(run.stdout).toContain('WRITE_ERROR: Upgrade');
     expect(run.code).toBe(1);
   });
+});
+
+it('reports incomplete migration setup as a failed upgrade', async () => {
+  const result = await runHarness([], [], true);
+  expect(result.stdout).toContain('WRITE_ERROR:');
+  expect(result.stdout).not.toContain('PROGRESS: done');
 });

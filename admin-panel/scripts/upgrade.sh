@@ -626,6 +626,9 @@ log "Stopping PM2 process: $PM2_NAME"
 write_progress "installing" 65 "Installing new version..."
 log "Swapping files..."
 
+# Keep the launcher outside the build tree that is about to be replaced.
+cd "$INSTALL_DIR"
+
 # Remove old build artifacts
 rm -rf "$INSTALL_DIR/.next"
 rm -rf "$INSTALL_DIR/public"
@@ -722,7 +725,8 @@ SERVICE_KEY=$(grep -E '^SUPABASE_SERVICE_ROLE_KEY=' "$INSTALL_DIR/.env.local" 2>
 
 if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
   if ! command -v jq &>/dev/null; then
-    log "WARNING: jq not installed — skipping automated migrations (apt-get install jq)"
+    MIGRATION_ERRORS=1
+    log "ERROR: jq not installed — migrations incomplete (apt-get install jq)"
   else
     # Check which migrations are already applied via RPC
     APPLIED=$(curl -sf "${SUPABASE_URL}/rest/v1/rpc/get_migration_status" \
@@ -732,7 +736,8 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabas
       -d '{}' 2>/dev/null || echo "RPC_NOT_FOUND")
 
     if [ "$APPLIED" = "RPC_NOT_FOUND" ]; then
-      log "Migration RPC not available yet — skipping automated migrations"
+      MIGRATION_ERRORS=1
+      log "Migration RPC not available yet — migrations incomplete"
       log "Run 'deploy.sh sellf --update' once to bootstrap migration system"
     else
       MIGRATION_COUNT=0
@@ -802,7 +807,8 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabas
     fi
   fi
 else
-  log "Skipping migrations (missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)"
+  MIGRATION_ERRORS=1
+  log "Migrations incomplete (missing Supabase config or migration directory)"
 fi
 
 # ===== STEP 9: START PM2 =====
@@ -820,6 +826,7 @@ if [ ! -f "$SERVER_JS" ]; then
   log "ERROR: server.js not found — rolling back!"
   write_progress "rolling_back" 95 "Error: server.js not found. Rolling back..."
   # Rollback
+  cd "$INSTALL_DIR"
   rm -rf "$INSTALL_DIR/.next" "$INSTALL_DIR/public"
   cp -r "$BACKUP_DIR/.next" "$INSTALL_DIR/" 2>/dev/null || true
   cp -r "$BACKUP_DIR/public" "$INSTALL_DIR/" 2>/dev/null || true
@@ -884,6 +891,7 @@ else
   "$PM2_BIN" stop "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
   "$PM2_BIN" delete "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
 
+  cd "$INSTALL_DIR"
   rm -rf "$INSTALL_DIR/.next" "$INSTALL_DIR/public"
   cp -r "$BACKUP_DIR/.next" "$INSTALL_DIR/" 2>/dev/null || true
   cp -r "$BACKUP_DIR/public" "$INSTALL_DIR/" 2>/dev/null || true

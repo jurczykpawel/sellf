@@ -5,6 +5,8 @@ description: "Coolify to platforma PaaS do zarządzania aplikacjami na Twoich w�
 
 Włącz **Confirm Email** w Supabase i zainstaluj oba szablony: confirmation oraz magic-link. Zakupy gościa trafiają na konto po potwierdzeniu adresu użytego przy zakupie. Zobacz [konfigurację e-maili](/pl/email-setup/#włącz-potwierdzanie-adresów-e-mail).
 
+> Aktualizacje z panelu: [obsługiwane środowiska, wykrywanie i migracje](/pl/ui-upgrades/). Kontenery nie wykonują migracji przy starcie.
+
 
 **Język:** 🇵🇱 Polski · [🇬🇧 English](/deployment-coolify/)
 
@@ -161,13 +163,14 @@ https://supabase.com i przejdź do Kroku 3. Bez dodatkowego zasobu w Coolify.
 4. Kliknij **Deploy**. Coolify pobiera opublikowany obraz — bez builda, więc
    to zajmuje poniżej minuty po ściągnięciu warstw obrazu.
 5. **Uruchom migracje raz** — to ręczny krok, nie dzieje się automatycznie
-   przy restarcie. Z własnej maszyny (z zainstalowanym CLI `supabase`) albo
-   z powłoki wewnątrz kontenera Sellfa:
+   przy restarcie. Ze źródeł docelowego wydania na własnej maszynie
+   (z zainstalowanym CLI `supabase`):
    ```bash
    npx supabase db push --db-url "postgresql://postgres:<haslo>@<host-supabase>:5432/postgres"
    ```
    Powtórz to przy każdej aktualizacji Sellfa do wersji z nowymi migracjami,
-   przed albo zaraz po redeployu.
+   przed redeployem. W zmiennych zasobu Sellf ustaw
+   `SELLF_DEPLOYMENT_RUNTIME=coolify`, aby panel pokazywał odpowiednie instrukcje.
 
 ## Krok 4 — Rejestracja + webhook Stripe (1 min, 1 klik)
 

@@ -21,10 +21,11 @@
  * @see supabase/migrations/20260924000000_access_scope_tightening.sql
  */
 
+import { getTestDatabaseContainer } from '../../helpers/database-container';
 import { execSync } from 'child_process';
 import { afterAll, beforeAll, beforeEach, describe, it, expect } from 'vitest';
 
-const CONTAINER = 'supabase_db_sellf';
+const CONTAINER = getTestDatabaseContainer();
 const NULL_SENTINEL = '__NULL__';
 
 function runSql(sql: string): string {
