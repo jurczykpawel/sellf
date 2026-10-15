@@ -41,3 +41,23 @@ angielsku. Dotyczy to również cen promocyjnych, poprzednich, subskrypcji, raba
 i proponowanych kwot Pay What You Want. Formatowanie waluty nie przelicza kwot.
 Przyciski osadzonego checkout używają atrybutu HTML `lang` strony sprzedawcy, a gdy
 go brakuje — języka przeglądarki.
+
+## Produkty w wyszukiwarkach
+
+Zgłoś wyszukiwarkom `/sitemap.xml` swojej instalacji. Mapa prowadzi do części
+zawierających maksymalnie 1000 produktów. Uwzględnia tylko aktywne produkty widoczne
+w sklepie, których okno dostępności jest obecnie otwarte. Produkty niewidoczne
+w sklepie nadal działają przez bezpośredni link. Angielskie adresy mają postać
+`/p/slug`, a polskie `/pl/p/slug`, z odnośnikami do drugiej wersji językowej.
+Mapa podaje datę ostatniej modyfikacji produktu.
+
+Odwiedzający bez dostępu widzą dotychczasowy widok zakupu bezpośrednio na stronie
+`/p/slug` produktu widocznego w sklepie. Kupujący nadal widzą swoje treści. Linki
+z parametrami `email`, `coupon` lub `oto` zachowują przekierowanie do checkoutu
+wraz z kontekstem. Adresy checkoutu pozostają wyłączone z indeksowania.
+
+Strony produktów zawierają adresy kanoniczne i dane schema.org Product. Oferta
+ze stałą ceną odpowiada cenie widocznej na stronie, uwzględniając aktywne promocje
+oraz cykliczną cenę subskrypcji. Produkty z ceną wybieraną przez klienta mają dane
+Product bez oferty ze stałą ceną. Dane strukturalne nie zawierają indywidualnych
+kuponów ani treści zakupionych przez klienta.

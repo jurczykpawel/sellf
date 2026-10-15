@@ -1,23 +1,25 @@
+import { notFound, redirect } from 'next/navigation';
+import { cache } from 'react';
+import { unstable_cache } from 'next/cache';
 import { createPublicClient, createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkFeature } from '@/lib/license/resolve';
-import { notFound, redirect } from 'next/navigation';
-import { Metadata } from 'next';
-import { cache } from 'react';
-import { unstable_cache } from 'next/cache';
-import ProductView from './components/ProductView';
-import type { SecureProductResponse } from './components/ProductAccessView';
-import type { Product } from '@/types';
-import {
-  decideProductAccessOutcome,
-  type ResolvedUserAccess,
-} from '@/lib/payment/product-access-decision';
+import { decideProductAccessOutcome } from '@/lib/payment/product-access-decision';
 import { getShopConfig } from '@/lib/actions/shop-config';
 import { findIssuedLicense, toIssuedLicenseResponse } from '@/lib/license-keys/lookup';
 import { firstRelated } from '@/lib/supabase/relations';
+import { PRODUCT_PUBLIC_COLUMNS_CSV } from '@/lib/product-columns';
+import { getProductAlternates, getProductJsonLd, isIndexableProduct } from '@/lib/seo/products';
+import { loadProductContentConfig } from '@/lib/services/product-content-config';
+import ProductPurchasePage from '@/components/ProductPurchasePage';
+import type { Metadata } from 'next';
+import type { Product } from '@/types';
+import type { ResolvedUserAccess } from '@/lib/payment/product-access-decision';
+import type { SecureProductResponse } from '@/app/[locale]/p/[slug]/components/ProductAccessView';
+import ProductView from './components/ProductView';
 
 interface PageProps {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ slug: string; locale: string }>;
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
@@ -30,9 +32,6 @@ export const dynamic = 'force-dynamic';
 // Explicit field list — avoids pulling future sensitive columns automatically.
 // content_config is not part of it: it is loaded with the service role only
 // for admin preview or once the visitor's access is confirmed.
-import { PRODUCT_PAGE_FIELDS } from '@/lib/constants';
-import { loadProductContentConfig } from '@/lib/services/product-content-config';
-
 // Two-layer cache: React cache() dedupes within a single render (e.g. between
 // generateMetadata and the page); unstable_cache persists across requests so
 // repeat visitors hit the Next.js memory cache instead of the DB. Cleared by
@@ -43,7 +42,7 @@ const getProduct = cache((slug: string) =>
       const supabase = createPublicClient();
       const { data: product, error } = await supabase
         .from('products')
-        .select(PRODUCT_PAGE_FIELDS)
+        .select(PRODUCT_PUBLIC_COLUMNS_CSV)
         .eq('slug', s)
         .single();
       return { product: product as Product | null, error };
@@ -55,7 +54,7 @@ const getProduct = cache((slug: string) =>
 
 // Generate metadata for the page based on the product data
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { slug } = await params;
+  const { slug, locale } = await params;
   const { product } = await getProduct(slug); // DEDUPED
 
   if (!product) {
@@ -67,11 +66,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: product.name,
     description: product.description,
+    alternates: getProductAlternates(slug, locale),
+    robots: { index: isIndexableProduct(product), follow: true },
   };
 }
 
 export default async function ProductPage({ params, searchParams }: PageProps) {
-  const { slug } = await params;
+  const { slug, locale } = await params;
   const resolvedSearch = searchParams ? await searchParams : {};
 
   // Determine preview mode early — needed before product fetch for inactive products.
@@ -103,7 +104,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     const adminSupabase = createAdminClient();
     const { data, error } = await adminSupabase
       .from('products')
-      .select(`${PRODUCT_PAGE_FIELDS}, content_config`)
+      .select(`${PRODUCT_PUBLIC_COLUMNS_CSV}, content_config`)
       .eq('slug', slug)
       .single();
     product = data as Product | null;
@@ -171,6 +172,16 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     now: new Date(),
     previewMode,
   });
+
+  if (outcome.kind === 'redirect-checkout' && isIndexableProduct(product) &&
+    !['email', 'coupon', 'oto'].some((key) => resolvedSearch[key])) {
+    return (
+      <>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: getProductJsonLd(product, locale) }} />
+        <ProductPurchasePage product={product} />
+      </>
+    );
+  }
 
   if (outcome.kind === 'redirect-checkout') {
     // Preserve OTO/coupon query params so the checkout has the same context.
