@@ -14,7 +14,7 @@
 .closing { background: var(--sf-bg-raised); border-block: 1px solid var(--sf-border); padding: 60px 0; }
 .closingGrid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 120px; align-items: center; }
 .body { margin: 20px 0 0; font-size: 15px; line-height: 1.6; color: var(--sf-text-body); white-space: pre-line; }
-.action { display: inline-flex; align-items: center; justify-content: center; gap: 12px; margin-top: 24px; min-height: 48px; padding: 12px 20px; border-radius: var(--sf-radius-md, 8px); background: var(--sf-accent); color: var(--sf-accent-foreground); font-weight: 600; line-height: 1.4; text-decoration: none; }
+.action { display: inline-flex; align-items: center; justify-content: center; gap: 12px; margin-top: 24px; min-height: 48px; padding: 12px 20px; border-radius: var(--sf-radius-md, 8px); background: var(--sf-accent); color: var(--sf-accent-foreground, var(--sf-accent-fg)); font-weight: 600; line-height: 1.4; text-decoration: none; }
 .product { border-left: 2px solid var(--sf-border); padding-left: 34px; min-width: 0; }
 .product h3 { font-size: 30px; line-height: 1.2; letter-spacing: -.02em; font-weight: var(--sf-font-heading-weight, 600); margin: 0 0 17px; }
 .price { font-size: 30px; line-height: 1.2; }

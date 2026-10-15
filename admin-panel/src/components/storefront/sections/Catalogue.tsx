@@ -3,8 +3,10 @@
 /** Public catalogue interaction over core DTOs. @see catalogue-section.ts */
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
-import { catalogueLabels, cataloguePageSchema } from '@/lib/storefront-templates/catalogue-section';
+import { catalogueLabels, cataloguePageSchema, catalogueRequestSchema } from '@/lib/storefront-templates/catalogue-section';
+import { TASK_NAV_FILTER_EVENT, TASK_NAV_STATE_EVENT } from '@/lib/storefront-templates/task-nav-public';
 import { productFormatSchema, resolveMarketingCopy } from '@/lib/validations/product-marketing';
+import type { TaskNavFilter } from '@/lib/storefront-templates/task-nav-public';
 import type { CatalogueGroup, PublicProductInfo } from '@/lib/storefront-templates/catalogue';
 import type { CatalogueProps, CatalogueRequest } from '@/lib/storefront-templates/catalogue-section';
 import styles from './Catalogue.module.css';
@@ -21,12 +23,13 @@ export default function Catalogue({
   density,
   locale,
   categories = [],
+  initialQuery = emptyQuery,
 }: CatalogueProps) {
   const labels = catalogueLabels[locale];
   const groupIds: CatalogueGroup[] = variant === 'detail-cards' ? ['all'] : ['featured', 'free', 'paid'];
   const [groups, setGroups] = useState(initialGroups);
-  const [query, setQuery] = useState<Query>(emptyQuery);
-  const [search, setSearch] = useState('');
+  const [query, setQuery] = useState<Query>(initialQuery);
+  const [search, setSearch] = useState(initialQuery.search);
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<'INVALID' | 'UNAVAILABLE' | null>(null);
   const generation = useRef(0);
@@ -94,6 +97,21 @@ export default function Catalogue({
       if (version === generation.current) setPending(false);
     }
   }
+  useEffect(() => {
+    const element = document.getElementById(id);
+    const receive = (event: Event) => {
+      const detail = (event as CustomEvent<TaskNavFilter>).detail;
+      if (detail?.target !== id) return;
+      const next = { ...query, ...(detail.search !== undefined ? { search: detail.search } : {}), ...(detail.categoryIds ? { categoryIds: detail.categoryIds } : {}) };
+      if (!catalogueRequestSchema.safeParse({ locale, ...next, group: groupIds[0], cursor: null, pageSize }).success) return;
+      event.preventDefault();
+      setSearch(next.search);
+      void request(next);
+    };
+    element?.addEventListener(TASK_NAV_FILTER_EVENT, receive);
+    element?.dispatchEvent(new CustomEvent(TASK_NAV_STATE_EVENT, { bubbles: true, detail: { target: id, categoryIds: query.categoryIds } }));
+    return () => element?.removeEventListener(TASK_NAV_FILTER_EVENT, receive);
+  });
   function update(patch: Partial<Query>) {
     void request({ ...query, ...patch, search });
   }

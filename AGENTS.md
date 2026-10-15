@@ -470,6 +470,18 @@ and filter-bound cursors. Default groups have independent cursors (24 per group,
 72 total); product/category bindings are batched and starter order is retained.
 These adapters do not cache data; T1.20 owns cache freshness/invalidation wiring.
 
+Public `/` and `/store` share `PublicStorefrontPage` and the published-only,
+rate-limited `loadPublicStorefront` orchestrator. `resolveSelection` expands
+registered recipes and retained active overrides; `resolvePresentation` supplies
+concrete public section props to `StorefrontComposition`. Callers pass a digest of
+the public model as `renderKey` so replaced snapshots reset catalogue state.
+The core caller must
+supply current allowed template IDs; absent grants permit only free default until
+T1.16 wires rights. T1.14 owns public token resolution and T1.20 cache freshness.
+TaskNav and Catalogue share target-scoped filter/state events; URL search/category
+fallbacks use the same bounded initial loaders. Public content renders during auth
+initialization; only empty-shop onboarding depends on the resolved admin session.
+
 ### Runtime Configuration
 
 **RuntimeConfig API** (`/api/runtime-config`):

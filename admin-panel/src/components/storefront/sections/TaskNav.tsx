@@ -1,8 +1,8 @@
 'use client';
 
 /** Category finder; batched public props only. @see spec/contracts/section-contract.md */
-import { useId, useState } from 'react';
-import { TASK_NAV_FILTER_EVENT, TASK_NAV_LABELS, taskNavHref } from '@/lib/storefront-templates/task-nav-public';
+import { useEffect, useId, useState } from 'react';
+import { TASK_NAV_FILTER_EVENT, TASK_NAV_STATE_EVENT, TASK_NAV_LABELS, taskNavHref } from '@/lib/storefront-templates/task-nav-public';
 import type { TaskNavFilter, TaskNavProps } from '@/lib/storefront-templates/task-nav-public';
 import styles from './TaskNav.module.css';
 
@@ -12,6 +12,14 @@ export default function TaskNav({ categories, content, target, locale }: TaskNav
   const [announcement, setAnnouncement] = useState('');
   const labels = TASK_NAV_LABELS[locale];
   const links = categories.slice(0, 12).filter(category => category.label.trim() && category.filterTarget === target);
+  useEffect(() => {
+    const receive = (event: Event) => {
+      const detail = (event as CustomEvent<TaskNavFilter>).detail;
+      if (detail?.target === target) setActive(detail.categoryIds?.length === 1 ? detail.categoryIds[0] : null);
+    };
+    document.addEventListener(TASK_NAV_STATE_EVENT, receive);
+    return () => document.removeEventListener(TASK_NAV_STATE_EVENT, receive);
+  }, [target]);
   if (!links.length) return null;
 
   function handoff(detail: TaskNavFilter): boolean {

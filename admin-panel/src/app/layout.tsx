@@ -1,3 +1,4 @@
+import { getLocale } from 'next-intl/server';
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, DM_Sans, DM_Mono } from "next/font/google";
 import { headers } from "next/headers";
@@ -69,10 +70,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [config, shopConfig, hdrs] = await Promise.all([
+  const [config, shopConfig, hdrs, locale] = await Promise.all([
     getPublicIntegrationsConfig().catch(() => null),
     getShopConfig().catch(() => null),
     headers(),
+    getLocale(),
   ]);
   const adminTheme = shopConfig?.checkout_theme || undefined;
   const cspNonce = hdrs.get(CSP_NONCE_HEADER) ?? undefined;
@@ -87,7 +89,7 @@ export default async function RootLayout({
   })();
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <ThemeScript adminTheme={adminTheme} nonce={cspNonce} />
       </head>

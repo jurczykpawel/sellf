@@ -14,6 +14,7 @@ export interface CatalogueProps {
   density: 'comfortable' | 'compact';
   locale: 'en' | 'pl';
   categories?: PublicCategoryInfo[];
+  initialQuery?: Pick<CatalogueRequest, 'search' | 'categoryIds' | 'priceKind' | 'format'>;
 }
 export const catalogueRequestSchema = z.strictObject({
   locale: z.enum(['en', 'pl']),
@@ -89,6 +90,7 @@ export function resolveCatalogue(
     density: inputs.settings.density ?? 'comfortable',
     locale: inputs.locale,
     categories: inputs.catalogue.categories,
+    initialQuery: inputs.catalogue.initialQuery,
   };
 }
 export const catalogueLabels = {

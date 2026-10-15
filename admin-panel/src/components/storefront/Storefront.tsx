@@ -3,15 +3,11 @@
 import { useTranslations, useLocale } from 'next-intl';
 import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
 import Link from 'next/link';
-import { useState, useSyncExternalStore } from 'react';
+import { useState } from 'react';
 import { Reveal } from '@/components/motion/Reveal';
 import { RevealGroup } from '@/components/motion/RevealGroup';
 import { formatPrice } from '@/lib/constants';
 import type { Product } from '@/types';
-
-const noopSubscribe = () => () => {};
-const getMounted = () => true;
-const getServerMounted = () => false;
 
 interface StorefrontProps {
   products: Product[];
@@ -34,8 +30,6 @@ export default function Storefront({
   productLinkPrefix = '/p',
 }: StorefrontProps) {
   const t = useTranslations('storefront');
-  // Hydration-safe mount detection without setState-in-effect cascade.
-  const mounted = useSyncExternalStore(noopSubscribe, getMounted, getServerMounted);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [showAllFree, setShowAllFree] = useState(false);
   const [showAllPaid, setShowAllPaid] = useState(false);
@@ -50,14 +44,6 @@ export default function Storefront({
   const showFeatured = featuredProducts.length > 0 && (activeFilter === 'all' || activeFilter === 'featured');
   const showFree = freeProducts.length > 0 && (activeFilter === 'all' || activeFilter === 'free');
   const showPremium = paidProducts.length > 0 && (activeFilter === 'all' || activeFilter === 'premium');
-
-  if (!mounted) {
-    return (
-      <div className="w-full bg-sf-deep flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sf-accent"></div>
-      </div>
-    );
-  }
 
   return (
     <div data-testid="storefront" className="w-full bg-sf-deep relative min-h-screen grain-overlay">

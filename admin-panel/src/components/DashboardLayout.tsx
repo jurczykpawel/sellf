@@ -16,6 +16,7 @@ import { EmailText } from '@/components/ui/EmailText'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
+  storefrontTemplate?: 'default' | 'd'
   user?: {
     email?: string
     id: string
@@ -136,7 +137,7 @@ const Icons = {
   ),
 };
 
-export default function DashboardLayout({ children, user: userProp, isAdmin: isAdminProp, shopConfig, showSellfCTA, adminRole }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, user: userProp, isAdmin: isAdminProp, shopConfig, showSellfCTA, adminRole, storefrontTemplate }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [sidebarBadges, setSidebarBadges] = useState({
     pendingRefunds: 0,
@@ -480,8 +481,8 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
   if (!user) {
     return (
       <div className="min-h-screen bg-sf-deep flex flex-col">
-        <header className="h-16 bg-sf-base border-b border-sf-border flex items-center sticky top-0 z-40">
-          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+        <header className={`${storefrontTemplate === 'd' ? 'h-20 max-[600px]:h-[72px]' : 'h-16'} bg-sf-base border-b border-sf-border flex items-center sticky top-0 z-40`}>
+          <div className={`${storefrontTemplate === 'd' ? 'max-w-[1248px] w-[calc(100%-80px)] max-[600px]:w-[calc(100%-36px)]' : 'max-w-7xl w-full px-4 sm:px-6 lg:px-8'} mx-auto flex items-center justify-between`}>
             <div className="flex items-center">
               <Link href="/" className="flex items-center group">
                 {logoUrl ? (

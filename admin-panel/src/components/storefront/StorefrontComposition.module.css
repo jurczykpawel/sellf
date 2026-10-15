@@ -1,0 +1,9 @@
+.brand { max-width: 960px; margin-inline: auto; padding: 32px 24px; color: var(--sf-text-heading); }
+.brand h1 { font-size: 30px; line-height: 1.2; margin: 0; }
+.brand h1 span { color: var(--sf-accent); }
+.brand p { color: var(--sf-text-muted); }
+.brand dl { display: flex; gap: 24px; flex-wrap: wrap; }
+.brand dt { font-size: 12px; color: var(--sf-text-muted); }
+.brand dd { margin: 4px 0; font-size: 24px; font-weight: 700; }
+.starters { width: min(1248px, calc(100% - 80px)); margin-inline: auto; padding-top: 68px; }
+@media (max-width: 600px) { .starters { width: calc(100% - 36px); } }

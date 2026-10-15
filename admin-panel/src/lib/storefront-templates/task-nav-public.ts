@@ -16,6 +16,7 @@ export interface TaskNavFilter {
 }
 /** A catalogue prevents the event's default only when it owns the supplied target. */
 export const TASK_NAV_FILTER_EVENT = 'sellf:catalogue-filter';
+export const TASK_NAV_STATE_EVENT = 'sellf:catalogue-state';
 export const TASK_NAV_LABELS = {
   en: { search: 'Search the catalogue', submit: 'Search', choose: 'Choose a category', filtering: 'Filtering catalogue: ', tooLong: 'Use no more than 100 characters.' },
   pl: { search: 'Szukaj w katalogu', submit: 'Szukaj', choose: 'Wybierz kategorię', filtering: 'Filtrowanie katalogu: ', tooLong: 'Wpisz maksymalnie 100 znaków.' },
