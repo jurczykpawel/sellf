@@ -1,12 +1,8 @@
-/** Generate the shipped structural schemas. @see spec/contracts/validator-cli.md */
+/** Update structural schemas embedded in the unreleased migration. @see spec/contracts/validator-cli.md */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { z } from 'zod';
 import { marketingFieldsShapeSchema } from '@/lib/validations/product-marketing';
-import { configSchema, recipeSchema } from '@/lib/storefront-templates/schemas';
-
-for (const [name, schema] of [['storefront-config', configSchema], ['template-recipe', recipeSchema]] as const) {
-  writeFileSync(new URL(`../src/lib/storefront-templates/schema/${name}.schema.json`, import.meta.url), JSON.stringify(z.toJSONSchema(schema), null, 2) + '\n');
-}
+import { configSchema } from '@/lib/storefront-templates/schemas';
 
 const migration = new URL('../../supabase/migrations/20261015201528_storefront_templates_phase1.sql', import.meta.url);
 const sql = `CREATE FUNCTION public.storefront_config_schema() RETURNS json LANGUAGE sql IMMUTABLE SECURITY INVOKER SET search_path = ''
