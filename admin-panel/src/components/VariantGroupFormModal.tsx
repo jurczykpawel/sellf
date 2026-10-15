@@ -10,7 +10,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product } from '@/types';
 import { formatPrice } from '@/lib/constants';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { toast } from 'sonner';
 import { api } from '@/lib/api/client';
 
@@ -70,6 +70,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
   onSuccess,
 }) => {
   const t = useTranslations('admin.variantsPage');
+  const locale = useLocale();
 
   const [groupName, setGroupName] = useState('');
   const [groupSlug, setGroupSlug] = useState('');
@@ -399,7 +400,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
                         </div>
                         <div className="flex items-center space-x-2">
                           <span className="text-sm font-medium text-sf-body">
-                            {formatPrice(product.price, product.currency)}
+                            {formatPrice(product.price, product.currency, locale)}
                           </span>
                           <svg className="w-5 h-5 text-sf-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

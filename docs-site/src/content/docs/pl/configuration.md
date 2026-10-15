@@ -32,3 +32,12 @@ Regresja produkcyjna: `node scripts/run-runtime-url-tests.mjs` z `admin-panel/`.
 Buduje z placeholderami, uruchamia na 3777 z prawdziwym runtime, sprawdza Mailpit,
 logowanie, darmowy dostęp, embed Stripe, sitemap i metadane. Wymaga działającego
 lokalnego Supabase z allowlistą dla 3777 i testowego klucza Stripe; nie resetuje bazy.
+
+## Wyświetlanie cen
+
+Ceny w sklepie, checkout i panelu administracyjnym używają wybranego języka strony.
+Na przykład 49 PLN jest wyświetlane jako `49,00 zł` po polsku i `PLN 49.00` po
+angielsku. Dotyczy to również cen promocyjnych, poprzednich, subskrypcji, rabatów
+i proponowanych kwot Pay What You Want. Formatowanie waluty nie przelicza kwot.
+Przyciski osadzonego checkout używają atrybutu HTML `lang` strony sprzedawcy, a gdy
+go brakuje — języka przeglądarki.

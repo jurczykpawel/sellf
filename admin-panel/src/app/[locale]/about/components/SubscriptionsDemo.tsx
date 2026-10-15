@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatPrice } from '@/lib/constants';
 import { Play, Pause, RotateCcw, Check, X, Repeat, Rocket, ArrowRight } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
 
@@ -71,6 +72,7 @@ function statusIcon(status: Status) {
 
 export function SubscriptionsDemo() {
   const t = useTranslations('landing.subscriptionsDemo');
+  const locale = useLocale();
   const [revealedCount, setRevealedCount] = useState(0);
   const [playing, setPlaying] = useState(false);
 
@@ -200,7 +202,7 @@ export function SubscriptionsDemo() {
                           }`}
                         >
                           {event.amount > 0 ? '+' : ''}
-                          {event.amount} zł
+                          {formatPrice(event.amount, 'PLN', locale)}
                         </div>
                       )}
                       {revealed && event.noteKey && event.noteKey !== 'cardRetrySuccess' && event.noteKey !== 'proratedRefund' && (
@@ -222,7 +224,7 @@ export function SubscriptionsDemo() {
                   data-captured-total
                   className="text-2xl font-black font-mono tabular-nums text-sf-heading"
                 >
-                  {capturedSoFar.toLocaleString('pl-PL')} zł
+                  {formatPrice(capturedSoFar, 'PLN', locale)}
                 </div>
               </div>
 

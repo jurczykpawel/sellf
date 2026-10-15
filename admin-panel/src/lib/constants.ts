@@ -35,20 +35,12 @@ export const getCurrencySymbol = (currencyCode: string): string => {
   return currency ? currency.symbol : currencyCode;
 };
 
-// Stable formatter: Node's default locale (server) differs from the browser's
-// (client) and `toLocaleString(undefined, ...)` would produce "$49.99" on one
-// side and "$49,99" on the other — a hydration mismatch on every checkout.
-// 'en-US' gives a deterministic comma-thousands / dot-decimal output regardless
-// of where it runs.
-export const formatPrice = (price: number, currencyCode: string): string => {
-  const currency = CURRENCIES.find(c => c.code === currencyCode);
-  const symbol = currency ? currency.symbol : currencyCode;
-
-  if (currencyCode === 'JPY' || currencyCode === 'KRW') {
-    return `${symbol}${Math.round(price).toLocaleString('en-US')}`;
-  }
-
-  return `${symbol}${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// An explicit page locale keeps server and browser output consistent.
+export const formatPrice = (price: number, currencyCode: string, locale: string): string => {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: currencyCode.toUpperCase(),
+  }).format(price);
 };
 
 /**

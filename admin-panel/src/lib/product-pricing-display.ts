@@ -1,5 +1,5 @@
-import type { Product } from '@/types';
 import { formatPrice } from '@/lib/constants';
+import type { Product } from '@/types';
 
 type BillingInterval = NonNullable<Product['billing_interval']>;
 
@@ -46,9 +46,9 @@ export function formatRecurringProductPrice(
   if (product.product_type !== 'subscription') return null;
   if (!product.recurring_price || !product.billing_interval) return null;
 
-  const amount = formatPrice(product.recurring_price, product.currency);
+  const amount = formatPrice(product.recurring_price, product.currency, locale);
   const currencyCode = options.includeCurrencyCode ? ` ${product.currency}` : '';
-  // formatPrice already includes the currency symbol (e.g. "zł20.00"); the optional
+  // formatPrice already includes the currency symbol (e.g. "20,00 zł"); the optional
   // ISO code is for admin/dashboard contexts where multiple currencies coexist and
   // disambiguation matters. Checkout/storefront flows should leave this off.
   const interval = formatBillingIntervalLabel(

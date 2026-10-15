@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatPrice } from '@/lib/constants';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/DashboardLayout';
 import MySubscriptions from '@/components/MySubscriptions';
@@ -23,15 +24,12 @@ interface PurchaseTransactionMetadata {
   coupon_discount?: string | null;
 }
 
-const formatPrice = (price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
+const formatPriceLocalized = (locale: string, price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
   if (price === null) return naLabel;
   const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
   if (isNaN(numericPrice)) return invalidLabel;
 
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency || 'USD',
-  }).format(numericPrice);
+  return formatPrice(numericPrice, currency || 'USD', locale);
 };
 
 const formatDate = (dateString: string) => {
@@ -45,6 +43,7 @@ const formatDate = (dateString: string) => {
 export default function MyPurchasesPage() {
   const { user, loading: authLoading } = useAuth();
   const t = useTranslations('myPurchases');
+  const locale = useLocale();
   const [purchases, setPurchases] = useState<UserPurchase[]>([]);
   const [lineItemsByTransaction, setLineItemsByTransaction] = useState<Record<string, NormalizedPurchaseLineItem[]>>({});
   const [transactionMetadataById, setTransactionMetadataById] = useState<Record<string, PurchaseTransactionMetadata | null>>({});
@@ -322,8 +321,8 @@ export default function MyPurchasesPage() {
 
     if (summary.couponDiscount?.kind === 'fixed') {
       return t('discountFixedAmount', {
-        amount: formatPrice(summary.couponDiscount.value, currency, t('naLabel'), t('invalidPrice')),
-        defaultValue: formatPrice(summary.couponDiscount.value, currency, t('naLabel'), t('invalidPrice')),
+        amount: formatPriceLocalized(locale, summary.couponDiscount.value, currency, t('naLabel'), t('invalidPrice')),
+        defaultValue: formatPriceLocalized(locale, summary.couponDiscount.value, currency, t('naLabel'), t('invalidPrice')),
       });
     }
 
@@ -415,7 +414,7 @@ export default function MyPurchasesPage() {
                     </div>
                     <div className="text-right">
                       <div className="text-lg font-bold text-sf-accent">
-                        {formatPrice(purchase.amount / 100, purchase.currency, t('naLabel'), t('invalidPrice'))}
+                        {formatPriceLocalized(locale, purchase.amount / 100, purchase.currency, t('naLabel'), t('invalidPrice'))}
                       </div>
                       {(() => {
                         const discountSummary = getPurchaseDiscountSummary(purchase, lineItems);
@@ -425,22 +424,22 @@ export default function MyPurchasesPage() {
                           <div className="mt-2 space-y-1 text-xs text-sf-muted">
                             <div className="flex items-center justify-between gap-3">
                               <span>{t('subtotal', { defaultValue: 'Subtotal' })}</span>
-                              <span>{formatPrice(discountSummary.subtotal, purchase.currency, t('naLabel'), t('invalidPrice'))}</span>
+                              <span>{formatPriceLocalized(locale, discountSummary.subtotal, purchase.currency, t('naLabel'), t('invalidPrice'))}</span>
                             </div>
                             <div className="flex items-center justify-between gap-3 text-sf-success">
                               <span>{getDiscountLabel(discountSummary, purchase.currency)}</span>
-                              <span>-{formatPrice(discountSummary.discountAmount, purchase.currency, t('naLabel'), t('invalidPrice'))}</span>
+                              <span>-{formatPriceLocalized(locale, discountSummary.discountAmount, purchase.currency, t('naLabel'), t('invalidPrice'))}</span>
                             </div>
                             <div className="flex items-center justify-between gap-3 font-semibold text-sf-heading">
                               <span>{t('paid', { defaultValue: 'Paid' })}</span>
-                              <span>{formatPrice(discountSummary.totalPaid, purchase.currency, t('naLabel'), t('invalidPrice'))}</span>
+                              <span>{formatPriceLocalized(locale, discountSummary.totalPaid, purchase.currency, t('naLabel'), t('invalidPrice'))}</span>
                             </div>
                           </div>
                         );
                       })()}
                       {purchase.refunded_amount > 0 && purchase.status !== 'refunded' && (
                         <div className="text-sm text-sf-muted">
-                          {t('refundedAmount', { defaultValue: 'Refunded' })}: {formatPrice(purchase.refunded_amount / 100, purchase.currency, t('naLabel'), t('invalidPrice'))}
+                          {t('refundedAmount', { defaultValue: 'Refunded' })}: {formatPriceLocalized(locale, purchase.refunded_amount / 100, purchase.currency, t('naLabel'), t('invalidPrice'))}
                         </div>
                       )}
                     </div>
@@ -466,7 +465,7 @@ export default function MyPurchasesPage() {
                               </div>
                             </div>
                             <div className="shrink-0 text-sm font-semibold text-sf-heading">
-                              {formatPrice(item.total_price, item.currency, t('naLabel'), t('invalidPrice'))}
+                              {formatPriceLocalized(locale, item.total_price, item.currency, t('naLabel'), t('invalidPrice'))}
                             </div>
                           </div>
                         ))}
@@ -509,7 +508,7 @@ export default function MyPurchasesPage() {
                   <div>
                     <div className="font-medium text-sf-heading">{selectedPurchase.product_name}</div>
                     <div className="text-sm text-sf-muted">
-                      {formatPrice(selectedPurchase.amount / 100, selectedPurchase.currency, t('naLabel'), t('invalidPrice'))}
+                      {formatPriceLocalized(locale, selectedPurchase.amount / 100, selectedPurchase.currency, t('naLabel'), t('invalidPrice'))}
                     </div>
                   </div>
                 </div>

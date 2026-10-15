@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { getRevenueStats, getRevenueGoal, setRevenueGoal, CurrencyAmount } from '@/lib/actions/analytics';
 import { getMyDefaultCurrency } from '@/lib/actions/shop-config';
 import { getExchangeRates } from '@/lib/actions/currency';
@@ -13,6 +13,7 @@ import { useSearchParams } from 'next/navigation';
 
 export default function RevenueGoal() {
   const t = useTranslations('admin.dashboard');
+  const locale = useLocale();
   const tCommon = useTranslations('common');
   const searchParams = useSearchParams();
   const productId = searchParams.get('productId') || undefined;
@@ -208,7 +209,7 @@ export default function RevenueGoal() {
 
   const formatCurrency = (amount: number) => {
     if (hideValues) return '****';
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: activeCurrency,
       maximumFractionDigits: 0,

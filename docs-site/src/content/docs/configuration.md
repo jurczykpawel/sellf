@@ -33,3 +33,12 @@ regression. It builds with placeholders, starts on 3777 with real runtime settin
 and checks Mailpit login/free-access emails, Stripe embed return URLs, sitemap and
 metadata. It requires running local Supabase with the 3777 Auth redirect allowlist and
 a test-mode Stripe key; it never resets the database.
+
+## Price display
+
+Prices follow the selected page language in the storefront, checkout and admin panel.
+For example, PLN 49 appears as `49,00 zł` on Polish pages and `PLN 49.00` on English
+pages. This also applies to sale prices, previous prices, subscriptions, discounts
+and Pay What You Want presets. Currency formatting does not convert amounts.
+Embedded checkout buttons use the host page's HTML `lang` attribute, falling back
+to the browser language when it is missing.

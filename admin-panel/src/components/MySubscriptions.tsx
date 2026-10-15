@@ -13,7 +13,8 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatPrice } from '@/lib/constants';
 import { toast } from 'sonner';
 
 interface SubscriptionProduct {
@@ -47,12 +48,9 @@ function formatDate(value: string | null): string {
   });
 }
 
-function formatPrice(amount: number | null, currency: string | null): string {
+function formatPriceLocalized(locale: string, amount: number | null, currency: string | null): string {
   if (amount == null) return '—';
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: currency ?? 'USD',
-  }).format(amount);
+  return formatPrice(amount, currency ?? 'USD', locale);
 }
 
 function statusBadgeClass(status: string, cancelAtPeriodEnd: boolean): string {
@@ -83,6 +81,7 @@ function ActionSpinner() {
 
 export default function MySubscriptions() {
   const t = useTranslations('myPurchases.subscriptions');
+  const locale = useLocale();
   const [rows, setRows] = useState<SubscriptionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -184,7 +183,7 @@ export default function MySubscriptions() {
                 </div>
                 <div className="text-xs text-sf-muted flex flex-wrap gap-x-4 gap-y-0.5">
                   <span>
-                    {formatPrice(product?.recurring_price ?? null, product?.currency ?? 'USD')} / {intervalLabel}
+                    {formatPriceLocalized(locale, product?.recurring_price ?? null, product?.currency ?? 'USD')} / {intervalLabel}
                   </span>
                   <span>
                     {row.cancel_at_period_end || row.status === 'canceled'

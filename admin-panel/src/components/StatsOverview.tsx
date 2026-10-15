@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatPrice } from '@/lib/constants';
 import { useSearchParams } from 'next/navigation';
 import { getDashboardStats } from '@/lib/actions/dashboard';
 import { getRevenueStats, RevenueStats, CurrencyAmount } from '@/lib/actions/analytics';
@@ -19,13 +20,14 @@ interface DashboardStats {
 }
 
 interface NewOrder {
-  amount: string;
+  amount: number;
   currency: string;
   id: string; // unique ID to force re-render
 }
 
 export default function StatsOverview() {
   const t = useTranslations('admin.dashboard');
+  const locale = useLocale();
   const searchParams = useSearchParams();
   const productId = searchParams.get('productId') || undefined;
   const { addRefreshListener, removeRefreshListener } = useRealtime();
@@ -48,7 +50,7 @@ export default function StatsOverview() {
     return Object.values(amounts).reduce((sum, amount) => sum + amount, 0);
   }, []);
 
-  // Stable fetch function - only depends on productId, NOT on revenueStats to avoid infinite loop
+  // Keep the fetch callback independent of revenueStats to avoid repeated fetching.
   const fetchAllStats = useCallback(async () => {
     try {
       const [dashboardData, revenueData] = await Promise.all([
@@ -78,9 +80,8 @@ export default function StatsOverview() {
                }
              }
 
-             const formattedAmount = newAmount.toLocaleString('en-US', { style: 'currency', currency: detectedCurrency });
              setNewOrder({
-               amount: formattedAmount,
+               amount: newAmount,
                currency: detectedCurrency,
                id: Date.now().toString()
              });
@@ -99,7 +100,7 @@ export default function StatsOverview() {
       setLoading(false);
       isInitialLoadRef.current = false;
     }
-  }, [productId, sumAllCurrencies]); // ONLY productId and stable helper
+  }, [productId, sumAllCurrencies]);
 
   useEffect(() => {
     // Initial fetch
@@ -141,7 +142,7 @@ export default function StatsOverview() {
 
   const formatCurrency = (amount: number, currency: string = 'USD') => {
     if (hideValues) return '****';
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency,
       minimumFractionDigits: 0,
@@ -150,7 +151,7 @@ export default function StatsOverview() {
   };
 
   // Helper to format multi-currency amounts (or converted single currency)
-  const formatMultiCurrency = useCallback((amounts: CurrencyAmount, convertedAmount?: number) => {
+  const formatMultiCurrency = (amounts: CurrencyAmount, convertedAmount?: number) => {
     if (hideValues) return '****';
 
     // If in converted mode and we have a converted amount, show that
@@ -170,7 +171,7 @@ export default function StatsOverview() {
       .sort() // Sort for consistency
       .map(currency => formatCurrency(amounts[currency], currency))
       .join(' + ');
-  }, [hideValues, currencyViewMode, displayCurrency]);
+  };
 
   const formatNumber = (num: number) => {
     if (hideValues) return '****';
@@ -265,7 +266,7 @@ export default function StatsOverview() {
       {newOrder && (
         <NewOrderNotification
           key={newOrder.id}
-          amount={newOrder.amount}
+          amount={formatPrice(newOrder.amount, newOrder.currency, locale)}
           currency={newOrder.currency}
           onClose={() => setNewOrder(null)}
         />

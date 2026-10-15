@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatPrice } from '@/lib/constants';
 
 interface OtoCountdownBannerProps {
   expiresAt: string;
@@ -17,18 +18,11 @@ function formatTime(seconds: number): string {
   return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
-function formatDiscount(type: 'percentage' | 'fixed', value: number, currency?: string): string {
+function formatDiscount(type: 'percentage' | 'fixed', value: number, locale: string, currency?: string): string {
   if (type === 'percentage') {
     return `${value}%`;
   }
-  // For fixed discount, format with currency
-  const formatter = new Intl.NumberFormat('pl-PL', {
-    style: 'currency',
-    currency: currency || 'PLN',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
-  return formatter.format(value);
+  return formatPrice(value, currency || 'PLN', locale);
 }
 
 export default function OtoCountdownBanner({
@@ -39,6 +33,7 @@ export default function OtoCountdownBanner({
   onExpire,
 }: OtoCountdownBannerProps) {
   const t = useTranslations('oto');
+  const locale = useLocale();
   const [secondsRemaining, setSecondsRemaining] = useState<number>(() => {
     const expiryTime = new Date(expiresAt).getTime();
     const now = Date.now();
@@ -122,7 +117,7 @@ export default function OtoCountdownBanner({
           <div>
             <p className="text-sm text-sf-muted">{t('exclusiveOffer')}</p>
             <p className={`text-lg font-bold ${isUrgent ? 'text-sf-danger' : isWarning ? 'text-sf-warning' : 'text-sf-accent'}`}>
-              {t('saveAmount', { amount: formatDiscount(discountType, discountValue, currency) })}
+              {t('saveAmount', { amount: formatDiscount(discountType, discountValue, locale, currency) })}
             </p>
           </div>
         </div>

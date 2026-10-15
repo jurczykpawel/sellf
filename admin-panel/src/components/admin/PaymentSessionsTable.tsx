@@ -4,7 +4,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { toast } from 'sonner';
 import type { PaymentSession } from '@/types/payment';
 
@@ -17,6 +17,7 @@ export default function PaymentSessionsTable({
   sessions, 
   onRefreshData 
 }: PaymentSessionsTableProps) {
+  const locale = useLocale();
   const tCancel = useTranslations('admin.payments.cancelSession');
   const [cancelingId, setCancelingId] = useState<string | null>(null);
 
@@ -45,7 +46,7 @@ export default function PaymentSessionsTable({
   };
 
   const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency.toUpperCase(),
     }).format(amount);

@@ -297,7 +297,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                             {t('pwyw')}
                           </span>
                           <div className="text-xs text-sf-muted">
-                            {t('pwywFromLabel', { amount: formatPrice(product.custom_price_min, product.currency) })}
+                            {t('pwywFromLabel', { amount: formatPrice(product.custom_price_min, product.currency, locale) })}
                           </div>
                         </div>
                       ) : product.price === 0 ? (
@@ -305,7 +305,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                           {t('free')}
                         </span>
                       ) : (
-                        <div className="text-sm text-sf-heading">{formatPrice(product.price, product.currency)}</div>
+                        <div className="text-sm text-sf-heading">{formatPrice(product.price, product.currency, locale)}</div>
                       )}
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap text-center">

@@ -1,11 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { useLocale } from 'next-intl';
+import { formatPrice } from '@/lib/constants';
 import { createClient } from '@/lib/supabase/client';
 import NewOrderNotification from '@/components/dashboard/NewOrderNotification';
 
 interface NewOrder {
-  amount: string;
+  amount: number;
   currency: string;
   id: string;
 }
@@ -26,6 +28,7 @@ export const useRealtime = () => {
 };
 
 export const RealtimeProvider = ({ children }: { children: ReactNode }) => {
+  const locale = useLocale();
   const [newOrder, setNewOrder] = useState<NewOrder | null>(null);
   const listenersRef = React.useRef<(() => void)[]>([]);
 
@@ -63,10 +66,7 @@ export const RealtimeProvider = ({ children }: { children: ReactNode }) => {
             if (payload.new?.status === 'completed') {
               listenersRef.current.forEach(listener => listener());
 
-              const amount = ((payload.new.amount ?? 0) / 100).toLocaleString('en-US', {
-                style: 'currency',
-                currency: payload.new.currency || 'USD',
-              });
+              const amount = (payload.new.amount ?? 0) / 100;
               setNewOrder({
                 amount,
                 currency: payload.new.currency || 'USD',
@@ -92,7 +92,7 @@ export const RealtimeProvider = ({ children }: { children: ReactNode }) => {
       {newOrder && (
         <NewOrderNotification
           key={newOrder.id}
-          amount={newOrder.amount}
+          amount={formatPrice(newOrder.amount, newOrder.currency, locale)}
           currency={newOrder.currency}
           onClose={() => setNewOrder(null)}
         />

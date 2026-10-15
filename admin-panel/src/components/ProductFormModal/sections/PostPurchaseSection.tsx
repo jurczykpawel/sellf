@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatPrice } from '@/lib/constants';
 import { PostPurchaseSectionProps } from '../types';
 import { ConversionBadge } from './ConversionBadge';
 
@@ -16,6 +17,7 @@ export function PostPurchaseSection({
   setOto,
 }: PostPurchaseSectionProps) {
   const tCommon = useTranslations('common');
+  const locale = useLocale();
   // Helper to detect if redirect URL points to an internal product
   const getSelectedProductFromUrl = () => {
     const url = formData.success_redirect_url || '';
@@ -123,7 +125,7 @@ export function PostPurchaseSection({
               .filter(p => p.id !== currentProductId)
               .map(p => (
                 <option key={p.id} value={p.slug}>
-                  {p.icon} {p.name} {p.price === 0 ? `(${t('free')})` : `- ${p.price} ${p.currency}`}
+                  {p.icon} {p.name} {p.price === 0 ? `(${t('free')})` : `- ${formatPrice(p.price, p.currency, locale)}`}
                 </option>
               ))
             }
@@ -136,7 +138,7 @@ export function PostPurchaseSection({
               <div className="flex-1">
                 <p className="font-medium text-sf-heading">{selectedRedirectProduct.name}</p>
                 <p className="text-sm text-sf-muted">
-                  {selectedRedirectProduct.price === 0 ? t('free') : `${selectedRedirectProduct.price} ${selectedRedirectProduct.currency}`}
+                  {selectedRedirectProduct.price === 0 ? t('free') : formatPrice(selectedRedirectProduct.price, selectedRedirectProduct.currency, locale)}
                 </p>
               </div>
               <button
@@ -317,7 +319,7 @@ export function PostPurchaseSection({
                     <span className="font-medium">{t('oto.preview', { defaultValue: 'Preview:' })}</span>{' '}
                     {t('oto.previewText', {
                       defaultValue: 'After purchasing this product, customer will see a {discount} discount on "{product}" for {duration} minutes.',
-                      discount: oto.discountType === 'percentage' ? `${oto.discountValue}%` : `${oto.discountValue} ${formData.currency}`,
+                      discount: oto.discountType === 'percentage' ? `${oto.discountValue}%` : formatPrice(oto.discountValue, formData.currency, locale),
                       product: selectedRedirectProduct?.name || 'selected product',
                       duration: oto.durationMinutes
                     })}
@@ -364,7 +366,7 @@ export function PostPurchaseSection({
                             .filter(p => p.id !== currentProductId && p.id !== oto.productId && p.price > 0)
                             .map(p => (
                               <option key={p.id} value={p.id}>
-                                {p.name} ({p.price} {p.currency})
+                                {p.name} ({formatPrice(p.price, p.currency, locale)})
                               </option>
                             ))}
                         </select>
