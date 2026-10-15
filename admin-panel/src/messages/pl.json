@@ -3427,6 +3427,7 @@
     "processError": "Nie udało się przetworzyć prośby o zwrot"
   },
   "demo": {
+    "authBlocked": "Tryb demo: rejestracja, linki logowania, reset hasła oraz zmiana hasła i adresu e-mail są wyłączone. Użyj loginu i hasła demo.",
     "banner": "To jest instancja demo. Dane resetują się co godzinę.",
     "bannerWithCountdown": "To jest instancja demo. Reset danych za {time}.",
     "readonlyNotice": "Wszystkie zmiany są tylko do odczytu — edycje nie zostaną zapisane.",

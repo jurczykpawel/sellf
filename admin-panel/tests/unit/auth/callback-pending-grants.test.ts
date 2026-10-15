@@ -7,15 +7,16 @@
  * @see src/lib/services/pending-free-grants.ts
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const claimPendingFreeGrants = vi.hoisted(() => vi.fn());
+const exchangeCodeForSession = vi.hoisted(() => vi.fn());
 const verifyOtp = vi.hoisted(() => vi.fn());
 const rpc = vi.hoisted(() => vi.fn());
 
 vi.mock('@supabase/ssr', () => ({
-  createServerClient: () => ({ auth: { verifyOtp, exchangeCodeForSession: vi.fn(), signOut: vi.fn() }, rpc }),
+  createServerClient: () => ({ auth: { verifyOtp, exchangeCodeForSession, signOut: vi.fn() }, rpc }),
 }));
 vi.mock('@/lib/services/disposable-email', () => ({
   DisposableEmailService: { validateEmail: async () => ({ isValid: true }) },
@@ -38,7 +39,9 @@ function callback(query: string): Promise<Response> {
 }
 
 describe('auth callback pending free grants', () => {
+  afterEach(() => vi.unstubAllEnvs());
   beforeEach(() => {
+    vi.stubEnv('DEMO_MODE', 'false');
     process.env.SITE_URL = 'https://shop.example.com';
     process.env.SUPABASE_URL = 'http://127.0.0.1:54321';
     process.env.SUPABASE_ANON_KEY = 'anon';
@@ -73,5 +76,30 @@ describe('auth callback pending free grants', () => {
     await callback('flow=login&type=magiclink&token_hash=abc');
 
     expect(claimPendingFreeGrants).not.toHaveBeenCalled();
+  });
+});
+
+describe('demo auth callback', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('declines code exchange in demo mode', async () => {
+    vi.stubEnv('DEMO_MODE', 'true');
+    vi.stubEnv('SITE_URL', 'https://shop.example.com');
+    vi.clearAllMocks();
+    const response = await callback('code=abc');
+    expect(response.headers.get('location')).toBe('https://shop.example.com/login?error=demo_mode');
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(response.cookies.getAll()).toEqual([]);
+  });
+
+  it.each(['magiclink', 'recovery', 'invite', 'email_change', 'signup'])('declines %s callbacks', async (type) => {
+    vi.stubEnv('DEMO_MODE', 'true');
+    vi.stubEnv('SITE_URL', 'https://shop.example.com');
+    vi.clearAllMocks();
+    const response = await callback(`type=${type}&token_hash=abc`);
+    expect(response.headers.get('location')).toBe('https://shop.example.com/login?error=demo_mode');
+    expect(verifyOtp).not.toHaveBeenCalled();
+    expect(claimPendingFreeGrants).not.toHaveBeenCalled();
+    expect(response.cookies.getAll()).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { isDemoMode } from '@/lib/demo-guard';
 import { validateEmailAction } from '@/lib/actions/validate-email';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
 import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
@@ -37,6 +38,7 @@ export interface SendTrustedMagicLinkInput {
  * standing between that and inbox flooding.
  */
 export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Promise<MagicLinkResult> {
+  if (isDemoMode()) return { ok: false, code: 'demo_mode' };
   // Templates append &token_hash: require our absolute, same-instance callback
   // with a query before asking Supabase to deliver it. The operator must also
   // allow SITE_URL/auth/callback in Supabase Auth's redirect URL configuration.
@@ -67,6 +69,7 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
 }
 
 export async function requestMagicLink(input: MagicLinkRequestInput): Promise<MagicLinkResult> {
+  if (isDemoMode()) return { ok: false, code: 'demo_mode' };
   const ipAllowed = await checkRateLimit('magic_link_ip', 5, 15);
   if (!ipAllowed) return { ok: false, code: 'rate_limited' };
 

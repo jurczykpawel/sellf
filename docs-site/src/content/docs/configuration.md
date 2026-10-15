@@ -33,3 +33,16 @@ regression. It builds with placeholders, starts on 3777 with real runtime settin
 and checks Mailpit login/free-access emails, Stripe embed return URLs, sitemap and
 metadata. It requires running local Supabase with the 3777 Auth redirect allowlist and
 a test-mode Stripe key; it never resets the database.
+
+## Demo authentication
+
+With `DEMO_MODE=true`, Sellf declines magic-link requests (including free-product
+and post-checkout links) and auth callbacks on the server. Subscription webhooks
+can use existing accounts but cannot create accounts. Password login remains
+available. Login and checkout forms explain the demo restriction in English and Polish.
+
+Sellf has no password reset, password/email change, or password sign-up endpoint.
+Supabase Auth is a separate service: its direct API must be configured separately
+for a shared demo installation. `DEMO_MODE` alone does not restrict direct Supabase
+requests. Disable sign-up and configure account-change restrictions there before
+making a shared demo available.

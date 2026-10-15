@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * First-event product binding for subscriptions whose product allows a
@@ -74,7 +74,8 @@ function makeDb() {
 }
 
 const platform = {
-  rpc: vi.fn(async () => ({ data: 'buyer-1', error: null })),
+  rpc: vi.fn<() => Promise<{ data: string | null; error: null }>>(async () => ({ data: 'buyer-1', error: null })),
+  auth: { admin: { createUser: vi.fn() } },
 };
 
 function makeSub(price: Record<string, unknown>) {
@@ -120,6 +121,7 @@ function accessGrants() {
 }
 
 beforeEach(() => {
+  platform.auth.admin.createUser.mockClear();
   product = { ...BASE_PRODUCT };
   writes = [];
 });
@@ -170,5 +172,26 @@ describe('subscription binding for buyer-chosen amounts', () => {
 
     expect(result.processed).toBe(true);
     expect(accessGrants()).toHaveLength(1);
+  });
+});
+
+describe('demo subscription accounts', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    platform.rpc.mockResolvedValue({ data: 'buyer-1', error: null });
+  });
+
+  it('declines new accounts in demo mode', async () => {
+    vi.stubEnv('DEMO_MODE', 'true');
+    platform.rpc.mockResolvedValue({ data: null, error: null });
+    expect((await run()).processed).toBe(false);
+    expect(platform.auth.admin.createUser).not.toHaveBeenCalled();
+    expect(writes).toEqual([]);
+  });
+
+  it('continues with an existing account in demo mode', async () => {
+    vi.stubEnv('DEMO_MODE', 'true');
+    expect((await run()).processed).toBe(true);
+    expect(platform.auth.admin.createUser).not.toHaveBeenCalled();
   });
 });

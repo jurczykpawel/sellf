@@ -13,6 +13,7 @@
 
 import type Stripe from 'stripe';
 import type { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
+import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { captureAndPersistInvoiceTax } from '@/lib/services/tax-snapshot';
@@ -97,7 +98,7 @@ function productIdFromSubscription(sub: Stripe.Subscription): string | null {
 async function findOrCreatePasswordlessUser(
   platformClient: PlatformClient,
   email: string
-): Promise<string> {
+): Promise<string | null> {
   const normalizedEmail = email.trim().toLowerCase();
 
   const { data: existing, error: rpcErr } = await platformClient.rpc(
@@ -107,6 +108,8 @@ async function findOrCreatePasswordlessUser(
   if (!rpcErr && typeof existing === 'string' && existing.length > 0) {
     return existing;
   }
+
+  if (isDemoMode()) return null;
 
   const { data: created, error: createErr } = await platformClient.auth.admin.createUser({
     email: normalizedEmail,
@@ -387,6 +390,7 @@ async function resolveSubscriptionContext(
   const userId = existingSub?.user_id
     ? existingSub.user_id
     : await findOrCreatePasswordlessUser(platformClient, email);
+  if (!userId) return { ok: false, reason: DEMO_MODE_ERROR };
   const stripeCustomerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
   await ensureStripeCustomerMapping(supabase, userId, stripeCustomerId);
   const priorStatus = existingSub?.status ?? null;

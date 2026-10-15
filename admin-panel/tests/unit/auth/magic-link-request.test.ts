@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const deliverMagicLink = vi.hoisted(() => vi.fn());
 const verifyCaptchaToken = vi.hoisted(() => vi.fn());
@@ -26,7 +26,9 @@ const BASE_INPUT = {
 };
 
 describe('requestMagicLink', () => {
+  afterEach(() => vi.unstubAllEnvs());
   beforeEach(() => {
+    vi.stubEnv('DEMO_MODE', 'false');
     deliverMagicLink.mockReset();
     verifyCaptchaToken.mockReset();
     validateEmailAction.mockReset();
@@ -238,6 +240,32 @@ describe('trusted magic link callback gate', () => {
   ])('rejects malformed or foreign redirect %s before delivery', async redirectTo => {
     deliverMagicLink.mockClear();
     expect(await sendTrustedMagicLink({ email: 'buyer@example.com', redirectTo })).toEqual({ ok: false, code: 'invalid_request' });
+    expect(deliverMagicLink).not.toHaveBeenCalled();
+  });
+});
+
+describe('demo magic links', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv('DEMO_MODE', 'true');
+  });
+
+  it.each(['login', 'free_product', 'post_checkout'] as const)('declines %s before processing', async (flow) => {
+    expect(await requestMagicLink({ ...BASE_INPUT, flow, productSlug: 'widget' }))
+      .toEqual({ ok: false, code: 'demo_mode' });
+    expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(verifyCaptchaToken).not.toHaveBeenCalled();
+    expect(validateEmailAction).not.toHaveBeenCalled();
+    expect(deliverMagicLink).not.toHaveBeenCalled();
+    expect(queuePendingFreeGrant).not.toHaveBeenCalled();
+  });
+
+  it('declines trusted delivery before processing', async () => {
+    expect(await sendTrustedMagicLink({ email: BASE_INPUT.email, redirectTo: buildLoginMagicLinkRedirect('https://shop.example.com') }))
+      .toEqual({ ok: false, code: 'demo_mode' });
+    expect(checkRateLimitForIdentifier).not.toHaveBeenCalled();
     expect(deliverMagicLink).not.toHaveBeenCalled();
   });
 });

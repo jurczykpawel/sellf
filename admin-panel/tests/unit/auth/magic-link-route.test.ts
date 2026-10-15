@@ -113,6 +113,7 @@ describe('POST /api/auth/magic-link', () => {
   });
 
   it.each([
+    ['demo_mode', 403],
     ['invalid_request', 400],
     ['captcha_failed', 400],
     ['invalid_email', 400],

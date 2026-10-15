@@ -10,6 +10,7 @@ export interface MagicLinkClientRequest {
 }
 
 const KNOWN_ERROR_CODES: readonly MagicLinkErrorCode[] = [
+  'demo_mode',
   'invalid_request',
   'captcha_failed',
   'invalid_email',

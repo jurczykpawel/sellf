@@ -42,6 +42,7 @@ interface FreeProductFormProps {
 }
 
 export default function FreeProductForm({ product, collectTermsOfService, bundleComponents }: FreeProductFormProps) {
+  const tDemo = useTranslations('demo');
   const t = useTranslations('productView');
   const tCheckout = useTranslations('checkout');
   const tSecurity = useTranslations('security');
@@ -211,13 +212,15 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
 
       if (!result.ok) {
         const text =
-          result.reason === 'captcha_missing'
-            ? tCompliance('securityVerificationRequired')
-            : result.reason === 'invalid_email'
-              ? t('invalidEmailDisposable')
-              : result.reason === 'rate_limited'
-                ? t('rateLimitError')
-                : t('unexpectedError');
+          result.reason === 'demo_mode'
+            ? tDemo('authBlocked')
+            : result.reason === 'captcha_missing'
+              ? tCompliance('securityVerificationRequired')
+              : result.reason === 'invalid_email'
+                ? t('invalidEmailDisposable')
+                : result.reason === 'rate_limited'
+                  ? t('rateLimitError')
+                  : t('unexpectedError');
         setMessage({ type: 'error', text });
         return;
       }

@@ -32,3 +32,17 @@ Regresja produkcyjna: `node scripts/run-runtime-url-tests.mjs` z `admin-panel/`.
 Buduje z placeholderami, uruchamia na 3777 z prawdziwym runtime, sprawdza Mailpit,
 logowanie, darmowy dostęp, embed Stripe, sitemap i metadane. Wymaga działającego
 lokalnego Supabase z allowlistą dla 3777 i testowego klucza Stripe; nie resetuje bazy.
+
+## Logowanie w trybie demo
+
+Przy `DEMO_MODE=true` Sellf odrzuca po stronie serwera żądania magic-linków
+(także do darmowych produktów i po zakupie) oraz callbacki uwierzytelniania.
+Webhooki subskrypcji mogą korzystać z istniejących kont, ale nie tworzą nowych.
+Logowanie hasłem pozostaje dostępne. Formularze logowania i checkoutu wyjaśniają
+ograniczenie demo po polsku i angielsku.
+
+Sellf nie udostępnia endpointów resetu hasła, zmiany hasła/e-maila ani rejestracji
+hasłem. Supabase Auth jest osobną usługą: jej bezpośrednie API wymaga odrębnej
+konfiguracji dla współdzielonego demo. Samo `DEMO_MODE` nie ogranicza bezpośrednich
+żądań do Supabase. Przed udostępnieniem demo wyłącz tam rejestrację i skonfiguruj
+ograniczenia zmian konta.

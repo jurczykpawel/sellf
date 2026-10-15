@@ -23,6 +23,7 @@ export default function LoginForm() {
   const [sentEmail, setSentEmail] = useState(false)
   const [termsAccepted, setTermsAccepted] = useState(false)
   const captcha = useCaptcha()
+  const tDemo = useTranslations('demo');
   const t = useTranslations()
 
   const handleOAuthSignIn = async (provider: OAuthProvider) => {
@@ -66,11 +67,13 @@ export default function LoginForm() {
 
       if (!result.ok) {
         const message =
-          result.reason === 'captcha_missing'
-            ? t('compliance.securityVerificationRequired')
-            : result.reason === 'invalid_email'
-              ? t('auth.disposableEmailBlocked')
-              : t('auth.loginFailed')
+          result.reason === 'demo_mode'
+            ? tDemo('authBlocked')
+            : result.reason === 'captcha_missing'
+              ? t('compliance.securityVerificationRequired')
+              : result.reason === 'invalid_email'
+                ? t('auth.disposableEmailBlocked')
+                : t('auth.loginFailed')
         setMessage(message)
         setSentEmail(false)
       } else {
@@ -104,6 +107,8 @@ export default function LoginForm() {
           placeholder={demoMode ? 'demo@sellf.app' : (passwordLoginEnabled ? '' : t('auth.emailPlaceholder'))}
         />
       </div>
+
+      {demoMode && <p className="text-sm text-sf-muted">{tDemo('authBlocked')}</p>}
 
       {/* Password field - demo/E2E mode only */}
       {passwordLoginEnabled && (

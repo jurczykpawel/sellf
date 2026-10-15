@@ -6,6 +6,7 @@ import {
   loadAllowedOriginsForProduct,
   parseEmbedFreeAccessBody,
 } from '@/lib/embed/checkout-embed';
+import { DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { requestMagicLink } from '@/lib/auth/magic-link/request';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -119,6 +120,9 @@ export async function POST(request: Request) {
   });
 
   if (!result.ok) {
+    if (result.code === 'demo_mode') {
+      return embedJson({ error: DEMO_MODE_ERROR, code: 'demo_mode' }, 403, origin, allowedOrigins);
+    }
     if (result.code === 'captcha_failed') {
       return embedJson(
         { error: 'Security verification failed. Please try again.' },
