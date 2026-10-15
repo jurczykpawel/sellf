@@ -67,8 +67,8 @@ describe('storefront catalogue', () => {
     const result = await loadCataloguePage(c.db, { ...input, locale: 'pl' });
     if (!result.success) throw Error('page failed');
     expect(result.data.products.map(p => p.price.kind)).toEqual(['subscription', 'pwyw', 'free', 'one-time']);
-    expect(result.data.products[0].price.display).toBe('$15.00 / mies.');
-    expect(result.data.products[3].price).toMatchObject({ display: '$10.00', omnibus: expect.stringContaining('$18.00') });
+    expect(result.data.products[0].price.display).toBe('15,00 USD / mies.');
+    expect(result.data.products[3].price).toMatchObject({ display: '10,00 USD', omnibus: expect.stringContaining('18,00 USD') });
     expect(result.data.products[0].actions.buy).toBe('/pl/checkout/example-1');
   });
   it('omits unsupported image URLs and returns errors without rows', async () => {

@@ -67,15 +67,15 @@ function image(row: ProductRow): PublicProductInfo['image'] {
 function projectProduct(row: ProductRow, locale: 'en' | 'pl'): PublicProductInfo {
   const messages = locale === 'pl' ? pl : en;
   const kind: PublicPriceInfo['kind'] = row.product_type === 'subscription' ? 'subscription' : row.allow_custom_price ? 'pwyw' : row.price === 0 ? 'free' : 'one-time';
-  const amount = formatPrice(getEffectiveUnitPrice(row), row.currency);
+  const amount = formatPrice(getEffectiveUnitPrice(row), row.currency, locale);
   const display = kind === 'free' ? messages.checkout.customPrice.freePreset
-    : kind === 'subscription' ? formatRecurringProductPrice(row, locale) ?? formatPrice(row.recurring_price ?? 0, row.currency)
-    : kind === 'pwyw' ? messages.admin.products.pwywFromLabel.replace('{amount}', formatPrice(row.custom_price_min ?? STRIPE_MINIMUM_AMOUNT, row.currency)) : amount;
+    : kind === 'subscription' ? formatRecurringProductPrice(row, locale) ?? formatPrice(row.recurring_price ?? 0, row.currency, locale)
+    : kind === 'pwyw' ? messages.admin.products.pwywFromLabel.replace('{amount}', formatPrice(row.custom_price_min ?? STRIPE_MINIMUM_AMOUNT, row.currency, locale)) : amount;
   const vat = getVatDisplay({ taxMode: row.tax_mode, vatRate: row.vat_rate, vatExempt: row.vat_exempt, vatExemptNote: row.vat_exempt_note });
   const taxNote = kind === 'free' || vat.kind === 'none' ? null : vat.kind === 'exempt' ? [messages.checkout.vatExempt, vat.note].filter(Boolean).join(' — ')
     : row.price_includes_vat ? `${messages.checkout.includingVat} ${vat.rate}%` : `+ ${messages.checkout.vat} ${vat.rate}%`;
   const omnibus = kind === 'one-time' && row.lowest_prior_price !== null && isSalePriceActive(row.sale_price, row.sale_price_until, row.sale_quantity_limit, row.sale_quantity_sold)
-    ? `${messages.checkout.lowestPriceLabel}: ${formatPrice(row.lowest_prior_price, row.currency)}` : null;
+    ? `${messages.checkout.lowestPriceLabel}: ${formatPrice(row.lowest_prior_price, row.currency, locale)}` : null;
   return { id: row.id, slug: row.slug, title: row.name, price: { display, taxNote, omnibus, kind }, marketing: row.marketing_fields,
     image: image(row), actions: { details: `/${locale}${productUrl(row.slug)}`, buy: `/${locale}${checkoutUrl(row.slug)}` }, availability: 'available' };
 }
