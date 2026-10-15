@@ -54,7 +54,7 @@ export default function RevenueChart() {
   const setPredefinedRange = (days: number) => {
     if (days === 0) { // "Today" button
       setViewMode('hourly');
-      setDateRange({ start: new Date(), end: new Date() }); 
+      setDateRange({ start: new Date(), end: new Date() });
     } else {
       setViewMode('daily');
       const end = new Date();
@@ -87,13 +87,20 @@ export default function RevenueChart() {
     }
   }, [
     viewMode,
-    dateRange.start?.getTime(), // Use timestamp instead of Date object
-    dateRange.end?.getTime(),   // Use timestamp instead of Date object
+    dateRange.start,
+    dateRange.end,
     productId
   ]);
 
-  useEffect(() => {
+  const requestKey = JSON.stringify([viewMode, dateRange.start?.getTime(), dateRange.end?.getTime(), productId]);
+  const [previousKey, setPreviousKey] = useState(requestKey);
+  if (previousKey !== requestKey) {
+    setPreviousKey(requestKey);
     setLoading(true);
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
     fetchData();
 
     addRefreshListener(fetchData);

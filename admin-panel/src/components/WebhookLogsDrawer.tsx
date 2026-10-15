@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { WebhookLog, WebhookEndpoint } from '@/types/webhooks';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from './ui/Modal';
@@ -26,9 +26,8 @@ export default function WebhookLogsDrawer({ endpoint, onClose, isOpen, onRefresh
   const [showInactiveWarning, setShowInactiveWarning] = useState(false);
   const [pendingRetryLogId, setPendingRetryLogId] = useState<string | null>(null);
 
-  const fetchLogs = async () => {
+  const loadLogs = useCallback(async () => {
     try {
-      setLoading(true);
       // Use v1 API for webhook logs
       const response = await api.list<WebhookLog>('webhooks/logs', {
         endpoint_id: endpoint.id,
@@ -42,13 +41,25 @@ export default function WebhookLogsDrawer({ endpoint, onClose, isOpen, onRefresh
     } finally {
       setLoading(false);
     }
-  };
+  }, [endpoint.id, filter, t]);
+
+  const requestKey = JSON.stringify([endpoint.id, filter, isOpen]);
+  const [previousKey, setPreviousKey] = useState(requestKey);
+  if (previousKey !== requestKey) {
+    setPreviousKey(requestKey);
+   setLoading(true);
+  }
+ const fetchLogs = () => {
+   setLoading(true);
+   return loadLogs();
+ };
 
   useEffect(() => {
     if (isOpen) {
-      fetchLogs();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- State is updated only after awaiting the request.
+    loadLogs();
     }
-  }, [isOpen, filter, endpoint.id]);
+  }, [loadLogs, isOpen]);
 
   const handleRetryClick = (logId: string) => {
     // Check if endpoint is inactive

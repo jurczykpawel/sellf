@@ -50,9 +50,8 @@ export default function ApiKeysPageContent({ scopesLocked = false }: { scopesLoc
   const [showSecret, setShowSecret] = useState(false);
 
   // Fetch API keys
-  const fetchApiKeys = useCallback(async () => {
+  const loadApiKeys = useCallback(async () => {
     try {
-      setLoading(true);
       const res = await fetch('/api/v1/api-keys');
       if (!res.ok) throw new Error('Failed to fetch API keys');
       const data = await res.json();
@@ -65,9 +64,15 @@ export default function ApiKeysPageContent({ scopesLocked = false }: { scopesLoc
     }
   }, [t]);
 
+  const fetchApiKeys = useCallback(() => {
+    setLoading(true);
+    return loadApiKeys();
+  }, [loadApiKeys]);
+
   useEffect(() => {
-    fetchApiKeys();
-  }, [fetchApiKeys]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
+    loadApiKeys();
+  }, [loadApiKeys]);
 
   // Create API key
   const handleCreate = async (formData: { name: string; scopes: string[]; rate_limit_per_minute?: number; expires_at?: string }) => {

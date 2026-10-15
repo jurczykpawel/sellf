@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -41,16 +41,14 @@ export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): Us
   const [couponManuallyRemoved, setCouponManuallyRemoved] = useState(false);
   const [lastCheckedUrlCoupon, setLastCheckedUrlCoupon] = useState<string | null>(null);
 
-  // Reset manual removal flag when email changes
-  useEffect(() => {
+  const [previousEmail, setPreviousEmail] = useState(email);
+  if (previousEmail !== email) {
+    setPreviousEmail(email);
     setCouponManuallyRemoved(false);
-  }, [email]);
+  }
 
-  const handleVerifyCoupon = useCallback(async (code: string, currentEmail?: string) => {
+  const verifyCouponRequest = useCallback(async (code: string, currentEmail?: string) => {
     if (!code) return;
-    setIsVerifyingCoupon(true);
-    setCouponError(null);
-    setCouponManuallyRemoved(false);
     try {
       const res = await fetch('/api/coupons/verify', {
         method: 'POST',
@@ -77,6 +75,14 @@ export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): Us
     }
   }, [productId, email, t]);
 
+  const handleVerifyCoupon = useCallback((code: string, currentEmail?: string) => {
+    if (!code) return Promise.resolve();
+    setIsVerifyingCoupon(true);
+    setCouponError(null);
+    setCouponManuallyRemoved(false);
+    return verifyCouponRequest(code, currentEmail);
+  }, [verifyCouponRequest]);
+
   // Auto-apply coupon for email change
   useEffect(() => {
     const checkAutoApply = async () => {
@@ -102,26 +108,22 @@ export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): Us
     return () => clearTimeout(timer);
   }, [email, productId, appliedCoupon, couponManuallyRemoved, t]);
 
-  // Handle URL coupon param (non-OTO) — absorbed from PaidProductForm
+  const urlCoupon = !isOtoMode && searchParams.get('oto') !== '1' ? searchParams.get('coupon') : null;
+  const requestedURLCoupon = useRef<string | null>(null);
+  if (urlCoupon && urlCoupon !== lastCheckedUrlCoupon) {
+    setLastCheckedUrlCoupon(urlCoupon);
+    setCouponCode(urlCoupon);
+    setShowCouponInput(true);
+    setIsVerifyingCoupon(true);
+    setCouponError(null);
+    setCouponManuallyRemoved(false);
+  }
   useEffect(() => {
-    if (isOtoMode) return;
+    if (!urlCoupon || requestedURLCoupon.current === urlCoupon) return;
+    requestedURLCoupon.current = urlCoupon;
 
-    const urlCoupon = searchParams.get('coupon');
-    const showPromo = searchParams.get('show_promo');
-
-    if (showPromo === 'true') {
-      setShowCouponInput(true);
-    }
-
-    if (searchParams.get('oto') === '1') return; // handled by useOto
-
-    if (urlCoupon && urlCoupon !== lastCheckedUrlCoupon) {
-      setLastCheckedUrlCoupon(urlCoupon);
-      setCouponCode(urlCoupon);
-      setShowCouponInput(true);
-      handleVerifyCoupon(urlCoupon);
-    }
-  }, [searchParams, isOtoMode, lastCheckedUrlCoupon, handleVerifyCoupon]);
+    void verifyCouponRequest(urlCoupon);
+  }, [urlCoupon, verifyCouponRequest]);
 
   const removeCoupon = useCallback(() => {
     setAppliedCoupon(null);
@@ -145,7 +147,7 @@ export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): Us
     setCouponCode,
     appliedCoupon,
     isVerifyingCoupon,
-    showCouponInput,
+    showCouponInput: showCouponInput || (!isOtoMode && searchParams.get('show_promo') === 'true'),
     couponError,
     handleVerifyCoupon,
     removeCoupon,

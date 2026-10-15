@@ -57,7 +57,7 @@ export interface UseUpdateCheckResult {
 
 export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [isChecking, setIsChecking] = useState(false);
+  const [isChecking, setIsChecking] = useState(isAdmin);
   const [showModal, setShowModal] = useState(false);
   const [upgradeInProgress, setUpgradeInProgress] = useState(false);
   const [upgradeProgress, setUpgradeProgress] = useState<UpgradeProgress | null>(null);
@@ -84,7 +84,6 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
 
     // Capabilities describe the live deployment and must be refreshed on mount.
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* Storage may be disabled. */ }
-    setIsChecking(true);
     try {
       const url = force
         ? '/api/v1/system/update-check?force=true'
@@ -320,9 +319,20 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
     }
   }, [pollUpgradeStatus, updateInfo]);
 
+  const [previousAdmin, setPreviousAdmin] = useState(isAdmin);
+  if (previousAdmin !== isAdmin) {
+    setPreviousAdmin(isAdmin);
+    setIsChecking(isAdmin);
+  }
+  const checkNow = useCallback((force = false) => {
+    setIsChecking(true);
+    return checkForUpdate(force);
+  }, [checkForUpdate]);
+
   // Auto-check on mount
   useEffect(() => {
     if (isAdmin) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
       checkForUpdate();
     }
     return () => {
@@ -336,7 +346,7 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
     showModal: showModal || upgradeProgress?.step === 'done' || upgradeProgress?.step === 'failed',
     upgradeInProgress,
     upgradeProgress,
-    checkNow: checkForUpdate,
+    checkNow,
     dismissUpdate,
     startUpgrade,
   };

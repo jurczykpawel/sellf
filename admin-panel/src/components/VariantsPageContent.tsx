@@ -66,9 +66,8 @@ const VariantsPageContent: React.FC = () => {
   const [productToRemove, setProductToRemove] = useState<{ group: VariantGroup; product: ProductInGroup } | null>(null);
 
   // Fetch all products for the form using v1 API
-  const fetchProducts = useCallback(async () => {
+  const loadProducts = useCallback(async () => {
     try {
-      setLoadingProducts(true);
       setAllProducts(await fetchAllProductsForDropdown('all'));
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -78,11 +77,8 @@ const VariantsPageContent: React.FC = () => {
   }, []);
 
   // Fetch variant groups using v1 API
-  const fetchGroups = useCallback(async () => {
+  const loadGroups = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-
       const groups = await api.getCustom<VariantGroup[]>('variant-groups');
       setGroups(groups || []);
     } catch (err) {
@@ -93,11 +89,19 @@ const VariantsPageContent: React.FC = () => {
     }
   }, []);
 
+  const fetchGroups = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    return loadGroups();
+  }, [loadGroups]);
+
   // Initial data fetch
   useEffect(() => {
-    fetchGroups();
-    fetchProducts();
-  }, [fetchGroups, fetchProducts]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
+    loadGroups();
+
+    loadProducts();
+  }, [loadGroups, loadProducts]);
 
   // Delete entire group using v1 API
   const handleDeleteGroup = async (group: VariantGroup) => {

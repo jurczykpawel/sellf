@@ -102,9 +102,15 @@ export default function StatsOverview() {
     }
   }, [productId, sumAllCurrencies]);
 
+  const [previousProductId, setPreviousProductId] = useState(productId);
+  if (previousProductId !== productId) {
+    setPreviousProductId(productId);
+    setLoading(true);
+  }
+
   useEffect(() => {
     // Initial fetch
-    setLoading(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
     fetchAllStats();
 
     // Register listener for global refresh events
@@ -183,7 +189,7 @@ export default function StatsOverview() {
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (seconds < 60) return 'Just now';
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m ago`;

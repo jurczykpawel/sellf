@@ -126,12 +126,11 @@ function CheckRow({ check }: { check: SecurityCheckResult }) {
 export default function SecurityAuditSettings() {
   const t = useTranslations('securityAudit');
   const [result, setResult] = useState<SecurityAuditResult | null>(null);
-  const [running, setRunning] = useState(false);
+  const [running, setRunning] = useState(true);
 
   // Auto-load cached results on mount
   useEffect(() => {
     let mounted = true;
-    setRunning(true);
     getSecurityAudit()
       .then(data => { if (mounted) setResult(data); })
       .catch((err) => { console.warn('[SecurityAuditSettings] Non-critical error:', err); })

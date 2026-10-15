@@ -12,11 +12,11 @@ interface UseAuthCheckParams {
 // (e.g. "go to product" vs "send magic link") — never redirect.
 export function useAuthCheck({ paymentStatus, accessGranted }: UseAuthCheckParams): AuthStatus {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [isChecking, setIsChecking] = useState(false);
+  const shouldCheck = paymentStatus === 'completed' && accessGranted;
+  const isChecking = shouldCheck && isAuthenticated === null;
 
   useEffect(() => {
     if (paymentStatus !== 'completed' || !accessGranted) return;
-    setIsChecking(true);
     (async () => {
       try {
         const supabase = await createClient();
@@ -25,8 +25,6 @@ export function useAuthCheck({ paymentStatus, accessGranted }: UseAuthCheckParam
       } catch (error) {
         console.error('Error checking auth status:', error);
         setIsAuthenticated(false);
-      } finally {
-        setIsChecking(false);
       }
     })();
   }, [paymentStatus, accessGranted]);

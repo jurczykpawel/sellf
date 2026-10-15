@@ -7,7 +7,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Product } from '@/types';
 import { formatPrice } from '@/lib/constants';
 import { useTranslations, useLocale } from 'next-intl';
@@ -92,13 +92,10 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
       .replace(/^-|-$/g, ''); // Trim hyphens
   };
 
-  // Set default mobile tab based on mode
-  useEffect(() => {
+  const [previousGroup, setPreviousGroup] = useState<VariantGroup | null | undefined>(undefined);
+  if (previousGroup !== editingGroup) {
+    setPreviousGroup(editingGroup);
     setMobileTab(editingGroup ? 'selected' : 'available');
-  }, [editingGroup]);
-
-  // Initialize with existing group data
-  useEffect(() => {
     if (editingGroup) {
       setGroupName(editingGroup.name || '');
       setGroupSlug(editingGroup.slug || '');
@@ -116,8 +113,13 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
           is_active: p.product.is_active,
         }))
       );
+    } else {
+      setGroupName('');
+      setGroupSlug('');
+      setSlugManuallyEdited(false);
+      setSelectedProducts([]);
     }
-  }, [editingGroup]);
+  }
 
   // Auto-generate slug from name when name changes (if not manually edited)
   const handleNameChange = (newName: string) => {

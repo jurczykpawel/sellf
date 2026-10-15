@@ -132,19 +132,14 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     }
   }, [currentStep, isEditMode]);
 
-  // Navigate to the step that owns the first failing field. Description lives
-  // on step 2 since the redesign moved it out of essentials.
-  React.useEffect(() => {
+  const [previousErrors, setPreviousErrors] = useState(fieldErrors);
+  if (previousErrors !== fieldErrors) {
+    setPreviousErrors(fieldErrors);
     const keys = Object.keys(fieldErrors);
-    if (keys.length === 0) return;
     const step1Keys = ['name', 'slug', 'price', 'recurring_price', 'vat_rate'];
-    const hasStep1Error = keys.some((k) => step1Keys.includes(k));
-    if (hasStep1Error) {
-      if (currentStep !== 1) setCurrentStep(1);
-    } else if (keys.includes('description') && currentStep !== 2) {
-      setCurrentStep(2);
-    }
-  }, [fieldErrors, currentStep]);
+    if (keys.some(key => step1Keys.includes(key))) setCurrentStep(1);
+    else if (keys.includes('description')) setCurrentStep(2);
+  }
 
   // Trigger the form submit via the hook's handleSubmit
   const handleWizardSubmit = useCallback(() => {

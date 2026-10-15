@@ -26,8 +26,8 @@ export default function LicenseKeysSettings({ hasLicenseIssuance = true }: Licen
   const [copied, setCopied] = useState<string | null>(null);
   const [showHowTo, setShowHowTo] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const fetchSettings = useCallback(async () => {
+
     try {
       const res = await getSellerLicenseInfo();
       if (res.success) setInfo(res.data ?? null);
@@ -39,9 +39,15 @@ export default function LicenseKeysSettings({ hasLicenseIssuance = true }: Licen
     }
   }, [t]);
 
+  const load = useCallback(() => {
+    setLoading(true);
+    return fetchSettings();
+  }, [fetchSettings]);
+
   useEffect(() => {
-    load();
-  }, [load]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
+    fetchSettings();
+  }, [fetchSettings]);
 
   const handleGenerate = async () => {
     setWorking(true);

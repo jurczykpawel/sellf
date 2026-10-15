@@ -97,17 +97,15 @@ export default function MyProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProductsData = useCallback(async () => {
+  const loadProductsData = useCallback(async () => {
+
+    try {
+      const supabase = await createClient();
+
     if (!user) {
       setLoading(false);
       return;
     }
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const supabase = await createClient();
 
       // Fetch user's product access with product details
       // Tip-jar purchases skipped — no content to consume, supporter list lives in /my-purchases.
@@ -165,11 +163,26 @@ export default function MyProductsPage() {
     }
   }, [user]);
 
+  const requestKey = user?.id;
+  const [previousKey, setPreviousKey] = useState(requestKey);
+  if (previousKey !== requestKey) {
+    setPreviousKey(requestKey);
+    setLoading(true);
+    setError(null);
+  }
+
+  const fetchProductsData = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    return loadProductsData();
+  }, [loadProductsData]);
+
   useEffect(() => {
     if (!authLoading) {
-      fetchProductsData();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
+      loadProductsData();
     }
-  }, [authLoading, fetchProductsData]);
+  }, [authLoading, loadProductsData]);
 
   if (authLoading || loading) {
     return (

@@ -28,13 +28,12 @@ export function useWebhookDeliveries() {
   const [actingId, setActingId] = useState<string | null>(null);
   const latestRequestRef = useRef(0);
 
-  const fetchLogs = useCallback(async () => {
+  const loadLogs = useCallback(async () => {
     // Responses can arrive out of order (filter switch, remount, refresh after an
     // action); only the newest request may write state, or a stale list replaces
     // the current one and silently drops the user's selection.
     const requestId = ++latestRequestRef.current;
     try {
-      setLoading(true);
       const response = await api.list<WebhookLog>('webhooks/logs', { status: filter, limit: 50 });
       if (requestId !== latestRequestRef.current) return;
       setLogs(response.data || []);
@@ -47,9 +46,21 @@ export function useWebhookDeliveries() {
     }
   }, [filter, t]);
 
+  const [previousFilter, setPreviousFilter] = useState(filter);
+  if (previousFilter !== filter) {
+    setPreviousFilter(filter);
+    setLoading(true);
+  }
+
+  const fetchLogs = useCallback(() => {
+    setLoading(true);
+    return loadLogs();
+  }, [loadLogs]);
+
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
+    loadLogs();
+  }, [loadLogs]);
 
   const replay = useCallback(
     async (logId: string) => {

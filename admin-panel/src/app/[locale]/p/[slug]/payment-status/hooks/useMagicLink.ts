@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { submitMagicLink } from '@/lib/auth/magic-link/submit';
 import { MagicLinkState, PaymentStatus, Product } from '../types';
@@ -31,10 +31,12 @@ export function useMagicLink({
   const [sendingMagicLink, setSendingMagicLink] = useState(false);
   const [showSpinnerForMinTime, setShowSpinnerForMinTime] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
+  const requestInFlight = useRef(false);
+
   const tDemo = useTranslations('demo');
   const t = useTranslations('paymentStatus');
-  
+
   const sendMagicLinkInternal = useCallback(async () => {
     // Need either sessionId (embedded checkout) or paymentIntentId (payment intent)
     const paymentId = sessionId || paymentIntentId;
@@ -43,8 +45,8 @@ export function useMagicLink({
     // Don't send if we already have an error
     if (error) return;
 
-    setSendingMagicLink(true);
-    setError(null); // Clear previous errors
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
 
     try {
       const result = await submitMagicLink({
@@ -75,6 +77,7 @@ export function useMagicLink({
       console.error('Exception sending magic link:', err);
       setError(t('unexpectedError'));
     } finally {
+      requestInFlight.current = false;
       setSendingMagicLink(false);
     }
   }, [customerEmail, sessionId, paymentIntentId, product.slug, captchaToken, captchaReset, error, t, tDemo]);
@@ -91,37 +94,39 @@ export function useMagicLink({
         captchaToken &&
         !sendingMagicLink &&
         !error) { // Don't auto-send if there's an error
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Only the awaited delivery result updates state.
       sendMagicLinkInternal();
     }
   }, [paymentStatus, customerEmail, sessionId, paymentIntentId, magicLinkSent, sendingMagicLink, captchaToken, sendMagicLinkInternal, error]);
 
-  // Show spinner for minimum time - different logic for invisible vs interactive
+  const paymentId = sessionId || paymentIntentId;
+  const autoSending = paymentStatus === 'magic_link_sent' && !!customerEmail && !!paymentId &&
+    !!captchaToken && !magicLinkSent && !error;
+  const shouldTriggerSpinner = paymentStatus === 'magic_link_sent' && !!customerEmail && !!paymentId &&
+    (!!captchaToken || !showInteractiveWarning) && !magicLinkSent;
+  const spinnerKey = `${paymentId}:${customerEmail}`;
+  const [spinnerRequest, setSpinnerRequest] = useState<string | null>(null);
+  if (shouldTriggerSpinner && spinnerRequest !== spinnerKey) {
+    setSpinnerRequest(spinnerKey);
+    setShowSpinnerForMinTime(true);
+  }
   useEffect(() => {
-    const paymentId = sessionId || paymentIntentId;
+    if (!showSpinnerForMinTime) return;
+    const timer = setTimeout(() => setShowSpinnerForMinTime(false), SPINNER_MIN_TIME);
+    return () => clearTimeout(timer);
+  }, [showSpinnerForMinTime, spinnerRequest]);
 
-    // For invisible captcha: show spinner early (when terms OK)
-    // For interactive captcha: show spinner only when captcha token received
-    const shouldTriggerSpinner = paymentStatus === 'magic_link_sent' &&
-                                customerEmail &&
-                                paymentId &&
-                                (captchaToken || !showInteractiveWarning); // Show early for invisible, late for interactive
-
-    if (shouldTriggerSpinner && !showSpinnerForMinTime && !magicLinkSent) {
-      setShowSpinnerForMinTime(true);
-
-      const timer = setTimeout(() => {
-        setShowSpinnerForMinTime(false);
-      }, SPINNER_MIN_TIME);
-
-      return () => clearTimeout(timer);
-    }
-  }, [paymentStatus, customerEmail, sessionId, paymentIntentId, magicLinkSent, showSpinnerForMinTime, captchaToken, showInteractiveWarning]);
+  const sendMagicLink = useCallback(() => {
+    if (!customerEmail || !paymentId || error || requestInFlight.current) return Promise.resolve();
+    setSendingMagicLink(true);
+    return sendMagicLinkInternal();
+  }, [customerEmail, paymentId, error, sendMagicLinkInternal]);
 
   return {
     sent: magicLinkSent,
-    sending: sendingMagicLink,
+    sending: sendingMagicLink || autoSending,
     showSpinnerForMinTime,
-    sendMagicLink: sendMagicLinkInternal,
+    sendMagicLink,
     error,
   };
 }

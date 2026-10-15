@@ -42,6 +42,21 @@ export default function RevenueGoal() {
     try {
       // 1. Get Goal Config from DB
       const goalData = await getRevenueGoal(productId);
+      if (!goalData) {
+    // Load goal and start date from local storage (backup/optimistic)
+    if (typeof window !== 'undefined') {
+        const savedGoal = localStorage.getItem('revenue_goal');
+        if (savedGoal) {
+          setGoal(parseInt(savedGoal, 10));
+        }
+        const savedStartDate = localStorage.getItem('revenue_goal_start_date');
+        if (savedStartDate) {
+          setGoalStartDate(savedStartDate);
+        }
+    }
+
+      }
+
       let startDateForStats = undefined;
 
       if (goalData) {
@@ -139,18 +154,7 @@ export default function RevenueGoal() {
   }, [goal, goalCurrency, currentRevenueRaw, currencyViewMode, displayCurrency, convertToSingleCurrency, sumAllCurrencies]);
 
   useEffect(() => {
-    // Load goal and start date from local storage (backup/optimistic)
-    if (typeof window !== 'undefined') {
-        const savedGoal = localStorage.getItem('revenue_goal');
-        if (savedGoal) {
-          setGoal(parseInt(savedGoal, 10));
-        }
-        const savedStartDate = localStorage.getItem('revenue_goal_start_date');
-        if (savedStartDate) {
-          setGoalStartDate(savedStartDate);
-        }
-    }
-    
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
     fetchData();
     addRefreshListener(fetchData);
 

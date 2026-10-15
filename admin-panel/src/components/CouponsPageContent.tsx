@@ -116,10 +116,8 @@ const CouponsPageContent: React.FC = () => {
 
   // Fetch the first page of coupons (type/search filtered), the full expired
   // list (for "Delete expired"), and the active products picker list.
-  const fetchData = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
-      setLoading(true);
-
       const [couponsPage, expiredResult, activeProducts] = await Promise.all([
         fetchCouponsPage(undefined, { type: typeFilter, search: searchTerm }),
         api.listAll<Coupon>('coupons', { status: 'expired', sort: '-created_at' }),
@@ -148,9 +146,22 @@ const CouponsPageContent: React.FC = () => {
     }
   }, [typeFilter, searchTerm, t]);
 
+  const requestKey = JSON.stringify([typeFilter, searchTerm]);
+  const [previousKey, setPreviousKey] = useState(requestKey);
+  if (previousKey !== requestKey) {
+    setPreviousKey(requestKey);
+    setLoading(true);
+  }
+
+  const fetchData = useCallback(() => {
+    setLoading(true);
+    return loadData();
+  }, [loadData]);
+
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
+    loadData();
+  }, [loadData]);
 
   const handleLoadMore = useCallback(async () => {
     if (!hasMore || loading || loadingMore || searchPending) return;

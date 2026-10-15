@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { createCategory, updateCategory, Category } from '@/lib/actions/categories'
 import { toast } from 'sonner'
@@ -15,13 +15,15 @@ interface CategoryFormModalProps {
 export default function CategoryFormModal({ isOpen, onClose, category }: CategoryFormModalProps) {
   const t = useTranslations('admin.categories') // To define
   const commonT = useTranslations('common')
-  
+
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [description, setDescription] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  useEffect(() => {
+  const [previousInput, setPreviousInput] = useState<{ category: typeof category; isOpen: boolean } | null>(null)
+  if (!previousInput || previousInput.category !== category || previousInput.isOpen !== isOpen) {
+    setPreviousInput({ category, isOpen })
     if (category) {
       setName(category.name)
       setSlug(category.slug)
@@ -31,7 +33,7 @@ export default function CategoryFormModal({ isOpen, onClose, category }: Categor
       setSlug('')
       setDescription('')
     }
-  }, [category, isOpen])
+    }
 
   const generateSlug = (value: string) => {
     return value

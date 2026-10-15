@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdmin = role !== 'user'
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+
   // Performance and memory management refs
   const isMountedRef = useRef(true)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -186,27 +186,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isMountedRef.current = true
     let subscription: { unsubscribe: () => void } | null = null
 
-    // Hydrate role from localStorage after mount so the cached value is used
-    // immediately while the RPC reconciles in the background. Reading here
-    // (not in useState init) keeps server and client first render aligned.
-    const cachedRole = localStorage.getItem('sf_role') as UserRole | null
-    if (cachedRole && cachedRole !== 'user') setRole(cachedRole)
-
     const setupAuth = async () => {
       try {
+        const supabase = await createClient()
+        // Hydrate role from localStorage after mount so the cached value is used
+        // immediately while the RPC reconciles in the background. Reading here
+        // (not in useState init) keeps server and client first render aligned.
+        const cachedRole = localStorage.getItem('sf_role') as UserRole | null
+        if (cachedRole && cachedRole !== 'user') setRole(cachedRole)
+
         await initializeAuth()
 
         // Listen for auth state changes
-        const supabase = await createClient()
         const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
           if (!mounted) return
-          
+
           // Don't set loading for subsequent auth changes to prevent UI flicker
           if (event !== 'INITIAL_SESSION') {
             await handleAuthStateChange(session, false)
           }
         })
-        
+
         subscription = authSubscription
       } catch (error) {
         console.error('Failed to setup auth:', error)
@@ -219,11 +219,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Comprehensive cleanup
       mounted = false
       isMountedRef.current = false
-      
+
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
       }
-      
+
       if (subscription) {
         subscription.unsubscribe()
       }

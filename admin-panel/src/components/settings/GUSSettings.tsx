@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Building2, ExternalLink, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { saveGUSAPIKey, getGUSConfig, deleteGUSAPIKey } from '@/lib/actions/gus-config';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '@/components/ui/Modal';
@@ -18,8 +18,8 @@ export default function GUSSettings() {
  const [deleting, setDeleting] = useState(false);
  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
- const loadConfig = async () => {
- setLoading(true);
+ const fetchConfig = useCallback(async () => {
+
  try {
  const result = await getGUSConfig();
  if (result.success && result.data) {
@@ -31,11 +31,17 @@ export default function GUSSettings() {
  } finally {
  setLoading(false);
  }
+ }, []);
+
+ const loadConfig = () => {
+   setLoading(true);
+   return fetchConfig();
  };
 
  useEffect(() => {
- loadConfig();
- }, []);
+ // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
+ fetchConfig();
+ }, [fetchConfig]);
 
  const handleSave = async () => {
  if (!apiKey.trim() && !hasKey) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DollarSign, ExternalLink, CheckCircle2, AlertCircle, Loader2, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { saveCurrencyConfig, getCurrencyConfig, deleteCurrencyConfig, type CurrencyConfig } from '@/lib/actions/currency-config';
 import { getExchangeRates } from '@/lib/actions/currency';
@@ -28,8 +28,8 @@ export default function CurrencySettings() {
  const [baseCurrency, setBaseCurrency] = useState<string>('USD');
  const [ratesFetchedAt, setRatesFetchedAt] = useState<number>(0);
 
- const loadConfig = async () => {
- setLoading(true);
+ const fetchConfig = useCallback(async () => {
+
  try {
  const result = await getCurrencyConfig();
  if (result.success && result.data) {
@@ -41,15 +41,21 @@ export default function CurrencySettings() {
  } finally {
  setLoading(false);
  }
+ }, []);
+
+ const loadConfig = () => {
+   setLoading(true);
+   return fetchConfig();
  };
 
  useEffect(() => {
- loadConfig();
+ // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
+ fetchConfig();
  // Load default currency from shop config
  getMyDefaultCurrency().then(currency => {
  setBaseCurrency(currency);
  });
- }, []);
+ }, [fetchConfig]);
 
  const handleSave = async () => {
  // Validate: exchangerate-api and fixer require API key

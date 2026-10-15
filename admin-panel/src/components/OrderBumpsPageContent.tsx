@@ -1,6 +1,6 @@
 /**
  * Order Bumps Management Page Component
- * 
+ *
  * 🤖 AI MAINTAINER NOTE:
  * Manages complementary product offers (upsells) displayed on the checkout page.
  * Key features:
@@ -68,9 +68,8 @@ const OrderBumpsPageContent: React.FC = () => {
   const [bumpToDelete, setBumpToDelete] = useState<OrderBumpWithDetails | null>(null);
 
   // Fetch products for dropdown using v1 API
-  const fetchProducts = useCallback(async () => {
+  const loadProducts = useCallback(async () => {
     try {
-      setLoadingProducts(true);
       setProducts(await fetchAllProductsForDropdown('active'));
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -80,11 +79,8 @@ const OrderBumpsPageContent: React.FC = () => {
   }, []);
 
   // Fetch order bumps from the v1 API
-  const fetchOrderBumps = useCallback(async () => {
+  const loadOrderBumps = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-
       const orderBumps = await api.getCustom<OrderBumpWithDetails[]>('order-bumps');
       setOrderBumps(orderBumps || []);
     } catch (err) {
@@ -95,11 +91,19 @@ const OrderBumpsPageContent: React.FC = () => {
     }
   }, []);
 
+  const fetchOrderBumps = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    return loadOrderBumps();
+  }, [loadOrderBumps]);
+
   // Initial data fetch
   useEffect(() => {
-    fetchOrderBumps();
-    fetchProducts();
-  }, [fetchOrderBumps, fetchProducts]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
+    loadOrderBumps();
+
+    loadProducts();
+  }, [loadOrderBumps, loadProducts]);
 
   // CRUD Handlers
   const handleCreateBump = async (formData: any) => {

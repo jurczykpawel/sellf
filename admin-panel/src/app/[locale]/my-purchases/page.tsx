@@ -54,17 +54,15 @@ export default function MyPurchasesPage() {
   const [refundReason, setRefundReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchPurchases = useCallback(async () => {
+  const loadPurchases = useCallback(async () => {
+
+    try {
+      const supabase = await createClient();
+
     if (!user) {
       setLoading(false);
       return;
     }
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const supabase = await createClient();
 
       const { data, error: fetchError } = await supabase
         .rpc('get_user_purchases_with_refund_status');
@@ -146,11 +144,26 @@ export default function MyPurchasesPage() {
     }
   }, [user]);
 
+  const requestKey = user?.id;
+  const [previousKey, setPreviousKey] = useState(requestKey);
+  if (previousKey !== requestKey) {
+    setPreviousKey(requestKey);
+    setLoading(true);
+    setError(null);
+  }
+
+  const fetchPurchases = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    return loadPurchases();
+  }, [loadPurchases]);
+
   useEffect(() => {
     if (!authLoading) {
-      fetchPurchases();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
+      loadPurchases();
     }
-  }, [authLoading, fetchPurchases]);
+  }, [authLoading, loadPurchases]);
 
   const openRefundModal = (purchase: UserPurchase) => {
     setSelectedPurchase(purchase);
