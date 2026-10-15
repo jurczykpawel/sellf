@@ -3615,6 +3615,22 @@ export type Database = {
         Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
         Returns: undefined
       }
+      storefront_catalogue_categories: {
+        Args: { category_ids: string[] }
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
+      storefront_catalogue_page: {
+        Args: {
+          after_created?: string
+          after_id?: string
+          filters?: Json
+          product_ids?: string[]
+        }
+        Returns: Json[]
+      }
       storefront_config_schema: { Args: never; Returns: Json }
       storefront_config_stored_bytes: {
         Args: { config: Json }

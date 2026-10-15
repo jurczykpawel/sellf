@@ -454,6 +454,14 @@ READ/WRITE/ACTIVATE scopes are independent; existing keys retain their scopes.
 Public lifecycle callers must add current bindings/rights checks before using
 these primitives (T1.16/T1.17); no public mutation route ships with T1.3.
 
+Public catalogue inputs live in `src/lib/storefront-templates/catalogue.ts`.
+They accept caller-authorized service clients and use service-only, bounded
+read RPCs; public route callers must apply application rate limits. Pages use
+canonical product names in both locales, fixed `created_at DESC, id ASC` keysets,
+and filter-bound cursors. Default groups have independent cursors (24 per group,
+72 total); product/category bindings are batched and starter order is retained.
+These adapters do not cache data; T1.20 owns cache freshness/invalidation wiring.
+
 ### Runtime Configuration
 
 **RuntimeConfig API** (`/api/runtime-config`):

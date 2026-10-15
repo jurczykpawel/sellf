@@ -199,3 +199,90 @@ ALTER TABLE public.products ADD CONSTRAINT products_marketing_shape
   CHECK (extensions.jsonb_matches_schema('{"$schema":"https://json-schema.org/draft/2020-12/schema","anyOf":[{"type":"object","properties":{"format":{"anyOf":[{"type":"string","enum":["course","workshop","ebook","template","tool","service","bundle","other"]},{"type":"null"}]},"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false},"pl":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false}},"required":["format","sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"format":{"anyOf":[{"type":"string","enum":["course","workshop","ebook","template","tool","service","bundle","other"]},{"type":"null"}]},"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false},"pl":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false}},"required":["format","sourceLocale","pl"],"additionalProperties":false}]}'::json, marketing_fields));
 -- marketing-schema:end
 GRANT SELECT (marketing_fields) ON public.products TO anon, authenticated;
+
+-- Bounded public product inputs for the server-side storefront adapters.
+CREATE INDEX storefront_products_order ON public.products(created_at DESC, id ASC)
+  WHERE is_active AND is_listed;
+
+CREATE FUNCTION public.storefront_catalogue_page(
+  filters jsonb DEFAULT '{}', after_created timestamptz DEFAULT NULL,
+  after_id uuid DEFAULT NULL, product_ids uuid[] DEFAULT NULL
+) RETURNS SETOF jsonb LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path = ''
+SET plan_cache_mode = 'force_custom_plan' AS $$
+DECLARE
+  page_size integer := coalesce((filters->>'pageSize')::integer, 9);
+  search_text text := normalize(btrim(coalesce(filters->>'search','')), NFC);
+  categories uuid[];
+  price_kind text := filters->>'priceKind';
+  product_format text := filters->>'format';
+  group_name text := coalesce(filters->>'group','all');
+BEGIN
+  IF jsonb_typeof(filters) IS DISTINCT FROM 'object' OR page_size NOT IN (9,12,24)
+    OR char_length(search_text)>100 OR group_name NOT IN ('all','featured','free','paid')
+    OR (price_kind IS NOT NULL AND price_kind NOT IN ('free','one-time','subscription','pwyw'))
+    OR (product_format IS NOT NULL AND product_format NOT IN ('course','workshop','ebook','template','tool','service','bundle','other'))
+    OR (after_created IS NULL) <> (after_id IS NULL)
+    OR cardinality(product_ids)>5 THEN RAISE EXCEPTION 'INVALID' USING ERRCODE='22023'; END IF;
+  SELECT coalesce(array_agg(value::uuid),'{}'::uuid[]) INTO categories
+    FROM jsonb_array_elements_text(coalesce(filters->'categoryIds','[]')) value;
+  IF cardinality(categories)>12 OR cardinality(categories)<>(SELECT count(DISTINCT c) FROM unnest(categories) c)
+    THEN RAISE EXCEPTION 'INVALID' USING ERRCODE='22023'; END IF;
+  RETURN QUERY
+  WITH eligible AS NOT MATERIALIZED (
+    SELECT p.id,p.name,p.slug,p.created_at,p.price,p.currency,p.product_type,p.recurring_price,
+      p.billing_interval,p.billing_interval_count,p.allow_custom_price,p.custom_price_min,
+      p.sale_price,p.sale_price_until,p.sale_quantity_limit,p.sale_quantity_sold,
+      p.marketing_fields,left(p.image_url,2049) image_url,p.vat_rate,p.vat_exempt,
+      left(p.vat_exempt_note,501) vat_exempt_note,p.price_includes_vat,p.omnibus_exempt
+    FROM public.products p
+    WHERE p.is_active AND p.is_listed
+      AND (p.available_from IS NULL OR p.available_from<=statement_timestamp())
+      AND (p.available_until IS NULL OR p.available_until>statement_timestamp())
+      AND (product_ids IS NULL OR p.id=ANY(product_ids))
+      AND (search_text='' OR strpos(lower(normalize(p.name,NFC)),lower(search_text))>0)
+      AND (product_format IS NULL OR p.marketing_fields->>'format'=product_format)
+      AND NOT EXISTS (SELECT 1 FROM unnest(categories) c WHERE NOT EXISTS (
+        SELECT 1 FROM public.product_categories pc WHERE pc.product_id=p.id AND pc.category_id=c))
+      AND (group_name<>'featured' OR p.is_featured)
+      AND (price_kind IS NULL OR price_kind=CASE WHEN p.product_type='subscription' THEN 'subscription'
+        WHEN p.allow_custom_price THEN 'pwyw' WHEN p.price=0 THEN 'free' ELSE 'one-time' END)
+      AND (group_name NOT IN ('free','paid') OR (group_name='free')=(p.product_type<>'subscription' AND NOT p.allow_custom_price AND p.price=0))
+  ), page AS MATERIALIZED (
+    SELECT * FROM (
+      (SELECT * FROM eligible WHERE after_created IS NULL OR created_at<after_created ORDER BY created_at DESC,id ASC LIMIT page_size+1)
+      UNION ALL
+      (SELECT * FROM eligible WHERE created_at=after_created AND id>after_id ORDER BY created_at DESC,id ASC LIMIT page_size+1)
+    ) candidates ORDER BY created_at DESC,id ASC LIMIT page_size+1
+  ), shop AS MATERIALIZED (
+    SELECT tax_mode,omnibus_enabled FROM public.shop_config LIMIT 1
+  ), history AS (
+    SELECT h.product_id,h.price,h.sale_price,h.effective_from,
+      max(h.effective_from) OVER (PARTITION BY h.product_id) latest
+    FROM public.omnibus_price_history h JOIN page p ON p.id=h.product_id
+    WHERE h.effective_from>=statement_timestamp()-interval '30 days'
+  ), prior AS (
+    SELECT product_id,min(CASE WHEN effective_from=latest THEN price ELSE least(price,coalesce(sale_price,price)) END) lowest
+    FROM history GROUP BY product_id
+  )
+  SELECT (to_jsonb(p)-'omnibus_exempt') || jsonb_build_object(
+    'tax_mode',coalesce(shop.tax_mode,'local'),
+    'lowest_prior_price',CASE WHEN NOT p.omnibus_exempt AND coalesce(shop.omnibus_enabled,false) THEN prior.lowest ELSE NULL END)
+  FROM page p LEFT JOIN prior ON prior.product_id=p.id LEFT JOIN shop ON true ORDER BY p.created_at DESC,p.id ASC;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.storefront_catalogue_page(jsonb,timestamptz,uuid,uuid[]) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.storefront_catalogue_page(jsonb,timestamptz,uuid,uuid[]) TO service_role;
+
+CREATE FUNCTION public.storefront_catalogue_categories(category_ids uuid[])
+RETURNS TABLE(id uuid,name text) LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path = '' AS $$
+BEGIN
+  IF cardinality(category_ids)>12 THEN RAISE EXCEPTION 'INVALID' USING ERRCODE='22023'; END IF;
+  RETURN QUERY SELECT c.id,c.name FROM public.categories c WHERE c.id=ANY(category_ids)
+    AND EXISTS (SELECT 1 FROM public.product_categories pc JOIN public.products p ON p.id=pc.product_id
+      WHERE pc.category_id=c.id AND p.is_active AND p.is_listed
+      AND (p.available_from IS NULL OR p.available_from<=statement_timestamp())
+      AND (p.available_until IS NULL OR p.available_until>statement_timestamp()));
+END;
+$$;
+REVOKE ALL ON FUNCTION public.storefront_catalogue_categories(uuid[]) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.storefront_catalogue_categories(uuid[]) TO service_role;
