@@ -77,6 +77,7 @@ const PUBLIC_ROUTES = new Set([
   'access/route.ts',
   'health/route.ts',
   'runtime-config/route.ts',
+  'storefront/catalogue/route.ts',
   'sellf/route.ts',
   'consent/route.ts',
   'config/route.ts',                           // config.js generator — public, rate-limited
