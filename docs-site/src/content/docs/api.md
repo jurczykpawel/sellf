@@ -39,7 +39,7 @@ curl https://your-domain.com/api/v1/products \
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "name": "My Product",
       "slug": "my-product",
-      "price": 2900,
+      "price": 29,
       "currency": "USD",
       "is_active": true
     }
@@ -52,6 +52,55 @@ curl https://your-domain.com/api/v1/products \
   }
 }
 ```
+
+---
+
+## Amount units in v1
+
+Units are part of the v1 contract and are not converted automatically. **Major units** mean `49.99` = 49.99 PLN/USD; **minor units** mean `4999` = 49.99 PLN/USD. Interpret minor units using the currency's exponent (for example, JPY has no decimal places). Averages may contain fractions of a minor unit.
+
+All paths below are relative to `/api/v1`. Units apply to both input and output where applicable.
+
+| Endpoint | Fields | Unit |
+|---|---|---|
+| `GET/POST /products`, `GET/PATCH /products/{id}` | `price`, `sale_price`, `recurring_price`, `custom_price_min`, each `custom_price_presets` entry | Major |
+| `GET/POST /order-bumps`, `GET/PATCH /order-bumps/{id}` | `bump_price`, nested product prices | Major |
+| `GET/PUT /products/{id}/oto` | `discount_value`, `downsell_discount_value` | Major when the corresponding discount type is `fixed`; percentage points when `percentage` (`25` = 25%) |
+| `GET/POST /coupons`, `GET/PATCH /coupons/{id}` | `discount_value` | Major for `fixed`; percentage points for `percentage` |
+| `GET /coupons/{id}/stats` | `summary.total_discount_amount`, redemption `discount_amount`, `daily_usage[].amount`, `usage_by_product[].amount` | Major |
+| `GET /payments`, `GET /payments/{id}`, `PATCH /payments/{id}` | `amount`, `refunded_amount`, `refund.amount`, `net_total`, `tax_total` where returned | Minor |
+| `GET /payments` | `line_items[].unit_price`, `line_items[].total_price` | Major |
+| `GET /payments` | `line_items[].net_amount`, `line_items[].tax_amount` | Minor |
+| `GET /payments/{id}` | `product.price` | Major |
+| `POST /payments/export` | CSV amount, refunded amount, net total, tax total | Minor; CSV does not divide by 100 |
+| `POST /payments/{id}/refund` | Request `amount`, response `amount` and `refunded_amount` where returned | Minor; request amount must be an integer |
+| `GET /payments/stats` | Revenue/refund amounts, averages and currency breakdown amounts | Minor |
+| `GET /analytics/dashboard` | `revenue.*` amounts, `refunds.total_refunded`, `recent_activity[].revenue` | Minor |
+| `GET /analytics/revenue` | Summary amounts including `average_order_value`, breakdown revenue, comparison revenue and currency breakdown amounts | Minor |
+| `GET /analytics/top-products` | `revenue`, `average_price`, summary revenue and currency breakdown revenue | Minor |
+| `GET /analytics/top-products` | `current_price` | Major |
+| `GET /refund-requests`, `GET/PATCH /refund-requests/{id}` | `requested_amount`, nested transaction `amount`, refund amounts where returned | Minor |
+| `GET /users`, `GET /users/{id}`, access endpoints | Nested product prices | Major |
+
+Counts, durations, VAT rates, percentage discounts and percentage changes are not monetary amounts. Cross-currency totals are arithmetic sums, not currency conversions: use currency breakdowns where available. Do not treat a product price as a payment amount without explicitly converting units.
+
+## Product input compatibility
+
+For `POST /products` and `PATCH /products/{id}`, v1 ignores unknown top-level product fields, including read-only fields copied from a response. They are not persisted. Invalid values for recognized fields return HTTP **400** (`VALIDATION_ERROR`).
+
+These legacy fields are recognized and validated but **ignored**, because they have no product database columns:
+
+| Field | Legacy accepted value | Persisted alternative |
+|---|---|---|
+| `custom_price_label` | String, max 80 characters | None |
+| `tip_icon` | String, max 8 characters | `icon` for the product icon |
+| `suggested_amounts` | Up to 20 nonnegative numbers | `custom_price_presets` (major units) |
+| `min_amount` | Nonnegative number or null | `custom_price_min` (major units; nonnegative number) |
+| `metadata` | Object | None; payment metadata is a separate contract |
+
+These are not aliases: v1 does not map them to the alternative fields, store them or return them. Older MCP clients may send `custom_price_label`; the current MCP tool schema omits all five fields. This keeps existing v1 callers compatible without forwarding unsupported columns to storage.
+
+`categories`, `tags` and `bundleItemIds` are supported relation inputs, handled separately from the product row. They are not unknown fields. Other endpoints have their own validation rules.
 
 ---
 
