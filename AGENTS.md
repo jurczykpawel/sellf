@@ -498,6 +498,14 @@ also recover missing access and delivery. Endpoint customization cannot replace
 or remove the envelope `id`. The retry worker leases rows through the existing
 queue; interrupted attempts remain due after the lease expires.
 
+Rotating an outbound secret uses `POST /api/v1/webhooks/:id/rotate-secret`
+(admin session or `webhooks:write` API key). `rotate_webhook_secret()` replaces it
+and records a secret-free audit entry atomically. Rotated secrets use the
+`enc:v1:` AES-256-GCM storage format in `webhook_endpoints.secret`; the dispatcher
+also accepts existing plaintext secrets. Only the rotation response returns the
+new plaintext value; subsequent API reads return an empty `secret`. There is no
+grace period. Receivers must update their verification secret immediately.
+
 ### License Tier Registry
 
 A small set of admin-panel features are gated by a license tier (`free`, `registered`, `pro`, `business`). The registry lives in `admin-panel/src/lib/license/features.ts` and the resolver in `admin-panel/src/lib/license/resolve.ts`. Currently gated:

@@ -14,6 +14,7 @@ vi.mock('@/lib/validations/webhook', () => ({
 import { fetch as undiciFetch } from 'undici';
 import { validateWebhookUrlAsync } from '@/lib/validations/webhook';
 import { WebhookDispatcher } from '@/lib/services/webhook-queue/dispatcher';
+import { encryptWebhookSecret } from '@/lib/webhooks/signing-secret';
 import { verifyWebhookSignature } from '@/lib/services/webhook-queue/signature';
 
 const endpoint = {
@@ -60,6 +61,30 @@ describe('WebhookDispatcher', () => {
     // The unsigned, replay-exploitable timestamp header is gone (t lives in the signature).
     expect(init.headers['X-Sellf-Timestamp']).toBeUndefined();
     expect(init.redirect).toBe('error');
+  });
+
+  it.each([1, 3])('uses the rotated secret on attempt %s', async (attemptCount) => {
+    vi.stubEnv('APP_ENCRYPTION_KEY', Buffer.alloc(32, 6).toString('base64'));
+    try {
+      const secret = 'whsec_rotated';
+      const stored = await encryptWebhookSecret(secret);
+      vi.mocked(undiciFetch).mockResolvedValue(mockResponse(200, 'ok') as never);
+      const result = await WebhookDispatcher.dispatch({ ...endpoint, secret: stored }, 'test.event', payload, { attemptCount });
+      expect(result.ok).toBe(true);
+      const [, init] = vi.mocked(undiciFetch).mock.calls[0];
+      const headers = init?.headers as Record<string, string>;
+      expect(verifyWebhookSignature(secret, init?.body as string, headers['X-Sellf-Signature'])).toBe(true);
+      expect(verifyWebhookSignature(endpoint.secret, init?.body as string, headers['X-Sellf-Signature'])).toBe(false);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('does not send when the stored signing secret cannot be read', async () => {
+    const result = await WebhookDispatcher.dispatch({ ...endpoint, secret: 'enc:v1:invalid' }, 'test.event', payload, { attemptCount: 1 });
+    expect(result.ok).toBe(false);
+    expect(result.errorMessage).toBe('Signing secret decryption failed');
+    expect(undiciFetch).not.toHaveBeenCalled();
   });
 
   it('adds X-Sellf-Retry-Attempt header when attemptCount > 1', async () => {

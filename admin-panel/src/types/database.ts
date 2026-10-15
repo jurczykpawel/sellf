@@ -3502,6 +3502,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      rotate_webhook_secret: {
+        Args: {
+          p_endpoint_id: string
+          p_secret: string
+          p_actor_id: string
+          p_api_key_id?: string
+        }
+        Returns: boolean
+      }
       set_webhook_endpoint_scoping: {
         Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
         Returns: undefined

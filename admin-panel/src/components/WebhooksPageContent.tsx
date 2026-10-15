@@ -261,6 +261,7 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
         onSubmit={onFormSubmit}
         editingEndpoint={activeEndpoint}
         isSubmitting={submitting}
+        onSecretRotated={fetchEndpoints}
         scopingLocked={scopingLocked}
         customizationLocked={customizationLocked}
       />

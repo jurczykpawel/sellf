@@ -2,6 +2,7 @@ import { fetch as undiciFetch } from 'undici';
 import { getSsrfSafeAgent, readBoundedText } from '@/lib/security/safe-fetch';
 import { validateWebhookUrlAsync } from '@/lib/validations/webhook';
 import { decryptHeaderMap } from '@/lib/webhooks/custom-headers';
+import { decryptWebhookSecret } from '@/lib/webhooks/signing-secret';
 import { signWebhookPayload } from './signature';
 import type { AttemptResult } from './types';
 
@@ -30,11 +31,19 @@ export class WebhookDispatcher {
     options: DispatchOptions,
   ): Promise<AttemptResult> {
     const payloadString = JSON.stringify(payload);
-    // Replay-resistant, versioned signature (t is inside the MAC). See signature.ts.
-    const signature = signWebhookPayload(endpoint.secret, payloadString);
     const startTime = Date.now();
 
     try {
+      let secret: string;
+      try {
+        secret = await decryptWebhookSecret(endpoint.secret);
+      } catch {
+        return {
+          ok: false, httpStatus: 0, responseBody: null,
+          errorMessage: 'Signing secret decryption failed', durationMs: Date.now() - startTime,
+        };
+      }
+      const signature = signWebhookPayload(secret, payloadString);
       const guard = await validateWebhookUrlAsync(endpoint.url);
       if (!guard.valid) {
         return {
