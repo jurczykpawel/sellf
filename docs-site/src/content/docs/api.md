@@ -5,6 +5,8 @@ description: "Sellf provides a full REST API for managing products, users, payme
 
 Sellf provides a full REST API for managing products, users, payments, refunds, coupons, webhooks, and more. Admin API endpoints are under `/api/v1/`.
 
+For Claude Code, Claude Desktop, Codex and Cursor setup with scoped keys and tested recipes, see [Connect your AI agent](/connect-ai-agent/).
+
 **Base URL:** `https://your-domain.com/api/v1`
 
 **Features:**
@@ -223,7 +225,7 @@ Common scope combinations for quick setup:
 
 | Preset | Scopes | Use case |
 |--------|--------|----------|
-| **Full Access** | `*` | Admin integrations, MCP server |
+| **Full Access** | `*` | Integrations that explicitly need every permission |
 | **Read Only** | All `:read` scopes | Dashboards, BI tools, reporting |
 | **Analytics** | `analytics:read` | Revenue dashboards (aggregates only — add `payments:read` for individual transactions) |
 | **Support** | `products:read`, `users:read`, `coupons:read` | Customer support team |
