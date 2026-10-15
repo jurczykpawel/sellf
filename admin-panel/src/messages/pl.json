@@ -2022,7 +2022,10 @@
         "refundRequestsRead": "Wnioski o zwrot (odczyt)",
         "refundRequestsWrite": "Wnioski o zwrot (obsługa)",
         "systemRead": "System (odczyt)",
-        "systemWrite": "System (operacje)"
+        "systemWrite": "System (operacje)",
+        "templatesRead": "Szablony (odczyt)",
+        "templatesWrite": "Szablony (zapis)",
+        "templatesActivate": "Szablony (aktywacja)"
       },
       "scopeDescriptions": {
         "fullAccess": "Dostęp do wszystkich zasobów",
@@ -2042,7 +2045,10 @@
         "refundRequestsRead": "Przeglądanie wniosków o zwrot",
         "refundRequestsWrite": "Obsługa wniosków o zwrot",
         "systemRead": "Przeglądanie konfiguracji systemu",
-        "systemWrite": "Uruchamianie operacji systemowych (aktualizacja)"
+        "systemWrite": "Uruchamianie operacji systemowych (aktualizacja)",
+        "templatesRead": "Wyświetlanie konfiguracji szablonów",
+        "templatesWrite": "Edycja szkiców szablonów",
+        "templatesActivate": "Publikowanie i przywracanie szablonów"
       },
       "presets": {
         "fullAccess": "Pełny dostęp",

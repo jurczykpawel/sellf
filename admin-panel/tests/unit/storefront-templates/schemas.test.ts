@@ -15,6 +15,8 @@ const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value
 describe('storefront schema corpus', () => {
   it('keeps generated draft 2020-12 schema synchronized', () => {
     expect(JSON.parse(readFileSync(schemaPath, 'utf8'))).toEqual(z.toJSONSchema(configSchema));
+    const migration = readFileSync('../supabase/migrations/20261015201528_storefront_templates_phase1.sql', 'utf8');
+    expect(migration).toContain(JSON.stringify(z.toJSONSchema(configSchema)).replaceAll("'", "''"));
     expect(JSON.parse(readFileSync('src/lib/storefront-templates/schema/template-recipe.schema.json', 'utf8'))).toEqual(z.toJSONSchema(recipeSchema));
   });
 

@@ -148,6 +148,13 @@ describe('API Keys', () => {
   });
 
   describe('hasScope', () => {
+    it('keeps template scopes independent', () => {
+      for (const granted of [API_SCOPES.TEMPLATES_READ, API_SCOPES.TEMPLATES_WRITE, API_SCOPES.TEMPLATES_ACTIVATE]) {
+        for (const required of [API_SCOPES.TEMPLATES_READ, API_SCOPES.TEMPLATES_WRITE, API_SCOPES.TEMPLATES_ACTIVATE]) {
+          expect(hasScope([granted], required)).toBe(granted === required);
+        }
+      }
+    });
     it('should NOT treat "*" as wildcard in stored scopes', () => {
       // Storage invariant: '*' must never be a stored scope after refactor.
       // Backend expands '*' to ALL_SCOPES at create-time; hasScope is consulted
@@ -505,12 +512,9 @@ describe('API Keys', () => {
       }
     });
 
-    // The DB migration `20260525140000_expand_api_key_wildcard_scopes.sql`
-    // hardcodes the snapshot of scopes known at migration time so existing
-    // rows with "*" can be backfilled deterministically. If a new scope is
-    // added later, this guard reminds us that the migration is by design
-    // a point-in-time snapshot and does NOT auto-include the new scope.
-    it('should match the snapshot list hardcoded in the wildcard-expansion migration', () => {
+    // The DB migration `20261015201528_storefront_templates_phase1.sql`
+    // defines the default for newly created keys; existing keys keep their snapshot.
+    it('matches the current default scope snapshot', () => {
       const migrationSnapshot = [
         'products:read',
         'products:write',
@@ -527,6 +531,9 @@ describe('API Keys', () => {
         'integrations:write',
         'refund-requests:read',
         'refund-requests:write',
+        'templates:read',
+        'templates:write',
+        'templates:activate',
         'system:read',
         'system:write',
       ];

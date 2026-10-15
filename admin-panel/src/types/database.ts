@@ -3525,6 +3525,18 @@ export type Database = {
         Args: { p_email: string; p_user_id: string }
         Returns: number
       }
+      mutate_storefront_config: {
+        Args: {
+          actor_api_key_id?: string
+          actor_method?: string
+          actor_user_id?: string
+          expected_revision: number
+          operation: string
+          restored_from?: number
+          validated_config: Json
+        }
+        Returns: Json
+      }
       pending_free_grant_products: {
         Args: never
         Returns: {
@@ -3600,10 +3612,12 @@ export type Database = {
         Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
         Returns: undefined
       }
+      storefront_config_schema: { Args: never; Returns: Json }
       storefront_config_stored_bytes: {
         Args: { config: Json }
         Returns: number
       }
+      storefront_config_valid: { Args: { config: Json }; Returns: boolean }
       telemetry_claim_send: {
         Args: { p_lease_ms: number; p_window_ms: number }
         Returns: {

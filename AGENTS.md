@@ -446,6 +446,13 @@ caller-authorized Supabase clients. Public rendering uses the published-only
 projection; private reads include the draft and bounded, descending history pages.
 Reuse `validateConfig()` and `revisionSchema` when handling these snapshots.
 `storefront_config_stored_bytes(jsonb)` supplies the authoritative stored size.
+Private mutation primitives live in `src/lib/storefront-templates/mutations.ts`.
+Obtain principals through its session/API-key verification functions; serialized
+principal objects are not accepted. The service-only `mutate_storefront_config`
+RPC locks the singleton and writes config/history/audit together. Template
+READ/WRITE/ACTIVATE scopes are independent; existing keys retain their scopes.
+Public lifecycle callers must add current bindings/rights checks before using
+these primitives (T1.16/T1.17); no public mutation route ships with T1.3.
 
 ### Runtime Configuration
 

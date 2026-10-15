@@ -2022,7 +2022,10 @@
         "refundRequestsRead": "Refund Requests (Read)",
         "refundRequestsWrite": "Refund Requests (Write)",
         "systemRead": "System (Read)",
-        "systemWrite": "System (Write)"
+        "systemWrite": "System (Write)",
+        "templatesRead": "Templates (Read)",
+        "templatesWrite": "Templates (Write)",
+        "templatesActivate": "Templates (Activate)"
       },
       "scopeDescriptions": {
         "fullAccess": "Access to all resources",
@@ -2042,7 +2045,10 @@
         "refundRequestsRead": "View refund requests",
         "refundRequestsWrite": "Process refund requests",
         "systemRead": "View system configuration",
-        "systemWrite": "Trigger system operations (upgrade)"
+        "systemWrite": "Trigger system operations (upgrade)",
+        "templatesRead": "View template configuration",
+        "templatesWrite": "Edit template drafts",
+        "templatesActivate": "Publish and restore templates"
       },
       "presets": {
         "fullAccess": "Full Access",

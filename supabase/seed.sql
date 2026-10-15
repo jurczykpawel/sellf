@@ -1191,3 +1191,11 @@ INSERT INTO public.guest_purchases(product_id, customer_email, session_id, trans
 SELECT id, 'pending@demo.sellf.app', 'cs_seed_pending_confirmation', price * 100
 FROM public.products WHERE slug='premium-course'
   AND NOT EXISTS (SELECT 1 FROM public.guest_purchases WHERE session_id='cs_seed_pending_confirmation');
+
+-- A disabled draft integration demonstrating the independent storefront permissions.
+INSERT INTO public.api_keys(id,name,key_prefix,key_hash,admin_user_id,scopes,is_active)
+SELECT 'eeeeeeee-1111-4111-a111-111111111111', 'Storefront draft integration (disabled)',
+  'sf_test_tpl0', encode(extensions.digest('disabled-storefront-seed', 'sha256'),'hex'), id,
+  '["templates:read","templates:write"]'::jsonb, false
+FROM public.admin_users WHERE user_id='dddddddd-0000-4000-a000-000000000000'
+ON CONFLICT (id) DO NOTHING;
