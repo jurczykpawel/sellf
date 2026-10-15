@@ -13,6 +13,7 @@ export default defineConfig({
         'hero-product.spec.ts',
         'product-marketing-form.spec.ts',
         'storefront-catalogue.spec.ts',
+        'storefront-composition.spec.ts',
         'storefront-faq-closing.spec.ts',
         'storefront-task-nav.spec.ts',
       ],
