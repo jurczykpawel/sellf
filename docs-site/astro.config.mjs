@@ -62,7 +62,7 @@ export default defineConfig({
 				},
 				{
 					label: 'API',
-					items: [{ slug: 'api' }],
+					items: [{ slug: 'api' }, { slug: 'connect-ai-agent' }],
 				},
 				{
 					label: 'Security & Reference',

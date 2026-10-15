@@ -2,6 +2,8 @@
 
 Model Context Protocol (MCP) server for Sellf - enables AI assistants like Claude to manage products, users, payments, coupons, and analytics through natural language.
 
+For client setup and tested seller workflows, see **[Connect your AI agent](https://docs.sellf.app/connect-ai-agent/)** ([Polski](https://docs.sellf.app/pl/connect-ai-agent/)). This README covers the server's tools and development reference.
+
 ## Overview
 
 This MCP server acts as a thin wrapper over Sellf's REST API v1, allowing Claude Desktop and other MCP-compatible AI assistants to:
@@ -13,50 +15,6 @@ This MCP server acts as a thin wrapper over Sellf's REST API v1, allowing Claude
 - View analytics and generate reports
 - Configure webhooks
 - Monitor system health
-
-## Quick Start
-
-### 1. Install Dependencies
-
-```bash
-cd mcp-server
-bun install
-```
-
-### 2. Create API Key
-
-1. Log into your Sellf admin panel
-2. Go to Settings > API Keys
-3. Create a new API key with only the scopes needed for your use case (see API Key Scopes below)
-4. Copy the key - it will only be shown once
-
-### 3. Configure Claude Desktop
-
-Edit your Claude Desktop configuration file:
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-Add the Sellf server:
-
-```json
-{
-  "mcpServers": {
-    "sellf": {
-      "command": "bun",
-      "args": ["/path/to/mcp-server/src/index.ts"],
-      "env": {
-        "SELLF_API_KEY": "sf_live_xxx...",
-        "SELLF_API_URL": "https://your-sellf-instance.com"
-      }
-    }
-  }
-}
-```
-
-### 4. Restart Claude Desktop
-
-The Sellf tools should now be available in Claude.
 
 ## Available Tools (45 total)
 
