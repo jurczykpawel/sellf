@@ -5,6 +5,34 @@ description: "Sellf delivers events to customer-configured HTTPS endpoints with 
 
 Sellf delivers events to customer-configured HTTPS endpoints with HMAC-signed payloads, automatic retry, a per-tenant dead-letter queue, and an admin Replay UI. The model deliberately mirrors what Stripe, Paddle, and Lemonsqueezy do.
 
+
+## Signing secret rotation
+
+In **Webhooks → Edit**, choose **Generate new secret** and confirm. Alternatively,
+call `POST /api/v1/webhooks/{id}/rotate-secret` with an admin session or an API key
+with `webhooks:write`. No request body is required. A successful response is
+`{ "data": { "id": "…", "secret": "whsec_…" } }`.
+
+The replacement and audit entry are committed atomically. The new secret is
+encrypted at rest and returned only in this response; the panel keeps it visible
+until you close the edit dialog. Copy it to your receiver's secret store now.
+After rotation, list/detail/update API responses return an empty `secret` field;
+the value cannot be retrieved again. If you lose it, rotate again. Existing
+endpoints keep their current secret until explicitly rotated.
+
+**The old secret is invalidated immediately, with no grace period.** Coordinate
+rotation with your receiver and replace its verification secret immediately.
+Deliveries can fail during the change. Requests already in flight may still carry
+the previous signature; newly loaded deliveries, including retries and test sends,
+use the current secret. Rotation does not re-sign an HTTP request already sent.
+After updating the receiver, send a test and retry failed deliveries as needed.
+Delivery IDs and payloads stay the same: keep deduplicating on `id`.
+
+If the response is lost after the operation commits, the old secret still stops
+working. Generate another secret and install the value returned by that request.
+Do not automatically repeat rotation requests: each successful call replaces the
+secret again.
+
 ## Event payload
 
 Every delivery carries this envelope:

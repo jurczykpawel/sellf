@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { WebhookEndpoint, WEBHOOK_EVENTS, WEBHOOK_EVENT_CATEGORIES } from '@/types/webhooks';
-import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '../ui/Modal';
-import { Tooltip } from '../ui/Tooltip';
 import { useTranslations } from 'next-intl';
-import { toast } from 'sonner';
 import { useProductsDropdown } from '@/hooks/useProducts';
 import { buildCustomizationPayload, PAYLOAD_TOP_LEVEL_KEYS, PLACEHOLDER_HINTS } from '@/lib/webhooks/customization-form';
+import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '@/components/ui/Modal';
+import { Tooltip } from '@/components/ui/Tooltip';
+import WebhookSecretRotation from '@/components/webhooks/WebhookSecretRotation';
+import { WEBHOOK_EVENTS, WEBHOOK_EVENT_CATEGORIES } from '@/types/webhooks';
+import type { WebhookEndpoint } from '@/types/webhooks';
 
 interface WebhookFormModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface WebhookFormModalProps {
   onSubmit: (data: any) => Promise<void>;
   editingEndpoint: WebhookEndpoint | null;
   isSubmitting: boolean;
+  onSecretRotated: () => void;
   scopingLocked?: boolean;
   customizationLocked?: boolean;
 }
@@ -25,6 +27,7 @@ export default function WebhookFormModal({
   onSubmit,
   editingEndpoint,
   isSubmitting,
+  onSecretRotated,
   scopingLocked = false,
   customizationLocked = false
 }: WebhookFormModalProps) {
@@ -43,7 +46,6 @@ export default function WebhookFormModal({
     : { url: '', description: '', events: [] as string[], product_filter_mode: 'all' as 'all' | 'selected', product_ids: [] as string[] };
 
   const [formData, setFormData] = useState(() => buildFormData(editingEndpoint));
-  const [showSecret, setShowSecret] = useState(false);
   const [productFilter, setProductFilter] = useState('');
 
   const buildCustomState = (endpoint: typeof editingEndpoint) => ({
@@ -64,7 +66,6 @@ export default function WebhookFormModal({
   if (syncKey !== trackedSyncKey) {
     setTrackedSyncKey(syncKey);
     setFormData(buildFormData(editingEndpoint));
-    setShowSecret(false);
     setCustomState(buildCustomState(editingEndpoint));
     setShowCustom(false);
     setProductFilter('');
@@ -125,13 +126,6 @@ export default function WebhookFormModal({
     }
   };
 
-  const handleCopySecret = () => {
-    if (editingEndpoint?.secret) {
-      navigator.clipboard.writeText(editingEndpoint.secret);
-      toast.success(t('secretCopied'));
-    }
-  };
-
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} size="lg">
       <ModalHeader title={editingEndpoint ? t('editWebhook') : t('addEndpoint')} />
@@ -181,43 +175,9 @@ export default function WebhookFormModal({
                 {t('secret')}
               </label>
               {editingEndpoint ? (
-                <div className="flex relative">
-                  <input
-                    type={showSecret ? "text" : "password"}
-                    readOnly
-                    value={editingEndpoint.secret || ''}
-                    className="w-full px-3 py-2 border-2 border-sf-border-medium bg-sf-deep text-sf-muted font-mono text-sm pr-20"
-                  />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex space-x-1">
-                    <button
-                      type="button"
-                      onClick={() => setShowSecret(!showSecret)}
-                      className="p-1.5 text-sf-muted hover:text-sf-heading hover:bg-sf-raised"
-                      title={showSecret ? t('hide') : t('show')}
-                    >
-                      {showSecret ? (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                        </svg>
-                      ) : (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCopySecret}
-                      className="p-1.5 text-sf-muted hover:text-sf-heading hover:bg-sf-raised"
-                      title={t('copy')}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+                isOpen && <WebhookSecretRotation key={editingEndpoint.id}
+                  endpointId={editingEndpoint.id} secret={editingEndpoint.secret || ''}
+                  onRotated={onSecretRotated} />
               ) : (
                 <div className="w-full px-3 py-2 border-2 border-sf-border-medium bg-sf-deep text-sf-muted italic text-sm">
                   {t('secretAutoGenerated')}
