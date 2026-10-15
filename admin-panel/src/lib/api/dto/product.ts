@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { marketingFieldsSchema } from '@/lib/validations/product-marketing';
 import { isRelativeOrHttpUrl } from '@/lib/validations/redirect';
 
 const SLUG_RE = /^[a-z0-9-]+$/;
@@ -18,6 +19,7 @@ const featureSection = z.object({
 });
 
 const baseShape = {
+  marketing_fields: marketingFieldsSchema.optional(),
   name: z.string().trim().min(1).max(200),
   slug: z
     .string()

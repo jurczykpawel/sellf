@@ -1318,6 +1318,36 @@
         "free": "Free",
         "featured": "Featured",
         "preview": "Preview",
+        "marketing": {
+          "title": "Product marketing",
+          "help": "Optional seller-authored copy. Plain text only; leave missing facts blank. Result: 240 characters. Up to 12 tools (80 characters each) and 12 requirements (240 each). Total: 8 KiB. Format describes the content, not billing or access.",
+          "invalid": "Check marketing copy: use plain text, distinct list items, and stay within the character, list and total size limits.",
+          "format": "Format",
+          "noFormat": "Not specified",
+          "sourceLocale": "Source language",
+          "locale": "Editing language",
+          "fallback": "Translation missing. The storefront uses the source language ({locale}).",
+          "addTranslation": "Add empty translation",
+          "removeTranslation": "Remove translation and use source language",
+          "result": "Result",
+          "tools": "Tools",
+          "requirements": "Requirements",
+          "addTools": "Add tool",
+          "addRequirements": "Add requirement",
+          "removeTools": "Remove tool",
+          "removeRequirements": "Remove requirement",
+          "remove": "Remove",
+          "formats": {
+            "course": "Course",
+            "workshop": "Workshop",
+            "ebook": "Ebook",
+            "template": "Template",
+            "tool": "Tool",
+            "service": "Service",
+            "bundle": "Bundle",
+            "other": "Other"
+          }
+        },
         "descriptionSection": {
           "title": "Product description"
         },

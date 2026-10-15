@@ -1,6 +1,7 @@
 import { Product, ContentItem } from '@/types';
 import { Category } from '@/lib/actions/categories';
 import { Tag } from '@/lib/actions/tags';
+import type { ProductMarketingFields } from '@/lib/validations/product-marketing';
 
 export interface ProductFormModalProps {
   product?: Product | null;
@@ -16,6 +17,7 @@ export interface ProductFormData {
   slug: string;
   description: string;
   long_description?: string | null;
+  marketing_fields: ProductMarketingFields;
   price: number;
   currency: string;
   is_active: boolean;
@@ -221,6 +223,7 @@ export const initialFormData: ProductFormData = {
   slug: '',
   description: '',
   long_description: '',
+  marketing_fields: { format: null, sourceLocale: 'en', en: { result: null, tools: [], requirements: [] } },
   price: 0,
   currency: 'USD',
   is_active: true,

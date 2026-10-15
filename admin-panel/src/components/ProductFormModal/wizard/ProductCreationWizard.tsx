@@ -141,7 +141,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     const hasStep1Error = keys.some((k) => step1Keys.includes(k));
     if (hasStep1Error) {
       if (currentStep !== 1) setCurrentStep(1);
-    } else if (keys.includes('description') && currentStep !== 2) {
+    } else if ((keys.includes('description') || keys.includes('marketing_fields')) && currentStep !== 2) {
       setCurrentStep(2);
     }
   }, [fieldErrors, currentStep]);
