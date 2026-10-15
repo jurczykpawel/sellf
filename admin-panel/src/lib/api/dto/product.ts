@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { marketingFieldsSchema } from '@/lib/validations/product-marketing';
 import { isRelativeOrHttpUrl } from '@/lib/validations/redirect';
 
 const SLUG_RE = /^[a-z0-9-]+$/;
@@ -44,6 +45,7 @@ const baseShape = {
   thumbnail_url: z.string().max(2048).nullable().optional(),
   preview_video_url: z.string().max(2048).nullable().optional(),
   features: z.array(featureSection).max(20).nullable().optional(),
+  marketing_fields: marketingFieldsSchema.optional(),
   layout_template: z.string().max(40).nullable().optional(),
   content_delivery_type: contentDelivery.optional(),
   content_config: z.record(z.string(), z.unknown()).optional(),
