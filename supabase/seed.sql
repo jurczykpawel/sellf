@@ -1212,3 +1212,12 @@ WHERE slug='starter-bundle';
 INSERT INTO public.products (name,slug,description,price,is_active,is_listed) VALUES ('Sample Workshop','sample-workshop-unavailable','Synthetic workshop for editorial fixtures.',15,false,true);
 UPDATE public.products SET marketing_fields = jsonb_build_object('format','workshop','sourceLocale','en','en',jsonb_build_object('result',repeat('Practice the sample workflow. ',8),'tools',jsonb_build_array('Spreadsheet editor'),'requirements',jsonb_build_array('A sample dataset for the exercises')))
 WHERE slug='sample-workshop-unavailable';
+
+-- Existing public products exercise catalogue category intersection and editorial filtering.
+INSERT INTO public.categories(name,slug,description) VALUES
+  ('Getting started','storefront-getting-started','Synthetic starter catalogue category')
+ON CONFLICT (slug) DO NOTHING;
+INSERT INTO public.product_categories(product_id,category_id)
+SELECT p.id,c.id FROM public.products p CROSS JOIN public.categories c
+WHERE p.slug IN ('free-tutorial','premium-course','starter-bundle') AND c.slug='storefront-getting-started'
+ON CONFLICT DO NOTHING;

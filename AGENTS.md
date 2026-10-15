@@ -462,6 +462,14 @@ standalone JSON Schema files are not committed. `template:schema` only refreshes
 schemas embedded in the unreleased Phase 1 migration; released migrations must
 remain immutable. No renderer or instance connection is needed for CLI checks.
 
+Public catalogue inputs live in `src/lib/storefront-templates/catalogue.ts`.
+They accept caller-authorized service clients and use service-only, bounded
+read RPCs; public route callers must apply application rate limits. Pages use
+canonical product names in both locales, fixed `created_at DESC, id ASC` keysets,
+and filter-bound cursors. Default groups have independent cursors (24 per group,
+72 total); product/category bindings are batched and starter order is retained.
+These adapters do not cache data; T1.20 owns cache freshness/invalidation wiring.
+
 ### Runtime Configuration
 
 **RuntimeConfig API** (`/api/runtime-config`):
