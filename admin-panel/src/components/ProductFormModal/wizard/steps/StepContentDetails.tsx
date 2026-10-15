@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { MarketingSection } from '@/components/ProductFormModal/sections/MarketingSection';
 import {
   ContentDeliverySection,
   PricingSection,
@@ -61,6 +62,8 @@ export const StepContentDetails: React.FC<StepContentDetailsProps> = ({
         fieldErrors={fieldErrors}
         setFieldErrors={setFieldErrors}
       />
+
+      <MarketingSection formData={formData} setFormData={setFormData} t={t} fieldErrors={fieldErrors} />
 
       {/* Bundle components — only when this product is a bundle. The bundle may
           still carry its own bonus content via the ContentDelivery section below. */}

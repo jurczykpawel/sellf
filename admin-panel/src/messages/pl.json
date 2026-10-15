@@ -1318,6 +1318,36 @@
         "free": "Darmowy",
         "featured": "Wyróżniony",
         "preview": "Podgląd",
+        "marketing": {
+          "title": "Informacje marketingowe",
+          "help": "Opcjonalne treści sprzedawcy. Tylko zwykły tekst; brakujące informacje pozostaw puste. Rezultat: 240 znaków. Do 12 narzędzi (po 80 znaków) i 12 wymagań (po 240 znaków). Łącznie: 8 KiB. Format opisuje treść, a nie płatności ani dostęp.",
+          "invalid": "Sprawdź treści marketingowe: użyj zwykłego tekstu, różnych pozycji na listach i zachowaj limity znaków, liczby pozycji oraz łącznego rozmiaru.",
+          "format": "Format",
+          "noFormat": "Nie określono",
+          "sourceLocale": "Język źródłowy",
+          "locale": "Edytowany język",
+          "fallback": "Brak tłumaczenia. Sklep używa języka źródłowego ({locale}).",
+          "addTranslation": "Dodaj puste tłumaczenie",
+          "removeTranslation": "Usuń tłumaczenie i użyj języka źródłowego",
+          "result": "Rezultat",
+          "tools": "Narzędzia",
+          "requirements": "Wymagania",
+          "addTools": "Dodaj narzędzie",
+          "addRequirements": "Dodaj wymaganie",
+          "removeTools": "Usuń narzędzie",
+          "removeRequirements": "Usuń wymaganie",
+          "remove": "Usuń",
+          "formats": {
+            "course": "Kurs",
+            "workshop": "Warsztat",
+            "ebook": "Ebook",
+            "template": "Szablon",
+            "tool": "Narzędzie",
+            "service": "Usługa",
+            "bundle": "Pakiet",
+            "other": "Inny"
+          }
+        },
         "descriptionSection": {
           "title": "Opis produktu"
         },
