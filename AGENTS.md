@@ -454,6 +454,14 @@ READ/WRITE/ACTIVATE scopes are independent; existing keys retain their scopes.
 Public lifecycle callers must add current bindings/rights checks before using
 these primitives (T1.16/T1.17); no public mutation route ships with T1.3.
 
+Offline authoring uses `bun run template:check -- --config file --json` (or
+`--recipe file`). `--mode publish --fixture file` checks supplied public bindings;
+it does not attest live rights or publication readiness. `--print-schema config`
+(or `recipe`) and `--capabilities` generate contracts from Zod/registry sources;
+standalone JSON Schema files are not committed. `template:schema` only refreshes
+schemas embedded in the unreleased Phase 1 migration; released migrations must
+remain immutable. No renderer or instance connection is needed for CLI checks.
+
 ### Runtime Configuration
 
 **RuntimeConfig API** (`/api/runtime-config`):
