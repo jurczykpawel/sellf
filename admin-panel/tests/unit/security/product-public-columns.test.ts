@@ -14,7 +14,9 @@ function grantedProductColumns(): string[] {
   const sql = readFileSync(MIGRATION, 'utf-8');
   const match = sql.match(/GRANT SELECT \(([^)]+)\) ON public\.products TO anon, authenticated/);
   if (!match) throw new Error('products column grant not found');
-  return match[1].split(',').map((c) => c.trim()).filter(Boolean);
+  const phase1 = readFileSync(join(__dirname, '../../../../supabase/migrations/20261015201528_storefront_templates_phase1.sql'), 'utf8');
+  const additions = [...phase1.matchAll(/GRANT SELECT \(([^)]+)\) ON public\.products TO anon, authenticated/g)].flatMap(m => m[1].split(','));
+  return [...match[1].split(','), ...additions].map(c => c.trim()).filter(Boolean);
 }
 
 describe('products public columns', () => {

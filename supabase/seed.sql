@@ -1199,3 +1199,16 @@ SELECT 'eeeeeeee-1111-4111-a111-111111111111', 'Storefront draft integration (di
   '["templates:read","templates:write"]'::jsonb, false
 FROM public.admin_users WHERE user_id='dddddddd-0000-4000-a000-000000000000'
 ON CONFLICT (id) DO NOTHING;
+
+-- Synthetic editorial examples for free, paid, recurring, unavailable and bundle products.
+UPDATE public.products SET marketing_fields = '{"format":"course","sourceLocale":"en","en":{"result":"Practice the introductory workflow","tools":[],"requirements":[]},"pl":{"result":"Przećwicz przykładowy proces","tools":[],"requirements":[]}}'
+WHERE slug='free-tutorial';
+UPDATE public.products SET marketing_fields = '{"format":"course","sourceLocale":"en","en":{"result":"Build a small JavaScript application","tools":["Code editor"],"requirements":["Basic JavaScript knowledge"]}}'
+WHERE slug='premium-course';
+UPDATE public.products SET marketing_fields = '{"format":"other","sourceLocale":"pl","pl":{"result":null,"tools":[],"requirements":[]}}'
+WHERE slug='pro-membership-monthly';
+UPDATE public.products SET marketing_fields = '{"format":"bundle","sourceLocale":"en","en":{"result":null,"tools":["Code editor"],"requirements":[]}}'
+WHERE slug='starter-bundle';
+INSERT INTO public.products (name,slug,description,price,is_active,is_listed) VALUES ('Sample Workshop','sample-workshop-unavailable','Synthetic workshop for editorial fixtures.',15,false,true);
+UPDATE public.products SET marketing_fields = jsonb_build_object('format','workshop','sourceLocale','en','en',jsonb_build_object('result',repeat('Practice the sample workflow. ',8),'tools',jsonb_build_array('Spreadsheet editor'),'requirements',jsonb_build_array('A sample dataset for the exercises')))
+WHERE slug='sample-workshop-unavailable';

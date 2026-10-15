@@ -33,6 +33,7 @@ export const PRODUCT_PUBLIC_COLUMNS = [
   'vat_exempt',
   'vat_exempt_note',
   'features',
+  'marketing_fields',
   'layout_template',
   'checkout_template',
   'custom_checkout_fields',

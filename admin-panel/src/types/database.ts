@@ -1574,6 +1574,7 @@ export type Database = {
           license_duration_days: number | null
           license_tier: string | null
           long_description: string | null
+          marketing_fields: Json
           name: string
           omnibus_exempt: boolean
           pass_params_to_redirect: boolean
@@ -1633,6 +1634,7 @@ export type Database = {
           license_duration_days?: number | null
           license_tier?: string | null
           long_description?: string | null
+          marketing_fields?: Json
           name: string
           omnibus_exempt?: boolean
           pass_params_to_redirect?: boolean
@@ -1692,6 +1694,7 @@ export type Database = {
           license_duration_days?: number | null
           license_tier?: string | null
           long_description?: string | null
+          marketing_fields?: Json
           name?: string
           omnibus_exempt?: boolean
           pass_params_to_redirect?: boolean
