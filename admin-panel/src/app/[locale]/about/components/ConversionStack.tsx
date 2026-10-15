@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatPrice } from '@/lib/constants';
 import {
   Check,
   Gift,
@@ -34,9 +35,6 @@ const TYPED_CVC = '123';
 const TYPED_POSTAL = '00-001';
 const TYPE_DELAY_MS = 35;
 
-function formatPLN(value: number): string {
-  return `${value.toLocaleString('pl-PL')} zł`;
-}
 
 /**
  * Sequentially type a list of [setter, fullValue] pairs into state.
@@ -70,6 +68,8 @@ type Dispatch<T> = (value: T) => void;
 
 export function ConversionStack() {
   const t = useTranslations('landing.conversionStack');
+  const locale = useLocale();
+  const formatPLN = (value: number): string => formatPrice(value, 'PLN', locale);
 
   const [stage, setStage] = useState<Stage>('product');
   const [bumpAdded, setBumpAdded] = useState(false);

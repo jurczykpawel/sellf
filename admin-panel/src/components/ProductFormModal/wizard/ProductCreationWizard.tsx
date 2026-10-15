@@ -12,7 +12,7 @@ import { WizardFooter } from './WizardFooter';
 import { StepEssentials } from './steps/StepEssentials';
 import { StepContentDetails } from './steps/StepContentDetails';
 import { StepSalesSettings } from './steps/StepSalesSettings';
-import { getCurrencySymbol } from '@/lib/constants';
+import { formatPrice } from '@/lib/constants';
 import type { ProductFormData } from '../types';
 
 const TOTAL_STEPS = 3;
@@ -182,7 +182,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                         ? 'bg-sf-success-soft text-sf-success'
                         : 'bg-sf-accent-soft text-sf-accent'
                     }`}>
-                      {formData.price === 0 ? t('free') : `${getCurrencySymbol(formData.currency)}${formData.price}`}
+                      {formData.price === 0 ? t('free') : formatPrice(formData.price, formData.currency, locale)}
                     </span>
                   )}
                 </span>

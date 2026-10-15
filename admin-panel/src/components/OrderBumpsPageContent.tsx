@@ -15,7 +15,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Product } from '@/types';
 import { toast } from 'sonner';
 import OrderBumpFormModal from './OrderBumpFormModal';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatPrice } from '@/lib/constants';
 import Link from 'next/link';
 import { api } from '@/lib/api/client';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
@@ -50,6 +51,7 @@ interface OrderBumpWithDetails {
 
 const OrderBumpsPageContent: React.FC = () => {
   const t = useTranslations('admin.orderBumps');
+  const locale = useLocale();
   const productPath = (slug: string) => `/p/${slug}`;
 
   // State for order bumps and loading status
@@ -314,7 +316,7 @@ const OrderBumpsPageContent: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-bold text-sf-heading">
-                        {bump.bump_price !== null ? bump.bump_price : bump.bump_product.price} {bump.main_product.currency}
+                        {formatPrice(bump.bump_price ?? bump.bump_product.price, bump.main_product.currency, locale)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

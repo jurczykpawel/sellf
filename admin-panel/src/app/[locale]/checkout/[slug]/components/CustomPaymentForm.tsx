@@ -482,13 +482,13 @@ export default function CustomPaymentForm({
           t('fixAmountFirst', { defaultValue: 'Fix the amount above to continue' })
         ) : isSubscription && intervalLabel ? (
           t('subscribeButton', {
-            amount: `${formatPrice(totalGross, product.currency)} / ${intervalLabel}`,
-            defaultValue: `Subskrybuj ${formatPrice(totalGross, product.currency)} / ${intervalLabel}`,
+            amount: `${formatPrice(totalGross, product.currency, locale)} / ${intervalLabel}`,
+            defaultValue: `Subskrybuj ${formatPrice(totalGross, product.currency, locale)} / ${intervalLabel}`,
           })
         ) : (
           t('payButton', {
-            amount: formatPrice(totalGross, product.currency),
-            defaultValue: `Zapłać ${formatPrice(totalGross, product.currency)}`,
+            amount: formatPrice(totalGross, product.currency, locale),
+            defaultValue: `Zapłać ${formatPrice(totalGross, product.currency, locale)}`,
           })
         )}
       </button>

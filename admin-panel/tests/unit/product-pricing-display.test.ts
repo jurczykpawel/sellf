@@ -108,14 +108,14 @@ describe('formatRecurringProductPrice', () => {
     // No "PLN" right after the symbol — symbol alone is enough for end users.
     expect(display).not.toContain('PLN');
     // Should still contain the symbol, amount, and interval label.
-    expect(display).toMatch(/^zł49[.,]00 \/ mies\.$/);
+    expect(display).toMatch(/^49,00\s+zł \/ mies\.$/);
   });
 
   it('includes the ISO currency code when explicitly requested (admin contexts)', () => {
     const display = formatRecurringProductPrice(baseSub, 'pl', {
       includeCurrencyCode: true,
     });
-    expect(display).toMatch(/^zł49[.,]00 PLN \/ mies\.$/);
+    expect(display).toMatch(/^49,00\s+zł PLN \/ mies\.$/);
   });
 
   it('respects locale for the interval label', () => {

@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Tooltip } from '@/components/ui/Tooltip';
 
 interface OmnibusPriceProps {
@@ -31,6 +31,7 @@ export default function OmnibusPrice({
   showAlways = false
 }: OmnibusPriceProps) {
   const t = useTranslations('checkout');
+  const locale = useLocale();
   const [lowestPriceData, setLowestPriceData] = useState<LowestPriceData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -74,7 +75,7 @@ export default function OmnibusPrice({
   }
 
   // Format price using Intl.NumberFormat
-  const formatter = new Intl.NumberFormat('pl-PL', {
+  const formatter = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: lowestPriceData.currency || currency,
   });

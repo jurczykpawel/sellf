@@ -42,7 +42,7 @@ export default function ProductTemporalState({ product }: ProductTemporalStatePr
         )}
         <div className="text-xl font-semibold text-sf-accent mb-8">
           {product.product_type === 'subscription'
-            ? (formatRecurringProductPrice(product, locale) ?? formatPrice(product.recurring_price ?? 0, product.currency))
+            ? (formatRecurringProductPrice(product, locale) ?? formatPrice(product.recurring_price ?? 0, product.currency, locale))
             : product.price === 0
               ? t('free')
               : new Intl.NumberFormat(locale, { style: 'currency', currency: product.currency || 'USD' }).format(product.price)}

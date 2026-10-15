@@ -10,6 +10,7 @@ describe('computeTaxHelperMessage', () => {
         vatRate: 23,
         priceIncludesVat: true,
         currency: 'PLN',
+        locale: 'pl',
       }),
     ).toBeNull();
   });
@@ -22,6 +23,7 @@ describe('computeTaxHelperMessage', () => {
         vatRate: 23,
         priceIncludesVat: true,
         currency: 'PLN',
+        locale: 'pl',
       }),
     ).toBeNull();
   });
@@ -34,6 +36,7 @@ describe('computeTaxHelperMessage', () => {
         vatRate: null,
         priceIncludesVat: true,
         currency: 'PLN',
+        locale: 'pl',
       }),
     ).toBeNull();
   });
@@ -45,8 +48,9 @@ describe('computeTaxHelperMessage', () => {
       vatRate: 23,
       priceIncludesVat: true,
       currency: 'PLN',
+      locale: 'pl',
     });
-    expect(msg).toEqual({ kind: 'gross', amount: '49.00', currency: 'PLN' });
+    expect(msg).toEqual({ kind: 'gross', amount: '49,00\u00a0zł' });
   });
 
   it('exclusive VAT: shows gross calculation (net 100 + 23% = 123)', () => {
@@ -56,8 +60,9 @@ describe('computeTaxHelperMessage', () => {
       vatRate: 23,
       priceIncludesVat: false,
       currency: 'PLN',
+      locale: 'pl',
     });
-    expect(msg).toEqual({ kind: 'net-to-gross', net: '100.00', gross: '123.00', currency: 'PLN' });
+    expect(msg).toEqual({ kind: 'net-to-gross', net: '100,00\u00a0zł', gross: '123,00\u00a0zł' });
   });
 
   it('exclusive VAT: handles non-integer percentages', () => {
@@ -67,8 +72,9 @@ describe('computeTaxHelperMessage', () => {
       vatRate: 8,
       priceIncludesVat: false,
       currency: 'EUR',
+      locale: 'en',
     });
-    expect(msg).toEqual({ kind: 'net-to-gross', net: '100.00', gross: '108.00', currency: 'EUR' });
+    expect(msg).toEqual({ kind: 'net-to-gross', net: '€100.00', gross: '€108.00' });
   });
 
   it('zero VAT rate (0%) inclusive: still shows the gross-equals-net message', () => {
@@ -78,7 +84,8 @@ describe('computeTaxHelperMessage', () => {
       vatRate: 0,
       priceIncludesVat: true,
       currency: 'PLN',
+      locale: 'pl',
     });
-    expect(msg).toEqual({ kind: 'gross', amount: '49.00', currency: 'PLN' });
+    expect(msg).toEqual({ kind: 'gross', amount: '49,00\u00a0zł' });
   });
 });

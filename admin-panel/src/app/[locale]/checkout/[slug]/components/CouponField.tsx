@@ -1,6 +1,7 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatPrice } from '@/lib/constants';
 import type { AppliedCoupon } from '@/types/coupon';
 
 interface CouponFieldProps {
@@ -27,6 +28,7 @@ export default function CouponField({
   onRemove,
 }: CouponFieldProps) {
   const t = useTranslations('checkout');
+  const locale = useLocale();
 
   if (!showCouponInput && !appliedCoupon) return null;
 
@@ -78,7 +80,7 @@ export default function CouponField({
         )}
         {appliedCoupon && (
           <p className="text-[10px] text-sf-success mt-1 ml-1 font-medium uppercase tracking-wider">
-            🎉 {t('discountApplied', { discount: appliedCoupon.discount_type === 'percentage' ? `${appliedCoupon.discount_value}%` : `${appliedCoupon.discount_value} ${currency}` })}
+            🎉 {t('discountApplied', { discount: appliedCoupon.discount_type === 'percentage' ? `${appliedCoupon.discount_value}%` : formatPrice(appliedCoupon.discount_value, currency, locale) })}
           </p>
         )}
       </div>

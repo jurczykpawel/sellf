@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import type { Product } from '@/types';
 import type { User } from '@supabase/supabase-js';
 import { formatPrice, STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
@@ -65,6 +65,7 @@ export default function PwywSection({
   collectTermsOfService,
 }: PwywSectionProps) {
   const t = useTranslations('checkout');
+  const locale = useLocale();
   const tSecurity = useTranslations('security');
   // PWYW free-access form is guests-only
   const showTos = shouldShowTosCheckbox(collectTermsOfService, true);
@@ -98,7 +99,7 @@ export default function PwywSection({
                           : 'bg-sf-raised border-sf-border text-sf-heading hover:bg-sf-hover'}
                       `}
                     >
-                      {preset === 0 ? t('customPrice.freePreset') : formatPrice(preset, product.currency)}
+                      {preset === 0 ? t('customPrice.freePreset') : formatPrice(preset, product.currency, locale)}
                     </button>
                   ))}
               </div>
@@ -136,7 +137,7 @@ export default function PwywSection({
           )}
 
           <p className="text-xs text-sf-muted mt-2">
-            {t('customPrice.minimum')}: {formatPrice(product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT, product.currency)}
+            {t('customPrice.minimum')}: {formatPrice(product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT, product.currency, locale)}
           </p>
         </div>
       )}

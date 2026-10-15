@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { formatPrice } from '@/lib/constants';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, ModalSection, Button, Message } from '@/components/ui/Modal';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 
 interface UserDetailsModalProps {
   userId: string;
@@ -47,6 +47,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
   onManageAccess
 }) => {
   const t = useTranslations('admin.users');
+  const locale = useLocale();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -173,7 +174,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 <div className="bg-sf-base p-4 border-2 border-sf-border-medium">
                   <p className="text-sm text-sf-muted">{t('modal.totalValue')}</p>
                   <p className="text-sm font-medium text-sf-heading">
-                    {formatPrice(userProfile.stats.total_value, 'USD')}
+                    {formatPrice(userProfile.stats.total_value, 'USD', locale)}
                   </p>
                 </div>
               </div>
@@ -190,7 +191,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 </div>
                 <div className="bg-sf-base p-4 border-2 border-sf-border-medium text-center">
                   <div className="text-2xl font-bold text-sf-success">
-                    {formatPrice(userProfile.stats.total_value, 'USD')}
+                    {formatPrice(userProfile.stats.total_value, 'USD', locale)}
                   </div>
                   <p className="text-sm text-sf-muted">{t('modal.totalValue')}</p>
                 </div>
@@ -238,7 +239,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                                 ? 'bg-sf-success-soft text-sf-success'
                                 : 'bg-sf-accent-soft text-sf-accent'
                             }`}>
-                              {access.product_price === 0 ? t('modal.free') : formatPrice(access.product_price, access.product_currency)}
+                              {access.product_price === 0 ? t('modal.free') : formatPrice(access.product_price, access.product_currency, locale)}
                             </span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">

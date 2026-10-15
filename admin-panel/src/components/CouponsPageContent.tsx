@@ -20,7 +20,8 @@ import { Coupon } from '@/types/coupon';
 import { toast } from 'sonner';
 import CouponFormModal from './CouponFormModal';
 import { Product } from '@/types';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatPrice } from '@/lib/constants';
 import { api, ApiError } from '@/lib/api/client';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
 import { fetchCouponsPage } from '@/lib/coupons/fetch-coupons-page';
@@ -64,6 +65,7 @@ const getRestrictedProducts = (coupon: Coupon, products: Product[]): string[] =>
 
 const CouponsPageContent: React.FC = () => {
   const t = useTranslations('admin.coupons');
+  const locale = useLocale();
 
   // State
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -478,7 +480,7 @@ const CouponsPageContent: React.FC = () => {
                       <td className="px-6 py-4 text-sm text-sf-heading">
                         {coupon.discount_type === 'percentage'
                           ? `${coupon.discount_value}%`
-                          : `${coupon.discount_value} ${coupon.currency || t('allCurrencies')}`}
+                          : coupon.currency ? formatPrice(coupon.discount_value, coupon.currency, locale) : `${new Intl.NumberFormat(locale).format(coupon.discount_value)} ${t('allCurrencies')}`}
                       </td>
                       <td className="px-6 py-4 text-sm text-sf-muted">
                         {t(coupon.usage_limit_global ? 'usageCount' : 'usageUnlimited', {

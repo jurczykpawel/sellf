@@ -145,7 +145,7 @@ export default function RevenueChart() {
 
   const formatCurrency = (value: number, currency: string = 'USD') => {
     if (hideValues) return '****';
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency,
       minimumFractionDigits: 0,
@@ -402,7 +402,7 @@ export default function RevenueChart() {
                 tickFormatter={(value) => {
                   // In grouped mode (multiple currencies), show just numbers without currency symbol
                   if (!isConverted && allCurrencies.length > 1) {
-                    return new Intl.NumberFormat('en-US', {
+                    return new Intl.NumberFormat(locale, {
                       notation: 'compact',
                       maximumFractionDigits: 0
                     }).format(value / 100);

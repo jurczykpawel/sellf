@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import { computeBundleAnchor } from '@/lib/services/bundle-pricing';
 import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
@@ -25,6 +26,7 @@ export function BundleItemsSection({
   products,
   currentProductId,
 }: BundleItemsSectionProps) {
+  const locale = useLocale();
   const [search, setSearch] = useState('');
 
   // Stable reference for the ordered selection so memo deps don't churn each render.
@@ -137,7 +139,7 @@ export function BundleItemsSection({
                     )}
                   </span>
                   <span className="shrink-0 text-xs text-sf-muted">
-                    {formatPrice(getEffectiveUnitPrice(p), p.currency)}
+                    {formatPrice(getEffectiveUnitPrice(p), p.currency, locale)}
                   </span>
                 </button>
               </li>
@@ -176,7 +178,7 @@ export function BundleItemsSection({
                   </span>
                   <span className="flex items-center gap-1.5 shrink-0">
                     <span className="text-xs text-sf-muted mr-1">
-                      {formatPrice(getEffectiveUnitPrice(p), p.currency)}
+                      {formatPrice(getEffectiveUnitPrice(p), p.currency, locale)}
                     </span>
                     <button
                       type="button"
@@ -232,10 +234,10 @@ export function BundleItemsSection({
           {anchor.mode === 'savings' ? (
             <p className="text-sm text-sf-accent">
               <span className="line-through text-sf-muted mr-2">
-                {formatPrice(anchor.componentsSum, currency)}
+                {formatPrice(anchor.componentsSum, currency, locale)}
               </span>
               {t('bundle.savings', {
-                savings: formatPrice(anchor.savings, currency),
+                savings: formatPrice(anchor.savings, currency, locale),
                 pct: anchor.savingsPct,
               })}
             </p>

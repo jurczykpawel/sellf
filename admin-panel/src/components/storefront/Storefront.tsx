@@ -409,8 +409,8 @@ function ProductRow({
             {isFree
               ? t('product.free')
               : isSubscription
-                ? (recurringPriceDisplay ?? formatPrice(product.recurring_price ?? 0, product.currency))
-                : formatPrice(product.price, product.currency)}
+                ? (recurringPriceDisplay ?? formatPrice(product.recurring_price ?? 0, product.currency, locale))
+                : formatPrice(product.price, product.currency, locale)}
           </span>
           <span className={`px-4 py-1.5 rounded-lg text-[0.78rem] font-semibold whitespace-nowrap transition-all duration-200 ${
             isFree

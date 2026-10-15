@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import { getVatDisplay } from '@/lib/product-pricing-display';
 import type { OrderBumpWithProduct } from '@/types/order-bump';
@@ -47,6 +47,7 @@ export default function OrderSummary({
   intervalLabel,
 }: OrderSummaryProps) {
   const t = useTranslations('checkout');
+  const locale = useLocale();
 
   const selectedBumpsForSummary = bumpProducts.filter(bp => selectedBumpIds.has(bp.bump_product_id));
   const vatDisplay = getVatDisplay({ taxMode, vatRate, vatExempt, vatExemptNote });
@@ -59,14 +60,14 @@ export default function OrderSummary({
           {/* Product Price */}
           <div className="flex justify-between text-sm text-sf-muted">
             <span>{productName}</span>
-            <span>{formatPrice(basePrice, currency)}</span>
+            <span>{formatPrice(basePrice, currency, locale)}</span>
           </div>
 
           {/* Multi-bump line items */}
           {selectedBumpsForSummary.map(bump => (
             <div key={bump.bump_product_id} className="flex justify-between text-sm text-sf-muted">
               <span>{bump.bump_product_name || t('additionalProduct')}</span>
-              <span>{formatPrice(bump.bump_price, currency)}</span>
+              <span>{formatPrice(bump.bump_price, currency, locale)}</span>
             </div>
           ))}
 
@@ -74,7 +75,7 @@ export default function OrderSummary({
           {appliedCoupon && discountAmount > 0 && (
             <div className="flex justify-between text-sm text-sf-success">
               <span>{t('couponDiscount', { defaultValue: 'Discount' })} ({appliedCoupon.code})</span>
-              <span>-{formatPrice(discountAmount, currency)}</span>
+              <span>-{formatPrice(discountAmount, currency, locale)}</span>
             </div>
           )}
 
@@ -93,7 +94,7 @@ export default function OrderSummary({
           </div>
           {!customAmountError && vatDisplay.kind === 'rate' && (
             <div className="text-xs text-sf-muted">
-              {t('netPrice')}: {formatPrice(totalNet, currency)} + {t('vat')} {vatDisplay.rate}%
+              {t('netPrice')}: {formatPrice(totalNet, currency, locale)} + {t('vat')} {vatDisplay.rate}%
             </div>
           )}
           {!customAmountError && vatDisplay.kind === 'exempt' && (
@@ -103,7 +104,7 @@ export default function OrderSummary({
           )}
         </div>
         <div data-testid="order-summary-total" className={`text-2xl font-bold ${customAmountError ? 'text-sf-danger line-through' : 'text-sf-heading'}`}>
-          {formatPrice(totalGross, currency)}
+          {formatPrice(totalGross, currency, locale)}
           {intervalLabel && <span className="text-base font-medium text-sf-muted"> / {intervalLabel}</span>}
         </div>
       </div>

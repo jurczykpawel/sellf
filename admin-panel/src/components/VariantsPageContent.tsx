@@ -12,7 +12,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Product } from '@/types';
 import { toast } from 'sonner';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import VariantGroupFormModal from './VariantGroupFormModal';
 import { api } from '@/lib/api/client';
@@ -49,6 +49,7 @@ interface VariantGroup {
 
 const VariantsPageContent: React.FC = () => {
   const t = useTranslations('admin.variantsPage');
+  const locale = useLocale();
   const productPath = (slug: string) => `/p/${slug}`;
 
   // State for variant groups and loading
@@ -435,7 +436,7 @@ const VariantsPageContent: React.FC = () => {
                     </div>
                     <div className="flex items-center space-x-4">
                       <span className="text-sm font-semibold text-sf-heading">
-                        {formatPrice(item.product.price, item.product.currency)}
+                        {formatPrice(item.product.price, item.product.currency, locale)}
                       </span>
                       <button
                         onClick={() => handleToggleFeatured(group, item)}
