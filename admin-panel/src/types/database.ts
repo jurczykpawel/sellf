@@ -2192,6 +2192,100 @@ export type Database = {
         }
         Relationships: []
       }
+      storefront_config: {
+        Row: {
+          draft: Json | null
+          id: boolean
+          published: Json
+          revision: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          draft?: Json | null
+          id?: boolean
+          published: Json
+          revision?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          draft?: Json | null
+          id?: boolean
+          published?: Json
+          revision?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storefront_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "storefront_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      storefront_config_history: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          draft: Json | null
+          operation: string
+          published: Json
+          restored_from: number | null
+          revision: number
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          draft?: Json | null
+          operation: string
+          published: Json
+          restored_from?: number | null
+          revision: number
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          draft?: Json | null
+          operation?: string
+          published?: Json
+          restored_from?: number | null
+          revision?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storefront_config_history_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "storefront_config_history_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "storefront_config_history_restored_from_fkey"
+            columns: ["restored_from"]
+            isOneToOne: false
+            referencedRelation: "storefront_config_history"
+            referencedColumns: ["revision"]
+          },
+        ]
+      }
       stripe_configurations: {
         Row: {
           account_id: string | null
@@ -3505,6 +3599,10 @@ export type Database = {
       set_webhook_endpoint_scoping: {
         Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
         Returns: undefined
+      }
+      storefront_config_stored_bytes: {
+        Args: { config: Json }
+        Returns: number
       }
       telemetry_claim_send: {
         Args: { p_lease_ms: number; p_window_ms: number }

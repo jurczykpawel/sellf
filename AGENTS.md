@@ -432,6 +432,21 @@ To execute SQL queries directly on the local database, use `docker exec` with th
 
 ## Key Implementation Details
 
+### Storefront Template Snapshots
+
+`storefront_config` is a boolean-keyed singleton holding the current revision,
+draft and published configuration. `storefront_config_history` retains complete
+draft/published pairs by revision. Both start at revision 0 with the free default
+selection; seller content and retained template settings live inside these JSON
+snapshots. Draft and published values each have a 102400-byte stored UTF-8 limit;
+revisions stay within JavaScript's safe integer range.
+
+Server-only reads live in `src/lib/storefront-templates/repository.ts` and accept
+caller-authorized Supabase clients. Public rendering uses the published-only
+projection; private reads include the draft and bounded, descending history pages.
+Reuse `validateConfig()` and `revisionSchema` when handling these snapshots.
+`storefront_config_stored_bytes(jsonb)` supplies the authoritative stored size.
+
 ### Runtime Configuration
 
 **RuntimeConfig API** (`/api/runtime-config`):

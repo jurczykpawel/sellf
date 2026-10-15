@@ -1,6 +1,14 @@
 -- Seed data for Sellf Admin Panel
 -- Sample products for testing different Sellf protection modes
 
+-- Free storefront selection; no seller claims or product bindings required.
+INSERT INTO public.storefront_config(published)
+VALUES ('{"format":1,"templateId":"default","settingsByTemplate":{},"overridesByTemplate":{},"content":{},"tokens":null}')
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.storefront_config_history(revision, operation, draft, published)
+SELECT revision, 'legacy-import', draft, published FROM public.storefront_config WHERE revision = 0
+ON CONFLICT (revision) DO NOTHING;
+
 -- Enable pgcrypto extension for password hashing
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
