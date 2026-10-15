@@ -184,3 +184,36 @@ describe('refund and scope guidance', () => {
     expect(readme).toContain('`payments:refund`');
   });
 });
+
+describe('product editorial metadata', () => {
+  const fields = { format: 'course', sourceLocale: 'en', en: { result: null, tools: ['Editor'], requirements: [] } };
+  const id = '11111111-1111-4111-8111-111111111111';
+  it('forwards complete metadata on create and update', async () => {
+    api.post.mockResolvedValue({ data: { id, marketing_fields: fields } });
+    api.patch.mockResolvedValue({ data: { id, marketing_fields: fields } });
+    const create = tools.get('create_product')!;
+    await create.handler(z.object(create.schema).parse({ name: 'Example', slug: 'example', price: 10, marketing_fields: fields }));
+    expect(api.post).toHaveBeenCalledWith('/api/v1/products', expect.objectContaining({ marketing_fields: fields }));
+    const update = tools.get('update_product')!;
+    await update.handler(z.object(update.schema).parse({ id, marketing_fields: fields }));
+    expect(api.patch).toHaveBeenCalledWith(`/api/v1/products/${id}`, { marketing_fields: fields });
+    expect(update.schema.marketing_fields.description).toContain('replaces');
+  });
+  it('retains metadata when duplicating a product', async () => {
+    api.get.mockResolvedValue({ data: { id, marketing_fields: fields } });
+    api.post.mockResolvedValue({ data: {} });
+    await tools.get('duplicate_product')!.handler({ source_id: id, new_name: 'Copy', new_slug: 'copy' });
+    expect(api.post).toHaveBeenCalledWith('/api/v1/products', expect.objectContaining({ marketing_fields: fields }));
+  });
+  it('does not add metadata to an unrelated update', async () => {
+    api.patch.mockResolvedValue({ data: {} });
+    const update = tools.get('update_product')!;
+    await update.handler(z.object(update.schema).parse({ id, description: 'Updated' }));
+    expect(api.patch).toHaveBeenCalledWith(`/api/v1/products/${id}`, { description: 'Updated' });
+  });
+  it('publishes a serializable bounded metadata schema', () => {
+    const schema = z.toJSONSchema(z.object(tools.get('create_product')!.schema), { unrepresentable: 'any' });
+    expect(schema.properties).toHaveProperty('marketing_fields');
+    expect(JSON.stringify(schema.properties!.marketing_fields)).toContain('sourceLocale');
+  });
+});

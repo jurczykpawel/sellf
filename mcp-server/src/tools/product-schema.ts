@@ -4,6 +4,7 @@
  * @see admin-panel/src/lib/validations/redirect.ts
  */
 import { z } from 'zod';
+import { marketingFieldsSchema } from './product-marketing-schema.js';
 
 function isRelativeOrHttpUrl(url: string): boolean {
   if (!url) return false;
@@ -54,6 +55,7 @@ const productShape = {
   thumbnail_url: z.string().max(2048).nullable().optional(),
   preview_video_url: z.string().max(2048).nullable().optional(),
   features: z.array(featureSection).max(20).nullable().optional(),
+  marketing_fields: marketingFieldsSchema.optional(),
   layout_template: z.string().max(40).nullable().optional(),
   content_delivery_type: contentDelivery.optional(),
   content_config: z.record(z.string(), z.unknown()).optional(),
@@ -117,6 +119,7 @@ const descriptions: Record<string, string> = {
   billing_interval_count: 'Number of billing intervals (positive integer)',
   trial_days: 'Subscription trial duration in days (nonnegative integer)',
   features: 'Feature sections, each with a title and items',
+  marketing_fields: 'Complete editorial metadata; replaces the entire object on update. Omit to retain; null is rejected. Source locale copy required; maximum 8192 stored UTF-8 bytes.',
   vat_rate: 'VAT percentage (23 means 23%); null uses the installation default',
   sale_quantity_limit: 'Sale quantity limit; null, empty string or zero clears it',
   price_includes_vat: 'Whether product prices include VAT',
