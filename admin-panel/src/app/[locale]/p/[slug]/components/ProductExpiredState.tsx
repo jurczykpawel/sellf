@@ -20,10 +20,10 @@ export default function ProductExpiredState({ product, existingLicense }: Produc
   const [licenseCopied, setLicenseCopied] = useState(false);
   const isSubscription = product.product_type === 'subscription';
   const priceLabel = isSubscription
-    ? (formatRecurringProductPrice(product, locale) ?? formatPrice(product.recurring_price ?? 0, product.currency))
+    ? (formatRecurringProductPrice(product, locale) ?? formatPrice(product.recurring_price ?? 0, product.currency, locale))
     : product.price === 0
       ? t('free', { defaultValue: 'FREE' })
-      : formatPrice(product.price, product.currency);
+      : formatPrice(product.price, product.currency, locale);
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',

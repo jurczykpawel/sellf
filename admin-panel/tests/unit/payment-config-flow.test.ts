@@ -324,10 +324,10 @@ describe('custom checkout form source verification', () => {
   });
 
   it('does not duplicate currency code after formatPrice in user-facing checkout strings', () => {
-    // formatPrice() already returns "zł20.00" — concatenating " {currency}" on
-    // top yields "zł20.00 PLN" which looks broken. Catch regressions.
+    // formatPrice() already returns "20,00 zł" — concatenating " {currency}" on
+    // top yields "20,00 zł PLN" which looks broken. Catch regressions.
     expect(customPaymentFormSource).not.toMatch(
-      /\$\{formatPrice\(totalGross, product\.currency\)\} \$\{product\.currency\}/,
+      /\$\{formatPrice\(totalGross, product\.currency, locale\)\} \$\{product\.currency\}/,
     );
   });
 });

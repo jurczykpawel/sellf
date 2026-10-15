@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { ArrowRight, Play, CheckCircle, TrendingUp, Clock } from 'lucide-react'
 import { motion } from 'motion/react'
 import { TextReveal } from './motion/TextReveal'
@@ -16,6 +16,7 @@ interface RevenueSnapshot {
 
 function RevenueBadge() {
   const t = useTranslations('landing.hero')
+  const locale = useLocale();
   const [snapshot, setSnapshot] = useState<RevenueSnapshot | null>(null)
 
   useEffect(() => {
@@ -33,7 +34,7 @@ function RevenueBadge() {
     return () => window.removeEventListener('sellf:revenue-change', handler)
   }, [])
 
-  const usdFmt = new Intl.NumberFormat('en-US', {
+  const usdFmt = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 0,

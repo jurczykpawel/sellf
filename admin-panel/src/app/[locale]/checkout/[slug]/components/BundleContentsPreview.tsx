@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import { computeBundleAnchor } from '@/lib/services/bundle-pricing';
 import type { BundleComponentPrice } from '@/lib/services/bundle-pricing';
@@ -43,6 +43,7 @@ export default function BundleContentsPreview({
   components,
 }: BundleContentsPreviewProps) {
   const t = useTranslations('checkout');
+  const locale = useLocale();
 
   const anchor = useMemo(
     () => computeBundleAnchor(bundlePrice, components),
@@ -72,11 +73,11 @@ export default function BundleContentsPreview({
       {anchor.mode === 'savings' && (
         <div className="flex items-center gap-2 text-sm" data-testid="bundle-savings">
           <span className="text-sf-muted line-through">
-            {formatPrice(anchor.componentsSum, currency)}
+            {formatPrice(anchor.componentsSum, currency, locale)}
           </span>
           <span className="font-semibold text-sf-success">
             {t('bundleSavings', {
-              amount: formatPrice(anchor.savings, currency),
+              amount: formatPrice(anchor.savings, currency, locale),
               pct: anchor.savingsPct,
             })}
           </span>

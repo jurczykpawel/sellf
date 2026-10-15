@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Product } from '@/types';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatPrice } from '@/lib/constants';
 
 interface OrderBumpWithDetails {
   id: string;
@@ -45,6 +46,7 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
   isSubmitting,
 }) => {
   const t = useTranslations('admin.orderBumps');
+  const locale = useLocale();
   
   // Form state
   const [mainProductId, setMainProductId] = useState('');
@@ -202,7 +204,7 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
                   <option value="">{t('form.selectProduct')}</option>
                   {products.map((product) => (
                     <option key={product.id} value={product.id}>
-                      {product.name} ({product.price} {product.currency})
+                      {product.name} ({formatPrice(product.price, product.currency, locale)})
                     </option>
                   ))}
                 </select>
@@ -224,7 +226,7 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
                     .filter(p => p.id !== mainProductId)
                     .map((product) => (
                       <option key={product.id} value={product.id}>
-                        {product.name} ({product.price} {product.currency})
+                        {product.name} ({formatPrice(product.price, product.currency, locale)})
                       </option>
                     ))}
                 </select>
@@ -294,7 +296,7 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
                       {t('form.useSpecialPrice')}
                     </label>
                     <p className="text-xs text-sf-body mt-1">
-                      {t('form.regularPrice')}: {selectedBumpProduct.price} {selectedBumpProduct.currency}
+                      {t('form.regularPrice')}: {formatPrice(selectedBumpProduct.price, selectedBumpProduct.currency, locale)}
                     </p>
 
                     {useCustomPrice && (

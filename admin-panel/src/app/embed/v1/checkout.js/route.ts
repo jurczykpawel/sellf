@@ -59,10 +59,9 @@ export async function GET() {
 
   function formatPrice(amount, currency) {
     try {
-      return new Intl.NumberFormat(navigator.language || 'pl-PL', {
+      return new Intl.NumberFormat(document.documentElement.lang || navigator.language || 'en', {
         style: 'currency',
         currency: currency || 'USD',
-        maximumFractionDigits: 2,
       }).format(Number(amount));
     } catch (e) {
       return amount + ' ' + (currency || '');

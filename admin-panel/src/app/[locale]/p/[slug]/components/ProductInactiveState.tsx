@@ -14,10 +14,10 @@ export default function ProductInactiveState({ product }: ProductInactiveStatePr
   const locale = useLocale();
   const isSubscription = product.product_type === 'subscription';
   const priceLabel = isSubscription
-    ? (formatRecurringProductPrice(product, locale) ?? formatPrice(product.recurring_price ?? 0, product.currency))
+    ? (formatRecurringProductPrice(product, locale) ?? formatPrice(product.recurring_price ?? 0, product.currency, locale))
     : product.price === 0
       ? t('free', { defaultValue: 'FREE' })
-      : formatPrice(product.price, product.currency);
+      : formatPrice(product.price, product.currency, locale);
 
   // If waitlist is enabled, show the waitlist form
   if (product.enable_waitlist) {

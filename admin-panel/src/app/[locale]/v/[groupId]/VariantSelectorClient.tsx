@@ -241,11 +241,11 @@ export default function VariantSelectorClient({ groupId, licenseValid }: Variant
                         {t('suggestedPrice')}
                       </div>
                       <div className="text-2xl md:text-3xl font-bold text-sf-heading">
-                        {formatPrice(variant.price, variant.currency)}
+                        {formatPrice(variant.price, variant.currency, locale)}
                       </div>
                       {variant.custom_price_min !== null && (
                         <div className="text-xs text-sf-body mt-1 font-medium">
-                          {t('minimumFrom', { price: formatPrice(variant.custom_price_min, variant.currency) })}
+                          {t('minimumFrom', { price: formatPrice(variant.custom_price_min, variant.currency, locale) })}
                         </div>
                       )}
                     </div>
@@ -255,11 +255,11 @@ export default function VariantSelectorClient({ groupId, licenseValid }: Variant
                     <div className="text-center sm:text-right">
                       {isSaleActive && (
                         <div className="text-base font-medium text-sf-muted line-through leading-none">
-                          {formatPrice(variant.price, variant.currency)}
+                          {formatPrice(variant.price, variant.currency, locale)}
                         </div>
                       )}
                       <div className="text-2xl md:text-3xl font-bold text-sf-heading">
-                        {formatPrice(effectivePrice, variant.currency)}
+                        {formatPrice(effectivePrice, variant.currency, locale)}
                       </div>
                       {isSaleActive && variant.sale_price_until && (
                         <div className="text-xs text-sf-warning mt-1 flex items-center gap-1 justify-center sm:justify-end">

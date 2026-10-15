@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { UserWithAccess, Product } from '@/types';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, ModalSection, Button, Message } from './ui/Modal';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatPrice } from '@/lib/constants';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
 
 interface AccessManagementModalProps {
@@ -34,6 +35,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
   onAccessChange
 }) => {
   const t = useTranslations('admin.users.accessModal');
+  const locale = useLocale();
   const tCommon = useTranslations('common');
   const [userAccess, setUserAccess] = useState<UserAccess[]>([]);
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
@@ -281,7 +283,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
                       <option value="">{t('chooseProductPlaceholder')}</option>
                       {getAvailableProductsForUser().map(product => (
                         <option key={product.id} value={product.id}>
-                          {product.name} {product.price > 0 ? `(${product.currency} ${product.price})` : '(Free)'}
+                          {product.name} {product.price > 0 ? `(${formatPrice(product.price, product.currency, locale)})` : '(Free)'}
                         </option>
                         ))}
                     </select>

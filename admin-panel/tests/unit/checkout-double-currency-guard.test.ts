@@ -1,9 +1,9 @@
 /**
- * Guard against the "zł20.00 PLN" regression.
+ * Guard against the "20,00 zł PLN" regression.
  *
- * `formatPrice(price, currency)` already returns the currency symbol prefix
- * (e.g. "zł20.00"). Concatenating " {currency}" after it produces
- * "zł20.00 PLN" — visually redundant, looks broken to users. This file pins
+ * `formatPrice(price, currency, locale)` already returns the localized currency amount
+ * (e.g. "20,00 zł"). Concatenating " {currency}" after it produces
+ * "20,00 zł PLN" — visually redundant, looks broken to users. This file pins
  * the rule across every user-facing checkout file.
  *
  * Admin-side files (ProductsTable, my-products, my-purchases, etc.) are
@@ -30,17 +30,17 @@ const CHECKOUT_FACING_FILES = [
   'src/components/storefront/Storefront.tsx',
 ];
 
-// The forbidden pattern: `formatPrice(..., X)} {X}` — concatenating the same
+// The forbidden pattern: `formatPrice(..., X, locale)} {X}` — concatenating the same
 // currency code right after the symbol-formatted price.
 //
 // We match the most common shapes:
-//   {formatPrice(x, currency)} {currency}
-//   {formatPrice(x, product.currency)} {product.currency}
-//   {formatPrice(x, bump.bump_currency)} {bump.bump_currency}
-//   `${formatPrice(x, foo)} ${foo}`
+//   {formatPrice(x, currency, locale)} {currency}
+//   {formatPrice(x, product.currency, locale)} {product.currency}
+//   {formatPrice(x, bump.bump_currency, locale)} {bump.bump_currency}
+//   `${formatPrice(x, foo, locale)} ${foo}`
 const DOUBLE_CURRENCY_PATTERNS: RegExp[] = [
-  /\{formatPrice\([^)]+,\s*([^)\s]+)\)\}\s*\{(\1)\}/,
-  /`\$\{formatPrice\([^)]+,\s*([^)]+)\)\}\s+\$\{(\1)\}/,
+  /\{formatPrice\([^)]+,\s*([^,\s)]+),\s*locale\)\}\s*\{(\1)\}/,
+  /`\$\{formatPrice\([^)]+,\s*([^,\s)]+),\s*locale\)\}\s+\$\{(\1)\}/,
 ];
 
 describe('user-facing checkout components do not double-print the currency code', () => {
@@ -73,12 +73,12 @@ describe('OrderSummary shape', () => {
     expect(source).toMatch(/intervalLabel\?:\s*string/);
     // The total block renders "{ price }{ intervalLabel && / label }" together.
     expect(source).toMatch(
-      /\{formatPrice\(totalGross, currency\)\}\s*\n\s*\{intervalLabel && [\s\S]+?\/\s*\{intervalLabel\}/,
+      /\{formatPrice\(totalGross, currency, locale\)\}\s*\n\s*\{intervalLabel && [\s\S]+?\/\s*\{intervalLabel\}/,
     );
   });
 
   it('does not append the currency code to net/total/breakdown lines', () => {
     // Lift the pattern from the guard above for clarity in this dedicated test.
-    expect(source).not.toMatch(/\{formatPrice\(\w+,\s*currency\)\}\s*\{currency\}/);
+    expect(source).not.toMatch(/\{formatPrice\(\w+,\s*currency,\s*locale\)\}\s*\{currency\}/);
   });
 });

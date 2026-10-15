@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { CheckoutElementsProvider } from '@stripe/react-stripe-js/checkout';
 import { formatPrice, STRIPE_MINIMUM_AMOUNT, STRIPE_MAX_AMOUNT } from '@/lib/constants';
 import { signOutAndRedirectToCheckout } from '@/lib/actions/checkout';
@@ -59,6 +59,7 @@ interface PaidProductFormProps {
 
 export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, collectTermsOfService, bundleComponents, layoutMode = 'standalone', afterCheckoutSlot }: PaidProductFormProps) {
   const t = useTranslations('checkout');
+  const locale = useLocale();
   const isSubscription = product.product_type === 'subscription';
   // PWYW subscriptions allow buyers to choose their recurring amount. The
   // existing PwywSection works regardless of one-shot vs recurring — only
@@ -136,13 +137,13 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     if (!product.allow_custom_price) return null;
     const minPrice = product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
     if (amount < minPrice) {
-      return t('customPrice.belowMinimum', { minimum: formatPrice(minPrice, product.currency) });
+      return t('customPrice.belowMinimum', { minimum: formatPrice(minPrice, product.currency, locale) });
     }
     if (amount > STRIPE_MAX_AMOUNT) {
-      return t('customPrice.aboveMaximum', { maximum: formatPrice(STRIPE_MAX_AMOUNT, product.currency) });
+      return t('customPrice.aboveMaximum', { maximum: formatPrice(STRIPE_MAX_AMOUNT, product.currency, locale) });
     }
     return null;
-  }, [product, t]);
+  }, [product, t, locale]);
 
   // Compute isPwywFree once — shared with PwywSection
   const isPwywFree =

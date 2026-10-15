@@ -3,8 +3,8 @@
 
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useEffect, useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { CreditCard, DollarSign, Receipt, RotateCcw, TrendingUp, WalletCards } from 'lucide-react';
 import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
 import { useUserPreferences } from '@/contexts/UserPreferencesContext';
@@ -25,6 +25,7 @@ interface PaymentStatsCardsProps {
 
 export default function PaymentStatsCards({ stats }: PaymentStatsCardsProps) {
   const t = useTranslations('admin.payments.stats');
+  const locale = useLocale();
   const { currencyViewMode, displayCurrency } = useUserPreferences();
   const { convertMultipleCurrencies } = useCurrencyConversion();
   const [convertedAmounts, setConvertedAmounts] = useState<{
@@ -67,13 +68,13 @@ export default function PaymentStatsCards({ stats }: PaymentStatsCardsProps) {
   }, [stats, currencyViewMode, displayCurrency, convertMultipleCurrencies]);
 
   const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
     }).format(amount / 100);
   };
 
-  const formatMultiCurrency = useCallback((amounts: CurrencyAmount, convertedAmount?: number) => {
+  const formatMultiCurrency = (amounts: CurrencyAmount, convertedAmount?: number) => {
     if (currencyViewMode === 'converted' && displayCurrency && convertedAmount !== undefined) {
       return formatCurrency(convertedAmount, displayCurrency);
     }
@@ -84,10 +85,10 @@ export default function PaymentStatsCards({ stats }: PaymentStatsCardsProps) {
       .sort()
       .map((currency) => formatCurrency(amounts[currency], currency))
       .join(' + ');
-  }, [currencyViewMode, displayCurrency]);
+  };
 
   const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('en-US').format(num);
+    return new Intl.NumberFormat(locale).format(num);
   };
 
   const statsCards = [

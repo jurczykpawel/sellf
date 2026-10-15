@@ -3,7 +3,7 @@
 import React from 'react';
 import { UserWithAccess } from '@/types';
 import Pagination from './Pagination';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 
 interface SortableHeaderProps {
   column: string;
@@ -66,6 +66,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
   onSort,
 }) => {
   const t = useTranslations('admin.users');
+  const locale = useLocale();
   const startIndex = (currentPage - 1) * limit + 1;
   const endIndex = Math.min(startIndex + users.length - 1, totalItems);
 
@@ -175,7 +176,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {user.stats && user.stats.total_value > 0 ? (
                         <div className="text-sf-heading">
-                          {new Intl.NumberFormat('en-US', {
+                          {new Intl.NumberFormat(locale, {
                             style: 'currency',
                             currency: 'USD',
                           }).format(user.stats.total_value)}

@@ -1,20 +1,18 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatPrice } from '@/lib/constants';
 import { toast } from 'sonner';
 import type { RefundRequest } from '@/types';
 import { getAdminRefundActions } from '@/lib/refunds/flow';
 
-const formatPrice = (price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
+const formatPriceLocalized = (locale: string, price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
   if (price === null) return naLabel;
   const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
   if (isNaN(numericPrice)) return invalidLabel;
 
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency || 'USD',
-  }).format(numericPrice / 100); // Convert cents to dollars
+  return formatPrice(numericPrice / 100, currency || 'USD', locale);
 };
 
 const formatDate = (dateString: string | null, naLabel = 'N/A') => {
@@ -30,6 +28,7 @@ const formatDate = (dateString: string | null, naLabel = 'N/A') => {
 
 export default function RefundRequestsPage() {
   const t = useTranslations('refundRequests');
+  const locale = useLocale();
   const [requests, setRequests] = useState<RefundRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -256,7 +255,7 @@ export default function RefundRequestsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-sf-heading">
-                      {formatPrice(request.requested_amount, request.currency, t('naLabel'), t('invalidPrice'))}
+                      {formatPriceLocalized(locale, request.requested_amount, request.currency, t('naLabel'), t('invalidPrice'))}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -298,7 +297,7 @@ export default function RefundRequestsPage() {
                 {selectedRequest.customer_email}
               </div>
               <div className="text-lg font-bold text-sf-heading mt-2">
-                {formatPrice(selectedRequest.requested_amount, selectedRequest.currency, t('naLabel'), t('invalidPrice'))}
+                {formatPriceLocalized(locale, selectedRequest.requested_amount, selectedRequest.currency, t('naLabel'), t('invalidPrice'))}
               </div>
               {selectedRequest.reason && (
                 <div className="mt-2 text-sm text-sf-body">
