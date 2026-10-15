@@ -2,15 +2,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { D_CONFIG, DEFAULT_CONFIG } from '@/lib/storefront-templates/fixtures';
 import { loadPublicStorefront } from '@/lib/storefront-templates/public-page';
-const mocks = vi.hoisted(() => ({ rate: vi.fn(), client: vi.fn(), config: vi.fn(), groups: vi.fn(), bindings: vi.fn(), page: vi.fn() }));
+const mocks = vi.hoisted(() => ({ rate: vi.fn(), client: vi.fn(), config: vi.fn(), groups: vi.fn(), bindings: vi.fn(), page: vi.fn(), theme: vi.fn() }));
 vi.mock('@/components/storefront/PublicStorefrontPage', () => ({ default: () => null }));
+vi.mock('@/lib/theme-loader', () => ({ loadThemeData: mocks.theme }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: mocks.rate }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: mocks.client }));
 vi.mock('@/lib/storefront-templates/repository', () => ({ readPublishedConfig: mocks.config }));
 vi.mock('@/lib/storefront-templates/catalogue', () => ({ loadCatalogueGroups: mocks.groups, loadStorefrontBindings: mocks.bindings, loadCataloguePage: mocks.page }));
 vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ default: {} }));
 beforeEach(() => {
-  vi.clearAllMocks(); mocks.rate.mockResolvedValue(true); mocks.client.mockReturnValue({});
+  vi.clearAllMocks(); mocks.theme.mockResolvedValue({ licenseValid: true }); mocks.rate.mockResolvedValue(true); mocks.client.mockReturnValue({});
   mocks.config.mockResolvedValue({ success: true, data: DEFAULT_CONFIG });
   mocks.groups.mockResolvedValue({ success: true, data: Object.fromEntries(['featured', 'free', 'paid'].map(g => [g, { products: [], nextCursor: null }])) });
   mocks.bindings.mockResolvedValue({ success: true, data: { hero: null, closing: null, starters: [], categories: [] } });
@@ -33,6 +34,16 @@ describe('public storefront loader', () => {
     mocks.groups.mockResolvedValue({ success: true, data: { all: { products: [], nextCursor: null } } });
     expect(await loadPublicStorefront('en', {}, ['default', 'd'])).toMatchObject({ success: true, model: { templateId: 'd' } });
     expect(mocks.bindings).toHaveBeenCalledWith({}, expect.objectContaining({ heroProduct: D_CONFIG.settingsByTemplate.d!.heroProduct, starterProducts: D_CONFIG.settingsByTemplate.d!.starterProducts }));
+  });
+  it('resolves published appearance separately without a second config read', async () => {
+    mocks.groups.mockResolvedValue({ success: true, data: { all: { products: [], nextCursor: null } } });
+    mocks.config.mockResolvedValue({ success: true, data: { ...D_CONFIG, tokens: { format: 1, typography: { font: 'dm-sans' } } } });
+    const result = await loadPublicStorefront('pl', {}, ['default', 'd']);
+    expect(result).toMatchObject({ success: true, theme: { tokens: { typography: { font: 'dm-sans' } } } });
+    expect(mocks.config).toHaveBeenCalledTimes(1);
+    if (result.success) expect(JSON.stringify(result.model)).not.toContain('tokens');
+    mocks.theme.mockResolvedValue({ licenseValid: false });
+    expect(await loadPublicStorefront('pl', {}, ['default', 'd'])).toMatchObject({ success: true, theme: { diagnostics: ['ENTITLEMENT'], tokens: { typography: { font: 'geist' } } } });
   });
   it('handles progressive search/category without confusing no matches with no products', async () => {
     mocks.page.mockResolvedValue({ success: true, data: { products: [{ id: 'present' }], nextCursor: null } });

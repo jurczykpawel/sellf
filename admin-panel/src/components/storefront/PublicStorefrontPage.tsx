@@ -5,6 +5,7 @@ import { loadPublicStorefront } from '@/lib/storefront-templates/public-page';
 import { catalogueLabels } from '@/lib/storefront-templates/catalogue-section';
 import SmartLandingClient from '@/components/storefront/SmartLandingClient';
 import StorefrontComposition from '@/components/storefront/StorefrontComposition';
+import PublicThemeShell from '@/components/storefront/PublicThemeShell';
 import type { StorefrontSearchParams } from '@/lib/storefront-templates/public-page';
 
 export default async function PublicStorefrontPage({ locale, searchParams }: { locale: 'en' | 'pl'; searchParams: StorefrontSearchParams }) {
@@ -16,6 +17,8 @@ export default async function PublicStorefrontPage({ locale, searchParams }: { l
     </div>
   </SmartLandingClient>;
   return <SmartLandingClient templateId={result.model.templateId} hasProducts={result.hasProducts} shopConfig={shopConfig}>
+    <PublicThemeShell tokens={result.theme.tokens} mode={shopConfig?.checkout_theme}>
     <StorefrontComposition renderKey={createHash('sha256').update(JSON.stringify(result.model)).digest('hex')} model={result.model} shopName={shopConfig?.shop_name || 'Sellf'} />
+    </PublicThemeShell>
   </SmartLandingClient>;
 }

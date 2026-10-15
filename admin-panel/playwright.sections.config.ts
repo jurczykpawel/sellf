@@ -16,6 +16,7 @@ export default defineConfig({
         'storefront-composition.spec.ts',
         'storefront-faq-closing.spec.ts',
         'storefront-task-nav.spec.ts',
+        'storefront-theme.spec.ts',
       ],
     },
     {

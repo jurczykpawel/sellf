@@ -1,0 +1,3 @@
+.shell { min-width: 0; overflow-wrap: anywhere; background: var(--sf-bg-deep); color: var(--sf-text-body); font-family: var(--sf-font-family); font-size: var(--sf-font-size-base); font-weight: var(--sf-font-body-weight); }
+.shell[data-sf-surface='storefront'] :is(h1,h2,h3,h4,h5,h6) { letter-spacing: var(--sf-letter-spacing-heading); font-weight: var(--sf-font-heading-weight); }
+.shell[data-sf-surface='storefront'] :is(input,select,button,textarea) { font-family: inherit; }

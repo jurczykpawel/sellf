@@ -51,6 +51,7 @@ export function escapeForInlineScript(json: string): string {
 
 function applyTheme(resolved: 'light' | 'dark') {
   const root = document.documentElement
+  root.setAttribute('data-sf-theme-resolved', '')
   if (resolved === 'dark') {
     root.classList.add('dark')
   } else {
@@ -157,7 +158,7 @@ export function ThemeScript({ adminTheme, nonce }: { adminTheme?: string; nonce?
       id="sf-theme-init"
       nonce={nonce}
       suppressHydrationWarning
-      dangerouslySetInnerHTML={{ __html: script }}
+      dangerouslySetInnerHTML={{ __html: `document.documentElement.setAttribute('data-sf-theme-resolved','');${script}` }}
     />
   )
 }

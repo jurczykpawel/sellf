@@ -477,7 +477,15 @@ concrete public section props to `StorefrontComposition`. Callers pass a digest 
 the public model as `renderKey` so replaced snapshots reset catalogue state.
 The core caller must
 supply current allowed template IDs; absent grants permit only free default until
-T1.16 wires rights. T1.14 owns public token resolution and T1.20 cache freshness.
+T1.16 wires rights. Public appearance is resolved by `public-theme.ts` from core defaults, the effective
+registry entry and strict partial seller overrides. `loadPublicStorefront` reuses
+its published read; appearance and leaf origins stay outside section props.
+`PublicThemeShell` maps approved variables before hydration; `/p/[slug]`,
+`/checkout/[slug]`, `/login`, `/terms` and `/privacy` use the protected subset through
+`loadProtectedThemeData`. Other routes and dashboard chrome retain core branding.
+Core theme preference controls mode, including CSS system fallback without scripts.
+T1.16 must supply current allowed template IDs to both storefront and protected
+selection; T1.15 owns origin/reset editing and T1.20 cache freshness.
 TaskNav and Catalogue share target-scoped filter/state events; URL search/category
 fallbacks use the same bounded initial loaders. Public content renders during auth
 initialization; only empty-shop onboarding depends on the resolved admin session.

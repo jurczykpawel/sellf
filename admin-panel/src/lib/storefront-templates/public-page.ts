@@ -9,13 +9,17 @@ import { readPublishedConfig } from '@/lib/storefront-templates/repository';
 import { loadCatalogueGroups, loadCataloguePage, loadStorefrontBindings } from '@/lib/storefront-templates/catalogue';
 import { resolvePresentation, resolveSelection } from '@/lib/storefront-templates/resolver';
 import { catalogueRequestSchema } from '@/lib/storefront-templates/catalogue-section';
+import { loadThemeData } from '@/lib/theme-loader';
+import { STOREFRONT_TEMPLATES } from '@/lib/storefront-templates/registry';
+import { resolvePublicTheme } from '@/lib/storefront-templates/public-theme';
 import type { Metadata } from 'next';
 import type { PresentationModel } from '@/lib/storefront-templates/resolver';
 import type { CatalogueProps } from '@/lib/storefront-templates/catalogue-section';
+import type { ResolvedPublicTheme } from '@/lib/storefront-templates/public-theme';
 
 export type StorefrontSearchParams = Record<string, string | string[] | undefined>;
 const searchSchema = z.object({ search: catalogueRequestSchema.shape.search.optional(), category: z.uuid().optional() });
-type PageResult = { success: true; model: PresentationModel; hasProducts: boolean } | { success: false };
+type PageResult = { success: true; model: PresentationModel; hasProducts: boolean; theme: ResolvedPublicTheme } | { success: false };
 
 /** Until the lifecycle rights gate is wired, public routes grant only the free entry. */
 export async function loadPublicStorefront(locale: 'en' | 'pl', params: StorefrontSearchParams, availableTemplateIds: readonly string[] = ['default']): Promise<PageResult> {
@@ -25,6 +29,8 @@ export async function loadPublicStorefront(locale: 'en' | 'pl', params: Storefro
     const client = createAdminClient();
     const published = await readPublishedConfig(client);
     const selection = resolveSelection(published.success ? published.data : null, availableTemplateIds);
+    const { licenseValid } = await loadThemeData();
+    const theme = resolvePublicTheme(STOREFRONT_TEMPLATES[selection.templateId].tokens, published.success ? published.data.tokens : null, licenseValid);
     const spec = selection.recipe.sections.find(s => s.type === 'catalogue/1');
     if (!spec || spec.type !== 'catalogue/1') return { success: false };
     const { heroProduct, closingProduct, starterProducts, taskCategories } = selection.settings;
@@ -46,7 +52,7 @@ export async function loadPublicStorefront(locale: 'en' | 'pl', params: Storefro
       initialQuery: { search: query.search, categoryIds: query.categoryIds, priceKind: null, format: null } };
     const model = resolvePresentation(selection, { locale, productsById: Object.fromEntries(products.map(p => [p.id, p])),
       categoriesById: Object.fromEntries(bound.data.categories.map(c => [c.id, c])), catalogue });
-    return { success: true, model, hasProducts };
+    return { success: true, model, hasProducts, theme };
   } catch { return { success: false }; }
 }
 
