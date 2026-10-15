@@ -24,7 +24,7 @@ interface LocaleConfig {
   initial: number;
   // pulse thresholds (in local currency)
   pulseThresholds: number[];
-  // assumed average order value used for per-tx fees (Gumroad's $0.30 etc.)
+  // assumed average order value used for per-tx fees (base fees use $0.50)
   avgOrderValue: number;
   // fixed-per-tx fee in local currency for Gumroad/Paddle/Lemon
   fixedTxFee: number;
@@ -41,7 +41,7 @@ const LOCALE_CONFIGS: Record<string, LocaleConfig> = {
     initial: 40000,
     pulseThresholds: [10000, 100000, 500000],
     avgOrderValue: 200,
-    fixedTxFee: 1.2, // ≈ $0.30 in PLN
+    fixedTxFee: 2, // Assumed USD/PLN = 4; $0.50 per transaction
   },
   en: {
     currency: 'USD',
@@ -53,16 +53,16 @@ const LOCALE_CONFIGS: Record<string, LocaleConfig> = {
     initial: 10000,
     pulseThresholds: [1000, 10000, 100000],
     avgOrderValue: 50,
-    fixedTxFee: 0.30,
+    fixedTxFee: 0.50,
   },
 };
 
 function calculateFees(revenue: number, cfg: LocaleConfig): PlatformFee[] {
   const txCount = revenue / cfg.avgOrderValue;
   const sellfFee = revenue * 0.034;
-  const gumroadFee = revenue * 0.1 + revenue * 0.029 + cfg.fixedTxFee * txCount;
-  const paddleFee = revenue * 0.05 + revenue * 0.035 + cfg.fixedTxFee * txCount;
-  const lemonFee = revenue * 0.05 + revenue * 0.035 + cfg.fixedTxFee * txCount;
+  const gumroadFee = revenue * 0.1 + cfg.fixedTxFee * txCount;
+  const paddleFee = revenue * 0.05 + cfg.fixedTxFee * txCount;
+  const lemonFee = revenue * 0.05 + cfg.fixedTxFee * txCount;
   return [
     { key: 'sellf', label: '', feeNote: '', fee: sellfFee, barColor: 'bg-sf-success' },
     { key: 'gumroad', label: '', feeNote: '', fee: gumroadFee, barColor: 'bg-sf-danger-bg' },
@@ -210,6 +210,14 @@ export function FeeComparisonSection() {
           })}
         </div>
 
+        <p className="text-xs text-sf-muted mt-6 leading-relaxed">
+          {t('feeComparison.assumptions', { orderValue: fmt.format(cfg.avgOrderValue) })}{' '}
+          {t('feeComparison.sources', { date: '2026-10-15' })}{' '}
+          <a className="underline" href="https://gumroad.com/pricing">Gumroad</a>{', '}
+          <a className="underline" href="https://www.paddle.com/pricing">Paddle</a>{', '}
+          <a className="underline" href="https://www.lemonsqueezy.com/pricing">Lemon Squeezy</a>.
+        </p>
+
         {/* Savings highlight */}
         <Reveal animation="scale" delay={200}>
           <div
@@ -234,7 +242,7 @@ export function FeeComparisonSection() {
                 {t('feeComparison.beforeLabel')}
               </div>
               <p className="text-sm text-sf-body leading-relaxed">
-                {t('feeComparison.beforeText')}
+                {t('feeComparison.beforeText', { revenue: fmt.format(cfg.initial), amount: fmt.format(calculateFees(cfg.initial, cfg)[1].fee) })}
               </p>
             </div>
             <div className="rounded-xl border border-sf-success/40 bg-sf-success-soft/20 p-5">
@@ -247,7 +255,7 @@ export function FeeComparisonSection() {
             </div>
           </div>
           <p className="text-center text-base font-bold text-sf-heading mt-4">
-            {t('feeComparison.diffLabel')}
+            {t('feeComparison.diffLabel', { amount: fmt.format((calculateFees(cfg.initial, cfg)[1].fee - calculateFees(cfg.initial, cfg)[0].fee) * 12) })}
           </p>
         </Reveal>
       </div>
