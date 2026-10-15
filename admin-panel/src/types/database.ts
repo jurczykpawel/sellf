@@ -3431,6 +3431,21 @@ export type Database = {
         Args: { p_email: string; p_user_id: string }
         Returns: number
       }
+      mutate_product_with_audit: {
+        Args: {
+          actor_id: string
+          operation_param: string
+          product_data: Json
+          product_id: string | null
+        }
+        Returns: Database["public"]["Tables"]["products"]["Row"][]
+        SetofOptions: {
+          from: "*"
+          to: "products"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       pending_free_grant_products: {
         Args: never
         Returns: {
