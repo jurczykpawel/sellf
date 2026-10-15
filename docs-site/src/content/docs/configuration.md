@@ -60,3 +60,16 @@ Product pages provide canonical URLs and schema.org Product data. Fixed-price
 Offers use the displayed price, including active sales and recurring subscription
 prices. Customer-chosen pricing has Product data without a fixed-price Offer.
 No personalized coupons or buyer content are included in structured data.
+
+## Demo authentication
+
+With `DEMO_MODE=true`, Sellf declines magic-link requests (including free-product
+and post-checkout links) and auth callbacks on the server. Subscription webhooks
+can use existing accounts but cannot create accounts. Password login remains
+available. Login and checkout forms explain the demo restriction in English and Polish.
+
+Sellf has no password reset, password/email change, or password sign-up endpoint.
+Supabase Auth is a separate service: its direct API must be configured separately
+for a shared demo installation. `DEMO_MODE` alone does not restrict direct Supabase
+requests. Disable sign-up and configure account-change restrictions there before
+making a shared demo available.

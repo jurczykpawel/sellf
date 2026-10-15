@@ -54,6 +54,7 @@ export function useFreeAccess({
   couponCode,
   customFieldValues,
 }: UseFreeAccessOptions): UseFreeAccessReturn {
+  const tDemo = useTranslations('demo');
   const t = useTranslations('checkout');
   const tCompliance = useTranslations('compliance');
   const searchParams = useSearchParams();
@@ -129,11 +130,13 @@ export function useFreeAccess({
       });
       if (!result.ok) {
         const text =
-          result.reason === 'captcha_missing'
-            ? tCompliance('securityVerificationRequired')
-            : result.reason === 'invalid_email'
-              ? t('invalidEmail')
-              : t('unexpectedError');
+          result.reason === 'demo_mode'
+            ? tDemo('authBlocked')
+            : result.reason === 'captcha_missing'
+              ? tCompliance('securityVerificationRequired')
+              : result.reason === 'invalid_email'
+                ? t('invalidEmail')
+                : t('unexpectedError');
         setPwywFreeMessage({ type: 'error', text });
         return;
       }
@@ -149,7 +152,7 @@ export function useFreeAccess({
     } finally {
       setPwywFreeLoading(false);
     }
-  }, [pwywFreeEmail, pwywFreeTermsAccepted, captcha, product, couponCode, searchParams, t, tCompliance, track]);
+  }, [pwywFreeEmail, pwywFreeTermsAccepted, captcha, product, couponCode, searchParams, t, tCompliance, tDemo, track]);
 
   return {
     pwywFreeEmail,

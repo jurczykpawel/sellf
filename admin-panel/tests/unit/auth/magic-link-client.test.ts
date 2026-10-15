@@ -51,6 +51,12 @@ describe('sendMagicLinkRequest', () => {
     expect(result).toEqual({ ok: false, code: 'rate_limited' });
   });
 
+  it('preserves the demo response code', async () => {
+    vi.mocked(global.fetch).mockResolvedValue(new Response(JSON.stringify({ ok: false, code: 'demo_mode' }), { status: 403 }));
+    expect(await sendMagicLinkRequest({ email: 'a@b.com', captchaToken: 'tok', flow: 'login' }))
+      .toEqual({ ok: false, code: 'demo_mode' });
+  });
+
   it('returns send_failed when fetch throws', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network down'));
 

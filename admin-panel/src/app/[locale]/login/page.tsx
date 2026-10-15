@@ -21,7 +21,9 @@ export default function LoginPage() {
   let errorTitle = ''
   let errorMessage = ''
   let successMessage = ''
-  if (errorParam === 'magic_link_expired') {
+  if (errorParam === 'demo_mode') {
+    errorMessage = t('demo.authBlocked')
+  } else if (errorParam === 'magic_link_expired') {
     errorTitle = t('auth.magicLinkExpiredTitle')
     errorMessage = t('auth.magicLinkExpired')
   } else if (errorParam === 'session_lost') {

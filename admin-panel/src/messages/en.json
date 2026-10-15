@@ -3435,6 +3435,7 @@
     "processError": "Failed to process refund request"
   },
   "demo": {
+    "authBlocked": "Demo mode: sign-up, login links, password resets, and password or email changes are disabled. Use the demo login and password.",
     "banner": "This is a demo instance. Data resets every hour.",
     "bannerWithCountdown": "This is a demo instance. Data resets in {time}.",
     "readonlyNotice": "All changes are read-only — edits will not be saved.",

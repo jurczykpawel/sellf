@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import type { Session, AuthError } from '@supabase/supabase-js'
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
+import { isDemoMode } from '@/lib/demo-guard';
 import { DisposableEmailService } from '@/lib/services/disposable-email'
 import { isSafeRedirectUrl } from '@/lib/validations/redirect'
 import { buildSupabaseCookieOptions } from '@/lib/supabase/cookie-options'
@@ -37,6 +38,10 @@ export async function GET(request: NextRequest) {
       { error: 'Server configuration error' },
       { status: 500 },
     )
+  }
+
+  if (isDemoMode()) {
+    return NextResponse.redirect(new URL('/login?error=demo_mode', origin));
   }
 
   // Upstream error from Supabase verify or OAuth provider.

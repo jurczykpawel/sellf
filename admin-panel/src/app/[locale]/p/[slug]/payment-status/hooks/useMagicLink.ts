@@ -32,6 +32,7 @@ export function useMagicLink({
   const [showSpinnerForMinTime, setShowSpinnerForMinTime] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  const tDemo = useTranslations('demo');
   const t = useTranslations('paymentStatus');
   
   const sendMagicLinkInternal = useCallback(async () => {
@@ -58,7 +59,9 @@ export function useMagicLink({
         setTimeout(() => setShowSpinnerForMinTime(false), 100);
       } else {
         // Set user-friendly error message based on error code
-        if (result.reason === 'invalid_email') {
+        if (result.reason === 'demo_mode') {
+          setError(tDemo('authBlocked'));
+        } else if (result.reason === 'invalid_email') {
           setError(t('emailInvalidError'));
         } else if (result.reason === 'captcha_failed' || result.reason === 'captcha_missing') {
           setError(t('captchaFailedError'));
@@ -74,7 +77,7 @@ export function useMagicLink({
     } finally {
       setSendingMagicLink(false);
     }
-  }, [customerEmail, sessionId, paymentIntentId, product.slug, captchaToken, captchaReset, error, t]);
+  }, [customerEmail, sessionId, paymentIntentId, product.slug, captchaToken, captchaReset, error, t, tDemo]);
 
   // Auto-send magic link when conditions are met. Terms are always accepted
   // in checkout before reaching this page, so no terms check is needed here.
