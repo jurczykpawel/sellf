@@ -89,11 +89,6 @@ function loadStripeEnvConfig(): Record<string, string> {
 const nextConfig: NextConfig = {
   /* config options here */
   output: 'standalone',
-  serverExternalPackages: ['@sellf/template-preview'],
-  outputFileTracingIncludes: {
-    '/**/admin/templates/preview': ['./preview-renderer/dist/**'],
-    '/api/storefront/preview-font/*': ['./src/fonts/*', './node_modules/geist/dist/fonts/geist-sans/Geist-Regular.woff2'],
-  },
   // outputFileTracingRoot intentionally unset — pinning it OOM-ed Turbopack dev (#81161).
   poweredByHeader: false,
   experimental: {

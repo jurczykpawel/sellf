@@ -229,6 +229,11 @@ jobs:
           # Write version file (used by update.sh for display)
           node -p "require('./package.json').version" > ../release/version.txt
 
+          # Include assets beside the standalone entrypoint as well as the full build.
+          mkdir -p .next/standalone/.next
+          cp -r .next/static .next/standalone/.next/
+          cp -r public .next/standalone/
+
           # Copy built application
           cp -r .next ../release/
           cp package.json ../release/

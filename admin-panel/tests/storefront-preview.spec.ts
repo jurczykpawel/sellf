@@ -35,8 +35,9 @@ test('private preview matrix and history rollback', async ({ page, browser }) =>
       await expect(page.locator('h1')).toHaveCount(1);
       await expect(page.locator('h1')).toHaveText(locale === 'pl' ? 'Zbuduj swój pierwszy automatyczny raport' : 'Build your first automated report');
       expect(await page.locator('script,form,a[href],button:not([disabled]),input:not([disabled]),select:not([disabled])').count()).toBe(0);
+      await expect(page.locator('.sf-public-theme')).toHaveCSS('font-family', /Geist/i);
       await page.evaluate(() => document.fonts.ready);
-      expect(await page.evaluate(() => document.fonts.check('16px PreviewFont'))).toBe(true);
+      expect(await page.evaluate(() => { const family = getComputedStyle(document.querySelector('.sf-public-theme')!).fontFamily.split(',')[0]; return document.fonts.check(`16px ${family}`); })).toBe(true);
       for (const width of [320, 390, 768, 1440]) {
         await page.setViewportSize({ width, height: 1000 });
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

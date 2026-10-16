@@ -80,3 +80,9 @@ it('uses declared Polish fixture content in the Polish rendered presentation', a
   expect(await previewStorefront(await verifyTemplateSession(), { ...input, locale: 'pl' })).toMatchObject({ success: true });
   expect(m.render).toHaveBeenCalledWith(expect.objectContaining({ model: expect.objectContaining({ sections: expect.arrayContaining([expect.objectContaining({ type: 'hero-product/1', props: expect.objectContaining({ content: expect.objectContaining({ heading: 'Zbuduj swój pierwszy automatyczny raport' }) }) })]) }) }));
 });
+
+it('maps streamed render limits after checking the current revision', async () => {
+  m.render.mockRejectedValue(new RangeError('Preview document exceeds limit'));
+  expect(await previewStorefront(await verifyTemplateSession(), input)).toMatchObject({ code: 'LIMIT', validation: { errors: [expect.objectContaining({ limit: 4 * 1024 * 1024 })] } });
+  expect(m.read).toHaveBeenCalledTimes(2);
+});

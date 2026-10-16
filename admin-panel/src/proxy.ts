@@ -204,13 +204,15 @@ export async function proxy(request: NextRequest) {
   // so all addSecurityHeaders call sites below stay synchronous.
   const cspOrigins = await fetchAnalyticsCspOrigins()
   const isTemplatePreview = /^\/(?:(?:en|pl)\/)?admin\/templates\/preview\/?$/.test(pathname)
+  const isPreviewDocument = /^\/(?:(?:en|pl)\/)?template-preview-document\/?$/.test(pathname)
   const isTemplateHistory = /^\/(?:(?:en|pl)\/)?admin\/templates\/history\/?$/.test(pathname)
   const applyHeaders = (r: NextResponse) => {
-    if (isTemplatePreview || isTemplateHistory) {
+    if (isTemplatePreview || isTemplateHistory || isPreviewDocument) {
       r.headers.set('Cache-Control', 'private, no-store')
       r.headers.set('X-Robots-Tag', 'noindex, nofollow')
     }
-    return addSecurityHeaders(r, isTemplatePreview ? undefined : nonce, cspOrigins.connect, cspOrigins.frame)
+    if (isPreviewDocument) r.headers.set('Content-Security-Policy', "default-src 'none'; style-src 'self' 'unsafe-inline'; img-src https:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+    return addSecurityHeaders(r, isTemplatePreview || isPreviewDocument ? undefined : nonce, cspOrigins.connect, cspOrigins.frame)
   }
 
   // Demo mode: block mutating requests on API routes

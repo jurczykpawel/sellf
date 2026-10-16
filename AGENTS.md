@@ -513,10 +513,12 @@ stored draft revision and a declared fixture. The service checks revision before
 and after rendering and bounds evidence to 4 MiB with a ten-minute expiry. The
 session route `/admin/templates/preview` returns standalone no-store/noindex HTML;
 `/admin/templates/history` delegates diff and rollback to the lifecycle action.
-`template:preview-build` compiles the reviewed section renderer to the immutable
-`@sellf/template-preview` workspace artifact before dev/build. Its isolated React
-SSR runtime produces portable inert HTML, scoped CSS and public media/font assets;
-requests never compile code or write files. API adapters reuse this service.
+The private `template-preview-document` Next page reauthenticates the caller and
+renders reviewed sections with normal Next SSR. The service fetches it over a
+fixed loopback connection with only authentication headers, extracts the storefront
+subtree, disables controls and embeds scoped core styles. Font assets come from
+the existing core Next font output. No preview build package or runtime file
+writes are required. API adapters reuse this service.
 TaskNav and Catalogue share target-scoped filter/state events; URL search/category
 fallbacks use the same bounded initial loaders. Public content renders during auth
 initialization; only empty-shop onboarding depends on the resolved admin session.
