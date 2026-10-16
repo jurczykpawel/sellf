@@ -1,5 +1,6 @@
 """HTTP regression test on the disposable, seeded sellf-aff-t0fix stack."""
 import json
+import os
 import subprocess
 import unittest
 import urllib.error
@@ -9,12 +10,13 @@ import urllib.request
 class AffiliatePostgrest(unittest.TestCase):
     def test_stale_member_version_returns_conflict(self):
         status = subprocess.run(
-            ['supabase', 'status', '--workdir', '/private/tmp/sellf-aff-t0fix', '--output', 'json'],
+            ['supabase', 'status', '--workdir', os.environ.get('AFFILIATE_TEST_WORKDIR', '/private/tmp/sellf-aff-t0fix'), '--output', 'json'],
             capture_output=True, text=True, check=True, timeout=30,
         )
-        key = json.loads(status.stdout)['SERVICE_ROLE_KEY']
+        settings = json.loads(status.stdout)
+        key = settings['SERVICE_ROLE_KEY']
         request = urllib.request.Request(
-            'http://127.0.0.1:55501/rest/v1/rpc/affiliate_member_update',
+            settings['API_URL'] + '/rest/v1/rpc/affiliate_member_update',
             data=json.dumps({
                 'p_actor': 'dddddddd-0000-4000-a000-000000000000',
                 'p_member': 'af000000-0000-4000-a000-000000000001',

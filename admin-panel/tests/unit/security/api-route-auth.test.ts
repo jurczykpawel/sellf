@@ -108,10 +108,11 @@ const PUBLIC_ROUTES = new Set([
 ]);
 
 /**
- * Routes with custom non-user auth mechanisms.
+ * Routes whose authentication is verified case by case below.
  * Must be verified case-by-case below.
  */
 const SPECIAL_AUTH_ROUTES = new Set([
+  'affiliates/payouts/[id]/csv/route.ts',       // session admin adapter, checked below
   'webhooks/stripe/route.ts',                  // Stripe signature verification
   'update-payment-metadata/route.ts',          // CORS + PaymentIntent ID (pre-auth payment flow)
   'verify-payment/route.ts',                   // session_id + ownership check
@@ -183,6 +184,14 @@ function hasUserAuthCheck(source: string): boolean {
 // ============================================================================
 
 describe('Area 4: API Route Authentication & Authorization', () => {
+
+  it('payout CSV delegates to its session admin adapter', () => {
+    const route = allRoutes.find(r => r.rel === 'affiliates/payouts/[id]/csv/route.ts');
+    expect(route?.source).toContain('return downloadPayoutCsv(');
+    const adapter = readFileSync(join(API_DIR, '../../lib/affiliates/payouts/download.ts'), 'utf8');
+    expect(adapter).toContain('withAdminClient(');
+    expect(adapter).toContain("result.errorCode === 'UNAUTHORIZED' ? 401");
+  });
 
   it('every route is classified in exactly one category', () => {
     const unclassified = allRoutes.filter(r => !isKnownRoute(r.rel));

@@ -203,8 +203,15 @@ export async function proxy(request: NextRequest) {
   // Resolve analytics CSP origins from DB (cached 5 min). Done once per request
   // so all addSecurityHeaders call sites below stay synchronous.
   const cspOrigins = await fetchAnalyticsCspOrigins()
-  const applyHeaders = (r: NextResponse) =>
-    addSecurityHeaders(r, nonce, cspOrigins.connect, cspOrigins.frame)
+  const affiliatePath = pathname.replace(/^\/(en|pl)(?=\/|$)/, '');
+  const privateAffiliate = /^\/(dashboard\/affiliates|my-affiliate|affiliates\/apply)(\/|$)/.test(affiliatePath);
+  const applyHeaders = (r: NextResponse) => {
+    if (privateAffiliate) {
+      r.headers.set('Cache-Control', 'private, no-store, max-age=0');
+      r.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    }
+    return addSecurityHeaders(r, nonce, cspOrigins.connect, cspOrigins.frame);
+  }
 
   // Demo mode: block mutating requests on API routes
   if (isDemoBlocked(pathname, request.method)) {
@@ -287,6 +294,8 @@ export async function proxy(request: NextRequest) {
   const isProtectedRoute =
     actualPath.startsWith('/dashboard') ||
     actualPath.startsWith('/my-products') ||
+    actualPath.startsWith('/my-affiliate') ||
+    actualPath.startsWith('/affiliates/apply') ||
     actualPath.startsWith('/admin')
   const isLoginRoute = actualPath === '/login'
   const needsAuth = isProtectedRoute || isLoginRoute

@@ -1,3 +1,4 @@
+import { resetAffiliateDatabase } from '../database';
 import { execFileSync } from 'node:child_process';
 import { createClient } from '@supabase/supabase-js';
 import { beforeAll, expect, it, vi } from 'vitest';
@@ -7,13 +8,13 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 import { reservePayout, markPayoutPaid, cancelPayout, adjustCommission } from '@/lib/affiliates/payouts/actions';
 import { getPayoutChoices, previewPayout } from '@/lib/affiliates/payouts/reads';
 import { downloadPayoutCsv } from '@/lib/affiliates/payouts/download';
-function sql(query: string): string { return execFileSync('docker', ['exec', 'supabase_db_sellf-aff-a16', 'psql', '-U', 'postgres', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', query], { encoding: 'utf8' }).trim(); }
-const env = JSON.parse(execFileSync('supabase', ['status', '--workdir', '/private/tmp/sellf-aff-a16', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
+function sql(query: string): string { return execFileSync('docker', ['exec', 'supabase_db_sellf-aff-a18', 'psql', '-U', 'postgres', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', query], { encoding: 'utf8' }).trim(); }
+const env = JSON.parse(execFileSync('supabase', ['status', '--workdir', '/private/tmp/sellf-aff-a18', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
 const db = createClient(env.API_URL, env.SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 context.client = db;
 beforeAll(() => {
-  expect(env.API_URL).toBe('http://127.0.0.1:55461');
-  execFileSync('supabase', ['db', 'reset', '--workdir', '/private/tmp/sellf-aff-a16'], { stdio: 'pipe', timeout: 120000 });
+  resetAffiliateDatabase();
+  expect(env.API_URL).toBe('http://127.0.0.1:55471');
 }, 125000);
 const member = 'af000000-0000-4000-a000-000000000001';
 const payment = 'af000000-0000-4000-a000-000000000010';

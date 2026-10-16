@@ -23,8 +23,9 @@
 
 import { execSync } from 'child_process';
 import { afterAll, beforeAll, beforeEach, describe, it, expect } from 'vitest';
+import { TEST_DB_CONTAINER } from '../../helpers/db-container';
 
-const CONTAINER = 'supabase_db_sellf';
+const CONTAINER = TEST_DB_CONTAINER;
 const NULL_SENTINEL = '__NULL__';
 
 function runSql(sql: string): string {

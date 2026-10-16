@@ -12,6 +12,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { AffiliateCouponEditor } from '@/components/affiliates/products/Settings';
 import { Coupon, CouponFormData } from '@/types/coupon';
 import { Product } from '@/types';
 import { CURRENCIES } from '@/lib/constants';
@@ -400,6 +401,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
             </div>
           </div>
         </form>
+        {editingCoupon && <div className="p-6 border-t border-sf-border"><AffiliateCouponEditor couponId={editingCoupon.id} /></div>}
       </div>
       </div>
     </div>

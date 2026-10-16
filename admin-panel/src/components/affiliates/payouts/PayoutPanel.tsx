@@ -37,7 +37,7 @@ export default function PayoutPanel({ locale, initialPayout, download }: Props) 
     const timer = setTimeout(async () => {
       const result = await getPayoutChoices({ search, commission_search: commissionSearch, ...(member ? { member_id: member } : {}) });
       if (!active) return;
-      if (result.success && result.data) { setChoices(result.data); if (!member && result.data.members.length === 1) setMember(result.data.members[0].id); }
+      if (result.success && result.data) { setChoices(result.data); if (!member && !search && result.data.members.length === 1) setMember(result.data.members[0].id); }
       else { setMessage(t.error); setDiagnostic(result.errorCode ?? ''); }
       setLoading(false);
     }, search ? 200 : 0);
@@ -83,7 +83,7 @@ export default function PayoutPanel({ locale, initialPayout, download }: Props) 
   return <section className="mx-auto max-w-6xl space-y-5 p-4 text-sf-body sm:p-8">
     <header className="flex items-start justify-between gap-4"><div><p className="mb-2 text-xs font-semibold uppercase tracking-widest text-sf-muted">Sellf · {t.eyebrow}</p><h1 className="text-2xl font-semibold tracking-tight text-sf-heading sm:text-3xl">{t.title}</h1><p className="mt-2 text-sm text-sf-muted">{t.subtitle}</p></div><Wallet className="mt-1 hidden size-7 text-sf-muted sm:block" /></header>
     <div className="flex flex-col gap-3 rounded-xl border border-sf-border bg-sf-base p-4 sm:flex-row sm:items-end">
-      <div className="min-w-0 flex-1"><PayoutPicker disabled={busy} label={t.member} emptyLabel={t.noResults} onSearch={setSearch} options={choices.members.map(m => ({ value: m.id, label: m.display_name + (m.status && m.status !== 'approved' ? ` · ${t.memberStatuses[m.status as keyof typeof t.memberStatuses]}` : '') }))} selectedValue={member} placeholder={t.search} onSelect={id => { setMember(id); setChoices(c => ({ ...c, payouts: [], commissions: [] })); setPreview(undefined); setPayout(undefined); setCommission(undefined); setSearch(''); }} /></div>
+      <div className="min-w-0 flex-1"><PayoutPicker disabled={busy} label={t.member} emptyLabel={t.noResults} onSearch={setSearch} options={choices.members.map(m => ({ value: m.id, label: m.display_name + (m.status && m.status !== 'approved' ? ` · ${t.memberStatuses[m.status as keyof typeof t.memberStatuses]}` : '') }))} selectedValue={member} placeholder={t.search} onSelect={id => { if (id === member) { setSearch(''); return; } setMember(id); setChoices(c => ({ ...c, payouts: [], commissions: [] })); setPreview(undefined); setPayout(undefined); setCommission(undefined); setSearch(''); }} /></div>
       <label className="text-sm font-medium sm:w-28">{t.currency}<select disabled={busy} className={inputClass} value={currency} onChange={e => { setCurrency(e.target.value); setCommission(undefined); setPreview(undefined); setPayout(undefined); }}>{choices.currencies.map(c => <option key={c}>{c}</option>)}</select></label>
       <button type="button" disabled={busy || !member} onClick={refresh} className="inline-flex items-center justify-center gap-2 rounded-md border border-sf-border px-3 py-2.5 text-sm"><RefreshCw size={15} />{t.refresh}</button>
     </div>

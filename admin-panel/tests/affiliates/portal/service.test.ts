@@ -27,3 +27,13 @@ it('provides private HTTP and metadata defaults on failures too', () => {
   expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow');
   expect(portalMetadata.robots).toEqual({ index: false, follow: false });
 });
+it('pages newest purchases first with stable ties and an own cursor', async () => {
+  const { pageCommissions } = await import('@/lib/affiliates/portal/model');
+  const older = { id: 'ffffffff-0000-4000-a000-000000000001', paid_at: '2026-01-01', currency: 'PLN' };
+  const newer = { ...older, id: 'aaaaaaaa-0000-4000-a000-000000000001', paid_at: '2026-02-01' };
+  const tie = { ...newer, id: 'bbbbbbbb-0000-4000-a000-000000000001' };
+  const facts = [older, newer, tie];
+  expect(pageCommissions(facts, { limit: 2 }).map(c => c.id)).toEqual([tie.id, newer.id]);
+  expect(pageCommissions(facts, { limit: 2, cursor: newer.id }).map(c => c.id)).toEqual([older.id]);
+  expect(pageCommissions(facts, { limit: 2, cursor: 'cccccccc-0000-4000-a000-000000000001' })).toEqual([]);
+});

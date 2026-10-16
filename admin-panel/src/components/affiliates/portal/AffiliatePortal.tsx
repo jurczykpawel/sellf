@@ -5,8 +5,8 @@ import { portalMessages } from '@/components/affiliates/portal/messages';
 import type { PortalData, PortalResult } from '@/lib/affiliates/portal/model';
 import styles from './AffiliatePortal.module.css';
 
-interface Props { data: PortalData; locale: 'en' | 'pl'; currency?: string }
-export default function AffiliatePortal({ data, locale, currency }: Props): React.JSX.Element {
+interface Props { data: PortalData; locale: 'en' | 'pl'; currency?: string; memberId?: string }
+export default function AffiliatePortal({ data, locale, currency, memberId }: Props): React.JSX.Element {
   const m = portalMessages[locale];
   const money = (amount: string, code: string): string => {
     const result = formatMinorDisplay(amount, code);
@@ -58,6 +58,7 @@ export default function AffiliatePortal({ data, locale, currency }: Props): Reac
     </details>}
     {!data.commissions.length && <p>{m.empty}</p>}
     {data.next_cursor && <form method="get">
+      {memberId && <input type="hidden" name="member" value={memberId} />}
       <input type="hidden" name="cursor" value={data.next_cursor} />
       {currency && <input type="hidden" name="currency" value={currency} />}
       <button className={styles.button} type="submit">{m.next}</button>

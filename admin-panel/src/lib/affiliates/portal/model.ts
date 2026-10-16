@@ -69,3 +69,12 @@ export function getCommissionStatus(c: CommissionFact, entries: LedgerFact[], no
   return c.eligible_at !== null && Date.parse(c.eligible_at) <= Date.parse(now)
     && ((!c.dispute_seen && c.payment.status !== 'disputed') || c.dispute_reviewed_at !== null) ? 'eligible' : 'held';
 }
+
+/** Purchase-time ordering with a stable tie-breaker; cursors belong to this member. */
+export function pageCommissions<T extends { id: string; paid_at: string; currency: string }>(facts: T[], query: { limit: number; cursor?: string; currency?: string }): T[] {
+  const ordered = facts.filter(c => !query.currency || c.currency === query.currency)
+    .sort((a, b) => Date.parse(b.paid_at) - Date.parse(a.paid_at) || b.id.localeCompare(a.id));
+  const start = query.cursor ? ordered.findIndex(c => c.id === query.cursor) + 1 : 0;
+  if (query.cursor && start === 0) return [];
+  return ordered.slice(start, start + query.limit);
+}

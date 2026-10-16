@@ -1,4 +1,5 @@
-/** Disposable A1.2 stack only. Run with AFFILIATE_TEST_ENV pointing at its status env. */
+import { resetAffiliateDatabase } from '../database';
+/** Session actions against the explicitly selected disposable integration stack. */
 import { config } from 'dotenv';
 import { beforeAll, expect, it, vi } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
@@ -13,6 +14,7 @@ vi.mock('next/headers', () => ({ headers: async () => new Headers({ 'user-agent'
 import { applyToProgram, getAcceptedTerms, getAdminOverview, updateMember, updateProgram } from '@/lib/affiliates/admin/actions';
 let service: SupabaseClient, admin: SupabaseClient, member: SupabaseClient;
 beforeAll(async () => {
+  resetAffiliateDatabase();
   config({ path: process.env.AFFILIATE_TEST_ENV, override: true, quiet: true });
   delete process.env.UPSTASH_REDIS_REST_URL; delete process.env.UPSTASH_REDIS_REST_TOKEN;
   expect(process.env.SUPABASE_URL).toBe('http://127.0.0.1:55471');

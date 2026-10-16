@@ -1,3 +1,4 @@
+import { resetAffiliateDatabase } from '../database';
 /** Product settings integration on the disposable stack. @see actions.test.ts */
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -15,7 +16,7 @@ vi.mock('@/lib/demo-guard', () => ({ isDemoMode: () => false }));
 import { bindAffiliateCoupon, createAffiliateRule, getAffiliateCoupon, getAffiliateProduct } from '@/lib/affiliates/products/actions';
 import { DELETE, PATCH } from '@/app/api/v1/products/[id]/route';
 function sql(statement: string): string {
-  return execFileSync('docker', ['exec', '-i', 'supabase_db_sellf-aff-a13', 'psql', '-U', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8' }).trim();
+  return execFileSync('docker', ['exec', '-i', 'supabase_db_sellf-aff-a18', 'psql', '-U', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8' }).trim();
 }
 const member = 'af000000-0000-4000-a000-000000000001';
 const coupon = 'af000000-0000-4000-a000-000000000005';
@@ -25,8 +26,9 @@ function product(): string {
 }
 const input = (id: string, revision = 0) => ({ product_id: id, expected_revision: revision, enabled: true, rule: { percentage_bps: 2000 } });
 beforeAll(() => {
-  const env = JSON.parse(execFileSync('npx', ['supabase', 'status', '--workdir', '/private/tmp/sellf-aff-a13', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
-  expect(env.API_URL).toBe('http://127.0.0.1:55481');
+  resetAffiliateDatabase();
+  const env = JSON.parse(execFileSync('npx', ['supabase', 'status', '--workdir', '/private/tmp/sellf-aff-a18', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
+  expect(env.API_URL).toBe('http://127.0.0.1:55471');
   state.client = createClient(env.API_URL, env.SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 });
 it('creates immutable revisions, preserves exact fixed amounts and checks expected revision', async () => {

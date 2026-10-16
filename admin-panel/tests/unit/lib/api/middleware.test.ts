@@ -89,6 +89,7 @@ describe('API Middleware', () => {
 
     it('should fallback to NEXT_PUBLIC_SITE_URL if SITE_URL not set', () => {
       delete process.env.SITE_URL;
+      delete process.env.MAIN_DOMAIN;
       process.env.NEXT_PUBLIC_SITE_URL = 'https://backend.com';
 
       const headers = getApiCorsHeaders('https://unknown.com');

@@ -20,8 +20,9 @@
 
 import { execSync } from 'child_process';
 import { describe, it, expect } from 'vitest';
+import { TEST_DB_CONTAINER } from '../../helpers/db-container';
 
-const CONTAINER = 'supabase_db_sellf';
+const CONTAINER = TEST_DB_CONTAINER;
 
 function queryRows(sql: string): string[] {
   const out = execSync(`docker exec -i ${CONTAINER} psql -U postgres -t -A`, {

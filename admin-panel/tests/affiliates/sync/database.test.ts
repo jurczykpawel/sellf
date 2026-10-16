@@ -1,3 +1,4 @@
+import { resetAffiliateDatabase } from '../database';
 /** Isolated worker/source integration. @see worker.test.ts */
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -19,7 +20,7 @@ vi.mock('@/lib/stripe/server', () => ({ getStripeServer: async () => ({ checkout
 
 // This harness targets only the disposable stack, regardless of application env.
 function sql(statement: string): string {
-  return execFileSync('docker', ['exec', '-i', 'supabase_db_sellf-aff-a14', 'psql', '-U', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8' }).trim();
+  return execFileSync('docker', ['exec', '-i', 'supabase_db_sellf-aff-a18', 'psql', '-U', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8' }).trim();
 }
 const product = 'af000000-0000-4000-a000-000000000002';
 const coupon = 'af000000-0000-4000-a000-000000000005';
@@ -40,8 +41,9 @@ async function drain(): Promise<void> {
   expect(await drainAffiliateWork(100)).toMatchObject({ success: true, data: { failed: 0 } });
 }
 beforeAll(() => {
-  const env = JSON.parse(execFileSync('supabase', ['status', '--workdir', '/private/tmp/sellf-aff-a14', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
-  expect(env.API_URL).toBe('http://127.0.0.1:55451');
+  resetAffiliateDatabase();
+  const env = JSON.parse(execFileSync('supabase', ['status', '--workdir', '/private/tmp/sellf-aff-a18', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+  expect(env.API_URL).toBe('http://127.0.0.1:55471');
   state.client = createClient(env.API_URL, env.SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 });
 

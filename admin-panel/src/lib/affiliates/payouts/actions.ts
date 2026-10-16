@@ -19,7 +19,8 @@ async function command<T = PayoutInfo>(schema: z.ZodType, input: unknown, rpc: s
       const conflict = ['PT409', '23505'].includes(error.code);
       return { success: false, error: conflict ? 'conflict' : 'unavailable', errorCode: conflict ? '409' : '422' };
     }
-    revalidatePath('/dashboard/affiliates');
+    revalidatePath('/[locale]/dashboard/affiliates', 'layout');
+    revalidatePath('/[locale]/my-affiliate', 'page');
     return { success: true, data: data as unknown as T };
   }, { mutating: true });
 }
