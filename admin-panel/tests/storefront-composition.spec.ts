@@ -50,6 +50,10 @@ for (const theme of ['light', 'dark'] as const) for (const locale of ['en', 'pl'
       for (const control of await page.locator('#catalogue select').all()) expect((await control.boundingBox())!.width).toBeGreaterThanOrEqual(template === 'storefront-a' ? 96 : 120);
       if (width === 390 || width === 1440) await page.screenshot({ path: testInfo.outputPath(`composition-${width}.png`), fullPage: true });
       if (template === 'storefront-a') {
+        const footer = page.locator('[data-template] > footer');
+        expect(await footer.evaluate(element => getComputedStyle(element).textAlign)).toBe('center');
+        expect(await footer.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(await page.locator('section').last().evaluate(element => getComputedStyle(element).backgroundColor));
+        expect(await footer.evaluate(element => parseFloat(getComputedStyle(element).paddingTop))).toBeGreaterThanOrEqual(24);
         expect(fixture.model.sections.map(section => section.id)).toEqual(['hero', 'tasks', 'comparison', 'start', 'catalogue', 'faq', 'closing']);
         await expect(page.locator('[data-variant="offer-focus"] video, [data-variant="offer-focus"] iframe, [data-variant="offer-focus"] button')).toHaveCount(0);
         await expect(page.locator('[data-variant="comparison"] article')).toHaveCount(2);

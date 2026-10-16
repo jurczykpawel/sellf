@@ -42,7 +42,7 @@ export default function StorefrontComposition({ model, shopName, renderKey }: { 
       <p>{catalogueLabels[model.locale].shown}</p>
     </header>}
     {model.sections.map(section => <Section templateId={model.templateId} key={`${renderKey}:${model.templateId}:${section.id}`} section={section} />)}
-    <footer className="border-t border-sf-border px-6 py-8 text-center text-sf-muted">
+    <footer className={model.templateId === 'storefront-a' ? styles.footer : "border-t border-sf-border px-6 py-8 text-center text-sf-muted"}>
       <p>{(model.locale === 'pl' ? pl : en).storefront.footer.poweredBy.replace('{shopName}', shopName)}</p>
     </footer>
   </div>;
