@@ -2,7 +2,7 @@
 
 /** Public catalogue interaction over core DTOs. @see catalogue-section.ts */
 import Image from 'next/image';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { catalogueLabels, cataloguePageSchema, catalogueRequestSchema } from '@/lib/storefront-templates/catalogue-section';
 import { TASK_NAV_FILTER_EVENT, TASK_NAV_STATE_EVENT } from '@/lib/storefront-templates/task-nav-public';
 import { productFormatSchema, resolveMarketingCopy } from '@/lib/validations/product-marketing';
@@ -97,21 +97,24 @@ export default function Catalogue({
       if (version === generation.current) setPending(false);
     }
   }
+  const receiveFilter = useEffectEvent((event: Event) => {
+    const detail = (event as CustomEvent<TaskNavFilter>).detail;
+    if (detail?.target !== id) return;
+    const next = { ...query, ...(detail.search !== undefined ? { search: detail.search } : {}), ...(detail.categoryIds ? { categoryIds: detail.categoryIds } : {}) };
+    if (!catalogueRequestSchema.safeParse({ locale, ...next, group: groupIds[0], cursor: null, pageSize }).success) return;
+    event.preventDefault();
+    setSearch(next.search);
+    void request(next);
+  });
   useEffect(() => {
     const element = document.getElementById(id);
-    const receive = (event: Event) => {
-      const detail = (event as CustomEvent<TaskNavFilter>).detail;
-      if (detail?.target !== id) return;
-      const next = { ...query, ...(detail.search !== undefined ? { search: detail.search } : {}), ...(detail.categoryIds ? { categoryIds: detail.categoryIds } : {}) };
-      if (!catalogueRequestSchema.safeParse({ locale, ...next, group: groupIds[0], cursor: null, pageSize }).success) return;
-      event.preventDefault();
-      setSearch(next.search);
-      void request(next);
-    };
+    const receive = (event: Event) => receiveFilter(event);
     element?.addEventListener(TASK_NAV_FILTER_EVENT, receive);
-    element?.dispatchEvent(new CustomEvent(TASK_NAV_STATE_EVENT, { bubbles: true, detail: { target: id, categoryIds: query.categoryIds } }));
     return () => element?.removeEventListener(TASK_NAV_FILTER_EVENT, receive);
-  });
+  }, [id]);
+  useEffect(() => {
+    document.getElementById(id)?.dispatchEvent(new CustomEvent(TASK_NAV_STATE_EVENT, { bubbles: true, detail: { target: id, categoryIds: query.categoryIds } }));
+  }, [id, query]);
   function update(patch: Partial<Query>) {
     void request({ ...query, ...patch, search });
   }

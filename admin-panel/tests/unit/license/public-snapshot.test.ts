@@ -1,10 +1,15 @@
 /** Public platform tier snapshots. @see src/lib/license/public-snapshot.ts */
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { register } from '@/instrumentation';
 import { generateSellerKeypair } from '@/lib/license-keys/keys';
 import { signLicense } from '@/lib/license-keys/format';
 import { getPublicLicenseTier, refreshPublicLicenseSnapshot, startPublicLicenseRefresh, stopPublicLicenseRefresh } from '@/lib/license/public-snapshot';
 const mocks = vi.hoisted(() => ({ client: vi.fn(), read: vi.fn() }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: mocks.client }));
+vi.mock('@/lib/security/startup-assertions', () => ({ assertProductionStartupConfig: vi.fn() }));
+vi.mock('@/lib/supabase/keep-alive', () => ({ startKeepAlive: vi.fn() }));
+vi.mock('@/lib/integrations/capi-token', () => ({ upgradeStoredLegacyCapiToken: vi.fn().mockResolvedValue(false) }));
+vi.mock('@/lib/telemetry/scheduler', () => ({ startTelemetry: vi.fn().mockReturnValue(false) }));
 const key = generateSellerKeypair();
 const keys = [{ kid: key.kid, alg: 'ES256', pem: key.publicKeyPem }];
 let license: string | null;
@@ -24,6 +29,38 @@ beforeEach(() => {
 afterEach(() => { stopPublicLicenseRefresh(); vi.useRealTimers(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 it('serves free on cold start without requesting storage or remote keys', () => {
   expect(getPublicLicenseTier()).toBe('free'); expect(fetch).not.toHaveBeenCalled(); expect(mocks.client).not.toHaveBeenCalled();
+});
+it('resolves the reachable database tier before startup completes and the first request reads it', async () => {
+  vi.stubEnv('NEXT_RUNTIME', 'nodejs');
+  mocks.read.mockImplementation(() => new Promise(resolve => {
+    setTimeout(() => resolve({ data: { sellf_license: license }, error: null }), 100);
+  }));
+  let ready = false;
+  const startup = register().then(() => { ready = true; });
+
+  await vi.advanceTimersByTimeAsync(0);
+  expect(ready).toBe(false);
+  expect(getPublicLicenseTier()).toBe('free');
+  await vi.advanceTimersByTimeAsync(100);
+  await startup;
+
+  expect(getPublicLicenseTier()).toBe('pro');
+  expect(mocks.read).toHaveBeenCalledTimes(1);
+});
+it('accepts traffic after two seconds when the initial database read remains pending', async () => {
+  vi.stubEnv('NEXT_RUNTIME', 'nodejs');
+  mocks.read.mockReturnValue(new Promise(() => {}));
+  let ready = false;
+  const startup = register().then(() => { ready = true; });
+
+  await vi.advanceTimersByTimeAsync(1999);
+  expect(ready).toBe(false);
+  await vi.advanceTimersByTimeAsync(1);
+  await startup;
+
+  expect(ready).toBe(true);
+  expect(getPublicLicenseTier()).toBe('free');
+  expect(startPublicLicenseRefresh()).toBe(false);
 });
 it('verifies offline using local keys and serves a cached tier without requests', async () => {
   await refreshPublicLicenseSnapshot(); expect(getPublicLicenseTier()).toBe('pro');

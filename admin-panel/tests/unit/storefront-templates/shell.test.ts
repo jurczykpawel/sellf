@@ -50,3 +50,22 @@ describe('default brand states', () => {
     });
   }
 });
+
+
+describe('default catalogue totals', () => {
+  it.each(['featured', 'free', 'paid'] as const)('omits totals when %s has another page', async (group) => {
+    const { compositionFixture } = await import('../../fixtures/storefront-sections/composition');
+    const model = compositionFixture('en', 'default');
+    model.catalogue.groups[group]!.nextCursor = 'another-page';
+    const html = renderToStaticMarkup(createElement(StorefrontComposition, { model, shopName: 'Example shop', renderKey: 'initial' }));
+    expect(html).not.toContain('<dl aria-label="Products shown">');
+    expect(html).not.toContain('Start with 1 free resources');
+  });
+  it('retains totals for a complete catalogue', async () => {
+    const { compositionFixture } = await import('../../fixtures/storefront-sections/composition');
+    const model = compositionFixture('en', 'default');
+    const html = renderToStaticMarkup(createElement(StorefrontComposition, { model, shopName: 'Example shop', renderKey: 'initial' }));
+    expect(html).toContain('<dl aria-label="Products shown">');
+    expect(html).toContain('<dd>4</dd>');
+  });
+});

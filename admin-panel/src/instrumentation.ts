@@ -13,8 +13,12 @@ export async function register() {
     }
 
     try {
-      const { startPublicLicenseRefresh } = await import('@/lib/license/public-snapshot');
+      const { refreshPublicLicenseSnapshot, startPublicLicenseRefresh } = await import('@/lib/license/public-snapshot');
       startPublicLicenseRefresh();
+      await Promise.race([
+        refreshPublicLicenseSnapshot(),
+        new Promise<void>(resolve => setTimeout(resolve, 2_000)),
+      ]);
     } catch {
       console.warn('[license] Background refresh unavailable');
     }

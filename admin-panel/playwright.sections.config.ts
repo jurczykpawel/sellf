@@ -11,6 +11,7 @@ export default defineConfig({
     {
       testMatch: [
         'hero-product.spec.ts',
+        'price-runtime.spec.ts',
         'product-marketing-form.spec.ts',
         'storefront-catalogue.spec.ts',
         'storefront-composition.spec.ts',

@@ -64,7 +64,7 @@ export default function AppearanceEditor({ config, dirty, blocked, onChange, onR
     })}</dl></details>
     <details className="rounded-xl border border-sf-border p-4"><summary className="cursor-pointer py-2 font-semibold">{t('legacyTitle')}</summary><p className="my-3 text-sm text-sf-muted">{t('legacyIntro')}</p><button type="button" className={editorButton} disabled={dirty || blocked} onClick={async () => {
       const response = await onImport(); setUnsupported(response.unsupported ?? []);
-      setImportMessage(t(response.success ? 'imported' : ['ALREADY_IMPORTED', 'UNAVAILABLE', 'BACKUP_FAILED', 'FORBIDDEN', 'INVALID'].includes(response.code ?? '') ? response.code! : 'UNAVAILABLE'));
+      setImportMessage(t(response.success ? 'imported' : ['ALREADY_IMPORTED', 'UNAVAILABLE', 'FORBIDDEN', 'INVALID'].includes(response.code ?? '') ? response.code! : 'UNAVAILABLE'));
     }}>{t('import')}</button>{importMessage && <p role="status" className="mt-3 text-sm">{importMessage}</p>}{unsupported.length > 0 && <><p className="mt-2 text-sm">{t('unsupported', { count: unsupported.length })}</p><details className="mt-3 text-xs"><summary className="cursor-pointer py-2">{t('technical')}</summary><ul>{unsupported.map(field => <li key={field} className="break-all py-1 font-mono">{field}</li>)}</ul></details></>}</details>
   </section>;
 }

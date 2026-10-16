@@ -5,6 +5,7 @@ import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import Catalogue from '@/components/storefront/sections/Catalogue';
+import { TASK_NAV_FILTER_EVENT, TASK_NAV_STATE_EVENT } from '@/lib/storefront-templates/task-nav-public';
 import {
   resolveCatalogue,
   catalogueGroupsSchema,
@@ -24,6 +25,54 @@ const response = (start = 10, nextCursor: string | null = null) => ({
 });
 
 describe('catalogue', () => {
+  it('only announces committed query changes, retaining current filters during non-query renders', async () => {
+    let finish!: (value: ReturnType<typeof response>) => void;
+    const fetcher = vi.fn().mockImplementationOnce(() => new Promise(resolve => { finish = resolve; })).mockResolvedValue(response(11));
+    vi.stubGlobal('fetch', fetcher);
+    const state = vi.fn();
+    document.addEventListener(TASK_NAV_STATE_EVENT, state);
+    try {
+      const props = catalogueFixture();
+      const view = render(React.createElement(Catalogue, props));
+      expect(state).toHaveBeenCalledTimes(1);
+      fireEvent.change(view.getByRole('searchbox'), { target: { value: 'draft search' } });
+      view.rerender(React.createElement(Catalogue, { ...props, density: 'compact' }));
+      expect(state).toHaveBeenCalledTimes(1);
+      const catalogue = view.container.querySelector('#catalogue')!;
+      const categoryIds = [props.categories![0].id];
+      fireEvent(catalogue, new CustomEvent(TASK_NAV_FILTER_EVENT, { cancelable: true, detail: { target: 'catalogue', categoryIds } }));
+      expect(state).toHaveBeenCalledTimes(2);
+      expect(state.mock.calls.at(-1)![0].detail).toEqual({ target: 'catalogue', categoryIds });
+      finish(response(10));
+      await waitFor(() => expect(view.getByText('Product 10')).toBeTruthy());
+      expect(state).toHaveBeenCalledTimes(2);
+      fireEvent(catalogue, new CustomEvent(TASK_NAV_FILTER_EVENT, { cancelable: true, detail: { target: 'catalogue', search: 'committed' } }));
+      await waitFor(() => expect(view.getByText('Product 11')).toBeTruthy());
+      const input = JSON.parse(new URL(fetcher.mock.calls[1][0], 'http://local').searchParams.get('input')!);
+      expect(input).toMatchObject({ search: 'committed', categoryIds });
+      expect(state).toHaveBeenCalledTimes(3);
+    } finally {
+      document.removeEventListener(TASK_NAV_STATE_EVENT, state);
+    }
+  });
+  it('moves the TaskNav listener to a changed target and uses current locale/page size', async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(10));
+    vi.stubGlobal('fetch', fetcher);
+    const props = catalogueFixture();
+    const view = render(React.createElement(Catalogue, props));
+    const oldElement = view.container.querySelector('#catalogue')!;
+    view.rerender(React.createElement(Catalogue, { ...props, id: 'new-catalogue', locale: 'pl', pageSize: 24 }));
+    const obsolete = new CustomEvent(TASK_NAV_FILTER_EVENT, { cancelable: true, detail: { target: 'catalogue', search: 'old' } });
+    fireEvent(oldElement, obsolete);
+    expect(obsolete.defaultPrevented).toBe(false);
+    expect(fetcher).not.toHaveBeenCalled();
+    const current = new CustomEvent(TASK_NAV_FILTER_EVENT, { cancelable: true, detail: { target: 'new-catalogue', search: 'new' } });
+    fireEvent(view.container.querySelector('#new-catalogue')!, current);
+    expect(current.defaultPrevented).toBe(true);
+    await waitFor(() => expect(view.getByText('Product 10')).toBeTruthy());
+    const input = JSON.parse(new URL(fetcher.mock.calls[0][0], 'http://local').searchParams.get('input')!);
+    expect(input).toMatchObject({ search: 'new', locale: 'pl', pageSize: 24 });
+  });
   it('server renders the initial page without a mount or authentication gate', () => {
     const html = renderToString(React.createElement(Catalogue, catalogueFixture()));
     expect(html).toContain('Product 1');
