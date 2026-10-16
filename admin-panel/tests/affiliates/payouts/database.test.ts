@@ -8,13 +8,13 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 import { reservePayout, markPayoutPaid, cancelPayout, adjustCommission } from '@/lib/affiliates/payouts/actions';
 import { getPayoutChoices, previewPayout } from '@/lib/affiliates/payouts/reads';
 import { downloadPayoutCsv } from '@/lib/affiliates/payouts/download';
-function sql(query: string): string { return execFileSync('docker', ['exec', 'supabase_db_sellf-afffix', 'psql', '-U', 'postgres', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', query], { encoding: 'utf8' }).trim(); }
-const env = JSON.parse(execFileSync('supabase', ['status', '--workdir', '/private/tmp/sellf-afffix', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
+function sql(query: string): string { return execFileSync('docker', ['exec', 'supabase_db_sellf-affembed', 'psql', '-U', 'postgres', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', query], { encoding: 'utf8' }).trim(); }
+const env = JSON.parse(execFileSync('supabase', ['status', '--workdir', '/private/tmp/sellf-affembed', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
 const db = createClient(env.API_URL, env.SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 context.client = db;
 beforeAll(() => {
   resetAffiliateDatabase();
-  expect(env.API_URL).toBe('http://127.0.0.1:55531');
+  expect(env.API_URL).toBe('http://127.0.0.1:55571');
 }, 125000);
 const member = 'af000000-0000-4000-a000-000000000001';
 const payment = 'af000000-0000-4000-a000-000000000010';

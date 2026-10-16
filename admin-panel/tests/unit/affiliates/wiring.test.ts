@@ -22,7 +22,7 @@ it('mounts the private affiliate routes and coupon settings', () => {
   for (const route of ['dashboard/affiliates', 'dashboard/affiliates/payouts', 'dashboard/affiliates/earnings', 'my-affiliate', 'affiliates/apply']) expect(existsSync(`src/app/[locale]/${route}/page.tsx`)).toBe(true);
   expect(readFileSync('src/components/CouponFormModal.tsx', 'utf8')).toContain('AffiliateCouponEditor');
 });
-it('keeps phase one checkout, embed, Stripe event and metadata paths unchanged', () => {
+it('keeps checkout, Stripe event and metadata paths at the accepted embed coupon baseline', () => {
   const paths = ['src/lib/services/checkout.ts', 'src/lib/constants.ts', 'src/lib/actions/payment.ts', 'src/components/checkout', 'src/components/PaidProductForm.tsx', 'src/app/[locale]/checkout', 'src/app/api/update-payment-metadata', 'src/app/api/create-payment-intent', 'src/app/api/create-embedded-checkout', 'src/app/api/embed', 'src/app/embed', 'src/app/api/webhooks/stripe', 'src/app/api/verify-payment', 'src/lib/services/payment', 'src/lib/stripe'];
-  expect(execFileSync('git', ['diff', '261b8f10', '--', ...paths.map(p => `admin-panel/${p}`)], { cwd: '..', encoding: 'utf8' })).toBe('');
+  expect(execFileSync('git', ['diff', '88c7bb4a', '--', ...paths.map(p => `admin-panel/${p}`)], { cwd: '..', encoding: 'utf8' })).toBe('');
 });

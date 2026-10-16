@@ -1,18 +1,19 @@
-/** Native coupon accounting and D-019 commerce acceptance on a disposable stack. */
+/** Native and embedded coupon accounting on a disposable stack. */
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { createServer } from 'node:http';
 import { test, expect } from '@playwright/test';
 import Stripe from 'stripe';
-import { solveChallenge } from 'altcha-lib/v1';
+import type { AddressInfo } from 'node:net';
+import type { Page, APIRequestContext } from '@playwright/test';
 import { createTestUser, setAuthSession, supabaseAdmin as db } from '../helpers/admin-auth';
 import { acceptAllCookies } from '../helpers/consent';
-import type { Page, APIRequestContext } from '@playwright/test';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const actor = 'dddddddd-0000-4000-a000-000000000000';
 const base = process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${process.env.PW_PORT || 3777}`;
 function sql(statement: string): string {
-  expect(process.env.SUPABASE_URL).toBe('http://127.0.0.1:55531');
-  return execFileSync('docker', ['exec', 'supabase_db_sellf-afffix', 'psql', '-U', 'postgres', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8' }).trim();
+  expect(process.env.SUPABASE_URL).toBe('http://127.0.0.1:55571');
+  return execFileSync('docker', ['exec', 'supabase_db_sellf-affembed', 'psql', '-U', 'postgres', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8' }).trim();
 }
 async function rows(table: string, column: string, value: string) {
   const result = await db.from(table).select('*').eq(column, value); expect(result.error).toBeNull(); return result.data!;
@@ -126,36 +127,57 @@ test('native coupon paid, held, mature and refunded in test mode', async ({ page
   expect((await rows('payment_transactions', 'id', payment.id))[0].metadata).toEqual(metadata);
   await setAuthSession(page, user.email, user.password); await page.goto('/my-affiliate'); await expect(page.getByText('Reversed', { exact: true }).first()).toBeVisible();
 });
-test('D-019 external embed purchase succeeds without coupon or commission', async ({ page, request }) => {
+for (const withCoupon of [true, false]) test(`external embed paid ${withCoupon ? 'with partner coupon accrues once' : 'without coupon creates no commission'}`, async ({ page, request }) => {
   const suffix = randomUUID().slice(0, 8), email = `embed-${suffix}@example.com`;
-  const product = await insert('products', { slug: `affiliate-embed-${suffix}`, name: 'Embed course', embed_enabled: true, price: 10, currency: 'PLN', is_active: true, vat_exempt: true });
-  const challengeResponse = await request.get('/api/captcha/challenge');
-  expect(challengeResponse.status()).toBe(200); const challenge = await challengeResponse.json();
-  const solution = await solveChallenge(challenge.challenge, challenge.salt, challenge.algorithm, challenge.maxnumber).promise;
-  expect(solution).toBeTruthy();
-  const token = Buffer.from(JSON.stringify({ ...challenge, number: solution!.number, took: solution!.took })).toString('base64');
+  const partner = await createTestUser('affiliate-embed');
+  const program = (await db.from('affiliate_programs').select('*').single()).data!;
+  const applied = await db.rpc('affiliate_apply', { p_user: partner.userId, p_code: `embed-${suffix}`, p_display_name: 'Embed Partner', p_channel: 'Test channel', p_terms_version: program.terms_version }).select('id,version').single();
+  expect(applied.error).toBeNull(); const member = applied.data!;
+  expect((await db.rpc('affiliate_member_update', { p_actor: actor, p_member: member.id, p_expected_version: member.version, p_status: 'approved', p_reason: 'Test partner approved' })).error).toBeNull();
+  const product = await insert('products', { slug: `affiliate-embed-${suffix}`, name: 'Embed course', seller_id: actor, embed_enabled: true, price: 10, currency: 'PLN', is_active: true, vat_exempt: true, is_refundable: false });
+  const coupon = await insert('coupons', { code: `EMB${suffix.toUpperCase()}`, discount_type: 'percentage', discount_value: 10, is_active: true });
   expect((await db.rpc('affiliate_rule_create', { p_actor: actor, p_product: product.id, p_expected_revision: 0, p_enabled: true, p_percentage_bps: 2000, p_fixed_minor: null, p_currency: null })).error).toBeNull();
-  const response = await request.post('/api/embed/checkout-session', { headers: { Origin: base }, data: { productSlug: product.slug, email, turnstileToken: token } });
-  expect(response.status()).toBe(200); const body = await response.json(); expect(body.kind).toBe('paid'); expect(body.error).toBeUndefined();
-  await page.goto('/');
-  await page.evaluate(async ({ secret, key }) => {
-    await new Promise<void>((resolve, reject) => { const script = document.createElement('script'); script.src = 'https://js.stripe.com/v3/'; script.onload = () => resolve(); script.onerror = () => reject(new Error('Stripe unavailable')); document.head.appendChild(script); });
-    const target = document.createElement('div'); target.id = 'affiliate-embed'; document.body.replaceChildren(target);
-    const browser = window as unknown as { Stripe: (key: string) => { initEmbeddedCheckout: (options: { clientSecret: string }) => Promise<{ mount: (target: string) => void }> } };
-    (await browser.Stripe(key).initEmbeddedCheckout({ clientSecret: secret })).mount('#affiliate-embed');
-  }, { secret: body.clientSecret, key: process.env.STRIPE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY! });
-  const frame = page.frameLocator('iframe[name="embedded-checkout"]');
-  await frame.getByTestId('card-accordion-item').click({ timeout: 20000 });
-  await expect(frame.locator('input[name="cardNumber"]')).toBeVisible({ timeout: 60000 });
-  await frame.locator('input[name="cardNumber"]').fill('4242424242424242'); await frame.locator('input[name="cardExpiry"]').fill('1234'); await frame.locator('input[name="cardCvc"]').fill('123');
-  const name = frame.locator('input[name="billingName"]'); if (await name.isVisible()) await name.fill('Embed Buyer');
-  await frame.getByTestId('hosted-payment-submit-button').click();
-  await expect.poll(async () => (await rows('payment_transactions', 'product_id', product.id)).filter(p => p.status === 'completed' && !p.fulfillment_pending).length, { timeout: 90000 }).toBe(1);
-  const payment = (await rows('payment_transactions', 'product_id', product.id)).find(p => p.status === 'completed')!;
-  await sync(request);
-  expect(await rows('coupon_redemptions', 'transaction_id', payment.id)).toHaveLength(0);
-  expect(await rows('affiliate_commissions', 'payment_id', payment.id)).toHaveLength(0);
-  expect(await rows('affiliate_work', 'payment_id', payment.id)).toHaveLength(0);
+  expect((await db.rpc('affiliate_coupon_bind', { p_actor: actor, p_coupon: coupon.id, p_member: member.id, p_expected_version: 0 })).error).toBeNull();
+  const server = createServer((_req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(`<!doctype html><html><body><div data-sellf-embed data-product-slug="${product.slug}" data-email="${email}" ${withCoupon ? `data-coupon="${coupon.code}"` : ''}></div><script src="${base}/embed/v1/checkout.js"></script></body></html>`);
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  expect((await db.from('seller_embed_settings').upsert({ seller_id: actor, allowed_embed_origins: [origin] })).error).toBeNull();
+  try {
+    const [response] = await Promise.all([
+      page.waitForResponse(res => res.url().includes('/api/embed/checkout-session') && res.request().method() === 'POST'),
+      page.goto(origin),
+    ]);
+    expect(response.request().postDataJSON().couponCode).toBe(withCoupon ? coupon.code : undefined);
+    expect(response.status()).toBe(200);
+    const session = await stripe.checkout.sessions.retrieve((await response.json()).sessionId);
+    expect(session.livemode).toBe(false); expect(session.amount_total).toBe(withCoupon ? 900 : 1000);
+    const frame = page.frameLocator('iframe[name="embedded-checkout"]');
+    await frame.getByTestId('card-accordion-item').click({ timeout: 60000 });
+    await expect(frame.locator('input[name="cardNumber"]')).toBeVisible({ timeout: 60000 });
+    await frame.locator('input[name="cardNumber"]').fill('4242424242424242');
+    await frame.locator('input[name="cardExpiry"]').fill('1234'); await frame.locator('input[name="cardCvc"]').fill('123');
+    const name = frame.locator('input[name="billingName"]'); if (await name.isVisible()) await name.fill('Embed Buyer');
+    await frame.getByTestId('hosted-payment-submit-button').click();
+    await expect.poll(async () => (await rows('payment_transactions', 'product_id', product.id)).filter(p => p.status === 'completed' && !p.fulfillment_pending).length, { timeout: 90000 }).toBe(1);
+    expect((await stripe.checkout.sessions.retrieve(session.id)).payment_status).toBe('paid');
+    const payment = (await rows('payment_transactions', 'product_id', product.id)).find(p => p.status === 'completed')!;
+    await sync(request); await sync(request);
+    expect(await rows('coupon_redemptions', 'transaction_id', payment.id)).toHaveLength(withCoupon ? 1 : 0);
+    const commissions = await rows('affiliate_commissions', 'payment_id', payment.id);
+    expect(commissions).toHaveLength(withCoupon ? 1 : 0);
+    if (withCoupon) {
+      expect(commissions[0]).toMatchObject({ member_id: member.id, accrued_minor: 180, livemode: false });
+      const ledger = await rows('affiliate_ledger', 'commission_id', commissions[0].id);
+      expect(ledger).toHaveLength(1); expect(ledger[0]).toMatchObject({ kind: 'accrual', amount_minor: 180 });
+      expect((await rows('affiliate_work', 'payment_id', payment.id))[0]).toMatchObject({ status: 'done', last_error_code: null });
+    } else expect(await rows('affiliate_work', 'payment_id', payment.id)).toHaveLength(0);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  }
 });
 test('subscription purchase succeeds with zero affiliate commission', async ({ page, request }) => {
   const suffix = randomUUID().slice(0, 8), user = await createTestUser('affiliate-subscription');

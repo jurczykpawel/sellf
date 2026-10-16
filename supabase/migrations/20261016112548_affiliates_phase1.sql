@@ -364,8 +364,12 @@ BEGIN
   SELECT EXISTS(SELECT 1 FROM public.affiliate_memberships am JOIN auth.users u ON u.id=am.user_id
    WHERE am.id=b.member_id AND (u.id=pt.user_id OR lower(btrim(u.email))=lower(btrim(pt.customer_email)))) INTO self_match;
   waiting:=pt.fulfillment_pending;
-  net_missing:=NOT waiting AND (NOT EXISTS(SELECT 1 FROM public.payment_line_items WHERE transaction_id=p_payment)
-   OR EXISTS(SELECT 1 FROM public.payment_line_items WHERE transaction_id=p_payment AND net_amount IS NULL));
+  net_missing:=NOT waiting AND EXISTS(
+   SELECT 1 FROM public.payment_line_items l JOIN public.products p ON p.id=l.product_id
+   CROSS JOIN LATERAL (SELECT r.enabled,r.currency FROM public.affiliate_rules r
+    WHERE r.product_id=l.product_id AND r.created_at<=p_session_created_at ORDER BY r.created_at DESC,r.revision DESC LIMIT 1) r
+   WHERE l.transaction_id=p_payment AND p.product_type='one_time' AND r.enabled
+    AND (r.currency IS NULL OR r.currency=upper(l.currency)) AND l.net_amount IS NULL);
   IF NOT waiting AND NOT net_missing THEN
    FOR li IN SELECT l.*,p.is_refundable,p.refund_period_days,p.product_type FROM public.payment_line_items l
     JOIN public.products p ON p.id=l.product_id WHERE l.transaction_id=p_payment ORDER BY l.id LOOP

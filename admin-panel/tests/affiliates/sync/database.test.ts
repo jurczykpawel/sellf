@@ -20,7 +20,7 @@ vi.mock('@/lib/stripe/server', () => ({ getStripeServer: async () => ({ checkout
 
 // This harness targets only the disposable stack, regardless of application env.
 function sql(statement: string): string {
-  return execFileSync('docker', ['exec', '-i', 'supabase_db_sellf-afffix', 'psql', '-U', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8' }).trim();
+  return execFileSync('docker', ['exec', '-i', 'supabase_db_sellf-affembed', 'psql', '-U', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8' }).trim();
 }
 const product = 'af000000-0000-4000-a000-000000000002';
 const coupon = 'af000000-0000-4000-a000-000000000005';
@@ -42,8 +42,8 @@ async function drain(): Promise<void> {
 }
 beforeAll(() => {
   resetAffiliateDatabase();
-  const env = JSON.parse(execFileSync('supabase', ['status', '--workdir', '/private/tmp/sellf-afffix', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
-  expect(env.API_URL).toBe('http://127.0.0.1:55531');
+  const env = JSON.parse(execFileSync('supabase', ['status', '--workdir', '/private/tmp/sellf-affembed', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+  expect(env.API_URL).toBe('http://127.0.0.1:55571');
   state.client = createClient(env.API_URL, env.SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 });
 

@@ -17,7 +17,7 @@ beforeAll(async () => {
   resetAffiliateDatabase();
   config({ path: process.env.AFFILIATE_TEST_ENV, override: true, quiet: true });
   delete process.env.UPSTASH_REDIS_REST_URL; delete process.env.UPSTASH_REDIS_REST_TOKEN;
-  expect(process.env.SUPABASE_URL).toBe('http://127.0.0.1:55531');
+  expect(process.env.SUPABASE_URL).toBe('http://127.0.0.1:55571');
   const options = { auth: { persistSession: false, autoRefreshToken: false } };
   service = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, options);
   admin = createClient(process.env.SUPABASE_URL!, process.env.ANON_KEY!, options);

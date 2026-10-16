@@ -2,7 +2,7 @@
 import { execFileSync } from 'node:child_process';
 import { expect, it } from 'vitest';
 import { resetAffiliateDatabase } from '../database';
-const container = 'supabase_db_sellf-afffix';
+const container = 'supabase_db_sellf-affembed';
 const tables = ['affiliate_program_versions', 'affiliate_membership_events', 'affiliate_programs', 'affiliate_memberships', 'affiliate_rules', 'affiliate_coupon_bindings', 'affiliate_commissions', 'affiliate_payouts', 'affiliate_ledger', 'affiliate_payout_allocations', 'affiliate_work'];
 function sql(input: string): string {
   return execFileSync('docker', ['exec', '-i', container, 'psql', '-U', 'postgres', '-qAt', '-v', 'ON_ERROR_STOP=1'], { input, encoding: 'utf8' }).trim();

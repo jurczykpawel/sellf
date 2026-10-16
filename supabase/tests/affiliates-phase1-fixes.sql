@@ -76,6 +76,39 @@ DO $$ DECLARE payment uuid; BEGIN
  PERFORM pg_temp.check_that((SELECT status='needs_review' AND attempts=2 AND last_error_code='net_unavailable' AND processed_generation=0 FROM public.affiliate_work WHERE payment_id=payment),'fulfilled missing net requires review');
 END $$;
 ROLLBACK TO readiness;
+SAVEPOINT ineligible;
+DO $$ DECLARE payment uuid; product uuid; variant text; BEGIN
+ FOREACH variant IN ARRAY ARRAY['absent','disabled','future','currency'] LOOP
+  INSERT INTO public.products(name,slug,price,currency) VALUES('No commission '||variant,'no-commission-'||variant,123,'EUR') RETURNING id INTO product;
+  IF variant<>'absent' THEN
+   INSERT INTO public.affiliate_rules(product_id,revision,enabled,percentage_bps,fixed_minor,currency,created_at)
+   VALUES(product,1,variant<>'disabled',CASE WHEN variant='currency' THEN NULL ELSE 2000 END,CASE WHEN variant='currency' THEN 100 ELSE NULL END,CASE WHEN variant='currency' THEN 'PLN' ELSE NULL END,CASE WHEN variant='future' THEN now()+interval '1 day' ELSE '2026-01-01'::timestamptz END);
+  END IF;
+  payment:=pg_temp.sale(p_product=>product,p_net=>NULL);
+  PERFORM pg_temp.sync(payment);
+  PERFORM pg_temp.check_that((SELECT status='done' AND processed_generation=requested_generation AND last_error_code IS NULL FROM public.affiliate_work WHERE payment_id=payment),variant||' rule closes without net');
+  PERFORM pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.affiliate_commissions WHERE payment_id=payment),variant||' rule creates no commission');
+ END LOOP;
+ payment:=pg_temp.sale(p_product=>product,p_net=>NULL);
+ DELETE FROM public.payment_line_items WHERE transaction_id=payment;
+ PERFORM pg_temp.sync(payment);
+ PERFORM pg_temp.check_that((SELECT status='done' AND processed_generation=requested_generation FROM public.affiliate_work WHERE payment_id=payment),'no product lines closes without commission');
+ PERFORM pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.affiliate_commissions WHERE payment_id=payment),'no product lines creates no commission');
+ -- An unrelated line must not prevent an eligible line from accruing.
+ payment:=pg_temp.sale();
+ INSERT INTO public.payment_line_items(transaction_id,product_id,item_type,quantity,unit_price,total_price,currency,net_amount)
+ VALUES(payment,product,'order_bump',1,123,123,'EUR',NULL);
+ PERFORM pg_temp.sync(payment);
+ PERFORM pg_temp.check_that((SELECT status='done' FROM public.affiliate_work WHERE payment_id=payment),'unmatched missing net does not block eligible line');
+ PERFORM pg_temp.check_that((SELECT count(*)=1 FROM public.affiliate_commissions WHERE payment_id=payment),'eligible line accrues beside unmatched line');
+ payment:=pg_temp.sale();
+ INSERT INTO public.payment_line_items(transaction_id,product_id,item_type,quantity,unit_price,total_price,currency,net_amount)
+ VALUES(payment,'af000000-0000-4000-a000-000000000002','order_bump',1,123,123,'PLN',NULL);
+ PERFORM pg_temp.sync(payment);
+ PERFORM pg_temp.check_that((SELECT status='needs_review' FROM public.affiliate_work WHERE payment_id=payment),'matching missing net still requires review');
+ PERFORM pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.affiliate_commissions WHERE payment_id=payment),'matching missing net holds all new accruals');
+END $$;
+ROLLBACK TO ineligible;
 SAVEPOINT stale;
 DO $$ DECLARE payment uuid; coupon uuid; member uuid; payout public.affiliate_payouts; BEGIN
  INSERT INTO public.affiliate_memberships(user_id,code,status,display_name,accepted_terms_version,accepted_at)
