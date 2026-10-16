@@ -9,15 +9,16 @@ const work = { payment_id: 'payment', lease_token: 'token', requested_generation
 const session = { id: 'cs_test_order', created: 1767312000, livemode: false, payment_intent: 'pi_order' };
 let snapshot: unknown;
 let sessionId: string;
+let bound: boolean;
 beforeEach(() => {
-  vi.resetAllMocks(); snapshot = null; sessionId = session.id;
+  vi.resetAllMocks(); snapshot = null; bound = true; sessionId = session.id;
   mocks.rpc.mockImplementation((name: string) => name === 'affiliate_claim_work'
     ? { select: vi.fn().mockResolvedValue({ data: [work], error: null }) }
     : Promise.resolve({ data: true, error: null }));
   mocks.from.mockImplementation((table: string) => {
     const query = { select: vi.fn(), eq: vi.fn(), limit: vi.fn(), maybeSingle: vi.fn() };
     query.select.mockReturnValue(query); query.eq.mockReturnValue(query); query.limit.mockReturnValue(query);
-    query.maybeSingle.mockImplementation(async () => ({ data: table === 'affiliate_commissions' ? snapshot : { session_id: sessionId }, error: null }));
+    query.maybeSingle.mockImplementation(async () => ({ data: table === 'affiliate_commissions' ? snapshot : table === 'coupon_redemptions' ? (bound ? { coupon: { binding: [{ id: 'binding' }] } } : null) : { session_id: sessionId }, error: null }));
     return query;
   });
   mocks.retrieve.mockResolvedValue(session);
@@ -77,4 +78,12 @@ describe('drainAffiliateWork', () => {
     expect(await drainAffiliateWork(limit)).toEqual({ success: false, error: 'invalid_limit' });
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
+});
+
+it('finishes unbound work without looking up Stripe', async () => {
+  bound = false;
+  await drainAffiliateWork();
+  expect(mocks.retrieve).not.toHaveBeenCalled();
+  expect(mocks.list).not.toHaveBeenCalled();
+  expect(mocks.rpc).toHaveBeenCalledWith('affiliate_apply_sync', expect.anything());
 });

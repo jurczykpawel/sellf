@@ -50,5 +50,18 @@ DO $$ BEGIN
  EXCEPTION WHEN SQLSTATE 'PT409' THEN NULL; END;
 END $$;
 ROLLBACK TO history;
+SAVEPOINT deletion;
+DO $$ DECLARE product uuid; coupon uuid; payment uuid; BEGIN
+ INSERT INTO public.products(name,slug,price,currency) VALUES('Ordinary coupon product','ordinary-coupon-product',123,'EUR') RETURNING id INTO product;
+ INSERT INTO public.coupons(code,name,discount_type,discount_value) VALUES('ORDINARYFIX','Ordinary','percentage',10) RETURNING id INTO coupon;
+ payment:=pg_temp.sale(product,coupon);
+ PERFORM pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.affiliate_work WHERE payment_id=payment),'unbound redemption does not enqueue');
+ UPDATE public.payment_transactions SET refunded_amount=100 WHERE id=payment;
+ PERFORM pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.affiliate_work WHERE payment_id=payment),'unbound payment update does not enqueue');
+ INSERT INTO public.affiliate_work(payment_id,status,dispute_seen) VALUES(payment,'pending',true);
+ DELETE FROM public.products WHERE id=product;
+ PERFORM pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.payment_transactions WHERE id=payment),'ordinary coupon product deletes with pending work');
+END $$;
+ROLLBACK TO deletion;
 SET CONSTRAINTS ALL IMMEDIATE;
 ROLLBACK;

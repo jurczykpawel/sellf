@@ -172,7 +172,7 @@ BEGIN
    OR (OLD.eligible_at IS NULL AND NEW.eligible_at IS NOT NULL)
    OR NEW.eligible_at<OLD.eligible_at OR (OLD.dispute_reviewed_at IS NOT NULL AND NEW.dispute_reviewed_at IS NULL) OR NEW.version<>OLD.version+1 THEN
    RAISE EXCEPTION 'Commission snapshot fixed' USING ERRCODE='23514'; END IF;
- ELSIF TG_TABLE_NAME='affiliate_work' THEN
+ ELSIF TG_TABLE_NAME='affiliate_work' AND EXISTS(SELECT 1 FROM public.affiliate_commissions WHERE payment_id=OLD.payment_id) THEN
   IF OLD.status<>'done' OR OLD.requested_generation<>OLD.processed_generation OR OLD.dispute_seen THEN
    RAISE EXCEPTION 'Work remains due' USING ERRCODE='23514'; END IF;
  ELSIF TG_TABLE_NAME='affiliate_payout_allocations' THEN
@@ -246,11 +246,12 @@ DECLARE pid uuid; disputed boolean;
 BEGIN
  IF TG_TABLE_NAME='coupon_redemptions' THEN
   pid:=NEW.transaction_id;
+  IF NOT EXISTS(SELECT 1 FROM public.affiliate_coupon_bindings WHERE coupon_id=NEW.coupon_id) THEN RETURN NEW; END IF;
  ELSE
   IF NEW.status IS NOT DISTINCT FROM OLD.status AND NEW.refunded_amount IS NOT DISTINCT FROM OLD.refunded_amount
     AND NEW.fulfillment_pending IS NOT DISTINCT FROM OLD.fulfillment_pending THEN RETURN NEW; END IF;
   pid:=NEW.id;
-  IF NOT EXISTS(SELECT 1 FROM public.coupon_redemptions WHERE transaction_id=pid)
+  IF NOT EXISTS(SELECT 1 FROM public.coupon_redemptions r JOIN public.affiliate_coupon_bindings b ON b.coupon_id=r.coupon_id WHERE r.transaction_id=pid)
    AND NOT EXISTS(SELECT 1 FROM public.affiliate_commissions WHERE payment_id=pid) THEN RETURN NEW; END IF;
  END IF;
  IF pid IS NULL THEN RETURN NEW; END IF;

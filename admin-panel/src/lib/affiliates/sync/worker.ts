@@ -42,6 +42,13 @@ export async function drainAffiliateWork(limit = 25): Promise<DrainResult> {
         if (frozen.error) throw new Error('snapshot_read_failed');
         let facts = frozen.data ? factsSchema.parse(frozen.data) : null;
         if (!facts) {
+          const binding = await client.from('coupon_redemptions')
+            .select('coupon:coupons!inner(binding:affiliate_coupon_bindings!inner(id))')
+            .eq('transaction_id', work.payment_id).limit(1).maybeSingle();
+          if (binding.error) throw new Error('binding_read_failed');
+          if (!binding.data) facts = { session_created_at: new Date().toISOString(), livemode: false };
+        }
+        if (!facts) {
           const payment = await client.from('payment_transactions').select('session_id')
             .eq('id', work.payment_id).maybeSingle();
           if (payment.error) throw new Error('payment_read_failed');

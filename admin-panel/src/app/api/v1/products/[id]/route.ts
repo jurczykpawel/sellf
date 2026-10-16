@@ -402,7 +402,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { data: affiliateRule, error: affiliateError } = await supabase
       .from('affiliate_rules').select('id').eq('product_id', id).limit(1).maybeSingle();
     if (affiliateError) return apiError(request, 'INTERNAL_ERROR', 'Failed to check product history');
-    if (affiliateRule) {
+    const { data: affiliateCommission, error: commissionError } = await supabase
+      .from('affiliate_commissions').select('id,payment:payment_transactions!inner(product_id)')
+      .eq('payment.product_id', id).limit(1).maybeSingle();
+    if (commissionError) return apiError(request, 'INTERNAL_ERROR', 'Failed to check product history');
+    if (affiliateRule || affiliateCommission) {
       const locale = request.cookies.get('NEXT_LOCALE')?.value ?? request.headers.get('accept-language');
       return apiError(request, 'CONFLICT', locale?.startsWith('pl')
         ? 'Ten produkt ma historię partnerską. Wybierz Archiwizuj w menu produktu, aby ją zachować.'
