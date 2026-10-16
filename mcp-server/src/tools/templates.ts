@@ -8,6 +8,8 @@ const revision = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 // Keep JSON intact here; the shared HTTP lifecycle performs authoritative validation.
 const config = z.record(z.string(), z.json()).describe('StorefrontConfig JSON matching templates_capabilities.schemas.config; validated by the API.');
 const inputs = {
+  license_activate: z.strictObject({ templateId: z.enum(['storefront-a', 'storefront-b', 'storefront-c']), token: z.string().min(1).max(16384) }),
+  license_status: z.strictObject({}),
   read: z.strictObject({}),
   capabilities: z.strictObject({}),
   draft: z.strictObject({ expectedRevision: revision, config }),
@@ -19,6 +21,8 @@ const inputs = {
   reset: z.strictObject({ expectedRevision: revision, templateId: z.string().max(64), field: z.string().max(128).describe('Exact reset path declared for this template in templates_capabilities.resetPaths; API enforces the allowlist. Content cannot be reset.') }),
 };
 const descriptions = {
+  license_activate: 'Save an encrypted template key for background verification; unknown is not an activation grant. Input envelope is at most 16KiB. Never copy keys into URLs, logs, previews or exports. Does not publish a template.',
+  license_status: 'Read status-only template license results. Unknown or stale status cannot authorize publication; Pro is independently required.',
   read: 'Read private draft/published configuration, rights, validation and resolved origins.',
   capabilities: 'Get generated config/section/token schemas, registered IDs, reset paths and byte limits.',
   draft: 'Save a draft at the exact expected revision; free accounts may author premium drafts.',
@@ -32,7 +36,7 @@ const descriptions = {
 
 export function registerTemplatesTools(server: McpServer): void {
   for (const operation of Object.keys(inputs) as Array<keyof typeof inputs>) {
-    const scope = operation === 'draft' || operation === 'reset' ? 'write'
+    const scope = operation === 'draft' || operation === 'reset' || operation === 'license_activate' ? 'write'
       : operation === 'publish' || operation === 'rollback' ? 'activate' : 'read';
     server.registerTool(`templates_${operation}`, {
       description: `${descriptions[operation]} Requires templates:${scope} and instance admin ownership; template scopes are independent. Returns the exact API body.`,
@@ -41,8 +45,8 @@ export function registerTemplatesTools(server: McpServer): void {
       let body: Record<string, unknown>;
       let isError = false;
       try {
-        const method = operation === 'read' || operation === 'capabilities' ? 'GET' : operation === 'draft' ? 'PUT' : 'POST';
-        body = await getApiClient().template(method, operation === 'read' ? 'config' : operation, input);
+        const method = operation === 'read' || operation === 'capabilities' || operation === 'license_status' ? 'GET' : operation === 'draft' ? 'PUT' : 'POST';
+        body = await getApiClient().template(method, operation === 'read' ? 'config' : operation.startsWith('license_') ? 'licenses' : operation, input);
       } catch (error) {
         isError = true;
         body = error instanceof ApiClientError && error.templateError ? error.templateError

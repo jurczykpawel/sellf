@@ -254,3 +254,10 @@ There is no dedicated order-bump tool in this MCP server. The REST `/api/v1/orde
 ## License
 
 MIT
+
+Template purchase keys use `templates_license_activate` (templates:write) with
+`{templateId,token}` and `templates_license_status` (templates:read), both via
+`/api/v1/templates/licenses`. The complete entry envelope is limited to 16KiB.
+Saving starts at unknown, with verification performed in the background; it does
+not publish, grant Pro, or authorize a new key during an issuer outage. Both tools
+return status only. Never put purchase keys into preview evidence, URLs or logs.

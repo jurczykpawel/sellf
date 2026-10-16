@@ -8,6 +8,7 @@ import { readPublishedConfig } from '@/lib/storefront-templates/repository';
 import { loadCatalogueGroups, loadCataloguePage, loadStorefrontBindings } from '@/lib/storefront-templates/catalogue';
 import { resolvePresentation, resolveSelection } from '@/lib/storefront-templates/resolver';
 import { catalogueRequestSchema } from '@/lib/storefront-templates/catalogue-section';
+import { getLocalTemplateIds } from '@/lib/storefront-templates/template-license-snapshot';
 import { getPublicLicenseTier } from '@/lib/license/public-snapshot';
 import { templateRightsForTier } from '@/lib/storefront-templates/rights';
 import { STOREFRONT_TEMPLATES } from '@/lib/storefront-templates/registry';
@@ -28,7 +29,7 @@ export async function loadPublicStorefront(locale: 'en' | 'pl', params: Storefro
     if (!search.success) return { success: false };
     const client = createAdminClient();
     const published = await readPublishedConfig(client);
-    const rights = templateRightsForTier(getPublicLicenseTier());
+    const rights = templateRightsForTier(getPublicLicenseTier(), getLocalTemplateIds());
     const selection = resolveSelection(published.success ? published.data : null, rights.availableTemplateIds);
     const theme = resolvePublicTheme(STOREFRONT_TEMPLATES[selection.templateId].tokens, published.success ? published.data.tokens : null, rights.canCustomizeTokens);
     const spec = selection.recipe.sections.find(s => s.type === 'catalogue/1');

@@ -2,15 +2,15 @@
 import { hasFeature } from '@/lib/license/features';
 import { STOREFRONT_TEMPLATES } from '@/lib/storefront-templates/registry';
 import type { LicenseTier } from '@/lib/license/features';
-import type { StorefrontConfig } from '@/lib/storefront-templates/schemas';
+import type { StorefrontConfig, TemplateRegistryEntry } from '@/lib/storefront-templates/schemas';
 
 export interface TemplateRights {
   canSwitch: boolean; canCustomizeTokens: boolean; availableTemplateIds: string[];
 }
-export function templateRightsForTier(tier: LicenseTier): TemplateRights {
+export function templateRightsForTier(tier: LicenseTier, verifiedTemplateIds: readonly string[] = []): TemplateRights {
   const canSwitch = hasFeature(tier, 'page-templates');
   return { canSwitch, canCustomizeTokens: hasFeature(tier, 'theme-customization'), availableTemplateIds:
-    Object.values(STOREFRONT_TEMPLATES).filter(entry => entry.entitlement.kind === 'free' || entry.entitlement.kind === 'pro' && canSwitch).map(entry => entry.id) };
+    Object.values(STOREFRONT_TEMPLATES).filter((entry: TemplateRegistryEntry) => entry.entitlement.kind === 'free' || canSwitch && (entry.entitlement.kind === 'pro' || entry.entitlement.kind === 'template-key' && entry.entitlement.templateId === entry.id && verifiedTemplateIds.includes(entry.id))).map(entry => entry.id) };
 }
 /** Draft authoring is independent of activation rights. */
 export function canMutateTemplateConfig(rights: TemplateRights, next: StorefrontConfig, mode: 'draft' | 'publish'): boolean {

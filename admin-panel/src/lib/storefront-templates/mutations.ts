@@ -8,6 +8,7 @@ import { API_SCOPES } from '@/lib/api/scope-constants';
 import { requireAdminApi } from '@/lib/auth-server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
+import { getLocalTemplateIds } from '@/lib/storefront-templates/template-license-snapshot';
 import { getPublicLicenseTier } from '@/lib/license/public-snapshot';
 import { isDemoMode } from '@/lib/demo-guard';
 import { checkRateLimit } from '@/lib/rate-limiting';
@@ -95,7 +96,7 @@ export async function mutateStorefrontConfig(auth: unknown, input: unknown): Pro
     if (isDemoMode()) return templateFailure('FORBIDDEN');
     if (!(await checkRateLimit('storefront_mutation', 60, 1, context.actor.userId))) return templateFailure('RATE_LIMITED');
     const reader = createPlatformClient();
-    const rights = templateRightsForTier(getPublicLicenseTier());
+    const rights = templateRightsForTier(getPublicLicenseTier(), getLocalTemplateIds());
     const snapshot = await readStorefrontConfig(reader);
     if (!snapshot.success) return templateFailure('UNAVAILABLE');
     if (snapshot.data.revision !== mutation.expectedRevision) return templateFailure('CONFLICT', null, snapshot.data.revision);
@@ -124,6 +125,7 @@ export async function mutateStorefrontConfig(auth: unknown, input: unknown): Pro
       validation = active;
       if (!validation.valid) return templateFailure('INVALID', validation);
     }
+    if (mode === 'publish' && !canMutateTemplateConfig(templateRightsForTier(getPublicLicenseTier(), getLocalTemplateIds()), candidate, mode)) return templateFailure('FORBIDDEN');
     const client = createAdminClient();
     if (config !== null) {
       const size = await client.rpc('storefront_config_stored_bytes', { config: config as Json });

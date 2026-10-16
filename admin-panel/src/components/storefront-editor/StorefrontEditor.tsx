@@ -7,6 +7,7 @@ import { Check, RotateCcw, Eye, Layers } from 'lucide-react';
 import { importLegacyStorefrontTheme } from '@/lib/actions/storefront-legacy-theme';
 import { storefrontTemplateAction } from '@/lib/actions/storefront-templates';
 import { STOREFRONT_TEMPLATES, validateConfig } from '@/lib/storefront-templates/registry';
+import TemplateLicenses from '@/components/storefront-editor/TemplateLicenses';
 import AppearanceEditor from '@/components/storefront-editor/AppearanceEditor';
 import BindingPicker from '@/components/storefront-editor/BindingPicker';
 import ReorderHandle from '@/components/ui/ReorderHandle';
@@ -148,6 +149,7 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
         {Object.values(STOREFRONT_TEMPLATES).map(template => <option key={template.id} value={template.id}>{t(template.id === 'd' ? 'dName' : 'defaultName')}{template.entitlement.kind === 'pro' ? ' · Pro' : ''}</option>)}
       </select></label></div>
       {snapshot && config.templateId !== 'default' && !snapshot.rights.availableTemplateIds.includes(config.templateId) && <p className="flex items-start gap-2 rounded-xl bg-sf-warning-soft p-3 text-sm text-sf-warning"><Eye size={18} className="mt-0.5 shrink-0" aria-hidden="true" />{t('proNotice')}</p>}
+      <TemplateLicenses />
       <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
         <nav aria-label={t('sections')} className="min-w-0 space-y-3">
           <div><h2 className="font-semibold">{t('sections')}</h2><p className="mt-1 text-xs text-sf-muted">{t('orderHint')}</p></div>

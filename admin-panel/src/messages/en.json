@@ -4658,5 +4658,29 @@
     "bold": "Bold",
     "protectedTitle": "Checkout and sign-in",
     "protectedIntro": "These pages inherit selected colours and the font. Sellf keeps readable text sizes, corners and payment controls. These are the values after those rules apply."
+  },
+  "templateLicenses": {
+    "title": "Premium template keys",
+    "description": "Add the key for your purchased template. Premium templates also require Sellf Pro or Business. Saving a key does not publish your storefront.",
+    "statuses": "Template key status",
+    "template": "Template",
+    "key": "Purchase key",
+    "save": "Save key",
+    "saving": "Saving…",
+    "saved": "Key saved. Verification runs in the background; check the status shortly.",
+    "failure": "Could not update key status. Try again shortly.",
+    "limit": "This key is too long. Paste the purchase key from your order.",
+    "freshness": "Status refreshes every 30 seconds. A selected premium template falls back to the default storefront if its key is no longer confirmed. Offline revocation checks may be delayed; checkout and buyer access remain available.",
+    "storefront-a": "Template A",
+    "storefront-b": "Template B",
+    "storefront-c": "Template C",
+    "states": {
+      "valid": "Key verified",
+      "missing": "Add your purchase key",
+      "expired": "Key expired · request a replacement",
+      "revoked": "Key revoked · contact the issuer",
+      "invalid": "Key does not match · check your order",
+      "unknown": "Awaiting verification · check again shortly"
+    }
   }
 }
