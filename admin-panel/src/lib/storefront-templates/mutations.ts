@@ -2,6 +2,7 @@
 import 'server-only';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
+import { ApiAuthError } from '@/lib/api/errors';
 import { authenticateApiKeyPrincipal } from '@/lib/api/middleware';
 import { API_SCOPES } from '@/lib/api/scope-constants';
 import { requireAdminApi } from '@/lib/auth-server';
@@ -48,19 +49,22 @@ function issue(actor: VerifiedTemplatePrincipal, scopes: readonly string[]): Ver
   return principal;
 }
 
-export async function verifyTemplateSession(request?: NextRequest): Promise<VerifiedTemplatePrincipal | null> {
+export async function verifyTemplateSession(request?: NextRequest, reportErrors = false): Promise<VerifiedTemplatePrincipal | null> {
   try {
     const { user } = await requireAdminApi(await createClient(), request);
     return issue({ userId: user.id, method: 'session', apiKeyId: null }, []);
-  } catch { return null; }
+  } catch (error) {
+    if (reportErrors) throw new ApiAuthError(error instanceof Error && error.message === 'Forbidden' ? 'FORBIDDEN' : 'UNAUTHORIZED', 'Template authentication failed');
+    return null;
+  }
 }
 
-export async function verifyTemplateApiKey(request: NextRequest): Promise<VerifiedTemplatePrincipal | null> {
+export async function verifyTemplateApiKey(request: NextRequest, reportErrors = false): Promise<VerifiedTemplatePrincipal | null> {
   try {
     const auth = await authenticateApiKeyPrincipal(request);
     if (auth.method !== 'api_key') return null;
     return issue({ userId: auth.admin.userId, method: 'api_key', apiKeyId: auth.apiKey.id }, auth.scopes);
-  } catch { return null; }
+  } catch (error) { if (reportErrors) throw error; return null; }
 }
 
 export function getTemplatePrincipal(auth: unknown, scope: string): VerifiedTemplatePrincipal | null {

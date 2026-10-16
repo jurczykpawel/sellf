@@ -526,8 +526,15 @@ page outside the locale session layout. Proxy sets no-store/noindex, locale and
 a script-blocking CSP; the composition is inert server-rendered HTML using normal
 same-origin Next CSS and the shared core fonts. Its URL lease expires after ten
 minutes; stale revisions are rejected before and after preparing the model.
-There is no compilation, loopback request or HTML/CSS extraction. T1.22 owns API-key
-access and portable evidence if required. History delegates diff/rollback to the
+There is no compilation, loopback request or HTML/CSS extraction. The scoped
+`/api/v1/templates` routes reuse the lifecycle with independent READ,
+WRITE and ACTIVATE grants and a streaming 131072-byte envelope; raw config values
+retain their separate 102400-byte limit. Preview POST returns typed metadata plus
+`previewPath` for this same page; callers send their READ key in Authorization or
+X-API-Key headers on page requests, never in the URL. Session callers retain origin
+checks. Each preview page request reauthenticates and checks the draft revision and
+ten-minute lease; there is no portable HTML adapter. History delegates diff/rollback
+to the
 lifecycle; publishing an older draft first shows its diff and explicitly confirms
 replacement of the current draft. A failed publish reports the saved-draft state.
 TaskNav and Catalogue share target-scoped filter/state events; URL search/category

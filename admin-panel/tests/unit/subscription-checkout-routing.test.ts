@@ -80,9 +80,7 @@ describe('subscription checkout and price display routing', () => {
       billing_interval_count: 1,
     }, 'pl');
 
-    // Decimal separator depends on Node locale (pl uses ",", en uses "."), so
-    // assert structure rather than the exact glyph.
-    expect(display).toMatch(/^zł49[.,]00 \/ mies\.$/);
+    expect(display).toBe('49,00\u00a0zł / mies.');
   });
 
   it('formats multi-period subscription intervals', () => {

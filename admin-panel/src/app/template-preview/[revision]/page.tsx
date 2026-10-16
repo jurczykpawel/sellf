@@ -1,7 +1,9 @@
 /** Private inert SSR preview outside the locale/session application layout. */
+import { headers } from 'next/headers';
+import { NextRequest } from 'next/server';
 import { notFound } from 'next/navigation';
 import { preparePreview } from '@/lib/storefront-templates/preview';
-import { verifyTemplateSession } from '@/lib/storefront-templates/mutations';
+import { templateRequestPrincipal } from '@/lib/storefront-templates/http';
 import PublicThemeShell from '@/components/storefront/PublicThemeShell';
 import StorefrontComposition from '@/components/storefront/StorefrontComposition';
 import en from '@/messages/en.json';
@@ -13,7 +15,7 @@ export default async function TemplatePreview({ params, searchParams }: {
   params: Promise<{ revision: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const auth = await verifyTemplateSession();
+  const auth = await templateRequestPrincipal(new NextRequest('http://localhost/template-preview', { headers: await headers() })).catch(() => null);
   const query = await searchParams;
   const { revision } = await params;
   const locale = query.locale === 'pl' ? 'pl' : 'en';

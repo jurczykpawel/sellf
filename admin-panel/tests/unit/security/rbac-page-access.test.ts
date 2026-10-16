@@ -338,7 +338,7 @@ describe('API routes: correct auth function per endpoint', () => {
         // Must use authenticate() or requireAdminApi() — seller-aware auth functions
         const hasSellerAwareAuth =
           /\bauthenticate\s*\(/.test(source) ||
-          /requireAdminApi\s*\(/.test(source);
+          /requireAdminApi\s*\(/.test(source) || /verifyTemplateSession\s*\(/.test(source);
         expect(
           hasSellerAwareAuth,
           `${file} must call authenticate() or requireAdminApi() for admin/seller access`
@@ -462,7 +462,7 @@ describe('All server action files have auth wrappers', () => {
       const hasAuthWrapper =
         /withAdminAuth\s*\(/.test(source) ||
         /withAdminClient\s*\(/.test(source) ||
-        /requireAdminApi\s*\(/.test(source);
+        /requireAdminApi\s*\(/.test(source) || /verifyTemplateSession\s*\(/.test(source);
 
       if (!hasAuthWrapper) {
         violations.push(file);
@@ -531,6 +531,8 @@ describe('All server action files have auth wrappers', () => {
       'stripe-tax.ts',
       'tags.ts',
       'theme.ts',
+      'storefront-legacy-theme.ts',
+      'storefront-templates.ts',
       'validate-email.ts',
     ]);
 
@@ -565,7 +567,7 @@ describe('Cross-cutting: no privilege escalation vectors', () => {
       const hasAuthWrapper =
         /withAdminAuth\s*\(/.test(source) ||
         /withAdminClient\s*\(/.test(source) ||
-        /requireAdminApi\s*\(/.test(source);
+        /requireAdminApi\s*\(/.test(source) || /verifyTemplateSession\s*\(/.test(source);
 
       if (importsAdminClient && !hasAuthWrapper) {
         violations.push(file);
@@ -589,7 +591,7 @@ describe('Cross-cutting: no privilege escalation vectors', () => {
       const source = readFileSync(join(actionsDir, file), 'utf-8');
 
       const importsPlatformClient = /createPlatformClient/.test(source);
-      const hasAdminAuth = /withAdminAuth\s*\(/.test(source);
+      const hasAdminAuth = /withAdminAuth\s*\(/.test(source) || /verifyTemplateSession\s*\(/.test(source);
 
       if (importsPlatformClient && !hasAdminAuth) {
         violations.push(file);

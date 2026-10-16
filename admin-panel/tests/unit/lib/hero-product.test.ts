@@ -63,7 +63,7 @@ describe('hero-product/1', () => {
       const rows = [{ ...row, price: 0 }, { ...row, sale_price: 10, lowest_prior_price: 18 },
         { ...row, price: 0, product_type: 'subscription', recurring_price: 0, billing_interval: 'month' },
         { ...row, price: 0, allow_custom_price: true, custom_price_min: 3 }];
-      const rpc = vi.fn().mockResolvedValue({ data: rows, error: null });
+      const rpc = vi.fn().mockImplementation(async (name: string) => ({ data: name === 'storefront_catalogue_boundary' ? null : rows, error: null }));
       const result = await loadCataloguePage({ rpc } as unknown as SupabaseClient<Database>, { locale });
       expect(result.success).toBe(true);
       if (!result.success) return;
@@ -75,7 +75,8 @@ describe('hero-product/1', () => {
         expect(html).toContain(`src="${product.image!.src}"`);
         expect(html).not.toContain('PRIVATE_');
       }
-      expect(rpc).toHaveBeenCalledTimes(1);
+      expect(rpc).toHaveBeenCalledTimes(2);
+      expect(rpc).toHaveBeenCalledWith('storefront_catalogue_boundary');
     });
   }
 

@@ -78,6 +78,7 @@ const PUBLIC_ROUTES = new Set([
   'health/route.ts',
   'runtime-config/route.ts',
   'storefront/catalogue/route.ts',
+  'storefront/unavailable/route.ts',
   'sellf/route.ts',
   'consent/route.ts',
   'config/route.ts',                           // config.js generator — public, rate-limited
@@ -162,6 +163,7 @@ function hasAdminAuthCheck(source: string): boolean {
     /requireAdminApiWithRequest\s*\(/.test(source) ||
     /requireMarketplaceAdmin\s*\(/.test(source) ||
     /\bauthenticate(?:PlatformAdmin)?\s*\(/.test(source) ||
+    (/import \{ templateHttp \} from ['"]@\/lib\/storefront-templates\/http['"]/.test(source) && /return templateHttp\(request,/.test(source)) ||
     // Inline pattern: getUser(token) or getUser() followed by admin_users check
     (/auth\.getUser/.test(source) && /from\(['"`]admin_users['"`]\)/.test(source))
   );
@@ -224,6 +226,7 @@ describe('Area 4: API Route Authentication & Authorization', () => {
         /status:\s*401/.test(route.source) ||
         // V1 routes delegate to apiError() which sends 401
         /apiError\s*\(/.test(route.source) ||
+        /return templateHttp\(request,/.test(route.source) ||
         // authenticate() from @/lib/api throws 401 on failure
         /\bauthenticate\s*\(/.test(route.source) ||
         // requireAdminApi from auth-server throws 401

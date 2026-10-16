@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   translate: (key: string) => key,
 }));
 
-vi.mock('next-intl', () => ({ useTranslations: () => mocks.translate }));
+vi.mock('next-intl', () => ({ useTranslations: () => mocks.translate, useLocale: () => 'en' }));
 vi.mock('@/lib/coupons/fetch-coupons-page', () => ({ fetchCouponsPage: mocks.fetchPage }));
 vi.mock('@/hooks/useProducts', () => ({ fetchAllProductsForDropdown: async () => [] }));
 vi.mock('@/lib/api/client', () => ({

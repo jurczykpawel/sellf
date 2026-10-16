@@ -48,8 +48,9 @@ export function storedJsonBytes(value: unknown): number | null {
 }
 
 /** Inspect object keys and nesting before JSON.parse can discard repeated keys. */
-export function parseBoundedJson(input: Uint8Array, limit = CONFIG_BYTES): ValidationResult & { data?: unknown } {
+export function parseBoundedJson(input: Uint8Array, limit = CONFIG_BYTES, measureConfig = false): ValidationResult & { data?: unknown } {
   if (input.byteLength > limit) return result([{ code: 'LIMIT', path: '', message: 'JSON input exceeds byte limit', limit }]);
+  let configTooLarge = false;
   try {
     const source = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(input);
     let offset = 0;
@@ -62,7 +63,7 @@ export function parseBoundedJson(input: Uint8Array, limit = CONFIG_BYTES): Valid
       if (invalidString.test(value)) throw new Error();
       return value;
     };
-    const value = (depth: number): void => {
+    const value = (depth: number, envelopeRoot = false): void => {
       if (depth > 12) throw new Error();
       whitespace();
       const start = source[offset];
@@ -73,13 +74,19 @@ export function parseBoundedJson(input: Uint8Array, limit = CONFIG_BYTES): Valid
         offset++; whitespace();
         if (source[offset] === close) { offset++; return; }
         while (true) {
+          let configValue = false;
           if (start === '{') {
             const key = string();
+            configValue = measureConfig && envelopeRoot && key === 'config';
             if (keys.has(key) || forbidden.has(key)) throw new Error();
             keys.add(key); whitespace();
             if (source[offset++] !== ':') throw new Error();
           }
-          value(depth + 1); whitespace();
+          whitespace();
+          const valueStart = offset;
+          value(configValue ? 0 : depth + 1);
+          if (configValue && new TextEncoder().encode(source.slice(valueStart, offset)).length > CONFIG_BYTES) { configTooLarge = true; throw new Error(); }
+          whitespace();
           if (source[offset] === close) { offset++; return; }
           if (source[offset++] !== ',') throw new Error();
           whitespace();
@@ -90,10 +97,11 @@ export function parseBoundedJson(input: Uint8Array, limit = CONFIG_BYTES): Valid
       if (/^-?\d/.test(primitive[0]) && /[eE.]/.test(primitive[0]) && !['-0.01', '-0.02'].includes(primitive[0])) throw new Error();
       offset += primitive[0].length;
     };
-    value(0); whitespace();
+    value(0, true); whitespace();
     if (offset !== source.length) throw new Error();
     return { ...result(), data: JSON.parse(source) };
   } catch {
+    if (configTooLarge) return result([{ code: 'LIMIT', path: '/config', message: 'Config input exceeds byte limit', limit: CONFIG_BYTES }]);
     return result([{ code: 'SCHEMA', path: '', message: 'Invalid JSON encoding or structure' }]);
   }
 }
