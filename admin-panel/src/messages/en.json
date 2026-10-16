@@ -1147,6 +1147,26 @@
   },
   "admin": {
     "dashboard": {
+      "checkoutFunnel": {
+        "title": "Abandoned checkout funnel",
+        "period": "Period",
+        "days": "Last {count} days",
+        "started": "Recorded attempts",
+        "paid": "Paid",
+        "pending": "Pending",
+        "abandoned": "Abandoned",
+        "paidShare": "Paid share",
+        "byProduct": "Breakdown by product",
+        "product": "Product",
+        "unknownProduct": "Unavailable product",
+        "loading": "Loading funnel…",
+        "error": "Unable to load the funnel. Try again.",
+        "retry": "Retry",
+        "empty": "No recorded payments in this period.",
+        "definition": "The period filters payment records by creation time (rolling days up to now). Counts show their current status, not when they were paid or abandoned. The dashboard product filter also applies here.",
+        "statuses": "Abandoned means the record has status abandoned after session expiration or closure; it does not prove that a visitor left the page. Pending means still marked pending, even if its expiry time has passed. Paid includes completed, refunded, partially_refunded and disputed records. Paid share = paid / all recorded attempts.",
+        "limitations": "These are payment records, not unique buyers, visits or a complete session funnel. Repeated attempts, additional order rows and subscription payments may be included; unrecorded checkouts are missing. Pending is not counted as abandoned. Guest email may be unknown (pending@sellf.app). No reminders are sent."
+      },
       "title": "Dashboard",
       "welcome": "Welcome to Sellf Admin",
       "overview": "Overview",

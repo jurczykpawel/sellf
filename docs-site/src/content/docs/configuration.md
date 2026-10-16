@@ -33,3 +33,17 @@ regression. It builds with placeholders, starts on 3777 with real runtime settin
 and checks Mailpit login/free-access emails, Stripe embed return URLs, sitemap and
 metadata. It requires running local Supabase with the 3777 Auth redirect allowlist and
 a test-mode Stripe key; it never resets the database.
+
+## Abandoned checkout funnel
+
+The admin dashboard shows recorded payment attempts for the last 7, 30 or 90 days,
+with a per-product breakdown. The dashboard product filter applies. The period uses
+record creation time; counts reflect current statuses. `abandoned` means marked
+abandoned after session expiration or closure. `pending` stays separate, including
+records past their expiry time. Paid includes completed, refunded, partially refunded
+and disputed payments; paid share divides these by all records in the period.
+
+These are payment records, not unique buyers or a complete visit/session funnel.
+Repeated attempts, additional order rows and subscription payments may be included;
+missing records cannot be counted. Guest emails can be unknown. This view sends no
+reminders, adds no tracking and requires no new configuration.

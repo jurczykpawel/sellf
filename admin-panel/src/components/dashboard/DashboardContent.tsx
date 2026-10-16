@@ -2,6 +2,7 @@
 
 import StatsOverview from '@/components/StatsOverview';
 import RecentActivity from '@/components/RecentActivity';
+import CheckoutFunnel from '@/components/dashboard/CheckoutFunnel';
 import RevenueChart from '@/components/dashboard/RevenueChart';
 import RevenueGoal from '@/components/dashboard/RevenueGoal';
 import ProductFilter from '@/components/dashboard/ProductFilter';
@@ -73,6 +74,8 @@ export default function DashboardContent({ failedWebhooksCount }: DashboardConte
       <StatsOverview />
 
       <RevenueChart />
+
+      <CheckoutFunnel />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="space-y-8">

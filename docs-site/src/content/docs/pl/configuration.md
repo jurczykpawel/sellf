@@ -32,3 +32,18 @@ Regresja produkcyjna: `node scripts/run-runtime-url-tests.mjs` z `admin-panel/`.
 Buduje z placeholderami, uruchamia na 3777 z prawdziwym runtime, sprawdza Mailpit,
 logowanie, darmowy dostęp, embed Stripe, sitemap i metadane. Wymaga działającego
 lokalnego Supabase z allowlistą dla 3777 i testowego klucza Stripe; nie resetuje bazy.
+
+## Lejek porzuconych płatności
+
+Dashboard admina pokazuje zapisane próby płatności z ostatnich 7, 30 lub 90 dni
+z podziałem na produkty. Obowiązuje filtr produktu z dashboardu. Okres dotyczy daty
+utworzenia rekordu; liczby pokazują bieżące statusy. `abandoned` oznacza rekord
+oznaczony jako porzucony po wygaśnięciu lub zamknięciu sesji. `pending` pozostaje
+osobną kategorią, także po terminie wygaśnięcia. Opłacone obejmują płatności zakończone,
+zwrócone, częściowo zwrócone i sporne; ich udział to liczba opłaconych / wszystkie
+rekordy z okresu.
+
+To rekordy płatności, a nie unikalni kupujący ani pełny lejek wizyt lub sesji.
+Mogą obejmować powtórne próby, dodatkowe pozycje zamówień i płatności subskrypcyjne;
+brakujących rekordów nie da się policzyć. E-mail gościa może być nieznany. Widok nie
+wysyła przypomnień, nie dodaje śledzenia i nie wymaga nowej konfiguracji.

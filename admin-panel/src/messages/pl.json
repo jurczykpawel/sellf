@@ -1147,6 +1147,26 @@
   },
   "admin": {
     "dashboard": {
+      "checkoutFunnel": {
+        "title": "Lejek porzuconych płatności",
+        "period": "Okres",
+        "days": "Ostatnie {count} dni",
+        "started": "Zapisane próby",
+        "paid": "Opłacone",
+        "pending": "Oczekujące",
+        "abandoned": "Porzucone",
+        "paidShare": "Udział opłaconych",
+        "byProduct": "Podział na produkty",
+        "product": "Produkt",
+        "unknownProduct": "Niedostępny produkt",
+        "loading": "Wczytywanie lejka…",
+        "error": "Nie udało się wczytać lejka. Spróbuj ponownie.",
+        "retry": "Spróbuj ponownie",
+        "empty": "Brak zapisanych płatności w tym okresie.",
+        "definition": "Okres obejmuje rekordy płatności według daty utworzenia (ostatnie dni do teraz). Liczby pokazują ich obecny status, a nie datę zapłaty lub porzucenia. Filtr produktu w dashboardzie obowiązuje także tutaj.",
+        "statuses": "Porzucone to rekordy ze statusem abandoned po wygaśnięciu lub zamknięciu sesji; nie dowodzi to opuszczenia strony przez odwiedzającego. Oczekujące to nadal status pending, nawet po terminie wygaśnięcia. Opłacone obejmują completed, refunded, partially_refunded i disputed. Udział opłaconych = opłacone / wszystkie zapisane próby.",
+        "limitations": "To rekordy płatności, a nie unikalni kupujący, wizyty ani pełny lejek sesji. Mogą obejmować powtórne próby, dodatkowe pozycje zamówień i płatności subskrypcyjne; niezapisanych checkoutów tu nie ma. Oczekujące nie są liczone jako porzucone. E-mail gościa może być nieznany (pending@sellf.app). Przypomnienia nie są wysyłane."
+      },
       "title": "Panel administracyjny",
       "welcome": "Witamy w panelu admina Sellf",
       "overview": "Przegląd",
