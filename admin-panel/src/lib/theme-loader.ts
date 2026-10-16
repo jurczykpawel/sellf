@@ -6,8 +6,15 @@
 
 import { cache } from 'react';
 import { getActiveTheme } from '@/lib/actions/theme';
-import { checkFeature } from '@/lib/license/resolve';
+import { checkPublicFeature, getPublicLicenseTier } from '@/lib/license/public-snapshot';
+import { templateRightsForTier } from '@/lib/storefront-templates/rights';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { readPublishedConfig } from '@/lib/storefront-templates/repository';
+import { resolveSelection } from '@/lib/storefront-templates/resolver';
+import { STOREFRONT_TEMPLATES } from '@/lib/storefront-templates/registry';
+import { resolvePublicTheme } from '@/lib/storefront-templates/public-theme';
 import type { ThemeConfig } from '@/lib/themes';
+import type { ResolvedPublicTheme } from '@/lib/storefront-templates/public-theme';
 
 export interface ThemeData {
   theme: ThemeConfig | null;
@@ -18,7 +25,7 @@ export const loadThemeData = cache(async (): Promise<ThemeData> => {
   try {
     const [theme, licenseValid] = await Promise.all([
       getActiveTheme(),
-      checkFeature('theme-customization'),
+      checkPublicFeature('theme-customization'),
     ]);
 
     return { theme, licenseValid };
@@ -26,4 +33,14 @@ export const loadThemeData = cache(async (): Promise<ThemeData> => {
     console.error('[loadThemeData] Error:', error);
     return { theme: null, licenseValid: false };
   }
+});
+
+/** Request-local only; protected routes do not load catalogue data or private snapshots. */
+export const loadProtectedThemeData = cache(async (): Promise<ResolvedPublicTheme> => {
+  try {
+    const [published, { licenseValid }] = await Promise.all([readPublishedConfig(createAdminClient()), loadThemeData()]);
+    const config = published.success ? published.data : null;
+    const selection = resolveSelection(config, templateRightsForTier(getPublicLicenseTier()).availableTemplateIds);
+    return resolvePublicTheme(STOREFRONT_TEMPLATES[selection.templateId].tokens, config?.tokens ?? null, licenseValid, 'protected');
+  } catch { return resolvePublicTheme(null, null, false, 'protected'); }
 });

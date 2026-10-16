@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { invalidatePublicProducts } from '@/lib/storefront-templates/invalidation'
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
 import { withAdminClient } from '@/lib/actions/admin-auth'
 import { CategoryCreateDTO, CategoryUpdateDTO } from '@/lib/api/dto/category'
@@ -47,6 +48,7 @@ export async function createCategory(data: { name: string; slug: string; descrip
       console.error('[createCategory] Error:', error)
       return { success: false, error: 'Failed to create category' }
     }
+    invalidatePublicProducts(undefined, undefined, true)
     revalidatePath('/dashboard/categories')
     return { success: true }
   })
@@ -68,6 +70,7 @@ export async function updateCategory(id: string, data: { name: string; slug: str
       console.error('[updateCategory] Error:', error)
       return { success: false, error: 'Failed to update category' }
     }
+    invalidatePublicProducts(undefined, undefined, true)
     revalidatePath('/dashboard/categories')
     return { success: true }
   })
@@ -85,6 +88,7 @@ export async function deleteCategory(id: string) {
       console.error('[deleteCategory] Error:', error)
       return { success: false, error: 'Failed to delete category' }
     }
+    invalidatePublicProducts(undefined, undefined, true)
     revalidatePath('/dashboard/categories')
     return { success: true }
   })
@@ -118,6 +122,8 @@ export async function updateProductCategories(productId: string, categoryIds: st
       console.error('[updateProductCategories] Delete error:', deleteError)
       return { success: false, error: 'Failed to update product categories' }
     }
+
+    invalidatePublicProducts(productId, undefined, true)
 
     // 2. Insert new (if any)
     if (categoryIds.length > 0) {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import { Product } from '@/types';
 import { ProductContentConfig } from '@/types';
+import { marketingFieldsSchema } from '@/lib/validations/product-marketing';
 import { getIconEmoji } from '@/utils/themeUtils';
 import { getCategories, getProductCategories, Category } from '@/lib/actions/categories';
 import { getTags, getProductTags, Tag } from '@/lib/actions/tags';
@@ -204,6 +205,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
           slug: product.slug,
           description: product.description,
           long_description: product.long_description || '',
+          marketing_fields: product.marketing_fields ?? initialFormData.marketing_fields,
           price: product.price,
           currency: product.currency || 'USD',
           is_active: product.is_active,
@@ -599,6 +601,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   // submit time (covers description on step 2 too).
   const validateRequiredFields = useCallback((): boolean => {
     const errors = collectRequiredFieldErrors(formData, priceDisplayValue, taxMode);
+    if (!marketingFieldsSchema.safeParse(formData.marketing_fields).success) errors.marketing_fields = 'invalid';
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);

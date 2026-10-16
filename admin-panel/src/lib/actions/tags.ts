@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { invalidatePublicProducts } from '@/lib/storefront-templates/invalidation'
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
 import { withAdminClient } from '@/lib/actions/admin-auth'
 import { TagCreateDTO, TagUpdateDTO } from '@/lib/api/dto/tag'
@@ -45,6 +46,7 @@ export async function createTag(data: { name: string; slug: string }) {
       console.error('[createTag] Error:', error)
       return { success: false, error: 'Failed to create tag' }
     }
+    invalidatePublicProducts(undefined, undefined, true)
     revalidatePath('/dashboard/categories')
     return { success: true }
   })
@@ -66,6 +68,7 @@ export async function updateTag(id: string, data: { name: string; slug: string }
       console.error('[updateTag] Error:', error)
       return { success: false, error: 'Failed to update tag' }
     }
+    invalidatePublicProducts(undefined, undefined, true)
     revalidatePath('/dashboard/categories')
     return { success: true }
   })
@@ -83,6 +86,7 @@ export async function deleteTag(id: string) {
       console.error('[deleteTag] Error:', error)
       return { success: false, error: 'Failed to delete tag' }
     }
+    invalidatePublicProducts(undefined, undefined, true)
     revalidatePath('/dashboard/categories')
     return { success: true }
   })

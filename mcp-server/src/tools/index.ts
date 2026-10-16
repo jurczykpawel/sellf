@@ -11,3 +11,5 @@ export { registerCouponsTools } from './coupons.js';
 export { registerAnalyticsTools } from './analytics.js';
 export { registerWebhooksTools } from './webhooks.js';
 export { registerSystemTools } from './system.js';
+
+export { registerTemplatesTools } from './templates.js';

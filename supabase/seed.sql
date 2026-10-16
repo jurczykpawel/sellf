@@ -1,6 +1,14 @@
 -- Seed data for Sellf Admin Panel
 -- Sample products for testing different Sellf protection modes
 
+-- Free storefront selection; no seller claims or product bindings required.
+INSERT INTO public.storefront_config(published)
+VALUES ('{"format":1,"templateId":"default","settingsByTemplate":{},"overridesByTemplate":{},"content":{},"tokens":null}')
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.storefront_config_history(revision, operation, draft, published)
+SELECT revision, 'legacy-import', draft, published FROM public.storefront_config WHERE revision = 0
+ON CONFLICT (revision) DO NOTHING;
+
 -- Enable pgcrypto extension for password hashing
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
@@ -1183,3 +1191,40 @@ INSERT INTO public.guest_purchases(product_id, customer_email, session_id, trans
 SELECT id, 'pending@demo.sellf.app', 'cs_seed_pending_confirmation', price * 100
 FROM public.products WHERE slug='premium-course'
   AND NOT EXISTS (SELECT 1 FROM public.guest_purchases WHERE session_id='cs_seed_pending_confirmation');
+
+-- A disabled draft integration demonstrating the independent storefront permissions.
+INSERT INTO public.api_keys(id,name,key_prefix,key_hash,admin_user_id,scopes,is_active)
+SELECT 'eeeeeeee-1111-4111-a111-111111111111', 'Storefront draft integration (disabled)',
+  'sf_test_tpl0', encode(extensions.digest('disabled-storefront-seed', 'sha256'),'hex'), id,
+  '["templates:read","templates:write"]'::jsonb, false
+FROM public.admin_users WHERE user_id='dddddddd-0000-4000-a000-000000000000'
+ON CONFLICT (id) DO NOTHING;
+
+-- Synthetic editorial examples for free, paid, recurring, unavailable and bundle products.
+UPDATE public.products SET marketing_fields = '{"format":"course","sourceLocale":"en","en":{"result":"Practice the introductory workflow","tools":[],"requirements":[]},"pl":{"result":"Przećwicz przykładowy proces","tools":[],"requirements":[]}}'
+WHERE slug='free-tutorial';
+UPDATE public.products SET marketing_fields = '{"format":"course","sourceLocale":"en","en":{"result":"Build a small JavaScript application","tools":["Code editor"],"requirements":["Basic JavaScript knowledge"]}}'
+WHERE slug='premium-course';
+UPDATE public.products SET marketing_fields = '{"format":"other","sourceLocale":"pl","pl":{"result":null,"tools":[],"requirements":[]}}'
+WHERE slug='pro-membership-monthly';
+UPDATE public.products SET marketing_fields = '{"format":"bundle","sourceLocale":"en","en":{"result":null,"tools":["Code editor"],"requirements":[]}}'
+WHERE slug='starter-bundle';
+INSERT INTO public.products (name,slug,description,price,is_active,is_listed) VALUES ('Sample Workshop','sample-workshop-unavailable','Synthetic workshop for editorial fixtures.',15,false,true);
+UPDATE public.products SET marketing_fields = jsonb_build_object('format','workshop','sourceLocale','en','en',jsonb_build_object('result',repeat('Practice the sample workflow. ',8),'tools',jsonb_build_array('Spreadsheet editor'),'requirements',jsonb_build_array('A sample dataset for the exercises')))
+WHERE slug='sample-workshop-unavailable';
+
+-- Existing public products exercise catalogue category intersection and editorial filtering.
+INSERT INTO public.categories(name,slug,description) VALUES
+  ('Getting started','storefront-getting-started','Synthetic starter catalogue category')
+ON CONFLICT (slug) DO NOTHING;
+INSERT INTO public.product_categories(product_id,category_id)
+SELECT p.id,c.id FROM public.products p CROSS JOIN public.categories c
+WHERE p.slug IN ('free-tutorial','premium-course','starter-bundle') AND c.slug='storefront-getting-started'
+ON CONFLICT DO NOTHING;
+
+-- Scheduled catalogue transitions exercise first-page cache deadlines.
+INSERT INTO public.products(name,slug,description,price,currency,is_active,is_listed,is_featured,available_from,available_until,sale_price,sale_price_until) VALUES
+ ('Upcoming sample workshop','sample-upcoming-workshop','A workshop scheduled to join the catalogue.',20,'USD',true,true,true,now()+interval '1 day',null,null,null),
+ ('Limited sample guide','sample-limited-guide','A guide with a scheduled catalogue end.',10,'USD',true,true,false,null,now()+interval '2 days',null,null),
+ ('Sample template sale','sample-template-sale','A template with a scheduled sale end.',25,'USD',true,true,false,null,null,15,now()+interval '3 days')
+ON CONFLICT (slug) DO NOTHING;

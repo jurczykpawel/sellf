@@ -23,6 +23,7 @@ const FEATURE_TIERS = {
   'webhooks': 'registered',            // POST /api/v1/webhooks → create a webhook endpoint
 
   // Pro
+  'page-templates': 'pro',             // storefront selection and composition mutations
   'watermark-removal': 'pro',          // SellfBranding component on checkout + product pages
   'theme-customization': 'pro',        // theme.ts actions, theme-loader.ts
   'api-key-scopes': 'pro',             // POST /api/v1/api-keys → enforceApiKeyScopeGate

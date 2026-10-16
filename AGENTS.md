@@ -441,6 +441,115 @@ For listed products, visitors without access see the shared `ProductPurchasePage
 at `/p/<slug>` with Product JSON-LD; existing buyers retain the content view.
 Contextual purchase links continue to redirect to the non-indexed checkout.
 
+### Storefront Template Snapshots
+
+`storefront_config` is a boolean-keyed singleton holding the current revision,
+draft and published configuration. `storefront_config_history` retains complete
+draft/published pairs by revision. Both start at revision 0 with the free default
+selection; seller content and retained template settings live inside these JSON
+snapshots. Draft and published values each have a 102400-byte stored UTF-8 limit;
+revisions stay within JavaScript's safe integer range.
+
+Server-only reads live in `src/lib/storefront-templates/repository.ts` and accept
+caller-authorized Supabase clients. Public rendering uses the published-only
+projection; private reads include the draft and bounded, descending history pages.
+Reuse `validateConfig()` and `revisionSchema` when handling these snapshots.
+`storefront_config_stored_bytes(jsonb)` supplies the authoritative stored size.
+Private mutation primitives live in `src/lib/storefront-templates/mutations.ts`.
+Obtain principals through its session/API-key verification functions; serialized
+principal objects are not accepted. The service-only `mutate_storefront_config`
+RPC locks the singleton and writes config/history/audit together. Template
+READ/WRITE/ACTIVATE scopes are independent; existing keys retain their scopes.
+The shared `lifecycle.ts` supplies private read/validate/diff/history and mutation
+operations; `actions/storefront-templates.ts` supplies the session action. Draft,
+reset and import authoring are admin-only but permit Pro selections and tokens
+without activation rights. Publish/rollback check the local license snapshot,
+resolver support, resolved contrast and bounded current public bindings before
+the locked RPC. Publish accepts only a revision, never caller config. Resets
+accept only declared fields and remove stored leaves; they preserve content.
+Post-commit invalidation failure returns a warning without undoing publication.
+HTTP API adapters remain later tasks.
+
+Offline authoring uses `bun run template:check -- --config file --json` (or
+`--recipe file`). `--mode publish --fixture file` checks supplied public bindings;
+it does not attest live rights or publication readiness. `--print-schema config`
+(or `recipe`) and `--capabilities` generate contracts from Zod/registry sources;
+standalone JSON Schema files are not committed. `template:schema` only refreshes
+schemas embedded in the unreleased Phase 1 migration; released migrations must
+remain immutable. No renderer or instance connection is needed for CLI checks.
+
+Public catalogue inputs live in `src/lib/storefront-templates/catalogue.ts`.
+They accept caller-authorized service clients and use service-only, bounded
+read RPCs; public route callers must apply application rate limits. Pages use
+canonical product names in both locales, fixed `created_at DESC, id ASC` keysets,
+and filter-bound cursors. Default groups have independent cursors (24 per group,
+72 total); product/category bindings are batched and starter order is retained.
+Neutral first catalogue pages use `boundedPublicRead`, keyed by locale, group, fixed sort version and page size. One indexed aggregate supplies the next active/listed availability or sale boundary, including products absent from the page. Arbitrary search, filters, cursor pages and bindings remain uncached. Public page renders have no application limiter; the catalogue API limits each bounded batch interaction once. Public
+config, shop config and product-by-slug reads reuse `boundedPublicRead`: tagged entries
+carry the original read time and an absolute deadline (at most 60 seconds, clipped
+to product availability/sale boundaries). Expired/cache-failed reads fall back to
+authoritative reads or unavailable results. Optional shop Redis stores the same
+envelope/deadline; it cannot renew the age. Only explicit public projections enter
+these caches; rights, access, drafts and request identity stay outside.
+
+Public `/` and `/store` share `PublicStorefrontPage` and the published-only,
+read-only `loadPublicStorefront` orchestrator. `resolveSelection` expands
+registered recipes and retained active overrides; `resolvePresentation` supplies
+concrete public section props to `StorefrontComposition`. Callers pass a digest of
+the public model as `renderKey` so replaced snapshots reset catalogue state.
+The core caller must
+supply current allowed template IDs; absent grants permit only free default. Public appearance is resolved by `public-theme.ts` from core defaults, the effective
+registry entry and strict partial seller overrides. `loadPublicStorefront` reuses
+its published read; appearance and leaf origins stay outside section props.
+`PublicThemeShell` maps approved variables before hydration; `/p/[slug]`,
+`/checkout/[slug]`, `/login`, `/terms` and `/privacy` use the protected subset through
+`loadProtectedThemeData`. Other routes and dashboard chrome retain core branding.
+Core theme preference controls mode, including CSS system fallback without scripts.
+Both storefront and protected selection obtain allowed template IDs from the current
+local platform tier snapshot. `license/public-snapshot.ts` refreshes this snapshot
+in the Node instrumentation background scheduler every 30 seconds. Remote JWKS
+refresh runs at startup and every 12 hours; an unknown local key ID can trigger
+an earlier attempt at most once per hour (failed attempts count). Public readers
+perform no licensing network or database requests. Unknown/cold/older-than-60-second
+snapshots resolve free, and credential expiry clamps the lifetime exactly. A
+failed database read retains the previous tier only until its existing deadline. The
+release-shipped `license/platform-jwks.json` is the platform JWKS snapshot fetched
+from the existing platform endpoint on 2026-10-16; refresh it from that endpoint
+when preparing releases. Optional `SELLF_JWKS_FALLBACK` and background-refreshed
+keys supplement it. Admin license verification retains its existing resolver.
+Template selection, seller token customization and watermark removal use separate
+feature checks. Mutation preflight checks session/key scope before platform reads,
+then validates the stored candidate before creating the mutation client;
+activation requires current template/theme rights even for unchanged overrides.
+The locked RPC revision check protects the preflight snapshot. The dashboard
+templates editor includes appearance controls with resolved origins,
+contrast feedback and revision-bound leaf resets. Its explicit legacy import reads
+`data/active-theme.json` without runtime file writes and records its original byte
+length and SHA-256 in the shared legacy-import revision's atomic audit metadata. Nonzero legacy-import history
+prevents repeated conversion; existing overrides win and subsequent public appearance
+edits write only configuration snapshots. Public cache deadlines and post-commit
+product/taxonomy invalidation bound freshness.
+Private previews use `preparePreview` with an issued READ principal and a current
+stored draft revision. `/template-preview/[revision]` is a dynamic session-admin
+page outside the locale session layout. Proxy sets no-store/noindex, locale and
+a script-blocking CSP; the composition is inert server-rendered HTML using normal
+same-origin Next CSS and the shared core fonts. Its URL lease expires after ten
+minutes; stale revisions are rejected before and after preparing the model.
+There is no compilation, loopback request or HTML/CSS extraction. The scoped
+`/api/v1/templates` routes reuse the lifecycle with independent READ,
+WRITE and ACTIVATE grants and a streaming 131072-byte envelope; raw config values
+retain their separate 102400-byte limit. Preview POST returns typed metadata plus
+`previewPath` for this same page; callers send their READ key in Authorization or
+X-API-Key headers on page requests, never in the URL. Session callers retain origin
+checks. Each preview page request reauthenticates and checks the draft revision and
+ten-minute lease; there is no portable HTML adapter. History delegates diff/rollback
+to the
+lifecycle; publishing an older draft first shows its diff and explicitly confirms
+replacement of the current draft. A failed publish reports the saved-draft state.
+TaskNav and Catalogue share target-scoped filter/state events; URL search/category
+fallbacks use the same bounded initial loaders. Public content renders during auth
+initialization; only empty-shop onboarding depends on the resolved admin session.
+
 ### Runtime Configuration
 
 **RuntimeConfig API** (`/api/runtime-config`):

@@ -12,6 +12,17 @@ export async function register() {
       console.warn('[keep-alive] failed to start:', error);
     }
 
+    try {
+      const { refreshPublicLicenseSnapshot, startPublicLicenseRefresh } = await import('@/lib/license/public-snapshot');
+      startPublicLicenseRefresh();
+      await Promise.race([
+        refreshPublicLicenseSnapshot(),
+        new Promise<void>(resolve => setTimeout(resolve, 2_000)),
+      ]);
+    } catch {
+      console.warn('[license] Background refresh unavailable');
+    }
+
     // One-time conversion of a Meta CAPI token saved before encryption at rest.
     // Runs in the background; on any failure the stored value stays as it is
     // and is converted on the next server read instead.

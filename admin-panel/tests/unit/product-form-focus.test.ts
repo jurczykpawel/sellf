@@ -1,21 +1,24 @@
 // @vitest-environment happy-dom
 
 import { createElement, StrictMode } from 'react';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Product } from '@/types';
+import { initialFormData } from '@/components/ProductFormModal/types';
 import { useProductForm } from '@/components/ProductFormModal/hooks/useProductForm';
 
-vi.mock('@/components/providers/config-provider', () => ({
-  useConfig: () => ({ trustedDownloadDomains: [] }),
-}));
-vi.mock('@/lib/actions/categories', () => ({ getCategories: vi.fn().mockResolvedValue({ success: true, data: [] }) }));
-vi.mock('@/lib/actions/tags', () => ({ getTags: vi.fn().mockResolvedValue({ success: true, data: [] }) }));
+vi.mock('@/components/providers/config-provider', () => {
+  const config = { trustedDownloadDomains: [] };
+  return { useConfig: () => config };
+});
+vi.mock('@/lib/actions/categories', () => ({ getCategories: vi.fn().mockResolvedValue({ success: true, data: [] }), getProductCategories: vi.fn().mockResolvedValue({ success: true, data: [] }) }));
+vi.mock('@/lib/actions/tags', () => ({ getTags: vi.fn().mockResolvedValue({ success: true, data: [] }), getProductTags: vi.fn().mockResolvedValue({ success: true, data: [] }) }));
 vi.mock('@/lib/actions/shop-config', () => ({ getMyShopConfig: vi.fn().mockResolvedValue(null) }));
 vi.mock('@/lib/supabase/client', () => ({
   createClient: vi.fn().mockResolvedValue({ rpc: vi.fn().mockResolvedValue({ data: null, error: null }) }),
 }));
 vi.mock('@/hooks/useProducts', () => ({ fetchAllProductsForDropdown: vi.fn().mockResolvedValue([]) }));
-vi.mock('@/lib/api/client', () => ({ api: {} }));
+vi.mock('@/lib/api/client', () => ({ api: { getCustom: vi.fn().mockResolvedValue({ has_oto: false }) } }));
 vi.mock('@/utils/themeUtils', () => ({ getIconEmoji: () => '🚀' }));
 vi.mock('@stripe/stripe-js', () => ({ loadStripe: vi.fn() }));
 
@@ -104,5 +107,33 @@ describe('Product form opening focus', () => {
     await act(async () => render(createElement(StrictMode, null, createElement(Form, { isOpen: true }))));
     act(() => vi.advanceTimersByTime(101));
     expect(document.activeElement).toBe(screen.getByLabelText('Name'));
+  });
+});
+
+
+describe('Product form marketing submission', () => {
+  beforeEach(() => onSubmit.mockClear());
+
+  it('loads saved editorial fields, rejects invalid edits, then submits cleared copy', async () => {
+    const marketing = { format: 'workshop' as const, sourceLocale: 'en' as const, en: { result: 'Build a report', tools: ['n8n'], requirements: ['Spreadsheet'] } };
+    const product = { ...initialFormData, id: 'product-fixture', name: 'Report', slug: 'report', marketing_fields: marketing } as Product;
+    const { result } = renderHook(() => useProductForm({ isOpen: true, onSubmit, product }));
+    await act(async () => {});
+    expect(result.current.formData.marketing_fields).toEqual(marketing);
+    act(() => result.current.setFormData(previous => ({ ...previous, ux_product_type: 'lead-magnet', marketing_fields: { ...marketing, en: { ...marketing.en, result: 'x'.repeat(241) } } })));
+    await act(async () => result.current.handleSubmit({ preventDefault() {} } as React.FormEvent));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(result.current.fieldErrors.marketing_fields).toBe('invalid');
+    act(() => result.current.setFormData(previous => ({ ...previous, marketing_fields: { ...marketing, en: { result: null, tools: [], requirements: [] } } })));
+    await act(async () => result.current.handleSubmit({ preventDefault() {} } as React.FormEvent));
+    expect(onSubmit).toHaveBeenCalledOnce();
+    expect(onSubmit.mock.calls[0][0].marketing_fields).toEqual({ ...marketing, en: { result: null, tools: [], requirements: [] } });
+  });
+
+  it('starts a new product with absent copy, independent of its name', async () => {
+    const { result } = renderHook(() => useProductForm({ isOpen: true, onSubmit }));
+    await act(async () => {});
+    act(() => result.current.setFormData(previous => ({ ...previous, name: 'Seller title' })));
+    expect(result.current.formData.marketing_fields).toEqual({ format: null, sourceLocale: 'en', en: { result: null, tools: [], requirements: [] } });
   });
 });

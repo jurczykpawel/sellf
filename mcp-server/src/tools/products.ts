@@ -7,6 +7,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getApiClient } from '../api-client.js';
+import type { ProductMarketingFields } from './product-marketing-schema.js';
 import { productCreateShape, productUpdateShape } from './product-schema.js';
 
 interface Product {
@@ -14,6 +15,7 @@ interface Product {
   name: string;
   slug: string;
   description: string;
+  marketing_fields: ProductMarketingFields;
   price: number;
   currency: string;
   is_active: boolean;
@@ -168,6 +170,7 @@ export function registerProductsTools(server: McpServer): void {
         name: new_name,
         slug: new_slug,
         description: source.description,
+        marketing_fields: source.marketing_fields,
         price: source.price,
         currency: source.currency,
         is_active: false, // New products start inactive

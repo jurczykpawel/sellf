@@ -162,7 +162,6 @@ export async function isRedisAvailable(): Promise<boolean> {
  * Helps organize cache and enables pattern-based invalidation
  */
 export const CacheKeys = {
-  SHOP_CONFIG: 'shop:config',
   PRODUCT: (slug: string) => `product:${slug}`,
   PRODUCT_LIST: 'products:list',
   USER_PURCHASES: (userId: string) => `user:${userId}:purchases`,

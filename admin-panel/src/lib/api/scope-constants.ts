@@ -36,6 +36,10 @@ export const API_SCOPES = {
   REFUND_REQUESTS_READ: 'refund-requests:read',
   REFUND_REQUESTS_WRITE: 'refund-requests:write',
 
+  TEMPLATES_READ: 'templates:read',
+  TEMPLATES_WRITE: 'templates:write',
+  TEMPLATES_ACTIVATE: 'templates:activate',
+
   SYSTEM_READ: 'system:read',
   SYSTEM_WRITE: 'system:write',
 } as const;

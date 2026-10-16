@@ -264,7 +264,7 @@ export function _resetApiKeyAuthCacheForTests() {
   invalidKeyCache.clear();
 }
 
-async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthResult | null> {
+async function authenticateViaApiKey(request: NextRequest): Promise<Omit<ApiKeyAuthResult, 'supabase'> | null> {
   // Check for API key in Authorization header or X-API-Key header
   const authHeader = request.headers.get('authorization');
   const xApiKey = request.headers.get('x-api-key');
@@ -375,11 +375,8 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
   // Cast scopes from Json to string[]
   const scopes = Array.isArray(keyData.scopes) ? keyData.scopes as string[] : [];
 
-  const dataClient = createAdminClient();
-
   return {
     method: 'api_key',
-    supabase: dataClient as unknown as SupabaseClient,
     admin: {
       userId: ownerUserId,
       adminId: ownerId,
@@ -392,7 +389,7 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
       rateLimitPerMinute: keyData.rate_limit_per_minute || 60,
     },
     scopes,
-  } as ApiKeyAuthResult;
+  };
 }
 
 /**
@@ -427,7 +424,15 @@ export async function authenticate(
     return sessionAuth;
   }
 
-  // Try API key auth
+  const apiKeyAuth = await authenticateApiKeyPrincipal(request, requiredScopes);
+  return { ...apiKeyAuth, supabase: createAdminClient() as unknown as SupabaseClient };
+}
+
+/** Verify key identity and permissions without obtaining a mutation data client. */
+export async function authenticateApiKeyPrincipal(
+  request: NextRequest,
+  requiredScopes?: ApiScope[]
+): Promise<Omit<ApiKeyAuthResult, 'supabase'>> {
   const apiKeyAuth = await authenticateViaApiKey(request);
   if (apiKeyAuth) {
     // Check rate limit for API key

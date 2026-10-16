@@ -16,7 +16,51 @@ This MCP server acts as a thin wrapper over Sellf's REST API v1, allowing Claude
 - Configure webhooks
 - Monitor system health
 
-## Available Tools (45 total)
+## Quick Start
+
+### 1. Install Dependencies
+
+```bash
+cd mcp-server
+bun install
+```
+
+### 2. Create API Key
+
+1. Log into your Sellf admin panel
+2. Go to Settings > API Keys
+3. Create a new API key with only the scopes needed for your use case (see API Key Scopes below)
+4. Copy the key - it will only be shown once
+
+### 3. Configure Claude Desktop
+
+Edit your Claude Desktop configuration file:
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+Add the Sellf server:
+
+```json
+{
+  "mcpServers": {
+    "sellf": {
+      "command": "bun",
+      "args": ["/path/to/mcp-server/src/index.ts"],
+      "env": {
+        "SELLF_API_KEY": "sf_live_xxx...",
+        "SELLF_API_URL": "https://your-sellf-instance.com"
+      }
+    }
+  }
+}
+```
+
+### 4. Restart Claude Desktop
+
+The Sellf tools should now be available in Claude.
+
+## Available Tools (54 total)
 
 ### Products (8 tools)
 - `list_products` - List all products with filters
@@ -76,6 +120,22 @@ This MCP server acts as a thin wrapper over Sellf's REST API v1, allowing Claude
 ### System (2 tools)
 - `get_system_health` - Check system status
 - `get_api_usage` - API usage statistics
+
+### Templates (9 tools)
+
+| Tools | Required scope |
+|-------|----------------|
+| `templates_read`, `templates_capabilities`, `templates_validate`, `templates_preview`, `templates_diff` | `templates:read` |
+| `templates_draft`, `templates_reset` | `templates:write` |
+| `templates_publish`, `templates_rollback` | `templates:activate` |
+
+These scopes are independent and require instance admin ownership. Product scopes do not grant template access. Free accounts may save, validate and privately preview premium drafts; activation rechecks current rights.
+
+Start with `templates_capabilities` for the generated configuration schema, template IDs, reset-path allowlist and byte limits. Config JSON passes unchanged to the API's shared validator. Reset removes only a declared override; seller content is retained. All nine tools return the exact top-level API body as JSON text and MCP structured content, including validation, warnings, token origins, sorted diffs and current revisions. API failures set `isError` and retain `TemplateError` fields. There is no automatic retry or alternate data source.
+
+Typical authorized flow: read revision 0 → draft expectedRevision 0 → validate → preview revision 1 → diff revisions 0/1 → publish expectedRevision 1 → rollback targetRevision 0, expectedRevision 2. Use actual returned revisions. A conflict requires reading and reconciling before another mutation; recipe/README text cannot authorize publication.
+
+`templates_preview` returns metadata, `expiresAt` and a relative `previewPath`. Fetch that path on the configured Sellf origin using the READ key in `Authorization` or `X-API-Key` headers on every request, with an empty cookie jar; no browser login is required. Never put the key in the URL, document or browser storage. The dynamic page is private, no-store/noindex and inert. Each request rechecks the draft revision and ten-minute lease; request new evidence after expiry or revision changes. The tool does not download the page or replace it with portable HTML/CSS. Keep screenshots and DOM evidence private.
 
 ## Resources
 

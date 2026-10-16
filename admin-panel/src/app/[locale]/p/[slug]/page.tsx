@@ -1,9 +1,9 @@
 import { notFound, redirect } from 'next/navigation';
 import { cache } from 'react';
-import { unstable_cache } from 'next/cache';
+import { boundedPublicRead, productCacheBoundary } from '@/lib/public-cache';
 import { createPublicClient, createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { checkFeature } from '@/lib/license/resolve';
+import { checkPublicFeature } from '@/lib/license/public-snapshot';
 import { decideProductAccessOutcome } from '@/lib/payment/product-access-decision';
 import { getShopConfig } from '@/lib/actions/shop-config';
 import { findIssuedLicense, toIssuedLicenseResponse } from '@/lib/license-keys/lookup';
@@ -32,25 +32,14 @@ export const dynamic = 'force-dynamic';
 // Explicit field list — avoids pulling future sensitive columns automatically.
 // content_config is not part of it: it is loaded with the service role only
 // for admin preview or once the visitor's access is confirmed.
-// Two-layer cache: React cache() dedupes within a single render (e.g. between
-// generateMetadata and the page); unstable_cache persists across requests so
-// repeat visitors hit the Next.js memory cache instead of the DB. Cleared by
-// the products admin via revalidateTag('product-by-slug').
-const getProduct = cache((slug: string) =>
-  unstable_cache(
-    async (s: string) => {
-      const supabase = createPublicClient();
-      const { data: product, error } = await supabase
-        .from('products')
-        .select(PRODUCT_PUBLIC_COLUMNS_CSV)
-        .eq('slug', s)
-        .single();
-      return { product: product as Product | null, error };
-    },
-    ['product-by-slug', slug],
-    { revalidate: 60, tags: ['product-by-slug', `product:${slug}`] },
-  )(slug),
-);
+const getProduct = cache(async (slug: string) => {
+  if (!/^[a-zA-Z0-9_-]{1,100}$/.test(slug)) return { product: null, error: 'Product unavailable' };
+  const product = await boundedPublicRead(['product-by-slug', slug], ['product-by-slug', `product:${slug}`, 'storefront-products'], async () => {
+    const { data, error } = await createPublicClient().from('products').select(PRODUCT_PUBLIC_COLUMNS_CSV).eq('slug', slug).single();
+    return error ? null : data as unknown as Product | null;
+  }, { boundary: productCacheBoundary });
+  return { product, error: product ? null : 'Product unavailable' };
+});
 
 // Generate metadata for the page based on the product data
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -123,7 +112,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
   // Auth is treated as guest on any failure so a transient Supabase blip
   // doesn't take the public product page down with it.
   const [licenseValid, authResult] = await Promise.all([
-    checkFeature('watermark-removal'),
+    checkPublicFeature('watermark-removal'),
     (async () => {
       try {
         const c = await createClient();

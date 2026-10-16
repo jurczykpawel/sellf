@@ -1,3 +1,5 @@
+import type { ProductMarketingFields } from '@/lib/validations/product-marketing';
+
 export interface Product {
   id: string
   name: string
@@ -30,6 +32,7 @@ export interface Product {
   vat_exempt_note?: string | null
   // Structured features for product presentation
   features?: ProductFeature[] | null
+  marketing_fields?: ProductMarketingFields
   layout_template: string
   is_active: boolean
   is_featured: boolean

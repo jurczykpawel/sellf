@@ -1,0 +1,39 @@
+.page { max-width: 1120px; margin: auto; padding: 40px 32px 80px; color: var(--sf-text-body); }
+.page * { min-width: 0; }
+.page a, .page button, .page select { border-radius: 8px; }
+.page :is(a,button,select,summary):focus-visible { outline: 2px solid var(--sf-accent); outline-offset: 4px; }
+.back { color: var(--sf-text-muted); font-size: 14px; text-decoration: none; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 28px 0; }
+.header > .secondary { flex-shrink: 0; }
+.header h1 { font-size: 30px; line-height: 1.2; font-weight: 650; color: var(--sf-text-heading); margin: 0 0 10px; }
+.header p, .help { color: var(--sf-text-muted); font-size: 14px; line-height: 1.6; max-width: 68ch; }
+.revision { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; color: var(--sf-text-muted); }
+.revision strong { color: var(--sf-text-heading); background: var(--sf-bg-raised); padding: 4px 10px; border-radius: 6px; }
+.card { margin: 20px 0 32px; border: 1px solid var(--sf-border); background: var(--sf-bg-base); border-radius: 12px; padding: 24px; }
+.preview { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 24px; }
+.controls { display: flex; align-items: end; gap: 16px; flex-wrap: wrap; }
+.controls label { display: grid; gap: 6px; color: var(--sf-text-muted); font-size: 12px; font-weight: 500; }
+.controls select { padding: 8px 32px 8px 10px; border: 1px solid var(--sf-border); background: var(--sf-bg-input); color: var(--sf-text-body); font-size: 14px; min-height: 40px; }
+.primary, .secondary, .textButton { display: inline-flex; gap: 6px; justify-content: center; align-items: center; min-height: 40px; padding: 8px 14px; font-size: 13px; line-height: 1.4; text-decoration: none; cursor: pointer; white-space: nowrap; }
+.primary { background: var(--sf-accent); color: var(--sf-accent-fg); font-weight: 600; border: 1px solid transparent; }
+.secondary { background: var(--sf-bg-base); border: 1px solid var(--sf-border); color: var(--sf-text-body); }
+.textButton { background: transparent; border: 0; color: var(--color-sf-accent); }
+.page button:disabled { opacity: .5; cursor: wait; }
+.heading { font-size: 18px; font-weight: 600; color: var(--sf-text-heading); margin: 0 0 8px; }
+.list { list-style: none; padding: 0; margin: 20px 0 12px; border-top: 1px solid var(--sf-border); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 0; border-bottom: 1px solid var(--sf-border); }
+.entry { display: grid; gap: 5px; }
+.entry strong { font-weight: 550; color: var(--sf-text-heading); }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; color: var(--sf-text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.actions { display: flex; gap: 8px; }
+.status:empty { display: none; }
+.status { color: var(--color-sf-accent); margin: 16px 0; }
+.error { padding: 12px 16px; border-left: 3px solid var(--sf-accent); background: var(--sf-bg-raised); font-size: 14px; }
+.change { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--sf-border); }
+.change span { color: var(--sf-text-muted); font-size: 13px; }
+.change p { flex-basis: 100%; margin: 0; overflow-wrap: anywhere; }
+.technical { margin-top: 20px; font-size: 13px; }
+.technical summary { cursor: pointer; color: var(--sf-text-muted); padding: 8px 0; }
+.technical pre { padding: 16px; background: var(--sf-bg-raised); white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; border-radius: 8px; }
+@media (max-width: 640px) { .page { padding: 24px 20px 60px; } .header { align-items: start; gap: 12px; } .header > .secondary { flex-shrink: 0; }
+.header h1 { font-size: 25px; } .header .secondary { padding: 6px 10px; } .card { padding: 18px; } .preview { grid-template-columns: 1fr; gap: 18px; } .controls { gap: 12px; } .controls label:first-child { flex: 1; } .controls select { max-width: 100%; } .row { align-items: start; flex-direction: column; gap: 10px; } .actions { flex-wrap: wrap; gap: 4px; } .secondary, .textButton { white-space: normal; } }

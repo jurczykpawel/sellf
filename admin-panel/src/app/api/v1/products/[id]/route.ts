@@ -7,7 +7,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { revalidateTag } from 'next/cache';
+import { invalidatePublicProducts } from '@/lib/storefront-templates/invalidation';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -360,19 +360,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const result = warnings.length > 0
       ? { ...(baseResult as Record<string, unknown>), _warnings: warnings }
       : baseResult;
-    revalidateProductCaches(refreshedSlug);
+    invalidatePublicProducts(id, refreshedSlug, true);
     const status = warnings.length > 0 ? 207 : 200;
     return jsonResponse(successResponse(result), request, status);
   } catch (error) {
     return handleApiError(error, request);
   }
-}
-
-function revalidateProductCaches(slug?: string | null) {
-  // Drop the unstable_cache wrapping getProduct on /p/[slug] so the edit
-  // shows up on the next visit instead of waiting for the 60s revalidate.
-  revalidateTag('product-by-slug', { expire: 0 });
-  if (slug) revalidateTag(`product:${slug}`, { expire: 0 });
 }
 
 /**
@@ -427,7 +420,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to delete product');
     }
 
-    revalidateProductCaches(existingProduct.slug);
+    invalidatePublicProducts(id, existingProduct.slug, true);
 
     // Return 204 No Content on successful deletion
     return noContentResponse(request);

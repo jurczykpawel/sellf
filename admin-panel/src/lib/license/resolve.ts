@@ -50,7 +50,7 @@ function normalizeTier(value: unknown): Exclude<LicenseTier, 'free'> | null {
   return value === 'registered' || value === 'pro' || value === 'business' ? value : null;
 }
 
-function parseFallbackKeys(): SellfPublicKey[] {
+export function parseFallbackKeys(): SellfPublicKey[] {
   const raw = process.env.SELLF_JWKS_FALLBACK;
   if (!raw) return [];
   try {

@@ -6,6 +6,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { invalidatePublicProducts } from '@/lib/storefront-templates/invalidation';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -306,6 +307,8 @@ export async function POST(request: NextRequest) {
       console.error('[products.POST]', createError);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to create product');
     }
+
+    invalidatePublicProducts(product.id, product.slug, true);
 
     if (product && categories && categories.length > 0) {
       const { error: catError } = await supabase

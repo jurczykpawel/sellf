@@ -9,7 +9,7 @@ import { ALL_SCOPES } from '@/lib/api/scope-constants';
 
 const MIGRATION_PATH = path.resolve(
   __dirname,
-  '../../../../../supabase/migrations/20260525140000_expand_api_key_wildcard_scopes.sql',
+  '../../../../../supabase/migrations/20261015201528_storefront_templates_phase1.sql',
 );
 
 function extractScopesFromMigration(sql: string): string[] {

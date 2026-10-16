@@ -1,16 +1,19 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { Product } from '@/types';
+import DashboardLayout from '@/components/DashboardLayout';
+import type { ReactNode } from 'react';
+import type { Product } from '@/types';
+import type { ShopConfig } from '@/lib/actions/shop-config';
 import AdminOnboardingCTA from './AdminOnboardingCTA';
 import ComingSoonEmptyState from './ComingSoonEmptyState';
 import Storefront from './Storefront';
-import DashboardLayout from '@/components/DashboardLayout';
-import type { ShopConfig } from '@/lib/actions/shop-config';
 
 interface SmartLandingClientProps {
   hasProducts: boolean;
-  products: Product[];
+  products?: Product[];
+  children?: ReactNode;
+  templateId?: 'default' | 'd';
   shopConfig: ShopConfig | null;
   /** Override product link prefix. Default: '/p'. For seller storefronts: '/s/seller-slug' */
   productLinkPrefix?: string;
@@ -18,20 +21,13 @@ interface SmartLandingClientProps {
 
 export default function SmartLandingClient({
   hasProducts,
-  products,
+  products = [],
+  children,
+  templateId,
   shopConfig,
   productLinkPrefix,
 }: SmartLandingClientProps) {
-  const { user, isAdmin, loading } = useAuth();
-
-  // Show loading spinner while auth is loading
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-sf-deep flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sf-accent"></div>
-      </div>
-    );
-  }
+  const { user, isAdmin } = useAuth();
 
   const shopName = shopConfig?.shop_name || 'Sellf';
   const contactEmail = shopConfig?.contact_email || null;
@@ -70,15 +66,15 @@ export default function SmartLandingClient({
   );
 
   return (
-    <DashboardLayout user={user ? { email: user.email || '', id: user.id || '' } : null} shopConfig={shopConfig}>
-      <Storefront
+    <DashboardLayout storefrontTemplate={templateId} user={user ? { email: user.email || '', id: user.id || '' } : null} shopConfig={shopConfig}>
+      {children ?? <Storefront
         products={products}
         shopName={shopName}
         featuredProducts={featuredProducts}
         freeProducts={freeProducts}
         paidProducts={paidProducts}
         productLinkPrefix={productLinkPrefix}
-      />
+      />}
     </DashboardLayout>
   );
 }

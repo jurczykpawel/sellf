@@ -1574,6 +1574,7 @@ export type Database = {
           license_duration_days: number | null
           license_tier: string | null
           long_description: string | null
+          marketing_fields: Json
           name: string
           omnibus_exempt: boolean
           pass_params_to_redirect: boolean
@@ -1633,6 +1634,7 @@ export type Database = {
           license_duration_days?: number | null
           license_tier?: string | null
           long_description?: string | null
+          marketing_fields?: Json
           name: string
           omnibus_exempt?: boolean
           pass_params_to_redirect?: boolean
@@ -1692,6 +1694,7 @@ export type Database = {
           license_duration_days?: number | null
           license_tier?: string | null
           long_description?: string | null
+          marketing_fields?: Json
           name?: string
           omnibus_exempt?: boolean
           pass_params_to_redirect?: boolean
@@ -2191,6 +2194,100 @@ export type Database = {
           vat_exempt_note?: string | null
         }
         Relationships: []
+      }
+      storefront_config: {
+        Row: {
+          draft: Json | null
+          id: boolean
+          published: Json
+          revision: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          draft?: Json | null
+          id?: boolean
+          published: Json
+          revision?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          draft?: Json | null
+          id?: boolean
+          published?: Json
+          revision?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storefront_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "storefront_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      storefront_config_history: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          draft: Json | null
+          operation: string
+          published: Json
+          restored_from: number | null
+          revision: number
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          draft?: Json | null
+          operation: string
+          published: Json
+          restored_from?: number | null
+          revision: number
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          draft?: Json | null
+          operation?: string
+          published?: Json
+          restored_from?: number | null
+          revision?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storefront_config_history_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "storefront_config_history_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "storefront_config_history_restored_from_fkey"
+            columns: ["restored_from"]
+            isOneToOne: false
+            referencedRelation: "storefront_config_history"
+            referencedColumns: ["revision"]
+          },
+        ]
       }
       stripe_configurations: {
         Row: {
@@ -3474,6 +3571,7 @@ export type Database = {
           license_duration_days: number | null
           license_tier: string | null
           long_description: string | null
+          marketing_fields: Json
           name: string
           omnibus_exempt: boolean
           pass_params_to_redirect: boolean
@@ -3507,6 +3605,19 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      mutate_storefront_config: {
+        Args: {
+          actor_api_key_id?: string
+          actor_method?: string
+          actor_user_id?: string
+          expected_revision: number
+          legacy_source?: Json
+          operation: string
+          restored_from?: number
+          validated_config: Json
+        }
+        Returns: Json
       }
       pending_free_grant_products: {
         Args: never
@@ -3592,6 +3703,29 @@ export type Database = {
         Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
         Returns: undefined
       }
+      storefront_catalogue_boundary: { Args: never; Returns: string }
+      storefront_catalogue_categories: {
+        Args: { category_ids: string[] }
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
+      storefront_catalogue_page: {
+        Args: {
+          after_created?: string
+          after_id?: string
+          filters?: Json
+          product_ids?: string[]
+        }
+        Returns: Json[]
+      }
+      storefront_config_schema: { Args: never; Returns: Json }
+      storefront_config_stored_bytes: {
+        Args: { config: Json }
+        Returns: number
+      }
+      storefront_config_valid: { Args: { config: Json }; Returns: boolean }
       telemetry_claim_send: {
         Args: { p_lease_ms: number; p_window_ms: number }
         Returns: {

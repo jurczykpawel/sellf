@@ -40,6 +40,7 @@ export const SCOPE_PRESETS = {
     API_SCOPES.PAYMENTS_READ,
     API_SCOPES.WEBHOOKS_READ,
     API_SCOPES.REFUND_REQUESTS_READ,
+    API_SCOPES.TEMPLATES_READ,
     API_SCOPES.SYSTEM_READ,
   ],
 
@@ -133,7 +134,7 @@ export function hasScope(keyScopes: string[], requiredScope: ApiScope): boolean 
   }
 
   // Write permission implies read permission (e.g., products:write ⇒ products:read)
-  if (requiredScope.endsWith(':read')) {
+  if (requiredScope.endsWith(':read') && !requiredScope.startsWith('templates:')) {
     const writeScope = requiredScope.replace(':read', ':write');
     if (keyScopes.includes(writeScope)) {
       return true;
@@ -277,6 +278,9 @@ export function getScopeDescription(scope: ApiScope): string {
     [API_SCOPES.INTEGRATIONS_WRITE]: 'Manage integrations configuration',
     [API_SCOPES.REFUND_REQUESTS_READ]: 'View refund requests',
     [API_SCOPES.REFUND_REQUESTS_WRITE]: 'Process refund requests',
+    [API_SCOPES.TEMPLATES_READ]: 'View template configuration',
+    [API_SCOPES.TEMPLATES_WRITE]: 'Edit template drafts',
+    [API_SCOPES.TEMPLATES_ACTIVATE]: 'Publish and restore templates',
     [API_SCOPES.SYSTEM_READ]: 'View system configuration',
     [API_SCOPES.SYSTEM_WRITE]: 'Trigger system operations (upgrade)',
   };

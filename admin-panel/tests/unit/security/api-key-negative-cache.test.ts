@@ -2,13 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const rpcMock = vi.fn();
+const fromMock = vi.fn();
 const rateLimitMock = vi.fn().mockResolvedValue(true);
 
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: vi.fn(() => ({})),
   createPlatformClient: vi.fn(() => ({
     rpc: rpcMock,
-    from: vi.fn(),
+    from: fromMock,
   })),
 }));
 
@@ -29,7 +30,8 @@ vi.mock('@/lib/rate-limiting', () => ({
   getRateLimitIdentifier: vi.fn(),
 }));
 
-import { authenticate, _resetApiKeyAuthCacheForTests } from '@/lib/api/middleware';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { authenticate, authenticateApiKeyPrincipal, _resetApiKeyAuthCacheForTests } from '@/lib/api/middleware';
 
 function makeKey(seed: string): string {
   // sf_test_ + 64 hex chars (matches parseApiKeyFromHeader format requirement)
@@ -102,5 +104,30 @@ describe('API key auth — invalid-hash negative cache', () => {
     const req = makeRequestWithKey(makeKey('eeeeeeeeeeeeeeeeeeee'));
     await expect(authenticate(req)).rejects.toMatchObject({ code: 'RATE_LIMITED' });
     expect(rpcMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('API key identity bootstrap', () => {
+  beforeEach(() => {
+    vi.mocked(createAdminClient).mockClear();
+    _resetApiKeyAuthCacheForTests();
+    rateLimitMock.mockResolvedValue(true);
+    rpcMock.mockResolvedValue({ data: [{ is_valid: true, key_id: 'key-id', admin_user_id: 'admin-id', scopes: ['templates:write'], rate_limit_per_minute: 60 }], error: null });
+    const query = { select: vi.fn(), eq: vi.fn(), update: vi.fn(), single: vi.fn().mockResolvedValue({ data: { id: 'admin-id', user_id: 'user-id', name: 'Template draft key' }, error: null }) };
+    for (const method of [query.select, query.eq, query.update]) method.mockReturnValue(query);
+    fromMock.mockReturnValue(query);
+  });
+  it('resolves identity and scopes without a mutation client', async () => {
+    const auth = await authenticateApiKeyPrincipal(makeRequestWithKey(makeKey('a1')));
+    expect(auth).toMatchObject({ method: 'api_key', admin: { userId: 'user-id' }, scopes: ['templates:write'] });
+    expect(auth).not.toHaveProperty('supabase');
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+  it('creates the data client only after required API-key scopes pass', async () => {
+    const request = makeRequestWithKey(makeKey('a2'));
+    await expect(authenticate(request, ['templates:activate'])).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(createAdminClient).not.toHaveBeenCalled();
+    expect(await authenticate(request, ['templates:write'])).toHaveProperty('supabase');
+    expect(createAdminClient).toHaveBeenCalledTimes(1);
   });
 });

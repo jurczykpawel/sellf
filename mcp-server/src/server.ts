@@ -12,6 +12,7 @@ import { registerPaymentsTools } from './tools/payments.js';
 import { registerCouponsTools } from './tools/coupons.js';
 import { registerAnalyticsTools } from './tools/analytics.js';
 import { registerWebhooksTools } from './tools/webhooks.js';
+import { registerTemplatesTools } from './tools/templates.js';
 import { registerSystemTools } from './tools/system.js';
 import { registerResources } from './resources/index.js';
 import { registerPrompts } from './prompts/index.js';
@@ -50,6 +51,7 @@ export function createServer(config: ServerConfig): McpServer {
   registerAnalyticsTools(server);
   registerWebhooksTools(server);
   registerSystemTools(server);
+  registerTemplatesTools(server);
 
   // Register resources
   registerResources(server);

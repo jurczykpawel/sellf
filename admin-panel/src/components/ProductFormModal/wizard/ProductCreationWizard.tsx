@@ -138,7 +138,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     const keys = Object.keys(fieldErrors);
     const step1Keys = ['name', 'slug', 'price', 'recurring_price', 'vat_rate'];
     if (keys.some(key => step1Keys.includes(key))) setCurrentStep(1);
-    else if (keys.includes('description')) setCurrentStep(2);
+    else if (keys.includes('description') || keys.includes('marketing_fields')) setCurrentStep(2);
   }
 
   // Trigger the form submit via the hook's handleSubmit
