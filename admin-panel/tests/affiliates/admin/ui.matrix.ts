@@ -25,3 +25,20 @@ for (const locale of ['en', 'pl'] as const) for (const width of [1440, 390]) for
     if (view === 'admin') { await page.getByText(affiliateAdminMessages[locale].settings, { exact: true }).click(); await page.screenshot({ path: `/tmp/a1-2-settings-${locale}-${width}.png`, fullPage: true }); }
   });
 }
+
+for (const locale of ['en', 'pl'] as const) for (const status of ['pending', 'approved', 'suspended']) {
+  test(`status actions ${locale}/${status}`, async ({ page }) => {
+    const t = affiliateAdminMessages[locale];
+    await page.goto(`/tests/affiliates/admin/harness.html?locale=${locale}&theme=light&status=${status}`);
+    const card = page.getByRole('article', { name: 'Partner A' });
+    const visible = status === 'pending' ? [t.approved, t.rejected] : status === 'approved' ? [t.suspended, t.terminated] : [t.restore, t.terminated];
+    for (const name of [t.approved, t.rejected, t.suspended, t.terminated, t.restore]) await expect(card.getByRole('button', { name, exact: true })).toHaveCount(visible.includes(name) ? 1 : 0);
+    await expect(card.getByLabel(t.reason)).toHaveCount(0);
+    const action = status === 'pending' ? t.rejected : t.terminated;
+    await card.getByRole('button', { name: action, exact: true }).click();
+    await expect(card.getByLabel(t.reason)).toBeFocused();
+    await card.getByRole('button', { name: t.cancel }).click();
+    await expect(card.getByLabel(t.reason)).toHaveCount(0);
+    await expect(card.getByRole('button', { name: action, exact: true })).toBeFocused();
+  });
+}

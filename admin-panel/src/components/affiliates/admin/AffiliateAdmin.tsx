@@ -1,7 +1,7 @@
 'use client';
 
 /** Standalone seller forms; session actions own authorization. @see admin/actions.ts */
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Check, ChevronDown, Plus, Users, X } from 'lucide-react';
 import { applyToProgram, getAcceptedTerms, getAdminOverview, updateMember, updateProgram } from '@/lib/affiliates/admin/actions';
 import { applicationSchema, memberUpdateSchema, programUpdateSchema } from '@/lib/affiliates/admin/contracts';
@@ -82,8 +82,13 @@ export function AffiliateAdmin({ initial, locale }: { initial: AdminOverview; lo
 }
 function MemberDecision({ member, locale, onSaved }: { member: MemberInfo; locale: AffiliateAdminLocale; onSaved: (member: MemberInfo) => void }) {
   const t = affiliateAdminMessages[locale]; const [busy, setBusy] = useState(false); const [reason, setReason] = useState(''); const [notice, setNotice] = useState(''); const [error, setError] = useState(false); const [terms, setTerms] = useState<TermsInfo>();
+  const [decision, setDecision] = useState<string | null>(null);
+  const reasonInput = useRef<HTMLInputElement>(null), actionGroup = useRef<HTMLDivElement>(null), lastAction = useRef('');
+  const validActions = member.status === 'pending' ? ['approved', 'rejected'] : member.status === 'approved' ? ['suspended', 'terminated'] : member.status === 'suspended' ? ['approved', 'terminated'] : [];
+  const actionLabel = (status: string): string => status === 'approved' && member.status === 'suspended' ? t.restore : t[status as 'approved' | 'rejected' | 'suspended' | 'terminated'];
+  useEffect(() => { if (decision) reasonInput.current?.focus(); else actionGroup.current?.querySelector<HTMLButtonElement>(`[data-status="${lastAction.current}"]`)?.focus(); }, [decision]);
   async function decide(status: string) {
-    const parsed = memberUpdateSchema.safeParse({ member_id: member.id, version: member.version, status, reason: reason || (status === 'approved' ? t.approvalReason : '') });
+    const parsed = memberUpdateSchema.safeParse({ member_id: member.id, version: member.version, status, reason: status === 'approved' ? (member.status === 'suspended' ? t.restoreReason : t.approvalReason) : reason });
     if (!parsed.success) { setNotice(t.reasonRequired); setError(true); return; }
     setBusy(true);
     try { const result = await updateMember(parsed.data); setNotice(message(result, t)); setError(!result.success); if (result.success && result.data) onSaved(result.data); }
@@ -97,7 +102,10 @@ function MemberDecision({ member, locale, onSaved }: { member: MemberInfo; local
   return <article aria-label={member.display_name} className="grid min-w-0 gap-4 rounded-xl border border-sf-border bg-sf-raised p-5">
     <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h3 className="break-words text-lg font-semibold">{member.display_name}</h3><p className="mt-1 text-sm text-sf-body">{t.code}: <span className="font-medium">{member.code}</span></p></div><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${member.status === 'approved' ? 'bg-sf-success-soft' : 'bg-sf-hover'}`}>{statusLabel(member.status, t)}</span></div>
     {member.channel && <p className="text-sm text-sf-body [overflow-wrap:anywhere]">{member.channel}</p>}
-    <div className="grid min-w-0 items-end gap-3 lg:grid-cols-[1fr_auto]"><div><Field label={t.reason}><input className={fieldClass} value={reason} maxLength={200} onChange={event => setReason(event.target.value)} /></Field><p className="mt-1 text-xs text-sf-body">{t.reasonHint}</p></div><div className="flex flex-wrap gap-2">{(['approved', 'rejected', 'suspended', 'terminated'] as const).filter(status => status !== member.status).map(status => <button key={status} type="button" className={status === 'approved' ? primaryClass : buttonClass} disabled={busy} onClick={() => void decide(status)}>{status === 'approved' && <Check size={16} aria-hidden="true" />}{t[status]}</button>)}</div></div>
+    {decision ? <form className="grid min-w-0 items-end gap-3 lg:grid-cols-[1fr_auto]" onSubmit={event => { event.preventDefault(); void decide(decision); }}>
+      <Field label={t.reason}><input ref={reasonInput} className={fieldClass} value={reason} required maxLength={200} onChange={event => setReason(event.target.value)} /></Field>
+      <div className="flex flex-wrap gap-2"><button className={primaryClass} disabled={busy}>{actionLabel(decision)}</button><button type="button" className={buttonClass} disabled={busy} onClick={() => { setDecision(null); setReason(''); setNotice(''); }}>{t.cancel}</button></div>
+    </form> : <div ref={actionGroup} className="flex flex-wrap gap-2">{validActions.map(status => <button key={status} data-status={status} type="button" className={status === 'approved' ? primaryClass : buttonClass} disabled={busy} onClick={() => { if (status === 'approved') void decide(status); else { lastAction.current = status; setReason(''); setNotice(''); setDecision(status); } }}>{status === 'approved' && <Check size={16} aria-hidden="true" />}{actionLabel(status)}</button>)}</div>}
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-sf-border pt-3 text-xs text-sf-body"><time dateTime={member.accepted_at}>{new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(member.accepted_at))}</time><button type="button" className="cursor-pointer rounded text-sm font-medium text-sf-accent underline-offset-4 hover:underline focus-visible:outline-2" disabled={busy} onClick={() => void history()}>{t.history}</button></div>
     {terms && <div className="rounded-lg bg-sf-base p-3"><p className="mb-2 text-xs text-sf-body">{t.termsVersion}: {terms.terms_version}</p><p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{terms.terms[locale]}</p></div>}<Notice value={notice} error={error} />
   </article>;

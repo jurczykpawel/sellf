@@ -29,7 +29,8 @@ it.each(['en', 'pl'] as const)('submits program and manual decisions with versio
   const t = affiliateAdminMessages[locale]; render(<AffiliateAdmin locale={locale} initial={{ program, members: [member], next_cursor: null }} />);
   fireEvent.click(screen.getByText(t.settings));
   fireEvent.click(screen.getByRole('button', { name: t.save })); await waitFor(() => expect(actions.updateProgram).toHaveBeenCalledWith(expect.objectContaining({ version: '1', thresholds: { PLN: '10000' } })));
-  fireEvent.change(screen.getByLabelText(t.reason), { target: { value: 'Reviewed' } }); fireEvent.click(screen.getByRole('button', { name: t.approved })); await waitFor(() => expect(actions.updateMember).toHaveBeenCalledWith({ member_id: member.id, version: '1', status: 'approved', reason: 'Reviewed' }));
+  fireEvent.click(screen.getByRole('button', { name: t.rejected }));
+  fireEvent.change(screen.getByLabelText(t.reason), { target: { value: 'Reviewed' } }); fireEvent.click(screen.getByRole('button', { name: t.rejected })); await waitFor(() => expect(actions.updateMember).toHaveBeenCalledWith({ member_id: member.id, version: '1', status: 'rejected', reason: 'Reviewed' }));
   actions.getAcceptedTerms.mockResolvedValue({ success: true, data: { terms_version: 'v1', terms: program.terms } }); fireEvent.click(screen.getByRole('button', { name: t.history })); expect(await screen.findByText(program.terms[locale])).toBeTruthy();
   expect(document.querySelector('script')).toBeNull(); expect(screen.getByText(member.channel)).toBeTruthy();
 });
@@ -43,4 +44,30 @@ it('invalid thresholds and blank reason never call server actions', async () => 
 it('approves a reviewed application in one click with an explicit audit reason', async () => {
   const t = affiliateAdminMessages.en; render(<AffiliateAdmin locale="en" initial={{ program, members: [member], next_cursor: null }} />);
   fireEvent.click(screen.getByRole('button', { name: t.approved })); await waitFor(() => expect(actions.updateMember).toHaveBeenCalledWith(expect.objectContaining({ reason: t.approvalReason })));
+});
+
+it.each(['en', 'pl'] as const)('shows only current-status actions and reveals a reason on demand %s', async locale => {
+  const t = affiliateAdminMessages[locale];
+  for (const [status, visible, hidden] of [
+    ['pending', [t.approved, t.rejected], [t.suspended, t.terminated, t.restore]],
+    ['approved', [t.suspended, t.terminated], [t.approved, t.rejected, t.restore]],
+    ['suspended', [t.restore, t.terminated], [t.approved, t.rejected, t.suspended]],
+    ['rejected', [], [t.approved, t.rejected, t.suspended, t.terminated, t.restore]],
+    ['terminated', [], [t.approved, t.rejected, t.suspended, t.terminated, t.restore]],
+  ] as const) {
+    const view = render(<AffiliateAdmin locale={locale} initial={{ program, members: [{ ...member, status }], next_cursor: null }} />);
+    for (const name of visible) expect(screen.getByRole('button', { name, exact: true })).toBeTruthy();
+    for (const name of hidden) expect(screen.queryByRole('button', { name, exact: true })).toBeNull();
+    expect(screen.queryByLabelText(t.reason)).toBeNull();
+    if (status === 'pending' || status === 'approved' || status === 'suspended') {
+      fireEvent.click(screen.getByRole('button', { name: status === 'pending' ? t.rejected : t.terminated }));
+      expect(screen.getByLabelText(t.reason)).toBeTruthy(); expect(actions.updateMember).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: t.cancel })); expect(screen.queryByLabelText(t.reason)).toBeNull();
+    }
+    view.unmount();
+  }
+});
+it('restores a suspended partner with a distinct audit reason in one click', async () => {
+  const t = affiliateAdminMessages.en; render(<AffiliateAdmin locale="en" initial={{ program, members: [{ ...member, status: 'suspended' }], next_cursor: null }} />);
+  fireEvent.click(screen.getByRole('button', { name: t.restore })); await waitFor(() => expect(actions.updateMember).toHaveBeenCalledWith(expect.objectContaining({ status: 'approved', reason: t.restoreReason })));
 });
