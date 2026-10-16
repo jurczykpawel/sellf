@@ -9,10 +9,12 @@ import PaymentsDashboard from '@/components/admin/PaymentsDashboard';
 const mocks = vi.hoisted(() => ({
   fetchPage: vi.fn(),
   fetchPaymentsPage: vi.fn(),
-  translate: (key: string) => key,
 }));
 
-vi.mock('next-intl', () => ({ useTranslations: () => mocks.translate }));
+vi.mock('next-intl', async (importOriginal) => {
+  const { createNextIntlMock } = await import('@/../tests/mocks/next-intl');
+  return createNextIntlMock(await importOriginal<typeof import('next-intl')>());
+});
 vi.mock('@/lib/coupons/fetch-coupons-page', () => ({ fetchCouponsPage: mocks.fetchPage }));
 vi.mock('@/hooks/useProducts', () => ({ fetchAllProductsForDropdown: async () => [] }));
 vi.mock('@/lib/api/client', () => ({

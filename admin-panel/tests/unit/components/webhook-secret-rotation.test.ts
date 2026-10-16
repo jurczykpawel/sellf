@@ -6,7 +6,10 @@ import WebhookSecretRotation from '@/components/webhooks/WebhookSecretRotation';
 
 const mocks = vi.hoisted(() => ({ post: vi.fn() }));
 vi.mock('@/lib/api/client', () => ({ api: { postCustom: mocks.post } }));
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
+vi.mock('next-intl', async (importOriginal) => {
+  const { createNextIntlMock } = await import('@/../tests/mocks/next-intl');
+  return createNextIntlMock(await importOriginal<typeof import('next-intl')>());
+});
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 describe('WebhookSecretRotation', () => {

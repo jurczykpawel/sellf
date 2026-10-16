@@ -9,7 +9,10 @@ import SystemUpdateSettings from '@/components/settings/SystemUpdateSettings';
 import UpdateNotificationModal from '@/components/UpdateNotificationModal';
 import type { UpdateInfo } from '@/hooks/useUpdateCheck';
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
+vi.mock('next-intl', async (importOriginal) => {
+  const { createNextIntlMock } = await import('@/../tests/mocks/next-intl');
+  return createNextIntlMock(await importOriginal<typeof import('next-intl')>());
+});
 
 const fetchMock = vi.fn();
 const fresh: UpdateInfo = {

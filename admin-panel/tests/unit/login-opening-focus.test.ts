@@ -9,7 +9,10 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
   useSearchParams: () => new URLSearchParams('error=magic_link_expired'),
 }));
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
+vi.mock('next-intl', async (importOriginal) => {
+  const { createNextIntlMock } = await import('@/../tests/mocks/next-intl');
+  return createNextIntlMock(await importOriginal<typeof import('next-intl')>());
+});
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, loading: false }) }));
 vi.mock('@/components/providers/config-provider', () => ({ useConfig: () => ({ demoMode: false }) }));
 vi.mock('@/components/SiteMenu', () => ({ default: () => null }));
