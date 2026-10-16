@@ -472,12 +472,19 @@ BEGIN
  RETURN result;
 END $$;
 
-CREATE FUNCTION public.affiliate_lock_member(p_member uuid,p_currency text) RETURNS void
+CREATE FUNCTION public.affiliate_lock_member(p_member uuid,p_currency text,p_payments uuid[] DEFAULT '{}') RETURNS uuid[]
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE locked uuid[];
 BEGIN
- PERFORM pt.id FROM public.payment_transactions pt WHERE EXISTS(SELECT 1 FROM public.affiliate_commissions c
-  WHERE c.payment_id=pt.id AND c.member_id=p_member AND c.currency=p_currency) ORDER BY pt.id FOR UPDATE;
+ SELECT coalesce(array_agg(id),'{}'::uuid[]) INTO locked FROM (
+  SELECT pt.id FROM public.payment_transactions pt WHERE pt.id=ANY(p_payments)
+   OR EXISTS(SELECT 1 FROM public.affiliate_commissions c JOIN public.affiliate_work w ON w.payment_id=c.payment_id
+    WHERE c.payment_id=pt.id AND c.member_id=p_member AND c.currency=p_currency AND c.livemode
+     AND w.requested_generation>w.processed_generation)
+  ORDER BY pt.id FOR UPDATE
+ ) payments;
  PERFORM pg_advisory_xact_lock(hashtextextended(p_member::text||p_currency,0));
+ RETURN locked;
 END $$;
 CREATE FUNCTION public.affiliate_preview(p_member uuid,p_currency text,p_cutoff timestamptz)
 RETURNS TABLE(member_version text,program_version text,earnings_minor text,debt_offset_minor text,payable_minor text,
@@ -595,10 +602,14 @@ GRANT EXECUTE ON FUNCTION public.affiliate_portal_summary(uuid,timestamptz) TO s
 
 CREATE FUNCTION public.affiliate_reserve(p_actor uuid,p_member uuid,p_currency text,p_cutoff timestamptz,p_member_version bigint,p_program_version bigint,p_payee_reference text)
 RETURNS public.affiliate_payouts LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-DECLARE m public.affiliate_memberships; prog public.affiliate_programs; result public.affiliate_payouts; preview record;
+DECLARE m public.affiliate_memberships; prog public.affiliate_programs; result public.affiliate_payouts; preview record; locked uuid[];
 BEGIN
  PERFORM public.affiliate_admin(p_actor);
- PERFORM public.affiliate_lock_member(p_member,p_currency);
+ SELECT * INTO preview FROM public.affiliate_preview(p_member,p_currency,p_cutoff);
+ locked:=public.affiliate_lock_member(p_member,p_currency,ARRAY(
+  SELECT DISTINCT c.payment_id FROM public.affiliate_ledger l JOIN public.affiliate_commissions c ON c.id=l.commission_id
+   WHERE l.id=ANY(preview.entry_ids)));
+
  SELECT * INTO m FROM public.affiliate_memberships WHERE id=p_member FOR SHARE;
  SELECT * INTO prog FROM public.affiliate_programs FOR SHARE;
  IF m.id IS NULL OR m.version IS DISTINCT FROM p_member_version OR prog.version IS DISTINCT FROM p_program_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
@@ -606,7 +617,8 @@ BEGIN
   OR p_cutoff IS NULL OR p_cutoff>now() OR NOT(prog.thresholds ? p_currency) THEN
   RAISE EXCEPTION 'Payout unavailable' USING ERRCODE='22023'; END IF;
  SELECT * INTO preview FROM public.affiliate_preview(p_member,p_currency,p_cutoff);
- IF preview.sync_required THEN RAISE EXCEPTION 'Sync required' USING ERRCODE='PT409'; END IF;
+ IF preview.sync_required OR EXISTS(SELECT 1 FROM public.affiliate_ledger l JOIN public.affiliate_commissions c ON c.id=l.commission_id
+  WHERE l.id=ANY(preview.entry_ids) AND NOT(c.payment_id=ANY(locked))) THEN RAISE EXCEPTION 'Sync required' USING ERRCODE='PT409'; END IF;
  IF NOT preview.available THEN RAISE EXCEPTION 'Threshold not met' USING ERRCODE='22023'; END IF;
  INSERT INTO public.affiliate_payouts(member_id,currency,earnings_minor,status,cutoff,payee_reference)
   VALUES(p_member,p_currency,preview.payable_minor::bigint,'reserved',p_cutoff,p_payee_reference) RETURNING * INTO result;
@@ -621,7 +633,9 @@ DECLARE old public.affiliate_payouts; result public.affiliate_payouts;
 BEGIN
  PERFORM public.affiliate_admin(p_actor);
  SELECT * INTO old FROM public.affiliate_payouts WHERE id=p_payout;
- PERFORM public.affiliate_lock_member(old.member_id,old.currency);
+ PERFORM public.affiliate_lock_member(old.member_id,old.currency,ARRAY(
+  SELECT DISTINCT c.payment_id FROM public.affiliate_payout_allocations a JOIN public.affiliate_ledger l ON l.id=a.entry_id
+   JOIN public.affiliate_commissions c ON c.id=l.commission_id WHERE a.payout_id=old.id AND a.released_at IS NULL));
  SELECT * INTO old FROM public.affiliate_payouts WHERE id=p_payout FOR UPDATE;
  IF old.status='paid' AND old.bank_reference=p_bank_reference AND old.invoice_reference=p_invoice_reference
   AND old.bank_amount_minor=p_bank_amount_minor AND old.currency=p_currency AND old.paid_at=p_paid_at AND p_full_settlement THEN RETURN old; END IF;
@@ -644,7 +658,9 @@ DECLARE old public.affiliate_payouts; result public.affiliate_payouts;
 BEGIN
  PERFORM public.affiliate_admin(p_actor);
  SELECT * INTO old FROM public.affiliate_payouts WHERE id=p_payout;
- PERFORM public.affiliate_lock_member(old.member_id,old.currency);
+ PERFORM public.affiliate_lock_member(old.member_id,old.currency,ARRAY(
+  SELECT DISTINCT c.payment_id FROM public.affiliate_payout_allocations a JOIN public.affiliate_ledger l ON l.id=a.entry_id
+   JOIN public.affiliate_commissions c ON c.id=l.commission_id WHERE a.payout_id=old.id AND a.released_at IS NULL));
  SELECT * INTO old FROM public.affiliate_payouts WHERE id=p_payout FOR UPDATE;
  IF old.id IS NULL OR old.version IS DISTINCT FROM p_expected_version OR old.status<>'reserved' THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
  IF p_no_transfer IS DISTINCT FROM true OR NOT public.affiliate_valid_reference(p_reason) THEN RAISE EXCEPTION 'Confirmation required' USING ERRCODE='22023'; END IF;
@@ -659,7 +675,7 @@ DECLARE c public.affiliate_commissions; result public.affiliate_ledger; total nu
 BEGIN
  PERFORM public.affiliate_admin(p_actor);
  SELECT * INTO c FROM public.affiliate_commissions WHERE id=p_commission;
- PERFORM public.affiliate_lock_member(c.member_id,c.currency);
+ PERFORM public.affiliate_lock_member(c.member_id,c.currency,ARRAY[c.payment_id]);
  SELECT * INTO c FROM public.affiliate_commissions WHERE id=p_commission FOR UPDATE;
  IF c.id IS NULL OR c.version IS DISTINCT FROM p_expected_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
  IF p_amount_minor IS NULL OR p_amount_minor=0 OR NOT public.affiliate_valid_reference(p_reason) OR NOT public.affiliate_valid_reference(p_evidence_reference) THEN
@@ -806,7 +822,7 @@ GRANT EXECUTE ON FUNCTION public.affiliate_rule_create(uuid,uuid,integer,boolean
 REVOKE EXECUTE ON FUNCTION public.affiliate_coupon_bind(uuid,uuid,uuid,bigint) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.affiliate_coupon_bind(uuid,uuid,uuid,bigint) TO service_role;
 
-REVOKE EXECUTE ON FUNCTION public.affiliate_lock_member(uuid,text) FROM PUBLIC,anon,authenticated,service_role;
+REVOKE EXECUTE ON FUNCTION public.affiliate_lock_member(uuid,text,uuid[]) FROM PUBLIC,anon,authenticated,service_role;
 
 REVOKE EXECUTE ON FUNCTION public.affiliate_reserve(uuid,uuid,text,timestamptz,bigint,bigint,text) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.affiliate_reserve(uuid,uuid,text,timestamptz,bigint,bigint,text) TO service_role;
