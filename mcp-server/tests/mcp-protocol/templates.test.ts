@@ -29,16 +29,16 @@ afterEach(async () => {
 });
 
 describe('template MCP contract', () => {
-  it('discovers nine independent scope wrappers and strict envelopes', async () => {
+  it('discovers eleven independent scope wrappers and strict envelopes', async () => {
     const { tools } = await client.listTools();
-    const expected = { read: 'read', capabilities: 'read', draft: 'write', validate: 'read', preview: 'read', diff: 'read', publish: 'activate', rollback: 'activate', reset: 'write' };
+    const expected = { read: 'read', capabilities: 'read', draft: 'write', validate: 'read', preview: 'read', diff: 'read', publish: 'activate', rollback: 'activate', reset: 'write', license_activate: 'write', license_status: 'read' };
     for (const [name, scope] of Object.entries(expected)) {
       const tool = tools.find(t => t.name === `templates_${name}`)!;
       expect(tool, name).toBeDefined();
       expect(tool.description).toContain(`templates:${scope}`);
       expect(tool.inputSchema.additionalProperties).toBe(false);
     }
-    expect(tools.filter(t => t.name.startsWith('templates_'))).toHaveLength(9);
+    expect(tools.filter(t => t.name.startsWith('templates_'))).toHaveLength(11);
   });
 
   it('forwards exact revisions, typed evidence and top-level bodies throughout authoring', async () => {
@@ -138,4 +138,14 @@ describe('template MCP contract', () => {
     expect(result.isError).toBe(true);
     expect(textBody(result)).toEqual({ code: 'UNAVAILABLE', message: 'Template API unavailable', validation: null, currentRevision: null });
   });
+});
+
+it('saves keys and reads status through independent private endpoints', async () => {
+  const status = { templateId: 'storefront-a', state: 'unknown', verifiedAt: null };
+  reply(status);
+  expect((await call('license_activate', { templateId: 'storefront-a', token: 'synthetic-private-key' })).structuredContent).toEqual(status);
+  expect(fetchMock.mock.calls.at(-1)).toMatchObject(['http://localhost:55436/api/v1/templates/licenses', { method: 'POST', body: JSON.stringify({ templateId: 'storefront-a', token: 'synthetic-private-key' }) }]);
+  reply({ statuses: [status] });
+  expect((await call('license_status')).structuredContent).toEqual({ statuses: [status] });
+  expect(fetchMock.mock.calls.at(-1)).toMatchObject(['http://localhost:55436/api/v1/templates/licenses', { method: 'GET' }]);
 });

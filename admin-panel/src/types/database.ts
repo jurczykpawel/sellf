@@ -3616,6 +3616,17 @@ export type Database = {
         Args: { p_email: string; p_product_slug: string }
         Returns: boolean
       }
+      record_template_credential_status: {
+        Args: {
+          checked_at: string
+          expected_iv: string
+          expected_key: string
+          expected_tag: string
+          template_id: string
+          verification_state: string
+        }
+        Returns: boolean
+      }
       save_template_credential: {
         Args: {
           actor_api_key_id?: string

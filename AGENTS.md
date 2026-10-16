@@ -546,8 +546,24 @@ The server-only `template-credentials.ts` repository reuses issued template prin
 independent READ/WRITE scopes and APP_ENCRYPTION_KEY encryption. Its service-only
 `save_template_credential` RPC rechecks the actor/key and writes the credential plus
 status-only audit metadata atomically. Saving resets verification to `unknown`;
-status readers return only template ID, state and verification time. Signature,
-revocation and activation wiring belongs to the subsequent licensing task.
+status readers return only template ID, state and verification time. `/api/v1/templates/licenses` GET/POST exposes status/entry with independent READ/WRITE
+permissions and a 16384-byte streamed request bound. `templates_license_status` and
+`templates_license_activate` are matching MCP adapters; saving never publishes.
+Node instrumentation refreshes the separate template snapshot every 30 seconds.
+Public readers perform no credential/database/issuer I/O and combine fresh key grants
+with the independent local platform tier. Confirmations expire within 60 seconds or
+at credential expiry; failed refreshes retain only the original deadline. The
+service-only `record_template_credential_status` RPC compares the encrypted value,
+retains confirmed revocation and audits status atomically. Replacing a key clears
+its local grant and resets stored status to unknown.
+`SELLF_TEMPLATE_LICENSE_POLICIES` is a server-only operator JSON array (empty by
+default): each strict policy contains templateId, saleProductId, issuerId,
+trustedKeyIds, edition, productionHost, equivalentHosts, keys (`kid`, `issuerId`,
+`pem` for pinned P-256 public keys), and an HTTPS revocationUrl using the existing
+seller/prefix `order_hashes` protocol. No submitted key supplies trust anchors or
+endpoints. Unknown policies/keys cannot activate. Q2 still blocks real sale pins;
+synthetic fixtures grant no shipped A/B/C entry. Key rotation requires reviewed
+operator pins; background revocation requests use bounded bodies/timeouts.
 
 ### Runtime Configuration
 

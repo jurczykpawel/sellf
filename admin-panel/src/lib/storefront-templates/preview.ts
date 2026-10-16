@@ -2,6 +2,7 @@
 import 'server-only';
 import { z } from 'zod';
 import { API_SCOPES } from '@/lib/api/scope-constants';
+import { getLocalTemplateIds } from '@/lib/storefront-templates/template-license-snapshot';
 import { getPublicLicenseTier } from '@/lib/license/public-snapshot';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createPlatformClient } from '@/lib/supabase/admin';
@@ -57,7 +58,7 @@ export async function preparePreview(auth: unknown, input: unknown, startedAt = 
     const config = initial.data.draft;
     const structural = validateConfig(config);
     if (!structural.valid) return fail('INVALID', structural);
-    const inspection = inspectTemplate(config, templateRightsForTier(getPublicLicenseTier()), 'draft');
+    const inspection = inspectTemplate(config, templateRightsForTier(getPublicLicenseTier(), getLocalTemplateIds()), 'draft');
     const selection = resolveSelection(config, Object.keys(STOREFRONT_TEMPLATES));
     if (selection.diagnostic) return fail('INVALID', result([{ code: 'COMPATIBILITY', path: '/templateId', message: 'Unsupported preview selection' }]));
     const spec = selection.recipe.sections.find(s => s.type === 'catalogue/1');

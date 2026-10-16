@@ -6,6 +6,7 @@ import { isDemoMode } from '@/lib/demo-guard';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { encryptSecret } from '@/lib/services/secret-encryption';
 import { getTemplatePrincipal } from '@/lib/storefront-templates/mutations';
+import { getTemplateLicenseStatus, invalidateTemplateLicense } from '@/lib/storefront-templates/template-license-snapshot';
 import { createPlatformClient } from '@/lib/supabase/admin';
 
 const templateId = z.enum(['storefront-a', 'storefront-b', 'storefront-c']);
@@ -14,7 +15,7 @@ const statusSchema = z.object({
   state: z.enum(['valid', 'missing', 'expired', 'revoked', 'invalid', 'unknown']),
   verifiedAt: z.iso.datetime({ offset: true }).nullable(),
 });
-const inputSchema = z.strictObject({ templateId, token: z.string().min(1).max(16384)
+export const templateCredentialInputSchema = z.strictObject({ templateId, token: z.string().min(1).max(16384)
   .refine(value => value.trim().length > 0 && Buffer.byteLength(value, 'utf8') <= 16384) });
 export type TemplateLicenseStatus = z.infer<typeof statusSchema>;
 type CredentialResult<T> = { success: true; data: T } | {
@@ -25,7 +26,7 @@ type CredentialResult<T> = { success: true; data: T } | {
 export async function saveTemplateCredential(auth: unknown, input: unknown): Promise<CredentialResult<TemplateLicenseStatus>> {
   const actor = getTemplatePrincipal(auth, API_SCOPES.TEMPLATES_WRITE);
   if (!actor || isDemoMode()) return { success: false, code: 'FORBIDDEN' };
-  const parsed = inputSchema.safeParse(input);
+  const parsed = templateCredentialInputSchema.safeParse(input);
   if (!parsed.success) return { success: false, code: 'INVALID' };
   try {
     if (!(await checkRateLimit('template_credential_write', 30, 1, actor.userId))) return { success: false, code: 'RATE_LIMITED' };
@@ -40,6 +41,7 @@ export async function saveTemplateCredential(auth: unknown, input: unknown): Pro
       const denied = z.object({ success: z.literal(false), code: z.literal('FORBIDDEN') }).safeParse(data);
       return { success: false, code: denied.success ? 'FORBIDDEN' : 'UNAVAILABLE' };
     }
+    invalidateTemplateLicense(parsed.data.templateId);
     return { success: true, data: response.data.status };
   } catch { return { success: false, code: 'UNAVAILABLE' }; }
 }
@@ -52,6 +54,6 @@ export async function readTemplateLicenseStatuses(auth: unknown): Promise<Creden
       .select('template_id,state,verified_at').order('template_id');
     if (error || !data) return { success: false, code: 'UNAVAILABLE' };
     const parsed = z.array(statusSchema).safeParse(data.map(row => ({ templateId: row.template_id, state: row.state, verifiedAt: row.verified_at })));
-    return parsed.success ? { success: true, data: parsed.data } : { success: false, code: 'UNAVAILABLE' };
+    return parsed.success ? { success: true, data: parsed.data.map(status => status.state === 'valid' ? getTemplateLicenseStatus(status.templateId) : status) } : { success: false, code: 'UNAVAILABLE' };
   } catch { return { success: false, code: 'UNAVAILABLE' }; }
 }

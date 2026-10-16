@@ -221,3 +221,14 @@ it('rejects legacy source metadata on ordinary drafts', async () => {
   expect(await mutateStorefrontConfig(await verifyTemplateSession(), { ...input, legacySource: { sha256: 'a'.repeat(64), byteLength: 1 } })).toMatchObject({ code: 'INVALID' });
   expect(mocks.admin).not.toHaveBeenCalled();
 });
+
+it.each(['publish', 'rollback'])('rechecks local rights after asynchronous binding validation for %s', async operation => {
+  mocks.read.mockResolvedValue({ success: true, data: { revision: 0, draft: D_CONFIG, published: DEFAULT_CONFIG } });
+  mocks.history.mockResolvedValue({ success: true, data: [{ revision: 0, published: D_CONFIG }] });
+  mocks.bindings.mockImplementation(async () => {
+    mocks.tier.mockReturnValue('free');
+    return { success: true, data: { hero: PUBLIC_FIXTURE.products[0], closing: PUBLIC_FIXTURE.products[0], starters: PUBLIC_FIXTURE.products.slice(1), categories: PUBLIC_FIXTURE.categories } };
+  });
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { operation, expectedRevision: 0, ...(operation === 'rollback' ? { targetRevision: 0 } : {}) })).toMatchObject({ success: false, code: 'FORBIDDEN' });
+  expect(mocks.rpc).not.toHaveBeenCalled(); expect(mocks.admin).not.toHaveBeenCalled();
+});

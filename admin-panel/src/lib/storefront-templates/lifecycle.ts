@@ -2,6 +2,7 @@
 import 'server-only';
 import { z } from 'zod';
 import { API_SCOPES } from '@/lib/api/scope-constants';
+import { getLocalTemplateIds } from '@/lib/storefront-templates/template-license-snapshot';
 import { getPublicLicenseTier } from '@/lib/license/public-snapshot';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createPlatformClient } from '@/lib/supabase/admin';
@@ -50,7 +51,7 @@ export async function storefrontLifecycle(auth: unknown, input: unknown): Promis
   try {
     if (!(await checkRateLimit('storefront_read', 120, 1, actor.userId))) return templateFailure('RATE_LIMITED');
     const operation = parsed.data;
-    const rights = templateRightsForTier(getPublicLicenseTier());
+    const rights = templateRightsForTier(getPublicLicenseTier(), getLocalTemplateIds());
     const client = createPlatformClient();
     if (operation.operation === 'validate') {
       const structural = validateConfig(operation.config);

@@ -9,11 +9,13 @@ import { ENVELOPE_BYTES, parseBoundedJson, result } from '@/lib/storefront-templ
 import { storefrontLifecycle } from '@/lib/storefront-templates/lifecycle';
 import { getTemplatePrincipal, verifyTemplateApiKey, verifyTemplateSession } from '@/lib/storefront-templates/mutations';
 import { preparePreview, PREVIEW_HEADERS, previewSchema } from '@/lib/storefront-templates/preview';
+import { readTemplateLicenseStatuses, saveTemplateCredential, templateCredentialInputSchema } from '@/lib/storefront-templates/template-credentials';
 import type { NextRequest } from 'next/server';
 import type { PreviewResult } from '@/lib/storefront-templates/preview';
 import type { ValidationResult } from '@/lib/storefront-templates/json';
 
 const bodies = {
+  license_save: templateCredentialInputSchema,
   draft: z.strictObject({ expectedRevision: z.unknown(), config: z.unknown() }),
   reset: z.strictObject({ expectedRevision: z.unknown(), templateId: z.unknown(), field: z.unknown() }),
   publish: z.strictObject({ expectedRevision: z.unknown() }),
@@ -23,7 +25,7 @@ const bodies = {
   preview: previewSchema,
 };
 export interface TemplateHttpPreviewResult extends PreviewResult { previewPath: string }
-type Operation = keyof typeof bodies | 'read' | 'capabilities';
+type Operation = keyof typeof bodies | 'read' | 'capabilities' | 'license_status';
 const json = (data: unknown, status = 200): NextResponse => NextResponse.json(data, { status, headers: PREVIEW_HEADERS });
 function failure(code: string, status: number, validation: ValidationResult | null = null): NextResponse {
   return json({ code, message: 'Template request could not be completed', validation, currentRevision: null }, status);
@@ -39,14 +41,15 @@ export async function templateHttp(request: NextRequest, operation: Operation): 
   try {
     const auth = await templateRequestPrincipal(request);
     if (!auth) return failure('UNAUTHORIZED', 401);
-    const scope = operation === 'draft' || operation === 'reset' ? API_SCOPES.TEMPLATES_WRITE
+    const scope = operation === 'draft' || operation === 'reset' || operation === 'license_save' ? API_SCOPES.TEMPLATES_WRITE
       : operation === 'publish' || operation === 'rollback' ? API_SCOPES.TEMPLATES_ACTIVATE : API_SCOPES.TEMPLATES_READ;
     const actor = getTemplatePrincipal(auth, scope);
     if (!actor) return failure('FORBIDDEN', 403);
     if (!(await checkRateLimit('storefront_http', 120, 1, actor.userId))) return failure('RATE_LIMITED', 429);
     if (operation === 'capabilities') return json(templateCapabilities());
     let input: Record<string, unknown> = {};
-    if (operation !== 'read') {
+    const byteLimit = operation === 'license_save' ? 16384 : ENVELOPE_BYTES;
+    if (operation !== 'read' && operation !== 'license_status') {
       const reader = request.body?.getReader();
       const chunks: Uint8Array[] = []; let length = 0;
       if (reader) {
@@ -55,15 +58,15 @@ export async function templateHttp(request: NextRequest, operation: Operation): 
             const { done, value } = await reader.read();
             if (done) break;
             length += value.byteLength;
-            if (length > ENVELOPE_BYTES) {
+            if (length > byteLimit) {
               await reader.cancel().catch(() => {});
-              return failure('LIMIT', 422, result([{ code: 'LIMIT', path: '', message: 'Request exceeds byte limit', limit: ENVELOPE_BYTES }]));
+              return failure('LIMIT', 422, result([{ code: 'LIMIT', path: '', message: 'Request exceeds byte limit', limit: byteLimit }]));
             }
             chunks.push(value);
           }
         } finally { reader.releaseLock(); }
       }
-      const parsed = parseBoundedJson(Buffer.concat(chunks), ENVELOPE_BYTES, true);
+      const parsed = parseBoundedJson(Buffer.concat(chunks), byteLimit, true);
       if (!parsed.valid) return failure(parsed.errors.some(e => e.code === 'LIMIT') ? 'LIMIT' : 'INVALID', 422, parsed);
       const strict = bodies[operation].safeParse(parsed.data);
       if (!strict.success) {
@@ -71,6 +74,11 @@ export async function templateHttp(request: NextRequest, operation: Operation): 
         return failure(limit ? 'LIMIT' : 'INVALID', 422, result([{ code: limit ? 'LIMIT' : 'SCHEMA', path: limit ? '/revision' : '', message: 'Invalid request fields', ...(limit ? { limit: Number.MAX_SAFE_INTEGER } : {}) }]));
       }
       input = strict.data;
+    }
+    if (operation === 'license_save' || operation === 'license_status') {
+      const response = operation === 'license_save' ? await saveTemplateCredential(auth, input) : await readTemplateLicenseStatuses(auth);
+      if (!response.success) return failure(response.code, { FORBIDDEN: 403, INVALID: 422, UNAVAILABLE: 503, RATE_LIMITED: 429 }[response.code]);
+      return json(operation === 'license_status' ? { statuses: response.data } : response.data);
     }
     if (operation === 'preview') {
       const issuedAt = Date.now();

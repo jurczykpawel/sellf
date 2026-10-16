@@ -4658,5 +4658,29 @@
     "bold": "Gruba",
     "protectedTitle": "Płatności i logowanie",
     "protectedIntro": "Te strony dziedziczą wybrane kolory i krój pisma. Sellf zachowuje czytelne rozmiary tekstu, zaokrąglenia i elementy płatności. Poniżej ustawienia po zastosowaniu tych zasad."
+  },
+  "templateLicenses": {
+    "title": "Klucze szablonów premium",
+    "description": "Dodaj klucz zakupionego szablonu. Szablony premium wymagają również Sellf Pro lub Business. Zapisanie klucza nie publikuje sklepu.",
+    "statuses": "Status kluczy szablonów",
+    "template": "Szablon",
+    "key": "Klucz zakupu",
+    "save": "Zapisz klucz",
+    "saving": "Zapisywanie…",
+    "saved": "Klucz zapisany. Weryfikacja działa w tle — sprawdź status za chwilę.",
+    "failure": "Nie udało się odświeżyć statusu klucza. Spróbuj ponownie za chwilę.",
+    "limit": "Ten klucz jest za długi. Wklej klucz zakupu z zamówienia.",
+    "freshness": "Status odświeża się co 30 sekund. Wybrany szablon premium wraca do domyślnego wyglądu, gdy jego klucz nie jest już potwierdzony. Bez połączenia sprawdzenie unieważnienia może być opóźnione; płatności i dostęp klientów nadal działają.",
+    "storefront-a": "Szablon A",
+    "storefront-b": "Szablon B",
+    "storefront-c": "Szablon C",
+    "states": {
+      "valid": "Klucz zweryfikowany",
+      "missing": "Dodaj klucz zakupu",
+      "expired": "Klucz wygasł · poproś o nowy",
+      "revoked": "Klucz unieważniony · skontaktuj się z wystawcą",
+      "invalid": "Klucz nie pasuje · sprawdź zamówienie",
+      "unknown": "Oczekuje na weryfikację · sprawdź za chwilę"
+    }
   }
 }

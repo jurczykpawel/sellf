@@ -2,6 +2,8 @@
 import { expect, it, vi } from 'vitest';
 import { DEFAULT_CONFIG, D_CONFIG } from '@/lib/storefront-templates/fixtures';
 import { templateRightsForTier, canMutateTemplateConfig } from '@/lib/storefront-templates/rights';
+import { STOREFRONT_TEMPLATES } from '@/lib/storefront-templates/registry';
+import type { TemplateRegistryEntry } from '@/lib/storefront-templates/schemas';
 import { resolveSelection } from '@/lib/storefront-templates/resolver';
 vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ default: {} }));
 it.each(['free', 'registered', 'pro', 'business'] as const)('resolves %s independently of retained selection', tier => {
@@ -33,4 +35,17 @@ it('permits free draft authoring without granting activation', () => {
   const rights = templateRightsForTier('free');
   expect(canMutateTemplateConfig(rights, D_CONFIG, 'draft')).toBe(true);
   expect(canMutateTemplateConfig(rights, D_CONFIG, 'publish')).toBe(false);
+});
+
+it('requires both current platform rights and the matching locally confirmed template key', () => {
+  const registry = STOREFRONT_TEMPLATES as Record<string, TemplateRegistryEntry>;
+  registry['storefront-a'] = { ...registry.d, id: 'storefront-a', entitlement: { kind: 'template-key', templateId: 'storefront-a' } };
+  try {
+    for (const tier of ['pro', 'business'] as const) {
+      expect(templateRightsForTier(tier, ['storefront-a']).availableTemplateIds).toContain('storefront-a');
+      expect(templateRightsForTier(tier, ['storefront-b']).availableTemplateIds).not.toContain('storefront-a');
+      expect(templateRightsForTier(tier).availableTemplateIds).not.toContain('storefront-a');
+    }
+    for (const tier of ['free', 'registered'] as const) expect(templateRightsForTier(tier, ['storefront-a']).availableTemplateIds).toEqual(['default']);
+  } finally { delete registry['storefront-a']; }
 });

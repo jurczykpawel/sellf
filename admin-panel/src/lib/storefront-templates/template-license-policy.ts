@@ -22,7 +22,7 @@ export interface TemplateCredentialEvidence {
 
 const text = z.string().min(1).max(256);
 const timestamp = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
-const templateClaims = z.object({
+export const templateClaims = z.object({
   v: z.literal(1), kid: text, product: text, email: text, order: text, tier: text,
   iat: timestamp, exp: timestamp.nullable().optional(),
   templateId: text, domain: text, edition: z.literal('standard'),

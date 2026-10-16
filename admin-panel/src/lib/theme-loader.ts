@@ -7,6 +7,7 @@
 import { cache } from 'react';
 import { getActiveTheme } from '@/lib/actions/theme';
 import { checkPublicFeature, getPublicLicenseTier } from '@/lib/license/public-snapshot';
+import { getLocalTemplateIds } from '@/lib/storefront-templates/template-license-snapshot';
 import { templateRightsForTier } from '@/lib/storefront-templates/rights';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { readPublishedConfig } from '@/lib/storefront-templates/repository';
@@ -40,7 +41,7 @@ export const loadProtectedThemeData = cache(async (): Promise<ResolvedPublicThem
   try {
     const [published, { licenseValid }] = await Promise.all([readPublishedConfig(createAdminClient()), loadThemeData()]);
     const config = published.success ? published.data : null;
-    const selection = resolveSelection(config, templateRightsForTier(getPublicLicenseTier()).availableTemplateIds);
+    const selection = resolveSelection(config, templateRightsForTier(getPublicLicenseTier(), getLocalTemplateIds()).availableTemplateIds);
     return resolvePublicTheme(STOREFRONT_TEMPLATES[selection.templateId].tokens, config?.tokens ?? null, licenseValid, 'protected');
   } catch { return resolvePublicTheme(null, null, false, 'protected'); }
 });

@@ -5,7 +5,7 @@ import { ApiAuthError } from '@/lib/api/errors';
 import { DEFAULT_CONFIG } from '@/lib/storefront-templates/fixtures';
 import { CONFIG_BYTES, ENVELOPE_BYTES, result } from '@/lib/storefront-templates/json';
 import { templateHttp } from '@/lib/storefront-templates/http';
-const m = vi.hoisted(() => ({ auth: vi.fn(), lifecycle: vi.fn(), preview: vi.fn(), rate: vi.fn(), session: vi.fn() }));
+const m = vi.hoisted(() => ({ auth: vi.fn(), lifecycle: vi.fn(), preview: vi.fn(), rate: vi.fn(), session: vi.fn(), saveCredential: vi.fn(), statuses: vi.fn() }));
 vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ default: {} }));
 vi.mock('@/lib/api/middleware', () => ({ authenticateApiKeyPrincipal: m.auth }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
@@ -13,6 +13,7 @@ vi.mock('@/lib/auth-server', () => ({ requireAdminApi: m.session }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: m.rate }));
 vi.mock('@/lib/storefront-templates/lifecycle', () => ({ storefrontLifecycle: m.lifecycle }));
 vi.mock('@/lib/storefront-templates/preview', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/storefront-templates/preview')>(), PREVIEW_HEADERS: { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' }, preparePreview: m.preview }));
+vi.mock('@/lib/storefront-templates/template-credentials', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/storefront-templates/template-credentials')>(), saveTemplateCredential: m.saveCredential, readTemplateLicenseStatuses: m.statuses }));
 const request = (body?: string | Uint8Array) => new NextRequest('http://localhost/api/v1/templates/draft', { method: body === undefined ? 'GET' : 'PUT', body, headers: { authorization: 'Bearer test' } });
 const identity = (scopes: string[]) => ({ method: 'api_key', admin: { userId: 'dddddddd-0000-4000-a000-000000000000' }, apiKey: { id: 'aaaaaaaa-1111-4111-a111-111111111111' }, scopes });
 beforeEach(() => {
@@ -112,4 +113,21 @@ it('uses header credentials before an ambient session', async () => {
   m.session.mockResolvedValue({ user: { id: 'dddddddd-0000-4000-a000-000000000000' } });
   expect((await templateHttp(request(), 'read')).status).toBe(401);
   expect(m.session).not.toHaveBeenCalled();
+});
+
+it('keeps license READ and WRITE independent and returns status only', async () => {
+  const status = { templateId: 'storefront-a', state: 'unknown', verifiedAt: null };
+  m.saveCredential.mockResolvedValue({ success: true, data: status });
+  m.statuses.mockResolvedValue({ success: true, data: [status] });
+  m.auth.mockResolvedValue(identity(['templates:write']));
+  expect((await templateHttp(request(JSON.stringify({ templateId: 'storefront-a', token: 'private-token' })), 'license_save')).status).toBe(200);
+  expect((await templateHttp(request(), 'license_status')).status).toBe(403);
+  m.auth.mockResolvedValue(identity(['templates:read']));
+  expect(await (await templateHttp(request(), 'license_status')).json()).toEqual({ statuses: [status] });
+  expect((await templateHttp(request('{}'), 'license_save')).status).toBe(403);
+});
+it('bounds the whole license envelope to 16KiB before persistence', async () => {
+  const response = await templateHttp(request(JSON.stringify({ templateId: 'storefront-a', token: 'x'.repeat(16384) })), 'license_save');
+  expect(response.status).toBe(422); expect(await response.json()).toMatchObject({ code: 'LIMIT' });
+  expect(m.saveCredential).not.toHaveBeenCalled();
 });
