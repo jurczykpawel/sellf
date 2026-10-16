@@ -59,8 +59,22 @@ for (const flow of ['login', 'free_product'] as const) {
 }
 test('sitemap and metadata use runtime origin', async ({ request }) => {
   const sitemap = await request.get('/sitemap.xml');
-  expect(sitemap.ok()).toBeTruthy(); expect(await sitemap.text()).toContain(`${origin}/en/about`);
-  expect(await sitemap.text()).not.toMatch(/placeholder|your-domain/);
+  expect(sitemap.ok()).toBeTruthy();
+  const index = await sitemap.text();
+  expect(index).toContain('<sitemapindex');
+  expect(index).not.toMatch(/placeholder|your-domain/);
+  const chunks = [...index.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
+  expect(chunks.length).toBeGreaterThan(0);
+  for (const chunk of chunks) {
+    expect(new URL(chunk).origin).toBe(origin);
+    expect(new URL(chunk).pathname).toMatch(/^\/sitemaps\/[0-9a-f-]{36}\.xml$/);
+  }
+  const firstChunk = await request.get(chunks[0]);
+  expect(firstChunk.ok()).toBeTruthy();
+  const urls = await firstChunk.text();
+  expect(urls).toContain(`<loc>${origin}/about</loc>`);
+  expect(urls).toContain(`<loc>${origin}/pl/about</loc>`);
+  expect(urls).not.toMatch(/placeholder|your-domain/);
   const about = await request.get('/en/about');
   expect(await about.text()).toContain(`${origin}/api/og/about`);
   expect(await about.text()).not.toContain('placeholder.example.com');

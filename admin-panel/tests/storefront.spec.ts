@@ -109,7 +109,7 @@ test.describe('Storefront & Checkout Flows', () => {
     await page.context().clearCookies();
     await page.goto(`/p/${freeProductSlug}`);
     
-    await expect(page).toHaveURL(new RegExp(`/checkout/${freeProductSlug}`), { timeout: 10000 });
+    await expect(page).toHaveURL(new RegExp(`/p/${freeProductSlug}$`), { timeout: 10000 });
 
     // 2. Fill the Free Product Form
     const userEmail = `lead-${Date.now()}@example.com`;
@@ -203,9 +203,9 @@ test.describe('Storefront & Checkout Flows', () => {
     await setAuthSession(page, userEmail, userPassword);
     await page.waitForTimeout(1000);
 
-    // 2. Go to Product Page -> Redirect to Checkout
+    // 2. Open the listed product purchase view.
     await page.goto(`/p/${freeProductSlug}`);
-    await expect(page).toHaveURL(new RegExp(`/checkout/${freeProductSlug}`), { timeout: 10000 });
+    await expect(page).toHaveURL(new RegExp(`/p/${freeProductSlug}$`), { timeout: 10000 });
     
     // 3. Click "Get Free Access" (authenticated users skip terms — accepted at registration)
     const getAccessBtn = page.getByRole('button', { name: /Get Free Access|Odbierz darmowy dostęp/i });
