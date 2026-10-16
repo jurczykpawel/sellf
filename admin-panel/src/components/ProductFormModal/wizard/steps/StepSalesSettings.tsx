@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { AffiliateRuleEditor } from '@/components/affiliates/products/Settings';
 import {
   SalePriceSection,
   AvailabilitySection,
@@ -157,6 +158,8 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
           t={t}
           omnibusEnabled={omnibusEnabled}
         />
+        {currentProductId && <AffiliateRuleEditor key={currentProductId} productId={currentProductId} productType={formData.product_type}
+          isRefundable={formData.is_refundable} refundPeriodDays={formData.refund_period_days} />}
         <EmbedSection formData={formData} setFormData={setFormData} t={t} />
         <div>
           <h4 className="text-sm font-medium text-sf-heading mb-2">{t('license.sectionTitle')}</h4>

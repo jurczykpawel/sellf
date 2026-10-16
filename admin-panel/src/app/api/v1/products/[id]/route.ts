@@ -399,6 +399,17 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'NOT_FOUND', 'Product not found');
     }
 
+    const { data: affiliateRule, error: affiliateError } = await supabase
+      .from('affiliate_rules').select('id').eq('product_id', id).limit(1).maybeSingle();
+    if (affiliateError) return apiError(request, 'INTERNAL_ERROR', 'Failed to check product history');
+    if (affiliateRule) {
+      const locale = request.cookies.get('NEXT_LOCALE')?.value ?? request.headers.get('accept-language');
+      return apiError(request, 'CONFLICT', locale?.startsWith('pl')
+        ? 'Ten produkt ma historię partnerską. Wybierz Archiwizuj w menu produktu, aby ją zachować.'
+        : 'This product has affiliate history. Choose Archive in the product menu to keep its history.',
+      { archive: ['PATCH /api/v1/products/' + id, '{"is_active":false}'] });
+    }
+
     // Delete product categories first (due to FK constraints)
     const { error: catDeleteError } = await supabase
       .from('product_categories')

@@ -11,6 +11,7 @@ import { useTranslations } from 'next-intl';
 import { useLocale } from 'next-intl';
 import { toast } from 'sonner';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { productAffiliateMessages } from '@/components/affiliates/products/messages';
 
 interface SortableHeaderProps {
   column: string;
@@ -545,6 +546,11 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                                     ),
                                     onClick: () => onDuplicateProduct(product),
                                   },
+                                  ...(product.is_active ? [{
+                                    label: productAffiliateMessages[locale === 'pl' ? 'pl' : 'en'].archive,
+                                    icon: <span aria-hidden>▣</span>,
+                                    onClick: () => onToggleStatus(product.id, product.is_active),
+                                  }] : []),
                                   // ── Danger zone ──────────────────────────────
                                   {
                                     separator: true,
