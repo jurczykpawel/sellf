@@ -1,4 +1,5 @@
 /** Shared data-only composition resolution. @see spec/contracts/section-contract.md */
+import { effectiveLayout } from '@/lib/storefront-templates/layout';
 import { APP_VERSION, isNewerVersion } from '@/lib/version';
 import { registryEntrySchema } from '@/lib/storefront-templates/schemas';
 import { CORE_SETTINGS, STOREFRONT_TEMPLATES, validateConfig, validateRecipe } from '@/lib/storefront-templates/registry';
@@ -45,16 +46,9 @@ export function resolveSelection(input: unknown, availableTemplateIds: readonly 
   const entry = STOREFRONT_TEMPLATES[config.templateId];
   if (!entry || !registryEntrySchema.safeParse(entry).success || isNewerVersion(APP_VERSION, entry.minSellf) || !validateRecipe(entry.defaults).valid) return fallback('UNSUPPORTED');
   if (entry.entitlement.kind !== 'free' && !availableTemplateIds.includes(entry.id)) return fallback('DENIED');
-  const overrides = config.overridesByTemplate[config.templateId];
-  const sections = structuredClone(entry.defaults.sections) as TemplateRecipe['sections'];
-  const variants: Partial<Record<string, string>> = overrides?.variants ?? {};
-  for (const section of sections) {
-    const variant = variants[section.id];
-    if (variant && 'variant' in section) Object.assign(section, { variant });
-  }
-  const recipe: TemplateRecipe = { ...entry.defaults, sections: (overrides?.order ?? sections.map(s => s.id))
-    .flatMap(id => sections.filter(s => s.id === id && !overrides?.hidden?.some(hidden => hidden === id))) };
-  if (!validateRecipe(recipe).valid || (entry.id === 'd' && recipe.sections[0]?.type !== 'hero-product/1')) return fallback('UNSUPPORTED');
+  const layout = effectiveLayout(entry, config.overridesByTemplate[config.templateId]);
+  const recipe = layout.recipe;
+  if (!layout.valid || !validateRecipe(recipe).valid) return fallback('UNSUPPORTED');
   return { templateId: config.templateId, recipe, settings: { ...config.settingsByTemplate[config.templateId], density: config.settingsByTemplate[config.templateId]?.density ?? CORE_SETTINGS.density.default }, content: config.content, diagnostic: null };
 }
 

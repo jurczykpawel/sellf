@@ -41,7 +41,7 @@ describe('storefront editor', () => {
     await waitFor(() => expect(action).toHaveBeenCalledTimes(2));
     const input = action.mock.calls[0][0];
     expect(input.expectedRevision).toBe(7);
-    expect(input.config.overridesByTemplate.d.hidden).toEqual(['tasks']);
+    expect(input.config.overridesByTemplate.d.sections.tasks.visibility).toBe('hidden');
     expect(input.config.overridesByTemplate.d.order[0]).toBe('tasks');
     expect(input.config.content).toEqual(snapshot().published.content);
     await waitFor(() => expect(view.getByRole('status').textContent).toContain('All changes saved'));
@@ -168,4 +168,18 @@ it('shows the protected appearance values separately from storefront overrides',
   expect(view.getAllByText(/Protected by Sellf/).length).toBeGreaterThan(0);
   expect(view.getByText('12 · Protected by Sellf')).toBeTruthy();
   expect(view.container.querySelectorAll('[data-token-origin]')).toHaveLength(22);
+});
+
+it('edits section map leaves independently and returns variants to inherited defaults', async () => {
+  const view = setup();
+  fireEvent.change(view.getByLabelText('Layout style'), { target: { value: 'simple' } });
+  fireEvent.click(view.getByRole('checkbox', { name: 'Show How it works' }));
+  fireEvent.change(view.getByLabelText('Layout style'), { target: { value: '' } });
+  action.mockResolvedValueOnce({ success: true, revision: 8, validation: { valid: true, errors: [], warnings: [] } });
+  fireEvent.click(view.getByRole('button', { name: 'Save draft' }));
+  await waitFor(() => expect(action).toHaveBeenCalled());
+  const overrides = action.mock.calls[0][0].config.overridesByTemplate.d;
+  expect(overrides.sections.tasks).toEqual({ visibility: 'hidden' });
+  expect(overrides.sections.hero).toEqual({});
+  expect(overrides).not.toHaveProperty('hidden'); expect(overrides).not.toHaveProperty('variants');
 });

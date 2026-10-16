@@ -55,8 +55,8 @@ export async function validateActiveBindings(client: SupabaseClient<Database>, c
 export function resetTemplateField(config: StorefrontConfig, templateId: StorefrontConfig['templateId'], field: string): StorefrontConfig | null {
   if (!isResetPath(templateId, field) || (field.startsWith('tokens.') && templateId !== config.templateId)) return null;
   const copy = structuredClone(config);
-  const [root, group, leaf] = field.split('.');
-  const path = root === 'tokens' ? ['tokens', group, leaf] : root === 'settings' ? ['settingsByTemplate', templateId, group] : ['overridesByTemplate', templateId, group, ...(leaf ? [leaf] : [])];
+  const [root, group, leaf, property] = field.split('.');
+  const path = root === 'tokens' ? ['tokens', group, leaf] : root === 'settings' ? ['settingsByTemplate', templateId, group] : ['overridesByTemplate', templateId, group, ...(leaf ? [leaf] : []), ...(property ? [property] : [])];
   function remove(value: Record<string, unknown>, remaining: string[]): void {
     const [key, ...rest] = remaining;
     if (!rest.length) { delete value[key]; return; }

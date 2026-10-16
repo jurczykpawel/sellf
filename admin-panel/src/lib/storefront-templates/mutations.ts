@@ -15,7 +15,7 @@ import { inspectTemplate, resetTemplateField, validateActiveBindings } from '@/l
 import { templateRightsForTier, canMutateTemplateConfig } from '@/lib/storefront-templates/rights';
 import { readStorefrontConfig, readStorefrontHistory } from '@/lib/storefront-templates/repository';
 import { configSchema, revisionSchema, templateIdSchema } from '@/lib/storefront-templates/schemas';
-import { validateConfig } from '@/lib/storefront-templates/registry';
+import { normalizeConfigOrders, validateConfig } from '@/lib/storefront-templates/registry';
 import { CONFIG_BYTES, isPlainJson, result } from '@/lib/storefront-templates/json';
 import type { NextRequest } from 'next/server';
 import type { ValidationResult } from '@/lib/storefront-templates/json';
@@ -105,6 +105,7 @@ export async function mutateStorefrontConfig(auth: unknown, input: unknown): Pro
       config = resetTemplateField(snapshot.data.draft ?? snapshot.data.published, mutation.templateId, mutation.field);
       if (!config) return fail('INVALID', result([{ code: 'SCHEMA', path: '/field', message: 'Reset field is not allowed for this selection' }]));
     }
+    if (config) config = normalizeConfigOrders(config);
     let candidate = config ?? snapshot.data.draft;
     if (mutation.operation === 'rollback') {
       const history = await readStorefrontHistory(reader, { limit: 1,

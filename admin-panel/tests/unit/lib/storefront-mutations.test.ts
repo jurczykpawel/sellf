@@ -124,7 +124,7 @@ it('allows free default content edits while retaining inactive settings', async 
 
 it.each([
   { ...DEFAULT_CONFIG, tokens: { format: 1, typography: { font: 'dm-sans' } } },
-  { ...DEFAULT_CONFIG, overridesByTemplate: { default: { variants: { catalogue: 'detail-cards' } } } },
+  { ...DEFAULT_CONFIG, overridesByTemplate: { default: { sections: { catalogue: { variant: 'detail-cards' } } } } },
 ])('allows free private theme and layout drafts', async config => {
   mocks.tier.mockReturnValue('free');
   expect(await mutateStorefrontConfig(await verifyTemplateSession(), { ...input, config })).toMatchObject({ success: true });
@@ -142,7 +142,7 @@ it('resets a token leaf from published state and preserves seller content', asyn
   expect(mocks.rpc).toHaveBeenLastCalledWith('mutate_storefront_config', expect.objectContaining({ operation: 'reset', validated_config: { ...D_CONFIG, tokens: null } }));
   expect(published.tokens.light.accent).toBe('#075C43');
 });
-it.each(['content.home.hero', 'tokens.format', 'tokens.light.__proto__', '/tokens/light/accent', 'overrides.variants.missing'])('rejects reset field %s', async field => {
+it.each(['content.home.hero', 'tokens.format', 'tokens.light.__proto__', '/tokens/light/accent', 'overrides.sections.missing'])('rejects reset field %s', async field => {
   expect(await mutateStorefrontConfig(await verifyTemplateSession(), { operation: 'reset', expectedRevision: 0, templateId: 'd', field })).toMatchObject({ code: 'INVALID' });
   expect(mocks.admin).not.toHaveBeenCalled();
 });
@@ -230,4 +230,15 @@ it.each([
   mocks.rate.mockResolvedValue(false);
   const auth = await verifyTemplateSession();
   expect(await mutateStorefrontConfig(auth, mutation)).toMatchObject({ code: 'RATE_LIMITED', message: `Storefront ${mutation.operation} could not be completed` });
+});
+
+it('stores complete authored orders for session and key drafts and leaves the supplied config unchanged', async () => {
+  const config = { ...DEFAULT_CONFIG, overridesByTemplate: { d: { order: ['hero'] } } };
+  for (const auth of [await verifyTemplateSession(), await verifyTemplateApiKey(request)]) {
+    expect(await mutateStorefrontConfig(auth, { ...input, config })).toMatchObject({ success: true });
+    expect(mocks.rpc).toHaveBeenLastCalledWith('mutate_storefront_config', expect.objectContaining({ validated_config: {
+      ...config, overridesByTemplate: { d: { order: ['hero', 'tasks', 'start', 'catalogue', 'faq', 'closing'] } },
+    } }));
+  }
+  expect(config.overridesByTemplate.d.order).toEqual(['hero']);
 });
