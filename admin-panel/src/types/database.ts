@@ -2521,6 +2521,36 @@ export type Database = {
         }
         Relationships: []
       }
+      template_credentials: {
+        Row: {
+          encrypted_key: string | null
+          encryption_iv: string | null
+          encryption_tag: string | null
+          state: string
+          template_id: string
+          updated_at: string
+          verified_at: string | null
+        }
+        Insert: {
+          encrypted_key?: string | null
+          encryption_iv?: string | null
+          encryption_tag?: string | null
+          state?: string
+          template_id: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Update: {
+          encrypted_key?: string | null
+          encryption_iv?: string | null
+          encryption_tag?: string | null
+          state?: string
+          template_id?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       tracking_logs: {
         Row: {
           created_at: string
@@ -3585,6 +3615,18 @@ export type Database = {
       queue_pending_free_grant: {
         Args: { p_email: string; p_product_slug: string }
         Returns: boolean
+      }
+      save_template_credential: {
+        Args: {
+          actor_api_key_id?: string
+          actor_method?: string
+          actor_user_id?: string
+          encrypted_key: string
+          encryption_iv: string
+          encryption_tag: string
+          template_id: string
+        }
+        Returns: Json
       }
       seller_license_public_keys: {
         Args: { seller: string }

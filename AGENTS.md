@@ -534,6 +534,14 @@ TaskNav and Catalogue share target-scoped filter/state events; URL search/catego
 fallbacks use the same bounded initial loaders. Public content renders during auth
 initialization; only empty-shop onboarding depends on the resolved admin session.
 
+Template credentials are separate from presentation snapshots in `template_credentials`.
+The server-only `template-credentials.ts` repository reuses issued template principals,
+independent READ/WRITE scopes and APP_ENCRYPTION_KEY encryption. Its service-only
+`save_template_credential` RPC rechecks the actor/key and writes the credential plus
+status-only audit metadata atomically. Saving resets verification to `unknown`;
+status readers return only template ID, state and verification time. Signature,
+revocation and activation wiring belongs to the subsequent licensing task.
+
 ### Runtime Configuration
 
 **RuntimeConfig API** (`/api/runtime-config`):
