@@ -4,6 +4,8 @@ import { loadCataloguePage, loadCatalogueGroups, loadStorefrontBindings } from '
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
+vi.mock('next/cache', () => ({ unstable_cache: (read: () => Promise<unknown>) => read }));
+
 const id = (n: number) => `10000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const marketing = { format: 'course', sourceLocale: 'en', en: { result: null, tools: [], requirements: [] } };
 function row(n = 1) {
@@ -17,7 +19,7 @@ function row(n = 1) {
 }
 function client(rows: unknown[] = [row()]) {
   const rpc = vi.fn().mockResolvedValue({ data: rows, error: null });
-  return { rpc, db: { rpc } as unknown as SupabaseClient<Database> };
+  return { rpc, db: { rpc: (name: string, ...args: unknown[]) => name === 'storefront_catalogue_boundary' ? Promise.resolve({ data: null, error: null }) : rpc(name, ...args) } as unknown as SupabaseClient<Database> };
 }
 const input = { locale: 'en', pageSize: 9 };
 
@@ -80,7 +82,7 @@ describe('storefront catalogue', () => {
       expect(result.success && result.data.products[0].image).toBe(null);
     }
     const c = client();
-    c.rpc.mockRejectedValueOnce(Error('PRIVATE_ERROR'));
+    c.rpc.mockRejectedValue(Error('PRIVATE_ERROR'));
     expect(await loadCataloguePage(c.db, input)).toEqual({ success: false, error: 'UNAVAILABLE' });
   });
   it('loads independent default groups with no per-card calls and exact variant shape', async () => {
@@ -131,7 +133,7 @@ describe('storefront catalogue', () => {
       expect(await loadCataloguePage(client(data as unknown[]).db, input)).toEqual({ success: false, error: 'UNAVAILABLE' });
     }
     const c = client();
-    c.rpc.mockResolvedValueOnce({ error: { message: 'PRIVATE_ERROR' }, data: null });
+    c.rpc.mockResolvedValue({ error: { message: 'PRIVATE_ERROR' }, data: null });
     expect(await loadCatalogueGroups(c.db, input, 'default-groups')).toEqual({ success: false, error: 'UNAVAILABLE' });
     expect(await loadStorefrontBindings(c.db, { locale: 'en', target: 'catalogue', starterProducts: [id(1), id(1)] })).toEqual({ success: false, error: 'INVALID' });
   });

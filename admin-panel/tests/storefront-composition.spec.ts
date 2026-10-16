@@ -28,8 +28,9 @@ for (const theme of ['light', 'dark'] as const) for (const locale of ['en', 'pl'
       if (url.pathname === '/font.woff2') return route.fulfill({ contentType: 'font/woff2', body: readFileSync('node_modules/geist/dist/fonts/geist-sans/Geist-Regular.woff2') });
       if (url.pathname === '/fixture.js') return route.fulfill({ contentType: 'application/javascript', body: script });
       if (url.pathname === '/api/storefront/catalogue') {
-        const input = JSON.parse(url.searchParams.get('input')!); inputs.push(input);
-        return route.fulfill({ json: { products: Object.values(fixture.model.catalogue.groups)[0]!.products.slice(0, 1), nextCursor: null } });
+        const input = JSON.parse(url.searchParams.get('input')!); inputs.push(...(Array.isArray(input) ? input : [input]));
+        const result = { products: Object.values(fixture.model.catalogue.groups)[0]!.products.slice(0, 1), nextCursor: null };
+        return route.fulfill({ json: Array.isArray(input) ? input.map(() => result) : result });
       }
       return route.fulfill({ contentType: 'text/html', body: `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><title>Composition</title><link rel="canonical" href="https://composition.test/${locale}"><style>@font-face{font-family:FixtureGeist;src:url('/font.woff2')}*{box-sizing:border-box}body{margin:0;font-family:FixtureGeist;background:${colors.background};color:${colors.foreground}}header a{color:inherit}main{--sf-bg-base:${colors.background};--sf-bg-raised:${colors.muted};--sf-text-heading:${colors.foreground};--sf-text-body:${colors.foreground};--sf-text-muted:${colors.mutedForeground};--sf-accent:${colors.accent};--sf-accent-foreground:${colors.accentForeground};--sf-accent-fg:${colors.accentForeground};--sf-border:${colors.border}}${css}</style></head><body><header><a href="/${locale}">Example shop</a></header><main id="root">${fixture.html}</main><script id="model" type="application/json">${JSON.stringify(fixture.model)}</script><script src="/fixture.js" defer></script></body></html>` });
     });

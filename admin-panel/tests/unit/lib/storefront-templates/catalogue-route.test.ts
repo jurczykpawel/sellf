@@ -68,3 +68,23 @@ it('handles read initialization failures without exposing their content', async 
   expect(result.status).toBe(503);
   expect(await result.text()).not.toContain('internal');
 });
+
+it('counts a three-group filter interaction once', async () => {
+  const response = await GET(request(['featured', 'free', 'paid'].map(group => ({ ...input, group }))));
+  expect(response.status).toBe(200);
+  expect(checkRateLimit).toHaveBeenCalledTimes(1);
+  expect(loadCataloguePage).toHaveBeenCalledTimes(3);
+  expect(await response.json()).toHaveLength(3);
+});
+it('rejects oversized batches before reads', async () => {
+  expect((await GET(request(Array(5).fill(input)))).status).toBe(422);
+  expect(createAdminClient).not.toHaveBeenCalled();
+});
+it('serves the terminal SSR failure with 503, retry deadline and noindex', async () => {
+  const { GET: unavailable } = await import('@/app/api/storefront/unavailable/route');
+  const result = unavailable(new NextRequest('http://localhost/api/storefront/unavailable?locale=pl'));
+  expect(result.status).toBe(503);
+  expect(result.headers.get('Retry-After')).toBe('60');
+  expect(result.headers.get('X-Robots-Tag')).toBe('noindex');
+  expect(await result.text()).toContain('lang="pl"');
+});

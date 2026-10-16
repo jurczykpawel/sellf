@@ -475,8 +475,7 @@ read RPCs; public route callers must apply application rate limits. Pages use
 canonical product names in both locales, fixed `created_at DESC, id ASC` keysets,
 and filter-bound cursors. Default groups have independent cursors (24 per group,
 72 total); product/category bindings are batched and starter order is retained.
-These adapters deliberately remain uncached: each bounded SQL read applies current
-visibility, including products scheduled to appear outside the previous page. Public
+Neutral first catalogue pages use `boundedPublicRead`, keyed by locale, group, fixed sort version and page size. One indexed aggregate supplies the next active/listed availability or sale boundary, including products absent from the page. Arbitrary search, filters, cursor pages and bindings remain uncached. Public page renders have no application limiter; the catalogue API limits each bounded batch interaction once. Public
 config, shop config and product-by-slug reads reuse `boundedPublicRead`: tagged entries
 carry the original read time and an absolute deadline (at most 60 seconds, clipped
 to product availability/sale boundaries). Expired/cache-failed reads fall back to
@@ -485,7 +484,7 @@ envelope/deadline; it cannot renew the age. Only explicit public projections ent
 these caches; rights, access, drafts and request identity stay outside.
 
 Public `/` and `/store` share `PublicStorefrontPage` and the published-only,
-rate-limited `loadPublicStorefront` orchestrator. `resolveSelection` expands
+read-only `loadPublicStorefront` orchestrator. `resolveSelection` expands
 registered recipes and retained active overrides; `resolvePresentation` supplies
 concrete public section props to `StorefrontComposition`. Callers pass a digest of
 the public model as `renderKey` so replaced snapshots reset catalogue state.

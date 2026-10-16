@@ -13,7 +13,12 @@ vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: async () => true }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({}) }));
 vi.mock('@/lib/auth-server', () => ({ requireAdminApi: async () => ({ user: { id: 'dddddddd-0000-4000-a000-000000000000' } }) }));
 vi.mock('@/lib/license/public-snapshot', () => ({ getPublicLicenseTier: m.tier }));
-const sql = (query: string): string => execFileSync('docker', ['exec', '-i', 'supabase_db_sellf', 'psql', '-U', 'postgres', '-tA', '-v', 'ON_ERROR_STOP=1'], { input: query, encoding: 'utf8' }).trim();
+const sql = (query: string): string => {
+  const url = new URL(process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '');
+  const container = process.env.SUPABASE_DB_CONTAINER ?? (url.port === '54321' ? 'supabase_db_sellf' : null);
+  if (!container) throw new Error('Set SUPABASE_DB_CONTAINER for an isolated stack');
+  return execFileSync('docker', ['exec', '-i', container, 'psql', '-U', 'postgres', '-tA', '-v', 'ON_ERROR_STOP=1'], { input: query, encoding: 'utf8' }).trim();
+};
 const literal = (value: unknown): string => "'" + JSON.stringify(value).replaceAll("'", "''") + "'::jsonb";
 const stateQuery = `SELECT jsonb_build_array(
   (SELECT to_jsonb(c) FROM public.storefront_config c),

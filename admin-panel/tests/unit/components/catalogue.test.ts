@@ -111,7 +111,9 @@ describe('catalogue', () => {
     expect(input).toMatchObject({ search: 'nothing', cursor: null });
   });
   it('keeps independent group cursors and resets all on a filter change', async () => {
-    const fetcher = vi.fn().mockResolvedValue(response(40));
+    const fetcher = vi.fn().mockResolvedValueOnce(response(40)).mockResolvedValue({
+      ok: true, json: async () => [41, 42, 43].map(n => ({ products: [catalogueProduct(n)], nextCursor: null })),
+    });
     vi.stubGlobal('fetch', fetcher);
     const view = render(React.createElement(Catalogue, catalogueFixture('default-groups')));
     fireEvent.click(view.getByRole('button', { name: 'More free products' }));
@@ -121,9 +123,12 @@ describe('catalogue', () => {
       cursor: 'free-cursor',
     });
     fireEvent.change(view.getByLabelText('Price'), { target: { value: 'subscription' } });
-    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(4));
-    for (const [url] of fetcher.mock.calls.slice(1))
-      expect(JSON.parse(new URL(url, 'http://local').searchParams.get('input')!).cursor).toBeNull();
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+    const batch = JSON.parse(new URL(fetcher.mock.calls[1][0], 'http://local').searchParams.get('input')!);
+    expect(batch.map((input: { group: string }) => input.group)).toEqual(['featured', 'free', 'paid']);
+    expect(batch.every((input: { cursor: null }) => input.cursor === null)).toBe(true);
+    await waitFor(() => expect(view.getByRole('status').textContent).toContain('3'));
+    expect(view.queryByRole('alert')).toBeNull();
   });
   it('ignores an older response after a newer filter succeeds', async () => {
     let resolveOld!: (value: ReturnType<typeof response>) => void;
