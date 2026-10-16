@@ -172,8 +172,9 @@ BEGIN
    OR (OLD.eligible_at IS NULL AND NEW.eligible_at IS NOT NULL)
    OR NEW.eligible_at<OLD.eligible_at OR (OLD.dispute_reviewed_at IS NOT NULL AND NEW.dispute_reviewed_at IS NULL) OR NEW.version<>OLD.version+1 THEN
    RAISE EXCEPTION 'Commission snapshot fixed' USING ERRCODE='23514'; END IF;
- ELSIF TG_TABLE_NAME='affiliate_work' AND EXISTS(SELECT 1 FROM public.affiliate_commissions WHERE payment_id=OLD.payment_id) THEN
-  IF OLD.status<>'done' OR OLD.requested_generation<>OLD.processed_generation OR OLD.dispute_seen THEN
+ ELSIF TG_TABLE_NAME='affiliate_work' THEN
+  IF EXISTS(SELECT 1 FROM public.affiliate_commissions WHERE payment_id=OLD.payment_id)
+   AND (OLD.status<>'done' OR OLD.requested_generation<>OLD.processed_generation OR OLD.dispute_seen) THEN
    RAISE EXCEPTION 'Work remains due' USING ERRCODE='23514'; END IF;
  ELSIF TG_TABLE_NAME='affiliate_payout_allocations' THEN
   IF NEW.payout_id<>OLD.payout_id OR NEW.entry_id<>OLD.entry_id OR OLD.released_at IS NOT NULL
@@ -498,9 +499,10 @@ BEGIN
  SELECT array_agg(l.id ORDER BY l.created_at,l.id),sum(l.amount_minor)::bigint INTO entries,total
  FROM public.affiliate_ledger l JOIN public.affiliate_commissions c ON c.id=l.commission_id
  JOIN public.payment_transactions pt ON pt.id=c.payment_id
- WHERE l.member_id=p_member AND l.currency=p_currency AND l.created_at<=p_cutoff
+ WHERE l.member_id=p_member AND l.currency=p_currency
   AND NOT EXISTS(SELECT 1 FROM public.affiliate_payout_allocations a WHERE a.entry_id=l.id AND a.released_at IS NULL)
   AND ((c.eligible_at IS NOT NULL AND c.eligible_at<=p_cutoff
+   AND EXISTS(SELECT 1 FROM public.affiliate_ledger earning WHERE earning.commission_id=c.id AND earning.kind='accrual' AND earning.created_at<=p_cutoff)
    AND ((NOT c.dispute_seen AND pt.status<>'disputed') OR c.dispute_reviewed_at IS NOT NULL))
    OR (l.amount_minor<0 AND EXISTS(SELECT 1 FROM public.affiliate_ledger old
     JOIN public.affiliate_payout_allocations a ON a.entry_id=old.id AND a.released_at IS NULL

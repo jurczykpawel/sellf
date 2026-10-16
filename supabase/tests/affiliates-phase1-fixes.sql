@@ -73,5 +73,36 @@ DO $$ DECLARE payment uuid; BEGIN
  PERFORM pg_temp.check_that((SELECT status='needs_review' AND attempts=2 AND last_error_code='net_unavailable' AND processed_generation=0 FROM public.affiliate_work WHERE payment_id=payment),'fulfilled missing net requires review');
 END $$;
 ROLLBACK TO readiness;
+SAVEPOINT stale;
+DO $$ DECLARE payment uuid; coupon uuid; member uuid; payout public.affiliate_payouts; BEGIN
+ INSERT INTO public.affiliate_memberships(user_id,code,status,display_name,accepted_terms_version,accepted_at)
+ VALUES('dddddddd-0000-4000-a000-000000000000','stale-fixture','approved','Fixture','demo-v1',now()) RETURNING id INTO member;
+ INSERT INTO public.affiliate_membership_events(member_id,version,status,created_at) VALUES(member,1,'approved','2026-01-01');
+ INSERT INTO public.coupons(code,name,discount_type,discount_value) VALUES('STALEFIX','Fixture','percentage',10) RETURNING id INTO coupon;
+ INSERT INTO public.affiliate_coupon_bindings(coupon_id,member_id,version,created_at) VALUES(coupon,member,1,'2026-01-01');
+ SET CONSTRAINTS ALL IMMEDIATE; ALTER TABLE public.affiliate_ledger ALTER COLUMN created_at SET DEFAULT now()-interval '2 days'; SET CONSTRAINTS ALL DEFERRED;
+ payment:=pg_temp.sale(p_coupon=>coupon); PERFORM pg_temp.sync(payment);
+ SET CONSTRAINTS ALL IMMEDIATE; ALTER TABLE public.affiliate_ledger ALTER COLUMN created_at SET DEFAULT now(); SET CONSTRAINTS ALL DEFERRED;
+ UPDATE public.payment_transactions SET refunded_amount=12300 WHERE id=payment;
+ PERFORM pg_temp.sync(payment);
+ BEGIN
+  PERFORM public.affiliate_reserve('dddddddd-0000-4000-a000-000000000000',member,'EUR',now()-interval '1 day',1,1,'Fixture');
+  RAISE EXCEPTION 'Stale refunded earnings reserved';
+ EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+ PERFORM pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.affiliate_payouts WHERE member_id=member),'refund after cutoff leaves no payout');
+ -- Paid earnings produce debt against a different sale with an earlier preview cutoff.
+ SET CONSTRAINTS ALL IMMEDIATE; ALTER TABLE public.affiliate_ledger ALTER COLUMN created_at SET DEFAULT now()-interval '2 days'; SET CONSTRAINTS ALL DEFERRED;
+ payment:=pg_temp.sale(p_coupon=>coupon); PERFORM pg_temp.sync(payment);
+ SELECT * INTO payout FROM public.affiliate_reserve('dddddddd-0000-4000-a000-000000000000',member,'EUR',now()-interval '1 day',1,1,'Fixture');
+ PERFORM public.affiliate_mark_paid('dddddddd-0000-4000-a000-000000000000',payout.id,1,'stale-bank','stale-invoice',2000,'EUR',now(),true);
+ PERFORM pg_temp.sync(pg_temp.sale(p_coupon=>coupon));
+ SET CONSTRAINTS ALL IMMEDIATE; ALTER TABLE public.affiliate_ledger ALTER COLUMN created_at SET DEFAULT now(); SET CONSTRAINTS ALL DEFERRED;
+ UPDATE public.payment_transactions SET refunded_amount=12300 WHERE id=payment; PERFORM pg_temp.sync(payment);
+ BEGIN
+  PERFORM public.affiliate_reserve('dddddddd-0000-4000-a000-000000000000',member,'EUR',now()-interval '1 day',1,1,'Fixture');
+  RAISE EXCEPTION 'Current debt excluded from old cutoff';
+ EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+END $$;
+ROLLBACK TO stale;
 SET CONSTRAINTS ALL IMMEDIATE;
 ROLLBACK;

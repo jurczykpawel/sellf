@@ -4,7 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { PreviewInfo } from '@/lib/affiliates/payouts/contracts';
 
 interface Commission { id: string; eligible_at: string | null; dispute_seen: boolean; dispute_reviewed_at: string | null; observed_status: string; observed_refunded_gross: string; payment: { status: string; refunded_amount: string | null; work: { requested_generation: string; processed_generation: string; status: string } | null } }
-interface Entry { id: string; commission_id: string | null; amount_minor: string; created_at: string; allocations: { released_at: string | null; payout: { status: string } }[] }
+interface Entry { id: string; commission_id: string | null; amount_minor: string; kind: string; created_at: string; allocations: { released_at: string | null; payout: { status: string } }[] }
 export async function readPreview(client: SupabaseClient, member: string, currency: string, cutoff: string): Promise<PreviewInfo | null> {
   const [m, p] = await Promise.all([
     client.from('affiliate_memberships').select('version::text,status,user_id').eq('id', member).single(),
@@ -32,7 +32,7 @@ export async function readPreview(client: SupabaseClient, member: string, curren
   async function* entries(): AsyncGenerator<Entry> {
     let after = '';
     while (true) {
-      let query = client.from('affiliate_ledger').select('id,commission_id,amount_minor::text,created_at,allocations:affiliate_payout_allocations(released_at,payout:affiliate_payouts!inner(status))').eq('member_id', member).eq('currency', currency).lte('created_at', cutoff).order('id').limit(100);
+      let query = client.from('affiliate_ledger').select('id,commission_id,amount_minor::text,kind,created_at,allocations:affiliate_payout_allocations(released_at,payout:affiliate_payouts!inner(status))').eq('member_id', member).eq('currency', currency).order('id').limit(100);
       if (after) query = query.gt('id', after);
       const result = await query;
       if (result.error) { failed = true; return; }
@@ -44,13 +44,17 @@ export async function readPreview(client: SupabaseClient, member: string, curren
   }
   let earnings = BigInt(0), debt = BigInt(0), held = BigInt(0);
   const paid = new Set<string>();
-  for await (const e of entries()) if (e.commission_id && e.allocations.some(a => !a.released_at && a.payout.status === 'paid')) paid.add(e.commission_id);
+  const earned = new Set<string>();
+  for await (const e of entries()) {
+    if (e.commission_id && e.kind === 'accrual' && Date.parse(e.created_at) <= Date.parse(cutoff)) earned.add(e.commission_id);
+    if (e.commission_id && e.allocations.some(a => !a.released_at && a.payout.status === 'paid')) paid.add(e.commission_id);
+  }
   for await (const e of entries()) {
     if (!e.commission_id || e.allocations.some(a => !a.released_at)) continue;
     const c = commissions.get(e.commission_id);
     if (!c) continue;
     const amount = BigInt(e.amount_minor);
-    const mature = c.eligible_at !== null && Date.parse(c.eligible_at) <= Date.parse(cutoff) && ((!c.dispute_seen && c.payment.status !== 'disputed') || c.dispute_reviewed_at !== null);
+    const mature = earned.has(c.id) && c.eligible_at !== null && Date.parse(c.eligible_at) <= Date.parse(cutoff) && ((!c.dispute_seen && c.payment.status !== 'disputed') || c.dispute_reviewed_at !== null);
     if (mature || (amount < BigInt(0) && paid.has(c.id))) {
       if (amount > BigInt(0)) earnings += amount; else debt -= amount;
     } else held += amount;
