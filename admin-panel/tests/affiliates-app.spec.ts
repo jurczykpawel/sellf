@@ -2,6 +2,7 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { setAuthSession } from './helpers/admin-auth';
+import { setConsentPreferences } from './helpers/consent';
 import { createTestUser, supabaseAdmin } from './helpers/admin-auth';
 import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
@@ -19,6 +20,7 @@ test('keeps affiliate pages and CSV private for signed-out visitors', async ({ r
 });
 for (const locale of ['en', 'pl'] as const) for (const width of [1440, 390]) {
   test(`${locale} ${width} integrated partner and seller screens`, async ({ page }) => {
+    await setConsentPreferences(page, {});
     await page.setViewportSize({ width, height: 1000 });
     const screens = [
       ['admin', '/dashboard/affiliates', true],
@@ -34,7 +36,8 @@ for (const locale of ['en', 'pl'] as const) for (const width of [1440, 390]) {
       expect(response?.headers()['x-robots-tag']).toContain('noindex');
       for (const meta of await page.locator('meta[name="robots"]').all()) await expect(meta).toHaveAttribute('content', /noindex/);
       await expect(page.locator('main h1').first()).toBeVisible();
-      if (name === 'payouts') { await expect(page.getByRole('combobox').first()).toHaveValue('Demo Partner'); await expect(page.locator('main dl').first()).toBeVisible(); }
+      if (name === 'payouts') { await expect(page.getByRole('combobox').first()).toHaveValue('Demo Partner'); await expect(page.locator('main dl dd').first()).toHaveText(locale === 'pl' ? '20,00 PLN' : '20.00 PLN'); }
+      if (name === 'apply') await expect(page.getByRole('button', { name: (locale === 'en' ? en : pl).affiliates.admin.apply, exact: true })).toBeEnabled({ timeout: 20000 });
       if (name === 'earnings') await expect(page.getByRole('combobox')).toHaveValue('Demo Partner');
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: `/tmp/a18-${name}-${locale}-${width}.png`, fullPage: true });
@@ -44,7 +47,8 @@ for (const locale of ['en', 'pl'] as const) for (const width of [1440, 390]) {
       if (width === 390) {
         await page.setViewportSize({ width: 320, height: 1000 });
         await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; document.documentElement.classList.add('dark'); });
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        const overflow = await page.evaluate(() => [...document.querySelectorAll('main *')].filter(el => el.getBoundingClientRect().right > innerWidth + 1).map(el => ({ tag: el.tagName, text: el.textContent?.slice(0, 50), class: el.className })).slice(0, 8));
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), JSON.stringify(overflow)).toBe(true);
         expect((await new AxeBuilder({ page }).include('main').withTags(['wcag2a', 'wcag2aa']).analyze()).violations).toEqual([]);
         await page.setViewportSize({ width, height: 1000 });
       }
@@ -74,11 +78,34 @@ for (const locale of ['en', 'pl'] as const) test(`${locale} saved coupon exposes
   const coupon = await supabaseAdmin.from('coupons').insert({ code, discount_type: 'percentage', discount_value: 10, is_active: true }).select('id').single();
   expect(coupon.error).toBeNull();
   try {
+    await setConsentPreferences(page, {});
     await setAuthSession(page, 'demo@sellf.app', 'demo123'); await page.goto(`/${locale}/dashboard/coupons`);
     const copy = locale === 'en' ? en : pl;
     await page.getByRole('row').filter({ hasText: code }).getByRole('button', { name: copy.admin.coupons.edit, exact: true }).click();
     await expect(page.getByRole('heading', { name: copy.affiliates.products.owner, exact: true })).toBeVisible();
-    await expect(page.getByRole('combobox')).toBeVisible();
+    const partner = page.getByRole('textbox', { name: copy.affiliates.products.partner, exact: true });
+    await expect(partner).toBeEnabled();
+    const searched = page.waitForResponse(r => r.request().method() === 'POST' && !!r.request().postData()?.includes('"search":"Demo"'));
+    await partner.fill('Demo'); await searched;
+    await partner.press('ArrowDown'); await partner.press('Enter');
+    await expect(partner).toHaveValue(/Demo Partner/);
     expect(await page.locator('form form').count()).toBe(0);
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await partner.scrollIntoViewIfNeeded();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: `/tmp/a18-coupon-${locale}-${width}.png`, fullPage: true });
+    }
   } finally { await supabaseAdmin.from('coupons').delete().eq('id', coupon.data!.id); }
+});
+test('renders signed-in partner navigation before client hydration', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, javaScriptEnabled: false, viewport: { width: 390, height: 1000 } });
+  const page = await context.newPage();
+  try {
+    await setAuthSession(page, 'buyer@demo.sellf.app', 'demo1234');
+    for (const path of ['/my-affiliate', '/affiliates/apply']) {
+      await page.goto(path);
+      await expect(page.getByRole('button', { name: en.navigation.openSidebar, exact: true })).toBeVisible();
+    }
+  } finally { await context.close(); }
 });

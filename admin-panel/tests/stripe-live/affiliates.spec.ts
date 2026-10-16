@@ -9,7 +9,7 @@ import { acceptAllCookies } from '../helpers/consent';
 import type { Page, APIRequestContext } from '@playwright/test';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const actor = 'dddddddd-0000-4000-a000-000000000000';
-const base = process.env.PLAYWRIGHT_BASE_URL!;
+const base = process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${process.env.PW_PORT || 3777}`;
 function sql(statement: string): string {
   expect(process.env.SUPABASE_URL).toBe('http://127.0.0.1:55471');
   return execFileSync('docker', ['exec', 'supabase_db_sellf-aff-a18', 'psql', '-U', 'postgres', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8' }).trim();
