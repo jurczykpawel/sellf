@@ -45,7 +45,7 @@ it('validates live required products and categories while optional starters warn
 });
 it('does not validate inactive or hidden optional references', async () => {
   m.tier.mockReturnValue('pro');
-  const config = structuredClone(D_CONFIG); config.overridesByTemplate.d!.hidden = ['start', 'tasks'];
+  const config = structuredClone(D_CONFIG); config.overridesByTemplate.d!.sections = { ...config.overridesByTemplate.d!.sections, start: { visibility: 'hidden' }, tasks: { visibility: 'hidden' } };
   expect(await storefrontLifecycle(await verifyTemplateSession(), { operation: 'validate', config, mode: 'publish' })).toMatchObject({ success: true, data: { valid: true } });
   expect(m.bindings).toHaveBeenCalledWith({}, expect.objectContaining({ starterProducts: [], taskCategories: [] }));
 });
@@ -82,4 +82,24 @@ it.each([
   { operation: 'diff', fromRevision: 0, toRevision: Number.MAX_SAFE_INTEGER + 1 },
 ])('preserves structured revision limit errors %j', async input => {
   expect(await storefrontLifecycle(await verifyTemplateSession(), input)).toMatchObject({ code: 'LIMIT', status: 422, validation: { errors: [expect.objectContaining({ code: 'LIMIT' })] } });
+});
+
+it.each(['free', 'registered', 'pro', 'business'])('exposes current per-template publication rights for %s', async tier => {
+  m.tier.mockReturnValue(tier);
+  const paid = tier === 'pro' || tier === 'business';
+  expect(await storefrontLifecycle(await verifyTemplateSession(), { operation: 'read' })).toMatchObject({ success: true, data: { rights: { canPublish: [
+    { templateId: 'default', allowed: true, reason: null },
+    { templateId: 'd', allowed: paid, reason: paid ? null : 'ENTITLEMENT' },
+    { templateId: 'storefront-a', allowed: false, reason: 'ENTITLEMENT' },
+  ] } } });
+});
+it('includes active customization in publication rights without mutating the snapshot', async () => {
+  const draft = { ...D_CONFIG, tokens: { format: 1, light: { accent: '#075C43' } } };
+  m.read.mockResolvedValue({ success: true, data: { revision: 3, draft, published: DEFAULT_CONFIG } });
+  expect(await storefrontLifecycle(await verifyTemplateSession(), { operation: 'read' })).toMatchObject({ data: { rights: { canPublish: [
+    { templateId: 'default', allowed: false, reason: 'CUSTOMIZATION' },
+    { templateId: 'd', allowed: false, reason: 'ENTITLEMENT' },
+    { templateId: 'storefront-a', allowed: false, reason: 'ENTITLEMENT' },
+  ] } } });
+  expect(draft.templateId).toBe('d');
 });

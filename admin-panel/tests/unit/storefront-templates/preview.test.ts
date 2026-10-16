@@ -1,6 +1,6 @@
 /** Private preview evidence contract. */
 import { beforeEach, expect, it, vi } from 'vitest';
-import { D_CONFIG, DEFAULT_CONFIG, D_LOCALIZED_CONFIG } from '@/lib/storefront-templates/fixtures';
+import { D_CONFIG, DEFAULT_CONFIG, D_LOCALIZED_CONFIG, PUBLIC_FIXTURE } from '@/lib/storefront-templates/fixtures';
 import { verifyTemplateSession, verifyTemplateApiKey } from '@/lib/storefront-templates/mutations';
 import { preparePreview } from '@/lib/storefront-templates/preview';
 const m = vi.hoisted(() => ({ client: vi.fn(), read: vi.fn(), rate: vi.fn(), auth: vi.fn(), offer: vi.fn(), bindings: vi.fn() }));
@@ -9,14 +9,18 @@ vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ defa
 vi.mock('next/cache', () => ({ revalidateTag: vi.fn(), revalidatePath: vi.fn() }));
 vi.mock('@/lib/api/middleware', () => ({ authenticateApiKeyPrincipal: m.auth }));
 vi.mock('@/lib/storefront-templates/offer-repository', () => ({ readOfferConfig: m.offer }));
-vi.mock('@/lib/storefront-templates/catalogue', () => ({ loadStorefrontBindings: m.bindings }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 vi.mock('@/lib/auth-server', () => ({ requireAdminApi: async () => ({ user: { id: 'dddddddd-0000-4000-a000-000000000000' } }) }));
 vi.mock('@/lib/supabase/admin', () => ({ createPlatformClient: m.client }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: m.rate }));
+vi.mock('@/lib/storefront-templates/catalogue', () => ({
+  loadCatalogueGroups: async () => ({ success: true, data: { all: { products: [], nextCursor: null } } }),
+  loadStorefrontBindings: m.bindings,
+}));
 vi.mock('@/lib/storefront-templates/repository', () => ({ readStorefrontConfig: m.read }));
 beforeEach(() => {
   vi.resetAllMocks(); m.client.mockReturnValue({}); m.rate.mockResolvedValue(true);
+  m.bindings.mockResolvedValue({ success: true, data: { hero: null, closing: null, starters: [], comparison: [], categories: PUBLIC_FIXTURE.categories } });
   m.read.mockResolvedValue({ success: true, data: { revision: 3, draft: D_CONFIG, published: DEFAULT_CONFIG } });
 });
 const input = { revision: 3, locale: 'en', fixture: 'standard' };
@@ -97,4 +101,23 @@ it('prepares product offers through the same inert preview boundary and rechecks
   m.offer.mockResolvedValueOnce({ success: true, data: { revision: 3, draft } }).mockResolvedValue({ success: true, data: { revision: 4, draft } });
   expect(await preparePreview(auth, input, Date.now(), productId)).toMatchObject({ code: 'CONFLICT', currentRevision: 4 });
   expect(await preparePreview({}, input, Date.now(), productId)).toMatchObject({ code: 'FORBIDDEN' });
+});
+
+it('allows a full evidence matrix plus repeated viewport navigations within one minute', async () => {
+  const counts = new Map<string, number>();
+  m.rate.mockImplementation(async (action: string, limit: number) => {
+    const count = (counts.get(action) ?? 0) + 1; counts.set(action, count);
+    return count <= limit;
+  });
+  const auth = await verifyTemplateSession();
+  for (const fixture of ['standard', 'empty', 'long', 'unavailable', 'published-products']) {
+    for (const locale of ['en', 'pl']) for (let navigation = 0; navigation < 5; navigation++) {
+      expect(await preparePreview(auth, { revision: 3, locale, fixture })).toMatchObject({ success: true });
+    }
+  }
+  expect(m.rate).toHaveBeenCalledWith('storefront_preview', 120, 1, expect.any(String));
+});
+it('names preview failures by operation', async () => {
+  m.rate.mockResolvedValue(false);
+  expect(await preparePreview(await verifyTemplateSession(), input)).toMatchObject({ message: 'Storefront preview could not be completed' });
 });

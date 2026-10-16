@@ -65,6 +65,7 @@ test('A author lifecycle and cached rights loss', async ({ browser, request }) =
   const initial = (await call('config')).body; let revision = initial.revision;
   const candidate = structuredClone(initial.published);
   candidate.templateId = 'storefront-a';
+  candidate.overridesByTemplate['storefront-a'] = { order: ['hero', 'tasks', 'comparison', 'start', 'catalogue', 'faq', 'closing'], sections: { tasks: { visibility: 'visible' }, start: { variant: 'detail-cards' } } };
   const products = handoff.products.slice(0, 3);
   candidate.settingsByTemplate['storefront-a'] = { heroProduct: products[0].id, comparisonProducts: products.slice(0, 2).map((p: { id: string }) => p.id), starterProducts: products.map((p: { id: string }) => p.id), taskCategories: handoff.categories.slice(0, 1).map((c: { id: string }) => c.id), density: 'comfortable' };
   candidate.content = { ...candidate.content,

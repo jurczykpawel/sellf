@@ -22,7 +22,7 @@ export const D_CONFIG: StorefrontConfig = {
     "default": {}
   },
   "overridesByTemplate": {
-    "d": {"order": ["hero", "tasks", "start", "catalogue", "faq", "closing"], "hidden": [], "variants": {"hero": "split-process"}},
+    "d": {"order": ["hero", "tasks", "start", "catalogue", "faq", "closing"], "sections": {"hero": {"variant": "split-process"}}},
     "default": {}
   },
   "content": {

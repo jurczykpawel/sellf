@@ -35,6 +35,7 @@ export const phase2Recipes = {
 };
 export const phase2Config = {
   ...D_CONFIG, templateId: 'storefront-a',
+  overridesByTemplate: { ...D_CONFIG.overridesByTemplate, 'storefront-a': { order: phase2Recipes.a.sections.map(section => section.id), sections: { tasks: { visibility: 'visible' }, start: { variant: 'detail-cards' } } } },
   settingsByTemplate: { ...D_CONFIG.settingsByTemplate, 'storefront-a': { heroProduct: uuid(1), comparisonProducts: [uuid(1), uuid(2)], starterProducts: [uuid(3)], density: 'comfortable' }, 'storefront-b': { featuredProducts: Array.from({ length: 6 }, (_, i) => uuid(i + 1)), closingProduct: uuid(2) } },
   content: {
     ...D_CONFIG.content,

@@ -172,9 +172,15 @@ composition styling. No second finder or product request is added.
 
 `base-schemas.ts` retains the Phase 1 grammar used to build the frozen extension.
 `schemas.ts` adopts only A's sections, slots and retained settings for runtime
-validation; default/D bounds remain unchanged. A's exact composition is fixed:
-its override object is empty, and its required catalogue cannot be hidden or
-reordered. Density and seller tokens remain editable. Comparison copy joins the
+validation; default/D bounds remain unchanged. A's default composition retains that order. Its descriptor-derived override map
+uses `order?: KnownId[]` and `sections.<id>.visibility/variant`; tasks, starters and
+FAQ may hide, while hero, comparison, catalogue and closing remain visible. Only
+declared variants are accepted (offer-focus, comparison, compact catalogue,
+catalogue-link closing; starters also accept compact). Reads accept unique known
+subsets up to 32 IDs; writers materialize the complete anchored order through
+`effectiveLayout()`. Missing intent inherits defaults, and reset removes one leaf.
+The hero remains the first visible section; catalogue targets remain visible.
+Density and seller tokens remain editable. Comparison copy joins the
 two selected products by ID; product selectors use the existing name-based picker.
 A's blue palette, bundled Geist and canonical action labels are approved content
 substitutions for the prototype; there is no seller-specific shipped claim.
@@ -186,3 +192,25 @@ Seed data retains optional A bindings while publishing the free default, without
 credentials or premium activation. Runtime rights still combine local platform
 and matching A confirmation; missing rights select the free storefront.
 T2.8 owns the complete premium author/purchase trial before release.
+
+## Final stored section intent
+
+D-056 replaces the unreleased `hidden`/`variants` fields with strict, finite
+`sections` maps. `section-descriptors.ts` declares visibility, variants and
+pin/after/before placement for default/D/A and the offline B/C contracts. Installed
+and frozen Zod/JSON Schema contracts derive from those descriptors; unknown IDs,
+unknown leaves and variants needing different bindings are rejected. B/C remain
+offline contracts. Resolver, content checks, editor, reset paths, capabilities,
+preview and authored-order normalization share `effectiveLayout()`.
+
+Offers retain their independent frozen config: no section overrides, product IDs,
+visibility or variant controls. The offer editor only edits opt-in, copy, density
+and appearance. The release gate enumerates every offer permutation with/without
+FAQ against the frozen route-product grammar, plus all legacy default/D/A orders
+and optional visibility subsets through the real storefront resolver, including
+an anchored additive section. No adapter or historic JSON rewrite is introduced.
+
+The latest generated storefront schema stays in the separate unreleased A
+migration `20261016223736_storefront_a_contract.sql`. The Phase 1 migration retains
+its D-056 schema and conditional published-row validation; credential and offer
+migrations remain independent. Released migrations must never be regenerated.

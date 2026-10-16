@@ -88,7 +88,7 @@ DECLARE invalid jsonb;
 BEGIN
   FOR invalid IN SELECT value FROM jsonb_array_elements('[
     {"tokens":{"format":1,"light":{"accent":"red"}}},
-    {"overridesByTemplate":{"d":{"hidden":["catalogue"]}}},
+    {"overridesByTemplate":{"d":{"sections":{"catalogue":{"visibility":"hidden"}}}}},
     {"overridesByTemplate":{"d":{"order":["hero","hero","start","catalogue","faq","closing"]}}},
     {"content":{"home.hero":{"sourceLocale":"en","pl":{"kind":"hero","eyebrow":"","heading":"","body":"","steps":[]}}}},
     {"content":{"home.faq":{"sourceLocale":"en","en":{"kind":"faq","items":[{"id":"one","question":"Q","answer":"A"},{"id":"one","question":"Q","answer":"A"}]}}}},
@@ -157,6 +157,21 @@ BEGIN
   PERFORM pg_temp.assert_true(response->>'success'='true', 'legacy import advances revision');
   PERFORM pg_temp.assert_true((SELECT operation='legacy-import' FROM public.storefront_config_history WHERE revision=rev+1), 'legacy import retains history');
   PERFORM pg_temp.assert_true((SELECT new_values->'legacySource'=source FROM public.audit_log WHERE table_name='storefront_config' AND new_values->>'revision'=(rev+1)::text), 'legacy import retains source metadata in the same revision');
+END;
+$$;
+-- Draft authoring must still work when the unchanged live row no longer decodes.
+DO $$
+DECLARE saved jsonb; response jsonb; rev bigint;
+BEGIN
+  SELECT published,revision INTO saved,rev FROM public.storefront_config;
+  UPDATE public.storefront_config SET published='{}';
+  response := pg_temp.mutate(rev,'draft',saved);
+  PERFORM pg_temp.assert_true(response->>'success'='true', 'draft does not revalidate unchanged publication');
+  PERFORM pg_temp.assert_true((SELECT published='{}'::jsonb FROM public.storefront_config), 'draft preserves unchanged publication');
+  response := pg_temp.mutate(rev+1,'reset',saved);
+  PERFORM pg_temp.assert_true(response->>'success'='true', 'reset does not revalidate unchanged publication');
+  response := pg_temp.mutate(rev+2,'publish');
+  PERFORM pg_temp.assert_true(response->>'success'='true', 'valid draft can replace undecodable publication');
 END;
 $$;
 CREATE FUNCTION pg_temp.fail_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test audit unavailable'; END; $$;

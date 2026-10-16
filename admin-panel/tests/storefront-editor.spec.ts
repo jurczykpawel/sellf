@@ -70,8 +70,8 @@ test('reads, saves, reloads, retains inactive values and prevents a stale tab fr
   const draft = saved.data!.draft as unknown as StorefrontConfig;
   expect(draft.templateId).toBe('d');
   expect(draft.overridesByTemplate.d!.order![0]).toBe('tasks');
-  expect(draft.overridesByTemplate.d!.hidden).toEqual(['tasks']);
-  expect(draft.overridesByTemplate.d!.variants!.hero).toBe('simple');
+  expect(draft.overridesByTemplate.d!.sections?.tasks?.visibility).toBe('hidden');
+  expect(draft.overridesByTemplate.d!.sections?.hero?.variant).toBe('simple');
   expect((saved.data!.published as unknown as StorefrontConfig).templateId).toBe('default');
   await page.reload();
   await expect(editor.getByRole('button', { name: `Remove ${productName}`, exact: true })).toBeVisible();
@@ -143,7 +143,40 @@ for (const locale of ['en', 'pl']) for (const mode of ['light', 'dark'] as const
       await editor.getByRole('heading', { level: 1 }).click();
       await page.evaluate(() => scrollTo(0, 0));
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      await page.screenshot({ path: `/tmp/t1-18-v2-${locale}-${mode}-${width}.png`, fullPage: true });
+      await page.screenshot({ path: `/tmp/d056-${locale}-${mode}-${width}.png`, fullPage: true });
     }
   });
 }
+
+test('A saves descriptor-driven section intent and reloads it in both locales', async ({ page }) => {
+  await acceptAllCookies(page);
+  await setAuthSession(page, admin.email, admin.password);
+  await page.goto('/en/dashboard/templates');
+  const editor = page.locator('[data-storefront-editor]');
+  await editor.getByLabel('Template', { exact: true }).selectOption('storefront-a');
+  await editor.getByRole('checkbox', { name: 'Show How it works', exact: true }).uncheck();
+  await editor.getByRole('button', { name: 'Starting offers', exact: true }).click();
+  await editor.getByLabel('Layout style', { exact: true }).selectOption('compact');
+  await editor.getByRole('button', { name: /Reorder Starting offers/ }).focus();
+  await page.keyboard.press('ArrowUp');
+  await editor.getByRole('button', { name: 'Save draft', exact: true }).click();
+  await expect(editor.getByRole('status')).toContainText('All changes saved');
+  const { data, error } = await db.from('storefront_config').select('draft').single();
+  expect(error).toBeNull();
+  const draft = data!.draft as typeof DEFAULT_CONFIG;
+  expect(draft.overridesByTemplate['storefront-a']).toEqual({ order: ['hero', 'tasks', 'start', 'comparison', 'catalogue', 'faq', 'closing'], sections: { tasks: { visibility: 'hidden' }, start: { variant: 'compact' } } });
+  for (const locale of ['en', 'pl']) {
+    await page.goto(`/${locale}/dashboard/templates`);
+    await expect(editor.getByRole('checkbox', { name: locale === 'pl' ? 'Pokaż: Jak to działa' : 'Show How it works', exact: true })).not.toBeChecked();
+    await editor.getByRole('button', { name: locale === 'pl' ? 'Oferty na początek' : 'Starting offers', exact: true }).click();
+    await expect(editor.getByLabel(locale === 'pl' ? 'Układ sekcji' : 'Layout style', { exact: true })).toHaveValue('compact');
+    await editor.getByRole('searchbox').fill(productName);
+    await expect(editor.getByRole('button', { name: `${locale === 'pl' ? 'Dodaj' : 'Add'} ${productName}`, exact: true })).toBeVisible();
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.evaluate(() => scrollTo(0, 0));
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: `/tmp/p2wire-editor-${locale}-${width}.png`, fullPage: true });
+    }
+  }
+});

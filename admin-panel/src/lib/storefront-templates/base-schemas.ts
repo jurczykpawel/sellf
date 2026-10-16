@@ -1,5 +1,7 @@
 /** Strict Phase 1 data shapes. @see priv/rfc/2026-10-03-templates/spec/contracts/ */
 import { z } from 'zod';
+import { SECTION_DESCRIPTORS } from '@/lib/storefront-templates/section-descriptors';
+import type { SectionDescriptor } from '@/lib/storefront-templates/section-descriptors';
 
 export const templateIdSchema = z.enum(['default', 'd']);
 export const idSchema = z.string().regex(/^[a-z][a-z0-9-]{0,63}$/);
@@ -42,12 +44,20 @@ export const sectionSchema = z.discriminatedUnion('type', [
 ]);
 export const recipeSchema = z.strictObject({ format: z.literal(1), surface: z.literal('storefront'), shell: z.literal('store/1'), sections: z.array(sectionSchema).min(1).max(32) });
 export const settingsSchema = z.strictObject({ heroProduct: z.uuid().optional(), closingProduct: z.uuid().optional(), starterProducts: unique(z.uuid(), 3).optional(), taskCategories: unique(z.uuid(), 12).optional(), density: densitySchema.optional() });
-const sectionIds = ['hero', 'tasks', 'start', 'catalogue', 'faq', 'closing'] as const;
-const dOverrides = z.strictObject({
-  order: unique(z.enum(sectionIds), 6).length(6).optional(), hidden: unique(z.enum(['tasks', 'start', 'faq']), 3).optional(),
-  variants: z.strictObject({ hero: z.enum(['split-process', 'simple']).optional(), start: z.enum(['detail-cards', 'compact']).optional(), catalogue: z.enum(['detail-cards', 'default-groups']).optional() }).optional(),
-});
-const defaultOverrides = z.strictObject({ order: z.tuple([z.literal('catalogue')]).optional(), hidden: z.array(z.never()).max(0).optional(), variants: z.strictObject({ catalogue: z.enum(['detail-cards', 'default-groups']).optional() }).optional() });
+type DescriptorIntent<D extends SectionDescriptor> = {
+  visibility?: D['hideable'] extends true ? 'visible' | 'hidden' : 'visible';
+  variant?: D['variants'][number];
+};
+export function overridesSchema<const T extends Record<string, SectionDescriptor>>(descriptors: T) {
+  const ids = Object.keys(descriptors) as [keyof T & string, ...(keyof T & string)[]];
+  const sections = z.strictObject(Object.fromEntries(Object.entries(descriptors).map(([id, descriptor]) => [id, z.strictObject({
+    visibility: (descriptor.hideable ? z.enum(['visible', 'hidden']) : z.literal('visible')).optional(),
+    ...(descriptor.variants.length ? { variant: z.enum(descriptor.variants as [string, ...string[]]).optional() } : {}),
+  }).optional()]))) as z.ZodType<{ [K in keyof T]?: DescriptorIntent<T[K]> }>;
+  return z.strictObject({ order: unique(z.enum(ids), 32).optional(), sections: sections.optional() });
+}
+const dOverrides = overridesSchema(SECTION_DESCRIPTORS.d);
+const defaultOverrides = overridesSchema(SECTION_DESCRIPTORS.default);
 export const configSchema = z.strictObject({
   format: z.literal(1), templateId: templateIdSchema,
   settingsByTemplate: z.strictObject({ d: settingsSchema.optional(), default: z.strictObject({}).optional() }),
@@ -59,6 +69,10 @@ export const registryEntrySchema = z.strictObject({
   entitlement: z.discriminatedUnion('kind', [z.strictObject({ kind: z.literal('free') }), z.strictObject({ kind: z.literal('pro') }), z.strictObject({ kind: z.literal('template-key'), templateId: idSchema })]),
   settings: z.array(z.strictObject({ id: z.enum(['heroProduct', 'closingProduct', 'starterProducts', 'taskCategories', 'density']), label: labelSchema, kind: z.enum(['product', 'products', 'categories', 'density']), required: z.boolean(), maxItems: z.number().int().min(1).max(12).optional() })).max(5),
   tokens: tokensSchema.nullable(), defaults: recipeSchema,
+  sectionDescriptors: z.record(idSchema, z.strictObject({
+    hideable: z.boolean(), defaultVisibility: z.enum(['visible', 'hidden']), variants: unique(z.string().min(1).max(64), 32).readonly(),
+    placement: z.union([z.strictObject({ pin: z.enum(['first', 'last']) }), z.strictObject({ after: idSchema }), z.strictObject({ before: idSchema })]),
+  })),
 });
 export type StorefrontConfig = z.infer<typeof configSchema>;
 export type TemplateRecipe = z.infer<typeof recipeSchema>;

@@ -28,15 +28,19 @@ Read [API and evidence](references/api.md) for exact calls and browser handling.
 
 1. Read capabilities, then current config/rights. Save the starting revision and
    published snapshot for rollback. Use generated schemas/registry defaults/slots
-   as authority; do not guess fields. `default` is free; `d` activation requires Pro.
+   as authority; do not guess fields. Check `rights.canPublish` for the chosen
+   template; `default` is free and `d` activation requires Pro.
 2. Start from `draft ?? published`. Preserve inactive settings, unused slots and
-   seller text. Select existing product/category UUIDs from supplied public fixtures
-   or authorized product reads; never manufacture instance IDs. Complete synthetic
+   seller text. On an empty instance, keep the returned empty maps and add only
+   requested factual content (create the FAQ if absent); choose an existing featured
+   product when none is set. Select existing product/category UUIDs from supplied
+   public fixtures or authorized product reads; never manufacture instance IDs. Complete synthetic
    [D](examples/d.json) and [default](examples/default.json) are starters, not patches
    to overwrite an existing shop. D's recipe comes from capabilities.
-3. Change only requested settings, finite order/visibility/variant overrides,
+3. Change only requested settings, finite `order` and `sections.<id>.visibility`/`sections.<id>.variant` overrides (never `hidden`/`variants`),
    localized slot content and typed partial tokens. Missing translation uses its
-   source locale; report fallback. New slot/section types require the core PR path.
+   source locale; report fallback and missing-visible-content warnings. Omitted slots
+   are valid but may leave sections without copy. New types require the core PR path.
 4. Validate draft, fix pointer errors, save with `expectedRevision`; validate the
    saved candidate in publish mode. Offline CLI/schema checks are optional and
    cannot attest instance rights or availability. Free accounts may draft/preview D.
@@ -65,5 +69,6 @@ inspection from live interaction checks.
 
 Read [core section and slot checklist](references/core-pr.md). This path changes
 reviewed Sellf code, not the seller's running instance. Installation and activation
-follow a separately authorized release. For a disposable unfamiliar-author exercise,
-the coordinator uses [trial setup and acceptance](references/trial.md).
+follow a separately authorized release.
+
+Layout reads accept unique known-ID order subsets; save writes materialize the full resolved order (≤32), preserving seller relative order and inserting missing sections at descriptor anchors. Omission inherits default visibility. Discover hideability, variants, placement and exact reset leaves through capabilities; never hide required sections.

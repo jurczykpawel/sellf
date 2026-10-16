@@ -26,9 +26,9 @@ const bodies = {
 };
 export interface TemplateHttpPreviewResult extends PreviewResult { previewPath: string }
 type Operation = keyof typeof bodies | 'read' | 'capabilities' | 'license_status';
-const json = (data: unknown, status = 200): NextResponse => NextResponse.json(data, { status, headers: PREVIEW_HEADERS });
-function failure(code: string, status: number, validation: ValidationResult | null = null): NextResponse {
-  return json({ code, message: 'Template request could not be completed', validation, currentRevision: null }, status);
+const json = (data: unknown, status = 200): NextResponse => NextResponse.json(data, { status, headers: { ...PREVIEW_HEADERS, ...(status === 429 ? { 'Retry-After': '60' } : {}) } });
+function responseFailure(code: string, status: number, validation: ValidationResult | null, operation: Operation): NextResponse {
+  return json({ code, message: `Storefront ${operation} could not be completed`, validation, currentRevision: null }, status);
 }
 
 /** Header credentials take precedence over any ambient session. */
@@ -38,6 +38,7 @@ export async function templateRequestPrincipal(request: NextRequest) {
 }
 
 export async function templateHttp(request: NextRequest, operation: Operation): Promise<NextResponse> {
+  const failure = (code: string, status: number, validation: ValidationResult | null = null) => responseFailure(code, status, validation, operation);
   try {
     const auth = await templateRequestPrincipal(request);
     if (!auth) return failure('UNAUTHORIZED', 401);

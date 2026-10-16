@@ -142,3 +142,27 @@ it('accepts an exactly 16KiB license envelope and preserves UTF-8 byte accountin
   expect((await templateHttp(request(body), 'license_save')).status).toBe(200);
   expect((await templateHttp(request(body + ' '), 'license_save')).status).toBe(422);
 });
+
+it.each(['outer', 'preview', 'lifecycle', 'authentication'])('returns Retry-After for %s throttling', async layer => {
+  const throttled = { success: false, status: 429, code: 'RATE_LIMITED', message: 'Storefront preview could not be completed', validation: null, currentRevision: null };
+  if (layer === 'outer') m.rate.mockResolvedValue(false);
+  if (layer === 'preview') m.preview.mockResolvedValue(throttled);
+  if (layer === 'lifecycle') m.lifecycle.mockResolvedValue(throttled);
+  if (layer === 'authentication') m.auth.mockRejectedValue(new ApiAuthError('RATE_LIMITED', 'Try later'));
+  const response = await templateHttp(request(JSON.stringify({ revision: 1, locale: 'en', fixture: 'standard' })), layer === 'lifecycle' ? 'read' : 'preview');
+  expect(response.status).toBe(429);
+  expect(response.headers.get('retry-after')).toBe('60');
+  expect((await response.json()).message).not.toContain('mutation');
+});
+
+it('serves the descriptor-derived section map and exact section reset paths over HTTP', async () => {
+  const response = await templateHttp(request(), 'capabilities');
+  const capabilities = await response.json();
+  expect(response.status).toBe(200);
+  expect(capabilities.resetPaths.d).toContain('overrides.sections.tasks.visibility');
+  expect(capabilities.resetPaths.d).toContain('overrides.sections.hero.variant');
+  expect(capabilities.resetPaths.d).not.toContain('overrides.hidden');
+  expect(capabilities.resetPaths.d).not.toContain('overrides.sections.catalogue.visibility');
+  expect(capabilities.orderPolicy.write).toBe('full-resolved-list');
+  expect(capabilities.schemas.config.properties.overridesByTemplate.properties.d.properties.sections.additionalProperties).toBe(false);
+});

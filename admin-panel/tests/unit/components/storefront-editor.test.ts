@@ -23,7 +23,7 @@ function snapshot(): TemplateReadResult {
   const published = { format: 1 as const, templateId: 'd' as const, settingsByTemplate: { d: { heroProduct: '11111111-1111-4111-8111-111111111111' } }, overridesByTemplate: {}, tokens: null,
     content: { 'home.hero': { sourceLocale: 'en' as const, en: { kind: 'hero' as const, heading: 'A workshop', eyebrow: '', body: '', steps: ['Choose input'] } } } };
   const rights = templateRightsForTier('free');
-  return { revision: 7, draft: null, published, rights, ...inspectTemplate(published, rights, 'draft') };
+  return { revision: 7, draft: null, published, rights: { ...rights, canPublish: [{ templateId: 'default', allowed: true, reason: null }, { templateId: 'd', allowed: false, reason: 'ENTITLEMENT' }] }, ...inspectTemplate(published, rights, 'draft') };
 }
 function setup(locale = 'en') {
   return render(React.createElement(NextIntlClientProvider, { locale, messages: locale === 'pl' ? pl : en }, React.createElement(StorefrontEditor, { initial: snapshot() })));
@@ -42,7 +42,7 @@ describe('storefront editor', () => {
     await waitFor(() => expect(action).toHaveBeenCalledTimes(2));
     const input = action.mock.calls[0][0];
     expect(input.expectedRevision).toBe(7);
-    expect(input.config.overridesByTemplate.d.hidden).toEqual(['tasks']);
+    expect(input.config.overridesByTemplate.d.sections.tasks.visibility).toBe('hidden');
     expect(input.config.overridesByTemplate.d.order[0]).toBe('tasks');
     expect(input.config.content).toEqual(snapshot().published.content);
     await waitFor(() => expect(view.getByRole('status').textContent).toContain('All changes saved'));
@@ -175,7 +175,7 @@ it('edits A bindings by name and keeps D bindings intact through switching', asy
   const view = setup();
   fireEvent.change(view.getByLabelText('Template'), { target: { value: 'storefront-a' } });
   expect(view.getByRole('option', { name: 'Offer-led storefront' })).toBeTruthy();
-  expect(view.queryByRole('button', { name: /Reorder Hero/ })).toBeNull();
+  expect(view.getByRole('button', { name: /Reorder Hero/ })).toBeTruthy();
   fireEvent.click(view.getByRole('button', { name: 'Compare separate offers', exact: true }));
   await waitFor(() => expect(view.getByRole('button', { name: /Add Reporting course/ })).toBeTruthy());
   fireEvent.click(view.getByRole('button', { name: /Add Reporting course/ }));
@@ -198,4 +198,33 @@ it('edits A bindings by name and keeps D bindings intact through switching', asy
   expect(config.settingsByTemplate['storefront-a'].comparisonProducts).toEqual([products[1].id, products[0].id]);
   expect(config.settingsByTemplate.d).toEqual(snapshot().published.settingsByTemplate.d);
   expect(config.content['home.comparison'].en.items[0]).toMatchObject({ productId: products[1].id, heading: 'Start with the course' });
+});
+
+it('edits section map leaves independently and returns variants to inherited defaults', async () => {
+  const view = setup();
+  fireEvent.change(view.getByLabelText('Layout style'), { target: { value: 'simple' } });
+  fireEvent.click(view.getByRole('checkbox', { name: 'Show How it works' }));
+  fireEvent.change(view.getByLabelText('Layout style'), { target: { value: '' } });
+  action.mockResolvedValueOnce({ success: true, revision: 8, validation: { valid: true, errors: [], warnings: [] } });
+  fireEvent.click(view.getByRole('button', { name: 'Save draft' }));
+  await waitFor(() => expect(action).toHaveBeenCalled());
+  const overrides = action.mock.calls[0][0].config.overridesByTemplate.d;
+  expect(overrides.sections.tasks).toEqual({ visibility: 'hidden' });
+  expect(overrides.sections.hero).toEqual({});
+  expect(overrides).not.toHaveProperty('hidden'); expect(overrides).not.toHaveProperty('variants');
+});
+
+it('saves A visibility, variant and complete order intent while retaining inactive D settings', async () => {
+  const view = setup();
+  fireEvent.change(view.getByLabelText('Template'), { target: { value: 'storefront-a' } });
+  fireEvent.click(view.getByRole('checkbox', { name: 'Show How it works' }));
+  fireEvent.click(view.getByRole('button', { name: 'Starting offers', exact: true }));
+  fireEvent.change(view.getByLabelText('Layout style'), { target: { value: 'compact' } });
+  fireEvent.keyDown(view.getByRole('button', { name: /Reorder Starting offers/ }), { key: 'ArrowUp' });
+  action.mockResolvedValueOnce({ success: true, revision: 8, validation: { valid: true, errors: [], warnings: [] } });
+  fireEvent.click(view.getByRole('button', { name: 'Save draft' }));
+  await waitFor(() => expect(action).toHaveBeenCalled());
+  const saved = action.mock.calls[0][0].config;
+  expect(saved.overridesByTemplate['storefront-a']).toEqual({ order: ['hero', 'tasks', 'start', 'comparison', 'catalogue', 'faq', 'closing'], sections: { tasks: { visibility: 'hidden' }, start: { variant: 'compact' } } });
+  expect(saved.settingsByTemplate.d).toEqual(snapshot().published.settingsByTemplate.d);
 });

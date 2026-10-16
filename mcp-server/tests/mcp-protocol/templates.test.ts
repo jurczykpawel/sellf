@@ -112,6 +112,13 @@ describe('template MCP contract', () => {
     expect(textBody(result)).toEqual(capabilities);
     expect(capabilities.limits).toMatchObject({ configInputBytes: 102400, requestBytes: 131072 });
     expect(capabilities.resetPaths.default).not.toContain('content.home.hero');
+    expect(capabilities.resetPaths.d).toContain('overrides.sections.tasks.visibility');
+    expect(capabilities.resetPaths.d).toContain('overrides.sections.hero.variant');
+    expect(capabilities.resetPaths.d).not.toContain('overrides.hidden');
+    expect(capabilities.orderPolicy).toMatchObject({ read: 'unique-known-subset', write: 'full-resolved-list' });
+    expect(capabilities.schemas.config.properties.overridesByTemplate.properties.d.properties).toHaveProperty('sections');
+    const { tools } = await client.listTools();
+    expect(JSON.stringify(tools.find(tool => tool.name === 'templates_draft')?.inputSchema)).toContain('sections.<id>.visibility');
   });
 
   it('retains a maximum-sized config plus wrapper and the API byte-limit diagnostics', async () => {

@@ -56,8 +56,8 @@ export async function validateActiveBindings(client: SupabaseClient<Database>, c
 export function resetTemplateField(config: StorefrontConfig, templateId: StorefrontConfig['templateId'], field: string): StorefrontConfig | null {
   if (!isResetPath(templateId, field) || (field.startsWith('tokens.') && templateId !== config.templateId)) return null;
   const copy = structuredClone(config);
-  const [root, group, leaf] = field.split('.');
-  const path = root === 'tokens' ? ['tokens', group, leaf] : root === 'settings' ? ['settingsByTemplate', templateId, group] : ['overridesByTemplate', templateId, group, ...(leaf ? [leaf] : [])];
+  const [root, group, leaf, property] = field.split('.');
+  const path = root === 'tokens' ? ['tokens', group, leaf] : root === 'settings' ? ['settingsByTemplate', templateId, group] : ['overridesByTemplate', templateId, group, ...(leaf ? [leaf] : []), ...(property ? [property] : [])];
   function remove(value: Record<string, unknown>, remaining: string[]): void {
     const [key, ...rest] = remaining;
     if (!rest.length) { delete value[key]; return; }
@@ -78,6 +78,11 @@ export function diffTemplateConfigs(before: Json, after: Json): TemplateChange[]
   const changes: TemplateChange[] = [];
   function compare(a: Json | undefined, b: Json | undefined, path: string[]): void {
     if (a === b) return;
+    // Empty default entries carry no retained setting or override.
+    if (path.length === 2 && ['settingsByTemplate', 'overridesByTemplate'].includes(path[0]) && path[1] === 'default') {
+      const empty = (value: Json | undefined) => value === undefined || (value !== null && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0);
+      if (empty(a) && empty(b)) return;
+    }
     if (a !== undefined && b !== undefined && a !== null && b !== null && typeof a === 'object' && typeof b === 'object' && Array.isArray(a) === Array.isArray(b)) {
       for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) compare((a as Record<string, Json>)[key], (b as Record<string, Json>)[key], [...path, key]);
     } else changes.push({ path: pointer(path), kind: a === undefined ? 'added' : b === undefined ? 'removed' : 'changed', before: a ?? null, after: b ?? null });

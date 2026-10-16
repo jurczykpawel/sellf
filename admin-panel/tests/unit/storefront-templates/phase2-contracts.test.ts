@@ -22,6 +22,17 @@ describe('frozen Phase 2 contracts', () => {
     expect(templateCapabilities().phase2.selectable).toBe(false);
     expect(templateSchemas()['phase2-recipe']).toEqual(z.toJSONSchema(phase2RecipeSchema));
   });
+  it('declares strict section maps for offline B/C variants without installing their renderers', () => {
+    for (const [templateId, sections] of [
+      ['storefront-b', { hero: { variant: 'search-hero' }, featured: { variant: 'featured-grid' }, starter: { visibility: 'hidden' } }],
+      ['storefront-c', { story: { visibility: 'hidden' }, start: { variant: 'compact' } }],
+    ]) {
+      const config = { ...phase2Config, templateId, overridesByTemplate: { [String(templateId)]: { sections } } };
+      expect(validatePhase2(config, 'config').valid).toBe(true);
+      expect(configSchema.safeParse(config).success).toBe(false);
+      expect(validatePhase2({ ...config, overridesByTemplate: { [String(templateId)]: { hidden: [] } } }, 'config').valid).toBe(false);
+    }
+  });
   it('rejects wrong variant bindings, slots, unknown props and missing or wrong targets', () => {
     for (const section of [
       { ...phase2Recipes.a.sections[2], products: { setting: 'starterProducts' } },

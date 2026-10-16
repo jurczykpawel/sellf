@@ -2,7 +2,8 @@
  * @see docs/templates/phase2-contracts.md
  */
 import { z } from 'zod';
-import { configSchema, contentSchema, ctaContentSchema, densitySchema, faqContentSchema, headingContentSchema, heroContentSchema, idSchema, recipeSchema, sectionSchema, settingsSchema, tokensSchema } from '@/lib/storefront-templates/base-schemas';
+import { configSchema, overridesSchema, contentSchema, ctaContentSchema, densitySchema, faqContentSchema, headingContentSchema, heroContentSchema, idSchema, recipeSchema, sectionSchema, settingsSchema, tokensSchema } from '@/lib/storefront-templates/base-schemas';
+import { SECTION_DESCRIPTORS } from '@/lib/storefront-templates/section-descriptors';
 import { CONFIG_BYTES, isPlainJson, pointer, result, storedJsonBytes } from '@/lib/storefront-templates/json';
 import type { PublicCategoryInfo, PublicProductInfo } from '@/lib/storefront-templates/catalogue';
 import type { HeroProductProps } from '@/lib/storefront-templates/hero-product';
@@ -79,6 +80,11 @@ export const phase2RecipeSchema = z.union([phase2StorefrontRecipeSchema, offerRe
 export const phase2ConfigSchema = configSchema.extend({
   templateId: z.enum(['default', 'd', 'storefront-a', 'storefront-b', 'storefront-c']),
   settingsByTemplate: configSchema.shape.settingsByTemplate.extend({ 'storefront-a': phase2SettingsSchema.pick({ heroProduct: true, starterProducts: true, taskCategories: true, density: true, comparisonProducts: true }).optional(), 'storefront-b': phase2SettingsSchema.pick({ closingProduct: true, taskCategories: true, density: true, featuredProducts: true }).optional(), 'storefront-c': phase2SettingsSchema.pick({ starterProducts: true, density: true }).optional() }),
+  overridesByTemplate: configSchema.shape.overridesByTemplate.extend({
+    'storefront-a': overridesSchema(SECTION_DESCRIPTORS['storefront-a']).optional(),
+    'storefront-b': overridesSchema(SECTION_DESCRIPTORS['storefront-b']).optional(),
+    'storefront-c': overridesSchema(SECTION_DESCRIPTORS['storefront-c']).optional(),
+  }),
   content: phase2ContentSchema.omit({ 'offer.hero': true, 'offer.faq': true, 'offer.closing': true }),
 });
 export const offerConfigSchema = z.strictObject({ format: z.literal(1), enabled: z.boolean(), templateId: z.literal('offer-default'), settings: z.strictObject({ density: densitySchema }), content: phase2ContentSchema.pick({ 'offer.hero': true, 'offer.faq': true, 'offer.closing': true }), tokens: tokensSchema.nullable() });

@@ -6,12 +6,14 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Check, RotateCcw, Eye, Layers } from 'lucide-react';
 import { importLegacyStorefrontTheme } from '@/lib/actions/storefront-legacy-theme';
 import { storefrontTemplateAction } from '@/lib/actions/storefront-templates';
-import { STOREFRONT_TEMPLATES, validateConfig } from '@/lib/storefront-templates/registry';
+import { effectiveLayout } from '@/lib/storefront-templates/layout';
+import { normalizeConfigOrders, STOREFRONT_TEMPLATES, validateConfig } from '@/lib/storefront-templates/registry';
 import TemplateLicenses from '@/components/storefront-editor/TemplateLicenses';
 import AppearanceEditor from '@/components/storefront-editor/AppearanceEditor';
 import BindingPicker from '@/components/storefront-editor/BindingPicker';
 import ReorderHandle from '@/components/ui/ReorderHandle';
 import SlotEditor, { SLOT_IDS, SLOT_SECTIONS, editorButton, editorControl } from '@/components/storefront-editor/SlotEditor';
+import type { SectionIntent } from '@/lib/storefront-templates/section-descriptors';
 import type { ValidationResult } from '@/lib/storefront-templates/json';
 import type { TemplateReadResult } from '@/lib/storefront-templates/lifecycle';
 import type { StorefrontConfig, TemplateRegistryEntry, TemplateSettings } from '@/lib/storefront-templates/schemas';
@@ -64,10 +66,11 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
     }
     setBusy(true); setMessage('');
     try {
-      const response = await storefrontTemplateAction({ operation: 'draft', expectedRevision: snapshot.revision, config });
+      const normalized = normalizeConfigOrders(config);
+      const response = await storefrontTemplateAction({ operation: 'draft', expectedRevision: snapshot.revision, config: normalized });
       if (response.success && 'revision' in response) {
-        setSnapshot({ ...snapshot, revision: response.revision, draft: config });
-        setValidation(response.validation); setDirty(false);
+        setSnapshot({ ...snapshot, revision: response.revision, draft: normalized });
+        setConfig(normalized); setValidation(response.validation); setDirty(false);
         try {
           const read = await storefrontTemplateAction({ operation: 'read' });
           if (read?.success && 'data' in read && 'revision' in read.data && read.data.revision === response.revision) setSnapshot(read.data);
@@ -99,10 +102,9 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
     finally { setBusy(false); }
   }
   const entry: TemplateRegistryEntry | null = config ? STOREFRONT_TEMPLATES[config.templateId] : null;
-  const overrides = config && config.templateId !== 'storefront-a' ? config.overridesByTemplate[config.templateId] : undefined;
-  const hidden: readonly string[] = overrides?.hidden ?? [];
-  const variantsById: Record<string, string | undefined> = overrides?.variants ?? {};
-  const order = overrides?.order ?? entry?.defaults.sections.map(section => section.id) ?? [];
+  const overrides = config?.overridesByTemplate[config.templateId];
+  const layout = entry ? effectiveLayout(entry, overrides) : null;
+  const order = layout?.order ?? [];
   function changeOverride(patch: object) {
     if (config) edit({ ...config, overridesByTemplate: { ...config.overridesByTemplate, [config.templateId]: { ...overrides, ...patch } } } as StorefrontConfig);
   }
@@ -124,17 +126,23 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
     const observer = new ResizeObserver(revealSelected); observer.observe(list);
     return () => observer.disconnect();
   }, [sectionId, orderKey]);
-  const section = entry?.defaults.sections.find(item => item.id === sectionId);
+  const selectedSection = layout?.sections.find(item => item.id === sectionId);
+  const section = selectedSection?.spec;
   const sectionName = (id: string) => t(`sectionNames.${id}`);
   const slotId = section && 'content' in section && section.content ? section.content.slot : null;
-  const variants = config?.templateId === 'storefront-a' ? [] : section?.type === 'hero-product/1' ? ['split-process', 'simple'] : section?.type === 'product-list/1' ? ['detail-cards', 'compact'] : section?.type === 'catalogue/1' ? ['detail-cards', 'default-groups'] : [];
+  const variants = selectedSection?.descriptor.variants ?? [];
+  function changeSection(id: string, patch: SectionIntent) {
+    const intent = { ...Object.entries(overrides?.sections ?? {}).find(([key]) => key === id)?.[1], ...patch };
+    if (intent.variant === undefined) delete intent.variant;
+    changeOverride({ sections: { ...overrides?.sections, [id]: intent } });
+  }
   const field = section?.type === 'hero-product/1' ? 'heroProduct' : section?.type === 'product-cta/1' && 'product' in section ? 'closingProduct' : section?.type === 'product-list/1' ? section.products.setting : section?.type === 'task-nav/1' ? 'taskCategories' : null;
   const activeSettings: TemplateSettings = config ? config.settingsByTemplate[config.templateId] ?? {} : {};
   const binding = activeSettings[field ?? 'heroProduct'];
   const bindingIds = Array.isArray(binding) ? binding : binding ? [binding] : [];
   const bindingLabel = field === 'heroProduct' ? 'primaryOffer' : field === 'closingProduct' ? 'closingOffer' : field === 'comparisonProducts' ? 'comparisonOffers' : field === 'starterProducts' ? 'startingOffers' : 'topics';
   function moveSection(index: number, target: number) {
-    if (config?.templateId === 'storefront-a' || target < 0 || target >= order.length || index === target) return;
+    if (target < 0 || target >= order.length || index === target) return;
     const next = [...order]; const [id] = next.splice(index, 1); next.splice(target, 0, id); changeOverride({ order: next });
     setArrangement(`${sectionName(id)} · ${target + 1} / ${order.length}`);
   }
@@ -159,9 +167,9 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
           <ol ref={sectionListRef} id={sectionListId} data-reorder-list className="relative flex min-w-0 gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-1 lg:overflow-visible">
             {order.map((id, index) => <li key={id} data-reorder-index={index} className={`flex w-64 shrink-0 items-center rounded-xl border p-2 lg:w-auto ${sectionId === id ? 'border-sf-accent bg-sf-accent-soft' : 'border-sf-border bg-sf-base'}`}
               onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const raw = event.dataTransfer.getData('text/plain'); if (event.dataTransfer.getData('application/x-sellf-list') === sectionListId && /^\d+$/.test(raw)) moveSection(Number(raw), index); }}>
-              {config.templateId !== 'storefront-a' && <ReorderHandle name={sectionName(id)} index={index} count={order.length} onMove={target => moveSection(index, target)} />}
+              <ReorderHandle name={sectionName(id)} index={index} count={order.length} onMove={target => moveSection(index, target)} />
               <button type="button" aria-label={sectionName(id)} aria-pressed={sectionId === id} className="min-w-0 flex-1 rounded-md px-2 py-2 text-left focus-visible:outline-2 focus-visible:outline-sf-accent" onClick={() => setSelected(id)}><span className="block text-sm font-semibold">{sectionName(id)}</span><span className="mt-1 block text-xs leading-relaxed text-sf-muted">{t(`sectionDescriptions.${id}`)}</span></button>
-              <label className="flex h-11 w-9 shrink-0 items-center justify-center" title={t('show', { id: sectionName(id) })}><input type="checkbox" aria-label={t('show', { id: sectionName(id) })} className="h-4 w-4 accent-sf-accent" checked={!hidden.includes(id)} disabled={config.templateId === 'storefront-a' || !['tasks', 'start', 'faq'].includes(id)} onChange={event => changeOverride({ hidden: event.target.checked ? hidden.filter(item => item !== id) : [...hidden, id] })} /></label>
+              <label className="flex h-11 w-9 shrink-0 items-center justify-center" title={t('show', { id: sectionName(id) })}><input type="checkbox" aria-label={t('show', { id: sectionName(id) })} className="h-4 w-4 accent-sf-accent" checked={layout?.sections.find(section => section.id === id)?.visibility === 'visible'} disabled={!layout?.sections.find(section => section.id === id)?.descriptor.hideable} onChange={event => changeSection(id, { visibility: event.target.checked ? 'visible' : 'hidden' })} /></label>
             </li>)}
           </ol>
           <button type="button" aria-pressed={sectionId === 'appearance'} className={`${editorButton} w-full text-left ${sectionId === 'appearance' ? 'border-sf-accent bg-sf-accent-soft' : ''}`} onClick={() => setSelected('appearance')}>{appearance('title')}</button>
@@ -176,9 +184,7 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
             edit({ ...config, settingsByTemplate: { ...config.settingsByTemplate, [config.templateId]: settings } });
           }} />{(field === 'heroProduct' || field === 'closingProduct') && bindingIds.length === 0 && <p className="text-sm text-sf-muted">{t('missingOffer')}</p>}</div>}
           {slotId && <SlotEditor comparisonProducts={config.settingsByTemplate['storefront-a']?.comparisonProducts} key={sectionId} id={slotId} value={config.content[slotId]} onChange={value => edit({ ...config, content: { ...config.content, [slotId]: value } } as StorefrontConfig)} />}
-          {variants.length > 0 && <label className="block space-y-2 text-sm font-medium"><span>{t('layoutStyle')}</span><select aria-label={t('layoutStyle')} className={editorControl} value={variantsById[sectionId] ?? ''} onChange={event => {
-            const next = { ...overrides?.variants } as Record<string, string>; if (event.target.value) next[sectionId] = event.target.value; else delete next[sectionId]; changeOverride({ variants: next });
-          }}><option value="">{t('inherited')}</option>{variants.map(variant => <option key={variant} value={variant}>{t(variant)}</option>)}</select></label>}
+          {variants.length > 0 && <label className="block space-y-2 text-sm font-medium"><span>{t('layoutStyle')}</span><select aria-label={t('layoutStyle')} className={editorControl} value={selectedSection?.variantOrigin === 'seller' ? selectedSection.variant : ''} onChange={event => changeSection(sectionId, { variant: event.target.value || undefined })}><option value="">{t('inherited')}</option>{variants.map(variant => <option key={variant} value={variant}>{t(variant)}</option>)}</select></label>}
           {sectionId === 'catalogue' && config.templateId === 'd' && <label className="block space-y-2 text-sm font-medium"><span>{t('density')}</span><select aria-label={t('density')} className={editorControl} value={config.settingsByTemplate.d?.density ?? ''} onChange={event => { const settings: TemplateSettings = { ...activeSettings }; if (event.target.value) settings.density = event.target.value as 'compact' | 'comfortable'; else delete settings.density; edit({ ...config, settingsByTemplate: { ...config.settingsByTemplate, [config.templateId]: settings } }); }}><option value="">{t('inherited')}</option><option value="comfortable">{t('comfortable')}</option><option value="compact">{t('densityCompact')}</option></select></label>}
         </section>}
       </div>

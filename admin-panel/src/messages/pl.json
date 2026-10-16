@@ -4612,6 +4612,9 @@
     "dName": "Sklep z procesem",
     "split-process": "Oferta z krokami",
     "simple": "Prosta oferta",
+    "offer-focus": "Główna oferta",
+    "comparison": "Osobne oferty",
+    "catalogue-link": "Link do katalogu",
     "detail-cards": "Karty ze szczegółami",
     "default-groups": "Karty w grupach",
     "sectionNames": {

@@ -35,11 +35,11 @@ describe('template check command', () => {
 
   it('returns exit one and public pointer/code for the invalid corpus', () => {
     const corpus: [unknown, string, string][] = [
-      [{ ...D_CONFIG, overridesByTemplate: { d: { order: ['catalogue'] } } }, 'LIMIT', '/overridesByTemplate/d/order'],
+      [{ ...D_CONFIG, overridesByTemplate: { d: { order: Array(33).fill('hero') } } }, 'LIMIT', '/overridesByTemplate/d/order'],
       [{ ...D_CONFIG, content: { 'home.hero': { sourceLocale: 'en', en: { kind: 'cta', heading: '', body: '' } } } }, 'SCHEMA', '/content/home.hero'],
       [{ ...DEFAULT_CONFIG, extra: 'private-value' }, 'SCHEMA', ''],
       [{ ...D_CONFIG, settingsByTemplate: { d: { heroProduct: 'invalid' } } }, 'SCHEMA', '/settingsByTemplate/d/heroProduct'],
-      [{ ...D_CONFIG, overridesByTemplate: { d: { hidden: ['catalogue'] } } }, 'SCHEMA', '/overridesByTemplate/d/hidden/0'],
+      [{ ...D_CONFIG, overridesByTemplate: { d: { sections: { catalogue: { visibility: 'hidden' } } } } }, 'SCHEMA', '/overridesByTemplate/d/sections/catalogue/visibility'],
       [{ ...D_CONFIG, tokens: { format: 1, light: { accent: 'url(https://example.com)' } } }, 'SCHEMA', '/tokens/light/accent'],
       ['{"format":1,"format":1}', 'SCHEMA', ''],
       ['{"__proto__":{}}', 'SCHEMA', ''],
@@ -111,7 +111,7 @@ describe('template check command', () => {
     expect(capabilities.slots).toEqual({ 'home.hero': 'hero', 'home.tasks': 'heading', 'home.starts': 'heading', 'home.faq': 'faq', 'home.closing': 'cta', 'home.comparison': 'comparison', 'home.catalogue': 'heading' });
     expect(capabilities.schemas.config).toEqual(z.toJSONSchema(configSchema));
     for (const id of ['default', 'd']) {
-      const expected = ['settings.density', 'overrides.order', 'overrides.hidden', ...(id === 'd' ? ['hero', 'tasks', 'start', 'catalogue', 'faq', 'closing'] : ['catalogue']).map(section => `overrides.variants.${section}`), ...Object.entries(D_TOKENS).flatMap(([group, value]) => typeof value === 'object' ? Object.keys(value).map(leaf => `tokens.${group}.${leaf}`) : [])];
+      const expected = ['settings.density', 'overrides.order', ...(id === 'd' ? ['tasks', 'start', 'faq'].map(section => `overrides.sections.${section}.visibility`) : []), ...(id === 'd' ? ['hero', 'start', 'catalogue'] : ['catalogue']).map(section => `overrides.sections.${section}.variant`), ...Object.entries(D_TOKENS).flatMap(([group, value]) => typeof value === 'object' ? Object.keys(value).map(leaf => `tokens.${group}.${leaf}`) : [])];
       expect(capabilities.resetPaths[id].sort()).toEqual(expected.sort());
     }
   });

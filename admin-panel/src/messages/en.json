@@ -4612,6 +4612,9 @@
     "dName": "Guided storefront",
     "split-process": "Offer with steps",
     "simple": "Simple offer",
+    "offer-focus": "Offer in focus",
+    "comparison": "Separate offers",
+    "catalogue-link": "Link to catalogue",
     "detail-cards": "Detailed cards",
     "default-groups": "Grouped cards",
     "sectionNames": {

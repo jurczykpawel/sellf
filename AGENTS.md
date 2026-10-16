@@ -455,7 +455,7 @@ expire while preserving enabled free presentation and stored copy. T2.11 owns ro
 
 The installed `storefront-a` entry composes the frozen Phase 2 offer-focus,
 comparison and compact variants with the existing categories/starters/FAQ/closing.
-Its exact section order is fixed; the catalogue remains required. Runtime schemas
+Its default section order is anchored by descriptors; strict section intent permits optional visibility and declared variants while the catalogue remains required. Runtime schemas
 adopt A from the frozen `base-schemas.ts`/`phase2-contracts.ts` grammar. The additive
 A migration owns the current generated config schema; never regenerate released
 Phase 1 SQL. See `docs/templates/phase2-contracts.md` for the adoption boundary.
@@ -466,6 +466,16 @@ draft/published pairs by revision. Both start at revision 0 with the free defaul
 selection; seller content and retained template settings live inside these JSON
 snapshots. Draft and published values each have a 102400-byte stored UTF-8 limit;
 revisions stay within JavaScript's safe integer range.
+
+Section intent uses `overridesByTemplate.<template>.sections.<id>.visibility`
+and `.variant`; the pre-release hidden/variants fields are not supported.
+`section-descriptors.ts` supplies the finite wire domains, visibility defaults and
+placement anchors. `effectiveLayout()` is the shared interpretation for rendering,
+authoring and diagnostics. Reads accept unique known order subsets (≤32); draft
+writers normalize explicit orders to complete resolved lists, including inactive
+templates. Resetting order removes it to inherit defaults. The resolver release
+gate enumerates every legacy order/visibility combination for default and D;
+compatible additions must preserve every previously supported composition.
 
 Server-only reads live in `src/lib/storefront-templates/repository.ts` and accept
 caller-authorized Supabase clients. Public rendering uses the published-only

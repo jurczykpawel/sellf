@@ -10,9 +10,9 @@ import { isPlainJson, pointer, result } from '@/lib/storefront-templates/json';
 import { diffTemplateConfigs, inspectTemplate, validateActiveBindings } from '@/lib/storefront-templates/lifecycle-validation';
 import { getTemplatePrincipal, mutateStorefrontConfig, templateFailure } from '@/lib/storefront-templates/mutations';
 import { readStorefrontConfig, readStorefrontHistory } from '@/lib/storefront-templates/repository';
-import { templateRightsForTier } from '@/lib/storefront-templates/rights';
+import { canMutateTemplateConfig, templateRightsForTier } from '@/lib/storefront-templates/rights';
 import { revisionSchema } from '@/lib/storefront-templates/schemas';
-import { validateConfig } from '@/lib/storefront-templates/registry';
+import { STOREFRONT_TEMPLATES, validateConfig } from '@/lib/storefront-templates/registry';
 import type { ValidationResult } from '@/lib/storefront-templates/json';
 import type { TemplateChange } from '@/lib/storefront-templates/lifecycle-validation';
 import type { StorefrontMutationResult } from '@/lib/storefront-templates/mutations';
@@ -29,7 +29,7 @@ const readSchema = z.discriminatedUnion('operation', [
 ]);
 export interface TemplateReadResult {
   revision: number; draft: StorefrontConfig | null; published: StorefrontConfig; effectiveTemplateId: string;
-  rights: TemplateRights; validation: ValidationResult; unusedSlots: string[]; effectiveTokens: EffectiveToken[];
+  rights: TemplateRights & { canPublish: { templateId: string; allowed: boolean; reason: 'ENTITLEMENT' | 'CUSTOMIZATION' | null }[] }; validation: ValidationResult; unusedSlots: string[]; effectiveTokens: EffectiveToken[];
 }
 export interface TemplateDiffResult {
   fromRevision: number; toRevision: number; changes: TemplateChange[]; unusedSlots: string[]; validation: ValidationResult;
@@ -38,18 +38,20 @@ export type LifecycleResult = StorefrontMutationResult | { success: true; data: 
 
 export async function storefrontLifecycle(auth: unknown, input: unknown): Promise<LifecycleResult> {
   const parsed = isPlainJson(input) ? readSchema.safeParse(input) : null;
+  const fail = (code: Parameters<typeof templateFailure>[0], validation: ValidationResult | null = null): StorefrontMutationResult =>
+    templateFailure(code, validation, null, parsed?.success ? parsed.data.operation : 'request');
   if (!parsed?.success) {
     // Mutations perform their own strict parsing and operation-specific scope check.
     if (isPlainJson(input) && input && typeof input === 'object' && 'operation' in input && ['draft', 'reset', 'legacy-import', 'publish', 'rollback'].includes(String(input.operation))) return mutateStorefrontConfig(auth, input);
-    if (!getTemplatePrincipal(auth, API_SCOPES.TEMPLATES_READ) && !getTemplatePrincipal(auth, API_SCOPES.TEMPLATES_WRITE) && !getTemplatePrincipal(auth, API_SCOPES.TEMPLATES_ACTIVATE)) return templateFailure('FORBIDDEN');
+    if (!getTemplatePrincipal(auth, API_SCOPES.TEMPLATES_READ) && !getTemplatePrincipal(auth, API_SCOPES.TEMPLATES_WRITE) && !getTemplatePrincipal(auth, API_SCOPES.TEMPLATES_ACTIVATE)) return fail('FORBIDDEN');
     const revisionIssue = parsed && !parsed.success ? parsed.error.issues.find(issue => issue.path.some(part => ['fromRevision', 'toRevision', 'beforeRevision'].includes(String(part)))) : undefined;
-    return revisionIssue ? templateFailure('LIMIT', result([{ code: 'LIMIT', path: pointer(revisionIssue.path), message: 'Invalid revision', limit: Number.MAX_SAFE_INTEGER }]))
-      : templateFailure('INVALID', result([{ code: 'SCHEMA', path: '', message: 'Invalid lifecycle input' }]));
+    return revisionIssue ? fail('LIMIT', result([{ code: 'LIMIT', path: pointer(revisionIssue.path), message: 'Invalid revision', limit: Number.MAX_SAFE_INTEGER }]))
+      : fail('INVALID', result([{ code: 'SCHEMA', path: '', message: 'Invalid lifecycle input' }]));
   }
   const actor = getTemplatePrincipal(auth, API_SCOPES.TEMPLATES_READ);
-  if (!actor) return templateFailure('FORBIDDEN');
+  if (!actor) return fail('FORBIDDEN');
   try {
-    if (!(await checkRateLimit('storefront_read', 120, 1, actor.userId))) return templateFailure('RATE_LIMITED');
+    if (!(await checkRateLimit('storefront_read', 120, 1, actor.userId))) return fail('RATE_LIMITED');
     const operation = parsed.data;
     const rights = templateRightsForTier(getPublicLicenseTier(), getLocalTemplateIds());
     const client = createPlatformClient();
@@ -59,17 +61,24 @@ export async function storefrontLifecycle(auth: unknown, input: unknown): Promis
       const config = operation.config as StorefrontConfig;
       const inspection = inspectTemplate(config, rights, operation.mode);
       const validation = operation.mode === 'publish' ? await validateActiveBindings(client, config, inspection.validation) : inspection.validation;
-      return validation ? { success: true, data: validation } : templateFailure('UNAVAILABLE');
+      return validation ? { success: true, data: validation } : fail('UNAVAILABLE');
     }
     if (operation.operation === 'history') {
       const history = await readStorefrontHistory(client, { beforeRevision: operation.beforeRevision, limit: operation.limit });
-      return history.success ? { success: true, data: history.data } : templateFailure('UNAVAILABLE');
+      return history.success ? { success: true, data: history.data } : fail('UNAVAILABLE');
     }
     if (operation.operation === 'read') {
       const snapshot = await readStorefrontConfig(client);
-      if (!snapshot.success) return templateFailure('UNAVAILABLE');
+      if (!snapshot.success) return fail('UNAVAILABLE');
       const { revision, draft, published } = snapshot.data;
-      return { success: true, data: { revision, draft, published, rights, ...inspectTemplate(draft ?? published, rights, 'draft') } };
+      const config = draft ?? published;
+      const canPublish = Object.keys(STOREFRONT_TEMPLATES).map(id => {
+        const templateId = id as StorefrontConfig['templateId'];
+        const allowed = canMutateTemplateConfig(rights, { ...config, templateId }, 'publish');
+        const reason = allowed ? null : !rights.availableTemplateIds.includes(templateId) ? 'ENTITLEMENT' as const : 'CUSTOMIZATION' as const;
+        return { templateId, allowed, reason };
+      });
+      return { success: true, data: { revision, draft, published, rights: { ...rights, canPublish }, ...inspectTemplate(config, rights, 'draft') } };
     }
     const readRevision = async (revision: number) => {
       const history = await readStorefrontHistory(client, { limit: 1, ...(revision < Number.MAX_SAFE_INTEGER ? { beforeRevision: revision + 1 } : {}) });
@@ -77,10 +86,10 @@ export async function storefrontLifecycle(auth: unknown, input: unknown): Promis
     };
     const from = await readRevision(operation.fromRevision);
     const to = await readRevision(operation.toRevision);
-    if (from === null || to === null) return templateFailure('UNAVAILABLE');
-    if (!from || !to) return templateFailure('NOT_FOUND');
+    if (from === null || to === null) return fail('UNAVAILABLE');
+    if (!from || !to) return fail('NOT_FOUND');
     const before = from.draft ?? from.published; const after = to.draft ?? to.published;
     const { unusedSlots, validation } = inspectTemplate(after, rights, 'draft');
     return { success: true, data: { fromRevision: from.revision, toRevision: to.revision, changes: diffTemplateConfigs(before, after), unusedSlots, validation } };
-  } catch { return templateFailure('UNAVAILABLE'); }
+  } catch { return fail('UNAVAILABLE'); }
 }

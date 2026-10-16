@@ -6,7 +6,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 const revision = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 // The API's generated capabilities supply the current config schema and reset paths.
 // Keep JSON intact here; the shared HTTP lifecycle performs authoritative validation.
-const config = z.record(z.string(), z.json()).describe('StorefrontConfig JSON matching templates_capabilities.schemas.config; validated by the API.');
+const config = z.record(z.string(), z.json()).describe('StorefrontConfig JSON matching templates_capabilities.schemas.config; validated by the API. Overrides use order (unique known-ID subset, normalized to a full list on save) and sections.<id>.visibility (visible/hidden) or .variant (declared enum). hidden/variants are not accepted.');
 const inputs = {
   license_activate: z.strictObject({ templateId: z.enum(['storefront-a', 'storefront-b', 'storefront-c']), token: z.string().min(1).max(16384) }),
   license_status: z.strictObject({}),
@@ -18,7 +18,7 @@ const inputs = {
   diff: z.strictObject({ fromRevision: revision, toRevision: revision }),
   publish: z.strictObject({ expectedRevision: revision }),
   rollback: z.strictObject({ expectedRevision: revision, targetRevision: revision }),
-  reset: z.strictObject({ expectedRevision: revision, templateId: z.string().max(64), field: z.string().max(128).describe('Exact reset path declared for this template in templates_capabilities.resetPaths; API enforces the allowlist. Content cannot be reset.') }),
+  reset: z.strictObject({ expectedRevision: revision, templateId: z.string().max(64), field: z.string().max(128).describe('Exact reset path declared for this template in templates_capabilities.resetPaths; API enforces the allowlist. Section leaves use overrides.sections.<id>.visibility or overrides.sections.<id>.variant. Content cannot be reset.') }),
 };
 const descriptions = {
   license_activate: 'Save an encrypted template key for background verification; unknown is not an activation grant. Input envelope is at most 16KiB. Never copy keys into URLs, logs, previews or exports. Does not publish a template.',

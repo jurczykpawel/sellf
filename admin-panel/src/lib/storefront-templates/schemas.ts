@@ -1,5 +1,7 @@
 /** Installed storefront contracts. @see docs/templates/phase2-contracts.md */
 import { z } from 'zod';
+import { SECTION_DESCRIPTORS } from '@/lib/storefront-templates/section-descriptors';
+import { overridesSchema } from '@/lib/storefront-templates/base-schemas';
 import * as base from '@/lib/storefront-templates/base-schemas';
 import { phase2ContentSchema, phase2SectionSchema, phase2SettingsSchema } from '@/lib/storefront-templates/phase2-contracts';
 export * from '@/lib/storefront-templates/base-schemas';
@@ -12,7 +14,7 @@ export const recipeSchema = base.recipeSchema.extend({ sections: z.array(section
 export const configSchema = base.configSchema.extend({
   templateId: templateIdSchema, content: contentSchema,
   settingsByTemplate: base.configSchema.shape.settingsByTemplate.extend({ 'storefront-a': phase2SettingsSchema.pick({ heroProduct: true, starterProducts: true, taskCategories: true, density: true, comparisonProducts: true }).optional() }),
-  overridesByTemplate: base.configSchema.shape.overridesByTemplate.extend({ 'storefront-a': z.strictObject({}).optional() }),
+  overridesByTemplate: base.configSchema.shape.overridesByTemplate.extend({ 'storefront-a': overridesSchema(SECTION_DESCRIPTORS['storefront-a']).optional() }),
 });
 export const registryEntrySchema = base.registryEntrySchema.extend({ defaults: recipeSchema,
   settings: z.array(base.registryEntrySchema.shape.settings.element.extend({ id: z.enum(['heroProduct', 'closingProduct', 'starterProducts', 'taskCategories', 'density', 'comparisonProducts']) })).max(6),

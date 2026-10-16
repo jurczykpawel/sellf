@@ -14,6 +14,11 @@ UPDATE a_fixture SET config = jsonb_set(config, '{content,home.comparison}', jso
   'items',(SELECT jsonb_agg(jsonb_build_object('productId',id,'eyebrow','Example','heading','A starting point','body','Review the product requirements.','bullets','[]'::jsonb))
     FROM jsonb_array_elements_text(config#>'{settingsByTemplate,storefront-a,comparisonProducts}') id))));
 SELECT pg_temp.assert_true(public.storefront_config_valid(config), 'A stored schema accepts retained bindings and copy') FROM a_fixture;
+SELECT pg_temp.assert_true(public.storefront_config_valid(jsonb_set(config, '{overridesByTemplate,storefront-a}',
+  '{"order":["hero"],"sections":{"tasks":{"visibility":"hidden"},"start":{"variant":"compact"}}}')), 'A section intent and subset accepted') FROM a_fixture;
+SELECT pg_temp.assert_true(NOT public.storefront_config_valid(jsonb_set(config, '{overridesByTemplate,storefront-a}', '{"hidden":[]}')), 'A old visibility shape rejected') FROM a_fixture;
+SELECT pg_temp.assert_true(NOT public.storefront_config_valid(jsonb_set(config, '{overridesByTemplate,storefront-a}', '{"sections":{"catalogue":{"visibility":"hidden"}}}')), 'A catalogue stays visible') FROM a_fixture;
+SELECT pg_temp.assert_true(NOT public.storefront_config_valid(jsonb_set(config, '{overridesByTemplate,storefront-a}', '{"sections":{"comparison":{"variant":"featured-grid"}}}')), 'A variants follow descriptors') FROM a_fixture;
 SELECT pg_temp.assert_true(NOT public.storefront_config_valid(config || '{"extra":true}'), 'unknown config field rejected') FROM a_fixture;
 SELECT pg_temp.assert_true(NOT public.storefront_config_valid(jsonb_set(config, '{templateId}', '"storefront-b"')), 'unregistered template rejected') FROM a_fixture;
 SELECT pg_temp.assert_true(NOT public.storefront_config_valid(jsonb_set(config, '{settingsByTemplate,storefront-a,comparisonProducts}', '[]')), 'comparison requires two bindings') FROM a_fixture;
