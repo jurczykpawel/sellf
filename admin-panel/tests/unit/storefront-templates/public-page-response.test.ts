@@ -1,6 +1,9 @@
 /** Unavailable storefront rendering terminates at the HTTP failure response. */
 import { expect, it, vi } from 'vitest';
 import PublicStorefrontPage from '@/components/storefront/PublicStorefrontPage';
+vi.mock('@/components/storefront/StorefrontComposition', () => ({ default: () => null }));
+vi.mock('@/components/storefront/SmartLandingClient', () => ({ default: () => null }));
+vi.mock('@/components/storefront/PublicThemeShell', () => ({ default: () => null }));
 const redirect = vi.hoisted(() => vi.fn((path: string) => { throw new Error(path); }));
 vi.mock('next/navigation', () => ({ redirect }));
 vi.mock('@/lib/actions/shop-config', () => ({ getShopConfig: async () => null }));
