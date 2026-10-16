@@ -39,3 +39,15 @@ export const PUBLIC_FIXTURE = {
   })),
   categories: [{ id: '55555555-5555-4555-8555-555555555555', label: 'Example category', filterTarget: 'catalogue' }],
 };
+
+/** Bilingual seller-copy fixture; the English-only fixture retains fallback coverage. */
+export const D_LOCALIZED_CONFIG: StorefrontConfig = {
+  ...D_CONFIG,
+  content: {
+    'home.hero': { ...D_CONFIG.content['home.hero']!, pl: { kind: 'hero', eyebrow: 'Przykładowy warsztat', heading: 'Zbuduj swój pierwszy automatyczny raport', body: 'Poznaj ten proces na przykładowych danych.', steps: ['Wybierz dane wejściowe', 'Zbuduj proces', 'Sprawdź raport'] } },
+    'home.tasks': { ...D_CONFIG.content['home.tasks']!, pl: { kind: 'heading', heading: 'Co chcesz zbudować?', body: 'Przeglądaj dostępne kategorie produktów.' } },
+    'home.starts': { ...D_CONFIG.content['home.starts']!, pl: { kind: 'heading', heading: 'Trzy punkty startowe', body: 'Wybierz produkt dopasowany do swoich umiejętności.' } },
+    'home.faq': { ...D_CONFIG.content['home.faq']!, pl: { kind: 'faq', items: [{ id: 'requirements', question: 'Gdzie znajdę wymagania?', answer: 'Wymagania znajdziesz przy ofercie każdego produktu.' }] } },
+    'home.closing': { ...D_CONFIG.content['home.closing']!, pl: { kind: 'cta', heading: 'Poznaj szczegóły warsztatu', body: 'Przed zakupem zapoznaj się z aktualną ofertą produktu.' } },
+  },
+};

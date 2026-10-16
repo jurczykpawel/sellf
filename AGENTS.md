@@ -459,7 +459,7 @@ resolver support, resolved contrast and bounded current public bindings before
 the locked RPC. Publish accepts only a revision, never caller config. Resets
 accept only declared fields and remove stored leaves; they preserve content.
 Post-commit invalidation failure returns a warning without undoing publication.
-HTTP API and preview adapters remain later tasks.
+HTTP API adapters remain later tasks.
 
 Offline authoring uses `bun run template:check -- --config file --json` (or
 `--recipe file`). `--mode publish --fixture file` checks supplied public bindings;
@@ -520,6 +520,16 @@ length and SHA-256 in the shared legacy-import revision's atomic audit metadata.
 prevents repeated conversion; existing overrides win and subsequent public appearance
 edits write only configuration snapshots. Public cache deadlines and post-commit
 product/taxonomy invalidation bound freshness.
+Private previews use `preparePreview` with an issued READ principal and a current
+stored draft revision. `/template-preview/[revision]` is a dynamic session-admin
+page outside the locale session layout. Proxy sets no-store/noindex, locale and
+a script-blocking CSP; the composition is inert server-rendered HTML using normal
+same-origin Next CSS and the shared core fonts. Its URL lease expires after ten
+minutes; stale revisions are rejected before and after preparing the model.
+There is no compilation, loopback request or HTML/CSS extraction. T1.22 owns API-key
+access and portable evidence if required. History delegates diff/rollback to the
+lifecycle; publishing an older draft first shows its diff and explicitly confirms
+replacement of the current draft. A failed publish reports the saved-draft state.
 TaskNav and Catalogue share target-scoped filter/state events; URL search/category
 fallbacks use the same bounded initial loaders. Public content renders during auth
 initialization; only empty-shop onboarding depends on the resolved admin session.

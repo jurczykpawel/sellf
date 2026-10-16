@@ -193,6 +193,26 @@ function addSecurityHeaders(
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  // A direct SSR page, outside intl/session layouts. No scripts may execute.
+  if (pathname.startsWith('/template-preview/')) {
+    const locale = request.nextUrl.searchParams.get('locale') === 'pl' ? 'pl' : 'en'
+    const previewHeaders = new Headers(request.headers)
+    previewHeaders.set('x-next-intl-locale', locale)
+    const url = request.nextUrl.clone()
+    const absentLease = !url.searchParams.has('issuedAt')
+    if (absentLease) url.searchParams.set('issuedAt', String(Date.now()))
+    const response = absentLease ? NextResponse.redirect(url) : NextResponse.next({ request: { headers: previewHeaders } })
+    response.headers.set('Cache-Control', 'private, no-store')
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow')
+    response.headers.set('Content-Security-Policy', "default-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'")
+    const issuedAt = Number(url.searchParams.get('issuedAt'))
+    if (Number.isSafeInteger(issuedAt) && issuedAt <= Date.now() && issuedAt + 600000 > Date.now()) {
+      response.headers.set('X-Preview-Expires-At', new Date(issuedAt + 600000).toISOString())
+      response.headers.set('Refresh', `${Math.max(1, Math.ceil((issuedAt + 600000 - Date.now()) / 1000))};url=${url.pathname}${url.search}`)
+    }
+    return response
+  }
+
   // Per-request CSP nonce — forwarded to React Server Components via the
   // x-csp-nonce request header so inline <Script nonce={...}> tags emitted
   // by ThemeProvider / TrackingProvider match the response CSP.
@@ -203,8 +223,15 @@ export async function proxy(request: NextRequest) {
   // Resolve analytics CSP origins from DB (cached 5 min). Done once per request
   // so all addSecurityHeaders call sites below stay synchronous.
   const cspOrigins = await fetchAnalyticsCspOrigins()
-  const applyHeaders = (r: NextResponse) =>
-    addSecurityHeaders(r, nonce, cspOrigins.connect, cspOrigins.frame)
+  const isTemplatePreview = /^\/(?:(?:en|pl)\/)?admin\/templates\/preview\/?$/.test(pathname)
+  const isTemplateHistory = /^\/(?:(?:en|pl)\/)?admin\/templates\/history\/?$/.test(pathname)
+  const applyHeaders = (r: NextResponse) => {
+    if (isTemplatePreview || isTemplateHistory) {
+      r.headers.set('Cache-Control', 'private, no-store')
+      r.headers.set('X-Robots-Tag', 'noindex, nofollow')
+    }
+    return addSecurityHeaders(r, isTemplatePreview ? undefined : nonce, cspOrigins.connect, cspOrigins.frame)
+  }
 
   // Demo mode: block mutating requests on API routes
   if (isDemoBlocked(pathname, request.method)) {
