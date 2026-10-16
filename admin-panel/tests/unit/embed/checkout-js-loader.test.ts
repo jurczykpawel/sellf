@@ -60,4 +60,16 @@ describe('GET /embed/v1/checkout.js — provider-aware captcha loader', () => {
     expect(script).toMatch(/setAttribute\(\s*['"]hidelogo['"]/);
     expect(script).toMatch(/setAttribute\(\s*['"]hidefooter['"]/);
   });
+
+  it('prefills a coupon from data-coupon and sends it as couponCode', async () => {
+    const script = await getEmbedScript();
+    expect(script).toMatch(/getAttribute\(\s*['"]data-coupon['"]\s*\)/);
+    expect(script).toMatch(/couponCode/);
+  });
+
+  it('offers a coupon field that restarts the paid flow and keeps payment possible after a rejected code', async () => {
+    const script = await getEmbedScript();
+    expect(script).toMatch(/sellf-coupon/);
+    expect(script).toMatch(/data-sellf-coupon-error/);
+  });
 });
