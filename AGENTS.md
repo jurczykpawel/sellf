@@ -459,7 +459,7 @@ resolver support, resolved contrast and bounded current public bindings before
 the locked RPC. Publish accepts only a revision, never caller config. Resets
 accept only declared fields and remove stored leaves; they preserve content.
 Post-commit invalidation failure returns a warning without undoing publication.
-HTTP API and preview adapters remain later tasks.
+HTTP API adapters remain later tasks.
 
 Offline authoring uses `bun run template:check -- --config file --json` (or
 `--recipe file`). `--mode publish --fixture file` checks supplied public bindings;
@@ -508,6 +508,15 @@ then validates the stored candidate before creating the mutation client;
 activation requires current template/theme rights even for unchanged overrides.
 The locked RPC revision check protects the preflight snapshot. T1.15 owns the
 origin/reset editor and T1.20 owns cache freshness.
+Private previews use `previewStorefront` with an issued READ principal, a current
+stored draft revision and a declared fixture. The service checks revision before
+and after rendering and bounds evidence to 4 MiB with a ten-minute expiry. The
+session route `/admin/templates/preview` returns standalone no-store/noindex HTML;
+`/admin/templates/history` delegates diff and rollback to the lifecycle action.
+`template:preview-build` compiles the reviewed section renderer to the immutable
+`@sellf/template-preview` workspace artifact before dev/build. Its isolated React
+SSR runtime produces portable inert HTML, scoped CSS and public media/font assets;
+requests never compile code or write files. API adapters reuse this service.
 TaskNav and Catalogue share target-scoped filter/state events; URL search/category
 fallbacks use the same bounded initial loaders. Public content renders during auth
 initialization; only empty-shop onboarding depends on the resolved admin session.

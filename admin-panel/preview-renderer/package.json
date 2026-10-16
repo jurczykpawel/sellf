@@ -1,0 +1,7 @@
+{
+  "name": "@sellf/template-preview",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist/renderer.cjs",
+  "types": "index.d.ts"
+}

@@ -203,8 +203,15 @@ export async function proxy(request: NextRequest) {
   // Resolve analytics CSP origins from DB (cached 5 min). Done once per request
   // so all addSecurityHeaders call sites below stay synchronous.
   const cspOrigins = await fetchAnalyticsCspOrigins()
-  const applyHeaders = (r: NextResponse) =>
-    addSecurityHeaders(r, nonce, cspOrigins.connect, cspOrigins.frame)
+  const isTemplatePreview = /^\/(?:(?:en|pl)\/)?admin\/templates\/preview\/?$/.test(pathname)
+  const isTemplateHistory = /^\/(?:(?:en|pl)\/)?admin\/templates\/history\/?$/.test(pathname)
+  const applyHeaders = (r: NextResponse) => {
+    if (isTemplatePreview || isTemplateHistory) {
+      r.headers.set('Cache-Control', 'private, no-store')
+      r.headers.set('X-Robots-Tag', 'noindex, nofollow')
+    }
+    return addSecurityHeaders(r, isTemplatePreview ? undefined : nonce, cspOrigins.connect, cspOrigins.frame)
+  }
 
   // Demo mode: block mutating requests on API routes
   if (isDemoBlocked(pathname, request.method)) {
