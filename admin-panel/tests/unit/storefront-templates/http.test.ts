@@ -125,3 +125,15 @@ it.each(['outer', 'preview', 'lifecycle', 'authentication'])('returns Retry-Afte
   expect(response.headers.get('retry-after')).toBe('60');
   expect((await response.json()).message).not.toContain('mutation');
 });
+
+it('serves the descriptor-derived section map and exact section reset paths over HTTP', async () => {
+  const response = await templateHttp(request(), 'capabilities');
+  const capabilities = await response.json();
+  expect(response.status).toBe(200);
+  expect(capabilities.resetPaths.d).toContain('overrides.sections.tasks.visibility');
+  expect(capabilities.resetPaths.d).toContain('overrides.sections.hero.variant');
+  expect(capabilities.resetPaths.d).not.toContain('overrides.hidden');
+  expect(capabilities.resetPaths.d).not.toContain('overrides.sections.catalogue.visibility');
+  expect(capabilities.orderPolicy.write).toBe('full-resolved-list');
+  expect(capabilities.schemas.config.properties.overridesByTemplate.properties.d.properties.sections.additionalProperties).toBe(false);
+});

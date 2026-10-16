@@ -3,6 +3,7 @@ import { expect, it, vi } from 'vitest';
 import { DEFAULT_CONFIG, D_CONFIG, D_TOKENS } from '@/lib/storefront-templates/fixtures';
 import { templateCapabilities } from '@/lib/storefront-templates/capabilities';
 import { diffTemplateConfigs, inspectTemplate, resetTemplateField } from '@/lib/storefront-templates/lifecycle-validation';
+import { effectiveLayout } from '@/lib/storefront-templates/layout';
 import { STOREFRONT_TEMPLATES, validateConfig } from '@/lib/storefront-templates/registry';
 import { templateRightsForTier } from '@/lib/storefront-templates/rights';
 vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ default: {} }));
@@ -17,8 +18,8 @@ it('supports every declared reset path without removing content or inactive sett
   expect(config).toEqual({ ...D_CONFIG, tokens: D_TOKENS });
 });
 it('prunes only emptied optional parents and preserves required config maps', () => {
-  const config = { ...DEFAULT_CONFIG, overridesByTemplate: { default: { variants: { catalogue: 'detail-cards' as const } } } };
-  expect(resetTemplateField(config, 'default', 'overrides.variants.catalogue')).toEqual(DEFAULT_CONFIG);
+  const config = { ...DEFAULT_CONFIG, overridesByTemplate: { default: { sections: { catalogue: { variant: 'detail-cards' as const } } } } };
+  expect(resetTemplateField(config, 'default', 'overrides.sections.catalogue.variant')).toEqual(DEFAULT_CONFIG);
   const density = { ...DEFAULT_CONFIG, settingsByTemplate: { d: { density: 'compact' as const } } };
   expect(resetTemplateField(density, 'd', 'settings.density')).toEqual(DEFAULT_CONFIG);
 });
@@ -50,7 +51,7 @@ it('warns for missing visible content while keeping partial configurations valid
   expect(validation.warnings.filter(issue => issue.code === 'CONTENT_MISSING').map(issue => issue.path).sort()).toEqual([
     '/content/home.closing', '/content/home.faq', '/content/home.hero', '/content/home.starts', '/content/home.tasks',
   ]);
-  config.overridesByTemplate = { d: { hidden: ['tasks', 'start', 'faq'] } };
+  config.overridesByTemplate = { d: { sections: { tasks: { visibility: 'hidden' }, start: { visibility: 'hidden' }, faq: { visibility: 'hidden' } } } };
   expect(validateConfig(config).warnings.filter(issue => issue.code === 'CONTENT_MISSING')).toHaveLength(2);
   expect(validateConfig(DEFAULT_CONFIG).warnings).toEqual([]);
 });
@@ -68,6 +69,19 @@ it('suppresses only absent versus empty default map entries in either diff direc
   expect(diffTemplateConfigs(before, after)).toEqual([]);
   expect(diffTemplateConfigs(after, before)).toEqual([]);
   expect(after.overridesByTemplate).toEqual({ default: {} });
-  const withVariant = { ...after, overridesByTemplate: { default: { variants: { catalogue: 'detail-cards' as const } } } };
+  const withVariant = { ...after, overridesByTemplate: { default: { sections: { catalogue: { variant: 'detail-cards' as const } } } } };
   expect(diffTemplateConfigs(before, withVariant)).toContainEqual(expect.objectContaining({ path: '/overridesByTemplate/default', kind: 'added' }));
+});
+
+it('resets one section intent leaf to its current default, retaining the other leaf and content', () => {
+  const config = { ...D_CONFIG, overridesByTemplate: { d: { sections: { start: { visibility: 'hidden' as const, variant: 'compact' as const } } } } };
+  const visibility = resetTemplateField(config, 'd', 'overrides.sections.start.visibility')!;
+  expect(visibility.overridesByTemplate.d?.sections?.start).toEqual({ variant: 'compact' });
+  expect(effectiveLayout(STOREFRONT_TEMPLATES.d, visibility.overridesByTemplate.d).sections.find(section => section.id === 'start')).toMatchObject({ visibility: 'visible', variant: 'compact' });
+  const variant = resetTemplateField(config, 'd', 'overrides.sections.start.variant')!;
+  expect(variant.overridesByTemplate.d?.sections?.start).toEqual({ visibility: 'hidden' });
+  expect(effectiveLayout(STOREFRONT_TEMPLATES.d, variant.overridesByTemplate.d).sections.find(section => section.id === 'start')).toMatchObject({ visibility: 'hidden', variant: 'detail-cards' });
+  expect(variant.content).toEqual(D_CONFIG.content);
+  expect(resetTemplateField(config, 'd', 'overrides.hidden')).toBeNull();
+  expect(resetTemplateField(config, 'd', 'overrides.variants.start')).toBeNull();
 });

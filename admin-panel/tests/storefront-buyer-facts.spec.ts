@@ -45,7 +45,7 @@ test.beforeAll(async () => {
   expect(history.error).toBeNull();
   const draft: StorefrontConfig = structuredClone(D_LOCALIZED_CONFIG);
   draft.settingsByTemplate.d = { heroProduct: paid, closingProduct: paid, starterProducts: [paid, free, future], taskCategories: [] };
-  draft.overridesByTemplate.d = { variants: { start: 'compact' } };
+  draft.overridesByTemplate.d = { sections: { start: { variant: 'compact' } } };
   const saved = await db.rpc('mutate_storefront_config', { expected_revision: JSON.parse(original).revision, operation: 'draft', validated_config: draft, actor_user_id: 'dddddddd-0000-4000-a000-000000000000', actor_method: 'session' });
   expect(saved.error).toBeNull(); expect(saved.data).toMatchObject({ success: true });
   revision = (saved.data as { revision: number }).revision;

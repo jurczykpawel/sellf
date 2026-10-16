@@ -37,9 +37,16 @@ rollback(target0,expected2)3. Always use actual returned revisions.
 
 Config input and stored JSON each have a 102400-byte UTF-8 limit; request envelope
 131072 bytes; depth 12. Partial settings are retained per template, tokens are partial
-schema-approved values. Empty `hidden`/`variants` and template map entries are optional;
-omit them when unused. Empty `default: {}` entries do not produce diff noise.
-Order is a permutation of current section IDs; catalogue stays visible. There is no API for uploading arbitrary recipes/components.
+schema-approved values. Section intent lives at
+`overridesByTemplate.<template>.sections.<id>.visibility` (`visible`/`hidden`)
+and `.variant` (the section's declared enum). Omission inherits the descriptor's
+default visibility. Required sections stay visible. Empty section/template maps
+are optional; omit them when unused. Empty `default: {}` entries do not produce
+diff noise. Read orders are unique known-ID subsets, at most 32 IDs; saving an
+explicit order materializes the full resolved list, with missing IDs inserted at
+descriptor anchors. Reset leaves are `overrides.sections.<id>.visibility` and
+`overrides.sections.<id>.variant`, only where capabilities declares them.
+There is no API for uploading arbitrary recipes/components.
 
 To validate a saved revision, GET `config`, require its `revision` to equal the
 saved revision, then POST `validate` with exactly `{ "config": <returned draft>,

@@ -67,8 +67,8 @@ test('reads, saves, reloads, retains inactive values and prevents a stale tab fr
   const draft = saved.data!.draft as unknown as StorefrontConfig;
   expect(draft.templateId).toBe('d');
   expect(draft.overridesByTemplate.d!.order![0]).toBe('tasks');
-  expect(draft.overridesByTemplate.d!.hidden).toEqual(['tasks']);
-  expect(draft.overridesByTemplate.d!.variants!.hero).toBe('simple');
+  expect(draft.overridesByTemplate.d!.sections?.tasks?.visibility).toBe('hidden');
+  expect(draft.overridesByTemplate.d!.sections?.hero?.variant).toBe('simple');
   expect((saved.data!.published as unknown as StorefrontConfig).templateId).toBe('default');
   await page.reload();
   await expect(editor.getByRole('button', { name: `Remove ${productName}`, exact: true })).toBeVisible();
@@ -139,7 +139,7 @@ for (const locale of ['en', 'pl']) for (const mode of ['light', 'dark'] as const
       await editor.getByRole('heading', { level: 1 }).click();
       await page.evaluate(() => scrollTo(0, 0));
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      await page.screenshot({ path: `/tmp/t1-18-v2-${locale}-${mode}-${width}.png`, fullPage: true });
+      await page.screenshot({ path: `/tmp/d056-${locale}-${mode}-${width}.png`, fullPage: true });
     }
   });
 }

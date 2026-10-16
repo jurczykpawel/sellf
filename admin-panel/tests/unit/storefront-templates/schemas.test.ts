@@ -24,7 +24,7 @@ describe('storefront schema corpus', () => {
       { ...clone(), content: { 'home.hero': { sourceLocale: 'en', en: { kind: 'heading', heading: '', body: '' } } } },
       { ...clone(), tokens: { format: 1, light: { accent: 'url(https://example.com)' } } },
       { ...clone(), settingsByTemplate: { d: { heroProduct: 'invalid' } } },
-      { ...clone(), overridesByTemplate: { d: { hidden: ['catalogue'] } } },
+      { ...clone(), overridesByTemplate: { d: { sections: { catalogue: { visibility: 'hidden' } } } } },
       { ...clone(), content: { unknown: {} } },
       { ...clone(), tokens: { format: 1, typography: { font: 'inter' } } },
     ];
@@ -74,8 +74,8 @@ describe('storefront schema corpus', () => {
     for (const change of [
       { content: { 'home.hero': { sourceLocale: 'pl', en: D_CONFIG.content['home.hero']!.en } } },
       { settingsByTemplate: { d: { starterProducts: Array(2).fill('22222222-2222-4222-8222-222222222222') } } },
-      { overridesByTemplate: { d: { order: ['hero'] } } },
-      { overridesByTemplate: { d: { variants: { hero: 'compact' } } } },
+      { overridesByTemplate: { d: { order: ['hero', 'hero'] } } },
+      { overridesByTemplate: { d: { sections: { hero: { variant: 'compact' } } } } },
     ]) expect(validateConfig({ ...clone(), ...change }).valid).toBe(false);
     const switched = { ...clone(), templateId: 'default' };
     expect(validateConfig(switched).valid).toBe(true);
@@ -104,9 +104,9 @@ describe('storefront schema corpus', () => {
   });
 
   it('accepts only declared reset leaves including core density', () => {
-    for (const path of ['tokens.light.accent', 'tokens.dark.border', 'tokens.typography.font', 'tokens.shapes.radiusMdPx', 'settings.density', 'overrides.order', 'overrides.hidden', 'overrides.variants.hero']) expect(isResetPath('d', path)).toBe(true);
-    for (const path of ['tokens.format', 'tokens.light', 'tokens.light.other', 'content.home.hero', 'settings.heroProduct', 'overrides.variants.catalogue.other', '__proto__']) expect(isResetPath('d', path)).toBe(false);
-    expect(isResetPath('default', 'overrides.variants.hero')).toBe(false);
+    for (const path of ['tokens.light.accent', 'tokens.dark.border', 'tokens.typography.font', 'tokens.shapes.radiusMdPx', 'settings.density', 'overrides.order', 'overrides.sections.tasks.visibility', 'overrides.sections.hero.variant']) expect(isResetPath('d', path)).toBe(true);
+    for (const path of ['tokens.format', 'tokens.light', 'tokens.light.other', 'content.home.hero', 'settings.heroProduct', 'overrides.sections.catalogue.other', '__proto__']) expect(isResetPath('d', path)).toBe(false);
+    expect(isResetPath('default', 'overrides.sections.hero.variant')).toBe(false);
     expect(isResetPath('default', 'settings.density')).toBe(true);
     expect(isResetPath('__proto__', 'settings.density')).toBe(false);
     expect(tokenOverridesSchema.safeParse({ format: 1, light: { accent: null } }).success).toBe(false);

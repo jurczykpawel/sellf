@@ -457,6 +457,16 @@ selection; seller content and retained template settings live inside these JSON
 snapshots. Draft and published values each have a 102400-byte stored UTF-8 limit;
 revisions stay within JavaScript's safe integer range.
 
+Section intent uses `overridesByTemplate.<template>.sections.<id>.visibility`
+and `.variant`; the pre-release hidden/variants fields are not supported.
+`section-descriptors.ts` supplies the finite wire domains, visibility defaults and
+placement anchors. `effectiveLayout()` is the shared interpretation for rendering,
+authoring and diagnostics. Reads accept unique known order subsets (≤32); draft
+writers normalize explicit orders to complete resolved lists, including inactive
+templates. Resetting order removes it to inherit defaults. The resolver release
+gate enumerates every legacy order/visibility combination for default and D;
+compatible additions must preserve every previously supported composition.
+
 Server-only reads live in `src/lib/storefront-templates/repository.ts` and accept
 caller-authorized Supabase clients. Public rendering uses the published-only
 projection; private reads include the draft and bounded, descending history pages.
