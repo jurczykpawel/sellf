@@ -47,3 +47,5 @@ To rekordy płatności, a nie unikalni kupujący ani pełny lejek wizyt lub sesj
 Mogą obejmować powtórne próby, dodatkowe pozycje zamówień i płatności subskrypcyjne;
 brakujących rekordów nie da się policzyć. E-mail gościa może być nieznany. Widok nie
 wysyła przypomnień, nie dodaje śledzenia i nie wymaga nowej konfiguracji.
+
+Tabela pokazuje do 100 produktów z największą liczbą zapisanych prób; sumy obejmują wszystkie produkty. Agregacja odbywa się w bazie w jednym zapytaniu.

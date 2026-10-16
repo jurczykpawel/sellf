@@ -47,3 +47,5 @@ These are payment records, not unique buyers or a complete visit/session funnel.
 Repeated attempts, additional order rows and subscription payments may be included;
 missing records cannot be counted. Guest emails can be unknown. This view sends no
 reminders, adds no tracking and requires no new configuration.
+
+The table shows up to 100 products with the most recorded attempts; totals include all products. Aggregation runs in the database in one request.
