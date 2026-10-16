@@ -1,4 +1,4 @@
-/** Bounded affiliate queue drain. @see supabase/migrations/20261016112548_affiliates_phase1.sql */
+/** Bounded affiliate queue drain. @see supabase/migrations/20261016000000_release_2026_10_6.sql */
 import 'server-only';
 
 import { z } from 'zod';

@@ -7,6 +7,8 @@ import unittest
 from local_stack import get_test_database_container
 
 CONTAINER = get_test_database_container()
+if CONTAINER == 'supabase_db_sellf':
+    raise ValueError('Affiliate acceptance requires a disposable stack')
 ACTOR = 'dddddddd-0000-4000-a000-000000000000'
 MEMBER = 'af000000-0000-4000-a000-000000000001'
 PAYMENT = 'af000000-0000-4000-a000-000000000011'

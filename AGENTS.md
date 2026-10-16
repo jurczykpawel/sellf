@@ -100,6 +100,13 @@ bunx playwright test tests/checkout-payment-e2e.spec.ts   # Single spec file
 bunx playwright test -g "test name"        # Single test by title
 ```
 
+Direct-SQL tests resolve the local Docker stack from the configured Supabase API
+port through `tests/helpers/database-container.ts`. `SUPABASE_DB_CONTAINER` is the
+only container override and must match that API; a missing or mismatched stack
+fails before SQL runs. Affiliate database acceptance additionally requires
+`AFFILIATE_TEST_ENV` and `SUPABASE_TEST_WORKDIR` pointing to the same disposable
+project; its reset helper refuses the shared `sellf` project.
+
 ### Real Stripe test-mode E2E — admin-panel/
 
 ```bash

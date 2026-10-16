@@ -1,4 +1,4 @@
-/** Shared private payout preview. @see supabase/migrations/20261016112548_affiliates_phase1.sql */
+/** Shared private payout preview. @see supabase/migrations/20261016000000_release_2026_10_6.sql */
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { PreviewInfo } from '@/lib/affiliates/payouts/contracts';
