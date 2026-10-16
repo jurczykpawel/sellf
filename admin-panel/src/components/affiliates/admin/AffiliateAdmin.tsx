@@ -6,6 +6,7 @@ import { Check, ChevronDown, Plus, Users, X } from 'lucide-react';
 import { applyToProgram, getAcceptedTerms, getAdminOverview, updateMember, updateProgram } from '@/lib/affiliates/admin/actions';
 import { applicationSchema, memberUpdateSchema, programUpdateSchema } from '@/lib/affiliates/admin/contracts';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
+import SyncWorkPanel from '@/components/affiliates/admin/SyncWorkPanel';
 import CaptchaWidget from '@/components/captcha/CaptchaWidget';
 import { affiliateAdminMessages } from '@/components/affiliates/admin/messages';
 import { displayThreshold, parseThreshold } from '@/components/affiliates/admin/thresholds';
@@ -74,6 +75,7 @@ export function AffiliateAdmin({ initial, locale }: { initial: AdminOverview; lo
       </form>
     </details>
     <Notice value={notice} error={error} />
+    <SyncWorkPanel locale={locale} />
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-lg font-semibold"><Users size={20} aria-hidden="true" />{t.applications}</h2><div className="flex min-w-0 max-w-full flex-wrap gap-2"><label className="sr-only" htmlFor={`${id}-status`}>{t.status}</label><select id={`${id}-status`} className={`${fieldClass} !w-auto max-w-full`} value={filter} disabled={busy} onChange={event => { setFilter(event.target.value); void load(undefined, event.target.value); }}><option value="">{t.all}</option>{['pending', 'approved', 'rejected', 'suspended', 'terminated'].map(status => <option key={status} value={status}>{statusLabel(status, t)}</option>)}</select><button type="button" className={buttonClass} disabled={busy} onClick={() => void load()}>{t.refresh}</button></div></div>
     {!overview.members.length && <p className="rounded-xl border border-dashed border-sf-border p-8 text-center text-sm text-sf-body">{t.empty}</p>}
     {overview.members.map(member => <MemberDecision key={`${member.id}-${member.version}`} member={member} locale={locale} onSaved={data => setOverview(current => ({ ...current, members: current.members.map(row => row.id === data.id ? data : row) }))} />)}

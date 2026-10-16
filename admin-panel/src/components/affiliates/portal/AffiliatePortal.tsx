@@ -22,6 +22,7 @@ export default function AffiliatePortal({ data, locale, currency, memberId }: Pr
     <p>{m.asOf}: {date(data.as_of)}</p>
     {data.sync_pending && <p className={styles.notice} role="status">{m.pending}</p>}
     {data.needs_review && <p className={styles.notice}>{m.review}</p>}
+    {data.commissions.some(c => c.eligible_at === null && c.status === 'held') && <p className={styles.notice}>{m.unlimited}</p>}
     <h2>{m.summary}</h2>
     <div className={styles.grid}>{data.balances.map(b => <article className={styles.card} key={b.currency} aria-label={b.currency}>
       <h3>{b.currency}</h3><dl className={styles.headlines}>{(['eligible', 'held', 'paid'] as const).map(field => <div key={field}><dt>{m[field]}</dt><dd>{money(b[field], b.currency)}</dd></div>)}</dl>

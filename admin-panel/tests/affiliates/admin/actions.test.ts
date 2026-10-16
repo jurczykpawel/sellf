@@ -6,14 +6,14 @@ vi.mock('@/lib/demo-guard', () => ({ isDemoMode: () => false }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: mocks.ip, checkRateLimitForIdentifier: mocks.email }));
 vi.mock('@/lib/captcha/verify', () => ({ verifyCaptchaToken: mocks.captcha }));
 vi.mock('next/cache', () => ({ unstable_noStore: mocks.noStore, revalidatePath: mocks.revalidate }));
-import { applyToProgram, getAdminOverview, getApplicationProgram, updateMember, updateProgram, getAcceptedTerms } from '@/lib/affiliates/admin/actions';
+import { applyToProgram, getAdminOverview, getApplicationProgram, updateMember, updateProgram, getAcceptedTerms, retryAffiliateWork, getAffiliateSyncOverview } from '@/lib/affiliates/admin/actions';
 const user = { id: 'dddddddd-0000-4000-a000-000000000000', email: 'admin@example.com', email_confirmed_at: '2026-01-01T00:00:00Z' };
 const application = { code: 'partner-a', display_name: 'Partner A', channel: 'https://example.com', terms_version: 'v1', accepted: true, captcha_token: 'solved' };
 const program = { version: '1', enabled: true, terms_version: 'v1', terms: { en: 'Terms EN', pl: 'Regulamin PL' }, thresholds: { PLN: '10000' }, hold_days: 30, buffer_days: 2 };
 let db: ReturnType<typeof query>;
 function query(data: unknown = []) {
-  const q = { data, error: null as null | { code: string; message?: string }, select: vi.fn(), eq: vi.fn(), order: vi.fn(), limit: vi.fn(), lt: vi.fn(), lte: vi.fn(), maybeSingle: vi.fn(), single: vi.fn(), rpc: vi.fn(), from: vi.fn(), then: undefined as unknown };
-  for (const key of ['select', 'eq', 'order', 'limit', 'lt', 'lte', 'maybeSingle', 'single', 'rpc', 'from'] as const) q[key].mockImplementation(() => q);
+  const q = { data, error: null as null | { code: string; message?: string }, select: vi.fn(), eq: vi.fn(), order: vi.fn(), limit: vi.fn(), lt: vi.fn(), gt: vi.fn(), lte: vi.fn(), maybeSingle: vi.fn(), single: vi.fn(), rpc: vi.fn(), from: vi.fn(), then: undefined as unknown };
+  for (const key of ['select', 'eq', 'order', 'limit', 'lt', 'gt', 'lte', 'maybeSingle', 'single', 'rpc', 'from'] as const) q[key].mockImplementation(() => q);
   q.then = (resolve: (value: unknown) => unknown) => Promise.resolve(resolve({ data: q.data, error: q.error }));
   return q;
 }
@@ -92,4 +92,36 @@ describe('validation and conflicts', () => {
 it('requires a fresh terms label when the published wording changes', async () => {
   const published = query(program); db.from.mockReturnValue(published);
   expect(await updateProgram({ ...program, terms: { en: 'Changed', pl: 'Zmienione' } })).toMatchObject({ success: false, status: 409, errorCode: 'TERMS_VERSION_CONFLICT' }); expect(db.rpc).not.toHaveBeenCalled();
+});
+
+it('retries exact work generation with the session actor and reason', async () => {
+  expect((await retryAffiliateWork({ payment_id: user.id, generation: '9007199254740993', reason: 'Snapshot repaired' })).success).toBe(true);
+  expect(db.rpc).toHaveBeenCalledWith('affiliate_work_retry', { p_actor: user.id, p_payment: user.id, p_generation: '9007199254740993', p_reason: 'Snapshot repaired' });
+});
+it.each([{ actor: user.id }, { reason: '' }, { generation: '0' }])('rejects invalid work retry %j', async changes => {
+  expect((await retryAffiliateWork({ payment_id: user.id, generation: '1', reason: 'Repaired', ...changes })).status).toBe(422);
+  expect(db.rpc).not.toHaveBeenCalled();
+});
+it.each([null, user])('denies retry without session admin', async identity => {
+  mocks.session.mockResolvedValue({ auth: { getUser: async () => ({ data: { user: identity } }) }, from: () => query(null) });
+  expect((await retryAffiliateWork({ payment_id: user.id, generation: '1', reason: 'Repaired' })).success).toBe(false);
+  expect(mocks.admin).not.toHaveBeenCalled();
+});
+it('returns conflict for changed generation without refreshing', async () => {
+  db.error = { code: 'PT409' };
+  expect((await retryAffiliateWork({ payment_id: user.id, generation: '1', reason: 'Repaired' })).status).toBe(409);
+  expect(mocks.revalidate).not.toHaveBeenCalled();
+});
+
+it('bounds recovery rows and projects pending order age without buyer fields', async () => {
+  const work = query([{ payment_id: user.id, requested_generation: '9007199254740993', attempts: 10, last_error_code: 'net_unavailable' }]);
+  const oldest = query([{ next_attempt_at: '2026-01-01T00:00:00Z' }]);
+  db.from.mockReturnValueOnce(work).mockReturnValueOnce(oldest);
+  const result = await getAffiliateSyncOverview({ limit: 1, cursor: user.id });
+  expect(result.data).toMatchObject({ next_cursor: user.id, oldest_pending_at: '2026-01-01T00:00:00Z' });
+  expect(work.limit).toHaveBeenCalledWith(1); expect(work.gt).toHaveBeenCalledWith('payment_id', user.id);
+  expect(work.select.mock.calls.flat().join()).not.toMatch(/email|customer|metadata/);
+  expect(oldest.eq).toHaveBeenCalledWith('status', 'pending');
+  expect(oldest.order).toHaveBeenCalledWith('next_attempt_at');
+  expect((await getAffiliateSyncOverview({ limit: 101 })).status).toBe(422);
 });

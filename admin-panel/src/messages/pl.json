@@ -2154,7 +2154,8 @@
       "statusError": "Nie udało się zaktualizować statusu",
       "bulkDeleteError": "Nie udało się usunąć kuponów",
       "deleteExpiredError": "Nie udało się usunąć wygasłych kuponów",
-      "noActiveProducts": "Nie znaleziono aktywnych produktów."
+      "noActiveProducts": "Nie znaleziono aktywnych produktów.",
+      "affiliateBoundHint": "Ten kupon jest przypisany do partnera — dezaktywuj go zamiast usuwać."
     },
     "orderBumps": {
       "title": "Order Bumps",
@@ -4553,7 +4554,19 @@
       "error": "Nie udało się wykonać operacji.",
       "limited": "Zbyt wiele prób. Spróbuj później.",
       "unauthorized": "Zaloguj się na zweryfikowane konto.",
-      "forbidden": "Brak dostępu."
+      "forbidden": "Brak dostępu.",
+      "syncTitle": "Naliczanie prowizji",
+      "syncHint": "Usuń przyczynę, a następnie ponów przetwarzanie zamówienia. Ponowienie zostanie zapisane w historii działań.",
+      "syncEmpty": "Żadne zamówienie nie wymaga ręcznego ponowienia.",
+      "syncLag": "Naliczanie prowizji jest opóźnione o ponad 15 minut. Sprawdź, czy harmonogram affiliate-sync działa.",
+      "syncRetry": "Ponów",
+      "syncReason": "Co zostało naprawione?",
+      "syncTechnical": "Szczegóły techniczne",
+      "syncFailed": "Naliczanie nie powiodło się. Sprawdź konfigurację workera przed ponowieniem.",
+      "syncSession": "Nie udało się potwierdzić sesji zakupu. Sprawdź połączenie i konfigurację Stripe.",
+      "syncNet": "Brakuje kwoty netto zamówienia. Uzupełnij dane podatkowe przed ponowieniem.",
+      "syncWaiting": "Realizacja zamówienia jeszcze trwa. Sprawdź zamówienie przed ponowieniem.",
+      "syncRetrySuccess": "Zamówienie ponownie w kolejce. Przetworzy je następne uruchomienie workera."
     },
     "products": {
       "title": "Prowizja partnerska",
@@ -4572,7 +4585,7 @@
       "conflict": "Ustawienia zmieniono gdzie indziej. Wczytaj je ponownie przed zapisem.",
       "reload": "Wczytaj ponownie",
       "subscription": "Subskrypcje nie naliczają prowizji w fazie 1.",
-      "unlimited": "Bezterminowe zwroty: prowizje pozostają wstrzymane i nie będą automatycznie gotowe do wypłaty.",
+      "unlimited": "Bezterminowe zwroty: tych prowizji nigdy nie można wypłacić, również przez ręczne korekty.",
       "policy": "Ustal zarobek partnera za zakup. Czas oczekiwania wynika z ustawień programu; wcześniejsze zakupy zachowują pierwotną prowizję.",
       "owner": "Partner przypisany do kuponu",
       "partner": "Zatwierdzony partner",
@@ -4645,7 +4658,8 @@
       "pendingMember": "Zgłoszenie oczekuje",
       "rejected": "Odrzucony",
       "suspended": "Zawieszony",
-      "terminated": "Zakończony"
+      "terminated": "Zakończony",
+      "unlimited": "Prowizje od produktów z bezterminowym zwrotem nie mogą zostać wypłacone, również przez ręczne korekty."
     },
     "payoutsLabel": "Wypłaty"
   }

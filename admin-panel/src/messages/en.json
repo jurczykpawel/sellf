@@ -2154,7 +2154,8 @@
       "statusError": "Failed to update status",
       "bulkDeleteError": "Failed to delete coupons",
       "deleteExpiredError": "Failed to delete expired coupons",
-      "noActiveProducts": "No active products found."
+      "noActiveProducts": "No active products found.",
+      "affiliateBoundHint": "This coupon is bound to a partner. Deactivate it instead."
     },
     "orderBumps": {
       "title": "Order Bumps",
@@ -4553,7 +4554,19 @@
       "error": "Unable to complete this request.",
       "limited": "Too many attempts. Try again later.",
       "unauthorized": "Sign in with a verified account.",
-      "forbidden": "Access denied."
+      "forbidden": "Access denied.",
+      "syncTitle": "Commission processing",
+      "syncHint": "Resolve the cause, then retry the affected order. A retry is recorded in the activity history.",
+      "syncEmpty": "No orders need manual recovery.",
+      "syncLag": "Commission processing is more than 15 minutes overdue. Check that the affiliate-sync schedule is running.",
+      "syncRetry": "Retry",
+      "syncReason": "What was resolved?",
+      "syncTechnical": "Technical details",
+      "syncFailed": "Processing failed. Check the worker configuration before retrying.",
+      "syncSession": "Checkout session could not be confirmed. Check Stripe connectivity and configuration.",
+      "syncNet": "The net order amount is unavailable. Restore the tax snapshot before retrying.",
+      "syncWaiting": "Order fulfillment is still pending. Check the order before retrying.",
+      "syncRetrySuccess": "Order queued again. The next worker run will process it."
     },
     "products": {
       "title": "Affiliate commission",
@@ -4572,7 +4585,7 @@
       "conflict": "Changed elsewhere. Reload settings before saving again.",
       "reload": "Reload settings",
       "subscription": "Subscriptions earn no commission in Phase 1.",
-      "unlimited": "Unlimited refunds: commissions stay on hold and never become payable automatically.",
+      "unlimited": "Unlimited refunds: these commissions can never be paid out, including through manual adjustments.",
       "policy": "Set what your partner earns per purchase. Waiting periods follow your program settings; previous purchases keep their original commission.",
       "owner": "Coupon affiliate owner",
       "partner": "Approved partner",
@@ -4645,7 +4658,8 @@
       "pendingMember": "Application pending",
       "rejected": "Rejected",
       "suspended": "Suspended",
-      "terminated": "Terminated"
+      "terminated": "Terminated",
+      "unlimited": "Commissions on products with unlimited refunds cannot be paid out, including through manual adjustments."
     },
     "payoutsLabel": "Payouts"
   }
