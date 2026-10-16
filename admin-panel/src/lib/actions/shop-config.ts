@@ -1,9 +1,10 @@
 'use server'
 
 import { createPublicClient } from '@/lib/supabase/server'
-import { revalidatePath, unstable_cache, revalidateTag } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { cache } from 'react'
-import { cacheGet, cacheSet, cacheDel, CacheKeys, CacheTTL } from '@/lib/redis/cache'
+import { boundedPublicRead, publicCacheKey } from '@/lib/public-cache'
+import { cacheDel } from '@/lib/redis/cache'
 import { isDemoMode } from '@/lib/demo-guard'
 import { withAdminClient } from '@/lib/actions/admin-auth'
 import { resolveLegalDocsSource, type LegalDocsSource } from '@/lib/legal/legal-docs-source'
@@ -71,25 +72,6 @@ export interface ShopConfig {
   updated_at: string
 }
 
-/**
- * Get shop configuration (singleton)
- *
- * OPTIMIZED with multi-layer caching:
- * 1. React cache() - Deduplicates requests in the same render cycle
- * 2. Redis cache (optional) - <10ms latency if Upstash configured
- * 3. Database fallback - Works without Redis
- * 4. createPublicClient() - Enables ISR on pages using this function
- */
-// Cross-request DB fetch cache. When Upstash Redis is configured the Redis
-// layer above wins; without Redis this keeps the DB out of the hot path
-// (5 min in Next.js memory). Invalidated via revalidateTag('shop-config').
-// In non-production the cache is disabled so direct DB writes (e.g. E2E test
-// fixtures) take effect immediately without needing to round-trip through the
-// server action that calls revalidateTag.
-// Anon (public) reads use the explicit public-safe column list from
-// shop-config-columns.ts (NOT select('*') — the column-level grant would deny it).
-// That list is shared with the storefront-anon-read security test so app + SQL
-// grant stay in sync. See SHOP_CONFIG_PUBLIC_COLUMNS_CSV import above.
 const fetchShopConfigFromDbRaw = async (): Promise<ShopConfig | null> => {
   const supabase = createPublicClient()
   const { data, error } = await supabase
@@ -103,30 +85,9 @@ const fetchShopConfigFromDbRaw = async (): Promise<ShopConfig | null> => {
   return data as ShopConfig | null
 }
 
-const fetchShopConfigFromDb = process.env.NODE_ENV === 'production'
-  ? unstable_cache(fetchShopConfigFromDbRaw, ['shop-config'], { revalidate: 300, tags: ['shop-config'] })
-  : fetchShopConfigFromDbRaw
-
-export const getShopConfig = cache(async (): Promise<ShopConfig | null> => {
-  const cacheKey = CacheKeys.SHOP_CONFIG
-
-  // Try Redis cache first (if configured)
-  const cached = await cacheGet<ShopConfig>(cacheKey)
-  if (cached) {
-    return cached
-  }
-
-  // Fallback: Next.js memory cache → DB. The DB call only fires when both
-  // Redis and Next's in-memory cache miss.
-  const data = await fetchShopConfigFromDb()
-
-  // Cache for next time (if Redis is available)
-  if (data) {
-    await cacheSet(cacheKey, data, CacheTTL.LONG) // 1 hour
-  }
-
-  return data
-})
+export const getShopConfig = cache(async (): Promise<ShopConfig | null> =>
+  boundedPublicRead(['shop-config'], ['shop-config'], fetchShopConfigFromDbRaw, { redis: true })
+)
 
 /**
  * Get shop config for the current admin/seller's own schema.
@@ -220,7 +181,7 @@ export async function updateShopConfig(updates: Partial<Omit<ShopConfig, 'id' | 
         console.error('Error creating shop config:', insertError)
         return { success: false, error: insertError?.message ?? 'Failed to create shop config' }
       }
-      await cacheDel(CacheKeys.SHOP_CONFIG)
+      await cacheDel(publicCacheKey(['shop-config']))
       revalidateTag('shop-config', { expire: 0 })
       revalidatePath('/dashboard', 'layout')
       return { success: true }
@@ -240,7 +201,7 @@ export async function updateShopConfig(updates: Partial<Omit<ShopConfig, 'id' | 
     }
 
     // Invalidate Redis cache (if configured)
-    await cacheDel(CacheKeys.SHOP_CONFIG)
+    await cacheDel(publicCacheKey(['shop-config']))
     // Invalidate the Next.js in-memory cache so the next read hits the DB.
     revalidateTag('shop-config', { expire: 0 })
 

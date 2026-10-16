@@ -1,6 +1,7 @@
 /** Storefront snapshot reads using caller-authorized clients. @see supabase/tests/storefront-config.sql */
 import 'server-only';
 import { z } from 'zod';
+import { boundedPublicRead } from '@/lib/public-cache';
 import { validateConfig } from '@/lib/storefront-templates/registry';
 import { revisionSchema } from '@/lib/storefront-templates/schemas';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -36,6 +37,14 @@ function validPair(row: { draft: unknown; published: unknown }): boolean {
 
 /** Trusted core callers resolve entitlements before using this public projection. */
 export async function readPublishedConfig(client: SupabaseClient<Database>): Promise<ReadResult<StorefrontConfig>> {
+  const data = await boundedPublicRead(['storefront-config'], ['storefront-config'], async () => {
+    const result = await readPublishedConfigRaw(client);
+    return result.success ? result.data : null;
+  });
+  return data ? { success: true, data } : { success: false, error: 'Unable to read published storefront config' };
+}
+
+async function readPublishedConfigRaw(client: SupabaseClient<Database>): Promise<ReadResult<StorefrontConfig>> {
   try {
     const { data, error } = await client.from('storefront_config').select('published').eq('id', true).single();
     if (error || !data) return { success: false, error: 'Unable to read published storefront config' };

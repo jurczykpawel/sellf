@@ -10,6 +10,7 @@
 
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import { invalidatePublicProducts } from '@/lib/storefront-templates/invalidation';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -72,6 +73,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       console.error('[tags.PATCH]', error);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to update tag');
     }
+    invalidatePublicProducts(undefined, undefined, true);
     return jsonResponse(successResponse(data), request);
   } catch (e) { return handleApiError(e, request); }
 }
@@ -88,6 +90,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to delete tag');
     }
     if (count === 0) return apiError(request, 'NOT_FOUND', 'Tag not found');
+    invalidatePublicProducts(undefined, undefined, true);
     return noContentResponse(request);
   } catch (e) { return handleApiError(e, request); }
 }
