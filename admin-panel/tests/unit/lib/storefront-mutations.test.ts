@@ -1,14 +1,19 @@
 /** Private mutation contract. @see supabase/tests/storefront-mutations.sql */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-import { DEFAULT_CONFIG, D_CONFIG } from '@/lib/storefront-templates/fixtures';
+import { revalidateTag } from 'next/cache';
+import { DEFAULT_CONFIG, D_CONFIG, PUBLIC_FIXTURE } from '@/lib/storefront-templates/fixtures';
 import { verifyTemplateSession, verifyTemplateApiKey, mutateStorefrontConfig } from '@/lib/storefront-templates/mutations';
-const mocks = vi.hoisted(() => ({ session: vi.fn(), requireAdmin: vi.fn(), authenticate: vi.fn(), admin: vi.fn(), rpc: vi.fn(), platform: vi.fn(), tier: vi.fn(), read: vi.fn(), history: vi.fn() }));
+const mocks = vi.hoisted(() => ({ session: vi.fn(), requireAdmin: vi.fn(), authenticate: vi.fn(), admin: vi.fn(), rpc: vi.fn(), platform: vi.fn(), tier: vi.fn(), read: vi.fn(), history: vi.fn(), bindings: vi.fn(), rate: vi.fn() }));
+vi.mock('next/cache', () => ({ revalidateTag: vi.fn(), revalidatePath: vi.fn() }));
+vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: mocks.rate }));
+vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ default: {} }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: mocks.session }));
 vi.mock('@/lib/auth-server', () => ({ requireAdminApi: mocks.requireAdmin }));
 vi.mock('@/lib/api/middleware', () => ({ authenticateApiKeyPrincipal: mocks.authenticate }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: mocks.admin, createPlatformClient: mocks.platform }));
-vi.mock('@/lib/license/resolve', () => ({ resolveCurrentTier: mocks.tier }));
+vi.mock('@/lib/license/public-snapshot', () => ({ getPublicLicenseTier: mocks.tier }));
+vi.mock('@/lib/storefront-templates/catalogue', () => ({ loadStorefrontBindings: mocks.bindings }));
 vi.mock('@/lib/storefront-templates/repository', () => ({ readStorefrontConfig: mocks.read, readStorefrontHistory: mocks.history }));
 const userId = 'dddddddd-0000-4000-a000-000000000000';
 const keyId = 'aaaaaaaa-1111-4111-a111-111111111111';
@@ -16,7 +21,9 @@ const request = new NextRequest('http://localhost/api/private', { method: 'POST'
 const input = { expectedRevision: 0, operation: 'draft', config: DEFAULT_CONFIG };
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.platform.mockReturnValue({}); mocks.tier.mockResolvedValue('pro');
+  mocks.rate.mockResolvedValue(true);
+  mocks.bindings.mockResolvedValue({ success: true, data: { hero: PUBLIC_FIXTURE.products[0], closing: PUBLIC_FIXTURE.products[0], starters: PUBLIC_FIXTURE.products.slice(1), categories: PUBLIC_FIXTURE.categories } });
+  mocks.platform.mockReturnValue({}); mocks.tier.mockReturnValue('pro');
   mocks.read.mockResolvedValue({ success: true, data: { revision: 0, draft: DEFAULT_CONFIG, published: DEFAULT_CONFIG } });
   mocks.history.mockResolvedValue({ success: true, data: [{ revision: 0, published: DEFAULT_CONFIG }] });
   mocks.session.mockResolvedValue({});
@@ -94,16 +101,15 @@ describe('private storefront mutations', () => {
   });
 });
 
-it.each(['session', 'api_key'])('checks current rights before the %s mutation client', async method => {
-  mocks.tier.mockResolvedValue('free');
+it.each(['session', 'api_key'])('allows a free %s principal to save a Pro draft', async method => {
+  mocks.tier.mockReturnValue('free');
   const auth = method === 'session' ? await verifyTemplateSession() : await verifyTemplateApiKey(request);
-  expect(await mutateStorefrontConfig(auth, { ...input, config: D_CONFIG })).toMatchObject({ status: 403 });
-  expect(mocks.admin).not.toHaveBeenCalled();
+  expect(await mutateStorefrontConfig(auth, { ...input, config: D_CONFIG })).toMatchObject({ success: true, revision: 1 });
 });
 it('checks stored draft and rollback targets under current rights', async () => {
   mocks.authenticate.mockResolvedValue({ method: 'api_key', admin: { userId }, apiKey: { id: keyId }, scopes: ['templates:activate'] });
   const auth = await verifyTemplateApiKey(request);
-  mocks.tier.mockResolvedValue('free');
+  mocks.tier.mockReturnValue('free');
   mocks.read.mockResolvedValue({ success: true, data: { revision: 0, published: DEFAULT_CONFIG, draft: D_CONFIG } });
   mocks.history.mockResolvedValue({ success: true, data: [{ revision: 0, published: D_CONFIG }] });
   for (const mutation of [{ operation: 'publish' }, { operation: 'rollback', targetRevision: 0 }]) {
@@ -112,15 +118,92 @@ it('checks stored draft and rollback targets under current rights', async () => 
   expect(mocks.admin).not.toHaveBeenCalled();
 });
 it('allows free default content edits while retaining inactive settings', async () => {
-  mocks.tier.mockResolvedValue('free');
+  mocks.tier.mockReturnValue('free');
   expect(await mutateStorefrontConfig(await verifyTemplateSession(), input)).toMatchObject({ success: true });
 });
 
 it.each([
   { ...DEFAULT_CONFIG, tokens: { format: 1, typography: { font: 'dm-sans' } } },
   { ...DEFAULT_CONFIG, overridesByTemplate: { default: { variants: { catalogue: 'detail-cards' } } } },
-])('checks editing rights before the mutation client', async config => {
-  mocks.tier.mockResolvedValue('free');
-  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { ...input, config })).toMatchObject({ status: 403 });
+])('allows free private theme and layout drafts', async config => {
+  mocks.tier.mockReturnValue('free');
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { ...input, config })).toMatchObject({ success: true });
+});
+
+it('does not accept a publish payload or a caller-produced reset config', async () => {
+  const auth = await verifyTemplateSession();
+  for (const operation of ['publish', 'reset']) expect(await mutateStorefrontConfig(auth, { ...input, operation })).toMatchObject({ code: 'INVALID' });
+  expect(mocks.admin).not.toHaveBeenCalled();
+});
+it('resets a token leaf from published state and preserves seller content', async () => {
+  const published = { ...D_CONFIG, tokens: { format: 1, light: { accent: '#075C43' } } };
+  mocks.read.mockResolvedValue({ success: true, data: { revision: 0, draft: null, published } });
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { operation: 'reset', expectedRevision: 0, templateId: 'd', field: 'tokens.light.accent' })).toMatchObject({ success: true });
+  expect(mocks.rpc).toHaveBeenLastCalledWith('mutate_storefront_config', expect.objectContaining({ operation: 'reset', validated_config: { ...D_CONFIG, tokens: null } }));
+  expect(published.tokens.light.accent).toBe('#075C43');
+});
+it.each(['content.home.hero', 'tokens.format', 'tokens.light.__proto__', '/tokens/light/accent', 'overrides.variants.missing'])('rejects reset field %s', async field => {
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { operation: 'reset', expectedRevision: 0, templateId: 'd', field })).toMatchObject({ code: 'INVALID' });
+  expect(mocks.admin).not.toHaveBeenCalled();
+});
+it('requires token reset template to match the authoring selection', async () => {
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { operation: 'reset', expectedRevision: 0, templateId: 'd', field: 'tokens.light.accent' })).toMatchObject({ code: 'INVALID' });
+});
+it('checks current token rights even for an unchanged published override', async () => {
+  mocks.tier.mockReturnValue('free');
+  const custom = { ...DEFAULT_CONFIG, tokens: { format: 1, typography: { font: 'dm-sans' } } };
+  mocks.read.mockResolvedValue({ success: true, data: { revision: 0, draft: custom, published: custom } });
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { expectedRevision: 0, operation: 'publish' })).toMatchObject({ code: 'FORBIDDEN' });
+  expect(mocks.admin).not.toHaveBeenCalled();
+});
+it('rejects stored active compositions that the resolver cannot support', async () => {
+  const config = structuredClone(D_CONFIG);
+  config.overridesByTemplate.d!.order = ['tasks', 'hero', 'start', 'catalogue', 'faq', 'closing'];
+  mocks.read.mockResolvedValue({ success: true, data: { revision: 0, draft: config, published: DEFAULT_CONFIG } });
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { expectedRevision: 0, operation: 'publish' })).toMatchObject({ code: 'INVALID', validation: { errors: [expect.objectContaining({ code: 'COMPATIBILITY' })] } });
+  expect(mocks.admin).not.toHaveBeenCalled();
+});
+it('rejects resolved contrast problems before publishing', async () => {
+  mocks.read.mockResolvedValue({ success: true, data: { revision: 0, draft: { ...DEFAULT_CONFIG, tokens: { format: 1, light: { foreground: '#F0F4F8' } } }, published: DEFAULT_CONFIG } });
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { expectedRevision: 0, operation: 'publish' })).toMatchObject({ code: 'INVALID', validation: { errors: [expect.objectContaining({ code: 'CONTRAST' })] } });
+});
+
+it('promotes only the stored draft and invalidates after the committed result', async () => {
+  mocks.read.mockResolvedValue({ success: true, data: { revision: 0, draft: D_CONFIG, published: DEFAULT_CONFIG } });
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { operation: 'publish', expectedRevision: 0 })).toMatchObject({ success: true });
+  expect(mocks.rpc).toHaveBeenLastCalledWith('mutate_storefront_config', expect.objectContaining({ validated_config: null, operation: 'publish' }));
+  expect(vi.mocked(revalidateTag).mock.invocationCallOrder[0]).toBeGreaterThan(mocks.rpc.mock.invocationCallOrder.at(-1)!);
+});
+it('retains publication success and revision when invalidation fails', async () => {
+  vi.mocked(revalidateTag).mockImplementation(() => { throw Error('cache unavailable'); });
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { operation: 'publish', expectedRevision: 0 })).toMatchObject({ success: true, revision: 1, validation: { warnings: [expect.objectContaining({ message: expect.stringContaining('Publication committed') })] } });
+});
+it('revalidates rollback products against current public availability', async () => {
+  mocks.history.mockResolvedValue({ success: true, data: [{ revision: 0, published: D_CONFIG }] });
+  mocks.bindings.mockResolvedValue({ success: true, data: { hero: null, closing: PUBLIC_FIXTURE.products[0], starters: [], categories: PUBLIC_FIXTURE.categories } });
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { operation: 'rollback', expectedRevision: 0, targetRevision: 0 })).toMatchObject({ code: 'INVALID', validation: { errors: [expect.objectContaining({ path: '/settingsByTemplate/d/heroProduct' })] } });
+  expect(mocks.admin).not.toHaveBeenCalled();
+});
+it('passes historic publication identity to the append-only RPC', async () => {
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { operation: 'rollback', expectedRevision: 0, targetRevision: 0 })).toMatchObject({ success: true });
+  expect(mocks.rpc).toHaveBeenLastCalledWith('mutate_storefront_config', expect.objectContaining({ operation: 'rollback', restored_from: 0, validated_config: null }));
+});
+it('returns a structured error when no stored draft exists', async () => {
+  mocks.read.mockResolvedValue({ success: true, data: { revision: 0, draft: null, published: DEFAULT_CONFIG } });
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { operation: 'publish', expectedRevision: 0 })).toMatchObject({ code: 'INVALID', validation: { valid: false } });
+});
+it('returns a preflight conflict without creating the mutation client', async () => {
+  mocks.read.mockResolvedValue({ success: true, data: { revision: 7, draft: D_CONFIG, published: DEFAULT_CONFIG } });
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), input)).toMatchObject({ code: 'CONFLICT', currentRevision: 7, status: 409 });
+  expect(mocks.admin).not.toHaveBeenCalled();
+});
+it('keeps demo writes disabled and applies the actor-scoped limiter', async () => {
+  const principal = await verifyTemplateSession();
+  vi.stubEnv('DEMO_MODE', 'true');
+  try { expect(await mutateStorefrontConfig(principal, input)).toMatchObject({ code: 'FORBIDDEN' }); }
+  finally { vi.unstubAllEnvs(); }
+  mocks.rate.mockResolvedValue(false);
+  expect(await mutateStorefrontConfig(principal, input)).toMatchObject({ code: 'RATE_LIMITED', status: 429 });
+  expect(mocks.rate).toHaveBeenLastCalledWith('storefront_mutation', 60, 1, userId);
   expect(mocks.admin).not.toHaveBeenCalled();
 });

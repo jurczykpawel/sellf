@@ -451,9 +451,15 @@ Obtain principals through its session/API-key verification functions; serialized
 principal objects are not accepted. The service-only `mutate_storefront_config`
 RPC locks the singleton and writes config/history/audit together. Template
 READ/WRITE/ACTIVATE scopes are independent; existing keys retain their scopes.
-Private mutation preflight now checks current rights; public lifecycle callers
-must also validate active bindings (T1.17). No public mutation route ships with
-these primitives alone.
+The shared `lifecycle.ts` supplies private read/validate/diff/history and mutation
+operations; `actions/storefront-templates.ts` supplies the session action. Draft,
+reset and import authoring are admin-only but permit Pro selections and tokens
+without activation rights. Publish/rollback check the local license snapshot,
+resolver support, resolved contrast and bounded current public bindings before
+the locked RPC. Publish accepts only a revision, never caller config. Resets
+accept only declared fields and remove stored leaves; they preserve content.
+Post-commit invalidation failure returns a warning without undoing publication.
+HTTP API and preview adapters remain later tasks.
 
 Offline authoring uses `bun run template:check -- --config file --json` (or
 `--recipe file`). `--mode publish --fixture file` checks supplied public bindings;
@@ -498,10 +504,10 @@ when preparing releases. Optional `SELLF_JWKS_FALLBACK` and background-refreshed
 keys supplement it. Admin license verification retains its existing resolver.
 Template selection, seller token customization and watermark removal use separate
 feature checks. Mutation preflight checks session/key scope before platform reads,
-then current tier and stored candidate/baseline before creating the mutation
-client; the locked RPC revision check protects the preflight snapshot. T1.17 still
-owns active binding/lifecycle validation; T1.15 owns origin/reset editing and
-T1.20 cache freshness.
+then validates the stored candidate before creating the mutation client;
+activation requires current template/theme rights even for unchanged overrides.
+The locked RPC revision check protects the preflight snapshot. T1.15 owns the
+origin/reset editor and T1.20 owns cache freshness.
 TaskNav and Catalogue share target-scoped filter/state events; URL search/category
 fallbacks use the same bounded initial loaders. Public content renders during auth
 initialization; only empty-shop onboarding depends on the resolved admin session.

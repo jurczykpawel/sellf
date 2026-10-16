@@ -1,5 +1,11 @@
 \set ON_ERROR_STOP on
 BEGIN;
+CREATE FUNCTION pg_temp.commerce() RETURNS jsonb LANGUAGE sql AS $$
+  SELECT jsonb_build_array((SELECT jsonb_agg(to_jsonb(p) ORDER BY p.id) FROM public.products p),
+    (SELECT jsonb_agg(to_jsonb(a) ORDER BY a.id) FROM public.user_product_access a),
+    (SELECT jsonb_agg(to_jsonb(c) ORDER BY c.id) FROM public.integrations_config c));
+$$;
+CREATE TEMP TABLE storefront_commerce_before AS SELECT pg_temp.commerce() AS state;
 CREATE FUNCTION pg_temp.assert_true(value boolean, label text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
   IF value IS DISTINCT FROM true THEN RAISE EXCEPTION 'Assertion failed: %', label; END IF;
@@ -144,4 +150,5 @@ SELECT pg_temp.reject(jsonb_build_object('rev',(SELECT revision FROM public.stor
 DROP TRIGGER test_storefront_audit ON public.audit_log;
 UPDATE public.storefront_config SET revision=9007199254740991;
 SELECT pg_temp.reject('{"rev":9007199254740991}', 'LIMIT');
+SELECT pg_temp.assert_true((SELECT state = pg_temp.commerce() FROM storefront_commerce_before), 'lifecycle retains products access and platform configuration');
 ROLLBACK;
