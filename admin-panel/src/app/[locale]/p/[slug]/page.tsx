@@ -4,7 +4,7 @@ import { checkPublicFeature } from '@/lib/license/public-snapshot';
 import { notFound, redirect } from 'next/navigation';
 import { Metadata } from 'next';
 import { cache } from 'react';
-import { unstable_cache } from 'next/cache';
+import { boundedPublicRead, productCacheBoundary } from '@/lib/public-cache';
 import ProductView from './components/ProductView';
 import type { SecureProductResponse } from './components/ProductAccessView';
 import type { Product } from '@/types';
@@ -33,25 +33,14 @@ export const dynamic = 'force-dynamic';
 import { PRODUCT_PAGE_FIELDS } from '@/lib/constants';
 import { loadProductContentConfig } from '@/lib/services/product-content-config';
 
-// Two-layer cache: React cache() dedupes within a single render (e.g. between
-// generateMetadata and the page); unstable_cache persists across requests so
-// repeat visitors hit the Next.js memory cache instead of the DB. Cleared by
-// the products admin via revalidateTag('product-by-slug').
-const getProduct = cache((slug: string) =>
-  unstable_cache(
-    async (s: string) => {
-      const supabase = createPublicClient();
-      const { data: product, error } = await supabase
-        .from('products')
-        .select(PRODUCT_PAGE_FIELDS)
-        .eq('slug', s)
-        .single();
-      return { product: product as Product | null, error };
-    },
-    ['product-by-slug', slug],
-    { revalidate: 60, tags: ['product-by-slug', `product:${slug}`] },
-  )(slug),
-);
+const getProduct = cache(async (slug: string) => {
+  if (!/^[a-zA-Z0-9_-]{1,100}$/.test(slug)) return { product: null, error: 'Product unavailable' };
+  const product = await boundedPublicRead(['product-by-slug', slug], ['product-by-slug', `product:${slug}`, 'storefront-products'], async () => {
+    const { data, error } = await createPublicClient().from('products').select(PRODUCT_PAGE_FIELDS).eq('slug', slug).single();
+    return error ? null : data as unknown as Product | null;
+  }, { boundary: productCacheBoundary });
+  return { product, error: product ? null : 'Product unavailable' };
+});
 
 // Generate metadata for the page based on the product data
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

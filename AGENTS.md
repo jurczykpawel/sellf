@@ -475,7 +475,14 @@ read RPCs; public route callers must apply application rate limits. Pages use
 canonical product names in both locales, fixed `created_at DESC, id ASC` keysets,
 and filter-bound cursors. Default groups have independent cursors (24 per group,
 72 total); product/category bindings are batched and starter order is retained.
-These adapters do not cache data; T1.20 owns cache freshness/invalidation wiring.
+These adapters deliberately remain uncached: each bounded SQL read applies current
+visibility, including products scheduled to appear outside the previous page. Public
+config, shop config and product-by-slug reads reuse `boundedPublicRead`: tagged entries
+carry the original read time and an absolute deadline (at most 60 seconds, clipped
+to product availability/sale boundaries). Expired/cache-failed reads fall back to
+authoritative reads or unavailable results. Optional shop Redis stores the same
+envelope/deadline; it cannot renew the age. Only explicit public projections enter
+these caches; rights, access, drafts and request identity stay outside.
 
 Public `/` and `/store` share `PublicStorefrontPage` and the published-only,
 rate-limited `loadPublicStorefront` orchestrator. `resolveSelection` expands
@@ -507,7 +514,8 @@ feature checks. Mutation preflight checks session/key scope before platform read
 then validates the stored candidate before creating the mutation client;
 activation requires current template/theme rights even for unchanged overrides.
 The locked RPC revision check protects the preflight snapshot. T1.15 owns the
-origin/reset editor and T1.20 owns cache freshness.
+origin/reset editor. Public cache deadlines and post-commit product/taxonomy
+invalidation bound freshness.
 TaskNav and Catalogue share target-scoped filter/state events; URL search/category
 fallbacks use the same bounded initial loaders. Public content renders during auth
 initialization; only empty-shop onboarding depends on the resolved admin session.

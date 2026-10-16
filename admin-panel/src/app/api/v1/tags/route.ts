@@ -10,6 +10,7 @@
 
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import { invalidatePublicProducts } from '@/lib/storefront-templates/invalidation';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -89,6 +90,7 @@ export async function POST(request: NextRequest) {
       console.error('[tags.POST]', error);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to create tag');
     }
+    invalidatePublicProducts(undefined, undefined, true);
     return jsonResponse(successResponse(data), request, 201);
   } catch (e) { return handleApiError(e, request); }
 }
