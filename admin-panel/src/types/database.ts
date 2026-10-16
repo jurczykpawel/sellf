@@ -3170,6 +3170,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_checkout_funnel: {
+        Args: { p_days?: number; p_product_id?: string }
+        Returns: Json
+      }
       get_cleanup_job_status: {
         Args: never
         Returns: {

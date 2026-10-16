@@ -73,3 +73,19 @@ Supabase Auth is a separate service: its direct API must be configured separatel
 for a shared demo installation. `DEMO_MODE` alone does not restrict direct Supabase
 requests. Disable sign-up and configure account-change restrictions there before
 making a shared demo available.
+
+## Abandoned checkout funnel
+
+The admin dashboard shows recorded payment attempts for the last 7, 30 or 90 days,
+with a per-product breakdown. The dashboard product filter applies. The period uses
+record creation time; counts reflect current statuses. `abandoned` means marked
+abandoned after session expiration or closure. `pending` stays separate, including
+records past their expiry time. Paid includes completed, refunded, partially refunded
+and disputed payments; paid share divides these by all records in the period.
+
+These are payment records, not unique buyers or a complete visit/session funnel.
+Repeated attempts, additional order rows and subscription payments may be included;
+missing records cannot be counted. Guest emails can be unknown. This view sends no
+reminders, adds no tracking and requires no new configuration.
+
+The table shows up to 100 products with the most recorded attempts; totals include all products. Aggregation runs in the database in one request.
