@@ -1,0 +1,44 @@
+{
+  "source": "priv/concepts/2026-10-03-storefront",
+  "sha256": {
+    "a/index.html": "1a561765bc630d39d281b3ea75723b44b851f90a4e80b25e9fcf6d2691c5bffc",
+    "a/a-desktop-1440.png": "985af570a1e426d28da0ed08bbd80dcf818ac237f3536a399fb17582966d3286",
+    "a/a-mobile-390.png": "9cb63aa61968b39b36f917027c17c9331bc135110e91af9453732d9587373461",
+    "a/a-mobile-390-fold-cookies.png": "c13216c27d0c4e8b9ce537a8f2152bc97e248d322cbf2d62a47313edede26fd8",
+    "a/a-card-detail.png": "155a78bf5c2282342e0ee085df933cd28d5d68e277ac518bef7c0666edeb938f",
+    "b/index.html": "841e2b28254c0cc38dca983c163fa29dc2eb3f722173a46dd47066518077e74f",
+    "b/b-desktop-1440.png": "45ed715389f9cc7292677796b54c7a46061a7ffbf7f68d3189f2c66401ae4f68",
+    "b/b-mobile-390.png": "2364de53d7bb4e10e193b9515998043817736ccd0da5f80dfffa55ba591d65e7",
+    "b/b-mobile-390-fold-cookies.png": "bea4c1f07b018a0d5bb862cbf12ee002c0f59524e98386dd1b1ca00d335f50c3",
+    "b/b-card-detail.png": "1b3fa20133dd65bbcacddd0be155cc88270930156416aaf27f7bd1801c473ab8",
+    "c/index.html": "de18431ef8f714929616e1b56ad94ff9641e3436d633dd208101c1ee9d1911e6",
+    "c/c-desktop-1440.png": "51f8effa72a9cd69f234667e306fd49bf802f6bbd13b786bdb50657d5ed9304d",
+    "c/c-mobile-390.png": "80e73396db98ce9b79d0708927806a97098da9f89929d92f593f827020d0eb4b",
+    "c/c-mobile-390-fold-cookies.png": "07b916fa4d37d8bc6447656f8f131218cab7b54e7066f78d4da4cc0d2a465463",
+    "c/c-card-detail.png": "80fdf2ce9ecf5bacf9f5593c528180604eadfa7521a04042883f5f24021ed057"
+  },
+  "structuralTolerancePx": 2,
+  "pixelThreshold": 0.2,
+  "maxDiffPixelRatio": 0.005,
+  "substitutions": [
+    "Synthetic copy, canonical sample prices and static diagram covers; no seller claims or photos.",
+    "App-bundled Geist replaces concept Inter/Outfit; text wrapping differs, while source grid, spacing and image geometry remain frozen.",
+    "Core consent/legal are represented only by synthetic reference chrome; no trackers or playback."
+  ],
+  "baselines": {
+    "locale": "pl",
+    "concepts": [
+      "a",
+      "b",
+      "c",
+      "offer"
+    ],
+    "crops": [
+      "desktop-1440",
+      "mobile-390",
+      "card-detail"
+    ],
+    "compression": "pngquant --quality=90-100 --speed 1 --strip --force --ext .png; retain PNG for native Playwright comparisons",
+    "offer": "Shipped simple HeroProduct + Faq + buy ProductCta; card-detail is its core buy CTA."
+  }
+}
