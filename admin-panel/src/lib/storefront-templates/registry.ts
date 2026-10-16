@@ -3,7 +3,7 @@ import { configSchema, recipeSchema } from '@/lib/storefront-templates/schemas';
 import { CONFIG_BYTES, isPlainJson, pointer, result, storedJsonBytes } from '@/lib/storefront-templates/json';
 import { D_TOKENS } from '@/lib/storefront-templates/fixtures';
 import type { ZodIssue } from 'zod';
-import type { TemplateRegistryEntry } from '@/lib/storefront-templates/schemas';
+import type { SlotContent, TemplateRegistryEntry } from '@/lib/storefront-templates/schemas';
 import type { ValidationIssue, ValidationResult } from '@/lib/storefront-templates/json';
 import { version } from '../../../package.json';
 
@@ -68,6 +68,18 @@ export function validateConfig(input: unknown): ValidationResult {
   const warnings: ValidationIssue[] = [];
   for (const [id, slot] of Object.entries(parsed.data.content)) {
     if (!slot.en || !slot.pl) warnings.push({ code: 'TRANSLATION_FALLBACK', path: `/content/${id}`, message: 'Missing translation uses source locale' });
+  }
+  const hidden = parsed.data.overridesByTemplate[parsed.data.templateId]?.hidden ?? [];
+  const hasContent = (content: SlotContent | undefined): boolean => {
+    if (!content) return false;
+    if (content.kind === 'faq') return content.items.some(item => item.question.trim() || item.answer.trim());
+    return Boolean(content.heading.trim() || content.body.trim() || (content.kind === 'hero' && (content.eyebrow.trim() || content.steps.some(step => step.trim()))));
+  };
+  for (const section of STOREFRONT_TEMPLATES[parsed.data.templateId].defaults.sections) {
+    if (!('content' in section) || !section.content || (hidden as readonly string[]).includes(section.id)) continue;
+    const id = section.content.slot;
+    const slot = parsed.data.content[id];
+    if (!hasContent(slot?.en) && !hasContent(slot?.pl)) warnings.push({ code: 'CONTENT_MISSING', path: pointer(['content', id]), message: 'Visible section has no content in any locale' });
   }
   for (const field of ['heroProduct', 'closingProduct'] as const) {
     if (parsed.data.templateId === 'd' && !parsed.data.settingsByTemplate.d?.[field]) warnings.push({ code: 'BINDING', path: `/settingsByTemplate/d/${field}`, message: 'Required publication binding is missing' });

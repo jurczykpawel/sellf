@@ -38,9 +38,9 @@ type FailureCode = typeof failureCodes[number];
 export type StorefrontMutationResult = { success: true; revision: number; validation: ValidationResult } | {
   success: false; code: FailureCode; status: number; message: string; validation: ValidationResult | null; currentRevision: number | null;
 };
-export function templateFailure(code: FailureCode, validation: ValidationResult | null = null, currentRevision: number | null = null): StorefrontMutationResult {
+export function templateFailure(code: FailureCode, validation: ValidationResult | null = null, currentRevision: number | null = null, operation = 'mutation'): StorefrontMutationResult {
   const status = { FORBIDDEN: 403, CONFLICT: 409, INVALID: 422, NOT_FOUND: 404, UNAVAILABLE: 503, LIMIT: 422, RATE_LIMITED: 429 }[code];
-  return { success: false, code, status, message: 'Storefront mutation could not be completed', validation, currentRevision };
+  return { success: false, code, status, message: `Storefront ${operation} could not be completed`, validation, currentRevision };
 }
 function issue(actor: VerifiedTemplatePrincipal, scopes: readonly string[]): VerifiedTemplatePrincipal | null {
   if (!actorSchema.safeParse(actor).success) return null;
@@ -88,47 +88,49 @@ export async function mutateStorefrontConfig(auth: unknown, input: unknown): Pro
     return templateFailure(limit ? 'LIMIT' : 'INVALID', result([{ code: limit ? 'LIMIT' : 'SCHEMA', path: '', message: 'Invalid mutation input', ...(limit ? { limit: Number.MAX_SAFE_INTEGER } : {}) }]));
   }
   const mutation = parsed.data;
+  const fail = (code: FailureCode, validation: ValidationResult | null = null, currentRevision: number | null = null): StorefrontMutationResult =>
+    templateFailure(code, validation, currentRevision, mutation.operation);
   const scope = mutation.operation === 'publish' || mutation.operation === 'rollback' ? API_SCOPES.TEMPLATES_ACTIVATE : API_SCOPES.TEMPLATES_WRITE;
-  if (context.actor.method === 'api_key' && !context.scopes.includes(scope)) return templateFailure('FORBIDDEN');
+  if (context.actor.method === 'api_key' && !context.scopes.includes(scope)) return fail('FORBIDDEN');
   let config = 'config' in mutation ? mutation.config : null;
   try {
-    if (isDemoMode()) return templateFailure('FORBIDDEN');
-    if (!(await checkRateLimit('storefront_mutation', 60, 1, context.actor.userId))) return templateFailure('RATE_LIMITED');
+    if (isDemoMode()) return fail('FORBIDDEN');
+    if (!(await checkRateLimit('storefront_mutation', 60, 1, context.actor.userId))) return fail('RATE_LIMITED');
     const reader = createPlatformClient();
     const rights = templateRightsForTier(getPublicLicenseTier());
     const snapshot = await readStorefrontConfig(reader);
-    if (!snapshot.success) return templateFailure('UNAVAILABLE');
-    if (snapshot.data.revision !== mutation.expectedRevision) return templateFailure('CONFLICT', null, snapshot.data.revision);
+    if (!snapshot.success) return fail('UNAVAILABLE');
+    if (snapshot.data.revision !== mutation.expectedRevision) return fail('CONFLICT', null, snapshot.data.revision);
     if (mutation.operation === 'reset') {
       config = resetTemplateField(snapshot.data.draft ?? snapshot.data.published, mutation.templateId, mutation.field);
-      if (!config) return templateFailure('INVALID', result([{ code: 'SCHEMA', path: '/field', message: 'Reset field is not allowed for this selection' }]));
+      if (!config) return fail('INVALID', result([{ code: 'SCHEMA', path: '/field', message: 'Reset field is not allowed for this selection' }]));
     }
     let candidate = config ?? snapshot.data.draft;
     if (mutation.operation === 'rollback') {
       const history = await readStorefrontHistory(reader, { limit: 1,
         ...(mutation.targetRevision < Number.MAX_SAFE_INTEGER ? { beforeRevision: mutation.targetRevision + 1 } : {}) });
-      if (!history.success) return templateFailure('UNAVAILABLE');
-      if (history.data[0]?.revision !== mutation.targetRevision) return templateFailure('NOT_FOUND');
+      if (!history.success) return fail('UNAVAILABLE');
+      if (history.data[0]?.revision !== mutation.targetRevision) return fail('NOT_FOUND');
       candidate = history.data[0].published;
     }
-    if (!candidate) return templateFailure('INVALID', result([{ code: 'SCHEMA', path: '/draft', message: 'Publication requires a stored draft' }]));
+    if (!candidate) return fail('INVALID', result([{ code: 'SCHEMA', path: '/draft', message: 'Publication requires a stored draft' }]));
     const mode = mutation.operation === 'publish' || mutation.operation === 'rollback' ? 'publish' : 'draft';
     validation = validateConfig(candidate);
-    if (!validation.valid) return templateFailure('INVALID', validation);
-    if (!canMutateTemplateConfig(rights, candidate, mode)) return templateFailure('FORBIDDEN');
+    if (!validation.valid) return fail('INVALID', validation);
+    if (!canMutateTemplateConfig(rights, candidate, mode)) return fail('FORBIDDEN');
     validation = inspectTemplate(candidate, rights, mode).validation;
     if (mode === 'publish') {
-      if (!validation.valid) return templateFailure('INVALID', validation);
+      if (!validation.valid) return fail('INVALID', validation);
       const active = await validateActiveBindings(reader, candidate, validation);
-      if (!active) return templateFailure('UNAVAILABLE');
+      if (!active) return fail('UNAVAILABLE');
       validation = active;
-      if (!validation.valid) return templateFailure('INVALID', validation);
+      if (!validation.valid) return fail('INVALID', validation);
     }
     const client = createAdminClient();
     if (config !== null) {
       const size = await client.rpc('storefront_config_stored_bytes', { config: config as Json });
-      if (size.error || !Number.isInteger(size.data) || size.data === null) return templateFailure('UNAVAILABLE');
-      if (size.data > CONFIG_BYTES) return templateFailure('LIMIT', result([{ code: 'LIMIT', path: '/config', message: 'Stored config exceeds byte limit', limit: CONFIG_BYTES }]));
+      if (size.error || !Number.isInteger(size.data) || size.data === null) return fail('UNAVAILABLE');
+      if (size.data > CONFIG_BYTES) return fail('LIMIT', result([{ code: 'LIMIT', path: '/config', message: 'Stored config exceeds byte limit', limit: CONFIG_BYTES }]));
     }
     const { data, error } = await client.rpc('mutate_storefront_config', {
       expected_revision: mutation.expectedRevision, operation: mutation.operation,
@@ -137,7 +139,7 @@ export async function mutateStorefrontConfig(auth: unknown, input: unknown): Pro
       ...(mutation.operation === 'legacy-import' ? { legacy_source: mutation.legacySource } : {}),
       ...(context.actor.apiKeyId !== null ? { actor_api_key_id: context.actor.apiKeyId } : {}),
     });
-    if (error || !data || typeof data !== 'object' || Array.isArray(data)) return templateFailure('UNAVAILABLE');
+    if (error || !data || typeof data !== 'object' || Array.isArray(data)) return fail('UNAVAILABLE');
     if (data.success === true && revisionSchema.safeParse(data.revision).success) {
       if (mode === 'publish') {
         try {
@@ -149,8 +151,8 @@ export async function mutateStorefrontConfig(auth: unknown, input: unknown): Pro
       return { success: true, revision: data.revision as number, validation };
     }
     const code = failureCodes.find(code => code === data.code);
-    if (!code) return templateFailure('UNAVAILABLE');
+    if (!code) return fail('UNAVAILABLE');
     const current = code === 'CONFLICT' && revisionSchema.safeParse(data.currentRevision).success ? data.currentRevision as number : null;
-    return templateFailure(code, code === 'LIMIT' || code === 'INVALID' ? result([{ code: code === 'LIMIT' ? 'LIMIT' : 'SCHEMA', path: data.path === '/config' || data.path === '/expectedRevision' ? data.path : '', message: 'Invalid stored mutation value', ...(code === 'LIMIT' ? { limit: data.limit === Number.MAX_SAFE_INTEGER ? Number.MAX_SAFE_INTEGER : CONFIG_BYTES } : {}) }]) : null, current);
-  } catch { return templateFailure('UNAVAILABLE'); }
+    return fail(code, code === 'LIMIT' || code === 'INVALID' ? result([{ code: code === 'LIMIT' ? 'LIMIT' : 'SCHEMA', path: data.path === '/config' || data.path === '/expectedRevision' ? data.path : '', message: 'Invalid stored mutation value', ...(code === 'LIMIT' ? { limit: data.limit === Number.MAX_SAFE_INTEGER ? Number.MAX_SAFE_INTEGER : CONFIG_BYTES } : {}) }]) : null, current);
+  } catch { return fail('UNAVAILABLE'); }
 }

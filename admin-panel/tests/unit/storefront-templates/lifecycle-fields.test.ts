@@ -42,3 +42,32 @@ it('diffs arrays by index and distinguishes removed values from explicit null', 
   expect(changes).toContainEqual({ path: '/settingsByTemplate/d/starterProducts/2', kind: 'removed', before: before.settingsByTemplate.d!.starterProducts![2], after: null });
   expect(changes).toContainEqual({ path: '/tokens', kind: 'changed', before: null, after: { format: 1 } });
 });
+
+it('warns for missing visible content while keeping partial configurations valid', () => {
+  const config = { ...D_CONFIG, content: {} };
+  const validation = validateConfig(config);
+  expect(validation.valid).toBe(true);
+  expect(validation.warnings.filter(issue => issue.code === 'CONTENT_MISSING').map(issue => issue.path).sort()).toEqual([
+    '/content/home.closing', '/content/home.faq', '/content/home.hero', '/content/home.starts', '/content/home.tasks',
+  ]);
+  config.overridesByTemplate = { d: { hidden: ['tasks', 'start', 'faq'] } };
+  expect(validateConfig(config).warnings.filter(issue => issue.code === 'CONTENT_MISSING')).toHaveLength(2);
+  expect(validateConfig(DEFAULT_CONFIG).warnings).toEqual([]);
+});
+it('warns for blank text and empty FAQ but accepts content in either locale', () => {
+  const config = structuredClone(D_CONFIG);
+  config.content['home.hero'] = { sourceLocale: 'en', en: { kind: 'hero', eyebrow: ' ', heading: '', body: '', steps: [] } };
+  config.content['home.faq'] = { sourceLocale: 'en', en: { kind: 'faq', items: [] } };
+  expect(validateConfig(config).warnings.filter(issue => issue.code === 'CONTENT_MISSING').map(issue => issue.path)).toEqual(['/content/home.hero', '/content/home.faq']);
+  config.content['home.hero'].pl = { kind: 'hero', eyebrow: '', heading: 'Oferta', body: '', steps: [] };
+  expect(validateConfig(config).warnings.filter(issue => issue.code === 'CONTENT_MISSING').map(issue => issue.path)).toEqual(['/content/home.faq']);
+});
+it('suppresses only absent versus empty default map entries in either diff direction', () => {
+  const before = structuredClone(DEFAULT_CONFIG);
+  const after = { ...before, settingsByTemplate: { default: {} }, overridesByTemplate: { default: {} } };
+  expect(diffTemplateConfigs(before, after)).toEqual([]);
+  expect(diffTemplateConfigs(after, before)).toEqual([]);
+  expect(after.overridesByTemplate).toEqual({ default: {} });
+  const withVariant = { ...after, overridesByTemplate: { default: { variants: { catalogue: 'detail-cards' as const } } } };
+  expect(diffTemplateConfigs(before, withVariant)).toContainEqual(expect.objectContaining({ path: '/overridesByTemplate/default', kind: 'added' }));
+});

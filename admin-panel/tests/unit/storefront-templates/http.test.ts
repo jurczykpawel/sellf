@@ -113,3 +113,15 @@ it('uses header credentials before an ambient session', async () => {
   expect((await templateHttp(request(), 'read')).status).toBe(401);
   expect(m.session).not.toHaveBeenCalled();
 });
+
+it.each(['outer', 'preview', 'lifecycle', 'authentication'])('returns Retry-After for %s throttling', async layer => {
+  const throttled = { success: false, status: 429, code: 'RATE_LIMITED', message: 'Storefront preview could not be completed', validation: null, currentRevision: null };
+  if (layer === 'outer') m.rate.mockResolvedValue(false);
+  if (layer === 'preview') m.preview.mockResolvedValue(throttled);
+  if (layer === 'lifecycle') m.lifecycle.mockResolvedValue(throttled);
+  if (layer === 'authentication') m.auth.mockRejectedValue(new ApiAuthError('RATE_LIMITED', 'Try later'));
+  const response = await templateHttp(request(JSON.stringify({ revision: 1, locale: 'en', fixture: 'standard' })), layer === 'lifecycle' ? 'read' : 'preview');
+  expect(response.status).toBe(429);
+  expect(response.headers.get('retry-after')).toBe('60');
+  expect((await response.json()).message).not.toContain('mutation');
+});
