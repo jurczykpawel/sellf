@@ -38,6 +38,8 @@
   .hero { width: calc(100% - 36px); padding: 29px 0 28px; }
   .layout { grid-template-columns: minmax(0, 1fr); gap: 26px; }
   .hero h1 { font-size: 49px; line-height: 1.03; }
+  .hero[data-variant='simple'] h1 { font-size: clamp(32px, 9vw, 49px); }
+  .hero[data-variant='simple'] .price { max-width: 100%; }
   .hero .eyebrow { font-size: 10px; letter-spacing: 1px; margin-bottom: 14px; }
   .hero .lead { font-size: 14px; margin-top: 18px; }
   .offer { gap: 16px; margin-top: 20px; }

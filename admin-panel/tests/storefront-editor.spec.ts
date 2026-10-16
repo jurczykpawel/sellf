@@ -118,8 +118,9 @@ for (const locale of ['en', 'pl']) for (const mode of ['light', 'dark'] as const
     await selector.focus();
     await page.keyboard.press('Tab');
     expect(await editor.evaluate(el => el.contains(document.activeElement))).toBe(true);
-    const summary = editor.locator('summary');
-    await expect(editor.locator('details')).not.toHaveAttribute('open');
+    const technical = editor.locator('details').filter({ hasText: locale === 'pl' ? 'Szczegóły techniczne' : 'Technical details' });
+    const summary = technical.locator('summary');
+    await expect(technical).not.toHaveAttribute('open');
     await expect(editor.getByText('tokens.light.accent', { exact: true })).not.toBeVisible();
     await summary.focus(); await page.keyboard.press('Enter');
     await expect(editor.getByText('tokens.light.accent', { exact: true })).toBeVisible();

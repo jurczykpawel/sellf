@@ -2,11 +2,14 @@
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { CORE_TOKENS } from '@/lib/storefront-templates/public-theme';
 import { readPublishedOffer, readOfferConfig, readOfferHistory } from '@/lib/storefront-templates/offer-repository';
 import { offerConfigSchema, validatePhase2 } from '@/lib/storefront-templates/phase2-contracts';
 import { storedJsonBytes } from '@/lib/storefront-templates/json';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
+const license = vi.hoisted(() => ({ allowed: vi.fn() }));
+vi.mock('@/lib/license/public-snapshot', () => ({ checkPublicFeature: license.allowed }));
 const id = '11111111-1111-4111-a111-111111111111';
 const config = { format: 1, enabled: true, templateId: 'offer-default', settings: { density: 'comfortable' }, content: {}, tokens: null };
 const row = { product_id: id, revision: 2, draft: config, published: null, updated_at: '2026-10-17T00:00:00Z', updated_by: null };
@@ -15,7 +18,7 @@ const q = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn(), order: vi.fn(), 
 const client = { from: vi.fn(() => q) };
 const db = client as unknown as SupabaseClient<Database>;
 beforeEach(() => {
-  vi.resetAllMocks(); client.from.mockReturnValue(q);
+  vi.resetAllMocks(); license.allowed.mockReturnValue(true); client.from.mockReturnValue(q);
   for (const method of ['select', 'eq', 'order', 'lt'] as const) q[method].mockReturnValue(q);
   q.maybeSingle.mockResolvedValue({ data: row, error: null });
   q.limit.mockResolvedValue({ data: [history], error: null });
@@ -85,4 +88,14 @@ it('keeps the stored structural schema aligned with the frozen offer contract', 
   const match = sql.match(/AS \$schema\$ SELECT '([\s\S]*?)'::json; \$schema\$;/);
   expect(match).not.toBeNull();
   expect(JSON.parse(match![1].replaceAll("''", "'"))).toEqual(z.toJSONSchema(offerConfigSchema));
+});
+
+it('keeps an enabled free offer and its copy after custom appearance rights expire', async () => {
+  const published = { ...config, tokens: CORE_TOKENS };
+  q.maybeSingle.mockResolvedValue({ data: { published }, error: null });
+  expect(await readPublishedOffer(db, id)).toMatchObject({ success: true, data: { enabled: true, tokens: CORE_TOKENS } });
+  license.allowed.mockReturnValue(false);
+  expect(await readPublishedOffer(db, id)).toEqual({ success: true, data: { ...published, tokens: null } });
+  expect(published.tokens).toEqual(CORE_TOKENS);
+  expect(license.allowed).toHaveBeenCalledWith('theme-customization');
 });

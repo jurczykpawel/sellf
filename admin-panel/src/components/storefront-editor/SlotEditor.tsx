@@ -4,11 +4,12 @@
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ChangeEvent } from 'react';
+import type { OfferPageConfig } from '@/lib/storefront-templates/offer-repository';
 import type { SlotContent, StorefrontConfig } from '@/lib/storefront-templates/schemas';
 
-export type SlotId = keyof StorefrontConfig['content'];
-const KINDS = { 'home.hero': 'hero', 'home.tasks': 'heading', 'home.starts': 'heading', 'home.faq': 'faq', 'home.closing': 'cta', 'home.comparison': 'comparison', 'home.catalogue': 'heading' } as const;
-export const SLOT_IDS = Object.keys(KINDS) as SlotId[];
+export type SlotId = keyof StorefrontConfig['content'] | keyof OfferPageConfig['content'];
+const KINDS = { 'offer.hero': 'hero', 'offer.faq': 'faq', 'offer.closing': 'cta', 'home.hero': 'hero', 'home.tasks': 'heading', 'home.starts': 'heading', 'home.faq': 'faq', 'home.closing': 'cta', 'home.comparison': 'comparison', 'home.catalogue': 'heading' } as const;
+export const SLOT_IDS = Object.keys(KINDS).filter(id => id.startsWith('home.')) as (keyof StorefrontConfig['content'])[];
 export const SLOT_SECTIONS = { 'home.hero': 'hero', 'home.tasks': 'tasks', 'home.starts': 'start', 'home.faq': 'faq', 'home.closing': 'closing', 'home.comparison': 'comparison', 'home.catalogue': 'catalogue' } as const;
 export const editorControl = 'block w-full rounded-lg border border-sf-muted bg-sf-input px-3 py-2.5 text-sf-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent';
 export const editorButton = 'min-h-11 rounded-lg border border-sf-border-medium bg-sf-base px-4 py-2 text-sm font-medium hover:bg-sf-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:opacity-50';
@@ -19,12 +20,13 @@ function emptyContent(id: SlotId): SlotContent {
   if (kind === 'hero') return { kind, heading: '', eyebrow: '', body: '', steps: [] };
   return { kind, heading: '', body: '' };
 }
-interface SlotEditorProps { comparisonProducts?: string[]; id: SlotId; value: StorefrontConfig['content'][SlotId]; onChange: (value: StorefrontConfig['content'][SlotId]) => void }
+interface SlotEditorProps { comparisonProducts?: string[]; id: SlotId; value: (StorefrontConfig['content'] & OfferPageConfig['content'])[SlotId]; onChange: (value: (StorefrontConfig['content'] & OfferPageConfig['content'])[SlotId]) => void }
 export default function SlotEditor({ id, value, onChange, comparisonProducts = [] }: SlotEditorProps) {
   const t = useTranslations('storefrontEditor');
   const uiLocale = useLocale() === 'pl' ? 'pl' : 'en';
   const [locale, setLocale] = useState<'en' | 'pl'>(value?.[uiLocale] ? uiLocale : value?.sourceLocale ?? uiLocale);
-  const name = t(`sectionNames.${SLOT_SECTIONS[id]}`);
+  const section = id === 'offer.hero' ? 'hero' : id === 'offer.faq' ? 'faq' : id === 'offer.closing' ? 'closing' : SLOT_SECTIONS[id];
+  const name = t(`sectionNames.${section}`);
   const current = value ?? { sourceLocale: uiLocale, [uiLocale]: emptyContent(id) } as NonNullable<typeof value>;
   const content = current[locale] ?? emptyContent(id);
   const prefix = `${name} · ${locale.toUpperCase()}`;

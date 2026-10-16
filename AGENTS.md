@@ -441,8 +441,16 @@ publication and disabled publication are opted out; drafts never enable a public
 page. Both JSON columns use the frozen `offerConfigSchema` and independent 100KiB
 stored limits. `offer-repository.ts` accepts caller-authorized clients and returns
 only published presentation for public use; callers must check canonical product
-visibility/rights. History reads are product-scoped, descending and bounded. T2.10
-owns the atomic audited lifecycle and lazy initialization; T2.11 owns routing.
+visibility/rights. History reads are product-scoped, descending and bounded.
+`offer-lifecycle.ts` reuses issued template principals and independent READ/WRITE/ACTIVATE
+scopes. `mutate_product_offer` locks the canonical product before lazy initialization;
+revision zero is the unpublished baseline, and changes append history and audit atomically.
+Publication accepts only a current saved-draft revision; rollback rechecks the frozen
+offer grammar, local appearance rights and product visibility. Null rollback opts out.
+The dashboard templates workspace offers name-based product selection and shares
+SlotEditor, TemplateHistory and the inert `/template-preview/[revision]` page using
+product context. The public offer projection drops custom tokens after local rights
+expire while preserving enabled free presentation and stored copy. T2.11 owns routing.
 
 
 The installed `storefront-a` entry composes the frozen Phase 2 offer-focus,

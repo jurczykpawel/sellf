@@ -1,6 +1,7 @@
 /** Product offer snapshot reads using caller-authorized clients. @see supabase/tests/product-offers.sql */
 import 'server-only';
 import { z } from 'zod';
+import { checkPublicFeature } from '@/lib/license/public-snapshot';
 import { offerConfigSchema, validatePhase2 } from '@/lib/storefront-templates/phase2-contracts';
 import { revisionSchema } from '@/lib/storefront-templates/schemas';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -43,7 +44,7 @@ export async function readPublishedOffer(client: SupabaseClient<Database>, produ
     if (!data || data.published === null) return { success: true, data: null };
     if (!validatePhase2(data.published, 'offer-config').valid) return { success: false, error: 'Invalid stored offer config' };
     const published = data.published as OfferPageConfig;
-    return { success: true, data: published.enabled ? published : null };
+    return { success: true, data: published.enabled ? { ...published, tokens: checkPublicFeature('theme-customization') ? published.tokens : null } : null };
   } catch { return { success: false, error: 'Unable to read published offer' }; }
 }
 

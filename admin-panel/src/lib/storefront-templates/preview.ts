@@ -8,6 +8,9 @@ import { checkRateLimit } from '@/lib/rate-limiting';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { inspectTemplate } from '@/lib/storefront-templates/lifecycle-validation';
 import { getTemplatePrincipal, templateFailure } from '@/lib/storefront-templates/mutations';
+import { readOfferConfig } from '@/lib/storefront-templates/offer-repository';
+import { inspectOffer } from '@/lib/storefront-templates/offer-lifecycle';
+import { DEFAULT_CONFIG } from '@/lib/storefront-templates/fixtures';
 import { readStorefrontConfig } from '@/lib/storefront-templates/repository';
 import { revisionSchema } from '@/lib/storefront-templates/schemas';
 import { isPlainJson, result } from '@/lib/storefront-templates/json';
@@ -38,7 +41,7 @@ export interface PreparedPreview extends PreviewResult { model: PresentationMode
 type PreviewFailure = Extract<StorefrontMutationResult, { success: false }>;
 const fail = (code: Parameters<typeof templateFailure>[0], validation: ValidationResult | null = null, revision: number | null = null): PreviewFailure => templateFailure(code, validation, revision) as PreviewFailure;
 
-export async function preparePreview(auth: unknown, input: unknown, startedAt = Date.now()): Promise<{ success: true; data: PreparedPreview } | PreviewFailure> {
+export async function preparePreview(auth: unknown, input: unknown, startedAt = Date.now(), productId?: string): Promise<{ success: true; data: PreparedPreview } | PreviewFailure> {
   const actor = getTemplatePrincipal(auth, API_SCOPES.TEMPLATES_READ);
   if (!actor) return templateFailure('FORBIDDEN') as Extract<StorefrontMutationResult, { success: false }>;
   if (!Number.isSafeInteger(startedAt) || startedAt > Date.now() || Date.now() >= startedAt + 600000) return fail('CONFLICT');
@@ -52,6 +55,35 @@ export async function preparePreview(auth: unknown, input: unknown, startedAt = 
   try {
     if (!(await checkRateLimit('storefront_preview', 30, 1, actor.userId))) return fail('RATE_LIMITED');
     const client = createPlatformClient();
+    if (productId !== undefined) {
+      if (!z.uuid().safeParse(productId).success) return fail('INVALID');
+      productId = productId.toLowerCase();
+      const initial = await readOfferConfig(client, productId);
+      if (!initial.success) return fail('UNAVAILABLE');
+      if (!initial.data?.draft || initial.data.revision !== revision) return fail('CONFLICT', null, initial.data?.revision ?? 0);
+      const offer = initial.data.draft;
+      const inspection = inspectOffer(offer, 'draft');
+      if (!inspection.valid) return fail('INVALID', inspection);
+      const bound = await loadStorefrontBindings(client, { locale, heroProduct: productId, closingProduct: productId, target: 'offer' });
+      if (!bound.success) return fail('UNAVAILABLE');
+      const product = bound.data.hero;
+      // Reuse the registered section resolvers with core-owned product bindings.
+      const config = { ...structuredClone(DEFAULT_CONFIG), templateId: 'd' as const, content: {
+        ...(offer.content['offer.hero'] ? { 'home.hero': offer.content['offer.hero'] } : {}),
+        ...(offer.content['offer.faq'] ? { 'home.faq': offer.content['offer.faq'] } : {}),
+        ...(offer.content['offer.closing'] ? { 'home.closing': offer.content['offer.closing'] } : {}),
+      }, settingsByTemplate: { d: { heroProduct: productId, closingProduct: productId } } };
+      const selection = resolveSelection(config, ['default', 'd']);
+      selection.recipe.sections = selection.recipe.sections.filter(section => ['hero', 'faq', 'closing'].includes(section.id));
+      selection.recipe.sections.forEach(section => { if (section.type === 'hero-product/1') section.variant = 'simple'; if (section.type === 'product-cta/1' && 'product' in section) section.action = 'buy'; });
+      const catalogue: CatalogueProps = { id: 'offer', variant: 'detail-cards', groups: {}, filters: [], pageSize: 9, density: offer.settings.density, locale, categories: [] };
+      const model = resolvePresentation(selection, { locale, productsById: product ? { [productId]: product } : {}, categoriesById: {}, catalogue });
+      const current = await readOfferConfig(client, productId);
+      if (!current.success) return fail('UNAVAILABLE');
+      if (!current.data?.draft || current.data.revision !== revision || Date.now() >= startedAt + 600000) return fail('CONFLICT', null, current.data?.revision ?? 0);
+      const theme = resolvePublicTheme(null, offer.tokens, true);
+      return { success: true, data: { revision, locale, fixture, expiresAt: new Date(startedAt + 600000).toISOString(), model, tokens: theme.tokens, validation: inspection, effectiveTokens: theme.effective, unusedSlots: [] } };
+    }
     const initial = await readStorefrontConfig(client);
     if (!initial.success) return fail('UNAVAILABLE');
     if (initial.data.revision !== revision || !initial.data.draft) return fail('CONFLICT', null, initial.data.revision);

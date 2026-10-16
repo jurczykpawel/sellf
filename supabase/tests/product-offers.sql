@@ -95,6 +95,11 @@ RESET ROLE;
 SELECT pg_temp.assert_true((SELECT digest = (SELECT md5(jsonb_agg(to_jsonb(p) ORDER BY id)::text) FROM public.products p) FROM commercial_before), 'all commercial fields unchanged');
 SELECT pg_temp.assert_true((SELECT array_agg(column_name::text ORDER BY ordinal_position) = ARRAY['product_id','revision','operation','draft','published','actor_id','created_at','restored_from'] FROM information_schema.columns WHERE table_schema='public' AND table_name='product_offer_history'), 'history presentation columns only');
 -- Product retirement removes only that product's presentation records.
-DELETE FROM public.products WHERE id=(SELECT product_id FROM public.product_offer_config ORDER BY product_id LIMIT 1);
-SELECT pg_temp.assert_true((SELECT count(*)=2 FROM public.product_offer_config), 'product removal cascades');
+DO $$ DECLARE pid uuid; BEGIN
+ INSERT INTO public.products(name,slug,price,currency) VALUES('Offer retirement fixture','offer-retirement-fixture',20,'PLN') RETURNING id INTO pid;
+ INSERT INTO public.product_offer_config(product_id) VALUES(pid);
+ INSERT INTO public.product_offer_history(product_id,revision,operation) VALUES(pid,0,'draft');
+ DELETE FROM public.products WHERE id=pid;
+ PERFORM pg_temp.assert_true(NOT EXISTS(SELECT 1 FROM public.product_offer_config WHERE product_id=pid) AND NOT EXISTS(SELECT 1 FROM public.product_offer_history WHERE product_id=pid),'product removal cascades');
+END; $$;
 ROLLBACK;

@@ -3669,6 +3669,19 @@ export type Database = {
         Args: { p_email: string; p_user_id: string }
         Returns: number
       }
+      mutate_product_offer: {
+        Args: {
+          actor_api_key_id?: string
+          actor_method?: string
+          actor_user_id?: string
+          expected_revision: number
+          offer_product_id: string
+          operation: string
+          restored_from?: number
+          validated_config: Json
+        }
+        Returns: Json
+      }
       mutate_storefront_config: {
         Args: {
           actor_api_key_id?: string

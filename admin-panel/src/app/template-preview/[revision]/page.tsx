@@ -22,7 +22,7 @@ export default async function TemplatePreview({ params, searchParams }: {
   const response = await preparePreview(auth, {
     revision: /^(0|[1-9][0-9]*)$/.test(revision) ? Number(revision) : -1,
     locale: query.locale, fixture: query.fixture,
-  }, typeof query.issuedAt === 'string' && /^\d+$/.test(query.issuedAt) ? Number(query.issuedAt) : NaN);
+  }, typeof query.issuedAt === 'string' && /^\d+$/.test(query.issuedAt) ? Number(query.issuedAt) : NaN, query.productId === undefined ? undefined : typeof query.productId === 'string' ? query.productId : 'invalid');
   if (!response.success && response.code === 'FORBIDDEN') notFound();
   if (!response.success) {
     const t = (locale === 'pl' ? pl : en).templatePreview;

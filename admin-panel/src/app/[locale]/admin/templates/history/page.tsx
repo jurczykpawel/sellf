@@ -3,7 +3,8 @@ import { verifyAdminAccess } from '@/lib/auth-server';
 import TemplateHistory from '@/components/storefront/TemplateHistory';
 export const dynamic = 'force-dynamic';
 export const metadata = { robots: { index: false, follow: false } };
-export default async function TemplateHistoryPage() {
+export default async function TemplateHistoryPage({ searchParams }: { searchParams: Promise<{ product?: string }> }) {
   await verifyAdminAccess();
-  return <TemplateHistory />;
+  const { product } = await searchParams;
+  return <TemplateHistory productId={product} />;
 }

@@ -74,7 +74,7 @@ export function resetTemplateField(config: StorefrontConfig, templateId: Storefr
 }
 
 export interface TemplateChange { path: string; kind: 'added' | 'removed' | 'changed'; before: Json; after: Json }
-export function diffTemplateConfigs(before: StorefrontConfig, after: StorefrontConfig): TemplateChange[] {
+export function diffTemplateConfigs(before: Json, after: Json): TemplateChange[] {
   const changes: TemplateChange[] = [];
   function compare(a: Json | undefined, b: Json | undefined, path: string[]): void {
     if (a === b) return;

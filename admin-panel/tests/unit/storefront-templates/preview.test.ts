@@ -3,11 +3,13 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { D_CONFIG, DEFAULT_CONFIG, D_LOCALIZED_CONFIG } from '@/lib/storefront-templates/fixtures';
 import { verifyTemplateSession, verifyTemplateApiKey } from '@/lib/storefront-templates/mutations';
 import { preparePreview } from '@/lib/storefront-templates/preview';
-const m = vi.hoisted(() => ({ client: vi.fn(), read: vi.fn(), rate: vi.fn(), auth: vi.fn() }));
+const m = vi.hoisted(() => ({ client: vi.fn(), read: vi.fn(), rate: vi.fn(), auth: vi.fn(), offer: vi.fn(), bindings: vi.fn() }));
 // Presentation assertions do not run the Next/PostCSS pipeline; browser tests cover actual CSS.
 vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ default: {} }));
 vi.mock('next/cache', () => ({ revalidateTag: vi.fn(), revalidatePath: vi.fn() }));
 vi.mock('@/lib/api/middleware', () => ({ authenticateApiKeyPrincipal: m.auth }));
+vi.mock('@/lib/storefront-templates/offer-repository', () => ({ readOfferConfig: m.offer }));
+vi.mock('@/lib/storefront-templates/catalogue', () => ({ loadStorefrontBindings: m.bindings }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 vi.mock('@/lib/auth-server', () => ({ requireAdminApi: async () => ({ user: { id: 'dddddddd-0000-4000-a000-000000000000' } }) }));
 vi.mock('@/lib/supabase/admin', () => ({ createPlatformClient: m.client }));
@@ -80,4 +82,19 @@ it('uses declared Polish fixture content in the Polish rendered presentation', a
   expect(await preparePreview(await verifyTemplateSession(), { ...input, locale: 'pl' })).toMatchObject({ success: true });
   const response = await preparePreview(await verifyTemplateSession(), { ...input, locale: 'pl' });
   expect(response).toMatchObject({ data: { model: { sections: expect.arrayContaining([expect.objectContaining({ type: 'hero-product/1', props: expect.objectContaining({ content: expect.objectContaining({ heading: 'Zbuduj swój pierwszy automatyczny raport' }) }) })]) } } });
+});
+
+it('prepares product offers through the same inert preview boundary and rechecks revision', async () => {
+  const productId = 'aaaaaaaa-1111-4111-a111-111111111111';
+  const draft = { format: 1, enabled: true, templateId: 'offer-default', settings: { density: 'comfortable' }, content: { 'offer.hero': { sourceLocale: 'en', en: { kind: 'hero', eyebrow: 'Workshop', heading: 'Offer preview heading', body: 'Seller copy', steps: [] } } }, tokens: null };
+  m.offer.mockResolvedValue({ success: true, data: { revision: 3, draft } });
+  m.bindings.mockResolvedValue({ success: true, data: { hero: null } });
+  const auth = await verifyTemplateSession();
+  const response = await preparePreview(auth, input, Date.now(), productId);
+  expect(response).toMatchObject({ success: true, data: { model: { sections: [expect.objectContaining({ type: 'hero-product/1', props: expect.objectContaining({ variant: 'simple', content: expect.objectContaining({ heading: 'Offer preview heading' }) }) }), expect.objectContaining({ type: 'faq/1' }), expect.objectContaining({ type: 'product-cta/1', props: expect.objectContaining({ action: 'buy' }) })] } } });
+  expect(m.read).not.toHaveBeenCalled();
+  expect(m.bindings).toHaveBeenCalledWith({}, expect.objectContaining({ heroProduct: productId, closingProduct: productId }));
+  m.offer.mockResolvedValueOnce({ success: true, data: { revision: 3, draft } }).mockResolvedValue({ success: true, data: { revision: 4, draft } });
+  expect(await preparePreview(auth, input, Date.now(), productId)).toMatchObject({ code: 'CONFLICT', currentRevision: 4 });
+  expect(await preparePreview({}, input, Date.now(), productId)).toMatchObject({ code: 'FORBIDDEN' });
 });
