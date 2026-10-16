@@ -486,9 +486,12 @@ its published read; appearance and leaf origins stay outside section props.
 Core theme preference controls mode, including CSS system fallback without scripts.
 Both storefront and protected selection obtain allowed template IDs from the current
 local platform tier snapshot. `license/public-snapshot.ts` refreshes this snapshot
-in the Node instrumentation background scheduler every 30 seconds; public readers
+in the Node instrumentation background scheduler every 30 seconds. Remote JWKS
+refresh runs at startup and every 12 hours; an unknown local key ID can trigger
+an earlier attempt at most once per hour (failed attempts count). Public readers
 perform no licensing network or database requests. Unknown/cold/older-than-60-second
-snapshots resolve free, and credential expiry clamps the lifetime exactly. The
+snapshots resolve free, and credential expiry clamps the lifetime exactly. A
+failed database read retains the previous tier only until its existing deadline. The
 release-shipped `license/platform-jwks.json` is the platform JWKS snapshot fetched
 from the existing platform endpoint on 2026-10-16; refresh it from that endpoint
 when preparing releases. Optional `SELLF_JWKS_FALLBACK` and background-refreshed
