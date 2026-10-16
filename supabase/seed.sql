@@ -9,6 +9,11 @@ INSERT INTO public.storefront_config_history(revision, operation, draft, publish
 SELECT revision, 'legacy-import', draft, published FROM public.storefront_config WHERE revision = 0
 ON CONFLICT (revision) DO NOTHING;
 
+-- Premium entries start without credentials; local seed grants no template rights.
+INSERT INTO public.template_credentials(template_id)
+VALUES ('storefront-a'), ('storefront-b'), ('storefront-c')
+ON CONFLICT (template_id) DO NOTHING;
+
 -- Enable pgcrypto extension for password hashing
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
