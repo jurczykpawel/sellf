@@ -14,14 +14,14 @@ vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => state.client }
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: state.user } }, error: null }) } }) }));
 vi.mock('@/lib/auth-server', () => ({ requireAdminApi: async () => ({}) }));
 function sql(statement: string): string {
-  return execFileSync('docker', ['exec', '-i', 'supabase_db_sellf-aff-a18', 'psql', '-U', 'postgres', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', `SET request.jwt.claims='{"role":"service_role"}'; ${statement}`], { encoding: 'utf8' }).trim();
+  return execFileSync('docker', ['exec', '-i', 'supabase_db_sellf-afffix', 'psql', '-U', 'postgres', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', `SET request.jwt.claims='{"role":"service_role"}'; ${statement}`], { encoding: 'utf8' }).trim();
 }
 const member = 'af000000-0000-4000-a000-000000000001';
 const otherUser = randomUUID(), otherMember = randomUUID(), otherCoupon = randomUUID();
 beforeAll(() => {
   resetAffiliateDatabase();
-  const env = JSON.parse(execFileSync('supabase', ['status', '--workdir', '/private/tmp/sellf-aff-a18', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
-  expect(env.API_URL).toBe('http://127.0.0.1:55471');
+  const env = JSON.parse(execFileSync('supabase', ['status', '--workdir', '/private/tmp/sellf-afffix', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+  expect(env.API_URL).toBe('http://127.0.0.1:55531');
   state.client = createClient(env.API_URL, env.SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   sql(`INSERT INTO auth.users(id,email) VALUES('${otherUser}','portal-${otherUser}@example.test');
     INSERT INTO affiliate_memberships(id,user_id,code,status,display_name,accepted_terms_version,accepted_at,created_at)

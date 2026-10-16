@@ -7,7 +7,7 @@ BEGIN
 END $$;
 CREATE FUNCTION pg_temp.rejects(statement text, expected_code text DEFAULT NULL) RETURNS boolean LANGUAGE plpgsql AS $$
 BEGIN EXECUTE statement; RETURN false; EXCEPTION WHEN OTHERS THEN RETURN expected_code IS NULL OR SQLSTATE=expected_code; END $$;
-SELECT pg_temp.check_that((SELECT count(*)=9 FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'affiliate_%'),'nine affiliate tables');
+SELECT pg_temp.check_that((SELECT count(*)=11 FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'affiliate_%'),'eleven affiliate tables');
 SELECT set_config('request.jwt.claims','{"role":"service_role","sub":"dddddddd-0000-4000-a000-000000000000"}',true);
 SET LOCAL ROLE service_role;
 SELECT pg_temp.check_that(pg_temp.rejects('UPDATE public.affiliate_rules SET enabled=false'),'rules remain immutable');

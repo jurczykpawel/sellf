@@ -17,7 +17,7 @@ beforeAll(async () => {
   resetAffiliateDatabase();
   config({ path: process.env.AFFILIATE_TEST_ENV, override: true, quiet: true });
   delete process.env.UPSTASH_REDIS_REST_URL; delete process.env.UPSTASH_REDIS_REST_TOKEN;
-  expect(process.env.SUPABASE_URL).toBe('http://127.0.0.1:55471');
+  expect(process.env.SUPABASE_URL).toBe('http://127.0.0.1:55531');
   const options = { auth: { persistSession: false, autoRefreshToken: false } };
   service = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, options);
   admin = createClient(process.env.SUPABASE_URL!, process.env.ANON_KEY!, options);
@@ -38,6 +38,7 @@ it('runs application, decisions, conflicts, exact versions and reconstructable t
   expect((await member.from('affiliate_memberships').select('id')).error).not.toBeNull();
   state.session = admin;
   const id = submitted.data!.id;
+  expect((await service.from('audit_log').delete().in('table_name', ['affiliate_programs', 'affiliate_memberships'])).error).toBeNull();
   const terms = await getAcceptedTerms(id); expect(terms.data).toEqual({ terms_version: p.terms_version, terms: p.terms });
   const change = { member_id: id, version: '1', status: 'approved', reason: 'Manual review completed' };
   expect(await updateMember(change)).toMatchObject({ success: true, data: { version: '2', status: 'approved' } });
@@ -49,9 +50,8 @@ it('runs application, decisions, conflicts, exact versions and reconstructable t
   expect((await updateProgram(input)).status).toBe(409);
   expect((await getAcceptedTerms(id)).data).toEqual(terms.data);
   const audit = await service.from('audit_log').select('new_values,performed_by').eq('table_name', 'affiliate_memberships').eq('new_values->>id', id).order('performed_at');
-  expect(audit.error).toBeNull(); expect(audit.data).toHaveLength(5);
-  expect(audit.data![0].performed_by).toBe((await member.auth.getUser()).data.user!.id);
-  expect(audit.data!.slice(1).every(row => row.performed_by === 'dddddddd-0000-4000-a000-000000000000')).toBe(true);
+  expect(audit.error).toBeNull(); expect(audit.data).toHaveLength(4);
+  expect(audit.data!.every(row => row.performed_by === 'dddddddd-0000-4000-a000-000000000000')).toBe(true);
   const page = await getAdminOverview({ limit: 1 }); expect(page.data?.members).toHaveLength(1); expect(page.data?.next_cursor).toBeTruthy();
   expect(JSON.stringify(page)).not.toContain('email');
 }, 30000);

@@ -84,12 +84,12 @@ describe('validation and conflicts', () => {
   it('reconstructs accepted terms by acceptance time, including reused terms label', async () => {
     const member = { accepted_at: '2026-10-01T00:00:00Z', accepted_terms_version: 'v1' };
     const snapshot = { ...program, terms: { en: 'Original', pl: 'Oryginał' } };
-    const history = query({ new_values: snapshot }); db.from.mockImplementation((table: string) => table === 'audit_log' ? history : query(member));
-    const result = await getAcceptedTerms(user.id); expect(result.data).toEqual({ terms_version: 'v1', terms: snapshot.terms }); expect(history.lte).toHaveBeenCalledWith('performed_at', member.accepted_at);
+    const history = query(snapshot); db.from.mockImplementation((table: string) => table === 'affiliate_program_versions' ? history : query(member));
+    const result = await getAcceptedTerms(user.id); expect(result.data).toEqual({ terms_version: 'v1', terms: snapshot.terms }); expect(history.lte).toHaveBeenCalledWith('created_at', member.accepted_at);
   });
 });
 
 it('requires a fresh terms label when the published wording changes', async () => {
-  const published = query({ new_values: program }); db.from.mockReturnValue(published);
+  const published = query(program); db.from.mockReturnValue(published);
   expect(await updateProgram({ ...program, terms: { en: 'Changed', pl: 'Zmienione' } })).toMatchObject({ success: false, status: 409, errorCode: 'TERMS_VERSION_CONFLICT' }); expect(db.rpc).not.toHaveBeenCalled();
 });

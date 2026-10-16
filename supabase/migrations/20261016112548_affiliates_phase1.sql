@@ -17,6 +17,21 @@ CREATE TABLE public.affiliate_memberships (
  accepted_terms_version text NOT NULL, accepted_at timestamptz NOT NULL,
  version bigint NOT NULL DEFAULT 1 CHECK(version>0), created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE TABLE public.affiliate_program_versions (
+ program_id uuid NOT NULL REFERENCES public.affiliate_programs(id), version bigint NOT NULL CHECK(version>0),
+ enabled boolean NOT NULL, hold_days integer NOT NULL CHECK(hold_days BETWEEN 0 AND 3650),
+ buffer_days integer NOT NULL CHECK(buffer_days BETWEEN 0 AND 365), terms_version text NOT NULL,
+ terms jsonb NOT NULL, thresholds jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(program_id,version)
+);
+CREATE INDEX affiliate_program_time ON public.affiliate_program_versions(created_at DESC,version DESC);
+CREATE INDEX affiliate_terms_history ON public.affiliate_program_versions(terms_version,created_at DESC);
+CREATE TABLE public.affiliate_membership_events (
+ member_id uuid NOT NULL REFERENCES public.affiliate_memberships(id), version bigint NOT NULL CHECK(version>0),
+ status text NOT NULL CHECK(status IN ('pending','approved','rejected','suspended','terminated')),
+ created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(member_id,version)
+);
+CREATE INDEX affiliate_member_time ON public.affiliate_membership_events(member_id,created_at DESC,version DESC);
 CREATE TABLE public.affiliate_rules (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), product_id uuid NOT NULL REFERENCES public.products(id) ON DELETE RESTRICT,
  revision integer NOT NULL CHECK(revision>0), enabled boolean NOT NULL,
@@ -93,7 +108,6 @@ CREATE INDEX affiliate_commission_binding ON public.affiliate_commissions(bindin
 CREATE INDEX affiliate_payout_member ON public.affiliate_payouts(member_id,currency);
 CREATE INDEX affiliate_ledger_commission ON public.affiliate_ledger(commission_id);
 CREATE INDEX affiliate_allocation_entry ON public.affiliate_payout_allocations(entry_id);
-CREATE INDEX affiliate_history ON public.audit_log(table_name,performed_at,id) WHERE table_name LIKE 'affiliate_%';
 
 CREATE FUNCTION public.affiliate_valid_reference(p_value text) RETURNS boolean
 LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
@@ -112,6 +126,8 @@ BEGIN
  OR (t.value#>>'{}')::numeric>9223372036854775807);
 END $$;
 ALTER TABLE public.affiliate_programs ADD CHECK(public.affiliate_valid_program(terms,thresholds)),
+ ADD CHECK(public.affiliate_valid_reference(terms_version));
+ALTER TABLE public.affiliate_program_versions ADD CHECK(public.affiliate_valid_program(terms,thresholds)),
  ADD CHECK(public.affiliate_valid_reference(terms_version));
 ALTER TABLE public.affiliate_commissions ADD CHECK(eligible_at IS NULL OR eligible_at>=paid_at+greatest(hold_days,
  CASE WHEN is_refundable THEN refund_period_days+buffer_days ELSE 0 END)*interval '1 day');
@@ -276,8 +292,8 @@ END $$;
 CREATE FUNCTION public.affiliate_apply_sync(p_payment uuid,p_token uuid,p_generation bigint,p_session_created_at timestamptz,p_livemode boolean)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE pt public.payment_transactions; w public.affiliate_work; b public.affiliate_coupon_bindings;
- m public.affiliate_memberships; prog public.affiliate_programs; rule public.affiliate_rules;
- c public.affiliate_commissions; li record; red public.coupon_redemptions; history jsonb;
+ prog public.affiliate_programs; rule public.affiliate_rules;
+ c public.affiliate_commissions; li record; red public.coupon_redemptions; member_status text;
  base bigint; earned bigint; target bigint; automatic numeric; loss bigint; delta bigint;
  self_match boolean; mature timestamptz; waiting boolean:=false; blocked boolean:=false;
 BEGIN
@@ -297,12 +313,16 @@ BEGIN
  END IF;
  IF b.id IS NOT NULL THEN
   PERFORM pg_advisory_xact_lock(hashtextextended(b.member_id::text||upper(pt.currency),0));
-  SELECT a.new_values INTO history FROM public.audit_log a WHERE a.table_name='affiliate_programs'
-    AND a.performed_at<=p_session_created_at ORDER BY a.performed_at DESC,(a.new_values->>'version')::bigint DESC,a.id DESC LIMIT 1;
-  prog:=jsonb_populate_record(NULL::public.affiliate_programs,history);
-  SELECT a.new_values INTO history FROM public.audit_log a WHERE a.table_name='affiliate_memberships'
-    AND a.new_values->>'id'=b.member_id::text AND a.performed_at<=p_session_created_at ORDER BY a.performed_at DESC,(a.new_values->>'version')::bigint DESC,a.id DESC LIMIT 1;
-  m:=jsonb_populate_record(NULL::public.affiliate_memberships,history);
+  SELECT v.program_id,true,v.enabled,v.version,v.hold_days,v.buffer_days,v.terms_version,v.terms,v.thresholds
+   INTO prog FROM public.affiliate_program_versions v WHERE v.created_at<=p_session_created_at
+   ORDER BY v.created_at DESC,v.version DESC LIMIT 1;
+  SELECT e.status INTO member_status FROM public.affiliate_membership_events e
+   WHERE e.member_id=b.member_id AND e.created_at<=p_session_created_at ORDER BY e.created_at DESC,e.version DESC LIMIT 1;
+  IF prog.id IS NULL OR member_status IS NULL THEN
+   UPDATE public.affiliate_work SET status='needs_review',lease_token=NULL,leased_until=NULL,last_error_code='history_unavailable'
+    WHERE payment_id=p_payment;
+   RETURN false;
+  END IF;
  END IF;
  IF pt.amount<>trunc(pt.amount) OR coalesce(pt.refunded_amount,0)<>trunc(coalesce(pt.refunded_amount,0)) THEN
   RAISE EXCEPTION 'Integer amounts required' USING ERRCODE='23514'; END IF;
@@ -322,7 +342,7 @@ BEGIN
    dispute_seen=blocked,version=version+1 WHERE id=c.id;
   PERFORM public.affiliate_audit('affiliate_commissions',to_jsonb(c),(SELECT to_jsonb(updated) FROM public.affiliate_commissions updated WHERE id=c.id),NULL);
  END LOOP;
- IF b.id IS NOT NULL AND prog.enabled AND m.status='approved' AND pt.status IN ('completed','refunded','disputed') THEN
+ IF b.id IS NOT NULL AND prog.enabled AND member_status='approved' AND pt.status IN ('completed','refunded','disputed') THEN
   SELECT EXISTS(SELECT 1 FROM public.affiliate_memberships am JOIN auth.users u ON u.id=am.user_id
    WHERE am.id=b.member_id AND (u.id=pt.user_id OR lower(btrim(u.email))=lower(btrim(pt.customer_email)))) INTO self_match;
   waiting:=pt.fulfillment_pending OR NOT EXISTS(SELECT 1 FROM public.payment_line_items WHERE transaction_id=p_payment)
@@ -378,6 +398,7 @@ BEGIN
  IF NOT prog.enabled OR prog.terms_version IS DISTINCT FROM p_terms_version THEN RAISE EXCEPTION 'Terms changed' USING ERRCODE='PT409'; END IF;
  INSERT INTO public.affiliate_memberships(user_id,code,display_name,channel,accepted_terms_version,accepted_at)
  VALUES(p_user,p_code,p_display_name,p_channel,p_terms_version,now()) RETURNING * INTO result;
+ INSERT INTO public.affiliate_membership_events(member_id,version,status) VALUES(result.id,result.version,result.status);
  PERFORM public.affiliate_audit('affiliate_memberships',NULL,to_jsonb(result),p_user);
  RETURN result;
 END $$;
@@ -387,6 +408,8 @@ DECLARE old public.affiliate_programs; result public.affiliate_programs;
 BEGIN
  PERFORM public.affiliate_admin(p_actor);
  SELECT * INTO old FROM public.affiliate_programs FOR UPDATE;
+ IF EXISTS(SELECT 1 FROM public.affiliate_program_versions WHERE terms_version=p_terms_version AND terms<>p_terms) THEN
+  RAISE EXCEPTION 'Terms version changed' USING ERRCODE='PT409'; END IF;
  IF old.id IS NULL THEN
   IF p_expected_version IS DISTINCT FROM 0 THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
   INSERT INTO public.affiliate_programs(enabled,terms_version,terms,hold_days,buffer_days,thresholds)
@@ -396,6 +419,8 @@ BEGIN
   UPDATE public.affiliate_programs SET enabled=p_enabled,terms_version=p_terms_version,terms=p_terms,hold_days=p_hold_days,
    buffer_days=p_buffer_days,thresholds=p_thresholds,version=version+1 WHERE id=old.id RETURNING * INTO result;
  END IF;
+ INSERT INTO public.affiliate_program_versions(program_id,version,enabled,hold_days,buffer_days,terms_version,terms,thresholds)
+ VALUES(result.id,result.version,result.enabled,result.hold_days,result.buffer_days,result.terms_version,result.terms,result.thresholds);
  PERFORM public.affiliate_audit('affiliate_programs',CASE WHEN old.id IS NULL THEN NULL ELSE to_jsonb(old) END,to_jsonb(result),p_actor);
  RETURN result;
 END $$;
@@ -408,6 +433,7 @@ BEGIN
  SELECT * INTO old FROM public.affiliate_memberships WHERE id=p_member FOR UPDATE;
  IF old.id IS NULL OR old.version IS DISTINCT FROM p_expected_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
  UPDATE public.affiliate_memberships SET status=p_status,version=version+1 WHERE id=p_member RETURNING * INTO result;
+ INSERT INTO public.affiliate_membership_events(member_id,version,status) VALUES(result.id,result.version,result.status);
  PERFORM public.affiliate_audit('affiliate_memberships',to_jsonb(old),to_jsonb(result)||jsonb_build_object('reason',p_reason),p_actor);
  RETURN result;
 END $$;
@@ -696,3 +722,18 @@ GRANT EXECUTE ON FUNCTION public.affiliate_work_retry(uuid,uuid,bigint,text) TO 
 CREATE TRIGGER affiliate_binding_period BEFORE INSERT OR UPDATE ON public.affiliate_coupon_bindings
 FOR EACH ROW EXECUTE FUNCTION public.affiliate_binding_check();
 REVOKE EXECUTE ON FUNCTION public.affiliate_binding_check() FROM PUBLIC,anon,authenticated,service_role;
+
+CREATE TRIGGER affiliate_program_versions_guard BEFORE UPDATE OR DELETE ON public.affiliate_program_versions
+ FOR EACH ROW EXECUTE FUNCTION public.affiliate_immutable();
+CREATE TRIGGER affiliate_membership_events_guard BEFORE UPDATE OR DELETE ON public.affiliate_membership_events
+ FOR EACH ROW EXECUTE FUNCTION public.affiliate_immutable();
+ALTER TABLE public.affiliate_program_versions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY affiliate_program_versions_service ON public.affiliate_program_versions FOR ALL TO service_role
+ USING ((select auth.role())='service_role') WITH CHECK ((select auth.role())='service_role');
+REVOKE ALL ON public.affiliate_program_versions FROM PUBLIC,anon,authenticated,service_role;
+GRANT SELECT,INSERT ON public.affiliate_program_versions TO service_role;
+ALTER TABLE public.affiliate_membership_events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY affiliate_membership_events_service ON public.affiliate_membership_events FOR ALL TO service_role
+ USING ((select auth.role())='service_role') WITH CHECK ((select auth.role())='service_role');
+REVOKE ALL ON public.affiliate_membership_events FROM PUBLIC,anon,authenticated,service_role;
+GRANT SELECT,INSERT ON public.affiliate_membership_events TO service_role;

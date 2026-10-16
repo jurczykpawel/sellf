@@ -1189,6 +1189,10 @@ INSERT INTO public.affiliate_programs(enabled,terms_version,terms,thresholds)
 VALUES(true,'demo-v1','{"en":"Demo partner terms: holds, refunds and debt apply.","pl":"Warunki demo: prowizje podlegają wstrzymaniu, zwrotom i potrąceniom."}', '{"PLN":"1000","EUR":"1000"}');
 INSERT INTO public.affiliate_memberships(id,user_id,code,status,display_name,accepted_terms_version,accepted_at,created_at)
 VALUES('af000000-0000-4000-a000-000000000001','bbbbbbbb-0000-4000-a000-000000000000','demo-partner','approved','Demo Partner','demo-v1','2026-01-01 00:00:00+00'::timestamptz,'2026-01-01 00:00:00+00'::timestamptz);
+INSERT INTO public.affiliate_program_versions(program_id,version,enabled,hold_days,buffer_days,terms_version,terms,thresholds,created_at)
+SELECT id,version,enabled,hold_days,buffer_days,terms_version,terms,thresholds,'2026-01-01' FROM public.affiliate_programs;
+INSERT INTO public.affiliate_membership_events(member_id,version,status,created_at)
+SELECT id,version,status,'2026-01-01' FROM public.affiliate_memberships;
 INSERT INTO public.audit_log(table_name,operation,new_values,performed_by,performed_at)
 SELECT 'affiliate_programs','INSERT',to_jsonb(p),'dddddddd-0000-4000-a000-000000000000','2026-01-01 00:00:00+00'::timestamptz FROM public.affiliate_programs p;
 INSERT INTO public.audit_log(table_name,operation,new_values,performed_by,performed_at)

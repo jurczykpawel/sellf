@@ -49,10 +49,10 @@ export async function updateProgram(input: unknown): Promise<AdminResult<Program
     if (!parsed.success || !boundedInput(input)) return failure('INVALID_INPUT');
     const p = parsed.data;
     // A published label identifies one wording, so stale application forms cannot accept a different text.
-    const history = await client.from('audit_log').select('new_values').eq('table_name', 'affiliate_programs')
-      .eq('new_values->>terms_version', p.terms_version).order('performed_at', { ascending: false }).limit(1).maybeSingle();
+    const history = await client.from('affiliate_program_versions').select('terms_version,terms')
+      .eq('terms_version', p.terms_version).order('created_at', { ascending: false }).limit(1).maybeSingle();
     if (history.error) return dbFailure(history.error.code);
-    const published = history.data?.new_values as ProgramInfo | undefined;
+    const published = history.data as ProgramInfo | undefined;
     if (published && (published.terms.en !== p.terms.en || published.terms.pl !== p.terms.pl)) return failure('TERMS_VERSION_CONFLICT');
     const { data, error } = await client.rpc('affiliate_program_update', {
       p_actor: actor, p_expected_version: p.version, p_enabled: p.enabled, p_terms_version: p.terms_version,
@@ -79,10 +79,10 @@ export async function getAcceptedTerms(memberId: string): Promise<AdminResult<Te
     if (error) return dbFailure(error.code);
     if (!member) return failure('NOT_FOUND');
     // Resolve by acceptance timestamp as well as label: a label alone does not identify edited terms.
-    const history = await client.from('audit_log').select('new_values').eq('table_name', 'affiliate_programs')
-      .lte('performed_at', member.accepted_at).order('performed_at', { ascending: false }).order('id', { ascending: false }).limit(1).maybeSingle();
+    const history = await client.from('affiliate_program_versions').select('terms_version,terms')
+      .lte('created_at', member.accepted_at).order('created_at', { ascending: false }).order('version', { ascending: false }).limit(1).maybeSingle();
     if (history.error) return dbFailure(history.error.code);
-    const snapshot = history.data?.new_values as ProgramInfo | undefined;
+    const snapshot = history.data as ProgramInfo | undefined;
     if (!snapshot || snapshot.terms_version !== member.accepted_terms_version) return failure('NOT_FOUND');
     return { success: true, data: { terms_version: snapshot.terms_version, terms: snapshot.terms } };
   });

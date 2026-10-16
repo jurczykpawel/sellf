@@ -307,6 +307,35 @@ export type Database = {
           },
         ]
       }
+      affiliate_membership_events: {
+        Row: {
+          created_at: string
+          member_id: string
+          status: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          member_id: string
+          status: string
+          version: number
+        }
+        Update: {
+          created_at?: string
+          member_id?: string
+          status?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_membership_events_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_memberships"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       affiliate_memberships: {
         Row: {
           accepted_at: string
@@ -449,6 +478,50 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "affiliate_memberships"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_program_versions: {
+        Row: {
+          buffer_days: number
+          created_at: string
+          enabled: boolean
+          hold_days: number
+          program_id: string
+          terms: Json
+          terms_version: string
+          thresholds: Json
+          version: number
+        }
+        Insert: {
+          buffer_days: number
+          created_at?: string
+          enabled: boolean
+          hold_days: number
+          program_id: string
+          terms: Json
+          terms_version: string
+          thresholds: Json
+          version: number
+        }
+        Update: {
+          buffer_days?: number
+          created_at?: string
+          enabled?: boolean
+          hold_days?: number
+          program_id?: string
+          terms?: Json
+          terms_version?: string
+          thresholds?: Json
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_program_versions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_programs"
             referencedColumns: ["id"]
           },
         ]
