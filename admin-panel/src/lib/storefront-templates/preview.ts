@@ -35,11 +35,11 @@ export type PreviewResponse = { success: true; data: PreviewResult } | Extract<S
 
 export interface PreparedPreview extends PreviewResult { model: PresentationModel; tokens: PublicThemeTokens }
 type PreviewFailure = Extract<StorefrontMutationResult, { success: false }>;
-const fail = (code: Parameters<typeof templateFailure>[0], validation: ValidationResult | null = null, revision: number | null = null): PreviewFailure => templateFailure(code, validation, revision) as PreviewFailure;
+const fail = (code: Parameters<typeof templateFailure>[0], validation: ValidationResult | null = null, revision: number | null = null): PreviewFailure => templateFailure(code, validation, revision, 'preview') as PreviewFailure;
 
 export async function preparePreview(auth: unknown, input: unknown, startedAt = Date.now()): Promise<{ success: true; data: PreparedPreview } | PreviewFailure> {
   const actor = getTemplatePrincipal(auth, API_SCOPES.TEMPLATES_READ);
-  if (!actor) return templateFailure('FORBIDDEN') as Extract<StorefrontMutationResult, { success: false }>;
+  if (!actor) return fail('FORBIDDEN');
   if (!Number.isSafeInteger(startedAt) || startedAt > Date.now() || Date.now() >= startedAt + 600000) return fail('CONFLICT');
   const parsed = isPlainJson(input) ? previewSchema.safeParse(input) : null;
   if (!parsed?.success) {
@@ -49,7 +49,7 @@ export async function preparePreview(auth: unknown, input: unknown, startedAt = 
   const { revision, locale, fixture } = parsed.data;
   if (!(PREVIEW_FIXTURES as readonly string[]).includes(fixture)) return fail('NOT_FOUND');
   try {
-    if (!(await checkRateLimit('storefront_preview', 30, 1, actor.userId))) return fail('RATE_LIMITED');
+    if (!(await checkRateLimit('storefront_preview', 120, 1, actor.userId))) return fail('RATE_LIMITED');
     const client = createPlatformClient();
     const initial = await readStorefrontConfig(client);
     if (!initial.success) return fail('UNAVAILABLE');

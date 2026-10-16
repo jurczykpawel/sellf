@@ -221,3 +221,13 @@ it('rejects legacy source metadata on ordinary drafts', async () => {
   expect(await mutateStorefrontConfig(await verifyTemplateSession(), { ...input, legacySource: { sha256: 'a'.repeat(64), byteLength: 1 } })).toMatchObject({ code: 'INVALID' });
   expect(mocks.admin).not.toHaveBeenCalled();
 });
+
+it.each([
+  { operation: 'draft', expectedRevision: 0, config: DEFAULT_CONFIG },
+  { operation: 'publish', expectedRevision: 0 },
+  { operation: 'rollback', expectedRevision: 0, targetRevision: 0 },
+])('names $operation failures by operation', async mutation => {
+  mocks.rate.mockResolvedValue(false);
+  const auth = await verifyTemplateSession();
+  expect(await mutateStorefrontConfig(auth, mutation)).toMatchObject({ code: 'RATE_LIMITED', message: `Storefront ${mutation.operation} could not be completed` });
+});
