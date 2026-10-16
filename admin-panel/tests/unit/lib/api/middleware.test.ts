@@ -42,65 +42,67 @@ function createMockRequest(options: {
 }
 
 describe('API Middleware', () => {
-  const originalEnv = process.env;
-
   beforeEach(() => {
     vi.resetModules();
-    process.env = { ...originalEnv };
+    // Canonical URL resolution must not inherit developer or gate configuration.
+    for (const name of ['SITE_URL', 'MAIN_DOMAIN', 'NEXT_PUBLIC_SITE_URL', 'NEXT_PUBLIC_BASE_URL', 'NEXT_PUBLIC_APP_URL']) {
+      vi.stubEnv(name, undefined);
+    }
+    vi.stubEnv('SITE_URL', 'https://mysite.com');
   });
 
   afterEach(() => {
-    process.env = originalEnv;
+    vi.unstubAllEnvs();
   });
 
   describe('getApiCorsHeaders', () => {
     it('should allow site URL origin', () => {
-      process.env.SITE_URL = 'https://mysite.com';
+      vi.stubEnv('SITE_URL', 'https://mysite.com');
 
       const headers = getApiCorsHeaders('https://mysite.com');
       expect(headers['Access-Control-Allow-Origin']).toBe('https://mysite.com');
     });
 
     it('should allow localhost origins in development', () => {
-      process.env.NODE_ENV = 'development';
+      vi.stubEnv('NODE_ENV', 'development');
       const headers = getApiCorsHeaders('http://localhost:3000');
       expect(headers['Access-Control-Allow-Origin']).toBe('http://localhost:3000');
     });
 
     it('should allow 127.0.0.1 origins in development', () => {
-      process.env.NODE_ENV = 'development';
+      vi.stubEnv('NODE_ENV', 'development');
       const headers = getApiCorsHeaders('http://127.0.0.1:8080');
       expect(headers['Access-Control-Allow-Origin']).toBe('http://127.0.0.1:8080');
     });
 
     it('should NOT allow 127.0.0.1 origins in production', () => {
-      process.env.NODE_ENV = 'production';
-      process.env.SITE_URL = 'https://mysite.com';
+      vi.stubEnv('NODE_ENV', 'production');
+      vi.stubEnv('SITE_URL', 'https://mysite.com');
       const headers = getApiCorsHeaders('http://127.0.0.1:8080');
       expect(headers['Access-Control-Allow-Origin']).toBe('https://mysite.com');
     });
 
     it('should fallback to site URL for unknown origins', () => {
-      process.env.SITE_URL = 'https://mysite.com';
+      vi.stubEnv('SITE_URL', 'https://mysite.com');
 
       const headers = getApiCorsHeaders('https://unknown-site.com');
       expect(headers['Access-Control-Allow-Origin']).toBe('https://mysite.com');
     });
 
     it('should fallback to NEXT_PUBLIC_SITE_URL if SITE_URL not set', () => {
-      delete process.env.SITE_URL;
-      process.env.NEXT_PUBLIC_SITE_URL = 'https://backend.com';
+      vi.stubEnv('SITE_URL', undefined);
+      vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://backend.com');
 
       const headers = getApiCorsHeaders('https://unknown.com');
       expect(headers['Access-Control-Allow-Origin']).toBe('https://backend.com');
     });
 
     it('should omit Access-Control-Allow-Origin if no site URL configured and origin not allowed', () => {
-      delete process.env.NEXT_PUBLIC_SITE_URL;
-      delete process.env.NEXT_PUBLIC_BASE_URL;
-      delete process.env.NEXT_PUBLIC_APP_URL;
-      delete process.env.MAIN_DOMAIN;
-      delete process.env.SITE_URL;
+      vi.stubEnv('NEXT_PUBLIC_SITE_URL', undefined);
+      vi.stubEnv('NEXT_PUBLIC_BASE_URL', undefined);
+      vi.stubEnv('NEXT_PUBLIC_APP_URL', undefined);
+      vi.stubEnv('MAIN_DOMAIN', undefined);
+      vi.stubEnv('SITE_URL', undefined);
 
       const headers = getApiCorsHeaders('https://unknown.com');
       // Security: omitting the header entirely blocks CORS per spec
@@ -122,7 +124,7 @@ describe('API Middleware', () => {
     });
 
     it('should handle null origin', () => {
-      process.env.SITE_URL = 'https://mysite.com';
+      vi.stubEnv('SITE_URL', 'https://mysite.com');
 
       const headers = getApiCorsHeaders(null);
       expect(headers['Access-Control-Allow-Origin']).toBe('https://mysite.com');
@@ -139,7 +141,7 @@ describe('API Middleware', () => {
 
     it('should include CORS headers', () => {
       // Reflecting a localhost origin requires the dev branch.
-      process.env.NODE_ENV = 'development';
+      vi.stubEnv('NODE_ENV', 'development');
       const request = createMockRequest({ origin: 'http://localhost:3000' });
       const response = handleCorsPreFlight(request);
 
@@ -175,7 +177,7 @@ describe('API Middleware', () => {
 
     it('should include CORS headers', () => {
       // Reflecting a localhost origin requires the dev branch.
-      process.env.NODE_ENV = 'development';
+      vi.stubEnv('NODE_ENV', 'development');
       const request = createMockRequest({ origin: 'http://localhost:3000' });
       const response = jsonResponse({}, request);
 
