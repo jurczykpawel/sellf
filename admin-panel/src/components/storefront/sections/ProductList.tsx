@@ -2,6 +2,7 @@
 import Image from 'next/image';
 import { availableStarters, productListLabels, productListSectionSchema, resolveProductList } from '@/lib/storefront-templates/sections/product-list';
 import { resolveMarketingCopy } from '@/lib/validations/product-marketing';
+import { PublicProductFacts, PublicProductPrice } from '@/components/storefront/PublicProductFacts';
 import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
 import type { PublicProductInfo } from '@/lib/storefront-templates/catalogue';
@@ -45,14 +46,16 @@ export default function ProductList({ variant, products, content, locale }: Prod
           {product.image && <div className={styles.cover}><Image unoptimized src={product.image.src} alt={product.image.alt} width={product.image.width} height={product.image.height} loading="lazy" /></div>}
           <div className={styles.body}>
             <ProductHeading>{product.title}</ProductHeading>
+            {product.description && (variant === 'compact' || product.description !== resolveMarketingCopy(product.marketing, locale).copy.result) && <p className={styles.outcome}>{product.description}</p>}
             {variant === 'detail-cards' && hasMetadata && <ProductMetadata product={product} locale={locale} detail />}
             <div className={styles.buyrow}>
-              <div className={styles.price} data-price-kind={product.price.kind}>{product.price.display}
+              <div className={styles.price} data-price-kind={product.price.kind}><PublicProductPrice price={product.price} locale={locale} />
                 {product.price.taxNote && <small>{product.price.taxNote}</small>}
                 {product.price.omnibus && <small>{product.price.omnibus}</small>}
               </div>
               <a href={product.actions.details}>{labels.details}<span className={styles.srOnly}>: {product.title}</span></a>
             </div>
+            <PublicProductFacts product={product} locale={locale} />
             {variant === 'compact' && hasMetadata && <details className={styles.disclosure}>
               <summary>{labels.more}<span className={styles.srOnly}>: {product.title}</span></summary>
               <ProductMetadata product={product} locale={locale} />

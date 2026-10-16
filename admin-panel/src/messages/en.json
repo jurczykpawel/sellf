@@ -902,6 +902,7 @@
       "premium": "Premium",
       "limited": "Limited",
       "comingSoon": "Coming Soon",
+      "regularPrice": "Regular price",
       "daysAccess": "{days} days access",
       "daysAccessShort": "{days}d access",
       "getFreeAccess": "Get Free Access",

@@ -6,6 +6,7 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { catalogueLabels, cataloguePageSchema, catalogueRequestSchema } from '@/lib/storefront-templates/catalogue-section';
 import { TASK_NAV_FILTER_EVENT, TASK_NAV_STATE_EVENT } from '@/lib/storefront-templates/task-nav-public';
 import { productFormatSchema, resolveMarketingCopy } from '@/lib/validations/product-marketing';
+import { PublicProductFacts, PublicProductPrice } from '@/components/storefront/PublicProductFacts';
 import type { TaskNavFilter } from '@/lib/storefront-templates/task-nav-public';
 import type { CatalogueGroup, PublicProductInfo } from '@/lib/storefront-templates/catalogue';
 import type { CatalogueProps, CatalogueRequest } from '@/lib/storefront-templates/catalogue-section';
@@ -323,6 +324,7 @@ function CatalogueCard({
         <Heading ref={headingRef} tabIndex={-1}>
           {product.title}
         </Heading>
+        {product.description && product.description !== marketing.copy.result && <p className={styles.outcome}>{product.description}</p>}
         <div lang={marketing.locale}>
           {marketing.copy.result && <p className={styles.outcome}>{marketing.copy.result}</p>}
           {!grouped && (marketing.copy.tools.length > 0 || marketing.copy.requirements.length > 0) && (
@@ -343,11 +345,12 @@ function CatalogueCard({
           )}
         </div>
         <div className={styles.buyrow}>
-          <p className={styles.price}>{product.price.display}</p>
+          <p className={styles.price}><PublicProductPrice price={product.price} locale={locale} /></p>
           <a href={product.actions.details} aria-label={`${labels.details}: ${product.title}`}>
             {labels.details} <span aria-hidden="true">↗</span>
           </a>
         </div>
+        <PublicProductFacts product={product} locale={locale} />
         {product.price.taxNote && <p className={styles.note}>{product.price.taxNote}</p>}
         {product.price.omnibus && <p className={styles.note}>{product.price.omnibus}</p>}
         {(marketing.copy.tools.length > 0 || marketing.copy.requirements.length > 0) && (

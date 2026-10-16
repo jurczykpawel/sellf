@@ -12,6 +12,8 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+import { expect } from '@playwright/test';
+import type { APIRequestContext } from '@playwright/test';
 
 /**
  * Canonical product slugs from supabase/seed.sql — every one of them is seeded with
@@ -71,22 +73,40 @@ export class ProductStateGuard {
   private originallyActiveIds: string[] = [];
   private client: SupabaseClient;
 
-  constructor(client: SupabaseClient) {
+  constructor(client: SupabaseClient, private request?: APIRequestContext) {
     this.client = client;
   }
 
   /** Save IDs of all currently active products */
   async save(): Promise<void> {
-    const { data } = await this.client
+    const { data, error } = await this.client
       .from('products')
       .select('id')
       .eq('is_active', true);
-    this.originallyActiveIds = data?.map(p => p.id) || [];
+    expect(error).toBeNull();
+    this.originallyActiveIds = data!.map(p => p.id);
+  }
+
+  /** Use the real mutation path so public cache invalidation is exercised. */
+  async setActive(id: string, isActive: boolean): Promise<void> {
+    if (!this.request) throw new Error('Product API request context is required');
+    const response = await this.request.patch(`/api/v1/products/${id}`, { data: { is_active: isActive } });
+    expect(response.status(), await response.text()).toBe(200);
+  }
+
+  async deactivateAll(): Promise<void> {
+    const { data, error } = await this.client.from('products').select('id').eq('is_active', true);
+    expect(error).toBeNull();
+    for (const product of data!) await this.setActive(product.id, false);
   }
 
   /** Restore all originally active products to active state */
   async restore(): Promise<void> {
     if (this.originallyActiveIds.length > 0) {
+      if (this.request) {
+        for (const id of this.originallyActiveIds) await this.setActive(id, true);
+        return;
+      }
       await this.client
         .from('products')
         .update({ is_active: true })

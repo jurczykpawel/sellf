@@ -33,6 +33,7 @@ describe('supabase keep-alive', () => {
   beforeEach(() => {
     stopKeepAlive();
     resetEnv();
+    setEnv({ SUPABASE_KEEP_ALIVE: undefined });
   });
 
   afterEach(() => {

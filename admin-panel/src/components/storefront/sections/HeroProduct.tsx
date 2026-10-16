@@ -1,5 +1,6 @@
 /** Server-rendered product hero. @see spec/contracts/section-contract.md */
 import Image from 'next/image';
+import { PublicProductPrice } from '@/components/storefront/PublicProductFacts';
 import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
 import type { ReactElement } from 'react';
@@ -19,7 +20,7 @@ export default function HeroProduct({ variant, product, content, locale }: HeroP
           {content?.body.trim() && <p className={styles.lead}>{content.body}</p>}
           <div className={styles.offer}>
             <div className={styles.price}>
-              <p>{product.price.display}</p>
+              <p><PublicProductPrice price={product.price} locale={locale} /></p>
               {product.price.taxNote && <p className={styles.note}>{product.price.taxNote}</p>}
               {product.price.omnibus && <p className={styles.note}>{product.price.omnibus}</p>}
             </div>

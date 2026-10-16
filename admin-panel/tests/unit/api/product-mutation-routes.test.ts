@@ -20,7 +20,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.from.mockImplementation(() => {
     const query = {
-      select: vi.fn(() => query), eq: vi.fn(() => query), neq: vi.fn(() => query),
+      select: vi.fn(() => query), eq: vi.fn(() => query), neq: vi.fn(() => query), limit: vi.fn(() => query),
       insert: vi.fn(() => query), update: vi.fn(() => query), delete: vi.fn(() => query),
       maybeSingle: vi.fn(async () => ({ data: null, error: null })),
       single: vi.fn(async () => ({ data: product, error: null })),
@@ -69,6 +69,7 @@ describe.each(['session', 'api_key'])('%s product mutations', (method) => {
     const response = method === 'POST' ? await POST(request)
       : method === 'PATCH' ? await PATCH(request, context) : await DELETE(request, context);
     expect(response.status).toBe(500);
+    expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_with_audit', expect.objectContaining({ actor_id: actor }));
     expect(await response.text()).not.toContain('private database detail');
   });
 

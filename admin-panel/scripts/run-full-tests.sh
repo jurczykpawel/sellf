@@ -57,3 +57,6 @@ RATE_LIMIT_TEST_MODE=true scripts/run-pw.sh \
 
 echo "=== Production artifact runtime URL regression ==="
 node scripts/run-runtime-url-tests.mjs
+
+echo "=== Section fixtures with canonical screenshot paths and build fonts ==="
+bun x playwright test --config playwright.sections.config.ts --workers=1 --retries=0

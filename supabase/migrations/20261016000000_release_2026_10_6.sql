@@ -275,11 +275,12 @@ BEGIN
     THEN RAISE EXCEPTION 'INVALID' USING ERRCODE='22023'; END IF;
   RETURN QUERY
   WITH eligible AS NOT MATERIALIZED (
-    SELECT p.id,p.name,p.slug,p.created_at,p.price,p.currency,p.product_type,p.recurring_price,
+    SELECT p.id,p.name,p.slug,left(p.description,280) description,p.created_at,p.price,p.currency,p.product_type,p.recurring_price,
       p.billing_interval,p.billing_interval_count,p.allow_custom_price,p.custom_price_min,
       p.sale_price,p.sale_price_until,p.sale_quantity_limit,p.sale_quantity_sold,
       p.marketing_fields,left(p.image_url,2049) image_url,p.vat_rate,p.vat_exempt,
-      left(p.vat_exempt_note,501) vat_exempt_note,p.price_includes_vat,p.omnibus_exempt
+      left(p.vat_exempt_note,501) vat_exempt_note,p.price_includes_vat,p.omnibus_exempt,
+      p.auto_grant_duration_days,p.available_until
     FROM public.products p
     WHERE p.is_active AND p.is_listed
       AND (p.available_from IS NULL OR p.available_from<=statement_timestamp())

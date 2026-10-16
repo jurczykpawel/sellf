@@ -42,8 +42,13 @@ const product = z.strictObject({
   id: z.uuid(),
   slug: z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/),
   title: z.string().refine((value) => Array.from(value).length <= 255),
+  description: z.string().refine(value => Array.from(value).length <= 280).optional(),
+  accessDurationDays: z.number().int().positive().optional(),
+  availableUntil: z.iso.datetime({ offset: true }).optional(),
+  availableUntilLabel: z.string().max(500).optional(),
   price: z.strictObject({
     display: z.string().max(500),
+    originalDisplay: z.string().max(500).optional(),
     taxNote: z.string().max(1000).nullable(),
     omnibus: z.string().max(1000).nullable(),
     kind: z.enum(['free', 'one-time', 'subscription', 'pwyw']),
@@ -65,7 +70,7 @@ const product = z.strictObject({
     .nullable(),
   actions: z.strictObject({ details: action, buy: action }),
   availability: z.enum(['available', 'unavailable']),
-});
+}).refine(value => Boolean(value.availableUntil) === Boolean(value.availableUntilLabel));
 export function cataloguePageSchema(pageSize: 9 | 12 | 24) {
   return z.strictObject({ products: z.array(product).max(pageSize), nextCursor: z.string().max(512).nullable() });
 }

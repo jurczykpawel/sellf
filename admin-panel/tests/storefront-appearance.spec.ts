@@ -1,6 +1,7 @@
 import { getTestDatabaseContainer } from '@/../tests/helpers/database-container';
 /** Appearance authoring on an exclusively owned local stack. @see theme-tokens.md */
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { test, expect } from '@playwright/test';
@@ -13,7 +14,7 @@ const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPAB
 const directory = path.join(process.env.TEST_APP_CWD ?? process.cwd(), 'data');
 const files = ['active-theme.json', 'active-theme.legacy-backup.json'];
 const savedFiles: (Buffer | null)[] = [];
-const legacy = JSON.stringify({ name: 'Previous theme', colors: { accent: '#38BDF8', border: 'rgba(255,255,255,.2)' }, typography: { 'font-family': 'dm-sans' }, shapes: { 'radius-md': '8px' } }, null, 2);
+const legacy = JSON.stringify({ name: 'Poprzedni motyw żółty', colors: { accent: '#38BDF8', border: 'rgba(255,255,255,.2)' }, typography: { 'font-family': 'dm-sans' }, shapes: { 'radius-md': '8px' } }, null, 2);
 let admin: Awaited<ReturnType<typeof createTestAdmin>>;
 let container: string;
 let original: string;
@@ -34,18 +35,21 @@ test.afterAll(async () => {
   for (const [index, previous] of savedFiles.entries()) { if (previous) await writeFile(path.join(directory, files[index]), previous); else await unlink(path.join(directory, files[index])).catch(() => {}); }
   await admin?.cleanup();
 });
-test('imports once with backup, edits and resets a leaf while retaining seller content', async ({ page }) => {
+test('imports once with source audit, edits and resets a leaf while retaining seller content', async ({ page }) => {
   await acceptAllCookies(page); await setAuthSession(page, admin.email, admin.password);
   await page.goto('/en/dashboard/templates');
   await page.getByRole('button', { name: 'Appearance', exact: true }).click();
   const editor = page.locator('[data-storefront-editor]');
   await editor.getByText('Bring your previous colours', { exact: true }).click();
   await editor.getByRole('button', { name: 'Import previous theme', exact: true }).click();
-  await expect(editor.getByText('Theme imported into the draft. Original backed up.')).toBeVisible();
-  expect(await readFile(path.join(directory, files[1]), 'utf8')).toBe(legacy);
+  await expect(editor.getByText('Theme imported into the draft. Original file unchanged.')).toBeVisible();
+  await expect(readFile(path.join(directory, files[1]))).rejects.toMatchObject({ code: 'ENOENT' });
   expect(await readFile(path.join(directory, files[0]), 'utf8')).toBe(legacy);
   await expect(editor.getByText('1 old settings could not be converted. Review them in Technical details.')).toBeVisible();
   const imported = (await db.from('storefront_config').select('*').single()).data!;
+  const audit = await db.from('audit_log').select('new_values').eq('table_name', 'storefront_config').eq('new_values->>revision', String(imported.revision)).single();
+  expect(audit.error).toBeNull();
+  expect(audit.data!.new_values).toMatchObject({ legacySource: { sha256: createHash('sha256').update(legacy).digest('hex'), byteLength: Buffer.byteLength(legacy, 'utf8') } });
   await editor.getByRole('button', { name: 'Import previous theme', exact: true }).click();
   await expect(editor.getByText('This theme has already been imported. Continue editing your draft.')).toBeVisible();
   expect((await db.from('storefront_config').select('revision').single()).data!.revision).toBe(imported.revision);
@@ -61,7 +65,7 @@ test('imports once with backup, edits and resets a leaf while retaining seller c
   expect(draft.tokens.light?.accent).toBeUndefined(); expect(draft.content).toEqual((imported.draft as { content: unknown }).content);
   expect(reset.published).toEqual(imported.published);
   expect(await readFile(path.join(directory, files[0]), 'utf8')).toBe(legacy);
-  expect(await readFile(path.join(directory, files[1]), 'utf8')).toBe(legacy);
+  await expect(readFile(path.join(directory, files[1]))).rejects.toMatchObject({ code: 'ENOENT' });
   await page.reload(); await editor.getByRole('button', { name: 'Appearance', exact: true }).click();
   await expect(editor.getByLabel('Font', { exact: true })).toHaveValue('dm-sans');
 });

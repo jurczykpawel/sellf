@@ -25,7 +25,7 @@ import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-au
 import { acceptAllCookies } from './helpers/consent';
 
 test.describe('Admin Product Preview', () => {
-  test.describe.configure({ mode: 'serial', retries: 1 });
+  test.describe.configure({ mode: 'serial' });
   test.setTimeout(60_000);
 
   let adminEmail: string;

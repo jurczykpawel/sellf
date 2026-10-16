@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import type { BrowserContext } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession } from './helpers/admin-auth';
@@ -21,7 +22,8 @@ test.describe('Smart Landing Page', () => {
   let regularUserEmail: string;
   const password = 'password123';
   let testProductId: string;
-  const productGuard = new ProductStateGuard(supabaseAdmin);
+  let productGuard: ProductStateGuard;
+  let mutationContext: BrowserContext;
 
   const loginAsAdmin = async (page: Page) => {
     await acceptAllCookies(page);
@@ -71,8 +73,7 @@ test.describe('Smart Landing Page', () => {
     await page.waitForTimeout(1000);
   };
 
-  test.beforeAll(async () => {
-    await productGuard.save();
+  test.beforeAll(async ({ browser, baseURL }) => {
 
     const randomStr = Math.random().toString(36).substring(7);
     adminEmail = `test-smart-admin-${Date.now()}-${randomStr}@example.com`;
@@ -114,6 +115,11 @@ test.describe('Smart Landing Page', () => {
 
     if (productError) throw productError;
     testProductId = product.id;
+    mutationContext = await browser.newContext({ baseURL, extraHTTPHeaders: { Origin: baseURL! } });
+    const mutationPage = await mutationContext.newPage();
+    await setAuthSession(mutationPage, adminEmail, password);
+    productGuard = new ProductStateGuard(supabaseAdmin, mutationContext.request);
+    await productGuard.save();
   });
 
   // Restore originally active products after each test to prevent state contamination
@@ -130,6 +136,8 @@ test.describe('Smart Landing Page', () => {
 
     await productGuard.restore();
 
+    await mutationContext?.close();
+
     // Delete users by email
     const { data: users } = await supabaseAdmin.auth.admin.listUsers();
     const testUsers = users.users.filter(u =>
@@ -143,19 +151,13 @@ test.describe('Smart Landing Page', () => {
 
   test('SCENARIO 1: Admin without products should see onboarding CTA', async ({ page }) => {
     // Ensure ALL products are inactive (not just test product)
-    await supabaseAdmin
-      .from('products')
-      .update({ is_active: false })
-      .neq('id', '00000000-0000-0000-0000-000000000000'); // Update all
+    await productGuard.deactivateAll();
 
     await loginAsAdmin(page);
 
-    // Retry navigation — RSC may need a refresh to pick up product state change
-    await expect(async () => {
-      await page.goto('/');
-      await page.waitForLoadState('domcontentloaded');
-      await expect(page.locator('[data-testid="admin-onboarding"]')).toBeVisible({ timeout: 5000 });
-    }).toPass({ timeout: 30000 });
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('[data-testid="admin-onboarding"]')).toBeVisible({ timeout: 5000 });
 
     const onboarding = page.locator('[data-testid="admin-onboarding"]');
 
@@ -175,19 +177,13 @@ test.describe('Smart Landing Page', () => {
 
   test('SCENARIO 2: Guest without products should see coming soon message', async ({ page }) => {
     // Ensure ALL products are inactive (not just test product — seed data has active products too)
-    await supabaseAdmin
-      .from('products')
-      .update({ is_active: false })
-      .neq('id', '00000000-0000-0000-0000-000000000000');
+    await productGuard.deactivateAll();
 
     await acceptAllCookies(page);
 
-    // Retry navigation — RSC may cache product state
-    await expect(async () => {
-      await page.goto('/');
-      await page.waitForLoadState('domcontentloaded');
-      await expect(page.locator('[data-testid="coming-soon"]')).toBeVisible({ timeout: 5000 });
-    }).toPass({ timeout: 30000 });
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('[data-testid="coming-soon"]')).toBeVisible({ timeout: 5000 });
 
     // Should see coming soon state
     const comingSoon = page.locator('[data-testid="coming-soon"]');
@@ -208,10 +204,7 @@ test.describe('Smart Landing Page', () => {
 
   test('SCENARIO 3: User with active products should see storefront', async ({ page }) => {
     // Activate the test product + restore any originally active products
-    await supabaseAdmin
-      .from('products')
-      .update({ is_active: true })
-      .eq('id', testProductId);
+    await productGuard.setActive(testProductId, true);
     await productGuard.restore();
 
     await acceptAllCookies(page);
@@ -224,11 +217,11 @@ test.describe('Smart Landing Page', () => {
     await expect(storefront).toBeVisible({ timeout: 15000 });
 
     // Should see product cards (links to /p/)
-    const productLinks = page.locator('a[href^="/p/"]');
+    const productLinks = page.locator('#catalogue a[href^="/en/p/"]');
     await expect(productLinks.first()).toBeVisible({ timeout: 5000 });
 
     // Should see product showcase section
-    const productSection = page.locator('text=/Premium Products|Free Resources|Featured Products|Polecane/i');
+    const productSection = page.getByRole('heading', { level: 3, name: /Paid products|Free products|Featured|Polecane/i });
     await expect(productSection.first()).toBeVisible();
 
     // Should NOT see onboarding or coming soon elements
@@ -242,10 +235,7 @@ test.describe('Smart Landing Page', () => {
 
   test('SCENARIO 4: Admin with active products should see storefront (not onboarding)', async ({ page }) => {
     // Ensure product is active
-    await supabaseAdmin
-      .from('products')
-      .update({ is_active: true })
-      .eq('id', testProductId);
+    await productGuard.setActive(testProductId, true);
 
     await loginAsAdmin(page);
     await page.goto('/');
@@ -257,7 +247,7 @@ test.describe('Smart Landing Page', () => {
     await expect(storefront).toBeVisible({ timeout: 10000 });
 
     // Should see product cards (links to /p/)
-    const productLinks = page.locator('a[href^="/p/"]');
+    const productLinks = page.locator('#catalogue a[href^="/en/p/"]');
     await expect(productLinks.first()).toBeVisible({ timeout: 5000 });
 
     // Should NOT see onboarding
@@ -328,19 +318,13 @@ test.describe('Smart Landing Page', () => {
   test('Onboarding CTA quick links should navigate correctly', async ({ page }) => {
     // Ensure ALL products are inactive (restore first to clear state from previous test)
     await productGuard.restore();
-    await supabaseAdmin
-      .from('products')
-      .update({ is_active: false })
-      .neq('id', '00000000-0000-0000-0000-000000000000');
+    await productGuard.deactivateAll();
 
     await loginAsAdmin(page);
 
-    // Retry navigation — RSC may cache product state
-    await expect(async () => {
-      await page.goto('/');
-      await page.waitForLoadState('domcontentloaded');
-      await expect(page.locator('[data-testid="admin-onboarding"]')).toBeVisible({ timeout: 5000 });
-    }).toPass({ timeout: 30000 });
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('[data-testid="admin-onboarding"]')).toBeVisible({ timeout: 5000 });
 
     // Scope all locators to onboarding section (not sidebar which has same hrefs)
     const onboarding = page.locator('[data-testid="admin-onboarding"]');
@@ -369,10 +353,7 @@ test.describe('Smart Landing Page', () => {
 
   test('Storefront should link to /products catalog', async ({ page }) => {
     // Ensure product is active
-    await supabaseAdmin
-      .from('products')
-      .update({ is_active: true })
-      .eq('id', testProductId);
+    await productGuard.setActive(testProductId, true);
 
     await page.waitForTimeout(1000);
 
@@ -386,7 +367,7 @@ test.describe('Smart Landing Page', () => {
     await expect(storefront).toBeVisible({ timeout: 10000 });
 
     // Verify product links exist (which effectively shows products catalog)
-    const productLinks = page.locator('a[href^="/p/"]');
+    const productLinks = page.locator('#catalogue a[href^="/en/p/"]');
     await expect(productLinks.first()).toBeVisible();
   });
 

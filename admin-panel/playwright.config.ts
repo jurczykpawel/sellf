@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 import path from 'path';
+import { SECTION_FIXTURE_FILES } from './playwright.sections.config';
 
 // Load environment variables from .env.local
 dotenv.config({ path: path.resolve(__dirname, '.env.local') });
@@ -80,8 +81,9 @@ export default defineConfig({
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry failed tests once */
-  retries: 1,
+  /* A failed attempt is a failed run. */
+  retries: 0,
+  updateSnapshots: 'none',
   /* Use single worker for test stability (avoids race conditions with shared database) */
   workers: 1,
   /* Reporter: 'dot' in quiet mode (ttt/tttt), 'list' otherwise */
@@ -111,7 +113,7 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
       // Rate-limiting, visual, accessibility, and route-heavy specs are excluded here
-      testIgnore: ['**/stripe-live/**', '**/rate-limiting.spec.ts', '**/rate-limiting-v1.spec.ts', '**/accessibility.spec.ts', ...HEAVY_SPECS],
+      testIgnore: ['**/stripe-live/**', '**/rate-limiting.spec.ts', '**/rate-limiting-v1.spec.ts', '**/accessibility.spec.ts', ...HEAVY_SPECS, ...SECTION_FIXTURE_FILES.map(file => `**/${file}`)],
     },
     {
       // Route-dense specs split off so the sharded runner can isolate them on their own

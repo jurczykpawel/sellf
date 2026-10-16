@@ -170,7 +170,7 @@ export default function PaymentTransactionsTable({
                     )}
                     {refundProgress.state === 'partial' && (
                       <div className="space-y-1">
-                        <div className="text-sm text-amber-600">
+                        <div className="text-sm text-sf-warning">
                           {t('partialRefunded', {
                             amount: formatCurrency(refundProgress.refundedAmount, transaction.currency),
                             defaultValue: `Partially refunded: ${formatCurrency(refundProgress.refundedAmount, transaction.currency)}`,
