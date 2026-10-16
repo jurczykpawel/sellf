@@ -22,7 +22,7 @@ function snapshot(): TemplateReadResult {
   const published = { format: 1 as const, templateId: 'd' as const, settingsByTemplate: { d: { heroProduct: '11111111-1111-4111-8111-111111111111' } }, overridesByTemplate: {}, tokens: null,
     content: { 'home.hero': { sourceLocale: 'en' as const, en: { kind: 'hero' as const, heading: 'A workshop', eyebrow: '', body: '', steps: ['Choose input'] } } } };
   const rights = templateRightsForTier('free');
-  return { revision: 7, draft: null, published, rights, ...inspectTemplate(published, rights, 'draft') };
+  return { revision: 7, draft: null, published, rights: { ...rights, canPublish: [{ templateId: 'default', allowed: true, reason: null }, { templateId: 'd', allowed: false, reason: 'ENTITLEMENT' }] }, ...inspectTemplate(published, rights, 'draft') };
 }
 function setup(locale = 'en') {
   return render(React.createElement(NextIntlClientProvider, { locale, messages: locale === 'pl' ? pl : en }, React.createElement(StorefrontEditor, { initial: snapshot() })));

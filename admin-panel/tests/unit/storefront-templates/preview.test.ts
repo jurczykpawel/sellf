@@ -1,6 +1,6 @@
 /** Private preview evidence contract. */
 import { beforeEach, expect, it, vi } from 'vitest';
-import { D_CONFIG, DEFAULT_CONFIG, D_LOCALIZED_CONFIG } from '@/lib/storefront-templates/fixtures';
+import { D_CONFIG, DEFAULT_CONFIG, D_LOCALIZED_CONFIG, PUBLIC_FIXTURE } from '@/lib/storefront-templates/fixtures';
 import { verifyTemplateSession, verifyTemplateApiKey } from '@/lib/storefront-templates/mutations';
 import { preparePreview } from '@/lib/storefront-templates/preview';
 const m = vi.hoisted(() => ({ client: vi.fn(), read: vi.fn(), rate: vi.fn(), auth: vi.fn() }));
@@ -12,6 +12,10 @@ vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 vi.mock('@/lib/auth-server', () => ({ requireAdminApi: async () => ({ user: { id: 'dddddddd-0000-4000-a000-000000000000' } }) }));
 vi.mock('@/lib/supabase/admin', () => ({ createPlatformClient: m.client }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: m.rate }));
+vi.mock('@/lib/storefront-templates/catalogue', () => ({
+  loadCatalogueGroups: async () => ({ success: true, data: { all: { products: [], nextCursor: null } } }),
+  loadStorefrontBindings: async () => ({ success: true, data: { hero: null, closing: null, starters: [], categories: PUBLIC_FIXTURE.categories } }),
+}));
 vi.mock('@/lib/storefront-templates/repository', () => ({ readStorefrontConfig: m.read }));
 beforeEach(() => {
   vi.resetAllMocks(); m.client.mockReturnValue({}); m.rate.mockResolvedValue(true);
@@ -80,4 +84,23 @@ it('uses declared Polish fixture content in the Polish rendered presentation', a
   expect(await preparePreview(await verifyTemplateSession(), { ...input, locale: 'pl' })).toMatchObject({ success: true });
   const response = await preparePreview(await verifyTemplateSession(), { ...input, locale: 'pl' });
   expect(response).toMatchObject({ data: { model: { sections: expect.arrayContaining([expect.objectContaining({ type: 'hero-product/1', props: expect.objectContaining({ content: expect.objectContaining({ heading: 'Zbuduj swój pierwszy automatyczny raport' }) }) })]) } } });
+});
+
+it('allows a full evidence matrix plus repeated viewport navigations within one minute', async () => {
+  const counts = new Map<string, number>();
+  m.rate.mockImplementation(async (action: string, limit: number) => {
+    const count = (counts.get(action) ?? 0) + 1; counts.set(action, count);
+    return count <= limit;
+  });
+  const auth = await verifyTemplateSession();
+  for (const fixture of ['standard', 'empty', 'long', 'unavailable', 'published-products']) {
+    for (const locale of ['en', 'pl']) for (let navigation = 0; navigation < 5; navigation++) {
+      expect(await preparePreview(auth, { revision: 3, locale, fixture })).toMatchObject({ success: true });
+    }
+  }
+  expect(m.rate).toHaveBeenCalledWith('storefront_preview', 120, 1, expect.any(String));
+});
+it('names preview failures by operation', async () => {
+  m.rate.mockResolvedValue(false);
+  expect(await preparePreview(await verifyTemplateSession(), input)).toMatchObject({ message: 'Storefront preview could not be completed' });
 });
