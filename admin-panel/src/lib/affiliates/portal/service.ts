@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { requireAdminApi } from '@/lib/auth-server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { buildBalances, isSyncPending, portalQuerySchema } from '@/lib/affiliates/portal/model';
+import { buildBalances, getCommissionStatus, isSyncPending, portalQuerySchema } from '@/lib/affiliates/portal/model';
 import type { Metadata } from 'next';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CommissionFact, LedgerFact, PortalData, PortalResult } from '@/lib/affiliates/portal/model';
@@ -32,7 +32,7 @@ async function scan<T extends { id: string }>(client: SupabaseClient, table: str
     cursor = data[data.length - 1].id;
   }
 }
-const commissionSelect = 'id,currency,eligible_at,paid_at,accrued_minor::text,livemode,dispute_seen,dispute_reviewed_at,observed_status,observed_refunded_gross::text,payment:payment_transactions!inner(status,refunded_amount::text,work:affiliate_work(requested_generation::text,processed_generation::text,status))';
+const commissionSelect = 'rule:affiliate_rules!inner(product:products!inner(name)),id,currency,eligible_at,paid_at,accrued_minor::text,livemode,dispute_seen,dispute_reviewed_at,observed_status,observed_refunded_gross::text,payment:payment_transactions!inner(status,refunded_amount::text,work:affiliate_work(requested_generation::text,processed_generation::text,status))';
 interface Binding { id: string; retired_at: string | null; coupon: { code: string; is_active: boolean; allowed_product_ids: string[] | null } }
 interface Rule { id: string; product_id: string; revision: number; enabled: boolean; percentage_bps: number | null; fixed_minor: string | null; currency: string | null; product: { name: string; is_active: boolean; product_type: string } }
 async function readData(client: SupabaseClient, member: { id: string; code: string; status: string }, query: Query, admin: boolean): Promise<PortalResult> {
@@ -54,7 +54,7 @@ async function readData(client: SupabaseClient, member: { id: string; code: stri
   const data: PortalData = {
     member: { code: member.code, status: member.status }, as_of,
     balances: buildBalances(commissions, ledger, as_of),
-    commissions: page.map(c => ({ reference: c.id, currency: c.currency, paid_at: c.paid_at, eligible_at: c.eligible_at, accrued_minor: c.accrued_minor,
+    commissions: page.map(c => ({ product: c.rule.product.name, status: getCommissionStatus(c, ledger.filter(e => e.commission_id === c.id), as_of), reference: c.id, currency: c.currency, paid_at: c.paid_at, eligible_at: c.eligible_at, accrued_minor: c.accrued_minor,
       current_minor: String(current.get(c.id) ?? BigInt(0)), livemode: c.livemode, sync_pending: isSyncPending(c),
       needs_review: c.payment.work?.status === 'needs_review' || c.dispute_seen && c.dispute_reviewed_at === null })),
     codes: activeBindings.map(b => ({ code: b.coupon.code, active: b.coupon.is_active })),

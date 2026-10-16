@@ -29,6 +29,12 @@ it('supports EN/PL, desktop/mobile, light/dark, keyboard and enlarged text', asy
       expect(await page.getByRole('button', { name: portalMessages[locale].next }).evaluate(el => el === document.activeElement)).toBe(true);
       expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
       if (width !== 320 && !dark && zoom === 1) await page.screenshot({ path: `/tmp/a1-7-${locale}-${width}.png`, fullPage: true });
+      if (width === 320 && zoom === 2) {
+        await page.getByText(portalMessages[locale].help, { exact: true }).click();
+        await page.getByText(portalMessages[locale].technical, { exact: true }).click();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+      }
     }
   } finally { await browser.close(); }
 }, 120000);

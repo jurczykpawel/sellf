@@ -4,7 +4,7 @@ import { buildBalances, isSyncPending, portalQuerySchema } from '@/lib/affiliate
 import type { CommissionFact, LedgerFact } from '@/lib/affiliates/portal/model';
 const now = '2026-10-16T12:00:00Z';
 const commission = (id: string, eligible_at: string | null = '2026-01-01T00:00:00Z'): CommissionFact => ({
-  id, currency: 'PLN', eligible_at, paid_at: now, accrued_minor: '2000', livemode: false,
+  rule: { product: { name: 'Affiliate PLN Course' } }, id, currency: 'PLN', eligible_at, paid_at: now, accrued_minor: '2000', livemode: false,
   dispute_seen: false, dispute_reviewed_at: null, observed_status: 'completed', observed_refunded_gross: '0',
   payment: { status: 'completed', refunded_amount: '0', work: null },
 });
@@ -51,4 +51,14 @@ it('detects source differences and exact generation backlog', () => {
   expect(isSyncPending(c)).toBe(true);
   c.payment.work = null; c.payment.refunded_amount = '1'; expect(isSyncPending(c)).toBe(true);
   c.payment.refunded_amount = '0'; c.payment.status = 'disputed'; expect(isSyncPending(c)).toBe(true);
+});
+it('projects held, mature, reserved, paid and reversed commission states', async () => {
+  const { getCommissionStatus } = await import('@/lib/affiliates/portal/model');
+  const c = commission('a');
+  const rows = [entry('1', 'a', 'accrual', '2000')];
+  expect(getCommissionStatus(c, rows, now)).toBe('eligible');
+  c.eligible_at = null; expect(getCommissionStatus(c, rows, now)).toBe('held');
+  rows[0].allocations = allocated('reserved'); expect(getCommissionStatus(c, rows, now)).toBe('reserved');
+  rows[0].allocations = allocated('paid'); expect(getCommissionStatus(c, rows, now)).toBe('paid');
+  rows.push(entry('2', 'a', 'reversal', '-2000')); expect(getCommissionStatus(c, rows, now)).toBe('reversed');
 });

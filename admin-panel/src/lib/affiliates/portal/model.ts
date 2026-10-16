@@ -4,6 +4,7 @@ import { currencySchema } from '@/lib/affiliates/model';
 
 export const portalQuerySchema = z.strictObject({ cursor: z.uuid().transform(value => value.toLowerCase()).optional(), limit: z.number().int().min(1).max(100).default(25), currency: currencySchema.optional() });
 export interface CommissionFact {
+  rule: { product: { name: string } };
   id: string; currency: string; eligible_at: string | null; paid_at: string; accrued_minor: string; livemode: boolean;
   dispute_seen: boolean; dispute_reviewed_at: string | null; observed_status: string; observed_refunded_gross: string;
   payment: { status: string; refunded_amount: string | null; work: { requested_generation: string; processed_generation: string; status: string } | null };
@@ -18,7 +19,7 @@ export interface CurrencyBalance {
 export interface PortalData {
   member: { code: string; status: string };
   balances: CurrencyBalance[];
-  commissions: { reference: string; currency: string; paid_at: string; eligible_at: string | null; accrued_minor: string; current_minor: string; livemode: boolean; sync_pending: boolean; needs_review: boolean }[];
+  commissions: { product: string; status: CommissionStatus; reference: string; currency: string; paid_at: string; eligible_at: string | null; accrued_minor: string; current_minor: string; livemode: boolean; sync_pending: boolean; needs_review: boolean }[];
   codes: { code: string; active: boolean }[];
   rules: { product: string; percentage_bps: number | null; fixed_minor: string | null; currency: string | null; enabled: boolean }[];
   next_cursor: string | null; as_of: string; sync_pending: boolean; needs_review: boolean;
@@ -56,4 +57,15 @@ export function buildBalances(commissions: CommissionFact[], entries: LedgerFact
     return { currency, accrued: String(accrued), reversed: String(reversed), paid: String(settled), reserved: String(reserved), held: String(held),
       eligible: String(available > BigInt(0) ? available : BigInt(0)), debt: String(available < BigInt(0) ? -available : BigInt(0)), balance: String(balance) };
   });
+}
+
+export type CommissionStatus = 'held' | 'eligible' | 'reserved' | 'paid' | 'reversed';
+export function getCommissionStatus(c: CommissionFact, entries: LedgerFact[], now: string): CommissionStatus {
+  const current = entries.reduce((sum, e) => sum + BigInt(e.amount_minor), BigInt(0));
+  if (current <= BigInt(0)) return 'reversed';
+  if (entries.some(e => e.allocations.some(a => a.released_at === null && a.payout.status === 'reserved'))) return 'reserved';
+  const paid = entries.reduce((sum, e) => sum + (e.allocations.some(a => a.released_at === null && a.payout.status === 'paid') ? BigInt(e.amount_minor) : BigInt(0)), BigInt(0));
+  if (paid >= current) return 'paid';
+  return c.eligible_at !== null && Date.parse(c.eligible_at) <= Date.parse(now)
+    && ((!c.dispute_seen && c.payment.status !== 'disputed') || c.dispute_reviewed_at !== null) ? 'eligible' : 'held';
 }

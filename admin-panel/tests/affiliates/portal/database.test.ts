@@ -55,6 +55,8 @@ it('reads own seeded codes, latest product rules and exact PLN/EUR totals', asyn
   expect(result.data.rules).toHaveLength(3);
   expect(result.data.balances).toMatchObject([{ currency: 'EUR', accrued: '2000' }, { currency: 'PLN', accrued: '4000', held: '2000' }]);
   expect(result.data.commissions).toHaveLength(1);
+  expect(['Affiliate PLN Course', 'Affiliate EUR Toolkit', 'Affiliate Unlimited Course']).toContain(result.data.commissions[0].product);
+  expect(['eligible', 'held']).toContain(result.data.commissions[0].status);
   const next = await readPartnerPortal({ limit: 1, cursor: result.data.next_cursor });
   expect(next.success && next.data.commissions[0].reference).not.toBe(result.data.commissions[0].reference);
   expect(await readPartnerPortal({ limit: 100, currency: 'EUR' })).toMatchObject({ success: true, data: { commissions: [{ currency: 'EUR' }], next_cursor: null } });
@@ -103,6 +105,7 @@ it('reconciles recorded allocations, settlements and a refund after payment', as
       END $$;`);
     const result = await readPartnerPortal();
     expect(result).toMatchObject({ success: true, data: { balances: [{ accrued: '202000', reversed: '2000', paid: '202000', reserved: '0', eligible: '0', debt: '2000', balance: '-2000' }] } });
+    expect(result.success && result.data.commissions.every(c => ['paid', 'reversed'].includes(c.status))).toBe(true);
     expect(JSON.stringify(result)).not.toContain('invoice-sentinel');
     expect(JSON.stringify(result)).not.toContain('bank-');
   } finally { state.user = 'bbbbbbbb-0000-4000-a000-000000000000'; }
