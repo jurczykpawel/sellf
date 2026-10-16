@@ -64,6 +64,7 @@ export class SellfApiClient {
     path: string,
     options?: {
       body?: unknown;
+      template?: boolean;
       params?: Record<string, string | number | boolean | undefined>;
     }
   ): Promise<T> {
@@ -117,12 +118,20 @@ export class SellfApiClient {
     const data = await response.json() as Record<string, unknown>;
 
     if (!response.ok) {
+      if (options?.template) {
+        throw new ApiClientError(String(data.code ?? 'UNAVAILABLE'), String(data.message ?? 'Template API unavailable'), response.status, undefined, data);
+      }
       const errorData = data.error as ApiError | undefined;
       const error = errorData || { code: 'UNKNOWN_ERROR', message: 'An unknown error occurred' };
       throw new ApiClientError(error.code, error.message, response.status, error.details);
     }
 
     return data as T;
+  }
+
+  /** Template endpoints return top-level bodies, including structured failures. */
+  async template(method: 'GET' | 'POST' | 'PUT', endpoint: string, body?: unknown): Promise<Record<string, unknown>> {
+    return this.request(method, `/api/v1/templates/${endpoint}`, { body, template: true });
   }
 
   // HTTP method shortcuts
@@ -148,7 +157,7 @@ export class ApiClientError extends Error {
   statusCode: number;
   details?: Record<string, unknown>;
 
-  constructor(code: string, message: string, statusCode: number, details?: Record<string, unknown>) {
+  constructor(code: string, message: string, statusCode: number, details?: Record<string, unknown>, public readonly templateError?: Record<string, unknown>) {
     super(message);
     this.name = 'ApiClientError';
     this.code = code;
