@@ -34,14 +34,14 @@ export async function loadPublicStorefront(locale: 'en' | 'pl', params: Storefro
     const theme = resolvePublicTheme(STOREFRONT_TEMPLATES[selection.templateId].tokens, published.success ? published.data.tokens : null, rights.canCustomizeTokens);
     const spec = selection.recipe.sections.find(s => s.type === 'catalogue/1');
     if (!spec || spec.type !== 'catalogue/1') return { success: false };
-    const { heroProduct, closingProduct, starterProducts, taskCategories } = selection.settings;
+    const { heroProduct, closingProduct, starterProducts, taskCategories, comparisonProducts } = selection.settings;
     const query = { locale, search: search.data.search ?? '', categoryIds: search.data.category ? [search.data.category] : [], pageSize: spec.pageSize };
     const [pages, bound] = await Promise.all([
       loadCatalogueGroups(client, query, spec.variant),
-      loadStorefrontBindings(client, { locale, heroProduct, closingProduct, starterProducts, taskCategories, target: spec.id }),
+      loadStorefrontBindings(client, { locale, heroProduct, closingProduct, starterProducts, taskCategories, comparisonProducts, target: spec.id }),
     ]);
     if (!pages.success || !bound.success) return { success: false };
-    const products = [bound.data.hero, bound.data.closing, ...bound.data.starters].filter(p => p !== null);
+    const products = [bound.data.hero, bound.data.closing, ...bound.data.starters, ...bound.data.comparison].filter(p => p !== null);
     let hasProducts = Object.values(pages.data).some(page => page && page.products.length > 0) || products.length > 0;
     if (!hasProducts && (query.search || query.categoryIds.length)) {
       const unfiltered = await loadCataloguePage(client, { locale, pageSize: 9 });

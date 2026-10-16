@@ -2,6 +2,11 @@
 import type { PublicThemeTokens, StorefrontConfig } from '@/lib/storefront-templates/schemas';
 
 export const D_TOKENS: PublicThemeTokens = {"format":1,"light":{"background":"#FAF8F4","foreground":"#181818","accent":"#075C43","accentForeground":"#FFFFFF","muted":"#F0EEE9","mutedForeground":"#545454","border":"#767676"},"dark":{"background":"#151916","foreground":"#F6F7F5","accent":"#89D8B5","accentForeground":"#10251B","muted":"#202923","mutedForeground":"#BAC7BE","border":"#789082"},"typography":{"font":"geist","bodyWeight":400,"headingWeight":600,"baseSizePx":16,"headingLetterSpacingEm":-0.01},"shapes":{"radiusSmPx":4,"radiusMdPx":12,"radiusLgPx":16}};
+/** Offer-led palette; core font and action semantics remain shared. */
+export const A_TOKENS: PublicThemeTokens = { ...D_TOKENS,
+  light: { ...D_TOKENS.light, background: '#F5F5F0', foreground: '#17191F', accent: '#244B9A', muted: '#E8EEFB', mutedForeground: '#555D69' },
+  dark: { ...D_TOKENS.dark, background: '#151923', foreground: '#F5F6FA', accent: '#ABC6FF', accentForeground: '#142341', muted: '#222D43', mutedForeground: '#BEC9DF', border: '#8192B1' },
+};
 export const DEFAULT_CONFIG: StorefrontConfig = { format: 1, templateId: 'default', settingsByTemplate: {}, overridesByTemplate: {}, content: {}, tokens: null };
 export const D_CONFIG: StorefrontConfig = {
   "format": 1,

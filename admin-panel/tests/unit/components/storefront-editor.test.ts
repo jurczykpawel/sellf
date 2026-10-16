@@ -11,6 +11,7 @@ import type { TemplateReadResult } from '@/lib/storefront-templates/lifecycle';
 import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
 
+vi.mock('@/components/storefront-editor/TemplateLicenses', () => ({ default: () => null }));
 vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ default: {} }));
 const action = vi.hoisted(() => vi.fn());
 const products = [{ id: '11111111-1111-4111-8111-111111111111', name: 'Automation workshop', price: 49, currency: 'PLN', is_active: true, image_url: null }, { id: '22222222-2222-4222-8222-222222222222', name: 'Reporting course', price: 99, currency: 'PLN', is_active: true, image_url: null }];
@@ -168,4 +169,33 @@ it('shows the protected appearance values separately from storefront overrides',
   expect(view.getAllByText(/Protected by Sellf/).length).toBeGreaterThan(0);
   expect(view.getByText('12 · Protected by Sellf')).toBeTruthy();
   expect(view.container.querySelectorAll('[data-token-origin]')).toHaveLength(22);
+});
+
+it('edits A bindings by name and keeps D bindings intact through switching', async () => {
+  const view = setup();
+  fireEvent.change(view.getByLabelText('Template'), { target: { value: 'storefront-a' } });
+  expect(view.getByRole('option', { name: 'Offer-led storefront' })).toBeTruthy();
+  expect(view.queryByRole('button', { name: /Reorder Hero/ })).toBeNull();
+  fireEvent.click(view.getByRole('button', { name: 'Compare separate offers', exact: true }));
+  await waitFor(() => expect(view.getByRole('button', { name: /Add Reporting course/ })).toBeTruthy());
+  fireEvent.click(view.getByRole('button', { name: /Add Reporting course/ }));
+  const search = view.getByRole('searchbox', { name: /^Two separate offers/ });
+  await waitFor(() => expect(document.activeElement).toBe(search));
+  fireEvent.focus(search);
+  fireEvent.change(search, { target: { value: 'Automation' } });
+  await waitFor(() => expect(view.getByRole('button', { name: /Add Automation workshop/ })).toBeTruthy());
+  fireEvent.click(view.getByRole('button', { name: /Add Automation workshop/ }));
+  fireEvent.change(view.getByLabelText('Compare separate offers · EN · 1 · Heading'), { target: { value: 'Start with the course' } });
+  fireEvent.change(view.getByLabelText('Template'), { target: { value: 'd' } });
+  await waitFor(() => expect(view.getByText('Automation workshop')).toBeTruthy());
+  fireEvent.change(view.getByLabelText('Template'), { target: { value: 'storefront-a' } });
+  fireEvent.click(view.getByRole('button', { name: 'Compare separate offers', exact: true }));
+  expect(view.getByDisplayValue('Start with the course')).toBeTruthy();
+  action.mockResolvedValueOnce({ success: true, revision: 8, validation: { valid: true, errors: [], warnings: [] } });
+  fireEvent.click(view.getByRole('button', { name: 'Save draft' }));
+  await waitFor(() => expect(action).toHaveBeenCalled());
+  const config = action.mock.calls[0][0].config;
+  expect(config.settingsByTemplate['storefront-a'].comparisonProducts).toEqual([products[1].id, products[0].id]);
+  expect(config.settingsByTemplate.d).toEqual(snapshot().published.settingsByTemplate.d);
+  expect(config.content['home.comparison'].en.items[0]).toMatchObject({ productId: products[1].id, heading: 'Start with the course' });
 });

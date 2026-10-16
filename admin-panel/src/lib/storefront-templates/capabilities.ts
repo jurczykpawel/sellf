@@ -17,7 +17,7 @@ export function templateCapabilities() {
   const slots = Object.fromEntries(Object.entries(contentSchema.shape).map(([id, schema]) => [id, schema.unwrap().options[0].shape.en.shape.kind.value]));
   return {
     validatorVersion: 1, offline: true, templates: Object.values(STOREFRONT_TEMPLATES), coreSettings: CORE_SETTINGS,
-    phase2: { selectable: false, slots: Object.fromEntries(Object.entries(phase2ContentSchema.shape).map(([id, schema]) => [id, schema.unwrap().options[0].shape.en.shape.kind.value])), limits: { comparison: 2, featured: 6, paths: 4, projects: 3, categoryDescriptions: 12 } },
+    phase2: { selectable: false, installedTemplateIds: ['storefront-a'], slots: Object.fromEntries(Object.entries(phase2ContentSchema.shape).map(([id, schema]) => [id, schema.unwrap().options[0].shape.en.shape.kind.value])), limits: { comparison: 2, featured: 6, paths: 4, projects: 3, categoryDescriptions: 12 } },
     slots, resetPaths, schemas: templateSchemas(),
     limits: { configInputBytes: CONFIG_BYTES, configStoredBytes: CONFIG_BYTES, requestBytes: ENVELOPE_BYTES, depth: 12, revision: Number.MAX_SAFE_INTEGER },
   };

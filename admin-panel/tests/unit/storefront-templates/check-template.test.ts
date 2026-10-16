@@ -108,7 +108,7 @@ describe('template check command', () => {
     const capabilities = run('--capabilities').output;
     expect(capabilities.coreSettings).toEqual(CORE_SETTINGS);
     expect(capabilities.templates).toEqual(Object.values(STOREFRONT_TEMPLATES));
-    expect(capabilities.slots).toEqual({ 'home.hero': 'hero', 'home.tasks': 'heading', 'home.starts': 'heading', 'home.faq': 'faq', 'home.closing': 'cta' });
+    expect(capabilities.slots).toEqual({ 'home.hero': 'hero', 'home.tasks': 'heading', 'home.starts': 'heading', 'home.faq': 'faq', 'home.closing': 'cta', 'home.comparison': 'comparison', 'home.catalogue': 'heading' });
     expect(capabilities.schemas.config).toEqual(z.toJSONSchema(configSchema));
     for (const id of ['default', 'd']) {
       const expected = ['settings.density', 'overrides.order', 'overrides.hidden', ...(id === 'd' ? ['hero', 'tasks', 'start', 'catalogue', 'faq', 'closing'] : ['catalogue']).map(section => `overrides.variants.${section}`), ...Object.entries(D_TOKENS).flatMap(([group, value]) => typeof value === 'object' ? Object.keys(value).map(leaf => `tokens.${group}.${leaf}`) : [])];

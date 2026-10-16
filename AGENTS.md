@@ -434,6 +434,13 @@ To execute SQL queries directly on the local database, use `docker exec` with th
 
 ### Storefront Template Snapshots
 
+The installed `storefront-a` entry composes the frozen Phase 2 offer-focus,
+comparison and compact variants with the existing categories/starters/FAQ/closing.
+Its exact section order is fixed; the catalogue remains required. Runtime schemas
+adopt A from the frozen `base-schemas.ts`/`phase2-contracts.ts` grammar. The additive
+A migration owns the current generated config schema; never regenerate released
+Phase 1 SQL. See `docs/templates/phase2-contracts.md` for the adoption boundary.
+
 `storefront_config` is a boolean-keyed singleton holding the current revision,
 draft and published configuration. `storefront_config_history` retains complete
 draft/published pairs by revision. Both start at revision 0 with the free default
@@ -466,7 +473,7 @@ Offline authoring uses `bun run template:check -- --config file --json` (or
 it does not attest live rights or publication readiness. `--print-schema config`
 (or `recipe`) and `--capabilities` generate contracts from Zod/registry sources;
 standalone JSON Schema files are not committed. `template:schema` only refreshes
-schemas embedded in the unreleased Phase 1 migration; released migrations must
+the config schema embedded in the unreleased A migration; released migrations must
 remain immutable. No renderer or instance connection is needed for CLI checks.
 
 Public catalogue inputs live in `src/lib/storefront-templates/catalogue.ts`.

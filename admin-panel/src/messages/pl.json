@@ -4521,6 +4521,8 @@
     "browseCatalogue": "Przeglądaj katalog"
   },
   "storefrontEditor": {
+    "comparisonOffers": "Dwie osobne oferty",
+    "offerNumber": "Oferta {number}",
     "title": "Szablony sklepu",
     "intro": "Przygotuj prywatny szkic. Zapis nie zmienia publicznego sklepu.",
     "template": "Szablon",
@@ -4583,6 +4585,7 @@
     "detail-cards": "Karty ze szczegółami",
     "default-groups": "Karty w grupach",
     "sectionNames": {
+      "comparison": "Dwie osobne oferty",
       "hero": "Nagłówek",
       "tasks": "Jak to działa",
       "start": "Oferty na początek",
@@ -4591,6 +4594,7 @@
       "closing": "Zaproszenie na koniec"
     },
     "sectionDescriptions": {
+      "comparison": "Przedstaw dwa osobne produkty.",
       "hero": "Przedstaw główną ofertę i pierwsze kroki.",
       "tasks": "Pomóż klientom wybrać ofertę według tematu.",
       "start": "Poleć do trzech ofert w wybranej kolejności.",

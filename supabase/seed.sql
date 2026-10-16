@@ -1233,3 +1233,14 @@ INSERT INTO public.products(name,slug,description,price,currency,is_active,is_li
  ('Limited sample guide','sample-limited-guide','A guide with a scheduled catalogue end.',10,'USD',true,true,false,null,now()+interval '2 days',null,null),
  ('Sample template sale','sample-template-sale','A template with a scheduled sale end.',25,'USD',true,true,false,null,null,15,now()+interval '3 days')
 ON CONFLICT (slug) DO NOTHING;
+
+-- Retained offer-led bindings; the published free storefront stays selected.
+UPDATE public.storefront_config SET published = jsonb_set(published, '{settingsByTemplate}',
+  jsonb_build_object('storefront-a', jsonb_build_object(
+    'heroProduct', (SELECT id FROM public.products WHERE slug = 'premium-course'),
+    'comparisonProducts', jsonb_build_array((SELECT id FROM public.products WHERE slug = 'premium-course'), (SELECT id FROM public.products WHERE slug = 'pro-toolkit')),
+    'starterProducts', jsonb_build_array((SELECT id FROM public.products WHERE slug = 'premium-course')),
+    'density', 'comfortable')))
+WHERE revision = 0;
+UPDATE public.storefront_config_history SET published = (SELECT published FROM public.storefront_config)
+WHERE revision = 0;

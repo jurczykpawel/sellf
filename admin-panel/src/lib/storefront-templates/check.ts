@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { configSchema } from '@/lib/storefront-templates/schemas';
 import { pointer, result } from '@/lib/storefront-templates/json';
 import { validateConfig } from '@/lib/storefront-templates/registry';
+import type { TemplateSettings } from '@/lib/storefront-templates/schemas';
 import type { ValidationIssue, ValidationResult } from '@/lib/storefront-templates/json';
 
 // Only identity and availability participate in offline binding checks.
@@ -25,23 +26,24 @@ export function checkTemplate(input: unknown, mode: 'draft' | 'publish' = 'draft
     warnings.push({ code: 'ENTITLEMENT', path: '', message: 'Offline checks do not verify live rights, availability, resolved tokens or publication readiness' });
     for (const warning of validation.warnings) if (warning.code === 'BINDING') errors.push(warning);
   }
-  if (parsed?.success && config.templateId === 'd') {
-    const settings = config.settingsByTemplate.d;
+  if (parsed?.success && config.templateId !== 'default') {
+    const settings = config.settingsByTemplate[config.templateId] as TemplateSettings | undefined;
     const hidden = config.overridesByTemplate.d?.hidden ?? [];
     const references: [string, string | undefined, boolean][] = [
       ['heroProduct', settings?.heroProduct, true], ['closingProduct', settings?.closingProduct, true],
+      ...(settings?.comparisonProducts ?? []).map((id, index): [string, string, boolean] => [`comparisonProducts/${index}`, id, true]),
       ...(!hidden.includes('start') ? (settings?.starterProducts ?? []).map((id, index): [string, string, boolean] => [`starterProducts/${index}`, id, false]) : []),
     ];
     for (const [field, id, required] of references) {
       if (!id) continue;
       const product = parsed.data.products.find(product => product.id === id);
       const issue: ValidationIssue | undefined = !product
-        ? { code: 'BINDING', path: `/settingsByTemplate/d/${field}`, message: 'Product is absent from public fixture' }
-        : product.availability !== 'available' ? { code: 'UNAVAILABLE_PRODUCT', path: `/settingsByTemplate/d/${field}`, message: 'Product is unavailable in public fixture' } : undefined;
+        ? { code: 'BINDING', path: `/settingsByTemplate/${config.templateId}/${field}`, message: 'Product is absent from public fixture' }
+        : product.availability !== 'available' ? { code: 'UNAVAILABLE_PRODUCT', path: `/settingsByTemplate/${config.templateId}/${field}`, message: 'Product is unavailable in public fixture' } : undefined;
       if (issue) (required ? issues : warnings).push(issue);
     }
     if (!hidden.includes('tasks')) for (const [index, id] of (settings?.taskCategories ?? []).entries()) {
-      if (!parsed.data.categories.some(category => category.id === id)) issues.push({ code: 'BINDING', path: `/settingsByTemplate/d/taskCategories/${index}`, message: 'Category is absent from public fixture' });
+      if (!parsed.data.categories.some(category => category.id === id)) issues.push({ code: 'BINDING', path: `/settingsByTemplate/${config.templateId}/taskCategories/${index}`, message: 'Category is absent from public fixture' });
     }
   }
   return result(errors, warnings);

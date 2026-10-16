@@ -28,7 +28,7 @@ export function resolveFaq(spec: unknown, inputs: Pick<SectionInputs, 'locale' |
 export function resolveProductCta(spec: unknown, inputs: SectionInputs): Result<ProductCtaProps> {
   const parsed = sectionSchema.safeParse(spec);
   const settings = settingsSchema.safeParse(inputs.settings);
-  if (!parsed.success || parsed.data.type !== 'product-cta/1' || !settings.success) return { success: false, error: 'INVALID' };
+  if (!parsed.success || parsed.data.type !== 'product-cta/1' || !('product' in parsed.data) || !settings.success) return { success: false, error: 'INVALID' };
   const section = parsed.data;
   const slot = inputs.slots[section.content.slot];
   const content = slot === undefined ? null : ctaContentSchema.safeParse(slot);

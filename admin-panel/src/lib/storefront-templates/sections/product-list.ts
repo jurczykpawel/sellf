@@ -4,7 +4,8 @@ import { phase2SectionSchema } from '@/lib/storefront-templates/phase2-contracts
 import { sectionSchema } from '@/lib/storefront-templates/schemas';
 import type { PublicProductInfo } from '@/lib/storefront-templates/catalogue';
 import type { ComparisonProps, Phase2SectionSpec, Phase2Settings, Phase2SlotContent, featuredContentSchema } from '@/lib/storefront-templates/phase2-contracts';
-import type { SectionSpec, SlotContent } from '@/lib/storefront-templates/schemas';
+import type { SectionSpec } from '@/lib/storefront-templates/base-schemas';
+import type { SlotContent } from '@/lib/storefront-templates/schemas';
 
 export const productListSectionSchema = z.union([sectionSchema.options[2], phase2SectionSchema.options[8], phase2SectionSchema.options[9]]);
 export type ProductListSpec = Extract<SectionSpec, { type: 'product-list/1' }>;

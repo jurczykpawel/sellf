@@ -1,9 +1,10 @@
 /** Public page loading and shell branches. */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { D_CONFIG, DEFAULT_CONFIG } from '@/lib/storefront-templates/fixtures';
+import { D_CONFIG, DEFAULT_CONFIG, PUBLIC_FIXTURE } from '@/lib/storefront-templates/fixtures';
 import { loadPublicStorefront } from '@/lib/storefront-templates/public-page';
-const mocks = vi.hoisted(() => ({ rate: vi.fn(), client: vi.fn(), config: vi.fn(), groups: vi.fn(), bindings: vi.fn(), page: vi.fn(), tier: vi.fn() }));
+const mocks = vi.hoisted(() => ({ rate: vi.fn(), client: vi.fn(), config: vi.fn(), groups: vi.fn(), bindings: vi.fn(), page: vi.fn(), tier: vi.fn(), keys: vi.fn() }));
 vi.mock('@/components/storefront/PublicStorefrontPage', () => ({ default: () => null }));
+vi.mock('@/lib/storefront-templates/template-license-snapshot', () => ({ getLocalTemplateIds: mocks.keys }));
 vi.mock('@/lib/license/public-snapshot', () => ({ getPublicLicenseTier: mocks.tier }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: mocks.rate }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: mocks.client }));
@@ -11,10 +12,10 @@ vi.mock('@/lib/storefront-templates/repository', () => ({ readPublishedConfig: m
 vi.mock('@/lib/storefront-templates/catalogue', () => ({ loadCatalogueGroups: mocks.groups, loadStorefrontBindings: mocks.bindings, loadCataloguePage: mocks.page }));
 vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ default: {} }));
 beforeEach(() => {
-  vi.clearAllMocks(); mocks.tier.mockReturnValue('pro'); mocks.rate.mockResolvedValue(true); mocks.client.mockReturnValue({});
+  vi.clearAllMocks(); mocks.keys.mockReturnValue([]); mocks.tier.mockReturnValue('pro'); mocks.rate.mockResolvedValue(true); mocks.client.mockReturnValue({});
   mocks.config.mockResolvedValue({ success: true, data: DEFAULT_CONFIG });
   mocks.groups.mockImplementation(async (_client, _query, variant) => ({ success: true, data: Object.fromEntries((variant === 'default-groups' ? ['featured', 'free', 'paid'] : ['all']).map(g => [g, { products: [], nextCursor: null }])) }));
-  mocks.bindings.mockResolvedValue({ success: true, data: { hero: null, closing: null, starters: [], categories: [] } });
+  mocks.bindings.mockResolvedValue({ success: true, data: { hero: null, closing: null, starters: [], comparison: [], featured: [], categories: [] } });
   mocks.page.mockResolvedValue({ success: true, data: { products: [], nextCursor: null } });
 });
 describe('public storefront loader', () => {
@@ -98,4 +99,23 @@ it('rechecks current rights for the same warm published D without changing store
   mocks.tier.mockReturnValue('free');
   expect(await loadPublicStorefront('en', {})).toMatchObject({ success: true, model: { templateId: 'default' } });
   expect(JSON.stringify(D_CONFIG)).toBe(saved);
+});
+
+it('loads A comparison products in the shared batch and uses current local grants', async () => {
+  const products = PUBLIC_FIXTURE.products.map(product => ({ ...product, marketing: { ...product.marketing, format: 'workshop' as const, sourceLocale: 'en' as const } }));
+  const settings = { heroProduct: products[0].id, comparisonProducts: [products[1].id, products[0].id], starterProducts: products.slice(1).map(product => product.id) };
+  const config = { ...D_CONFIG, templateId: 'storefront-a', settingsByTemplate: { ...D_CONFIG.settingsByTemplate, 'storefront-a': settings } };
+  mocks.config.mockResolvedValue({ success: true, data: config });
+  mocks.keys.mockReturnValue(['storefront-a']);
+  mocks.bindings.mockResolvedValue({ success: true, data: { hero: products[0], closing: null, comparison: [products[1], products[0]], starters: products.slice(1), featured: [], categories: [] } });
+  const result = await loadPublicStorefront('en', {});
+  expect(result).toMatchObject({ success: true, model: { templateId: 'storefront-a' } });
+  expect(mocks.bindings).toHaveBeenCalledExactlyOnceWith({}, expect.objectContaining(settings));
+  if (result.success) {
+    expect(result.model.sections.find(section => section.id === 'comparison')).toMatchObject({ props: { products: [products[1], products[0]] } });
+    expect(result.model.sections[0]).toMatchObject({ props: { product: products[0] } });
+  }
+  mocks.keys.mockReturnValue(['storefront-b']);
+  expect(await loadPublicStorefront('en', {})).toMatchObject({ success: true, model: { templateId: 'default' } });
+  expect(config.settingsByTemplate['storefront-a']).toEqual(settings);
 });

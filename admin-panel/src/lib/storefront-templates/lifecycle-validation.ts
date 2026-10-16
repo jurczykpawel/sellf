@@ -27,7 +27,7 @@ export function inspectTemplate(config: StorefrontConfig, rights: TemplateRights
   for (const path of contrast) issues.push({ code: 'CONTRAST', path: pointer(path.split('.')), message: 'Resolved theme does not meet contrast requirements' });
   if (!contrast.length && theme.diagnostics.length) issues.push({ code: 'CONTRAST', path: '/tokens', message: 'Template theme requires fallback' });
   if (mode === 'publish') for (const warning of structural.warnings) if (warning.code === 'BINDING') errors.push(warning);
-  const used = new Set<string>(selection.recipe.sections.flatMap(section => 'content' in section ? [section.content.slot] : []));
+  const used = new Set<string>(selection.recipe.sections.flatMap(section => 'content' in section && section.content ? [section.content.slot] : []));
   return { validation: result(errors, warnings), effectiveTemplateId: resolveSelection(config, rights.availableTemplateIds).templateId,
     effectiveTokens: theme.effective, unusedSlots: Object.keys(config.content).filter(id => !used.has(id)).sort() };
 }
@@ -41,10 +41,11 @@ export async function validateActiveBindings(client: SupabaseClient<Database>, c
   const starters = visible.has('start') ? settings.starterProducts ?? [] : [];
   const categories = visible.has('tasks') ? settings.taskCategories ?? [] : [];
   const loaded = await loadStorefrontBindings(client, { locale: 'en', heroProduct: settings.heroProduct, closingProduct: settings.closingProduct,
-    starterProducts: starters, taskCategories: categories, target: 'catalogue' });
+    comparisonProducts: settings.comparisonProducts, starterProducts: starters, taskCategories: categories, target: 'catalogue' });
   if (!loaded.success) return null;
   const errors = [...validation.errors]; const warnings = [...validation.warnings];
-  const issue = (field: string): ValidationIssue => ({ code: 'BINDING', path: `/settingsByTemplate/d/${field}`, message: 'Reference is not currently public and available' });
+  const issue = (field: string): ValidationIssue => ({ code: 'BINDING', path: `/settingsByTemplate/${config.templateId}/${field}`, message: 'Reference is not currently public and available' });
+  settings.comparisonProducts?.forEach((id, i) => { if (!loaded.data.comparison.some(product => product.id === id.toLowerCase())) errors.push(issue(`comparisonProducts/${i}`)); });
   if (settings.heroProduct && !loaded.data.hero) errors.push(issue('heroProduct'));
   if (settings.closingProduct && !loaded.data.closing) errors.push(issue('closingProduct'));
   starters.forEach((id, i) => { if (!loaded.data.starters.some(product => product.id === id.toLowerCase())) warnings.push(issue(`starterProducts/${i}`)); });

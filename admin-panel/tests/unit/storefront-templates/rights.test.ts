@@ -39,6 +39,7 @@ it('permits free draft authoring without granting activation', () => {
 
 it('requires both current platform rights and the matching locally confirmed template key', () => {
   const registry = STOREFRONT_TEMPLATES as Record<string, TemplateRegistryEntry>;
+  const original = registry['storefront-a'];
   registry['storefront-a'] = { ...registry.d, id: 'storefront-a', entitlement: { kind: 'template-key', templateId: 'storefront-a' } };
   try {
     for (const tier of ['pro', 'business'] as const) {
@@ -47,5 +48,5 @@ it('requires both current platform rights and the matching locally confirmed tem
       expect(templateRightsForTier(tier).availableTemplateIds).not.toContain('storefront-a');
     }
     for (const tier of ['free', 'registered'] as const) expect(templateRightsForTier(tier, ['storefront-a']).availableTemplateIds).toEqual(['default']);
-  } finally { delete registry['storefront-a']; }
+  } finally { registry['storefront-a'] = original; }
 });

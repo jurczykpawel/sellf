@@ -2,13 +2,15 @@
 import { APP_VERSION, isNewerVersion } from '@/lib/version';
 import { registryEntrySchema } from '@/lib/storefront-templates/schemas';
 import { CORE_SETTINGS, STOREFRONT_TEMPLATES, validateConfig, validateRecipe } from '@/lib/storefront-templates/registry';
+import { resolveSharedPhase2Section } from '@/lib/storefront-templates/phase2-shared';
 import { heroProductDefinition } from '@/lib/storefront-templates/hero-product';
 import { resolveProductList } from '@/lib/storefront-templates/sections/product-list';
 import { resolveTaskNav } from '@/lib/storefront-templates/task-nav';
 import { resolveFaq, resolveProductCta } from '@/lib/storefront-templates/faq-closing';
 import { resolveCatalogue } from '@/lib/storefront-templates/catalogue-section';
+import type { OfferFocusProps, CatalogueLinkProps } from '@/lib/storefront-templates/phase2-contracts';
 import type { HeroProductProps } from '@/lib/storefront-templates/hero-product';
-import type { ProductListProps } from '@/lib/storefront-templates/sections/product-list';
+import type { ExtendedProductListProps } from '@/lib/storefront-templates/sections/product-list';
 import type { TaskNavProps } from '@/lib/storefront-templates/task-nav-public';
 import type { FaqProps, ProductCtaProps } from '@/lib/storefront-templates/faq-closing';
 import type { CatalogueProps } from '@/lib/storefront-templates/catalogue-section';
@@ -16,14 +18,14 @@ import type { PublicCategoryInfo, PublicProductInfo } from '@/lib/storefront-tem
 import type { SlotContent, StorefrontConfig, TemplateRecipe, TemplateSettings } from '@/lib/storefront-templates/schemas';
 
 export type ResolvedSection =
-  | { id: string; type: 'hero-product/1'; props: HeroProductProps }
+  | { id: string; type: 'hero-product/1'; props: HeroProductProps | OfferFocusProps }
   | { id: string; type: 'task-nav/1'; props: TaskNavProps }
-  | { id: string; type: 'product-list/1'; props: ProductListProps }
+  | { id: string; type: 'product-list/1'; props: ExtendedProductListProps }
   | { id: string; type: 'catalogue/1'; props: CatalogueProps }
   | { id: string; type: 'faq/1'; props: FaqProps }
-  | { id: string; type: 'product-cta/1'; props: ProductCtaProps };
+  | { id: string; type: 'product-cta/1'; props: ProductCtaProps | CatalogueLinkProps };
 export interface PresentationModel {
-  locale: 'en' | 'pl'; templateId: 'default' | 'd'; sections: ResolvedSection[];
+  locale: 'en' | 'pl'; templateId: StorefrontConfig['templateId']; sections: ResolvedSection[];
   catalogue: Pick<CatalogueProps, 'groups'>;
 }
 export interface PublicInputs {
@@ -31,7 +33,7 @@ export interface PublicInputs {
   categoriesById: Record<string, PublicCategoryInfo>; catalogue: CatalogueProps;
 }
 export interface StorefrontSelection {
-  templateId: 'default' | 'd'; recipe: TemplateRecipe; settings: TemplateSettings;
+  templateId: StorefrontConfig['templateId']; recipe: TemplateRecipe; settings: TemplateSettings;
   content: StorefrontConfig['content']; diagnostic: 'INVALID' | 'UNSUPPORTED' | 'DENIED' | null;
 }
 
@@ -45,7 +47,7 @@ export function resolveSelection(input: unknown, availableTemplateIds: readonly 
   const entry = STOREFRONT_TEMPLATES[config.templateId];
   if (!entry || !registryEntrySchema.safeParse(entry).success || isNewerVersion(APP_VERSION, entry.minSellf) || !validateRecipe(entry.defaults).valid) return fallback('UNSUPPORTED');
   if (entry.entitlement.kind !== 'free' && !availableTemplateIds.includes(entry.id)) return fallback('DENIED');
-  const overrides = config.overridesByTemplate[config.templateId];
+  const overrides = config.templateId === 'storefront-a' ? undefined : config.overridesByTemplate[config.templateId];
   const sections = structuredClone(entry.defaults.sections) as TemplateRecipe['sections'];
   const variants: Partial<Record<string, string>> = overrides?.variants ?? {};
   for (const section of sections) {
@@ -65,6 +67,11 @@ export function resolvePresentation(selection: StorefrontSelection, publicInputs
   const inputs = { ...publicInputs, settings: selection.settings, slots };
   const sections: ResolvedSection[] = [];
   for (const spec of selection.recipe.sections) {
+    if ('variant' in spec && (spec.variant === 'offer-focus' || spec.variant === 'catalogue-link')) {
+      const resolved = resolveSharedPhase2Section(spec, inputs, selection.recipe);
+      if (resolved.success && resolved.data.type !== 'task-nav/1') sections.push(resolved.data);
+      continue;
+    }
     switch (spec.type) {
       case 'hero-product/1': sections.push({ id: spec.id, type: spec.type, props: heroProductDefinition.resolve(spec, inputs) }); break;
       case 'product-list/1': sections.push({ id: spec.id, type: spec.type, props: resolveProductList(spec, inputs) }); break;
@@ -80,6 +87,7 @@ export function resolvePresentation(selection: StorefrontSelection, publicInputs
         break;
       }
       case 'product-cta/1': {
+        if ('variant' in spec) break;
         const resolved = resolveProductCta(spec, inputs);
         if (resolved.success) sections.push({ id: spec.id, type: spec.type, props: resolved.data });
         break;

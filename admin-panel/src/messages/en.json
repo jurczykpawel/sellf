@@ -4521,6 +4521,8 @@
     "browseCatalogue": "Browse the catalogue"
   },
   "storefrontEditor": {
+    "comparisonOffers": "Two separate offers",
+    "offerNumber": "Offer {number}",
     "title": "Storefront templates",
     "intro": "Compose a private draft. Saving does not change your public storefront.",
     "template": "Template",
@@ -4583,6 +4585,7 @@
     "detail-cards": "Detailed cards",
     "default-groups": "Grouped cards",
     "sectionNames": {
+      "comparison": "Compare separate offers",
       "hero": "Hero",
       "tasks": "How it works",
       "start": "Starting offers",
@@ -4591,6 +4594,7 @@
       "closing": "Final invitation"
     },
     "sectionDescriptions": {
+      "comparison": "Introduce two separate products.",
       "hero": "Introduce your main offer and the steps to get started.",
       "tasks": "Help customers find an offer by topic.",
       "start": "Recommend up to three offers, in your preferred order.",

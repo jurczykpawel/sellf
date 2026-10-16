@@ -2,7 +2,7 @@
  * @see docs/templates/phase2-contracts.md
  */
 import { z } from 'zod';
-import { configSchema, contentSchema, ctaContentSchema, densitySchema, faqContentSchema, headingContentSchema, heroContentSchema, idSchema, recipeSchema, sectionSchema, settingsSchema, tokensSchema } from '@/lib/storefront-templates/schemas';
+import { configSchema, contentSchema, ctaContentSchema, densitySchema, faqContentSchema, headingContentSchema, heroContentSchema, idSchema, recipeSchema, sectionSchema, settingsSchema, tokensSchema } from '@/lib/storefront-templates/base-schemas';
 import { CONFIG_BYTES, isPlainJson, pointer, result, storedJsonBytes } from '@/lib/storefront-templates/json';
 import type { PublicCategoryInfo, PublicProductInfo } from '@/lib/storefront-templates/catalogue';
 import type { HeroProductProps } from '@/lib/storefront-templates/hero-product';

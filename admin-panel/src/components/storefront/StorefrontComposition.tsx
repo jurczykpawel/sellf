@@ -11,11 +11,11 @@ import { catalogueLabels } from '@/lib/storefront-templates/catalogue-section';
 import type { PresentationModel, ResolvedSection } from '@/lib/storefront-templates/resolver';
 import styles from './StorefrontComposition.module.css';
 
-function Section({ section }: { section: ResolvedSection }) {
+function Section({ section, templateId }: { section: ResolvedSection; templateId: PresentationModel['templateId'] }) {
   switch (section.type) {
     case 'hero-product/1': return <heroProductDefinition.Component {...section.props} />;
-    case 'task-nav/1': return <TaskNav {...section.props} />;
-    case 'product-list/1': return <div className={styles.starters}><PRODUCT_LIST_SECTION.Component {...section.props} /></div>;
+    case 'task-nav/1': return <div className={templateId === 'storefront-a' ? styles.categories : undefined}><TaskNav {...section.props} /></div>;
+    case 'product-list/1': return <div className={section.props.variant === 'comparison' ? undefined : styles.starters}><PRODUCT_LIST_SECTION.Component {...section.props} /></div>;
     case 'catalogue/1': return <Catalogue {...section.props} />;
     case 'faq/1': return <Faq {...section.props} />;
     case 'product-cta/1': return <ProductCta {...section.props} />;
@@ -41,7 +41,7 @@ export default function StorefrontComposition({ model, shopName, renderKey }: { 
       </dl>}
       <p>{catalogueLabels[model.locale].shown}</p>
     </header>}
-    {model.sections.map(section => <Section key={`${renderKey}:${model.templateId}:${section.id}`} section={section} />)}
+    {model.sections.map(section => <Section templateId={model.templateId} key={`${renderKey}:${model.templateId}:${section.id}`} section={section} />)}
     <footer className="border-t border-sf-border px-6 py-8 text-center text-sf-muted">
       <p>{(model.locale === 'pl' ? pl : en).storefront.footer.poweredBy.replace('{shopName}', shopName)}</p>
     </footer>

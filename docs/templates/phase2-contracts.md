@@ -160,3 +160,29 @@ visual tolerance is changed. Run the shared harness with:
 ```sh
 bunx playwright test --config playwright.sections.config.ts tests/storefront-phase2-shared.spec.ts --workers=1
 ```
+
+## Installed A composition
+
+`storefront-a` now installs the seven frozen A blocks in order: offer-focus hero,
+category links, comparison pair, three starters, compact catalogue, FAQ and
+catalogue-link closing. `phase2.installedTemplateIds` identifies this installed
+subset; the full offline A/B/C/offer contract remains non-selectable as a group.
+The category ribbon uses the existing target-scoped TaskNav events, with A-only
+composition styling. No second finder or product request is added.
+
+`base-schemas.ts` retains the Phase 1 grammar used to build the frozen extension.
+`schemas.ts` adopts only A's sections, slots and retained settings for runtime
+validation; default/D bounds remain unchanged. A's exact composition is fixed:
+its override object is empty, and its required catalogue cannot be hidden or
+reordered. Density and seller tokens remain editable. Comparison copy joins the
+two selected products by ID; product selectors use the existing name-based picker.
+A's blue palette, bundled Geist and canonical action labels are approved content
+substitutions for the prototype; there is no seller-specific shipped claim.
+
+The additive `20261016223736_storefront_a_contract.sql` installs the generated
+schema and extends stored item validation for comparison product IDs. The schema
+generator now targets this unreleased migration; Phase 1 SQL remains immutable.
+Seed data retains optional A bindings while publishing the free default, without
+credentials or premium activation. Runtime rights still combine local platform
+and matching A confirmation; missing rights select the free storefront.
+T2.8 owns the complete premium author/purchase trial before release.

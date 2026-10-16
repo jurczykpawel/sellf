@@ -7,3 +7,11 @@
 .brand dd { margin: 4px 0; font-size: 24px; font-weight: 700; }
 .starters { width: min(1248px, calc(100% - 80px)); margin-inline: auto; padding-top: 68px; }
 @media (max-width: 600px) { .starters { width: calc(100% - 36px); } }
+/* A uses the existing category handoff as the concept's quiet link ribbon. */
+.categories > section { padding: 24px 0; border: 0; background: transparent; }
+.categories section > div > div, .categories form { display: none; }
+.categories nav { margin: 0; gap: 12px; }
+.categories nav a { min-height: 44px; padding: 12px 0; border: 0; border-radius: 0; background: transparent; }
+.categories nav a > span:first-child { display: none; }
+.categories nav a > span:last-child { font-size: 12px; color: var(--sf-accent); }
+.categories a[aria-current], .categories a:hover { text-decoration: underline; }
