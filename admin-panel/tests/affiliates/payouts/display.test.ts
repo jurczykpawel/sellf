@@ -7,3 +7,11 @@ it('reads ordinary money fields as exact minor strings', () => {
   expect(parsePayoutAmount('2000', 'JPY')).toBe('2000');
   for (const v of ['1.001', 'NaN', '1e4', '92233720368547758.08']) expect(parsePayoutAmount(v, 'PLN')).toBeNull();
 });
+
+import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
+it.each(SUPPORTED_CURRENCY_CODES)('accepts exact payout input for %s', currency => {
+  const zero = ['JPY', 'KRW'].includes(currency);
+  expect(parsePayoutAmount(zero ? '1234' : '12,34', currency)).toBe('1234');
+  expect(parsePayoutAmount(zero ? '1.1' : '1.001', currency)).toBeNull();
+});
+it('rejects unsupported payout currencies', () => expect(parsePayoutAmount('12', 'XYZ')).toBeNull());

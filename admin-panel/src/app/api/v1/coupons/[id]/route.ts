@@ -388,6 +388,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'NOT_FOUND', 'Coupon not found');
     }
 
+    const binding = await supabase.from('affiliate_coupon_bindings').select('id').eq('coupon_id', id).limit(1).maybeSingle();
+    if (binding.error) return apiError(request, 'INTERNAL_ERROR', 'Failed to check coupon binding');
+    if (binding.data) return apiError(request, 'CONFLICT', 'Coupon is bound to a partner and cannot be deleted. Deactivate it instead.', { reason: ['affiliate_bound'] });
+
     // Delete coupon. Coupon redemptions intentionally use ON DELETE RESTRICT
     // so historical sales records keep a valid coupon reference.
     const { error: deleteError } = await supabase

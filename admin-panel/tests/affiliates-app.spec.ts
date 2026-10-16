@@ -15,7 +15,7 @@ test('keeps affiliate pages and CSV private for signed-out visitors', async ({ r
     expect(response.status()).toBeGreaterThanOrEqual(300);
     expect(response.headers().location).toContain('/login');
   }
-  const csv = await request.get(`/api/affiliates/payouts/${member}/csv?version=1`);
+  const csv = await request.get(`/api/affiliates/payouts/${member}/csv?version=1`, { headers: { 'Sec-Fetch-Site': 'same-origin' } });
   expect(csv.status()).toBe(401); expect(csv.headers()['cache-control']).toContain('no-store');
 });
 for (const locale of ['en', 'pl'] as const) for (const width of [1440, 390]) {

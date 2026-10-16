@@ -8,10 +8,10 @@ import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { isDemoMode } from '@/lib/demo-guard';
-import { applicationSchema, boundedInput, memberUpdateSchema, pageSchema, programUpdateSchema } from '@/lib/affiliates/admin/contracts';
+import { applicationSchema, boundedInput, memberUpdateSchema, pageSchema, programUpdateSchema, workRetrySchema } from '@/lib/affiliates/admin/contracts';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ActionResponse } from '@/lib/actions/admin-auth';
-import type { AdminOverview, AdminResult, ApplicationProgramInfo, MemberInfo, ProgramInfo, TermsInfo } from '@/lib/affiliates/admin/contracts';
+import type { AdminOverview, AdminResult, ApplicationProgramInfo, MemberInfo, ProgramInfo, TermsInfo, SyncOverview, SyncWorkInfo } from '@/lib/affiliates/admin/contracts';
 
 const programColumns = 'id,version::text,enabled,hold_days,buffer_days,terms_version,terms,thresholds';
 const memberColumns = 'id,code,status,display_name,channel,accepted_terms_version,accepted_at,version::text,created_at';
@@ -118,4 +118,32 @@ export async function applyToProgram(input: unknown): Promise<AdminResult<Member
     if (error) return dbFailure(error.code);
     refresh(); return { success: true, status: 200, data: data as unknown as MemberInfo };
   } catch { return failure('INTERNAL_ERROR'); }
+}
+
+export async function getAffiliateSyncOverview(input: unknown = {}): Promise<AdminResult<SyncOverview>> {
+  return admin(async client => {
+    const parsed = pageSchema.omit({ status: true }).safeParse(input);
+    if (!parsed.success || !boundedInput(input)) return failure('INVALID_INPUT');
+    const { cursor, limit } = parsed.data;
+    let query = client.from('affiliate_work').select('payment_id,requested_generation::text,attempts,last_error_code,payment:payment_transactions(created_at,product:products(name))')
+      .eq('status', 'needs_review').order('payment_id').limit(limit);
+    if (cursor) query = query.gt('payment_id', cursor);
+    const [failed, oldest] = await Promise.all([query,
+      client.from('affiliate_work').select('next_attempt_at')
+        .eq('status', 'pending').order('next_attempt_at').limit(1),
+    ]);
+    if (failed.error || oldest.error) return dbFailure((failed.error ?? oldest.error)!.code);
+    const work = failed.data as unknown as SyncWorkInfo[];
+    return { success: true, data: { work, next_cursor: work.length === limit ? work.at(-1)!.payment_id : null, oldest_pending_at: oldest.data?.[0]?.next_attempt_at ?? null } };
+  });
+}
+export async function retryAffiliateWork(input: unknown): Promise<AdminResult<undefined>> {
+  return admin(async (client, actor) => {
+    const parsed = workRetrySchema.safeParse(input);
+    if (!parsed.success || !boundedInput(input)) return failure('INVALID_INPUT');
+    const p = parsed.data;
+    const { error } = await client.rpc('affiliate_work_retry', { p_actor: actor, p_payment: p.payment_id, p_generation: p.generation, p_reason: p.reason });
+    if (error) return dbFailure(error.code);
+    refresh(); return { success: true };
+  }, true);
 }

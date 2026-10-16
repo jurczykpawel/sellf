@@ -2,7 +2,7 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-const actions = vi.hoisted(() => ({ applyToProgram: vi.fn(), updateProgram: vi.fn(), updateMember: vi.fn(), getAdminOverview: vi.fn(), getAcceptedTerms: vi.fn() }));
+const actions = vi.hoisted(() => ({ applyToProgram: vi.fn(), updateProgram: vi.fn(), updateMember: vi.fn(), getAdminOverview: vi.fn(), getAcceptedTerms: vi.fn(), getAffiliateSyncOverview: vi.fn(), retryAffiliateWork: vi.fn() }));
 vi.mock('@/lib/affiliates/admin/actions', () => actions);
 vi.mock('@/components/captcha/CaptchaWidget', () => ({ default: ({ onVerify }: { onVerify: (token: string) => void }) => <button type="button" onClick={() => onVerify('solved')}>Solve captcha</button> }));
 import { AffiliateApplication, AffiliateAdmin } from '@/components/affiliates/admin/AffiliateAdmin';

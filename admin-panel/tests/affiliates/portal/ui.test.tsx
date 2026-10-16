@@ -53,3 +53,8 @@ it('distinguishes reserved and processing commissions from mature ones', () => {
     expect(html).not.toContain(portalMessages.pl.eligibleStatus);
   }
 });
+
+it.each(['en', 'pl'] as const)('explains permanently held commissions in %s even while processing', locale => {
+  const html = renderToStaticMarkup(createElement(AffiliatePortal, { data: fixture, locale })).replace(/<details[\s\S]*?<\/details>/g, '');
+  expect(html).toContain(locale === 'en' ? 'unlimited refund' : 'bezterminowym zwrotem');
+});

@@ -5,8 +5,7 @@ import { ArrowDownToLine, ArrowRight, RefreshCw, Wallet } from 'lucide-react';
 import { reservePayout, markPayoutPaid, cancelPayout, adjustCommission } from '@/lib/affiliates/payouts/actions';
 import { getPayoutChoices, previewPayout } from '@/lib/affiliates/payouts/reads';
 import { reserveSchema, paidSchema, cancelSchema, adjustmentSchema } from '@/lib/affiliates/payouts/contracts';
-import { parsePayoutAmount } from '@/lib/affiliates/payouts/display';
-import { formatMinorDisplay } from '@/lib/affiliates/csv/formatter';
+import { displayPayoutAmount, parsePayoutAmount } from '@/lib/affiliates/payouts/display';
 import PayoutPicker from '@/components/affiliates/payouts/PayoutPicker';
 import { payoutMessages } from '@/components/affiliates/payouts/messages';
 import type { FormEvent } from 'react';
@@ -53,7 +52,7 @@ export default function PayoutPanel({ locale, initialPayout, download }: Props) 
   const current = choices.payouts.find(p => p.member_id === member && p.currency === currency && p.status === 'reserved');
   const selected = payout?.member_id === member && payout.currency === currency ? payout : current;
   const partner = choices.members.find(m => m.id === member);
-  const amount = (minor: string) => { const formatted = formatMinorDisplay(minor, currency); return `${formatted.success ? formatted.data.replace('.', locale === 'pl' ? ',' : '.') : '—'} ${currency}`; };
+  const amount = (minor: string) => `${displayPayoutAmount(minor, currency).replace('.', locale === 'pl' ? ',' : '.')} ${currency}`;
   const inputClass = 'mt-1 w-full min-w-0 rounded-md border border-sf-border bg-sf-input px-3 py-2 text-sm text-sf-heading focus:outline-none focus:ring-2 focus:ring-sf-accent';
   const buttonClass = 'inline-flex items-center justify-center gap-2 rounded-md bg-sf-accent-bg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40';
   const field = (name: string, label: string, type = 'text', required = true, defaultValue?: string) => <label className="block min-w-0 text-sm font-medium">{label}<input name={name} type={type} required={required} maxLength={200} defaultValue={defaultValue} inputMode={name.includes('amount') ? 'decimal' : undefined} className={inputClass} /></label>;
@@ -98,7 +97,7 @@ export default function PayoutPanel({ locale, initialPayout, download }: Props) 
         {selected?.status === 'reserved' ? <div className="space-y-4 rounded-xl border border-sf-border bg-sf-base p-5">
           {selected.needs_review && <p role="alert" className="rounded-md border-l-4 border-amber-500 bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-100">{t.review}</p>}
           <div><h2 className="font-semibold text-sf-heading">{t.transfer}</h2><p className="mt-1 text-sm text-sf-muted">{t.transferHelp}</p></div>
-          <form key={selected.id + selected.version} onSubmit={e => submit(e, 'paid')}><fieldset disabled={busy} className="grid min-w-0 gap-3 sm:grid-cols-2">{field('bank_reference', t.bank)}{field('invoice_reference', t.invoice)}{field('bank_amount_minor', `${t.amount} (${currency})`, 'text', true, formatMinorDisplay(selected.earnings_minor, currency).success ? amount(selected.earnings_minor).split(' ')[0] : '')}{field('paid_at', t.date, 'date', true, new Date().toISOString().slice(0, 10))}
+          <form key={selected.id + selected.version} onSubmit={e => submit(e, 'paid')}><fieldset disabled={busy} className="grid min-w-0 gap-3 sm:grid-cols-2">{field('bank_reference', t.bank)}{field('invoice_reference', t.invoice)}{field('bank_amount_minor', `${t.amount} (${currency})`, 'text', true, displayPayoutAmount(selected.earnings_minor, currency).replace('.', locale === 'pl' ? ',' : '.'))}{field('paid_at', t.date, 'date', true, new Date().toISOString().slice(0, 10))}
             {selected.needs_review && <>{field('reason', t.reason)}{field('evidence_reference', t.evidence)}</>}<label className="flex items-start gap-2 py-2 text-sm sm:col-span-2"><input className="mt-1" type="checkbox" name="full_settlement" required />{t.full}</label><button className={`${buttonClass} sm:col-span-2`}>{t.paid}<ArrowRight size={16} /></button></fieldset></form>
           <details className="border-t border-sf-border pt-3 text-sm"><summary className="cursor-pointer text-sf-muted">{t.cancel}</summary><p className="my-3">{t.cancelHelp}</p><form onSubmit={e => submit(e, 'cancel')} className="space-y-3">{field('reason', t.reason)}<label className="flex items-start gap-2"><input type="checkbox" name="no_transfer" required />{t.noTransfer}</label><button disabled={busy} className="rounded-md border border-sf-border px-3 py-2">{t.cancel}</button></form></details>
         </div> : <div className="space-y-3">{!preview?.available && <p className="text-sm text-sf-muted">{preview?.sync_required ? t.syncing : t.unavailable}</p>}<button className={buttonClass} disabled={busy || !preview?.available || !partner} onClick={() => void run(reserveSchema, { member_id: member, currency, cutoff, member_version: preview?.member_version, program_version: preview?.program_version, payee_reference: partner?.code }, reservePayout, setPayout)}>{t.reserve}<ArrowRight size={16} /></button></div>}

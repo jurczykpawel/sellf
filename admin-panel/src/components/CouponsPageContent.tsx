@@ -223,7 +223,7 @@ const CouponsPageContent: React.FC = () => {
       toast.success(t('deleteSuccess'));
     } catch (err) {
       if (err instanceof ApiError) {
-        toast.error(err.message);
+        toast.error(err.details?.reason?.includes('affiliate_bound') ? t('affiliateBoundHint') : err.message);
       } else {
         toast.error(t('deleteError'));
       }

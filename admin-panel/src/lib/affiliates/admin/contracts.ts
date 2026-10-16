@@ -26,3 +26,7 @@ export interface AdminOverview { program: ProgramInfo | null; members: MemberInf
 export type AdminResult<T> = ActionResponse<T> & { status: number };
 // A1.8 applies these on the private route shells/HTTP adapters. Actions opt out of caching themselves.
 export const privateHeaders = { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' };
+
+export const workRetrySchema = z.strictObject({ payment_id: z.uuid(), generation: versionSchema, reason: reference });
+export interface SyncWorkInfo { payment_id: string; requested_generation: string; attempts: number; last_error_code: string | null; payment: { created_at: string; product: { name: string } | null } | null }
+export interface SyncOverview { work: SyncWorkInfo[]; next_cursor: string | null; oldest_pending_at: string | null }
