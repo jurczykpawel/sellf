@@ -1396,6 +1396,117 @@ export type Database = {
           },
         ]
       }
+      product_offer_config: {
+        Row: {
+          draft: Json | null
+          product_id: string
+          published: Json | null
+          revision: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          draft?: Json | null
+          product_id: string
+          published?: Json | null
+          revision?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          draft?: Json | null
+          product_id?: string
+          published?: Json | null
+          revision?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_offer_config_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_offer_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "product_offer_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      product_offer_history: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          draft: Json | null
+          operation: string
+          product_id: string
+          published: Json | null
+          restored_from: number | null
+          revision: number
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          draft?: Json | null
+          operation: string
+          product_id: string
+          published?: Json | null
+          restored_from?: number | null
+          revision: number
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          draft?: Json | null
+          operation?: string
+          product_id?: string
+          published?: Json | null
+          restored_from?: number | null
+          revision?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_offer_history_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "product_offer_history_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "product_offer_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_offer_history_product_id_restored_from_fkey"
+            columns: ["product_id", "restored_from"]
+            isOneToOne: false
+            referencedRelation: "product_offer_history"
+            referencedColumns: ["product_id", "revision"]
+          },
+        ]
+      }
       product_price_history: {
         Row: {
           change_reason: string | null
@@ -3612,6 +3723,8 @@ export type Database = {
         }
         Returns: Json
       }
+      product_offer_config_schema: { Args: never; Returns: Json }
+      product_offer_config_valid: { Args: { config: Json }; Returns: boolean }
       queue_pending_free_grant: {
         Args: { p_email: string; p_product_slug: string }
         Returns: boolean

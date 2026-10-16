@@ -1244,3 +1244,16 @@ UPDATE public.storefront_config SET published = jsonb_set(published, '{settingsB
 WHERE revision = 0;
 UPDATE public.storefront_config_history SET published = (SELECT published FROM public.storefront_config)
 WHERE revision = 0;
+
+-- Product-scoped offer examples: absent publication, disabled publication, localized draft.
+WITH examples AS (
+ SELECT id, row_number() OVER (ORDER BY id) AS n FROM public.products ORDER BY id LIMIT 3
+)
+INSERT INTO public.product_offer_config(product_id,draft,published)
+SELECT id,
+ CASE WHEN n=3 THEN '{"format":1,"enabled":true,"templateId":"offer-default","settings":{"density":"comfortable"},"content":{"offer.hero":{"sourceLocale":"en","en":{"kind":"hero","eyebrow":"Workshop","heading":"Explore this workshop","body":"See the product details before joining.","steps":[]},"pl":{"kind":"hero","eyebrow":"Warsztat","heading":"Poznaj ten warsztat","body":"Sprawdź szczegóły produktu przed dołączeniem.","steps":[]}}},"tokens":null}'::jsonb ELSE NULL END,
+ CASE WHEN n=2 THEN '{"format":1,"enabled":false,"templateId":"offer-default","settings":{"density":"compact"},"content":{},"tokens":null}'::jsonb ELSE NULL END
+FROM examples ON CONFLICT(product_id) DO NOTHING;
+INSERT INTO public.product_offer_history(product_id,revision,operation,draft,published)
+SELECT product_id,revision,'draft',draft,published FROM public.product_offer_config WHERE revision=0
+ON CONFLICT(product_id,revision) DO NOTHING;

@@ -434,6 +434,17 @@ To execute SQL queries directly on the local database, use `docker exec` with th
 
 ### Storefront Template Snapshots
 
+Per-product offers use `product_offer_config` and `product_offer_history`, keyed by
+product UUID and `(product_id, revision)` respectively. They store presentation
+only, outside product projections and the storefront singleton. Absent rows/null
+publication and disabled publication are opted out; drafts never enable a public
+page. Both JSON columns use the frozen `offerConfigSchema` and independent 100KiB
+stored limits. `offer-repository.ts` accepts caller-authorized clients and returns
+only published presentation for public use; callers must check canonical product
+visibility/rights. History reads are product-scoped, descending and bounded. T2.10
+owns the atomic audited lifecycle and lazy initialization; T2.11 owns routing.
+
+
 The installed `storefront-a` entry composes the frozen Phase 2 offer-focus,
 comparison and compact variants with the existing categories/starters/FAQ/closing.
 Its exact section order is fixed; the catalogue remains required. Runtime schemas
