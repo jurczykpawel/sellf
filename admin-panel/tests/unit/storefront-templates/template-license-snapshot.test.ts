@@ -6,7 +6,7 @@ import { signLicense } from '@/lib/license-keys/format';
 import { templateRightsForTier } from '@/lib/storefront-templates/rights';
 import { encryptSecret } from '@/lib/services/secret-encryption';
 import { PREMIUM_POLICY_FIXTURES } from './fixtures/template-license-policy';
-import { getTemplateLicenseStatus, getLocalTemplateIds, refreshTemplateLicenseSnapshot, stopTemplateLicenseRefresh } from '@/lib/storefront-templates/template-license-snapshot';
+import { getTemplateLicenseStatus, getLocalTemplateIds, invalidateTemplateLicense, refreshTemplateLicenseSnapshot, stopTemplateLicenseRefresh } from '@/lib/storefront-templates/template-license-snapshot';
 const m = vi.hoisted(() => ({ read: vi.fn(), rpc: vi.fn(), client: vi.fn() }));
 vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ default: {} }));
 vi.mock('@/lib/security/outbound-url', () => ({ assertSafeOutboundUrl: vi.fn() }));
@@ -124,4 +124,14 @@ it('does not extend confirmation when the revocation response is malformed or to
   vi.mocked(fetch).mockResolvedValue(new Response('x'.repeat(131073)));
   await refreshTemplateLicenseSnapshot(); expect(getLocalTemplateIds()).toEqual([policy.templateId]);
   vi.advanceTimersByTime(30000); expect(getLocalTemplateIds()).toEqual([]);
+});
+
+it('does not restore a prior confirmation after a local replacement finishes', async () => {
+  let confirm!: (value: { data: boolean; error: null }) => void;
+  m.rpc.mockImplementation(() => new Promise(resolve => { confirm = resolve; }));
+  const pending = refreshTemplateLicenseSnapshot();
+  await vi.waitFor(() => expect(m.rpc).toHaveBeenCalled());
+  invalidateTemplateLicense(policy.templateId);
+  confirm({ data: true, error: null }); await pending;
+  expect(getLocalTemplateIds()).toEqual([]);
 });

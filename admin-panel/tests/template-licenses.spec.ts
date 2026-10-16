@@ -40,12 +40,15 @@ test('independent license scopes, bounded inputs and EN/PL key entry', async ({ 
       const title = locale === 'en' ? 'Premium template keys' : 'Klucze szablonów premium';
       await page.getByText(title, { exact: true }).click();
       await expect(page.getByLabel(locale === 'en' ? 'Purchase key' : 'Klucz zakupu', { exact: true })).toHaveAttribute('type', 'password');
-      for (const width of [1440, 390]) {
-        await page.setViewportSize({ width, height: 1100 });
-        await page.getByText(title, { exact: true }).scrollIntoViewIfNeeded();
-        await expect(page.locator('body')).toBeVisible();
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        await page.screenshot({ path: `/tmp/t2-3-${locale}-${width}.png`, fullPage: true });
+      for (const mode of ['light', 'dark'] as const) {
+        await page.emulateMedia({ colorScheme: mode });
+        for (const width of [1440, 390]) {
+          await page.setViewportSize({ width, height: 1100 });
+          await page.getByText(title, { exact: true }).scrollIntoViewIfNeeded();
+          await expect(page.locator('body')).toBeVisible();
+          expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+          await page.screenshot({ path: `/tmp/t2-3-${locale}-${mode === 'dark' ? 'dark-' : ''}${width}.png`, fullPage: true });
+        }
       }
     }
     const field = page.getByLabel('Klucz zakupu', { exact: true });

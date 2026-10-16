@@ -131,3 +131,14 @@ it('bounds the whole license envelope to 16KiB before persistence', async () => 
   expect(response.status).toBe(422); expect(await response.json()).toMatchObject({ code: 'LIMIT' });
   expect(m.saveCredential).not.toHaveBeenCalled();
 });
+
+it('accepts an exactly 16KiB license envelope and preserves UTF-8 byte accounting', async () => {
+  const status = { templateId: 'storefront-a', state: 'unknown', verifiedAt: null };
+  m.saveCredential.mockResolvedValue({ success: true, data: status });
+  const prefix = '{"templateId":"storefront-a","token":"'; const suffix = '"}';
+  const remaining = 16384 - Buffer.byteLength(prefix + suffix);
+  const body = prefix + 'ą'.repeat(Math.floor(remaining / 2)) + 'x'.repeat(remaining % 2) + suffix;
+  expect(Buffer.byteLength(body)).toBe(16384);
+  expect((await templateHttp(request(body), 'license_save')).status).toBe(200);
+  expect((await templateHttp(request(body + ' '), 'license_save')).status).toBe(422);
+});

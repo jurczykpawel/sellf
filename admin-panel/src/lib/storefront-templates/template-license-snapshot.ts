@@ -22,11 +22,12 @@ const policySchema = z.strictObject({
   }),
 });
 interface Entry { status: TemplateLicenseStatus; fingerprint: string; until: number; expiry: number }
-interface Snapshot { entries: Map<TemplateLicenseStatus['templateId'], Entry>; pending?: Promise<void>; timer?: ReturnType<typeof setInterval> }
+interface Snapshot { generation: number; entries: Map<TemplateLicenseStatus['templateId'], Entry>; pending?: Promise<void>; timer?: ReturnType<typeof setInterval> }
 const shared = globalThis as typeof globalThis & { sellfTemplateLicenses?: Snapshot };
-const state: Snapshot = shared.sellfTemplateLicenses ??= { entries: new Map() };
+const state: Snapshot = shared.sellfTemplateLicenses ??= { generation: 0, entries: new Map() };
+state.generation ??= 0;
 
-export function invalidateTemplateLicense(templateId: TemplateLicenseStatus['templateId']): void { state.entries.delete(templateId); }
+export function invalidateTemplateLicense(templateId: TemplateLicenseStatus['templateId']): void { state.generation++; state.entries.delete(templateId); }
 export function getTemplateLicenseStatus(templateId: TemplateLicenseStatus['templateId']): TemplateLicenseStatus {
   const entry = state.entries.get(templateId);
   if (!entry) return { templateId, state: 'unknown', verifiedAt: null };
@@ -64,7 +65,7 @@ async function revoked(url: string, order: string): Promise<boolean> {
 export function refreshTemplateLicenseSnapshot(): Promise<void> {
   if (state.pending) return state.pending;
   state.pending = (async () => {
-    const readAt = Date.now();
+    const readAt = Date.now(); const generation = state.generation;
     try {
       const policies = z.array(policySchema).max(3).parse(JSON.parse(process.env.SELLF_TEMPLATE_LICENSE_POLICIES ?? '[]'));
       if (new Set(policies.map(p => p.templateId)).size !== policies.length) { state.entries.clear(); return; }
@@ -123,6 +124,7 @@ export function refreshTemplateLicenseSnapshot(): Promise<void> {
           });
           if (saved.error || saved.data !== true) { state.entries.delete(id); return; }
         }
+        if (generation !== state.generation) return;
         state.entries.set(id, { status: { templateId: id, state: status, verifiedAt }, fingerprint,
           until: readAt + 60000, expiry });
       }));
