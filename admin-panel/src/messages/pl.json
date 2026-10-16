@@ -1,5 +1,10 @@
 {
   "templatePreview": {
+      "confirmTitle": "Zastąpić obecną wersję roboczą?",
+      "confirmHelp": "Sprawdź powyższe zmiany: od obecnej wersji do wybranej. Kontynuacja zastąpi zapisaną wersję roboczą i opublikuje wybraną wersję. Jeśli publikacja po zapisie się nie powiedzie, ta wersja pozostanie robocza.",
+      "confirmPublish": "Zastąp i opublikuj",
+      "cancel": "Anuluj",
+      "draftReplaced": "Wybrana wersja została zapisana jako robocza. Publikacja nie została ukończona.",
       "title": "Historia sklepu",
       "editor": "Edytor szablonu",
       "revision": "Bieżąca wersja",

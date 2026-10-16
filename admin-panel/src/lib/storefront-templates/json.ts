@@ -1,5 +1,4 @@
 /** Bounded JSON transport and offline stored-size calculation. @see spec/contracts/storefront-config.md */
-export const PREVIEW_BYTES = 4 * 1024 * 1024;
 export const CONFIG_BYTES = 102400;
 export const ENVELOPE_BYTES = 131072;
 export interface ValidationIssue {

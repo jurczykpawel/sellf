@@ -1,5 +1,10 @@
 {
   "templatePreview": {
+      "confirmTitle": "Replace your current draft?",
+      "confirmHelp": "Review the changes above, from your current version to the selected version. Continuing replaces your saved draft and publishes the selected version. If publication fails after saving, this version remains your draft.",
+      "confirmPublish": "Replace draft and publish",
+      "cancel": "Cancel",
+      "draftReplaced": "The selected version is now saved as your draft. Publication has not completed.",
       "title": "Storefront history",
       "editor": "Template editor",
       "revision": "Current version",

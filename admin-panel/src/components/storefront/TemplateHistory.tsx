@@ -13,9 +13,10 @@ export default function TemplateHistory() {
   const [current, setCurrent] = useState<TemplateReadResult | null>(null);
   const [history, setHistory] = useState<StorefrontHistorySnapshot[]>([]);
   const [diff, setDiff] = useState<TemplateDiffResult | null>(null);
+  const [pending, setPending] = useState<{ revision: number; expectedRevision: number } | null>(null);
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
   async function load(beforeRevision?: number) {
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setPending(null);
     try {
       const [read, page] = await Promise.all([storefrontTemplateAction({ operation: 'read' }), storefrontTemplateAction({ operation: 'history', limit: 20, ...(beforeRevision === undefined ? {} : { beforeRevision }) })]);
       if (!read.success || !page.success) { setError(!read.success ? read.code : !page.success ? page.code : 'error'); return; }
@@ -24,11 +25,24 @@ export default function TemplateHistory() {
     } catch { setError('error'); } finally { setBusy(false); }
   }
   useEffect(() => { void load(); }, []);
-  async function act(operation: 'diff' | 'rollback' | 'publish', revision: number) {
+  async function act(operation: 'diff' | 'rollback' | 'publish', revision: number, confirmed = false) {
     if (!current) return;
     setBusy(true); setError(''); setNotice('');
     try {
       let expectedRevision = current.revision;
+      if (operation === 'publish' && revision !== current.revision && !confirmed) {
+        setPending(null);
+        const comparison = await storefrontTemplateAction({ operation: 'diff', fromRevision: current.revision, toRevision: revision });
+        if (!comparison.success) { setError(comparison.code); return; }
+        if ('data' in comparison && 'changes' in comparison.data) {
+          setDiff(comparison.data); setPending({ revision, expectedRevision: current.revision });
+        }
+        return;
+      }
+      if (confirmed && (!pending || pending.revision !== revision || pending.expectedRevision !== current.revision)) {
+        setPending(null); setError('CONFLICT'); return;
+      }
+      if (!confirmed) setPending(null);
       if (operation === 'publish' && revision !== current.revision) {
         const draft = history.find(row => row.revision === revision)?.draft;
         if (!draft) { setError('NOT_FOUND'); return; }
@@ -41,6 +55,7 @@ export default function TemplateHistory() {
         if (!saved.success) { setError(saved.code); return; }
         if (!('revision' in saved)) { setError('error'); return; }
         expectedRevision = saved.revision;
+        setPending(null); setNotice(t('draftReplaced'));
       }
       const response = await storefrontTemplateAction(operation === 'diff' ? { operation, fromRevision: revision, toRevision: current.revision } : operation === 'publish' ? { operation, expectedRevision } : { operation, targetRevision: revision, expectedRevision });
       if (!response.success) { await load(); setError(response.code); return; }
@@ -70,7 +85,7 @@ export default function TemplateHistory() {
             {['standard', 'empty', 'long', 'unavailable', 'published-products'].map(id => <option key={id} value={id}>{t(id)}</option>)}
           </select></label>
           <label>{t('locale')} <select value={previewLocale} onChange={e => setPreviewLocale(e.target.value)}><option value="en">English</option><option value="pl">Polski</option></select></label>
-        </div>{current.draft ? <a className={styles.primary} href={`${prefix}/admin/templates/preview?revision=${current.revision}&locale=${previewLocale}&fixture=${fixture}`} target="_blank" rel="noreferrer">{t('preview')} <span aria-hidden="true">↗</span></a> : <p className={styles.help}>{t('noDraft')}</p>}</div>
+        </div>{current.draft ? <a className={styles.primary} href={`/template-preview/${current.revision}?locale=${previewLocale}&fixture=${fixture}`} target="_blank" rel="noreferrer">{t('preview')} <span aria-hidden="true">↗</span></a> : <p className={styles.help}>{t('noDraft')}</p>}</div>
       </section>
       <section aria-label={t('history')}>
         <h2 className={styles.heading}>{t('history')}</h2><p className={styles.help}>{t('historyHelp')}</p>
@@ -92,6 +107,13 @@ export default function TemplateHistory() {
           {change.path === '/templateId' && <p>{t(String(change.before))} → {t(String(change.after))}</p>}
           {change.path.startsWith('/content/') && typeof change.after === 'string' && <p>{change.after}</p>}
         </div>)}
+        {pending && <div role="region" aria-label={t('confirmTitle')}>
+          <h3>{t('confirmTitle')}</h3><p>{t('confirmHelp')}</p>
+          <div className={styles.actions}>
+            <button type="button" className={styles.primary} disabled={busy} onClick={() => void act('publish', pending.revision, true)}>{t('confirmPublish')}</button>
+            <button type="button" className={styles.secondary} disabled={busy} onClick={() => { setPending(null); setDiff(null); }}>{t('cancel')}</button>
+          </div>
+        </div>}
         <details className={styles.technical}><summary>{t('technical')}</summary><pre>{JSON.stringify(diff, null, 2)}</pre></details>
       </section>}
     </>}
