@@ -2,7 +2,8 @@
 import { z } from 'zod';
 import { configSchema } from '@/lib/storefront-templates/schemas';
 import { pointer, result } from '@/lib/storefront-templates/json';
-import { validateConfig } from '@/lib/storefront-templates/registry';
+import { effectiveLayout } from '@/lib/storefront-templates/layout';
+import { STOREFRONT_TEMPLATES, validateConfig } from '@/lib/storefront-templates/registry';
 import type { ValidationIssue, ValidationResult } from '@/lib/storefront-templates/json';
 
 // Only identity and availability participate in offline binding checks.
@@ -18,6 +19,8 @@ export function checkTemplate(input: unknown, mode: 'draft' | 'publish' = 'draft
   const errors: ValidationIssue[] = [];
   const warnings = [...validation.warnings];
   const issues = mode === 'publish' ? errors : warnings;
+  const layout = effectiveLayout(STOREFRONT_TEMPLATES[config.templateId], config.overridesByTemplate[config.templateId]);
+  if (!layout.valid) issues.push({ code: 'COMPATIBILITY', path: '/overridesByTemplate', message: 'Selected composition is unsupported' });
   const parsed = fixture === undefined ? undefined : publicCheckFixtureSchema.safeParse(fixture);
   if (parsed && !parsed.success) return result(parsed.error.issues.map(issue => ({ code: 'SCHEMA', path: '/fixture' + pointer(issue.path), message: 'Invalid public fixture' })));
   if (mode === 'publish' && !parsed) errors.push({ code: 'BINDING', path: '', message: 'Offline publish check requires a public fixture' });
@@ -27,10 +30,10 @@ export function checkTemplate(input: unknown, mode: 'draft' | 'publish' = 'draft
   }
   if (parsed?.success && config.templateId === 'd') {
     const settings = config.settingsByTemplate.d;
-    const hidden = config.overridesByTemplate.d?.hidden ?? [];
+    const visible = new Set(layout.recipe.sections.map(section => section.id));
     const references: [string, string | undefined, boolean][] = [
       ['heroProduct', settings?.heroProduct, true], ['closingProduct', settings?.closingProduct, true],
-      ...(!hidden.includes('start') ? (settings?.starterProducts ?? []).map((id, index): [string, string, boolean] => [`starterProducts/${index}`, id, false]) : []),
+      ...(visible.has('start') ? (settings?.starterProducts ?? []).map((id, index): [string, string, boolean] => [`starterProducts/${index}`, id, false]) : []),
     ];
     for (const [field, id, required] of references) {
       if (!id) continue;
@@ -40,7 +43,7 @@ export function checkTemplate(input: unknown, mode: 'draft' | 'publish' = 'draft
         : product.availability !== 'available' ? { code: 'UNAVAILABLE_PRODUCT', path: `/settingsByTemplate/d/${field}`, message: 'Product is unavailable in public fixture' } : undefined;
       if (issue) (required ? issues : warnings).push(issue);
     }
-    if (!hidden.includes('tasks')) for (const [index, id] of (settings?.taskCategories ?? []).entries()) {
+    if (visible.has('tasks')) for (const [index, id] of (settings?.taskCategories ?? []).entries()) {
       if (!parsed.data.categories.some(category => category.id === id)) issues.push({ code: 'BINDING', path: `/settingsByTemplate/d/taskCategories/${index}`, message: 'Category is absent from public fixture' });
     }
   }

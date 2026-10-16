@@ -23,7 +23,7 @@ it('allows free content changes and retained settings but requires rights for la
   const rights = templateRightsForTier('free'); const original = { ...D_CONFIG, templateId: 'default' as const };
   const edited = { ...original, content: { ...DEFAULT_CONFIG.content } };
   expect(canMutateTemplateConfig(rights, edited, 'publish')).toBe(true);
-  expect(canMutateTemplateConfig(rights, { ...edited, overridesByTemplate: { default: { variants: { catalogue: 'detail-cards' } } } }, 'publish')).toBe(false);
+  expect(canMutateTemplateConfig(rights, { ...edited, overridesByTemplate: { default: { sections: { catalogue: { variant: 'detail-cards' } } } } }, 'publish')).toBe(false);
   expect(canMutateTemplateConfig(rights, { ...edited, tokens: { format: 1, typography: { font: 'dm-sans' } } }, 'publish')).toBe(false);
   expect(canMutateTemplateConfig(rights, D_CONFIG, 'publish')).toBe(false);
   expect(canMutateTemplateConfig(templateRightsForTier('pro'), D_CONFIG, 'publish')).toBe(true);

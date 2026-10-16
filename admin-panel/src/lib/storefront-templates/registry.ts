@@ -1,21 +1,25 @@
 /** Release-shipped storefront definitions. @see spec/contracts/template-recipe.md */
 import { configSchema, recipeSchema } from '@/lib/storefront-templates/schemas';
 import { CONFIG_BYTES, isPlainJson, pointer, result, storedJsonBytes } from '@/lib/storefront-templates/json';
+import { effectiveLayout } from '@/lib/storefront-templates/layout';
+import { SECTION_DESCRIPTORS } from '@/lib/storefront-templates/section-descriptors';
 import { D_TOKENS } from '@/lib/storefront-templates/fixtures';
 import type { ZodIssue } from 'zod';
-import type { SlotContent, TemplateRegistryEntry } from '@/lib/storefront-templates/schemas';
+import type { SlotContent, StorefrontConfig, TemplateRegistryEntry } from '@/lib/storefront-templates/schemas';
 import type { ValidationIssue, ValidationResult } from '@/lib/storefront-templates/json';
 import { version } from '../../../package.json';
 
 export const CORE_SETTINGS = { density: { default: 'comfortable', values: ['comfortable', 'compact'] } } as const;
 export const STOREFRONT_TEMPLATES = {
   default: {
+    sectionDescriptors: SECTION_DESCRIPTORS.default,
     id: 'default', label: { en: 'Default', pl: 'Domyślny' }, minSellf: version, entitlement: { kind: 'free' }, tokens: null, settings: [],
     defaults: { format: 1, surface: 'storefront', shell: 'store/1', sections: [
       { id: 'catalogue', type: 'catalogue/1', variant: 'default-groups', source: 'listed-products', filters: ['category', 'price-kind', 'format'], pageSize: 12, density: { setting: 'density' } },
     ] },
   },
   d: {
+    sectionDescriptors: SECTION_DESCRIPTORS.d,
     id: 'd', label: { en: 'Process storefront', pl: 'Sklep z procesem' }, minSellf: version, entitlement: { kind: 'pro' }, tokens: D_TOKENS,
     settings: [
       { id: 'heroProduct', label: { en: 'Featured offer', pl: 'Główna oferta' }, kind: 'product', required: true },
@@ -69,14 +73,14 @@ export function validateConfig(input: unknown): ValidationResult {
   for (const [id, slot] of Object.entries(parsed.data.content)) {
     if (!slot.en || !slot.pl) warnings.push({ code: 'TRANSLATION_FALLBACK', path: `/content/${id}`, message: 'Missing translation uses source locale' });
   }
-  const hidden = parsed.data.overridesByTemplate[parsed.data.templateId]?.hidden ?? [];
+  const layout = effectiveLayout(STOREFRONT_TEMPLATES[parsed.data.templateId], parsed.data.overridesByTemplate[parsed.data.templateId]);
   const hasContent = (content: SlotContent | undefined): boolean => {
     if (!content) return false;
     if (content.kind === 'faq') return content.items.some(item => item.question.trim() || item.answer.trim());
     return Boolean(content.heading.trim() || content.body.trim() || (content.kind === 'hero' && (content.eyebrow.trim() || content.steps.some(step => step.trim()))));
   };
-  for (const section of STOREFRONT_TEMPLATES[parsed.data.templateId].defaults.sections) {
-    if (!('content' in section) || !section.content || (hidden as readonly string[]).includes(section.id)) continue;
+  for (const section of layout.recipe.sections) {
+    if (!('content' in section) || !section.content) continue;
     const id = section.content.slot;
     const slot = parsed.data.content[id];
     if (!hasContent(slot?.en) && !hasContent(slot?.pl)) warnings.push({ code: 'CONTENT_MISSING', path: pointer(['content', id]), message: 'Visible section has no content in any locale' });
@@ -89,8 +93,12 @@ export function validateConfig(input: unknown): ValidationResult {
 
 export function isResetPath(templateId: string, field: string): boolean {
   if (templateId !== 'default' && templateId !== 'd') return false;
-  if (['settings.density', 'overrides.order', 'overrides.hidden'].includes(field)) return true;
+  if (['settings.density', 'overrides.order'].includes(field)) return true;
   const parts = field.split('.');
+  if (parts.length === 4 && parts[0] === 'overrides' && parts[1] === 'sections') {
+    const section = effectiveLayout(STOREFRONT_TEMPLATES[templateId]).sections.find(section => section.id === parts[2]);
+    return Boolean(section && (parts[3] === 'visibility' ? section.descriptor.hideable : parts[3] === 'variant' && section.descriptor.variants.length));
+  }
   if (parts.length !== 3) return false;
   const [root, group, leaf] = parts;
   if (root === 'tokens') {
@@ -98,5 +106,15 @@ export function isResetPath(templateId: string, field: string): boolean {
     if (group !== 'light' && group !== 'dark' && group !== 'typography' && group !== 'shapes') return false;
     return Object.hasOwn(tokens[group], leaf);
   }
-  return root === 'overrides' && group === 'variants' && STOREFRONT_TEMPLATES[templateId].defaults.sections.some(section => section.id === leaf);
+  return false;
+}
+
+/** Materialize explicit authored orders; absent order continues to inherit defaults. */
+export function normalizeConfigOrders(config: StorefrontConfig): StorefrontConfig {
+  const copy = structuredClone(config);
+  for (const templateId of Object.keys(STOREFRONT_TEMPLATES) as StorefrontConfig['templateId'][]) {
+    const overrides = copy.overridesByTemplate[templateId];
+    if (overrides?.order !== undefined) Object.assign(overrides, { order: effectiveLayout(STOREFRONT_TEMPLATES[templateId], overrides).order });
+  }
+  return copy;
 }

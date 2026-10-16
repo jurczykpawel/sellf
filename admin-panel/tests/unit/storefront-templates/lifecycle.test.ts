@@ -45,7 +45,7 @@ it('validates live required products and categories while optional starters warn
 });
 it('does not validate inactive or hidden optional references', async () => {
   m.tier.mockReturnValue('pro');
-  const config = structuredClone(D_CONFIG); config.overridesByTemplate.d!.hidden = ['start', 'tasks'];
+  const config = structuredClone(D_CONFIG); config.overridesByTemplate.d!.sections = { ...config.overridesByTemplate.d!.sections, start: { visibility: 'hidden' }, tasks: { visibility: 'hidden' } };
   expect(await storefrontLifecycle(await verifyTemplateSession(), { operation: 'validate', config, mode: 'publish' })).toMatchObject({ success: true, data: { valid: true } });
   expect(m.bindings).toHaveBeenCalledWith({}, expect.objectContaining({ starterProducts: [], taskCategories: [] }));
 });

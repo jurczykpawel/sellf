@@ -41,7 +41,7 @@ describe('storefront composition', () => {
   });
   it('applies active overrides and resolves source-locale slots', () => {
     const config = structuredClone(D_CONFIG);
-    config.overridesByTemplate.d = { hidden: ['tasks'], variants: { hero: 'simple', start: 'compact' } };
+    config.overridesByTemplate.d = { sections: { tasks: { visibility: 'hidden' }, hero: { variant: 'simple' }, start: { variant: 'compact' } } };
     const model = resolvePresentation(resolveSelection(config, ['default', 'd']), inputs('pl'));
     expect(model.sections.map(s => s.type)).toEqual(['hero-product/1', 'product-list/1', 'catalogue/1', 'faq/1', 'product-cta/1']);
     expect(model.sections[0]).toMatchObject({ props: { variant: 'simple', content: D_CONFIG.content['home.hero']!.en } });
