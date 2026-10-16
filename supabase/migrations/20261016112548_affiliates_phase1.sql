@@ -232,7 +232,7 @@ BEGIN
  END IF;
  IF p.id IS NOT NULL THEN
   IF EXISTS(SELECT 1 FROM public.affiliate_payout_allocations a JOIN public.affiliate_ledger e ON e.id=a.entry_id
-    WHERE a.payout_id=p.id AND (e.member_id<>p.member_id OR e.currency<>p.currency OR e.kind='settlement'))
+    WHERE a.payout_id=p.id AND (e.member_id<>p.member_id OR e.currency<>p.currency OR e.kind='settlement' OR NOT EXISTS(SELECT 1 FROM public.affiliate_commissions comm WHERE comm.id=e.commission_id AND comm.livemode)))
    OR (SELECT coalesce(sum(e.amount_minor),0) FROM public.affiliate_payout_allocations a JOIN public.affiliate_ledger e ON e.id=a.entry_id
     WHERE a.payout_id=p.id AND a.released_at IS NULL)<>(CASE WHEN p.status='cancelled' THEN 0 ELSE p.earnings_minor END)
    OR (p.status='paid' AND NOT EXISTS(SELECT 1 FROM public.affiliate_ledger WHERE payout_id=p.id)) THEN
@@ -492,14 +492,14 @@ BEGIN
   OR p_cutoff IS NULL OR p_cutoff>now() OR NOT(prog.thresholds ? p_currency) THEN
   RAISE EXCEPTION 'Payout unavailable' USING ERRCODE='22023'; END IF;
  IF EXISTS(SELECT 1 FROM public.affiliate_commissions c JOIN public.payment_transactions pt ON pt.id=c.payment_id
-   LEFT JOIN public.affiliate_work w ON w.payment_id=c.payment_id WHERE c.member_id=p_member AND c.currency=p_currency
+   LEFT JOIN public.affiliate_work w ON w.payment_id=c.payment_id WHERE c.member_id=p_member AND c.currency=p_currency AND c.livemode
    AND (w.requested_generation>w.processed_generation OR w.status<>'done' OR c.observed_status<>pt.status
     OR c.observed_refunded_gross<>coalesce(pt.refunded_amount,0))) THEN
   RAISE EXCEPTION 'Sync required' USING ERRCODE='PT409'; END IF;
  SELECT array_agg(l.id ORDER BY l.created_at,l.id),sum(l.amount_minor)::bigint INTO entries,total
  FROM public.affiliate_ledger l JOIN public.affiliate_commissions c ON c.id=l.commission_id
  JOIN public.payment_transactions pt ON pt.id=c.payment_id
- WHERE l.member_id=p_member AND l.currency=p_currency
+ WHERE l.member_id=p_member AND l.currency=p_currency AND c.livemode
   AND NOT EXISTS(SELECT 1 FROM public.affiliate_payout_allocations a WHERE a.entry_id=l.id AND a.released_at IS NULL)
   AND ((c.eligible_at IS NOT NULL AND c.eligible_at<=p_cutoff
    AND EXISTS(SELECT 1 FROM public.affiliate_ledger earning WHERE earning.commission_id=c.id AND earning.kind='accrual' AND earning.created_at<=p_cutoff)

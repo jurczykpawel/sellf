@@ -32,6 +32,8 @@ export function isSyncPending(c: CommissionFact): boolean {
     || !!w && (w.status !== 'done' || BigInt(w.requested_generation) > BigInt(w.processed_generation));
 }
 export function buildBalances(commissions: CommissionFact[], entries: LedgerFact[], now: string): CurrencyBalance[] {
+  commissions = commissions.filter(c => c.livemode);
+  entries = entries.filter(e => e.commission_id === null || commissions.some(c => c.id === e.commission_id));
   const facts = new Map(commissions.map(c => [c.id, c]));
   const paid = new Set(entries.filter(e => e.allocations.some(a => a.released_at === null && a.payout.status === 'paid')).map(e => e.commission_id));
   const currencies = [...new Set(entries.map(e => e.currency))].sort();

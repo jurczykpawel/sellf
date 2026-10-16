@@ -11,8 +11,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const actor = 'dddddddd-0000-4000-a000-000000000000';
 const base = process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${process.env.PW_PORT || 3777}`;
 function sql(statement: string): string {
-  expect(process.env.SUPABASE_URL).toBe('http://127.0.0.1:55471');
-  return execFileSync('docker', ['exec', 'supabase_db_sellf-aff-a18', 'psql', '-U', 'postgres', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8' }).trim();
+  expect(process.env.SUPABASE_URL).toBe('http://127.0.0.1:55531');
+  return execFileSync('docker', ['exec', 'supabase_db_sellf-afffix', 'psql', '-U', 'postgres', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8' }).trim();
 }
 async function rows(table: string, column: string, value: string) {
   const result = await db.from(table).select('*').eq(column, value); expect(result.error).toBeNull(); return result.data!;
@@ -42,7 +42,7 @@ async function checkout(page: Page, slug: string, email: string, coupon?: string
   await page.waitForURL(/payment-status.*session_id=/, { timeout: 120000 });
 }
 test.beforeAll(() => { expect(process.env.STRIPE_SECRET_KEY).toMatch(/^sk_test_/); expect(process.env.STRIPE_LIVE_E2E).toBe('1'); });
-test('native coupon paid, held, mature, reserve, CSV, paid and actual refund debt', async ({ page, request }) => {
+test('native coupon paid, held, mature and refunded in test mode', async ({ page, request }) => {
   const suffix = randomUUID().slice(0, 8), user = await createTestUser('affiliate-native');
   const program = (await db.from('affiliate_programs').select('*').single()).data!;
   const updated = await db.rpc('affiliate_program_update', { p_actor: actor, p_expected_version: program.version, p_enabled: true, p_hold_days: 1, p_buffer_days: 0, p_terms_version: program.terms_version, p_terms: program.terms, p_thresholds: { PLN: '1', EUR: '1' } });
@@ -69,22 +69,11 @@ test('native coupon paid, held, mature, reserve, CSV, paid and actual refund deb
   await expect(page.getByText('Waiting period', { exact: true })).toBeVisible();
   await expect.poll(() => Date.now() >= Date.parse(commission.eligible_at), { timeout: 20000, intervals: [500] }).toBe(true);
   await page.reload(); await expect(page.getByText('Mature', { exact: true })).toBeVisible();
-  await setAuthSession(page, 'demo@sellf.app', 'demo123'); await page.goto('/dashboard/affiliates/payouts');
-  const picker = page.getByRole('combobox').first(); await picker.fill(`Native Partner ${suffix}`);
-  await page.getByRole('option', { name: `Native Partner ${suffix}` }).click();
-  await expect(page.getByRole('button', { name: 'Reserve for payout', exact: true })).toBeEnabled();
-  await page.getByRole('button', { name: 'Reserve for payout', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'CSV', exact: true })).toBeEnabled();
-  const payout = (await rows('affiliate_payouts', 'member_id', member.id))[0];
-  const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'CSV', exact: true }).click();
-  const file = await download; expect(await file.failure()).toBeNull();
-  const csvResponse = await page.request.get(`/api/affiliates/payouts/${payout.id}/csv?version=${payout.version}`);
-  expect(csvResponse.status()).toBe(200); expect(csvResponse.headers()['cache-control']).toContain('no-store');
-  expect(await csvResponse.text()).toContain(`native-${suffix},PLN`);
-  expect(await rows('affiliate_ledger', 'payout_id', payout.id)).toHaveLength(0);
-  await page.locator('[name="bank_reference"]').fill(`bank-${suffix}`); await page.locator('[name="invoice_reference"]').fill(`invoice-${suffix}`);
-  await page.locator('[name="paid_at"]').fill('2026-10-01'); await page.locator('[name="full_settlement"]').check(); await page.getByRole('button', { name: 'Record completed transfer', exact: true }).click();
-  await expect.poll(async () => (await rows('affiliate_payouts', 'id', payout.id))[0].status).toBe('paid');
+  expect(commission.livemode).toBe(false);
+  await expect(page.getByText('Test', { exact: true })).toBeVisible();
+  const reservation = await db.rpc('affiliate_reserve', { p_actor: actor, p_member: member.id, p_currency: 'PLN', p_cutoff: new Date().toISOString(), p_member_version: 2, p_program_version: program.version + 1, p_payee_reference: 'test-fixture' });
+  expect(reservation.error).not.toBeNull();
+  expect(await rows('affiliate_payouts', 'member_id', member.id)).toHaveLength(0);
   const session = payment.session_id.startsWith('cs_') ? await stripe.checkout.sessions.retrieve(payment.session_id) : (await stripe.checkout.sessions.list({ payment_intent: payment.session_id, limit: 1 })).data[0];
   expect(session).toBeTruthy();
   const intent = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent!.id;
@@ -92,10 +81,10 @@ test('native coupon paid, held, mature, reserve, CSV, paid and actual refund deb
   await expect.poll(async () => Number((await rows('payment_transactions', 'id', payment.id))[0].refunded_amount), { timeout: 90000 }).toBe(Number(payment.amount));
   await sync(request); await sync(request);
   const entries = await rows('affiliate_ledger', 'member_id', member.id);
-  expect(entries.reduce((sum, e) => sum + BigInt(e.amount_minor), 0n)).toBe(-BigInt(commission.accrued_minor));
-  expect(entries.filter(e => e.kind === 'accrual')).toHaveLength(1); expect(entries.filter(e => e.kind === 'settlement')).toHaveLength(1);
+  expect(entries.reduce((sum, e) => sum + BigInt(e.amount_minor), 0n)).toBe(0n);
+  expect(entries.filter(e => e.kind === 'accrual')).toHaveLength(1); expect(entries.filter(e => e.kind === 'settlement')).toHaveLength(0);
   expect((await rows('payment_transactions', 'id', payment.id))[0].metadata).toEqual(metadata);
-  await setAuthSession(page, user.email, user.password); await page.goto('/my-affiliate'); await expect(page.getByText('Debt', { exact: true }).first()).toBeVisible();
+  await setAuthSession(page, user.email, user.password); await page.goto('/my-affiliate'); await expect(page.getByText('Reversed', { exact: true }).first()).toBeVisible();
 });
 test('D-019 external embed purchase succeeds without coupon or commission', async ({ page, request }) => {
   const suffix = randomUUID().slice(0, 8), email = `embed-${suffix}@example.com`;

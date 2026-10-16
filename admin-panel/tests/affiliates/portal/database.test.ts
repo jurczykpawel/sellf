@@ -26,8 +26,7 @@ beforeAll(() => {
   sql(`INSERT INTO auth.users(id,email) VALUES('${otherUser}','portal-${otherUser}@example.test');
     INSERT INTO affiliate_memberships(id,user_id,code,status,display_name,accepted_terms_version,accepted_at,created_at)
     VALUES('${otherMember}','${otherUser}','p_${otherMember.slice(0, 8)}','approved','Other partner','demo-v1',now(),'2026-01-01');
-    INSERT INTO audit_log(table_name,operation,new_values,performed_by,performed_at)
-    SELECT 'affiliate_memberships','INSERT',to_jsonb(m),'dddddddd-0000-4000-a000-000000000000','2026-01-01' FROM affiliate_memberships m WHERE m.id='${otherMember}';
+    INSERT INTO affiliate_membership_events(member_id,version,status,created_at) VALUES('${otherMember}',1,'approved','2026-01-01');
     INSERT INTO coupons(id,code,discount_type,discount_value,is_active) VALUES('${otherCoupon}','${otherCoupon}','percentage',10,true);
     INSERT INTO affiliate_coupon_bindings(coupon_id,member_id,version,created_at) VALUES('${otherCoupon}','${otherMember}',1,'2026-01-01');
     DO $$ DECLARE p uuid; w affiliate_work; BEGIN
@@ -42,7 +41,7 @@ beforeAll(() => {
       END LOOP;
       FOR i IN 1..2 LOOP
         FOR w IN SELECT * FROM affiliate_claim_work(100) LOOP
-          PERFORM affiliate_apply_sync(w.payment_id,w.lease_token,w.requested_generation,'2026-01-02',false);
+          PERFORM affiliate_apply_sync(w.payment_id,w.lease_token,w.requested_generation,'2026-01-02',true);
         END LOOP;
       END LOOP;
     END $$;`);
@@ -102,7 +101,7 @@ it('reconciles recorded allocations, settlements and a refund after payment', as
       UPDATE payment_transactions SET refunded_amount=12300 WHERE id=(SELECT payment_id FROM affiliate_commissions WHERE member_id='${otherMember}' ORDER BY id LIMIT 1);
       DO $$ DECLARE w affiliate_work; BEGIN
         FOR w IN SELECT * FROM affiliate_claim_work(100) LOOP
-          PERFORM affiliate_apply_sync(w.payment_id,w.lease_token,w.requested_generation,'2026-01-02',false);
+          PERFORM affiliate_apply_sync(w.payment_id,w.lease_token,w.requested_generation,'2026-01-02',true);
         END LOOP;
       END $$;`);
     const result = await readPartnerPortal();

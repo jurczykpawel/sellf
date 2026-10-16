@@ -104,5 +104,26 @@ DO $$ DECLARE payment uuid; coupon uuid; member uuid; payout public.affiliate_pa
  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
 END $$;
 ROLLBACK TO stale;
+SAVEPOINT modes;
+DO $$ DECLARE member uuid; coupon uuid; payment uuid; payout public.affiliate_payouts; BEGIN
+ INSERT INTO public.affiliate_memberships(user_id,code,status,display_name,accepted_terms_version,accepted_at)
+ VALUES('dddddddd-0000-4000-a000-000000000000','mode-fixture','approved','Fixture','demo-v1',now()) RETURNING id INTO member;
+ INSERT INTO public.affiliate_membership_events(member_id,version,status,created_at) VALUES(member,1,'approved','2026-01-01');
+ INSERT INTO public.coupons(code,name,discount_type,discount_value) VALUES('MODEFIX','Fixture','percentage',10) RETURNING id INTO coupon;
+ INSERT INTO public.affiliate_coupon_bindings(coupon_id,member_id,version,created_at) VALUES(coupon,member,1,'2026-01-01');
+ payment:=pg_temp.sale(p_coupon=>coupon); PERFORM pg_temp.sync(payment,p_live=>false);
+ BEGIN
+  PERFORM public.affiliate_reserve('dddddddd-0000-4000-a000-000000000000',member,'EUR',now(),1,1,'Fixture');
+  RAISE EXCEPTION 'Test earnings reserved';
+ EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+ PERFORM pg_temp.sync(pg_temp.sale(p_coupon=>coupon));
+ SELECT * INTO payout FROM public.affiliate_reserve('dddddddd-0000-4000-a000-000000000000',member,'EUR',now(),1,1,'Fixture');
+ PERFORM pg_temp.check_that(payout.earnings_minor=2000,'mixed history reserves only live earnings');
+ UPDATE public.payment_transactions SET refunded_amount=12300 WHERE id=payment;
+ PERFORM pg_temp.sync(payment,p_live=>false);
+ PERFORM pg_temp.check_that((SELECT NOT needs_review FROM public.affiliate_payouts WHERE id=payout.id),'test refund leaves live reservation intact');
+ PERFORM pg_temp.check_that((SELECT count(*)=1 FROM public.affiliate_payout_allocations WHERE payout_id=payout.id),'test entries have no payout allocations');
+END $$;
+ROLLBACK TO modes;
 SET CONSTRAINTS ALL IMMEDIATE;
 ROLLBACK;

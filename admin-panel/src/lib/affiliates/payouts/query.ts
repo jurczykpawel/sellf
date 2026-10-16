@@ -15,7 +15,7 @@ export async function readPreview(client: SupabaseClient, member: string, curren
   let syncRequired = false;
   let cursor = '';
   while (true) {
-    let query = client.from('affiliate_commissions').select('id,eligible_at,dispute_seen,dispute_reviewed_at,observed_status,observed_refunded_gross::text,payment:payment_transactions!inner(status,refunded_amount::text,work:affiliate_work(requested_generation::text,processed_generation::text,status))').eq('member_id', member).eq('currency', currency).order('id').limit(100);
+    let query = client.from('affiliate_commissions').select('id,eligible_at,dispute_seen,dispute_reviewed_at,observed_status,observed_refunded_gross::text,payment:payment_transactions!inner(status,refunded_amount::text,work:affiliate_work(requested_generation::text,processed_generation::text,status))').eq('member_id', member).eq('currency', currency).eq('livemode', true).order('id').limit(100);
     if (cursor) query = query.gt('id', cursor);
     const result = await query;
     if (result.error) return null;

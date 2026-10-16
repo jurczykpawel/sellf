@@ -4,7 +4,7 @@ import { buildBalances, isSyncPending, portalQuerySchema } from '@/lib/affiliate
 import type { CommissionFact, LedgerFact } from '@/lib/affiliates/portal/model';
 const now = '2026-10-16T12:00:00Z';
 const commission = (id: string, eligible_at: string | null = '2026-01-01T00:00:00Z'): CommissionFact => ({
-  rule: { product: { name: 'Affiliate PLN Course' } }, id, currency: 'PLN', eligible_at, paid_at: now, accrued_minor: '2000', livemode: false,
+  rule: { product: { name: 'Affiliate PLN Course' } }, id, currency: 'PLN', eligible_at, paid_at: now, accrued_minor: '2000', livemode: true,
   dispute_seen: false, dispute_reviewed_at: null, observed_status: 'completed', observed_refunded_gross: '0',
   payment: { status: 'completed', refunded_amount: '0', work: null },
 });
@@ -61,4 +61,9 @@ it('projects held, mature, reserved, paid and reversed commission states', async
   rows[0].allocations = allocated('reserved'); expect(getCommissionStatus(c, rows, now)).toBe('reserved');
   rows[0].allocations = allocated('paid'); expect(getCommissionStatus(c, rows, now)).toBe('paid');
   rows.push(entry('2', 'a', 'reversal', '-2000')); expect(getCommissionStatus(c, rows, now)).toBe('reversed');
+});
+
+it('keeps test earnings and test refunds outside real balances', () => {
+  const live = commission('live'), simulated = { ...commission('test'), livemode: false };
+  expect(buildBalances([live, simulated], [entry('1', 'live', 'accrual', '2000'), entry('2', 'test', 'accrual', '2000')], now)[0]).toMatchObject({ accrued: '2000', eligible: '2000' });
 });

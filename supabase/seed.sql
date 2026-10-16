@@ -1218,6 +1218,6 @@ SELECT 'af000000-0000-4000-a000-000000000005',id,customer_email,10,now()-interva
 
 DO $$ DECLARE w public.affiliate_work; BEGIN
  FOR w IN SELECT * FROM public.affiliate_claim_work(100) LOOP
-  PERFORM public.affiliate_apply_sync(w.payment_id,w.lease_token,w.requested_generation,'2026-01-02 00:00:00+00',false);
+  PERFORM public.affiliate_apply_sync(w.payment_id,w.lease_token,w.requested_generation,'2026-01-02 00:00:00+00',true);
  END LOOP;
 END $$;
