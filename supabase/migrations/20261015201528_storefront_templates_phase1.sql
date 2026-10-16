@@ -204,6 +204,32 @@ GRANT SELECT (marketing_fields) ON public.products TO anon, authenticated;
 CREATE INDEX storefront_products_order ON public.products(created_at DESC, id ASC)
   WHERE is_active AND is_listed;
 
+-- Sparse groups must not walk the complete public ordering index.
+CREATE INDEX storefront_products_featured ON public.products(created_at DESC, id ASC)
+  WHERE is_active AND is_listed AND is_featured;
+CREATE INDEX storefront_products_free ON public.products(created_at DESC, id ASC)
+  WHERE is_active AND is_listed AND product_type<>'subscription' AND NOT allow_custom_price AND price=0;
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA extensions;
+CREATE INDEX storefront_products_name_trgm ON public.products USING gin (normalize(name,NFC) extensions.gin_trgm_ops)
+  WHERE is_active AND is_listed;
+CREATE INDEX storefront_products_available_from ON public.products(available_from) WHERE is_active AND is_listed;
+CREATE INDEX storefront_products_available_until ON public.products(available_until) WHERE is_active AND is_listed;
+CREATE INDEX storefront_products_sale_until ON public.products(sale_price_until) WHERE is_active AND is_listed;
+
+-- Each branch seeks one boundary, including future arrivals absent from cached pages.
+CREATE FUNCTION public.storefront_catalogue_boundary() RETURNS timestamptz
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path = '' AS $$
+  SELECT min(boundary) FROM (
+    (SELECT available_from boundary FROM public.products WHERE is_active AND is_listed AND available_from>statement_timestamp() ORDER BY available_from LIMIT 1)
+    UNION ALL
+    (SELECT available_until FROM public.products WHERE is_active AND is_listed AND available_until>statement_timestamp() ORDER BY available_until LIMIT 1)
+    UNION ALL
+    (SELECT sale_price_until FROM public.products WHERE is_active AND is_listed AND sale_price_until>statement_timestamp() ORDER BY sale_price_until LIMIT 1)
+  ) boundaries;
+$$;
+REVOKE ALL ON FUNCTION public.storefront_catalogue_boundary() FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.storefront_catalogue_boundary() TO service_role;
+
 CREATE FUNCTION public.storefront_catalogue_page(
   filters jsonb DEFAULT '{}', after_created timestamptz DEFAULT NULL,
   after_id uuid DEFAULT NULL, product_ids uuid[] DEFAULT NULL
@@ -239,14 +265,15 @@ BEGIN
       AND (p.available_from IS NULL OR p.available_from<=statement_timestamp())
       AND (p.available_until IS NULL OR p.available_until>statement_timestamp())
       AND (product_ids IS NULL OR p.id=ANY(product_ids))
-      AND (search_text='' OR strpos(lower(normalize(p.name,NFC)),lower(search_text))>0)
+      AND (search_text='' OR normalize(p.name,NFC) ILIKE '%' || replace(replace(replace(search_text, E'\\', E'\\\\'), '%', E'\\%'), '_', E'\\_') || '%')
       AND (product_format IS NULL OR p.marketing_fields->>'format'=product_format)
       AND NOT EXISTS (SELECT 1 FROM unnest(categories) c WHERE NOT EXISTS (
         SELECT 1 FROM public.product_categories pc WHERE pc.product_id=p.id AND pc.category_id=c))
       AND (group_name<>'featured' OR p.is_featured)
       AND (price_kind IS NULL OR price_kind=CASE WHEN p.product_type='subscription' THEN 'subscription'
         WHEN p.allow_custom_price THEN 'pwyw' WHEN p.price=0 THEN 'free' ELSE 'one-time' END)
-      AND (group_name NOT IN ('free','paid') OR (group_name='free')=(p.product_type<>'subscription' AND NOT p.allow_custom_price AND p.price=0))
+      AND (group_name<>'free' OR (p.product_type<>'subscription' AND NOT p.allow_custom_price AND p.price=0))
+      AND (group_name<>'paid' OR NOT (p.product_type<>'subscription' AND NOT p.allow_custom_price AND p.price=0))
   ), page AS MATERIALIZED (
     SELECT * FROM (
       (SELECT * FROM eligible WHERE after_created IS NULL OR created_at<after_created ORDER BY created_at DESC,id ASC LIMIT page_size+1)

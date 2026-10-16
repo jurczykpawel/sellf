@@ -64,17 +64,17 @@ export default function Catalogue({
     focusTarget.current = null;
     if (!more) setGroups({});
     try {
-      const pages = await Promise.all(
-        (more ? [more] : groupIds).map(async (group) => {
-          const input: CatalogueRequest = { locale, ...next, group, cursor: more ? cursor : null, pageSize };
-          const response = await fetch(`/api/storefront/catalogue?input=${encodeURIComponent(JSON.stringify(input))}`, {
-            signal: abort.signal,
-            cache: 'no-store',
-          });
-          if (!response.ok) throw new Error(response.status === 422 ? 'INVALID' : 'UNAVAILABLE');
-          return [group, cataloguePageSchema(pageSize).parse(await response.json())] as const;
-        }),
-      );
+      const requested = more ? [more] : groupIds;
+      const inputs = requested.map(group => ({ locale, ...next, group, cursor: more ? cursor : null, pageSize }));
+      const response = await fetch(`/api/storefront/catalogue?input=${encodeURIComponent(JSON.stringify(inputs.length === 1 ? inputs[0] : inputs))}`, {
+        signal: abort.signal,
+        cache: 'no-store',
+      });
+      if (!response.ok) throw new Error(response.status === 422 ? 'INVALID' : 'UNAVAILABLE');
+      const raw = await response.json();
+      const values = requested.length === 1 ? [raw] : raw;
+      if (!Array.isArray(values) || values.length !== requested.length) throw new Error('UNAVAILABLE');
+      const pages = requested.map((group, index) => [group, cataloguePageSchema(pageSize).parse(values[index])] as const);
       if (version !== generation.current) return;
       const updated: CatalogueProps['groups'] = more ? { ...groups } : {};
       if (focusAfter) focusTarget.current = 'status';

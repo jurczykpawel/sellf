@@ -1221,3 +1221,10 @@ INSERT INTO public.product_categories(product_id,category_id)
 SELECT p.id,c.id FROM public.products p CROSS JOIN public.categories c
 WHERE p.slug IN ('free-tutorial','premium-course','starter-bundle') AND c.slug='storefront-getting-started'
 ON CONFLICT DO NOTHING;
+
+-- Scheduled catalogue transitions exercise first-page cache deadlines.
+INSERT INTO public.products(name,slug,description,price,currency,is_active,is_listed,is_featured,available_from,available_until,sale_price,sale_price_until) VALUES
+ ('Upcoming sample workshop','sample-upcoming-workshop','A workshop scheduled to join the catalogue.',20,'USD',true,true,true,now()+interval '1 day',null,null,null),
+ ('Limited sample guide','sample-limited-guide','A guide with a scheduled catalogue end.',10,'USD',true,true,false,null,now()+interval '2 days',null,null),
+ ('Sample template sale','sample-template-sale','A template with a scheduled sale end.',25,'USD',true,true,false,null,null,15,now()+interval '3 days')
+ON CONFLICT (slug) DO NOTHING;

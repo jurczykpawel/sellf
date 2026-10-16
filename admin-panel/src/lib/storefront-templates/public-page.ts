@@ -3,7 +3,6 @@ import 'server-only';
 import { z } from 'zod';
 import { defaultLocale } from '@/lib/locales';
 import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
-import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { readPublishedConfig } from '@/lib/storefront-templates/repository';
 import { loadCatalogueGroups, loadCataloguePage, loadStorefrontBindings } from '@/lib/storefront-templates/catalogue';
@@ -26,7 +25,7 @@ type PageResult = { success: true; model: PresentationModel; hasProducts: boolea
 export async function loadPublicStorefront(locale: 'en' | 'pl', params: StorefrontSearchParams): Promise<PageResult> {
   try {
     const search = searchSchema.safeParse(params);
-    if (!search.success || !(await checkRateLimit('storefront_page', 60, 1))) return { success: false };
+    if (!search.success) return { success: false };
     const client = createAdminClient();
     const published = await readPublishedConfig(client);
     const rights = templateRightsForTier(getPublicLicenseTier());

@@ -18,10 +18,12 @@ beforeEach(() => {
   mocks.page.mockResolvedValue({ success: true, data: { products: [], nextCursor: null } });
 });
 describe('public storefront loader', () => {
-  it('applies the limiter before public data client initialization', async () => {
+  it('renders when the limiter is exhausted or unavailable without calling it', async () => {
     mocks.rate.mockResolvedValue(false);
-    expect(await loadPublicStorefront('en', {})).toEqual({ success: false });
-    expect(mocks.client).not.toHaveBeenCalled();
+    expect(await loadPublicStorefront('en', {})).toMatchObject({ success: true });
+    expect(mocks.rate).not.toHaveBeenCalled();
+    mocks.rate.mockRejectedValue(new Error('limiter offline'));
+    expect(await loadPublicStorefront('en', {})).toMatchObject({ success: true });
   });
   it('reads published once and distinguishes an empty shop', async () => {
     const result = await loadPublicStorefront('pl', {});

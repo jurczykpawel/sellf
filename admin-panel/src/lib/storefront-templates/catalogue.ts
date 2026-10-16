@@ -1,7 +1,9 @@
 /** Public catalogue adapters over caller-authorized service reads. @see supabase/tests/storefront-catalogue.sql */
 import 'server-only';
 import { createHash } from 'node:crypto';
+import { cache } from 'react';
 import { z } from 'zod';
+import { boundedPublicRead } from '@/lib/public-cache';
 import { formatPrice, STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
 import { formatRecurringProductPrice, getVatDisplay } from '@/lib/product-pricing-display';
 import { getEffectiveUnitPrice, isSalePriceActive } from '@/lib/services/omnibus';
@@ -80,7 +82,14 @@ function projectProduct(row: ProductRow, locale: 'en' | 'pl'): PublicProductInfo
     image: image(row), actions: { details: `/${locale}${productUrl(row.slug)}`, buy: `/${locale}${checkoutUrl(row.slug)}` }, availability: 'available' };
 }
 
-/** No cache or client creation here. Public route callers must apply application rate limits. */
+/** One indexed boundary aggregate per render, including products absent from the current page. */
+const readCatalogueBoundary = cache(async (client: SupabaseClient<Database>): Promise<number> => {
+  const { data, error } = await client.rpc('storefront_catalogue_boundary');
+  if (error || (data !== null && (typeof data !== 'string' || !Number.isFinite(Date.parse(data))))) throw new Error('UNAVAILABLE');
+  return data === null ? Infinity : Date.parse(data);
+});
+
+/** Neutral first pages alone have finite shared keys; interactions are limited at the API boundary. */
 export async function loadCataloguePage(client: SupabaseClient<Database>, input: unknown): Promise<ReadResult<CataloguePage>> {
   const parsed = filtersSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'INVALID' };
@@ -95,15 +104,32 @@ export async function loadCataloguePage(client: SupabaseClient<Database>, input:
       if (after.digest !== digest) return { success: false, error: 'INVALID' };
     } catch { return { success: false, error: 'INVALID' }; }
   }
-  try {
+  const read = async () => {
     const queryFilters = { locale: filters.locale, search: filters.search, categoryIds: filters.categoryIds, priceKind: filters.priceKind, format: filters.format, group: filters.group, pageSize: filters.pageSize };
     const { data, error } = await client.rpc('storefront_catalogue_page', { filters: queryFilters, after_created: after?.timestamp, after_id: after?.id });
-    if (error || !data) return { success: false, error: 'UNAVAILABLE' };
+    if (error || !data) return null;
     const rows = z.array(rowSchema).max(filters.pageSize + 1).parse(data);
     const page = rows.slice(0, filters.pageSize);
     const last = page.at(-1);
     const nextCursor = rows.length > filters.pageSize && last ? Buffer.from(JSON.stringify({ v: 1, timestamp: last.created_at, id: last.id, digest })).toString('base64url') : null;
-    return { success: true, data: { products: page.map(row => projectProduct(row, filters.locale)), nextCursor } };
+    return { products: page.map(row => projectProduct(row, filters.locale)), nextCursor };
+  };
+  try {
+    const neutral = !filters.search && !filters.categoryIds.length && !filters.priceKind && !filters.format && !filters.cursor;
+    if (!neutral) {
+      const page = await read();
+      return page ? { success: true, data: page } : { success: false, error: 'UNAVAILABLE' };
+    }
+    const entry = await boundedPublicRead(
+      ['catalogue', '1', filters.locale, filters.group, String(filters.pageSize)], ['storefront-products'],
+      async () => {
+        const boundary = await readCatalogueBoundary(client);
+        const page = await read();
+        return page ? { page, boundary: Number.isFinite(boundary) ? boundary : null } : null;
+      },
+      { boundary: value => value.boundary ?? Infinity },
+    );
+    return entry ? { success: true, data: entry.page } : { success: false, error: 'UNAVAILABLE' };
   } catch { return { success: false, error: 'UNAVAILABLE' }; }
 }
 

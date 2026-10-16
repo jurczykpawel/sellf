@@ -3615,6 +3615,7 @@ export type Database = {
         Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
         Returns: undefined
       }
+      storefront_catalogue_boundary: { Args: never; Returns: string }
       storefront_catalogue_categories: {
         Args: { category_ids: string[] }
         Returns: {

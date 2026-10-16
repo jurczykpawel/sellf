@@ -65,43 +65,45 @@ for (const locale of ['en', 'pl'] as const)
               body: '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#dceade"/></svg>',
             });
           if (url.pathname === '/api/storefront/catalogue') {
-            const input = JSON.parse(url.searchParams.get('input')!);
-            inputs.push(input);
+            const raw = JSON.parse(url.searchParams.get('input')!);
+            const batch = Array.isArray(raw) ? raw : [raw];
+            inputs.push(...batch);
             if (fail) return route.fulfill({ status: 503, json: { error: 'UNAVAILABLE' } });
-            // Models a 100k server dataset without putting it in browser state.
-            const start =
-              input.cursor && String(input.cursor).startsWith('cursor-')
-                ? Number(String(input.cursor).slice(7))
-                : input.cursor
-                  ? 9
-                  : 0;
-            const size = Number(input.pageSize);
-            const matching = [];
-            for (let index = start + 1; index <= 100000 && matching.length <= size; index++) {
-              const product = catalogueProduct(index);
-              product.marketing.format = index % 3 === 0 ? 'ebook' : 'workshop';
-              if (input.group === 'free' && product.price.kind !== 'free') continue;
-              if (input.group === 'paid' && product.price.kind === 'free') continue;
-              if (input.group === 'featured' && index % 5 !== 1) continue;
-              if (
-                input.search &&
-                !product.title.toLowerCase().includes(String(input.search).trim().normalize('NFC').toLowerCase())
-              )
-                continue;
-              if (input.priceKind && product.price.kind !== input.priceKind) continue;
-              if (input.format && product.marketing.format !== input.format) continue;
-              if (input.categoryIds.length && index % 2 !== 0) continue;
-              matching.push(product);
-            }
-            const products = empty ? [] : matching.slice(0, size);
-            expect(products.length).toBeLessThanOrEqual(size);
-            return route.fulfill({
-              json: {
+            const pages = batch.map(input => {
+              // Models a 100k server dataset without putting it in browser state.
+              const start =
+                input.cursor && String(input.cursor).startsWith('cursor-')
+                  ? Number(String(input.cursor).slice(7))
+                  : input.cursor
+                    ? 9
+                    : 0;
+              const size = Number(input.pageSize);
+              const matching = [];
+              for (let index = start + 1; index <= 100000 && matching.length <= size; index++) {
+                const product = catalogueProduct(index);
+                product.marketing.format = index % 3 === 0 ? 'ebook' : 'workshop';
+                if (input.group === 'free' && product.price.kind !== 'free') continue;
+                if (input.group === 'paid' && product.price.kind === 'free') continue;
+                if (input.group === 'featured' && index % 5 !== 1) continue;
+                if (
+                  input.search &&
+                  !product.title.toLowerCase().includes(String(input.search).trim().normalize('NFC').toLowerCase())
+                )
+                  continue;
+                if (input.priceKind && product.price.kind !== input.priceKind) continue;
+                if (input.format && product.marketing.format !== input.format) continue;
+                if (input.categoryIds.length && index % 2 !== 0) continue;
+                matching.push(product);
+              }
+              const products = empty ? [] : matching.slice(0, size);
+              expect(products.length).toBeLessThanOrEqual(size);
+              return {
                 products,
                 nextCursor:
                   !empty && matching.length > size ? `cursor-${Number(products.at(-1)!.slug.slice(8))}` : null,
-              },
+              };
             });
+            return route.fulfill({ json: Array.isArray(raw) ? pages : pages[0] });
           }
           const tokens = theme === 'dark' ? D_TOKENS.dark : D_TOKENS.light;
           const approvedTokens =

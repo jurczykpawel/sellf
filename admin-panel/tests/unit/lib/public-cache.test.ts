@@ -103,3 +103,46 @@ describe('public cache freshness', () => {
     vi.unstubAllEnvs();
   });
 });
+
+describe('neutral catalogue cache', () => {
+  it('caches empty groups, isolates locale/group/size, bypasses filters and expires absent scheduled products exactly', async () => {
+    const { loadCataloguePage } = await import('@/lib/storefront-templates/catalogue');
+    let boundary: string | null = new Date(105_000).toISOString();
+    const rpc = vi.fn(async (name: string) => ({ data: name === 'storefront_catalogue_boundary' ? boundary : [], error: null }));
+    const client = { rpc } as unknown as SupabaseClient<Database>;
+    const get = (extra = {}) => loadCataloguePage(client, { locale: 'en', group: 'featured', pageSize: 12, ...extra });
+    expect(await get()).toMatchObject({ success: true });
+    await get();
+    expect(rpc.mock.calls.filter(([name]) => name === 'storefront_catalogue_page')).toHaveLength(1);
+    vi.advanceTimersByTime(4999); await get();
+    expect(rpc.mock.calls.filter(([name]) => name === 'storefront_catalogue_page')).toHaveLength(1);
+    boundary = null; vi.advanceTimersByTime(1); await get();
+    expect(rpc.mock.calls.filter(([name]) => name === 'storefront_catalogue_page')).toHaveLength(2);
+    for (const extra of [{ locale: 'pl' }, { group: 'free' }, { pageSize: 24 }]) await get(extra);
+    expect(state.entries.size).toBe(4);
+    for (const extra of [{ search: 'needle' }, { priceKind: 'free' }, { format: 'course' }, { categoryIds: ['10000000-0000-4000-8000-000000000001'] }]) {
+      await get(extra); await get(extra);
+    }
+    expect(state.entries.size).toBe(4);
+    vi.advanceTimersByTime(60_000); await get({ locale: 'pl' });
+    expect(rpc.mock.calls.filter(([name]) => name === 'storefront_catalogue_page')).toHaveLength(14);
+  });
+  it('does not cache or return uncertain boundary reads', async () => {
+    const { loadCataloguePage } = await import('@/lib/storefront-templates/catalogue');
+    const rpc = vi.fn(async (name: string) => ({ data: name === 'storefront_catalogue_boundary' ? null : [], error: name === 'storefront_catalogue_boundary' ? { message: 'offline' } : null }));
+    expect(await loadCataloguePage({ rpc } as unknown as SupabaseClient<Database>, { locale: 'en' })).toEqual({ success: false, error: 'UNAVAILABLE' });
+  });
+});
+it('omits catalogue results when a slow page read crosses its scheduled boundary and fails open on cache storage errors', async () => {
+  const { loadCataloguePage } = await import('@/lib/storefront-templates/catalogue');
+  let slow = true;
+  const rpc = vi.fn(async (name: string) => {
+    if (name === 'storefront_catalogue_boundary') return { data: new Date(Date.now() + 1000).toISOString(), error: null };
+    if (slow) vi.advanceTimersByTime(1000);
+    return { data: [], error: null };
+  });
+  const client = { rpc } as unknown as SupabaseClient<Database>;
+  expect(await loadCataloguePage(client, { locale: 'en' })).toEqual({ success: false, error: 'UNAVAILABLE' });
+  slow = false; state.failCache = true;
+  expect(await loadCataloguePage(client, { locale: 'en' })).toMatchObject({ success: true, data: { products: [] } });
+});

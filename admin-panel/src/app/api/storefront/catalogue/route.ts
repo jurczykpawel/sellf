@@ -1,5 +1,6 @@
 /** Bounded public catalogue reads. @see lib/storefront-templates/catalogue.ts */
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { loadCataloguePage } from '@/lib/storefront-templates/catalogue';
 import { catalogueRequestSchema } from '@/lib/storefront-templates/catalogue-section';
@@ -19,12 +20,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     } catch {
       return respond({ error: 'INVALID' }, 422);
     }
-    const parsed = catalogueRequestSchema.safeParse(raw);
+    const parsed = z.union([catalogueRequestSchema, z.array(catalogueRequestSchema).min(1).max(3)]).safeParse(raw);
     if (!parsed.success) return respond({ error: 'INVALID' }, 422);
-    const result = await loadCataloguePage(createAdminClient(), parsed.data);
-    return result.success
-      ? respond(result.data)
-      : respond({ error: result.error }, result.error === 'INVALID' ? 422 : 503);
+    const client = createAdminClient();
+    const batch = Array.isArray(parsed.data);
+    const inputs = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
+    const results = await Promise.all(inputs.map(input => loadCataloguePage(client, input)));
+    const failure = results.find(result => !result.success);
+    if (failure && !failure.success) return respond({ error: failure.error }, failure.error === 'INVALID' ? 422 : 503);
+    const pages = results.map(result => result.success ? result.data : null);
+    return respond(batch ? pages : pages[0]);
   } catch {
     return respond({ error: 'UNAVAILABLE' }, 503);
   }
