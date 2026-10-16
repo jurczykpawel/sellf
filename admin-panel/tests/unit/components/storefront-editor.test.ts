@@ -136,3 +136,36 @@ describe('storefront editor', () => {
     expect(view.container.querySelector('input[type="checkbox"][disabled]')).toBeTruthy();
   });
 });
+
+it('edits appearance with live origins and contrast feedback, retaining content', async () => {
+  const view = setup();
+  fireEvent.click(view.getByRole('button', { name: 'Appearance', exact: true }));
+  expect(view.container.querySelectorAll('[data-token-origin]')).toHaveLength(22);
+  fireEvent.change(view.getByLabelText('Light · Accent'), { target: { value: '#ffffff' } });
+  expect(view.getByText('Improve contrast before publishing. Your draft can still be saved.')).toBeTruthy();
+  action.mockResolvedValueOnce({ success: true, revision: 8, validation: { valid: true, errors: [], warnings: [] } });
+  fireEvent.click(view.getByRole('button', { name: 'Save draft' }));
+  await waitFor(() => expect(action).toHaveBeenCalled());
+  expect(action.mock.calls[0][0].config.tokens).toEqual({ format: 1, light: { accent: '#ffffff' } });
+  expect(action.mock.calls[0][0].config.content).toEqual(snapshot().published.content);
+});
+it('resets a saved seller leaf through the strict reset operation', async () => {
+  const initial = snapshot(); initial.published.tokens = { format: 1, typography: { font: 'dm-sans' } };
+  const view = render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(StorefrontEditor, { initial })));
+  fireEvent.click(view.getByRole('button', { name: 'Appearance', exact: true }));
+  action.mockResolvedValueOnce({ success: true, revision: 8, validation: { valid: true, errors: [], warnings: [] } });
+  action.mockResolvedValueOnce({ success: true, data: { ...snapshot(), revision: 8 } });
+  fireEvent.click(view.getByRole('button', { name: 'Reset Font' }));
+  await waitFor(() => expect(action).toHaveBeenCalledTimes(2));
+  expect(action.mock.calls[0][0]).toEqual({ operation: 'reset', expectedRevision: 7, templateId: 'd', field: 'tokens.typography.font' });
+  expect(view.getByLabelText('Font')).toHaveProperty('value', 'geist');
+});
+it('shows the protected appearance values separately from storefront overrides', () => {
+  const initial = snapshot(); initial.published.tokens = { format: 1, shapes: { radiusMdPx: 8 } };
+  const view = render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(StorefrontEditor, { initial })));
+  fireEvent.click(view.getByRole('button', { name: 'Appearance', exact: true }));
+  expect(view.getByText('Checkout and sign-in')).toBeTruthy();
+  expect(view.getAllByText(/Protected by Sellf/).length).toBeGreaterThan(0);
+  expect(view.getByText('12 · Protected by Sellf')).toBeTruthy();
+  expect(view.container.querySelectorAll('[data-token-origin]')).toHaveLength(22);
+});

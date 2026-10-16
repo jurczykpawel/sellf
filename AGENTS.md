@@ -513,9 +513,14 @@ Template selection, seller token customization and watermark removal use separat
 feature checks. Mutation preflight checks session/key scope before platform reads,
 then validates the stored candidate before creating the mutation client;
 activation requires current template/theme rights even for unchanged overrides.
-The locked RPC revision check protects the preflight snapshot. T1.15 owns the
-origin/reset editor. Public cache deadlines and post-commit product/taxonomy
-invalidation bound freshness.
+The locked RPC revision check protects the preflight snapshot. The dashboard
+templates editor includes appearance controls with resolved origins,
+contrast feedback and revision-bound leaf resets. Its explicit legacy import keeps
+`data/active-theme.json` plus a byte-exact `data/active-theme.legacy-backup.json`
+before saving via the shared legacy-import mutation. Nonzero legacy-import history
+prevents repeated conversion; existing overrides win and subsequent public appearance
+edits write only configuration snapshots. Public cache deadlines and post-commit
+product/taxonomy invalidation bound freshness.
 TaskNav and Catalogue share target-scoped filter/state events; URL search/category
 fallbacks use the same bounded initial loaders. Public content renders during auth
 initialization; only empty-shop onboarding depends on the resolved admin session.
