@@ -7,7 +7,7 @@ import { cache } from 'react';
 import { getEffectivePaymentMethodOrder } from '@/lib/utils/payment-method-helpers';
 import { extractExpressCheckoutConfig } from '@/types/payment-config';
 import { getPublicPaymentConfig } from '@/lib/actions/payment-config';
-import { checkFeature } from '@/lib/license/resolve';
+import { checkPublicFeature } from '@/lib/license/public-snapshot';
 import { getShopConfig } from '@/lib/actions/shop-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import { getTemplate } from '@/lib/checkout-templates/registry';
@@ -111,7 +111,7 @@ export default async function CheckoutPage({ params }: PageProps) {
   const expressCheckoutConfig = extractExpressCheckoutConfig(paymentConfig);
 
   // Check Sellf license validity (controls "Powered by" branding)
-  const licenseValid = await checkFeature('watermark-removal');
+  const licenseValid = await checkPublicFeature('watermark-removal');
 
   // Get tax mode for conditional VAT display
   const shopConfig = await getShopConfig();

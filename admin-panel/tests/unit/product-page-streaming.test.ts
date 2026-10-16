@@ -10,12 +10,12 @@ describe('product page resolves server-side without a Suspense fallback', () => 
     expect(existsSync(path)).toBe(false);
   });
 
-  it('page.tsx resolves license + auth in parallel (was sequential await chain)', () => {
+  it('page.tsx uses local license state alongside the auth read', () => {
     const source = readFileSync(
       resolve(root, 'src/app/[locale]/p/[slug]/page.tsx'),
       'utf-8',
     );
-    expect(source).toMatch(/Promise\.all\(\[\s*checkFeature\(['"]watermark-removal['"]\),/);
+    expect(source).toMatch(/Promise\.all\(\[\s*checkPublicFeature\(['"]watermark-removal['"]\),/);
     expect(source).toMatch(/Promise\.all\([\s\S]+?createClient\(\)/);
   });
 });

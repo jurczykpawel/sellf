@@ -451,8 +451,9 @@ Obtain principals through its session/API-key verification functions; serialized
 principal objects are not accepted. The service-only `mutate_storefront_config`
 RPC locks the singleton and writes config/history/audit together. Template
 READ/WRITE/ACTIVATE scopes are independent; existing keys retain their scopes.
-Public lifecycle callers must add current bindings/rights checks before using
-these primitives (T1.16/T1.17); no public mutation route ships with T1.3.
+Private mutation preflight now checks current rights; public lifecycle callers
+must also validate active bindings (T1.17). No public mutation route ships with
+these primitives alone.
 
 Offline authoring uses `bun run template:check -- --config file --json` (or
 `--recipe file`). `--mode publish --fixture file` checks supplied public bindings;
@@ -476,16 +477,28 @@ registered recipes and retained active overrides; `resolvePresentation` supplies
 concrete public section props to `StorefrontComposition`. Callers pass a digest of
 the public model as `renderKey` so replaced snapshots reset catalogue state.
 The core caller must
-supply current allowed template IDs; absent grants permit only free default until
-T1.16 wires rights. Public appearance is resolved by `public-theme.ts` from core defaults, the effective
+supply current allowed template IDs; absent grants permit only free default. Public appearance is resolved by `public-theme.ts` from core defaults, the effective
 registry entry and strict partial seller overrides. `loadPublicStorefront` reuses
 its published read; appearance and leaf origins stay outside section props.
 `PublicThemeShell` maps approved variables before hydration; `/p/[slug]`,
 `/checkout/[slug]`, `/login`, `/terms` and `/privacy` use the protected subset through
 `loadProtectedThemeData`. Other routes and dashboard chrome retain core branding.
 Core theme preference controls mode, including CSS system fallback without scripts.
-T1.16 must supply current allowed template IDs to both storefront and protected
-selection; T1.15 owns origin/reset editing and T1.20 cache freshness.
+Both storefront and protected selection obtain allowed template IDs from the current
+local platform tier snapshot. `license/public-snapshot.ts` refreshes this snapshot
+in the Node instrumentation background scheduler every 30 seconds; public readers
+perform no licensing network or database requests. Unknown/cold/older-than-60-second
+snapshots resolve free, and credential expiry clamps the lifetime exactly. The
+release-shipped `license/platform-jwks.json` is the platform JWKS snapshot fetched
+from the existing platform endpoint on 2026-10-16; refresh it from that endpoint
+when preparing releases. Optional `SELLF_JWKS_FALLBACK` and background-refreshed
+keys supplement it. Admin license verification retains its existing resolver.
+Template selection, seller token customization and watermark removal use separate
+feature checks. Mutation preflight checks session/key scope before platform reads,
+then current tier and stored candidate/baseline before creating the mutation
+client; the locked RPC revision check protects the preflight snapshot. T1.17 still
+owns active binding/lifecycle validation; T1.15 owns origin/reset editing and
+T1.20 cache freshness.
 TaskNav and Catalogue share target-scoped filter/state events; URL search/category
 fallbacks use the same bounded initial loaders. Public content renders during auth
 initialization; only empty-shop onboarding depends on the resolved admin session.

@@ -9,7 +9,8 @@ import { readPublishedConfig } from '@/lib/storefront-templates/repository';
 import { loadCatalogueGroups, loadCataloguePage, loadStorefrontBindings } from '@/lib/storefront-templates/catalogue';
 import { resolvePresentation, resolveSelection } from '@/lib/storefront-templates/resolver';
 import { catalogueRequestSchema } from '@/lib/storefront-templates/catalogue-section';
-import { loadThemeData } from '@/lib/theme-loader';
+import { getPublicLicenseTier } from '@/lib/license/public-snapshot';
+import { templateRightsForTier } from '@/lib/storefront-templates/rights';
 import { STOREFRONT_TEMPLATES } from '@/lib/storefront-templates/registry';
 import { resolvePublicTheme } from '@/lib/storefront-templates/public-theme';
 import type { Metadata } from 'next';
@@ -21,16 +22,16 @@ export type StorefrontSearchParams = Record<string, string | string[] | undefine
 const searchSchema = z.object({ search: catalogueRequestSchema.shape.search.optional(), category: z.uuid().optional() });
 type PageResult = { success: true; model: PresentationModel; hasProducts: boolean; theme: ResolvedPublicTheme } | { success: false };
 
-/** Until the lifecycle rights gate is wired, public routes grant only the free entry. */
-export async function loadPublicStorefront(locale: 'en' | 'pl', params: StorefrontSearchParams, availableTemplateIds: readonly string[] = ['default']): Promise<PageResult> {
+/** Rights are resolved outside the public presentation model on every render. */
+export async function loadPublicStorefront(locale: 'en' | 'pl', params: StorefrontSearchParams): Promise<PageResult> {
   try {
     const search = searchSchema.safeParse(params);
     if (!search.success || !(await checkRateLimit('storefront_page', 60, 1))) return { success: false };
     const client = createAdminClient();
     const published = await readPublishedConfig(client);
-    const selection = resolveSelection(published.success ? published.data : null, availableTemplateIds);
-    const { licenseValid } = await loadThemeData();
-    const theme = resolvePublicTheme(STOREFRONT_TEMPLATES[selection.templateId].tokens, published.success ? published.data.tokens : null, licenseValid);
+    const rights = templateRightsForTier(getPublicLicenseTier());
+    const selection = resolveSelection(published.success ? published.data : null, rights.availableTemplateIds);
+    const theme = resolvePublicTheme(STOREFRONT_TEMPLATES[selection.templateId].tokens, published.success ? published.data.tokens : null, rights.canCustomizeTokens);
     const spec = selection.recipe.sections.find(s => s.type === 'catalogue/1');
     if (!spec || spec.type !== 'catalogue/1') return { success: false };
     const { heroProduct, closingProduct, starterProducts, taskCategories } = selection.settings;

@@ -5,16 +5,16 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { DEFAULT_CONFIG, D_CONFIG } from '@/lib/storefront-templates/fixtures';
 import { CORE_TOKENS } from '@/lib/storefront-templates/public-theme';
 import { loadProtectedThemeData } from '@/lib/theme-loader';
-const mocks = vi.hoisted(() => ({ published: vi.fn(), feature: vi.fn(), client: vi.fn() }));
+const mocks = vi.hoisted(() => ({ published: vi.fn(), tier: vi.fn(), client: vi.fn() }));
 vi.mock('@/lib/actions/theme', () => ({ getActiveTheme: async () => null }));
-vi.mock('@/lib/license/resolve', () => ({ checkFeature: mocks.feature }));
+vi.mock('@/lib/license/public-snapshot', () => ({ getPublicLicenseTier: mocks.tier, checkPublicFeature: () => ['pro', 'business'].includes(mocks.tier()) }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: mocks.client }));
 vi.mock('@/lib/storefront-templates/repository', () => ({ readPublishedConfig: mocks.published }));
 vi.mock('@/lib/actions/shop-config', () => ({ getShopConfig: async () => ({ checkout_theme: 'dark' }) }));
 vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ default: {} }));
 vi.mock('@/components/storefront/PublicThemeShell.module.css', () => ({ default: {} }));
 beforeEach(() => {
-  vi.clearAllMocks(); mocks.client.mockReturnValue({}); mocks.feature.mockResolvedValue(true);
+  vi.clearAllMocks(); mocks.client.mockReturnValue({}); mocks.tier.mockReturnValue('pro');
   mocks.published.mockResolvedValue({ success: true, data: DEFAULT_CONFIG });
 });
 it('loads published appearance once and clamps shapes and sizes while retaining the approved font', async () => {
@@ -24,15 +24,16 @@ it('loads published appearance once and clamps shapes and sizes while retaining 
   expect(result.tokens.typography).toEqual({ ...CORE_TOKENS.typography, font: 'dm-sans' });
   expect(result.tokens.shapes).toEqual(CORE_TOKENS.shapes);
   expect(mocks.published).toHaveBeenCalledExactlyOnceWith({});
-  expect(mocks.feature).toHaveBeenCalledWith('theme-customization');
   expect(JSON.stringify(config)).toBe(saved);
 });
-it('keeps denied D on the default palette until the current rights adapter is supplied', async () => {
+it('applies current D defaults and falls back after downgrade', async () => {
   mocks.published.mockResolvedValue({ success: true, data: D_CONFIG });
+  expect((await loadProtectedThemeData()).tokens.light.accent).toBe('#075C43');
+  mocks.tier.mockReturnValue('free');
   expect((await loadProtectedThemeData()).tokens).toEqual(CORE_TOKENS);
 });
 it('ignores unlicensed overrides and retains core output when storage or license lookup is unavailable', async () => {
-  mocks.feature.mockResolvedValue(false);
+  mocks.tier.mockReturnValue('free');
   mocks.published.mockResolvedValue({ success: true, data: { ...DEFAULT_CONFIG, tokens: { format: 1, typography: { font: 'dm-sans' } } } });
   expect(await loadProtectedThemeData()).toMatchObject({ diagnostics: ['ENTITLEMENT'], tokens: CORE_TOKENS });
   mocks.published.mockRejectedValue(new Error('Unavailable'));

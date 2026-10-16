@@ -1,6 +1,6 @@
 import { createPublicClient, createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { checkFeature } from '@/lib/license/resolve';
+import { checkPublicFeature } from '@/lib/license/public-snapshot';
 import { notFound, redirect } from 'next/navigation';
 import { Metadata } from 'next';
 import { cache } from 'react';
@@ -122,7 +122,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
   // Auth is treated as guest on any failure so a transient Supabase blip
   // doesn't take the public product page down with it.
   const [licenseValid, authResult] = await Promise.all([
-    checkFeature('watermark-removal'),
+    checkPublicFeature('watermark-removal'),
     (async () => {
       try {
         const c = await createClient();

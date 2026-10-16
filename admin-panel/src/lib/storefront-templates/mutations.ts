@@ -5,7 +5,10 @@ import { authenticateApiKeyPrincipal } from '@/lib/api/middleware';
 import { API_SCOPES } from '@/lib/api/scope-constants';
 import { requireAdminApi } from '@/lib/auth-server';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
+import { resolveCurrentTier } from '@/lib/license/resolve';
+import { templateRightsForTier, canMutateTemplateConfig } from '@/lib/storefront-templates/rights';
+import { readStorefrontConfig, readStorefrontHistory } from '@/lib/storefront-templates/repository';
 import { configSchema, revisionSchema } from '@/lib/storefront-templates/schemas';
 import { validateConfig } from '@/lib/storefront-templates/registry';
 import { CONFIG_BYTES, isPlainJson, result } from '@/lib/storefront-templates/json';
@@ -53,7 +56,7 @@ export async function verifyTemplateApiKey(request: NextRequest): Promise<Verifi
   } catch { return null; }
 }
 
-/** Internal primitive; lifecycle callers supply current binding and rights validation before publication. */
+/** Internal primitive; lifecycle callers also validate active bindings before publication. */
 export async function mutateStorefrontConfig(auth: unknown, input: unknown): Promise<StorefrontMutationResult> {
   const context = auth && typeof auth === 'object' ? principals.get(auth) : undefined;
   if (!context) return failure('FORBIDDEN');
@@ -73,6 +76,23 @@ export async function mutateStorefrontConfig(auth: unknown, input: unknown): Pro
   if (context.actor.method === 'api_key' && !context.scopes.includes(scope)) return failure('FORBIDDEN');
   const config = 'config' in mutation ? mutation.config : null;
   try {
+    const reader = createPlatformClient();
+    const rights = templateRightsForTier(await resolveCurrentTier({ dataClient: reader }));
+    if (config && !rights.availableTemplateIds.includes(config.templateId)) return failure('FORBIDDEN');
+    const snapshot = await readStorefrontConfig(reader);
+    if (!snapshot.success) return failure('UNAVAILABLE');
+    if (snapshot.data.revision !== mutation.expectedRevision) return failure('CONFLICT', null, snapshot.data.revision);
+    let candidate = config ?? snapshot.data.draft;
+    if (mutation.operation === 'rollback') {
+      const history = await readStorefrontHistory(reader, { limit: 1,
+        ...(mutation.targetRevision < Number.MAX_SAFE_INTEGER ? { beforeRevision: mutation.targetRevision + 1 } : {}) });
+      if (!history.success) return failure('UNAVAILABLE');
+      if (history.data[0]?.revision !== mutation.targetRevision) return failure('NOT_FOUND');
+      candidate = history.data[0].published;
+    }
+    if (!candidate) return failure('INVALID');
+    const baseline = config ? snapshot.data.draft ?? snapshot.data.published : snapshot.data.published;
+    if (!canMutateTemplateConfig(rights, candidate, baseline)) return failure('FORBIDDEN');
     const client = createAdminClient();
     if (config !== null) {
       const size = await client.rpc('storefront_config_stored_bytes', { config: config as Json });

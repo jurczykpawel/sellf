@@ -15,6 +15,7 @@ for (const [path, locale] of [['/', 'en'], ['/store', 'en'], ['/pl', 'pl'], ['/p
       expect(new URL(canonical!).pathname).toBe(path);
       await expect(page.locator('[data-testid="storefront"], [data-testid="coming-soon"]')).toBeVisible();
       expect(await page.locator('#catalogue article').count()).toBeLessThanOrEqual(72);
+      if (process.env.STOREFRONT_EXPECT_TEMPLATE) await expect(page.locator('[data-testid="storefront"]')).toHaveAttribute('data-template', process.env.STOREFRONT_EXPECT_TEMPLATE);
     } finally { await context.close(); }
   });
 }
