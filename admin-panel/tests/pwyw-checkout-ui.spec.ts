@@ -104,14 +104,14 @@ test.describe('PWYW Checkout UI', () => {
     // Wait for the page to fully load
     await page.waitForSelector('h1, h2, .text-white', { timeout: 10000 });
 
-    // Should show preset buttons (look for amounts in any format - zł10.00, etc.)
-    const preset10 = page.locator('button:not([type="submit"])').filter({ hasText: /zł10|10\.00|10,00/ }).first();
+    // Preset amounts follow the Polish page locale.
+    const preset10 = page.locator('button:not([type="submit"])').filter({ hasText: /10,00\s+zł/ }).first();
     await expect(preset10).toBeVisible({ timeout: 10000 });
 
-    const preset25 = page.locator('button:not([type="submit"])').filter({ hasText: /zł25|25\.00|25,00/ }).first();
+    const preset25 = page.locator('button:not([type="submit"])').filter({ hasText: /25,00\s+zł/ }).first();
     await expect(preset25).toBeVisible();
 
-    const preset50 = page.locator('button:not([type="submit"])').filter({ hasText: /zł50|50\.00|50,00/ }).first();
+    const preset50 = page.locator('button:not([type="submit"])').filter({ hasText: /50,00\s+zł/ }).first();
     await expect(preset50).toBeVisible();
   });
 

@@ -200,7 +200,7 @@ test.describe('guest checkout variants', () => {
     await openCheckout(page, products.paid);
 
     await expect(page.getByText(/Dokończ Zakup/i)).toBeVisible();
-    await expect(page.getByText(/zł99\.00/i).first()).toBeVisible();
+    await expect(page.getByText(/99,00\s+zł/i).first()).toBeVisible();
     await expect(page.getByText(/Wybierz kwotę/i)).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
     await expect.poll(() => checkoutRequests.length).toBeGreaterThan(0);
@@ -212,7 +212,7 @@ test.describe('guest checkout variants', () => {
     await openCheckout(page, products.pwyw);
 
     await expect(page.getByText(/Wybierz kwotę/i)).toBeVisible();
-    await expect(page.locator('button').filter({ hasText: /zł10\.00/i }).first()).toBeVisible();
+    await expect(page.locator('button').filter({ hasText: /10,00\s+zł/i }).first()).toBeVisible();
     await expect(page.locator('input[inputmode="decimal"]').first()).toHaveValue('50');
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
     await expect.poll(() => checkoutRequests.length).toBeGreaterThan(0);
@@ -236,7 +236,7 @@ test.describe('guest checkout variants', () => {
     const checkoutRequests = await captureCheckoutRequests(page);
     await openCheckout(page, products.subscriptionMonth);
 
-    await expect(page.getByText(/zł99\.00 \/ mies\./i)).toBeVisible();
+    await expect(page.getByText(/99,00\s+zł \/ mies\./i)).toBeVisible();
     await expect(page.getByTestId('subscription-email-gate')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
     await expect(page.getByText(/Wybierz kwotę/i)).toHaveCount(0);
@@ -250,7 +250,7 @@ test.describe('guest checkout variants', () => {
   test('subscription guest initializes the real Stripe subscription form immediately', async ({ page }) => {
     await openCheckout(page, products.subscriptionMonth);
 
-    await expect(page.getByText(/zł99\.00 \/ mies\./i)).toBeVisible();
+    await expect(page.getByText(/99,00\s+zł \/ mies\./i)).toBeVisible();
     await expect(page.getByTestId('subscription-email-gate')).toHaveCount(0);
 
     await expect(page.locator('input#checkoutEmail')).toBeVisible({ timeout: 30000 });
@@ -325,7 +325,7 @@ test.describe('guest checkout variants', () => {
     const checkoutRequests = await captureCheckoutRequests(page);
     await openCheckout(page, products.subscriptionYear);
 
-    await expect(page.getByText(/zł120\.00 \/ rok/i)).toBeVisible();
+    await expect(page.getByText(/120,00\s+zł \/ rok/i)).toBeVisible();
     await expect(page.getByTestId('subscription-email-gate')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
     await expect.poll(() => checkoutRequests.length).toBeGreaterThan(0);
@@ -350,7 +350,7 @@ test.describe('logged-in checkout variants', () => {
     await openCheckout(page, products.paid, true);
 
     await expect(page.getByText(/Dokończ Zakup/i)).toBeVisible();
-    await expect(page.getByText(/zł99\.00/i).first()).toBeVisible();
+    await expect(page.getByText(/99,00\s+zł/i).first()).toBeVisible();
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
     await expect.poll(() => checkoutRequests.length).toBeGreaterThan(0);
     expect(checkoutRequests[0]).toMatchObject({ productId: products.paid.id });
@@ -360,7 +360,7 @@ test.describe('logged-in checkout variants', () => {
     const checkoutRequests = await captureCheckoutRequests(page);
     await openCheckout(page, products.subscriptionMonth, true);
 
-    await expect(page.getByText(/zł99\.00 \/ mies\./i)).toBeVisible();
+    await expect(page.getByText(/99,00\s+zł \/ mies\./i)).toBeVisible();
     await expect(page.getByTestId('subscription-email-gate')).toHaveCount(0);
     await expect(page.getByText(/Wybierz kwotę/i)).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
