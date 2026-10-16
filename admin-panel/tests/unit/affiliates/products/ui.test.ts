@@ -15,7 +15,8 @@ afterEach(cleanup);
 beforeEach(() => { vi.clearAllMocks(); state.locale = 'en'; state.type = 'one_time'; state.rule = null; state.save.mockResolvedValue({ success: true }); state.bind.mockResolvedValue({ success: true }); state.search.mockResolvedValue({ success: true, data: { binding: { member_id: 'uuid-should-not-be-visible', version: '7', display_name: 'Current Partner', code: 'current' }, members: [{ id: 'member', code: 'partner', display_name: 'Approved Partner' }], next_cursor: null } }); });
 it.each(['en', 'pl'])('shows unlimited maturity explicitly in %s', async locale => {
   state.locale = locale; render(createElement(AffiliateRuleEditor, { productId: 'product' }));
-  await screen.findByText(locale === 'pl' ? /nie będą automatycznie gotowe do wypłaty/ : /never become payable automatically/);
+  const warning = await screen.findByRole('note');
+  expect(warning.textContent).toMatch(locale === 'pl' ? /nigdy nie można wypłacić, również przez ręczne korekty/ : /can never be paid out, including through manual adjustments/);
   expect(screen.getByRole('button', { name: locale === 'pl' ? 'Zapisz prowizję' : 'Save commission' })).toBeDefined();
 });
 it('disables subscription rule creation', async () => {

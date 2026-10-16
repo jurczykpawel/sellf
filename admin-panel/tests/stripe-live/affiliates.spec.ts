@@ -20,9 +20,9 @@ async function rows(table: string, column: string, value: string) {
 async function insert(table: string, data: object) {
   const result = await db.from(table).insert(data).select().single(); expect(result.error).toBeNull(); return result.data!;
 }
-async function sync(request: APIRequestContext) {
+async function sync(request: APIRequestContext, errors = 0) {
   const response = await request.get(`${base}/api/cron?job=affiliate-sync`, { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } });
-  expect(response.status()).toBe(200); expect((await response.json()).errors).toBe(0);
+  expect(response.status()).toBe(200); expect((await response.json()).errors).toBe(errors);
 }
 async function card(page: Page) {
   const frame = page.frameLocator('iframe[title="Secure payment input frame"][src*="elements-inner-payment"]');
@@ -60,9 +60,49 @@ test('native coupon paid, held, mature and refunded in test mode', async ({ page
   expect(await rows('coupon_redemptions', 'transaction_id', payment.id)).toHaveLength(1);
   expect(await rows('affiliate_commissions', 'payment_id', payment.id)).toHaveLength(0);
   const metadata = payment.metadata;
+  sql(`UPDATE payment_transactions SET session_id='in_affiliate_retry_${suffix}' WHERE id='${payment.id}'`);
+  for (let attempt = 1; attempt <= 10; attempt++) {
+    sql(`UPDATE affiliate_work SET next_attempt_at=now() WHERE payment_id='${payment.id}'`);
+    await sync(request, 1);
+    const work = (await rows('affiliate_work', 'payment_id', payment.id))[0];
+    expect(work.attempts).toBe(attempt);
+    expect(work.status).toBe(attempt === 10 ? 'needs_review' : 'pending');
+    expect(work.last_error_code).toBe('session_unresolved');
+  }
+  expect(await rows('affiliate_commissions', 'payment_id', payment.id)).toHaveLength(0);
+  const failed = (await rows('affiliate_work', 'payment_id', payment.id))[0];
+  sql(`UPDATE payment_transactions SET session_id='${payment.session_id}' WHERE id='${payment.id}'`);
+  await sync(request);
+  expect((await rows('affiliate_work', 'payment_id', payment.id))[0].status).toBe('needs_review');
+  expect(await rows('affiliate_commissions', 'payment_id', payment.id)).toHaveLength(0);
+  await setAuthSession(page, 'demo@sellf.app', 'demo123');
+  await page.goto('/en/dashboard/affiliates');
+  const recovery = page.getByRole('region', { name: 'Commission processing', exact: true });
+  const form = recovery.getByRole('form').filter({ hasText: product.name });
+  await expect(form).toBeVisible();
+  for (const locale of ['en', 'pl']) for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto(`/${locale}/dashboard/affiliates`);
+    await expect(page.getByRole('form').filter({ hasText: product.name })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `/tmp/affab-recovery-${locale}-${width}.png`, fullPage: true });
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/en/dashboard/affiliates');
+  const reason = `Session source restored ${suffix}`;
+  await form.getByRole('textbox', { name: 'What was resolved?' }).fill(reason);
+  await form.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(recovery.getByRole('status')).toHaveText('Order queued again. The next worker run will process it.');
+  const retried = (await rows('affiliate_work', 'payment_id', payment.id))[0];
+  expect(retried.status).toBe('pending'); expect(retried.attempts).toBe(0);
+  expect(BigInt(retried.requested_generation)).toBe(BigInt(failed.requested_generation) + 1n);
+  const retryAudit = await db.from('audit_log').select('performed_by,new_values').eq('table_name', 'affiliate_work')
+    .eq('new_values->>payment_id', payment.id).eq('new_values->>reason', reason);
+  expect(retryAudit.error).toBeNull(); expect(retryAudit.data).toHaveLength(1);
+  expect(retryAudit.data![0].performed_by).toBe(actor);
   // Place the disposable confirmation fixture just before its one-day maturity boundary.
   sql(`UPDATE coupon_redemptions SET redeemed_at=clock_timestamp()-interval '1 day'+interval '30 seconds' WHERE transaction_id='${payment.id}'`);
-  await sync(request);
+  await sync(request); await sync(request);
   const commission = (await rows('affiliate_commissions', 'payment_id', payment.id))[0];
   expect(commission).toBeTruthy(); expect(Date.parse(commission.eligible_at)).toBeGreaterThan(Date.now());
   await setAuthSession(page, user.email, user.password); await page.goto('/my-affiliate');
@@ -82,7 +122,7 @@ test('native coupon paid, held, mature and refunded in test mode', async ({ page
   await sync(request); await sync(request);
   const entries = await rows('affiliate_ledger', 'member_id', member.id);
   expect(entries.reduce((sum, e) => sum + BigInt(e.amount_minor), 0n)).toBe(0n);
-  expect(entries.filter(e => e.kind === 'accrual')).toHaveLength(1); expect(entries.filter(e => e.kind === 'settlement')).toHaveLength(0);
+  expect(entries.filter(e => e.kind === 'accrual')).toHaveLength(1); expect(entries.filter(e => e.kind === 'reversal')).toHaveLength(1); expect(entries.filter(e => e.kind === 'settlement')).toHaveLength(0);
   expect((await rows('payment_transactions', 'id', payment.id))[0].metadata).toEqual(metadata);
   await setAuthSession(page, user.email, user.password); await page.goto('/my-affiliate'); await expect(page.getByText('Reversed', { exact: true }).first()).toBeVisible();
 });
