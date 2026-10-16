@@ -4,8 +4,10 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, RotateCcw, Eye, Layers } from 'lucide-react';
+import { importLegacyStorefrontTheme } from '@/lib/actions/storefront-legacy-theme';
 import { storefrontTemplateAction } from '@/lib/actions/storefront-templates';
 import { STOREFRONT_TEMPLATES, validateConfig } from '@/lib/storefront-templates/registry';
+import AppearanceEditor from '@/components/storefront-editor/AppearanceEditor';
 import BindingPicker from '@/components/storefront-editor/BindingPicker';
 import ReorderHandle from '@/components/ui/ReorderHandle';
 import SlotEditor, { SLOT_IDS, SLOT_SECTIONS, editorButton, editorControl } from '@/components/storefront-editor/SlotEditor';
@@ -16,6 +18,7 @@ import type { StorefrontConfig, TemplateRegistryEntry } from '@/lib/storefront-t
 interface StorefrontEditorProps { initial: TemplateReadResult | null }
 export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
   const t = useTranslations('storefrontEditor');
+  const appearance = useTranslations('storefrontAppearance');
   const sectionListId = useId();
   const sectionListRef = useRef<HTMLOListElement>(null);
   const [selected, setSelected] = useState('hero');
@@ -74,6 +77,24 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
     } catch { setMessage(t('failure')); }
     finally { setBusy(false); }
   }
+  async function savedOperation(field?: string) {
+    if (!config || !snapshot || dirty || busy || conflict) return { success: false, code: 'CONFLICT' };
+    setBusy(true); setMessage('');
+    try {
+      const response = field
+        ? await storefrontTemplateAction({ operation: 'reset', expectedRevision: snapshot.revision, templateId: config.templateId, field })
+        : await importLegacyStorefrontTheme(snapshot.revision);
+      if (response.success) {
+        const read = await storefrontTemplateAction({ operation: 'read' });
+        if (read.success && 'data' in read && 'revision' in read.data) {
+          setSnapshot(read.data); setConfig(read.data.draft ?? read.data.published); setValidation(read.data.validation); setDirty(false);
+        } else { setConflict(true); setMessage(t('failure')); }
+      } else if (response.code === 'CONFLICT') setConflict(true);
+      else if (field) setMessage(t('failure'));
+      return response;
+    } catch { setMessage(t('failure')); return { success: false, code: 'UNAVAILABLE' }; }
+    finally { setBusy(false); }
+  }
   const entry: TemplateRegistryEntry | null = config ? STOREFRONT_TEMPLATES[config.templateId] : null;
   const overrides = config?.overridesByTemplate[config.templateId];
   const hidden: readonly string[] = overrides?.hidden ?? [];
@@ -83,7 +104,7 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
     if (config) edit({ ...config, overridesByTemplate: { ...config.overridesByTemplate, [config.templateId]: { ...overrides, ...patch } } } as StorefrontConfig);
   }
   const diagnostics = [...validation?.errors ?? [], ...validation?.warnings ?? []];
-  const sectionId = order.includes(selected) ? selected : order[0];
+  const sectionId = selected === 'appearance' ? selected : order.includes(selected) ? selected : order[0];
   const orderKey = order.join(',');
   useEffect(() => {
     const list = sectionListRef.current;
@@ -138,7 +159,9 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
               <label className="flex h-11 w-9 shrink-0 items-center justify-center" title={t('show', { id: sectionName(id) })}><input type="checkbox" aria-label={t('show', { id: sectionName(id) })} className="h-4 w-4 accent-sf-accent" checked={!hidden.includes(id)} disabled={!['tasks', 'start', 'faq'].includes(id)} onChange={event => changeOverride({ hidden: event.target.checked ? hidden.filter(item => item !== id) : [...hidden, id] })} /></label>
             </li>)}
           </ol>
+          <button type="button" aria-pressed={sectionId === 'appearance'} className={`${editorButton} w-full text-left ${sectionId === 'appearance' ? 'border-sf-accent bg-sf-accent-soft' : ''}`} onClick={() => setSelected('appearance')}>{appearance('title')}</button>
         </nav>
+        {sectionId === 'appearance' && <AppearanceEditor config={config} dirty={dirty} blocked={busy || conflict} onChange={edit} onReset={async field => { await savedOperation(field); }} onImport={async () => { const response = await savedOperation(); return { success: response.success, ...('code' in response ? { code: response.code } : {}), ...('unsupported' in response ? { unsupported: response.unsupported } : {}) }; }} />}
         {section && <section data-editor-panel aria-label={sectionName(sectionId)} className={`min-w-0 space-y-6 rounded-2xl border bg-sf-base p-4 sm:p-6 ${validation?.errors.length ? 'border-sf-danger' : 'border-sf-border'}`}>
           <header className="space-y-1 border-b border-sf-border pb-5"><h2 className="text-xl font-semibold">{sectionName(sectionId)}</h2><p className="text-sm text-sf-muted">{t(`sectionDescriptions.${sectionId}`)}</p></header>
           {field && <div className="space-y-3"><BindingPicker key={`${config.templateId}:${field}`} label={t(bindingLabel)} kind={field === 'taskCategories' ? 'categories' : 'products'} selectedIds={bindingIds} maxItems={field === 'starterProducts' ? 3 : field === 'taskCategories' ? 12 : 1} onChange={ids => {
