@@ -78,14 +78,24 @@ try {
   const db = createClient(status.API_URL, status.SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   const password = randomBytes(24).toString('hex');
   const email = `matrix-${randomUUID()}@example.com`;
-  const userResult = await db.auth.admin.createUser({ email, password, email_confirm: true });
-  if (userResult.error || !userResult.data.user) throw new Error('Could not create matrix admin');
-  const userId = userResult.data.user.id;
-  const adminResult = await db.from('admin_users').insert({ user_id: userId }).select('id').single();
-  if (adminResult.error) throw new Error('Could not assign matrix admin');
   const apiKey = `sf_live_${randomBytes(32).toString('hex')}`;
-  const keyResult = await db.from('api_keys').insert({ name: 'upgrade matrix', key_prefix: apiKey.slice(0, 12), key_hash: createHash('sha256').update(apiKey).digest('hex'), admin_user_id: adminResult.data.id, scopes: ['system:read', 'system:write'] });
-  if (keyResult.error) throw new Error('Could not create matrix API key');
+  async function createIdentity(): Promise<void> {
+    const deadline = Date.now() + 90_000;
+    while (true) {
+      const authHealth = await fetch(`${status.API_URL}/auth/v1/health`, { headers: { apikey: status.ANON_KEY }, signal: AbortSignal.timeout(1500) }).catch(() => null);
+      const { error } = await db.from('admin_users').select('id').limit(1).abortSignal(AbortSignal.timeout(1500));
+      if (authHealth?.ok && !error) break;
+      assert(Date.now() < deadline, 'Supabase Auth and REST must be ready before creating fixtures');
+      await new Promise(accept => setTimeout(accept, 500));
+    }
+    const userResult = await db.auth.admin.createUser({ email, password, email_confirm: true });
+    if (userResult.error || !userResult.data.user) throw new Error(`Could not create matrix admin (${userResult.error?.status ?? 'unknown'})`);
+    const adminResult = await db.from('admin_users').upsert({ user_id: userResult.data.user.id }, { onConflict: 'user_id' }).select('id').single();
+    if (adminResult.error) throw new Error('Could not assign matrix admin');
+    const keyResult = await db.from('api_keys').insert({ name: 'upgrade matrix', key_prefix: apiKey.slice(0, 12), key_hash: createHash('sha256').update(apiKey).digest('hex'), admin_user_id: adminResult.data.id, scopes: ['system:read', 'system:write'] });
+    if (keyResult.error) throw new Error('Could not create matrix API key');
+  }
+  await createIdentity();
   const headers = { Authorization: `Bearer ${apiKey}` };
   await new Promise<void>(accept => fixture.listen(55330, '0.0.0.0', accept));
   const env: Record<string, string> = {
@@ -142,6 +152,8 @@ try {
   check(await page.getByTestId('upgrade-instructions').count() > 0, 'Docker: real dashboard renders deployment instructions');
   check(await page.getByRole('button', { name: /Upgrade now|Aktualizuj teraz/i }).count() === 0, 'Docker: dashboard has no in-place action');
   await page.screenshot({ path: resolve(scratch, 'docker-ui.png') });
+  await browser.close();
+  browser = undefined;
   await run('docker', ['restart', container]);
   await waitForApp(55331);
   check((await readApi('update-check?force=true')).current_version === initial.current_version, 'Docker: restart preserves image version');
@@ -204,12 +216,37 @@ try {
     assert(asset, `Missing ${name}`);
     await run('curl', ['-fSL', '--max-time', '180', '-o', resolve(assetsDir, name), asset.browser_download_url]);
   }
+  await run('bash', ['admin-panel/scripts/ci/sign-manifest.sh', 'verify', resolve(assetsDir, 'sellf-build.manifest'), resolve(assetsDir, 'sellf-build.manifest.sig')]);
+  const manifest = await readFile(resolve(assetsDir, 'sellf-build.manifest'), 'utf8');
+  assert(manifest.includes(`version=${release.tag_name.replace(/^v/, '')}\n`), 'Published manifest version');
+  assert(manifest.includes(`sha256=${createHash('sha256').update(await readFile(resolve(assetsDir, 'sellf-build.tar.gz'))).digest('hex')}\n`), 'Published archive checksum');
   const archivedFiles = (await run('tar', ['-tzf', resolve(assetsDir, 'sellf-build.tar.gz')])).split('\n');
-  const releaseMigration = archivedFiles.filter(file => /(?:^|\/)supabase\/migrations\/[0-9]{14}_[a-z0-9_]+\.sql$/.test(file)).sort().at(-1);
+  const releaseMigrations = archivedFiles.filter(file => /^(?:\.\/)?supabase\/migrations\/[0-9]{14}_[a-z0-9_]+\.sql$/.test(file)).sort();
+  const releaseMigration = releaseMigrations.at(-1);
   assert(releaseMigration, 'Signed release migration fixture');
   const migrationTimestamp = releaseMigration.split('/').at(-1)!.slice(0, 14);
-  assert(await sql(`SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version = '${migrationTimestamp}'`) === '1', 'Release fixture must match the local schema');
-  await sql(`DELETE FROM supabase_migrations.schema_migrations WHERE version = '${migrationTimestamp}'`);
+  // Build the actual pre-release schema; a deleted history row does not undo DDL.
+  const migrationsDir = resolve(stack, 'supabase/migrations');
+  const savedMigrations = resolve(scratch, 'migrations-after-compose');
+  const configPath = resolve(stack, 'supabase/config.toml');
+  const baselineDir = resolve(assetsDir, 'baseline');
+  await mkdir(baselineDir);
+  await run('tar', ['-xzf', resolve(assetsDir, 'sellf-build.tar.gz'), '-C', baselineDir, ...releaseMigrations.slice(0, -1)]);
+  await cp(migrationsDir, savedMigrations, { recursive: true });
+  try {
+    await rm(migrationsDir, { recursive: true });
+    await cp(resolve(baselineDir, 'supabase/migrations'), migrationsDir, { recursive: true });
+    await writeFile(configPath, `${config}\n[db.seed]\nenabled = false\n`);
+    await run('supabase', ['db', 'reset', '--workdir', stack]);
+    await run('docker', ['restart', `supabase_kong_${project}`]);
+  } finally {
+    await writeFile(configPath, config);
+    await rm(migrationsDir, { recursive: true, force: true });
+    await cp(savedMigrations, migrationsDir, { recursive: true });
+    await rm(savedMigrations, { recursive: true, force: true });
+  }
+  check(await sql(`SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version = '${migrationTimestamp}'`) === '0', 'PM2: baseline precedes the signed release migration');
+  await createIdentity();
   await cp(resolve(adminDir, 'scripts/upgrade.sh'), resolve(assetsDir, 'upgrade.sh'));
   await writeFile(resolve(assetsDir, '.env.local'), Object.entries({ ...env, MATRIX_API_KEY: apiKey, PORT: '3000', HOSTNAME: '0.0.0.0' }).map(([key, value]) => `${key}=${value}`).join('\n') + '\n', { mode: 0o600 });
   await cp(resolve(adminDir, 'tests/upgrade-matrix/pm2-run.sh'), resolve(assetsDir, 'pm2-run.sh'));
