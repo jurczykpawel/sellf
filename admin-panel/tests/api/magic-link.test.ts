@@ -99,7 +99,7 @@ describe('Magic-link gateway', () => {
     expect((await response.json()).code).toBe('captcha_failed');
 
     const search = await fetch(
-      `http://127.0.0.1:54324/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`,
+      `${process.env.MAILPIT_URL || 'http://127.0.0.1:54324'}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`,
     );
     const data = await search.json();
     expect(data.messages || []).toHaveLength(0);
@@ -147,7 +147,7 @@ describe('Magic-link gateway', () => {
     expect((await second.json()).code).toBe('captcha_failed');
 
     const search = await fetch(
-      `http://127.0.0.1:54324/api/v1/search?query=${encodeURIComponent(`to:${secondEmail}`)}`,
+      `${process.env.MAILPIT_URL || 'http://127.0.0.1:54324'}/api/v1/search?query=${encodeURIComponent(`to:${secondEmail}`)}`,
     );
     const data = await search.json();
     expect(data.messages || []).toHaveLength(0);

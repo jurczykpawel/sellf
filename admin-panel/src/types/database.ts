@@ -3436,9 +3436,67 @@ export type Database = {
           actor_id: string
           operation_param: string
           product_data: Json
-          product_id: string | null
+          product_id: string
         }
-        Returns: Database["public"]["Tables"]["products"]["Row"][]
+        Returns: {
+          allow_custom_price: boolean
+          auto_grant_duration_days: number | null
+          available_from: string | null
+          available_until: string | null
+          billing_interval: string | null
+          billing_interval_count: number | null
+          checkout_template: string
+          content_config: Json
+          content_delivery_type: string
+          created_at: string
+          currency: string
+          custom_checkout_fields: Json
+          custom_price_min: number | null
+          custom_price_presets: Json | null
+          description: string | null
+          embed_enabled: boolean
+          enable_waitlist: boolean
+          features: Json | null
+          icon: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          is_bundle: boolean
+          is_featured: boolean
+          is_listed: boolean
+          is_refundable: boolean
+          issue_license_on_purchase: boolean
+          layout_template: string
+          license_duration_days: number | null
+          license_tier: string | null
+          long_description: string | null
+          name: string
+          omnibus_exempt: boolean
+          pass_params_to_redirect: boolean
+          preview_video_config: Json
+          preview_video_url: string | null
+          price: number
+          price_includes_vat: boolean
+          product_type: string
+          recurring_price: number | null
+          refund_period_days: number | null
+          sale_price: number | null
+          sale_price_until: string | null
+          sale_quantity_limit: number | null
+          sale_quantity_sold: number
+          seller_id: string | null
+          show_price_presets: boolean
+          slug: string
+          stripe_price_id: string | null
+          stripe_product_id: string | null
+          success_redirect_url: string | null
+          thumbnail_url: string | null
+          trial_days: number | null
+          updated_at: string
+          vat_exempt: boolean
+          vat_exempt_note: string | null
+          vat_rate: number | null
+        }[]
         SetofOptions: {
           from: "*"
           to: "products"
@@ -3491,6 +3549,15 @@ export type Database = {
         Args: { p_email: string; p_product_slug: string }
         Returns: boolean
       }
+      rotate_webhook_secret: {
+        Args: {
+          p_actor_id: string
+          p_api_key_id?: string
+          p_endpoint_id: string
+          p_secret: string
+        }
+        Returns: boolean
+      }
       seller_license_public_keys: {
         Args: { seller: string }
         Returns: {
@@ -3516,15 +3583,6 @@ export type Database = {
           p_start_date: string
         }
         Returns: undefined
-      }
-      rotate_webhook_secret: {
-        Args: {
-          p_endpoint_id: string
-          p_secret: string
-          p_actor_id: string
-          p_api_key_id?: string
-        }
-        Returns: boolean
       }
       set_webhook_endpoint_scoping: {
         Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
