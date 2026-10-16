@@ -2,8 +2,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { commissionRuleSchema, minorSchema, programSchema, signedMinorSchema } from '@/lib/affiliates/model';
-import { calculateCommission, calculateEligibleAt } from '@/lib/affiliates/money';
-import { reduceLoss } from '@/lib/affiliates/loss';
+import { calculateCommission, calculateEligibleAt } from '../../../affiliates/oracles/money';
+import { reduceLoss } from '../../../affiliates/oracles/loss';
 
 const percentage = { percentage_bps: 2000 };
 const fixed = { fixed_minor: '2500', currency: 'PLN' };

@@ -28,7 +28,7 @@ it('provides private HTTP and metadata defaults on failures too', () => {
   expect(portalMetadata.robots).toEqual({ index: false, follow: false });
 });
 it('pages newest purchases first with stable ties and an own cursor', async () => {
-  const { pageCommissions } = await import('@/lib/affiliates/portal/model');
+  const { pageCommissions } = await import('../oracles/portal');
   const older = { id: 'ffffffff-0000-4000-a000-000000000001', paid_at: '2026-01-01', currency: 'PLN' };
   const newer = { ...older, id: 'aaaaaaaa-0000-4000-a000-000000000001', paid_at: '2026-02-01' };
   const tie = { ...newer, id: 'bbbbbbbb-0000-4000-a000-000000000001' };
@@ -36,4 +36,19 @@ it('pages newest purchases first with stable ties and an own cursor', async () =
   expect(pageCommissions(facts, { limit: 2 }).map(c => c.id)).toEqual([tie.id, newer.id]);
   expect(pageCommissions(facts, { limit: 2, cursor: newer.id }).map(c => c.id)).toEqual([older.id]);
   expect(pageCommissions(facts, { limit: 2, cursor: 'cccccccc-0000-4000-a000-000000000001' })).toEqual([]);
+});
+it('requests the next page with one keyset RPC and one summary RPC', async () => {
+  const cursor = 'af000000-0000-4000-a000-000000000001';
+  const rpc = vi.fn().mockImplementation(async (name: string) => ({ error: null, data: name === 'affiliate_portal_page'
+    ? { commissions: [], next_cursor: null }
+    : { balances: [], codes: [], rules: [], sync_pending: false, needs_review: false } }));
+  const memberQuery = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'member', code: 'own', status: 'approved' }, error: null }) };
+  memberQuery.select.mockReturnValue(memberQuery); memberQuery.eq.mockReturnValue(memberQuery);
+  const from = vi.fn((table: string) => { if (table !== 'affiliate_memberships') throw new Error('Unexpected history read'); return memberQuery; });
+  mocks.admin.mockReturnValue({ rpc, from });
+  mocks.user.mockResolvedValue({ data: { user: { id: 'user' } } });
+  expect(await readPartnerPortal({ cursor, limit: 25 })).toMatchObject({ success: true, data: { commissions: [] } });
+  expect(from).toHaveBeenCalledExactlyOnceWith('affiliate_memberships');
+  expect(rpc).toHaveBeenCalledTimes(2);
+  expect(rpc).toHaveBeenCalledWith('affiliate_portal_page', expect.objectContaining({ p_member: 'member', p_cursor: cursor, p_limit: 25 }));
 });

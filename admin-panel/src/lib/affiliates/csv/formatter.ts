@@ -15,8 +15,7 @@ const payoutSchema = z.strictObject({
   debt_offset_minor: minorSchema,
   payable_minor: minorSchema,
   payee_reference: z.string().min(1).max(200),
-}).refine(row => BigInt(row.payable_minor) > BigInt(0)
-  && BigInt(row.earnings_minor) - BigInt(row.debt_offset_minor) === BigInt(row.payable_minor));
+});
 
 function textCell(value: string): string {
   const leading = value.match(/^[\s\p{Cc}\p{Cf}]*/u)?.[0] ?? '';
@@ -25,39 +24,16 @@ function textCell(value: string): string {
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
-/** Pages contain at most 100 explicit projections, ordered by payout_id across pages.
- * Each page is validated and sorted before emission; duplicates/backward IDs stop the stream.
- * Consume failures as an aborted download, never as a completed CSV. Auth, reservation,
- * threshold/review checks, audit and response headers belong to the calling payout service.
- */
-export async function* streamPayoutCsv(
-  pages: Iterable<unknown> | AsyncIterable<unknown>,
-): AsyncGenerator<AffiliateResult<Uint8Array>, void, unknown> {
-  const encoder = new TextEncoder();
-  yield { success: true, data: encoder.encode('\uFEFF' + columns.join(',') + '\r\n') };
-  let previous = '';
-  try {
-    for await (const page of pages) {
-      if (!Array.isArray(page) || page.length > 100) { yield { success: false, error: 'invalid_input' }; return; }
-      const parsed = z.array(payoutSchema).safeParse(page);
-      if (!parsed.success) { yield { success: false, error: 'invalid_input' }; return; }
-      const rows = parsed.data.sort((a, b) => a.payout_id < b.payout_id ? -1 : a.payout_id > b.payout_id ? 1 : 0);
-      let last = previous;
-      for (const row of rows) {
-        if (row.payout_id <= last) { yield { success: false, error: 'invalid_input' }; return; }
-        last = row.payout_id;
-      }
-      for (const row of rows) {
-        const cells = ['sellf-affiliate-payouts/v1', row.payout_id, BigInt(row.version).toString(), textCell(row.affiliate_code),
-          row.currency, BigInt(row.earnings_minor).toString(), BigInt(row.debt_offset_minor).toString(),
-          BigInt(row.payable_minor).toString(), textCell(row.payee_reference)];
-        yield { success: true, data: encoder.encode(cells.join(',') + '\r\n') };
-      }
-      previous = last;
-    }
-  } catch {
-    yield { success: false, error: 'invalid_input' };
-  }
+/** One reserved payout produces one statement row. */
+export function formatPayoutCsv(input: unknown): AffiliateResult<Uint8Array> {
+  const parsed = payoutSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: 'invalid_input' };
+  const row = parsed.data;
+  if (BigInt(row.payable_minor) <= BigInt(0) || BigInt(row.earnings_minor) - BigInt(row.debt_offset_minor) !== BigInt(row.payable_minor)) return { success: false, error: 'invalid_input' };
+  const cells = ['sellf-affiliate-payouts/v1', row.payout_id, BigInt(row.version).toString(), textCell(row.affiliate_code),
+    row.currency, BigInt(row.earnings_minor).toString(), BigInt(row.debt_offset_minor).toString(),
+    BigInt(row.payable_minor).toString(), textCell(row.payee_reference)];
+  return { success: true, data: new TextEncoder().encode('\uFEFF' + columns.join(',') + '\r\n' + cells.join(',') + '\r\n') };
 }
 
 const displayDecimals: Readonly<Record<string, number>> = { PLN: 2, EUR: 2, USD: 2, GBP: 2, JPY: 0 };

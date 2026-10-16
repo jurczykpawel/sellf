@@ -90,6 +90,7 @@ DO $$ DECLARE payment uuid; coupon uuid; member uuid; payout public.affiliate_pa
   RAISE EXCEPTION 'Stale refunded earnings reserved';
  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
  PERFORM pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.affiliate_payouts WHERE member_id=member),'refund after cutoff leaves no payout');
+ PERFORM pg_temp.check_that((SELECT payable_minor='0' AND debt_offset_minor='2000' FROM public.affiliate_preview(member,'EUR',now()-interval '1 day')),'shared preview includes current refund');
  -- Paid earnings produce debt against a different sale with an earlier preview cutoff.
  SET CONSTRAINTS ALL IMMEDIATE; ALTER TABLE public.affiliate_ledger ALTER COLUMN created_at SET DEFAULT now()-interval '2 days'; SET CONSTRAINTS ALL DEFERRED;
  payment:=pg_temp.sale(p_coupon=>coupon); PERFORM pg_temp.sync(payment);
@@ -112,6 +113,8 @@ DO $$ DECLARE member uuid; coupon uuid; payment uuid; payout public.affiliate_pa
  INSERT INTO public.coupons(code,name,discount_type,discount_value) VALUES('MODEFIX','Fixture','percentage',10) RETURNING id INTO coupon;
  INSERT INTO public.affiliate_coupon_bindings(coupon_id,member_id,version,created_at) VALUES(coupon,member,1,'2026-01-01');
  payment:=pg_temp.sale(p_coupon=>coupon); PERFORM pg_temp.sync(payment,p_live=>false);
+ PERFORM pg_temp.check_that(public.affiliate_portal_summary(member,now())->'balances'='[]'::jsonb,'test-only portal has no real balances');
+ PERFORM pg_temp.check_that(jsonb_array_length(public.affiliate_portal_page(member)->'commissions')=1,'test commission remains listed');
  BEGIN
   PERFORM public.affiliate_reserve('dddddddd-0000-4000-a000-000000000000',member,'EUR',now(),1,1,'Fixture');
   RAISE EXCEPTION 'Test earnings reserved';

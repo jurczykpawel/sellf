@@ -5,10 +5,10 @@ import { z } from 'zod';
 import { requireAdminApi } from '@/lib/auth-server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { buildBalances, pageCommissions, getCommissionStatus, isSyncPending, portalQuerySchema } from '@/lib/affiliates/portal/model';
+import { portalQuerySchema } from '@/lib/affiliates/portal/model';
 import type { Metadata } from 'next';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { CommissionFact, LedgerFact, PortalData, PortalResult } from '@/lib/affiliates/portal/model';
+import type { PortalData, PortalResult } from '@/lib/affiliates/portal/model';
 
 type Query = z.infer<typeof portalQuerySchema>;
 export const portalMetadata: Metadata = { robots: { index: false, follow: false } };
@@ -18,52 +18,18 @@ export function portalResponse(result: PortalResult): NextResponse {
   return NextResponse.json(result, { status, headers: portalHeaders });
 }
 
-/** Each page and monetary projection stays bounded and exact. */
-async function scan<T extends { id: string }>(client: SupabaseClient, table: string, select: string, member?: string): Promise<T[]> {
-  const rows: T[] = []; let cursor: string | undefined;
-  for (;;) {
-    let query = client.from(table).select(select).order('id').limit(100);
-    if (member) query = query.eq('member_id', member);
-    if (cursor) query = query.gt('id', cursor);
-    const { data, error } = await query.returns<T[]>();
-    if (error || !data) throw new Error('Read unavailable');
-    rows.push(...data);
-    if (data.length < 100) return rows;
-    cursor = data[data.length - 1].id;
-  }
-}
-const commissionSelect = 'rule:affiliate_rules!inner(product:products!inner(name)),id,currency,eligible_at,paid_at,accrued_minor::text,livemode,dispute_seen,dispute_reviewed_at,observed_status,observed_refunded_gross::text,payment:payment_transactions!inner(status,refunded_amount::text,work:affiliate_work(requested_generation::text,processed_generation::text,status))';
-interface Binding { id: string; retired_at: string | null; coupon: { code: string; is_active: boolean; allowed_product_ids: string[] | null } }
-interface Rule { id: string; product_id: string; revision: number; enabled: boolean; percentage_bps: number | null; fixed_minor: string | null; currency: string | null; product: { name: string; is_active: boolean; product_type: string } }
 async function readData(client: SupabaseClient, member: { id: string; code: string; status: string }, query: Query, admin: boolean): Promise<PortalResult> {
   const as_of = new Date().toISOString();
-  const [commissions, ledger, bindings, rules, payouts] = await Promise.all([
-    scan<CommissionFact>(client, 'affiliate_commissions', commissionSelect, member.id),
-    scan<LedgerFact>(client, 'affiliate_ledger', 'id,commission_id,currency,kind,amount_minor::text,allocations:affiliate_payout_allocations(released_at,payout:affiliate_payouts!inner(status))', member.id),
-    scan<Binding>(client, 'affiliate_coupon_bindings', 'id,retired_at,coupon:coupons!inner(code,is_active,allowed_product_ids)', member.id),
-    scan<Rule>(client, 'affiliate_rules', 'id,product_id,revision,enabled,percentage_bps,fixed_minor::text,currency,product:products!inner(name,is_active,product_type)'),
-    scan<{ id: string; needs_review: boolean }>(client, 'affiliate_payouts', 'id,needs_review', member.id),
+  const [summary, page] = await Promise.all([
+    client.rpc('affiliate_portal_summary', { p_member: member.id, p_as_of: as_of }),
+    client.rpc('affiliate_portal_page', { p_member: member.id, p_currency: query.currency ?? null,
+      p_cursor: query.cursor ?? null, p_limit: query.limit, p_as_of: as_of }),
   ]);
-  const current = new Map<string, bigint>();
-  for (const e of ledger) if (e.commission_id) current.set(e.commission_id, (current.get(e.commission_id) ?? BigInt(0)) + BigInt(e.amount_minor));
-  const remaining = pageCommissions(commissions, { ...query, limit: query.limit + 1 });
-  const page = remaining.slice(0, query.limit);
-  const latest = new Map<string, Rule>();
-  for (const r of rules) if (!latest.has(r.product_id) || latest.get(r.product_id)!.revision < r.revision) latest.set(r.product_id, r);
-  const activeBindings = bindings.filter(b => b.retired_at === null);
+  if (summary.error || page.error || !summary.data || !page.data) throw new Error('Read unavailable');
   const data: PortalData = {
     member: { code: member.code, status: member.status }, as_of,
-    balances: buildBalances(commissions, ledger, as_of),
-    commissions: page.map(c => ({ product: c.rule.product.name, status: getCommissionStatus(c, ledger.filter(e => e.commission_id === c.id), as_of), reference: c.id, currency: c.currency, paid_at: c.paid_at, eligible_at: c.eligible_at, accrued_minor: c.accrued_minor,
-      current_minor: String(current.get(c.id) ?? BigInt(0)), livemode: c.livemode, sync_pending: isSyncPending(c),
-      needs_review: c.payment.work?.status === 'needs_review' || c.dispute_seen && c.dispute_reviewed_at === null })),
-    codes: activeBindings.map(b => ({ code: b.coupon.code, active: b.coupon.is_active })),
-    rules: [...latest.values()].filter(r => r.product.is_active && r.product.product_type !== 'subscription' && activeBindings.some(b => b.coupon.is_active
-      && (!b.coupon.allowed_product_ids?.length || b.coupon.allowed_product_ids.includes(r.product_id))))
-      .map(r => ({ product: r.product.name, percentage_bps: r.percentage_bps, fixed_minor: r.fixed_minor, currency: r.currency, enabled: r.enabled })),
-    next_cursor: remaining.length > query.limit ? page[page.length - 1].id : null,
-    sync_pending: commissions.some(isSyncPending),
-    needs_review: payouts.some(p => p.needs_review) || commissions.some(c => c.payment.work?.status === 'needs_review' || c.dispute_seen && c.dispute_reviewed_at === null),
+    ...summary.data as Pick<PortalData, 'balances' | 'codes' | 'rules' | 'sync_pending' | 'needs_review'>,
+    ...page.data as Pick<PortalData, 'commissions' | 'next_cursor'>,
   };
   if (admin) {
     const results = await Promise.all([

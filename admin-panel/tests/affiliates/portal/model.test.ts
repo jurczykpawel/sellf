@@ -1,7 +1,8 @@
 /** Portal accounting fixtures. @see src/lib/affiliates/portal/model.ts */
 import { describe, expect, it } from 'vitest';
-import { buildBalances, isSyncPending, portalQuerySchema } from '@/lib/affiliates/portal/model';
-import type { CommissionFact, LedgerFact } from '@/lib/affiliates/portal/model';
+import { portalQuerySchema } from '@/lib/affiliates/portal/model';
+import { buildBalances, isSyncPending } from '../oracles/portal';
+import type { CommissionFact, LedgerFact } from '../oracles/portal';
 const now = '2026-10-16T12:00:00Z';
 const commission = (id: string, eligible_at: string | null = '2026-01-01T00:00:00Z'): CommissionFact => ({
   rule: { product: { name: 'Affiliate PLN Course' } }, id, currency: 'PLN', eligible_at, paid_at: now, accrued_minor: '2000', livemode: true,
@@ -53,7 +54,7 @@ it('detects source differences and exact generation backlog', () => {
   c.payment.refunded_amount = '0'; c.payment.status = 'disputed'; expect(isSyncPending(c)).toBe(true);
 });
 it('projects held, mature, reserved, paid and reversed commission states', async () => {
-  const { getCommissionStatus } = await import('@/lib/affiliates/portal/model');
+  const { getCommissionStatus } = await import('../oracles/portal');
   const c = commission('a');
   const rows = [entry('1', 'a', 'accrual', '2000')];
   expect(getCommissionStatus(c, rows, now)).toBe('eligible');

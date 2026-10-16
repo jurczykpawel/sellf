@@ -5,8 +5,8 @@ import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { drainAffiliateWork } from '@/lib/affiliates/sync/worker';
-import { calculateCommission } from '@/lib/affiliates/money';
-import { reduceLoss } from '@/lib/affiliates/loss';
+import { calculateCommission } from '../oracles/money';
+import { reduceLoss } from '../oracles/loss';
 
 const state = vi.hoisted(() => ({ client: undefined as unknown, duringLookup: undefined as (() => void) | undefined }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => state.client }));

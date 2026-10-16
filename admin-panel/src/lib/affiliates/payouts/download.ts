@@ -1,7 +1,7 @@
 /** Private CSV response adapter for the A1.8 route shell. @see reads.ts */
 import 'server-only';
 import { withAdminClient } from '@/lib/actions/admin-auth';
-import { streamPayoutCsv } from '@/lib/affiliates/csv/formatter';
+import { formatPayoutCsv } from '@/lib/affiliates/csv/formatter';
 import { exportSchema, payoutProjection } from '@/lib/affiliates/payouts/contracts';
 import { readPreview } from '@/lib/affiliates/payouts/query';
 import type { PayoutInfo } from '@/lib/affiliates/payouts/contracts';
@@ -43,9 +43,7 @@ export async function downloadPayoutCsv(input: unknown): Promise<Response> {
     const status = result.errorCode === 'UNAUTHORIZED' ? 401 : result.errorCode === 'FORBIDDEN' || result.errorCode === 'DEMO_MODE' ? 403 : Number(result.errorCode) || 422;
     return Response.json({ error: 'unavailable' }, { status, headers: privateHeaders });
   }
-  const source = streamPayoutCsv([[result.data]]);
-  return new Response(new ReadableStream<Uint8Array>({
-    async pull(controller) { const next = await source.next(); if (next.done) controller.close(); else if (next.value.success) controller.enqueue(next.value.data); else controller.error(new Error('Export unavailable')); },
-    async cancel() { await source.return(); },
-  }), { headers: { ...privateHeaders, 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="sellf-affiliate-payout.csv"' } });
+  const csv = formatPayoutCsv(result.data);
+  if (!csv.success) return Response.json({ error: 'unavailable' }, { status: 422, headers: privateHeaders });
+  return new Response(csv.data as Uint8Array<ArrayBuffer>, { headers: { ...privateHeaders, 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="sellf-affiliate-payout.csv"' } });
 }
