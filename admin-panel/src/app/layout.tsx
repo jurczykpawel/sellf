@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, DM_Sans, DM_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { headers } from "next/headers";
 import "./globals.css";
 import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
@@ -13,26 +13,37 @@ import TrackingProvider from "@/components/TrackingProvider";
 import { CSP_NONCE_HEADER } from "@/proxy";
 import { Suspense } from "react";
 
-const geistSans = Geist({
+const geistSans = localFont({
+  src: "./fonts/geist-variable.woff2",
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  weight: "100 900",
+  style: "normal",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: "./fonts/geist-mono-variable.woff2",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: "100 900",
+  style: "normal",
+  display: "swap",
 });
 
-const dmSans = DM_Sans({
+const dmSans = localFont({
+  src: "./fonts/dm-sans-variable.woff2",
   variable: "--font-dm-sans",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: "300 800",
+  style: "normal",
+  display: "swap",
 });
 
-const dmMono = DM_Mono({
+const dmMono = localFont({
+  src: [
+    { path: "./fonts/dm-mono-regular.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/dm-mono-medium.woff2", weight: "500", style: "normal" },
+  ],
   variable: "--font-dm-mono",
-  subsets: ["latin"],
-  weight: ["400", "500"],
+  display: "swap",
 });
 
 // Prebuilt releases are relocatable: tenant data and metadata are runtime-only.
