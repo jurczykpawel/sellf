@@ -152,6 +152,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
   const [mounted, setMounted] = useState(false)
   const { signOut, role: authRole, user: authUser, loading: authLoading } = useAuth()
   const t = useTranslations('navigation')
+  const templateEditorTitle = useTranslations('storefrontEditor')
   const pathname = usePathname()
   const router = useRouter()
 
@@ -240,6 +241,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
     { href: '/dashboard/products', label: t('products'), icon: Icons.products },
     { href: '/dashboard/variants', label: t('variants', { defaultValue: 'Variants' }), icon: Icons.variants },
     { href: '/dashboard/categories', label: t('categories'), icon: Icons.categories },
+    { href: '/dashboard/templates', label: templateEditorTitle('title'), icon: Icons.variants },
     { href: '/dashboard/order-bumps', label: t('orderBumps'), icon: Icons.orderBumps },
     { href: '/dashboard/coupons', label: t('coupons'), icon: Icons.coupons },
     { href: '/dashboard/payments', label: t('payments'), icon: Icons.payments },
