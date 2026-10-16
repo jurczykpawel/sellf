@@ -92,3 +92,54 @@ brakujących rekordów nie da się policzyć. E-mail gościa może być nieznany
 wysyła przypomnień, nie dodaje śledzenia i nie wymaga nowej konfiguracji.
 
 Tabela pokazuje do 100 produktów z największą liczbą zapisanych prób; sumy obejmują wszystkie produkty. Agregacja odbywa się w bazie w jednym zapytaniu.
+
+## Worker prowizji partnerskich
+
+Po włączeniu programu partnerskiego uruchamiaj worker co minutę. Ustaw `SELLF_URL`
+na publiczny adres aplikacji i bezpiecznie przekaż serwerowy `CRON_SECRET` w środowisku
+harmonogramu (nie wpisuj prawdziwego sekretu do współdzielonego przykładu crontaba).
+
+```cron
+* * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$SELLF_URL/api/cron?job=affiliate-sync" > /dev/null
+```
+
+To osobne zadanie od `webhook-deliveries-retry`; skonfiguruj oba, jeśli korzystasz
+z obu funkcji. Worker przetwarza opłacone zamówienia z kuponem i późniejsze zwroty;
+nie wykonuje przelewów. Kolejne uruchomienia odzyskują przerwane dzierżawy zadań.
+
+W **Panel → Partnerzy → Naliczanie prowizji** zadania opóźnione o ponad 15 minut
+wywołują ostrzeżenie. Najpierw sprawdź harmonogram i odpowiedzi HTTP.
+Nieudane zadania pokazują wskazówkę i przycisk **Ponów**: napraw konfigurację Stripe,
+odczyt sesji lub brak kwoty netto/danych podatkowych, wpisz co naprawiono i ponów.
+Każde ponowienie zapisuje administratora z sesji i powód. Po konflikcie odśwież
+widok, bo zamówienie mogło się zmienić. Referencje znajdziesz w **Szczegółach
+technicznych**. Ponowienie kolejkuje zadanie; nie uzupełnia danych podatkowych
+ani nie rozlicza wypłaty.
+
+Produkty z bezterminowym zwrotem tworzą trwale wstrzymane prowizje: nie można ich
+wypłacić, również przez ręczne korekty. Przed kolejną sprzedażą ustaw ograniczony
+okres zwrotu, jeśli prowizje mają dojrzewać; zapisane prowizje zachowują pierwotną
+politykę. Prowizje testowe są widoczne, ale nie wchodzą do rzeczywistych wypłat.
+
+Przy instalacji lub aktualizacji przez StackPilot dodaj ten harmonogram jawnie
+na hoście lub w zewnętrznym schedulerze i sprawdź poprawne wywołanie po restarcie
+Sellf. Sam deploy aplikacji nie instaluje harmonogramu prowizji.
+
+## Embed: kody rabatowe
+
+Płatny embed pokazuje nad checkoutem pole kodu rabatowego. Kupujący wpisuje kod i klika
+„Apply”; serwer waliduje go tymi samymi regułami i limitami co checkout w sklepie
+(limit prób na kod, captcha jak przy każdym płatnym embedzie). Odrzucony kod pokazuje błąd
+pod polem i nie blokuje płatności bez rabatu.
+
+Aby wstępnie wypełnić kod, np. z linku sprzedawcy lub partnera, dodaj `data-coupon` do
+elementu embeda. Kupujący nadal może go zmienić:
+
+```html
+<div data-sellf-embed data-product-slug="moj-kurs" data-coupon="WIOSNA25"></div>
+<script src="https://TWOJ_SELLF/embed/v1/checkout.js"></script>
+```
+
+`POST /api/embed/checkout-session` przyjmuje opcjonalne `couponCode` (litery, cyfry, `_`, `.`, `-`;
+do 64 znaków). Nieprawidłowy lub niemożliwy do użycia kod zwraca `400` z polem `error`, bez
+tworzenia sesji.

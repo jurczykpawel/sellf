@@ -1,4 +1,5 @@
 /** Local lifecycle acceptance; requires the exclusive Sellf DB slot. @see supabase/tests/storefront-mutations.sql */
+import { getTestDatabaseContainer } from '@/../tests/helpers/database-container';
 import { execFileSync } from 'node:child_process';
 import { expect, it, vi } from 'vitest';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -14,9 +15,7 @@ vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({}) }));
 vi.mock('@/lib/auth-server', () => ({ requireAdminApi: async () => ({ user: { id: 'dddddddd-0000-4000-a000-000000000000' } }) }));
 vi.mock('@/lib/license/public-snapshot', () => ({ getPublicLicenseTier: m.tier }));
 const sql = (query: string): string => {
-  const url = new URL(process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '');
-  const container = process.env.SUPABASE_DB_CONTAINER ?? (url.port === '54321' ? 'supabase_db_sellf' : null);
-  if (!container) throw new Error('Set SUPABASE_DB_CONTAINER for an isolated stack');
+  const container = getTestDatabaseContainer();
   return execFileSync('docker', ['exec', '-i', container, 'psql', '-U', 'postgres', '-tA', '-v', 'ON_ERROR_STOP=1'], { input: query, encoding: 'utf8' }).trim();
 };
 const literal = (value: unknown): string => "'" + JSON.stringify(value).replaceAll("'", "''") + "'::jsonb";

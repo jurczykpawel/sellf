@@ -7,13 +7,15 @@ import type { createAdminClient } from '@/lib/supabase/admin';
 const LOCALHOST_ORIGIN_PATTERN = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/;
 const PRODUCT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,120}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const COUPON_CODE_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/;
 
-const PAID_CHECKOUT_KEYS = new Set(['productSlug', 'email', 'turnstileToken']);
+const PAID_CHECKOUT_KEYS = new Set(['productSlug', 'email', 'couponCode', 'turnstileToken']);
 const FREE_ACCESS_KEYS = new Set(['productSlug', 'email', 'website', 'turnstileToken']);
 
 export interface EmbedCheckoutBody {
   productSlug: string;
   email?: string;
+  couponCode?: string;
   turnstileToken?: string;
 }
 
@@ -188,6 +190,9 @@ export function parseEmbedCheckoutBody(body: unknown): ParseResult<EmbedCheckout
   const email = parseOptionalEmail(body.email);
   if (email === false) return { ok: false, error: 'Invalid request' };
 
+  const couponCode = parseOptionalCouponCode(body.couponCode);
+  if (couponCode === false) return { ok: false, error: 'Invalid request' };
+
   const turnstileToken =
     typeof body.turnstileToken === 'string' ? body.turnstileToken.trim() : undefined;
 
@@ -196,6 +201,7 @@ export function parseEmbedCheckoutBody(body: unknown): ParseResult<EmbedCheckout
     value: {
       productSlug,
       ...(email ? { email } : {}),
+      ...(couponCode ? { couponCode } : {}),
       ...(turnstileToken ? { turnstileToken } : {}),
     },
   };
@@ -251,6 +257,14 @@ function parseProductSlug(value: unknown): string | null {
 function parseOptionalEmail(value: unknown): string | false | undefined {
   if (value === undefined || value === null || value === '') return undefined;
   return parseRequiredEmail(value) || false;
+}
+
+function parseOptionalCouponCode(value: unknown): string | false | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string') return false;
+  const code = value.trim();
+  if (code === '') return undefined;
+  return COUPON_CODE_PATTERN.test(code) ? code : false;
 }
 
 function parseRequiredEmail(value: unknown): string | null {

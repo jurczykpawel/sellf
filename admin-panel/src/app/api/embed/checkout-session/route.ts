@@ -9,7 +9,7 @@ import {
   parseEmbedCheckoutBody,
   requireEmbedCaptcha,
 } from '@/lib/embed/checkout-embed';
-import { checkRateLimit } from '@/lib/rate-limiting';
+import { checkRateLimit, checkRateLimitForIdentifier, getRateLimitIdentifier } from '@/lib/rate-limiting';
 import { getCaptchaConfig } from '@/lib/captcha/config';
 import { CheckoutError, CheckoutErrorType } from '@/types/checkout';
 import { CheckoutService } from '@/lib/services/checkout';
@@ -167,6 +167,23 @@ export async function POST(request: Request) {
     );
   }
 
+  // Same per-code throttle as the storefront coupon check: attempts on one code
+  // by one client. Applied after the captcha so it cannot be probed anonymously.
+  if (parsed.value.couponCode) {
+    const couponKey = `code:${parsed.value.couponCode.toUpperCase()}:${await getRateLimitIdentifier()}`;
+    if (!(await checkRateLimitForIdentifier('coupon_verify_code', 5, 60, couponKey))) {
+      await logEmbedCheckoutEvent(adminClient, {
+        productId: product.id,
+        productSlug: product.slug,
+        origin,
+        email: parsed.value.email,
+        action: 'paid_checkout',
+        status: 'rate_limited',
+      });
+      return embedJson({ error: 'Too many requests' }, 429, origin, allowedOrigins);
+    }
+  }
+
   try {
     const checkout = new CheckoutService();
     const embedSessionId = randomUUID();
@@ -174,6 +191,7 @@ export async function POST(request: Request) {
       {
         productId: product.id,
         ...(parsed.value.email ? { email: parsed.value.email } : {}),
+        ...(parsed.value.couponCode ? { couponCode: parsed.value.couponCode } : {}),
       },
       buildEmbedReturnUrl(product.slug),
       undefined,

@@ -223,11 +223,13 @@ export async function proxy(request: NextRequest) {
   // Resolve analytics CSP origins from DB (cached 5 min). Done once per request
   // so all addSecurityHeaders call sites below stay synchronous.
   const cspOrigins = await fetchAnalyticsCspOrigins()
+  const affiliatePath = pathname.replace(/^\/(en|pl)(?=\/|$)/, '');
+  const privateAffiliate = /^\/(dashboard\/affiliates|my-affiliate|affiliates\/apply)(\/|$)/.test(affiliatePath);
   const isTemplatePreview = /^\/(?:(?:en|pl)\/)?admin\/templates\/preview\/?$/.test(pathname)
   const isTemplateHistory = /^\/(?:(?:en|pl)\/)?admin\/templates\/history\/?$/.test(pathname)
   const applyHeaders = (r: NextResponse) => {
-    if (isTemplatePreview || isTemplateHistory) {
-      r.headers.set('Cache-Control', 'private, no-store')
+    if (isTemplatePreview || isTemplateHistory || privateAffiliate) {
+      r.headers.set('Cache-Control', privateAffiliate ? 'private, no-store, max-age=0' : 'private, no-store')
       r.headers.set('X-Robots-Tag', 'noindex, nofollow')
     }
     return addSecurityHeaders(r, isTemplatePreview ? undefined : nonce, cspOrigins.connect, cspOrigins.frame)
@@ -315,6 +317,8 @@ export async function proxy(request: NextRequest) {
   const isProtectedRoute =
     actualPath.startsWith('/dashboard') ||
     actualPath.startsWith('/my-products') ||
+    actualPath.startsWith('/my-affiliate') ||
+    actualPath.startsWith('/affiliates/apply') ||
     actualPath.startsWith('/admin')
   const isLoginRoute = actualPath === '/login'
   const needsAuth = isProtectedRoute || isLoginRoute

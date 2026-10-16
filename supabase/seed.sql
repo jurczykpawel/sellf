@@ -1228,3 +1228,41 @@ INSERT INTO public.products(name,slug,description,price,currency,is_active,is_li
  ('Limited sample guide','sample-limited-guide','A guide with a scheduled catalogue end.',10,'USD',true,true,false,null,now()+interval '2 days',null,null),
  ('Sample template sale','sample-template-sale','A template with a scheduled sale end.',25,'USD',true,true,false,null,null,15,now()+interval '3 days')
 ON CONFLICT (slug) DO NOTHING;
+
+-- Affiliate demo: finite PLN/EUR and unlimited-refund earnings.
+INSERT INTO public.affiliate_programs(enabled,terms_version,terms,thresholds)
+VALUES(true,'demo-v1','{"en":"Demo partner terms: holds, refunds and debt apply.","pl":"Warunki demo: prowizje podlegają wstrzymaniu, zwrotom i potrąceniom."}', '{"PLN":"1000","EUR":"1000"}');
+INSERT INTO public.affiliate_memberships(id,user_id,code,status,display_name,accepted_terms_version,accepted_at,created_at)
+VALUES('af000000-0000-4000-a000-000000000001','bbbbbbbb-0000-4000-a000-000000000000','demo-partner','approved','Demo Partner','demo-v1','2026-01-01 00:00:00+00'::timestamptz,'2026-01-01 00:00:00+00'::timestamptz);
+INSERT INTO public.affiliate_program_versions(program_id,version,enabled,hold_days,buffer_days,terms_version,terms,thresholds,created_at)
+SELECT id,version,enabled,hold_days,buffer_days,terms_version,terms,thresholds,'2026-01-01' FROM public.affiliate_programs;
+INSERT INTO public.affiliate_membership_events(member_id,version,status,created_at)
+SELECT id,version,status,'2026-01-01' FROM public.affiliate_memberships;
+INSERT INTO public.audit_log(table_name,operation,new_values,performed_by,performed_at)
+SELECT 'affiliate_programs','INSERT',to_jsonb(p),'dddddddd-0000-4000-a000-000000000000','2026-01-01 00:00:00+00'::timestamptz FROM public.affiliate_programs p;
+INSERT INTO public.audit_log(table_name,operation,new_values,performed_by,performed_at)
+SELECT 'affiliate_memberships','INSERT',to_jsonb(m),'dddddddd-0000-4000-a000-000000000000','2026-01-01 00:00:00+00'::timestamptz FROM public.affiliate_memberships m;
+INSERT INTO public.products(id,name,slug,price,currency,is_active,is_refundable,refund_period_days)
+VALUES('af000000-0000-4000-a000-000000000002','Affiliate PLN Course','affiliate-pln-course',123,'PLN',true,true,60),
+ ('af000000-0000-4000-a000-000000000003','Affiliate EUR Toolkit','affiliate-eur-toolkit',123,'EUR',true,false,NULL),
+ ('af000000-0000-4000-a000-000000000004','Affiliate Unlimited Course','affiliate-unlimited-course',123,'PLN',true,true,NULL);
+INSERT INTO public.affiliate_rules(product_id,revision,enabled,percentage_bps,created_at)
+SELECT id,1,true,2000,'2026-01-01 00:00:00+00'::timestamptz FROM public.products WHERE slug IN ('affiliate-pln-course','affiliate-eur-toolkit','affiliate-unlimited-course');
+INSERT INTO public.coupons(id,code,name,discount_type,discount_value,is_active)
+VALUES('af000000-0000-4000-a000-000000000005','PARTNER10','Demo Partner 10%','percentage',10,true);
+INSERT INTO public.affiliate_coupon_bindings(coupon_id,member_id,version,created_at)
+VALUES('af000000-0000-4000-a000-000000000005','af000000-0000-4000-a000-000000000001',1,'2026-01-01 00:00:00+00'::timestamptz);
+INSERT INTO public.payment_transactions(id,product_id,customer_email,amount,currency,status,session_id,fulfillment_pending)
+VALUES('af000000-0000-4000-a000-000000000010','af000000-0000-4000-a000-000000000002','affiliate-customer@example.com',12300,'PLN','completed','cs_affiliate_pln_demo',false),
+ ('af000000-0000-4000-a000-000000000011','af000000-0000-4000-a000-000000000003','affiliate-customer@example.com',12300,'EUR','completed','cs_affiliate_eur_demo',false),
+ ('af000000-0000-4000-a000-000000000012','af000000-0000-4000-a000-000000000004','affiliate-customer@example.com',12300,'PLN','completed','cs_affiliate_unlimited_demo',false);
+INSERT INTO public.payment_line_items(transaction_id,product_id,item_type,quantity,unit_price,total_price,currency,net_amount,tax_amount)
+SELECT id,product_id,'main_product',1,123,123,currency,10000,2300 FROM public.payment_transactions WHERE session_id LIKE 'cs_affiliate_%_demo';
+INSERT INTO public.coupon_redemptions(coupon_id,transaction_id,customer_email,discount_amount,redeemed_at)
+SELECT 'af000000-0000-4000-a000-000000000005',id,customer_email,10,now()-interval '90 days' FROM public.payment_transactions WHERE session_id LIKE 'cs_affiliate_%_demo';
+
+DO $$ DECLARE w public.affiliate_work; BEGIN
+ FOR w IN SELECT * FROM public.affiliate_claim_work(100) LOOP
+  PERFORM public.affiliate_apply_sync(w.payment_id,w.lease_token,w.requested_generation,'2026-01-02 00:00:00+00',true);
+ END LOOP;
+END $$;

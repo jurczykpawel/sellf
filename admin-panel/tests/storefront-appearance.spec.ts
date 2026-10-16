@@ -1,3 +1,4 @@
+import { getTestDatabaseContainer } from '@/../tests/helpers/database-container';
 /** Appearance authoring on an exclusively owned local stack. @see theme-tokens.md */
 import { execFileSync } from 'node:child_process';
 import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
@@ -21,10 +22,7 @@ const sql = (query: string): string => execFileSync('docker', ['exec', '-i', con
 const literal = (json: string): string => "'" + json.replaceAll("'", "''") + "'::jsonb";
 test.describe.configure({ mode: 'serial' });
 test.beforeAll(async () => {
-  const url = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!);
-  expect(['localhost', '127.0.0.1']).toContain(url.hostname);
-  const kong = execFileSync('docker', ['ps', '--filter', `publish=${url.port}`, '--format', '{{.Names}}'], { encoding: 'utf8' }).trim();
-  expect(kong).toMatch(/^supabase_kong_[a-zA-Z0-9_-]+$/); container = kong.replace('supabase_kong_', 'supabase_db_');
+  container = getTestDatabaseContainer();
   original = sql('SELECT to_jsonb(c) FROM public.storefront_config c'); revision = JSON.parse(original).revision;
   await mkdir(directory, { recursive: true });
   for (const file of files) { savedFiles.push(await readFile(path.join(directory, file)).catch(() => null)); await unlink(path.join(directory, file)).catch(() => {}); }

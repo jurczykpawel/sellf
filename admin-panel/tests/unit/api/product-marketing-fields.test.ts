@@ -8,7 +8,7 @@ import { marketingFieldsSchema, marketingFieldsShapeSchema, marketingProjectionS
 import { PRODUCT_API_FIELDS } from '@/lib/validations/product';
 import { productCreateShape, productUpdateShape } from '../../../../mcp-server/src/tools/product-schema';
 
-const mocks = vi.hoisted(() => ({ authenticate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ authenticate: vi.fn(), rpc: vi.fn() }));
 vi.mock('@/lib/api', async () => ({ ...await vi.importActual<typeof import('@/lib/api')>('@/lib/api'), authenticate: mocks.authenticate }));
 vi.mock('next/cache', () => ({ revalidateTag: vi.fn() }));
 
@@ -93,7 +93,11 @@ beforeEach(() => {
     };
     return query;
   });
-  mocks.authenticate.mockResolvedValue({ supabase: { from }, admin: { userId: id } });
+  mocks.rpc.mockImplementation((_name: string, args: { product_data: Record<string, unknown> }) => {
+    writes.push(args.product_data); row = { ...row, ...args.product_data };
+    return from('products');
+  });
+  mocks.authenticate.mockResolvedValue({ supabase: { from, rpc: mocks.rpc }, admin: { userId: id } });
 });
 
 describe('product metadata routes', () => {
@@ -102,6 +106,7 @@ describe('product metadata routes', () => {
     expect(created.status).toBe(201);
     expect((await created.json()).data.marketing_fields).toEqual(translated);
     expect(writes[0].marketing_fields).toEqual(translated);
+    expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_with_audit', expect.objectContaining({ operation_param: 'INSERT', actor_id: id, product_data: expect.objectContaining({ marketing_fields: translated }) }));
     expect((await (await GET(request('GET'), params)).json()).data.marketing_fields).toEqual(translated);
     const listed = await LIST(new NextRequest('http://localhost/api/v1/products'));
     expect((await listed.json()).data[0].marketing_fields).toEqual(translated);
@@ -111,6 +116,7 @@ describe('product metadata routes', () => {
     expect((await PATCH(request('PATCH', { marketing_fields: empty }), params)).status).toBe(200);
     expect(row.marketing_fields).toEqual(empty);
     expect(writes[0]).toEqual({ marketing_fields: empty });
+    expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_with_audit', { operation_param: 'UPDATE', actor_id: id, product_id: id, product_data: { marketing_fields: empty } });
     expect((await PATCH(request('PATCH', { description: 'Updated' }), params)).status).toBe(200);
     expect(row.marketing_fields).toEqual(empty);
     expect(writes[1]).not.toHaveProperty('marketing_fields');
@@ -120,6 +126,7 @@ describe('product metadata routes', () => {
     expect((await POST(request('POST', { ...base, marketing_fields }))).status).toBe(400);
     expect((await PATCH(request('PATCH', { marketing_fields }), params)).status).toBe(400);
     expect(from).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
   });
   it.each(['UNAUTHORIZED', 'FORBIDDEN'] as const)('retains %s handling before product queries', async code => {
     mocks.authenticate.mockRejectedValue(new ApiAuthError(code, 'Denied'));
@@ -128,5 +135,6 @@ describe('product metadata routes', () => {
     expect((await PATCH(request('PATCH', { marketing_fields: empty }), params)).status).toBe(expected);
     expect((await GET(request('GET'), params)).status).toBe(expected);
     expect(from).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
   });
 });

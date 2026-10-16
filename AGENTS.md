@@ -615,6 +615,38 @@ also accepts existing plaintext secrets. Only the rotation response returns the
 new plaintext value; subsequent API reads return an empty `secret`. There is no
 grace period. Receivers must update their verification secret immediately.
 
+### Affiliates
+
+Phase 1 attributes one-time paid orders through existing coupon redemptions, without
+checkout metadata changes. The affiliate tables are `affiliate_programs`,
+`affiliate_program_versions`, `affiliate_memberships`, `affiliate_membership_events`,
+`affiliate_rules`, `affiliate_coupon_bindings`, `affiliate_commissions`,
+`affiliate_ledger`, `affiliate_payouts`, `affiliate_payout_allocations`, and
+`affiliate_work`. Program versions and membership events preserve accounting history;
+the ledger and commission snapshots are immutable. Never use audit-log retention as
+an accounting source. Affiliate projections exclude buyer data.
+
+Redemption/payment triggers enqueue `sync(payment_id)` transactionally. The worker
+(`admin-panel/src/lib/affiliates/sync/worker.ts`) claims leases and applies generations
+through service-only RPCs. Configure a separate minute cron with `CRON_SECRET`:
+
+```cron
+* * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$SELLF_URL/api/cron?job=affiliate-sync" > /dev/null
+```
+
+StackPilot deployment does not install this schedule. See the EN/PL operator guide
+in `docs-site/src/content/docs/configuration.md`. Admin commission processing warns
+when pending work is overdue by more than 15 minutes and offers reason-required, audited retry
+for failed work through `affiliate_work_retry`; the actor always comes from the session.
+Missing net snapshots must be repaired before retry. Never manually edit queue generations.
+
+Lock order: payment IDs ascending → member/currency advisory lock → commission/payout.
+Triggers enqueue under the payment lock without taking the member lock. Shared SQL
+preview/aggregate rules govern reservation and portal balances; test commissions never
+enter real payable balances. Unlimited-refund snapshots have no payout release path,
+including through manual adjustments. CSV is a private same-origin download with audit;
+it never marks a payout paid. Mark-paid requires external bank/document references.
+
 ### License Tier Registry
 
 A small set of admin-panel features are gated by a license tier (`free`, `registered`, `pro`, `business`). The registry lives in `admin-panel/src/lib/license/features.ts` and the resolver in `admin-panel/src/lib/license/resolve.ts`. Currently gated:

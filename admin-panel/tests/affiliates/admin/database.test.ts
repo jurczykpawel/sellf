@@ -1,0 +1,56 @@
+import { resetAffiliateDatabase } from '../database';
+/** Session actions against the explicitly selected disposable integration stack. */
+import { config } from 'dotenv';
+import { beforeAll, expect, it, vi } from 'vitest';
+import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+const state = vi.hoisted(() => ({ session: undefined as unknown }));
+vi.mock('@/lib/supabase/server', () => ({ createClient: async () => state.session }));
+vi.mock('next/cache', () => ({ unstable_noStore: () => {}, revalidatePath: () => {} }));
+vi.mock('@/lib/demo-guard', () => ({ isDemoMode: () => false }));
+vi.mock('@/lib/captcha/verify', () => ({ verifyCaptchaToken: async () => ({ success: true }) }));
+// Header acquisition alone is mocked; the real application limiter writes to this stack.
+vi.mock('next/headers', () => ({ headers: async () => new Headers({ 'user-agent': 'affiliate-a12-integration' }) }));
+import { applyToProgram, getAcceptedTerms, getAdminOverview, updateMember, updateProgram } from '@/lib/affiliates/admin/actions';
+let service: SupabaseClient, admin: SupabaseClient, member: SupabaseClient;
+beforeAll(async () => {
+  resetAffiliateDatabase();
+  config({ path: process.env.AFFILIATE_TEST_ENV, override: true, quiet: true });
+  delete process.env.UPSTASH_REDIS_REST_URL; delete process.env.UPSTASH_REDIS_REST_TOKEN;
+  const options = { auth: { persistSession: false, autoRefreshToken: false } };
+  service = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, options);
+  admin = createClient(process.env.SUPABASE_URL!, process.env.ANON_KEY!, options);
+  expect((await admin.auth.signInWithPassword({ email: 'demo@sellf.app', password: 'demo123' })).error).toBeNull();
+  const email = `a12-${Date.now()}@example.com`, password = 'Local-test-only-123!';
+  expect((await service.auth.admin.createUser({ email, password, email_confirm: true })).error).toBeNull();
+  member = createClient(process.env.SUPABASE_URL!, process.env.ANON_KEY!, options);
+  expect((await member.auth.signInWithPassword({ email, password })).error).toBeNull();
+}, 125000);
+it('runs application, decisions, conflicts, exact versions and reconstructable terms through real RPCs', async () => {
+  state.session = member;
+  expect((await getAdminOverview()).status).toBe(403);
+  const { data: p } = await service.from('affiliate_programs').select('*').single();
+  const application = { code: `a12-${Date.now()}`, display_name: 'A12 Test Partner', channel: 'https://example.com', terms_version: p.terms_version, accepted: true, captcha_token: 'integration-widget' };
+  expect((await applyToProgram({ ...application, user_id: 'dddddddd-0000-4000-a000-000000000000' })).status).toBe(422);
+  const submitted = await applyToProgram(application); expect(submitted).toMatchObject({ success: true, status: 200, data: { status: 'pending', version: '1' } });
+  expect((await applyToProgram(application)).status).toBe(409);
+  expect((await member.from('affiliate_memberships').select('id')).error).not.toBeNull();
+  state.session = admin;
+  const id = submitted.data!.id;
+  expect((await service.from('audit_log').delete().in('table_name', ['affiliate_programs', 'affiliate_memberships'])).error).toBeNull();
+  const terms = await getAcceptedTerms(id); expect(terms.data).toEqual({ terms_version: p.terms_version, terms: p.terms });
+  const change = { member_id: id, version: '1', status: 'approved', reason: 'Manual review completed' };
+  expect(await updateMember(change)).toMatchObject({ success: true, data: { version: '2', status: 'approved' } });
+  expect((await updateMember(change)).status).toBe(409);
+  for (const [version, status] of [['2', 'suspended'], ['3', 'terminated'], ['4', 'rejected']]) expect((await updateMember({ ...change, version, status })).success).toBe(true);
+  const input = { version: String(p.version), enabled: true, hold_days: p.hold_days, buffer_days: p.buffer_days, terms_version: 'a12-new-' + Date.now(), terms: { en: 'Revised English terms', pl: 'Nowy polski regulamin' }, thresholds: p.thresholds };
+  expect((await updateProgram({ ...input, terms_version: p.terms_version })).errorCode).toBe('TERMS_VERSION_CONFLICT');
+  expect(await updateProgram(input)).toMatchObject({ success: true, data: { version: String(p.version + 1) } });
+  expect((await updateProgram(input)).status).toBe(409);
+  expect((await getAcceptedTerms(id)).data).toEqual(terms.data);
+  const audit = await service.from('audit_log').select('new_values,performed_by').eq('table_name', 'affiliate_memberships').eq('new_values->>id', id).order('performed_at');
+  expect(audit.error).toBeNull(); expect(audit.data).toHaveLength(4);
+  expect(audit.data!.every(row => row.performed_by === 'dddddddd-0000-4000-a000-000000000000')).toBe(true);
+  const page = await getAdminOverview({ limit: 1 }); expect(page.data?.members).toHaveLength(1); expect(page.data?.next_cursor).toBeTruthy();
+  expect(JSON.stringify(page)).not.toContain('email');
+}, 30000);

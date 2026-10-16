@@ -7,10 +7,15 @@ export default defineConfig(({ mode }) => {
 
   return {
     test: {
-      include: ['tests/unit/**/*.test.ts'],
+      include: ['tests/unit/**/*.test.ts', 'tests/affiliates/**/*.test.{ts,tsx}'],
+      exclude: process.env.AFFILIATE_TEST_ENV ? [] : ['tests/affiliates/**/database.test.ts'],
+      testTimeout: 30000,
+      hookTimeout: 125000,
+      css: true,
       environment: 'node',
       env,
       fileParallelism: false,
+      maxWorkers: 1,
       coverage: {
         provider: 'v8',
         reporter: ['text', 'html', 'lcov'],
@@ -34,6 +39,7 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    css: { postcss: { plugins: [] } },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

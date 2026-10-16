@@ -173,7 +173,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
     }
     // Only redirect if we previously had a user (session expired), not on cold start
     if (hadUserRef.current && !authUser) {
-      const isProtectedRoute = pathname.includes('/dashboard') || pathname.includes('/admin') || pathname.includes('/my-products')
+      const isProtectedRoute = pathname.includes('/dashboard') || pathname.includes('/admin') || pathname.includes('/my-products') || pathname.includes('/my-affiliate') || pathname.includes('/affiliates/apply')
       if (isProtectedRoute) {
         router.push('/login')
       }
@@ -259,11 +259,14 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
     },
     { href: '/dashboard/integrations', label: t('integrations'), icon: Icons.integrations },
     { href: '/dashboard/api-keys', label: t('apiKeys', { defaultValue: 'API Keys' }), icon: Icons.apiKeys },
+    { href: '/dashboard/affiliates', label: t('affiliates'), icon: Icons.users },
     { href: '/dashboard/users', label: t('users'), icon: Icons.users },
     { href: '/dashboard/settings', label: t('settings'), icon: Icons.settings },
   ];
 
   const userLinks = [
+    { href: '/my-affiliate', label: t('myAffiliate'), icon: Icons.users },
+    { href: '/affiliates/apply', label: t('affiliateApply'), icon: Icons.users },
     { href: '/my-products', label: t('myProducts'), icon: Icons.myProducts },
     { href: '/my-purchases', label: t('myPurchases', { defaultValue: 'My Purchases' }), icon: Icons.purchases },
     { href: '/', label: t('store'), icon: Icons.store },

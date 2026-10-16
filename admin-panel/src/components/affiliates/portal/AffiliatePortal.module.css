@@ -1,0 +1,45 @@
+.portal { color: #172033; background: #fff; padding: clamp(.75rem, 3vw, 2rem); border-radius: 1rem; min-width: 0; font: inherit; overflow-wrap: anywhere; }
+.portal h1 { font-size: 1.75em; font-weight: 700; }
+.portal h2 { font-size: 1.25em; font-weight: 650; margin-block: 1.5em .75em; }
+.portal h3 { font-weight: 650; margin-block-end: .75em; }
+.portal p { margin-block: .75em; }
+.portal ul { display: grid; gap: .5em; list-style: none; padding: 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; }
+.card { border: 1px solid #929cae; border-radius: .75rem; padding: 1rem; min-width: 0; }
+.row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25em 1em; padding-block: .25em; }
+.row dd { font-variant-numeric: tabular-nums; margin: 0; }
+.notice { padding: .75rem; border-inline-start: .25rem solid #9a5800; background: #fff4d6; color: #563100; }
+.button { font: inherit; color: inherit; border: 1px solid currentColor; padding: .5em 1em; border-radius: .5rem; background: transparent; margin-block-start: 1rem; cursor: pointer; }
+.button:focus-visible { outline: 3px solid #175cd3; outline-offset: 3px; }
+.portal time, .portal code { font-size: .9em; }
+:global(.dark) .portal { background: #121a29; color: #e9edf5; }
+:global(.dark) .notice { background: #392b12; color: #ffe0a1; }
+:global(.dark) .button:focus-visible { outline-color: #99baff; }
+
+.headlines { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 0; }
+.headlines dt { font-size: .85em; min-height: 2.5em; }
+.headlines dd { font-size: 1.4em; font-weight: 700; margin: .5em 0 0; font-variant-numeric: tabular-nums; }
+.debt { border-top: 1px solid #929cae; padding-top: .5em; margin-bottom: 0; }
+.listHeader, .commissionRow { display: grid; grid-template-columns: 7rem minmax(0, 1.5fr) minmax(7rem, .7fr) minmax(10rem, 1fr); gap: 1rem; align-items: center; }
+.listHeader { font-size: .85em; padding: .75rem 1rem; }
+.portal .commissionList { gap: 0; margin-top: 0; }
+.commissionRow { padding: 1rem; border-top: 1px solid #929cae; }
+.product small { display: block; margin-top: .4em; }
+.commissionAmount { font-variant-numeric: tabular-nums; }
+.chips { display: flex; gap: .4rem; flex-wrap: wrap; }
+.chip { font-size: .8em; padding: .3em .65em; border: 1px solid #929cae; border-radius: 1em; }
+@media (max-width: 48rem) {
+  .headlines { grid-template-columns: 1fr; gap: .8rem; }
+  .headlines > div { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; }
+  .headlines dt { min-height: 0; flex: 1; }
+  .headlines dd { font-size: 1.15em; margin: 0; }
+  .listHeader { display: none; }
+  .portal .commissionList { gap: .75rem; }
+  .commissionRow { grid-template-columns: 1fr auto; border: 1px solid #929cae; border-radius: .75rem; gap: .75rem; }
+  .commissionDate, .product { grid-column: 1 / -1; }
+  .commissionAmount, .chips { grid-column: 1 / -1; }
+  .chips { justify-content: flex-start; }
+}
+.help { margin-block: 1rem; }
+.portal summary { cursor: pointer; }
+.portal summary:focus-visible { outline: 3px solid #175cd3; outline-offset: 3px; }

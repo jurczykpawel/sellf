@@ -1,3 +1,4 @@
+import { getTestDatabaseContainer } from '@/../tests/helpers/database-container';
 /** Private session preview and history acceptance. Requires the exclusive local DB slot. */
 import { execFileSync } from 'node:child_process';
 import { test, expect } from '@playwright/test';
@@ -5,7 +6,7 @@ import { createTestAdmin, createTestUser, setAuthSession, supabaseAdmin } from '
 import { acceptAllCookies } from './helpers/consent';
 import { checkAccessibility } from './helpers/axe';
 import { D_LOCALIZED_CONFIG, DEFAULT_CONFIG } from '../src/lib/storefront-templates/fixtures';
-const sql = (input: string) => execFileSync('docker', ['exec', '-i', 'supabase_db_sellf', 'psql', '-U', 'postgres', '-tA', '-v', 'ON_ERROR_STOP=1'], { input, encoding: 'utf8' }).trim();
+const sql = (input: string) => execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql', '-U', 'postgres', '-tA', '-v', 'ON_ERROR_STOP=1'], { input, encoding: 'utf8' }).trim();
 const literal = (value: unknown) => "'" + JSON.stringify(value).replaceAll("'", "''") + "'::jsonb";
 const stateQuery = `SELECT jsonb_build_array((SELECT to_jsonb(c) FROM storefront_config c),(SELECT jsonb_agg(to_jsonb(h) ORDER BY revision) FROM storefront_config_history h),(SELECT jsonb_agg(to_jsonb(a) ORDER BY id) FROM audit_log a WHERE table_name='storefront_config'),(SELECT md5(coalesce(jsonb_agg(to_jsonb(p) ORDER BY id)::text,'')) FROM products p),(SELECT md5(coalesce(jsonb_agg(to_jsonb(a) ORDER BY id)::text,'')) FROM user_product_access a));`;
 test('private preview matrix and history rollback', async ({ page, browser }) => {

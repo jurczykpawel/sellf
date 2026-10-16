@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash, timingSafeEqual } from 'crypto';
+import { drainAffiliateWork } from '@/lib/affiliates/sync/worker';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
@@ -259,6 +260,11 @@ export async function handleWebhookDeliveriesRetry(): Promise<CronJobResult> {
 // ===== JOB REGISTRY =====
 
 const JOB_REGISTRY: Record<string, () => Promise<CronJobResult>> = {
+  'affiliate-sync': async () => {
+    const result = await drainAffiliateWork();
+    if (!result.success) throw new Error('Affiliate queue unavailable');
+    return { processed: result.data.applied, errors: result.data.failed };
+  },
   'access-expired': handleAccessExpired,
   'cleanup-webhook-logs': handleCleanupWebhookLogs,
   'webhook-deliveries-retry': handleWebhookDeliveriesRetry,
