@@ -375,7 +375,7 @@ BEGIN
   OR NOT EXISTS(SELECT 1 FROM auth.users WHERE id=p_user AND email_confirmed_at IS NOT NULL) THEN
   RAISE EXCEPTION 'Verified account required' USING ERRCODE='42501'; END IF;
  SELECT * INTO prog FROM public.affiliate_programs FOR SHARE;
- IF NOT prog.enabled OR prog.terms_version IS DISTINCT FROM p_terms_version THEN RAISE EXCEPTION 'Terms changed' USING ERRCODE='40001'; END IF;
+ IF NOT prog.enabled OR prog.terms_version IS DISTINCT FROM p_terms_version THEN RAISE EXCEPTION 'Terms changed' USING ERRCODE='PT409'; END IF;
  INSERT INTO public.affiliate_memberships(user_id,code,display_name,channel,accepted_terms_version,accepted_at)
  VALUES(p_user,p_code,p_display_name,p_channel,p_terms_version,now()) RETURNING * INTO result;
  PERFORM public.affiliate_audit('affiliate_memberships',NULL,to_jsonb(result),p_user);
@@ -388,11 +388,11 @@ BEGIN
  PERFORM public.affiliate_admin(p_actor);
  SELECT * INTO old FROM public.affiliate_programs FOR UPDATE;
  IF old.id IS NULL THEN
-  IF p_expected_version IS DISTINCT FROM 0 THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='40001'; END IF;
+  IF p_expected_version IS DISTINCT FROM 0 THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
   INSERT INTO public.affiliate_programs(enabled,terms_version,terms,hold_days,buffer_days,thresholds)
    VALUES(p_enabled,p_terms_version,p_terms,p_hold_days,p_buffer_days,p_thresholds) RETURNING * INTO result;
  ELSE
-  IF old.version IS DISTINCT FROM p_expected_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='40001'; END IF;
+  IF old.version IS DISTINCT FROM p_expected_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
   UPDATE public.affiliate_programs SET enabled=p_enabled,terms_version=p_terms_version,terms=p_terms,hold_days=p_hold_days,
    buffer_days=p_buffer_days,thresholds=p_thresholds,version=version+1 WHERE id=old.id RETURNING * INTO result;
  END IF;
@@ -406,7 +406,7 @@ BEGIN
  PERFORM public.affiliate_admin(p_actor);
  IF NOT public.affiliate_valid_reference(p_reason) THEN RAISE EXCEPTION 'Reason required' USING ERRCODE='22023'; END IF;
  SELECT * INTO old FROM public.affiliate_memberships WHERE id=p_member FOR UPDATE;
- IF old.id IS NULL OR old.version IS DISTINCT FROM p_expected_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='40001'; END IF;
+ IF old.id IS NULL OR old.version IS DISTINCT FROM p_expected_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
  UPDATE public.affiliate_memberships SET status=p_status,version=version+1 WHERE id=p_member RETURNING * INTO result;
  PERFORM public.affiliate_audit('affiliate_memberships',to_jsonb(old),to_jsonb(result)||jsonb_build_object('reason',p_reason),p_actor);
  RETURN result;
@@ -419,7 +419,7 @@ BEGIN
  PERFORM 1 FROM public.products WHERE id=p_product AND product_type='one_time' FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'One-time product required' USING ERRCODE='22023'; END IF;
  SELECT coalesce(max(r.revision),0) INTO revision FROM public.affiliate_rules r WHERE product_id=p_product;
- IF revision IS DISTINCT FROM p_expected_revision THEN RAISE EXCEPTION 'Revision changed' USING ERRCODE='40001'; END IF;
+ IF revision IS DISTINCT FROM p_expected_revision THEN RAISE EXCEPTION 'Revision changed' USING ERRCODE='PT409'; END IF;
  INSERT INTO public.affiliate_rules(product_id,revision,enabled,percentage_bps,fixed_minor,currency)
  VALUES(p_product,revision+1,p_enabled,p_percentage_bps,p_fixed_minor,p_currency) RETURNING * INTO result;
  PERFORM public.affiliate_audit('affiliate_rules',NULL,to_jsonb(result),p_actor);
@@ -434,7 +434,7 @@ BEGIN
  PERFORM 1 FROM public.affiliate_memberships WHERE id=p_member AND status='approved' AND user_id IS NOT NULL FOR SHARE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Approved member required' USING ERRCODE='22023'; END IF;
  SELECT coalesce(max(version),0) INTO revision FROM public.affiliate_coupon_bindings WHERE coupon_id=p_coupon;
- IF revision IS DISTINCT FROM p_expected_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='40001'; END IF;
+ IF revision IS DISTINCT FROM p_expected_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
  SELECT * INTO old FROM public.affiliate_coupon_bindings WHERE coupon_id=p_coupon AND retired_at IS NULL;
  UPDATE public.affiliate_coupon_bindings SET retired_at=now() WHERE id=old.id;
  INSERT INTO public.affiliate_coupon_bindings(coupon_id,member_id,version) VALUES(p_coupon,p_member,revision+1) RETURNING * INTO result;
@@ -457,7 +457,7 @@ BEGIN
  PERFORM public.affiliate_lock_member(p_member,p_currency);
  SELECT * INTO m FROM public.affiliate_memberships WHERE id=p_member FOR SHARE;
  SELECT * INTO prog FROM public.affiliate_programs FOR SHARE;
- IF m.id IS NULL OR m.version IS DISTINCT FROM p_member_version OR prog.version IS DISTINCT FROM p_program_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='40001'; END IF;
+ IF m.id IS NULL OR m.version IS DISTINCT FROM p_member_version OR prog.version IS DISTINCT FROM p_program_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
  IF m.status<>'approved' OR m.user_id IS NULL OR NOT prog.enabled OR p_currency !~ '^[A-Z]{3}$'
   OR p_cutoff IS NULL OR p_cutoff>now() OR NOT(prog.thresholds ? p_currency) THEN
   RAISE EXCEPTION 'Payout unavailable' USING ERRCODE='22023'; END IF;
@@ -465,7 +465,7 @@ BEGIN
    LEFT JOIN public.affiliate_work w ON w.payment_id=c.payment_id WHERE c.member_id=p_member AND c.currency=p_currency
    AND (w.requested_generation>w.processed_generation OR w.status<>'done' OR c.observed_status<>pt.status
     OR c.observed_refunded_gross<>coalesce(pt.refunded_amount,0))) THEN
-  RAISE EXCEPTION 'Sync required' USING ERRCODE='40001'; END IF;
+  RAISE EXCEPTION 'Sync required' USING ERRCODE='PT409'; END IF;
  SELECT array_agg(l.id ORDER BY l.created_at,l.id),sum(l.amount_minor)::bigint INTO entries,total
  FROM public.affiliate_ledger l JOIN public.affiliate_commissions c ON c.id=l.commission_id
  JOIN public.payment_transactions pt ON pt.id=c.payment_id
@@ -495,7 +495,7 @@ BEGIN
  SELECT * INTO old FROM public.affiliate_payouts WHERE id=p_payout FOR UPDATE;
  IF old.status='paid' AND old.bank_reference=p_bank_reference AND old.invoice_reference=p_invoice_reference
   AND old.bank_amount_minor=p_bank_amount_minor AND old.currency=p_currency AND old.paid_at=p_paid_at AND p_full_settlement THEN RETURN old; END IF;
- IF old.id IS NULL OR old.version IS DISTINCT FROM p_expected_version OR old.status<>'reserved' THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='40001'; END IF;
+ IF old.id IS NULL OR old.version IS DISTINCT FROM p_expected_version OR old.status<>'reserved' THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
  IF p_full_settlement IS DISTINCT FROM true OR p_currency IS DISTINCT FROM old.currency OR p_paid_at IS NULL OR p_paid_at>now()
  OR NOT public.affiliate_valid_reference(p_bank_reference) OR NOT public.affiliate_valid_reference(p_invoice_reference)
  OR p_bank_amount_minor IS NULL OR p_bank_amount_minor<=0
@@ -516,7 +516,7 @@ BEGIN
  SELECT * INTO old FROM public.affiliate_payouts WHERE id=p_payout;
  PERFORM public.affiliate_lock_member(old.member_id,old.currency);
  SELECT * INTO old FROM public.affiliate_payouts WHERE id=p_payout FOR UPDATE;
- IF old.id IS NULL OR old.version IS DISTINCT FROM p_expected_version OR old.status<>'reserved' THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='40001'; END IF;
+ IF old.id IS NULL OR old.version IS DISTINCT FROM p_expected_version OR old.status<>'reserved' THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
  IF p_no_transfer IS DISTINCT FROM true OR NOT public.affiliate_valid_reference(p_reason) THEN RAISE EXCEPTION 'Confirmation required' USING ERRCODE='22023'; END IF;
  UPDATE public.affiliate_payouts SET status='cancelled',version=version+1 WHERE id=p_payout RETURNING * INTO result;
  UPDATE public.affiliate_payout_allocations SET released_at=now() WHERE payout_id=p_payout AND released_at IS NULL;
@@ -531,7 +531,7 @@ BEGIN
  SELECT * INTO c FROM public.affiliate_commissions WHERE id=p_commission;
  PERFORM public.affiliate_lock_member(c.member_id,c.currency);
  SELECT * INTO c FROM public.affiliate_commissions WHERE id=p_commission FOR UPDATE;
- IF c.id IS NULL OR c.version IS DISTINCT FROM p_expected_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='40001'; END IF;
+ IF c.id IS NULL OR c.version IS DISTINCT FROM p_expected_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
  IF p_amount_minor IS NULL OR p_amount_minor=0 OR NOT public.affiliate_valid_reference(p_reason) OR NOT public.affiliate_valid_reference(p_evidence_reference) THEN
   RAISE EXCEPTION 'Evidence required' USING ERRCODE='22023'; END IF;
  SELECT coalesce(sum(amount_minor),0)+p_amount_minor INTO total FROM public.affiliate_ledger WHERE commission_id=c.id;
@@ -554,7 +554,7 @@ BEGIN
  PERFORM public.affiliate_admin(p_actor);
  IF NOT public.affiliate_valid_reference(p_reason) THEN RAISE EXCEPTION 'Reason required' USING ERRCODE='22023'; END IF;
  SELECT * INTO old FROM public.affiliate_work WHERE payment_id=p_payment FOR UPDATE;
- IF old.payment_id IS NULL OR old.requested_generation IS DISTINCT FROM p_generation OR old.status='leased' THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='40001'; END IF;
+ IF old.payment_id IS NULL OR old.requested_generation IS DISTINCT FROM p_generation OR old.status='leased' THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
  UPDATE public.affiliate_work SET status='pending',attempts=0,next_attempt_at=now(),last_error_code=NULL,
  requested_generation=requested_generation+1 WHERE payment_id=p_payment RETURNING * INTO result;
  PERFORM public.affiliate_audit('affiliate_work',to_jsonb(old),to_jsonb(result)||jsonb_build_object('reason',p_reason),p_actor);

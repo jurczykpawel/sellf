@@ -1,9 +1,10 @@
 """Run against the disposable, seeded T0 database after affiliates-phase1.sql."""
 import concurrent.futures
+import os
 import subprocess
 import unittest
 
-CONTAINER = 'supabase_db_sellf-aff-t0'
+CONTAINER = os.environ.get('AFFILIATE_TEST_CONTAINER', 'supabase_db_sellf-aff-t0')
 ACTOR = 'dddddddd-0000-4000-a000-000000000000'
 MEMBER = 'af000000-0000-4000-a000-000000000001'
 PAYMENT = 'af000000-0000-4000-a000-000000000011'

@@ -5,8 +5,8 @@ BEGIN
  IF value IS DISTINCT FROM true THEN RAISE EXCEPTION 'Failed: %',label; END IF;
  RAISE NOTICE 'PASS: %',label;
 END $$;
-CREATE FUNCTION pg_temp.rejects(statement text) RETURNS boolean LANGUAGE plpgsql AS $$
-BEGIN EXECUTE statement; RETURN false; EXCEPTION WHEN OTHERS THEN RETURN true; END $$;
+CREATE FUNCTION pg_temp.rejects(statement text, expected_code text DEFAULT NULL) RETURNS boolean LANGUAGE plpgsql AS $$
+BEGIN EXECUTE statement; RETURN false; EXCEPTION WHEN OTHERS THEN RETURN expected_code IS NULL OR SQLSTATE=expected_code; END $$;
 SELECT pg_temp.check_that((SELECT count(*)=9 FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'affiliate_%'),'nine affiliate tables');
 SELECT set_config('request.jwt.claims','{"role":"service_role","sub":"dddddddd-0000-4000-a000-000000000000"}',true);
 SET LOCAL ROLE service_role;
@@ -34,6 +34,16 @@ SET LOCAL ROLE authenticated;
 SELECT pg_temp.check_that(pg_temp.rejects('SELECT * FROM public.affiliate_memberships'),'session admin table read denied');
 RESET ROLE;
 SELECT set_config('request.jwt.claims','{"role":"service_role","sub":"dddddddd-0000-4000-a000-000000000000"}',true);
+SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_apply('dddddddd-0000-4000-a000-000000000000','test-partner','Partner',NULL,'stale-terms')$q$,'PT409'),'affiliate_apply conflict SQLSTATE');
+SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_program_update('dddddddd-0000-4000-a000-000000000000',0,false,'x','{"en":"Terms","pl":"Warunki"}',30,2,'{"PLN":"1000"}')$q$,'PT409'),'affiliate_program_update conflict SQLSTATE');
+SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_member_update('dddddddd-0000-4000-a000-000000000000','af000000-0000-4000-a000-000000000001',0,'approved','Test')$q$,'PT409'),'affiliate_member_update conflict SQLSTATE');
+SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_rule_create('dddddddd-0000-4000-a000-000000000000','af000000-0000-4000-a000-000000000002',0,true,1000,NULL,NULL)$q$,'PT409'),'affiliate_rule_create conflict SQLSTATE');
+SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_coupon_bind('dddddddd-0000-4000-a000-000000000000','af000000-0000-4000-a000-000000000005','af000000-0000-4000-a000-000000000001',0)$q$,'PT409'),'affiliate_coupon_bind conflict SQLSTATE');
+SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_reserve('dddddddd-0000-4000-a000-000000000000','af000000-0000-4000-a000-000000000001','PLN',now(),0,1,'Test')$q$,'PT409'),'affiliate_reserve conflict SQLSTATE');
+SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_mark_paid('dddddddd-0000-4000-a000-000000000000','00000000-0000-4000-a000-000000000000',0,'bank','invoice',1000,'PLN',now(),true)$q$,'PT409'),'affiliate_mark_paid conflict SQLSTATE');
+SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_cancel_payout('dddddddd-0000-4000-a000-000000000000','00000000-0000-4000-a000-000000000000',0,true,'Test')$q$,'PT409'),'affiliate_cancel_payout conflict SQLSTATE');
+SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_manual_adjustment('dddddddd-0000-4000-a000-000000000000','00000000-0000-4000-a000-000000000000',0,1,'Test','Test',false)$q$,'PT409'),'affiliate_manual_adjustment conflict SQLSTATE');
+SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_work_retry('dddddddd-0000-4000-a000-000000000000','af000000-0000-4000-a000-000000000010',0,'Test')$q$,'PT409'),'affiliate_work_retry conflict SQLSTATE');
 SELECT pg_temp.check_that(pg_temp.rejects($q$DELETE FROM public.products WHERE slug='affiliate-pln-course'$q$),'rule product retains history');
 SELECT pg_temp.check_that((SELECT count(*)=1 FROM public.affiliate_work WHERE payment_id='af000000-0000-4000-a000-000000000010'),'redemption enqueues payment');
 DO $$ BEGIN FOR i IN 1..20 LOOP
@@ -52,6 +62,7 @@ SELECT pg_temp.check_that((SELECT earnings_minor=2000 AND status='reserved' FROM
 SELECT pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.affiliate_ledger WHERE kind='settlement'),'reservation does not settle');
 SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_reserve('dddddddd-0000-4000-a000-000000000000','af000000-0000-4000-a000-000000000001','PLN',now(),1,1,'demo-payee')$q$),'one open payout');
 UPDATE public.payment_transactions SET refunded_amount=6150 WHERE id='af000000-0000-4000-a000-000000000010';
+SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_reserve('dddddddd-0000-4000-a000-000000000000','af000000-0000-4000-a000-000000000001','PLN',now(),1,1,'Test')$q$,'PT409'),'dirty sync conflict SQLSTATE');
 TRUNCATE claimed;
 INSERT INTO claimed SELECT * FROM public.affiliate_claim_work(100);
 UPDATE public.payment_transactions SET refunded_amount=3075 WHERE id='af000000-0000-4000-a000-000000000010';
@@ -138,6 +149,6 @@ SELECT public.affiliate_apply_sync(payment_id,lease_token,requested_generation,'
 SELECT pg_temp.check_that((SELECT self_referral AND accrued_minor=0 AND member_id='af000000-0000-4000-a000-000000000001' FROM public.affiliate_commissions WHERE payment_id='af000000-0000-4000-a000-000000000030'),'historical binding and final self referral');
 SELECT pg_temp.check_that((SELECT bool_and(metadata='{}'::jsonb) FROM public.payment_transactions WHERE session_id LIKE 'cs_affiliate_%'),'payment metadata remains unchanged');
 SELECT pg_temp.check_that(pg_temp.rejects('SELECT public.affiliate_claim_work(NULL)'),'claim limit is bounded');
-SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_program_update('dddddddd-0000-4000-a000-000000000000',NULL,false,'x','{"en":"Terms","pl":"Warunki"}',30,2,'{"PLN":"1000"}')$q$),'program requires expected version');
+SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_program_update('dddddddd-0000-4000-a000-000000000000',NULL,false,'x','{"en":"Terms","pl":"Warunki"}',30,2,'{"PLN":"1000"}')$q$,'PT409'),'program requires expected version');
 SET CONSTRAINTS ALL IMMEDIATE;
 ROLLBACK;
