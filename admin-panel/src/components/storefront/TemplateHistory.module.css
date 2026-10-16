@@ -22,10 +22,9 @@
 .heading { font-size: 18px; font-weight: 600; color: var(--sf-text-heading); margin: 0 0 8px; }
 .list { list-style: none; padding: 0; margin: 20px 0 12px; border-top: 1px solid var(--sf-border); }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 0; border-bottom: 1px solid var(--sf-border); }
-.entry { display: flex; align-items: center; gap: 14px; }
+.entry { display: grid; gap: 5px; }
 .entry strong { font-weight: 550; color: var(--sf-text-heading); }
-.entry time { display: block; color: var(--sf-text-muted); font-size: 12px; margin-top: 5px; }
-.badge { color: var(--sf-text-muted); font-size: 12px; font-variant-numeric: tabular-nums; min-width: 28px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; color: var(--sf-text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .actions { display: flex; gap: 8px; }
 .status:empty { display: none; }
 .status { color: var(--color-sf-accent); margin: 16px 0; }
@@ -37,4 +36,4 @@
 .technical summary { cursor: pointer; color: var(--sf-text-muted); padding: 8px 0; }
 .technical pre { padding: 16px; background: var(--sf-bg-raised); white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; border-radius: 8px; }
 @media (max-width: 640px) { .page { padding: 24px 20px 60px; } .header { align-items: start; gap: 12px; } .header > .secondary { flex-shrink: 0; }
-.header h1 { font-size: 25px; } .header .secondary { padding: 6px 10px; } .card { padding: 18px; } .preview { grid-template-columns: 1fr; gap: 18px; } .controls { gap: 12px; } .controls label:first-child { flex: 1; } .controls select { max-width: 100%; } .row { align-items: start; flex-direction: column; gap: 10px; } .actions { padding-left: 42px; flex-wrap: wrap; gap: 4px; } .secondary, .textButton { white-space: normal; } }
+.header h1 { font-size: 25px; } .header .secondary { padding: 6px 10px; } .card { padding: 18px; } .preview { grid-template-columns: 1fr; gap: 18px; } .controls { gap: 12px; } .controls label:first-child { flex: 1; } .controls select { max-width: 100%; } .row { align-items: start; flex-direction: column; gap: 10px; } .actions { flex-wrap: wrap; gap: 4px; } .secondary, .textButton { white-space: normal; } }

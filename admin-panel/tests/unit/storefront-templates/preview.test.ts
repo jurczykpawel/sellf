@@ -1,6 +1,6 @@
 /** Private preview evidence contract. */
 import { beforeEach, expect, it, vi } from 'vitest';
-import { D_CONFIG, DEFAULT_CONFIG } from '@/lib/storefront-templates/fixtures';
+import { D_CONFIG, DEFAULT_CONFIG, D_LOCALIZED_CONFIG } from '@/lib/storefront-templates/fixtures';
 import { verifyTemplateSession, verifyTemplateApiKey } from '@/lib/storefront-templates/mutations';
 import { previewStorefront } from '@/lib/storefront-templates/preview';
 const m = vi.hoisted(() => ({ client: vi.fn(), read: vi.fn(), rate: vi.fn(), auth: vi.fn(), render: vi.fn() }));
@@ -73,4 +73,10 @@ it('returns structural validation without HTML and handles unavailable reads', a
   expect(m.render).not.toHaveBeenCalled();
   m.read.mockResolvedValue({ success: false });
   expect(await previewStorefront(auth, input)).toMatchObject({ code: 'UNAVAILABLE' });
+});
+
+it('uses declared Polish fixture content in the Polish rendered presentation', async () => {
+  m.read.mockResolvedValue({ success: true, data: { revision: 3, draft: D_LOCALIZED_CONFIG, published: DEFAULT_CONFIG } });
+  expect(await previewStorefront(await verifyTemplateSession(), { ...input, locale: 'pl' })).toMatchObject({ success: true });
+  expect(m.render).toHaveBeenCalledWith(expect.objectContaining({ model: expect.objectContaining({ sections: expect.arrayContaining([expect.objectContaining({ type: 'hero-product/1', props: expect.objectContaining({ content: expect.objectContaining({ heading: 'Zbuduj swój pierwszy automatyczny raport' }) }) })]) }) }));
 });
