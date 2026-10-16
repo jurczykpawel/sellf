@@ -42,6 +42,11 @@ describe('T2.5 shared variants', () => {
     const search = resolveSharedPhase2Section(b.sections[0], inputs, b);
     expect(search.success && search.data.props).toMatchObject({ variant: 'search-hero', categories: referenceCategories('en') });
   });
+  it('rejects compact catalogues without a content binding as unsupported shared sections', () => {
+    const recipe = phase2StorefrontRecipeSchema.parse(phase2Recipes.a);
+    const catalogue = recipe.sections.find(section => section.type === 'catalogue/1');
+    expect(resolveSharedPhase2Section({ ...catalogue, content: undefined }, inputs, recipe)).toEqual({ success: false, error: 'INVALID' });
+  });
   it('rejects wrong/missing catalogue targets, foreign categories and forged core actions', () => {
     const recipe = phase2StorefrontRecipeSchema.parse(phase2Recipes.a);
     for (const target of ['missing', 'faq']) expect(resolveSharedPhase2Section({ ...recipe.sections.at(-1), target }, inputs, recipe).success).toBe(false);

@@ -24,7 +24,9 @@ export const projectLinkSchema = z.string().max(2048).regex(/^https:\/\/(?:[a-z0
   try { host = new URL(value).hostname; } catch { return false; }
   return !['localhost', 'local', 'internal', 'home', 'lan', 'google.internal'].some(name => host === name || host.endsWith(`.${name}`));
 }, 'Expected a public HTTPS project page');
-export const comparisonContentSchema = z.strictObject({ kind: z.literal('comparison'), heading: text(160), body: text(4000), items: distinct(z.strictObject({ productId: z.uuid(), eyebrow: text(80), heading: text(160), body: text(1000), bullets: z.array(text(240)).max(6) }), 2, item => item.productId).length(2) });
+export const listHeadingContentSchema = headingContentSchema.extend({ eyebrow: text(80).optional() });
+export const featuredContentSchema = listHeadingContentSchema.extend({ actionLabel: text(80).optional(), detailsLabel: text(120).optional(), detailActionLabel: text(80).optional(), items: distinct(z.strictObject({ productId: z.uuid(), eyebrow: text(80).optional(), descriptor: text(120).optional(), detailHeading: text(160).optional(), detailBody: text(1000).optional(), requirementsLabel: text(240).optional() }), 6, item => item.productId).optional() });
+export const comparisonContentSchema = z.strictObject({ kind: z.literal('comparison'), actionLabel: text(80).optional(), eyebrow: text(80).optional(), heading: text(160), body: text(4000), items: distinct(z.strictObject({ productId: z.uuid(), eyebrow: text(80), heading: text(160), body: text(1000), bullets: z.array(text(240)).max(6) }), 2, item => item.productId).length(2) });
 export const phase2HeroContentSchema = heroContentSchema.extend({ mediaCaption: text(80).optional(), stepDetails: z.array(text(1000)).max(6).optional(), staticDemo: z.strictObject({ title: text(160), body: text(1000) }).optional() });
 export const searchContentSchema = z.strictObject({ kind: z.literal('search'), eyebrow: text(80).optional(), heading: text(160), body: text(4000), items: distinct(z.strictObject({ id: idSchema, categoryId: z.uuid(), description: text(240) }), 12, item => item.categoryId).refine(items => new Set(items.map(item => item.id)).size === items.length, 'Category description IDs must be distinct') });
 export const authorContentSchema = z.strictObject({ kind: z.literal('author'), name: text(120), eyebrow: text(80), heading: text(160), intro: text(4000), portraitMediaId: z.uuid().nullable() });
@@ -33,7 +35,7 @@ export const pathsContentSchema = z.strictObject({ kind: z.literal('paths'), hea
 export const projectsContentSchema = z.strictObject({ kind: z.literal('projects'), heading: text(160), items: distinct(z.strictObject({ id: idSchema, name: text(120), body: text(1000), url: projectLinkSchema, mediaId: z.uuid().nullable() }), 3, item => item.id) });
 export const phase2ContentSchema = contentSchema.extend({
   'home.hero': localized(phase2HeroContentSchema).optional(),
-  'home.comparison': localized(comparisonContentSchema).optional(), 'home.featured': localized(headingContentSchema).optional(),
+  'home.comparison': localized(comparisonContentSchema).optional(), 'home.featured': localized(featuredContentSchema).optional(), 'home.catalogue': localized(listHeadingContentSchema).optional(),
   'home.starter': localized(ctaContentSchema).optional(), 'home.search': localized(searchContentSchema).optional(), 'home.author': localized(authorContentSchema).optional(),
   'home.story': localized(biographyContentSchema).optional(), 'home.paths': localized(pathsContentSchema).optional(), 'home.projects': localized(projectsContentSchema).optional(),
   'offer.hero': localized(heroContentSchema).optional(), 'offer.faq': localized(faqContentSchema).optional(), 'offer.closing': localized(ctaContentSchema).optional(),
@@ -45,7 +47,7 @@ const phase2Sections = [
   z.strictObject({ ...base, type: z.literal('task-nav/1'), variant: z.literal('search-hero'), categories: products('taskCategories'), content: slot('home.search'), target: idSchema }),
   z.strictObject({ ...base, type: z.literal('product-list/1'), variant: z.literal('comparison'), products: products('comparisonProducts'), content: slot('home.comparison') }),
   z.strictObject({ ...base, type: z.literal('product-list/1'), variant: z.literal('featured-grid'), products: products('featuredProducts'), content: slot('home.featured') }),
-  sectionSchema.options[3].extend({ variant: z.literal('compact') }),
+  sectionSchema.options[3].extend({ variant: z.literal('compact'), content: slot('home.catalogue').optional() }),
   z.strictObject({ ...base, type: z.literal('product-cta/1'), product: products('closingProduct'), content: slot('home.starter'), action: z.literal('details') }),
   z.strictObject({ ...base, type: z.literal('product-cta/1'), variant: z.literal('catalogue-link'), content: slot('home.closing'), target: idSchema }),
   z.strictObject({ ...base, type: z.literal('author-hero/1'), content: slot('home.author'), pathsTarget: idSchema, catalogueTarget: idSchema }),
@@ -110,7 +112,7 @@ export interface ProjectShowcaseProps { heading: string; items: { id: string; na
 export type Phase2ResolvedSection = ResolvedSection
   | { id: string; type: 'hero-product/1'; props: OfferFocusProps }
   | { id: string; type: 'catalogue/1'; props: Omit<CatalogueProps, 'variant'> & { variant: 'compact' } }
-  | { id: string; type: 'product-list/1'; props: ComparisonProps | { variant: 'featured-grid'; products: PublicProductInfo[]; content: z.infer<typeof headingContentSchema> | null; locale: 'en' | 'pl' } }
+  | { id: string; type: 'product-list/1'; props: ComparisonProps | { variant: 'featured-grid'; products: PublicProductInfo[]; content: z.infer<typeof featuredContentSchema> | null; locale: 'en' | 'pl' } }
   | { id: string; type: 'task-nav/1'; props: SearchHeroProps }
   | { id: string; type: 'product-cta/1'; props: CatalogueLinkProps }
   | { id: string; type: 'author-hero/1'; props: AuthorHeroProps }

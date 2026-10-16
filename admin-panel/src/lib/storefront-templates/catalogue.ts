@@ -135,8 +135,8 @@ export async function loadCataloguePage(client: SupabaseClient<Database>, input:
 
 export async function loadCatalogueGroups(client: SupabaseClient<Database>, input: unknown, variant: unknown, cursors: Partial<Record<CatalogueGroup, string | null>> = {}): Promise<ReadResult<Partial<Record<CatalogueGroup, CataloguePage>>>> {
   const parsed = filtersSchema.omit({ group: true, cursor: true }).safeParse(input);
-  if (!parsed.success || (variant !== 'detail-cards' && variant !== 'default-groups')) return { success: false, error: 'INVALID' };
-  const groups: CatalogueGroup[] = variant === 'detail-cards' ? ['all'] : ['featured', 'free', 'paid'];
+  if (!parsed.success || (variant !== 'detail-cards' && variant !== 'default-groups' && variant !== 'compact')) return { success: false, error: 'INVALID' };
+  const groups: CatalogueGroup[] = variant !== 'default-groups' ? ['all'] : ['featured', 'free', 'paid'];
   if (Object.keys(cursors).some(key => !groups.includes(key as CatalogueGroup))) return { success: false, error: 'INVALID' };
   const pages = await Promise.all(groups.map(group => loadCataloguePage(client, { ...parsed.data, group, cursor: cursors[group] ?? null })));
   const failure = pages.find(page => !page.success);
@@ -144,26 +144,29 @@ export async function loadCatalogueGroups(client: SupabaseClient<Database>, inpu
   return { success: true, data: Object.fromEntries(pages.map((page, i) => [groups[i], page.success ? page.data : null])) };
 }
 
-const bindingsSchema = z.strictObject({ locale: z.enum(['en', 'pl']), heroProduct: uuid.nullable().default(null), closingProduct: uuid.nullable().default(null), starterProducts: ids(3).default([]), taskCategories: ids(12).default([]), target: idSchema });
+const bindingsSchema = z.strictObject({ locale: z.enum(['en', 'pl']), heroProduct: uuid.nullable().default(null), closingProduct: uuid.nullable().default(null), starterProducts: ids(3).default([]), comparisonProducts: ids(2).refine(value => value.length === 0 || value.length === 2).default([]), featuredProducts: ids(6).default([]), taskCategories: ids(12).default([]), target: idSchema });
 interface StorefrontBindings {
-  hero: PublicProductInfo | null; closing: PublicProductInfo | null; starters: PublicProductInfo[]; categories: PublicCategoryInfo[];
+  hero: PublicProductInfo | null; closing: PublicProductInfo | null; starters: PublicProductInfo[]; comparison: PublicProductInfo[]; featured: PublicProductInfo[]; categories: PublicCategoryInfo[];
 }
 export async function loadStorefrontBindings(client: SupabaseClient<Database>, input: unknown): Promise<ReadResult<StorefrontBindings>> {
   const parsed = bindingsSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'INVALID' };
   const b = parsed.data;
-  const productIds = [...new Set([b.heroProduct, b.closingProduct, ...b.starterProducts].filter((id): id is string => id !== null))];
+  const productIds = [...new Set([b.heroProduct, b.closingProduct, ...b.starterProducts, ...b.comparisonProducts, ...b.featuredProducts].filter((id): id is string => id !== null))];
   try {
+    const batches = Array.from({ length: Math.ceil(productIds.length / 5) }, (_, index) => productIds.slice(index * 5, index * 5 + 5));
     const [products, categories] = await Promise.all([
-      productIds.length ? client.rpc('storefront_catalogue_page', { filters: { pageSize: 9 }, product_ids: productIds }) : { data: [], error: null },
+      Promise.all(batches.map(batch => client.rpc('storefront_catalogue_page', { filters: { pageSize: 9 }, product_ids: batch }))),
       b.taskCategories.length ? client.rpc('storefront_catalogue_categories', { category_ids: b.taskCategories }) : { data: [], error: null },
     ]);
-    if (products.error || categories.error) return { success: false, error: 'UNAVAILABLE' };
-    const rows = z.array(rowSchema).max(5).parse(products.data);
+    if (products.some(batch => batch.error) || categories.error) return { success: false, error: 'UNAVAILABLE' };
+    const rows = products.flatMap(batch => z.array(rowSchema).max(5).parse(batch.data));
     const categoryRows = z.array(z.object({ id: uuid, name: z.string().refine(value => Array.from(value).length <= 100) })).max(12).parse(categories.data);
     const byId = new Map(rows.map(row => [row.id, projectProduct(row, b.locale)]));
     const byCategory = new Map(categoryRows.map(row => [row.id, row.name]));
     return { success: true, data: { hero: byId.get(b.heroProduct ?? '') ?? null, closing: byId.get(b.closingProduct ?? '') ?? null,
+      comparison: b.comparisonProducts.flatMap(id => byId.has(id) ? [byId.get(id)!] : []),
+      featured: b.featuredProducts.flatMap(id => byId.has(id) ? [byId.get(id)!] : []),
       starters: b.starterProducts.flatMap(id => byId.has(id) ? [byId.get(id)!] : []),
       categories: b.taskCategories.flatMap(id => byCategory.has(id) ? [{ id, label: byCategory.get(id)!, filterTarget: b.target }] : []) } };
   } catch { return { success: false, error: 'UNAVAILABLE' }; }

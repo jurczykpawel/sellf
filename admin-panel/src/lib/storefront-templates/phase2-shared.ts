@@ -25,7 +25,7 @@ export function resolveSharedPhase2Section(spec: unknown, inputs: Inputs, recipe
   const layout = phase2StorefrontRecipeSchema.safeParse(recipe);
   if (!parsed.success || !settings.success || !layout.success) return invalid;
   const section = parsed.data;
-  if (!('variant' in section) || !('content' in section)) return invalid;
+  if (!('variant' in section) || !('content' in section) || !section.content) return invalid;
   const slot = inputs.slots[section.content.slot];
   const common = { locale: inputs.locale };
   if (section.type === 'hero-product/1' && section.variant === 'offer-focus') {

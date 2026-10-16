@@ -22,6 +22,7 @@ export default defineConfig({
     },
     { testMatch: 'storefront-phase2-shared.spec.ts', snapshotPathTemplate: 'tests/fixtures/storefront-sections/phase2-shared-snapshots/{arg}{ext}' },
     { testMatch: 'storefront-phase2-reference.spec.ts', snapshotPathTemplate: 'tests/fixtures/storefront-sections/phase2/snapshots/{arg}{ext}' },
+    { testMatch: 'storefront-phase2-lists.spec.ts', snapshotPathTemplate: 'tests/fixtures/storefront-sections/phase2-list-snapshots/{arg}{ext}' },
     {
       testMatch: 'storefront-product-list.spec.ts',
       snapshotPathTemplate: 'tests/fixtures/storefront-sections/product-list-snapshots/{arg}{ext}',

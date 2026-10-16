@@ -16,6 +16,7 @@ const emptyQuery: Query = { search: '', categoryIds: [], priceKind: null, format
 
 export default function Catalogue({
   id = 'catalogue',
+  content,
   variant,
   groups: initialGroups,
   filters,
@@ -26,7 +27,7 @@ export default function Catalogue({
   initialQuery = emptyQuery,
 }: CatalogueProps) {
   const labels = catalogueLabels[locale];
-  const groupIds: CatalogueGroup[] = variant === 'detail-cards' ? ['all'] : ['featured', 'free', 'paid'];
+  const groupIds: CatalogueGroup[] = variant !== 'default-groups' ? ['all'] : ['featured', 'free', 'paid'];
   const [groups, setGroups] = useState(initialGroups);
   const [query, setQuery] = useState<Query>(initialQuery);
   const [search, setSearch] = useState(initialQuery.search);
@@ -134,11 +135,12 @@ export default function Catalogue({
     <section
       id={id}
       aria-labelledby={`${id}-heading`}
-      className={`${styles.catalogue} ${variant === 'default-groups' ? styles.defaultGroups : ''}`}
+      className={`${styles.catalogue} ${variant === 'default-groups' ? styles.defaultGroups : variant === 'compact' ? styles.compact : ''}`}
       data-density={density}
+      data-variant={variant}
     >
       <div className={styles.wrap}>
-        <h2 id={`${id}-heading`}>{labels.title}</h2>
+        <header className={styles.heading}>{content?.eyebrow && <p>{content.eyebrow}</p>}<h2 id={`${id}-heading`}>{content?.heading || labels.title}</h2>{content?.body && <p>{content.body}</p>}</header>
         <form
           role="search"
           aria-label={labels.search}
@@ -153,6 +155,7 @@ export default function Catalogue({
             <input
               id={`${id}-search`}
               type="search"
+              placeholder={variant === 'compact' ? labels.search : undefined}
               maxLength={200}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -257,6 +260,7 @@ export default function Catalogue({
                         product={product}
                         locale={locale}
                         grouped={variant === 'default-groups'}
+                        compact={variant === 'compact'}
                         headingRef={(element) => {
                           const key = `${group}:${product.id}`;
                           if (element) headings.current.set(key, element);
@@ -290,11 +294,13 @@ function CatalogueCard({
   product,
   locale,
   grouped,
+  compact,
   headingRef,
 }: {
   product: PublicProductInfo;
   locale: 'en' | 'pl';
   grouped: boolean;
+  compact: boolean;
   headingRef: (element: HTMLHeadingElement | null) => void;
 }) {
   const labels = catalogueLabels[locale];
@@ -315,17 +321,18 @@ function CatalogueCard({
         </div>
       )}
       <div className={styles.body}>
-        {!grouped && product.marketing.format && (
+        {!grouped && !compact && product.marketing.format && (
           <p className={styles.format}>
             {labels.formats[productFormatSchema.options.indexOf(product.marketing.format)]}
           </p>
         )}
         <Heading ref={headingRef} tabIndex={-1}>
-          {product.title}
+          {compact ? <a href={product.actions.details}>{product.title}</a> : product.title}
         </Heading>
+        {compact && (product.marketing.format || marketing.copy.tools.length > 0 || marketing.copy.requirements.length > 0) && <p className={styles.format}>{product.marketing.format ? labels.formats[productFormatSchema.options.indexOf(product.marketing.format)] : null}{marketing.copy.tools.length > 0 && <span lang={marketing.locale}>{product.marketing.format && ' · '}{marketing.copy.tools.join(' · ')}</span>}{marketing.copy.requirements.length > 0 && <span lang={marketing.locale}>{(product.marketing.format || marketing.copy.tools.length > 0) && ' · '}{labels.requirements}: {marketing.copy.requirements.join(' · ')}</span>}</p>}
         <div lang={marketing.locale}>
-          {marketing.copy.result && <p className={styles.outcome}>{marketing.copy.result}</p>}
-          {!grouped && (marketing.copy.tools.length > 0 || marketing.copy.requirements.length > 0) && (
+          {!compact && marketing.copy.result && <p className={styles.outcome}>{marketing.copy.result}</p>}
+          {!grouped && !compact && (marketing.copy.tools.length > 0 || marketing.copy.requirements.length > 0) && (
             <dl className={styles.metadata}>
               {marketing.copy.tools.length > 0 && (
                 <>
@@ -344,13 +351,13 @@ function CatalogueCard({
         </div>
         <div className={styles.buyrow}>
           <p className={styles.price}>{product.price.display}</p>
-          <a href={product.actions.details} aria-label={`${labels.details}: ${product.title}`}>
+          {!compact && <a href={product.actions.details} aria-label={`${labels.details}: ${product.title}`}>
             {labels.details} <span aria-hidden="true">↗</span>
-          </a>
+          </a>}
         </div>
         {product.price.taxNote && <p className={styles.note}>{product.price.taxNote}</p>}
         {product.price.omnibus && <p className={styles.note}>{product.price.omnibus}</p>}
-        {(marketing.copy.tools.length > 0 || marketing.copy.requirements.length > 0) && (
+        {!compact && (marketing.copy.tools.length > 0 || marketing.copy.requirements.length > 0) && (
           <details className={styles.detail}>
             <summary>{labels.requirements}</summary>
             <div lang={marketing.locale}>

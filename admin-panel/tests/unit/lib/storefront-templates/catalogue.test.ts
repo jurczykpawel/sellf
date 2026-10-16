@@ -149,3 +149,39 @@ describe('storefront catalogue', () => {
     expect(c.rpc).toHaveBeenCalledTimes(2);
   });
 });
+
+it('loads six featured bindings in bounded batches while retaining seller order', async () => {
+  const c = client();
+  c.rpc.mockImplementation(async (_name, args) => ({ data: args.product_ids.map((value: string) => row(Number(value.slice(-12)))), error: null }));
+  const selected = [6, 4, 2, 5, 3, 1].map(id);
+  const result = await loadStorefrontBindings(c.db, { locale: 'en', featuredProducts: selected, comparisonProducts: [id(2), id(1)], target: 'catalogue' });
+  expect(result.success).toBe(true);
+  if (!result.success) return;
+  expect(result.data.featured.map(product => product.id)).toEqual(selected);
+  expect(result.data.comparison.map(product => product.id)).toEqual([id(2), id(1)]);
+  expect(c.rpc).toHaveBeenCalledTimes(2);
+  for (const call of c.rpc.mock.calls) expect(call[1].product_ids.length).toBeLessThanOrEqual(5);
+  expect(await loadStorefrontBindings(c.db, { locale: 'en', featuredProducts: Array.from({ length: 7 }, (_, i) => id(i + 1)), target: 'catalogue' })).toEqual({ success: false, error: 'INVALID' });
+});
+
+it('visits all 100k compact products by cursor with at most 24 products and one page read per step', async () => {
+  const c = client();
+  c.rpc.mockImplementation(async (_name, args) => {
+    const start = args.after_id ? Number(args.after_id.slice(-12)) : 0;
+    return { data: Array.from({ length: Math.min(25, 100000 - start) }, (_, i) => row(start + i + 1)), error: null };
+  });
+  let cursor: string | null = null;
+  let count = 0;
+  do {
+    const result = await loadCatalogueGroups(c.db, { locale: 'en', pageSize: 24 }, 'compact', { all: cursor });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(Object.keys(result.data)).toEqual(['all']);
+    const page = result.data.all!;
+    expect(page.products.length).toBeLessThanOrEqual(24);
+    for (const product of page.products) expect(product.id).toBe(id(++count));
+    cursor = page.nextCursor;
+  } while (cursor);
+  expect(count).toBe(100000);
+  expect(c.rpc).toHaveBeenCalledTimes(Math.ceil(100000 / 24));
+}, 30000);

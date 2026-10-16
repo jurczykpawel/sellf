@@ -1,5 +1,6 @@
 /** Catalogue presentation contract. @see spec/contracts/section-contract.md */
 import { z } from 'zod';
+import { phase2SectionSchema, listHeadingContentSchema } from '@/lib/storefront-templates/phase2-contracts';
 import { sectionSchema } from '@/lib/storefront-templates/schemas';
 import { marketingFieldsSchema, productFormatSchema } from '@/lib/validations/product-marketing';
 import type { CatalogueGroup, CataloguePage, PublicCategoryInfo } from '@/lib/storefront-templates/catalogue';
@@ -7,7 +8,8 @@ import type { TemplateSettings } from '@/lib/storefront-templates/schemas';
 
 export interface CatalogueProps {
   id?: string;
-  variant: 'detail-cards' | 'default-groups';
+  content?: z.infer<typeof listHeadingContentSchema> | null;
+  variant: 'detail-cards' | 'default-groups' | 'compact';
   groups: Partial<Record<CatalogueGroup, CataloguePage>>;
   filters: ('category' | 'price-kind' | 'format')[];
   pageSize: 9 | 12 | 24;
@@ -71,18 +73,19 @@ export function cataloguePageSchema(pageSize: 9 | 12 | 24) {
 }
 export function catalogueGroupsSchema(variant: CatalogueProps['variant'], pageSize: CatalogueProps['pageSize']) {
   const page = cataloguePageSchema(pageSize);
-  return variant === 'detail-cards'
+  return variant !== 'default-groups'
     ? z.strictObject({ all: page })
     : z.strictObject({ featured: page, free: page, paid: page });
 }
 export function resolveCatalogue(
   spec: unknown,
-  inputs: { locale: 'en' | 'pl'; settings: TemplateSettings; catalogue: CatalogueProps },
+  inputs: { locale: 'en' | 'pl'; settings: TemplateSettings; slots?: Record<string, unknown>; catalogue: CatalogueProps },
 ): CatalogueProps {
-  const parsed = sectionSchema.parse(spec);
+  const parsed = z.union([sectionSchema.options[3], phase2SectionSchema.options[10]]).parse(spec);
   if (parsed.type !== 'catalogue/1') throw new Error('Invalid catalogue section');
   return {
     id: parsed.id,
+    ...('content' in parsed && parsed.content ? { content: listHeadingContentSchema.safeParse(inputs.slots?.[parsed.content.slot]).data ?? null } : {}),
     variant: parsed.variant,
     groups: catalogueGroupsSchema(parsed.variant, parsed.pageSize).parse(inputs.catalogue.groups),
     filters: parsed.filters,

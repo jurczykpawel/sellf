@@ -27,3 +27,39 @@
 
 .defaultGroups{background:var(--sf-bg-deep)}.defaultGroups .wrap{width:min(912px,calc(100% - 48px))}.defaultGroups .body{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 16px}.defaultGroups .body>h4,.defaultGroups .body>div[lang]{grid-column:1}.defaultGroups .buyrow{grid-column:2;grid-row:1/3;border:0;margin:0;padding:0}.defaultGroups .detail{grid-column:1/-1}
 @media(max-width:600px){.defaultGroups .body{display:block}.defaultGroups .buyrow{margin-top:12px;flex-wrap:wrap}}
+
+.compact{border-block:1px solid var(--sf-border);padding:76px 0}
+.compact .wrap{width:min(1248px,calc(100% - 96px))}
+.compact .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 32px}
+.compact .card{display:grid;grid-template-columns:76px minmax(0,1fr);gap:18px;align-items:center;border:0;border-top:1px solid var(--sf-border);border-radius:0;padding:18px 0;background:transparent;overflow:visible}
+.compact .cover{width:76px;height:54px;aspect-ratio:auto;border:0;border-radius:5px;overflow:hidden}
+.compact .body{padding:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 12px;align-items:center;min-width:0}
+.compact .body h3{font-size:17px;line-height:1.3;margin:0;grid-column:1;grid-row:1}
+.compact .body h3 a{font:inherit;text-decoration:none;min-height:0;margin:0;display:block}
+.compact .format{font-size:11px;grid-column:1;grid-row:2}
+.compact .buyrow{grid-column:2;grid-row:1/3;margin:0;padding:0;border:0;display:block;text-align:right}
+.compact .price{font-size:19px;white-space:normal;margin:0}
+.compact .note{grid-column:1/-1}
+.compact .body>div[lang]{display:none}
+.compact .card:has(>.body:first-child){grid-template-columns:minmax(0,1fr)}
+@media(max-width:900px){.compact .wrap{width:calc(100% - 48px)}}
+@media(max-width:600px){.compact{padding:52px 0}.compact .wrap{width:calc(100% - 36px)}.compact .grid{grid-template-columns:1fr;gap:0}.compact .card{grid-template-columns:57px minmax(0,1fr);gap:12px;padding:16px 0}.compact .cover{width:57px;height:45px}.compact .body h3{font-size:15px}.compact .format{font-size:10px}.compact .price{font-size:17px}}
+.compact .heading{display:grid;grid-template-columns:1fr auto;gap:0 24px;align-items:end;margin-bottom:32px}
+.compact .heading>p:first-child{grid-column:1;font-size:11px;letter-spacing:1.7px;text-transform:uppercase;color:var(--sf-accent);font-weight:600;margin:0 0 8px}
+.compact .heading h2{grid-column:1;font-size:44px;line-height:1.12;letter-spacing:-1.6px;margin:0}
+.compact .heading>p:last-child:not(:first-child){grid-column:2;grid-row:1/3;max-width:430px;margin:0;line-height:1.6}
+.compact .search>label,.compact legend{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.compact .search>div{border:1px solid var(--sf-text-muted);border-radius:10px;background:var(--sf-bg-base);padding:0 18px;gap:13px;align-items:center}
+.compact .search input{border:0;border-radius:0;background:transparent;min-height:58px;padding:0;box-shadow:none}
+.compact .search button{background:transparent;border:0;padding:8px;min-height:44px;font-size:12px;font-weight:600}
+.compact .filters{gap:10px;margin:18px 0 28px;align-items:center}
+.compact .filters>label{font-size:11px;gap:3px;flex:0 1 auto;max-width:240px}
+.compact .filters :is(button,select){font-size:12px;min-height:42px;padding:9px 15px;border:1px solid var(--sf-border);background:var(--sf-bg-base);border-radius:7px}
+.compact .filters fieldset{gap:10px}.compact .filters fieldset label{position:relative;font-size:12px;padding:9px 15px;border:1px solid var(--sf-border);border-radius:7px;min-height:42px;background:var(--sf-bg-base);cursor:pointer}
+.compact .filters fieldset label:has(:checked){background:var(--sf-accent);color:var(--sf-accent-foreground,var(--sf-accent-fg))}
+.compact .filters fieldset input{position:absolute;opacity:0;width:1px;height:1px}
+.compact .filters fieldset label:has(:focus-visible){outline:3px solid var(--sf-accent);outline-offset:3px}
+.compact .results{font-size:12px;margin-bottom:10px}.compact .more{background:var(--sf-bg-base);border:1px solid var(--sf-border);border-radius:8px;padding:12px 20px;font-size:14px;font-weight:600;margin-top:28px}
+@media(max-width:600px){.compact .heading{display:block;margin-bottom:24px}.compact .heading h2{font-size:32px;letter-spacing:-1px}.compact .heading>p:last-child:not(:first-child){font-size:13px;margin-top:12px}.compact .heading>p:first-child{font-size:10px;letter-spacing:1.1px;margin-bottom:12px}.compact .filters{gap:8px}.compact .filters fieldset label{font-size:11px;padding:8px 10px}.compact .filters :is(button,select){font-size:11px}.compact .search input{font-size:13px}.compact .search>div{padding:0 13px}}
+.compact .grid{align-items:stretch}.compact .body{column-gap:18px}.compact .price{line-height:1.1}
+@media(max-width:600px){.compact .body{column-gap:12px}}

@@ -103,6 +103,35 @@ comparison without updates. Native PNG comparisons require no new harness codec.
 EN/PL/dark/320/768/zoom/keyboard/reduced-motion/long/empty/price-kind renderer coverage
 remains required; it does not require committing every generated screenshot.
 
+## T2.6 renderer handoff
+
+`resolveProductList` and `ProductList` accept the frozen comparison/featured specs;
+`resolveCatalogue` and `Catalogue` accept compact as a single `all` group. Prices,
+notes, availability and details destinations remain core DTO values. The caller
+supplies batched product maps; these renderers perform no product reads. Comparison
+copy joins on product ID, and selected binding order wins over translated item order.
+The existing starter schema and default/D geometry remain unchanged.
+
+D-055 adds optional localized editorial fields for these sections only:
+comparison `eyebrow`/`actionLabel` (80 chars); featured `eyebrow`/`actionLabel`/
+`detailActionLabel` (80), `detailsLabel` (120), and at most six distinct product-ID
+annotations with optional `eyebrow` (80), `descriptor` (120), `detailHeading` (160),
+`detailBody` (1000), `requirementsLabel` (240). All remain bounded plain text.
+Compact may bind optional `home.catalogue` heading content (existing heading/body
+limits plus optional 80-character eyebrow); pass resolved slots to its resolver.
+Absent annotations use canonical product marketing and core EN/PL labels. Section
+registration/selection, lifecycle storage adoption and A/B composition remain the
+subsequent tasks; no premium entry is made selectable by this change.
+
+The binding loader accepts optional comparison/featured selections and returns
+ordered `comparison`/`featured` arrays. It deduplicates all selected IDs and uses
+batches of at most five, retaining the existing RPC bound without a migration
+(maximum three batches across all bindings; six featured products use two).
+Compact geometry checks substitute canonical localized format/requirements text
+for the reference's synthetic caption. Core action styling remains token-driven.
+Six compressed production card crops live outside the frozen reference directory;
+no reference PNG or font was added or replaced.
+
 ## T2.5 shared renderers / D-055
 
 `HeroProduct` accepts `OfferFocusProps`, `TaskNav` accepts `SearchHeroProps`, and
