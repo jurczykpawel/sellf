@@ -17,6 +17,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   createAdminClient: vi.fn(),
   checkRateLimit: vi.fn(),
+  checkRateLimitForIdentifier: vi.fn(),
   createCheckoutSession: vi.fn(),
 }));
 
@@ -26,6 +27,8 @@ vi.mock('@/lib/supabase/admin', () => ({
 
 vi.mock('@/lib/rate-limiting', () => ({
   checkRateLimit: mocks.checkRateLimit,
+  checkRateLimitForIdentifier: mocks.checkRateLimitForIdentifier,
+  getRateLimitIdentifier: vi.fn().mockResolvedValue('ip:203.0.113.9'),
 }));
 
 vi.mock('@/lib/services/checkout', () => ({
@@ -121,6 +124,7 @@ beforeEach(() => {
   delete process.env.ALTCHA_HMAC_KEY;
   mocks.createAdminClient.mockReturnValue(makeDbMock());
   mocks.checkRateLimit.mockResolvedValue(true);
+  mocks.checkRateLimitForIdentifier.mockResolvedValue(true);
   mocks.createCheckoutSession.mockResolvedValue({
     clientSecret: 'cs_test_secret',
     sessionId: 'cs_test_session',
@@ -331,8 +335,8 @@ describe('Cat 15: Body Size / DoS', () => {
 describe('Cat 40: Coupon Stacking', () => {
   it('rejects a request with an extra couponCode2 field in embed checkout', async () => {
     // Old probe: { productId, couponCode, couponCode2 }
-    // Retargeted: the embed route accepts productSlug/email/turnstileToken only.
-    // Any coupon field is not in PAID_CHECKOUT_KEYS → 400.
+    // Retargeted: the embed route accepts a single couponCode; any other coupon
+    // field is not in PAID_CHECKOUT_KEYS → 400.
     const response = await POST(
       makeRequest({
         productSlug: 'kurs-ai',
@@ -345,18 +349,21 @@ describe('Cat 40: Coupon Stacking', () => {
     expect(mocks.createCheckoutSession).not.toHaveBeenCalled();
   });
 
-  it('rejects a request with even a single couponCode field in embed checkout body', async () => {
-    // The embed route has no coupon support. Sending couponCode is an unknown
-    // key — rejected before any Stripe interaction.
+  it('forwards a single couponCode to the checkout service unchanged', async () => {
     const response = await POST(
       makeRequest({
         productSlug: 'kurs-ai',
-        couponCode: 'EVIL',
+        couponCode: 'SAVE20',
       }),
     );
 
-    expect(response.status).toBe(400);
-    expect(mocks.createCheckoutSession).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(mocks.createCheckoutSession).toHaveBeenCalledWith(
+      { productId: expect.any(String), couponCode: 'SAVE20' },
+      expect.any(String),
+      undefined,
+      expect.any(Object),
+    );
   });
 });
 

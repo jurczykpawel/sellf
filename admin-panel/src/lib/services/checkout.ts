@@ -495,12 +495,25 @@ export class CheckoutService {
     } | undefined = undefined;
     if (request.couponCode) {
       try {
-        const { data: vResult, error: couponError } = await this.supabase.rpc('verify_coupon', {
+        // Service client: anonymous visitors (embed) must not share the database's
+        // single anonymous rate-limit bucket; callers throttle at the application layer.
+        const { data: vRaw, error: couponError } = await createAdminClient().rpc('verify_coupon', {
           code_param: request.couponCode.toUpperCase(),
           product_id_param: product.id,
-          customer_email_param: request.email || null,
+          customer_email_param: request.email || undefined,
           currency_param: product.currency,
         });
+
+        const vResult = vRaw as {
+          valid: boolean;
+          id: string;
+          code: string;
+          discount_type: 'percentage' | 'fixed';
+          discount_value: number;
+          exclude_order_bumps?: boolean;
+          allowed_product_ids?: string[];
+          error?: string;
+        } | null;
 
         if (couponError) {
           console.error('Coupon verification error:', couponError);

@@ -32,3 +32,22 @@ Regresja produkcyjna: `node scripts/run-runtime-url-tests.mjs` z `admin-panel/`.
 Buduje z placeholderami, uruchamia na 3777 z prawdziwym runtime, sprawdza Mailpit,
 logowanie, darmowy dostęp, embed Stripe, sitemap i metadane. Wymaga działającego
 lokalnego Supabase z allowlistą dla 3777 i testowego klucza Stripe; nie resetuje bazy.
+
+## Embed: kody rabatowe
+
+Płatny embed pokazuje nad checkoutem pole kodu rabatowego. Kupujący wpisuje kod i klika
+„Apply”; serwer waliduje go tymi samymi regułami i limitami co checkout w sklepie
+(limit prób na kod, captcha jak przy każdym płatnym embedzie). Odrzucony kod pokazuje błąd
+pod polem i nie blokuje płatności bez rabatu.
+
+Aby wstępnie wypełnić kod, np. z linku sprzedawcy lub partnera, dodaj `data-coupon` do
+elementu embeda. Kupujący nadal może go zmienić:
+
+```html
+<div data-sellf-embed data-product-slug="moj-kurs" data-coupon="WIOSNA25"></div>
+<script src="https://TWOJ_SELLF/embed/v1/checkout.js"></script>
+```
+
+`POST /api/embed/checkout-session` przyjmuje opcjonalne `couponCode` (litery, cyfry, `_`, `.`, `-`;
+do 64 znaków). Nieprawidłowy lub niemożliwy do użycia kod zwraca `400` z polem `error`, bez
+tworzenia sesji.

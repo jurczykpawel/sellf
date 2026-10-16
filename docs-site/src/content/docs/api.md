@@ -450,6 +450,17 @@ These routes are intentionally not part of API-key authenticated `/api/v1`.
 | POST | `/api/embed/free-access` | Public origin validation | Grant access for free embedded products |
 | GET | `/embed/v1/checkout.js` | Public script | Self-hosted checkout embed script for external pages |
 
+Paid embeds show a coupon field above the checkout. Buyers can type a code and press Apply; the discount is validated on the server with the same rules and limits as the storefront checkout (per-code attempt throttle, captcha as for any paid embed). A rejected code shows an error under the field and leaves the current checkout payable.
+
+To prefill a code, for example from a seller or affiliate link, add `data-coupon` to the embed element. The buyer can still change it:
+
+```html
+<div data-sellf-embed data-product-slug="my-course" data-coupon="SPRING25"></div>
+<script src="https://YOUR_SELLF/embed/v1/checkout.js"></script>
+```
+
+`POST /api/embed/checkout-session` accepts an optional `couponCode` (letters, digits, `_`, `.`, `-`; up to 64 characters). An invalid or unusable code returns `400` with an `error` message; no session is created.
+
 ### Customer Subscriptions
 
 | Method | Path | Auth | Description |
