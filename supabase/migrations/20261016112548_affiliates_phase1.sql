@@ -291,6 +291,22 @@ BEGIN
  RETURN FOUND;
 END $$;
 
+CREATE FUNCTION public.affiliate_complete_unbound_work(p_payment uuid,p_token uuid,p_generation bigint) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+ PERFORM 1 FROM public.payment_transactions WHERE id=p_payment FOR UPDATE;
+ IF EXISTS(SELECT 1 FROM public.coupon_redemptions r JOIN public.affiliate_coupon_bindings b ON b.coupon_id=r.coupon_id WHERE r.transaction_id=p_payment)
+  OR EXISTS(SELECT 1 FROM public.affiliate_commissions WHERE payment_id=p_payment) THEN RETURN false; END IF;
+ UPDATE public.affiliate_work SET processed_generation=p_generation,
+  status=CASE WHEN requested_generation>p_generation THEN 'pending' ELSE 'done' END,
+  lease_token=NULL,leased_until=NULL,last_error_code=NULL,attempts=0,next_attempt_at=now()
+ WHERE payment_id=p_payment AND status='leased' AND lease_token=p_token AND leased_until>now()
+  AND p_generation>processed_generation AND p_generation<=requested_generation;
+ RETURN FOUND;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.affiliate_complete_unbound_work(uuid,uuid,bigint) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.affiliate_complete_unbound_work(uuid,uuid,bigint) TO service_role;
+
 CREATE FUNCTION public.affiliate_apply_sync(p_payment uuid,p_token uuid,p_generation bigint,p_session_created_at timestamptz,p_livemode boolean)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE pt public.payment_transactions; w public.affiliate_work; b public.affiliate_coupon_bindings;

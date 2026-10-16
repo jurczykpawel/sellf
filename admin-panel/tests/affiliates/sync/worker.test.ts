@@ -85,5 +85,6 @@ it('finishes unbound work without looking up Stripe', async () => {
   await drainAffiliateWork();
   expect(mocks.retrieve).not.toHaveBeenCalled();
   expect(mocks.list).not.toHaveBeenCalled();
-  expect(mocks.rpc).toHaveBeenCalledWith('affiliate_apply_sync', expect.anything());
+  expect(mocks.rpc).toHaveBeenCalledWith('affiliate_complete_unbound_work', expect.objectContaining({ p_generation: work.requested_generation }));
+  expect(mocks.rpc).not.toHaveBeenCalledWith('affiliate_apply_sync', expect.anything());
 });

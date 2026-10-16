@@ -1,4 +1,4 @@
-/** Cumulative automatic loss target; manual entries remain independent. @see model.ts @see money.ts */
+/** Cumulative automatic loss target; manual entries remain independent. @see src/lib/affiliates/model.ts @see money.ts */
 import { lossInputSchema } from '@/lib/affiliates/model';
 import { roundHalfUp } from './money';
 import type { AffiliateResult, LossResult } from '@/lib/affiliates/model';

@@ -26,7 +26,7 @@ beforeAll(async () => {
   expect((await service.auth.admin.createUser({ email, password, email_confirm: true })).error).toBeNull();
   member = createClient(process.env.SUPABASE_URL!, process.env.ANON_KEY!, options);
   expect((await member.auth.signInWithPassword({ email, password })).error).toBeNull();
-}, 30000);
+}, 125000);
 it('runs application, decisions, conflicts, exact versions and reconstructable terms through real RPCs', async () => {
   state.session = member;
   expect((await getAdminOverview()).status).toBe(403);

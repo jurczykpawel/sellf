@@ -3653,6 +3653,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      affiliate_complete_unbound_work: {
+        Args: { p_generation: number; p_payment: string; p_token: string }
+        Returns: boolean
+      }
       affiliate_coupon_bind: {
         Args: {
           p_actor: string
@@ -3676,8 +3680,8 @@ export type Database = {
         }
       }
       affiliate_lock_member: {
-        Args: { p_currency: string; p_member: string }
-        Returns: undefined
+        Args: { p_currency: string; p_member: string; p_payments?: string[] }
+        Returns: string[]
       }
       affiliate_manual_adjustment: {
         Args: {
@@ -3772,6 +3776,40 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      affiliate_portal_page: {
+        Args: {
+          p_as_of?: string
+          p_currency?: string
+          p_cursor?: string
+          p_limit?: number
+          p_member: string
+        }
+        Returns: Json
+      }
+      affiliate_portal_summary: {
+        Args: { p_as_of: string; p_member: string }
+        Returns: Json
+      }
+      affiliate_preview: {
+        Args: { p_currency: string; p_cutoff: string; p_member: string }
+        Returns: {
+          accrued: string
+          available: boolean
+          balance: string
+          debt_offset_minor: string
+          earnings_minor: string
+          entry_ids: string[]
+          held_minor: string
+          member_version: string
+          paid: string
+          payable_minor: string
+          program_version: string
+          reserved: string
+          reversed: string
+          sync_required: boolean
+          threshold_minor: string
+        }[]
       }
       affiliate_program_update: {
         Args: {

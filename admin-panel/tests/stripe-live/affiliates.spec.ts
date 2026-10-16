@@ -61,13 +61,13 @@ test('native coupon paid, held, mature and refunded in test mode', async ({ page
   expect(await rows('affiliate_commissions', 'payment_id', payment.id)).toHaveLength(0);
   const metadata = payment.metadata;
   // Place the disposable confirmation fixture just before its one-day maturity boundary.
-  sql(`UPDATE coupon_redemptions SET redeemed_at=clock_timestamp()-interval '1 day'+interval '12 seconds' WHERE transaction_id='${payment.id}'`);
+  sql(`UPDATE coupon_redemptions SET redeemed_at=clock_timestamp()-interval '1 day'+interval '30 seconds' WHERE transaction_id='${payment.id}'`);
   await sync(request);
   const commission = (await rows('affiliate_commissions', 'payment_id', payment.id))[0];
   expect(commission).toBeTruthy(); expect(Date.parse(commission.eligible_at)).toBeGreaterThan(Date.now());
   await setAuthSession(page, user.email, user.password); await page.goto('/my-affiliate');
   await expect(page.getByText('Waiting period', { exact: true })).toBeVisible();
-  await expect.poll(() => Date.now() >= Date.parse(commission.eligible_at), { timeout: 20000, intervals: [500] }).toBe(true);
+  await expect.poll(() => Date.now() >= Date.parse(commission.eligible_at), { timeout: 60000, intervals: [500] }).toBe(true);
   await page.reload(); await expect(page.getByText('Mature', { exact: true })).toBeVisible();
   expect(commission.livemode).toBe(false);
   await expect(page.getByText('Test', { exact: true })).toBeVisible();

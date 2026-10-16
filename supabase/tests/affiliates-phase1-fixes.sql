@@ -59,6 +59,9 @@ DO $$ DECLARE product uuid; coupon uuid; payment uuid; BEGIN
  UPDATE public.payment_transactions SET refunded_amount=100 WHERE id=payment;
  PERFORM pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.affiliate_work WHERE payment_id=payment),'unbound payment update does not enqueue');
  INSERT INTO public.affiliate_work(payment_id,status,dispute_seen) VALUES(payment,'pending',true);
+ PERFORM pg_temp.check_that((SELECT public.affiliate_complete_unbound_work(payment_id,lease_token,requested_generation)
+  FROM public.affiliate_claim_work(100) WHERE payment_id=payment),'unbound work completes without session facts');
+ UPDATE public.affiliate_work SET status='pending',requested_generation=requested_generation+1 WHERE payment_id=payment;
  DELETE FROM public.products WHERE id=product;
  PERFORM pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.payment_transactions WHERE id=payment),'ordinary coupon product deletes with pending work');
 END $$;
@@ -112,7 +115,9 @@ DO $$ DECLARE member uuid; coupon uuid; payment uuid; payout public.affiliate_pa
  INSERT INTO public.affiliate_membership_events(member_id,version,status,created_at) VALUES(member,1,'approved','2026-01-01');
  INSERT INTO public.coupons(code,name,discount_type,discount_value) VALUES('MODEFIX','Fixture','percentage',10) RETURNING id INTO coupon;
  INSERT INTO public.affiliate_coupon_bindings(coupon_id,member_id,version,created_at) VALUES(coupon,member,1,'2026-01-01');
- payment:=pg_temp.sale(p_coupon=>coupon); PERFORM pg_temp.sync(payment,p_live=>false);
+ payment:=pg_temp.sale(p_coupon=>coupon);
+ PERFORM pg_temp.check_that(NOT public.affiliate_complete_unbound_work(payment,gen_random_uuid(),1),'bound work requires session facts');
+ PERFORM pg_temp.sync(payment,p_live=>false);
  PERFORM pg_temp.check_that(public.affiliate_portal_summary(member,now())->'balances'='[]'::jsonb,'test-only portal has no real balances');
  PERFORM pg_temp.check_that(jsonb_array_length(public.affiliate_portal_page(member)->'commissions')=1,'test commission remains listed');
  BEGIN
@@ -126,6 +131,13 @@ DO $$ DECLARE member uuid; coupon uuid; payment uuid; payout public.affiliate_pa
  PERFORM pg_temp.sync(payment,p_live=>false);
  PERFORM pg_temp.check_that((SELECT NOT needs_review FROM public.affiliate_payouts WHERE id=payout.id),'test refund leaves live reservation intact');
  PERFORM pg_temp.check_that((SELECT count(*)=1 FROM public.affiliate_payout_allocations WHERE payout_id=payout.id),'test entries have no payout allocations');
+ BEGIN
+  INSERT INTO public.affiliate_payout_allocations(payout_id,entry_id)
+  SELECT payout.id,l.id FROM public.affiliate_ledger l JOIN public.affiliate_commissions c ON c.id=l.commission_id WHERE c.payment_id=payment;
+  SET CONSTRAINTS ALL IMMEDIATE;
+  RAISE EXCEPTION 'Test entries added to statement';
+ EXCEPTION WHEN check_violation THEN NULL; END;
+ SET CONSTRAINTS ALL DEFERRED;
 END $$;
 ROLLBACK TO modes;
 SET CONSTRAINTS ALL IMMEDIATE;

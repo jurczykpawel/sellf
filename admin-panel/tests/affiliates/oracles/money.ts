@@ -1,4 +1,4 @@
-/** Integer minor-unit arithmetic and frozen maturity policy. @see model.ts */
+/** Integer minor-unit arithmetic and frozen maturity policy. @see src/lib/affiliates/model.ts */
 import { commissionInputSchema, maturityInputSchema } from '@/lib/affiliates/model';
 import type { AffiliateResult } from '@/lib/affiliates/model';
 

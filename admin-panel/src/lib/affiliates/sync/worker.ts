@@ -46,7 +46,12 @@ export async function drainAffiliateWork(limit = 25): Promise<DrainResult> {
             .select('coupon:coupons!inner(binding:affiliate_coupon_bindings!inner(id))')
             .eq('transaction_id', work.payment_id).limit(1).maybeSingle();
           if (binding.error) throw new Error('binding_read_failed');
-          if (!binding.data) facts = { session_created_at: new Date().toISOString(), livemode: false };
+          if (!binding.data) {
+            const completed = await client.rpc('affiliate_complete_unbound_work', lease);
+            if (completed.error || !completed.data) throw new Error('unbound_work_changed');
+            result.applied++;
+            continue;
+          }
         }
         if (!facts) {
           const payment = await client.from('payment_transactions').select('session_id')

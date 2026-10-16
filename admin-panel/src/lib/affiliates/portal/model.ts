@@ -1,4 +1,4 @@
-/** Portal read projections and accounting. @see service.ts @see supabase/migrations/20261016112548_affiliates_phase1.sql */
+/** Portal read contracts. @see service.ts @see supabase/migrations/20261016112548_affiliates_phase1.sql */
 import { z } from 'zod';
 import { currencySchema } from '@/lib/affiliates/model';
 
