@@ -102,3 +102,32 @@ After intentionally updating and inspecting the twelve PNGs, compress them with
 comparison without updates. Native PNG comparisons require no new harness codec.
 EN/PL/dark/320/768/zoom/keyboard/reduced-motion/long/empty/price-kind renderer coverage
 remains required; it does not require committing every generated screenshot.
+
+## T2.5 shared renderers / D-055
+
+`HeroProduct` accepts `OfferFocusProps`, `TaskNav` accepts `SearchHeroProps`, and
+`ProductCta` accepts `CatalogueLinkProps`. `resolveSharedPhase2Section` validates
+these three specs against the Phase 2 recipe, settings and public batches. It
+rejects missing/non-catalogue targets, foreign category targets and non-core
+product destinations. Closing has no product binding. Premium registration and
+lifecycle adoption remain later tasks; no registry entry becomes selectable here.
+
+D-055 extends **Phase 2 home.hero only** with optional `stepDetails` (up to six
+plain-text strings of 1000 characters, paired by step index) and `mediaCaption` (plain text ≤80), plus `staticDemo`
+(strict title ≤160 / body ≤1000). `home.search.eyebrow` is optional plain text
+≤80. They are inside each source-locale content value, and the same localization
+fallback applies. Missing new fields preserve older inputs. Phase 1 schemas,
+D/default content and offer.hero remain unchanged. JSON Schema/capabilities derive
+these additions directly from the schemas. Static demo text never creates a
+player, embed, external link or request. Prices, format, requirements and product
+actions continue to come from canonical public product DTOs.
+
+The T2.5 browser fixture renders actual sections, compares structural positions
+against T2.4's reference HTML at ≤2px, and uses .2/.005 for its small compressed
+hero regression crops. Core action labels and canonical product format are content
+substitutions; they do not change grid/gutter/media geometry. No reference PNG or
+visual tolerance is changed. Run the shared harness with:
+
+```sh
+bunx playwright test --config playwright.sections.config.ts tests/storefront-phase2-shared.spec.ts --workers=1
+```

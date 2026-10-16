@@ -1,12 +1,16 @@
 /** Server-rendered product hero. @see spec/contracts/section-contract.md */
 import Image from 'next/image';
+import OfferFocus from '@/components/storefront/sections/OfferFocus';
 import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
+import type { OfferFocusProps } from '@/lib/storefront-templates/phase2-contracts';
 import type { ReactElement } from 'react';
 import type { HeroProductProps } from '@/lib/storefront-templates/hero-product';
 import styles from './HeroProduct.module.css';
 
-export default function HeroProduct({ variant, product, content, locale }: HeroProductProps): ReactElement {
+export default function HeroProduct(props: HeroProductProps | OfferFocusProps): ReactElement {
+  if (props.variant === 'offer-focus') return <OfferFocus {...props} />;
+  const { variant, product, content, locale } = props;
   const messages = locale === 'pl' ? pl : en;
   const available = product?.availability === 'available';
   const steps = content?.steps.filter(step => step.trim()) ?? [];

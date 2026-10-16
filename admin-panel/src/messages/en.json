@@ -4516,6 +4516,10 @@
       "copiedToast": "Copied"
     }
   },
+  "storefrontClosing": {
+    "catalogue": "Catalogue",
+    "browseCatalogue": "Browse the catalogue"
+  },
   "storefrontEditor": {
     "title": "Storefront templates",
     "intro": "Compose a private draft. Saving does not change your public storefront.",

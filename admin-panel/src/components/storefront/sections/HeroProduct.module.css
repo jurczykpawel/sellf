@@ -50,3 +50,45 @@
   .steps p { font-size: 13px; }
   .steps span { font-size: 18px; }
 }
+
+/* Concept A geometry; colors and typography remain public-shell tokens. */
+.focusHero { width:min(1248px,calc(100% - 96px)); margin:auto; padding:68px 0 54px; color:var(--sf-text-heading); font-family:var(--sf-font-family,inherit); font-weight:var(--sf-font-body-weight,400); line-height:1.6; overflow-wrap:anywhere; }
+.focusHero p,.focusHero h1,.focusHero figure { margin:0; }
+.focusLayout { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); gap:56px; align-items:center; }
+.focusCopy,.focusVisual { min-width:0; }
+.focusHero h1 { font-size:76px; line-height:1.03; letter-spacing:-3.5px; font-weight:var(--sf-font-heading-weight,600); }
+.focusAccent { color:var(--sf-accent); }
+.focusHero .focusEyebrow { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1.7px; color:var(--sf-accent); margin-bottom:18px; }
+.focusHero .focusLead { font-size:17px; line-height:1.65; margin-top:23px; max-width:550px; color:var(--sf-text-body); white-space:pre-line; }
+.focusOffer { display:flex; flex-wrap:wrap; gap:18px; align-items:center; margin-top:25px; }
+.focusPrice { font-size:36px; font-weight:600; line-height:1.1; }
+.focusPrice small { display:block; font-size:11px; line-height:1.5; font-weight:400; color:var(--sf-text-body); margin-top:4px; }
+.focusAction { display:inline-flex; align-items:center; justify-content:center; gap:12px; min-height:48px; padding:12px 20px; border-radius:var(--sf-radius-md,8px); background:var(--sf-accent); color:var(--sf-accent-fg); font-size:15px; font-weight:600; line-height:1.4; text-decoration:none; flex:1; max-width:310px; }
+.focusAction:focus-visible { outline:3px solid var(--sf-accent); outline-offset:5px; }
+.focusHero .focusNote { font-size:11px; margin-top:12px; color:var(--sf-text-body); }
+.focusCover { padding:22px; background:var(--sf-bg-raised); border-radius:20px; transform:rotate(-2deg); box-shadow:12px 20px 0 var(--sf-border); }
+.focusCover img { display:block; width:100%; height:auto; aspect-ratio:1200/630; object-fit:contain; border-radius:8px; }
+.focusCover figcaption { display:flex; justify-content:space-between; gap:12px; font-size:11px; margin-top:15px; color:var(--sf-accent); }
+.focusSample { border:1px dashed var(--sf-border); border-radius:12px; padding:18px; margin-top:40px; color:var(--sf-text-body); text-align:center; font-size:12px; line-height:1.7; }
+.focusSample strong { display:block; font-weight:500; font-size:15px; color:var(--sf-text-heading); }
+.focusSteps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin:55px 0 0; padding:0; list-style:none; border:1px solid var(--sf-border); border-radius:12px; background:var(--sf-bg-base); overflow:hidden; }
+.focusSteps li { padding:22px 26px; }
+.focusSteps li+li { border-left:1px solid var(--sf-border); }
+.focusSteps strong { font-size:14px; color:var(--sf-accent); }
+.focusSteps p { font-size:12px; margin-top:5px; color:var(--sf-text-body); }
+@media(max-width:900px) { .focusHero { width:calc(100% - 48px); } .focusLayout { gap:30px; } .focusHero h1 { font-size:56px; } }
+@media(max-width:600px) {
+ .focusHero { width:calc(100% - 36px); padding:34px 0 30px; }
+ .focusLayout { display:flex; flex-direction:column; gap:28px; align-items:stretch; }
+ .focusHero h1 { font-size:44px; line-height:1.05; letter-spacing:-1.8px; }
+ .focusHero .focusEyebrow { font-size:10px; letter-spacing:1.1px; margin-bottom:12px; }
+ .focusHero .focusLead { font-size:14px; line-height:1.6; margin-top:18px; }
+ .focusOffer { gap:14px; margin-top:20px; } .focusPrice { font-size:30px; }
+ .focusAction { min-height:46px; padding:11px 16px; font-size:13px; }
+ .focusHero .focusNote { font-size:10px; }
+ .focusVisual { width:100%; padding-right:7px; } .focusCover { padding:12px; transform:rotate(-1deg); box-shadow:6px 10px 0 var(--sf-border); }
+ .focusCover figcaption { font-size:9px; margin-top:9px; }
+ .focusSample { margin-top:23px; padding:12px; font-size:10px; } .focusSample strong { font-size:12px; }
+ .focusSteps { grid-template-columns:1fr; margin-top:29px; }
+ .focusSteps li { padding:17px 20px; } .focusSteps li+li { border-left:0; border-top:1px solid var(--sf-border); } .focusSteps strong { font-size:13px; }
+}

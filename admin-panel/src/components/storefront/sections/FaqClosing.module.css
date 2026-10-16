@@ -33,3 +33,13 @@
   .product { margin-top: 30px; padding-left: 22px; }
   .product h3 { font-size: 27px; }
 }
+/* Product-free closing; only the validated visible catalogue is a destination. */
+.catalogueLink { text-align:center; padding:62px 0; border:0; }
+.catalogueLink .wrap { width:min(1248px,calc(100% - 96px)); display:flex; flex-direction:column; align-items:center; }
+.catalogueLink h2 { width:100%; font-size:38px; letter-spacing:-1.6px; }
+.catalogueLink .action { display:inline-block; margin-top:26px; font-size:15px; }
+@media(max-width:900px) { .catalogueLink .wrap { width:calc(100% - 48px); } }
+@media(max-width:600px) {
+ .catalogueLink { padding:45px 0; } .catalogueLink .wrap { width:calc(100% - 36px); }
+ .catalogueLink h2 { font-size:31px; letter-spacing:-1px; } .catalogueLink .action { margin-top:22px; min-height:46px; padding:11px 16px; font-size:13px; }
+}

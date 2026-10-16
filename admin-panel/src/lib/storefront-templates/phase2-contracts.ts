@@ -25,12 +25,14 @@ export const projectLinkSchema = z.string().max(2048).regex(/^https:\/\/(?:[a-z0
   return !['localhost', 'local', 'internal', 'home', 'lan', 'google.internal'].some(name => host === name || host.endsWith(`.${name}`));
 }, 'Expected a public HTTPS project page');
 export const comparisonContentSchema = z.strictObject({ kind: z.literal('comparison'), heading: text(160), body: text(4000), items: distinct(z.strictObject({ productId: z.uuid(), eyebrow: text(80), heading: text(160), body: text(1000), bullets: z.array(text(240)).max(6) }), 2, item => item.productId).length(2) });
-export const searchContentSchema = z.strictObject({ kind: z.literal('search'), heading: text(160), body: text(4000), items: distinct(z.strictObject({ id: idSchema, categoryId: z.uuid(), description: text(240) }), 12, item => item.categoryId).refine(items => new Set(items.map(item => item.id)).size === items.length, 'Category description IDs must be distinct') });
+export const phase2HeroContentSchema = heroContentSchema.extend({ mediaCaption: text(80).optional(), stepDetails: z.array(text(1000)).max(6).optional(), staticDemo: z.strictObject({ title: text(160), body: text(1000) }).optional() });
+export const searchContentSchema = z.strictObject({ kind: z.literal('search'), eyebrow: text(80).optional(), heading: text(160), body: text(4000), items: distinct(z.strictObject({ id: idSchema, categoryId: z.uuid(), description: text(240) }), 12, item => item.categoryId).refine(items => new Set(items.map(item => item.id)).size === items.length, 'Category description IDs must be distinct') });
 export const authorContentSchema = z.strictObject({ kind: z.literal('author'), name: text(120), eyebrow: text(80), heading: text(160), intro: text(4000), portraitMediaId: z.uuid().nullable() });
 export const biographyContentSchema = z.strictObject({ kind: z.literal('biography'), heading: text(160), paragraphs: z.array(text(2000)).max(6) });
 export const pathsContentSchema = z.strictObject({ kind: z.literal('paths'), heading: text(160), body: text(4000), items: distinct(z.strictObject({ id: idSchema, productId: z.uuid(), situation: text(160), body: text(1000) }), 4, item => item.productId).refine(items => new Set(items.map(item => item.id)).size === items.length, 'Path IDs must be distinct') });
 export const projectsContentSchema = z.strictObject({ kind: z.literal('projects'), heading: text(160), items: distinct(z.strictObject({ id: idSchema, name: text(120), body: text(1000), url: projectLinkSchema, mediaId: z.uuid().nullable() }), 3, item => item.id) });
 export const phase2ContentSchema = contentSchema.extend({
+  'home.hero': localized(phase2HeroContentSchema).optional(),
   'home.comparison': localized(comparisonContentSchema).optional(), 'home.featured': localized(headingContentSchema).optional(),
   'home.starter': localized(ctaContentSchema).optional(), 'home.search': localized(searchContentSchema).optional(), 'home.author': localized(authorContentSchema).optional(),
   'home.story': localized(biographyContentSchema).optional(), 'home.paths': localized(pathsContentSchema).optional(), 'home.projects': localized(projectsContentSchema).optional(),
@@ -87,7 +89,7 @@ export function validatePhase2(input: unknown, kind: 'config' | 'recipe' | 'offe
   return size === null || size > CONFIG_BYTES ? result([{ code: 'LIMIT', path: '', message: 'Stored configuration exceeds byte limit', limit: CONFIG_BYTES }]) : result();
 }
 export type Phase2SectionSpec = z.infer<typeof phase2SectionSchema>;
-export type Phase2SlotContent = z.infer<typeof comparisonContentSchema> | z.infer<typeof searchContentSchema> | z.infer<typeof authorContentSchema> | z.infer<typeof biographyContentSchema> | z.infer<typeof pathsContentSchema> | z.infer<typeof projectsContentSchema>;
+export type Phase2SlotContent = z.infer<typeof phase2HeroContentSchema> | z.infer<typeof comparisonContentSchema> | z.infer<typeof searchContentSchema> | z.infer<typeof authorContentSchema> | z.infer<typeof biographyContentSchema> | z.infer<typeof pathsContentSchema> | z.infer<typeof projectsContentSchema>;
 export type Phase2Settings = z.infer<typeof phase2SettingsSchema>;
 type Phase2Content = z.infer<typeof phase2ContentSchema>;
 type LocalizedValue<T> = T extends { sourceLocale: 'en'; en: infer Value } | { sourceLocale: 'pl'; pl: infer Value } ? Value : never;
@@ -97,6 +99,7 @@ export interface Phase2PublicInputs extends Omit<PublicInputs, 'catalogue'> {
   slots: { [Key in keyof Phase2Content]?: LocalizedValue<NonNullable<Phase2Content[Key]>> };
   mediaById: Record<string, NonNullable<PublicProductInfo['image']>>;
 }
+export interface OfferFocusProps extends Omit<HeroProductProps, 'variant' | 'content'> { variant: 'offer-focus'; content: z.infer<typeof phase2HeroContentSchema> | null }
 export interface ComparisonProps { variant: 'comparison'; content: z.infer<typeof comparisonContentSchema> | null; products: PublicProductInfo[]; locale: 'en' | 'pl' }
 export interface SearchHeroProps { variant: 'search-hero'; content: z.infer<typeof searchContentSchema> | null; categories: PublicCategoryInfo[]; target: string; locale: 'en' | 'pl' }
 export interface CatalogueLinkProps { variant: 'catalogue-link'; content: z.infer<typeof ctaContentSchema> | null; target: string; locale: 'en' | 'pl' }
@@ -105,7 +108,7 @@ export interface AuthorStoryProps { content: z.infer<typeof biographyContentSche
 export interface ProductPathsProps { heading: string; body: string; items: { id: string; situation: string; body: string; product: PublicProductInfo }[]; locale: 'en' | 'pl' }
 export interface ProjectShowcaseProps { heading: string; items: { id: string; name: string; body: string; url: string; media: NonNullable<PublicProductInfo['image']> | null }[]; locale: 'en' | 'pl' }
 export type Phase2ResolvedSection = ResolvedSection
-  | { id: string; type: 'hero-product/1'; props: Omit<HeroProductProps, 'variant'> & { variant: 'offer-focus' } }
+  | { id: string; type: 'hero-product/1'; props: OfferFocusProps }
   | { id: string; type: 'catalogue/1'; props: Omit<CatalogueProps, 'variant'> & { variant: 'compact' } }
   | { id: string; type: 'product-list/1'; props: ComparisonProps | { variant: 'featured-grid'; products: PublicProductInfo[]; content: z.infer<typeof headingContentSchema> | null; locale: 'en' | 'pl' } }
   | { id: string; type: 'task-nav/1'; props: SearchHeroProps }

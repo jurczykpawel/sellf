@@ -27,3 +27,35 @@
   .number { font-size: 8px; margin-bottom: 8px; letter-spacing: 0; }
   .label { font-size: 17px; line-height: 1.15; }
 }
+/* B's heading owner and described task cards; default finder geometry stays frozen. */
+.finder[data-variant='search-hero'] { background:transparent; border:0; padding:44px 0 34px; line-height:1.6; }
+.finder[data-variant='search-hero'] .wrap { width:min(1248px,calc(100% - 96px)); }
+.finder[data-variant='search-hero'] .heading { display:flex; justify-content:space-between; align-items:end; gap:40px; margin:0; }
+.finder[data-variant='search-hero'] h1 { margin:0; max-width:730px; font-size:56px; line-height:1.03; letter-spacing:-2.3px; font-weight:var(--sf-font-heading-weight,600); white-space:pre-line; }
+.finder[data-variant='search-hero'] .heading>p { max-width:320px; margin:0; font-size:14px; line-height:1.6; white-space:pre-line; }
+.finder[data-variant='search-hero'] .eyebrow { max-width:320px; font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:1.7px; color:var(--sf-accent); margin:0 0 18px; }
+.finder[data-variant='search-hero'] .search { margin-top:30px; border:2px solid var(--sf-accent); border-radius:10px; gap:13px; }
+.finder[data-variant='search-hero'] .search input { min-height:66px; font-size:17px; }
+.finder[data-variant='search-hero'] .search button { padding:0; display:flex; justify-content:center; align-items:center; width:22px; }
+.finder[data-variant='search-hero'] svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.7; }
+.finder[data-variant='search-hero'] .tasks { gap:16px; margin-top:22px; }
+.finder[data-variant='search-hero'] .task { padding:22px; min-height:158px; }
+.finder[data-variant='search-hero'] .number { color:var(--sf-accent); font-size:13px; line-height:1.6; margin-bottom:12px; }
+.finder[data-variant='search-hero'] .label { display:block; font-size:21px; letter-spacing:-.45px; line-height:1.2; margin-bottom:10px; }
+.description { font-size:13px; line-height:1.6; margin:0; color:var(--sf-text-body); }
+@media(max-width:900px) { .finder[data-variant='search-hero'] .wrap { width:calc(100% - 48px); } .finder[data-variant='search-hero'] .tasks { gap:10px; } }
+@media(max-width:600px) {
+ .finder[data-variant='search-hero'] { padding:27px 0 20px; }
+ .finder[data-variant='search-hero'] .wrap { width:calc(100% - 36px); }
+ .finder[data-variant='search-hero'] .heading { display:block; }
+ .finder[data-variant='search-hero'] h1 { font-size:39px; line-height:1.05; letter-spacing:-1.6px; }
+ .finder[data-variant='search-hero'] .eyebrow { max-width:none; font-size:10px; letter-spacing:1.1px; margin:14px 0 12px; }
+ .finder[data-variant='search-hero'] .heading>p { font-size:13px; margin-top:14px; max-width:none; }
+ .finder[data-variant='search-hero'] .search { margin-top:20px; padding:0 13px; }
+ .finder[data-variant='search-hero'] .search input { min-height:54px; font-size:13px; }
+ .finder[data-variant='search-hero'] .tasks { gap:9px; margin-top:15px; }
+ .finder[data-variant='search-hero'] .task { min-height:93px; padding:13px 14px; }
+ .finder[data-variant='search-hero'] .number { display:none; }
+ .finder[data-variant='search-hero'] .label { font-size:18px; margin-bottom:6px; }
+ .finder[data-variant='search-hero'] .description { font-size:10px; line-height:1.4; }
+}
