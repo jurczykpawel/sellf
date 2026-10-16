@@ -81,10 +81,12 @@ describe('worker against isolated source writes', () => {
     const email = sql("SELECT email FROM auth.users WHERE id='bbbbbbbb-0000-4000-a000-000000000000'");
     const id = fixture({ pending: true, net: false }); await drain(); expect(balance(id)).toBe('0');
     sql(`UPDATE payment_transactions SET fulfillment_pending=false WHERE id='${id}'`);
-    await drain(); expect(sql(`SELECT status FROM affiliate_work WHERE payment_id='${id}'`)).toBe('pending');
+    await drain(); expect(sql(`SELECT status FROM affiliate_work WHERE payment_id='${id}'`)).toBe('needs_review');
+    expect(sql(`SELECT last_error_code FROM affiliate_work WHERE payment_id='${id}'`)).toBe('net_unavailable');
     sql(`UPDATE payment_line_items SET net_amount=10000 WHERE transaction_id='${id}';
       UPDATE payment_transactions SET customer_email='${email.toUpperCase()}' WHERE id='${id}';
-      UPDATE affiliate_work SET next_attempt_at=now() WHERE payment_id='${id}';`);
+      SELECT set_config('request.jwt.claims','{"role":"service_role"}',false);
+      SELECT affiliate_work_retry('dddddddd-0000-4000-a000-000000000000','${id}',requested_generation,'Net snapshot ready') FROM affiliate_work WHERE payment_id='${id}';`);
     await drain();
     expect(sql(`SELECT self_referral AND accrued_minor=0 FROM affiliate_commissions WHERE payment_id='${id}'`)).toBe('t');
   });

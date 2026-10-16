@@ -74,6 +74,8 @@ async function readData(client: SupabaseClient, member: { id: string; code: stri
       ...['sync_failed', 'session_unresolved', 'awaiting_fulfillment'].map(code => client.from('affiliate_work').select('payment_id', { count: 'exact', head: true }).neq('status', 'done').eq('last_error_code', code)),
     ]);
     if (results.some(r => r.error)) throw new Error('Read unavailable');
+    data.sync_pending ||= (results[0].count ?? 0) > 0;
+    data.needs_review ||= (results[1].count ?? 0) > 0;
     data.lag = { pending: results[0].count ?? 0, needs_review: results[1].count ?? 0, retrying: results[2].count ?? 0, next_attempt_at: results[3].data?.[0]?.next_attempt_at ?? null,
       errors: { sync_failed: results[4].count ?? 0, session_unresolved: results[5].count ?? 0, awaiting_fulfillment: results[6].count ?? 0 } };
   }

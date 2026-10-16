@@ -63,5 +63,15 @@ DO $$ DECLARE product uuid; coupon uuid; payment uuid; BEGIN
  PERFORM pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.payment_transactions WHERE id=payment),'ordinary coupon product deletes with pending work');
 END $$;
 ROLLBACK TO deletion;
+SAVEPOINT readiness;
+DO $$ DECLARE payment uuid; BEGIN
+ payment:=pg_temp.sale(p_net=>NULL,p_pending=>true);
+ PERFORM pg_temp.sync(payment);
+ PERFORM pg_temp.check_that((SELECT status='pending' AND attempts=1 AND last_error_code='awaiting_fulfillment' FROM public.affiliate_work WHERE payment_id=payment),'pending fulfillment retains attempt count');
+ UPDATE public.payment_transactions SET fulfillment_pending=false WHERE id=payment;
+ PERFORM pg_temp.sync(payment);
+ PERFORM pg_temp.check_that((SELECT status='needs_review' AND attempts=2 AND last_error_code='net_unavailable' AND processed_generation=0 FROM public.affiliate_work WHERE payment_id=payment),'fulfilled missing net requires review');
+END $$;
+ROLLBACK TO readiness;
 SET CONSTRAINTS ALL IMMEDIATE;
 ROLLBACK;

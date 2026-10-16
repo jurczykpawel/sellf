@@ -296,7 +296,7 @@ DECLARE pt public.payment_transactions; w public.affiliate_work; b public.affili
  prog public.affiliate_programs; rule public.affiliate_rules;
  c public.affiliate_commissions; li record; red public.coupon_redemptions; member_status text;
  base bigint; earned bigint; target bigint; automatic numeric; loss bigint; delta bigint;
- self_match boolean; mature timestamptz; waiting boolean:=false; blocked boolean:=false;
+ self_match boolean; mature timestamptz; waiting boolean:=false; net_missing boolean:=false; blocked boolean:=false;
 BEGIN
  SELECT * INTO pt FROM public.payment_transactions WHERE id=p_payment FOR UPDATE;
  SELECT * INTO w FROM public.affiliate_work WHERE payment_id=p_payment FOR UPDATE;
@@ -346,9 +346,10 @@ BEGIN
  IF b.id IS NOT NULL AND prog.enabled AND member_status='approved' AND pt.status IN ('completed','refunded','disputed') THEN
   SELECT EXISTS(SELECT 1 FROM public.affiliate_memberships am JOIN auth.users u ON u.id=am.user_id
    WHERE am.id=b.member_id AND (u.id=pt.user_id OR lower(btrim(u.email))=lower(btrim(pt.customer_email)))) INTO self_match;
-  waiting:=pt.fulfillment_pending OR NOT EXISTS(SELECT 1 FROM public.payment_line_items WHERE transaction_id=p_payment)
-   OR EXISTS(SELECT 1 FROM public.payment_line_items WHERE transaction_id=p_payment AND net_amount IS NULL);
-  IF NOT waiting THEN
+  waiting:=pt.fulfillment_pending;
+  net_missing:=NOT waiting AND (NOT EXISTS(SELECT 1 FROM public.payment_line_items WHERE transaction_id=p_payment)
+   OR EXISTS(SELECT 1 FROM public.payment_line_items WHERE transaction_id=p_payment AND net_amount IS NULL));
+  IF NOT waiting AND NOT net_missing THEN
    FOR li IN SELECT l.*,p.is_refundable,p.refund_period_days,p.product_type FROM public.payment_line_items l
     JOIN public.products p ON p.id=l.product_id WHERE l.transaction_id=p_payment ORDER BY l.id LOOP
     IF li.product_type<>'one_time' THEN CONTINUE; END IF;
@@ -379,12 +380,13 @@ BEGIN
   END IF;
  ELSIF b.id IS NOT NULL AND pt.status NOT IN ('completed','refunded','disputed') THEN waiting:=true;
  END IF;
- UPDATE public.affiliate_work SET processed_generation=CASE WHEN waiting THEN processed_generation ELSE p_generation END,
-  status=CASE WHEN waiting OR requested_generation>p_generation THEN 'pending' ELSE 'done' END,
+ UPDATE public.affiliate_work SET processed_generation=CASE WHEN waiting OR net_missing THEN processed_generation ELSE p_generation END,
+  status=CASE WHEN net_missing THEN 'needs_review' WHEN waiting OR requested_generation>p_generation THEN 'pending' ELSE 'done' END,
   next_attempt_at=CASE WHEN waiting THEN now()+interval '1 minute' ELSE now() END,
-  lease_token=NULL,leased_until=NULL,last_error_code=CASE WHEN waiting THEN 'awaiting_fulfillment' ELSE NULL END,attempts=0
+  lease_token=NULL,leased_until=NULL,last_error_code=CASE WHEN net_missing THEN 'net_unavailable' WHEN waiting THEN 'awaiting_fulfillment' ELSE NULL END,
+  attempts=CASE WHEN waiting OR net_missing THEN attempts ELSE 0 END
  WHERE payment_id=p_payment;
- RETURN NOT waiting;
+ RETURN NOT waiting AND NOT net_missing;
 END $$;
 
 CREATE FUNCTION public.affiliate_apply(p_user uuid,p_code text,p_display_name text,p_channel text,p_terms_version text)
