@@ -34,11 +34,11 @@ export default function StorefrontComposition({ model, shopName, renderKey }: { 
       <div><h1>{products.length ? <>{hero.title} <span>{hero.titleHighlight}</span></> : shopName}</h1>
         {complete && products.length > 0 && <p>{description}</p>}
       </div>
-      <dl aria-label={catalogueLabels[model.locale].shown}>
+      {complete && <dl aria-label={catalogueLabels[model.locale].shown}>
         <div><dt>{messages.brandMoment.statsProducts}</dt><dd>{products.length}</dd></div>
         {freeCount > 0 && <div><dt>{messages.brandMoment.statsFree}</dt><dd>{freeCount}</dd></div>}
         {paidCount > 0 && <div><dt>{messages.brandMoment.statsPremium}</dt><dd>{paidCount}</dd></div>}
-      </dl>
+      </dl>}
       <p>{catalogueLabels[model.locale].shown}</p>
     </header>}
     {model.sections.map(section => <Section key={`${renderKey}:${model.templateId}:${section.id}`} section={section} />)}

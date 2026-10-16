@@ -514,9 +514,9 @@ then validates the stored candidate before creating the mutation client;
 activation requires current template/theme rights even for unchanged overrides.
 The locked RPC revision check protects the preflight snapshot. The dashboard
 templates editor includes appearance controls with resolved origins,
-contrast feedback and revision-bound leaf resets. Its explicit legacy import keeps
-`data/active-theme.json` plus a byte-exact `data/active-theme.legacy-backup.json`
-before saving via the shared legacy-import mutation. Nonzero legacy-import history
+contrast feedback and revision-bound leaf resets. Its explicit legacy import reads
+`data/active-theme.json` without runtime file writes and records its original byte
+length and SHA-256 in the shared legacy-import revision's atomic audit metadata. Nonzero legacy-import history
 prevents repeated conversion; existing overrides win and subsequent public appearance
 edits write only configuration snapshots. Public cache deadlines and post-commit
 product/taxonomy invalidation bound freshness.

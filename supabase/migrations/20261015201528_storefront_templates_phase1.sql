@@ -92,7 +92,7 @@ REVOKE EXECUTE ON FUNCTION public.storefront_config_valid(jsonb) FROM PUBLIC, an
 GRANT EXECUTE ON FUNCTION public.storefront_config_valid(jsonb) TO service_role;
 
 CREATE FUNCTION public.mutate_storefront_config(expected_revision bigint, operation text, validated_config jsonb,
-  restored_from bigint DEFAULT NULL, actor_user_id uuid DEFAULT NULL, actor_method text DEFAULT NULL, actor_api_key_id uuid DEFAULT NULL)
+  restored_from bigint DEFAULT NULL, actor_user_id uuid DEFAULT NULL, actor_method text DEFAULT NULL, actor_api_key_id uuid DEFAULT NULL, legacy_source jsonb DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
   current_config public.storefront_config%ROWTYPE;
@@ -129,6 +129,22 @@ BEGIN
     (operation <> 'rollback' AND restored_from IS NOT NULL) THEN
     RETURN jsonb_build_object('success',false,'code','INVALID');
   END IF;
+  IF operation='legacy-import' THEN
+    IF legacy_source IS NULL OR jsonb_typeof(legacy_source) IS DISTINCT FROM 'object' OR
+      NOT (legacy_source ?& ARRAY['sha256','byteLength']) OR
+      (legacy_source - 'sha256' - 'byteLength') <> '{}'::jsonb OR
+      jsonb_typeof(legacy_source->'sha256') IS DISTINCT FROM 'string' OR
+      (legacy_source->>'sha256') !~ '^[a-f0-9]{64}$' OR
+      jsonb_typeof(legacy_source->'byteLength') IS DISTINCT FROM 'number' THEN
+      RETURN jsonb_build_object('success',false,'code','INVALID');
+    END IF;
+    IF (legacy_source->>'byteLength')::numeric NOT BETWEEN 0 AND 102400 OR
+      trunc((legacy_source->>'byteLength')::numeric) <> (legacy_source->>'byteLength')::numeric THEN
+      RETURN jsonb_build_object('success',false,'code','INVALID');
+    END IF;
+  ELSIF legacy_source IS NOT NULL THEN
+    RETURN jsonb_build_object('success',false,'code','INVALID');
+  END IF;
   next_draft := current_config.draft; next_published := current_config.published;
   IF operation IN ('draft','reset','legacy-import') THEN
     next_draft := validated_config; candidate := validated_config;
@@ -155,14 +171,15 @@ BEGIN
   INSERT INTO public.audit_log(table_name,operation,user_id,performed_by,new_values)
   VALUES('storefront_config','UPDATE',actor_user_id,actor_user_id,jsonb_build_object(
     'revision',current_config.revision+1,'templateId',candidate->>'templateId','action',operation,
-    'scope',required_scope,'actor_method',actor_method,'actor_api_key_id',actor_api_key_id));
+    'scope',required_scope,'actor_method',actor_method,'actor_api_key_id',actor_api_key_id) ||
+    CASE WHEN operation='legacy-import' THEN jsonb_build_object('legacySource',legacy_source) ELSE '{}'::jsonb END);
   RETURN jsonb_build_object('success',true,'revision',current_config.revision+1);
 EXCEPTION WHEN OTHERS THEN
   RETURN jsonb_build_object('success',false,'code','UNAVAILABLE');
 END;
 $$;
-REVOKE EXECUTE ON FUNCTION public.mutate_storefront_config(bigint,text,jsonb,bigint,uuid,text,uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.mutate_storefront_config(bigint,text,jsonb,bigint,uuid,text,uuid) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.mutate_storefront_config(bigint,text,jsonb,bigint,uuid,text,uuid,jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.mutate_storefront_config(bigint,text,jsonb,bigint,uuid,text,uuid,jsonb) TO service_role;
 
 ALTER TABLE public.api_keys
   ALTER COLUMN scopes SET DEFAULT jsonb_build_array(

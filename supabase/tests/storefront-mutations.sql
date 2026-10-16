@@ -19,8 +19,8 @@ CREATE FUNCTION pg_temp.state() RETURNS jsonb LANGUAGE sql AS $$
 $$;
 CREATE FUNCTION pg_temp.mutate(rev bigint DEFAULT 0, op text DEFAULT 'draft', config jsonb DEFAULT NULL,
   restored bigint DEFAULT NULL, actor uuid DEFAULT 'dddddddd-0000-4000-a000-000000000000',
-  method text DEFAULT 'session', key uuid DEFAULT NULL) RETURNS jsonb LANGUAGE sql AS $$
-  SELECT public.mutate_storefront_config(rev, op, config, restored, actor, method, key);
+  method text DEFAULT 'session', key uuid DEFAULT NULL, source jsonb DEFAULT NULL) RETURNS jsonb LANGUAGE sql AS $$
+  SELECT public.mutate_storefront_config(rev, op, config, restored, actor, method, key, source);
 $$;
 CREATE FUNCTION pg_temp.reject(args jsonb, expected text) RETURNS void LANGUAGE plpgsql AS $$
 DECLARE before_state jsonb := pg_temp.state(); response jsonb;
@@ -28,16 +28,16 @@ BEGIN
   response := pg_temp.mutate(COALESCE((args->>'rev')::bigint,0), COALESCE(args->>'op','draft'),
     CASE WHEN args->>'op' IN ('publish','rollback') THEN args->'config' ELSE COALESCE(args->'config',(SELECT published FROM public.storefront_config)) END, (args->>'restored')::bigint,
     CASE WHEN args ? 'actor' THEN (args->>'actor')::uuid ELSE 'dddddddd-0000-4000-a000-000000000000'::uuid END,
-    CASE WHEN args ? 'method' THEN args->>'method' ELSE 'session' END, (args->>'key')::uuid);
+    CASE WHEN args ? 'method' THEN args->>'method' ELSE 'session' END, (args->>'key')::uuid, args->'source');
   PERFORM pg_temp.assert_true(response->>'code' = expected, expected || ' mutation result');
   PERFORM pg_temp.assert_true(before_state = pg_temp.state(), 'rejected operation retains all records');
 END;
 $$;
 SELECT pg_temp.assert_true(NOT has_function_privilege('anon','public.storefront_config_valid(jsonb)','EXECUTE'), 'storefront validator is private');
-SELECT pg_temp.assert_true(NOT has_function_privilege('anon','public.mutate_storefront_config(bigint,text,jsonb,bigint,uuid,text,uuid)','EXECUTE'), 'anon RPC denied');
-SELECT pg_temp.assert_true(NOT has_function_privilege('authenticated','public.mutate_storefront_config(bigint,text,jsonb,bigint,uuid,text,uuid)','EXECUTE'), 'member and admin RPC denied');
-SELECT pg_temp.assert_true(has_function_privilege('service_role','public.mutate_storefront_config(bigint,text,jsonb,bigint,uuid,text,uuid)','EXECUTE'), 'service RPC granted');
-SELECT pg_temp.assert_true((SELECT prosecdef AND proconfig @> ARRAY['search_path=""'] FROM pg_proc WHERE oid='public.mutate_storefront_config(bigint,text,jsonb,bigint,uuid,text,uuid)'::regprocedure), 'RPC function settings');
+SELECT pg_temp.assert_true(NOT has_function_privilege('anon','public.mutate_storefront_config(bigint,text,jsonb,bigint,uuid,text,uuid,jsonb)','EXECUTE'), 'anon RPC denied');
+SELECT pg_temp.assert_true(NOT has_function_privilege('authenticated','public.mutate_storefront_config(bigint,text,jsonb,bigint,uuid,text,uuid,jsonb)','EXECUTE'), 'member and admin RPC denied');
+SELECT pg_temp.assert_true(has_function_privilege('service_role','public.mutate_storefront_config(bigint,text,jsonb,bigint,uuid,text,uuid,jsonb)','EXECUTE'), 'service RPC granted');
+SELECT pg_temp.assert_true((SELECT prosecdef AND proconfig @> ARRAY['search_path=""'] FROM pg_proc WHERE oid='public.mutate_storefront_config(bigint,text,jsonb,bigint,uuid,text,uuid,jsonb)'::regprocedure), 'RPC function settings');
 SELECT set_config('request.jwt.claims', '{"role":"authenticated","sub":"dddddddd-0000-4000-a000-000000000000"}', true);
 SELECT pg_temp.reject('{}', 'FORBIDDEN');
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
@@ -144,9 +144,26 @@ BEGIN
   END LOOP;
 END;
 $$;
+SELECT pg_temp.reject(jsonb_build_object('rev',(SELECT revision FROM public.storefront_config),'op','legacy-import'), 'INVALID');
+SELECT pg_temp.reject(jsonb_build_object('rev',(SELECT revision FROM public.storefront_config),'source',jsonb_build_object('sha256',repeat('a',64),'byteLength',1)), 'INVALID');
+DO $$
+DECLARE source jsonb := jsonb_build_object('sha256',repeat('a',64),'byteLength',123); response jsonb; rev bigint;
+BEGIN
+  rev := (SELECT revision FROM public.storefront_config);
+  PERFORM pg_temp.reject(jsonb_build_object('rev',rev,'op','legacy-import','source',source||'{"extra":true}'), 'INVALID');
+  PERFORM pg_temp.reject(jsonb_build_object('rev',rev,'op','legacy-import','source',source||'{"byteLength":102401}'), 'INVALID');
+  PERFORM pg_temp.reject(jsonb_build_object('rev',rev,'op','legacy-import','source',source||'{"sha256":"short"}'), 'INVALID');
+  response := pg_temp.mutate(rev,'legacy-import',(SELECT published FROM public.storefront_config), source=>source);
+  PERFORM pg_temp.assert_true(response->>'success'='true', 'legacy import advances revision');
+  PERFORM pg_temp.assert_true((SELECT operation='legacy-import' FROM public.storefront_config_history WHERE revision=rev+1), 'legacy import retains history');
+  PERFORM pg_temp.assert_true((SELECT new_values->'legacySource'=source FROM public.audit_log WHERE table_name='storefront_config' AND new_values->>'revision'=(rev+1)::text), 'legacy import retains source metadata in the same revision');
+END;
+$$;
 CREATE FUNCTION pg_temp.fail_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test audit unavailable'; END; $$;
 CREATE TRIGGER test_storefront_audit BEFORE INSERT ON public.audit_log FOR EACH ROW EXECUTE FUNCTION pg_temp.fail_audit();
 SELECT pg_temp.reject(jsonb_build_object('rev',(SELECT revision FROM public.storefront_config)), 'UNAVAILABLE');
+SELECT pg_temp.reject(jsonb_build_object('rev',(SELECT revision FROM public.storefront_config),'op','legacy-import',
+  'source',jsonb_build_object('sha256',repeat('a',64),'byteLength',123)), 'UNAVAILABLE');
 DROP TRIGGER test_storefront_audit ON public.audit_log;
 UPDATE public.storefront_config SET revision=9007199254740991;
 SELECT pg_temp.reject('{"rev":9007199254740991}', 'LIMIT');

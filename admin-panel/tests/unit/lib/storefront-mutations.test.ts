@@ -207,3 +207,17 @@ it('keeps demo writes disabled and applies the actor-scoped limiter', async () =
   expect(mocks.rate).toHaveBeenLastCalledWith('storefront_mutation', 60, 1, userId);
   expect(mocks.admin).not.toHaveBeenCalled();
 });
+
+it('passes bounded legacy source metadata to the atomic mutation', async () => {
+  const legacySource = { sha256: 'a'.repeat(64), byteLength: 123 };
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { ...input, operation: 'legacy-import', legacySource })).toMatchObject({ success: true });
+  expect(mocks.rpc).toHaveBeenLastCalledWith('mutate_storefront_config', expect.objectContaining({ legacy_source: legacySource }));
+});
+it.each([undefined, { sha256: 'a', byteLength: 1 }, { sha256: 'a'.repeat(64), byteLength: 102401 }, { sha256: 'a'.repeat(64), byteLength: -1 }, { sha256: 'a'.repeat(64), byteLength: 1, content: 'text' }])('requires bounded legacy source metadata %j', async legacySource => {
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { ...input, operation: 'legacy-import', legacySource })).toMatchObject({ code: 'INVALID' });
+  expect(mocks.admin).not.toHaveBeenCalled();
+});
+it('rejects legacy source metadata on ordinary drafts', async () => {
+  expect(await mutateStorefrontConfig(await verifyTemplateSession(), { ...input, legacySource: { sha256: 'a'.repeat(64), byteLength: 1 } })).toMatchObject({ code: 'INVALID' });
+  expect(mocks.admin).not.toHaveBeenCalled();
+});

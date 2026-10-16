@@ -78,6 +78,19 @@ for (const theme of ['light', 'dark'] as const) for (const locale of ['en', 'pl'
       window.dispatchEvent(new CustomEvent('composition:replace', { detail: model }));
     });
     await expect(page.locator('#catalogue input[type="search"]')).toHaveValue('external');
+    if (template === 'default') {
+      await page.evaluate(() => {
+        const model = JSON.parse(document.getElementById('model')!.textContent!);
+        model.catalogue.groups.paid.nextCursor = 'more';
+        model.sections.find((section: { type: string }) => section.type === 'catalogue/1').props.groups.paid.nextCursor = 'more';
+        window.dispatchEvent(new CustomEvent('composition:replace', { detail: model }));
+      });
+      await expect(page.locator('[data-template] > header dl')).toHaveCount(0);
+      for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await page.screenshot({ path: `/tmp/tpl-fixes-${locale}-${theme}-${width}.png`, fullPage: true });
+      }
+    }
     expect(errors).toEqual([]);
   });
 }

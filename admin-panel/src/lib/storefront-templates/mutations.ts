@@ -25,7 +25,9 @@ interface PrincipalContext { actor: VerifiedTemplatePrincipal; scopes: readonly 
 const principals = new WeakMap<object, PrincipalContext>();
 const actorSchema = z.strictObject({ userId: z.uuid(), method: z.enum(['session', 'api_key']), apiKeyId: z.uuid().nullable() });
 export const mutationSchema = z.discriminatedUnion('operation', [
-  z.strictObject({ expectedRevision: revisionSchema, operation: z.enum(['draft', 'legacy-import']), config: configSchema }),
+  z.strictObject({ expectedRevision: revisionSchema, operation: z.literal('draft'), config: configSchema }),
+  z.strictObject({ expectedRevision: revisionSchema, operation: z.literal('legacy-import'), config: configSchema,
+    legacySource: z.strictObject({ sha256: z.string().regex(/^[a-f0-9]{64}$/), byteLength: z.number().int().min(0).max(CONFIG_BYTES) }) }),
   z.strictObject({ expectedRevision: revisionSchema, operation: z.literal('reset'), templateId: templateIdSchema, field: z.string().max(100) }),
   z.strictObject({ expectedRevision: revisionSchema, operation: z.literal('publish') }),
   z.strictObject({ expectedRevision: revisionSchema, operation: z.literal('rollback'), targetRevision: revisionSchema }),
@@ -128,6 +130,7 @@ export async function mutateStorefrontConfig(auth: unknown, input: unknown): Pro
       expected_revision: mutation.expectedRevision, operation: mutation.operation,
       validated_config: config as Json, ...(mutation.operation === 'rollback' ? { restored_from: mutation.targetRevision } : {}),
       actor_user_id: context.actor.userId, actor_method: context.actor.method,
+      ...(mutation.operation === 'legacy-import' ? { legacy_source: mutation.legacySource } : {}),
       ...(context.actor.apiKeyId !== null ? { actor_api_key_id: context.actor.apiKeyId } : {}),
     });
     if (error || !data || typeof data !== 'object' || Array.isArray(data)) return templateFailure('UNAVAILABLE');

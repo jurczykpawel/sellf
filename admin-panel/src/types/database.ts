@@ -3534,6 +3534,7 @@ export type Database = {
           actor_method?: string
           actor_user_id?: string
           expected_revision: number
+          legacy_source?: Json
           operation: string
           restored_from?: number
           validated_config: Json
