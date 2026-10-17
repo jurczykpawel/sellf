@@ -56,6 +56,7 @@ async function card(page: Page) {
 async function checkout(page: Page, slug: string, email: string, coupon?: string) {
   await acceptAllCookies(page);
   await page.goto(`/en/checkout/${slug}?email=${encodeURIComponent(email)}${coupon ? `&coupon=${coupon}` : ''}`);
+    await page.getByRole('button', { name: /Pay|Subscribe/ }).click();
   await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
   await page.locator('#checkoutEmail').fill(email); await page.locator('#fullName').fill('Affiliate Test Buyer');
   for (const c of await page.locator('input[type="checkbox"]').all()) if (await c.isVisible()) await c.check();

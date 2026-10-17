@@ -71,6 +71,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const { resolvedTheme } = useTheme();
   const { track } = useTracking();
   const trackingFired = useRef(false);
+  const checkoutTrackingFired = useRef(false);
+  const [purchaseStarted, setPurchaseStarted] = useState(false);
 
   // Funnel test mode: admin-only visual preview (no Stripe, no backend calls)
   const isFunnelTest = searchParams.get('funnel_test') === '1' && isAdmin;
@@ -288,12 +290,19 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     };
 
     track('view_item', trackingData);
-    track('begin_checkout', trackingData);
+
   }, [product, track, effectiveUnitPrice]);
+
+  useEffect(() => {
+    if (!purchaseStarted || checkoutTrackingFired.current) return;
+    checkoutTrackingFired.current = true;
+    track('begin_checkout', { value: effectiveUnitPrice, currency: product.currency,
+      items: [{ item_id: product.id, item_name: product.name, price: effectiveUnitPrice, quantity: 1 }] });
+  }, [purchaseStarted, track, effectiveUnitPrice, product]);
 
   // One request at a time; superseded responses remain available for replacement.
   useEffect(() => {
-    if (hasAccess || error || authLoading || isFunnelTest || isFreeAccess ||
+    if (!purchaseStarted || hasAccess || error || authLoading || isFunnelTest || isFreeAccess ||
       (product.allow_custom_price && checkCustomAmount(customAmount) !== null)) {
       sessionQueue.update(null);
       return;
@@ -349,7 +358,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       },
     });
   }, [
-    hasAccess, error, authLoading,
+    purchaseStarted, hasAccess, error, authLoading,
     product, email, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
     customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess,
     checkoutSessionSignature, explicitRepurchase, sessionQueue, customFieldDefs, customFieldValues,
@@ -515,6 +524,15 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             >
               {t('funnelTest.completeButton')}
             </button>
+          )}
+
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && !purchaseStarted && (
+            <form onSubmit={event => { event.preventDefault(); setPurchaseStarted(true); }}>
+              <button type="submit" className="w-full cursor-pointer rounded-xl bg-sf-accent-bg px-6 py-4 font-semibold text-sf-inverse hover:bg-sf-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent">
+                {t('payButton', { amount: formatPrice(pricing.totalGross, product.currency, locale) })}
+              </button>
+              <p className="mt-3 text-center text-xs text-sf-muted">{t('securePayment')}</p>
+            </form>
           )}
 
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && stripePromise && clientSecret && lastCheckoutSessionSignature === checkoutSessionSignature && (
