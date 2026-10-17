@@ -1,5 +1,7 @@
 /** Bounded public catalogue reads. @see supabase/tests/storefront-catalogue.sql */
 import { describe, expect, it, vi } from 'vitest';
+import { resolveProductPaths } from '@/lib/storefront-templates/product-paths';
+import pl from '@/messages/pl.json';
 import { loadCataloguePage, loadCatalogueGroups, loadStorefrontBindings } from '@/lib/storefront-templates/catalogue';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
@@ -208,3 +210,20 @@ it('visits all 100k compact products by cursor with at most 24 products and one 
   expect(count).toBe(100000);
   expect(c.rpc).toHaveBeenCalledTimes(Math.ceil(100000 / 24));
 }, 30000);
+
+it('resolves four path products in one shared batch with explicit absent entries', async () => {
+  const c = client([{ ...row(1), price: 0 }, row(3)]);
+  const selected = [3, 1, 2, 4].map(id);
+  const result = await loadStorefrontBindings(c.db, { locale: 'pl', pathProducts: selected, heroProduct: id(1), target: 'catalogue' });
+  expect(result.success).toBe(true); if (!result.success) return;
+  expect(Object.keys(result.data.paths)).toEqual(selected);
+  const resolved = resolveProductPaths({ id: 'paths', type: 'product-paths/1', content: { slot: 'home.paths' } }, { locale: 'pl', productsById: result.data.paths, slots: { 'home.paths': { kind: 'paths', heading: 'Start', body: '', items: selected.map((productId, index) => ({ id: `path-${index}`, productId, situation: 'A task', body: '' })) } } });
+  expect(resolved.success && resolved.data.items.map(item => item.product.id)).toEqual([id(3), id(1)]);
+  expect(result.data.paths[id(1)]?.price.display).toBe(pl.checkout.customPrice.freePreset);
+  expect(result.data.paths[id(2)]).toBeNull();
+  expect(result.data.paths[id(1)]?.actions.details).toBe('/pl/p/example-1');
+  expect(JSON.stringify(result.data.paths)).not.toContain('PRIVATE_');
+  expect(c.rpc).toHaveBeenCalledTimes(1);
+  expect(c.rpc.mock.calls[0][1].product_ids).toHaveLength(4);
+  for (const pathProducts of [[id(1), id(1)], Array.from({ length: 5 }, (_, i) => id(i + 1)), ['unknown']]) expect(await loadStorefrontBindings(c.db, { locale: 'en', pathProducts, target: 'catalogue' })).toEqual({ success: false, error: 'INVALID' });
+});

@@ -276,3 +276,34 @@ The isolated browser harness checks C story geometry within 2px, PL repeatable
 crops at .2/.005, EN/PL headings, keyboard traversal, contrast, dark/long/empty,
 320/390/768/1440px, reduced motion, 200% zoom and request bounds:
 `bunx playwright test --config playwright.sections.config.ts tests/storefront-author-story.spec.ts --workers=1`.
+
+## T2.16 product starting paths handoff
+
+`productPathsDefinition` exposes the frozen `product-paths/1`, `resolveProductPaths`
+and server-rendered `ProductPaths`. Pass the already localized `home.paths` slot
+and the public binding map; four distinct product IDs and path IDs retain seller
+order. Unknown binding keys fail resolution. Explicit null or unavailable products
+omit their optional paths; absent content or no available paths renders nothing.
+
+`loadStorefrontBindings` accepts optional `pathProducts` (≤4 distinct UUIDs), sharing
+its existing deduplicated five-ID RPC batches with other bindings. Its `paths` map
+contains every requested UUID, with null for products absent from the public read.
+Use `bound.data.paths` as the resolver's `productsById`; never fill missing entries
+from private product reads. The adapter supplies public media, localized free/price
+labels and offer-aware details actions. Cards reuse `PublicProductPrice` and
+`PublicProductFacts`, including tax/prior-price/access facts. No price, action,
+category or collection state is added to editorial content.
+
+C installation, localized binding collection, D-056 dispatch and storage adoption
+remain T2.18, like the preceding author families. D-055 adds optional bounded
+localized `eyebrow`, `actionLabel` and per-path `label`
+to preserve the C reference decorations. Existing core details/format labels remain
+the fallback; price and free labels always come from the public product DTO.
+Colors inherit approved theme tokens.
+The isolated harness checks C card columns/covers within 2px, repeatable PL crops
+at .2/.005, EN/PL at 320/390/768/1440px, dark, long, absent/unavailable products,
+missing media, all price kinds, keyboard, reduced motion, 200% zoom and no commerce
+or licensing requests:
+`bunx playwright test --config playwright.sections.config.ts tests/storefront-product-paths.spec.ts --workers=1`.
+Mobile ordinals use 38px with tighter tracking inside the frozen 35px column,
+keeping two digits together with clear separation from the situation heading.

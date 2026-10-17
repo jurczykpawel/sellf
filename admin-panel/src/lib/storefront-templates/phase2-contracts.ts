@@ -32,7 +32,7 @@ export const phase2HeroContentSchema = heroContentSchema.extend({ mediaCaption: 
 export const searchContentSchema = z.strictObject({ kind: z.literal('search'), eyebrow: text(80).optional(), heading: text(160), body: text(4000), items: distinct(z.strictObject({ id: idSchema, categoryId: z.uuid(), description: text(240) }), 12, item => item.categoryId).refine(items => new Set(items.map(item => item.id)).size === items.length, 'Category description IDs must be distinct') });
 export const authorContentSchema = z.strictObject({ kind: z.literal('author'), name: text(120), eyebrow: text(80), heading: text(160), intro: text(4000), portraitMediaId: z.uuid().nullable() });
 export const biographyContentSchema = z.strictObject({ kind: z.literal('biography'), heading: text(160), paragraphs: z.array(text(2000)).max(6) });
-export const pathsContentSchema = z.strictObject({ kind: z.literal('paths'), heading: text(160), body: text(4000), items: distinct(z.strictObject({ id: idSchema, productId: z.uuid(), situation: text(160), body: text(1000) }), 4, item => item.productId).refine(items => new Set(items.map(item => item.id)).size === items.length, 'Path IDs must be distinct') });
+export const pathsContentSchema = z.strictObject({ kind: z.literal('paths'), eyebrow: text(80).optional(), actionLabel: text(80).optional(), heading: text(160), body: text(4000), items: distinct(z.strictObject({ id: idSchema, productId: z.uuid(), situation: text(160), body: text(1000), label: text(80).optional() }), 4, item => item.productId).refine(items => new Set(items.map(item => item.id)).size === items.length, 'Path IDs must be distinct') });
 export const projectsContentSchema = z.strictObject({ kind: z.literal('projects'), heading: text(160), items: distinct(z.strictObject({ id: idSchema, name: text(120), body: text(1000), url: projectLinkSchema, mediaId: z.uuid().nullable() }), 3, item => item.id) });
 export const phase2ContentSchema = contentSchema.extend({
   'home.hero': localized(phase2HeroContentSchema).optional(),
@@ -118,7 +118,7 @@ export interface SearchHeroProps { variant: 'search-hero'; content: z.infer<type
 export interface CatalogueLinkProps { variant: 'catalogue-link'; content: z.infer<typeof ctaContentSchema> | null; target: string; locale: 'en' | 'pl' }
 export interface AuthorHeroProps { content: z.infer<typeof authorContentSchema> | null; portrait: NonNullable<PublicProductInfo['image']> | null; pathsTarget: string; catalogueTarget: string; locale: 'en' | 'pl' }
 export interface AuthorStoryProps { content: z.infer<typeof biographyContentSchema> | null; locale: 'en' | 'pl' }
-export interface ProductPathsProps { heading: string; body: string; items: { id: string; situation: string; body: string; product: PublicProductInfo }[]; locale: 'en' | 'pl' }
+export interface ProductPathsProps { heading: string; body: string; eyebrow?: string; actionLabel?: string; items: { id: string; situation: string; body: string; label?: string; product: PublicProductInfo }[]; locale: 'en' | 'pl' }
 export interface ProjectShowcaseProps { heading: string; items: { id: string; name: string; body: string; url: string; media: NonNullable<PublicProductInfo['image']> | null }[]; locale: 'en' | 'pl' }
 export type Phase2ResolvedSection = ResolvedSection
   | { id: string; type: 'hero-product/1'; props: OfferFocusProps }

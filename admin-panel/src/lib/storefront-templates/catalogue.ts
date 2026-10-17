@@ -160,15 +160,15 @@ export async function loadCatalogueGroups(client: SupabaseClient<Database>, inpu
   return { success: true, data: Object.fromEntries(pages.map((page, i) => [groups[i], page.success ? page.data : null])) };
 }
 
-const bindingsSchema = z.strictObject({ locale: z.enum(['en', 'pl']), heroProduct: uuid.nullable().default(null), closingProduct: uuid.nullable().default(null), starterProducts: ids(3).default([]), comparisonProducts: ids(2).refine(value => value.length === 0 || value.length === 2).default([]), featuredProducts: ids(6).default([]), taskCategories: ids(12).default([]), target: idSchema });
+const bindingsSchema = z.strictObject({ locale: z.enum(['en', 'pl']), heroProduct: uuid.nullable().default(null), closingProduct: uuid.nullable().default(null), starterProducts: ids(3).default([]), comparisonProducts: ids(2).refine(value => value.length === 0 || value.length === 2).default([]), featuredProducts: ids(6).default([]), pathProducts: ids(4).default([]), taskCategories: ids(12).default([]), target: idSchema });
 interface StorefrontBindings {
-  hero: PublicProductInfo | null; closing: PublicProductInfo | null; starters: PublicProductInfo[]; comparison: PublicProductInfo[]; featured: PublicProductInfo[]; categories: PublicCategoryInfo[];
+  hero: PublicProductInfo | null; closing: PublicProductInfo | null; starters: PublicProductInfo[]; comparison: PublicProductInfo[]; featured: PublicProductInfo[]; paths: Record<string, PublicProductInfo | null>; categories: PublicCategoryInfo[];
 }
 export async function loadStorefrontBindings(client: SupabaseClient<Database>, input: unknown): Promise<ReadResult<StorefrontBindings>> {
   const parsed = bindingsSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'INVALID' };
   const b = parsed.data;
-  const productIds = [...new Set([b.heroProduct, b.closingProduct, ...b.starterProducts, ...b.comparisonProducts, ...b.featuredProducts].filter((id): id is string => id !== null))];
+  const productIds = [...new Set([b.heroProduct, b.closingProduct, ...b.starterProducts, ...b.comparisonProducts, ...b.featuredProducts, ...b.pathProducts].filter((id): id is string => id !== null))];
   try {
     const batches = Array.from({ length: Math.ceil(productIds.length / 5) }, (_, index) => productIds.slice(index * 5, index * 5 + 5));
     const [products, categories] = await Promise.all([
@@ -184,6 +184,7 @@ export async function loadStorefrontBindings(client: SupabaseClient<Database>, i
     return { success: true, data: { hero: byId.get(b.heroProduct ?? '') ?? null, closing: byId.get(b.closingProduct ?? '') ?? null,
       comparison: b.comparisonProducts.flatMap(id => byId.has(id) ? [byId.get(id)!] : []),
       featured: b.featuredProducts.flatMap(id => byId.has(id) ? [byId.get(id)!] : []),
+      paths: Object.fromEntries(b.pathProducts.map(id => [id, byId.get(id) ?? null])),
       starters: b.starterProducts.flatMap(id => byId.has(id) ? [byId.get(id)!] : []),
       categories: b.taskCategories.flatMap(id => byCategory.has(id) ? [{ id, label: byCategory.get(id)!, filterTarget: b.target }] : []) } };
   } catch { return { success: false, error: 'UNAVAILABLE' }; }
