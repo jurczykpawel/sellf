@@ -64,11 +64,18 @@ export function PriceVatInline({
 
   const handleCurrencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const currency = e.target.value;
-    setFormData(prev => ({
-      ...prev,
-      currency,
-      ...(prev.allow_custom_price && !minManuallyEdited.current && { custom_price_min: getDefaultMin(latestPriceRef.current, currency) }),
-    }));
+    setFormData(prev => {
+      // Keep the seller's minimum unless it cannot work in the new currency (fractional yen,
+      // or below Stripe's minimum charge there); 0 means a free pay-what-you-want option.
+      const min = prev.custom_price_min;
+      const minInvalid = typeof min === 'number' && min !== 0
+        && (min < minimumChargeAmount(currency) || (currencyExponent(currency) === 0 && !Number.isInteger(min)));
+      return {
+        ...prev,
+        currency,
+        ...(prev.allow_custom_price && minInvalid && { custom_price_min: getDefaultMin(latestPriceRef.current, currency) }),
+      };
+    });
   };
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {

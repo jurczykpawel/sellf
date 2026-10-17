@@ -49,4 +49,35 @@ SELECT pg_temp.assert_true((SELECT unit_price = 500 FROM public.payment_line_ite
 SELECT pg_temp.assert_true(pg_temp.rejects('cs_zd_pwyw_low', '2d000000-0000-4000-a000-000000000005', 400, 'PLN', 'Amount below minimum'), 'PLN pay-what-you-want below 5.00 is rejected');
 SELECT pg_temp.assert_true(pg_temp.accepts('cs_zd_pwyw_ok', '2d000000-0000-4000-a000-000000000005', 1250, 'PLN'), 'PLN pay-what-you-want 12.50 completes');
 SELECT pg_temp.assert_true((SELECT unit_price = 12.5 FROM public.payment_line_items li JOIN public.payment_transactions t ON t.id = li.transaction_id WHERE t.session_id='cs_zd_pwyw_ok'), 'PLN pay-what-you-want line item is 12.50');
+
+-- Whole-number guards (new writes only)
+CREATE FUNCTION pg_temp.write_fails(stmt text) RETURNS boolean LANGUAGE plpgsql AS $$
+BEGIN
+  EXECUTE stmt;
+  RETURN false;
+EXCEPTION WHEN check_violation THEN RETURN true;
+END;
+$$;
+SELECT pg_temp.assert_true(pg_temp.write_fails($q$INSERT INTO public.products(name, slug, price, currency) VALUES ('f', 'zd-sql-frac', 1000.5, 'JPY')$q$), 'fractional JPY price is rejected on insert');
+SELECT pg_temp.assert_true(NOT pg_temp.write_fails($q$INSERT INTO public.products(name, slug, price, currency) VALUES ('f', 'zd-sql-frac-pln', 10.5, 'PLN')$q$), 'fractional PLN price is still accepted');
+SELECT pg_temp.assert_true(pg_temp.write_fails($q$UPDATE public.products SET price = 1000.5 WHERE id = '2d000000-0000-4000-a000-000000000001'$q$), 'PATCH-style price update to a fractional JPY value is rejected');
+SELECT pg_temp.assert_true(pg_temp.write_fails($q$UPDATE public.products SET currency = 'JPY' WHERE id = '2d000000-0000-4000-a000-000000000002'$q$), 'switching a 49.99 product to JPY is rejected');
+SELECT pg_temp.assert_true(pg_temp.write_fails($q$UPDATE public.products SET custom_price_min = 100.5 WHERE id = '2d000000-0000-4000-a000-000000000004'$q$), 'fractional KRW pay-what-you-want minimum is rejected');
+SELECT pg_temp.assert_true(NOT pg_temp.write_fails($q$UPDATE public.products SET name = 'renamed' WHERE id = '2d000000-0000-4000-a000-000000000001'$q$), 'unrelated updates are not blocked');
+
+SELECT pg_temp.assert_true(pg_temp.write_fails($q$INSERT INTO public.order_bumps(main_product_id, bump_product_id, bump_price, bump_title) VALUES ('2d000000-0000-4000-a000-000000000003', '2d000000-0000-4000-a000-000000000001', 99.5, 'b')$q$), 'fractional order bump price for a JPY product is rejected');
+SELECT pg_temp.assert_true(NOT pg_temp.write_fails($q$INSERT INTO public.order_bumps(main_product_id, bump_product_id, bump_price, bump_title) VALUES ('2d000000-0000-4000-a000-000000000001', '2d000000-0000-4000-a000-000000000002', 9.5, 'b')$q$), 'fractional order bump price for a PLN product is accepted');
+SELECT pg_temp.assert_true(pg_temp.write_fails($q$INSERT INTO public.coupons(code, discount_type, discount_value, currency) VALUES ('ZDSQLJPY', 'fixed', 10.5, 'JPY')$q$), 'fractional fixed JPY coupon is rejected');
+SELECT pg_temp.assert_true(NOT pg_temp.write_fails($q$INSERT INTO public.coupons(code, discount_type, discount_value, currency) VALUES ('ZDSQLPLN', 'fixed', 10.5, 'PLN')$q$), 'fractional fixed PLN coupon is accepted');
+
+-- Payment history divides by the currency factor
+INSERT INTO auth.users(id, email) VALUES ('2d000000-0000-4000-a000-0000000000a1', 'zd-history@example.com');
+INSERT INTO public.payment_transactions(product_id, user_id, customer_email, amount, currency, status, session_id, refunded_amount)
+VALUES ('2d000000-0000-4000-a000-000000000001', '2d000000-0000-4000-a000-0000000000a1', 'zd-history@example.com', 1000, 'JPY', 'completed', 'cs_zd_hist_jpy', 400),
+       ('2d000000-0000-4000-a000-000000000002', '2d000000-0000-4000-a000-0000000000a1', 'zd-history@example.com', 4999, 'PLN', 'completed', 'cs_zd_hist_pln', 1000);
+SET LOCAL role = authenticated;
+SELECT set_config('request.jwt.claim.sub', '2d000000-0000-4000-a000-0000000000a1', true);
+SELECT pg_temp.assert_true((SELECT amount = 1000 AND refunded_amount = 400 FROM public.get_user_payment_history('2d000000-0000-4000-a000-0000000000a1') WHERE currency = 'JPY'), 'payment history shows JPY in whole yen');
+SELECT pg_temp.assert_true((SELECT amount = 49.99 AND refunded_amount = 10 FROM public.get_user_payment_history('2d000000-0000-4000-a000-0000000000a1') WHERE currency = 'PLN'), 'payment history still shows PLN in major units');
+RESET role;
 ROLLBACK;

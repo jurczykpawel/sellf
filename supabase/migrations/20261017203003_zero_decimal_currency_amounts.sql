@@ -444,3 +444,113 @@ $$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = ''
 SET statement_timeout = '30s';
 
+
+-- Payment history shows amounts in display units: divide by the currency's minor-unit factor.
+-- Same signature, security settings and grants as before.
+CREATE OR REPLACE FUNCTION public.get_user_payment_history(user_id_param uuid)
+RETURNS TABLE(transaction_id uuid, product_name text, product_slug text, amount numeric, currency text, payment_date timestamp with time zone, status text, refunded_amount numeric)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+SET statement_timeout TO '5s'
+AS $function$
+BEGIN
+    -- Rate limiting: 30 calls per hour for payment history (SECURITY)
+    IF NOT public.check_rate_limit('get_user_payment_history', 30, 3600) THEN
+        RAISE EXCEPTION 'Rate limit exceeded. Please wait before requesting payment history again.';
+    END IF;
+
+    -- Input validation
+    IF user_id_param IS NULL THEN
+        RAISE EXCEPTION 'User ID is required';
+    END IF;
+
+    -- Security check: users can only view their own payment history (unless admin)
+    IF user_id_param != auth.uid() THEN
+        IF NOT ( select public.is_admin() ) THEN
+            RAISE EXCEPTION 'Unauthorized: Can only view your own payment history';
+        END IF;
+    END IF;
+
+    RETURN QUERY
+    SELECT 
+        pt.id,
+        p.name,
+        p.slug,
+        pt.amount / public.currency_minor_factor(pt.currency),
+        pt.currency,
+        pt.created_at,
+        pt.status,
+        pt.refunded_amount / public.currency_minor_factor(pt.currency)
+    FROM public.payment_transactions pt
+    JOIN public.products p ON pt.product_id = p.id
+    WHERE pt.user_id = user_id_param
+    ORDER BY pt.created_at DESC
+    LIMIT 100; -- Prevent excessive data retrieval
+END;
+$function$;
+
+-- Guard against fractional prices in zero-decimal currencies (Stripe has no minor unit there,
+-- so 1000.5 JPY would be charged as 1001 and then fail the completion check). Triggers rather
+-- than CHECK constraints: existing rows are never revalidated, only new or changed values.
+CREATE OR REPLACE FUNCTION public.enforce_whole_amounts_product()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+  IF public.currency_minor_factor(NEW.currency) <> 1 THEN
+    RETURN NEW;
+  END IF;
+  IF TG_OP = 'INSERT' OR NEW.currency IS DISTINCT FROM OLD.currency
+     OR NEW.price IS DISTINCT FROM OLD.price OR NEW.sale_price IS DISTINCT FROM OLD.sale_price
+     OR NEW.recurring_price IS DISTINCT FROM OLD.recurring_price
+     OR NEW.custom_price_min IS DISTINCT FROM OLD.custom_price_min THEN
+    IF NEW.price <> trunc(NEW.price) OR NEW.sale_price <> trunc(NEW.sale_price)
+       OR NEW.recurring_price <> trunc(NEW.recurring_price) OR NEW.custom_price_min <> trunc(NEW.custom_price_min) THEN
+      RAISE EXCEPTION 'Prices in % must be whole numbers (no minor unit)', NEW.currency
+        USING ERRCODE = 'check_violation';
+    END IF;
+    IF TG_OP = 'UPDATE' AND NEW.currency IS DISTINCT FROM OLD.currency AND EXISTS (
+      SELECT 1 FROM public.order_bumps ob WHERE ob.bump_product_id = NEW.id AND ob.bump_price <> trunc(ob.bump_price)
+    ) THEN
+      RAISE EXCEPTION 'Order bump prices for this product must be whole numbers in %', NEW.currency
+        USING ERRCODE = 'check_violation';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER products_whole_amounts BEFORE INSERT OR UPDATE ON public.products
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_whole_amounts_product();
+
+CREATE OR REPLACE FUNCTION public.enforce_whole_amounts_order_bump()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+  IF NEW.bump_price IS NOT NULL AND NEW.bump_price <> trunc(NEW.bump_price)
+     AND (TG_OP = 'INSERT' OR NEW.bump_price IS DISTINCT FROM OLD.bump_price OR NEW.bump_product_id IS DISTINCT FROM OLD.bump_product_id)
+     AND EXISTS (SELECT 1 FROM public.products p WHERE p.id = NEW.bump_product_id AND public.currency_minor_factor(p.currency) = 1) THEN
+    RAISE EXCEPTION 'Order bump price must be a whole number in this product''s currency (no minor unit)'
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER order_bumps_whole_amounts BEFORE INSERT OR UPDATE ON public.order_bumps
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_whole_amounts_order_bump();
+
+CREATE OR REPLACE FUNCTION public.enforce_whole_amounts_coupon()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+  IF NEW.discount_type = 'fixed' AND NEW.currency IS NOT NULL AND public.currency_minor_factor(NEW.currency) = 1
+     AND NEW.discount_value <> trunc(NEW.discount_value)
+     AND (TG_OP = 'INSERT' OR NEW.discount_value IS DISTINCT FROM OLD.discount_value OR NEW.currency IS DISTINCT FROM OLD.currency) THEN
+    RAISE EXCEPTION 'Fixed discounts in % must be whole numbers (no minor unit)', NEW.currency
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER coupons_whole_amounts BEFORE INSERT OR UPDATE ON public.coupons
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_whole_amounts_coupon();
+
+REVOKE EXECUTE ON FUNCTION public.enforce_whole_amounts_product() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.enforce_whole_amounts_order_bump() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.enforce_whole_amounts_coupon() FROM PUBLIC, anon, authenticated;

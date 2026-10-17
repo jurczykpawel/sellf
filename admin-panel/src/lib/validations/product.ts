@@ -209,8 +209,8 @@ function validatePrice(price: unknown): ValidationResult {
 }
 
 /** Zero-decimal currencies (JPY, KRW, VND...) cannot carry fractional prices: Stripe would charge a different amount than stored. */
-const WHOLE_AMOUNT_FIELDS = ['price', 'recurring_price', 'sale_price', 'custom_price_min'] as const;
-function validateWholeAmounts(input: Record<string, unknown>, currency: unknown): string[] {
+export const WHOLE_AMOUNT_FIELDS = ['price', 'recurring_price', 'sale_price', 'custom_price_min'] as const;
+export function validateWholeAmounts(input: Record<string, unknown>, currency: unknown): string[] {
   if (typeof currency !== 'string' || currencyExponent(currency) !== 0) return [];
   return WHOLE_AMOUNT_FIELDS
     .filter((field) => typeof input[field] === 'number' && !Number.isInteger(input[field]))

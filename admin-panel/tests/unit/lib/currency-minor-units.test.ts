@@ -18,7 +18,7 @@ import { priceMatchesProduct } from '@/lib/stripe/product-price';
 import { buildPurchaseDiscountSummary } from '@/lib/purchases/discounts';
 import { convertCurrencyAmount } from '@/lib/utils/currency-conversion';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
-import { validateCreateProduct } from '@/lib/validations/product';
+import { validateCreateProduct, validateWholeAmounts } from '@/lib/validations/product';
 import { displayPayoutAmount, parsePayoutAmount } from '@/lib/affiliates/payouts/display';
 
 const specsFor = (currency: string, price: number, coupon: Parameters<typeof buildCheckoutLineSpecs>[0]['coupon'] = null) =>
@@ -202,6 +202,14 @@ describe('admin input guards', () => {
     expect(validateCreateProduct(base).errors.join()).toContain('price must be a whole number for JPY');
     expect(validateCreateProduct({ ...base, price: 1000 }).errors.join()).not.toContain('whole number');
     expect(validateCreateProduct({ ...base, currency: 'PLN' }).errors.join()).not.toContain('whole number');
+  });
+
+  it('validates the merged row, so a price-only PATCH is checked against the stored currency', () => {
+    const stored = { currency: 'JPY', price: 1000, sale_price: null, recurring_price: null, custom_price_min: 50 };
+    expect(validateWholeAmounts({ ...stored, price: 1000.5 }, 'JPY')).toHaveLength(1);
+    expect(validateWholeAmounts({ ...stored, custom_price_min: 50.5, price: 2000.25 }, 'JPY')).toHaveLength(2);
+    expect(validateWholeAmounts({ ...stored, price: 1000 }, 'JPY')).toEqual([]);
+    expect(validateWholeAmounts({ ...stored, currency: 'PLN', price: 10.5 }, 'PLN')).toEqual([]);
   });
 
   it('affiliate payout amounts follow the same exponent', () => {

@@ -11,6 +11,7 @@
 
 'use client';
 
+import { currencyExponent } from '@/lib/currency/minor-units';
 import React, { useState, useEffect } from 'react';
 import { AffiliateCouponEditor } from '@/components/affiliates/products/Settings';
 import { Coupon, CouponFormData } from '@/types/coupon';
@@ -220,7 +221,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                     type="number"
                     name="discount_value"
                     min="0"
-                    step={formData.discount_type === 'percentage' ? "1" : "0.01"}
+                    step={formData.discount_type === 'percentage' || currencyExponent(formData.currency || defaultCurrency) === 0 ? "1" : "0.01"}
                     max={formData.discount_type === 'percentage' ? "100" : undefined}
                     value={formData.discount_value}
                     onChange={e => setFormData({ ...formData, discount_value: parseFloat(e.target.value) })}
