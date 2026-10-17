@@ -16,7 +16,7 @@ SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);
 DO $$
 DECLARE pid uuid; other uuid; r jsonb; base jsonb := '{"format":1,"enabled":true,"templateId":"offer-default","settings":{"density":"comfortable"},"content":{},"tokens":null}'; actor uuid := 'dddddddd-0000-4000-a000-000000000000';
 BEGIN
- SELECT id INTO pid FROM public.products WHERE id NOT IN (SELECT product_id FROM public.product_offer_config) ORDER BY id LIMIT 1;
+ SELECT id INTO pid FROM public.products WHERE is_active AND is_listed AND id NOT IN (SELECT product_id FROM public.product_offer_config) ORDER BY id LIMIT 1;
  SELECT product_id INTO other FROM public.product_offer_config ORDER BY product_id LIMIT 1;
  PERFORM pg_temp.assert_true(pid IS NOT NULL,'uninitialized product available');
  r := public.mutate_product_offer(pid,0,'draft',base,null,null,'session');
