@@ -11,16 +11,18 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium, expect } from '@playwright/test';
 import { parse } from 'dotenv';
+import { normalizeLicenseDomain } from '@/lib/license-keys/domain';
 
 const admin = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const root = resolve(admin, '..');
 const stack = '/private/tmp/sellf-perf';
 const container = 'supabase_db_sellf-perf';
-const origin = 'http://localhost:55325';
+const origin = 'http://sellf-perf.localhost:55325';
 const out = resolve(process.argv[2] ?? '/private/tmp/storefront-perf-results');
 const bun = process.env.PERF_BUN ?? '/tmp/bun-1314/bun-darwin-aarch64/bun';
 const freeProbe = process.argv.includes('--probe-free');
-const probe = process.argv.includes('--probe-checkout') || freeProbe;
+const dProbe = process.argv.includes('--probe-d');
+const probe = process.argv.includes('--probe-checkout') || freeProbe || dProbe;
 const runs = 5;
 const samples = [];
 const checks = [];
@@ -119,7 +121,8 @@ try {
     await queryAcceptance(100000, 'Catalogue fixture');
   } else {
   const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
-  const payload = Buffer.from(JSON.stringify({ v: 1, kid: 'perf', product: 'sellf-pro', email: 'perf@example.invalid', order: 'perf', tier: 'pro', domain: 'localhost', iat: Math.floor(Date.now() / 1000), exp: null })).toString('base64url');
+  const domain = normalizeLicenseDomain(origin); assert(domain, 'Profile origin must support a domain-bound license');
+  const payload = Buffer.from(JSON.stringify({ v: 1, kid: 'perf', product: 'sellf-pro', email: 'perf@example.invalid', order: 'perf', tier: 'pro', domain, iat: Math.floor(Date.now() / 1000), exp: null })).toString('base64url');
   const token = `${payload}.${createSign('SHA256').update(payload).end().sign(privateKey).toString('base64url')}`;
   const local = parse(await readFile(resolve(admin, '.env.local')));
   assert(local.STRIPE_SECRET_KEY?.startsWith('sk_test_') && local.STRIPE_PUBLISHABLE_KEY?.startsWith('pk_test_'), 'Checkout entry requires Stripe test keys');
@@ -135,7 +138,7 @@ try {
   const standalone = standalonePath();
   await cp(resolve(admin, '.next/static'), resolve(standalone, '.next/static'), { recursive: true });
   await cp(resolve(admin, 'public'), resolve(standalone, 'public'), { recursive: true });
-  const profile = { source: command('git', ['rev-parse', 'HEAD']).trim(), cpu: cpus()[0].model, cores: cpus().length, ramBytes: totalmem(), os: command('sw_vers', []),
+  const profile = { origin, source: command('git', ['rev-parse', 'HEAD']).trim(), cpu: cpus()[0].model, cores: cpus().length, ramBytes: totalmem(), os: command('sw_vers', []),
     node: command('node', ['--version']).trim(), bun: command(bun, ['--version']).trim(), postgres: sql('select version();').trim(),
     next: JSON.parse(await readFile(resolve(admin, 'node_modules/next/package.json'), 'utf8')).version,
     runs, mobile: { viewport: { width: 390, height: 844 }, cpu: 4, rttMs: 165, targetRttMs: 60, downBytesPerSecond: 9_000_000 / 8 * .9, upBytesPerSecond: 1_500_000 / 8 * .9 },
@@ -151,14 +154,14 @@ try {
     await queryAcceptance(size);
     await idle(`traversal-${size}`);
     await writeFile(resolve(out, `traversal-${size}.log`), sql(await readFile(resolve(root, 'supabase/tests/storefront-perf-traversal.sql'), 'utf8')));
-    for (const template of (probe ? ['default'] : ['default', 'd'])) {
-      const { DEFAULT_CONFIG, D_LOCALIZED_CONFIG } = await import('../src/lib/storefront-templates/fixtures.ts');
+    for (const template of (probe ? [dProbe ? 'd' : 'default'] : ['default', 'd'])) {
+      const { DEFAULT_CONFIG, D_LOCALIZED_CONFIG } = await import('@/lib/storefront-templates/fixtures');
       const config = structuredClone(template === 'd' ? D_LOCALIZED_CONFIG : DEFAULT_CONFIG);
       if (template === 'd') config.settingsByTemplate.d = { ...config.settingsByTemplate.d,
         heroProduct: '10000000-0000-4000-8000-000000000001', closingProduct: '10000000-0000-4000-8000-000000000001',
         starterProducts: [2, 3, 4].map(n => `10000000-0000-4000-8000-${String(n).padStart(12, '0')}`), taskCategories: ['20000000-0000-4000-8000-000000000001'] };
       sql(`UPDATE public.storefront_config SET published='${JSON.stringify(config).replaceAll("'", "''")}'::jsonb;`);
-      for (const device of (probe ? ['mobile'] : ['mobile', 'desktop'])) for (const path of (probe ? [freeProbe ? '/p/perf-course-11' : '/p/perf-course-1'] : ['/', '/store', '/pl', '/p/perf-course-1', '/checkout/perf-course-1', '/p/perf-course-11', '/checkout/perf-course-11'])) {
+      for (const device of (probe ? ['mobile'] : ['mobile', 'desktop'])) for (const path of (probe ? [dProbe ? '/' : freeProbe ? '/p/perf-course-11' : '/p/perf-course-1'] : ['/', '/store', '/pl', '/p/perf-course-1', '/checkout/perf-course-1', '/p/perf-course-11', '/checkout/perf-course-11'])) {
         await idle(`${size}/${template}/${device}/${path}`);
         for (let repeat = 0; repeat < runs; repeat++) {
           const context = await browser.newContext({ viewport: profile[device].viewport, isMobile: device === 'mobile', hasTouch: device === 'mobile', deviceScaleFactor: device === 'mobile' ? 2 : 1 });
@@ -232,7 +235,7 @@ try {
   await writeFile(resolve(out, 'summary.json'), JSON.stringify(summary, null, 2));
   assert(summary.every(row => row.n >= 5 && row.LCP <= 2500 && row.CLS <= .1 && row.INP <= 200), 'Performance acceptance FAILED: see summary.json');
   assert.equal(summary.length, probe ? 2 : 112);
-  if (probe) console.log('PASS: checkout diagnostic; full acceptance remains pending');
+  if (probe) console.log('PASS: diagnostic cases; full acceptance remains pending');
   else console.log('PASS: all 112 performance cases');
   }
 } finally { await browser?.close(); await stopApp(); }
