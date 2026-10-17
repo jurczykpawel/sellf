@@ -31,6 +31,10 @@ export interface OrderBumpWithProduct {
   bump_description: string | null;
   display_order: number;
   urgency_duration_minutes: number | null;
+  /** The bump product's VAT settings (from get_product_order_bumps) so the total matches the charge. */
+  vat_rate?: number | null;
+  price_includes_vat?: boolean | null;
+  vat_exempt?: boolean | null;
 }
 
 /**

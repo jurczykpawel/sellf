@@ -4268,6 +4268,9 @@ export type Database = {
           display_order: number
           original_price: number
           urgency_duration_minutes: number
+          vat_exempt: boolean
+          vat_rate: number
+          price_includes_vat: boolean
         }[]
       }
       get_public_integrations_config: { Args: never; Returns: Json }
