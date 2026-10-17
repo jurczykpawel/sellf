@@ -90,6 +90,12 @@ describe('Magic-link redirect URL construction', () => {
   });
 
   describe('buildLoginMagicLinkRedirect', () => {
+    it.each(['/affiliates/apply', '/pl/affiliates/apply', '/en/affiliates/apply'])('retains the application destination %s', path => {
+      expect(new URL(buildLoginMagicLinkRedirect('https://a.b', path)).searchParams.get('redirect_to')).toBe(path);
+    });
+    it.each(['//elsewhere.test', '/\\elsewhere.test', 'https://elsewhere.test', '/dashboard', '/pl/affiliates/apply?next=elsewhere'])('uses default login routing for %s', path => {
+      expect(buildLoginMagicLinkRedirect('https://a.b', path)).toBe('https://a.b/auth/callback?flow=login');
+    });
     it('routes through /auth/callback without redirect_to, so the callback applies role-based routing', () => {
       const url = buildLoginMagicLinkRedirect('https://a.b');
       expect(url).toContain('?');

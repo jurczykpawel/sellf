@@ -102,6 +102,15 @@ describe('requestMagicLink', () => {
     );
   });
 
+  it('returns a newly created partner account to the localized application', async () => {
+    const result = await requestMagicLink({ ...BASE_INPUT, redirectTo: '/pl/affiliates/apply' });
+    expect(result).toEqual({ ok: true });
+    expect(deliverMagicLink).toHaveBeenCalledWith(expect.objectContaining({
+      shouldCreateUser: true,
+      redirectTo: 'https://shop.example.com/auth/callback?redirect_to=%2Fpl%2Faffiliates%2Fapply',
+    }));
+  });
+
   it('delivers a free_product magic link with the free-product redirect and product_slug data', async () => {
     const result = await requestMagicLink({
       ...BASE_INPUT,

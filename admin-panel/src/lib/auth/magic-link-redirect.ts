@@ -57,7 +57,9 @@ export function buildPostCheckoutMagicLinkRedirect(input: PostCheckoutInput): st
  * keeps a `?` in the URL — required because email templates append
  * `&token_hash=...` after it; the callback ignores unrecognized params.
  */
-export function buildLoginMagicLinkRedirect(origin: string): string {
+export function buildLoginMagicLinkRedirect(origin: string, redirectTo?: string): string {
+  const path = getLoginReturnPath(redirectTo);
+  if (path) return buildAuthCallbackUrl(origin, path);
   return `${origin}/auth/callback?flow=login`;
 }
 
@@ -73,4 +75,9 @@ export function buildFreeProductMagicLinkRedirect(input: FreeProductInput): stri
     success_url: input.successUrl ?? undefined,
   });
   return buildAuthCallbackUrl(input.origin, redirectPath);
+}
+
+/** Supported account onboarding destinations. */
+export function getLoginReturnPath(value: string | null | undefined): string | undefined {
+  return value && /^\/(?:en\/|pl\/)?affiliates\/apply$/.test(value) ? value : undefined;
 }

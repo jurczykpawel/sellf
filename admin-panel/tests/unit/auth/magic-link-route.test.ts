@@ -19,6 +19,13 @@ describe('POST /api/auth/magic-link', () => {
     requestMagicLink.mockReset();
   });
 
+  it('accepts a partner application return path', async () => {
+    requestMagicLink.mockResolvedValue({ ok: true });
+    const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'login', redirectTo: '/pl/affiliates/apply' }));
+    expect(res.status).toBe(200);
+    expect(requestMagicLink).toHaveBeenCalledWith(expect.objectContaining({ redirectTo: '/pl/affiliates/apply' }));
+  });
+
   it('rejects non-JSON content-type with 415', async () => {
     const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'login' }, 'text/plain'));
     expect(res.status).toBe(415);

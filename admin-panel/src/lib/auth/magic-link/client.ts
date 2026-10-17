@@ -4,6 +4,7 @@ export interface MagicLinkClientRequest {
   email: string;
   captchaToken: string | null;
   flow: MagicLinkFlow;
+  redirectTo?: string;
   productSlug?: string;
   couponCode?: string | null;
   successUrl?: string | null;
@@ -28,6 +29,7 @@ export async function sendMagicLinkRequest(req: MagicLinkClientRequest): Promise
     captchaToken: req.captchaToken,
     flow: req.flow,
   };
+  if (req.redirectTo != null) body.redirectTo = req.redirectTo;
   if (req.productSlug != null) body.productSlug = req.productSlug;
   if (req.couponCode != null) body.couponCode = req.couponCode;
   if (req.successUrl != null) body.successUrl = req.successUrl;

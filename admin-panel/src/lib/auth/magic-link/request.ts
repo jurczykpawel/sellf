@@ -19,6 +19,7 @@ export interface MagicLinkRequestInput {
   email: string;
   captchaToken: string | null | undefined;
   flow: MagicLinkFlow;
+  redirectTo?: string;
   productSlug?: string;
   couponCode?: string;
   successUrl?: string;
@@ -84,7 +85,7 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
   if (input.flow === 'login') {
     return sendTrustedMagicLink({
       email: input.email,
-      redirectTo: buildLoginMagicLinkRedirect(origin),
+      redirectTo: buildLoginMagicLinkRedirect(origin, input.redirectTo),
     });
   }
 

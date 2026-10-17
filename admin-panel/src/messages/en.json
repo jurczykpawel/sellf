@@ -4777,6 +4777,8 @@
     "unavailable": "This page is temporarily unavailable. Refresh to try again.",
     "apply": "Apply to become a partner",
     "admin": {
+      "joinTitle": "Join the partner program",
+      "joinHint": "Sign in or create your Sellf account to apply. After signing in, you’ll return to the application.",
       "nameRequired": "Enter your name (up to 120 characters).",
       "acceptRequired": "Accept the program terms to continue.",
       "newTermsVersion": "These terms were already published. Give the changed terms a new version and save again.",
