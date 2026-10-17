@@ -205,7 +205,7 @@ test.describe('guest checkout variants', () => {
     await expect(page.getByText(/Wybierz kwotę/i)).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
     expect(checkoutRequests).toHaveLength(0);
-    await page.getByRole('button', { name: /^(Pay|Zapłać)\s/ }).click();
+    await page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ }).click();
     await expect.poll(() => checkoutRequests.length).toBe(1);
     expect(checkoutRequests[0]).toMatchObject({ productId: products.paid.id });
   });
@@ -219,7 +219,7 @@ test.describe('guest checkout variants', () => {
     await expect(page.locator('input[inputmode="decimal"]').first()).toHaveValue('50');
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
     expect(checkoutRequests).toHaveLength(0);
-    await page.getByRole('button', { name: /^(Pay|Zapłać)\s/ }).click();
+    await page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ }).click();
     await expect.poll(() => checkoutRequests.length).toBe(1);
     expect(checkoutRequests[0]).toMatchObject({ productId: products.pwyw.id, customAmount: 50 });
   });
@@ -247,7 +247,7 @@ test.describe('guest checkout variants', () => {
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
     await expect(page.getByText(/Wybierz kwotę/i)).toHaveCount(0);
     expect(checkoutRequests).toHaveLength(0);
-    await page.getByRole('button', { name: /^(Pay|Zapłać)\s/ }).click();
+    await page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ }).click();
     await expect.poll(() => checkoutRequests.length).toBe(1);
     expect(checkoutRequests[0]).toMatchObject({
       productId: products.subscriptionMonth.id,
@@ -342,7 +342,7 @@ test.describe('guest checkout variants', () => {
     await expect(page.getByTestId('subscription-email-gate')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
     expect(checkoutRequests).toHaveLength(0);
-    await page.getByRole('button', { name: /^(Pay|Zapłać)\s/ }).click();
+    await page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ }).click();
     await expect.poll(() => checkoutRequests.length).toBe(1);
     expect(checkoutRequests[0]).toMatchObject({ productId: products.subscriptionYear.id });
     expect(checkoutRequests[0].email).toBeUndefined();
@@ -368,7 +368,7 @@ test.describe('logged-in checkout variants', () => {
     await expect(page.getByText(/99,00\s+zł/i).first()).toBeVisible();
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
     expect(checkoutRequests).toHaveLength(0);
-    await page.getByRole('button', { name: /^(Pay|Zapłać)\s/ }).click();
+    await page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ }).click();
     await expect.poll(() => checkoutRequests.length).toBe(1);
     expect(checkoutRequests[0]).toMatchObject({ productId: products.paid.id });
   });
@@ -383,7 +383,7 @@ test.describe('logged-in checkout variants', () => {
     await expect(page.getByText(/Wybierz kwotę/i)).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
     expect(checkoutRequests).toHaveLength(0);
-    await page.getByRole('button', { name: /^(Pay|Zapłać)\s/ }).click();
+    await page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ }).click();
     await expect.poll(() => checkoutRequests.length).toBe(1);
     expect(checkoutRequests[0]).toMatchObject({
       productId: products.subscriptionMonth.id,
