@@ -2,6 +2,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { config } from 'dotenv';
 import { getTestDatabaseContainer } from '../helpers/database-container';
 
@@ -31,5 +32,5 @@ export function getAffiliateTestConfig(): { API_URL: string; SERVICE_ROLE_KEY: s
 
 export function resetAffiliateDatabase(): void {
   const workdir = getAffiliateTestWorkdir();
-  execFileSync(process.env.SUPABASE_CLI_BINARY_OVERRIDE || 'supabase', ['db', 'reset', '--workdir', workdir], { stdio: 'pipe', timeout: 120000 });
+  execFileSync('python3', ['-B', fileURLToPath(new URL('../../../supabase/tests/local_stack.py', import.meta.url)), 'reset', workdir], { stdio: 'pipe', timeout: 180000 });
 }
