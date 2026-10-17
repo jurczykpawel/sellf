@@ -8,6 +8,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { processRefund } from '@/lib/actions/payment';
 import { getTransactionRefundProgress } from '@/lib/refunds/transaction-refund-progress';
 import { toast } from 'sonner';
+import { formatAdminDate } from '@/lib/timezone';
 import type { PaymentTransaction, PaymentTransactionLineItem } from '@/types/payment';
 import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
 
@@ -69,15 +70,6 @@ export default function PaymentTransactionsTable({
     }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(locale, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const getTransactionDisplayItems = (transaction: PaymentTransaction): PaymentTransactionLineItem[] => {
     const storedItems = transaction.line_items ?? [];
@@ -206,7 +198,7 @@ export default function PaymentTransactionsTable({
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-sf-muted">
-                    {formatDate(transaction.created_at)}
+                    {formatAdminDate(transaction.created_at, locale)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-3">

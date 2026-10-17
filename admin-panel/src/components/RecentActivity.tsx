@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { formatAdminDate } from '@/lib/timezone'
 import { getRecentActivity } from '@/lib/actions/dashboard'
 
 interface ActivityItem {
@@ -90,7 +91,7 @@ export default function RecentActivity() {
     if (diffMins < 60) return t('recentActivity.timeMinutesAgo', { minutes: diffMins })
     if (diffHours < 24) return t('recentActivity.timeHoursAgo', { hours: diffHours })
     if (diffDays < 7) return t('recentActivity.timeDaysAgo', { days: diffDays })
-    return past.toLocaleDateString(locale)
+    return formatAdminDate(timestamp, locale, false)
   }
 
   const getIcon = (type: ActivityItem['icon']) => {

@@ -78,6 +78,26 @@ kolejne zdarzenie lub weryfikację zakupu. Zapis zakończonej transakcji nie ozn
 Pełny katalog zdarzeń, przykłady danych VAT i licencji oraz konfiguracja ponowień
 znajdują się w [dokumentacji webhooków po angielsku](/webhooks/).
 
+## Automatyczne ponowienia
+
+Sellf zapisuje dostawę przed pierwszą próbą i wysyła ją od razu. Dotyczy to również
+przycisku **Wyślij test**: test ma jedną próbę, bez automatycznych ponowień.
+Historia dostaw domyślnie pokazuje wszystkie statusy. Filtr nieudanych dostaw
+obejmuje również oczekujące ponowienia i dostawy po wyczerpaniu prób.
+
+Ponowienia nieudanych lub przerwanych zwykłych dostaw wymagają osobnego zadania
+uruchamianego co minutę. Samo uruchomienie aplikacji przez PM2 go nie ustawia.
+Ustaw `SELLF_URL` i `CRON_SECRET` w środowisku harmonogramu, a następnie dodaj:
+
+```cron
+* * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$SELLF_URL/api/cron?job=webhook-deliveries-retry" > /dev/null
+```
+
+To osobne zadanie od `affiliate-sync`. Kontroluj błędy wywołań w logach
+harmonogramu. Brak harmonogramu wstrzymuje ponowienia, ale nie pierwszą próbę
+ani zapis logów. Ręczne ponowienie starej dostawy o statusie `failed` aktualizuje
+ten sam wpis, zachowując identyfikator dostawy.
+
 ## Wygaśnięcie checkoutu Stripe
 
 Włącz `checkout.session.expired` na endpoincie Stripe wysyłającym zdarzenia do
@@ -85,8 +105,18 @@ Włącz `checkout.session.expired` na endpoincie Stripe wysyłającym zdarzenia 
 w ustawieniach Sellf mają je automatycznie. Dla istniejącego endpointu dodaj to
 zdarzenie w Stripe Dashboard → Workbench → Webhooks → endpoint → Edit events.
 
-Po zmianie koszyka Sellf wygasza poprzednią Checkout Session i zmienia status jej
-oczekującej transakcji na `abandoned`. Naturalne wygaśnięcie uruchamia tę samą
+Po zmianie koszyka lub opuszczeniu checkoutu przed potwierdzeniem płatności Sellf
+wygasza poprzednią Checkout Session i zmienia status jej oczekującej transakcji
+na `abandoned`. Powrót przyciskiem „Wstecz” przywraca pierwszy krok; nowa sesja
+powstaje dopiero po wybraniu „Przejdź do płatności”. Przekierowanie podczas
+potwierdzania płatności zachowuje aktywną sesję. Naturalne wygaśnięcie uruchamia tę samą
 zmianę przez zdarzenie Stripe. Zakończone transakcje pozostają bez zmian,
 a powtórne zdarzenia można obsłużyć ponownie. Błąd zapisu zwraca HTTP 500, aby
 Stripe ponowił dostawę.
+
+Jeśli przeglądarka zamknie stronę przed otrzymaniem odpowiedzi tworzącej sesję,
+nie może później wysłać żądania jej zamknięcia — nawet z opcją `keepalive`.
+Zdarzenie wygaśnięcia musi być włączone, aby rozliczyć takie próby. Gdy strona
+nadal działa, kolejka czeka z zamknięciem na zakończenie tworzenia sesji. Sellf
+zachowuje też sesje, których PaymentIntent jest przetwarzany, czeka na pobranie
+środków lub dodatkowe działanie klienta albo zakończył się powodzeniem.

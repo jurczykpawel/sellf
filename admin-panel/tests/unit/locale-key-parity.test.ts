@@ -46,3 +46,24 @@ describe('locale key parity (en.json vs pl.json)', () => {
     expect(missingFromEn).toEqual([]);
   });
 });
+
+it.each(['en', 'pl'] as const)('%s messages have no duplicate keys', async (locale) => {
+  const ts = await import('typescript');
+  const source = readFileSync(resolve(__dirname, `../../src/messages/${locale}.json`), 'utf-8');
+  const file = ts.parseJsonText(`${locale}.json`, source);
+  const duplicates: string[] = [];
+  function visit(node: import('typescript').Node): void {
+    if (ts.isObjectLiteralExpression(node)) {
+      const keys = new Set<string>();
+      for (const property of node.properties) {
+        if (!ts.isPropertyAssignment(property)) continue;
+        const key = property.name.getText(file);
+        if (keys.has(key)) duplicates.push(key);
+        keys.add(key);
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  expect(duplicates).toEqual([]);
+});

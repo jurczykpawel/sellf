@@ -32,6 +32,7 @@ interface CustomPaymentFormProps {
   customAmountError?: string | null;
   clientSecret?: string;
   bindingToken?: string;
+  onConfirmationChange?: (pending: boolean) => void;
   pricing: PricingResult;
   paymentMethodOrder?: string[];
   expressCheckoutConfig?: ExpressCheckoutConfig;
@@ -65,6 +66,7 @@ export default function CustomPaymentForm({
   customAmountError,
   clientSecret,
   bindingToken,
+  onConfirmationChange,
   pricing,
   paymentMethodOrder,
   expressCheckoutConfig,
@@ -277,13 +279,16 @@ export default function CustomPaymentForm({
         return;
       }
 
+      onConfirmationChange?.(true);
       const result = await checkout.confirm();
 
       if (result.type === 'error') {
+        onConfirmationChange?.(false);
         setErrorMessage(result.error.message || t('paymentFailed'));
         setIsProcessing(false);
       }
     } catch (err) {
+      onConfirmationChange?.(false);
       setErrorMessage(err instanceof Error ? err.message : t('unexpectedError'));
       setIsProcessing(false);
     }

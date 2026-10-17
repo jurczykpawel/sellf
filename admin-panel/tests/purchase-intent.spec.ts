@@ -17,7 +17,7 @@ test('counts purchase intent while leaving product views out of the funnel', asy
   try {
     for (const locale of ['en', 'pl']) {
       await page.goto(`/${locale}/p/${slug}`);
-      await expect(page.getByRole('button', { name: /Pay|Zapłać/ })).toBeVisible();
+      await expect(page.getByRole('button', { name: /Continue to payment|Przejdź do płatności/ })).toBeVisible();
       expect(sessions).toHaveLength(0);
       const records = await db.from('payment_transactions').select('id').eq('product_id', id);
       expect(records.data).toEqual([]);
@@ -26,7 +26,7 @@ test('counts purchase intent while leaving product views out of the funnel', asy
       expect(funnel.data.totals).toEqual({ started: 0, paid: 0, pending: 0, abandoned: 0 });
     }
     const response = page.waitForResponse(r => r.url().includes('/api/create-payment-intent') && r.request().method() === 'POST');
-    await page.getByRole('button', { name: /Zapłać/ }).click();
+    await page.getByRole('button', { name: 'Przejdź do płatności', exact: true }).click();
     expect((await response).ok()).toBe(true);
     await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
     expect(sessions).toHaveLength(1);
@@ -59,7 +59,7 @@ test('renders coupon entry and card-first payment at desktop and mobile sizes in
       await page.getByRole('button', { name: locale === 'pl' ? 'Zastosuj' : 'Apply' }).click();
       await expect(code).toBeDisabled();
       await page.screenshot({ path: `/tmp/rcfix-core-shots/purchase-${locale}-${width}.png`, fullPage: true, animations: 'disabled' });
-      await page.getByRole('button', { name: /Pay|Zapłać/ }).click();
+      await page.getByRole('button', { name: /Continue to payment|Przejdź do płatności/ }).click();
       await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
       const card = page.frameLocator('iframe[src*="elements-inner-payment"]').locator('input[name="number"]');
       await expect(card).toBeVisible({ timeout: 60000 });

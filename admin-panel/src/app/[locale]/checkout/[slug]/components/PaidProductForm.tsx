@@ -75,7 +75,9 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const { track } = useTracking();
   const trackingFired = useRef(false);
   const checkoutTrackingFired = useRef(false);
+  const confirmationPending = useRef(false);
   const [purchaseStarted, setPurchaseStarted] = useState(false);
+  const handleConfirmationChange = useCallback((pending: boolean) => { confirmationPending.current = pending; }, []);
 
   // Funnel test mode: admin-only visual preview (no Stripe, no backend calls)
   const isFunnelTest = searchParams.get('funnel_test') === '1' && isAdmin;
@@ -96,13 +98,36 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     if (!identity.clientSecret?.startsWith('cs_')) return;
     const response = await fetch('/api/create-payment-intent', {
       method: 'POST',
+      keepalive: true,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ productId: product.id, ...identity, expireOnly: true }),
     });
     if (!response.ok) throw new Error('Unable to expire checkout session');
   }));
 
-  useEffect(() => () => sessionQueue.update(null), [sessionQueue]);
+  useEffect(() => {
+    const handlePageHide = () => {
+      if (!confirmationPending.current) sessionQueue.update(null);
+    };
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        confirmationPending.current = false;
+        checkoutTrackingFired.current = false;
+        setPurchaseStarted(false);
+        setClientSecret(null);
+        setBindingToken(null);
+        setCheckoutSessionId(null);
+        setLastCheckoutSessionSignature(null);
+      }
+    };
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('pageshow', handlePageShow);
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('pageshow', handlePageShow);
+      if (!confirmationPending.current) sessionQueue.update(null);
+    };
+  }, [sessionQueue]);
 
   // Email state - from logged in user or from URL param (for OTO redirects)
   const urlEmail = searchParams.get('email');
@@ -554,7 +579,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && !purchaseStarted && (
             <form onSubmit={event => { event.preventDefault(); setPurchaseStarted(true); }}>
               <button type="submit" className="w-full cursor-pointer rounded-xl bg-sf-accent-bg px-6 py-4 font-semibold text-sf-inverse hover:bg-sf-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent">
-                {t('payButton', { amount: formatPrice(pricing.totalGross, product.currency, locale) })}
+                {t('continueToPayment')}
               </button>
               <p className="mt-3 text-center text-xs text-sf-muted">{t('securePayment')}</p>
             </form>
@@ -595,6 +620,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 customAmountError={product.allow_custom_price ? customAmountError : null}
                 clientSecret={clientSecret || undefined}
                 bindingToken={bindingToken || undefined}
+                onConfirmationChange={handleConfirmationChange}
                 pricing={pricing}
                 paymentMethodOrder={paymentMethodOrder}
                 expressCheckoutConfig={expressCheckoutConfig}

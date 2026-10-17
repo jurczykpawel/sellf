@@ -46,6 +46,13 @@ describe('CSP with nonce — production posture', () => {
     expect(scriptSrc).toContain('www.youtube.com');
   });
 
+  it('allows the documented Stripe.js frame origins and redirect authentication', () => {
+    const frames = csp.split(';').find(d => d.trim().startsWith('frame-src'))!.trim().split(/\s+/);
+    expect(frames).toEqual(expect.arrayContaining(['js.stripe.com', '*.js.stripe.com', 'hooks.stripe.com']));
+    const scripts = csp.split(';').find(d => d.trim().startsWith('script-src'))!.trim().split(/\s+/);
+    expect(scripts).toContain('*.js.stripe.com');
+  });
+
   it('does NOT allow third-party script CDNs that would expand the supply-chain surface', () => {
     const scriptSrc = csp.split(';').find((d) => d.trim().startsWith('script-src')) ?? '';
     expect(scriptSrc).not.toContain('cdn.jsdelivr.net');

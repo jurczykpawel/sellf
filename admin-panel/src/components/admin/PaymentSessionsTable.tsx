@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { toast } from 'sonner';
+import { formatAdminDate } from '@/lib/timezone';
 import type { PaymentSession } from '@/types/payment';
 
 interface PaymentSessionsTableProps {
@@ -53,16 +54,6 @@ export default function PaymentSessionsTable({
     }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString || Number.isNaN(new Date(dateString).getTime())) return '—';
-    return new Date(dateString).toLocaleDateString(locale, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -157,10 +148,10 @@ export default function PaymentSessionsTable({
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-sf-muted">
-                {formatDate(session.created_at)}
+                {formatAdminDate(session.created_at, locale)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-sf-muted">
-                {formatDate(session.expires_at)}
+                {formatAdminDate(session.expires_at, locale)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 {session.status === 'pending' && (
