@@ -12,9 +12,11 @@ const clone = () => structuredClone(D_CONFIG);
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
 
 describe('storefront schema corpus', () => {
-  it('keeps generated draft 2020-12 schema synchronized', () => {
+  it('keeps the generated SQL subset synchronized, excluding dialect metadata', () => {
     const migration = readFileSync('../supabase/migrations/20261016000000_release_2026_10_6.sql', 'utf8');
-    expect(migration).toContain(JSON.stringify(z.toJSONSchema(configSchema)).replaceAll("'", "''"));
+    const { $schema, ...expected } = z.toJSONSchema(configSchema);
+    expect($schema).toBe('https://json-schema.org/draft/2020-12/schema');
+    expect(migration).toContain(JSON.stringify(expected).replaceAll("'", "''"));
   });
 
   it('agrees across structural validators for complete configs and partial tokens', () => {

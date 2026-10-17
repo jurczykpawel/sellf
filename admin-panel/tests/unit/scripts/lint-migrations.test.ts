@@ -90,6 +90,10 @@ describe('lintSqlForTopLevelTransaction', () => {
 });
 
 describe('lintSqlForUnqualifiedCreate', () => {
+  it('flags CREATE STATISTICS: the parent table does not supply its schema', () => {
+    expect(lintSqlForUnqualifiedCreate('CREATE STATISTICS catalogue_names ON (normalize(name,NFC)) FROM public.products;')).toEqual(['STATISTICS catalogue_names']);
+    expect(lintSqlForUnqualifiedCreate('CREATE STATISTICS public.catalogue_names ON (normalize(name,NFC)) FROM public.products;')).toEqual([]);
+  });
   it('flags CREATE FUNCTION without schema prefix', () => {
     const sql = `CREATE OR REPLACE FUNCTION check_rate_limit(p text) RETURNS boolean AS $$ SELECT true $$ LANGUAGE sql;`;
     expect(lintSqlForUnqualifiedCreate(sql)).toEqual(['FUNCTION check_rate_limit']);

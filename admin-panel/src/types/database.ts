@@ -4431,6 +4431,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      jsonschema_subset_matches: {
+        Args: { instance: Json; schema: Json }
+        Returns: boolean
+      }
+      jsonschema_subset_pattern: { Args: { pattern: string }; Returns: string }
+      jsonschema_subset_walk: {
+        Args: { budget: number; depth: number; instance: Json; schema: Json }
+        Returns: {
+          remaining: number
+          valid: boolean
+        }[]
+      }
       log_admin_action: {
         Args: {
           action_details?: Json
@@ -4591,6 +4603,7 @@ export type Database = {
         }
         Returns: Json
       }
+      product_marketing_valid: { Args: { instance: Json }; Returns: boolean }
       queue_pending_free_grant: {
         Args: { p_email: string; p_product_slug: string }
         Returns: boolean
