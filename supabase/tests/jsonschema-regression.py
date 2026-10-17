@@ -13,6 +13,7 @@ harness, using supabase_admin; neither the RPC nor its owner gets superuser.
 All commands are guarded against the shared project. Credentials are not logged.
 """
 import argparse
+import concurrent.futures
 import copy
 import hashlib
 import json
@@ -170,6 +171,75 @@ def example(schema, full=False):
     return {'number': 1, 'integer': 1, 'boolean': True, 'null': None}.get(kind)
 
 
+def comparison_sql(cases):
+    compare = ["CREATE TEMP TABLE compared(label text,schema_id int,instance jsonb,expected boolean,actual boolean,reference boolean); CREATE TEMP TABLE totals(cases int, valid int, invalid int);"]
+    # Keep every corpus member and every assertion. Batches retain a strict
+    # statement timeout, fail on the first mismatch and bound temporary storage.
+    for first in range(1, cases + 1, 1000):
+        last = min(first + 999, cases)
+        compare.append(f"""
+INSERT INTO compared SELECT label,schema_id,instance,expected,
+ public.jsonschema_subset_matches(schema,instance),
+ extensions.jsonb_matches_schema(schema,instance)
+FROM parity JOIN schemas ON schemas.id=parity.schema_id WHERE parity.id BETWEEN {first} AND {last};
+DO $$ DECLARE mismatch record; BEGIN
+ SELECT compared.*,schema INTO mismatch FROM compared JOIN schemas ON schemas.id=compared.schema_id
+ WHERE actual IS DISTINCT FROM reference OR (expected IS NOT NULL AND actual IS DISTINCT FROM expected) LIMIT 1;
+ IF FOUND THEN RAISE EXCEPTION 'PARITY MISMATCH: %',row_to_json(mismatch); END IF;
+END; $$;
+INSERT INTO totals SELECT count(*),count(*) FILTER(WHERE actual),count(*) FILTER(WHERE NOT actual) FROM compared;
+TRUNCATE compared;
+\\echo Compared {last}/{cases} cases
+""")
+    compare.append("""
+DO $$ BEGIN
+ IF (SELECT sum(valid)=0 OR sum(invalid)=0 FROM totals) THEN RAISE EXCEPTION 'Missing positive/negative coverage'; END IF;
+END; $$;
+SELECT json_build_object('cases',sum(cases),'valid',sum(valid),'invalid',sum(invalid)) FROM totals;
+ROLLBACK;
+""")
+    return '\n'.join(compare)
+
+
+def compare_corpus(corpus, cases):
+    # Independent TEST-only sessions use private temp tables and compare every
+    # original row once. No weaker corpus, timeout or assertion is substituted.
+    workers = 12 if PHASE2 else 1
+    paths = [WORK / f'parity-worker-{i}.sql' for i in range(workers)]
+    scripts = [path.open('w') for path in paths]
+    counts = [0] * workers
+    seen = 0
+    try:
+        with corpus.open() as source:
+            for line in source:
+                if line.startswith('BEGIN;') or line.startswith('INSERT INTO schemas '):
+                    for script in scripts:
+                        script.write(line)
+                elif line.startswith('INSERT INTO parity('):
+                    worker = seen % workers
+                    scripts[worker].write(line)
+                    counts[worker] += 1
+                    seen += 1
+        assert seen == cases and sum(counts) == cases, (seen, cases, counts)
+        for script, count in zip(scripts, counts):
+            script.write(comparison_sql(count))
+    finally:
+        for script in scripts:
+            script.close()
+    totals = dict(cases=0, valid=0, invalid=0)
+
+    def compare(worker):
+        output = sql(paths[worker], progress=WORK / f'parity-progress-{worker}.log')
+        return json.loads(output.splitlines()[-2])
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+        for result in pool.map(compare, range(workers)):
+            for key in totals:
+                totals[key] += result[key]
+    assert totals['cases'] == cases and totals['valid'] + totals['invalid'] == cases, totals
+    return totals
+
+
 def parity():
     check_stack()
     # This is the sole extension installation in the TEST harness, after RPC proof.
@@ -294,37 +364,11 @@ def parity():
                            ({'required': ['missing']}, [{}, None, 1])]:
         for value in values:
             add('keyword semantics', schema, value)
-    compare = ["CREATE TEMP TABLE compared(label text,schema_id int,instance jsonb,expected boolean,actual boolean,reference boolean); CREATE TEMP TABLE totals(cases int, valid int, invalid int);"]
-    # Keep every corpus member and every assertion. Batches retain a strict
-    # statement timeout, fail on the first mismatch and bound temporary storage.
-    for first in range(1, cases + 1, 1000):
-        last = min(first + 999, cases)
-        compare.append(f"""
-INSERT INTO compared SELECT label,schema_id,instance,expected,
- public.jsonschema_subset_matches(schema,instance),
- extensions.jsonb_matches_schema(schema,instance)
-FROM parity JOIN schemas ON schemas.id=parity.schema_id WHERE parity.id BETWEEN {first} AND {last};
-DO $$ DECLARE mismatch record; BEGIN
- SELECT compared.*,schema INTO mismatch FROM compared JOIN schemas ON schemas.id=compared.schema_id
- WHERE actual IS DISTINCT FROM reference OR (expected IS NOT NULL AND actual IS DISTINCT FROM expected) LIMIT 1;
- IF FOUND THEN RAISE EXCEPTION 'PARITY MISMATCH: %',row_to_json(mismatch); END IF;
-END; $$;
-INSERT INTO totals SELECT count(*),count(*) FILTER(WHERE actual),count(*) FILTER(WHERE NOT actual) FROM compared;
-TRUNCATE compared;
-\\echo Compared {last}/{cases} cases
-""")
-    compare.append("""
-DO $$ BEGIN
- IF (SELECT sum(valid)=0 OR sum(invalid)=0 FROM totals) THEN RAISE EXCEPTION 'Missing positive/negative coverage'; END IF;
-END; $$;
-SELECT json_build_object('cases',sum(cases),'valid',sum(valid),'invalid',sum(invalid)) FROM totals;
-ROLLBACK;
-""")
     print(f'Comparing {cases} cases over {len(identifiers)} schemas', flush=True)
-    script.write('\n'.join(compare))
+    script.write(comparison_sql(cases))
     script.close()
-    output = sql(corpus, progress=WORK / 'parity-progress.log')
-    print('PASS parity:', output.splitlines()[-2], f'; all {len(patterns)} emitted patterns, {len(schemas)} complete wire schemas, Unicode/newline/escape adversaries')
+    totals = compare_corpus(corpus, cases)
+    print('PASS parity:', json.dumps(totals), f'; all {len(patterns)} emitted patterns, {len(schemas)} complete wire schemas, Unicode/newline/escape adversaries')
 
 
 

@@ -1,6 +1,5 @@
 /** Offer snapshot reads. @see supabase/tests/product-offers.sql */
 import { readFileSync } from 'node:fs';
-import { toSqlSchema } from '../../../scripts/storefront-schema-subset';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { CORE_TOKENS } from '@/lib/storefront-templates/public-theme';
 import { readPublishedOffer, readOfferConfig, readOfferHistory } from '@/lib/storefront-templates/offer-repository';
@@ -8,6 +7,7 @@ import { offerConfigSchema, validatePhase2 } from '@/lib/storefront-templates/ph
 import { storedJsonBytes } from '@/lib/storefront-templates/json';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
+import { toSqlSchema } from '../../../scripts/storefront-schema-subset';
 const license = vi.hoisted(() => ({ allowed: vi.fn() }));
 vi.mock('@/lib/license/public-snapshot', () => ({ checkPublicFeature: license.allowed }));
 const id = '11111111-1111-4111-a111-111111111111';
