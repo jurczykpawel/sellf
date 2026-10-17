@@ -5,6 +5,7 @@ import { generateKeyPairSync, createSign, randomBytes } from 'node:crypto';
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { cpus, loadavg, totalmem } from 'node:os';
+import { createConnection } from 'node:net';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -35,10 +36,11 @@ const sql = text => command('docker', ['exec', '-i', container, 'psql', '-U', 'p
 const adminSql = text => command('docker', ['exec', '-e', 'PGPASSWORD=postgres', '-i', container, 'psql', '-U', 'supabase_admin', '-d', 'postgres', '-XAt', '-v', 'ON_ERROR_STOP=1'], { input: text });
 async function run(name, args, env, log) {
   const child = spawn(name, args, { cwd: admin, env, stdio: ['ignore', 'pipe', 'pipe'] });
-  let output = '';
-  child.stdout.on('data', chunk => { output += chunk; });
-  child.stderr.on('data', chunk => { output += chunk; });
-  const code = await new Promise(accept => child.on('exit', accept));
+  let stdout = ''; let stderr = '';
+  child.stdout.on('data', chunk => { stdout += chunk; });
+  child.stderr.on('data', chunk => { stderr += chunk; });
+  const code = await new Promise(accept => child.on('close', accept));
+  const output = stdout + '\n' + stderr;
   await writeFile(resolve(out, log), output);
   assert.equal(code, 0, `${name}: see ${log}`);
   return output;
@@ -69,7 +71,13 @@ async function startApp(env) {
   app.stdout.on('data', chunk => { output += chunk; }); app.stderr.on('data', chunk => { output += chunk; });
   const deadline = Date.now() + 30_000;
   while (true) {
-    try { if ((await fetch(`${origin}/api/health`, { signal: AbortSignal.timeout(1000) })).ok) break; } catch { /* starting */ }
+    const ready = await new Promise(accept => {
+      const socket = createConnection({ host: 'localhost', port: 55325 });
+      const finish = value => { socket.destroy(); accept(value); };
+      socket.once('connect', () => finish(true)); socket.once('error', () => finish(false));
+      socket.setTimeout(1000, () => finish(false));
+    });
+    if (ready) break;
     if (app.exitCode !== null || Date.now() > deadline) throw new Error(output);
     await sleep(100);
   }
