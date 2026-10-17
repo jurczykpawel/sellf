@@ -5,7 +5,7 @@ import { expect } from '@playwright/test';
 import type { Page, Response } from '@playwright/test';
 
 export async function startNativeCheckout(page: Page): Promise<Response> {
-  const start = page.getByRole('button', { name: /^(Pay|Zapłać|Subscribe|Subskrybuj)\s/ });
+  const start = page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ });
   await expect(start).toBeVisible();
   await expect(start).toBeEnabled();
   const [response] = await Promise.all([

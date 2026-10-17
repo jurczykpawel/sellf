@@ -54,7 +54,7 @@ async function expectPurchaseView(page: Page, product: { slug: string; name: str
   await expect(page).toHaveURL(new RegExp(`/p/${product.slug}$`));
   await expect(page.getByRole('heading', { name: product.name, exact: true })).toBeVisible();
   await expect(page.locator('input#fullName')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /^(Pay|Zapłać)\s/ })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ })).toBeEnabled();
   await startNativeCheckout(page);
   await expect(page.locator('input#fullName')).toBeVisible();
   await expect(page.getByText(/^(Access Granted|Dostęp przyznany)$/i)).not.toBeVisible();
