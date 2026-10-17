@@ -43,9 +43,9 @@ describe('auth callback pending free grants', () => {
   afterEach(() => vi.unstubAllEnvs());
   beforeEach(() => {
     vi.stubEnv('DEMO_MODE', 'false');
-    process.env.SITE_URL = 'https://shop.example.com';
-    process.env.SUPABASE_URL = 'http://127.0.0.1:54321';
-    process.env.SUPABASE_ANON_KEY = 'anon';
+    vi.stubEnv('SITE_URL', 'https://shop.example.com');
+    vi.stubEnv('SUPABASE_URL', 'http://127.0.0.1:54321');
+    vi.stubEnv('SUPABASE_ANON_KEY', 'anon');
     claimPendingFreeGrants.mockReset();
     claimPendingFreeGrants.mockResolvedValue(1);
     verifyOtp.mockReset();
@@ -94,6 +94,37 @@ describe('auth callback pending free grants', () => {
     rpc.mockResolvedValueOnce({ data: true });
     const response = await callback('redirect_to=%2Fother&type=magiclink&token_hash=abc');
     expect(response.headers.get('location')).toBe('https://shop.example.com/dashboard');
+  });
+
+  it.each(['/pl/affiliates/apply', '/en/affiliates/apply'])('retains the parsed OAuth return cookie %s', async path => {
+    exchangeCodeForSession.mockResolvedValue({ data: { session: { user: USER } }, error: null });
+    const response = await GET(new NextRequest('https://shop.example.com/auth/callback?code=local-code', { headers: { cookie: `sf_oauth_redirect=${encodeURIComponent(path)}` } }));
+    expect(response.headers.get('location')).toBe(`https://shop.example.com${path}`);
+    expect(response.cookies.get('sf_oauth_redirect')?.value).toBe('');
+  });
+
+  it('retains the complete nested query in the parsed OAuth return cookie', async () => {
+    exchangeCodeForSession.mockResolvedValue({ data: { session: { user: USER } }, error: null });
+    const link = new URL(buildFreeProductMagicLinkRedirect({ origin: 'https://shop.example.com', productSlug: 'course', locale: 'pl', successUrl: '/thanks?a=1&b=2' }));
+    const path = link.searchParams.get('redirect_to')!;
+    const response = await GET(new NextRequest('https://shop.example.com/auth/callback?code=local-code', { headers: { cookie: `sf_oauth_redirect=${encodeURIComponent(path)}` } }));
+    expect(response.headers.get('location')).toBe(`https://shop.example.com${path}`);
+    expect(new URL(response.headers.get('location')!).searchParams.get('success_url')).toBe('/thanks?a=1&b=2');
+    expect(claimPendingFreeGrants).toHaveBeenCalledWith(expect.objectContaining({ skipSlug: 'course' }));
+    expect(response.cookies.get('sf_oauth_redirect')?.value).toBe('');
+  });
+
+  it('uses the account default for a noncanonical parsed OAuth cookie', async () => {
+    exchangeCodeForSession.mockResolvedValue({ data: { session: { user: USER } }, error: null });
+    const value = encodeURIComponent('/pl/affiliates/apply');
+    const response = await GET(new NextRequest('https://shop.example.com/auth/callback?code=local-code', { headers: { cookie: `sf_oauth_redirect=${encodeURIComponent(value)}` } }));
+    expect(response.headers.get('location')).toBe('https://shop.example.com/my-products');
+  });
+
+  it.each(['', '/other'])('uses the account default for explicit unsupported arrival %j even with an OAuth cookie', async path => {
+    exchangeCodeForSession.mockResolvedValue({ data: { session: { user: USER } }, error: null });
+    const response = await GET(new NextRequest(`https://shop.example.com/auth/callback?code=local-code&redirect_to=${encodeURIComponent(path)}`, { headers: { cookie: `sf_oauth_redirect=${encodeURIComponent('/pl/affiliates/apply')}` } }));
+    expect(response.headers.get('location')).toBe('https://shop.example.com/my-products');
   });
 
   it('does not claim when the sign-in failed', async () => {
