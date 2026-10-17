@@ -342,3 +342,9 @@ without creating a session until the buyer continues. Confirmation redirects
 keep the active session. Natural expiration does the same reconciliation via
 this Stripe event. Completed transactions remain unchanged, and repeated events
 are safe to process. Failed reconciliation returns HTTP 500 so Stripe can retry.
+
+If the browser closes before a session-creation response arrives, it cannot send
+a later close request, even when creation uses `keepalive`. Keep the expiration
+event enabled to reconcile these attempts. While the page remains alive, queued
+closure waits for creation to finish. Sellf also retains sessions whose
+PaymentIntent is processing, awaiting capture or additional action, or succeeded.

@@ -14,7 +14,7 @@ afterEach(() => {
   else process.env.CHECKOUT_BINDING_SECRET = savedSecret;
 });
 
-function fixtures(status = 'open', rowStatus = 'pending') {
+function fixtures(status = 'open', rowStatus = 'pending', paymentStatus?: Stripe.PaymentIntent.Status) {
   const row = { session_id: 'cs_test_first', status: rowStatus };
   const update = vi.fn((values: { status: string }) => {
     const filters: Record<string, string> = {};
@@ -30,11 +30,12 @@ function fixtures(status = 'open', rowStatus = 'pending') {
   const from = vi.fn(() => ({ update }));
   const stripe = {
     checkout: { sessions: {
-      retrieve: vi.fn(async () => ({ id: row.session_id, status, metadata: { product_id: 'product', user_id: '' } })),
+      retrieve: vi.fn(async () => ({ id: row.session_id, status, payment_intent: paymentStatus ? 'pi_test_first' : null, metadata: { product_id: 'product', user_id: '' } })),
       expire: vi.fn(async () => ({ id: row.session_id, status: 'expired' })),
     } },
+    paymentIntents: { retrieve: vi.fn(async () => ({ id: 'pi_test_first', status: paymentStatus })) },
   };
-  return { row, update, from, db: { from } as unknown as ReturnType<typeof createAdminClient>, stripe: stripe as unknown as Stripe, sessions: stripe.checkout.sessions };
+  return { row, update, from, db: { from } as unknown as ReturnType<typeof createAdminClient>, stripe: stripe as unknown as Stripe, sessions: stripe.checkout.sessions, intents: stripe.paymentIntents };
 }
 function input(token?: string) {
   return {
@@ -44,6 +45,28 @@ function input(token?: string) {
 }
 
 describe('checkout expiration', () => {
+  it.each(['processing', 'requires_capture', 'requires_action', 'succeeded'] as const)('retains a session whose PaymentIntent is %s', async status => {
+    const f = fixtures('open', 'pending', status);
+    expect(await expireBoundCheckoutSession(f.stripe, f.db, input())).toEqual({ success: true });
+    expect(f.intents.retrieve).toHaveBeenCalledWith('pi_test_first');
+    expect(f.sessions.expire).not.toHaveBeenCalled();
+    expect(f.update).not.toHaveBeenCalled();
+    expect(f.row.status).toBe('pending');
+  });
+  it.each(['requires_payment_method', 'requires_confirmation', 'canceled'] as const)('closes an unpaid session whose PaymentIntent is %s', async status => {
+    const f = fixtures('open', 'pending', status);
+    expect(await expireBoundCheckoutSession(f.stripe, f.db, input())).toEqual({ success: true });
+    expect(f.intents.retrieve).toHaveBeenCalledWith('pi_test_first');
+    expect(f.sessions.expire).toHaveBeenCalledWith('cs_test_first');
+    expect(f.row.status).toBe('abandoned');
+  });
+  it('leaves a pending session intact when the PaymentIntent cannot be read', async () => {
+    const f = fixtures('open', 'pending', 'processing');
+    f.intents.retrieve.mockRejectedValueOnce(new Error('temporary'));
+    expect((await expireBoundCheckoutSession(f.stripe, f.db, input())).success).toBe(false);
+    expect(f.sessions.expire).not.toHaveBeenCalled();
+    expect(f.update).not.toHaveBeenCalled();
+  });
   it('expires a bound open session and abandons its pending transaction', async () => {
     const f = fixtures();
     expect(await expireBoundCheckoutSession(f.stripe, f.db, input())).toEqual({ success: true });

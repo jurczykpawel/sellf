@@ -81,7 +81,17 @@ for (const locale of ['en', 'pl']) for (const outcome of ['leave', 'redirect', '
       await expect(page.locator('button[type="submit"]')).toBeVisible();
       await expect(page.getByTestId('payment-fields')).toHaveCount(0);
       expect(attempts).toHaveLength(2);
-    } else expect(attempts.filter(attempt => attempt.expireOnly)).toEqual([]);
+    } else {
+      expect(attempts.filter(attempt => attempt.expireOnly)).toEqual([]);
+      await page.goBack();
+      await expect(page.locator('button[type="submit"]')).toHaveText(locale === 'pl' ? 'Przejdź do płatności' : 'Continue to payment');
+      await expect(page.getByTestId('payment-fields')).toHaveCount(0);
+      const retiredBeforeNewAttempt = attempts.filter(attempt => attempt.expireOnly).length;
+      await continueButton.click();
+      await expect(page.getByTestId('payment-fields')).toBeVisible();
+      await page.getByRole('link', { name: 'Leave checkout' }).click();
+      await expect.poll(() => attempts.filter(attempt => attempt.expireOnly)).toHaveLength(retiredBeforeNewAttempt + 1);
+    }
     expect(errors).toEqual([]);
   });
 }

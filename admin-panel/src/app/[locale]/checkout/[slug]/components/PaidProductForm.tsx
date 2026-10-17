@@ -110,7 +110,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       if (!confirmationPending.current) sessionQueue.update(null);
     };
     const handlePageShow = (event: PageTransitionEvent) => {
-      if (event.persisted && !confirmationPending.current) {
+      if (event.persisted) {
+        confirmationPending.current = false;
         checkoutTrackingFired.current = false;
         setPurchaseStarted(false);
         setClientSecret(null);

@@ -113,3 +113,10 @@ potwierdzania płatności zachowuje aktywną sesję. Naturalne wygaśnięcie uru
 zmianę przez zdarzenie Stripe. Zakończone transakcje pozostają bez zmian,
 a powtórne zdarzenia można obsłużyć ponownie. Błąd zapisu zwraca HTTP 500, aby
 Stripe ponowił dostawę.
+
+Jeśli przeglądarka zamknie stronę przed otrzymaniem odpowiedzi tworzącej sesję,
+nie może później wysłać żądania jej zamknięcia — nawet z opcją `keepalive`.
+Zdarzenie wygaśnięcia musi być włączone, aby rozliczyć takie próby. Gdy strona
+nadal działa, kolejka czeka z zamknięciem na zakończenie tworzenia sesji. Sellf
+zachowuje też sesje, których PaymentIntent jest przetwarzany, czeka na pobranie
+środków lub dodatkowe działanie klienta albo zakończył się powodzeniem.

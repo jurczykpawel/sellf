@@ -37,13 +37,47 @@ export interface SecurityAuditResult {
 const CACHE_TTL_ISSUES_MS = 1 * 60 * 60 * 1000;  // 1 hour
 const CACHE_TTL_CLEAN_MS = 24 * 60 * 60 * 1000;   // 24 hours
 type AuditTranslator = (key: string, values?: Record<string, string | number>) => string;
-const cachedAudits = new Map<string, { result: SecurityAuditResult; cachedAt: number }>();
+type AuditMessageKey = keyof typeof en.securityAudit.checks;
+interface AuditMessage {
+  key: AuditMessageKey;
+  values?: Record<string, string | number | AuditMessage>;
+}
+type AuditMessageFactory = (key: AuditMessageKey, values?: AuditMessage['values']) => AuditMessage;
+interface RawSecurityCheckResult extends Omit<SecurityCheckResult, 'name' | 'message' | 'fix' | 'steps'> {
+  name: AuditMessage;
+  message: AuditMessage;
+  fix?: AuditMessage;
+  steps?: AuditMessage[];
+}
+interface RawSecurityAuditResult extends Omit<SecurityAuditResult, 'checks' | 'error'> {
+  checks: RawSecurityCheckResult[];
+  error?: AuditMessage;
+}
+let cachedAudit: { result: RawSecurityAuditResult; cachedAt: number } | undefined;
 
 function getAuditTranslator(locale: string): AuditTranslator {
   return createTranslator({ locale, messages: (locale === 'pl' ? pl : en).securityAudit.checks as Record<string, string> });
 }
 
-function getCacheTtl(result: SecurityAuditResult): number {
+function translateAudit(result: RawSecurityAuditResult, locale: string): SecurityAuditResult {
+  const t = getAuditTranslator(locale);
+  const translate = (message: AuditMessage): string => t(message.key, message.values && Object.fromEntries(
+    Object.entries(message.values).map(([key, value]) => [key, typeof value === 'object' ? translate(value) : value]),
+  ));
+  return {
+    ...result,
+    checks: result.checks.map(check => ({
+      ...check,
+      name: translate(check.name),
+      message: translate(check.message),
+      fix: check.fix && translate(check.fix),
+      steps: check.steps?.map(translate),
+    })),
+    error: result.error && translate(result.error),
+  };
+}
+
+function getCacheTtl(result: RawSecurityAuditResult): number {
   // Info entries are read-only summaries (e.g., active license tier, Stripe mode);
   // they should not shorten the cache window. Only real warnings / failures do.
   const hasIssues = result.checks.some((c) => c.status === 'warn' || c.status === 'fail');
@@ -57,12 +91,12 @@ function getCacheTtl(result: SecurityAuditResult): number {
 export async function getSecurityAudit(locale = 'en'): Promise<SecurityAuditResult> {
   locale = locale === 'pl' ? 'pl' : 'en';
   const result = await withAdminClient(async () => {
-    const cached = cachedAudits.get(locale);
+    const cached = cachedAudit;
     if (cached && (Date.now() - cached.cachedAt) < getCacheTtl(cached.result)) {
       return { success: true as const, data: cached.result };
     }
 
-    const audit = await executeAudit(locale);
+    const audit = await executeAudit();
     return { success: true as const, data: audit };
   });
 
@@ -70,7 +104,7 @@ export async function getSecurityAudit(locale = 'en'): Promise<SecurityAuditResu
     return { success: false, checks: [], timestamp: new Date().toISOString(), error: getAuditTranslator(locale)(result.errorCode === 'FORBIDDEN' ? 'forbidden' : result.errorCode === 'UNAUTHORIZED' ? 'unauthorized' : 'requestFailed') };
   }
 
-  return result.data!;
+  return translateAudit(result.data!, locale);
 }
 
 /**
@@ -79,7 +113,7 @@ export async function getSecurityAudit(locale = 'en'): Promise<SecurityAuditResu
 export async function runSecurityAudit(locale = 'en'): Promise<SecurityAuditResult> {
   locale = locale === 'pl' ? 'pl' : 'en';
   const result = await withAdminClient(async () => {
-    const audit = await executeAudit(locale);
+    const audit = await executeAudit();
     return { success: true as const, data: audit };
   });
 
@@ -87,11 +121,11 @@ export async function runSecurityAudit(locale = 'en'): Promise<SecurityAuditResu
     return { success: false, checks: [], timestamp: new Date().toISOString(), error: getAuditTranslator(locale)(result.errorCode === 'FORBIDDEN' ? 'forbidden' : result.errorCode === 'UNAUTHORIZED' ? 'unauthorized' : 'requestFailed') };
   }
 
-  return result.data!;
+  return translateAudit(result.data!, locale);
 }
 
-async function executeAudit(locale: string): Promise<SecurityAuditResult> {
-  const t = getAuditTranslator(locale);
+async function executeAudit(): Promise<RawSecurityAuditResult> {
+  const t: AuditMessageFactory = (key, values) => ({ key, values });
   const supabaseUrl = getRuntimeSupabaseUrl();
   const anonKey = getRuntimeSupabaseAnonKey();
 
@@ -104,7 +138,7 @@ async function executeAudit(locale: string): Promise<SecurityAuditResult> {
   // Define all checks with scope
   interface ScopedCheck {
     scope: 'platform' | 'shop';
-    check: () => Promise<SecurityCheckResult>;
+    check: () => Promise<RawSecurityCheckResult>;
   }
 
   const allChecks: ScopedCheck[] = [
@@ -134,7 +168,7 @@ async function executeAudit(locale: string): Promise<SecurityAuditResult> {
 
   const results = await Promise.allSettled(checksToRun.map(c => c.check()));
 
-  const checks: SecurityCheckResult[] = [];
+  const checks: RawSecurityCheckResult[] = [];
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
     if (result.status === 'fulfilled') {
@@ -142,14 +176,14 @@ async function executeAudit(locale: string): Promise<SecurityAuditResult> {
     }
   }
 
-  const audit: SecurityAuditResult = { success: true, checks, timestamp: new Date().toISOString() };
+  const audit: RawSecurityAuditResult = { success: true, checks, timestamp: new Date().toISOString() };
 
-  cachedAudits.set(locale, { result: audit, cachedAt: Date.now() });
+  cachedAudit = { result: audit, cachedAt: Date.now() };
 
   return audit;
 }
 
-async function checkGraphQLIntrospection(url: string, key: string, t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkGraphQLIntrospection(url: string, key: string, t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   try {
     const res = await fetch(`${url}/graphql/v1`, {
       method: 'POST',
@@ -182,7 +216,7 @@ async function checkGraphQLIntrospection(url: string, key: string, t: AuditTrans
   }
 }
 
-async function checkMCPEndpoint(url: string, key: string, t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkMCPEndpoint(url: string, key: string, t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   try {
     const res = await fetch(`${url}/mcp`, {
       method: 'POST',
@@ -214,7 +248,7 @@ async function checkMCPEndpoint(url: string, key: string, t: AuditTranslator): P
   }
 }
 
-async function checkServerHeaders(url: string, key: string, t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkServerHeaders(url: string, key: string, t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   try {
     const res = await fetch(`${url}/rest/v1/`, { headers: { 'apikey': key } });
     const server = res.headers.get('server');
@@ -265,7 +299,7 @@ async function checkServerHeaders(url: string, key: string, t: AuditTranslator):
   }
 }
 
-async function checkEmailAutoconfirm(url: string, key: string, t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkEmailAutoconfirm(url: string, key: string, t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   try {
     const res = await fetch(`${url}/auth/v1/settings`, { headers: { 'apikey': key } });
     if (!res.ok) {
@@ -300,7 +334,7 @@ async function checkEmailAutoconfirm(url: string, key: string, t: AuditTranslato
   }
 }
 
-async function checkProductCountLeak(url: string, key: string, t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkProductCountLeak(url: string, key: string, t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   try {
     const res = await fetch(`${url}/rest/v1/products?select=id&limit=0`, {
       headers: { 'apikey': key, 'Prefer': 'count=exact' },
@@ -330,7 +364,7 @@ async function checkProductCountLeak(url: string, key: string, t: AuditTranslato
   }
 }
 
-async function checkRPCFunctionHints(url: string, key: string, t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkRPCFunctionHints(url: string, key: string, t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   try {
     const res = await fetch(`${url}/rest/v1/rpc/nonexistent_function_xyz`, {
       method: 'POST',
@@ -364,7 +398,7 @@ async function checkRPCFunctionHints(url: string, key: string, t: AuditTranslato
 
 // ===== Sellf App Configuration Checks =====
 
-async function checkHttpsRedirect(siteUrl: string, t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkHttpsRedirect(siteUrl: string, t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   if (!siteUrl || !siteUrl.startsWith('https://')) {
     return { id: 'https-redirect', name: t('httpsRedirectName'), status: 'warn', message: t('httpsRedirectMessage'), fix: t('httpsRedirectFix') };
   }
@@ -394,7 +428,7 @@ async function checkHttpsRedirect(siteUrl: string, t: AuditTranslator): Promise<
   }
 }
 
-async function checkHstsHeader(siteUrl: string, t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkHstsHeader(siteUrl: string, t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   if (!siteUrl) {
     return { id: 'hsts', name: t('hstsHeaderName'), status: 'warn', message: t('hstsHeaderMessage'), fix: t('hstsHeaderFix') };
   }
@@ -425,7 +459,7 @@ async function checkHstsHeader(siteUrl: string, t: AuditTranslator): Promise<Sec
   }
 }
 
-async function checkAppUrl(t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkAppUrl(t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   const siteUrl = getCanonicalOriginOrNull() || '';
   const sourceVar = 'SITE_URL';
   const isLocalhost = !siteUrl || siteUrl.includes('localhost') || siteUrl.includes('127.0.0.1');
@@ -445,7 +479,7 @@ async function checkAppUrl(t: AuditTranslator): Promise<SecurityCheckResult> {
 
 // ===== Environment Variable Checks =====
 
-async function checkAppEncryptionKey(t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkAppEncryptionKey(t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   const key = process.env.APP_ENCRYPTION_KEY || process.env.STRIPE_ENCRYPTION_KEY;
 
   if (!key) {
@@ -487,7 +521,7 @@ async function checkAppEncryptionKey(t: AuditTranslator): Promise<SecurityCheckR
   };
 }
 
-async function checkCaptcha(t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkCaptcha(t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   const turnstileSiteKey = process.env.CLOUDFLARE_TURNSTILE_SITE_KEY || process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY;
   const turnstileSecretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
   const altchaKey = process.env.ALTCHA_HMAC_KEY;
@@ -545,7 +579,7 @@ async function checkCaptcha(t: AuditTranslator): Promise<SecurityCheckResult> {
   };
 }
 
-async function checkTrustedProxy(t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkTrustedProxy(t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   const inProduction = process.env.NODE_ENV === 'production';
   const trusted = process.env.TRUSTED_PROXY === 'true';
 
@@ -591,7 +625,7 @@ function parseDomainList(raw: string | undefined): string[] {
     .filter(Boolean);
 }
 
-async function checkTrustedDownloadDomains(t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkTrustedDownloadDomains(t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   const domains = parseDomainList(process.env.NEXT_PUBLIC_SELLF_ALLOWED_DOWNLOAD_DOMAINS);
 
   if (domains.length === 0) {
@@ -611,7 +645,7 @@ async function checkTrustedDownloadDomains(t: AuditTranslator): Promise<Security
   };
 }
 
-async function checkAllowedEmbedOrigins(t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkAllowedEmbedOrigins(t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   const origins = parseDomainList(process.env.SELLF_EMBED_ALLOWED_ORIGINS);
 
   if (origins.length === 0) {
@@ -631,7 +665,7 @@ async function checkAllowedEmbedOrigins(t: AuditTranslator): Promise<SecurityChe
   };
 }
 
-async function checkStripeMode(t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkStripeMode(t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   const envKey = process.env.STRIPE_SECRET_KEY;
   const inProduction = process.env.NODE_ENV === 'production';
 
@@ -698,7 +732,7 @@ async function checkStripeMode(t: AuditTranslator): Promise<SecurityCheckResult>
   }
 }
 
-async function checkCronSecret(t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkCronSecret(t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   const secret = process.env.CRON_SECRET;
 
   if (!secret) {
@@ -729,7 +763,7 @@ async function checkCronSecret(t: AuditTranslator): Promise<SecurityCheckResult>
   };
 }
 
-async function checkStripeWebhookSecret(t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkStripeWebhookSecret(t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   const { getStripeWebhookSecretStatus } = await import('@/lib/stripe/internal-config');
   const status = await getStripeWebhookSecretStatus();
 
@@ -786,7 +820,7 @@ async function checkStripeWebhookSecret(t: AuditTranslator): Promise<SecurityChe
   };
 }
 
-async function checkCookieSecure(siteUrl: string, t: AuditTranslator): Promise<SecurityCheckResult> {
+async function checkCookieSecure(siteUrl: string, t: AuditMessageFactory): Promise<RawSecurityCheckResult> {
   if (!siteUrl) {
     return { id: 'cookie-secure', name: t('cookieSecureName'), status: 'warn', message: t('cookieSecureMessage'), fix: t('cookieSecureFix') };
   }

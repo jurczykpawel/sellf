@@ -105,6 +105,32 @@ it('preserves confirmation redirects and restores departure cleanup after a fail
   await waitFor(() => expect(expirations()).toHaveLength(1));
 });
 
+it('resets the first step after returning to a cached page from confirmation', async () => {
+  mocks.fetch.mockImplementation(async url => ({ ok: true, json: async () => url === '/api/validate-email'
+    ? { success: true, data: { isValid: true } }
+    : { clientSecret: 'cs_test_first_secret_value', checkoutSessionId: 'cs_test_first', bindingToken: 'binding-first' } }));
+  mocks.confirm.mockImplementation(() => new Promise(() => {}));
+  vi.stubGlobal('fetch', mocks.fetch);
+  render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, {
+    product: { id: 'test-product', name: 'Course', slug: 'course', price: 49, currency: 'PLN', vat_rate: 0 } as Product,
+    collectTermsOfService: false,
+  })));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to payment', exact: true }));
+  await waitFor(() => expect(screen.getByTestId('payment-fields')).toBeTruthy());
+  fireEvent.change(screen.getByRole('textbox', { name: 'Email', exact: true }), { target: { value: 'buyer@example.com' } });
+  fireEvent.click(screen.getByRole('button', { name: /Pay/ }));
+  await waitFor(() => expect(mocks.confirm).toHaveBeenCalledTimes(1));
+  await act(async () => { window.dispatchEvent(Object.assign(new Event('pagehide'), { persisted: true })); });
+  await act(async () => { window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true })); });
+  expect(screen.getByRole('button', { name: 'Continue to payment', exact: true })).toBeTruthy();
+  expect(screen.queryByTestId('payment-fields')).toBeNull();
+  await waitFor(() => expect(mocks.fetch.mock.calls.filter(([, options]) => JSON.parse(options.body).expireOnly)).toHaveLength(1));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to payment', exact: true }));
+  await waitFor(() => expect(screen.getByTestId('payment-fields')).toBeTruthy());
+  await act(async () => { window.dispatchEvent(Object.assign(new Event('pagehide'), { persisted: false })); });
+  await waitFor(() => expect(mocks.fetch.mock.calls.filter(([, options]) => JSON.parse(options.body).expireOnly)).toHaveLength(2));
+});
+
 it('keeps the order breakdown and decline action available before, during and after payment initialization', async () => {
   let finishRequest!: (value: unknown) => void;
   mocks.fetch.mockImplementation(() => new Promise(resolve => { finishRequest = resolve; }));

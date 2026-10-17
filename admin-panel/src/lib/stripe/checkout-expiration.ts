@@ -51,6 +51,13 @@ export async function expireBoundCheckoutSession(
       return { success: false, error: 'Invalid checkout binding', status: 403 };
     }
     if (session.status === 'complete') return { success: true };
+    if (session.payment_intent) {
+      const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent.id;
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      if (['processing', 'requires_capture', 'requires_action', 'succeeded'].includes(paymentIntent.status)) {
+        return { success: true };
+      }
+    }
     if (session.status === 'open') await stripe.checkout.sessions.expire(sessionId);
     return await abandonPendingCheckoutSession(supabase, sessionId);
   } catch (error) {

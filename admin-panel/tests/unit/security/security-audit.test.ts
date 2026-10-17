@@ -35,6 +35,19 @@ vi.mock('@/lib/supabase/server', () => ({
   }),
 }));
 
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: vi.fn(() => {
+    const query = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    return { from: vi.fn(() => query) };
+  }),
+}));
+
 // Must import after mocks
 const { getSecurityAudit, runSecurityAudit } = await import('@/lib/actions/security-audit');
 
