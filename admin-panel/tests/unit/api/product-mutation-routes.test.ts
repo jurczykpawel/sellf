@@ -20,7 +20,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.from.mockImplementation(() => {
     const query = {
-      select: vi.fn(() => query), eq: vi.fn(() => query), neq: vi.fn(() => query),
+      select: vi.fn(() => query), eq: vi.fn(() => query), neq: vi.fn(() => query), limit: vi.fn(() => query),
       insert: vi.fn(() => query), update: vi.fn(() => query), delete: vi.fn(() => query),
       maybeSingle: vi.fn(async () => ({ data: null, error: null })),
       single: vi.fn(async () => ({ data: product, error: null })),
