@@ -52,7 +52,7 @@ export default function AppearanceEditor({ config, dirty, blocked, onChange, onR
       </div>;
     });
   }
-  return <section aria-label={t('title')} className="min-w-0 space-y-5 rounded-2xl border border-sf-border bg-sf-base p-4 sm:p-6">
+  return <section id="appearance" tabIndex={-1} aria-label={t('title')} className="scroll-mt-36 min-w-0 space-y-5 rounded-2xl border border-sf-border bg-sf-base p-4 sm:p-6">
     <header className="flex gap-3 border-b border-sf-border pb-5"><Palette size={24} className="shrink-0 text-sf-accent" aria-hidden="true" /><div><h2 className="text-xl font-semibold">{t('title')}</h2><p className="mt-1 text-sm text-sf-muted">{t('intro')}</p></div></header>
     {draftActions}
     <p role="status" className={`rounded-lg p-3 text-sm ${failures.length ? 'bg-sf-warning-soft text-sf-warning' : 'bg-sf-raised text-sf-muted'}`}>{t(failures.length ? 'contrastBad' : 'contrastOk')}</p>

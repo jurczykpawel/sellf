@@ -3,13 +3,16 @@
 /** History/diff controls delegate every operation to the session lifecycle. */
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import ValidationIssues from '@/components/storefront-editor/ValidationIssues';
 import { storefrontTemplateAction } from '@/lib/actions/storefront-templates';
+import type { ValidationResult } from '@/lib/storefront-templates/json';
 import type { TemplateReadResult, TemplateDiffResult } from '@/lib/storefront-templates/lifecycle';
 import type { StorefrontHistorySnapshot } from '@/lib/storefront-templates/repository';
 import styles from './TemplateHistory.module.css';
 
 export default function TemplateHistory() {
   const t = useTranslations('templatePreview'); const locale = useLocale();
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [current, setCurrent] = useState<TemplateReadResult | null>(null);
   const [history, setHistory] = useState<StorefrontHistorySnapshot[]>([]);
   const [diff, setDiff] = useState<TemplateDiffResult | null>(null);
@@ -23,13 +26,13 @@ export default function TemplateHistory() {
     }).catch(() => { setError('error'); }).finally(() => { setBusy(false); });
   }
   function reload(beforeRevision?: number) {
-    setBusy(true); setError(''); setPending(null);
+    setBusy(true); setError(''); setPending(null); setValidation(null);
     return load(beforeRevision);
   }
   useEffect(() => { void load(); }, []);
   async function act(operation: 'diff' | 'rollback' | 'publish', revision: number, confirmed = false) {
     if (!current) return;
-    setBusy(true); setError(''); setNotice('');
+    setBusy(true); setError(''); setNotice(''); setValidation(null);
     try {
       let expectedRevision = current.revision;
       if (operation === 'publish' && revision !== current.revision && !confirmed) {
@@ -49,18 +52,19 @@ export default function TemplateHistory() {
         const draft = history.find(row => row.revision === revision)?.draft;
         if (!draft) { setError('NOT_FOUND'); return; }
         const checked = await storefrontTemplateAction({ operation: 'validate', config: draft, mode: 'publish' });
-        if (!checked.success) { setError(checked.code); return; }
+        if (!checked.success) { setError(checked.code); setValidation(checked.validation); return; }
         if (!('data' in checked) || !('valid' in checked.data) || !checked.data.valid) {
+          if ('data' in checked && 'errors' in checked.data) setValidation(checked.data);
           setError('data' in checked && 'errors' in checked.data && checked.data.errors.some(issue => issue.code === 'ENTITLEMENT') ? 'FORBIDDEN' : 'INVALID'); return;
         }
         const saved = await storefrontTemplateAction({ operation: 'draft', config: draft, expectedRevision });
-        if (!saved.success) { setError(saved.code); return; }
+        if (!saved.success) { setError(saved.code); setValidation(saved.validation); return; }
         if (!('revision' in saved)) { setError('error'); return; }
         expectedRevision = saved.revision;
         setPending(null); setNotice(t('draftReplaced'));
       }
       const response = await storefrontTemplateAction(operation === 'diff' ? { operation, fromRevision: revision, toRevision: current.revision } : operation === 'publish' ? { operation, expectedRevision } : { operation, targetRevision: revision, expectedRevision });
-      if (!response.success) { await reload(); setError(response.code); return; }
+      if (!response.success) { await reload(); setError(response.code); setValidation(response.validation); return; }
       if ('data' in response && 'changes' in response.data) setDiff(response.data);
       if ('revision' in response) { setNotice(t('success', { revision: response.revision })); setDiff(null); await reload(); }
     } catch { setError('error'); } finally { setBusy(false); }
@@ -76,7 +80,8 @@ export default function TemplateHistory() {
     <header className={styles.header}><div><h1>{t('title')}</h1><p>{t('subtitle')}</p></div>
       <button type="button" disabled={busy} onClick={() => { setDiff(null); void reload(); }} className={styles.secondary}>{t('reload')}</button>
     </header>
-    {error && <p className={styles.error} role="alert">{t.has(error) ? t(error) : t('error')}</p>}
+    {error && !validation?.errors.length && <p className={styles.error} role="alert">{t.has(error) ? t(error) : t('error')}</p>}
+    {validation && <ValidationIssues issues={validation.errors} blocking />}
     <p className={styles.status} role="status">{notice}</p>
     {current && <>
       <p className={styles.revision}>{t('revision')} <strong>{current.revision}</strong></p>
@@ -96,7 +101,7 @@ export default function TemplateHistory() {
             <strong>{row.revision === publishedRevision ? t('publishedNow') : row.draft ? t('draft') : t('publish')}</strong>
             <div className={styles.meta}><time dateTime={row.created_at}>{new Date(row.created_at).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</time><span>· #{row.revision}</span></div>
           </div>
-          <div className={styles.actions}><button type="button" disabled={busy} className={styles.textButton} onClick={() => void act('diff', row.revision)}>{t('compare')}</button>
+          <div className={styles.actions}>{row.revision !== current.revision && <button type="button" disabled={busy} className={styles.textButton} onClick={() => void act('diff', row.revision)}>{t('compare')}</button>}
           {row.revision !== publishedRevision && <button type="button" disabled={busy} className={styles.secondary} onClick={() => void act(row.draft ? 'publish' : 'rollback', row.revision)}>{t(row.draft ? 'publishVersion' : 'rollback')}</button>}</div>
         </li>)}</ol>
         {history.length > 0 && history.length % 20 === 0 && <button type="button" disabled={busy} className={styles.textButton} onClick={() => void reload(history.at(-1)!.revision)}>{t('more')}</button>}
