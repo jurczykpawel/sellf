@@ -4129,6 +4129,7 @@ export type Database = {
         Args: { reason_param?: string; transaction_id_param: string }
         Returns: Json
       }
+      currency_minor_factor: { Args: { currency_code: string }; Returns: number }
       enqueue_webhook_delivery: {
         Args: {
           p_delivery_key: string

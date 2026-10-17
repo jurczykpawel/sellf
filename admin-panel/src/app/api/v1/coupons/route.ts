@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
  * - code: string (required) - Unique coupon code
  * - name: string (optional) - Display name
  * - discount_type: 'percentage' | 'fixed' (required)
- * - discount_value: number (required) - Percentage (0-100) or fixed amount in cents
+ * - discount_value: number (required) - Percentage (0-100) or fixed amount in currency units (e.g. 10 = 10.00 PLN, 1000 = 1000 JPY)
  * - currency: string (optional) - Required for fixed discounts
  * - is_active: boolean (default true)
  * - is_public: boolean (default false) - Reserved field; currently not used by runtime logic
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
 
     // Validate discount_value
     const discountValue = body.discount_value;
-    const MAX_FIXED_DISCOUNT = 99999999; // ~$999,999.99 in cents
+    const MAX_FIXED_DISCOUNT = 99999999; // upper bound on the numeric value, in currency units
 
     if (!Number.isFinite(discountValue) || discountValue <= 0) {
       throw new ApiValidationError('Discount value must be a positive number');
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
 
     if (body.discount_type === 'fixed') {
       if (discountValue > MAX_FIXED_DISCOUNT) {
-        throw new ApiValidationError(`Fixed discount cannot exceed ${MAX_FIXED_DISCOUNT} cents`);
+        throw new ApiValidationError(`Fixed discount cannot exceed ${MAX_FIXED_DISCOUNT}`);
       }
       if (!body.currency) {
         throw new ApiValidationError('Currency is required for fixed discount coupons');
