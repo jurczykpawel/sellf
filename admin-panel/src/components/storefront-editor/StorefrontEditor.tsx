@@ -30,10 +30,11 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
   const [validation, setValidation] = useState<ValidationResult | null>(initial?.validation ?? null);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [confirmReload, setConfirmReload] = useState(false);
   const [message, setMessage] = useState(initial ? '' : t('failure'));
-  function edit(next: StorefrontConfig) { setConfig(next); setDirty(true); }
+  function edit(next: StorefrontConfig) { setConfig(next); setDirty(true); setSaved(false); }
   async function reload() {
     if (dirty && !confirmReload) { setConfirmReload(true); return; }
     setBusy(true); setMessage('');
@@ -42,7 +43,7 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
       if (response.success && 'data' in response && 'revision' in response.data) {
         const data = response.data;
         setSnapshot(data); setConfig(data.draft ?? data.published); setValidation(data.validation);
-        setDirty(false); setConflict(false); setConfirmReload(false);
+        setDirty(false); setSaved(false); setConflict(false); setConfirmReload(false);
       } else setMessage(t('failure'));
     } catch { setMessage(t('failure')); }
     finally { setBusy(false); }
@@ -67,7 +68,7 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
       const response = await storefrontTemplateAction({ operation: 'draft', expectedRevision: snapshot.revision, config: normalized });
       if (response.success && 'revision' in response) {
         setSnapshot({ ...snapshot, revision: response.revision, draft: normalized });
-        setConfig(normalized); setValidation(response.validation); setDirty(false);
+        setConfig(normalized); setValidation(response.validation); setDirty(false); setSaved(true);
         try {
           const read = await storefrontTemplateAction({ operation: 'read' });
           if (read?.success && 'data' in read && 'revision' in read.data && read.data.revision === response.revision) setSnapshot(read.data);
@@ -145,7 +146,7 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
   return <div data-storefront-editor className="mx-auto max-w-6xl space-y-6 text-sf-heading">
     <header className="space-y-2"><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('title')}</h1><p className="max-w-2xl text-sm text-sf-muted">{t('intro')}</p></header>
     <div data-editor-savebar className="sticky top-14 z-30 flex items-center justify-between gap-3 rounded-xl border border-sf-border bg-sf-base p-3 shadow-sm">
-      <p role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2 text-sm text-sf-muted"><Check size={16} className={dirty ? 'hidden' : 'text-sf-success'} aria-hidden="true" /><span className="truncate">{busy ? t('saving') : dirty ? t('unsaved') : t('savedState')}</span><span className="sr-only">{arrangement}</span></p>
+      <p role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2 text-sm text-sf-muted"><Check size={16} className={!saved || dirty ? 'hidden' : 'text-sf-success'} aria-hidden="true" /><span className="truncate">{busy ? t('saving') : dirty ? t('unsaved') : saved ? t('savedState') : t('loadedState')}</span><span className="sr-only">{arrangement}</span></p>
       <div className="flex shrink-0 items-center gap-2"><button type="button" className={editorButton} aria-label={t('reload')} title={t('reload')} disabled={busy} onClick={reload}><RotateCcw size={17} aria-hidden="true" /></button>
       <button type="button" className="min-h-11 rounded-lg bg-sf-accent px-5 py-2 text-sm font-semibold text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:opacity-50" disabled={busy || !config || conflict || !dirty} onClick={save}>{t('save')}</button></div>
     </div>

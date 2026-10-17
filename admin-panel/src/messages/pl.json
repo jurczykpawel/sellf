@@ -4565,6 +4565,7 @@
     }
   },
   "storefrontEditor": {
+    "loadedState": "Brak niezapisanych zmian",
     "title": "Szablony sklepu",
     "intro": "Przygotuj prywatny szkic. Zapis nie zmienia publicznego sklepu.",
     "template": "Szablon",

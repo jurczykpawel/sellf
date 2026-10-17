@@ -183,3 +183,9 @@ it('edits section map leaves independently and returns variants to inherited def
   expect(overrides.sections.hero).toEqual({});
   expect(overrides).not.toHaveProperty('hidden'); expect(overrides).not.toHaveProperty('variants');
 });
+
+ it.each(['en', 'pl'])('describes the loaded state without claiming a save in %s', locale => {
+  const view = setup(locale);
+  expect(view.getByRole('status').textContent).toContain(locale === 'pl' ? 'Brak niezapisanych zmian' : 'No unsaved changes');
+  expect(view.getByRole('status').textContent).not.toContain(locale === 'pl' ? 'Zapisano zmiany' : 'All changes saved');
+});

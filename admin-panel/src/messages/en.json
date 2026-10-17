@@ -4565,6 +4565,7 @@
     }
   },
   "storefrontEditor": {
+    "loadedState": "No unsaved changes",
     "title": "Storefront templates",
     "intro": "Compose a private draft. Saving does not change your public storefront.",
     "template": "Template",
