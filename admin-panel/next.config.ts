@@ -157,6 +157,12 @@ const nextConfig: NextConfig = {
         headers: buildBaseSecurityHeaders(),
       },
       {
+        source: '/:path*',
+        has: [{ type: 'header', key: 'accept', value: '.*text/html.*' }],
+        // HTML must reach React unchanged, including when served through a CDN.
+        headers: [{ key: 'Cache-Control', value: 'private, no-cache, no-store, max-age=0, must-revalidate, no-transform' }],
+      },
+      {
         // API routes - more restrictive cache + nosniff
         source: '/api/:path*',
         headers: buildApiSecurityHeaders(),

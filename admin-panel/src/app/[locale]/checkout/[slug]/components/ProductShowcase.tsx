@@ -147,12 +147,14 @@ export default function ProductShowcase({ product, taxMode, bundleComponents }: 
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               {t('saleEndsAt', {
-                date: new Date(product.sale_price_until).toLocaleString('pl-PL', {
+                date: new Date(product.sale_price_until).toLocaleString(locale, {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
                   hour: '2-digit',
-                  minute: '2-digit'
+                  minute: '2-digit',
+                  timeZone: 'UTC',
+                  timeZoneName: 'short',
                 })
               })}
             </div>

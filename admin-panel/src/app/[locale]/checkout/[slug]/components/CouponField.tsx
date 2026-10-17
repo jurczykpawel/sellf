@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useCallback, useId } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import type { AppliedCoupon } from '@/types/coupon';
@@ -31,18 +31,26 @@ export default function CouponField({
   const t = useTranslations('checkout');
   const locale = useLocale();
 
-  const [expanded, setExpanded] = useState(false);
   const id = useId();
-  if (!expanded && !showCouponInput && !appliedCoupon) return <button type="button" onClick={() => setExpanded(true)} aria-expanded={false} className="mb-4 cursor-pointer text-sm text-sf-accent underline underline-offset-4">{t('couponEntryPrompt')}</button>;
+  const restoreCode = useCallback((input: HTMLInputElement | null) => {
+    if (input && !couponCode && input.value) onCodeChange(input.value.toUpperCase());
+  }, [couponCode, onCodeChange]);
 
   return (
-    <div className="mb-4">
+    <details
+      className="mb-4"
+      open={showCouponInput || !!appliedCoupon || undefined}
+      // The browser owns the disclosure state, including clicks before hydration.
+      suppressHydrationWarning
+    >
+      <summary className={`${showCouponInput || appliedCoupon ? 'hidden' : 'cursor-pointer text-sm text-sf-accent underline underline-offset-4'} mb-2`}>{t('couponEntryPrompt')}</summary>
       <div className="animate-in fade-in slide-in-from-top-1 duration-300">
         <div className="flex gap-2">
           <div className="relative min-w-0 flex-1">
             <label className="sr-only" htmlFor={id}>{t('couponEntryLabel')}</label>
             <input
               id={id}
+              ref={restoreCode}
               type="text"
               maxLength={100}
               autoComplete="off"
@@ -95,6 +103,6 @@ export default function CouponField({
           </p>
         )}
       </div>
-    </div>
+    </details>
   );
 }

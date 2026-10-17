@@ -12,6 +12,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { proxy } from '@/proxy';
 
+vi.mock('@supabase/ssr', () => ({ createServerClient: () => ({ auth: { getUser: async () => ({ data: { user: null }, error: null }) } }) }));
+
 // next-intl ESM is heavy and not relevant to this test; stub the matcher.
 vi.mock('next-intl/middleware', () => ({
   default: () => () => new Response(null, { status: 200 }),
@@ -63,4 +65,11 @@ describe('proxy CSP nonce', () => {
     const res = await proxy(makeRequest('/checkout/test'));
     expect(res.headers.get('Strict-Transport-Security')).toContain('max-age=');
   });
+});
+
+it.each(['/pl/dashboard/affiliates', '/pl/admin/templates/history', '/template-preview/2'])('retains document delivery directives on %s', async path => {
+  const response = await proxy(makeRequest(path));
+  expect(response.headers.get('Cache-Control')).toContain('private');
+  expect(response.headers.get('Cache-Control')).toContain('no-store');
+  expect(response.headers.get('Cache-Control')).toContain('no-transform');
 });
