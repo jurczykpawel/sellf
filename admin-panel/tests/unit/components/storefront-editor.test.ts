@@ -260,3 +260,37 @@ it('authors B search, category descriptions, featured products and starter copy 
   expect(saved.content['home.starter'].en.heading).toBe('Start with one guide');
   expect(saved.settingsByTemplate.d).toEqual(snapshot().published.settingsByTemplate.d);
 });
+
+ it.each(['en', 'pl'])('describes the loaded state without claiming a save in %s', locale => {
+  const view = setup(locale);
+  expect(view.getByRole('status').textContent).toContain(locale === 'pl' ? 'Brak niezapisanych zmian' : 'No unsaved changes');
+  expect(view.getByRole('status').textContent).not.toContain(locale === 'pl' ? 'Zapisano zmiany' : 'All changes saved');
+});
+
+it.each(['en', 'pl'])('opens only the saved draft from the editor and appearance in %s', async locale => {
+  const view = setup(locale);
+  const preview = locale === 'pl' ? 'Podgląd' : 'Preview';
+  const history = locale === 'pl' ? 'Historia i publikacja' : 'History and publishing';
+  expect(view.getByRole('button', { name: preview, exact: true })).toHaveProperty('disabled', true);
+  expect(view.getByRole('button', { name: history, exact: true })).toHaveProperty('disabled', true);
+  fireEvent.change(view.getByDisplayValue('A workshop'), { target: { value: 'Saved workshop' } });
+  action.mockResolvedValueOnce({ success: true, revision: 8, validation: { valid: true, errors: [], warnings: [] } });
+  fireEvent.click(view.getByRole('button', { name: locale === 'pl' ? 'Zapisz szkic' : 'Save draft' }));
+  const url = `/template-preview/8?locale=${locale}&fixture=published-products`;
+  await waitFor(() => expect(view.getByRole('link', { name: preview, exact: true }).getAttribute('href')).toBe(url));
+  expect(view.getByRole('link', { name: history, exact: true }).getAttribute('href')).toBe(`${locale === 'pl' ? '/pl' : ''}/admin/templates/history`);
+  fireEvent.click(view.getByRole('button', { name: locale === 'pl' ? 'Wygląd' : 'Appearance', exact: true }));
+  expect(view.getAllByRole('link', { name: preview, exact: true })).toHaveLength(2);
+  fireEvent.change(view.getByLabelText(locale === 'pl' ? 'Jasny · Akcent' : 'Light · Accent'), { target: { value: '#333333' } });
+  expect(view.queryByRole('link', { name: preview, exact: true })).toBeNull();
+  expect(view.getAllByRole('button', { name: preview, exact: true }).every(button => (button as HTMLButtonElement).disabled)).toBe(true);
+});
+
+it.each(['en', 'pl'])('explains the classic catalogue options instead of suggesting reordering in %s', locale => {
+  const view = setup(locale);
+  fireEvent.change(view.getByLabelText(locale === 'pl' ? 'Szablon' : 'Template'), { target: { value: 'default' } });
+  expect(view.getByText(locale === 'pl'
+    ? 'Sklep klasyczny ma jedną, zawsze widoczną sekcję: katalog produktów. Możesz wybrać układ kart, a w sekcji Wygląd zmienić kolory, krój pisma i zaokrąglenia. Publikacja własnych ustawień układu i wyglądu wymaga Pro.'
+    : 'The classic store has one always-visible section: the product catalogue. Choose a card layout, or open Appearance to change colours, fonts and corners. Publishing custom layout and appearance settings requires Pro.')).toBeTruthy();
+  expect(view.queryByText(locale === 'pl' ? pl.storefrontEditor.orderHint : en.storefrontEditor.orderHint)).toBeNull();
+});

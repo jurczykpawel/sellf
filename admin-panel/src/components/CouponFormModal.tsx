@@ -15,8 +15,9 @@ import React, { useState, useEffect } from 'react';
 import { AffiliateCouponEditor } from '@/components/affiliates/products/Settings';
 import { Coupon, CouponFormData } from '@/types/coupon';
 import { Product } from '@/types';
+import { getMyShopConfig } from '@/lib/actions/shop-config';
 import { CURRENCIES } from '@/lib/constants';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 interface CouponFormModalProps {
   products: Product[];
@@ -34,6 +35,10 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
   isSubmitting,
 }) => {
   const t = useTranslations('admin.coupons');
+  const locale = useLocale();
+  const currencyNames = new Intl.DisplayNames([locale], { type: 'currency' });
+  const [defaultCurrency, setDefaultCurrency] = useState('USD');
+  const [currencyLoaded, setCurrencyLoaded] = useState(false);
 
   const buildFormData = (coupon: typeof editingCoupon): Partial<CouponFormData> => coupon
     ? {
@@ -41,7 +46,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
         name: coupon.name || '',
         discount_type: coupon.discount_type as 'percentage' | 'fixed',
         discount_value: coupon.discount_value,
-        currency: coupon.currency || 'USD',
+        currency: coupon.currency || defaultCurrency,
         is_active: coupon.is_active,
         exclude_order_bumps: coupon.exclude_order_bumps || false,
         usage_limit_global: coupon.usage_limit_global,
@@ -55,7 +60,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
         name: '',
         discount_type: 'percentage',
         discount_value: 0,
-        currency: 'USD',
+        currency: defaultCurrency,
         is_active: true,
         usage_limit_global: null,
         usage_limit_per_user: 1,
@@ -66,6 +71,16 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
 
   const [formData, setFormData] = useState<Partial<CouponFormData>>(() => buildFormData(editingCoupon));
   const [emailInput, setEmailInput] = useState('');
+  useEffect(() => {
+    let active = true;
+    void getMyShopConfig().then(config => {
+      if (!active) return;
+      const currency = config?.default_currency || 'USD';
+      setDefaultCurrency(currency);
+      if (!editingCoupon?.currency) setFormData(previous => ({ ...previous, currency }));
+    }).catch(error => { console.error('[CouponFormModal] Failed to load shop currency:', error); }).finally(() => { if (active) setCurrencyLoaded(true); });
+    return () => { active = false; };
+  }, [editingCoupon]);
 
   // Re-sync local form when parent swaps `editingCoupon`. setState-during-render
   // replaces the previous useEffect+setState cascade (https://react.dev/learn/you-might-not-need-an-effect).
@@ -77,6 +92,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currencyLoaded) return;
     
     // Ensure currency is null for percentage discounts to satisfy DB constraint
     const submitData = { ...formData };
@@ -113,7 +129,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4">
       <div className="bg-sf-base max-w-2xl w-full my-8 border-2 border-sf-border-medium">
         <div className="p-6 border-b border-sf-border bg-sf-deep/50">
@@ -124,6 +140,8 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
             {t('description')}
           </p>
         </div>
+
+        <div className="px-6 pt-6"><AffiliateCouponEditor couponId={editingCoupon?.id} /></div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-8">
           {/* Section: Basic Info */}
@@ -182,14 +200,14 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                   <div className={`text-sm font-bold ${formData.discount_type === 'percentage' ? 'text-sf-accent' : 'text-sf-heading'}`}>{t('percentage')} (%)</div>
                 </div>
                 <div 
-                  onClick={() => setFormData({ ...formData, discount_type: 'fixed' })}
+                  onClick={() => setFormData({ ...formData, discount_type: 'fixed', currency: formData.currency || defaultCurrency })}
                   className={`cursor-pointer border p-3 text-center transition-all ${
                     formData.discount_type === 'fixed'
                       ? 'border-sf-accent bg-sf-accent-soft ring-1 ring-sf-accent'
                       : 'border-sf-border hover:border-sf-accent bg-sf-base'
                   }`}
                 >
-                  <div className={`text-sm font-bold ${formData.discount_type === 'fixed' ? 'text-sf-accent' : 'text-sf-heading'}`}>{t('fixed')} ($)</div>
+                  <div className={`text-sm font-bold ${formData.discount_type === 'fixed' ? 'text-sf-accent' : 'text-sf-heading'}`}>{t('fixed')} ({formData.currency || defaultCurrency})</div>
                 </div>
               </div>
 
@@ -219,8 +237,10 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
 
               {formData.discount_type === 'fixed' && (
                 <div>
-                  <label className="block text-sm font-medium text-sf-body mb-1">{t('form.currency')}</label>
+                  <label htmlFor="couponCurrency" className="block text-sm font-medium text-sf-body mb-1">{t('form.currency')}</label>
                   <select
+                    id="couponCurrency"
+                    disabled={!currencyLoaded}
                     value={formData.currency || ''}
                     onChange={e => setFormData({ ...formData, currency: (e.target.value || null) as any })}
                     className="w-full px-4 py-2 border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent bg-sf-input text-sf-heading"
@@ -228,7 +248,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                     <option value="">{t('form.anyCurrency')}</option>
                     {CURRENCIES.map(c => (
                       <option key={c.code} value={c.code}>
-                        {c.code} ({c.name})
+                        {c.code} ({currencyNames.of(c.code)})
                       </option>
                     ))}
                   </select>
@@ -242,28 +262,32 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
             <h3 className="text-sm font-semibold text-sf-heading uppercase tracking-wider border-b border-sf-border pb-2">
               {t('form.limitations')}
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-sf-body mb-1">{t('form.usageLimit')}</label>
                 <input
                   type="number"
                   min="0"
+                  aria-describedby="coupon-global-limit-hint"
                   value={formData.usage_limit_global || ''}
                   onChange={e => setFormData({ ...formData, usage_limit_global: e.target.value ? parseInt(e.target.value) : null })}
                   className="w-full px-4 py-2 border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent bg-sf-input text-sf-heading"
-                  placeholder={t('form.unlimited')}
+                  placeholder=""
                 />
+                <p id="coupon-global-limit-hint" className="mt-1 text-xs text-sf-muted">{t('form.unlimited')}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-sf-body mb-1">{t('form.perUserLimit')}</label>
                 <input
                   type="number"
                   min="1"
+                  aria-describedby="coupon-user-limit-hint"
                   value={formData.usage_limit_per_user ?? ''}
                   onChange={e => setFormData({ ...formData, usage_limit_per_user: e.target.value ? parseInt(e.target.value) : null })}
                   className="w-full px-4 py-2 border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent bg-sf-input text-sf-heading"
-                  placeholder={t('form.unlimited')}
+                  placeholder=""
                 />
+                <p id="coupon-user-limit-hint" className="mt-1 text-xs text-sf-muted">{t('form.perUserLimitHint')}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-sf-body mb-1">{t('form.validUntil')}</label>
@@ -386,14 +410,14 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !currencyLoaded}
                 className="px-5 py-2.5 text-sf-body hover:bg-sf-hover transition-colors font-medium disabled:opacity-50"
               >
                 {t('form.cancel')}
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !currencyLoaded}
                 className="px-6 py-2.5 bg-sf-accent-bg text-white hover:bg-sf-accent-hover transition-colors font-medium disabled:opacity-50"
               >
                 {isSubmitting ? t('form.saving') : (editingCoupon ? t('form.update') : t('form.save'))}
@@ -401,7 +425,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
             </div>
           </div>
         </form>
-        {editingCoupon && <div className="p-6 border-t border-sf-border"><AffiliateCouponEditor couponId={editingCoupon.id} /></div>}
+
       </div>
       </div>
     </div>

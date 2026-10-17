@@ -85,7 +85,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return t('modal.never');
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString(locale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

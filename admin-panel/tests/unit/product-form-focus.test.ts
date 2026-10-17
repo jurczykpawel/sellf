@@ -5,6 +5,7 @@ import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from '@/types';
 import { initialFormData } from '@/components/ProductFormModal/types';
+import { getMyShopConfig } from '@/lib/actions/shop-config';
 import { useProductForm } from '@/components/ProductFormModal/hooks/useProductForm';
 
 vi.mock('@/components/providers/config-provider', () => {
@@ -136,4 +137,24 @@ describe('Product form marketing submission', () => {
     act(() => result.current.setFormData(previous => ({ ...previous, name: 'Seller title' })));
     expect(result.current.formData.marketing_fields).toEqual({ format: null, sourceLocale: 'en', en: { result: null, tools: [], requirements: [] } });
   });
+});
+
+it('reopens a new product in the known shop currency while defaults reload', async () => {
+  vi.mocked(getMyShopConfig).mockResolvedValueOnce({ default_currency: 'PLN' } as Awaited<ReturnType<typeof getMyShopConfig>>).mockImplementationOnce(() => new Promise(() => {}));
+  const { result, rerender } = renderHook(({ isOpen }) => useProductForm({ isOpen, onSubmit }), { initialProps: { isOpen: true } });
+  await act(async () => {});
+  expect(result.current.formData.currency).toBe('PLN');
+  rerender({ isOpen: false });
+  rerender({ isOpen: true });
+  expect(result.current.formData.currency).toBe('PLN');
+});
+
+it('keeps an existing product currency when an earlier new-product settings read finishes', async () => {
+  let finish: (value: Awaited<ReturnType<typeof getMyShopConfig>>) => void = () => {};
+  vi.mocked(getMyShopConfig).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; })).mockResolvedValueOnce(null);
+  const existing = { ...initialFormData, id: 'existing-usd', name: 'Existing', slug: 'existing', currency: 'USD' } as Product;
+  const { result, rerender } = renderHook(({ product }: { product?: Product }) => useProductForm({ isOpen: true, onSubmit, product }), { initialProps: { product: undefined as Product | undefined } });
+  rerender({ product: existing });
+  await act(async () => { finish({ default_currency: 'PLN' } as Awaited<ReturnType<typeof getMyShopConfig>>); });
+  expect(result.current.formData.currency).toBe('USD');
 });

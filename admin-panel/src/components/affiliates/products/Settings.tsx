@@ -3,7 +3,7 @@
 /** Independent affiliate settings for saved products/coupons. @see lib/affiliates/products/actions.ts */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale } from 'next-intl';
-import { Combobox } from '@/components/ui/Combobox';
+import PayoutPicker from '@/components/affiliates/payouts/PayoutPicker';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
 import { commissionRuleSchema } from '@/lib/affiliates/model';
 import { bindAffiliateCoupon, createAffiliateRule, getAffiliateCoupon, getAffiliateProduct } from '@/lib/affiliates/products/actions';
@@ -64,7 +64,7 @@ function RuleEditor({ productId, productType, isRefundable, refundPeriodDays }: 
     setBusy(true);
     try {
       const result = await createAffiliateRule({ product_id: productId, expected_revision: info?.rule?.revision ?? 0, enabled, rule: rule.data });
-      if (result.success) { if (await reload()) setMessage(t.saved); }
+      if (result.success) { if (await reload()) setMessage(t.ruleSaved); }
       else setMessage(result.errorCode === 'CONFLICT' ? t.conflict : t.error);
     } catch { setMessage(t.error); } finally { setBusy(false); }
   }
@@ -72,6 +72,7 @@ function RuleEditor({ productId, productType, isRefundable, refundPeriodDays }: 
     <h4 className="font-medium">{t.title}</h4>
     {subscription ? <p>{t.subscription}</p> : <>
       <p className="text-sm text-sf-muted">{t.policy}</p>
+      <p className="rounded border border-sf-border bg-sf-base p-3 text-sm">{t.ruleSaveHint}</p>
       {unlimited && <p role="note" className="rounded bg-sf-warning-soft px-3 py-2 text-sm text-sf-heading">{t.unlimited}</p>}
       <fieldset disabled={busy || !info} className="min-w-0 space-y-3">
         <label className="flex gap-2"><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />{t.enabled}</label>
@@ -81,22 +82,25 @@ function RuleEditor({ productId, productType, isRefundable, refundPeriodDays }: 
         {kind === 'fixed' && <label className="block text-sm">{t.currency}<select className={inputClass} value={currency} onChange={e => setCurrency(e.target.value)}>
           {SUPPORTED_CURRENCY_CODES.map(code => <option key={code}>{code}</option>)}</select></label>}
         </div>
-        <button type="button" className={`${buttonClass} bg-sf-accent-bg text-white`} onClick={() => void save()}>{t.save}</button>
+        <button type="button" className={`${buttonClass} bg-sf-accent-bg text-white`} onClick={() => void save()}>{t.ruleSave}</button>
       </fieldset>
     </>}
     <p role="status" className="break-words text-sm">{busy ? t.loading : message}</p>
-    {message && message !== t.saved && <button type="button" disabled={busy} className={buttonClass} onClick={() => void reload()}>{t.reload}</button>}
+    {message && message !== t.ruleSaved && <button type="button" disabled={busy} className={buttonClass} onClick={() => void reload()}>{t.reload}</button>}
   </section>;
 }
 
-export function AffiliateCouponEditor({ couponId }: { couponId: string }): React.JSX.Element {
+export function AffiliateCouponEditor({ couponId }: { couponId?: string }): React.JSX.Element {
   const locale = useLocale();
+  const t = useCopy();
+  if (!couponId) return <section className="space-y-2 rounded-lg border border-sf-border bg-sf-raised p-4 text-sf-heading"><h3 className="font-semibold">{t.owner}</h3><p className="text-sm text-sf-body">{t.saveCouponFirst}</p></section>;
   return <CouponEditor key={`${couponId}:${locale}`} couponId={couponId} />;
 }
 function CouponEditor({ couponId }: { couponId: string }): React.JSX.Element {
   const t = useCopy();
   const [info, setInfo] = useState<AffiliateCouponInfo | null>(null);
   const [member, setMember] = useState('');
+  const [selected, setSelected] = useState<{ value: string; label: string }>();
   const [search, setSearch] = useState('');
   const [searching, setSearching] = useState(false);
   const generation = useRef(0);
@@ -109,7 +113,7 @@ function CouponEditor({ couponId }: { couponId: string }): React.JSX.Element {
     }).catch(() => { setMessage(t.error); return false; }).finally(() => { setBusy(false); });
   }, [couponId, t]);
   function reload() {
-    setBusy(true); setMessage(''); setInfo(null); setMember(''); setSearch(''); generation.current++;
+    setBusy(true); setMessage(''); setInfo(null); setMember(''); setSelected(undefined); setSearch(''); setSearching(false); generation.current++;
     return load();
   }
   useEffect(() => { void load(); }, [load]);
@@ -117,6 +121,7 @@ function CouponEditor({ couponId }: { couponId: string }): React.JSX.Element {
     const current = ++generation.current;
     let active = true;
     const timer = setTimeout(async () => {
+      if (!active || current !== generation.current) return;
       setSearching(true);
       try {
         const result = await getAffiliateCoupon({ coupon_id: couponId, cursor: null, search });
@@ -148,22 +153,17 @@ function CouponEditor({ couponId }: { couponId: string }): React.JSX.Element {
     setBusy(true);
     try {
       const result = await bindAffiliateCoupon({ coupon_id: couponId, member_id: member, expected_version: info.binding?.version ?? '0' });
-      if (result.success) { if (await reload()) setMessage(t.saved); }
+      if (result.success) { if (await reload()) setMessage(t.couponAssigned); }
       else setMessage(result.errorCode === 'CONFLICT' ? t.conflict : result.errorCode === 'INVALID_INPUT' ? t.invalidOwner : t.error);
     } catch { setMessage(t.error); } finally { setBusy(false); }
   }
   return <section className="min-w-0 break-words space-y-3 rounded-lg border border-sf-border bg-sf-raised p-4 text-sf-heading">
-    <h4 className="font-medium">{t.owner}</h4>
+    <h3 className="font-semibold">{t.owner}</h3>
+    <p className="text-sm text-sf-body">{t.ownerHint}</p>
     {info?.binding && <p className="break-all text-sm">{t.current}: <strong>{info.binding.display_name}</strong> ({info.binding.code})</p>}
-    <fieldset disabled={busy || !info} className="min-w-0" onKeyDownCapture={e => {
-      const hasOptions = info?.members.some(m => `${m.display_name} (${m.code})`.toLowerCase().includes(search.toLowerCase()));
-      if (!hasOptions && ['ArrowDown', 'ArrowUp', 'Enter'].includes(e.key)) { e.preventDefault(); e.stopPropagation(); }
-    }} onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }}>
-      <label aria-label={t.partner} className="block text-sm" onInput={e => { setSearch((e.target as HTMLInputElement).value); setMember(''); }}>
-        {t.partner}<Combobox options={(info?.members ?? []).map(m => ({ value: m.id, label: `${m.display_name} (${m.code})` }))}
-          placeholder={t.choose} selectedValue={member} onSelect={setMember} />
-      </label>
-    </fieldset>
+    <PayoutPicker disabled={busy || !info} label={t.partner} emptyLabel={searching ? t.searching : t.noPartners}
+      placeholder={t.choose} options={[...(info?.members ?? []).filter(m => m.id !== selected?.value).map(m => ({ value: m.id, label: `${m.display_name} (${m.code})` })), ...(selected ? [selected] : [])]}
+      selectedValue={member} onSearch={setSearch} onSelect={value => { setMember(value); const choice = info?.members.find(m => m.id === value); if (choice) setSelected({ value, label: `${choice.display_name} (${choice.code})` }); }} />
     {info && !search && !info.members.length && <p className="text-sm text-sf-muted">{t.noPartners}</p>}
     <div className="flex flex-wrap gap-2">
       <button type="button" className={`${buttonClass} bg-sf-accent-bg text-white`} disabled={busy || !member} onClick={() => void save()}>{t.assign}</button>

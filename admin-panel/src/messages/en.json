@@ -29,6 +29,10 @@
     "failure": "We couldn’t load or save this offer. Please try again.",
     "loading": "Loading offer…"
 },
+  "formValidation": {
+    "required": "Please fill out this field.",
+    "email": "Enter a valid email address."
+  },
   "templatePreview": {
       "confirmTitle": "Replace your current draft?",
       "confirmHelp": "Review the changes above, from your current version to the selected version. Continuing replaces your saved draft and publishes the selected version. If publication fails after saving, this version remains your draft.",
@@ -85,6 +89,11 @@
       "publishVersion": "Publish this version"
   },
   "checkout": {
+    "purchaseTitle": "Complete your purchase",
+    "loadingPaymentMethods": "Loading payment methods…",
+    "removeCoupon": "Remove discount code",
+    "couponEntryPrompt": "Have a discount code?",
+    "couponEntryLabel": "Discount code",
     "title": "Complete Your Purchase",
     "emailAddress": "Email Address",
     "linkedToAccount": "This purchase will be linked to your account.",
@@ -593,6 +602,9 @@
     }
   },
   "auth": {
+    "emailNotConfirmedMessage": "Confirm your email address using the link in your email.",
+    "passwordLoginFailed": "Unable to sign in. Check your email and password, then try again.",
+    "passwordEntryPlaceholder": "Enter your password",
     "login": "Login",
     "logout": "Logout",
     "email": "Email address",
@@ -1143,6 +1155,11 @@
     "invalidPrice": "Invalid Price"
   },
   "paymentStatus": {
+    "purchaseReceipt": "Thank you! Your purchase of {productName} is confirmed.",
+    "purchaseLibraryHint": "Your purchase is available here and in My products.",
+    "openPurchase": "Open your purchase",
+    "purchaseLibrary": "My products",
+
     "paymentReceived": "Payment received",
     "preparingAccess": "Your payment has been received. We are preparing your access. This page will refresh automatically.",
     "orderNeedsReview": "Payment received — order needs review",
@@ -1260,6 +1277,7 @@
       "welcome": "Welcome to Sellf Admin",
       "overview": "Overview",
       "stats": {
+        "todayChange": "+{amount} today",
         "totalRevenue": "Total Revenue",
         "todayRevenue": "Today's Revenue",
         "todayOrders": "Today's Orders",
@@ -2258,6 +2276,7 @@
       "deleteExpiredSuccess": "Successfully deleted {count} expired coupons",
       "deleteExpiredPartial": "Deleted {deleted} expired coupons, {failed} failed",
       "form": {
+        "perUserLimitHint": "Defaults to one use per person. Clear the field for unlimited uses.",
         "basicInfo": "Basic Information",
         "codeLabel": "Coupon Code",
         "codePlaceholder": "e.g., SUMMER2024",
@@ -2374,6 +2393,7 @@
       "statusError": "Failed to toggle bump status"
     },
     "payments": {
+      "titleSentence": "Payments",
       "title": "Payment Management",
       "subtitle": "Manage all payment transactions, process refunds, and monitor payment activity.",
       "loading": "Loading payment data...",
@@ -2409,6 +2429,7 @@
         "days": "days"
       },
       "transactions": {
+        "titleSentence": "Payment transactions",
         "title": "Payment Transactions",
         "transactionId": "Transaction ID",
         "user": "User",
@@ -2455,9 +2476,22 @@
         "fullRefunded": "Fully refunded"
       },
       "sessions": {
+        "titleSentence": "Checkout sessions",
+        "empty": "No payment sessions found.",
+        "session": "Session",
+        "customer": "Customer",
+        "product": "Product",
+        "amount": "Amount",
+        "status": "Status",
+        "created": "Created",
+        "expires": "Expires",
+        "actions": "Actions",
+        "statuses": {"pending": "Pending", "completed": "Completed", "failed": "Failed", "cancelled": "Cancelled", "expired": "Expired", "refunded": "Refunded", "partially_refunded": "Partially refunded", "disputed": "Disputed", "abandoned": "Abandoned"},
         "title": "Checkout Sessions"
       },
       "refund": {
+        "titleSentence": "Process refund",
+        "fullRefundSentence": "Full refund",
         "title": "Process Refund",
         "reason": "Refund Reason",
         "selectReason": "Select reason",
@@ -3007,6 +3041,8 @@
       "missingFieldCity": "city",
       "missingFieldPostal": "postal code",
       "missingEmailNotice": "Contact e-mail is required but it is set in Shop Settings (General tab), not here. Please go to Settings → General and fill in your contact e-mail, then try again.",
+      "notPolishShopNotice": "Legal document generation is available for stores in Poland. Go to Settings → Store and set the store country to Poland.",
+      "contactEmailShopNotice": "Add your contact email in Settings → Store, then return here to generate your documents.",
       "notPolishInstallation": "Legal document generation is available only for Polish installations — set the shop country to Poland in the shop settings (General tab)."
     },
     "license": {
@@ -3240,6 +3276,8 @@
         "step2Body": "Open a product → License section → enable Issue a license key on purchase. Optionally set a Tier (e.g. pro, basic) and an expiry in days (leave blank for perpetual).",
         "deliveryTitle": "License delivery",
         "deliveryBody": "Sellf does not email the license automatically. The token is added to the purchase.completed webhook payload as license.token. You receive it on your webhook endpoint and forward it to the buyer however you prefer — email, n8n automation, your own backend.",
+        "deliverySidebarSetup": "Open Webhooks in the sidebar, add your endpoint and select purchase.completed.",
+        "openWebhooks": "Open Webhooks",
         "deliverySetup": "Set up your webhook endpoint in Settings → Webhooks, subscribe to purchase.completed.",
         "deliveryPayloadLabel": "Webhook payload (excerpt):",
         "generateOwnKeyLabel": "Generate your own key (terminal):",
@@ -4607,6 +4645,13 @@
   "storefrontEditor": {
     "comparisonOffers": "Two separate offers",
     "offerNumber": "Offer {number}",
+    "classicHint": "The classic store has one always-visible section: the product catalogue. Choose a card layout, or open Appearance to change colours, fonts and corners. Publishing custom layout and appearance settings requires Pro.",
+    "preview": "Preview",
+    "historyPublishing": "History and publishing",
+    "draftActionsHelp": "Preview your saved draft in a new tab using your store’s products. In history, you can publish it to your store or restore an earlier publication.",
+    "saveBeforePreview": "Save your draft to preview it and open history and publishing. Saving alone does not change your public store.",
+    "newTab": " (opens in a new tab)",
+    "loadedState": "No unsaved changes",
     "title": "Storefront templates",
     "intro": "Compose a private draft. Saving does not change your public storefront.",
     "template": "Template",
@@ -4813,6 +4858,14 @@
     }
   },
   "affiliates": {
+    "earningsTitle": "Partner earnings",
+    "earningsHint": "Choose a partner to review commissions, waiting periods and payout balances by currency. These figures reflect the current Stripe mode.",
+    "earningsSelect": "Select a partner above to see their earnings. Search by name to find them quickly.",
+    "earningsEmpty": "No partner applications yet. Review applications and approve partners to start your program.",
+    "manageApplications": "Manage applications",
+    "loadingPartners": "Loading partners…",
+    "programNotConfigured": "The affiliate program has not been set up yet.",
+    "programSettings": "Go to program settings",
     "navigation": "Affiliate program",
     "partners": "Partners",
     "earnings": "Earnings",
@@ -4880,6 +4933,13 @@
     "unavailable": "This page is temporarily unavailable. Refresh to try again.",
     "apply": "Apply to become a partner",
     "admin": {
+      "applicationReceived": "Application submitted",
+      "applicationNext": "You can check your application status in the partner portal.",
+      "viewApplication": "View application status",
+      "joinTitle": "Join the partner program",
+      "joinHint": "Sign in or create your Sellf account to apply. After signing in, you’ll return to the application.",
+      "nameRequired": "Enter your name (up to 120 characters).",
+      "acceptRequired": "Accept the program terms to continue.",
       "newTermsVersion": "These terms were already published. Give the changed terms a new version and save again.",
       "codeHint": "Use 3–40 lowercase letters, numbers, hyphens or underscores.",
       "amountInvalid": "Enter a valid payout amount for each currency. Use a dot or comma for decimals.",
@@ -4952,6 +5012,9 @@
       "syncRetrySuccess": "Order queued again. The next worker run will process it."
     },
     "products": {
+      "couponAssigned": "Coupon assigned to the partner.",
+      "saveCouponFirst": "Save this coupon first, then assign it to an approved partner here.",
+      "ownerHint": "Purchases using this coupon earn commission for the assigned partner. Assignment is saved separately from coupon details.",
       "title": "Affiliate commission",
       "enabled": "Enabled",
       "percentage": "Percentage",
@@ -4960,6 +5023,9 @@
       "minor": "Commission amount",
       "currency": "Currency",
       "type": "Commission type",
+      "ruleSave": "Save commission only",
+      "ruleSaved": "Commission saved. Use Update product to save the other product changes.",
+      "ruleSaveHint": "This section saves separately. This button saves only the commission; Update product saves the other product settings.",
       "save": "Save commission",
       "loading": "Loading…",
       "saved": "Saved. Product details are saved separately.",
@@ -4982,6 +5048,11 @@
       "archive": "Archive (keep history)"
     },
     "portal": {
+      "live": "Live",
+      "testBalances": "Balances include test commissions only. Live commissions remain visible below and do not affect these amounts.",
+      "liveBalances": "Balances include live commissions only. Test commissions remain visible below and do not affect these amounts.",
+      "selectedPartner": "Selected partner",
+      "adminCodes": "Partner’s coupon codes",
       "syncError": "Synchronization errors",
       "sessionError": "Payment session needs checking",
       "fulfillmentWait": "Waiting for order completion",

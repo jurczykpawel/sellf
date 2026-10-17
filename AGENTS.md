@@ -184,7 +184,7 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
 4. Server-side callers that already trust their own gate (`/api/embed/free-access` uses `requestMagicLink()` since it is still a public, unauthenticated form; the post-checkout `payment-status` page uses `sendTrustedMagicLink()` directly, since access there is already proven by a verified Stripe session) never call `deliverMagicLink()` themselves — an ESLint rule restricts that import to `request.ts`.
 5. The email link carries `token_hash` (custom templates), not `{{ .ConfirmationURL }}` — it works from any device without a PKCE cookie. Locally captured by Mailpit; in production sent by the configured SMTP.
 6. User clicks the link → `/auth/callback` calls `verifyOtp({ token_hash, type })` → session stored in cookies.
-7. User redirected to the configured destination: an explicit `redirect_to` if the link carried one (product/checkout flows), otherwise the callback's own role-based default (admins → `/dashboard`, everyone else → `/my-products`) — a plain login link deliberately omits `redirect_to` so this applies.
+7. Email and OAuth returns share `getLoginReturnPath()`: localized affiliate application and product-access destinations retain their complete query. Other arrivals use the callback's role-based default (admins → `/dashboard`, everyone else → `/my-products`); plain login links omit `redirect_to`. Public return parameters use `resolveSafeRedirectPath()` and navigation uses its resolved path.
 
 Supabase Auth's own captcha setting (`security_captcha_enabled` in the dashboard, or `GOTRUE_SECURITY_CAPTCHA_*` if self-hosting GoTrue) is independent of the above — it only affects direct calls to `/auth/v1`, which this app no longer makes from the browser. Keep it enabled where available as defense in depth; verify with `scripts/verify-auth-captcha.sh`.
 
@@ -542,6 +542,16 @@ consolidated 2026.10.6 RC migration. Its Phase 1 storefront block stays frozen;
 released migration shapes must remain immutable. No renderer or instance connection
 is needed for CLI checks.
 
+SQL config and marketing validation uses the bounded internal JSON-Schema subset
+validator (D-057), without a production `pg_jsonschema` dependency. Generation
+rejects unsupported keywords, formats and patterns before writing either schema;
+reviewed regex translations live in `admin-panel/scripts/storefront-schema-subset.ts`.
+`supabase/tests/jsonschema-regression.py` proves the non-superuser upgrade RPC
+path before installing the reference extension solely for parity tests in the
+disposable `sellf-rcjson` project. Keep its adversarial corpus and reference
+version gate when extending the generator. Generic SQL helpers are service-only;
+the fixed-schema marketing wrapper also permits authenticated product writers.
+
 Public catalogue inputs live in `src/lib/storefront-templates/catalogue.ts`.
 They accept caller-authorized service clients and use service-only, bounded
 read RPCs; public route callers must apply application rate limits. Pages use
@@ -730,8 +740,10 @@ Missing net snapshots must be repaired before retry. Never manually edit queue g
 
 Lock order: payment IDs ascending → member/currency advisory lock → commission/payout.
 Triggers enqueue under the payment lock without taking the member lock. Shared SQL
-preview/aggregate rules govern reservation and portal balances; test commissions never
-enter real payable balances. Unlimited-refund snapshots have no payout release path,
+preview/aggregate rules govern reservation and portal balances. The server resolves the
+current configured Stripe key mode and passes it to the service-only SQL functions; only
+matching commissions enter balances, reservations and CSV. Each payout retains its mode,
+including after an instance mode change. Test and live reservations remain independent. Unlimited-refund snapshots have no payout release path,
 including through manual adjustments. CSV is a private same-origin download with audit;
 it never marks a payout paid. Mark-paid requires external bank/document references.
 

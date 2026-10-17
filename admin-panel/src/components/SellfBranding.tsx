@@ -18,7 +18,7 @@ export default function SellfBranding({ variant = 'checkout' }: SellfBrandingPro
   const refParam = variant === 'product' ? 'product' : 'checkout';
 
   return (
-    <div className="fixed bottom-3 left-0 right-0 text-center pointer-events-none z-10">
+    <div className={variant === 'checkout' ? 'bg-sf-base px-4 py-4 text-center' : 'fixed bottom-3 left-0 right-0 text-center pointer-events-none z-10'}>
       <a
         href={`https://demo.sellf.app?ref=${refParam}`}
         target="_blank"

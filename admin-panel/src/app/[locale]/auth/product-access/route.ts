@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isSafeRedirectUrl } from '@/lib/validations/redirect';
+import { resolveSafeRedirectPath } from '@/lib/validations/redirect';
 import { isInternalHostname } from '@/lib/security/internal-hostname';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 import { loadProductContentConfig } from '@/lib/services/product-content-config';
@@ -19,20 +19,14 @@ import { loadProductContentConfig } from '@/lib/services/product-content-config'
  */
 
 function safeRedirect(url: string, returnUrl?: string | null) {
-  if (returnUrl && isSafeRedirectUrl(returnUrl)) {
-    try {
-      redirect(returnUrl);
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) throw error;
-      redirect(url);
-    }
-  } else {
-    redirect(url);
-  }
+  const destination = returnUrl ? resolveSafeRedirectPath(returnUrl) : null;
+  redirect(destination ?? url);
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
+  const { searchParams, pathname } = new URL(request.url);
+  const requestedLocale = pathname.split('/')[1];
+  const prefix = requestedLocale === 'pl' || requestedLocale === 'en' ? `/${requestedLocale}` : '';
   const slug = searchParams.get('product');
   const returnUrl = searchParams.get('return_url');
   const successUrl = searchParams.get('success_url');
@@ -47,8 +41,8 @@ export async function GET(request: Request) {
   }
 
   // Build product URL once - used for all fallback redirects
-  const prodUrl = `/p/${slug}`;
-  const statusUrl = `/p/${slug}/payment-status`;
+  const prodUrl = `${prefix}/p/${slug}`;
+  const statusUrl = `${prefix}/p/${slug}/payment-status`;
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -104,7 +98,7 @@ export async function GET(request: Request) {
         return;
       }
 
-      const propagatedSuccessUrl = successUrl && isSafeRedirectUrl(successUrl) ? successUrl : null;
+      const propagatedSuccessUrl = successUrl ? resolveSafeRedirectPath(successUrl) : null;
       const qs = propagatedSuccessUrl
         ? `${statusUrl.includes('?') ? '&' : '?'}success_url=${encodeURIComponent(propagatedSuccessUrl)}`
         : '';

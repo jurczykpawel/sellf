@@ -42,9 +42,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const adminClient = auth.supabase;
 
-    // seller_customer_stats: only users with access/transactions (prevents cross-schema leak)
+    // Use the same account set as the admin users list.
     const { data: userStat, error: statsError } = await adminClient
-      .from('seller_customer_stats')
+      .from('user_access_stats')
       .select('user_id, email, user_created_at, email_confirmed_at, last_sign_in_at, raw_user_meta_data, total_products, total_value, last_access_granted_at, first_access_granted_at')
       .eq('user_id', id)
       .single();

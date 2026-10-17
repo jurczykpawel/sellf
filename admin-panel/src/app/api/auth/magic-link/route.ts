@@ -1,15 +1,19 @@
 import { NextResponse } from 'next/server';
 
+import { getLoginReturnPath } from '@/lib/auth/magic-link-redirect';
 import { requestMagicLink } from '@/lib/auth/magic-link/request';
 import { MAGIC_LINK_FLOWS } from '@/lib/auth/magic-link/types';
 import type { MagicLinkErrorCode, MagicLinkFlow } from '@/lib/auth/magic-link/types';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
+import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 
 const ALLOWED_KEYS = new Set([
+  'redirectTo',
   'email',
   'captchaToken',
   'flow',
   'productSlug',
+  'locale',
   'couponCode',
   'successUrl',
 ]);
@@ -20,7 +24,9 @@ interface ParsedRequest {
   email: string;
   captchaToken: string | null | undefined;
   flow: MagicLinkFlow;
+  redirectTo?: string;
   productSlug?: string;
+  locale?: string;
   couponCode?: string;
   successUrl?: string;
 }
@@ -41,11 +47,13 @@ function parseBody(body: unknown): ParsedRequest | null {
     if (!ALLOWED_KEYS.has(key)) return null;
   }
 
-  const { email, captchaToken, flow, productSlug, couponCode, successUrl } = record;
+  const { email, captchaToken, flow, productSlug, couponCode, successUrl, redirectTo, locale } = record;
+  if (redirectTo !== undefined && (typeof redirectTo !== 'string' || !getLoginReturnPath(redirectTo))) return null;
 
   if (typeof email !== 'string' || email.length === 0 || email.length > 254) return null;
   if (captchaToken !== undefined && captchaToken !== null && typeof captchaToken !== 'string') return null;
   if (!isFlow(flow)) return null;
+  if (locale !== undefined && locale !== 'en' && locale !== 'pl') return null;
 
   let parsedProductSlug: string | undefined;
   if (productSlug !== undefined) {
@@ -61,7 +69,7 @@ function parseBody(body: unknown): ParsedRequest | null {
 
   let parsedSuccessUrl: string | undefined;
   if (successUrl !== undefined) {
-    if (typeof successUrl !== 'string' || successUrl.length > 2048) return null;
+    if (typeof successUrl !== 'string' || successUrl.length > 2048 || !isSafeRedirectUrl(successUrl)) return null;
     parsedSuccessUrl = successUrl;
   }
 
@@ -69,7 +77,9 @@ function parseBody(body: unknown): ParsedRequest | null {
     email,
     captchaToken: captchaToken as string | null | undefined,
     flow,
+    ...(redirectTo ? { redirectTo: redirectTo as string } : {}),
     productSlug: parsedProductSlug,
+    locale,
     couponCode: parsedCouponCode,
     successUrl: parsedSuccessUrl,
   };
@@ -110,7 +120,9 @@ export async function POST(request: Request) {
     email: parsed.email,
     captchaToken: parsed.captchaToken,
     flow: parsed.flow,
+    ...(parsed.redirectTo ? { redirectTo: parsed.redirectTo } : {}),
     productSlug: parsed.productSlug,
+    ...(parsed.locale ? { locale: parsed.locale } : {}),
     couponCode: parsed.couponCode,
     successUrl: parsed.successUrl,
   });

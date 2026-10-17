@@ -199,7 +199,7 @@ export default function PaymentsDashboard() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-sf-heading">
-            {t('title')}
+            {t('titleSentence')}
           </h1>
           <p className="text-sf-body">
             {t('subtitle')}
@@ -231,7 +231,7 @@ export default function PaymentsDashboard() {
                   : 'border-transparent text-sf-muted hover:text-sf-heading'
               }`}
             >
-              {t('transactions.title')} ({transactions.length})
+              {t('transactions.titleSentence')} ({transactions.length})
             </button>
             <button
               onClick={() => setActiveTab('sessions')}
@@ -241,7 +241,7 @@ export default function PaymentsDashboard() {
                   : 'border-transparent text-sf-muted hover:text-sf-heading'
               }`}
             >
-              {t('sessions.title')} ({filteredSessions.length})
+              {t('sessions.titleSentence')} ({filteredSessions.length})
             </button>
           </nav>
         </div>

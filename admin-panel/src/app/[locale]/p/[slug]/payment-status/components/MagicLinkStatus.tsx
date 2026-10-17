@@ -28,6 +28,7 @@ interface MagicLinkStatusProps {
 }
 
 export default function MagicLinkStatus({
+  product,
   customerEmail,
   magicLinkSent,
   termsAccepted,
@@ -77,7 +78,7 @@ export default function MagicLinkStatus({
 
   return (
     <>
-      <p className="text-sf-body mb-6">{t('paymentProcessedSuccessfully')}</p>
+      <p className="text-sf-body mb-6">{t('purchaseReceipt', { productName: product.name })}</p>
       
       <div className="space-y-4">
         {showValidationBlock ? (

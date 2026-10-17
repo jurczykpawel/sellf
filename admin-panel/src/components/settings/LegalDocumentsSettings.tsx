@@ -360,7 +360,7 @@ export default function LegalDocumentsSettings() {
       {!isPolishInstallation && (
         <div className="bg-sf-base border-2 border-sf-border-medium p-6">
           <p className="text-sm text-sf-body">
-            {t('notPolishInstallation')}
+            {t('notPolishShopNotice')}
           </p>
         </div>
       )}
@@ -683,7 +683,7 @@ export default function LegalDocumentsSettings() {
         {highlightMissing.includes('email') && (
           <div className="mb-4 p-4 border-2 border-red-400/60 bg-red-50 dark:bg-red-900/20">
             <p className="text-sm font-medium text-red-800 dark:text-red-300">
-              {t('missingEmailNotice')}
+              {t('contactEmailShopNotice')}
             </p>
           </div>
         )}

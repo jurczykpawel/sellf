@@ -27,6 +27,7 @@ vi.mock('@/lib/services/pending-free-grants', async (importOriginal) => {
 });
 
 import { GET } from '@/app/[locale]/auth/callback/route';
+import { buildFreeProductMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
 
 const USER = {
   id: 'user-1',
@@ -68,6 +69,31 @@ describe('auth callback pending free grants', () => {
 
     expect(claimPendingFreeGrants).toHaveBeenCalledWith(expect.objectContaining({ skipSlug: 'widget' }));
     expect(response.headers.get('location')).toContain('/auth/product-access?product=widget');
+  });
+
+  it.each(['/affiliates/apply', '/pl/affiliates/apply', '/en/affiliates/apply', '/pl/auth/product-access?product=course'])('retains supported arrival destination %s', async path => {
+    const response = await callback(`redirect_to=${encodeURIComponent(path)}&type=magiclink&token_hash=abc`);
+    expect(response.headers.get('location')).toBe(`https://shop.example.com${path}`);
+  });
+
+  it('keeps the nested success query intact through arrival', async () => {
+    const link = new URL(buildFreeProductMagicLinkRedirect({ origin: 'https://shop.example.com', productSlug: 'course', locale: 'pl', successUrl: '/thanks?a=1&b=2' }));
+    const response = await callback(`${link.searchParams.toString()}&type=magiclink&token_hash=abc`);
+    const destination = new URL(response.headers.get('location')!);
+    expect(destination.pathname).toBe('/pl/auth/product-access');
+    expect(destination.searchParams.get('success_url')).toBe('/thanks?a=1&b=2');
+    expect([...destination.searchParams.keys()]).toEqual(['product', 'success_url']);
+  });
+
+  it.each(['/dashboard', '//elsewhere.test', '/\t/elsewhere.test', '/%09/elsewhere.test', '%2Fpl%2Faffiliates%2Fapply', 'https://shop.example.com/pl/affiliates/apply', '/auth/product-access?product=course&return_url=/dashboard'])('uses the account default for unsupported arrival %j', async path => {
+    const response = await callback(`redirect_to=${encodeURIComponent(path)}&type=magiclink&token_hash=abc`);
+    expect(response.headers.get('location')).toBe('https://shop.example.com/my-products');
+  });
+
+  it('uses the admin default for an unsupported arrival destination', async () => {
+    rpc.mockResolvedValueOnce({ data: true });
+    const response = await callback('redirect_to=%2Fother&type=magiclink&token_hash=abc');
+    expect(response.headers.get('location')).toBe('https://shop.example.com/dashboard');
   });
 
   it('does not claim when the sign-in failed', async () => {

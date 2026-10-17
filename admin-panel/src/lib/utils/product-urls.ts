@@ -21,15 +21,17 @@ function assertSafeSlug(value: string, name: string): void {
 }
 
 /** Product page URL */
-export function productUrl(slug: string): string {
+export function productUrl(slug: string, locale?: string): string {
   assertSafeSlug(slug, 'slug');
-  return `/p/${slug}`;
+  const prefix = locale === 'pl' || locale === 'en' ? `/${locale}` : '';
+  return `${prefix}/p/${slug}`;
 }
 
 /** Checkout page URL */
-export function checkoutUrl(slug: string): string {
+export function checkoutUrl(slug: string, locale?: string): string {
   assertSafeSlug(slug, 'slug');
-  return `/checkout/${slug}`;
+  const prefix = locale === 'pl' || locale === 'en' ? `/${locale}` : '';
+  return `${prefix}/checkout/${slug}`;
 }
 
 /** Payment status page URL */

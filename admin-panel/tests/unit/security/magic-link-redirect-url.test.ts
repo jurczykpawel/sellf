@@ -8,6 +8,7 @@ import {
   buildPostCheckoutMagicLinkRedirect,
   buildFreeProductMagicLinkRedirect,
   buildLoginMagicLinkRedirect,
+  getLoginReturnPath,
 } from '@/lib/auth/magic-link-redirect';
 
 describe('Magic-link redirect URL construction', () => {
@@ -90,11 +91,45 @@ describe('Magic-link redirect URL construction', () => {
   });
 
   describe('buildLoginMagicLinkRedirect', () => {
+    it.each(['/affiliates/apply', '/pl/affiliates/apply', '/en/affiliates/apply'])('retains the application destination %s', path => {
+      expect(new URL(buildLoginMagicLinkRedirect('https://a.b', path)).searchParams.get('redirect_to')).toBe(path);
+    });
+    it.each(['//elsewhere.test', '/\\elsewhere.test', 'https://elsewhere.test', '/dashboard', '/pl/affiliates/apply?next=elsewhere'])('uses default login routing for %s', path => {
+      expect(buildLoginMagicLinkRedirect('https://a.b', path)).toBe('https://a.b/auth/callback?flow=login');
+    });
     it('routes through /auth/callback without redirect_to, so the callback applies role-based routing', () => {
       const url = buildLoginMagicLinkRedirect('https://a.b');
       expect(url).toContain('?');
       expect(url).not.toContain('redirect_to');
       expect(url).toBe('https://a.b/auth/callback?flow=login');
     });
+  });
+});
+
+it('retains the buyer locale in a post-checkout email destination', () => {
+  const url = new URL(buildPostCheckoutMagicLinkRedirect({ origin: 'https://shop.example', productSlug: 'course', sessionId: undefined, paymentIntentId: undefined, locale: 'pl' }));
+  expect(url.searchParams.get('redirect_to')).toBe('/pl/auth/product-access?product=course');
+});
+
+
+describe('supported account return paths', () => {
+  it.each(['', '/pl', '/en'])('shares localized application and product destinations with prefix %s', prefix => {
+    for (const path of [`${prefix}/affiliates/apply`, `${prefix}/auth/product-access?product=course`]) {
+      expect(getLoginReturnPath(path)).toBe(path);
+      expect(new URL(buildLoginMagicLinkRedirect('https://shop.example', path)).searchParams.get('redirect_to')).toBe(path);
+    }
+  });
+  it.each([
+    'https://elsewhere.test/affiliates/apply', '//elsewhere.test/affiliates/apply',
+    '/\\elsewhere.test/affiliates/apply', '/%2f%2felsewhere.test/affiliates/apply',
+    '%2Fpl%2Faffiliates%2Fapply', '/pl/%61ffiliates/apply', '/pl/affiliates/%2561pply',
+    '/pl/../affiliates/apply', '/pl/affiliates/apply#x', '/pl/affiliates/apply?next=/dashboard',
+    '/pl/affiliates/apply\n', '/pl/affiliates/apply\r', '/pl/affiliates/apply\t',
+    '/de/affiliates/apply', '/pl/auth/product-access?product=course&return_url=https://elsewhere.test',
+    '/auth/product-access?product=course&product=other', '/auth/product-access?product=%252f%252felsewhere.test',
+    '/auth/product-access?%70roduct=course', '/auth/product-access?product=course#x',
+  ])('declines unsupported return value %j', path => {
+    expect(getLoginReturnPath(path)).toBeUndefined();
+    expect(buildLoginMagicLinkRedirect('https://shop.example', path)).toBe('https://shop.example/auth/callback?flow=login');
   });
 });

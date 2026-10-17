@@ -14,7 +14,7 @@ beforeEach(() => { vi.clearAllMocks();
 it('waits for explicit selection when a search returns a single partner and then loads the preview', async () => {
   const a = { id: 'aaaaaaaa-0000-4000-a000-000000000001', display_name: 'Anna', code: 'anna', status: 'approved' };
   const b = { ...a, id: 'bbbbbbbb-0000-4000-a000-000000000001', display_name: 'Beata' };
-  mocks.choices.mockImplementation(async ({ search }: { search: string }) => ({ success: true, data: { members: search ? [a] : [a, b], currencies: ['PLN'], payouts: [], commissions: [] } }));
+  mocks.choices.mockImplementation(async ({ search }: { search: string }) => ({ success: true, data: { programConfigured: true, members: search ? [a] : [a, b], currencies: ['PLN'], payouts: [], commissions: [] } }));
   render(<PayoutPanel locale="en" download={() => {}} />);
   const picker = screen.getByRole('combobox', { name: 'Partner' });
   await waitFor(() => expect(mocks.choices).toHaveBeenCalled());
@@ -28,7 +28,7 @@ it('waits for explicit selection when a search returns a single partner and then
 });
 it('keeps the preview when the already selected partner is selected again', async () => {
   const a = { id: 'aaaaaaaa-0000-4000-a000-000000000001', display_name: 'Anna', code: 'anna', status: 'approved' };
-  mocks.choices.mockResolvedValue({ success: true, data: { members: [a], currencies: ['PLN'], payouts: [], commissions: [] } });
+  mocks.choices.mockResolvedValue({ success: true, data: { programConfigured: true, members: [a], currencies: ['PLN'], payouts: [], commissions: [] } });
   render(<PayoutPanel locale="en" download={() => {}} />);
   const reserve = () => screen.getByRole('button', { name: 'Reserve for payout' }) as HTMLButtonElement;
   await waitFor(() => expect(reserve().disabled).toBe(false));
@@ -41,7 +41,7 @@ it.each(['CHF', 'KRW'])('marks a %s payout paid and submits an exact adjustment'
   const partner = { id: 'aaaaaaaa-0000-4000-a000-000000000001', display_name: 'Anna', code: 'anna', status: 'approved' };
   const payout = { id: 'aaaaaaaa-0000-4000-a000-000000000002', member_id: partner.id, currency, earnings_minor: '1234', version: '1', status: 'reserved', needs_review: false, payee_reference: 'Anna' };
   const commission = { id: 'aaaaaaaa-0000-4000-a000-000000000003', version: '1', currency, product_name: 'Course', paid_at: '2026-01-01T00:00:00Z' };
-  mocks.choices.mockResolvedValue({ success: true, data: { members: [partner], currencies: [currency], payouts: [payout], commissions: [commission] } });
+  mocks.choices.mockResolvedValue({ success: true, data: { programConfigured: true, members: [partner], currencies: [currency], payouts: [payout], commissions: [commission] } });
   mocks.paid.mockResolvedValue({ success: false }); mocks.adjust.mockResolvedValue({ success: false });
   render(<PayoutPanel locale="en" initialPayout={payout} download={() => {}} />);
   await screen.findByText('Anna · Current reservation');

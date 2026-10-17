@@ -212,7 +212,7 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-[40px] font-[800] text-sf-heading tracking-[-0.03em] leading-[1.1]">{t('title')}</h1>
           <p className="text-sm text-sf-muted mt-1">{t('pageDescription')}</p>

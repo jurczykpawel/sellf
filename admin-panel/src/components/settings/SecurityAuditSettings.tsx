@@ -10,7 +10,7 @@
 
 import { useState, useEffect } from 'react';
 import { Shield, ShieldCheck, ShieldAlert, AlertTriangle, Info, Loader2, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { getSecurityAudit, runSecurityAudit } from '@/lib/actions/security-audit';
 import type { SecurityCheckResult, SecurityAuditResult } from '@/lib/actions/security-audit';
 
@@ -125,6 +125,7 @@ function CheckRow({ check }: { check: SecurityCheckResult }) {
 
 export default function SecurityAuditSettings() {
   const t = useTranslations('securityAudit');
+  const locale = useLocale();
   const [result, setResult] = useState<SecurityAuditResult | null>(null);
   const [running, setRunning] = useState(true);
 
@@ -233,7 +234,7 @@ export default function SecurityAuditSettings() {
           </div>
 
           <p className="text-xs text-sf-muted mt-4">
-            {t('lastRun')}: {new Date(result.timestamp).toLocaleString()}
+            {t('lastRun')}: {new Date(result.timestamp).toLocaleString(locale)}
           </p>
         </>
       )}

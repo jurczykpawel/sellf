@@ -21,6 +21,7 @@ import { useOto } from '@/hooks/useOto';
 import { useFreeAccess } from '@/hooks/useFreeAccess';
 import { useCheckoutRedirect } from '@/hooks/useCheckoutRedirect';
 import { calculatePricing } from '@/hooks/usePricing';
+import PaymentFormSkeleton from '@/components/checkout/PaymentFormSkeleton';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
 import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
 import type { StripeCheckoutElementsSdkOptions } from '@stripe/stripe-js';
@@ -71,6 +72,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const { resolvedTheme } = useTheme();
   const { track } = useTracking();
   const trackingFired = useRef(false);
+  const checkoutTrackingFired = useRef(false);
+  const [purchaseStarted, setPurchaseStarted] = useState(false);
 
   // Funnel test mode: admin-only visual preview (no Stripe, no backend calls)
   const isFunnelTest = searchParams.get('funnel_test') === '1' && isAdmin;
@@ -238,6 +241,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   const isFreeAccess = isPwywFree || isFullDiscountCoupon;
   const checkoutSessionSignature = JSON.stringify({
+    locale,
     productId: product.id,
     email: email || null,
     bumpProductIds: Array.from(selectedBumpIds).sort(),
@@ -288,12 +292,19 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     };
 
     track('view_item', trackingData);
-    track('begin_checkout', trackingData);
+
   }, [product, track, effectiveUnitPrice]);
+
+  useEffect(() => {
+    if (!purchaseStarted || checkoutTrackingFired.current) return;
+    checkoutTrackingFired.current = true;
+    track('begin_checkout', { value: effectiveUnitPrice, currency: product.currency,
+      items: [{ item_id: product.id, item_name: product.name, price: effectiveUnitPrice, quantity: 1 }] });
+  }, [purchaseStarted, track, effectiveUnitPrice, product]);
 
   // One request at a time; superseded responses remain available for replacement.
   useEffect(() => {
-    if (hasAccess || error || authLoading || isFunnelTest || isFreeAccess ||
+    if (!purchaseStarted || hasAccess || error || authLoading || isFunnelTest || isFreeAccess ||
       (product.allow_custom_price && checkCustomAmount(customAmount) !== null)) {
       sessionQueue.update(null);
       return;
@@ -307,6 +318,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             productId: product.id,
+            locale,
             clientSecret: previous?.clientSecret,
             bindingToken: previous?.bindingToken ?? undefined,
             email: email?.trim() || undefined,
@@ -349,8 +361,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       },
     });
   }, [
-    hasAccess, error, authLoading,
-    product, email, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
+    purchaseStarted, hasAccess, error, authLoading,
+    product, email, locale, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
     customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess,
     checkoutSessionSignature, explicitRepurchase, sessionQueue, customFieldDefs, customFieldValues,
   ]);
@@ -463,12 +475,12 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
       {/* Checkout Card */}
       {!(isFreeAccess && !error && !hasAccess) && (
-        <div className="bg-sf-raised backdrop-blur-md rounded-2xl p-6 border border-sf-border relative overflow-hidden">
+        <div className="bg-sf-raised backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-sf-border relative overflow-hidden">
           {coupon.isVerifyingCoupon && (
             <div className="absolute top-0 left-0 h-0.5 bg-sf-accent-bg animate-pulse w-full" />
           )}
 
-          <h2 className="text-xl font-semibold text-sf-heading mb-4">{t('title')}</h2>
+          <h2 className="text-xl font-semibold text-sf-heading mb-4">{t('purchaseTitle')}</h2>
 
           {/* Missing Config Alert */}
           {!config.stripePublishableKey && (
@@ -516,6 +528,17 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
               {t('funnelTest.completeButton')}
             </button>
           )}
+
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && !purchaseStarted && (
+            <form onSubmit={event => { event.preventDefault(); setPurchaseStarted(true); }}>
+              <button type="submit" className="w-full cursor-pointer rounded-xl bg-sf-accent-bg px-6 py-4 font-semibold text-sf-inverse hover:bg-sf-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent">
+                {t('payButton', { amount: formatPrice(pricing.totalGross, product.currency, locale) })}
+              </button>
+              <p className="mt-3 text-center text-xs text-sf-muted">{t('securePayment')}</p>
+            </form>
+          )}
+
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && purchaseStarted && (!clientSecret || lastCheckoutSessionSignature !== checkoutSessionSignature) && <PaymentFormSkeleton />}
 
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && stripePromise && clientSecret && lastCheckoutSessionSignature === checkoutSessionSignature && (
             <CheckoutElementsProvider
@@ -574,7 +597,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     // Host template (e.g. tip-jar) provides chrome + product info; we render
     // ONLY the form column so the page doesn't duplicate showcase / wrapper.
     return (
-      <div className="w-full p-6 lg:p-8 bg-sf-base border border-sf-border shadow-[var(--sf-shadow-accent)] backdrop-blur-md rounded-2xl">
+      <div className="w-full p-4 sm:p-6 lg:p-8 bg-sf-base border border-sf-border shadow-[var(--sf-shadow-accent)] backdrop-blur-md rounded-2xl">
         {renderCheckoutForm()}
       </div>
     );
@@ -582,7 +605,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   return (
     <div className="flex justify-center items-start min-h-screen bg-gradient-to-br from-sf-deep to-sf-raised p-4 lg:p-8">
-      <div className="w-full max-w-7xl mx-auto p-6 lg:p-8 bg-sf-base border border-sf-border shadow-[var(--sf-shadow-accent)] backdrop-blur-md rounded-2xl">
+      <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 bg-sf-base border border-sf-border shadow-[var(--sf-shadow-accent)] backdrop-blur-md rounded-2xl">
         <div className={TWO_COLUMN_ROW_CLASSNAME}>
           <ProductShowcase product={product} taxMode={taxMode} bundleComponents={bundleComponents} />
           {renderCheckoutForm()}

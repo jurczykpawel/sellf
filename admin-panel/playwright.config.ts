@@ -1,3 +1,4 @@
+import { createSign, generateKeyPairSync } from 'node:crypto';
 import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -28,6 +29,22 @@ dotenv.config({ path: path.resolve(__dirname, '.env.local') });
  */
 const isRateLimitTestMode = process.env.RATE_LIMIT_TEST_MODE === 'true';
 const quietMode = process.env.QUIET_MODE === '1';
+const isTemplateAuthorMode = process.env.PW_TEMPLATE_AUTHOR === '1';
+
+function templateAuthorEnvironment(): Record<string, string> {
+  if (!isTemplateAuthorMode) return {};
+  const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const payload = Buffer.from(JSON.stringify({
+    v: 1, kid: 'author-fixture', product: 'author-fixture', email: 'fixture@example.com', order: 'fixture',
+    tier: 'business', domain: 'author.example.test', iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 3600,
+  })).toString('base64url');
+  return {
+    SITE_URL: 'http://author.example.test', NEXT_PUBLIC_SITE_URL: 'http://author.example.test',
+    SELLF_LICENSE_PRODUCTS: 'author-fixture',
+    SELLF_LICENSE_KEY: `${payload}.${createSign('SHA256').update(payload).end().sign(privateKey).toString('base64url')}`,
+    SELLF_JWKS_FALLBACK: JSON.stringify({ keys: [{ kid: 'author-fixture', alg: 'ES256', pem: publicKey.export({ type: 'spki', format: 'pem' }) }] }),
+  };
+}
 
 // The dev server's ECBProvider (src/lib/services/currencyService.ts) is redirected here
 // instead of the real frankfurter.dev host, via the webServer entry below — fixed rates,
@@ -102,6 +119,18 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    ...(isTemplateAuthorMode ? [
+      {
+        name: 'template-author-setup',
+        testMatch: '**/storefront-author.setup.ts',
+      },
+      {
+        name: 'template-author',
+        testMatch: '**/storefront-author-flow.acceptance.ts',
+        dependencies: ['template-author-setup'],
+        use: { ...devices['Desktop Chrome'] },
+      },
+    ] : []),
     ...(process.env.STRIPE_LIVE_E2E === '1' ? [{
       name: 'stripe-live',
       testMatch: '**/stripe-live/*.spec.ts',
@@ -206,7 +235,7 @@ export default defineConfig({
       // its first currency request.
       command: `FX_STUB_PORT=${FX_STUB_PORT} node scripts/fx-rate-stub-server.mjs`,
       url: `http://127.0.0.1:${FX_STUB_PORT}/health`,
-      reuseExistingServer: process.env.PW_REUSE_SERVER === '1',
+      reuseExistingServer: !isTemplateAuthorMode && process.env.PW_REUSE_SERVER === '1',
       stdout: quietMode ? 'ignore' : 'pipe',
       stderr: quietMode ? 'ignore' : 'pipe',
       timeout: 10000,
@@ -220,9 +249,10 @@ export default defineConfig({
       command: isRateLimitTestMode
         ? `NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true NEXT_PUBLIC_TURNSTILE_TEST_MODE=${APP_COMMAND === 'start' ? 'false' : 'true'} CURRENCY_ECB_BASE_URL=${APP_COMMAND === 'start' ? '' : FX_STUB_BASE_URL} PORT=${APP_PORT} RATE_LIMIT_TEST_MODE=true bun run ${APP_COMMAND}`
         : `NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true NEXT_PUBLIC_TURNSTILE_TEST_MODE=${APP_COMMAND === 'start' ? 'false' : 'true'} CURRENCY_ECB_BASE_URL=${APP_COMMAND === 'start' ? '' : FX_STUB_BASE_URL} PORT=${APP_PORT} bun run ${APP_COMMAND}`,
+      env: templateAuthorEnvironment(),
       url: `http://localhost:${APP_PORT}`,
       // Never reuse — port 3000 may be occupied by another project (e.g. ReelStack)
-      reuseExistingServer: process.env.PW_REUSE_SERVER === '1',
+      reuseExistingServer: !isTemplateAuthorMode && process.env.PW_REUSE_SERVER === '1',
       stdout: quietMode ? 'ignore' : 'pipe',
       stderr: quietMode ? 'ignore' : 'pipe',
       timeout: 60000,

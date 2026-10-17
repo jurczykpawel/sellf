@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { getRecentActivity } from '@/lib/actions/dashboard'
 
 interface ActivityItem {
@@ -17,6 +17,7 @@ interface ActivityItem {
 
 export default function RecentActivity() {
   const t = useTranslations('admin.dashboard');
+  const locale = useLocale();
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -89,7 +90,7 @@ export default function RecentActivity() {
     if (diffMins < 60) return t('recentActivity.timeMinutesAgo', { minutes: diffMins })
     if (diffHours < 24) return t('recentActivity.timeHoursAgo', { hours: diffHours })
     if (diffDays < 7) return t('recentActivity.timeDaysAgo', { days: diffDays })
-    return past.toLocaleDateString()
+    return past.toLocaleDateString(locale)
   }
 
   const getIcon = (type: ActivityItem['icon']) => {

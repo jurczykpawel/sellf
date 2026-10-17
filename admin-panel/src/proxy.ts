@@ -5,6 +5,7 @@ import { locales, defaultLocale } from './lib/locales'
 import { buildSupabaseCookieOptions } from './lib/supabase/cookie-options'
 import { buildContentSecurityPolicyWithNonce } from './lib/security/headers'
 import { DEMO_MODE_API_ERROR } from './lib/demo-guard'
+import { getLoginReturnPath } from '@/lib/auth/magic-link-redirect';
 import { getRuntimeSupabaseUrl, getRuntimeSupabaseAnonKey } from '@/lib/config/runtime-env';
 
 /**
@@ -393,13 +394,15 @@ export async function proxy(request: NextRequest) {
 
   // Auth logic
   if (user && !userError && isLoginRoute) {
-    const redirectPath = locale ? `/${locale}/dashboard` : '/dashboard'
+    const redirectPath = getLoginReturnPath(request.nextUrl.searchParams.get('redirect_to')) ?? (locale ? `/${locale}/dashboard` : '/dashboard')
     return applyHeaders(NextResponse.redirect(new URL(redirectPath, request.url)))
   }
 
   if ((!user || userError) && isProtectedRoute) {
     const redirectPath = locale ? `/${locale}/login` : '/login'
-    return applyHeaders(NextResponse.redirect(new URL(redirectPath, request.url)))
+    const target = new URL(redirectPath, request.url)
+    if (actualPath === '/affiliates/apply') target.searchParams.set('redirect_to', pathname)
+    return applyHeaders(NextResponse.redirect(target))
   }
 
   return applyHeaders(response);

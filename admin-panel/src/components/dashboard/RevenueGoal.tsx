@@ -296,7 +296,7 @@ export default function RevenueGoal() {
               </button>
               {goalStartDate && (
                 <span className="text-xs text-sf-muted ml-2">
-                  ({t('stats.since', { date: new Date(goalStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) })})
+                  ({t('stats.since', { date: new Date(goalStartDate).toLocaleDateString(locale, { month: 'short', day: 'numeric' }) })})
                 </span>
               )}
             </div>

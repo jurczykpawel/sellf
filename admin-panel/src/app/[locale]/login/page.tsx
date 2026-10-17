@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect } from 'react'
 import { useTranslations } from 'next-intl'
+import { getLoginReturnPath } from '@/lib/auth/magic-link-redirect'
 import LoginForm from '@/components/LoginForm'
 import SiteMenu from '@/components/SiteMenu'
 import { useConfig } from '@/components/providers/config-provider'
@@ -13,6 +14,7 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useTranslations()
+  const returnPath = getLoginReturnPath(searchParams.get('redirect_to'))
   const { demoMode } = useConfig()
 
   // Derived from URL params — no state, no effect, no cascading renders.
@@ -39,9 +41,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push('/dashboard')
+      router.push(returnPath ?? '/dashboard')
     }
-  }, [user, loading, router])
+  }, [user, loading, router, returnPath])
 
   // Focus email field when the user arrives with a recoverable error so they
   // can immediately request a new magic link without extra clicks.
@@ -115,8 +117,8 @@ export default function LoginPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-sf-heading mb-2">{t('auth.title')}</h1>
-          <p className="text-sf-body">{t('auth.pleaseSignIn')}</p>
+          <h1 className="text-3xl font-bold text-sf-heading mb-2">{returnPath ? t('affiliates.admin.joinTitle') : t('auth.title')}</h1>
+          <p className="text-sf-body">{returnPath ? t('affiliates.admin.joinHint') : t('auth.pleaseSignIn')}</p>
 
           {/* Demo mode credentials */}
           {demoMode && (
@@ -157,7 +159,7 @@ export default function LoginPage() {
           )}
         </div>
         
-        <LoginForm />
+        <LoginForm redirectTo={returnPath} />
       </div>
     </div>
   )

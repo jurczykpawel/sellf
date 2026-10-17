@@ -84,7 +84,7 @@ export default function OrderSummary({
       )}
 
       {/* Total */}
-      <div className="flex justify-between items-baseline">
+      <div className="flex flex-wrap justify-between items-baseline gap-3">
         <div>
           <div className={`font-semibold ${customAmountError ? 'text-sf-danger' : 'text-sf-heading'}`}>
             {t('total', { defaultValue: 'Total' })}
@@ -103,7 +103,7 @@ export default function OrderSummary({
             </div>
           )}
         </div>
-        <div data-testid="order-summary-total" className={`text-2xl font-bold ${customAmountError ? 'text-sf-danger line-through' : 'text-sf-heading'}`}>
+        <div data-testid="order-summary-total" className={`shrink-0 whitespace-nowrap text-2xl font-bold ${customAmountError ? 'text-sf-danger line-through' : 'text-sf-heading'}`}>
           {formatPrice(totalGross, currency, locale)}
           {intervalLabel && <span className="text-base font-medium text-sf-muted"> / {intervalLabel}</span>}
         </div>

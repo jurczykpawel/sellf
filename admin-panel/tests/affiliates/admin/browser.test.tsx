@@ -25,7 +25,7 @@ it('keeps recovery, payouts and portal usable at desktop and mobile sizes in EN/
   const program = { id, version: '1', enabled: true, hold_days: 30, buffer_days: 2, terms_version: 'v1', terms: { en: 'Terms', pl: 'Regulamin' }, thresholds: { CHF: '1000' } };
   const payout = { id, member_id: id, currency: 'CHF', earnings_minor: '1234', version: '1', status: 'reserved', needs_review: false, payee_reference: 'Anna' };
   actions.getAffiliateSyncOverview.mockResolvedValue({ success: true, data: { work: [{ payment_id: id, requested_generation: '9007199254740993', attempts: 10, last_error_code: 'net_unavailable', payment: { created_at: '2026-10-01T09:00:00Z', product: { name: 'Automation Masterclass' } } }], next_cursor: null, oldest_pending_at: '2026-10-01T09:00:00Z' } });
-  actions.getPayoutChoices.mockResolvedValue({ success: true, data: { members: [{ id, display_name: 'Anna Kowalska', code: 'anna', status: 'approved' }], currencies: ['CHF'], payouts: [payout], commissions: [] } });
+  actions.getPayoutChoices.mockResolvedValue({ success: true, data: { programConfigured: true, members: [{ id, display_name: 'Anna Kowalska', code: 'anna', status: 'approved' }], currencies: ['CHF'], payouts: [payout], commissions: [] } });
   actions.previewPayout.mockResolvedValue({ success: true, data: { earnings_minor: '1234', held_minor: '0', debt_offset_minor: '0', payable_minor: '1234' } });
   let portalCss = readFileSync('src/components/affiliates/portal/AffiliatePortal.module.css', 'utf8').replace(/:global\(([^)]+)\)/g, '$1');
   for (const [name, generated] of Object.entries(styles)) portalCss = portalCss.replace(new RegExp(`\\.${name}(?![\\w-])`, 'g'), `.${generated}`);

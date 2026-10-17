@@ -14,7 +14,9 @@ export interface SubmitMagicLinkInput {
   email: string;
   captcha: MagicLinkSubmitCaptcha;
   flow: MagicLinkFlow;
+  redirectTo?: string;
   productSlug?: string;
+  locale?: string;
   couponCode?: string | null;
   successUrl?: string | null;
 }
@@ -38,7 +40,9 @@ export async function submitMagicLink(input: SubmitMagicLinkInput): Promise<Magi
     email: input.email,
     captchaToken: input.captcha.token,
     flow: input.flow,
+    ...(input.redirectTo ? { redirectTo: input.redirectTo } : {}),
     productSlug: input.productSlug,
+    locale: input.locale,
     couponCode: input.couponCode,
     successUrl: input.successUrl,
   });

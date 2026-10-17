@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { buildCheckoutReturnUrl } from '@/lib/checkout/return-url';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
@@ -92,11 +93,13 @@ export async function POST(request: NextRequest) {
       postalCode,
       country,
       successUrl,
+      locale,
       customAmount,  // Pay What You Want
       customFieldValues, // Phase 3a: buyer-typed values for product.custom_checkout_fields
       repurchase: rawRepurchase,
     } = body;
     const explicitRepurchase = rawRepurchase === true;
+    const checkoutLocale = locale === 'pl' ? 'pl' : 'en';
 
     // Normalize + validate bump IDs (supports legacy single bumpProductId)
     const { validIds: requestedBumpIds, invalidIds } = normalizeBumpIds({ bumpProductId, bumpProductIds });
@@ -372,12 +375,13 @@ export async function POST(request: NextRequest) {
       }
 
       const stripePriceId = await getOrCreateStripePriceForProduct(stripe, subscriptionProduct);
-      const returnUrl = `${getCanonicalOrigin(request)}/payment/success?session_id={CHECKOUT_SESSION_ID}&product_id=${encodeURIComponent(subscriptionProduct.id)}&product=${encodeURIComponent(subscriptionProduct.slug)}`;
+      const returnUrl = buildCheckoutReturnUrl({ origin: getCanonicalOrigin(request), productId: subscriptionProduct.id, productSlug: subscriptionProduct.slug, locale: checkoutLocale, successUrl });
       const subscriptionSessionParams = buildSubscriptionSessionConfig({
         product: subscriptionProduct,
         customerId,
         stripePriceId,
         returnUrl,
+        locale: checkoutLocale,
         email: finalEmail,
         userId: user?.id,
         checkoutConfig,
@@ -616,7 +620,7 @@ export async function POST(request: NextRequest) {
       repurchase: explicitRepurchase ? 'true' : 'false',
     };
 
-    const returnUrl = `${getCanonicalOrigin(request)}/payment/success?session_id={CHECKOUT_SESSION_ID}&product_id=${encodeURIComponent(product.id)}&product=${encodeURIComponent(product.slug)}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;
+    const returnUrl = buildCheckoutReturnUrl({ origin: getCanonicalOrigin(request), productId: product.id, productSlug: product.slug, locale: checkoutLocale, successUrl });
     // Build one Stripe line item per product (main + each bump) via the shared builder
     // — identical to the embedded flow (DRY) — so per-line tax can be captured. The
     // guard below asserts the split preserves the exact total that was charged before.
@@ -675,6 +679,7 @@ export async function POST(request: NextRequest) {
       ui_mode: 'elements',
       line_items: lineItems as CheckoutSessionCreateParams['line_items'],
       return_url: returnUrl,
+      locale: checkoutLocale,
       customer_email: finalEmail || undefined,
       client_reference_id: user?.id || finalEmail || undefined,
       metadata: checkoutMetadata,

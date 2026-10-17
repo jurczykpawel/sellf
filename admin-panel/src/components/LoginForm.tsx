@@ -14,7 +14,7 @@ import { OAuthIconButtons, signInWithOAuth, type OAuthProvider } from './OAuthIc
  * Login form component that handles magic link authentication
  * In demo mode, switches to email+password login
  */
-export default function LoginForm() {
+export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const { demoMode, passwordLoginEnabled, oauthProviders } = useConfig()
   const [email, setEmail] = useState(demoMode ? 'demo@sellf.app' : '')
   const [password, setPassword] = useState(demoMode ? 'demo123' : '')
@@ -30,6 +30,10 @@ export default function LoginForm() {
     if (!termsAccepted) {
       setMessage(t('compliance.pleaseAcceptTerms'))
       return
+    }
+    if (redirectTo) {
+      const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+      document.cookie = `sf_oauth_redirect=${encodeURIComponent(redirectTo)}; path=/; max-age=300; SameSite=Lax${secure}`;
     }
     await signInWithOAuth(provider, `${window.location.origin}/auth/callback`)
   }
@@ -49,7 +53,7 @@ export default function LoginForm() {
         })
 
         if (error) {
-          setMessage(error.message)
+          setMessage(error.code === 'email_not_confirmed' ? t('auth.emailNotConfirmedMessage') : t('auth.passwordLoginFailed'))
         }
         // On success, AuthContext will detect user and redirect
         setIsLoading(false)
@@ -63,7 +67,7 @@ export default function LoginForm() {
         return
       }
 
-      const result = await submitMagicLink({ email, captcha, flow: 'login' })
+      const result = await submitMagicLink({ email, captcha, flow: 'login', ...(redirectTo ? { redirectTo } : {}) })
 
       if (!result.ok) {
         const message =
@@ -123,7 +127,7 @@ export default function LoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             className="w-full px-4 py-3 bg-sf-float border border-sf-border rounded-xl text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent transition-all"
-            placeholder={t('auth.passwordPlaceholder')}
+            placeholder={t('auth.passwordEntryPlaceholder')}
           />
         </div>
       )}

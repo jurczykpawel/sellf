@@ -95,7 +95,7 @@ export function lintSqlForTopLevelTransaction(sql: string): string[] {
 }
 
 const UNQUALIFIED_CREATE_RE =
-  /\bCREATE\s+(?:OR\s+REPLACE\s+)?(FUNCTION|TABLE|VIEW|MATERIALIZED\s+VIEW|INDEX|TYPE|SEQUENCE|TRIGGER|POLICY)\s+(?!IF\s+NOT\s+EXISTS\s+)(?!IF\s+EXISTS\s+)([^\s(]+)/gi;
+  /\bCREATE\s+(?:OR\s+REPLACE\s+)?(FUNCTION|TABLE|VIEW|MATERIALIZED\s+VIEW|INDEX|TYPE|SEQUENCE|TRIGGER|POLICY|STATISTICS)\s+(?!IF\s+NOT\s+EXISTS\s+)(?!IF\s+EXISTS\s+)([^\s(]+)/gi;
 
 export function lintSqlForUnqualifiedCreate(sql: string): string[] {
   const stripped = stripDollarQuotedBlocks(stripSqlComments(sql));

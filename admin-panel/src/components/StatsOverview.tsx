@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
+import { formatRelativeTime } from '@/lib/utils/relative-time';
 import { formatPrice } from '@/lib/constants';
 import { useSearchParams } from 'next/navigation';
 import { getDashboardStats } from '@/lib/actions/dashboard';
@@ -181,22 +182,10 @@ export default function StatsOverview() {
 
   const formatNumber = (num: number) => {
     if (hideValues) return '****';
-    return num.toLocaleString();
+    return num.toLocaleString(locale);
   };
 
-  const timeAgo = (dateString: string | null) => {
-    if (!dateString) return null;
-    const date = new Date(dateString);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-    if (seconds < 60) return 'Just now';
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  };
+  const timeAgo = (value: string | null) => value ? formatRelativeTime(value, locale) : null;
 
   const statItems = [
     {
@@ -210,7 +199,7 @@ export default function StatsOverview() {
       ),
       color: 'from-green-500 to-green-600',
       bgColor: 'bg-sf-success-soft',
-      change: revenueStats?.todayRevenue ? `+${formatMultiCurrency(revenueStats.todayRevenue, convertedRevenue?.today)} today` : null,
+      change: revenueStats?.todayRevenue ? t('stats.todayChange', { amount: formatMultiCurrency(revenueStats.todayRevenue, convertedRevenue?.today) }) : null,
       changeType: 'positive'
     },
     {

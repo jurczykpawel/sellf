@@ -29,6 +29,10 @@
     "failure": "Nie udało się wczytać lub zapisać oferty. Spróbuj ponownie.",
     "loading": "Wczytywanie oferty…"
 },
+  "formValidation": {
+    "required": "Wypełnij to pole.",
+    "email": "Wpisz poprawny adres e-mail."
+  },
   "templatePreview": {
       "confirmTitle": "Zastąpić obecną wersję roboczą?",
       "confirmHelp": "Sprawdź powyższe zmiany: od obecnej wersji do wybranej. Kontynuacja zastąpi zapisaną wersję roboczą i opublikuje wybraną wersję. Jeśli publikacja po zapisie się nie powiedzie, ta wersja pozostanie robocza.",
@@ -85,6 +89,11 @@
       "publishVersion": "Opublikuj tę wersję"
   },
   "checkout": {
+    "purchaseTitle": "Dokończ zakup",
+    "loadingPaymentMethods": "Wczytujemy metody płatności…",
+    "removeCoupon": "Usuń kod rabatowy",
+    "couponEntryPrompt": "Masz kod rabatowy?",
+    "couponEntryLabel": "Kod rabatowy",
     "title": "Dokończ Zakup",
     "emailAddress": "Adres Email",
     "linkedToAccount": "Ten zakup zostanie przypisany do twojego konta.",
@@ -593,6 +602,9 @@
     }
   },
   "auth": {
+    "emailNotConfirmedMessage": "Potwierdź swój adres e-mail, klikając link w otrzymanej wiadomości.",
+    "passwordLoginFailed": "Nie udało się zalogować. Sprawdź e-mail i hasło, a następnie spróbuj ponownie.",
+    "passwordEntryPlaceholder": "Wpisz hasło",
     "login": "Zaloguj się",
     "logout": "Wyloguj się",
     "email": "Adres email",
@@ -1143,6 +1155,11 @@
     "invalidPrice": "Nieprawidłowa cena"
   },
   "paymentStatus": {
+    "purchaseReceipt": "Dziękujemy! Potwierdzamy zakup produktu {productName}.",
+    "purchaseLibraryHint": "Zakupiony produkt jest dostępny tutaj i w zakładce Moje produkty.",
+    "openPurchase": "Otwórz zakupiony produkt",
+    "purchaseLibrary": "Moje produkty",
+
     "paymentReceived": "Płatność otrzymana",
     "preparingAccess": "Otrzymaliśmy Twoją płatność. Przygotowujemy dostęp. Strona odświeży się automatycznie.",
     "orderNeedsReview": "Płatność otrzymana — zamówienie wymaga sprawdzenia",
@@ -1279,6 +1296,7 @@
       "accessRecords": "Zapisy dostępu",
       "activeUsers": "Aktywni użytkownicy (7d)",
       "stats": {
+        "todayChange": "+{amount} dzisiaj",
         "totalRevenue": "Przychody ogółem",
         "todayRevenue": "Dzisiejszy przychód",
         "todayOrders": "Dzisiejsze zamówienia",
@@ -2258,6 +2276,7 @@
       "deleteExpiredSuccess": "Pomyślnie usunięto {count} wygasłych kuponów",
       "deleteExpiredPartial": "Usunięto {deleted} wygasłych kuponów, {failed} nie powiodło się",
       "form": {
+        "perUserLimitHint": "Domyślnie jedno użycie na osobę. Usuń wartość, aby nie ograniczać użyć.",
         "basicInfo": "Podstawowe informacje",
         "codeLabel": "Kod kuponu",
         "codePlaceholder": "np. LATO2024",
@@ -2374,6 +2393,7 @@
       "statusError": "Nie udało się zmienić statusu bumpa"
     },
     "payments": {
+      "titleSentence": "Płatności",
       "title": "Zarządzanie Płatnościami",
       "subtitle": "Zarządzaj wszystkimi transakcjami, przetwarzaj zwroty i monitoruj aktywność płatności.",
       "loading": "Ładowanie danych płatności...",
@@ -2409,6 +2429,7 @@
         "days": "dni"
       },
       "transactions": {
+        "titleSentence": "Transakcje płatnicze",
         "title": "Transakcje Płatnicze",
         "transactionId": "ID Transakcji",
         "user": "Użytkownik",
@@ -2455,9 +2476,22 @@
         "fullRefunded": "Zwrócono w całości"
       },
       "sessions": {
+        "titleSentence": "Sesje checkout",
+        "empty": "Brak sesji płatności.",
+        "session": "Sesja",
+        "customer": "Kupujący",
+        "product": "Produkt",
+        "amount": "Kwota",
+        "status": "Status",
+        "created": "Utworzono",
+        "expires": "Wygasa",
+        "actions": "Akcje",
+        "statuses": {"pending": "Oczekująca", "completed": "Zakończona", "failed": "Nieudana", "cancelled": "Anulowana", "expired": "Wygasła", "refunded": "Zwrócona", "partially_refunded": "Częściowy zwrot", "disputed": "Sporna", "abandoned": "Porzucona"},
         "title": "Sesje checkout"
       },
       "refund": {
+        "titleSentence": "Przetwórz zwrot",
+        "fullRefundSentence": "Pełny zwrot",
         "title": "Przetwórz Zwrot",
         "reason": "Powód Zwrotu",
         "selectReason": "Wybierz powód",
@@ -3007,6 +3041,8 @@
       "missingFieldCity": "miasto",
       "missingFieldPostal": "kod pocztowy",
       "missingEmailNotice": "E-mail kontaktowy jest wymagany, ale ustawia się go w Ustawieniach sklepu (zakładka Ogólne), nie tutaj. Przejdź do Ustawienia → Ogólne i uzupełnij e-mail kontaktowy, a następnie spróbuj ponownie.",
+      "notPolishShopNotice": "Dokumenty prawne możesz wygenerować dla sklepu w Polsce. Przejdź do Ustawienia → Sklep i ustaw kraj sklepu na Polska.",
+      "contactEmailShopNotice": "Uzupełnij e-mail kontaktowy w Ustawienia → Sklep, a następnie wróć tutaj, aby wygenerować dokumenty.",
       "notPolishInstallation": "Generowanie dokumentów prawnych jest dostępne tylko dla instalacji w Polsce — ustaw kraj sklepu na Polska w ustawieniach sklepu (zakładka Ogólne)."
     },
     "license": {
@@ -3240,6 +3276,8 @@
         "step2Body": "Otwórz produkt → sekcja Licencja → włącz Wystawiaj licencję przy zakupie. Opcjonalnie ustaw Tier (np. pro, basic) i czas ważności w dniach (puste = bezterminowa).",
         "deliveryTitle": "Dostawa licencji",
         "deliveryBody": "Sellf nie wysyła licencji emailem automatycznie. Token jest dodawany do payloadu webhooka purchase.completed jako pole license.token. Odbierasz go na swoim endpoincie i przekazujesz kupującemu według własnej logiki — email, automatyzacja n8n, własny backend.",
+        "deliverySidebarSetup": "Otwórz Webhooki w menu bocznym, dodaj adres odbiorcy i wybierz zdarzenie purchase.completed.",
+        "openWebhooks": "Otwórz Webhooki",
         "deliverySetup": "Skonfiguruj swój endpoint w Ustawienia → Webhooki i zasubskrybuj zdarzenie purchase.completed.",
         "deliveryPayloadLabel": "Payload webhooka (fragment):",
         "generateOwnKeyLabel": "Wygeneruj własny klucz (terminal):",
@@ -4607,6 +4645,13 @@
   "storefrontEditor": {
     "comparisonOffers": "Dwie osobne oferty",
     "offerNumber": "Oferta {number}",
+    "classicHint": "Sklep klasyczny ma jedną, zawsze widoczną sekcję: katalog produktów. Możesz wybrać układ kart, a w sekcji Wygląd zmienić kolory, krój pisma i zaokrąglenia. Publikacja własnych ustawień układu i wyglądu wymaga Pro.",
+    "preview": "Podgląd",
+    "historyPublishing": "Historia i publikacja",
+    "draftActionsHelp": "Obejrzyj zapisany szkic w nowej karcie z produktami Twojego sklepu. W historii możesz go opublikować w sklepie lub przywrócić wcześniejszą publikację.",
+    "saveBeforePreview": "Zapisz szkic, aby otworzyć podgląd oraz historię i publikację. Sam zapis nie zmienia publicznego sklepu.",
+    "newTab": " (otwiera się w nowej karcie)",
+    "loadedState": "Brak niezapisanych zmian",
     "title": "Szablony sklepu",
     "intro": "Przygotuj prywatny szkic. Zapis nie zmienia publicznego sklepu.",
     "template": "Szablon",
@@ -4813,6 +4858,14 @@
     }
   },
   "affiliates": {
+    "earningsTitle": "Prowizje partnerów",
+    "earningsHint": "Wybierz partnera, aby sprawdzić prowizje, okres oczekiwania i salda wypłat w poszczególnych walutach. Kwoty dotyczą bieżącego trybu Stripe.",
+    "earningsSelect": "Wybierz partnera powyżej, aby zobaczyć jego prowizje. Możesz wyszukać go po nazwie.",
+    "earningsEmpty": "Nie ma jeszcze zgłoszeń partnerów. Sprawdź zgłoszenia i zaakceptuj partnerów, aby rozpocząć współpracę.",
+    "manageApplications": "Zarządzaj zgłoszeniami",
+    "loadingPartners": "Wczytywanie partnerów…",
+    "programNotConfigured": "Program partnerski nie został jeszcze skonfigurowany.",
+    "programSettings": "Przejdź do ustawień programu",
     "navigation": "Program partnerski",
     "partners": "Partnerzy",
     "earnings": "Prowizje",
@@ -4880,6 +4933,13 @@
     "unavailable": "Ta strona jest chwilowo niedostępna. Odśwież, aby spróbować ponownie.",
     "apply": "Zgłoś się do programu partnerskiego",
     "admin": {
+      "applicationReceived": "Zgłoszenie wysłane",
+      "applicationNext": "Status zgłoszenia sprawdzisz w panelu partnera.",
+      "viewApplication": "Sprawdź status zgłoszenia",
+      "joinTitle": "Dołącz do programu partnerskiego",
+      "joinHint": "Zaloguj się lub utwórz konto Sellf, aby wysłać zgłoszenie. Po zalogowaniu wrócisz do formularza.",
+      "nameRequired": "Podaj nazwę (do 120 znaków).",
+      "acceptRequired": "Zaakceptuj regulamin programu, aby kontynuować.",
       "newTermsVersion": "Ten regulamin został już opublikowany. Nadaj zmienionej treści nową wersję i zapisz ponownie.",
       "codeHint": "Użyj 3–40 małych liter, cyfr, myślników lub podkreśleń.",
       "amountInvalid": "Wpisz poprawną kwotę wypłaty w każdej walucie. Grosze oddziel przecinkiem lub kropką.",
@@ -4952,6 +5012,9 @@
       "syncRetrySuccess": "Zamówienie ponownie w kolejce. Przetworzy je następne uruchomienie workera."
     },
     "products": {
+      "couponAssigned": "Kupon został przypisany do partnera.",
+      "saveCouponFirst": "Najpierw zapisz kupon. Następnie w tym miejscu przypiszesz go do zaakceptowanego partnera.",
+      "ownerHint": "Zakupy z tym kuponem naliczają prowizję przypisanemu partnerowi. Przypisanie zapisujesz niezależnie od danych kuponu.",
       "title": "Prowizja partnerska",
       "enabled": "Włączona",
       "percentage": "Procentowa",
@@ -4960,6 +5023,9 @@
       "minor": "Kwota prowizji",
       "currency": "Waluta",
       "type": "Typ prowizji",
+      "ruleSave": "Zapisz tylko prowizję",
+      "ruleSaved": "Prowizja zapisana. Pozostałe zmiany zapisz przyciskiem Aktualizuj produkt.",
+      "ruleSaveHint": "Ta sekcja ma osobny zapis. Ten przycisk zapisuje tylko prowizję, a Aktualizuj produkt zapisuje pozostałe ustawienia produktu.",
       "save": "Zapisz prowizję",
       "loading": "Ładowanie…",
       "saved": "Zapisano. Szczegóły produktu zapiszesz osobno.",
@@ -4982,6 +5048,11 @@
       "archive": "Archiwizuj (zachowaj historię)"
     },
     "portal": {
+      "live": "Rzeczywista",
+      "testBalances": "Salda obejmują tylko prowizje testowe. Prowizje rzeczywiste są widoczne poniżej i nie wpływają na te kwoty.",
+      "liveBalances": "Salda obejmują tylko prowizje rzeczywiste. Prowizje testowe są widoczne poniżej i nie wpływają na te kwoty.",
+      "selectedPartner": "Wybrany partner",
+      "adminCodes": "Kody kuponów partnera",
       "syncError": "Błędy synchronizacji",
       "sessionError": "Sesja płatności wymaga sprawdzenia",
       "fulfillmentWait": "Oczekuje na realizację zamówienia",

@@ -8,6 +8,7 @@
 interface PostCheckoutInput {
   origin: string;
   productSlug: string;
+  locale?: string;
   sessionId: string | undefined;
   paymentIntentId: string | undefined;
 }
@@ -15,15 +16,19 @@ interface PostCheckoutInput {
 interface FreeProductInput {
   origin: string;
   productSlug: string;
+  locale?: string;
   couponCode?: string | null;
   successUrl?: string | null;
 }
 
 function buildAuthCallbackUrl(origin: string, redirectPath: string): string {
-  return `${origin}/auth/callback?redirect_to=${encodeURIComponent(redirectPath)}`;
+  const path = getLoginReturnPath(redirectPath);
+  return path
+    ? `${origin}/auth/callback?redirect_to=${encodeURIComponent(path)}`
+    : `${origin}/auth/callback?flow=login`;
 }
 
-function buildProductAccessPath(productSlug: string, params?: Record<string, string | null | undefined>): string {
+function buildProductAccessPath(productSlug: string, params?: Record<string, string | null | undefined>, locale?: string): string {
   // encodeURIComponent (not URLSearchParams) so spaces become %20, not '+',
   // matching how the rest of the codebase builds redirect targets.
   const parts = [`product=${encodeURIComponent(productSlug)}`];
@@ -32,7 +37,8 @@ function buildProductAccessPath(productSlug: string, params?: Record<string, str
       if (v) parts.push(`${k}=${encodeURIComponent(v)}`);
     }
   }
-  return `/auth/product-access?${parts.join('&')}`;
+  const prefix = locale === 'pl' || locale === 'en' ? `/${locale}` : '';
+  return `${prefix}/auth/product-access?${parts.join('&')}`;
 }
 
 /**
@@ -46,7 +52,7 @@ function buildProductAccessPath(productSlug: string, params?: Record<string, str
 export function buildPostCheckoutMagicLinkRedirect(input: PostCheckoutInput): string {
   void input.sessionId;
   void input.paymentIntentId;
-  const redirectPath = buildProductAccessPath(input.productSlug);
+  const redirectPath = buildProductAccessPath(input.productSlug, undefined, input.locale);
   return buildAuthCallbackUrl(input.origin, redirectPath);
 }
 
@@ -57,7 +63,9 @@ export function buildPostCheckoutMagicLinkRedirect(input: PostCheckoutInput): st
  * keeps a `?` in the URL — required because email templates append
  * `&token_hash=...` after it; the callback ignores unrecognized params.
  */
-export function buildLoginMagicLinkRedirect(origin: string): string {
+export function buildLoginMagicLinkRedirect(origin: string, redirectTo?: string): string {
+  const path = getLoginReturnPath(redirectTo);
+  if (path) return buildAuthCallbackUrl(origin, path);
   return `${origin}/auth/callback?flow=login`;
 }
 
@@ -71,6 +79,28 @@ export function buildFreeProductMagicLinkRedirect(input: FreeProductInput): stri
   const redirectPath = buildProductAccessPath(input.productSlug, {
     coupon: input.couponCode ?? undefined,
     success_url: input.successUrl ?? undefined,
-  });
+  }, input.locale);
   return buildAuthCallbackUrl(input.origin, redirectPath);
+}
+
+/** Supported account and product destinations, in their canonical wire form. */
+export function getLoginReturnPath(value: string | null | undefined): string | undefined {
+  if (!value || value.length > 4096 || /[\u0000-\u0020\u007f\\#]/.test(value)) return undefined;
+  const [path, query, ...rest] = value.split('?');
+  if (rest.length) return undefined;
+  if (/^\/(?:en\/|pl\/)?affiliates\/apply$/.test(path)) return query === undefined ? value : undefined;
+  if (!/^\/(?:en\/|pl\/)?auth\/product-access$/.test(path) || !query) return undefined;
+
+  const params = new URLSearchParams(query);
+  const product = params.get('product');
+  if (!product || !/^[a-zA-Z0-9_ -]{1,100}$/.test(product)) return undefined;
+  const limits: Record<string, number> = { product: 100, coupon: 64, success_url: 2048 };
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  for (const [key, item] of params) {
+    if (!Object.hasOwn(limits, key) || seen.has(key) || !item || item.length > limits[key] || /[\u0000-\u001f\u007f]/.test(item)) return undefined;
+    seen.add(key);
+    parts.push(`${key}=${encodeURIComponent(item)}`);
+  }
+  return parts.join('&') === query ? value : undefined;
 }

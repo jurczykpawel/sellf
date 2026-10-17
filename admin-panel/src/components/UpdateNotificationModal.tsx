@@ -9,7 +9,7 @@
  * @see /hooks/useUpdateCheck.ts
  */
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import UpgradeInstructions from '@/components/UpgradeInstructions';
 import type { UpdateInfo, UpgradeProgress } from '@/hooks/useUpdateCheck';
 
@@ -69,6 +69,7 @@ export default function UpdateNotificationModal({
   onDismiss,
 }: UpdateNotificationModalProps) {
   const t = useTranslations('systemUpdate');
+  const locale = useLocale();
   const canUpgrade = updateInfo.upgrade?.mode === 'in-place';
   const isFailed = upgradeProgress?.step === 'failed';
   const isDone = upgradeProgress?.step === 'done';
@@ -93,7 +94,7 @@ export default function UpdateNotificationModal({
                   {t('modal.currentVersion', { version: updateInfo.current_version })}
                   {updateInfo.published_at && (
                     <> &middot; {t('modal.published', {
-                      date: new Date(updateInfo.published_at).toLocaleDateString()
+                      date: new Date(updateInfo.published_at).toLocaleDateString(locale)
                     })}</>
                   )}
                 </p>

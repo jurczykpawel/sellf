@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { submitMagicLink } from '@/lib/auth/magic-link/submit';
 import { MagicLinkState, PaymentStatus, Product } from '../types';
 import { SPINNER_MIN_TIME } from '../utils/helpers';
@@ -34,6 +34,7 @@ export function useMagicLink({
 
   const requestInFlight = useRef(false);
 
+  const locale = useLocale();
   const tDemo = useTranslations('demo');
   const t = useTranslations('paymentStatus');
 
@@ -53,6 +54,7 @@ export function useMagicLink({
         email: customerEmail,
         captcha: { token: captchaToken, reset: captchaReset },
         flow: 'post_checkout',
+        locale,
         productSlug: product.slug,
       });
 
@@ -80,7 +82,7 @@ export function useMagicLink({
       requestInFlight.current = false;
       setSendingMagicLink(false);
     }
-  }, [customerEmail, sessionId, paymentIntentId, product.slug, captchaToken, captchaReset, error, t, tDemo]);
+  }, [locale, customerEmail, sessionId, paymentIntentId, product.slug, captchaToken, captchaReset, error, t, tDemo]);
 
   // Auto-send magic link when conditions are met. Terms are always accepted
   // in checkout before reaching this page, so no terms check is needed here.

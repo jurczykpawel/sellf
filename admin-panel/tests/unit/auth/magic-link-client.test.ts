@@ -40,6 +40,15 @@ describe('sendMagicLinkRequest', () => {
     expect(body).toEqual({ email: 'a@b.com', captchaToken: 'tok', flow: 'login' });
   });
 
+  it.each([
+    { flow: 'login' as const, redirectTo: '/pl/affiliates/apply', locale: 'pl' },
+    { flow: 'post_checkout' as const, productSlug: 'course', locale: 'pl' },
+  ])('posts the complete return context for $flow', async context => {
+    vi.mocked(global.fetch).mockResolvedValue(new Response(JSON.stringify({ ok: true })));
+    expect(await sendMagicLinkRequest({ email: 'a@b.com', captchaToken: 'tok', ...context })).toEqual({ ok: true });
+    expect(JSON.parse(vi.mocked(global.fetch).mock.calls[0][1]!.body as string)).toEqual({ email: 'a@b.com', captchaToken: 'tok', ...context });
+  });
+
   it('returns the parsed ok:false body on a 4xx/5xx response', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: false,

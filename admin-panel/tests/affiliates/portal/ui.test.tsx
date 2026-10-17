@@ -59,14 +59,24 @@ it.each(['en', 'pl'] as const)('explains permanently held commissions in %s even
   expect(html).toContain(locale === 'en' ? 'unlimited refund' : 'bezterminowym zwrotem');
 });
 
-it.each(['en', 'pl'] as const)('uses only the test chip for non-live commissions in %s', locale => {
+it.each(['en', 'pl'] as const)('shows mode alongside the commission status for test commissions in %s', locale => {
   for (const status of ['held', 'eligible', 'reserved', 'paid', 'reversed'] as const) {
     for (const pending of [false, true]) {
       const data = { ...fixture, commissions: [{ ...fixture.commissions[0], status, livemode: false, sync_pending: pending, needs_review: pending }] };
       const html = renderToStaticMarkup(createElement(AffiliatePortal, { data, locale }));
       const chips = html.match(/<div class="[^"]*chips[^"]*">(.*?)<\/div>/)?.[1];
       expect(chips).toBeDefined();
-      expect(chips?.replace(/<[^>]+>/g, '')).toBe(portalMessages[locale].test);
+      const m = portalMessages[locale];
+      const label = pending ? m.reviewShort : ({ held: m.heldStatus, eligible: m.eligibleStatus, reserved: m.reservedStatus, paid: m.paidStatus, reversed: m.reversedStatus })[status];
+      expect(chips?.replace(/<[^>]+>/g, '')).toBe(label + m.test);
     }
   }
+});
+
+it('shows test mode and reversal independently for a refunded test commission', () => {
+  const data = { ...fixture, livemode: false, commissions: [{ ...fixture.commissions[0], status: 'reversed' as const, current_minor: '0', livemode: false, needs_review: false, sync_pending: false }] };
+  const html = renderToStaticMarkup(createElement(AffiliatePortal, { data, locale: 'en' }));
+  expect(html).toContain('Reversed');
+  expect(html).toContain('Test');
+  expect(html).toContain('Balances include test commissions only');
 });

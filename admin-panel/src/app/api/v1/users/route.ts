@@ -60,9 +60,8 @@ export async function GET(request: NextRequest) {
     // Use admin client to access user views
     const adminClient = auth.supabase;
 
-    // Both roles use seller_customer_stats (INNER JOIN — only users with access/transactions)
-    // Prevents cross-schema user leak (user_access_stats LEFT JOINs global auth.users)
-    const usersView = 'seller_customer_stats';
+    // The admin users list includes registered accounts before their first purchase.
+    const usersView = 'user_access_stats';
 
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;

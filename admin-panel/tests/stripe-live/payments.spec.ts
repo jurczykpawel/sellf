@@ -1,5 +1,5 @@
 /** Real Stripe test-mode checkout, fulfillment, and delivery checks. @see README.md */
-import { readFileSync, appendFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, appendFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import Stripe from 'stripe';
@@ -193,6 +193,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       }).observe(document, { childList: true, subtree: true });
     });
     await page.goto(`/en/checkout/${slug}?email=${encodeURIComponent(s.email)}`);
+    await page.getByRole('button', { name: /Pay|Subscribe/ }).click();
     if (!s.subscription) await page.getByRole('button', { name: /Add to order/i }).click();
     await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
     await page.locator('#checkoutEmail').fill(s.email);
@@ -305,6 +306,15 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         return logs.length === 1 && logs[0].status === 'success';
       }, { timeout: 60000 }).toBe(true);
       expect(deliveries(s)).toHaveLength(1);
+      if (options.loggedIn) {
+        mkdirSync('/tmp/rcfix-core-shots', { recursive: true });
+        for (const locale of ['en', 'pl']) for (const width of [1440, 390]) {
+          await page.setViewportSize({ width, height: 900 });
+          await page.goto(`/${locale}/p/${s.slug}/payment-status?session_id=${encodeURIComponent(sessionId)}`);
+          await expect(page.getByRole('link', { name: locale === 'pl' ? 'Otwórz zakupiony produkt' : 'Open your purchase' })).toBeVisible();
+          await page.screenshot({ path: `/tmp/rcfix-core-shots/confirmation-${locale}-${width}.png`, fullPage: true, animations: 'disabled' });
+        }
+      }
     }
     passed = true;
   } finally {

@@ -45,34 +45,34 @@ const WebhookRow = ({
 
   return (
     <tr className={`hover:bg-sf-hover transition-colors`}>
-      <td className="px-6 py-4">
-        <div className="text-sm font-medium text-sf-heading truncate max-w-xs" title={endpoint.description || endpoint.url}>
+      <td className="px-3 py-4 2xl:px-6">
+        <div className="text-sm font-medium text-sf-heading truncate max-w-full" title={endpoint.description || endpoint.url}>
           {endpoint.description || endpoint.url}
         </div>
-        <div className="text-xs text-sf-muted mt-0.5 truncate max-w-xs font-mono">
+        <div className="text-xs text-sf-muted mt-0.5 truncate max-w-full font-mono">
           {endpoint.url}
         </div>
       </td>
-      <td className="px-6 py-4">
+      <td className="px-3 py-4 2xl:px-6">
         <div className="flex flex-wrap gap-1">
           {endpoint.events.map((ev) => (
             <span
               key={ev}
-              className="inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-sf-accent-soft text-sf-accent border-2 border-sf-border-medium whitespace-nowrap"
+              className="inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-sf-accent-soft text-sf-accent border-2 border-sf-border-medium max-w-full whitespace-normal break-words"
             >
               {getEventLabel(ev)}
             </span>
           ))}
         </div>
         <div className="mt-1.5">
-          <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-sf-raised text-sf-muted border-2 border-sf-border-medium whitespace-nowrap">
+          <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-sf-raised text-sf-muted border-2 border-sf-border-medium max-w-full whitespace-normal break-words">
             {endpoint.product_filter_mode === 'selected'
               ? t('scopeSelected', { count: endpoint.product_ids?.length ?? 0 })
               : t('scopeAll')}
           </span>
         </div>
       </td>
-      <td className="px-6 py-4">
+      <td className="px-3 py-4 2xl:px-6">
         <div className="flex items-center space-x-2">
           <code className="text-xs bg-sf-raised px-2 py-1 border-2 border-sf-border-medium font-mono text-sf-body">
             {showSecret ? endpoint.secret : maskWebhookSecret(endpoint.secret)}
@@ -104,7 +104,7 @@ const WebhookRow = ({
           </button>
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-center">
+      <td className="px-3 py-4 2xl:px-6 max-w-full whitespace-normal break-words text-center">
         <button
           onClick={() => onToggleStatus(endpoint.id, endpoint.is_active)}
           className={`px-2 inline-flex text-xs leading-5 font-semibold cursor-pointer transition-colors hover:opacity-80 ${
@@ -114,7 +114,8 @@ const WebhookRow = ({
           {endpoint.is_active ? t('active') : tCommon('inactive')}
         </button>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
+      <td className="px-3 py-4 2xl:px-6 max-w-full whitespace-normal break-words text-right text-sm font-medium">
+        <div className="flex flex-wrap justify-end gap-x-3 gap-y-2">
         <button
           onClick={() => onLogs(endpoint)}
           className="text-sf-body hover:text-sf-heading transition-colors"
@@ -139,6 +140,7 @@ const WebhookRow = ({
         >
           {t('delete')}
         </button>
+        </div>
       </td>
     </tr>
   );
@@ -166,22 +168,23 @@ export default function WebhookListTable({
 
   return (
     <div className="bg-sf-base border-2 border-sf-border-medium overflow-x-auto">
-      <table className="min-w-full divide-y divide-sf-border-subtle">
+      <table className="w-full min-w-[680px] table-fixed divide-y divide-sf-border-subtle">
+        <colgroup><col className="w-[26%]" /><col className="w-[23%]" /><col className="w-[19%]" /><col className="w-[10%]" /><col className="w-[22%]" /></colgroup>
         <thead className="bg-sf-raised">
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
+            <th className="px-3 py-3 2xl:px-6 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
               {t('description')} / {t('url')}
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
+            <th className="px-3 py-3 2xl:px-6 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
               {t('events')}
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
+            <th className="px-3 py-3 2xl:px-6 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
               {t('secret')}
             </th>
-            <th className="px-6 py-3 text-center text-xs font-medium text-sf-muted uppercase tracking-wider">
+            <th className="px-3 py-3 2xl:px-6 text-center text-xs font-medium text-sf-muted uppercase tracking-wider">
               {t('active')}
             </th>
-            <th className="px-6 py-3 text-right text-xs font-medium text-sf-muted uppercase tracking-wider">
+            <th className="px-3 py-3 2xl:px-6 text-right text-xs font-medium text-sf-muted uppercase tracking-wider">
               {tCommon('actions')}
             </th>
           </tr>

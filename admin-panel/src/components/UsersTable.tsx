@@ -72,7 +72,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
 
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return t('notAvailable');
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString(locale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

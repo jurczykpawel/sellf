@@ -76,15 +76,14 @@ export default function PaymentStatsCards({ stats }: PaymentStatsCardsProps) {
 
   const formatMultiCurrency = (amounts: CurrencyAmount, convertedAmount?: number) => {
     if (currencyViewMode === 'converted' && displayCurrency && convertedAmount !== undefined) {
-      return formatCurrency(convertedAmount, displayCurrency);
+      return <span className="inline-block whitespace-nowrap">{formatCurrency(convertedAmount, displayCurrency)}</span>;
     }
 
     const currencies = Object.keys(amounts);
-    if (currencies.length === 0) return formatCurrency(0, displayCurrency || 'USD');
+    if (currencies.length === 0) return <span className="inline-block whitespace-nowrap">{formatCurrency(0, displayCurrency || 'USD')}</span>;
     return currencies
       .sort()
-      .map((currency) => formatCurrency(amounts[currency], currency))
-      .join(' + ');
+      .map((currency, index) => <span key={currency} className="inline-block whitespace-nowrap">{index > 0 ? ' + ' : ''}{formatCurrency(amounts[currency], currency)}</span>);
   };
 
   const formatNumber = (num: number) => {
@@ -139,21 +138,21 @@ export default function PaymentStatsCards({ stats }: PaymentStatsCardsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 min-[1800px]:grid-cols-6 gap-4">
       {statsCards.map((card, index) => {
         const Icon = card.icon;
         return (
         <div key={index} className="bg-sf-base shadow p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-medium text-sf-body">
                 {card.title}
               </p>
-              <p className="text-xl font-semibold text-sf-heading mt-1 break-words">
+              <p className="text-xl font-semibold text-sf-heading mt-1 [overflow-wrap:normal]">
                 {card.value}
               </p>
             </div>
-            <div className={`w-12 h-12 ${card.color} flex items-center justify-center text-white text-xl`}>
+            <div className={`w-10 h-10 shrink-0 ${card.color} flex items-center justify-center text-white text-xl`}>
               <Icon className="w-5 h-5" aria-hidden="true" />
             </div>
           </div>

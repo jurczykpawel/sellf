@@ -71,3 +71,34 @@ it('restores a suspended partner with a distinct audit reason in one click', asy
   const t = affiliateAdminMessages.en; render(<AffiliateAdmin locale="en" initial={{ program, members: [{ ...member, status: 'suspended' }], next_cursor: null }} />);
   fireEvent.click(screen.getByRole('button', { name: t.restore })); await waitFor(() => expect(actions.updateMember).toHaveBeenCalledWith(expect.objectContaining({ status: 'approved', reason: t.restoreReason })));
 });
+
+it.each(['en', 'pl'] as const)('keeps application values and identifies an invalid code in %s', async locale => {
+  const t = affiliateAdminMessages[locale]; render(<AffiliateApplication locale={locale} program={program} />);
+  fireEvent.change(screen.getByLabelText(t.name), { target: { value: 'Anna Partner' } });
+  fireEvent.change(screen.getByLabelText(t.code), { target: { value: 'Anna Test!' } });
+  fireEvent.change(screen.getByLabelText(t.channel), { target: { value: 'Newsletter' } });
+  fireEvent.click(screen.getByLabelText(t.accept)); fireEvent.click(screen.getByText('Solve captcha'));
+  fireEvent.submit(screen.getByRole('button', { name: t.apply }).closest('form')!);
+  await waitFor(() => expect(screen.getByLabelText(t.code).getAttribute('aria-invalid')).toBe('true'));
+  expect((screen.getByLabelText(t.name) as HTMLInputElement).value).toBe('Anna Partner');
+  expect((screen.getByLabelText(t.channel) as HTMLInputElement).value).toBe('Newsletter');
+  expect((screen.getByLabelText(t.accept) as HTMLInputElement).checked).toBe(true);
+  expect((screen.getByRole('button', { name: t.apply }) as HTMLButtonElement).disabled).toBe(false);
+  expect(actions.applyToProgram).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText(t.code), { target: { value: 'anna-test' } });
+  fireEvent.submit(screen.getByRole('button', { name: t.apply }).closest('form')!);
+  await waitFor(() => expect(actions.applyToProgram).toHaveBeenCalled());
+});
+
+it.each(['en', 'pl'] as const)('shows the saved pending application after a refresh in %s', locale => {
+  const t = affiliateAdminMessages[locale];
+  render(<AffiliateApplication locale={locale} program={{ ...program, applicationStatus: 'pending' }} />);
+  expect(screen.getByRole('status').textContent).toContain(t.pending);
+  expect(screen.queryByRole('button', { name: t.apply })).toBeNull();
+  expect(screen.getByRole('link').getAttribute('href')).toContain('/my-affiliate');
+});
+
+it('shows the applicant email on the application card', () => {
+  render(<AffiliateAdmin locale="en" initial={{ program, members: [{ ...member, email: 'partner@example.com' }], next_cursor: null }} />);
+  expect(screen.getByText('partner@example.com')).toBeTruthy();
+});

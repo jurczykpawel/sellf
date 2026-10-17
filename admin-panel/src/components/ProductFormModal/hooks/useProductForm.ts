@@ -104,6 +104,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
 
   // Fetch categories, default currency, and omnibus setting
   useEffect(() => {
+    let active = true;
     if (isOpen) {
       // Fetch all categories
       const fetchCats = async () => {
@@ -137,6 +138,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
 
       // Fetch shop config from caller's own schema (seller sees their own, not platform's)
       getMyShopConfig().then(config => {
+        if (!active) return;
         if (config) {
           // Default currency for new products
           if (!product) {
@@ -164,7 +166,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
       }).catch(err => {
         console.error('Failed to fetch shop config', err);
       }).finally(() => {
-        setShopConfigLoaded(true);
+        if (active) setShopConfigLoaded(true);
       });
 
       // Fetch waitlist webhook availability
@@ -180,6 +182,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
         }
       })();
     }
+    return () => { active = false; };
   }, [isOpen, product]);
 
   const [formSession, setFormSession] = useState<{ isOpen: boolean; productId?: string } | null>(null);
@@ -274,6 +277,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
         // For new products — copy shop default VAT rate so it's explicit per product
         setFormData({
           ...initialFormData,
+          currency: defaultCurrency,
           icon: getIconEmoji('rocket'),
           vat_rate: shopDefaultVatRate != null ? Math.round(shopDefaultVatRate * 100) : null,
           // Seed bundle mode when the seller opened the "new bundle" entry point.

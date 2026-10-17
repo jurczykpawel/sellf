@@ -19,6 +19,39 @@ describe('POST /api/auth/magic-link', () => {
     requestMagicLink.mockReset();
   });
 
+  it('accepts a partner application return path', async () => {
+    requestMagicLink.mockResolvedValue({ ok: true });
+    const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'login', redirectTo: '/pl/affiliates/apply' }));
+    expect(res.status).toBe(200);
+    expect(requestMagicLink).toHaveBeenCalledWith(expect.objectContaining({ redirectTo: '/pl/affiliates/apply' }));
+  });
+
+  it.each(['en', 'pl'])('retains %s checkout context at the gateway', async locale => {
+    requestMagicLink.mockResolvedValue({ ok: true });
+    const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'post_checkout', productSlug: 'course', locale }));
+    expect(res.status).toBe(200);
+    expect(requestMagicLink).toHaveBeenCalledWith(expect.objectContaining({ flow: 'post_checkout', productSlug: 'course', locale }));
+  });
+
+  it.each(['//elsewhere.test', '/%2f%2felsewhere.test', '/pl/affiliates/apply\n', '/pl/%61ffiliates/apply', '/pl/affiliates/apply?next=/dashboard', '/auth/product-access?product=course&return_url=https://elsewhere.test'])('rejects unsupported destination %j before the gateway', async redirectTo => {
+    const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'login', redirectTo }));
+    expect(res.status).toBe(400);
+    expect(requestMagicLink).not.toHaveBeenCalled();
+  });
+
+  it.each(['/\t/elsewhere.test', '/\n/elsewhere.test', '/\r/elsewhere.test', '/%09/elsewhere.test', '/%250a/elsewhere.test', '//elsewhere.test', 'https://elsewhere.test/thanks'])('declines unsupported success destination %j', async successUrl => {
+    const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'free_product', productSlug: 'course', successUrl }));
+    expect(res.status).toBe(400);
+    expect(requestMagicLink).not.toHaveBeenCalled();
+  });
+
+  it('keeps a success destination with its complete query', async () => {
+    requestMagicLink.mockResolvedValue({ ok: true });
+    const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'free_product', productSlug: 'course', successUrl: '/thanks?a=1&b=2' }));
+    expect(res.status).toBe(200);
+    expect(requestMagicLink).toHaveBeenCalledWith(expect.objectContaining({ successUrl: '/thanks?a=1&b=2' }));
+  });
+
   it('rejects non-JSON content-type with 415', async () => {
     const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'login' }, 'text/plain'));
     expect(res.status).toBe(415);

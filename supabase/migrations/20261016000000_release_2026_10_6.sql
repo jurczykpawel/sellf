@@ -59,10 +59,115 @@ VALUES ('{"format":1,"templateId":"default","settingsByTemplate":{},"overridesBy
 INSERT INTO public.storefront_config_history(revision, operation, published)
 SELECT revision, 'legacy-import', published FROM public.storefront_config;
 
-CREATE EXTENSION IF NOT EXISTS pg_jsonschema WITH SCHEMA extensions;
+-- D-057: bounded validator for generated schemas, not a general JSON-Schema engine.
+-- Pattern translations below are generated from the same allowlist as the TS gate.
+-- validator-patterns:start
+CREATE FUNCTION public.jsonschema_subset_pattern(pattern text)
+RETURNS text LANGUAGE sql IMMUTABLE STRICT SECURITY INVOKER SET search_path = '' AS $patterns$
+  SELECT CASE pattern
+    WHEN '^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$' THEN '^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$'
+    WHEN '^[a-z][a-z0-9-]{0,63}$' THEN '^[a-z][a-z0-9-]{0,63}$'
+    WHEN '^#[0-9A-Fa-f]{6}$' THEN '^#[0-9A-Fa-f]{6}$'
+    WHEN '^(?![\s\S]*<[^>]*>)[\s\S]*$' THEN '^(?!.*<[^>]*>).*$'
+    WHEN '^(?![\s\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\/\/|[wW][wW][wW]\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\u20AC\u00A3]\s*\d|\d\s*(?:USD|EUR|PLN|GBP|z\u0142)|[\u0000\uFEFF\uFFFD]))[\s\S]*$' THEN '^(?!.*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|://|[wW][wW][wW]\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$€£][\u0009-\u000d\u0020\u00a0\u2003\u2029\ufeff]*[0-9]|[0-9][\u0009-\u000d\u0020\u00a0\u2003\u2029\ufeff]*(?:USD|EUR|PLN|GBP|zł)|[﻿�])).*$'
+    ELSE NULL END;
+$patterns$;
+REVOKE EXECUTE ON FUNCTION public.jsonschema_subset_pattern(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.jsonschema_subset_pattern(text) TO service_role;
+-- validator-patterns:end
+
+CREATE FUNCTION public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer)
+RETURNS TABLE (valid boolean, remaining integer)
+LANGUAGE plpgsql IMMUTABLE STRICT SECURITY INVOKER SET search_path = '' AS $$
+DECLARE
+  keyword text; child jsonb; property record; result record;
+  kind text := pg_catalog.jsonb_typeof(instance); matched boolean; expression text;
+BEGIN
+  valid := false; remaining := budget - 1;
+  <<validate>> BEGIN
+    IF depth > 32 OR remaining < 0 OR pg_catalog.jsonb_typeof(schema) <> 'object' THEN EXIT validate; END IF;
+    FOR keyword IN SELECT pg_catalog.jsonb_object_keys(schema) LOOP
+      IF keyword NOT IN ('type','properties','required','additionalProperties','items','anyOf','enum','const',
+        'maxLength','maxItems','uniqueItems','pattern','format','default') THEN EXIT validate; END IF;
+    END LOOP;
+    IF schema ? 'type' THEN
+      IF schema->>'type' = 'integer' THEN
+        IF kind <> 'number' OR (instance::text)::numeric <> pg_catalog.trunc((instance::text)::numeric) THEN EXIT validate; END IF;
+      ELSIF schema->>'type' NOT IN ('object','array','string','number','boolean','null') OR kind <> schema->>'type' THEN EXIT validate;
+      END IF;
+    END IF;
+    IF schema ? 'const' AND instance <> schema->'const' THEN EXIT validate; END IF;
+    IF schema ? 'enum' AND NOT EXISTS (SELECT 1 FROM pg_catalog.jsonb_array_elements(schema->'enum') item WHERE item=instance) THEN EXIT validate; END IF;
+    IF schema ? 'anyOf' THEN
+      matched := false;
+      FOR child IN SELECT value FROM pg_catalog.jsonb_array_elements(schema->'anyOf') LOOP
+        SELECT * INTO result FROM public.jsonschema_subset_walk(child,instance,depth+1,remaining);
+        remaining := result.remaining;
+        IF remaining < 0 THEN EXIT validate; END IF;
+        IF result.valid THEN matched := true; EXIT; END IF;
+      END LOOP;
+      IF NOT matched THEN EXIT validate; END IF;
+    END IF;
+    IF kind = 'object' THEN
+      IF schema ? 'required' AND EXISTS (SELECT 1 FROM pg_catalog.jsonb_array_elements_text(schema->'required') required WHERE NOT instance ? required) THEN EXIT validate; END IF;
+      FOR property IN SELECT * FROM pg_catalog.jsonb_each(instance) LOOP
+        child := schema->'properties'->property.key;
+        IF child IS NULL THEN
+          IF schema->'additionalProperties' = 'false'::jsonb THEN EXIT validate; END IF;
+          IF pg_catalog.jsonb_typeof(schema->'additionalProperties') = 'object' THEN child := schema->'additionalProperties'; END IF;
+        END IF;
+        IF child IS NOT NULL THEN
+          SELECT * INTO result FROM public.jsonschema_subset_walk(child,property.value,depth+1,remaining);
+          remaining := result.remaining;
+          IF NOT result.valid THEN EXIT validate; END IF;
+        END IF;
+      END LOOP;
+    ELSIF kind = 'array' THEN
+      IF schema ? 'maxItems' AND pg_catalog.jsonb_array_length(instance) > (schema->>'maxItems')::numeric THEN EXIT validate; END IF;
+      IF schema->'uniqueItems' = 'true'::jsonb AND
+        (SELECT count(*) <> count(DISTINCT value) FROM pg_catalog.jsonb_array_elements(instance)) THEN EXIT validate; END IF;
+      IF schema ? 'items' THEN
+        FOR child IN SELECT value FROM pg_catalog.jsonb_array_elements(instance) LOOP
+          SELECT * INTO result FROM public.jsonschema_subset_walk(schema->'items',child,depth+1,remaining);
+          remaining := result.remaining;
+          IF NOT result.valid THEN EXIT validate; END IF;
+        END LOOP;
+      END IF;
+    ELSIF kind = 'string' THEN
+      IF schema ? 'maxLength' AND pg_catalog.char_length(instance #>> '{}') > (schema->>'maxLength')::numeric THEN EXIT validate; END IF;
+      IF schema ? 'pattern' THEN
+        expression := public.jsonschema_subset_pattern(schema->>'pattern');
+        -- C collation avoids locale expansion of ASCII ranges. Default PG regex
+        -- mode is newline-insensitive: '.' also matches line terminators.
+        IF expression IS NULL OR NOT ((instance #>> '{}') COLLATE pg_catalog."C" ~ expression) THEN EXIT validate; END IF;
+      END IF;
+      -- pg_jsonschema 0.3.3 treats format as annotation (including uuid).
+      -- Only this emitted format is admitted by the generator.
+      IF schema ? 'format' AND schema->>'format' <> 'uuid' THEN EXIT validate; END IF;
+    END IF;
+    -- 'default' is an annotation; missing properties are never filled in.
+    valid := true;
+  END validate;
+  RETURN NEXT;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.jsonschema_subset_walk(jsonb,jsonb,integer,integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.jsonschema_subset_walk(jsonb,jsonb,integer,integer) TO service_role;
+
+CREATE FUNCTION public.jsonschema_subset_matches(schema json, instance jsonb)
+RETURNS boolean LANGUAGE plpgsql IMMUTABLE STRICT SECURITY INVOKER SET search_path = '' AS $$
+BEGIN
+  -- Bound serialized input before walking; shared node budget includes failed
+  -- anyOf branches, preventing exponential branch amplification.
+  IF pg_catalog.octet_length(schema::text) > 131072 OR pg_catalog.octet_length(instance::text) > 102400 THEN RETURN false; END IF;
+  RETURN (SELECT valid FROM public.jsonschema_subset_walk(schema::jsonb,instance,0,16384));
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.jsonschema_subset_matches(json,jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.jsonschema_subset_matches(json,jsonb) TO service_role;
 -- storefront-schema:start (generated by generate-storefront-schema.ts)
 CREATE FUNCTION public.storefront_config_schema() RETURNS json LANGUAGE sql IMMUTABLE SECURITY INVOKER SET search_path = ''
-AS $schema$ SELECT '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"format":{"type":"number","const":1},"templateId":{"type":"string","enum":["default","d"]},"settingsByTemplate":{"type":"object","properties":{"d":{"type":"object","properties":{"heroProduct":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"closingProduct":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"starterProducts":{"maxItems":3,"type":"array","items":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"uniqueItems":true},"taskCategories":{"maxItems":12,"type":"array","items":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"uniqueItems":true},"density":{"type":"string","enum":["comfortable","compact"]}},"additionalProperties":false},"default":{"type":"object","properties":{},"additionalProperties":false}},"additionalProperties":false},"overridesByTemplate":{"type":"object","properties":{"d":{"type":"object","properties":{"order":{"maxItems":32,"type":"array","items":{"type":"string","enum":["hero","tasks","start","catalogue","faq","closing"]},"uniqueItems":true},"sections":{"type":"object","properties":{"hero":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["split-process","simple"]}},"additionalProperties":false},"tasks":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]}},"additionalProperties":false},"start":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]},"variant":{"type":"string","enum":["detail-cards","compact"]}},"additionalProperties":false},"catalogue":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["detail-cards","default-groups"]}},"additionalProperties":false},"faq":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]}},"additionalProperties":false},"closing":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"}},"additionalProperties":false}},"additionalProperties":false}},"additionalProperties":false},"default":{"type":"object","properties":{"order":{"maxItems":32,"type":"array","items":{"type":"string","enum":["catalogue"]},"uniqueItems":true},"sections":{"type":"object","properties":{"catalogue":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["detail-cards","default-groups"]}},"additionalProperties":false}},"additionalProperties":false}},"additionalProperties":false}},"additionalProperties":false},"content":{"type":"object","properties":{"home.hero":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.tasks":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.starts":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.faq":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.closing":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]}},"additionalProperties":false},"tokens":{"anyOf":[{"type":"object","properties":{"format":{"type":"number","const":1},"light":{"type":"object","properties":{"background":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"foreground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accent":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accentForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"muted":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"mutedForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"border":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"}},"additionalProperties":false},"dark":{"type":"object","properties":{"background":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"foreground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accent":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accentForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"muted":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"mutedForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"border":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"}},"additionalProperties":false},"typography":{"type":"object","properties":{"font":{"type":"string","enum":["geist","dm-sans"]},"bodyWeight":{"anyOf":[{"type":"number","const":400},{"type":"number","const":500}]},"headingWeight":{"anyOf":[{"type":"number","const":500},{"type":"number","const":600},{"type":"number","const":700}]},"baseSizePx":{"anyOf":[{"type":"number","const":16},{"type":"number","const":17},{"type":"number","const":18}]},"headingLetterSpacingEm":{"anyOf":[{"type":"number","const":-0.02},{"type":"number","const":-0.01},{"type":"number","const":0}]}},"additionalProperties":false},"shapes":{"type":"object","properties":{"radiusSmPx":{"anyOf":[{"type":"number","const":0},{"type":"number","const":4},{"type":"number","const":8}]},"radiusMdPx":{"anyOf":[{"type":"number","const":4},{"type":"number","const":8},{"type":"number","const":12}]},"radiusLgPx":{"anyOf":[{"type":"number","const":8},{"type":"number","const":12},{"type":"number","const":16},{"type":"number","const":24}]}},"additionalProperties":false}},"required":["format"],"additionalProperties":false},{"type":"null"}]}},"required":["format","templateId","settingsByTemplate","overridesByTemplate","content","tokens"],"additionalProperties":false}'::json; $schema$;
+AS $schema$ SELECT '{"type":"object","properties":{"format":{"type":"number","const":1},"templateId":{"type":"string","enum":["default","d"]},"settingsByTemplate":{"type":"object","properties":{"d":{"type":"object","properties":{"heroProduct":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"closingProduct":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"starterProducts":{"maxItems":3,"type":"array","items":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"uniqueItems":true},"taskCategories":{"maxItems":12,"type":"array","items":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"uniqueItems":true},"density":{"type":"string","enum":["comfortable","compact"]}},"additionalProperties":false},"default":{"type":"object","properties":{},"additionalProperties":false}},"additionalProperties":false},"overridesByTemplate":{"type":"object","properties":{"d":{"type":"object","properties":{"order":{"maxItems":32,"type":"array","items":{"type":"string","enum":["hero","tasks","start","catalogue","faq","closing"]},"uniqueItems":true},"sections":{"type":"object","properties":{"hero":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["split-process","simple"]}},"additionalProperties":false},"tasks":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]}},"additionalProperties":false},"start":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]},"variant":{"type":"string","enum":["detail-cards","compact"]}},"additionalProperties":false},"catalogue":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["detail-cards","default-groups"]}},"additionalProperties":false},"faq":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]}},"additionalProperties":false},"closing":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"}},"additionalProperties":false}},"additionalProperties":false}},"additionalProperties":false},"default":{"type":"object","properties":{"order":{"maxItems":32,"type":"array","items":{"type":"string","enum":["catalogue"]},"uniqueItems":true},"sections":{"type":"object","properties":{"catalogue":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["detail-cards","default-groups"]}},"additionalProperties":false}},"additionalProperties":false}},"additionalProperties":false}},"additionalProperties":false},"content":{"type":"object","properties":{"home.hero":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.tasks":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.starts":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.faq":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.closing":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]}},"additionalProperties":false},"tokens":{"anyOf":[{"type":"object","properties":{"format":{"type":"number","const":1},"light":{"type":"object","properties":{"background":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"foreground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accent":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accentForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"muted":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"mutedForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"border":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"}},"additionalProperties":false},"dark":{"type":"object","properties":{"background":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"foreground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accent":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accentForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"muted":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"mutedForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"border":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"}},"additionalProperties":false},"typography":{"type":"object","properties":{"font":{"type":"string","enum":["geist","dm-sans"]},"bodyWeight":{"anyOf":[{"type":"number","const":400},{"type":"number","const":500}]},"headingWeight":{"anyOf":[{"type":"number","const":500},{"type":"number","const":600},{"type":"number","const":700}]},"baseSizePx":{"anyOf":[{"type":"number","const":16},{"type":"number","const":17},{"type":"number","const":18}]},"headingLetterSpacingEm":{"anyOf":[{"type":"number","const":-0.02},{"type":"number","const":-0.01},{"type":"number","const":0}]}},"additionalProperties":false},"shapes":{"type":"object","properties":{"radiusSmPx":{"anyOf":[{"type":"number","const":0},{"type":"number","const":4},{"type":"number","const":8}]},"radiusMdPx":{"anyOf":[{"type":"number","const":4},{"type":"number","const":8},{"type":"number","const":12}]},"radiusLgPx":{"anyOf":[{"type":"number","const":8},{"type":"number","const":12},{"type":"number","const":16},{"type":"number","const":24}]}},"additionalProperties":false}},"required":["format"],"additionalProperties":false},{"type":"null"}]}},"required":["format","templateId","settingsByTemplate","overridesByTemplate","content","tokens"],"additionalProperties":false}'::json; $schema$;
 REVOKE EXECUTE ON FUNCTION public.storefront_config_schema() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.storefront_config_schema() TO service_role;
 -- storefront-schema:end
@@ -70,7 +175,7 @@ GRANT EXECUTE ON FUNCTION public.storefront_config_schema() TO service_role;
 CREATE FUNCTION public.storefront_config_valid(config jsonb)
 RETURNS boolean LANGUAGE plpgsql IMMUTABLE STRICT SECURITY INVOKER SET search_path = '' AS $$
 BEGIN
-  IF NOT extensions.jsonb_matches_schema(public.storefront_config_schema(), config) THEN RETURN false; END IF;
+  IF NOT public.jsonschema_subset_matches(public.storefront_config_schema(), config) THEN RETURN false; END IF;
   IF EXISTS (
     WITH RECURSIVE nodes(value, depth) AS (
       SELECT config, 0 UNION ALL
@@ -215,8 +320,16 @@ ALTER TABLE public.products ADD COLUMN marketing_fields jsonb NOT NULL
 ALTER TABLE public.products ADD CONSTRAINT products_marketing_size
   CHECK (octet_length(marketing_fields::text) <= 8192);
 -- marketing-schema:start (generated by bun run template:schema)
+-- Authenticated admins also write products directly under RLS. This pure
+-- validation wrapper lets the CHECK invoke the private helpers without exposing
+-- a caller-supplied schema or privileged data access.
+CREATE FUNCTION public.product_marketing_valid(instance jsonb)
+RETURNS boolean LANGUAGE sql IMMUTABLE STRICT SECURITY DEFINER SET search_path = ''
+AS $schema$ SELECT public.jsonschema_subset_matches('{"anyOf":[{"type":"object","properties":{"format":{"anyOf":[{"type":"string","enum":["course","workshop","ebook","template","tool","service","bundle","other"]},{"type":"null"}]},"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false},"pl":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false}},"required":["format","sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"format":{"anyOf":[{"type":"string","enum":["course","workshop","ebook","template","tool","service","bundle","other"]},{"type":"null"}]},"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false},"pl":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false}},"required":["format","sourceLocale","pl"],"additionalProperties":false}]}'::json, instance); $schema$;
+REVOKE EXECUTE ON FUNCTION public.product_marketing_valid(jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.product_marketing_valid(jsonb) TO authenticated, service_role;
 ALTER TABLE public.products ADD CONSTRAINT products_marketing_shape
-  CHECK (extensions.jsonb_matches_schema('{"$schema":"https://json-schema.org/draft/2020-12/schema","anyOf":[{"type":"object","properties":{"format":{"anyOf":[{"type":"string","enum":["course","workshop","ebook","template","tool","service","bundle","other"]},{"type":"null"}]},"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false},"pl":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false}},"required":["format","sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"format":{"anyOf":[{"type":"string","enum":["course","workshop","ebook","template","tool","service","bundle","other"]},{"type":"null"}]},"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false},"pl":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false}},"required":["format","sourceLocale","pl"],"additionalProperties":false}]}'::json, marketing_fields));
+  CHECK (public.product_marketing_valid(marketing_fields));
 -- marketing-schema:end
 GRANT SELECT (marketing_fields) ON public.products TO anon, authenticated;
 
@@ -236,7 +349,7 @@ CREATE INDEX storefront_products_name_trgm ON public.products USING gin (normali
   WHERE is_active AND is_listed;
 -- Partial expression-index statistics do not supply common-term selectivity.
 -- Global expression statistics let the planner choose the ordered seek instead.
-CREATE STATISTICS storefront_products_name ON (normalize(name,NFC)) FROM public.products;
+CREATE STATISTICS public.storefront_products_name ON (normalize(name,NFC)) FROM public.products;
 ANALYZE public.products;
 CREATE INDEX storefront_products_available_from ON public.products(available_from) WHERE is_active AND is_listed;
 CREATE INDEX storefront_products_available_until ON public.products(available_until) WHERE is_active AND is_listed;
@@ -662,6 +775,7 @@ CREATE TABLE public.affiliate_commissions (
  CHECK(NOT(is_refundable AND refund_period_days IS NULL) OR eligible_at IS NULL)
 );
 CREATE TABLE public.affiliate_payouts (
+ livemode boolean NOT NULL DEFAULT true,
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), member_id uuid NOT NULL REFERENCES public.affiliate_memberships(id),
  currency text NOT NULL CHECK(currency ~ '^[A-Z]{3}$'), earnings_minor bigint NOT NULL CHECK(earnings_minor>0),
  status text NOT NULL CHECK(status IN ('reserved','paid','cancelled')), needs_review boolean NOT NULL DEFAULT false,
@@ -670,7 +784,7 @@ CREATE TABLE public.affiliate_payouts (
  bank_amount_minor bigint CHECK(bank_amount_minor>0), paid_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(),
  CHECK(status<>'paid' OR (bank_reference IS NOT NULL AND invoice_reference IS NOT NULL AND bank_amount_minor IS NOT NULL AND paid_at IS NOT NULL))
 );
-CREATE UNIQUE INDEX affiliate_one_open_payout ON public.affiliate_payouts(member_id,currency) WHERE status='reserved';
+CREATE UNIQUE INDEX affiliate_one_open_payout ON public.affiliate_payouts(member_id,currency,livemode) WHERE status='reserved';
 CREATE TABLE public.affiliate_ledger (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), member_id uuid NOT NULL REFERENCES public.affiliate_memberships(id),
  commission_id uuid REFERENCES public.affiliate_commissions(id), payout_id uuid UNIQUE REFERENCES public.affiliate_payouts(id),
@@ -831,7 +945,7 @@ BEGIN
  END IF;
  IF p.id IS NOT NULL THEN
   IF EXISTS(SELECT 1 FROM public.affiliate_payout_allocations a JOIN public.affiliate_ledger e ON e.id=a.entry_id
-    WHERE a.payout_id=p.id AND (e.member_id<>p.member_id OR e.currency<>p.currency OR e.kind='settlement' OR NOT EXISTS(SELECT 1 FROM public.affiliate_commissions comm WHERE comm.id=e.commission_id AND comm.livemode)))
+    WHERE a.payout_id=p.id AND (e.member_id<>p.member_id OR e.currency<>p.currency OR e.kind='settlement' OR NOT EXISTS(SELECT 1 FROM public.affiliate_commissions comm WHERE comm.id=e.commission_id AND comm.livemode=p.livemode)))
    OR (SELECT coalesce(sum(e.amount_minor),0) FROM public.affiliate_payout_allocations a JOIN public.affiliate_ledger e ON e.id=a.entry_id
     WHERE a.payout_id=p.id AND a.released_at IS NULL)<>(CASE WHEN p.status='cancelled' THEN 0 ELSE p.earnings_minor END)
    OR (p.status='paid' AND NOT EXISTS(SELECT 1 FROM public.affiliate_ledger WHERE payout_id=p.id)) THEN
@@ -1091,21 +1205,21 @@ BEGIN
  RETURN result;
 END $$;
 
-CREATE FUNCTION public.affiliate_lock_member(p_member uuid,p_currency text,p_payments uuid[] DEFAULT '{}') RETURNS uuid[]
+CREATE FUNCTION public.affiliate_lock_member(p_member uuid,p_currency text,p_payments uuid[] DEFAULT '{}',p_livemode boolean DEFAULT true) RETURNS uuid[]
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE locked uuid[];
 BEGIN
  SELECT coalesce(array_agg(id),'{}'::uuid[]) INTO locked FROM (
   SELECT pt.id FROM public.payment_transactions pt WHERE pt.id=ANY(p_payments)
    OR EXISTS(SELECT 1 FROM public.affiliate_commissions c JOIN public.affiliate_work w ON w.payment_id=c.payment_id
-    WHERE c.payment_id=pt.id AND c.member_id=p_member AND c.currency=p_currency AND c.livemode
+    WHERE c.payment_id=pt.id AND c.member_id=p_member AND c.currency=p_currency AND c.livemode=p_livemode
      AND w.requested_generation>w.processed_generation)
   ORDER BY pt.id FOR UPDATE
  ) payments;
  PERFORM pg_advisory_xact_lock(hashtextextended(p_member::text||p_currency,0));
  RETURN locked;
 END $$;
-CREATE FUNCTION public.affiliate_preview(p_member uuid,p_currency text,p_cutoff timestamptz)
+CREATE FUNCTION public.affiliate_preview(p_member uuid,p_currency text,p_cutoff timestamptz,p_livemode boolean DEFAULT true)
 RETURNS TABLE(member_version text,program_version text,earnings_minor text,debt_offset_minor text,payable_minor text,
  held_minor text,threshold_minor text,sync_required boolean,available boolean,entry_ids uuid[],
  accrued text,reversed text,paid text,reserved text,balance text)
@@ -1119,7 +1233,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
     JOIN public.affiliate_payouts p ON p.id=a.payout_id AND p.status='paid' WHERE l.commission_id=c.id) AS previously_paid
   FROM public.affiliate_commissions c JOIN public.payment_transactions pt ON pt.id=c.payment_id
   LEFT JOIN public.affiliate_work w ON w.payment_id=c.payment_id
-  WHERE c.member_id=p_member AND c.currency=p_currency AND c.livemode
+  WHERE c.member_id=p_member AND c.currency=p_currency AND c.livemode=p_livemode
  ), entries AS MATERIALIZED (
   SELECT l.id,l.commission_id,l.kind,l.amount_minor,p.status AS allocation_status,
    coalesce(a.entry_id IS NULL AND ((f.earned AND f.eligible_at<=p_cutoff
@@ -1143,20 +1257,20 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   ) h
  ), settlements AS (
   SELECT -coalesce(sum(l.amount_minor),0) AS amount FROM public.affiliate_ledger l
-  JOIN public.affiliate_payouts p ON p.id=l.payout_id WHERE l.member_id=p_member AND l.currency=p_currency
+  JOIN public.affiliate_payouts p ON p.id=l.payout_id WHERE l.member_id=p_member AND l.currency=p_currency AND p.livemode=p_livemode
  ), readiness AS (SELECT coalesce(bool_or(dirty),false) AS dirty FROM facts)
  SELECT m.version::text,p.version::text,t.earnings::text,t.debt::text,(t.earnings-t.debt)::text,h.amount::text,
   p.thresholds->>p_currency,r.dirty,
   m.status='approved' AND m.user_id IS NOT NULL AND p.enabled AND NOT r.dirty
    AND p_cutoff IS NOT NULL AND p_cutoff<=now() AND p.thresholds ? p_currency
    AND t.earnings-t.debt>0 AND t.earnings-t.debt>=(p.thresholds->>p_currency)::bigint
-   AND NOT EXISTS(SELECT 1 FROM public.affiliate_payouts ap WHERE ap.member_id=p_member AND ap.currency=p_currency AND ap.status='reserved'),
+   AND NOT EXISTS(SELECT 1 FROM public.affiliate_payouts ap WHERE ap.member_id=p_member AND ap.currency=p_currency AND ap.livemode=p_livemode AND ap.status='reserved'),
   t.ids,t.accrued::text,t.reversed::text,s.amount::text,t.reserved::text,(t.balance-s.amount)::text
  FROM public.affiliate_memberships m CROSS JOIN public.affiliate_programs p CROSS JOIN totals t
  CROSS JOIN held h CROSS JOIN settlements s CROSS JOIN readiness r WHERE m.id=p_member;
 $$;
-REVOKE EXECUTE ON FUNCTION public.affiliate_preview(uuid,text,timestamptz) FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION public.affiliate_preview(uuid,text,timestamptz) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.affiliate_preview(uuid,text,timestamptz,boolean) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.affiliate_preview(uuid,text,timestamptz,boolean) TO service_role;
 
 CREATE INDEX affiliate_portal_page ON public.affiliate_commissions(member_id,paid_at DESC,id DESC);
 CREATE FUNCTION public.affiliate_portal_page(p_member uuid,p_currency text DEFAULT NULL,p_cursor uuid DEFAULT NULL,p_limit integer DEFAULT 25,p_as_of timestamptz DEFAULT now())
@@ -1193,11 +1307,11 @@ END $$;
 REVOKE EXECUTE ON FUNCTION public.affiliate_portal_page(uuid,text,uuid,integer,timestamptz) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.affiliate_portal_page(uuid,text,uuid,integer,timestamptz) TO service_role;
 
-CREATE FUNCTION public.affiliate_portal_summary(p_member uuid,p_as_of timestamptz)
+CREATE FUNCTION public.affiliate_portal_summary(p_member uuid,p_as_of timestamptz,p_livemode boolean DEFAULT true)
 RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
  WITH balances AS (
-  SELECT c.currency,v.* FROM (SELECT DISTINCT currency FROM public.affiliate_commissions WHERE member_id=p_member AND livemode) c
-  CROSS JOIN LATERAL public.affiliate_preview(p_member,c.currency,p_as_of) v
+  SELECT c.currency,v.* FROM (SELECT DISTINCT currency FROM public.affiliate_commissions WHERE member_id=p_member AND livemode=p_livemode) c
+  CROSS JOIN LATERAL public.affiliate_preview(p_member,c.currency,p_as_of,p_livemode) v
  ), bindings AS MATERIALIZED (
   SELECT b.coupon_id,c.code,c.is_active,c.allowed_product_ids FROM public.affiliate_coupon_bindings b
   JOIN public.coupons c ON c.id=b.coupon_id WHERE b.member_id=p_member AND b.retired_at IS NULL
@@ -1212,41 +1326,41 @@ RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   'codes',coalesce((SELECT jsonb_agg(jsonb_build_object('code',code,'active',is_active) ORDER BY code) FROM bindings),'[]'::jsonb),
   'rules',coalesce((SELECT jsonb_agg(jsonb_build_object('product',name,'percentage_bps',percentage_bps,'fixed_minor',fixed_minor::text,'currency',currency,'enabled',enabled) ORDER BY name) FROM rules),'[]'::jsonb),
   'sync_pending',EXISTS(SELECT 1 FROM balances WHERE sync_required),
-  'needs_review',EXISTS(SELECT 1 FROM public.affiliate_payouts WHERE member_id=p_member AND needs_review)
+  'needs_review',EXISTS(SELECT 1 FROM public.affiliate_payouts WHERE member_id=p_member AND livemode=p_livemode AND needs_review)
    OR EXISTS(SELECT 1 FROM public.affiliate_commissions c LEFT JOIN public.affiliate_work w ON w.payment_id=c.payment_id
-    WHERE c.member_id=p_member AND (w.status='needs_review' OR (c.dispute_seen AND c.dispute_reviewed_at IS NULL))))
+    WHERE c.member_id=p_member AND c.livemode=p_livemode AND (w.status='needs_review' OR (c.dispute_seen AND c.dispute_reviewed_at IS NULL))))
 $$;
-REVOKE EXECUTE ON FUNCTION public.affiliate_portal_summary(uuid,timestamptz) FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION public.affiliate_portal_summary(uuid,timestamptz) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.affiliate_portal_summary(uuid,timestamptz,boolean) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.affiliate_portal_summary(uuid,timestamptz,boolean) TO service_role;
 
-CREATE FUNCTION public.affiliate_reserve(p_actor uuid,p_member uuid,p_currency text,p_cutoff timestamptz,p_member_version bigint,p_program_version bigint,p_payee_reference text)
+CREATE FUNCTION public.affiliate_reserve(p_actor uuid,p_member uuid,p_currency text,p_cutoff timestamptz,p_member_version bigint,p_program_version bigint,p_payee_reference text,p_livemode boolean DEFAULT true)
 RETURNS public.affiliate_payouts LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE m public.affiliate_memberships; prog public.affiliate_programs; result public.affiliate_payouts; preview record; locked uuid[];
 BEGIN
  PERFORM public.affiliate_admin(p_actor);
- SELECT * INTO preview FROM public.affiliate_preview(p_member,p_currency,p_cutoff);
+ SELECT * INTO preview FROM public.affiliate_preview(p_member,p_currency,p_cutoff,p_livemode);
  locked:=public.affiliate_lock_member(p_member,p_currency,ARRAY(
   SELECT DISTINCT c.payment_id FROM public.affiliate_ledger l JOIN public.affiliate_commissions c ON c.id=l.commission_id
-   WHERE l.id=ANY(preview.entry_ids)));
+   WHERE l.id=ANY(preview.entry_ids)),p_livemode);
 
  SELECT * INTO m FROM public.affiliate_memberships WHERE id=p_member FOR SHARE;
  SELECT * INTO prog FROM public.affiliate_programs FOR SHARE;
  IF m.id IS NULL OR m.version IS DISTINCT FROM p_member_version OR prog.version IS DISTINCT FROM p_program_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
- IF m.status<>'approved' OR m.user_id IS NULL OR NOT prog.enabled OR p_currency !~ '^[A-Z]{3}$'
+ IF p_livemode IS NULL OR m.status<>'approved' OR m.user_id IS NULL OR NOT prog.enabled OR p_currency !~ '^[A-Z]{3}$'
   OR p_cutoff IS NULL OR p_cutoff>now() OR NOT(prog.thresholds ? p_currency) THEN
   RAISE EXCEPTION 'Payout unavailable' USING ERRCODE='22023'; END IF;
- SELECT * INTO preview FROM public.affiliate_preview(p_member,p_currency,p_cutoff);
+ SELECT * INTO preview FROM public.affiliate_preview(p_member,p_currency,p_cutoff,p_livemode);
  IF preview.sync_required OR EXISTS(SELECT 1 FROM public.affiliate_ledger l JOIN public.affiliate_commissions c ON c.id=l.commission_id
   WHERE l.id=ANY(preview.entry_ids) AND NOT(c.payment_id=ANY(locked))) THEN RAISE EXCEPTION 'Sync required' USING ERRCODE='PT409'; END IF;
  IF NOT preview.available THEN RAISE EXCEPTION 'Threshold not met' USING ERRCODE='22023'; END IF;
- INSERT INTO public.affiliate_payouts(member_id,currency,earnings_minor,status,cutoff,payee_reference)
-  VALUES(p_member,p_currency,preview.payable_minor::bigint,'reserved',p_cutoff,p_payee_reference) RETURNING * INTO result;
+ INSERT INTO public.affiliate_payouts(member_id,currency,earnings_minor,status,cutoff,payee_reference,livemode)
+  VALUES(p_member,p_currency,preview.payable_minor::bigint,'reserved',p_cutoff,p_payee_reference,p_livemode) RETURNING * INTO result;
  INSERT INTO public.affiliate_payout_allocations(payout_id,entry_id) SELECT result.id,unnest(preview.entry_ids);
  PERFORM public.affiliate_audit('affiliate_payouts',NULL,to_jsonb(result),p_actor);
  RETURN result;
 END $$;
 CREATE FUNCTION public.affiliate_mark_paid(p_actor uuid,p_payout uuid,p_expected_version bigint,p_bank_reference text,p_invoice_reference text,
- p_bank_amount_minor bigint,p_currency text,p_paid_at timestamptz,p_full_settlement boolean,p_reason text DEFAULT NULL,p_evidence_reference text DEFAULT NULL)
+ p_bank_amount_minor bigint,p_currency text,p_paid_at timestamptz,p_full_settlement boolean,p_reason text DEFAULT NULL,p_evidence_reference text DEFAULT NULL,p_livemode boolean DEFAULT true)
 RETURNS public.affiliate_payouts LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE old public.affiliate_payouts; result public.affiliate_payouts;
 BEGIN
@@ -1254,8 +1368,9 @@ BEGIN
  SELECT * INTO old FROM public.affiliate_payouts WHERE id=p_payout;
  PERFORM public.affiliate_lock_member(old.member_id,old.currency,ARRAY(
   SELECT DISTINCT c.payment_id FROM public.affiliate_payout_allocations a JOIN public.affiliate_ledger l ON l.id=a.entry_id
-   JOIN public.affiliate_commissions c ON c.id=l.commission_id WHERE a.payout_id=old.id AND a.released_at IS NULL));
+   JOIN public.affiliate_commissions c ON c.id=l.commission_id WHERE a.payout_id=old.id AND a.released_at IS NULL),old.livemode);
  SELECT * INTO old FROM public.affiliate_payouts WHERE id=p_payout FOR UPDATE;
+ IF old.livemode IS DISTINCT FROM p_livemode THEN RAISE EXCEPTION 'Stripe mode changed' USING ERRCODE='PT409'; END IF;
  IF old.status='paid' AND old.bank_reference=p_bank_reference AND old.invoice_reference=p_invoice_reference
   AND old.bank_amount_minor=p_bank_amount_minor AND old.currency=p_currency AND old.paid_at=p_paid_at AND p_full_settlement THEN RETURN old; END IF;
  IF old.id IS NULL OR old.version IS DISTINCT FROM p_expected_version OR old.status<>'reserved' THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
@@ -1279,7 +1394,7 @@ BEGIN
  SELECT * INTO old FROM public.affiliate_payouts WHERE id=p_payout;
  PERFORM public.affiliate_lock_member(old.member_id,old.currency,ARRAY(
   SELECT DISTINCT c.payment_id FROM public.affiliate_payout_allocations a JOIN public.affiliate_ledger l ON l.id=a.entry_id
-   JOIN public.affiliate_commissions c ON c.id=l.commission_id WHERE a.payout_id=old.id AND a.released_at IS NULL));
+   JOIN public.affiliate_commissions c ON c.id=l.commission_id WHERE a.payout_id=old.id AND a.released_at IS NULL),old.livemode);
  SELECT * INTO old FROM public.affiliate_payouts WHERE id=p_payout FOR UPDATE;
  IF old.id IS NULL OR old.version IS DISTINCT FROM p_expected_version OR old.status<>'reserved' THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
  IF p_no_transfer IS DISTINCT FROM true OR NOT public.affiliate_valid_reference(p_reason) THEN RAISE EXCEPTION 'Confirmation required' USING ERRCODE='22023'; END IF;
@@ -1294,7 +1409,7 @@ DECLARE c public.affiliate_commissions; result public.affiliate_ledger; total nu
 BEGIN
  PERFORM public.affiliate_admin(p_actor);
  SELECT * INTO c FROM public.affiliate_commissions WHERE id=p_commission;
- PERFORM public.affiliate_lock_member(c.member_id,c.currency,ARRAY[c.payment_id]);
+ PERFORM public.affiliate_lock_member(c.member_id,c.currency,ARRAY[c.payment_id],c.livemode);
  SELECT * INTO c FROM public.affiliate_commissions WHERE id=p_commission FOR UPDATE;
  IF c.id IS NULL OR c.version IS DISTINCT FROM p_expected_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
  IF p_amount_minor IS NULL OR p_amount_minor=0 OR NOT public.affiliate_valid_reference(p_reason) OR NOT public.affiliate_valid_reference(p_evidence_reference) THEN
@@ -1441,13 +1556,13 @@ GRANT EXECUTE ON FUNCTION public.affiliate_rule_create(uuid,uuid,integer,boolean
 REVOKE EXECUTE ON FUNCTION public.affiliate_coupon_bind(uuid,uuid,uuid,bigint) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.affiliate_coupon_bind(uuid,uuid,uuid,bigint) TO service_role;
 
-REVOKE EXECUTE ON FUNCTION public.affiliate_lock_member(uuid,text,uuid[]) FROM PUBLIC,anon,authenticated,service_role;
+REVOKE EXECUTE ON FUNCTION public.affiliate_lock_member(uuid,text,uuid[],boolean) FROM PUBLIC,anon,authenticated,service_role;
 
-REVOKE EXECUTE ON FUNCTION public.affiliate_reserve(uuid,uuid,text,timestamptz,bigint,bigint,text) FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION public.affiliate_reserve(uuid,uuid,text,timestamptz,bigint,bigint,text) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.affiliate_reserve(uuid,uuid,text,timestamptz,bigint,bigint,text,boolean) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.affiliate_reserve(uuid,uuid,text,timestamptz,bigint,bigint,text,boolean) TO service_role;
 
-REVOKE EXECUTE ON FUNCTION public.affiliate_mark_paid(uuid,uuid,bigint,text,text,bigint,text,timestamptz,boolean,text,text) FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION public.affiliate_mark_paid(uuid,uuid,bigint,text,text,bigint,text,timestamptz,boolean,text,text) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.affiliate_mark_paid(uuid,uuid,bigint,text,text,bigint,text,timestamptz,boolean,text,text,boolean) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.affiliate_mark_paid(uuid,uuid,bigint,text,text,bigint,text,timestamptz,boolean,text,text,boolean) TO service_role;
 
 REVOKE EXECUTE ON FUNCTION public.affiliate_cancel_payout(uuid,uuid,bigint,boolean,text) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.affiliate_cancel_payout(uuid,uuid,bigint,boolean,text) TO service_role;

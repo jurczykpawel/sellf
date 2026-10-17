@@ -66,8 +66,11 @@ describe('product marketing', () => {
 describe('marketing text boundaries', () => {
   it('keeps the stored structural schema generated from the shared contract', () => {
     const sql = readFileSync(new URL('../../../../supabase/migrations/20261016000000_release_2026_10_6.sql', import.meta.url), 'utf8');
-    const encoded = sql.match(/CHECK \(extensions\.jsonb_matches_schema\('((?:[^']|'')*)'::json, marketing_fields\)\)/)?.[1];
-    expect(JSON.parse(encoded!.replaceAll("''", "'"))).toEqual(z.toJSONSchema(marketingFieldsShapeSchema));
+    const encoded = sql.match(/SELECT public\.jsonschema_subset_matches\('((?:[^']|'')*)'::json, instance\)/)?.[1];
+    const { $schema, ...expected } = z.toJSONSchema(marketingFieldsShapeSchema);
+    expect($schema).toBe('https://json-schema.org/draft/2020-12/schema');
+    expect(JSON.parse(encoded!.replaceAll("''", "'"))).toEqual(expected);
+    expect(sql).toContain('CHECK (public.product_marketing_valid(marketing_fields))');
   });
   it('counts Unicode characters consistently with the stored schema', () => {
     expect(marketingFieldsSchema.safeParse({ ...empty, en: { ...copy, result: '😀'.repeat(240) } }).success).toBe(true);

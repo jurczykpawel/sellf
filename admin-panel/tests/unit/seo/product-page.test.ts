@@ -73,12 +73,12 @@ describe('indexable product page', () => {
     });
     state.product.is_listed = false;
     expect(await generateMetadata({ params })).toMatchObject({ robots: { index: false } });
-    await expect(ProductPage({ params })).rejects.toThrow('redirect:/checkout/course');
+    await expect(ProductPage({ params })).rejects.toThrow('redirect:/pl/checkout/course');
   });
 
   it('retains checkout context for offer and coupon links', async () => {
     await expect(ProductPage({ params, searchParams: Promise.resolve({ coupon: 'SAVE', oto: 'offer' }) }))
-      .rejects.toThrow('redirect:/checkout/course?coupon=SAVE&oto=offer');
+      .rejects.toThrow('redirect:/pl/checkout/course?coupon=SAVE&oto=offer');
   });
 
   it('does not publish an offer outside the sale window', async () => {

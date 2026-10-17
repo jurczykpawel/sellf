@@ -1,0 +1,303 @@
+"""D-057: real hosted RPC regression and reference-extension parity.
+
+Run from the repository root:
+  python3 supabase/tests/jsonschema-regression.py --prepare
+  python3 supabase/tests/jsonschema-regression.py --rpc
+  python3 supabase/tests/jsonschema-regression.py --parity
+
+--prepare copies only pre-RC migrations into /private/tmp/sellf-rcjson and starts
+the isolated project (55320-55329). --rpc requires that pristine pre-RC state;
+it never resets a database. --parity installs pg_jsonschema only in this TEST
+harness, using supabase_admin; neither the RPC nor its owner gets superuser.
+All commands are guarded against the shared project. Credentials are not logged.
+"""
+import argparse
+import copy
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import time
+import urllib.error
+import urllib.request
+
+ROOT = Path(__file__).resolve().parents[2]
+WORK = Path('/private/tmp/sellf-rcjson')
+CONTAINER = 'supabase_db_sellf-rcjson'
+VERSION = '20261016000000_release_2026_10_6'
+MIGRATION = ROOT / 'supabase/migrations' / (VERSION + '.sql')
+
+
+def load_gate():
+    while os.getloadavg()[0] > 28:
+        print(f'Waiting: 1-minute load {os.getloadavg()[0]:.2f} > 28', flush=True)
+        time.sleep(20)
+
+
+def sql(source, admin=False, progress=None):
+    load_gate()
+    command = ['docker', 'exec', '-i', CONTAINER]
+    if admin:
+        command += ['sh', '-c', 'PGPASSWORD="$POSTGRES_PASSWORD" psql -X -U supabase_admin -d postgres -At -v ON_ERROR_STOP=1']
+    else:
+        command += ['psql', '-X', '-U', 'postgres', '-d', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1']
+    if progress:
+        with progress.open('w') as log:
+            result = subprocess.run(command, input=source, text=True, stdout=log, stderr=subprocess.PIPE, timeout=1800)
+        output = progress.read_text()
+    else:
+        result = subprocess.run(command, input=source, text=True, capture_output=True, timeout=300)
+        output = result.stdout
+    if result.returncode:
+        raise RuntimeError(result.stderr)
+    return output.strip()
+
+
+def check_stack():
+    config = (WORK / 'supabase/config.toml').read_text()
+    assert 'project_id = "sellf-rcjson"' in config and 'port = 55321' in config
+    containers = subprocess.check_output(['docker', 'ps', '--filter', 'publish=55321', '--format', '{{.Names}}'], text=True).splitlines()
+    assert containers == ['supabase_kong_sellf-rcjson'], containers
+    assert sql("SELECT rolsuper FROM pg_roles WHERE rolname=current_user;") == 'f'
+    assert sql("SELECT r.rolsuper FROM pg_proc p JOIN pg_roles r ON r.oid=p.proowner WHERE p.oid='public.apply_migration(text,text,text)'::regprocedure;") == 'f'
+    assert sql("SELECT count(*) FROM pg_roles WHERE rolsuper AND pg_has_role('postgres',oid,'MEMBER');") == '0'
+    assert sql("SELECT rolsuper FROM pg_roles WHERE rolname='service_role';") == 'f'
+    assert sql("SELECT count(*) FROM pg_roles WHERE rolsuper AND pg_has_role('service_role',oid,'MEMBER');") == '0'
+
+
+def prepare():
+    load_gate()
+    assert not (WORK / 'supabase/config.toml').exists(), 'Use a fresh workdir; refusing to overwrite a stack'
+    (WORK / 'supabase/migrations').mkdir(parents=True, exist_ok=True)
+    config = (ROOT / 'supabase/config.toml').read_text().replace('project_id = "sellf"', 'project_id = "sellf-rcjson"')
+    for i in range(10):
+        config = config.replace(str(54320 + i), str(55320 + i))
+    config = config.replace('enabled = true\nclient_id = "env(GITHUB_CLIENT_ID)"', 'enabled = false\nclient_id = "env(GITHUB_CLIENT_ID)"')
+    (WORK / 'supabase/config.toml').write_text(config)
+    shutil.copytree(ROOT / 'supabase/templates', WORK / 'supabase/templates')
+    for migration in (ROOT / 'supabase/migrations').glob('*.sql'):
+        if migration.name < VERSION:
+            shutil.copy(migration, WORK / 'supabase/migrations' / migration.name)
+    with (WORK / 'start.log').open('w') as log:
+        result = subprocess.run(['supabase', 'start', '--workdir', str(WORK)], stdout=log, stderr=subprocess.STDOUT)
+    assert result.returncode == 0, 'See isolated start.log'
+    print('PASS isolated pre-RC stack started')
+
+
+def rpc():
+    check_stack()
+    assert sql("SELECT count(*) FROM pg_extension WHERE extname='pg_jsonschema';") == '0'
+    assert sql("SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version='20261016000000';") == '0'
+    assert sql("SELECT to_regclass('public.storefront_config') IS NULL;") == 't'
+    status = json.loads(subprocess.check_output(['supabase', 'status', '--workdir', str(WORK), '-o', 'json'], stderr=subprocess.DEVNULL))
+    assert status['API_URL'] == 'http://127.0.0.1:55321'
+
+    def apply(version, source):
+        body = json.dumps(dict(migration_version=version, migration_sql=source, content_checksum=hashlib.sha256(source.encode()).hexdigest())).encode()
+        request = urllib.request.Request(status['API_URL'] + '/rest/v1/rpc/apply_migration', body, headers={
+            'apikey': status['SERVICE_ROLE_KEY'], 'Authorization': 'Bearer ' + status['SERVICE_ROLE_KEY'], 'Content-Type': 'application/json'})
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                return response.status, json.load(response)
+        except urllib.error.HTTPError as error:
+            return error.code, json.load(error)
+
+    code, payload = apply('20261015999999_forbidden_extension_probe', 'CREATE EXTENSION pg_jsonschema WITH SCHEMA extensions;')
+    assert code == 403 and payload['code'] == '42501' and 'pg_jsonschema' in payload['message'], payload
+    assert sql("SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version='20261015999999';") == '0'
+    assert sql("SELECT to_regclass('public.storefront_config') IS NULL;") == 't'
+    print('PASS negative control: service_role RPC cannot CREATE EXTENSION pg_jsonschema (403/42501)')
+    source = MIGRATION.read_bytes().decode('utf-8')
+    assert 'extensions.jsonb_matches_schema' not in source
+    assert not re.search(r'CREATE\s+EXTENSION[^;]*pg_jsonschema', source, re.I)
+    code, payload = apply(VERSION, source)
+    assert code == 200 and payload['success'] is True and payload['skipped'] is False, payload
+    code, repeated = apply(VERSION, source)
+    assert code == 200 and repeated['success'] is True and repeated['skipped'] is True, repeated
+    assert sql("SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version='20261016000000';") == '1'
+    assert sql("SELECT count(*) FROM pg_extension WHERE extname='pg_jsonschema';") == '0'
+    assert sql("SELECT public.storefront_config_valid(published) FROM public.storefront_config;") == 't'
+    assert sql("SELECT count(*) FROM pg_statistic_ext WHERE stxnamespace='public'::regnamespace AND stxname='storefront_products_name';") == '1'
+    print('PASS exact release migration + idempotency via actual non-superuser service_role RPC:', payload)
+
+
+def literal(value):
+    return "'" + json.dumps(value, ensure_ascii=False, separators=(',', ':')).replace("'", "''") + "'"
+
+
+def example(schema, full=False):
+    if 'const' in schema:
+        return schema['const']
+    if 'enum' in schema:
+        return schema['enum'][0]
+    if 'anyOf' in schema:
+        return example(schema['anyOf'][0], full)
+    kind = schema.get('type')
+    if kind == 'object':
+        return {key: example(child, full) for key, child in schema.get('properties', {}).items() if full or key in schema.get('required', [])}
+    if kind == 'array':
+        return [example(schema['items'], full)] if full and schema.get('maxItems', 1) else []
+    if kind == 'string':
+        pattern = schema.get('pattern', '')
+        if pattern.startswith('^#'):
+            return '#12aBcF'
+        if schema.get('format') == 'uuid':
+            return '12345678-1234-4123-8123-123456789abc'
+        return 'safe-text'
+    return {'number': 1, 'integer': 1, 'boolean': True, 'null': None}.get(kind)
+
+
+def parity():
+    check_stack()
+    # This is the sole extension installation in the TEST harness, after RPC proof.
+    sql('CREATE EXTENSION IF NOT EXISTS pg_jsonschema WITH SCHEMA extensions;', admin=True)
+    assert sql("SELECT extversion FROM pg_extension WHERE extname='pg_jsonschema';") == '0.3.3', 'Review translations before changing the reference version'
+    source = MIGRATION.read_bytes().decode('utf-8')
+    schemas = [json.loads(value.replace("''", "'")) for value in re.findall(r"AS \$schema\$ SELECT (?:public\.jsonschema_subset_matches\()?'((?:''|[^'])*)'::json", source)]
+    assert len(schemas) == 2
+    rows = []
+
+    def add(label, schema, instance, expected=None):
+        rows.append((label, schema, instance, expected))
+
+    nodes = {}
+
+    def collect(schema):
+        nodes[json.dumps(schema, sort_keys=True)] = schema
+        for child in schema.get('properties', {}).values():
+            collect(child)
+        for child in schema.get('anyOf', []):
+            collect(child)
+        for key in ('items', 'additionalProperties'):
+            if isinstance(schema.get(key), dict):
+                collect(schema[key])
+
+    for schema in schemas:
+        collect(schema)
+    for index, schema in enumerate(nodes.values()):
+        for full in (False, True):
+            value = example(schema, full)
+            add(f'node {index} valid full={full}', schema, value, True)
+            if isinstance(value, dict):
+                add(f'node {index} extra property', schema, dict(value, extra=True))
+                for required in schema.get('required', []):
+                    broken = dict(value)
+                    broken.pop(required, None)
+                    add(f'node {index} missing {required}', schema, broken, False)
+        for invalid in (None, True, 0, 1.5, '', {}, [], ['duplicate', 'duplicate']):
+            add(f'node {index} type/const/enum', schema, invalid)
+        if 'maxLength' in schema:
+            for size in (schema['maxLength'] - 1, schema['maxLength'], schema['maxLength'] + 1):
+                for char in ('x', 'ą', '😀', '\n'):
+                    add(f'node {index} length {size}', schema, char * size)
+        if 'maxItems' in schema:
+            for count in (schema['maxItems'], schema['maxItems'] + 1):
+                add(f'node {index} items {count}', schema, [example(schema['items'])] * count)
+
+    patterns = {node['pattern'] for node in nodes.values() if 'pattern' in node}
+    assert len(patterns) == 5, patterns
+    strings = ['', 'plain prose', 'a', 'a-b', '#12aBcF', '#abcdef', '#ABCDEF', '12345678-1234-4123-8123-123456789abc',
+               '00000000-0000-0000-0000-000000000000', 'ffffffff-ffff-ffff-ffff-ffffffffffff',
+               'FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF', '12345678-1234-0123-8123-123456789abc',
+               '<b>text</b>', '<\n>', '<unfinished', '>', 'https://site.test', 'http:foo', 'HTTPS:foo', 'ftp:', 'javascript:',
+               'data:', 'mailto:', '://', 'www.', 'WwW.', '10 PLN', '$12', '€1', '£2', '1zł', '1EUR', '1usd',
+               'Zażółć gęślą', 'é', 'e\u0301', '😀', '\\n', '\\uFEFF', "'\\\"$&$1", 'a' * 64, 'a' * 65, 'İ', 'ſ', 'K', '１２', '١']
+    whitespace = [chr(cp) for cp in list(range(1, 34)) + [133, 160, 5760, 6158, *range(8192, 8204), 8232, 8233, 8239, 8287, 12288, 65279, 65533]]
+    for char in whitespace + ['😀', 'é', '\\', '١', '१', '１']:
+        strings += [char, 'a' + char, char + 'a', '$' + char + '1', '1' + char + 'PLN', '<' + char + '>', 'x' + char + 'https:']
+    strings += [prefix + value + suffix for value in strings[:40] for prefix, suffix in [('', '\n'), ('\n', ''), ('', '\r\n'), ('', '\u2028'), ('', '\\n')]]
+    for pattern in patterns:
+        for value in strings:
+            add('pattern adversary ' + repr(value), {'type': 'string', 'pattern': pattern}, value)
+
+    # Mutate every nested value in complete config and marketing examples, so
+    # leaf checks are also exercised through their production ancestor schemas.
+    def paths(value, path=()):
+        yield path, value
+        if isinstance(value, dict):
+            for key, child in value.items():
+                yield from paths(child, path + (key,))
+        elif isinstance(value, list):
+            for key, child in enumerate(value):
+                yield from paths(child, path + (key,))
+
+    for index, schema in enumerate(schemas):
+        base = example(schema, True)
+        for path, original in paths(base):
+            replacements = [None, False, 2, [], {}, 'unexpected']
+            if isinstance(original, str):
+                replacements += strings
+            for replacement in replacements:
+                value = copy.deepcopy(base)
+                parent = value
+                for key in path[:-1]:
+                    parent = parent[key]
+                if path:
+                    parent[path[-1]] = replacement
+                else:
+                    value = replacement
+                add(f'full schema {index} path {path}', schema, value)
+
+    # Keyword behavior independent of the emitted schemas, including annotations.
+    for schema, values in [({'type': 'integer'}, [1, 1.0, 1.5, '1']), ({'format': 'uuid'}, ['bad', None, 1]),
+                           ({'default': {'unknown': True}}, [None, {}, []]),
+                           ({'uniqueItems': True}, [[1, 1.0], [{'a': 1, 'b': 2}, {'b': 2, 'a': 1}], [True, 1], [None, None]]),
+                           ({'additionalProperties': {'type': 'string'}}, [{}, {'a': 'yes'}, {'a': False}]),
+                           ({'required': ['missing']}, [{}, None, 1])]:
+        for value in values:
+            add('keyword semantics', schema, value)
+    inserts = []
+    # Deduplicate schemas in a separate table to keep the harness bounded.
+    unique_schemas = {json.dumps(row[1], sort_keys=True): row[1] for row in rows}
+    identifiers = {key: i for i, key in enumerate(unique_schemas)}
+    prefix = 'BEGIN; SET LOCAL statement_timeout=\'240s\'; CREATE TEMP TABLE schemas(id int PRIMARY KEY,schema json); CREATE TEMP TABLE parity(id serial,label text,schema_id int,instance jsonb,expected boolean);\n'
+    inserts += [f'INSERT INTO schemas VALUES ({identifiers[key]},{literal(schema)}::json);' for key, schema in unique_schemas.items()]
+    for label, schema, value, expected in rows:
+        inserts.append(f"INSERT INTO parity(label,schema_id,instance,expected) VALUES ('{label.replace(chr(39), chr(39)*2)}',{identifiers[json.dumps(schema, sort_keys=True)]},{literal(value)}::jsonb,{'NULL' if expected is None else str(expected)});")
+    compare = ["CREATE TEMP TABLE compared(label text,schema_id int,instance jsonb,expected boolean,actual boolean,reference boolean); CREATE TEMP TABLE totals(cases int, valid int, invalid int);"]
+    # Keep every corpus member and every assertion. Batches retain a strict
+    # statement timeout, fail on the first mismatch and bound temporary storage.
+    for first in range(1, len(rows) + 1, 1000):
+        last = min(first + 999, len(rows))
+        compare.append(f"""
+INSERT INTO compared SELECT label,schema_id,instance,expected,
+ public.jsonschema_subset_matches(schema,instance),
+ extensions.jsonb_matches_schema(schema,instance)
+FROM parity JOIN schemas ON schemas.id=parity.schema_id WHERE parity.id BETWEEN {first} AND {last};
+DO $$ DECLARE mismatch record; BEGIN
+ SELECT compared.*,schema INTO mismatch FROM compared JOIN schemas ON schemas.id=compared.schema_id
+ WHERE actual IS DISTINCT FROM reference OR (expected IS NOT NULL AND actual IS DISTINCT FROM expected) LIMIT 1;
+ IF FOUND THEN RAISE EXCEPTION 'PARITY MISMATCH: %',row_to_json(mismatch); END IF;
+END; $$;
+INSERT INTO totals SELECT count(*),count(*) FILTER(WHERE actual),count(*) FILTER(WHERE NOT actual) FROM compared;
+TRUNCATE compared;
+\\echo Compared {last}/{len(rows)} cases
+""")
+    compare.append("""
+DO $$ BEGIN
+ IF (SELECT sum(valid)=0 OR sum(invalid)=0 FROM totals) THEN RAISE EXCEPTION 'Missing positive/negative coverage'; END IF;
+END; $$;
+SELECT json_build_object('cases',sum(cases),'valid',sum(valid),'invalid',sum(invalid)) FROM totals;
+ROLLBACK;
+""")
+    print(f'Comparing {len(rows)} cases over {len(unique_schemas)} schemas', flush=True)
+    output = sql(prefix + '\n'.join(inserts) + '\n'.join(compare), progress=WORK / 'parity-progress.log')
+    print('PASS parity:', output.splitlines()[-2], '; all 5 emitted patterns, full configs/marketing, Unicode/newline/escape adversaries')
+
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    group = parser.add_mutually_exclusive_group(required=True)
+    for phase in ('prepare', 'rpc', 'parity'):
+        group.add_argument('--' + phase, action='store_true')
+    args = parser.parse_args()
+    if args.prepare:
+        prepare()
+    elif args.rpc:
+        rpc()
+    else:
+        parity()

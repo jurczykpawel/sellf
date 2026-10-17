@@ -1,8 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import BaseModal from '@/components/ui/BaseModal';
 
 interface Props {
@@ -93,6 +94,7 @@ function CodeBlock({ code, label, t }: { code: string; label: string; t: (k: str
 
 export default function LicenseHowToUseModal({ isOpen, onClose, jwksUrl }: Props) {
   const t = useTranslations('settings.licenseKeys.modal');
+  const locale = useLocale();
 
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} size="xl">
@@ -143,7 +145,7 @@ export default function LicenseHowToUseModal({ isOpen, onClose, jwksUrl }: Props
             </h3>
             <p className="text-sm text-sf-body">{t('deliveryBody')}</p>
             <div className="bg-sf-info-soft border border-sf-info/20 p-3 text-xs text-sf-info">
-              {t('deliverySetup')}
+              {t('deliverySidebarSetup')} <Link className="font-medium text-sf-accent underline" href={`/${locale}/dashboard/webhooks`}>{t('openWebhooks')}</Link>
             </div>
             <CodeBlock
               code={WEBHOOK_PAYLOAD_EXAMPLE}

@@ -354,14 +354,14 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                         year: '2-digit',
                         month: 'short',
                         day: 'numeric'
-                      }) : '-'}
+                      }, locale) : '-'}
                     </td>
                     <td className="px-3 py-4 text-sm text-sf-muted hidden 2xl:table-cell whitespace-nowrap">
                       {product.available_until ? formatUTCForDisplay(product.available_until, {
                         year: '2-digit',
                         month: 'short',
                         day: 'numeric'
-                      }) : '-'}
+                      }, locale) : '-'}
                     </td>
                     <td className="px-3 py-4 text-sm text-sf-muted hidden 2xl:table-cell text-center whitespace-nowrap">
                       {product.auto_grant_duration_days ? (
@@ -377,7 +377,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                         year: '2-digit',
                         month: 'short',
                         day: 'numeric'
-                      })}
+                      }, locale)}
                     </td>
                     <td className="px-3 py-4 text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-0.5">

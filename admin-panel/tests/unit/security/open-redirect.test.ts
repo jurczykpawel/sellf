@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isSafeRedirectUrl, isRelativeOrHttpUrl } from '@/lib/validations/redirect';
+import { isSafeRedirectUrl, isRelativeOrHttpUrl, resolveSafeRedirectPath } from '@/lib/validations/redirect';
 
 /**
  * ============================================================================
@@ -177,5 +177,28 @@ describe('isRelativeOrHttpUrl', () => {
 
   it('rejects empty input', () => {
     expect(isRelativeOrHttpUrl('')).toBe(false);
+  });
+});
+
+
+describe('resolved return paths', () => {
+  const site = 'https://shop.example';
+  const controls = [...Array.from({ length: 32 }, (_, index) => String.fromCharCode(index)), String.fromCharCode(127)];
+  it.each(controls)('declines literal and encoded character %j', character => {
+    const encoded = `%${character.charCodeAt(0).toString(16).padStart(2, '0')}`;
+    for (const value of [`/${character}/elsewhere.test`, `/${encoded}/elsewhere.test`, `/${encoded.replace('%', '%25')}/elsewhere.test`, `/thanks?q=${encoded}`]) {
+      expect(isSafeRedirectUrl(value, site)).toBe(false);
+      expect(resolveSafeRedirectPath(value, site)).toBeNull();
+      expect(isRelativeOrHttpUrl(value)).toBe(false);
+    }
+  });
+  it.each([
+    ['/first/../thanks?a=1&b=2', '/thanks?a=1&b=2'],
+    ['https://shop.example/thanks?a=1&b=2', '/thanks?a=1&b=2'],
+    ['/thanks?a=1&b=2', '/thanks?a=1&b=2'],
+    ['/docs#details', '/docs#details'],
+  ])('uses the resolved path for %s', (value, expected) => {
+    expect(resolveSafeRedirectPath(value, site)).toBe(expected);
+    expect(new URL(expected, site).origin).toBe(site);
   });
 });

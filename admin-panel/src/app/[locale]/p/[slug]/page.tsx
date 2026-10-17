@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { cache } from 'react';
+import { checkoutUrl } from '@/lib/utils/product-urls';
 import { boundedPublicRead, productCacheBoundary } from '@/lib/public-cache';
 import { createPublicClient, createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -181,7 +182,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
       })
       .filter(Boolean)
       .join('&');
-    redirect(`/checkout/${product.slug}${carry ? `?${carry}` : ''}`);
+    redirect(`${checkoutUrl(product.slug, locale)}${carry ? `?${carry}` : ''}`);
   }
 
   const existingLicense =

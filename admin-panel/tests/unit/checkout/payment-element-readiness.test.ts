@@ -9,10 +9,10 @@ import en from '@/messages/en.json';
 import type { Product } from '@/types';
 import type { PricingResult } from '@/hooks/usePricing';
 
-const stripe = vi.hoisted(() => ({ ready: undefined as undefined | (() => void), result: { type: 'success', checkout: {} } }));
+const stripe = vi.hoisted(() => ({ ready: undefined as undefined | (() => void), options: undefined as undefined | { paymentMethodOrder?: string[] }, result: { type: 'success', checkout: {} } }));
 vi.mock('@stripe/react-stripe-js/checkout', () => ({
   useCheckoutElements: () => stripe.result,
-  PaymentElement: ({ onReady }: { onReady?: () => void }) => { stripe.ready = onReady; return null; },
+  PaymentElement: ({ onReady, options }: { onReady?: () => void; options: { paymentMethodOrder?: string[] } }) => { stripe.ready = onReady; stripe.options = options; return null; },
 }));
 vi.mock('@/hooks/useTracking', () => ({ useTracking: () => ({ track: vi.fn() }) }));
 vi.mock('@/hooks/useInvoiceData', () => ({ useInvoiceData: () => ({ fullName: 'Test Buyer', setFullName: vi.fn(), isLoadingProfile: false }) }));
@@ -21,11 +21,11 @@ vi.mock('@/components/checkout/InvoiceFields', () => ({ default: () => null }));
 vi.mock('@/components/checkout/OrderSummary', () => ({ default: () => null }));
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); stripe.result.type = 'success'; });
 
-function setup() {
+function setup(paymentMethodOrder?: string[]) {
   return render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en },
     React.createElement(CustomPaymentForm, {
       product: { id: 'test-product', name: 'Course', currency: 'PLN' } as Product,
-      email: 'buyer@example.com', collectTermsOfService: false,
+      email: 'buyer@example.com', collectTermsOfService: false, paymentMethodOrder,
       pricing: { basePrice: 100, discountAmount: 0, totalGross: 100, totalNet: 100, vatRate: 0 } as PricingResult,
     })));
 }
@@ -51,4 +51,21 @@ it('retains the session loading gate even after the Element is ready', () => {
   const button = view.getByRole('button', { name: /Pay/ }) as HTMLButtonElement;
   expect(button.disabled).toBe(true);
   expect(button.hasAttribute('data-checkout-pending')).toBe(true);
+});
+
+it('shows a loading placeholder until payment methods are ready', () => {
+  const view = setup();
+  expect(view.getByRole('status').textContent).toContain('Loading payment methods');
+  act(() => stripe.ready!());
+  expect(view.queryByRole('status')).toBeNull();
+});
+
+it('starts with card when no method order is configured', () => {
+  setup();
+  expect(stripe.options?.paymentMethodOrder?.[0]).toBe('card');
+});
+
+it('respects the seller payment method order', () => {
+  setup(['blik', 'card']);
+  expect(stripe.options?.paymentMethodOrder).toEqual(['blik', 'card']);
 });

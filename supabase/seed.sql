@@ -1316,3 +1316,7 @@ DO $$ DECLARE w public.affiliate_work; BEGIN
   PERFORM public.affiliate_apply_sync(w.payment_id,w.lease_token,w.requested_generation,'2026-01-02 00:00:00+00',true);
  END LOOP;
 END $$;
+
+-- A cancelled test-mode transfer remains in the partner's history.
+INSERT INTO public.affiliate_payouts(member_id,currency,earnings_minor,status,cutoff,payee_reference,livemode)
+VALUES('af000000-0000-4000-a000-000000000001','PLN',1000,'cancelled',now()-interval '1 day','Demo test transfer cancelled',false);
