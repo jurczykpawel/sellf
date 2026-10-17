@@ -1,6 +1,7 @@
 'use server';
 /** Session admin payout commands; monetary decisions remain in T0 RPCs. @see contracts.ts */
 import { revalidatePath } from 'next/cache';
+import { getAffiliateLivemode } from '@/lib/stripe/affiliate-mode';
 import { withAdminClient } from '@/lib/actions/admin-auth';
 import { reserveSchema, paidSchema, cancelSchema, adjustmentSchema, payoutProjection } from '@/lib/affiliates/payouts/contracts';
 import type { z } from 'zod';
@@ -14,6 +15,7 @@ async function command<T = PayoutInfo>(schema: z.ZodType, input: unknown, rpc: s
     const values = parsed.data as Record<string, unknown>;
     const args: Record<string, unknown> = { p_actor: user.id };
     for (const [key, value] of Object.entries(values)) args[fields[key] ?? `p_${key}`] = value;
+    if (rpc === 'affiliate_reserve' || rpc === 'affiliate_mark_paid') args.p_livemode = await getAffiliateLivemode();
     const { data, error } = await dataClient.rpc(rpc, args).select(projection).single();
     if (error) {
       const conflict = ['PT409', '23505'].includes(error.code);

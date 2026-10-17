@@ -4895,6 +4895,9 @@
       "archive": "Archive (keep history)"
     },
     "portal": {
+      "live": "Live",
+      "testBalances": "Balances include test commissions only. Live commissions remain visible below and do not affect these amounts.",
+      "liveBalances": "Balances include live commissions only. Test commissions remain visible below and do not affect these amounts.",
       "selectedPartner": "Selected partner",
       "adminCodes": "Partner’s coupon codes",
       "syncError": "Synchronization errors",

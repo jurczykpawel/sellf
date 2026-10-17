@@ -24,6 +24,7 @@ export default function AffiliatePortal({ data, locale, currency, memberId }: Pr
     {data.needs_review && <p className={styles.notice}>{m.review}</p>}
     {data.commissions.some(c => c.eligible_at === null && c.status === 'held') && <p className={styles.notice}>{m.unlimited}</p>}
     <h2>{m.summary}</h2>
+    <p className={styles.notice}>{data.livemode === false ? m.testBalances : m.liveBalances}</p>
     <div className={styles.grid}>{data.balances.map(b => <article className={styles.card} key={b.currency} aria-label={b.currency}>
       <h3>{b.currency}</h3><dl className={styles.headlines}>{(['eligible', 'held', 'paid'] as const).map(field => <div key={field}><dt>{m[field]}</dt><dd>{money(b[field], b.currency)}</dd></div>)}</dl>
       {BigInt(b.debt) > BigInt(0) && <dl className={styles.debt}><div className={styles.row}><dt>{m.debt}</dt><dd>{money(b.debt, b.currency)}</dd></div></dl>}
@@ -37,12 +38,12 @@ export default function AffiliatePortal({ data, locale, currency, memberId }: Pr
     </section></div><h2>{m.commissions}</h2>
     <div className={styles.listHeader} aria-hidden="true"><span>{m.earnedOn}</span><span>{m.product}</span><span>{m.commissionAmount}</span><span>{m.commissionStatus}</span></div>
     <ul className={styles.commissionList}>{data.commissions.map(c => {
-      const status = !c.livemode ? m.test : c.needs_review ? m.reviewShort : c.sync_pending ? m.processing : ({ held: m.heldStatus, eligible: m.eligibleStatus, reserved: m.reservedStatus, paid: m.paidStatus, reversed: m.reversedStatus })[c.status];
+      const status = c.needs_review ? m.reviewShort : c.sync_pending ? m.processing : ({ held: m.heldStatus, eligible: m.eligibleStatus, reserved: m.reservedStatus, paid: m.paidStatus, reversed: m.reversedStatus })[c.status];
       return <li className={styles.commissionRow} key={c.reference}>
         <div className={styles.commissionDate}>{date(c.paid_at)}</div>
-        <div className={styles.product}><strong>{c.product}</strong>{c.livemode && c.status === 'held' && !c.sync_pending && !c.needs_review && <small>{c.eligible_at ? <>{m.maturity}: {date(c.eligible_at)}</> : m.never}</small>}</div>
+        <div className={styles.product}><strong>{c.product}</strong>{c.status === 'held' && !c.sync_pending && !c.needs_review && <small>{c.eligible_at ? <>{m.maturity}: {date(c.eligible_at)}</> : m.never}</small>}</div>
         <strong className={styles.commissionAmount}>{money(c.current_minor, c.currency)}</strong>
-        <div className={styles.chips}><span className={styles.chip}>{status}</span></div>
+        <div className={styles.chips}><span className={styles.chip}>{status}</span><span className={styles.chip}>{c.livemode ? m.live : m.test}</span></div>
       </li>;
     })}</ul>
     {(data.lag || data.commissions.length > 0) && <details className={styles.card}><summary>{m.technical}</summary>

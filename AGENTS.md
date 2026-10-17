@@ -669,8 +669,10 @@ Missing net snapshots must be repaired before retry. Never manually edit queue g
 
 Lock order: payment IDs ascending → member/currency advisory lock → commission/payout.
 Triggers enqueue under the payment lock without taking the member lock. Shared SQL
-preview/aggregate rules govern reservation and portal balances; test commissions never
-enter real payable balances. Unlimited-refund snapshots have no payout release path,
+preview/aggregate rules govern reservation and portal balances. The server resolves the
+current configured Stripe key mode and passes it to the service-only SQL functions; only
+matching commissions enter balances, reservations and CSV. Each payout retains its mode,
+including after an instance mode change. Test and live reservations remain independent. Unlimited-refund snapshots have no payout release path,
 including through manual adjustments. CSV is a private same-origin download with audit;
 it never marks a payout paid. Mark-paid requires external bank/document references.
 

@@ -775,6 +775,7 @@ CREATE TABLE public.affiliate_commissions (
  CHECK(NOT(is_refundable AND refund_period_days IS NULL) OR eligible_at IS NULL)
 );
 CREATE TABLE public.affiliate_payouts (
+ livemode boolean NOT NULL DEFAULT true,
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), member_id uuid NOT NULL REFERENCES public.affiliate_memberships(id),
  currency text NOT NULL CHECK(currency ~ '^[A-Z]{3}$'), earnings_minor bigint NOT NULL CHECK(earnings_minor>0),
  status text NOT NULL CHECK(status IN ('reserved','paid','cancelled')), needs_review boolean NOT NULL DEFAULT false,
@@ -783,7 +784,7 @@ CREATE TABLE public.affiliate_payouts (
  bank_amount_minor bigint CHECK(bank_amount_minor>0), paid_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(),
  CHECK(status<>'paid' OR (bank_reference IS NOT NULL AND invoice_reference IS NOT NULL AND bank_amount_minor IS NOT NULL AND paid_at IS NOT NULL))
 );
-CREATE UNIQUE INDEX affiliate_one_open_payout ON public.affiliate_payouts(member_id,currency) WHERE status='reserved';
+CREATE UNIQUE INDEX affiliate_one_open_payout ON public.affiliate_payouts(member_id,currency,livemode) WHERE status='reserved';
 CREATE TABLE public.affiliate_ledger (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), member_id uuid NOT NULL REFERENCES public.affiliate_memberships(id),
  commission_id uuid REFERENCES public.affiliate_commissions(id), payout_id uuid UNIQUE REFERENCES public.affiliate_payouts(id),
@@ -944,7 +945,7 @@ BEGIN
  END IF;
  IF p.id IS NOT NULL THEN
   IF EXISTS(SELECT 1 FROM public.affiliate_payout_allocations a JOIN public.affiliate_ledger e ON e.id=a.entry_id
-    WHERE a.payout_id=p.id AND (e.member_id<>p.member_id OR e.currency<>p.currency OR e.kind='settlement' OR NOT EXISTS(SELECT 1 FROM public.affiliate_commissions comm WHERE comm.id=e.commission_id AND comm.livemode)))
+    WHERE a.payout_id=p.id AND (e.member_id<>p.member_id OR e.currency<>p.currency OR e.kind='settlement' OR NOT EXISTS(SELECT 1 FROM public.affiliate_commissions comm WHERE comm.id=e.commission_id AND comm.livemode=p.livemode)))
    OR (SELECT coalesce(sum(e.amount_minor),0) FROM public.affiliate_payout_allocations a JOIN public.affiliate_ledger e ON e.id=a.entry_id
     WHERE a.payout_id=p.id AND a.released_at IS NULL)<>(CASE WHEN p.status='cancelled' THEN 0 ELSE p.earnings_minor END)
    OR (p.status='paid' AND NOT EXISTS(SELECT 1 FROM public.affiliate_ledger WHERE payout_id=p.id)) THEN
@@ -1204,21 +1205,21 @@ BEGIN
  RETURN result;
 END $$;
 
-CREATE FUNCTION public.affiliate_lock_member(p_member uuid,p_currency text,p_payments uuid[] DEFAULT '{}') RETURNS uuid[]
+CREATE FUNCTION public.affiliate_lock_member(p_member uuid,p_currency text,p_payments uuid[] DEFAULT '{}',p_livemode boolean DEFAULT true) RETURNS uuid[]
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE locked uuid[];
 BEGIN
  SELECT coalesce(array_agg(id),'{}'::uuid[]) INTO locked FROM (
   SELECT pt.id FROM public.payment_transactions pt WHERE pt.id=ANY(p_payments)
    OR EXISTS(SELECT 1 FROM public.affiliate_commissions c JOIN public.affiliate_work w ON w.payment_id=c.payment_id
-    WHERE c.payment_id=pt.id AND c.member_id=p_member AND c.currency=p_currency AND c.livemode
+    WHERE c.payment_id=pt.id AND c.member_id=p_member AND c.currency=p_currency AND c.livemode=p_livemode
      AND w.requested_generation>w.processed_generation)
   ORDER BY pt.id FOR UPDATE
  ) payments;
  PERFORM pg_advisory_xact_lock(hashtextextended(p_member::text||p_currency,0));
  RETURN locked;
 END $$;
-CREATE FUNCTION public.affiliate_preview(p_member uuid,p_currency text,p_cutoff timestamptz)
+CREATE FUNCTION public.affiliate_preview(p_member uuid,p_currency text,p_cutoff timestamptz,p_livemode boolean DEFAULT true)
 RETURNS TABLE(member_version text,program_version text,earnings_minor text,debt_offset_minor text,payable_minor text,
  held_minor text,threshold_minor text,sync_required boolean,available boolean,entry_ids uuid[],
  accrued text,reversed text,paid text,reserved text,balance text)
@@ -1232,7 +1233,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
     JOIN public.affiliate_payouts p ON p.id=a.payout_id AND p.status='paid' WHERE l.commission_id=c.id) AS previously_paid
   FROM public.affiliate_commissions c JOIN public.payment_transactions pt ON pt.id=c.payment_id
   LEFT JOIN public.affiliate_work w ON w.payment_id=c.payment_id
-  WHERE c.member_id=p_member AND c.currency=p_currency AND c.livemode
+  WHERE c.member_id=p_member AND c.currency=p_currency AND c.livemode=p_livemode
  ), entries AS MATERIALIZED (
   SELECT l.id,l.commission_id,l.kind,l.amount_minor,p.status AS allocation_status,
    coalesce(a.entry_id IS NULL AND ((f.earned AND f.eligible_at<=p_cutoff
@@ -1256,20 +1257,20 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   ) h
  ), settlements AS (
   SELECT -coalesce(sum(l.amount_minor),0) AS amount FROM public.affiliate_ledger l
-  JOIN public.affiliate_payouts p ON p.id=l.payout_id WHERE l.member_id=p_member AND l.currency=p_currency
+  JOIN public.affiliate_payouts p ON p.id=l.payout_id WHERE l.member_id=p_member AND l.currency=p_currency AND p.livemode=p_livemode
  ), readiness AS (SELECT coalesce(bool_or(dirty),false) AS dirty FROM facts)
  SELECT m.version::text,p.version::text,t.earnings::text,t.debt::text,(t.earnings-t.debt)::text,h.amount::text,
   p.thresholds->>p_currency,r.dirty,
   m.status='approved' AND m.user_id IS NOT NULL AND p.enabled AND NOT r.dirty
    AND p_cutoff IS NOT NULL AND p_cutoff<=now() AND p.thresholds ? p_currency
    AND t.earnings-t.debt>0 AND t.earnings-t.debt>=(p.thresholds->>p_currency)::bigint
-   AND NOT EXISTS(SELECT 1 FROM public.affiliate_payouts ap WHERE ap.member_id=p_member AND ap.currency=p_currency AND ap.status='reserved'),
+   AND NOT EXISTS(SELECT 1 FROM public.affiliate_payouts ap WHERE ap.member_id=p_member AND ap.currency=p_currency AND ap.livemode=p_livemode AND ap.status='reserved'),
   t.ids,t.accrued::text,t.reversed::text,s.amount::text,t.reserved::text,(t.balance-s.amount)::text
  FROM public.affiliate_memberships m CROSS JOIN public.affiliate_programs p CROSS JOIN totals t
  CROSS JOIN held h CROSS JOIN settlements s CROSS JOIN readiness r WHERE m.id=p_member;
 $$;
-REVOKE EXECUTE ON FUNCTION public.affiliate_preview(uuid,text,timestamptz) FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION public.affiliate_preview(uuid,text,timestamptz) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.affiliate_preview(uuid,text,timestamptz,boolean) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.affiliate_preview(uuid,text,timestamptz,boolean) TO service_role;
 
 CREATE INDEX affiliate_portal_page ON public.affiliate_commissions(member_id,paid_at DESC,id DESC);
 CREATE FUNCTION public.affiliate_portal_page(p_member uuid,p_currency text DEFAULT NULL,p_cursor uuid DEFAULT NULL,p_limit integer DEFAULT 25,p_as_of timestamptz DEFAULT now())
@@ -1306,11 +1307,11 @@ END $$;
 REVOKE EXECUTE ON FUNCTION public.affiliate_portal_page(uuid,text,uuid,integer,timestamptz) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.affiliate_portal_page(uuid,text,uuid,integer,timestamptz) TO service_role;
 
-CREATE FUNCTION public.affiliate_portal_summary(p_member uuid,p_as_of timestamptz)
+CREATE FUNCTION public.affiliate_portal_summary(p_member uuid,p_as_of timestamptz,p_livemode boolean DEFAULT true)
 RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
  WITH balances AS (
-  SELECT c.currency,v.* FROM (SELECT DISTINCT currency FROM public.affiliate_commissions WHERE member_id=p_member AND livemode) c
-  CROSS JOIN LATERAL public.affiliate_preview(p_member,c.currency,p_as_of) v
+  SELECT c.currency,v.* FROM (SELECT DISTINCT currency FROM public.affiliate_commissions WHERE member_id=p_member AND livemode=p_livemode) c
+  CROSS JOIN LATERAL public.affiliate_preview(p_member,c.currency,p_as_of,p_livemode) v
  ), bindings AS MATERIALIZED (
   SELECT b.coupon_id,c.code,c.is_active,c.allowed_product_ids FROM public.affiliate_coupon_bindings b
   JOIN public.coupons c ON c.id=b.coupon_id WHERE b.member_id=p_member AND b.retired_at IS NULL
@@ -1325,41 +1326,41 @@ RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   'codes',coalesce((SELECT jsonb_agg(jsonb_build_object('code',code,'active',is_active) ORDER BY code) FROM bindings),'[]'::jsonb),
   'rules',coalesce((SELECT jsonb_agg(jsonb_build_object('product',name,'percentage_bps',percentage_bps,'fixed_minor',fixed_minor::text,'currency',currency,'enabled',enabled) ORDER BY name) FROM rules),'[]'::jsonb),
   'sync_pending',EXISTS(SELECT 1 FROM balances WHERE sync_required),
-  'needs_review',EXISTS(SELECT 1 FROM public.affiliate_payouts WHERE member_id=p_member AND needs_review)
+  'needs_review',EXISTS(SELECT 1 FROM public.affiliate_payouts WHERE member_id=p_member AND livemode=p_livemode AND needs_review)
    OR EXISTS(SELECT 1 FROM public.affiliate_commissions c LEFT JOIN public.affiliate_work w ON w.payment_id=c.payment_id
-    WHERE c.member_id=p_member AND (w.status='needs_review' OR (c.dispute_seen AND c.dispute_reviewed_at IS NULL))))
+    WHERE c.member_id=p_member AND c.livemode=p_livemode AND (w.status='needs_review' OR (c.dispute_seen AND c.dispute_reviewed_at IS NULL))))
 $$;
-REVOKE EXECUTE ON FUNCTION public.affiliate_portal_summary(uuid,timestamptz) FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION public.affiliate_portal_summary(uuid,timestamptz) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.affiliate_portal_summary(uuid,timestamptz,boolean) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.affiliate_portal_summary(uuid,timestamptz,boolean) TO service_role;
 
-CREATE FUNCTION public.affiliate_reserve(p_actor uuid,p_member uuid,p_currency text,p_cutoff timestamptz,p_member_version bigint,p_program_version bigint,p_payee_reference text)
+CREATE FUNCTION public.affiliate_reserve(p_actor uuid,p_member uuid,p_currency text,p_cutoff timestamptz,p_member_version bigint,p_program_version bigint,p_payee_reference text,p_livemode boolean DEFAULT true)
 RETURNS public.affiliate_payouts LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE m public.affiliate_memberships; prog public.affiliate_programs; result public.affiliate_payouts; preview record; locked uuid[];
 BEGIN
  PERFORM public.affiliate_admin(p_actor);
- SELECT * INTO preview FROM public.affiliate_preview(p_member,p_currency,p_cutoff);
+ SELECT * INTO preview FROM public.affiliate_preview(p_member,p_currency,p_cutoff,p_livemode);
  locked:=public.affiliate_lock_member(p_member,p_currency,ARRAY(
   SELECT DISTINCT c.payment_id FROM public.affiliate_ledger l JOIN public.affiliate_commissions c ON c.id=l.commission_id
-   WHERE l.id=ANY(preview.entry_ids)));
+   WHERE l.id=ANY(preview.entry_ids)),p_livemode);
 
  SELECT * INTO m FROM public.affiliate_memberships WHERE id=p_member FOR SHARE;
  SELECT * INTO prog FROM public.affiliate_programs FOR SHARE;
  IF m.id IS NULL OR m.version IS DISTINCT FROM p_member_version OR prog.version IS DISTINCT FROM p_program_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
- IF m.status<>'approved' OR m.user_id IS NULL OR NOT prog.enabled OR p_currency !~ '^[A-Z]{3}$'
+ IF p_livemode IS NULL OR m.status<>'approved' OR m.user_id IS NULL OR NOT prog.enabled OR p_currency !~ '^[A-Z]{3}$'
   OR p_cutoff IS NULL OR p_cutoff>now() OR NOT(prog.thresholds ? p_currency) THEN
   RAISE EXCEPTION 'Payout unavailable' USING ERRCODE='22023'; END IF;
- SELECT * INTO preview FROM public.affiliate_preview(p_member,p_currency,p_cutoff);
+ SELECT * INTO preview FROM public.affiliate_preview(p_member,p_currency,p_cutoff,p_livemode);
  IF preview.sync_required OR EXISTS(SELECT 1 FROM public.affiliate_ledger l JOIN public.affiliate_commissions c ON c.id=l.commission_id
   WHERE l.id=ANY(preview.entry_ids) AND NOT(c.payment_id=ANY(locked))) THEN RAISE EXCEPTION 'Sync required' USING ERRCODE='PT409'; END IF;
  IF NOT preview.available THEN RAISE EXCEPTION 'Threshold not met' USING ERRCODE='22023'; END IF;
- INSERT INTO public.affiliate_payouts(member_id,currency,earnings_minor,status,cutoff,payee_reference)
-  VALUES(p_member,p_currency,preview.payable_minor::bigint,'reserved',p_cutoff,p_payee_reference) RETURNING * INTO result;
+ INSERT INTO public.affiliate_payouts(member_id,currency,earnings_minor,status,cutoff,payee_reference,livemode)
+  VALUES(p_member,p_currency,preview.payable_minor::bigint,'reserved',p_cutoff,p_payee_reference,p_livemode) RETURNING * INTO result;
  INSERT INTO public.affiliate_payout_allocations(payout_id,entry_id) SELECT result.id,unnest(preview.entry_ids);
  PERFORM public.affiliate_audit('affiliate_payouts',NULL,to_jsonb(result),p_actor);
  RETURN result;
 END $$;
 CREATE FUNCTION public.affiliate_mark_paid(p_actor uuid,p_payout uuid,p_expected_version bigint,p_bank_reference text,p_invoice_reference text,
- p_bank_amount_minor bigint,p_currency text,p_paid_at timestamptz,p_full_settlement boolean,p_reason text DEFAULT NULL,p_evidence_reference text DEFAULT NULL)
+ p_bank_amount_minor bigint,p_currency text,p_paid_at timestamptz,p_full_settlement boolean,p_reason text DEFAULT NULL,p_evidence_reference text DEFAULT NULL,p_livemode boolean DEFAULT true)
 RETURNS public.affiliate_payouts LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE old public.affiliate_payouts; result public.affiliate_payouts;
 BEGIN
@@ -1367,8 +1368,9 @@ BEGIN
  SELECT * INTO old FROM public.affiliate_payouts WHERE id=p_payout;
  PERFORM public.affiliate_lock_member(old.member_id,old.currency,ARRAY(
   SELECT DISTINCT c.payment_id FROM public.affiliate_payout_allocations a JOIN public.affiliate_ledger l ON l.id=a.entry_id
-   JOIN public.affiliate_commissions c ON c.id=l.commission_id WHERE a.payout_id=old.id AND a.released_at IS NULL));
+   JOIN public.affiliate_commissions c ON c.id=l.commission_id WHERE a.payout_id=old.id AND a.released_at IS NULL),old.livemode);
  SELECT * INTO old FROM public.affiliate_payouts WHERE id=p_payout FOR UPDATE;
+ IF old.livemode IS DISTINCT FROM p_livemode THEN RAISE EXCEPTION 'Stripe mode changed' USING ERRCODE='PT409'; END IF;
  IF old.status='paid' AND old.bank_reference=p_bank_reference AND old.invoice_reference=p_invoice_reference
   AND old.bank_amount_minor=p_bank_amount_minor AND old.currency=p_currency AND old.paid_at=p_paid_at AND p_full_settlement THEN RETURN old; END IF;
  IF old.id IS NULL OR old.version IS DISTINCT FROM p_expected_version OR old.status<>'reserved' THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
@@ -1392,7 +1394,7 @@ BEGIN
  SELECT * INTO old FROM public.affiliate_payouts WHERE id=p_payout;
  PERFORM public.affiliate_lock_member(old.member_id,old.currency,ARRAY(
   SELECT DISTINCT c.payment_id FROM public.affiliate_payout_allocations a JOIN public.affiliate_ledger l ON l.id=a.entry_id
-   JOIN public.affiliate_commissions c ON c.id=l.commission_id WHERE a.payout_id=old.id AND a.released_at IS NULL));
+   JOIN public.affiliate_commissions c ON c.id=l.commission_id WHERE a.payout_id=old.id AND a.released_at IS NULL),old.livemode);
  SELECT * INTO old FROM public.affiliate_payouts WHERE id=p_payout FOR UPDATE;
  IF old.id IS NULL OR old.version IS DISTINCT FROM p_expected_version OR old.status<>'reserved' THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
  IF p_no_transfer IS DISTINCT FROM true OR NOT public.affiliate_valid_reference(p_reason) THEN RAISE EXCEPTION 'Confirmation required' USING ERRCODE='22023'; END IF;
@@ -1407,7 +1409,7 @@ DECLARE c public.affiliate_commissions; result public.affiliate_ledger; total nu
 BEGIN
  PERFORM public.affiliate_admin(p_actor);
  SELECT * INTO c FROM public.affiliate_commissions WHERE id=p_commission;
- PERFORM public.affiliate_lock_member(c.member_id,c.currency,ARRAY[c.payment_id]);
+ PERFORM public.affiliate_lock_member(c.member_id,c.currency,ARRAY[c.payment_id],c.livemode);
  SELECT * INTO c FROM public.affiliate_commissions WHERE id=p_commission FOR UPDATE;
  IF c.id IS NULL OR c.version IS DISTINCT FROM p_expected_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
  IF p_amount_minor IS NULL OR p_amount_minor=0 OR NOT public.affiliate_valid_reference(p_reason) OR NOT public.affiliate_valid_reference(p_evidence_reference) THEN
@@ -1554,13 +1556,13 @@ GRANT EXECUTE ON FUNCTION public.affiliate_rule_create(uuid,uuid,integer,boolean
 REVOKE EXECUTE ON FUNCTION public.affiliate_coupon_bind(uuid,uuid,uuid,bigint) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.affiliate_coupon_bind(uuid,uuid,uuid,bigint) TO service_role;
 
-REVOKE EXECUTE ON FUNCTION public.affiliate_lock_member(uuid,text,uuid[]) FROM PUBLIC,anon,authenticated,service_role;
+REVOKE EXECUTE ON FUNCTION public.affiliate_lock_member(uuid,text,uuid[],boolean) FROM PUBLIC,anon,authenticated,service_role;
 
-REVOKE EXECUTE ON FUNCTION public.affiliate_reserve(uuid,uuid,text,timestamptz,bigint,bigint,text) FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION public.affiliate_reserve(uuid,uuid,text,timestamptz,bigint,bigint,text) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.affiliate_reserve(uuid,uuid,text,timestamptz,bigint,bigint,text,boolean) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.affiliate_reserve(uuid,uuid,text,timestamptz,bigint,bigint,text,boolean) TO service_role;
 
-REVOKE EXECUTE ON FUNCTION public.affiliate_mark_paid(uuid,uuid,bigint,text,text,bigint,text,timestamptz,boolean,text,text) FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION public.affiliate_mark_paid(uuid,uuid,bigint,text,text,bigint,text,timestamptz,boolean,text,text) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.affiliate_mark_paid(uuid,uuid,bigint,text,text,bigint,text,timestamptz,boolean,text,text,boolean) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.affiliate_mark_paid(uuid,uuid,bigint,text,text,bigint,text,timestamptz,boolean,text,text,boolean) TO service_role;
 
 REVOKE EXECUTE ON FUNCTION public.affiliate_cancel_payout(uuid,uuid,bigint,boolean,text) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.affiliate_cancel_payout(uuid,uuid,bigint,boolean,text) TO service_role;

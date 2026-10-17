@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), rpc: vi.fn(), revalidate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), rpc: vi.fn(), revalidate: vi.fn(), mode: vi.fn().mockResolvedValue(true) }));
 vi.mock('@/lib/actions/admin-auth', () => ({ withAdminClient: mocks.auth }));
+vi.mock('@/lib/stripe/affiliate-mode', () => ({ getAffiliateLivemode: mocks.mode }));
 vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidate }));
 import { reservePayout, markPayoutPaid, cancelPayout, adjustCommission } from '@/lib/affiliates/payouts/actions';
 const id = 'af000000-0000-4000-a000-000000000001';
@@ -37,4 +38,10 @@ it('does not execute without an admin session', async () => {
 it('maps the non-retrying database conflict code', async () => {
   mocks.rpc.mockReturnValue({ select: () => ({ single: async () => ({ error: { code: 'PT409' } }) }) });
   expect((await reservePayout(reserve)).errorCode).toBe('409');
+});
+
+it.each([true, false])('reserves using the current instance mode %s', async livemode => {
+  mocks.mode.mockResolvedValue(livemode);
+  await reservePayout(reserve);
+  expect(mocks.rpc).toHaveBeenCalledWith('affiliate_reserve', expect.objectContaining({ p_livemode: livemode }));
 });

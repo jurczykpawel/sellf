@@ -1,5 +1,6 @@
 /** Private CSV response adapter for the A1.8 route shell. @see reads.ts */
 import 'server-only';
+import { getAffiliateLivemode } from '@/lib/stripe/affiliate-mode';
 import { AFFILIATE_PROGRAM_DEFAULTS } from '@/lib/affiliates/program-defaults';
 import { withAdminClient } from '@/lib/actions/admin-auth';
 import { formatPayoutCsv } from '@/lib/affiliates/csv/formatter';
@@ -15,6 +16,8 @@ export async function downloadPayoutCsv(input: unknown): Promise<Response> {
     const found = await dataClient.from('affiliate_payouts').select(payoutProjection).eq('id', parsed.data.payout_id).single();
     if (found.error) return { success: false, errorCode: '404' };
     const p = found.data as unknown as PayoutInfo;
+    const livemode = await getAffiliateLivemode();
+    if (p.livemode !== livemode) return { success: false, errorCode: '409' };
     if (p.version !== parsed.data.version || p.status !== 'reserved' || p.needs_review) return { success: false, errorCode: '409' };
     const [preview, member, program] = await Promise.all([
       readPreview(dataClient, p.member_id, p.currency, new Date().toISOString()),
@@ -25,12 +28,12 @@ export async function downloadPayoutCsv(input: unknown): Promise<Response> {
     if (!preview || preview.sync_required || member.error || member.data.status !== 'approved' || !member.data.user_id || program.error || !settings.enabled || !settings.thresholds[p.currency] || BigInt(p.earnings_minor) < BigInt(settings.thresholds[p.currency])) return { success: false, errorCode: '409' };
     let positive = BigInt(0), negative = BigInt(0), cursor = '';
     while (true) {
-      let query = dataClient.from('affiliate_payout_allocations').select('entry_id,entry:affiliate_ledger!inner(amount_minor::text)').eq('payout_id', p.id).is('released_at', null).order('entry_id').limit(100);
+      let query = dataClient.from('affiliate_payout_allocations').select('entry_id,entry:affiliate_ledger!inner(amount_minor::text,commission:affiliate_commissions!inner(livemode))').eq('payout_id', p.id).is('released_at', null).order('entry_id').limit(100);
       if (cursor) query = query.gt('entry_id', cursor);
       const page = await query;
       if (page.error) return { success: false, errorCode: '409' };
-      const rows = page.data as unknown as { entry_id: string; entry: { amount_minor: string } }[];
-      for (const row of rows) { const amount = BigInt(row.entry.amount_minor); if (amount > BigInt(0)) positive += amount; else negative -= amount; }
+      const rows = page.data as unknown as { entry_id: string; entry: { amount_minor: string; commission: { livemode: boolean } } }[];
+      for (const row of rows) { if (row.entry.commission.livemode !== livemode) return { success: false, errorCode: '409' }; const amount = BigInt(row.entry.amount_minor); if (amount > BigInt(0)) positive += amount; else negative -= amount; }
       if (rows.length < 100) break;
       cursor = rows[rows.length - 1].entry_id;
     }

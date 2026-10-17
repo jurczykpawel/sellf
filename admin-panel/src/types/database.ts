@@ -433,6 +433,7 @@ export type Database = {
           earnings_minor: number
           id: string
           invoice_reference: string | null
+          livemode: boolean
           member_id: string
           needs_review: boolean
           paid_at: string | null
@@ -449,6 +450,7 @@ export type Database = {
           earnings_minor: number
           id?: string
           invoice_reference?: string | null
+          livemode?: boolean
           member_id: string
           needs_review?: boolean
           paid_at?: string | null
@@ -465,6 +467,7 @@ export type Database = {
           earnings_minor?: number
           id?: string
           invoice_reference?: string | null
+          livemode?: boolean
           member_id?: string
           needs_review?: boolean
           paid_at?: string | null
@@ -3714,6 +3717,7 @@ export type Database = {
           earnings_minor: number
           id: string
           invoice_reference: string | null
+          livemode: boolean
           member_id: string
           needs_review: boolean
           paid_at: string | null
@@ -3777,7 +3781,12 @@ export type Database = {
         }
       }
       affiliate_lock_member: {
-        Args: { p_currency: string; p_member: string; p_payments?: string[] }
+        Args: {
+          p_currency: string
+          p_livemode?: boolean
+          p_member: string
+          p_payments?: string[]
+        }
         Returns: string[]
       }
       affiliate_manual_adjustment: {
@@ -3820,6 +3829,7 @@ export type Database = {
           p_expected_version: number
           p_full_settlement: boolean
           p_invoice_reference: string
+          p_livemode?: boolean
           p_paid_at: string
           p_payout: string
           p_reason?: string
@@ -3833,6 +3843,7 @@ export type Database = {
           earnings_minor: number
           id: string
           invoice_reference: string | null
+          livemode: boolean
           member_id: string
           needs_review: boolean
           paid_at: string | null
@@ -3885,11 +3896,16 @@ export type Database = {
         Returns: Json
       }
       affiliate_portal_summary: {
-        Args: { p_as_of: string; p_member: string }
+        Args: { p_as_of: string; p_livemode?: boolean; p_member: string }
         Returns: Json
       }
       affiliate_preview: {
-        Args: { p_currency: string; p_cutoff: string; p_member: string }
+        Args: {
+          p_currency: string
+          p_cutoff: string
+          p_livemode?: boolean
+          p_member: string
+        }
         Returns: {
           accrued: string
           available: boolean
@@ -3942,6 +3958,7 @@ export type Database = {
           p_actor: string
           p_currency: string
           p_cutoff: string
+          p_livemode?: boolean
           p_member: string
           p_member_version: number
           p_payee_reference: string
@@ -3956,6 +3973,7 @@ export type Database = {
           earnings_minor: number
           id: string
           invoice_reference: string | null
+          livemode: boolean
           member_id: string
           needs_review: boolean
           paid_at: string | null

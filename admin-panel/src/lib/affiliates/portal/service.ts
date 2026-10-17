@@ -2,6 +2,7 @@
 import 'server-only';
 import { connection, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { getAffiliateLivemode } from '@/lib/stripe/affiliate-mode';
 import { requireAdminApi } from '@/lib/auth-server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -19,15 +20,16 @@ export function portalResponse(result: PortalResult): NextResponse {
 }
 
 async function readData(client: SupabaseClient, member: { id: string; code: string; status: string }, query: Query, admin: boolean): Promise<PortalResult> {
+  const livemode = await getAffiliateLivemode();
   const as_of = new Date().toISOString();
   const [summary, page] = await Promise.all([
-    client.rpc('affiliate_portal_summary', { p_member: member.id, p_as_of: as_of }),
+    client.rpc('affiliate_portal_summary', { p_member: member.id, p_as_of: as_of, p_livemode: livemode }),
     client.rpc('affiliate_portal_page', { p_member: member.id, p_currency: query.currency ?? null,
       p_cursor: query.cursor ?? null, p_limit: query.limit, p_as_of: as_of }),
   ]);
   if (summary.error || page.error || !summary.data || !page.data) throw new Error('Read unavailable');
   const data: PortalData = {
-    member: { code: member.code, status: member.status }, as_of,
+    livemode, member: { code: member.code, status: member.status }, as_of,
     ...summary.data as Pick<PortalData, 'balances' | 'codes' | 'rules' | 'sync_pending' | 'needs_review'>,
     ...page.data as Pick<PortalData, 'commissions' | 'next_cursor'>,
   };

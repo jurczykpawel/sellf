@@ -2,6 +2,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { readPartnerPortal, readAdminPortal, portalResponse, portalMetadata } from '@/lib/affiliates/portal/service';
 const mocks = vi.hoisted(() => ({ user: vi.fn(), guard: vi.fn(), admin: vi.fn(), connection: vi.fn() }));
+vi.mock('@/lib/stripe/affiliate-mode', () => ({ getAffiliateLivemode: async () => true }));
 vi.mock('next/server', async importOriginal => ({ ...await importOriginal<typeof import('next/server')>(), connection: mocks.connection }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({ auth: { getUser: mocks.user } }) }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: mocks.admin }));
@@ -51,4 +52,13 @@ it('requests the next page with one keyset RPC and one summary RPC', async () =>
   expect(from).toHaveBeenCalledExactlyOnceWith('affiliate_memberships');
   expect(rpc).toHaveBeenCalledTimes(2);
   expect(rpc).toHaveBeenCalledWith('affiliate_portal_page', expect.objectContaining({ p_member: 'member', p_cursor: cursor, p_limit: 25 }));
+});
+
+it('passes the current payment mode to the summary RPC', async () => {
+  const rpc = vi.fn().mockResolvedValue({ error: null, data: {} });
+  const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: { id: 'member', code: 'own', status: 'approved' } }) };
+  mocks.admin.mockReturnValue({ rpc, from: () => q });
+  mocks.user.mockResolvedValue({ data: { user: { id: 'user' } } });
+  await readPartnerPortal();
+  expect(rpc).toHaveBeenCalledWith('affiliate_portal_summary', expect.objectContaining({ p_livemode: true }));
 });
