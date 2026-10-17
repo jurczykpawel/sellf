@@ -17,8 +17,10 @@ interface PriceVatInlineProps extends SectionProps {
    * 'paid' (default) — full UI: price input, currency, VAT, optional PWYW toggle.
    * 'tip-jar' — PWYW-only mode: hides price input + toggle (forced on), renders
    *   currency + suggested presets + min amount + VAT directly.
+   * 'subscription' — VAT controls only (price and currency live in the subscription section).
+   *   Gross/net and rate behave exactly as for a one-time paid product.
    */
-  mode?: 'paid' | 'tip-jar';
+  mode?: 'paid' | 'tip-jar' | 'subscription';
 }
 
 export function PriceVatInline({
@@ -287,6 +289,15 @@ export function PriceVatInline({
       </p>
     </div>
   );
+
+  if (mode === 'subscription') {
+    return (
+      <div className="space-y-2">
+        {vatRow}
+        <TaxHelper formData={formData} taxMode={taxMode} t={t} />
+      </div>
+    );
+  }
 
   if (mode === 'tip-jar') {
     return (

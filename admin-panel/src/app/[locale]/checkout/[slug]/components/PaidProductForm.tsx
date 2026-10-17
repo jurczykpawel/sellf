@@ -251,7 +251,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     baseProductId: product.id,
     productPrice: effectiveUnitPrice,
     productCurrency: product.currency,
-    productVatRate: product.vat_rate ?? undefined,
+    // VAT is added on top of net prices only where the shop computes it itself.
+    productVatRate: taxMode === 'stripe_tax' || product.vat_exempt ? undefined : product.vat_rate ?? undefined,
     priceIncludesVat: product.price_includes_vat ?? undefined,
     customAmount: product.allow_custom_price ? customAmount : undefined,
     bumps: availableBumps.map(bump => ({
@@ -562,7 +563,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
               currency={product.currency}
               basePrice={pricing.basePrice}
               discountAmount={pricing.discountAmount}
-              totalGross={pricing.totalGross}
+              totalGross={pricing.totalPayable}
               totalNet={pricing.totalNet}
               vatRate={pricing.vatRate}
               vatExempt={product.vat_exempt}

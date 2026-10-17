@@ -25,6 +25,7 @@ import {
 } from '../types';
 import { collectRequiredFieldErrors, collectStep1FieldErrors } from './required-fields';
 import { inferProductTypeFromForm } from '@/lib/product-defaults';
+import { resolveSubmitVatFields } from '../submit-vat';
 
 interface WaitlistWarning {
   show: boolean;
@@ -679,17 +680,11 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
 
     // Include OTO data in the form submission. ux_product_type is form-only
     // state and stripped from `submitData` further below before the API call.
-    const isSubscription = formData.product_type === 'subscription';
-    // subscription products use recurring_price, not the one-time `price`.
-    // Force price=0 so the API never sees a stale one-time value the UI hid.
-    const isFreeProduct = isSubscription
-      ? true
-      : formData.price === 0 && !formData.allow_custom_price;
+    // Subscriptions use recurring_price, not the one-time `price` (forced to 0 so the API
+    // never sees a stale value the UI hid). VAT fields follow the shared submit policy.
     const submitData: ProductFormData = {
       ...formData,
-      ...(isSubscription && { price: 0 }),
-      // Free products cannot have price_includes_vat — reset even if UI hid the checkbox
-      ...(isFreeProduct && { price_includes_vat: false, vat_rate: null }),
+      ...resolveSubmitVatFields(formData),
       oto_enabled: oto.enabled,
       oto_product_id: oto.enabled && oto.productId ? oto.productId : null,
       oto_discount_type: oto.discountType,

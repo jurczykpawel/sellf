@@ -57,6 +57,9 @@ export default function ProductShowcase({ product, taxMode, bundleComponents }: 
     vatRate: product.vat_rate,
     vatExempt: product.vat_exempt,
     vatExemptNote: product.vat_exempt_note,
+    // A free product (0) shows no VAT label; a subscription's amount is its recurring price.
+    amount: isSubscription ? product.recurring_price ?? 0 : grossPrice,
+    priceIncludesVat: product.price_includes_vat,
   });
 
   const parsedVideo = useMemo(
@@ -132,6 +135,11 @@ export default function ProductShowcase({ product, taxMode, bundleComponents }: 
           {vatDisplay.kind === 'rate' && (
             <div className="text-sm text-sf-muted">
               {t('includingVat', { defaultValue: 'including VAT' })} {vatDisplay.rate}%
+            </div>
+          )}
+          {vatDisplay.kind === 'rate_added' && (
+            <div className="text-sm text-sf-muted">
+              + {t('vat', { defaultValue: 'VAT' })} {vatDisplay.rate}%
             </div>
           )}
           {vatDisplay.kind === 'exempt' && (

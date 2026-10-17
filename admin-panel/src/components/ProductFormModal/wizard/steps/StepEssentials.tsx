@@ -80,6 +80,21 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
         <SubscriptionSection formData={formData} setFormData={setFormData} t={t} />
       )}
 
+      {isSubscription && !formData.is_bundle && (
+        <PriceVatInline
+          formData={formData}
+          setFormData={setFormData}
+          t={t}
+          priceDisplayValue={priceDisplayValue}
+          setPriceDisplayValue={setPriceDisplayValue}
+          shopDefaultVatRate={shopDefaultVatRate}
+          taxMode={taxMode}
+          fieldErrors={fieldErrors}
+          setFieldErrors={setFieldErrors}
+          mode="subscription"
+        />
+      )}
+
       {showPaidPriceInput && (
         <PriceVatInline
           formData={formData}

@@ -100,7 +100,7 @@ export default function CustomPaymentForm({
   // Invoice / NIP logic
   const invoice = useInvoiceData(email, { initialFullName });
 
-  const { basePrice, totalGross } = pricing;
+  const { basePrice, totalPayable } = pricing;
   const paymentElementOptions: StripePaymentElementOptions = {
     layout: {
       type: 'tabs',
@@ -253,7 +253,7 @@ export default function CustomPaymentForm({
         });
       }
       await track('add_payment_info', {
-        value: totalGross,
+        value: totalPayable,
         currency: product.currency,
         items,
         userEmail: finalEmail,
@@ -456,13 +456,13 @@ export default function CustomPaymentForm({
           t('fixAmountFirst', { defaultValue: 'Fix the amount above to continue' })
         ) : isSubscription && intervalLabel ? (
           t('subscribeButton', {
-            amount: `${formatPrice(totalGross, product.currency, locale)} / ${intervalLabel}`,
-            defaultValue: `Subskrybuj ${formatPrice(totalGross, product.currency, locale)} / ${intervalLabel}`,
+            amount: `${formatPrice(totalPayable, product.currency, locale)} / ${intervalLabel}`,
+            defaultValue: `Subskrybuj ${formatPrice(totalPayable, product.currency, locale)} / ${intervalLabel}`,
           })
         ) : (
           t('payButton', {
-            amount: formatPrice(totalGross, product.currency, locale),
-            defaultValue: `Zapłać ${formatPrice(totalGross, product.currency, locale)}`,
+            amount: formatPrice(totalPayable, product.currency, locale),
+            defaultValue: `Zapłać ${formatPrice(totalPayable, product.currency, locale)}`,
           })
         )}
       </button>

@@ -63,6 +63,8 @@ export function formatRecurringProductPrice(
 export type VatDisplay =
   | { kind: 'none' }
   | { kind: 'rate'; rate: number }
+  /** Net price: VAT is added on top at checkout ("+ VAT x%"). */
+  | { kind: 'rate_added'; rate: number }
   | { kind: 'exempt'; note: string | null };
 
 /**
@@ -76,9 +78,18 @@ export function getVatDisplay(input: {
   vatRate: number | null | undefined;
   vatExempt: boolean | null | undefined;
   vatExemptNote?: string | null;
+  /** Amount shown next to the label; a free product (0) carries no VAT label. */
+  amount?: number | null;
+  /** false = net price, VAT is added at checkout. Omitted/true = VAT is inside the price. */
+  priceIncludesVat?: boolean | null;
 }): VatDisplay {
   if (input.taxMode === 'stripe_tax') return { kind: 'none' };
+  if (input.amount != null && input.amount <= 0) return { kind: 'none' };
   if (input.vatExempt) return { kind: 'exempt', note: input.vatExemptNote?.trim() || null };
-  if (input.vatRate != null && input.vatRate > 0) return { kind: 'rate', rate: input.vatRate };
+  if (input.vatRate != null && input.vatRate > 0) {
+    return input.priceIncludesVat === false
+      ? { kind: 'rate_added', rate: input.vatRate }
+      : { kind: 'rate', rate: input.vatRate };
+  }
   return { kind: 'none' };
 }

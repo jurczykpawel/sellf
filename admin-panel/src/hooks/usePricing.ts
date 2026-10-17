@@ -45,6 +45,12 @@ export interface PricingResult {
   totalGross: number;
   totalNet: number;
   vatAmount: number;
+  /**
+   * What the buyer pays including VAT. Equals totalGross for gross prices; for net
+   * prices (priceIncludesVat=false) it is totalGross plus the VAT added at checkout.
+   * Use this for any amount shown on the page or the pay button.
+   */
+  totalPayable: number;
   currency: string;
   vatRate: number;
   isPwyw: boolean;
@@ -108,7 +114,10 @@ export function calculatePricing(input: PricingInput): PricingResult {
   const totalNet = priceIncludesVat && vatRate > 0
     ? totalGross / (1 + vatRate / 100)
     : totalGross;
-  const vatAmount = totalGross - totalNet;
+  const totalPayable = !priceIncludesVat && vatRate > 0
+    ? Math.round(totalGross * (1 + vatRate / 100) * 100) / 100
+    : totalGross;
+  const vatAmount = totalPayable - totalNet;
 
   return {
     basePrice,
@@ -118,6 +127,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
     totalGross,
     totalNet,
     vatAmount,
+    totalPayable,
     currency: productCurrency,
     vatRate,
     isPwyw,

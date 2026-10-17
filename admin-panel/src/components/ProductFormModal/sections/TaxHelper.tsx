@@ -48,7 +48,7 @@ export function TaxHelper({ formData, taxMode, t }: TaxHelperProps) {
   const locale = useLocale();
   const msg = computeTaxHelperMessage({
     taxMode,
-    price: formData.price,
+    price: formData.product_type === 'subscription' ? formData.recurring_price ?? 0 : formData.price,
     vatRate: formData.vat_rate ?? null,
     priceIncludesVat: formData.price_includes_vat,
     currency: formData.currency,
