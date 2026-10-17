@@ -192,6 +192,21 @@ describe('resolved return paths', () => {
       expect(isRelativeOrHttpUrl(value)).toBe(false);
     }
   });
+  it.each(['https://shop.example//elsewhere.test/path', '/first/..//elsewhere.test/path'])('declines a destination resolving to a different path form: %s', value => {
+    expect(isSafeRedirectUrl(value, site)).toBe(false);
+    expect(resolveSafeRedirectPath(value, site)).toBeNull();
+  });
+  it('keeps every accepted destination stable when used for navigation', () => {
+    for (const prefix of ['/', `${site}/`]) for (const segment of ['', '/', '.', '..', '%2e', '\\', '%2f', 'first', 'first/..']) for (const suffix of ['thanks', '/elsewhere.test', '?a=1&b=2', '#details']) {
+      const value = `${prefix}${segment}${suffix}`;
+      const path = resolveSafeRedirectPath(value, site);
+      if (path === null) continue;
+      const input = new URL(value, site);
+      const output = new URL(path, site);
+      expect(output.origin, value).toBe(site);
+      expect([output.pathname, output.search, output.hash], value).toEqual([input.pathname, input.search, input.hash]);
+    }
+  });
   it.each([
     ['/first/../thanks?a=1&b=2', '/thanks?a=1&b=2'],
     ['https://shop.example/thanks?a=1&b=2', '/thanks?a=1&b=2'],

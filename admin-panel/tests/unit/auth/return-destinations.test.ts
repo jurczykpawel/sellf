@@ -30,7 +30,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 
-const invalidValues = ['/\t/elsewhere.test', '/\n/elsewhere.test', '/\r/elsewhere.test', '/%09/elsewhere.test', '/%250a/elsewhere.test'];
+const invalidValues = ['/\t/elsewhere.test', '/\n/elsewhere.test', '/\r/elsewhere.test', '/%09/elsewhere.test', '/%250a/elsewhere.test', 'https://shop.example//elsewhere.test/path', '/first/..//elsewhere.test/path'];
 
 it.each(invalidValues)('keeps product access on the product for %j', async value => {
   await expect(productAccess(new Request(`https://shop.example/pl/auth/product-access?product=course&return_url=${encodeURIComponent(value)}`))).rejects.toThrow('NEXT_REDIRECT:/p/course');

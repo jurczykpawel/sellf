@@ -19,7 +19,7 @@ export function resolveSafeRedirectPath(value: string, siteUrl?: string): string
     const site = new URL(configuredSite || 'https://relative.invalid');
     if (site.protocol !== 'https:' && site.protocol !== 'http:') return null;
     const resolved = new URL(value, site);
-    if (resolved.origin !== site.origin) return null;
+    if (resolved.origin !== site.origin || resolved.pathname.startsWith('//')) return null;
     return resolved.pathname + resolved.search + resolved.hash;
   } catch {
     return null;
