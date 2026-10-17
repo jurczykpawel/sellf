@@ -216,7 +216,7 @@ export function registerUsersTools(server: McpServer): void {
   // Get user purchases (via payments endpoint)
   server.tool(
     'get_user_purchases',
-    'Get up to 100 purchases/payments made by a user. Returns amount, refunded_amount, refund.amount, net_total, tax_total, line_items.net_amount and line_items.tax_amount in minor units in each payment currency (4999 means 49.99 for PLN/USD). line_items.unit_price and line_items.total_price use major units (49.99 means 49.99 in the line currency); nested tax_breakdown amounts use minor units.',
+    'Get up to 100 purchases/payments made by a user. Returns amount, refunded_amount, refund.amount, net_total, tax_total, line_items.net_amount and line_items.tax_amount in minor units in each payment currency (4999 means 49.99 for PLN/USD; zero-decimal currencies such as JPY are whole units, 1000 means 1000 JPY). line_items.unit_price and line_items.total_price use major units (49.99 means 49.99 in the line currency); nested tax_breakdown amounts use minor units.',
     {
       email: z.string().email().describe('User email address'),
     },

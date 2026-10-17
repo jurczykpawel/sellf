@@ -5,6 +5,7 @@ import { allocateCouponDiscount } from '@/lib/pricing/coupon-allocation';
 describe('allocateCouponDiscount', () => {
   it('applies global percentage coupon to base product and all bumps', () => {
     const result = allocateCouponDiscount({
+      currency: 'USD',
       items: [
         { kind: 'base', id: 'main-product', price: 100 },
         { kind: 'bump', id: 'bump-a', price: 20 },
@@ -28,6 +29,7 @@ describe('allocateCouponDiscount', () => {
 
   it('applies global percentage coupon only to base product when exclude_order_bumps is true', () => {
     const result = allocateCouponDiscount({
+      currency: 'USD',
       items: [
         { kind: 'base', id: 'main-product', price: 100 },
         { kind: 'bump', id: 'bump-a', price: 20 },
@@ -50,6 +52,7 @@ describe('allocateCouponDiscount', () => {
 
   it('distributes global fixed coupon across all eligible items', () => {
     const result = allocateCouponDiscount({
+      currency: 'USD',
       items: [
         { kind: 'base', id: 'main-product', price: 100 },
         { kind: 'bump', id: 'bump-a', price: 20 },
@@ -72,6 +75,7 @@ describe('allocateCouponDiscount', () => {
 
   it('does not discount bumps for product-scoped coupon unless bump ids are allowed', () => {
     const result = allocateCouponDiscount({
+      currency: 'USD',
       items: [
         { kind: 'base', id: 'main-product', price: 100 },
         { kind: 'bump', id: 'bump-a', price: 20 },
@@ -94,6 +98,7 @@ describe('allocateCouponDiscount', () => {
 
   it('never discounts bumps for product-scoped coupon even if bump ids appear in allowed_product_ids', () => {
     const result = allocateCouponDiscount({
+      currency: 'USD',
       items: [
         { kind: 'base', id: 'main-product', price: 100 },
         { kind: 'bump', id: 'bump-a', price: 20 },
@@ -116,6 +121,7 @@ describe('allocateCouponDiscount', () => {
 
   it('applies Stripe minimum floor after coupon without changing eligibility rules', () => {
     const result = allocateCouponDiscount({
+      currency: 'USD',
       items: [
         { kind: 'base', id: 'main-product', price: 0.4 },
         { kind: 'bump', id: 'bump-a', price: 0.4 },
@@ -145,6 +151,7 @@ describe('allocateCouponDiscount', () => {
 
   it('returns isFree=true for a 100% percentage coupon on a single base item', () => {
     const result = allocateCouponDiscount({
+      currency: 'USD',
       items: [{ kind: 'base', id: 'main-product', price: 99 }],
       baseProductId: 'main-product',
       coupon: {
@@ -164,6 +171,7 @@ describe('allocateCouponDiscount', () => {
 
   it('returns isFree=true for a fixed coupon that covers the full subtotal', () => {
     const result = allocateCouponDiscount({
+      currency: 'USD',
       items: [
         { kind: 'base', id: 'main-product', price: 100 },
         { kind: 'bump', id: 'bump-a', price: 50 },
@@ -192,6 +200,7 @@ describe('allocateCouponDiscount', () => {
     // free-grant path. Guards against "free access with coupon" abuse through
     // a mixed cart.
     const result = allocateCouponDiscount({
+      currency: 'USD',
       items: [
         { kind: 'base', id: 'main-product', price: 100 },
         { kind: 'bump', id: 'bump-a', price: 50 },

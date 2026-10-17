@@ -17,7 +17,7 @@ import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { captureAndPersistInvoiceTax } from '@/lib/services/tax-snapshot';
-import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
+import { minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
 import {
   buildSubscriptionCreatedPayload,
   buildSubscriptionUpdatedPayload,
@@ -192,7 +192,7 @@ function validateStripePriceMatchesProduct(
   if (!price) return { ok: false, reason: 'Stripe subscription has no price item' };
 
   const expectedAmount =
-    product.recurring_price != null ? Math.round(product.recurring_price * 100) : null;
+    product.recurring_price != null ? toMinorUnits(product.recurring_price, product.currency) : null;
   if (expectedAmount == null) {
     return { ok: false, reason: 'Sellf product is missing recurring_price' };
   }
@@ -227,7 +227,7 @@ function validateCustomStripePriceMatchesProduct(
     };
   }
 
-  const minimumAmount = Math.round((binding.custom_price_min ?? STRIPE_MINIMUM_AMOUNT) * 100);
+  const minimumAmount = toMinorUnits(binding.custom_price_min ?? minimumChargeAmount(product.currency), product.currency);
   if (typeof price.unit_amount !== 'number' || price.unit_amount < minimumAmount) {
     return {
       ok: false,

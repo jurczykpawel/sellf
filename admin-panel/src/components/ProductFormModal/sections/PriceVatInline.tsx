@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { CURRENCIES, getCurrencySymbol, STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
+import { CURRENCIES, getCurrencySymbol } from '@/lib/constants';
+import { currencyExponent, minimumChargeAmount } from '@/lib/currency/minor-units';
 import type { SectionProps } from '../types';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import { TaxHelper } from './TaxHelper';
@@ -35,10 +36,6 @@ export function PriceVatInline({
   fieldErrors = {},
   setFieldErrors,
 }: PriceVatInlineProps) {
-  const handleCurrencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFormData(prev => ({ ...prev, currency: e.target.value }));
-  };
-
   const presetsManuallyEdited = useRef(false);
   const minManuallyEdited = useRef(false);
   // Mirror of formData.price that updates synchronously inside handlePriceChange.
@@ -52,15 +49,26 @@ export function PriceVatInline({
     latestPriceRef.current = formData.price;
   }, [formData.price]);
 
-  const getDefaultMin = (price: number): number => {
-    if (price <= 0) return 1;
-    return Math.max(STRIPE_MINIMUM_AMOUNT, Math.round(price * 0.5 * 10) / 10);
+  const getDefaultMin = (price: number, currency: string = formData.currency): number => {
+    const floor = minimumChargeAmount(currency);
+    if (price <= 0) return Math.max(1, floor);
+    const half = currencyExponent(currency) === 0 ? Math.round(price * 0.5) : Math.round(price * 0.5 * 10) / 10;
+    return Math.max(floor, half);
   };
 
   const getDefaultPresets = (price: number): [number, number, number] => {
     if (price <= 0) return [5, 10, 25];
     const round = (n: number) => Math.round(n);
     return [round(price), round(price * 1.5), round(price * 2)];
+  };
+
+  const handleCurrencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const currency = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      currency,
+      ...(prev.allow_custom_price && !minManuallyEdited.current && { custom_price_min: getDefaultMin(latestPriceRef.current, currency) }),
+    }));
   };
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,7 +98,8 @@ export function PriceVatInline({
     const dotCount = (processedValue.match(/\./g) || []).length;
     if (dotCount > 1) return;
 
-    if (/^\d*\.?\d{0,2}$/.test(processedValue)) {
+    const decimals = currencyExponent(formData.currency);
+    if (new RegExp(decimals === 0 ? '^\\d*$' : `^\\d*\\.?\\d{0,${decimals}}$`).test(processedValue)) {
       const numericValue = parseFloat(processedValue);
       const price = isNaN(numericValue) ? 0 : numericValue;
       latestPriceRef.current = price;
@@ -162,7 +171,7 @@ export function PriceVatInline({
           value={formData.custom_price_min}
           onChange={handleMinPriceChange}
           min="0"
-          step="0.10"
+          step={currencyExponent(formData.currency) === 0 ? "1" : "0.10"}
           className="w-16 px-2 py-1 border-2 border-sf-border-medium text-sm focus:ring-2 focus:ring-sf-accent focus:border-transparent bg-sf-input text-sf-heading"
         />
         <span className="text-xs text-sf-muted">

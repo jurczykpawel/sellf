@@ -11,6 +11,7 @@ import MySubscriptions from '@/components/MySubscriptions';
 import type { UserPurchase } from '@/types';
 import { getCustomerRefundAction } from '@/lib/refunds/flow';
 import { buildPurchaseDiscountSummary } from '@/lib/purchases/discounts';
+import { fromMinorUnits } from '@/lib/currency/minor-units';
 import {
   hasMixedRefundPolicies,
   normalizePurchaseLineItems,
@@ -319,7 +320,8 @@ export default function MyPurchasesPage() {
 
     return buildPurchaseDiscountSummary({
       subtotal,
-      totalPaid: purchase.amount / 100,
+      totalPaid: fromMinorUnits(purchase.amount, purchase.currency),
+      currency: purchase.currency,
       couponDiscount: transactionMetadata?.coupon_discount || null,
     });
   };
@@ -427,7 +429,7 @@ export default function MyPurchasesPage() {
                     </div>
                     <div className="text-right">
                       <div className="text-lg font-bold text-sf-accent">
-                        {formatPriceLocalized(locale, purchase.amount / 100, purchase.currency, t('naLabel'), t('invalidPrice'))}
+                        {formatPriceLocalized(locale, fromMinorUnits(purchase.amount, purchase.currency), purchase.currency, t('naLabel'), t('invalidPrice'))}
                       </div>
                       {(() => {
                         const discountSummary = getPurchaseDiscountSummary(purchase, lineItems);
@@ -452,7 +454,7 @@ export default function MyPurchasesPage() {
                       })()}
                       {purchase.refunded_amount > 0 && purchase.status !== 'refunded' && (
                         <div className="text-sm text-sf-muted">
-                          {t('refundedAmount', { defaultValue: 'Refunded' })}: {formatPriceLocalized(locale, purchase.refunded_amount / 100, purchase.currency, t('naLabel'), t('invalidPrice'))}
+                          {t('refundedAmount', { defaultValue: 'Refunded' })}: {formatPriceLocalized(locale, fromMinorUnits(purchase.refunded_amount, purchase.currency), purchase.currency, t('naLabel'), t('invalidPrice'))}
                         </div>
                       )}
                     </div>
@@ -521,7 +523,7 @@ export default function MyPurchasesPage() {
                   <div>
                     <div className="font-medium text-sf-heading">{selectedPurchase.product_name}</div>
                     <div className="text-sm text-sf-muted">
-                      {formatPriceLocalized(locale, selectedPurchase.amount / 100, selectedPurchase.currency, t('naLabel'), t('invalidPrice'))}
+                      {formatPriceLocalized(locale, fromMinorUnits(selectedPurchase.amount, selectedPurchase.currency), selectedPurchase.currency, t('naLabel'), t('invalidPrice'))}
                     </div>
                   </div>
                 </div>

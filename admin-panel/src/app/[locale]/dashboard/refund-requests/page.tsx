@@ -8,12 +8,13 @@ import { toast } from 'sonner';
 import type { RefundRequest } from '@/types';
 import { getAdminRefundActions } from '@/lib/refunds/flow';
 
+import { fromMinorUnits } from '@/lib/currency/minor-units';
 const formatPriceLocalized = (locale: string, price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
   if (price === null) return naLabel;
   const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
   if (isNaN(numericPrice)) return invalidLabel;
 
-  return formatPrice(numericPrice / 100, currency || 'USD', locale);
+  return formatPrice(fromMinorUnits(numericPrice, currency || 'USD'), currency || 'USD', locale);
 };
 
 export default function RefundRequestsPage() {

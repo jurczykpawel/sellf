@@ -10,6 +10,7 @@ import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
 import { useUserPreferences } from '@/contexts/UserPreferencesContext';
 import type { CurrencyAmount } from '@/lib/actions/analytics';
 
+import { fromMinorUnits } from '@/lib/currency/minor-units';
 interface PaymentStats {
   totalTransactions: number;
   totalRevenue: CurrencyAmount;
@@ -71,7 +72,7 @@ export default function PaymentStatsCards({ stats }: PaymentStatsCardsProps) {
     return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
-    }).format(amount / 100);
+    }).format(fromMinorUnits(amount, currency));
   };
 
   const formatMultiCurrency = (amounts: CurrencyAmount, convertedAmount?: number) => {

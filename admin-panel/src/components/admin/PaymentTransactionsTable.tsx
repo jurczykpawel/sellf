@@ -12,6 +12,7 @@ import { formatAdminDate } from '@/lib/timezone';
 import type { PaymentTransaction, PaymentTransactionLineItem } from '@/types/payment';
 import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
 
+import { fromMinorUnits } from '@/lib/currency/minor-units';
 interface PaymentTransactionsTableProps {
   transactions: PaymentTransaction[];
   onRefreshData?: () => void;
@@ -60,7 +61,7 @@ export default function PaymentTransactionsTable({
     return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency.toUpperCase(),
-    }).format(amount / 100);
+    }).format(fromMinorUnits(amount, currency));
   };
 
   const formatMajorCurrency = (amount: number, currency: string) => {
@@ -85,8 +86,8 @@ export default function PaymentTransactionsTable({
       item_type: 'main_product',
       product_name: transaction.product?.name ?? null,
       quantity: 1,
-      unit_price: transaction.amount / 100,
-      total_price: transaction.amount / 100,
+      unit_price: fromMinorUnits(transaction.amount, transaction.currency),
+      total_price: fromMinorUnits(transaction.amount, transaction.currency),
       currency: transaction.currency,
     }];
   };
@@ -230,7 +231,7 @@ export default function PaymentTransactionsTable({
       {detailsTransaction && (() => {
         const displayItems = getTransactionDisplayItems(detailsTransaction);
         const lineItemsSubtotal = displayItems.reduce((sum, item) => sum + item.total_price, 0);
-        const paidTotal = detailsTransaction.amount / 100;
+        const paidTotal = fromMinorUnits(detailsTransaction.amount, detailsTransaction.currency);
         const showSubtotal = Math.abs(lineItemsSubtotal - paidTotal) > 0.009;
 
         return (
