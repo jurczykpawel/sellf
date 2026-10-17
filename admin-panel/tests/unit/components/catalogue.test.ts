@@ -133,7 +133,7 @@ describe('catalogue', () => {
       fireEvent.click(view.getByRole('button', { name: 'More products' }));
       await waitFor(() => expect(view.getByRole('heading', { name: 'Product 10' })).toBeTruthy());
       expect(view.getAllByRole('heading', { name: 'Product 1', exact: true })).toHaveLength(1);
-      expect(view.getByRole('heading', { name: 'Product 10' })).toBe(document.activeElement);
+      await waitFor(() => expect(view.getByRole('heading', { name: 'Product 10' })).toBe(document.activeElement));
       expect(JSON.parse(new URL(fetcher.mock.calls[0][0], 'http://local').searchParams.get('input')!).pageSize).toBe(
         pageSize,
       );

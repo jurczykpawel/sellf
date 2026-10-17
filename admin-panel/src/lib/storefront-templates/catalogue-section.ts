@@ -39,7 +39,8 @@ export const catalogueRequestSchema = z.strictObject({
   pageSize: z.union([z.literal(9), z.literal(12), z.literal(24)]),
 });
 export type CatalogueRequest = z.infer<typeof catalogueRequestSchema>;
-const action = z.string().regex(/^\/(en|pl)\/(?:p|checkout)\/[a-zA-Z0-9_-]{1,100}$/);
+const detailsAction = z.string().regex(/^\/(en|pl)\/(?:p|offer)\/[a-zA-Z0-9_-]{1,100}$/);
+const buyAction = z.string().regex(/^\/(en|pl)\/checkout\/[a-zA-Z0-9_-]{1,100}$/);
 const product = z.strictObject({
   id: z.uuid(),
   slug: z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/),
@@ -70,7 +71,7 @@ const product = z.strictObject({
       height: z.number().int().positive(),
     })
     .nullable(),
-  actions: z.strictObject({ details: action, buy: action }),
+  actions: z.strictObject({ details: detailsAction, buy: buyAction }),
   availability: z.enum(['available', 'unavailable']),
 }).refine(value => Boolean(value.availableUntil) === Boolean(value.availableUntilLabel));
 export function cataloguePageSchema(pageSize: 9 | 12 | 24) {

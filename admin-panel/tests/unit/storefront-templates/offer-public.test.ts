@@ -1,0 +1,31 @@
+/** Public offer acceptance. */
+import { beforeEach, expect, it, vi } from 'vitest';
+import { loadPublicOffer, offerMetadata } from '@/lib/storefront-templates/offer-public';
+import { resolveOffer, OFFER_RECIPE, DEFAULT_OFFER } from '@/lib/storefront-templates/offer';
+import { offerRecipeSchema } from '@/lib/storefront-templates/phase2-contracts';
+import { CORE_TOKENS } from '@/lib/storefront-templates/public-theme';
+import { PUBLIC_FIXTURE } from '@/lib/storefront-templates/fixtures';
+const m = vi.hoisted(() => ({ product: vi.fn(), offer: vi.fn(), bindings: vi.fn(), allowed: vi.fn() }));
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => ({ from: () => ({ select: () => ({ eq: () => ({ maybeSingle: m.product }) }) }) }) }));
+vi.mock('@/lib/storefront-templates/offer-repository', () => ({ readPublishedOffer: m.offer }));
+vi.mock('@/lib/storefront-templates/catalogue', () => ({ loadStorefrontBindings: m.bindings }));
+vi.mock('@/lib/public-cache', () => ({ boundedPublicRead: (_k: unknown, _t: unknown, read: () => unknown) => read(), productCacheBoundary: () => Infinity }));
+vi.mock('@/lib/license/public-snapshot', () => ({ checkPublicFeature: m.allowed }));
+const product = { ...PUBLIC_FIXTURE.products[0], slug: 'course', actions: { details: '/en/p/course', buy: '/en/checkout/course' }, availability: 'available' as const };
+const canonical = { id: product.id, slug: 'course', name: 'Course', description: 'Core description', is_active: true, is_listed: true, available_from: null, available_until: null };
+const offer = { ...DEFAULT_OFFER, enabled: true };
+beforeEach(() => { vi.clearAllMocks(); m.product.mockResolvedValue({ data: canonical, error: null }); m.offer.mockResolvedValue({ success: true, data: offer }); m.bindings.mockResolvedValue({ success: true, data: { hero: product } }); m.allowed.mockReturnValue(true); });
+it.each([null, { ...offer, enabled: false }])('rejects absent/disabled publication', async value => { m.offer.mockResolvedValue({ success: true, data: value }); expect(await loadPublicOffer('en', 'course')).toBeNull(); });
+it.each([null, { ...canonical, is_active: false }, { ...canonical, is_listed: false }])('rejects deleted/inactive/unlisted products', async value => { m.product.mockResolvedValue({ data: value, error: null }); expect(await loadPublicOffer('en', 'course')).toBeNull(); });
+it('binds exclusively to route UUID with core checkout', async () => { const result = await loadPublicOffer('en', 'course'); expect(result).not.toBeNull(); expect(m.bindings).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ heroProduct: product.id, closingProduct: product.id })); expect(result?.model.sections.at(-1)).toMatchObject({ props: { action: 'buy', product: { actions: { buy: '/en/checkout/course' } } } }); });
+it('keeps an unavailable shell without purchase', async () => { m.bindings.mockResolvedValue({ success: true, data: { hero: null } }); expect((await loadPublicOffer('en', 'course'))?.model.sections[0]).toMatchObject({ props: { product: null } }); });
+it('drops cached tokens after rights expire', async () => { m.offer.mockResolvedValue({ success: true, data: { ...offer, tokens: CORE_TOKENS } }); m.allowed.mockReturnValue(false); const result = await loadPublicOffer('en', 'course'); expect(result?.theme.effective.some(leaf => leaf.origin === 'seller')).toBe(false); expect(result).not.toBeNull(); });
+it('rejects invalid slugs and failures', async () => { expect(await loadPublicOffer('en', '../x')).toBeNull(); expect(m.product).not.toHaveBeenCalled(); m.product.mockRejectedValue(new Error('secret')); expect(await loadPublicOffer('en', 'course')).toBeNull(); });
+it('installs frozen recipe with localized fallback', () => { expect(offerRecipeSchema.safeParse(OFFER_RECIPE).success).toBe(true); const model = resolveOffer({ ...offer, content: { 'offer.hero': { sourceLocale: 'pl', pl: { kind: 'hero', eyebrow: '', heading: 'Polski', body: '', steps: [] } } } }, 'en', product.id, product); expect(model.sections[0]).toMatchObject({ props: { content: { heading: 'Polski' } } }); });
+it.each(['en', 'pl'] as const)('localized SEO %s', locale => { const metadata = offerMetadata(canonical, locale); expect(metadata.alternates?.canonical).toMatch(new RegExp(`${locale === 'en' ? '' : '/pl'}/offer/course$`)); expect(metadata.title).toBe('Course'); expect(metadata.robots).toEqual({ index: true, follow: true }); });
+it('rejects a mismatched product projection and never emits private fixture fields', () => {
+  const wrong = { ...product, id: 'aaaaaaaa-1111-4111-a111-111111111111', content_config: 'PRIVATE_DELIVERY_SENTINEL', customer: 'PRIVATE_CUSTOMER_SENTINEL' };
+  const model = resolveOffer(offer, 'en', product.id, wrong);
+  expect(model.sections[0]).toMatchObject({ props: { product: null } });
+  expect(JSON.stringify(model)).not.toMatch(/PRIVATE_|content_config|customer/);
+});

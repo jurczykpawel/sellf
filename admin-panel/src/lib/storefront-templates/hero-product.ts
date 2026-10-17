@@ -9,7 +9,7 @@ export type HeroContent = z.infer<typeof heroContentSchema>;
 export type HeroProductSpec = z.infer<typeof heroProductSectionSchema>;
 export interface HeroProductProps {
   variant: 'split-process' | 'simple'; product: PublicProductInfo | null;
-  content: HeroContent | null; locale: 'en' | 'pl';
+  content: HeroContent | null; locale: 'en' | 'pl'; action?: 'details' | 'buy';
 }
 export interface HeroProductInputs {
   locale: 'en' | 'pl'; settings: TemplateSettings;

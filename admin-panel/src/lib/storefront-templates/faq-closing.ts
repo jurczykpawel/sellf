@@ -15,7 +15,7 @@ type Result<T> = { success: true; data: T } | { success: false; error: 'INVALID'
 
 export function hasCoreProductActions(product: PublicProductInfo, locale: 'en' | 'pl'): boolean {
   if (!/^[a-zA-Z0-9_-]+$/.test(product.slug)) return false;
-  return product.actions.details === `/${locale}${productUrl(product.slug)}` && product.actions.buy === `/${locale}${checkoutUrl(product.slug)}`;
+  return [ `/${locale}${productUrl(product.slug)}`, `/${locale}/offer/${product.slug}` ].includes(product.actions.details) && product.actions.buy === `/${locale}${checkoutUrl(product.slug)}`;
 }
 export function resolveFaq(spec: unknown, inputs: Pick<SectionInputs, 'locale' | 'slots'>): Result<FaqProps> {
   const parsed = sectionSchema.safeParse(spec);

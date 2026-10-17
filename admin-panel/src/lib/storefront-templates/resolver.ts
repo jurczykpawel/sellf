@@ -25,8 +25,8 @@ export type ResolvedSection =
   | { id: string; type: 'catalogue/1'; props: CatalogueProps }
   | { id: string; type: 'faq/1'; props: FaqProps }
   | { id: string; type: 'product-cta/1'; props: ProductCtaProps | CatalogueLinkProps };
-export interface PresentationModel {
-  locale: 'en' | 'pl'; templateId: StorefrontConfig['templateId']; sections: ResolvedSection[];
+export interface PresentationModel<TemplateId extends string = StorefrontConfig['templateId']> {
+  locale: 'en' | 'pl'; templateId: TemplateId; sections: ResolvedSection[];
   catalogue: Pick<CatalogueProps, 'groups'>;
 }
 export interface PublicInputs {

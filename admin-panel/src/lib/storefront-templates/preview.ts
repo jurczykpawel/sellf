@@ -10,7 +10,7 @@ import { inspectTemplate } from '@/lib/storefront-templates/lifecycle-validation
 import { getTemplatePrincipal, templateFailure } from '@/lib/storefront-templates/mutations';
 import { readOfferConfig } from '@/lib/storefront-templates/offer-repository';
 import { inspectOffer } from '@/lib/storefront-templates/offer-lifecycle';
-import { DEFAULT_CONFIG } from '@/lib/storefront-templates/fixtures';
+import { resolveOffer } from '@/lib/storefront-templates/offer';
 import { readStorefrontConfig } from '@/lib/storefront-templates/repository';
 import { revisionSchema } from '@/lib/storefront-templates/schemas';
 import { isPlainJson, result } from '@/lib/storefront-templates/json';
@@ -37,7 +37,7 @@ export interface PreviewResult {
 }
 export type PreviewResponse = { success: true; data: PreviewResult } | Extract<StorefrontMutationResult, { success: false }>;
 
-export interface PreparedPreview extends PreviewResult { model: PresentationModel; tokens: PublicThemeTokens }
+export interface PreparedPreview extends PreviewResult { model: PresentationModel<string>; tokens: PublicThemeTokens }
 type PreviewFailure = Extract<StorefrontMutationResult, { success: false }>;
 const fail = (code: Parameters<typeof templateFailure>[0], validation: ValidationResult | null = null, revision: number | null = null): PreviewFailure => templateFailure(code, validation, revision, 'preview') as PreviewFailure;
 
@@ -67,17 +67,7 @@ export async function preparePreview(auth: unknown, input: unknown, startedAt = 
       const bound = await loadStorefrontBindings(client, { locale, heroProduct: productId, closingProduct: productId, target: 'offer' });
       if (!bound.success) return fail('UNAVAILABLE');
       const product = bound.data.hero;
-      // Reuse the registered section resolvers with core-owned product bindings.
-      const config = { ...structuredClone(DEFAULT_CONFIG), templateId: 'd' as const, content: {
-        ...(offer.content['offer.hero'] ? { 'home.hero': offer.content['offer.hero'] } : {}),
-        ...(offer.content['offer.faq'] ? { 'home.faq': offer.content['offer.faq'] } : {}),
-        ...(offer.content['offer.closing'] ? { 'home.closing': offer.content['offer.closing'] } : {}),
-      }, settingsByTemplate: { d: { heroProduct: productId, closingProduct: productId } } };
-      const selection = resolveSelection(config, ['default', 'd']);
-      selection.recipe.sections = selection.recipe.sections.filter(section => ['hero', 'faq', 'closing'].includes(section.id));
-      selection.recipe.sections.forEach(section => { if (section.type === 'hero-product/1') section.variant = 'simple'; if (section.type === 'product-cta/1' && 'product' in section) section.action = 'buy'; });
-      const catalogue: CatalogueProps = { id: 'offer', variant: 'detail-cards', groups: {}, filters: [], pageSize: 9, density: offer.settings.density, locale, categories: [] };
-      const model = resolvePresentation(selection, { locale, productsById: product ? { [productId]: product } : {}, categoriesById: {}, catalogue });
+      const model = resolveOffer(offer, locale, productId, product);
       const current = await readOfferConfig(client, productId);
       if (!current.success) return fail('UNAVAILABLE');
       if (!current.data?.draft || current.data.revision !== revision || Date.now() >= startedAt + 600000) return fail('CONFLICT', null, current.data?.revision ?? 0);

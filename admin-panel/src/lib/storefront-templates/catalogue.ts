@@ -3,6 +3,7 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import { cache } from 'react';
 import { z } from 'zod';
+import { resolveOfferDetails } from '@/lib/storefront-templates/offer-actions';
 import { boundedPublicRead } from '@/lib/public-cache';
 import { formatPrice, STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
 import { formatRecurringProductPrice, getVatDisplay } from '@/lib/product-pricing-display';
@@ -133,7 +134,7 @@ export async function loadCataloguePage(client: SupabaseClient<Database>, input:
     const neutral = !filters.search && !filters.categoryIds.length && !filters.priceKind && !filters.format && !filters.cursor;
     if (!neutral) {
       const page = await read();
-      return page ? { success: true, data: page } : { success: false, error: 'UNAVAILABLE' };
+      return page ? { success: true, data: { ...page, products: await resolveOfferDetails(client, page.products, filters.locale) } } : { success: false, error: 'UNAVAILABLE' };
     }
     const entry = await boundedPublicRead(
       ['catalogue', '2', filters.locale, filters.group, String(filters.pageSize)], ['storefront-products'],
@@ -144,7 +145,7 @@ export async function loadCataloguePage(client: SupabaseClient<Database>, input:
       },
       { boundary: value => value.boundary ?? Infinity },
     );
-    return entry ? { success: true, data: entry.page } : { success: false, error: 'UNAVAILABLE' };
+    return entry ? { success: true, data: { ...entry.page, products: await resolveOfferDetails(client, entry.page.products, filters.locale) } } : { success: false, error: 'UNAVAILABLE' };
   } catch { return { success: false, error: 'UNAVAILABLE' }; }
 }
 
@@ -177,7 +178,8 @@ export async function loadStorefrontBindings(client: SupabaseClient<Database>, i
     if (products.some(batch => batch.error) || categories.error) return { success: false, error: 'UNAVAILABLE' };
     const rows = products.flatMap(batch => z.array(rowSchema).max(5).parse(batch.data));
     const categoryRows = z.array(z.object({ id: uuid, name: z.string().refine(value => Array.from(value).length <= 100) })).max(12).parse(categories.data);
-    const byId = new Map(rows.map(row => [row.id, projectProduct(row, b.locale)]));
+    const projected = await resolveOfferDetails(client, rows.map(row => projectProduct(row, b.locale)), b.locale);
+    const byId = new Map(projected.map(product => [product.id, product]));
     const byCategory = new Map(categoryRows.map(row => [row.id, row.name]));
     return { success: true, data: { hero: byId.get(b.heroProduct ?? '') ?? null, closing: byId.get(b.closingProduct ?? '') ?? null,
       comparison: b.comparisonProducts.flatMap(id => byId.has(id) ? [byId.get(id)!] : []),

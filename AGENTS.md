@@ -465,8 +465,13 @@ Publication accepts only a current saved-draft revision; rollback rechecks the f
 offer grammar, local appearance rights and product visibility. Null rollback opts out.
 The dashboard templates workspace offers name-based product selection and shares
 SlotEditor, TemplateHistory and the inert `/template-preview/[revision]` page using
-product context. The public offer projection drops custom tokens after local rights
-expire while preserving enabled free presentation and stored copy. T2.11 owns routing.
+product context. Public `/offer/[slug]` renders only enabled published offers for active listed products,
+using the shared route-bound offer-default recipe/section dispatcher. Product/price/window
+reads remain authoritative; only published offer presentation uses bounded public caching.
+Batched details routing runs after catalogue caches, using `/offer` for opted-in products
+and `/p` otherwise; buy always reaches core checkout. Direct `/p` keeps RC purchase-in-place,
+contextual redirects and buyer content. Local appearance rights are rechecked after caching;
+expiry preserves enabled free presentation and stored copy.
 
 
 The installed `storefront-a` entry composes the frozen Phase 2 offer-focus,

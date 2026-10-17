@@ -11,8 +11,10 @@ import styles from './HeroProduct.module.css';
 
 export default function HeroProduct(props: HeroProductProps | OfferFocusProps): ReactElement {
   if (props.variant === 'offer-focus') return <OfferFocus {...props} />;
-  const { variant, product, content, locale } = props;
+  const { variant, product, content, locale, action = 'details' } = props;
   const messages = locale === 'pl' ? pl : en;
+  const actionLabel = action === 'details' ? messages.myProducts.viewDetails
+    : product?.price.kind === 'free' ? messages.productView.getFreeAccess : messages.productView.purchase;
   const available = product?.availability === 'available';
   const steps = content?.steps.filter(step => step.trim()) ?? [];
   return <section className={styles.hero} lang={locale} data-variant={variant}>
@@ -28,7 +30,7 @@ export default function HeroProduct(props: HeroProductProps | OfferFocusProps): 
               {product.price.taxNote && <p className={styles.note}>{product.price.taxNote}</p>}
               {product.price.omnibus && <p className={styles.note}>{product.price.omnibus}</p>}
             </div>
-            <a className={styles.action} href={product.actions.details}>{messages.myProducts.viewDetails}<span aria-hidden="true">↗</span></a>
+            <a className={styles.action} href={product.actions[action]}>{actionLabel}<span aria-hidden="true">↗</span></a>
           </div>
         </> : <p className={styles.lead}>{messages.availabilityBanner.productUnavailableMessage}</p>}
       </div>

@@ -16,16 +16,16 @@ export function getLocalizedUrl(path: string, locale: string): string {
   return `${getPublicBaseUrl()}${locale === defaultLocale ? '' : `/${locale}`}${path}`;
 }
 
-export function getProductAlternates(slug: string, locale: string) {
-  const path = `/p/${encodeURIComponent(slug)}`;
+export function getProductAlternates(slug: string, locale: string, surface: 'p' | 'offer' = 'p') {
+  const path = `/${surface}/${encodeURIComponent(slug)}`;
   return {
     canonical: getLocalizedUrl(path, locale),
     languages: Object.fromEntries(locales.map((language) => [language, getLocalizedUrl(path, language)])),
   };
 }
 
-export function getProductJsonLd(product: Product, locale: string): string {
-  const url = getProductAlternates(product.slug, locale).canonical;
+export function getProductJsonLd(product: Product, locale: string, surface: 'p' | 'offer' = 'p'): string {
+  const url = getProductAlternates(product.slug, locale, surface).canonical;
   const subscription = product.product_type === 'subscription';
   const price = subscription ? (product.recurring_price ?? product.price) : getEffectiveUnitPrice(product);
   const interval = { day: 'D', week: 'W', month: 'M', year: 'Y' };

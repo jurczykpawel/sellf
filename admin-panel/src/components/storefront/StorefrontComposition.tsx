@@ -11,7 +11,7 @@ import { catalogueLabels } from '@/lib/storefront-templates/catalogue-section';
 import type { PresentationModel, ResolvedSection } from '@/lib/storefront-templates/resolver';
 import styles from './StorefrontComposition.module.css';
 
-function Section({ section, templateId }: { section: ResolvedSection; templateId: PresentationModel['templateId'] }) {
+function Section({ section, templateId }: { section: ResolvedSection; templateId: string }) {
   switch (section.type) {
     case 'hero-product/1': return <heroProductDefinition.Component {...section.props} />;
     case 'task-nav/1': return <div className={templateId === 'storefront-a' ? styles.categories : undefined}><TaskNav {...section.props} /></div>;
@@ -21,7 +21,7 @@ function Section({ section, templateId }: { section: ResolvedSection; templateId
     case 'product-cta/1': return <ProductCta {...section.props} />;
   }
 }
-export default function StorefrontComposition({ model, shopName, renderKey }: { model: PresentationModel; shopName: string; renderKey: string }) {
+export default function StorefrontComposition({ model, shopName, renderKey }: { model: PresentationModel<string>; shopName: string; renderKey: string }) {
   const messages = (model.locale === 'pl' ? pl : en).storefront;
   const products = [...new Map(Object.values(model.catalogue.groups).flatMap(page => page?.products.map(p => [p.id, p] as const) ?? [])).values()];
   const freeCount = products.filter(p => p.price.kind === 'free').length;

@@ -95,7 +95,7 @@ it('prepares product offers through the same inert preview boundary and rechecks
   m.bindings.mockResolvedValue({ success: true, data: { hero: null } });
   const auth = await verifyTemplateSession();
   const response = await preparePreview(auth, input, Date.now(), productId);
-  expect(response).toMatchObject({ success: true, data: { model: { sections: [expect.objectContaining({ type: 'hero-product/1', props: expect.objectContaining({ variant: 'simple', content: expect.objectContaining({ heading: 'Offer preview heading' }) }) }), expect.objectContaining({ type: 'faq/1' }), expect.objectContaining({ type: 'product-cta/1', props: expect.objectContaining({ action: 'buy' }) })] } } });
+  expect(response).toMatchObject({ success: true, data: { model: { sections: [expect.objectContaining({ type: 'hero-product/1', props: expect.objectContaining({ variant: 'simple', content: expect.objectContaining({ heading: 'Offer preview heading' }) }) }), expect.objectContaining({ type: 'product-cta/1', props: expect.objectContaining({ action: 'buy' }) })] } } });
   expect(m.read).not.toHaveBeenCalled();
   expect(m.bindings).toHaveBeenCalledWith({}, expect.objectContaining({ heroProduct: productId, closingProduct: productId }));
   m.offer.mockResolvedValueOnce({ success: true, data: { revision: 3, draft } }).mockResolvedValue({ success: true, data: { revision: 4, draft } });
