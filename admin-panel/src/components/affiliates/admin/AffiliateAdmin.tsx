@@ -124,7 +124,7 @@ export function AffiliateApplication({ program, locale }: { program: Application
       const result = await applyToProgram(parsed.data); if (result.success) setDone(true); else setNotice(message(result, t));
     } catch { setNotice(t.error); } finally { setToken(''); setReset(value => value + 1); setBusy(false); }
   }
-  return <section aria-labelledby={`${id}-title`} className="mx-auto grid w-full min-w-0 max-w-2xl gap-5 text-sf-heading"><header><h1 id={`${id}-title`} className="text-3xl font-semibold tracking-tight">{t.title}</h1><p className="mt-2 text-sm text-sf-body">{t.applicationHint}</p></header>
+  return <section aria-labelledby={`${id}-title`} className="mx-auto grid w-full min-w-0 max-w-2xl gap-5 text-sf-heading"><header><h1 id={`${id}-title`} className="[overflow-wrap:anywhere] text-3xl font-semibold tracking-tight">{t.title}</h1><p className="mt-2 text-sm text-sf-body">{t.applicationHint}</p></header>
     <form action={submit} className="grid min-w-0 gap-5 rounded-xl border border-sf-border bg-sf-raised p-5">
       <div className="grid min-w-0 items-start gap-4 sm:grid-cols-2"><Field label={t.name}><input className={fieldClass} name="display_name" required maxLength={120} /></Field><div className="min-w-0"><Field label={t.code}><input className={fieldClass} name="code" aria-describedby={`${id}-code-hint`} required pattern="[a-z0-9_-]{3,40}" minLength={3} maxLength={40} /></Field><p id={`${id}-code-hint`} className="mt-1 text-xs text-sf-body">{t.codeHint}</p></div></div>
       <Field label={t.channel}><input className={fieldClass} name="channel" maxLength={500} /></Field>
