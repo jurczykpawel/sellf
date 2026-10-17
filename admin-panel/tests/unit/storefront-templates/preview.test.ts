@@ -94,13 +94,15 @@ it('prepares product offers through the same inert preview boundary and rechecks
   m.offer.mockResolvedValue({ success: true, data: { revision: 3, draft } });
   m.bindings.mockResolvedValue({ success: true, data: { hero: null } });
   const auth = await verifyTemplateSession();
-  const response = await preparePreview(auth, input, Date.now(), productId);
+  const response = await preparePreview(auth, { ...input, fixture: 'published-products' }, Date.now(), productId);
   expect(response).toMatchObject({ success: true, data: { model: { sections: [expect.objectContaining({ type: 'hero-product/1', props: expect.objectContaining({ variant: 'simple', content: expect.objectContaining({ heading: 'Offer preview heading' }) }) }), expect.objectContaining({ type: 'product-cta/1', props: expect.objectContaining({ action: 'buy' }) })] } } });
+  expect(response).toMatchObject({ data: { validation: { warnings: [{ code: 'TRANSLATION_FALLBACK', path: '/content/offer.hero', message: 'Missing translation uses source locale' }] } } });
+  for (const fixture of ['standard', 'empty', 'long', 'unavailable']) expect(await preparePreview(auth, { ...input, fixture }, Date.now(), productId)).toMatchObject({ code: 'NOT_FOUND' });
   expect(m.read).not.toHaveBeenCalled();
   expect(m.bindings).toHaveBeenCalledWith({}, expect.objectContaining({ heroProduct: productId, closingProduct: productId }));
   m.offer.mockResolvedValueOnce({ success: true, data: { revision: 3, draft } }).mockResolvedValue({ success: true, data: { revision: 4, draft } });
-  expect(await preparePreview(auth, input, Date.now(), productId)).toMatchObject({ code: 'CONFLICT', currentRevision: 4 });
-  expect(await preparePreview({}, input, Date.now(), productId)).toMatchObject({ code: 'FORBIDDEN' });
+  expect(await preparePreview(auth, { ...input, fixture: 'published-products' }, Date.now(), productId)).toMatchObject({ code: 'CONFLICT', currentRevision: 4 });
+  expect(await preparePreview({}, { ...input, fixture: 'published-products' }, Date.now(), productId)).toMatchObject({ code: 'FORBIDDEN' });
 });
 
 it('allows a full evidence matrix plus repeated viewport navigations within one minute', async () => {

@@ -94,7 +94,12 @@ export function validatePhase2(input: unknown, kind: 'config' | 'recipe' | 'offe
   const parsed = ({ config: phase2ConfigSchema, recipe: phase2RecipeSchema, 'offer-config': offerConfigSchema })[kind].safeParse(input);
   if (!parsed.success) return result(parsed.error.issues.map(issue => ({ code: issue.code === 'too_big' || issue.code === 'too_small' ? 'LIMIT' : 'SCHEMA', path: pointer(issue.path), message: 'Value does not match frozen Phase 2 contract', ...(issue.code === 'too_big' && typeof issue.maximum === 'number' ? { limit: issue.maximum } : {}), ...(issue.code === 'too_small' && typeof issue.minimum === 'number' ? { limit: issue.minimum } : {}) })));
   const size = storedJsonBytes(parsed.data);
-  return size === null || size > CONFIG_BYTES ? result([{ code: 'LIMIT', path: '', message: 'Stored configuration exceeds byte limit', limit: CONFIG_BYTES }]) : result();
+  if (size === null || size > CONFIG_BYTES) return result([{ code: 'LIMIT', path: '', message: 'Stored configuration exceeds byte limit', limit: CONFIG_BYTES }]);
+  const warnings: ValidationResult['warnings'] = [];
+  if (kind === 'offer-config') for (const [id, slot] of Object.entries(offerConfigSchema.parse(parsed.data).content)) {
+    if (!slot.en || !slot.pl) warnings.push({ code: 'TRANSLATION_FALLBACK', path: `/content/${id}`, message: 'Missing translation uses source locale' });
+  }
+  return result([], warnings);
 }
 export type Phase2SectionSpec = z.infer<typeof phase2SectionSchema>;
 export type Phase2SlotContent = z.infer<typeof phase2HeroContentSchema> | z.infer<typeof comparisonContentSchema> | z.infer<typeof searchContentSchema> | z.infer<typeof authorContentSchema> | z.infer<typeof biographyContentSchema> | z.infer<typeof pathsContentSchema> | z.infer<typeof projectsContentSchema>;
