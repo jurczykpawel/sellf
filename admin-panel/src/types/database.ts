@@ -4775,9 +4775,9 @@ export type Database = {
         }
         Returns: Json
       }
+      product_marketing_valid: { Args: { instance: Json }; Returns: boolean }
       product_offer_config_schema: { Args: never; Returns: Json }
       product_offer_config_valid: { Args: { config: Json }; Returns: boolean }
-      product_marketing_valid: { Args: { instance: Json }; Returns: boolean }
       queue_pending_free_grant: {
         Args: { p_email: string; p_product_slug: string }
         Returns: boolean

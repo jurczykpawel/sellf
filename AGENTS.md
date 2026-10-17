@@ -537,20 +537,25 @@ Offline authoring uses `bun run template:check -- --config file --json` (or
 it does not attest live rights or publication readiness. `--print-schema config`
 (or `recipe`) and `--capabilities` generate contracts from Zod/registry sources;
 standalone JSON Schema files are not committed. `template:schema` targets the
-current config block in the later C migration and the marketing block in the
-consolidated 2026.10.6 RC migration. Its Phase 1 storefront block stays frozen;
+current config block in the C migration and the offer snapshot schema. It validates
+the frozen A/B and RC config/marketing blocks without rewriting them. The Phase 1
+storefront block stays frozen;
 released migration shapes must remain immutable. No renderer or instance connection
 is needed for CLI checks.
 
 SQL config and marketing validation uses the bounded internal JSON-Schema subset
-validator (D-057), without a production `pg_jsonschema` dependency. Generation
-rejects unsupported keywords, formats and patterns before writing either schema;
-reviewed regex translations live in `admin-panel/scripts/storefront-schema-subset.ts`.
-`supabase/tests/jsonschema-regression.py` proves the non-superuser upgrade RPC
-path before installing the reference extension solely for parity tests in the
-disposable `sellf-rcjson` project. Keep its adversarial corpus and reference
-version gate when extending the generator. Generic SQL helpers are service-only;
-the fixed-schema marketing wrapper also permits authenticated product writers.
+validator (D-057), without a production `pg_jsonschema` dependency. The unreleased
+A migration extends RC's subset with `minItems` and reviewed plain-label/HTTPS
+patterns. Generators reject unsupported keywords, formats and patterns before
+writing; reviewed translations live in `admin-panel/scripts/storefront-schema-subset.ts`.
+`supabase/tests/jsonschema-regression.py --phase2 --prepare`, then `--phase2 --rpc`
+and `--phase2 --parity` prove all nine migrations through the real non-superuser
+service_role HTTP RPC on disposable `sellf-p2d057` (55440–55449), then install the
+reference extension solely for corpus parity. The default profile retains RC's
+`sellf-rcjson` regression. Keep the adversarial corpus and reference version gate.
+Depth, shared node budget and stored-byte bounds remain unchanged; generic helpers
+are service-only. The pure fixed-schema marketing wrapper permits all authenticated
+roles so authenticated admin product writes under RLS can invoke its CHECK.
 
 Public catalogue inputs live in `src/lib/storefront-templates/catalogue.ts`.
 They accept caller-authorized service clients and use service-only, bounded

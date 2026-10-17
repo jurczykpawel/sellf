@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  lintSqlForPgJsonschema,
   lintSqlForMissingRevoke,
   lintSqlForTopLevelTransaction,
   lintSqlForUnqualifiedCreate,
@@ -127,5 +128,20 @@ describe('lintSqlForUnqualifiedCreate', () => {
   it('ignores CREATE inside a dollar-quoted body', () => {
     const sql = `CREATE FUNCTION public.wrapper() RETURNS void AS $$\nBEGIN\n  EXECUTE 'CREATE TABLE inner (id int)';\nEND;\n$$ LANGUAGE plpgsql;`;
     expect(lintSqlForUnqualifiedCreate(sql)).toEqual([]);
+  });
+});
+
+
+describe('D-057 extension dependency guard', () => {
+  it.each([
+    'CREATE EXTENSION pg_jsonschema WITH SCHEMA extensions;',
+    'create extension if not exists "pg_jsonschema";',
+    'SELECT extensions.jsonb_matches_schema(schema, config);',
+    `CREATE FUNCTION public.bad() RETURNS bool AS $$ SELECT extensions.jsonb_matches_schema('{}','{}'); $$ LANGUAGE sql;`,
+  ])('rejects a production extension dependency: %s', sql => {
+    expect(lintSqlForPgJsonschema(sql)).not.toEqual([]);
+  });
+  it('ignores comments and accepts the internal validator', () => {
+    expect(lintSqlForPgJsonschema('-- CREATE EXTENSION pg_jsonschema;\n/* jsonb_matches_schema */ SELECT public.jsonschema_subset_matches(schema, config);')).toEqual([]);
   });
 });

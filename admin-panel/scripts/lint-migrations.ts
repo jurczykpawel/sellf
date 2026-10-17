@@ -116,6 +116,11 @@ export function lintSqlForUnqualifiedCreate(sql: string): string[] {
   return offenders;
 }
 
+/** D-057: inspect function bodies too; production SQL cannot depend on the extension. */
+export function lintSqlForPgJsonschema(sql: string): string[] {
+  return [...stripSqlComments(sql).matchAll(/\bCREATE\s+EXTENSION\s+(?:IF\s+NOT\s+EXISTS\s+)?"?pg_jsonschema"?\b|\bjsonb_matches_schema\b/gi)].map(match => match[0]);
+}
+
 export function lintSqlForMissingRevoke(_file: string, sql: string): LintMissing[] {
   // CREATE OR REPLACE FUNCTION without a prior DROP preserves existing grants
   // (which the catch-all in 20260302 set to REVOKE'd). Only the DROP+CREATE
@@ -174,12 +179,17 @@ function main() {
   let skipped = 0;
   let knownDebt = 0;
   for (const file of files) {
+    const sql = readFileSync(resolve(migrationsDir, file), 'utf8');
+    const extensionOffenders = lintSqlForPgJsonschema(sql);
+    if (extensionOffenders.length) {
+      failures++;
+      console.error(`✖ ${file}: D-057 forbids pg_jsonschema dependencies (${extensionOffenders.join(', ')})`);
+    }
     const ts = migrationTimestamp(file);
     if (!ts || ts < ENFORCE_FROM_TIMESTAMP) {
       skipped++;
       continue;
     }
-    const sql = readFileSync(resolve(migrationsDir, file), 'utf8');
     const missing = lintSqlForMissingRevoke(file, sql);
     if (missing.length > 0) {
       const list = missing.map((m) => m.qualified).join(', ');

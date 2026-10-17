@@ -360,3 +360,36 @@ exhaustive release gate, including an anchored additive section.
 schema and adds C path identity and project-link validation. Released Phase 1,
 A and B migration files remain unchanged. Seed examples retain inactive C copy
 and bindings while the free default stays published.
+
+
+### D-057 hosted migration validation
+
+The current RC release migration is inherited verbatim, including its internal
+bounded JSON-Schema validator; the separate VAT migration remains separate (D-058).
+A/B/C and offer snapshots use `jsonschema_subset_matches`, with their existing
+identity, text, link and lifecycle checks retained. The unreleased A migration
+extends the subset with `minItems` and the plain-label/HTTPS patterns emitted by
+Phase 2. Depth, shared node budget, stored byte bounds and service-only privileges
+remain unchanged. No production migration installs or calls pg_jsonschema.
+
+`bun run template:schema` validates every RC/A/B emitted schema and generates only
+the current C/offer blocks plus the additive A pattern map. Unknown keywords,
+formats or unreviewed patterns fail before any write. RC/A/B schema snapshots are
+not regenerated. `lint:migrations` also rejects extension dependencies, including
+calls inside SQL function bodies.
+
+The repeatable hosted-path regression is:
+
+```sh
+python3 supabase/tests/jsonschema-regression.py --phase2 --prepare
+python3 supabase/tests/jsonschema-regression.py --phase2 --rpc
+python3 supabase/tests/jsonschema-regression.py --phase2 --parity
+```
+
+It owns only `sellf-p2d057` at `/private/tmp/sellf-p2d057`, ports 55440–55449.
+The real HTTP RPC applies all nine migrations from RC through Phase 2/VAT as
+service_role, with a non-superuser RPC owner, an extension-permission negative
+control, exactly-once history and idempotent repeats. Only the later test parity
+step installs pg_jsonschema 0.3.3 as the harness superuser. The full reference
+corpus includes RC config/marketing, A/B/C, offers, every emitted subschema and
+all seven patterns, including minItems boundaries and URL adversaries.

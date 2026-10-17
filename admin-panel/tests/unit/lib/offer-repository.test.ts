@@ -1,6 +1,6 @@
 /** Offer snapshot reads. @see supabase/tests/product-offers.sql */
 import { readFileSync } from 'node:fs';
-import { z } from 'zod';
+import { toSqlSchema } from '../../../scripts/storefront-schema-subset';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { CORE_TOKENS } from '@/lib/storefront-templates/public-theme';
 import { readPublishedOffer, readOfferConfig, readOfferHistory } from '@/lib/storefront-templates/offer-repository';
@@ -87,7 +87,7 @@ it('keeps the stored structural schema aligned with the frozen offer contract', 
   const sql = readFileSync(new URL('../../../../supabase/migrations/20261016232157_product_offer_snapshots.sql', import.meta.url), 'utf8');
   const match = sql.match(/AS \$schema\$ SELECT '([\s\S]*?)'::json; \$schema\$;/);
   expect(match).not.toBeNull();
-  expect(JSON.parse(match![1].replaceAll("''", "'"))).toEqual(z.toJSONSchema(offerConfigSchema));
+  expect(JSON.parse(match![1].replaceAll("''", "'"))).toEqual(toSqlSchema(offerConfigSchema));
 });
 
 it('keeps an enabled free offer and its copy after custom appearance rights expire', async () => {

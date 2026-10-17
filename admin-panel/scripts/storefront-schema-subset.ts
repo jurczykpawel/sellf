@@ -13,6 +13,8 @@ const whitespace = String.raw`[\u0009-\u000d\u0020\u00a0\u2003\u2029\ufeff]`;
 
 export const SQL_PATTERNS: Readonly<Record<string, string>> = Object.freeze({
   [uuid]: uuid,
+  '^[^<>]*$': '^[^<>]*$',
+  [String.raw`^https:\/\/(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?::443)?(?:\/[a-zA-Z0-9/_-]*)?$`]: String.raw`^https://(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?::443)?(?:/[a-zA-Z0-9/_-]*)?$`,
   '^[a-z][a-z0-9-]{0,63}$': '^[a-z][a-z0-9-]{0,63}$',
   '^#[0-9A-Fa-f]{6}$': '^#[0-9A-Fa-f]{6}$',
   [String.raw`^(?![\s\S]*<[^>]*>)[\s\S]*$`]: '^(?!.*<[^>]*>).*$',
@@ -24,7 +26,7 @@ export const SQL_PATTERNS: Readonly<Record<string, string>> = Object.freeze({
     .replaceAll(String.raw`\uFEFF`, '\uFEFF').replaceAll(String.raw`\uFFFD`, '\uFFFD'),
 });
 
-const keywords = new Set(['type', 'properties', 'required', 'additionalProperties', 'items', 'anyOf', 'enum', 'const', 'maxLength', 'maxItems', 'uniqueItems', 'pattern', 'format', 'default']);
+const keywords = new Set(['type', 'properties', 'required', 'additionalProperties', 'items', 'anyOf', 'enum', 'const', 'maxLength', 'minItems', 'maxItems', 'uniqueItems', 'pattern', 'format', 'default']);
 const types = new Set(['object', 'array', 'string', 'number', 'integer', 'boolean', 'null']);
 
 /** Fail before writing either generated SQL block; annotations are opaque values. */
@@ -48,7 +50,7 @@ export function assertSqlSchemaSubset(schema: unknown, path = '$', depth = 0): v
       throw new Error(`${location}: pattern has no reviewed SQL translation`);
     } else if (key === 'format' && value !== 'uuid') {
       throw new Error(`${location}: unsupported format`);
-    } else if (['maxLength', 'maxItems'].includes(key) && (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0)) {
+    } else if (['maxLength', 'minItems', 'maxItems'].includes(key) && (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0)) {
       throw new Error(`${location}: expected nonnegative integer`);
     } else if (key === 'required' && (!Array.isArray(value) || value.some(item => typeof item !== 'string'))) {
       throw new Error(`${location}: expected string array`);
