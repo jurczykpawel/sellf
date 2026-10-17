@@ -89,8 +89,10 @@ function RuleEditor({ productId, productType, isRefundable, refundPeriodDays }: 
   </section>;
 }
 
-export function AffiliateCouponEditor({ couponId }: { couponId: string }): React.JSX.Element {
+export function AffiliateCouponEditor({ couponId }: { couponId?: string }): React.JSX.Element {
   const locale = useLocale();
+  const t = useCopy();
+  if (!couponId) return <section className="space-y-2 rounded-lg border border-sf-border bg-sf-raised p-4 text-sf-heading"><h3 className="font-semibold">{t.owner}</h3><p className="text-sm text-sf-body">{t.saveCouponFirst}</p></section>;
   return <CouponEditor key={`${couponId}:${locale}`} couponId={couponId} />;
 }
 function CouponEditor({ couponId }: { couponId: string }): React.JSX.Element {
@@ -153,7 +155,8 @@ function CouponEditor({ couponId }: { couponId: string }): React.JSX.Element {
     } catch { setMessage(t.error); } finally { setBusy(false); }
   }
   return <section className="min-w-0 break-words space-y-3 rounded-lg border border-sf-border bg-sf-raised p-4 text-sf-heading">
-    <h4 className="font-medium">{t.owner}</h4>
+    <h3 className="font-semibold">{t.owner}</h3>
+    <p className="text-sm text-sf-body">{t.ownerHint}</p>
     {info?.binding && <p className="break-all text-sm">{t.current}: <strong>{info.binding.display_name}</strong> ({info.binding.code})</p>}
     <fieldset disabled={busy || !info} className="min-w-0" onKeyDownCapture={e => {
       const hasOptions = info?.members.some(m => `${m.display_name} (${m.code})`.toLowerCase().includes(search.toLowerCase()));

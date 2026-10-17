@@ -10,6 +10,8 @@ vi.mock('@/lib/affiliates/products/actions', () => ({
   createAffiliateRule: state.save, bindAffiliateCoupon: state.bind,
   getAffiliateCoupon: state.search,
 }));
+import CouponFormModal from '@/components/CouponFormModal';
+import type { Coupon } from '@/types/coupon';
 import { AffiliateRuleEditor, AffiliateCouponEditor } from '@/components/affiliates/products/Settings';
 afterEach(cleanup);
 beforeEach(() => { vi.clearAllMocks(); state.locale = 'en'; state.type = 'one_time'; state.rule = null; state.save.mockResolvedValue({ success: true }); state.bind.mockResolvedValue({ success: true }); state.search.mockResolvedValue({ success: true, data: { binding: { member_id: 'uuid-should-not-be-visible', version: '7', display_name: 'Current Partner', code: 'current' }, members: [{ id: 'member', code: 'partner', display_name: 'Approved Partner' }], next_cursor: null } }); });
@@ -88,4 +90,14 @@ it('starts a fresh loading state when the selected coupon changes', async () => 
   rerender(createElement(AffiliateCouponEditor, { couponId: 'another-coupon' }));
   expect(screen.queryByText(/Current Partner/)).toBeNull();
   expect((screen.getByRole('button', { name: 'Assign coupon' }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('keeps coupon assignment visible before the coupon fields while loading', () => {
+  state.search.mockImplementation(() => new Promise(() => {}));
+  const coupon = { id: 'coupon', code: 'PARTNER10', discount_type: 'percentage', discount_value: 10, is_active: true } as Coupon;
+  render(createElement(CouponFormModal, { products: [], editingCoupon: coupon, onSubmit: async () => {}, onClose: () => {}, isSubmitting: false }));
+  const heading = screen.getByRole('heading', { name: 'Coupon affiliate owner' });
+  const firstInput = document.querySelector('input')!;
+  expect(heading.compareDocumentPosition(firstInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByRole('status').textContent).toContain('Loading');
 });

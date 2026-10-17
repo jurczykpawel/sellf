@@ -4856,6 +4856,8 @@
       "syncRetrySuccess": "Zamówienie ponownie w kolejce. Przetworzy je następne uruchomienie workera."
     },
     "products": {
+      "saveCouponFirst": "Najpierw zapisz kupon. Następnie w tym miejscu przypiszesz go do zaakceptowanego partnera.",
+      "ownerHint": "Zakupy z tym kuponem naliczają prowizję przypisanemu partnerowi. Przypisanie zapisujesz niezależnie od danych kuponu.",
       "title": "Prowizja partnerska",
       "enabled": "Włączona",
       "percentage": "Procentowa",
