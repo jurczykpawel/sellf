@@ -229,9 +229,15 @@ CREATE INDEX storefront_products_featured ON public.products(created_at DESC, id
   WHERE is_active AND is_listed AND is_featured;
 CREATE INDEX storefront_products_free ON public.products(created_at DESC, id ASC)
   WHERE is_active AND is_listed AND product_type<>'subscription' AND NOT allow_custom_price AND price=0;
+CREATE INDEX storefront_products_paid ON public.products(created_at DESC, id ASC)
+  WHERE is_active AND is_listed AND NOT (product_type<>'subscription' AND NOT allow_custom_price AND price=0);
 CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA extensions;
 CREATE INDEX storefront_products_name_trgm ON public.products USING gin (normalize(name,NFC) extensions.gin_trgm_ops)
   WHERE is_active AND is_listed;
+-- Partial expression-index statistics do not supply common-term selectivity.
+-- Global expression statistics let the planner choose the ordered seek instead.
+CREATE STATISTICS storefront_products_name ON (normalize(name,NFC)) FROM public.products;
+ANALYZE public.products;
 CREATE INDEX storefront_products_available_from ON public.products(available_from) WHERE is_active AND is_listed;
 CREATE INDEX storefront_products_available_until ON public.products(available_until) WHERE is_active AND is_listed;
 CREATE INDEX storefront_products_sale_until ON public.products(sale_price_until) WHERE is_active AND is_listed;

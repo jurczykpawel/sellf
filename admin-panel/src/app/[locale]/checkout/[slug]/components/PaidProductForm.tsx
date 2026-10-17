@@ -581,7 +581,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   }
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-sf-deep to-sf-raised p-4 lg:p-8">
+    <div className="flex justify-center items-start min-h-screen bg-gradient-to-br from-sf-deep to-sf-raised p-4 lg:p-8">
       <div className="w-full max-w-7xl mx-auto p-6 lg:p-8 bg-sf-base border border-sf-border shadow-[var(--sf-shadow-accent)] backdrop-blur-md rounded-2xl">
         <div className={TWO_COLUMN_ROW_CLASSNAME}>
           <ProductShowcase product={product} taxMode={taxMode} bundleComponents={bundleComponents} />
