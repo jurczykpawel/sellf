@@ -156,3 +156,40 @@ it('saves keys and reads status through independent private endpoints', async ()
   expect((await call('license_status')).structuredContent).toEqual({ statuses: [status] });
   expect(fetchMock.mock.calls.at(-1)).toMatchObject(['http://localhost:55436/api/v1/templates/licenses', { method: 'GET' }]);
 });
+
+it('discovers and forwards product-scoped offer tools with exact API bodies', async () => {
+  const productId = 'aaaaaaaa-1111-4111-a111-111111111111';
+  const { tools } = await client.listTools();
+  const steps = [
+    ['read', 'GET', 'config', {}, 'read'],
+    ['draft', 'PUT', 'draft', { expectedRevision: 0, config }, 'write'],
+    ['validate', 'POST', 'validate', { config, mode: 'publish' }, 'read'],
+    ['preview', 'POST', 'preview', { revision: 1, locale: 'pl', fixture: 'published-products' }, 'read'],
+    ['diff', 'POST', 'diff', { fromRevision: 0, toRevision: 1 }, 'read'],
+    ['publish', 'POST', 'publish', { expectedRevision: 1 }, 'activate'],
+    ['rollback', 'POST', 'rollback', { expectedRevision: 2, targetRevision: 0 }, 'activate'],
+    ['reset', 'POST', 'reset', { expectedRevision: 3, field: 'appearance' }, 'write'],
+    ['history', 'POST', 'history', { limit: 10, beforeRevision: 4 }, 'read'],
+  ] as const;
+  for (const [name, method, endpoint, input, scope] of steps) {
+    const tool = tools.find(t => t.name === `offers_${name}`)!;
+    expect(tool).toBeDefined(); expect(tool.description).toContain(`templates:${scope}`);
+    expect(tool.inputSchema.additionalProperties).toBe(false);
+    const output = name === 'history' ? { history: [{ revision: 4, draft: config, published: null }] } : { revision: 4, validation };
+    reply(output);
+    const result = await client.callTool({ name: `offers_${name}`, arguments: { productId, ...input } });
+    expect(result.structuredContent).toEqual(output);
+    expect(fetchMock.mock.calls.at(-1)).toMatchObject([`http://localhost:55436/api/v1/products/${productId}/offer/${endpoint}`, { method }]);
+    const sent = fetchMock.mock.calls.at(-1)![1]?.body;
+    expect(sent ? JSON.parse(String(sent)) : undefined).toEqual(method === 'GET' ? undefined : input);
+  }
+});
+it('keeps offer input validation and structured errors in MCP', async () => {
+  expect((await client.callTool({ name: 'offers_read', arguments: { productId: '../other' } })).isError).toBe(true);
+  expect(fetchMock).not.toHaveBeenCalled();
+  const error = { code: 'CONFLICT', message: 'Reconcile', currentRevision: 7, validation: null };
+  reply(error, 409);
+  const result = await client.callTool({ name: 'offers_publish', arguments: { productId: 'aaaaaaaa-1111-4111-a111-111111111111', expectedRevision: 1 } });
+  expect(result.isError).toBe(true); expect(result.structuredContent).toEqual(error);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});

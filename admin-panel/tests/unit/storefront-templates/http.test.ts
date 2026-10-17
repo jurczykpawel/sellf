@@ -5,12 +5,13 @@ import { ApiAuthError } from '@/lib/api/errors';
 import { DEFAULT_CONFIG } from '@/lib/storefront-templates/fixtures';
 import { CONFIG_BYTES, ENVELOPE_BYTES, result } from '@/lib/storefront-templates/json';
 import { templateHttp } from '@/lib/storefront-templates/http';
-const m = vi.hoisted(() => ({ auth: vi.fn(), lifecycle: vi.fn(), preview: vi.fn(), rate: vi.fn(), session: vi.fn(), saveCredential: vi.fn(), statuses: vi.fn() }));
+const m = vi.hoisted(() => ({ auth: vi.fn(), lifecycle: vi.fn(), preview: vi.fn(), rate: vi.fn(), session: vi.fn(), saveCredential: vi.fn(), statuses: vi.fn(), offer: vi.fn() }));
 vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ default: {} }));
 vi.mock('@/lib/api/middleware', () => ({ authenticateApiKeyPrincipal: m.auth }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 vi.mock('@/lib/auth-server', () => ({ requireAdminApi: m.session }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: m.rate }));
+vi.mock('@/lib/storefront-templates/offer-lifecycle', () => ({ offerLifecycle: m.offer }));
 vi.mock('@/lib/storefront-templates/lifecycle', () => ({ storefrontLifecycle: m.lifecycle }));
 vi.mock('@/lib/storefront-templates/preview', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/storefront-templates/preview')>(), PREVIEW_HEADERS: { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' }, preparePreview: m.preview }));
 vi.mock('@/lib/storefront-templates/template-credentials', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/storefront-templates/template-credentials')>(), saveTemplateCredential: m.saveCredential, readTemplateLicenseStatuses: m.statuses }));
@@ -165,4 +166,49 @@ it('serves the descriptor-derived section map and exact section reset paths over
   expect(capabilities.resetPaths.d).not.toContain('overrides.sections.catalogue.visibility');
   expect(capabilities.orderPolicy.write).toBe('full-resolved-list');
   expect(capabilities.schemas.config.properties.overridesByTemplate.properties.d.properties.sections.additionalProperties).toBe(false);
+});
+
+const productId = 'aaaaaaaa-1111-4111-a111-111111111111';
+it.each(['read', 'draft', 'validate', 'diff', 'publish', 'rollback', 'reset'] as const)('routes offer %s through the product lifecycle', async operation => {
+  const bodies = { read: undefined, draft: { expectedRevision: 0, config: {} }, validate: { config: {}, mode: 'draft' }, diff: { fromRevision: 0, toRevision: 1 }, publish: { expectedRevision: 1 }, rollback: { expectedRevision: 2, targetRevision: 0 }, reset: { expectedRevision: 0, field: 'density' }, history: { limit: 10, beforeRevision: 3 } };
+  m.offer.mockResolvedValue({ success: true, data: { productId, revision: 3, validation: result() } });
+  const response = await templateHttp(request(bodies[operation] && JSON.stringify(bodies[operation])), operation, productId);
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ productId, revision: 3 });
+  expect(m.offer).toHaveBeenCalledWith(expect.any(Object), { ...bodies[operation], operation, productId });
+  expect(m.lifecycle).not.toHaveBeenCalled();
+});
+it('prepares an offer preview with product context in its private path', async () => {
+  m.preview.mockResolvedValue({ success: true, data: { revision: 1, locale: 'en', fixture: 'published-products', validation: result() } });
+  const input = { revision: 1, locale: 'en', fixture: 'published-products' };
+  const response = await templateHttp(request(JSON.stringify(input)), 'preview', productId);
+  expect(m.preview).toHaveBeenCalledWith(expect.any(Object), input, expect.any(Number), productId);
+  expect((await response.json()).previewPath).toContain(`&productId=${productId}`);
+});
+it.each(['products:write', 'templates:read', 'templates:write'])('requires offer ACTIVATE independently of %s', async scope => {
+  m.auth.mockResolvedValue(identity([scope]));
+  expect((await templateHttp(request('{'), 'publish', productId)).status).toBe(403);
+  expect(m.offer).not.toHaveBeenCalled();
+});
+it.each([{ productId }, { operation: 'publish' }, { actor: 'other' }])('keeps offer context outside envelope: %j', async extra => {
+  expect((await templateHttp(request(JSON.stringify({ expectedRevision: 0, ...extra })), 'publish', productId)).status).toBe(422);
+  expect(m.offer).not.toHaveBeenCalled();
+});
+it('validates offer UUID before dispatch and preserves conflict details', async () => {
+  expect((await templateHttp(request(), 'read', '../other')).status).toBe(422);
+  expect(m.offer).not.toHaveBeenCalled();
+  m.offer.mockResolvedValue({ success: false, code: 'CONFLICT', status: 409, message: 'Reconcile', currentRevision: 7, validation: null });
+  const response = await templateHttp(request('{"expectedRevision":1}'), 'publish', productId);
+  expect(response.status).toBe(409);
+  expect(await response.json()).toEqual({ code: 'CONFLICT', message: 'Reconcile', currentRevision: 7, validation: null });
+});
+it('returns bounded offer history as a named collection', async () => {
+  const history = [{ product_id: productId, revision: 1, draft: null, published: null }];
+  m.offer.mockResolvedValue({ success: true, data: history });
+  expect(await (await templateHttp(request('{}'), 'history', productId)).json()).toEqual({ history });
+});
+it.each(['read', 'draft', 'validate', 'preview', 'diff', 'publish', 'rollback', 'reset', 'history'] as const)('requires template scope for offer %s', async operation => {
+  m.auth.mockResolvedValue(identity(['products:write']));
+  expect((await templateHttp(request('{'), operation, productId)).status).toBe(403);
+  expect(m.offer).not.toHaveBeenCalled(); expect(m.preview).not.toHaveBeenCalled();
 });

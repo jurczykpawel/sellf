@@ -35,18 +35,43 @@ const descriptions = {
 };
 
 export function registerTemplatesTools(server: McpServer): void {
-  for (const operation of Object.keys(inputs) as Array<keyof typeof inputs>) {
+  registerTools(server, inputs, false);
+  const productId = z.uuid().describe('Existing product UUID from supplied public bindings or authorized product discovery; never invent IDs.');
+  const offerConfig = z.record(z.string(), z.json()).describe('OfferPageConfig matching templates_capabilities.schemas[offer-config]; presentation only, no product bindings.');
+  registerTools(server, {
+    read: inputs.read.extend({ productId }),
+    draft: inputs.draft.extend({ productId, config: offerConfig }),
+    validate: inputs.validate.extend({ productId, config: offerConfig }),
+    preview: inputs.preview.extend({ productId }),
+    diff: inputs.diff.extend({ productId }),
+    publish: inputs.publish.extend({ productId }),
+    rollback: inputs.rollback.extend({ productId }),
+    reset: z.strictObject({ productId, expectedRevision: revision, field: z.enum(['appearance', 'density']) }),
+    history: z.strictObject({ productId, beforeRevision: revision.optional(), limit: z.number().int().min(1).max(50).optional() }),
+  }, true);
+}
+
+const offerDescriptions = { ...descriptions,
+  read: 'Read this product’s private offer draft, publication, name, revision and validation.',
+  validate: 'Validate offer presentation without writing; publish mode checks current appearance rights and contrast.',
+  reset: 'Reset appearance to core defaults or density to comfortable, preserving offer copy.',
+  history: 'Read bounded descending product offer history (at most 50).',
+};
+
+function registerTools(server: McpServer, schemas: Record<string, z.ZodObject>, offer: boolean): void {
+  for (const operation of Object.keys(schemas)) {
     const scope = operation === 'draft' || operation === 'reset' || operation === 'license_activate' ? 'write'
       : operation === 'publish' || operation === 'rollback' ? 'activate' : 'read';
-    server.registerTool(`templates_${operation}`, {
-      description: `${descriptions[operation]} Requires templates:${scope} and instance admin ownership; template scopes are independent. Returns the exact API body.`,
-      inputSchema: inputs[operation],
+    server.registerTool(`${offer ? 'offers' : 'templates'}_${operation}`, {
+      description: `${(offer ? offerDescriptions : descriptions)[operation as keyof typeof descriptions]} ${offer ? 'Product-scoped offer; discover schemas and reset paths with templates_capabilities. Offer preview uses the route product with published-products; retain productId in the returned private previewPath.' : ''} Requires templates:${scope} and instance admin ownership; template scopes are independent. Returns the exact API body.`,
+      inputSchema: schemas[operation],
     }, async (input: Record<string, unknown>) => {
       let body: Record<string, unknown>;
       let isError = false;
       try {
         const method = operation === 'read' || operation === 'capabilities' || operation === 'license_status' ? 'GET' : operation === 'draft' ? 'PUT' : 'POST';
-        body = await getApiClient().template(method, operation === 'read' ? 'config' : operation.startsWith('license_') ? 'licenses' : operation, input);
+        const { productId, ...offerInput } = input;
+        body = await getApiClient().template(method, operation === 'read' ? 'config' : operation.startsWith('license_') ? 'licenses' : operation, offer ? offerInput : input, offer ? String(productId) : undefined);
       } catch (error) {
         isError = true;
         body = error instanceof ApiClientError && error.templateError ? error.templateError

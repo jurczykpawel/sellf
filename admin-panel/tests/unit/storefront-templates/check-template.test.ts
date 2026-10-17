@@ -116,3 +116,18 @@ describe('template check command', () => {
     }
   });
 });
+
+it('checks offer config with bounded parsing and 0/1/2 exit parity', () => {
+  const offer = { format: 1, enabled: true, templateId: 'offer-default', settings: { density: 'comfortable' }, content: {}, tokens: null };
+  expect(run('--offer-config', file(offer), '--json').status).toBe(0);
+  for (const input of [{ ...offer, productId: 'other' }, { ...offer, settings: { density: 'other' } }, '{"format":1,"format":1}', new Uint8Array([255]), ' '.repeat(102401)]) {
+    const checked = run('--offer-config', file(input), '--json');
+    expect(checked.status).toBe(1); expect(checked.output.valid).toBe(false);
+  }
+  expect(run('--offer-config', file(offer), '--mode', 'publish', '--json').status).toBe(2);
+  expect(run('--offer-config', join(directory, 'missing'), '--json').status).toBe(2);
+  expect(run('--print-schema', 'offer-recipe').status).toBe(0);
+  const capabilities = run('--capabilities').output;
+  expect(capabilities.offers).toMatchObject({ templateIds: ['offer-default'], resetPaths: ['appearance', 'density'], productBinding: 'route-product' });
+  expect(capabilities.offers.slots).toEqual({ 'offer.hero': 'hero', 'offer.faq': 'faq', 'offer.closing': 'cta' });
+});

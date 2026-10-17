@@ -41,13 +41,13 @@ function main(): void {
     if (options.has(arg)) { finish(result([{ code: 'SCHEMA', path: '', message: 'Invalid command options' }]), 2); return; }
     if (['--json', '--capabilities'].includes(arg)) options.set(arg, 'true');
     else if (arg === '--print-schema' && (!args[i + 1] || args[i + 1].startsWith('--'))) options.set(arg, 'config');
-    else if (['--config', '--recipe', '--fixture', '--mode', '--print-schema', '--contract'].includes(arg) && args[i + 1] && !args[i + 1].startsWith('--')) options.set(arg, args[++i]);
+    else if (['--config', '--offer-config', '--recipe', '--fixture', '--mode', '--print-schema', '--contract'].includes(arg) && args[i + 1] && !args[i + 1].startsWith('--')) options.set(arg, args[++i]);
     else { finish(result([{ code: 'SCHEMA', path: '', message: 'Invalid command options' }]), 2); return; }
   }
-  const commands = ['--config', '--recipe', '--print-schema', '--capabilities'].filter(key => options.has(key));
+  const commands = ['--config', '--offer-config', '--recipe', '--print-schema', '--capabilities'].filter(key => options.has(key));
   const mode = options.get('--mode') ?? 'draft';
   const phase2 = options.get('--contract') === 'phase2';
-  if (commands.length !== 1 || (options.has('--contract') && (!phase2 || !['--config', '--recipe'].includes(commands[0]) || mode !== 'draft' || options.has('--fixture'))) || !['draft', 'publish'].includes(mode) || (commands[0] !== '--config' && (options.has('--mode') || options.has('--fixture'))) || (options.has('--print-schema') && !Object.hasOwn(templateSchemas(), options.get('--print-schema')!))) {
+  if (commands.length !== 1 || (options.has('--offer-config') && (options.has('--mode') || options.has('--fixture') || options.has('--contract'))) || (options.has('--contract') && (!phase2 || !['--config', '--recipe'].includes(commands[0]) || mode !== 'draft' || options.has('--fixture'))) || !['draft', 'publish'].includes(mode) || (commands[0] !== '--config' && (options.has('--mode') || options.has('--fixture'))) || (options.has('--print-schema') && !Object.hasOwn(templateSchemas(), options.get('--print-schema')!))) {
     finish(result([{ code: 'SCHEMA', path: '', message: 'Invalid command options' }]), 2); return;
   }
   if (options.has('--capabilities') || options.has('--print-schema')) {
@@ -59,7 +59,7 @@ function main(): void {
     if (!input.valid) { finish(input, 1); return; }
     const fixture = options.has('--fixture') ? readInput(options.get('--fixture')!) : undefined;
     if (fixture && !fixture.valid) { finish({ ...fixture, errors: fixture.errors.map(issue => ({ ...issue, path: '/fixture' + issue.path })) }, 1); return; }
-    const checked = phase2 ? validatePhase2(input.data, options.has('--recipe') ? 'recipe' : 'config') : options.has('--recipe') ? validateRecipe(input.data) : checkTemplate(input.data, mode as 'draft' | 'publish', fixture?.data);
+    const checked = options.has('--offer-config') ? validatePhase2(input.data, 'offer-config') : phase2 ? validatePhase2(input.data, options.has('--recipe') ? 'recipe' : 'config') : options.has('--recipe') ? validateRecipe(input.data) : checkTemplate(input.data, mode as 'draft' | 'publish', fixture?.data);
     finish(checked, checked.valid ? 0 : 1);
   } catch {
     process.stderr.write('Unable to read template input\n');

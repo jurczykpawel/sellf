@@ -192,6 +192,7 @@ function addSecurityHeaders(
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  const isTemplateAuthorApi = pathname.startsWith('/api/v1/templates/') || /^\/api\/v1\/products\/[^/]+\/offer\//.test(pathname);
 
   // A direct SSR page, outside intl/session layouts. No scripts may execute.
   if (pathname.startsWith('/template-preview/')) {
@@ -236,14 +237,14 @@ export async function proxy(request: NextRequest) {
   }
 
   // Demo mode: block mutating requests on API routes
-  if (!pathname.startsWith('/api/v1/templates/') && isDemoBlocked(pathname, request.method)) {
+  if (!isTemplateAuthorApi && isDemoBlocked(pathname, request.method)) {
     return applyHeaders(NextResponse.json(DEMO_MODE_API_ERROR, { status: 403 }));
   }
 
   // Body size limit for API routes (1MB) — prevents large payload DoS
   // Server actions have their own bodySizeLimit in next.config.ts
   const MAX_API_BODY_SIZE = 1_048_576 // 1MB
-  if (pathname.startsWith('/api') && !pathname.startsWith('/api/v1/templates/') && (request.method === 'POST' || request.method === 'PUT' || request.method === 'PATCH')) {
+  if (pathname.startsWith('/api') && !isTemplateAuthorApi && (request.method === 'POST' || request.method === 'PUT' || request.method === 'PATCH')) {
     const contentLength = request.headers.get('content-length')
     if (contentLength && parseInt(contentLength, 10) > MAX_API_BODY_SIZE) {
       return applyHeaders(NextResponse.json(

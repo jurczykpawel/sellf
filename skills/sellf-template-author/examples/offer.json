@@ -1,0 +1,49 @@
+{
+  "format": 1,
+  "enabled": true,
+  "templateId": "offer-default",
+  "settings": {
+    "density": "comfortable"
+  },
+  "content": {
+    "offer.hero": {
+      "sourceLocale": "en",
+      "en": {
+        "kind": "hero",
+        "eyebrow": "Workshop",
+        "heading": "Build your first useful automation",
+        "body": "A practical workshop with time to build and test your workflow.",
+        "steps": []
+      },
+      "pl": {
+        "kind": "hero",
+        "eyebrow": "Warsztat",
+        "heading": "Zbuduj swoją pierwszą automatyzację",
+        "body": "Praktyczny warsztat, na którym zbudujesz i przetestujesz swój proces.",
+        "steps": []
+      }
+    },
+    "offer.faq": {
+      "sourceLocale": "en",
+      "en": {
+        "kind": "faq",
+        "items": [
+          {
+            "id": "prepare",
+            "question": "What should I prepare?",
+            "answer": "Bring a workflow you would like to automate."
+          }
+        ]
+      }
+    },
+    "offer.closing": {
+      "sourceLocale": "en",
+      "en": {
+        "kind": "cta",
+        "heading": "Build your workflow",
+        "body": "Review the workshop details before purchasing."
+      }
+    }
+  },
+  "tokens": null
+}

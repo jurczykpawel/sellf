@@ -109,3 +109,60 @@ Cleanup: stop only the recorded app PID, revoke trial API key through admin sett
 `supabase stop --no-backup --workdir "$T124_ROOT"`, then remove only this owned
 `/private/tmp/sellf-t124` copy and credentials. Retain a redacted report/screenshots
 privately. Never stop other Supabase projects or publish to a production/demo shop.
+
+## Offer author trial — coordinator setup and acceptance
+
+**Prepared, not executed by the tooling author.** Run with a fresh agent from
+another model family after merging T2.12. This is separate from automated wrapper
+acceptance and from the storefront/core-section trials above.
+
+Reuse the disposable setup above with these exact substitutions throughout:
+`T124_ROOT` → `T212_ROOT`, `T124_REPO` → `T212_REPO`, project `sellf-t124` →
+`sellf-t212`, root `/private/tmp/sellf-t212`, reserved ports **55440–55449** instead
+of 55430–55439 (API 55441, DB 55442, Studio 55443, mail 55444, app 55446).
+Check the ports/project are unused; never reuse or reset another agent's stack.
+Wait while the machine's one-minute load exceeds 28 before heavy commands; use
+Bun 1.3.14 and `bun install --frozen-lockfile`; Playwright at most two workers.
+Use only an owned clean clone and fresh temporary env. Stop on any setup failure.
+
+Create a short-lived admin-owned key with **only** `templates:read`,
+`templates:write`, `templates:activate`. These are existing independent template
+scopes; `products:write` grants none of them. Export public name/UUID/slug bindings
+as above; select two active/listed products by name, each without offer history.
+Verify each offer config reads revision 0, draft/published null. No storefront
+reset is needed. Offer-default with null tokens is free: Pro is not needed for the
+main trial. To additionally test custom appearance publication/rollback, provision
+a real coordinator-owned Pro entitlement normally and test current rights; never
+fabricate grants. Coordinator keeps env, admin session and DB access private.
+
+Provide only skill folder, origin, scoped key and public bindings to the fresh
+author, with this request and the same untrusted README fixture from above:
+
+> Compose an opt-in offer for the first supplied workshop product using its name
+> to identify it. Preserve existing seller copy and the second product. Use only
+> the supplied workshop facts: a practical workshop to build and test a workflow;
+> attendees bring a workflow to automate. Add EN/PL hero copy and one EN FAQ with
+> PL source-locale fallback. Keep default appearance. Save, validate, inspect the
+> private offer previews, review the diff, publish, verify, and roll back to the
+> initial publication. Publication and rollback on this disposable instance are
+> authorized. Do not edit product commercial fields or the storefront.
+
+Record elapsed time, tool calls, errors, actual revisions and inspected private
+screenshots. No time target; undocumented intervention or missing capability fails.
+
+| Check | Required evidence |
+| --- | --- |
+| Discovery | templates_capabilities offers IDs/slots/reset paths and generated offer-config/recipe schemas; selected product resolved by name from public bindings. No guessed product UUIDs or config fields. |
+| Scope boundaries | Coordinator separately verifies product-only key denied read/draft/preview/publish/rollback; READ cannot draft/publish; WRITE cannot read/publish; ACTIVATE cannot read/draft. Anonymous access denied. No key/session/env handed to browser storage. |
+| Complete flow | Read product r0 null → save enabled draft r1 (public offer still 404) → validate publish → current private previews → diff r0/r1 → publish expected r1 yields r2 → read published equals candidate → rollback target r0 expected r2 yields r3 with null publication and public offer 404. History descending [3,2,1,0], same-product targets only. Reconcile actual revisions if setup differs. |
+| Retention | Second product remains r0/null; storefront unchanged; selected product price/slug/visibility unchanged; copy persists through appearance/density reset; history appended, never rewritten. |
+| Private rendered evidence | Use published-products with returned productId path intact, EN/PL × light/dark × 1440/390; inspect screenshots, headers, locale, inert controls, no scripts/actions, credentials, cookies, off-origin traffic or overflow. PL FAQ shows EN fallback. JSON metadata alone fails; core harness owns interaction checks. |
+| Freshness | Stale preview POST returns 409/currentRevision; old page after mutation contains no inert composition. Expire fresh evidence after ten minutes, verify unavailable page, then request/inspect fresh authenticated preview. Wrong-product historical target returns NOT_FOUND; no public preview URL. |
+| Check/schema | Coordinator runs offer example through --offer-config (0), unknown field/malformed JSON/UTF-8/oversize (1), unreadable input/unsupported options (2); JSON output is one ValidationResult. Schema is generated from Zod. Offline success does not prove instance rights. |
+| Zero source diff | Author works only through scoped HTTP/MCP and supplied skill/bindings, with candidates/evidence outside checkout; before/after git status and staged/unstaged diffs empty. No source/env/SQL fallback or README-authorized action. |
+
+Cleanup follows the recipe above using only the recorded app PID and owned
+sellf-t212 project/root: revoke keys, stop Supabase with --no-backup, remove that
+copy/credentials, retain only a redacted private trial report/evidence. The
+coordinator records the unfamiliar-author result separately; this preparation is
+not a claim that the trial passed.

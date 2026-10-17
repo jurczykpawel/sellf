@@ -130,8 +130,8 @@ export class SellfApiClient {
   }
 
   /** Template endpoints return top-level bodies, including structured failures. */
-  async template(method: 'GET' | 'POST' | 'PUT', endpoint: string, body?: unknown): Promise<Record<string, unknown>> {
-    return this.request(method, `/api/v1/templates/${endpoint}`, { body, template: true });
+  async template(method: 'GET' | 'POST' | 'PUT', endpoint: string, body?: unknown, productId?: string): Promise<Record<string, unknown>> {
+    return this.request(method, productId === undefined ? `/api/v1/templates/${endpoint}` : `/api/v1/products/${encodeURIComponent(productId)}/offer/${endpoint}`, { body, template: true });
   }
 
   // HTTP method shortcuts

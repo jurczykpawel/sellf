@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { checkTemplate } from '@/lib/storefront-templates/check';
 import { DEFAULT_CONFIG, D_CONFIG, PUBLIC_FIXTURE } from '@/lib/storefront-templates/fixtures';
+import { validatePhase2 } from '@/lib/storefront-templates/phase2-contracts';
 import { parseBoundedJson } from '@/lib/storefront-templates/json';
 
 const directory = resolve(process.cwd(), '../skills/sellf-template-author/examples');
@@ -20,4 +21,10 @@ describe('shipped author examples', () => {
       if (name === 'd') expect(checked.warnings.some(issue => issue.code === 'TRANSLATION_FALLBACK')).toBe(true);
     });
   }
+});
+
+it('checks the complete offer starter with the frozen offer contract', () => {
+  const parsed = parseBoundedJson(readFileSync(resolve(directory, 'offer.json')));
+  expect(parsed.valid).toBe(true);
+  if (parsed.valid) expect(validatePhase2(parsed.data, 'offer-config').valid).toBe(true);
 });

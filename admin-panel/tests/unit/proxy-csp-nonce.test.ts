@@ -64,3 +64,12 @@ describe('proxy CSP nonce', () => {
     expect(res.headers.get('Strict-Transport-Security')).toContain('max-age=');
   });
 });
+
+it.each(['/api/v1/templates/validate', '/api/v1/products/example/offer/validate'])('delegates author request policy to the scoped adapter: %s', async path => {
+  vi.stubEnv('DEMO_MODE', 'true');
+  try {
+    const response = await proxy(new NextRequest(`http://localhost${path}`, { method: 'POST', headers: { 'content-length': '1048577' } }));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-middleware-next')).toBe('1');
+  } finally { vi.unstubAllEnvs(); }
+});

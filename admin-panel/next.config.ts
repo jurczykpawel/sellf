@@ -161,6 +161,13 @@ const nextConfig: NextConfig = {
         source: '/api/:path*',
         headers: buildApiSecurityHeaders(),
       },
+      ...['/api/v1/templates/:path*', '/api/v1/products/:id/offer/:path*'].map((source) => ({
+        source,
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+        ],
+      })),
       // Public license verification material is safe and intentionally cached.
       // These exact routes come after the generic API rule so this value wins.
       ...['/api/licenses/jwks', '/api/licenses/revoked'].map((source) => ({

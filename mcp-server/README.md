@@ -263,3 +263,12 @@ Template purchase keys use `templates_license_activate` (templates:write) with
 Saving starts at unknown, with verification performed in the background; it does
 not publish, grant Pro, or authorize a new key during an issuer outage. Both tools
 return status only. Never put purchase keys into preview evidence, URLs or logs.
+
+Product offer authoring uses `offers_read`, `offers_draft`, `offers_validate`,
+`offers_preview`, `offers_diff`, `offers_history`, `offers_reset`, `offers_publish`
+and `offers_rollback`. Every tool takes an existing `productId`; transport targets
+`/api/v1/products/:id/offer/*` with independent `templates:read/write/activate`
+scopes, not product-write. Discover the generated offer schemas/slots/reset paths
+with `templates_capabilities`. Preview paths require READ headers on every visit;
+no public share URL. See [offer workflow](../skills/sellf-template-author/references/offers.md)
+and [coordinator trial](../docs/templates/author-trial.md).

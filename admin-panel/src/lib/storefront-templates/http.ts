@@ -6,6 +6,7 @@ import { API_SCOPES } from '@/lib/api/scope-constants';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { templateCapabilities } from '@/lib/storefront-templates/capabilities';
 import { ENVELOPE_BYTES, parseBoundedJson, result } from '@/lib/storefront-templates/json';
+import { offerLifecycle } from '@/lib/storefront-templates/offer-lifecycle';
 import { storefrontLifecycle } from '@/lib/storefront-templates/lifecycle';
 import { getTemplatePrincipal, verifyTemplateApiKey, verifyTemplateSession } from '@/lib/storefront-templates/mutations';
 import { preparePreview, PREVIEW_HEADERS, previewSchema } from '@/lib/storefront-templates/preview';
@@ -24,8 +25,9 @@ const bodies = {
   diff: z.strictObject({ fromRevision: z.unknown(), toRevision: z.unknown() }),
   preview: previewSchema,
 };
+const offerBodies = { ...bodies, reset: z.strictObject({ expectedRevision: z.unknown(), field: z.unknown() }), history: z.strictObject({ beforeRevision: z.unknown().optional(), limit: z.unknown().optional() }) };
 export interface TemplateHttpPreviewResult extends PreviewResult { previewPath: string }
-type Operation = keyof typeof bodies | 'read' | 'capabilities' | 'license_status';
+type Operation = keyof typeof offerBodies | 'read' | 'capabilities' | 'license_status';
 const json = (data: unknown, status = 200): NextResponse => NextResponse.json(data, { status, headers: { ...PREVIEW_HEADERS, ...(status === 429 ? { 'Retry-After': '60' } : {}) } });
 function responseFailure(code: string, status: number, validation: ValidationResult | null, operation: Operation): NextResponse {
   return json({ code, message: `Storefront ${operation} could not be completed`, validation, currentRevision: null }, status);
@@ -37,7 +39,7 @@ export async function templateRequestPrincipal(request: NextRequest) {
     ? verifyTemplateApiKey(request, true) : verifyTemplateSession(request, true);
 }
 
-export async function templateHttp(request: NextRequest, operation: Operation): Promise<NextResponse> {
+export async function templateHttp(request: NextRequest, operation: Operation, productId?: string): Promise<NextResponse> {
   const failure = (code: string, status: number, validation: ValidationResult | null = null) => responseFailure(code, status, validation, operation);
   try {
     const auth = await templateRequestPrincipal(request);
@@ -47,6 +49,8 @@ export async function templateHttp(request: NextRequest, operation: Operation): 
     const actor = getTemplatePrincipal(auth, scope);
     if (!actor) return failure('FORBIDDEN', 403);
     if (!(await checkRateLimit('storefront_http', 120, 1, actor.userId))) return failure('RATE_LIMITED', 429);
+    if (productId !== undefined && !z.uuid().safeParse(productId).success) return failure('INVALID', 422, result([{ code: 'SCHEMA', path: '/productId', message: 'Invalid product identifier' }]));
+    if (operation === 'history' && productId === undefined) return failure('INVALID', 422);
     if (operation === 'capabilities') return json(templateCapabilities());
     let input: Record<string, unknown> = {};
     const byteLimit = operation === 'license_save' ? 16384 : ENVELOPE_BYTES;
@@ -69,7 +73,7 @@ export async function templateHttp(request: NextRequest, operation: Operation): 
       }
       const parsed = parseBoundedJson(Buffer.concat(chunks), byteLimit, true);
       if (!parsed.valid) return failure(parsed.errors.some(e => e.code === 'LIMIT') ? 'LIMIT' : 'INVALID', 422, parsed);
-      const strict = bodies[operation].safeParse(parsed.data);
+      const strict = (productId !== undefined ? offerBodies[operation] : bodies[operation as keyof typeof bodies]).safeParse(parsed.data);
       if (!strict.success) {
         const limit = strict.error.issues.some(issue => issue.path.includes('revision'));
         return failure(limit ? 'LIMIT' : 'INVALID', 422, result([{ code: limit ? 'LIMIT' : 'SCHEMA', path: limit ? '/revision' : '', message: 'Invalid request fields', ...(limit ? { limit: Number.MAX_SAFE_INTEGER } : {}) }]));
@@ -83,7 +87,7 @@ export async function templateHttp(request: NextRequest, operation: Operation): 
     }
     if (operation === 'preview') {
       const issuedAt = Date.now();
-      const preview = await preparePreview(auth, input, issuedAt);
+      const preview = await preparePreview(auth, input, issuedAt, productId);
       if (!preview.success) {
         const { code, message, validation, currentRevision } = preview;
         return json({ code, message, validation, currentRevision }, preview.status);
@@ -91,15 +95,18 @@ export async function templateHttp(request: NextRequest, operation: Operation): 
       const { revision, locale, fixture, expiresAt, validation, effectiveTokens, unusedSlots } = preview.data;
       const evidence = { revision, locale, fixture, expiresAt, validation, effectiveTokens, unusedSlots };
       const query = new URLSearchParams({ locale: evidence.locale, fixture: evidence.fixture, issuedAt: String(issuedAt) });
+      if (productId !== undefined) query.set('productId', productId.toLowerCase());
       const data: TemplateHttpPreviewResult = { ...evidence, previewPath: `/template-preview/${evidence.revision}?${query}` };
       return json(data);
     }
-    const response = await storefrontLifecycle(auth, { ...input, operation });
+    const response = productId !== undefined
+      ? await offerLifecycle(auth, { ...input, operation, productId })
+      : await storefrontLifecycle(auth, { ...input, operation });
     if (!response.success) {
       const { code, message, validation, currentRevision } = response;
       return json({ code, message, validation, currentRevision }, response.status);
     }
-    if ('data' in response) return json(response.data);
+    if ('data' in response) return json(operation === 'history' ? { history: response.data } : response.data);
     const { revision, validation } = response;
     return json({ revision, validation });
   } catch (error) {

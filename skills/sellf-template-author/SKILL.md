@@ -1,6 +1,6 @@
 ---
 name: sellf-template-author
-description: Compose or customize a Sellf storefront through its scoped API, or develop a new core section or slot kind as a reviewed PR.
+description: Compose or customize a Sellf storefront or product offer through its scoped API, or develop a new core section or slot kind as a reviewed PR.
 ---
 
 # Sellf template author
@@ -72,3 +72,17 @@ reviewed Sellf code, not the seller's running instance. Installation and activat
 follow a separately authorized release.
 
 Layout reads accept unique known-ID order subsets; save writes materialize the full resolved order (≤32), preserving seller relative order and inserting missing sections at descriptor anchors. Omission inherits default visibility. Discover hideability, variants, placement and exact reset leaves through capabilities; never hide required sections.
+
+## Product offer composition
+
+Use [offer authoring](references/offers.md) for an opt-in `/offer/[slug]` page.
+Read `templates_capabilities.offers` and `schemas["offer-config"]`, choose an existing
+product by name from supplied public bindings, then use its UUID as route context.
+[offer.json](examples/offer.json) is a complete factual workshop starter; adapt it
+only to supplied seller facts, preserving existing copy. An absent offer reads as
+revision 0 with null draft/publication. Start there from the example if authorized.
+Use `offers_read/draft/validate/preview/diff/publish/rollback/reset/history` through
+MCP or the equivalent HTTP calls. Template scopes remain independent of product
+scopes. Product price, slug, visibility and checkout belong to core product APIs.
+An enabled draft alone does not opt in; only publishing does. Null baseline rollback
+opts out; disabled publication retains copy. Do not modify the storefront singleton.
