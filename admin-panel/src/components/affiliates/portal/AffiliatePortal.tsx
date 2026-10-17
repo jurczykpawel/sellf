@@ -17,7 +17,7 @@ export default function AffiliatePortal({ data, locale, currency, memberId }: Pr
   const fields = ['accrued', 'reversed', 'held', 'eligible', 'reserved', 'paid', 'debt', 'balance'] as const;
   return <section className={styles.portal} lang={locale} aria-labelledby="affiliate-title">
     <meta name="robots" content="noindex,nofollow" />
-    <h1 id="affiliate-title">{m.title}</h1>
+    {memberId ? <h2 id="affiliate-title">{m.selectedPartner}</h2> : <h1 id="affiliate-title">{m.title}</h1>}
     <p><strong>{data.member.code}</strong> · {memberStatus}</p>
     <p>{m.asOf}: {date(data.as_of)}</p>
     {data.sync_pending && <p className={styles.notice} role="status">{m.pending}</p>}
@@ -32,7 +32,7 @@ export default function AffiliatePortal({ data, locale, currency, memberId }: Pr
     <details className={styles.help}><summary>{m.help}</summary><p>{m.definitions}</p><div className={styles.grid}>
       {data.balances.map(b => <article className={styles.card} key={b.currency}><h3>{b.currency}</h3><dl>{fields.map(field => <div className={styles.row} key={field}><dt>{m[field]}</dt><dd>{money(b[field], b.currency)}</dd></div>)}</dl></article>)}
     </div></details>
-    <div className={styles.grid}><section><h2>{m.codes}</h2><ul>{data.codes.map(c => <li key={c.code}><code>{c.code}</code> · {c.active ? m.active : m.inactive}</li>)}</ul>
+    <div className={styles.grid}><section><h2>{memberId ? m.adminCodes : m.codes}</h2><ul>{data.codes.map(c => <li key={c.code}><code>{c.code}</code> · {c.active ? m.active : m.inactive}</li>)}</ul>
     </section><section><h2>{m.rules}</h2><p>{m.subscription}</p><ul>{data.rules.map((r, i) => <li key={i}>{r.product}: {r.percentage_bps !== null ? `${r.percentage_bps / 100}%` : money(r.fixed_minor!, r.currency!)} · {r.enabled ? m.active : m.inactive}</li>)}</ul>
     </section></div><h2>{m.commissions}</h2>
     <div className={styles.listHeader} aria-hidden="true"><span>{m.earnedOn}</span><span>{m.product}</span><span>{m.commissionAmount}</span><span>{m.commissionStatus}</span></div>

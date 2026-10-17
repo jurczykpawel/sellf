@@ -4708,6 +4708,12 @@
     "protectedIntro": "Te strony dziedziczą wybrane kolory i krój pisma. Sellf zachowuje czytelne rozmiary tekstu, zaokrąglenia i elementy płatności. Poniżej ustawienia po zastosowaniu tych zasad."
   },
   "affiliates": {
+    "earningsTitle": "Prowizje partnerów",
+    "earningsHint": "Wybierz partnera, aby sprawdzić prowizje, okres oczekiwania i salda wypłat w poszczególnych walutach. Kwoty dotyczą bieżącego trybu Stripe.",
+    "earningsSelect": "Wybierz partnera powyżej, aby zobaczyć jego prowizje. Możesz wyszukać go po nazwie.",
+    "earningsEmpty": "Nie ma jeszcze zgłoszeń partnerów. Sprawdź zgłoszenia i zaakceptuj partnerów, aby rozpocząć współpracę.",
+    "manageApplications": "Zarządzaj zgłoszeniami",
+    "loadingPartners": "Wczytywanie partnerów…",
     "programNotConfigured": "Program partnerski nie został jeszcze skonfigurowany.",
     "programSettings": "Przejdź do ustawień programu",
     "navigation": "Program partnerski",
@@ -4889,6 +4895,8 @@
       "archive": "Archiwizuj (zachowaj historię)"
     },
     "portal": {
+      "selectedPartner": "Wybrany partner",
+      "adminCodes": "Kody kuponów partnera",
       "syncError": "Błędy synchronizacji",
       "sessionError": "Sesja płatności wymaga sprawdzenia",
       "fulfillmentWait": "Oczekuje na realizację zamówienia",

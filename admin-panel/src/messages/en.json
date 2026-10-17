@@ -4708,6 +4708,12 @@
     "protectedIntro": "These pages inherit selected colours and the font. Sellf keeps readable text sizes, corners and payment controls. These are the values after those rules apply."
   },
   "affiliates": {
+    "earningsTitle": "Partner earnings",
+    "earningsHint": "Choose a partner to review commissions, waiting periods and payout balances by currency. These figures reflect the current Stripe mode.",
+    "earningsSelect": "Select a partner above to see their earnings. Search by name to find them quickly.",
+    "earningsEmpty": "No partner applications yet. Review applications and approve partners to start your program.",
+    "manageApplications": "Manage applications",
+    "loadingPartners": "Loading partners…",
     "programNotConfigured": "The affiliate program has not been set up yet.",
     "programSettings": "Go to program settings",
     "navigation": "Affiliate program",
@@ -4889,6 +4895,8 @@
       "archive": "Archive (keep history)"
     },
     "portal": {
+      "selectedPartner": "Selected partner",
+      "adminCodes": "Partner’s coupon codes",
       "syncError": "Synchronization errors",
       "sessionError": "Payment session needs checking",
       "fulfillmentWait": "Waiting for order completion",
