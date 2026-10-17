@@ -123,7 +123,7 @@ export default function LoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             className="w-full px-4 py-3 bg-sf-float border border-sf-border rounded-xl text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent transition-all"
-            placeholder={t('auth.passwordPlaceholder')}
+            placeholder={t('auth.passwordEntryPlaceholder')}
           />
         </div>
       )}

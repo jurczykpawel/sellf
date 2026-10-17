@@ -568,6 +568,7 @@
     }
   },
   "auth": {
+    "passwordEntryPlaceholder": "Wpisz hasło",
     "login": "Zaloguj się",
     "logout": "Wyloguj się",
     "email": "Adres email",
