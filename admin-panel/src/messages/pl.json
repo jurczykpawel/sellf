@@ -4777,6 +4777,8 @@
     "unavailable": "Ta strona jest chwilowo niedostępna. Odśwież, aby spróbować ponownie.",
     "apply": "Zgłoś się do programu partnerskiego",
     "admin": {
+      "nameRequired": "Podaj nazwę (do 120 znaków).",
+      "acceptRequired": "Zaakceptuj regulamin programu, aby kontynuować.",
       "newTermsVersion": "Ten regulamin został już opublikowany. Nadaj zmienionej treści nową wersję i zapisz ponownie.",
       "codeHint": "Użyj 3–40 małych liter, cyfr, myślników lub podkreśleń.",
       "amountInvalid": "Wpisz poprawną kwotę wypłaty w każdej walucie. Grosze oddziel przecinkiem lub kropką.",

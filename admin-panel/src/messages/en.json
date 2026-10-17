@@ -4777,6 +4777,8 @@
     "unavailable": "This page is temporarily unavailable. Refresh to try again.",
     "apply": "Apply to become a partner",
     "admin": {
+      "nameRequired": "Enter your name (up to 120 characters).",
+      "acceptRequired": "Accept the program terms to continue.",
       "newTermsVersion": "These terms were already published. Give the changed terms a new version and save again.",
       "codeHint": "Use 3–40 lowercase letters, numbers, hyphens or underscores.",
       "amountInvalid": "Enter a valid payout amount for each currency. Use a dot or comma for decimals.",
