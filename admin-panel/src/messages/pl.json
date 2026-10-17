@@ -55,6 +55,9 @@
       "publishVersion": "Opublikuj tę wersję"
   },
   "checkout": {
+    "removeCoupon": "Usuń kod rabatowy",
+    "couponEntryPrompt": "Masz kod rabatowy?",
+    "couponEntryLabel": "Kod rabatowy",
     "title": "Dokończ Zakup",
     "emailAddress": "Adres Email",
     "linkedToAccount": "Ten zakup zostanie przypisany do twojego konta.",

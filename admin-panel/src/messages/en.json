@@ -55,6 +55,9 @@
       "publishVersion": "Publish this version"
   },
   "checkout": {
+    "removeCoupon": "Remove discount code",
+    "couponEntryPrompt": "Have a discount code?",
+    "couponEntryLabel": "Discount code",
     "title": "Complete Your Purchase",
     "emailAddress": "Email Address",
     "linkedToAccount": "This purchase will be linked to your account.",

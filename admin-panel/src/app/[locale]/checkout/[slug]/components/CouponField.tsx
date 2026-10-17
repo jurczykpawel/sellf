@@ -1,5 +1,6 @@
 'use client';
 
+import { useId, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import type { AppliedCoupon } from '@/types/coupon';
@@ -30,15 +31,22 @@ export default function CouponField({
   const t = useTranslations('checkout');
   const locale = useLocale();
 
-  if (!showCouponInput && !appliedCoupon) return null;
+  const [expanded, setExpanded] = useState(false);
+  const id = useId();
+  if (!expanded && !showCouponInput && !appliedCoupon) return <button type="button" onClick={() => setExpanded(true)} aria-expanded={false} className="mb-4 cursor-pointer text-sm text-sf-accent underline underline-offset-4">{t('couponEntryPrompt')}</button>;
 
   return (
     <div className="mb-4">
       <div className="animate-in fade-in slide-in-from-top-1 duration-300">
         <div className="flex gap-2">
-          <div className="relative flex-1">
+          <div className="relative min-w-0 flex-1">
+            <label className="sr-only" htmlFor={id}>{t('couponEntryLabel')}</label>
             <input
+              id={id}
               type="text"
+              maxLength={100}
+              autoComplete="off"
+              onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); if (couponCode && !isVerifying && !appliedCoupon) onApply(); } }}
               value={couponCode}
               onChange={(e) => onCodeChange(e.target.value.toUpperCase())}
               placeholder={t('couponPlaceholder')}
@@ -58,6 +66,7 @@ export default function CouponField({
           </div>
           {!appliedCoupon ? (
             <button
+              type="button"
               onClick={onApply}
               disabled={!couponCode || isVerifying}
               className="px-4 py-2 bg-sf-raised hover:bg-sf-hover text-sf-heading text-sm rounded-lg transition-all disabled:opacity-50"
@@ -66,6 +75,8 @@ export default function CouponField({
             </button>
           ) : (
             <button
+              type="button"
+              aria-label={t('removeCoupon')}
               onClick={onRemove}
               className="px-2 py-2 text-sf-muted hover:text-sf-danger transition-colors"
             >
@@ -76,7 +87,7 @@ export default function CouponField({
           )}
         </div>
         {couponError && !appliedCoupon && (
-          <p className="text-[10px] text-sf-danger mt-1 ml-1">{couponError}</p>
+          <p role="alert" className="text-sm text-sf-danger mt-1 ml-1">{couponError}</p>
         )}
         {appliedCoupon && (
           <p className="text-[10px] text-sf-success mt-1 ml-1 font-medium uppercase tracking-wider">
