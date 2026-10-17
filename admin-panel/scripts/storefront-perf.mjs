@@ -12,6 +12,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { chromium, expect } from '@playwright/test';
 import { parse } from 'dotenv';
 import { normalizeLicenseDomain } from '@/lib/license-keys/domain';
+import { PRODUCT_PUBLIC_COLUMNS_CSV } from '@/lib/product-columns';
+import { SHOP_CONFIG_PUBLIC_COLUMNS_CSV } from '@/lib/shop-config-columns';
 
 const admin = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const root = resolve(admin, '..');
@@ -95,9 +97,18 @@ async function queryAcceptance(size, search = 'Performance course') {
     [{ pageSize: 24 }, null, null, ['10000000-0000-4000-8000-000000000001']],
   ];
   const literal = value => value === null ? 'NULL' : `'${String(value).replaceAll("'", "''")}'`;
+  assert.equal(Number(sql(`SELECT count(*) FROM public.products WHERE normalize(name,NFC) ILIKE ${literal('%' + search + '%')};`)), size, 'Load the declared catalogue fixture before profiling');
   const queries = cases.map(([filters, timestamp, id, ids]) => `SELECT count(*) FROM public.storefront_catalogue_page(${literal(JSON.stringify(filters))},${literal(timestamp)},${literal(id)},${ids ? `ARRAY[${ids.map(literal).join(',')}]::uuid[]` : 'NULL'});`).join('\n');
+  const hotReads = `SET LOCAL ROLE service_role;
+    EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT published FROM public.storefront_config WHERE id=true;
+    EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT * FROM public.storefront_catalogue_categories(ARRAY['20000000-0000-4000-8000-000000000001']::uuid[]);
+    RESET ROLE; SET LOCAL ROLE anon;
+    SELECT set_config('request.jwt.claims','{"role":"anon"}',true);
+    EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT ${SHOP_CONFIG_PUBLIC_COLUMNS_CSV} FROM public.shop_config LIMIT 1;
+    EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT ${PRODUCT_PUBLIC_COLUMNS_CSV} FROM public.products WHERE slug='perf-course-1';
+    EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT product_id,price,sale_price,effective_from FROM public.omnibus_price_history WHERE product_id='10000000-0000-4000-8000-000000000001' AND effective_from>=statement_timestamp()-interval '30 days';`;
   const output = await run('docker', ['exec', '-e', 'PGPASSWORD=postgres', '-i', container, 'psql', '-U', 'supabase_admin', '-d', 'postgres', '-X', '-v', 'ON_ERROR_STOP=1', '-c',
-    `LOAD 'auto_explain'; SET client_min_messages=log; SET auto_explain.log_min_duration=0; SET auto_explain.log_analyze=on; SET auto_explain.log_buffers=on; SET auto_explain.log_nested_statements=on; SET auto_explain.log_format=json; ${queries} SELECT storefront_catalogue_boundary();`], process.env, `plans-${size}.log`);
+    `LOAD 'auto_explain'; SET client_min_messages=log; SET auto_explain.log_min_duration=0; SET auto_explain.log_analyze=on; SET auto_explain.log_buffers=on; SET auto_explain.log_nested_statements=on; SET auto_explain.log_format=json; BEGIN; ${queries} SELECT storefront_catalogue_boundary(); ${hotReads} ROLLBACK;`], process.env, `plans-${size}.log`);
   const plans = [...output.matchAll(/plan:\s*(\{[\s\S]*?\n\})/g)].map(match => JSON.parse(match[1]));
   assert.equal(plans.filter(plan => plan['Query Text'].includes('WITH eligible')).length, cases.length, 'Every nested catalogue plan must be captured');
   const scans = [];
@@ -108,7 +119,7 @@ async function queryAcceptance(size, search = 'Performance course') {
   for (const plan of plans) visit(plan.Plan);
   await writeFile(resolve(out, `scans-${size}.json`), JSON.stringify(scans, null, 2));
   // Scanning a tiny relation can be cheaper than 25 independent history seeks.
-  assert(size < 100000 || scans.filter(scan => ['products', 'product_price_history'].includes(scan.relation)).every(scan => scan.rows <= 250), '100k pages must seek bounded product/history rows');
+  assert(size < 100000 || scans.filter(scan => ['products', 'product_price_history', 'product_categories'].includes(scan.relation)).every(scan => scan.rows <= 250), '100k pages must seek bounded product/history/category rows');
 }
 await mkdir(out, { recursive: true });
 try {
@@ -118,7 +129,7 @@ try {
   assert.equal(status.API_URL, 'http://127.0.0.1:55321');
   assert.equal(command('docker', ['ps', '--filter', 'publish=55321', '--format', '{{.Names}}']).trim(), 'supabase_kong_sellf-perf');
   if (process.argv.includes('--sql-only')) {
-    await queryAcceptance(100000, 'Catalogue fixture');
+    await queryAcceptance(100000, process.argv.includes('--original-fixture') ? 'Catalogue fixture' : 'Performance course');
   } else {
   const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
   const domain = normalizeLicenseDomain(origin); assert(domain, 'Profile origin must support a domain-bound license');

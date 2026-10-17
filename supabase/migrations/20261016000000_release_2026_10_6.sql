@@ -288,14 +288,18 @@ BEGIN
       left(p.vat_exempt_note,501) vat_exempt_note,p.price_includes_vat,p.omnibus_exempt,
       p.auto_grant_duration_days,p.available_until
     FROM public.products p
+    -- The unique junction key makes the per-candidate count an intersection.
+    CROSS JOIN LATERAL (
+      SELECT count(*) FROM public.product_categories pc
+      WHERE pc.product_id=p.id AND pc.category_id=ANY(categories)
+      HAVING count(*)=cardinality(categories)
+    ) membership
     WHERE p.is_active AND p.is_listed
       AND (p.available_from IS NULL OR p.available_from<=statement_timestamp())
       AND (p.available_until IS NULL OR p.available_until>statement_timestamp())
       AND (product_ids IS NULL OR p.id=ANY(product_ids))
       AND (search_text='' OR normalize(p.name,NFC) ILIKE '%' || replace(replace(replace(search_text, E'\\', E'\\\\'), '%', E'\\%'), '_', E'\\_') || '%')
       AND (product_format IS NULL OR p.marketing_fields->>'format'=product_format)
-      AND NOT EXISTS (SELECT 1 FROM unnest(categories) c WHERE NOT EXISTS (
-        SELECT 1 FROM public.product_categories pc WHERE pc.product_id=p.id AND pc.category_id=c))
       AND (group_name<>'featured' OR p.is_featured)
       AND (price_kind IS NULL OR price_kind=CASE WHEN p.product_type='subscription' THEN 'subscription'
         WHEN p.allow_custom_price THEN 'pwyw' WHEN p.price=0 THEN 'free' ELSE 'one-time' END)
