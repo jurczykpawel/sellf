@@ -5,7 +5,7 @@ import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getTranslations, getLocale } from 'next-intl/server';
 import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
-import { isSafeRedirectUrl } from '@/lib/validations/redirect';
+import { resolveSafeRedirectPath } from '@/lib/validations/redirect';
 import { paymentStatusUrl, productUrl } from '@/lib/utils/product-urls';
 
 interface PaymentSuccessPageProps {
@@ -28,14 +28,14 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
   const paymentIntent = params.payment_intent;
   const productId = params.product_id;
   const redirectStatus = params.redirect_status;
-  const successUrl = params.success_url;
+  const successUrl = params.success_url ? resolveSafeRedirectPath(params.success_url) : null;
 
   // Handle Checkout Sessions flow
   const sessionId = params.session_id;
   const productSlug = params.product;
 
   // If we have success_url from OTO/funnel, redirect there (with open redirect protection)
-  if (successUrl && redirectStatus === 'succeeded' && isSafeRedirectUrl(successUrl)) {
+  if (successUrl && redirectStatus === 'succeeded') {
     redirect(successUrl);
   }
 

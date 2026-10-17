@@ -20,7 +20,10 @@ interface FreeProductInput {
 }
 
 function buildAuthCallbackUrl(origin: string, redirectPath: string): string {
-  return `${origin}/auth/callback?redirect_to=${encodeURIComponent(redirectPath)}`;
+  const path = getLoginReturnPath(redirectPath);
+  return path
+    ? `${origin}/auth/callback?redirect_to=${encodeURIComponent(path)}`
+    : `${origin}/auth/callback?flow=login`;
 }
 
 function buildProductAccessPath(productSlug: string, params?: Record<string, string | null | undefined>): string {
@@ -73,4 +76,24 @@ export function buildFreeProductMagicLinkRedirect(input: FreeProductInput): stri
     success_url: input.successUrl ?? undefined,
   });
   return buildAuthCallbackUrl(input.origin, redirectPath);
+}
+
+/** Supported product-access destinations, in their canonical wire form. */
+export function getLoginReturnPath(value: string | null | undefined): string | undefined {
+  if (!value || value.length > 4096 || /[\u0000-\u0020\u007f\\#]/.test(value)) return undefined;
+  const [path, query, ...rest] = value.split('?');
+  if (rest.length || !query || !/^\/(?:en\/|pl\/)?auth\/product-access$/.test(path)) return undefined;
+
+  const params = new URLSearchParams(query);
+  const product = params.get('product');
+  if (!product || !/^[a-zA-Z0-9_ -]{1,100}$/.test(product)) return undefined;
+  const limits: Record<string, number> = { product: 100, coupon: 64, success_url: 2048 };
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  for (const [key, item] of params) {
+    if (!Object.hasOwn(limits, key) || seen.has(key) || !item || item.length > limits[key] || /[\u0000-\u001f\u007f]/.test(item)) return undefined;
+    seen.add(key);
+    parts.push(`${key}=${encodeURIComponent(item)}`);
+  }
+  return parts.join('&') === query ? value : undefined;
 }

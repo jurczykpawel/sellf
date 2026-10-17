@@ -168,8 +168,9 @@ describe('Payment status page.tsx — source verification', () => {
   });
 
   it('uses success_redirect_url with open redirect protection', () => {
-    expect(pageSource).toContain('isSafeRedirectUrl(decoded)');
-    expect(pageSource).toContain("import { isSafeRedirectUrl } from '@/lib/validations/redirect'");
+    expect(pageSource).toContain('resolveSafeRedirectPath(resolvedSearchParams.success_url)');
+    expect(pageSource).not.toContain('decodeURIComponent(overrideRedirectUrl)');
+    expect(pageSource).toContain("import { resolveSafeRedirectPath } from '@/lib/validations/redirect'");
   });
 
   it('passes finalRedirectUrl to PaymentStatusView (no otoOffer prop)', () => {

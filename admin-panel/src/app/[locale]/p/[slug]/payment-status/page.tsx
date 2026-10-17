@@ -9,7 +9,7 @@ import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redire
 import { sendTrustedMagicLink } from '@/lib/auth/magic-link/request';
 import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
-import { isSafeRedirectUrl } from '@/lib/validations/redirect';
+import { resolveSafeRedirectPath } from '@/lib/validations/redirect';
 import { PaymentStatus } from './types';
 
 interface PageProps {
@@ -267,13 +267,9 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
     if (otoWasSkipped) {
       // OTO was skipped (user owns product) - no redirect
     } else {
-      let overrideRedirectUrl = resolvedSearchParams.success_url;
-      if (overrideRedirectUrl) {
-        const decoded = decodeURIComponent(overrideRedirectUrl).trim();
-        if (!isSafeRedirectUrl(decoded)) {
-          overrideRedirectUrl = undefined;
-        }
-      }
+      const overrideRedirectUrl = resolvedSearchParams.success_url
+        ? resolveSafeRedirectPath(resolvedSearchParams.success_url)
+        : null;
       const targetUrl = overrideRedirectUrl || product.success_redirect_url;
 
       if (targetUrl) {
