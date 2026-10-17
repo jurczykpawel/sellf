@@ -1,0 +1,44 @@
+/* C editorial geometry; appearance inherits approved public theme tokens. */
+.story {
+  box-sizing: border-box;
+  width: min(1248px, calc(100% - 96px));
+  margin: auto;
+  border-top: 1px solid var(--sf-border);
+  padding: 40px 0;
+  display: grid;
+  grid-template-columns: .8fr 1.8fr;
+  gap: 110px;
+  color: var(--sf-text-heading);
+  font-family: var(--sf-font-family);
+  overflow-wrap: anywhere;
+}
+.story h2 {
+  margin: 0;
+  font-size: 44px;
+  line-height: 1.12;
+  letter-spacing: -1.6px;
+  font-weight: 600;
+  white-space: pre-line;
+}
+.prose { min-width: 0; }
+.prose blockquote {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 28px;
+  line-height: 1.6;
+  letter-spacing: -.5px;
+  white-space: pre-line;
+}
+.prose p {
+  margin: 20px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--sf-text-body);
+  white-space: pre-line;
+}
+@media (max-width: 900px) { .story { width: calc(100% - 48px); } }
+@media (max-width: 600px) {
+  .story { width: calc(100% - 36px); display: block; padding: 30px 0; }
+  .story h2 { font-size: 32px; letter-spacing: -1px; }
+  .prose blockquote { font-size: 24px; margin-top: 20px; }
+}

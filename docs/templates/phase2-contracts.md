@@ -257,3 +257,22 @@ token colors replace prototype labels/colors. Newlines in the plain heading mark
 the editorial second phrase. Long/empty/missing media, dark, keyboard, reduced
 motion, 320/768/1440px, 200% zoom, escaping and request bounds run without a DB:
 `bunx playwright test --config playwright.sections.config.ts tests/storefront-author-hero.spec.ts --workers=1`.
+
+## T2.15 author story handoff
+
+`authorStoryDefinition` exposes `author-story/1`, `resolveAuthorStory` and the
+server-rendered `AuthorStory`. It binds only frozen `home.story` biography copy;
+there are no products, links, media or reads. Pass already localized public slots
+using the shared selection rule `slot[locale] ?? slot[slot.sourceLocale]`.
+Absent and entirely blank stories render nothing. The first nonblank paragraph
+uses C's Georgia lead treatment; subsequent paragraphs use supporting prose.
+Newlines remain plain text. No credentials or biography defaults are supplied.
+
+Serialized Phase 2 A→C→D fixtures retain both locale values byte-for-byte; source
+fallback is tested in both directions. C installation, editor/storage adoption
+and dispatch remain T2.18, using the existing D-056 `story` descriptor and frozen
+slot. No runtime registry, schema, migration or released fixture changes here.
+The isolated browser harness checks C story geometry within 2px, PL repeatable
+crops at .2/.005, EN/PL headings, keyboard traversal, contrast, dark/long/empty,
+320/390/768/1440px, reduced motion, 200% zoom and request bounds:
+`bunx playwright test --config playwright.sections.config.ts tests/storefront-author-story.spec.ts --workers=1`.
