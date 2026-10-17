@@ -8,6 +8,7 @@ import {
   buildFreeProductMagicLinkRedirect,
   buildLoginMagicLinkRedirect,
   buildPostCheckoutMagicLinkRedirect,
+  getLoginReturnPath,
 } from '@/lib/auth/magic-link-redirect';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { queuePendingFreeGrant } from '@/lib/services/pending-free-grants';
@@ -19,6 +20,7 @@ export interface MagicLinkRequestInput {
   email: string;
   captchaToken: string | null | undefined;
   flow: MagicLinkFlow;
+  redirectTo?: string;
   productSlug?: string;
   locale?: string;
   couponCode?: string;
@@ -45,6 +47,10 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
   // allow SITE_URL/auth/callback in Supabase Auth's redirect URL configuration.
   try {
     const redirect = new URL(input.redirectTo);
+    const returnPaths = redirect.searchParams.getAll('redirect_to');
+    if (returnPaths.length > 1 || (returnPaths.length === 1 && !getLoginReturnPath(returnPaths[0]))) {
+      return { ok: false, code: 'invalid_request' };
+    }
     if (redirect.origin !== getSellfBaseUrl() || redirect.pathname !== '/auth/callback' || !redirect.search) {
       return { ok: false, code: 'invalid_request' };
     }
@@ -71,6 +77,7 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
 
 export async function requestMagicLink(input: MagicLinkRequestInput): Promise<MagicLinkResult> {
   if (isDemoMode()) return { ok: false, code: 'demo_mode' };
+  if (input.redirectTo !== undefined && !getLoginReturnPath(input.redirectTo)) return { ok: false, code: 'invalid_request' };
   const ipAllowed = await checkRateLimit('magic_link_ip', 5, 15);
   if (!ipAllowed) return { ok: false, code: 'rate_limited' };
 
@@ -85,7 +92,7 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
   if (input.flow === 'login') {
     return sendTrustedMagicLink({
       email: input.email,
-      redirectTo: buildLoginMagicLinkRedirect(origin),
+      redirectTo: buildLoginMagicLinkRedirect(origin, input.redirectTo),
     });
   }
 
@@ -97,7 +104,7 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
       redirectTo: buildFreeProductMagicLinkRedirect({
         origin,
         productSlug: input.productSlug,
-      locale: input.locale,
+        locale: input.locale,
         couponCode: input.couponCode,
         successUrl: input.successUrl,
       }),

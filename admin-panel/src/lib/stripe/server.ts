@@ -16,12 +16,12 @@ const STRIPE_CACHE_TTL_MS = 60 * 60 * 1000;
 /**
  * Determines the Stripe mode based on environment
  */
-function getStripeMode(): StripeMode {
+export function getStripeMode(): StripeMode {
   // Detect mode from the key itself — NODE_ENV=production doesn't mean live Stripe
   // (test servers run production builds with test keys)
   const envKey = process.env.STRIPE_SECRET_KEY;
   if (envKey) {
-    return envKey.startsWith('sk_live_') ? 'live' : 'test';
+    return /^(?:sk|rk)_live_/.test(envKey) ? 'live' : 'test';
   }
   // No env key — fall back to NODE_ENV (DB config will determine actual mode)
   return process.env.NODE_ENV === 'production' ? 'live' : 'test';
@@ -79,7 +79,7 @@ export const getStripeServer = async (): Promise<Stripe> => {
     // Priority 2: .env configuration (alternative method)
     const envKey = process.env.STRIPE_SECRET_KEY;
     if (envKey) {
-      const actualMode = envKey.startsWith('sk_test_') ? 'test' : 'live';
+      const actualMode = /^(?:sk|rk)_test_/.test(envKey) ? 'test' : 'live';
       if (actualMode !== mode) {
         console.error(`[Stripe] Mode mismatch: expected ${mode} but STRIPE_SECRET_KEY is ${actualMode}`);
         throw new Error(`Stripe key mode mismatch: expected ${mode}, got ${actualMode}`);

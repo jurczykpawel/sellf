@@ -19,6 +19,26 @@ describe('POST /api/auth/magic-link', () => {
     requestMagicLink.mockReset();
   });
 
+  it('accepts a partner application return path', async () => {
+    requestMagicLink.mockResolvedValue({ ok: true });
+    const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'login', redirectTo: '/pl/affiliates/apply' }));
+    expect(res.status).toBe(200);
+    expect(requestMagicLink).toHaveBeenCalledWith(expect.objectContaining({ redirectTo: '/pl/affiliates/apply' }));
+  });
+
+  it.each(['en', 'pl'])('retains %s checkout context at the gateway', async locale => {
+    requestMagicLink.mockResolvedValue({ ok: true });
+    const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'post_checkout', productSlug: 'course', locale }));
+    expect(res.status).toBe(200);
+    expect(requestMagicLink).toHaveBeenCalledWith(expect.objectContaining({ flow: 'post_checkout', productSlug: 'course', locale }));
+  });
+
+  it.each(['//elsewhere.test', '/%2f%2felsewhere.test', '/pl/affiliates/apply\n', '/pl/%61ffiliates/apply', '/pl/affiliates/apply?next=/dashboard', '/auth/product-access?product=course&return_url=https://elsewhere.test'])('rejects unsupported destination %j before the gateway', async redirectTo => {
+    const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'login', redirectTo }));
+    expect(res.status).toBe(400);
+    expect(requestMagicLink).not.toHaveBeenCalled();
+  });
+
   it('rejects non-JSON content-type with 415', async () => {
     const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'login' }, 'text/plain'));
     expect(res.status).toBe(415);

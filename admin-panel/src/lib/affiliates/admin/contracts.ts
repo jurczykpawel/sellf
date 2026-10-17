@@ -16,12 +16,12 @@ export function boundedInput(input: unknown): boolean {
   try { return new TextEncoder().encode(JSON.stringify(input)).length <= 32768; } catch { return false; }
 }
 export interface MemberInfo {
-  id: string; code: string; display_name: string; channel: string | null; status: string; version: string;
+  id: string; code: string; display_name: string; email?: string | null; channel: string | null; status: string; version: string;
   accepted_terms_version: string; accepted_at: string; created_at: string;
 }
 export interface ProgramInfo extends ProgramInput { id: string }
 export interface TermsInfo { terms_version: string; terms: { en: string; pl: string } }
-export interface ApplicationProgramInfo extends TermsInfo { enabled: boolean }
+export interface ApplicationProgramInfo extends TermsInfo { enabled: boolean; applicationStatus?: string | null }
 export interface AdminOverview { program: ProgramInfo | null; members: MemberInfo[]; next_cursor: string | null }
 export type AdminResult<T> = ActionResponse<T> & { status: number };
 // A1.8 applies these on the private route shells/HTTP adapters. Actions opt out of caching themselves.

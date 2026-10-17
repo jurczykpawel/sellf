@@ -1,6 +1,7 @@
 'use client';
 
 /** Standalone seller forms; session actions own authorization. @see admin/actions.ts */
+import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Check, ChevronDown, Plus, Users, X } from 'lucide-react';
 import { applyToProgram, getAcceptedTerms, getAdminOverview, updateMember, updateProgram } from '@/lib/affiliates/admin/actions';
@@ -17,8 +18,9 @@ import type { AffiliateAdminLocale } from '@/components/affiliates/admin/message
 
 type Messages = typeof affiliateAdminMessages.en;
 const fieldClass = 'block w-full min-w-0 rounded-lg border border-sf-border bg-sf-input px-3 py-2 text-sm text-sf-heading focus-visible:outline-2 focus-visible:outline-sf-accent';
-const buttonClass = 'inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-sf-border px-3 py-2 text-sm font-medium text-sf-heading hover:bg-sf-hover focus-visible:outline-2 focus-visible:outline-sf-accent disabled:cursor-default disabled:opacity-50';
-const primaryClass = `${buttonClass} border-transparent bg-sf-accent-bg hover:bg-sf-accent-hover`;
+const controlClass = 'inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-sf-border px-3 py-2 text-sm font-medium text-sf-heading focus-visible:outline-2 focus-visible:outline-sf-accent disabled:cursor-default disabled:opacity-50';
+const buttonClass = `${controlClass} hover:bg-sf-hover`;
+const primaryClass = `${controlClass} border-transparent bg-sf-accent-bg hover:bg-sf-accent-hover`;
 function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="grid min-w-0 gap-1.5 text-sm font-medium text-sf-heading">{label}{children}</label>; }
 function message(result: AdminResult<unknown>, t: Messages): string {
   return result.success ? t.success : result.errorCode === 'TERMS_VERSION_CONFLICT' ? t.newTermsVersion : result.status === 409 ? t.conflict : result.status === 422 ? t.invalid : result.status === 429 ? t.limited : result.status === 401 ? t.unauthorized : result.status === 403 ? t.forbidden : t.error;
@@ -104,6 +106,7 @@ function MemberDecision({ member, locale, onSaved }: { member: MemberInfo; local
   }
   return <article aria-label={member.display_name} className="grid min-w-0 gap-4 rounded-xl border border-sf-border bg-sf-raised p-5">
     <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h3 className="break-words text-lg font-semibold">{member.display_name}</h3><p className="mt-1 text-sm text-sf-body">{t.code}: <span className="font-medium">{member.code}</span></p></div><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${member.status === 'approved' ? 'bg-sf-success-soft' : 'bg-sf-hover'}`}>{statusLabel(member.status, t)}</span></div>
+    {member.email && <p className="text-sm text-sf-body [overflow-wrap:anywhere]">{member.email}</p>}
     {member.channel && <p className="text-sm text-sf-body [overflow-wrap:anywhere]">{member.channel}</p>}
     {decision ? <form className="grid min-w-0 items-end gap-3 lg:grid-cols-[1fr_auto]" onSubmit={event => { event.preventDefault(); void decide(decision); }}>
       <Field label={t.reason}><input ref={reasonInput} className={fieldClass} value={reason} required maxLength={200} onChange={event => setReason(event.target.value)} /></Field>
@@ -115,22 +118,40 @@ function MemberDecision({ member, locale, onSaved }: { member: MemberInfo; local
 }
 export function AffiliateApplication({ program, locale }: { program: ApplicationProgramInfo | null; locale: AffiliateAdminLocale }) {
   const t = affiliateAdminMessages[locale]; const id = useId(); const [token, setToken] = useState(''); const [reset, setReset] = useState(0); const [busy, setBusy] = useState(false); const [done, setDone] = useState(false); const [notice, setNotice] = useState('');
-  if (done) return <p role="status" className="rounded-xl bg-sf-success-soft p-5 text-sf-heading">{t.pending}</p>;
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const formRef = useRef<HTMLFormElement>(null);
+  if (done || program?.applicationStatus) return <section className="mx-auto grid w-full min-w-0 max-w-2xl gap-4 rounded-xl border border-sf-border bg-sf-raised p-6 text-sf-heading [overflow-wrap:anywhere]">
+    <h1 className="text-2xl font-semibold">{t.applicationReceived}</h1>
+    <p role="status">{done || program?.applicationStatus === 'pending' ? t.pending : statusLabel(program!.applicationStatus!, t)}</p>
+    <p className="text-sm text-sf-body">{t.applicationNext}</p>
+    <Link href={`${locale === 'pl' ? '/pl' : ''}/my-affiliate`} className={`${primaryClass} min-w-0 max-w-full justify-self-start text-center`}>{t.viewApplication}</Link>
+  </section>;
   if (!program?.enabled) return <p>{t.disabled}</p>;
   async function submit(form: FormData) {
+    const parsed = applicationSchema.safeParse({ code: form.get('code'), display_name: form.get('display_name'), channel: form.get('channel'), terms_version: program!.terms_version, accepted: form.get('accepted') === 'on', captcha_token: token });
+    setErrors({}); setNotice('');
+    if (!parsed.success) {
+      const next: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const field = String(issue.path[0]);
+        next[field] = field === 'code' ? t.codeHint : field === 'accepted' ? t.acceptRequired : field === 'display_name' ? t.nameRequired : t.invalid;
+      }
+      setErrors(next);
+      const first = formRef.current?.elements.namedItem(Object.keys(next)[0]);
+      if (first instanceof HTMLElement) first.focus();
+      return;
+    }
     setBusy(true);
     try {
-      const parsed = applicationSchema.safeParse({ code: form.get('code'), display_name: form.get('display_name'), channel: form.get('channel'), terms_version: program!.terms_version, accepted: form.get('accepted') === 'on', captcha_token: token });
-      if (!parsed.success) { setNotice(t.invalid); return; }
       const result = await applyToProgram(parsed.data); if (result.success) setDone(true); else setNotice(message(result, t));
     } catch { setNotice(t.error); } finally { setToken(''); setReset(value => value + 1); setBusy(false); }
   }
   return <section aria-labelledby={`${id}-title`} className="mx-auto grid w-full min-w-0 max-w-2xl gap-5 text-sf-heading"><header><h1 id={`${id}-title`} className="[overflow-wrap:anywhere] text-3xl font-semibold tracking-tight">{t.title}</h1><p className="mt-2 text-sm text-sf-body">{t.applicationHint}</p></header>
-    <form action={submit} className="grid min-w-0 gap-5 rounded-xl border border-sf-border bg-sf-raised p-5">
-      <div className="grid min-w-0 items-start gap-4 sm:grid-cols-2"><Field label={t.name}><input className={fieldClass} name="display_name" required maxLength={120} /></Field><div className="min-w-0"><Field label={t.code}><input className={fieldClass} name="code" aria-describedby={`${id}-code-hint`} required pattern="[a-z0-9_-]{3,40}" minLength={3} maxLength={40} /></Field><p id={`${id}-code-hint`} className="mt-1 text-xs text-sf-body">{t.codeHint}</p></div></div>
-      <Field label={t.channel}><input className={fieldClass} name="channel" maxLength={500} /></Field>
+    <form ref={formRef} noValidate onSubmit={event => { event.preventDefault(); void submit(new FormData(event.currentTarget)); }} className="grid min-w-0 gap-5 rounded-xl border border-sf-border bg-sf-raised p-5">
+      <div className="grid min-w-0 items-start gap-4 sm:grid-cols-2"><Field label={t.name}><input className={fieldClass} name="display_name" aria-invalid={!!errors.display_name} aria-describedby={errors.display_name ? `${id}-name-error` : undefined} required maxLength={120} /></Field>{errors.display_name && <p id={`${id}-name-error`} className="text-sm text-sf-danger">{errors.display_name}</p>}<div className="min-w-0"><Field label={t.code}><input className={fieldClass} name="code" aria-invalid={!!errors.code} aria-describedby={`${id}-code-hint`} required pattern="[a-z0-9_-]{3,40}" minLength={3} maxLength={40} /></Field><p id={`${id}-code-hint`} className={`mt-1 text-xs ${errors.code ? 'text-sf-danger' : 'text-sf-body'}`}>{t.codeHint}</p></div></div>
+      <Field label={t.channel}><input className={fieldClass} name="channel" aria-invalid={!!errors.channel} aria-describedby={errors.channel ? `${id}-channel-error` : undefined} maxLength={500} /></Field>{errors.channel && <p id={`${id}-channel-error`} className="text-sm text-sf-danger">{errors.channel}</p>}
       <div className="rounded-lg border border-sf-border bg-sf-base p-4"><p className="mb-2 text-xs text-sf-body">{t.termsVersion}: {program.terms_version}</p><p className="whitespace-pre-wrap text-sm leading-relaxed [overflow-wrap:anywhere]">{program.terms[locale]}</p></div>
-      <label className="flex items-center gap-3 text-sm font-medium"><input name="accepted" type="checkbox" required />{t.accept}</label>
+      <label className="flex items-center gap-3 text-sm font-medium"><input name="accepted" type="checkbox" aria-invalid={!!errors.accepted} aria-describedby={errors.accepted ? `${id}-accepted-error` : undefined} required />{t.accept}</label>{errors.accepted && <p id={`${id}-accepted-error`} className="text-sm text-sf-danger">{errors.accepted}</p>}
       <CaptchaWidget onVerify={setToken} onError={() => setToken('')} onTimeout={() => setToken('')} resetTrigger={reset} />
       <button className={primaryClass} disabled={busy || !token}>{t.apply}</button><Notice value={notice} error />
     </form></section>;

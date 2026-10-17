@@ -141,6 +141,8 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
           </p>
         </div>
 
+        <div className="px-6 pt-6"><AffiliateCouponEditor couponId={editingCoupon?.id} /></div>
+
         <form onSubmit={handleSubmit} className="p-6 space-y-8">
           {/* Section: Basic Info */}
           <div className="space-y-4">
@@ -423,7 +425,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
             </div>
           </div>
         </form>
-        {editingCoupon && <div className="p-6 border-t border-sf-border"><AffiliateCouponEditor couponId={editingCoupon.id} /></div>}
+
       </div>
       </div>
     </div>

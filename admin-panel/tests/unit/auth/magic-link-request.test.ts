@@ -102,6 +102,15 @@ describe('requestMagicLink', () => {
     );
   });
 
+  it('returns a newly created partner account to the localized application', async () => {
+    const result = await requestMagicLink({ ...BASE_INPUT, redirectTo: '/pl/affiliates/apply' });
+    expect(result).toEqual({ ok: true });
+    expect(deliverMagicLink).toHaveBeenCalledWith(expect.objectContaining({
+      shouldCreateUser: true,
+      redirectTo: 'https://shop.example.com/auth/callback?redirect_to=%2Fpl%2Faffiliates%2Fapply',
+    }));
+  });
+
   it('delivers a free_product magic link with the free-product redirect and product_slug data', async () => {
     const result = await requestMagicLink({
       ...BASE_INPUT,
@@ -139,6 +148,17 @@ describe('requestMagicLink', () => {
           encodeURIComponent('/auth/product-access?product=widget'),
       }),
     );
+  });
+
+  it.each(['en', 'pl'])('preserves %s guest checkout locale through delivery', async locale => {
+    expect(await requestMagicLink({ ...BASE_INPUT, flow: 'post_checkout', productSlug: 'course', locale })).toEqual({ ok: true });
+    const destination = new URL(deliverMagicLink.mock.calls[0][0].redirectTo);
+    expect(destination.searchParams.get('redirect_to')).toBe(`/${locale}/auth/product-access?product=course`);
+  });
+
+  it.each(['//elsewhere.test', '/pl/affiliates/apply\n', '/pl/%61ffiliates/apply', '/auth/product-access?product=course&return_url=https://elsewhere.test'])('declines unsupported explicit destination %j before delivery', async redirectTo => {
+    expect(await requestMagicLink({ ...BASE_INPUT, redirectTo })).toEqual({ ok: false, code: 'invalid_request' });
+    expect(deliverMagicLink).not.toHaveBeenCalled();
   });
 
   it('rejects free_product without a productSlug', async () => {
@@ -237,6 +257,9 @@ describe('trusted magic link callback gate', () => {
     'https://shop.example.com/auth/callback',
     'https://shop.example.com/other?flow=login',
     '/auth/callback?flow=login',
+    'https://shop.example.com/auth/callback?redirect_to=%2F%2Felsewhere.test',
+    'https://shop.example.com/auth/callback?redirect_to=%252Fpl%252Faffiliates%252Fapply',
+    'https://shop.example.com/auth/callback?redirect_to=%2Fdashboard',
   ])('rejects malformed or foreign redirect %s before delivery', async redirectTo => {
     deliverMagicLink.mockClear();
     expect(await sendTrustedMagicLink({ email: 'buyer@example.com', redirectTo })).toEqual({ ok: false, code: 'invalid_request' });

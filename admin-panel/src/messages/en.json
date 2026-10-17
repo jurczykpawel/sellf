@@ -4753,6 +4753,12 @@
     "protectedIntro": "These pages inherit selected colours and the font. Sellf keeps readable text sizes, corners and payment controls. These are the values after those rules apply."
   },
   "affiliates": {
+    "earningsTitle": "Partner earnings",
+    "earningsHint": "Choose a partner to review commissions, waiting periods and payout balances by currency. These figures reflect the current Stripe mode.",
+    "earningsSelect": "Select a partner above to see their earnings. Search by name to find them quickly.",
+    "earningsEmpty": "No partner applications yet. Review applications and approve partners to start your program.",
+    "manageApplications": "Manage applications",
+    "loadingPartners": "Loading partners…",
     "programNotConfigured": "The affiliate program has not been set up yet.",
     "programSettings": "Go to program settings",
     "navigation": "Affiliate program",
@@ -4822,6 +4828,13 @@
     "unavailable": "This page is temporarily unavailable. Refresh to try again.",
     "apply": "Apply to become a partner",
     "admin": {
+      "applicationReceived": "Application submitted",
+      "applicationNext": "You can check your application status in the partner portal.",
+      "viewApplication": "View application status",
+      "joinTitle": "Join the partner program",
+      "joinHint": "Sign in or create your Sellf account to apply. After signing in, you’ll return to the application.",
+      "nameRequired": "Enter your name (up to 120 characters).",
+      "acceptRequired": "Accept the program terms to continue.",
       "newTermsVersion": "These terms were already published. Give the changed terms a new version and save again.",
       "codeHint": "Use 3–40 lowercase letters, numbers, hyphens or underscores.",
       "amountInvalid": "Enter a valid payout amount for each currency. Use a dot or comma for decimals.",
@@ -4894,6 +4907,9 @@
       "syncRetrySuccess": "Order queued again. The next worker run will process it."
     },
     "products": {
+      "couponAssigned": "Coupon assigned to the partner.",
+      "saveCouponFirst": "Save this coupon first, then assign it to an approved partner here.",
+      "ownerHint": "Purchases using this coupon earn commission for the assigned partner. Assignment is saved separately from coupon details.",
       "title": "Affiliate commission",
       "enabled": "Enabled",
       "percentage": "Percentage",
@@ -4927,6 +4943,11 @@
       "archive": "Archive (keep history)"
     },
     "portal": {
+      "live": "Live",
+      "testBalances": "Balances include test commissions only. Live commissions remain visible below and do not affect these amounts.",
+      "liveBalances": "Balances include live commissions only. Test commissions remain visible below and do not affect these amounts.",
+      "selectedPartner": "Selected partner",
+      "adminCodes": "Partner’s coupon codes",
       "syncError": "Synchronization errors",
       "sessionError": "Payment session needs checking",
       "fulfillmentWait": "Waiting for order completion",

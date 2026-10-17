@@ -69,13 +69,13 @@ export default function CaptchaWidget({
   // provider === 'none' — no captcha configured. Mark the form as
   // "verified" with a sentinel so submit buttons don't stay blocked.
   // Server-side verifyCaptchaToken() also short-circuits on 'none'.
-  return <NoneProviderAutoVerify onVerify={onVerify} />
+  return <NoneProviderAutoVerify onVerify={onVerify} resetTrigger={resetTrigger} />
 }
 
-function NoneProviderAutoVerify({ onVerify }: { onVerify: (token: string) => void }) {
+function NoneProviderAutoVerify({ onVerify, resetTrigger }: { onVerify: (token: string) => void; resetTrigger?: number }) {
   useEffect(() => {
     onVerify('captcha-disabled')
-  }, [onVerify])
+  }, [onVerify, resetTrigger])
 
   if (process.env.NODE_ENV === 'development') {
     return (

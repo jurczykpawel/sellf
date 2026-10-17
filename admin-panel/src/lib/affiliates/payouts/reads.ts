@@ -1,5 +1,6 @@
 'use server';
 /** Session admin preview. @see query.ts */
+import { getAffiliateLivemode } from '@/lib/stripe/affiliate-mode';
 import { z } from 'zod';
 import { AFFILIATE_PROGRAM_DEFAULTS } from '@/lib/affiliates/program-defaults';
 import { withAdminClient } from '@/lib/actions/admin-auth';
@@ -22,10 +23,11 @@ export async function getPayoutChoices(input: unknown): Promise<ActionResponse<P
     const parsed = choicesSchema.safeParse(input);
     if (!parsed.success) return { success: false, error: 'invalid_input', errorCode: '422' };
     const { search, member_id, commission_search } = parsed.data;
+    const livemode = member_id ? await getAffiliateLivemode() : undefined;
     const [members, program, payouts, commissions, selectedMember] = await Promise.all([
       dataClient.from('affiliate_memberships').select('id,display_name,code,status').ilike('display_name', `%${search.replace(/[\\%_]/g, '\\$&')}%`).order('display_name').limit(100),
       dataClient.from('affiliate_programs').select('thresholds').maybeSingle(),
-      member_id ? dataClient.from('affiliate_payouts').select(payoutProjection).eq('member_id', member_id).order('created_at', { ascending: false }).limit(100) : Promise.resolve({ data: [], error: null }),
+      member_id ? dataClient.from('affiliate_payouts').select(payoutProjection).eq('member_id', member_id).eq('livemode', livemode).order('created_at', { ascending: false }).limit(100) : Promise.resolve({ data: [], error: null }),
       member_id ? dataClient.from('affiliate_commissions').select('id,version::text,currency,paid_at,rule:affiliate_rules!inner(product:products!inner(name))').eq('member_id', member_id).ilike('rule.product.name', `%${commission_search.replace(/[\\%_]/g, '\\$&')}%`).order('paid_at', { ascending: false }).limit(100) : Promise.resolve({ data: [], error: null }),
       member_id ? dataClient.from('affiliate_memberships').select('id,display_name,code,status').eq('id', member_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
     ]);

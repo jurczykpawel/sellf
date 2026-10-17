@@ -14,7 +14,7 @@ import type { ActionResponse } from '@/lib/actions/admin-auth';
 import type { AdminOverview, AdminResult, ApplicationProgramInfo, MemberInfo, ProgramInfo, TermsInfo, SyncOverview, SyncWorkInfo } from '@/lib/affiliates/admin/contracts';
 
 const programColumns = 'id,version::text,enabled,hold_days,buffer_days,terms_version,terms,thresholds';
-const memberColumns = 'id,code,status,display_name,channel,accepted_terms_version,accepted_at,version::text,created_at';
+const memberColumns = 'user_id,id,code,status,display_name,channel,accepted_terms_version,accepted_at,version::text,created_at';
 const statusCodes: Record<string, number> = { UNAUTHORIZED: 401, FORBIDDEN: 403, DEMO_MODE: 403, CONFLICT: 409, TERMS_VERSION_CONFLICT: 409, INVALID_INPUT: 422, RATE_LIMITED: 429, NOT_FOUND: 404 };
 function failure<T>(errorCode: string): AdminResult<T> {
   return { success: false, errorCode, error: 'Affiliate request failed', status: statusCodes[errorCode] ?? 500 };
@@ -29,6 +29,15 @@ async function admin<T>(fn: (client: SupabaseClient, actor: string) => Promise<A
 }
 function refresh(): void { revalidatePath('/[locale]/dashboard/affiliates', 'page'); revalidatePath('/[locale]/affiliates/apply', 'page'); }
 
+async function memberEmails(client: SupabaseClient, rows: (MemberInfo & { user_id?: string | null })[]): Promise<MemberInfo[]> {
+  const ids = rows.flatMap(row => row.user_id ? [row.user_id] : []);
+  if (!ids.length) return rows.map(row => ({ ...row, email: null }));
+  const { data, error } = await client.from('user_access_stats').select('user_id,email').in('user_id', ids);
+  if (error) throw new Error('Member contact unavailable');
+  const emails = new Map((data ?? []).map(row => [row.user_id, row.email]));
+  return rows.map(row => ({ ...row, email: row.user_id ? emails.get(row.user_id) ?? null : null }));
+}
+
 export async function getAdminOverview(input: unknown = {}): Promise<AdminResult<AdminOverview>> {
   return admin(async client => {
     const parsed = pageSchema.safeParse(input);
@@ -40,7 +49,7 @@ export async function getAdminOverview(input: unknown = {}): Promise<AdminResult
     const [program, members] = await Promise.all([client.from('affiliate_programs').select(programColumns).maybeSingle(), query]);
     if (program.error || members.error) return dbFailure((program.error ?? members.error)!.code);
     const rows = members.data as unknown as MemberInfo[];
-    return { success: true, data: { program: program.data as unknown as ProgramInfo | null, members: rows, next_cursor: rows.length === limit ? rows.at(-1)!.id : null } };
+    return { success: true, data: { program: program.data as unknown as ProgramInfo | null, members: await memberEmails(client, rows), next_cursor: rows.length === limit ? rows.at(-1)!.id : null } };
   });
 }
 export async function updateProgram(input: unknown): Promise<AdminResult<ProgramInfo>> {
@@ -69,7 +78,7 @@ export async function updateMember(input: unknown): Promise<AdminResult<MemberIn
     const p = parsed.data;
     const { data, error } = await client.rpc('affiliate_member_update', { p_actor: actor, p_member: p.member_id, p_expected_version: p.version, p_status: p.status, p_reason: p.reason }).select(memberColumns).single();
     if (error) return dbFailure(error.code);
-    refresh(); return { success: true, data: data as unknown as MemberInfo };
+    refresh(); return { success: true, data: (await memberEmails(client, [data as unknown as MemberInfo]))[0] };
   }, true);
 }
 export async function getAcceptedTerms(memberId: string): Promise<AdminResult<TermsInfo>> {
@@ -98,8 +107,13 @@ export async function getApplicationProgram(): Promise<AdminResult<ApplicationPr
   noStore();
   try {
     const session = await verifiedSession(); if (session.result) return session.result;
-    const { data, error } = await createAdminClient().from('affiliate_programs').select('enabled,terms_version,terms').maybeSingle();
-    return error ? dbFailure(error.code) : { success: true, status: 200, data: data as ApplicationProgramInfo | null };
+    const client = createAdminClient();
+    const [program, member] = await Promise.all([
+      client.from('affiliate_programs').select('enabled,terms_version,terms').maybeSingle(),
+      client.from('affiliate_memberships').select('status').eq('user_id', session.user.id).maybeSingle(),
+    ]);
+    const error = program.error ?? member.error;
+    return error ? dbFailure(error.code) : { success: true, status: 200, data: program.data ? { ...program.data, applicationStatus: member.data?.status ?? null } as ApplicationProgramInfo : null };
   } catch { return failure('INTERNAL_ERROR'); }
 }
 export async function applyToProgram(input: unknown): Promise<AdminResult<MemberInfo>> {

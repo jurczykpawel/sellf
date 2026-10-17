@@ -7,6 +7,7 @@ export interface CurrencyBalance {
   currency: string; accrued: string; reversed: string; paid: string; reserved: string; held: string; eligible: string; debt: string; balance: string;
 }
 export interface PortalData {
+  livemode?: boolean;
   member: { code: string; status: string };
   balances: CurrencyBalance[];
   commissions: { product: string; status: CommissionStatus; reference: string; currency: string; paid_at: string; eligible_at: string | null; accrued_minor: string; current_minor: string; livemode: boolean; sync_pending: boolean; needs_review: boolean }[];

@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 
+import { getLoginReturnPath } from '@/lib/auth/magic-link-redirect';
 import { requestMagicLink } from '@/lib/auth/magic-link/request';
 import { MAGIC_LINK_FLOWS } from '@/lib/auth/magic-link/types';
 import type { MagicLinkErrorCode, MagicLinkFlow } from '@/lib/auth/magic-link/types';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 const ALLOWED_KEYS = new Set([
+  'redirectTo',
   'email',
   'captchaToken',
   'flow',
@@ -21,6 +23,7 @@ interface ParsedRequest {
   email: string;
   captchaToken: string | null | undefined;
   flow: MagicLinkFlow;
+  redirectTo?: string;
   productSlug?: string;
   locale?: string;
   couponCode?: string;
@@ -43,7 +46,8 @@ function parseBody(body: unknown): ParsedRequest | null {
     if (!ALLOWED_KEYS.has(key)) return null;
   }
 
-  const { email, captchaToken, flow, productSlug, couponCode, successUrl, locale } = record;
+  const { email, captchaToken, flow, productSlug, couponCode, successUrl, redirectTo, locale } = record;
+  if (redirectTo !== undefined && (typeof redirectTo !== 'string' || !getLoginReturnPath(redirectTo))) return null;
 
   if (typeof email !== 'string' || email.length === 0 || email.length > 254) return null;
   if (captchaToken !== undefined && captchaToken !== null && typeof captchaToken !== 'string') return null;
@@ -72,6 +76,7 @@ function parseBody(body: unknown): ParsedRequest | null {
     email,
     captchaToken: captchaToken as string | null | undefined,
     flow,
+    ...(redirectTo ? { redirectTo: redirectTo as string } : {}),
     productSlug: parsedProductSlug,
     locale,
     couponCode: parsedCouponCode,
@@ -114,6 +119,7 @@ export async function POST(request: Request) {
     email: parsed.email,
     captchaToken: parsed.captchaToken,
     flow: parsed.flow,
+    ...(parsed.redirectTo ? { redirectTo: parsed.redirectTo } : {}),
     productSlug: parsed.productSlug,
     ...(parsed.locale ? { locale: parsed.locale } : {}),
     couponCode: parsed.couponCode,

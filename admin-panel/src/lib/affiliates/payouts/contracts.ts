@@ -10,9 +10,9 @@ export const paidSchema = z.strictObject({ ...payout, bank_reference: reference,
 export const cancelSchema = z.strictObject({ ...payout, no_transfer: z.literal(true), reason: reference });
 export const adjustmentSchema = z.strictObject({ commission_id: z.uuid(), version: versionSchema, amount_minor: signedMinorSchema.refine(s => s !== '0'), reason: reference, evidence_reference: reference, review_dispute: z.boolean() });
 export const exportSchema = z.strictObject(payout);
-export interface PayoutInfo { id: string; member_id: string; currency: string; earnings_minor: string; version: string; status: string; needs_review: boolean; payee_reference: string }
+export interface PayoutInfo { livemode?: boolean; id: string; member_id: string; currency: string; earnings_minor: string; version: string; status: string; needs_review: boolean; payee_reference: string }
 export interface PreviewInfo { member_version: string; program_version: string; earnings_minor: string; debt_offset_minor: string; payable_minor: string; held_minor: string; threshold_minor: string | null; available: boolean; sync_required: boolean }
-export const payoutProjection = 'id,member_id,currency,earnings_minor::text,version::text,status,needs_review,payee_reference';
+export const payoutProjection = 'livemode,id,member_id,currency,earnings_minor::text,version::text,status,needs_review,payee_reference';
 
 export interface AdjustmentInfo { id: string; member_id: string; currency: string; amount_minor: string }
 export interface MemberChoice { id: string; display_name: string; code: string; status: string }

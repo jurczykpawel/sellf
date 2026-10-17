@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { createClient } from '@supabase/supabase-js';
 import { beforeAll, expect, it, vi } from 'vitest';
 const context = vi.hoisted(() => ({ client: undefined as unknown }));
+vi.mock('@/lib/stripe/affiliate-mode', () => ({ getAffiliateLivemode: async () => true }));
 vi.mock('@/lib/actions/admin-auth', () => ({ withAdminClient: async (fn: (ctx: unknown) => unknown) => fn({ user: { id: 'dddddddd-0000-4000-a000-000000000000' }, dataClient: context.client }) }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 import { reservePayout, markPayoutPaid, cancelPayout, adjustCommission } from '@/lib/affiliates/payouts/actions';

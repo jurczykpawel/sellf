@@ -36,8 +36,8 @@ for (const locale of ['en', 'pl'] as const) for (const width of [1440, 390]) {
       expect(response?.headers()['x-robots-tag']).toContain('noindex');
       for (const meta of await page.locator('meta[name="robots"]').all()) await expect(meta).toHaveAttribute('content', /noindex/);
       await expect(page.locator('main h1').first()).toBeVisible();
-      if (name === 'payouts') { await expect(page.getByRole('combobox').first()).toHaveValue('Demo Partner'); await expect(page.locator('main dl dd').first()).toHaveText(locale === 'pl' ? '20,00 PLN' : '20.00 PLN'); }
-      if (name === 'apply') await expect(page.getByRole('button', { name: (locale === 'en' ? en : pl).affiliates.admin.apply, exact: true })).toBeEnabled({ timeout: 20000 });
+      if (name === 'payouts') { const picker = page.getByRole('combobox').first(); await picker.fill('Demo'); await page.getByRole('option', { name: 'Demo Partner', exact: true }).click(); await expect(picker).toHaveValue('Demo Partner'); await expect(page.locator('main dl dd').first()).toHaveText(locale === 'pl' ? '0,00 PLN' : '0.00 PLN'); }
+      if (name === 'apply') await expect(page.getByRole('heading', { name: (locale === 'en' ? en : pl).affiliates.admin.applicationReceived })).toBeVisible();
       if (name === 'earnings') await expect(page.getByRole('combobox')).toHaveValue('Demo Partner');
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: `/tmp/a18-${name}-${locale}-${width}.png`, fullPage: true });
@@ -83,7 +83,7 @@ for (const locale of ['en', 'pl'] as const) test(`${locale} saved coupon exposes
     const copy = locale === 'en' ? en : pl;
     await page.getByRole('row').filter({ hasText: code }).getByRole('button', { name: copy.admin.coupons.edit, exact: true }).click();
     await expect(page.getByRole('heading', { name: copy.affiliates.products.owner, exact: true })).toBeVisible();
-    const partner = page.getByRole('textbox', { name: copy.affiliates.products.partner, exact: true });
+    const partner = page.getByRole('combobox', { name: copy.affiliates.products.partner, exact: true });
     await expect(partner).toBeEnabled();
     const searched = page.waitForResponse(r => r.request().method() === 'POST' && !!r.request().postData()?.includes('"search":"Demo"'));
     await partner.fill('Demo'); await searched;
