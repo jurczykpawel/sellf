@@ -1,14 +1,19 @@
 // @vitest-environment happy-dom
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import TemplateHistory from '@/components/storefront/TemplateHistory';
+import { DEFAULT_CONFIG, D_CONFIG } from '@/lib/storefront-templates/fixtures';
+import { validateConfig } from '@/lib/storefront-templates/registry';
+import en from '@/messages/en.json';
+import pl from '@/messages/pl.json';
 
 const mocks = vi.hoisted(() => ({ action: vi.fn() }));
 vi.mock('@/components/storefront/TemplateHistory.module.css', () => ({ default: {} }));
 vi.mock('@/lib/actions/storefront-templates', () => ({ storefrontTemplateAction: mocks.action }));
-vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => Object.assign((key: string) => key, { has: () => true }) }));
+function historyView(locale = 'en') { return createElement(NextIntlClientProvider, { locale, messages: locale === 'pl' ? pl : en }, createElement(TemplateHistory)); }
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
 it('renders the initial pending state, then loads and refreshes history', async () => {
@@ -17,14 +22,52 @@ it('renders the initial pending state, then loads and refreshes history', async 
   mocks.action.mockImplementation(({ operation }: { operation: string }) => operation === 'read'
     ? new Promise(resolve => { resolveRead = resolve; })
     : Promise.resolve({ success: true, data: [] }));
-  expect(renderToStaticMarkup(createElement(TemplateHistory))).toContain('aria-busy="true"');
-  const { container } = render(createElement(TemplateHistory));
+  expect(renderToStaticMarkup(historyView())).toContain('aria-busy="true"');
+  const { container } = render(historyView());
   expect(container.querySelector('main')?.getAttribute('aria-busy')).toBe('true');
-  expect((screen.getByRole('button', { name: 'reload' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: 'Reload' }) as HTMLButtonElement).disabled).toBe(true);
   await act(async () => { resolveRead(read); });
   await waitFor(() => expect(container.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
   mocks.action.mockImplementation(({ operation }: { operation: string }) => Promise.resolve(operation === 'read' ? read : { success: true, data: [] }));
-  fireEvent.click(screen.getByRole('button', { name: 'reload' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
   await waitFor(() => expect(mocks.action).toHaveBeenCalledTimes(4));
   await waitFor(() => expect(container.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
+});
+
+function historyActions() {
+  const draft = structuredClone(D_CONFIG);
+  delete draft.settingsByTemplate.d!.closingProduct;
+  const validation = validateConfig(draft);
+  const rows = [3, 2, 0].map(revision => ({ revision, draft: revision ? draft : null, published: DEFAULT_CONFIG, created_at: '2026-10-17T10:00:00Z' }));
+  mocks.action.mockImplementation(async (input: { operation: string; fromRevision?: number; toRevision?: number }) => {
+    if (input.operation === 'read') return { success: true, data: { revision: 3, draft, published: DEFAULT_CONFIG } };
+    if (input.operation === 'history') return { success: true, data: rows };
+    if (input.operation === 'diff') return { success: true, data: { fromRevision: input.fromRevision, toRevision: input.toRevision, changes: [] } };
+    const invalid = { ...validation, valid: false, errors: validation.warnings.filter(issue => issue.code === 'BINDING') };
+    if (input.operation === 'validate') return { success: true, data: invalid };
+    return { success: false, code: 'INVALID', validation: invalid };
+  });
+}
+it.each(['en', 'pl'])('shows the publication problem and section link for current and older drafts in %s', async locale => {
+  historyActions(); render(historyView(locale));
+  const buttons = await screen.findAllByRole('button', { name: locale === 'pl' ? 'Opublikuj tę wersję' : 'Publish this version' });
+  fireEvent.click(buttons[0]);
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toContain(locale === 'pl' ? 'Zaproszenie na koniec' : 'Final invitation');
+  expect(alert.textContent).toContain(locale === 'pl' ? pl.storefrontEditor.missingOffer : en.storefrontEditor.missingOffer);
+  expect(within(alert).getByRole('link').getAttribute('href')).toBe(`${locale === 'pl' ? '/pl' : ''}/dashboard/templates#closing`);
+  fireEvent.click(buttons[1]);
+  fireEvent.click(await screen.findByRole('button', { name: locale === 'pl' ? pl.templatePreview.confirmPublish : en.templatePreview.confirmPublish }));
+  await waitFor(() => expect(screen.getByRole('alert').textContent).toContain(locale === 'pl' ? 'Zaproszenie na koniec' : 'Final invitation'));
+  expect(mocks.action.mock.calls.some(([input]) => input.operation === 'draft')).toBe(false);
+});
+it('compares every older row to the current revision and omits self comparison', async () => {
+  historyActions(); render(historyView());
+  const rows = await screen.findAllByRole('listitem');
+  expect(within(rows[0]).queryByRole('button', { name: 'Compare' })).toBeNull();
+  for (const [index, revision] of [[1, 2], [2, 0]]) {
+    fireEvent.click(within(rows[index]).getByRole('button', { name: 'Compare' }));
+    await waitFor(() => expect(mocks.action).toHaveBeenCalledWith({ operation: 'diff', fromRevision: revision, toRevision: 3 }));
+    await waitFor(() => expect(within(rows[index]).getByRole('button', { name: 'Compare' })).toHaveProperty('disabled', false));
+  }
 });

@@ -17,7 +17,7 @@ const products = [{ id: '11111111-1111-4111-8111-111111111111', name: 'Automatio
 vi.mock('@/lib/api/client', () => ({ api: { list: async () => ({ data: products, pagination: { has_more: false } }), get: async (_resource: string, id: string) => products.find(item => item.id === id) } }));
 vi.mock('@/lib/actions/categories', () => ({ getCategories: async () => ({ success: true, data: [{ id: '33333333-3333-4333-8333-333333333333', name: 'Automation' }] }) }));
 vi.mock('@/lib/actions/storefront-templates', () => ({ storefrontTemplateAction: action }));
-afterEach(() => { cleanup(); vi.resetAllMocks(); });
+afterEach(() => { cleanup(); vi.resetAllMocks(); window.history.replaceState(null, '', '/'); });
 function snapshot(): TemplateReadResult {
   const published = { format: 1 as const, templateId: 'd' as const, settingsByTemplate: { d: { heroProduct: '11111111-1111-4111-8111-111111111111' } }, overridesByTemplate: {}, tokens: null,
     content: { 'home.hero': { sourceLocale: 'en' as const, en: { kind: 'hero' as const, heading: 'A workshop', eyebrow: '', body: '', steps: ['Choose input'] } } } };
@@ -216,4 +216,33 @@ it.each(['en', 'pl'])('explains the classic catalogue options instead of suggest
     ? 'Sklep klasyczny ma jedną, zawsze widoczną sekcję: katalog produktów. Możesz wybrać układ kart, a w sekcji Wygląd zmienić kolory, krój pisma i zaokrąglenia. Publikacja własnych ustawień układu i wyglądu wymaga Pro.'
     : 'The classic store has one always-visible section: the product catalogue. Choose a card layout, or open Appearance to change colours, fonts and corners. Publishing custom layout and appearance settings requires Pro.')).toBeTruthy();
   expect(view.queryByText(locale === 'pl' ? pl.storefrontEditor.orderHint : en.storefrontEditor.orderHint)).toBeNull();
+});
+
+it.each(['en', 'pl'])('saves an incomplete draft with an actionable non-blocking warning in %s', async locale => {
+  const initial = snapshot();
+  const validation = inspectTemplate(initial.published, initial.rights, 'draft').validation;
+  action.mockResolvedValueOnce({ success: true, revision: 8, validation });
+  const view = setup(locale);
+  fireEvent.change(view.getByDisplayValue('A workshop'), { target: { value: 'Incomplete draft' } });
+  fireEvent.click(view.getByRole('button', { name: locale === 'pl' ? 'Zapisz szkic' : 'Save draft' }));
+  await waitFor(() => expect(view.getByRole('status').textContent).toContain(locale === 'pl' ? 'Zapisano zmiany' : 'All changes saved'));
+  const warning = view.getByRole('region', { name: locale === 'pl' ? 'Przed publikacją' : 'Before publishing' });
+  expect(warning.textContent).toContain(locale === 'pl' ? 'Zaproszenie na koniec' : 'Final invitation');
+  expect(warning.textContent).toContain(locale === 'pl' ? pl.storefrontEditor.missingOffer : en.storefrontEditor.missingOffer);
+  fireEvent.click(warning.querySelector('button')!);
+  expect(view.getByRole('region', { name: locale === 'pl' ? 'Zaproszenie na koniec' : 'Final invitation' })).toBeTruthy();
+  expect(view.queryByRole('alert')).toBeNull();
+});
+it('opens the requested editor section from a history link', () => {
+  window.history.replaceState(null, '', '#closing');
+  const view = setup();
+  expect(view.getByRole('region', { name: 'Final invitation' })).toBeTruthy();
+  window.history.replaceState(null, '', '/');
+});
+
+it('opens and focuses appearance from a publication correction link', () => {
+  window.history.replaceState(null, '', '#appearance');
+  const view = setup();
+  expect(view.getByRole('region', { name: 'Appearance' })).toBe(document.activeElement);
+  window.history.replaceState(null, '', '/');
 });
