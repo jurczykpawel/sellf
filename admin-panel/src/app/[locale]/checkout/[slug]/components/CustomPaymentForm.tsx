@@ -101,6 +101,7 @@ export default function CustomPaymentForm({
   const showTos = shouldShowTosCheckbox(collectTermsOfService, !email);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentElementReady, setPaymentElementReady] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   // Invoice / NIP logic
@@ -138,7 +139,7 @@ export default function CustomPaymentForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (checkoutResult.type !== 'success') return;
+    if (checkoutResult.type !== 'success' || !paymentElementReady) return;
     const checkout = checkoutResult.checkout;
 
     const finalEmail = linkEmail || email;
@@ -391,7 +392,7 @@ export default function CustomPaymentForm({
 
       {/* Payment Element */}
       <div>
-        <PaymentElement options={paymentElementOptions} />
+        <PaymentElement options={paymentElementOptions} onReady={() => setPaymentElementReady(true)} />
       </div>
 
       {/* Error Message */}
@@ -455,15 +456,10 @@ export default function CustomPaymentForm({
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={checkoutResult.type !== 'success' || isProcessing || !!customAmountError || (emailMismatch && !emailConfirmed)}
-        // Exposes the one bit that actually matters for "is this button done
-        // loading" — checkoutResult.type !== 'success' also disables the
-        // button while processing/validation errors keep it disabled, so
-        // `disabled` alone can't tell a test whether Stripe's embedded
-        // Checkout is still initializing (about to flip enabled, mid opacity
-        // transition) versus genuinely staying disabled. No visual/assistive
-        // tech effect — inert data attribute, present only while loading.
-        {...(checkoutResult.type !== 'success' ? { 'data-checkout-pending': true } : {})}
+        disabled={checkoutResult.type !== 'success' || !paymentElementReady || isProcessing || !!customAmountError || (emailMismatch && !emailConfirmed)}
+        // Session readiness can precede the Element's interactive DOM. Keep
+        // initialization distinct from processing and validation restrictions.
+        {...(checkoutResult.type !== 'success' || !paymentElementReady ? { 'data-checkout-pending': true } : {})}
         className={`w-full px-6 py-4 text-white font-bold rounded-full shadow-[var(--sf-shadow-accent)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] ${
           customAmountError
             ? 'bg-sf-muted/30 cursor-not-allowed'

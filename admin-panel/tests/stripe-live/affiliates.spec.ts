@@ -21,11 +21,31 @@ async function rows(table: string, column: string, value: string) {
 async function insert(table: string, data: object) {
   const result = await db.from(table).insert(data).select().single(); expect(result.error).toBeNull(); return result.data!;
 }
+/** Fixture history must precede Stripe's whole-second session clock (AF-004). */
+async function affiliateHistoryBoundary(couponId: string): Promise<number> {
+  const binding = await db.from('affiliate_coupon_bindings').select('created_at')
+    .eq('coupon_id', couponId).is('retired_at', null).single();
+  expect(binding.error).toBeNull();
+  // Binding is the last history write in these fixtures. Observe Stripe's clock
+  // before the single checkout attempt; do not round production history backward.
+  const boundary = (Math.floor(Date.parse(binding.data!.created_at) / 1000) + 1) * 1000;
+  await expect.poll(async () => {
+    const clock = await stripe.checkout.sessions.list({ limit: 1, created: { gte: Math.ceil(Date.now() / 1000) } });
+    const headers = clock.lastResponse.headers as Headers | Record<string, string>;
+    const date = headers instanceof Headers ? headers.get('date') : headers.date;
+    const time = date ? Date.parse(date) : NaN;
+    expect(Number.isFinite(time)).toBe(true);
+    return time;
+  }, { timeout: 10000, intervals: [100, 250, 500] }).toBeGreaterThanOrEqual(boundary);
+  return boundary;
+}
 async function sync(request: APIRequestContext, errors = 0) {
   const response = await request.get(`${base}/api/cron?job=affiliate-sync`, { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } });
   expect(response.status()).toBe(200); expect((await response.json()).errors).toBe(errors);
 }
 async function card(page: Page) {
+  // Stripe can paint method tabs before its PaymentElement onReady event.
+  await expect(page.locator('button[type="submit"]')).not.toHaveAttribute('data-checkout-pending', 'true', { timeout: 60000 });
   const frame = page.frameLocator('iframe[title="Secure payment input frame"][src*="elements-inner-payment"]');
   await expect(frame.locator('[data-testid="card"], input[name="number"]').first()).toBeVisible({ timeout: 60000 });
   if (await frame.getByTestId('card').count()) await frame.getByTestId('card').click();
@@ -55,9 +75,12 @@ test('native coupon paid, held, mature and refunded in test mode', async ({ page
   const coupon = await insert('coupons', { code: `AFF${suffix.toUpperCase()}`, discount_type: 'percentage', discount_value: 10, is_active: true });
   expect((await db.rpc('affiliate_rule_create', { p_actor: actor, p_product: product.id, p_expected_revision: 0, p_enabled: true, p_percentage_bps: 2000, p_fixed_minor: null, p_currency: null })).error).toBeNull();
   expect((await db.rpc('affiliate_coupon_bind', { p_actor: actor, p_coupon: coupon.id, p_member: member.id, p_expected_version: 0 })).error).toBeNull();
+  const historyBoundary = await affiliateHistoryBoundary(coupon.id);
   await checkout(page, product.slug, `buyer-${suffix}@example.com`, coupon.code);
   await expect.poll(async () => (await rows('payment_transactions', 'product_id', product.id)).filter(p => p.status === 'completed' && !p.fulfillment_pending).length, { timeout: 90000 }).toBe(1);
   const payment = (await rows('payment_transactions', 'product_id', product.id)).find(p => p.status === 'completed')!;
+  const session = payment.session_id.startsWith('cs_') ? await stripe.checkout.sessions.retrieve(payment.session_id) : (await stripe.checkout.sessions.list({ payment_intent: payment.session_id, limit: 1 })).data[0];
+  expect(session).toBeTruthy(); expect(session.created * 1000).toBeGreaterThanOrEqual(historyBoundary);
   expect(await rows('coupon_redemptions', 'transaction_id', payment.id)).toHaveLength(1);
   expect(await rows('affiliate_commissions', 'payment_id', payment.id)).toHaveLength(0);
   const metadata = payment.metadata;
@@ -106,17 +129,24 @@ test('native coupon paid, held, mature and refunded in test mode', async ({ page
   await sync(request); await sync(request);
   const commission = (await rows('affiliate_commissions', 'payment_id', payment.id))[0];
   expect(commission).toBeTruthy(); expect(Date.parse(commission.eligible_at)).toBeGreaterThan(Date.now());
+  async function assertTestCommission(status: 'held' | 'eligible' | 'reversed') {
+    const read = await db.rpc('affiliate_portal_page', { p_member: member.id, p_currency: 'PLN', p_limit: 25, p_as_of: new Date().toISOString() });
+    expect(read.error).toBeNull();
+    const projection = read.data as { commissions: { reference: string; status: string; livemode: boolean; current_minor: string }[] };
+    expect(projection.commissions).toHaveLength(1);
+    expect(projection.commissions[0]).toMatchObject({ reference: commission.id, status, livemode: false, ...(status === 'reversed' ? { current_minor: '0' } : {}) });
+    const row = page.getByRole('listitem').filter({ has: page.getByText(product.name, { exact: true }) });
+    await expect(row.locator('span')).toHaveText(['Test']);
+    await expect(row.locator('small')).toHaveCount(0);
+  }
   await setAuthSession(page, user.email, user.password); await page.goto('/my-affiliate');
-  await expect(page.getByText('Waiting period', { exact: true })).toBeVisible();
+  await assertTestCommission('held');
   await expect.poll(() => Date.now() >= Date.parse(commission.eligible_at), { timeout: 60000, intervals: [500] }).toBe(true);
-  await page.reload(); await expect(page.getByText('Mature', { exact: true })).toBeVisible();
+  await page.reload(); await assertTestCommission('eligible');
   expect(commission.livemode).toBe(false);
-  await expect(page.getByText('Test', { exact: true })).toBeVisible();
   const reservation = await db.rpc('affiliate_reserve', { p_actor: actor, p_member: member.id, p_currency: 'PLN', p_cutoff: new Date().toISOString(), p_member_version: 2, p_program_version: program.version + 1, p_payee_reference: 'test-fixture' });
   expect(reservation.error).not.toBeNull();
   expect(await rows('affiliate_payouts', 'member_id', member.id)).toHaveLength(0);
-  const session = payment.session_id.startsWith('cs_') ? await stripe.checkout.sessions.retrieve(payment.session_id) : (await stripe.checkout.sessions.list({ payment_intent: payment.session_id, limit: 1 })).data[0];
-  expect(session).toBeTruthy();
   const intent = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent!.id;
   await stripe.refunds.create({ payment_intent: intent });
   await expect.poll(async () => Number((await rows('payment_transactions', 'id', payment.id))[0].refunded_amount), { timeout: 90000 }).toBe(Number(payment.amount));
@@ -125,7 +155,7 @@ test('native coupon paid, held, mature and refunded in test mode', async ({ page
   expect(entries.reduce((sum, e) => sum + BigInt(e.amount_minor), 0n)).toBe(0n);
   expect(entries.filter(e => e.kind === 'accrual')).toHaveLength(1); expect(entries.filter(e => e.kind === 'reversal')).toHaveLength(1); expect(entries.filter(e => e.kind === 'settlement')).toHaveLength(0);
   expect((await rows('payment_transactions', 'id', payment.id))[0].metadata).toEqual(metadata);
-  await setAuthSession(page, user.email, user.password); await page.goto('/my-affiliate'); await expect(page.getByText('Reversed', { exact: true }).first()).toBeVisible();
+  await setAuthSession(page, user.email, user.password); await page.goto('/my-affiliate'); await assertTestCommission('reversed');
 });
 for (const withCoupon of [true, false]) test(`external embed paid ${withCoupon ? 'with partner coupon accrues once' : 'without coupon creates no commission'}`, async ({ page, request }) => {
   const suffix = randomUUID().slice(0, 8), email = `embed-${suffix}@example.com`;
@@ -138,6 +168,7 @@ for (const withCoupon of [true, false]) test(`external embed paid ${withCoupon ?
   const coupon = await insert('coupons', { code: `EMB${suffix.toUpperCase()}`, discount_type: 'percentage', discount_value: 10, is_active: true });
   expect((await db.rpc('affiliate_rule_create', { p_actor: actor, p_product: product.id, p_expected_revision: 0, p_enabled: true, p_percentage_bps: 2000, p_fixed_minor: null, p_currency: null })).error).toBeNull();
   expect((await db.rpc('affiliate_coupon_bind', { p_actor: actor, p_coupon: coupon.id, p_member: member.id, p_expected_version: 0 })).error).toBeNull();
+  const historyBoundary = await affiliateHistoryBoundary(coupon.id);
   const server = createServer((_req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html' });
     res.end(`<!doctype html><html><body><div data-sellf-embed data-product-slug="${product.slug}" data-email="${email}" ${withCoupon ? `data-coupon="${coupon.code}"` : ''}></div><script src="${base}/embed/v1/checkout.js"></script></body></html>`);
@@ -153,6 +184,7 @@ for (const withCoupon of [true, false]) test(`external embed paid ${withCoupon ?
     expect(response.request().postDataJSON().couponCode).toBe(withCoupon ? coupon.code : undefined);
     expect(response.status()).toBe(200);
     const session = await stripe.checkout.sessions.retrieve((await response.json()).sessionId);
+    expect(session.created * 1000).toBeGreaterThanOrEqual(historyBoundary);
     expect(session.livemode).toBe(false); expect(session.amount_total).toBe(withCoupon ? 900 : 1000);
     const frame = page.frameLocator('iframe[name="embedded-checkout"]');
     await frame.getByTestId('card-accordion-item').click({ timeout: 60000 });
