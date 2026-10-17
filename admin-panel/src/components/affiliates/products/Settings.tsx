@@ -64,7 +64,7 @@ function RuleEditor({ productId, productType, isRefundable, refundPeriodDays }: 
     setBusy(true);
     try {
       const result = await createAffiliateRule({ product_id: productId, expected_revision: info?.rule?.revision ?? 0, enabled, rule: rule.data });
-      if (result.success) { if (await reload()) setMessage(t.saved); }
+      if (result.success) { if (await reload()) setMessage(t.ruleSaved); }
       else setMessage(result.errorCode === 'CONFLICT' ? t.conflict : t.error);
     } catch { setMessage(t.error); } finally { setBusy(false); }
   }
@@ -72,6 +72,7 @@ function RuleEditor({ productId, productType, isRefundable, refundPeriodDays }: 
     <h4 className="font-medium">{t.title}</h4>
     {subscription ? <p>{t.subscription}</p> : <>
       <p className="text-sm text-sf-muted">{t.policy}</p>
+      <p className="rounded border border-sf-border bg-sf-base p-3 text-sm">{t.ruleSaveHint}</p>
       {unlimited && <p role="note" className="rounded bg-sf-warning-soft px-3 py-2 text-sm text-sf-heading">{t.unlimited}</p>}
       <fieldset disabled={busy || !info} className="min-w-0 space-y-3">
         <label className="flex gap-2"><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />{t.enabled}</label>
@@ -81,11 +82,11 @@ function RuleEditor({ productId, productType, isRefundable, refundPeriodDays }: 
         {kind === 'fixed' && <label className="block text-sm">{t.currency}<select className={inputClass} value={currency} onChange={e => setCurrency(e.target.value)}>
           {SUPPORTED_CURRENCY_CODES.map(code => <option key={code}>{code}</option>)}</select></label>}
         </div>
-        <button type="button" className={`${buttonClass} bg-sf-accent-bg text-white`} onClick={() => void save()}>{t.save}</button>
+        <button type="button" className={`${buttonClass} bg-sf-accent-bg text-white`} onClick={() => void save()}>{t.ruleSave}</button>
       </fieldset>
     </>}
     <p role="status" className="break-words text-sm">{busy ? t.loading : message}</p>
-    {message && message !== t.saved && <button type="button" disabled={busy} className={buttonClass} onClick={() => void reload()}>{t.reload}</button>}
+    {message && message !== t.ruleSaved && <button type="button" disabled={busy} className={buttonClass} onClick={() => void reload()}>{t.reload}</button>}
   </section>;
 }
 
