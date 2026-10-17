@@ -120,3 +120,14 @@ describe('frozen Phase 2 contracts', () => {
     } finally { rmSync(directory, { recursive: true, force: true }); }
   });
 });
+
+it.each(['en', 'pl'] as const)('reports offer fallback from %s exactly like storefront validation', sourceLocale => {
+  const faq = { kind: 'faq', items: [{ id: 'bring', question: 'Question', answer: 'Answer' }] };
+  const config = { format: 1, enabled: true, templateId: 'offer-default', settings: { density: 'comfortable' }, tokens: null };
+  const warning = { code: 'TRANSLATION_FALLBACK', path: '/content/offer.faq', message: 'Missing translation uses source locale' };
+  expect(validatePhase2({ ...config, content: { 'offer.faq': { sourceLocale, [sourceLocale]: faq } } }, 'offer-config'))
+    .toEqual({ validatorVersion: 1, valid: true, errors: [], warnings: [warning] });
+  for (const content of [{}, { 'offer.faq': { sourceLocale, en: faq, pl: faq } }]) {
+    expect(validatePhase2({ ...config, content }, 'offer-config')).toEqual({ validatorVersion: 1, valid: true, errors: [], warnings: [] });
+  }
+});
