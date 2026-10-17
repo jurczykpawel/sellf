@@ -14,7 +14,7 @@ vi.mock('next-intl', async (importOriginal) => {
   return createNextIntlMock(await importOriginal<typeof import('next-intl')>());
 });
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, loading: false }) }));
-vi.mock('@/components/providers/config-provider', () => ({ useConfig: () => ({ demoMode: false }) }));
+vi.mock('@/components/providers/config-provider', () => ({ useConfig: () => ({ demoMode: false, passwordLoginEnabled: false, oauthProviders: [] }) }));
 vi.mock('@/components/SiteMenu', () => ({ default: () => null }));
 vi.mock('@/components/LoginForm', () => ({
   default: () => createElement('form', null,

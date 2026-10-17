@@ -19,22 +19,22 @@ it.each(['en', 'pl'])('shows unlimited maturity explicitly in %s', async locale 
   state.locale = locale; render(createElement(AffiliateRuleEditor, { productId: 'product' }));
   const warning = await screen.findByRole('note');
   expect(warning.textContent).toMatch(locale === 'pl' ? /nigdy nie można wypłacić, również przez ręczne korekty/ : /can never be paid out, including through manual adjustments/);
-  expect(screen.getByRole('button', { name: locale === 'pl' ? 'Zapisz tylko prowizję' : 'Save commission only' })).toBeDefined();
+  expect(screen.getByRole('button', { name: locale === 'pl' ? 'Zapisz prowizję teraz' : 'Save commission now' })).toBeDefined();
 });
 it('disables subscription rule creation', async () => {
   state.type = 'subscription'; render(createElement(AffiliateRuleEditor, { productId: 'product' }));
   await screen.findByText(/Subscriptions earn no commission/);
-  expect(screen.queryByRole('button', { name: 'Save commission only' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Save commission now' })).toBeNull();
 });
 it('validates before saving and retains a conflicting edit until reload', async () => {
   state.save.mockResolvedValue({ success: false, errorCode: 'CONFLICT' });
   render(createElement(AffiliateRuleEditor, { productId: 'product' }));
   await screen.findByLabelText('Commission (%)');
   fireEvent.change(screen.getByLabelText('Commission (%)'), { target: { value: '100.01' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Save commission only' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save commission now' }));
   expect(state.save).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText('Commission (%)'), { target: { value: '20' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Save commission only' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save commission now' }));
   await screen.findByText(/Changed elsewhere/);
   expect((screen.getByLabelText('Commission (%)') as HTMLInputElement).value).toBe('20');
 });
@@ -56,7 +56,7 @@ it('saves a localized fixed amount without rounding', async () => {
   await screen.findByLabelText('Commission (%)');
   fireEvent.change(screen.getByLabelText('Commission type'), { target: { value: 'fixed' } });
   fireEvent.change(screen.getByLabelText('Commission amount'), { target: { value: '90071992547409,93' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Save commission only' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save commission now' }));
   await waitFor(() => expect(state.save).toHaveBeenCalledWith(expect.objectContaining({ rule: { fixed_minor: '9007199254740993', currency: 'PLN' } })));
 });
 it('searches partners by name on the server', async () => {
@@ -79,7 +79,7 @@ it.each([['CHF', '12.34'], ['KRW', '1234']])('loads a fixed commission in %s', a
   state.rule = { fixed_minor: '1234', currency, percentage_bps: null, revision: 1, enabled: true };
   render(createElement(AffiliateRuleEditor, { productId: 'product' }));
   await waitFor(() => expect((screen.getByLabelText('Commission amount') as HTMLInputElement).value).toBe(amount));
-  fireEvent.click(screen.getByRole('button', { name: 'Save commission only' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save commission now' }));
   await waitFor(() => expect(state.save).toHaveBeenCalledWith(expect.objectContaining({ rule: { fixed_minor: '1234', currency } })));
 });
 
@@ -130,8 +130,10 @@ it('shows assignment confirmation when an earlier partner search is still pendin
   const loaded = { success: true, data: { binding: null, members: [{ id: 'member', code: 'partner', display_name: 'Approved Partner' }], next_cursor: null } };
   state.search.mockImplementation((input: { search?: string }) => input.search === undefined ? Promise.resolve(loaded) : new Promise(() => {}));
   render(createElement(AffiliateCouponEditor, { couponId: 'coupon' }));
-  await screen.findByText('Searching…');
-  const picker = screen.getByRole('combobox', { name: 'Approved partner' });
+  const picker = await screen.findByRole('combobox', { name: 'Approved partner' });
+  fireEvent.focus(picker); fireEvent.change(picker, { target: { value: 'Approved' } });
+  await waitFor(() => expect(state.search).toHaveBeenCalledWith(expect.objectContaining({ search: 'Approved' })));
+  expect(screen.getByRole('status').textContent).toBe('Searching…');
   fireEvent.focus(picker); fireEvent.click(screen.getByRole('option', { name: 'Approved Partner (partner)' }));
   fireEvent.click(screen.getByRole('button', { name: 'Assign coupon' }));
   await screen.findByText('Coupon assigned to the partner.');
@@ -148,4 +150,38 @@ it('keeps confirmation visible when a queued search starts after the assignment 
     await act(async () => { await vi.advanceTimersByTimeAsync(250); });
     expect(screen.getByRole('status').textContent).toBe('Coupon assigned to the partner.');
   } finally { vi.useRealTimers(); }
+});
+
+it.each(['en', 'pl'])('clears search progress after choosing a coupon partner in %s', async locale => {
+  vi.useFakeTimers();
+  try {
+    state.locale = locale;
+    const loaded = { success: true, data: { binding: null, members: [{ id: 'member', code: 'partner', display_name: 'Approved Partner' }], next_cursor: null } };
+    state.search.mockImplementation((input: { search?: string }) => input.search === undefined ? Promise.resolve(loaded) : new Promise(() => {}));
+    render(createElement(AffiliateCouponEditor, { couponId: 'coupon' }));
+    await act(async () => {});
+    const picker = screen.getByRole('combobox', { name: locale === 'pl' ? 'Zatwierdzony partner' : 'Approved partner' });
+    fireEvent.focus(picker);
+    fireEvent.change(picker, { target: { value: 'Approved' } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(250); });
+    expect(screen.getByRole('status').textContent).toBe(locale === 'pl' ? 'Szukanie…' : 'Searching…');
+    fireEvent.click(screen.getByRole('option', { name: 'Approved Partner (partner)' }));
+    expect(screen.getByRole('status').textContent).toBe('');
+    await act(async () => { await vi.advanceTimersByTimeAsync(250); });
+    expect(state.search).toHaveBeenCalledWith({ coupon_id: 'coupon', cursor: null, search: '' });
+    expect(screen.getByRole('status').textContent).toBe('');
+    expect((picker as HTMLInputElement).value).toBe('Approved Partner (partner)');
+  } finally { vi.useRealTimers(); }
+});
+
+it('clears progress when choosing a coupon partner during pagination', async () => {
+  const loaded = { success: true, data: { binding: null, members: [{ id: 'member', code: 'partner', display_name: 'Approved Partner' }], next_cursor: 'page-2' } };
+  state.search.mockImplementation((input: { cursor?: string | null }) => input.cursor ? new Promise(() => {}) : Promise.resolve(loaded));
+  render(createElement(AffiliateCouponEditor, { couponId: 'coupon' }));
+  const next = await screen.findByRole('button', { name: 'More results' });
+  fireEvent.click(next);
+  expect(screen.getByRole('status').textContent).toBe('Searching…');
+  const picker = screen.getByRole('combobox', { name: 'Approved partner' });
+  fireEvent.focus(picker); fireEvent.keyDown(picker, { key: 'ArrowDown' }); fireEvent.keyDown(picker, { key: 'Enter' });
+  expect(screen.getByRole('status').textContent).toBe('');
 });
