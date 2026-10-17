@@ -21,7 +21,7 @@ test.beforeAll(() => {
       };
       const result = await Bun.build({ entrypoints: ['tests/fixtures/dashboard-chart-browser.tsx'], target: 'browser', outdir: ${JSON.stringify(directory)},
         plugins: [{ name: 'dashboard-data', setup(build) {
-          build.onResolve({ filter: /.*/ }, args => args.path in mocks ? { path: args.path, namespace: 'fixture' } : undefined);
+          build.onResolve({ filter: new RegExp('^(' + Object.keys(mocks).map(name => name.split('/').join('\\\\/')).join('|') + ')$') }, args => args.path in mocks ? { path: args.path, namespace: 'fixture' } : undefined);
           build.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ contents: mocks[args.path], loader: 'js' }));
         }}] });
       if (!result.success) throw new Error(result.logs.join('\\n'));

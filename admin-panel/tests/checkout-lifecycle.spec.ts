@@ -35,13 +35,16 @@ test.beforeAll(async () => {
     '@/hooks/useTracking', '@/hooks/useOrderBumps', '@/hooks/useOto', '@/hooks/useFreeAccess', '@/hooks/useCheckoutRedirect',
     '@/hooks/useCoupon', '@/hooks/useInvoiceData', '@/components/DemoCheckoutNotice', '@/components/checkout/InvoiceFields', './ProductShowcase',
   ];
+  // Exact-specifier filter: Bun 1.3.14 drops next-intl's provider from the bundle when onResolve matches every import.
+  const mockFilter = `^(${mocks.map(name => name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')).join('|')})$`;
   try {
     execFileSync('bun', ['-e', `
       const mocked = new Set(${JSON.stringify(mocks)});
-      const result = await Bun.build({entrypoints:['tests/fixtures/storefront-sections/checkout-browser.tsx'], target:'browser', define:{'process.env':'{}'}, outdir:${JSON.stringify(directory)}, plugins:[{name:'checkout-fixture',setup(build){build.onResolve({filter:/.*/}, args => mocked.has(args.path) ? {path:${JSON.stringify(path.resolve('tests/fixtures/storefront-sections/checkout-runtime.tsx'))}} : undefined);}}]});
+      const result = await Bun.build({entrypoints:['tests/fixtures/storefront-sections/checkout-browser.tsx'], target:'browser', define:{'process.env':'{}'}, outdir:${JSON.stringify(directory)}, plugins:[{name:'checkout-fixture',setup(build){build.onResolve({filter:new RegExp(${JSON.stringify(mockFilter)})}, args => mocked.has(args.path) ? {path:${JSON.stringify(path.resolve('tests/fixtures/storefront-sections/checkout-runtime.tsx'))}} : undefined);}}]});
       if(!result.success) throw new AggregateError(result.logs);
     `]);
     script = readFileSync(path.join(directory, 'checkout-browser.js'), 'utf8');
+    expect(script, 'bundle lost NextIntlClientProvider').toContain('IntlProvider');
   } finally { rmSync(directory, { recursive: true, force: true }); }
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
