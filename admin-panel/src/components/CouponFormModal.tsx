@@ -129,7 +129,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4">
       <div className="bg-sf-base max-w-2xl w-full my-8 border-2 border-sf-border-medium">
         <div className="p-6 border-b border-sf-border bg-sf-deep/50">
