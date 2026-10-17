@@ -2988,6 +2988,8 @@
       "missingFieldCity": "city",
       "missingFieldPostal": "postal code",
       "missingEmailNotice": "Contact e-mail is required but it is set in Shop Settings (General tab), not here. Please go to Settings → General and fill in your contact e-mail, then try again.",
+      "notPolishShopNotice": "Legal document generation is available for stores in Poland. Go to Settings → Store and set the store country to Poland.",
+      "contactEmailShopNotice": "Add your contact email in Settings → Store, then return here to generate your documents.",
       "notPolishInstallation": "Legal document generation is available only for Polish installations — set the shop country to Poland in the shop settings (General tab)."
     },
     "license": {
