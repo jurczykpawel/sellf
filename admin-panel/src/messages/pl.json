@@ -1,4 +1,8 @@
 {
+  "formValidation": {
+    "required": "Wypełnij to pole.",
+    "email": "Wpisz poprawny adres e-mail."
+  },
   "templatePreview": {
       "confirmTitle": "Zastąpić obecną wersję roboczą?",
       "confirmHelp": "Sprawdź powyższe zmiany: od obecnej wersji do wybranej. Kontynuacja zastąpi zapisaną wersję roboczą i opublikuje wybraną wersję. Jeśli publikacja po zapisie się nie powiedzie, ta wersja pozostanie robocza.",
@@ -568,6 +572,8 @@
     }
   },
   "auth": {
+    "emailNotConfirmedMessage": "Potwierdź swój adres e-mail, klikając link w otrzymanej wiadomości.",
+    "passwordLoginFailed": "Nie udało się zalogować. Sprawdź e-mail i hasło, a następnie spróbuj ponownie.",
     "passwordEntryPlaceholder": "Wpisz hasło",
     "login": "Zaloguj się",
     "logout": "Wyloguj się",
@@ -1260,6 +1266,7 @@
       "accessRecords": "Zapisy dostępu",
       "activeUsers": "Aktywni użytkownicy (7d)",
       "stats": {
+        "todayChange": "+{amount} dzisiaj",
         "totalRevenue": "Przychody ogółem",
         "todayRevenue": "Dzisiejszy przychód",
         "todayOrders": "Dzisiejsze zamówienia",
@@ -2356,6 +2363,7 @@
       "statusError": "Nie udało się zmienić statusu bumpa"
     },
     "payments": {
+      "titleSentence": "Płatności",
       "title": "Zarządzanie Płatnościami",
       "subtitle": "Zarządzaj wszystkimi transakcjami, przetwarzaj zwroty i monitoruj aktywność płatności.",
       "loading": "Ładowanie danych płatności...",
@@ -2391,6 +2399,7 @@
         "days": "dni"
       },
       "transactions": {
+        "titleSentence": "Transakcje płatnicze",
         "title": "Transakcje Płatnicze",
         "transactionId": "ID Transakcji",
         "user": "Użytkownik",
@@ -2437,9 +2446,22 @@
         "fullRefunded": "Zwrócono w całości"
       },
       "sessions": {
+        "titleSentence": "Sesje checkout",
+        "empty": "Brak sesji płatności.",
+        "session": "Sesja",
+        "customer": "Kupujący",
+        "product": "Produkt",
+        "amount": "Kwota",
+        "status": "Status",
+        "created": "Utworzono",
+        "expires": "Wygasa",
+        "actions": "Akcje",
+        "statuses": {"pending": "Oczekująca", "completed": "Zakończona", "failed": "Nieudana", "cancelled": "Anulowana", "expired": "Wygasła", "refunded": "Zwrócona", "partially_refunded": "Częściowy zwrot", "disputed": "Sporna", "abandoned": "Porzucona"},
         "title": "Sesje checkout"
       },
       "refund": {
+        "titleSentence": "Przetwórz zwrot",
+        "fullRefundSentence": "Pełny zwrot",
         "title": "Przetwórz Zwrot",
         "reason": "Powód Zwrotu",
         "selectReason": "Wybierz powód",

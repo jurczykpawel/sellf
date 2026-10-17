@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { locales, Locale } from '@/lib/locales';
 import { notFound } from 'next/navigation';
+import LocalizedFormValidation from '@/components/providers/LocalizedFormValidation';
 import WhitelabelProvider from '@/components/providers/whitelabel-provider';
 import { loadThemeData } from '@/lib/theme-loader';
 
@@ -34,6 +35,7 @@ export default async function LocaleLayout({
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
+      <LocalizedFormValidation />
       <AuthProvider>
         <WhitelabelProvider theme={theme} licenseValid={licenseValid}>
           <div className="min-h-screen bg-sf-deep">

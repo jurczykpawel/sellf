@@ -19,6 +19,7 @@ export default function PaymentSessionsTable({
 }: PaymentSessionsTableProps) {
   const locale = useLocale();
   const tCancel = useTranslations('admin.payments.cancelSession');
+  const t = useTranslations('admin.payments.sessions');
   const [cancelingId, setCancelingId] = useState<string | null>(null);
 
   const handleCancelSession = async (sessionId: string) => {
@@ -53,7 +54,8 @@ export default function PaymentSessionsTable({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    if (!dateString || Number.isNaN(new Date(dateString).getTime())) return '—';
+    return new Date(dateString).toLocaleDateString(locale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -81,7 +83,7 @@ export default function PaymentSessionsTable({
     return (
       <div className="text-center py-12">
         <div className="text-sf-muted">
-          No payment sessions found.
+          {t('empty')}
         </div>
       </div>
     );
@@ -93,28 +95,28 @@ export default function PaymentSessionsTable({
         <thead className="bg-sf-raised">
           <tr>
             <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
-              Session
+              {t('session')}
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
-              Customer
+              {t('customer')}
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
-              Product
+              {t('product')}
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
-              Amount
+              {t('amount')}
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
-              Status
+              {t('status')}
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
-              Created
+              {t('created')}
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
-              Expires
+              {t('expires')}
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
-              Actions
+              {t('actions')}
             </th>
           </tr>
         </thead>
@@ -151,7 +153,7 @@ export default function PaymentSessionsTable({
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`inline-flex px-2 py-1 text-xs font-semibold ${getStatusColor(session.status)}`}>
-                  {session.status}
+                  {t(`statuses.${session.status}`)}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-sf-muted">

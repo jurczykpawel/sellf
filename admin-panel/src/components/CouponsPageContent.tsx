@@ -508,7 +508,7 @@ const CouponsPageContent: React.FC = () => {
                                 ? 'bg-sf-danger-soft text-sf-danger'
                                 : 'bg-sf-warning-soft text-sf-warning'
                             }`}
-                            title={otoStatus?.expiresAt ? otoStatus.expiresAt.toLocaleString() : ''}
+                            title={otoStatus?.expiresAt ? otoStatus.expiresAt.toLocaleString(locale) : ''}
                           >
                             {otoStatus?.isExpired
                               ? t('otoExpired')

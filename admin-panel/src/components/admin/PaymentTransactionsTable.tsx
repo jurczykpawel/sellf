@@ -70,7 +70,7 @@ export default function PaymentTransactionsTable({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString(locale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -103,7 +103,7 @@ export default function PaymentTransactionsTable({
     <div className="bg-sf-base border-2 border-sf-border-medium overflow-hidden">
       <div className="px-6 py-4 border-b border-sf-border">
         <h3 className="text-lg font-semibold text-sf-heading">
-          {t('title')}
+          {t('titleSentence')}
         </h3>
       </div>
       
@@ -417,7 +417,7 @@ export default function PaymentTransactionsTable({
         <div className="fixed inset-0 bg-sf-deep/75 backdrop-blur-md flex items-center justify-center z-50 p-4">
           <div className="bg-sf-raised/95 border border-sf-border shadow-2xl rounded-2xl p-6 max-w-md w-full">
             <h3 className="text-lg font-semibold text-sf-heading mb-4">
-              {tRefund('title')}
+              {tRefund('titleSentence')}
             </h3>
             <div className="space-y-4">
               <div>
@@ -441,7 +441,7 @@ export default function PaymentTransactionsTable({
                   disabled={!refundReason || refundingId === showRefundModal}
                   className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
                 >
-                  {refundingId === showRefundModal ? tRefund('processing') : tRefund('fullRefund')}
+                  {refundingId === showRefundModal ? tRefund('processing') : tRefund('fullRefundSentence')}
                 </button>
                 <button
                   onClick={() => {

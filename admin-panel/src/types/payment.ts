@@ -13,7 +13,7 @@ export interface PaymentSession {
   customer_email: string;
   amount: number;
   currency: string;
-  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  status: PaymentTransaction['status'] | 'failed' | 'cancelled';
   metadata: Record<string, unknown>;
   expires_at: string;
   completed_at?: string;

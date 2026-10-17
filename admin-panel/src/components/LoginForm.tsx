@@ -49,7 +49,7 @@ export default function LoginForm() {
         })
 
         if (error) {
-          setMessage(error.message)
+          setMessage(error.code === 'email_not_confirmed' ? t('auth.emailNotConfirmedMessage') : t('auth.passwordLoginFailed'))
         }
         // On success, AuthContext will detect user and redirect
         setIsLoading(false)

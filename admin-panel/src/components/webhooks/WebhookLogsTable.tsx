@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { WebhookLog } from '@/types/webhooks';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 interface WebhookLogsTableProps {
@@ -39,6 +39,7 @@ export default function WebhookLogsTable({
   const isSelectable = (log: WebhookLog) =>
     log.status === 'permanently_failed' || log.status === 'pending_retry';
   const t = useTranslations('admin.webhooks.logs');
+  const locale = useLocale();
   const tCommon = useTranslations('common');
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
   const [archivingId, setArchivingId] = useState<string | null>(null);
@@ -181,7 +182,7 @@ export default function WebhookLogsTable({
                   </td>
                 )}
                 <td className="px-4 py-3 text-sm text-sf-heading whitespace-nowrap">
-                  {new Date(log.created_at).toLocaleString()}
+                  {new Date(log.created_at).toLocaleString(locale)}
                 </td>
                 
                 {showEndpointColumn && (
@@ -303,13 +304,13 @@ export default function WebhookLogsTable({
                         {log.next_retry_at && (
                           <div>
                             <span className="text-sf-muted">{t('nextRetryAt')}: </span>
-                            <span className="text-sf-heading font-mono">{new Date(log.next_retry_at).toLocaleString()}</span>
+                            <span className="text-sf-heading font-mono">{new Date(log.next_retry_at).toLocaleString(locale)}</span>
                           </div>
                         )}
                         {log.failed_permanently_at && (
                           <div>
                             <span className="text-sf-muted">{t('failedPermanentlyAt')}: </span>
-                            <span className="text-sf-heading font-mono">{new Date(log.failed_permanently_at).toLocaleString()}</span>
+                            <span className="text-sf-heading font-mono">{new Date(log.failed_permanently_at).toLocaleString(locale)}</span>
                           </div>
                         )}
                       </div>

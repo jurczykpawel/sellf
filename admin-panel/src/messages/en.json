@@ -1,4 +1,8 @@
 {
+  "formValidation": {
+    "required": "Please fill out this field.",
+    "email": "Enter a valid email address."
+  },
   "templatePreview": {
       "confirmTitle": "Replace your current draft?",
       "confirmHelp": "Review the changes above, from your current version to the selected version. Continuing replaces your saved draft and publishes the selected version. If publication fails after saving, this version remains your draft.",
@@ -568,6 +572,8 @@
     }
   },
   "auth": {
+    "emailNotConfirmedMessage": "Confirm your email address using the link in your email.",
+    "passwordLoginFailed": "Unable to sign in. Check your email and password, then try again.",
     "passwordEntryPlaceholder": "Enter your password",
     "login": "Login",
     "logout": "Logout",
@@ -1241,6 +1247,7 @@
       "welcome": "Welcome to Sellf Admin",
       "overview": "Overview",
       "stats": {
+        "todayChange": "+{amount} today",
         "totalRevenue": "Total Revenue",
         "todayRevenue": "Today's Revenue",
         "todayOrders": "Today's Orders",
@@ -2356,6 +2363,7 @@
       "statusError": "Failed to toggle bump status"
     },
     "payments": {
+      "titleSentence": "Payments",
       "title": "Payment Management",
       "subtitle": "Manage all payment transactions, process refunds, and monitor payment activity.",
       "loading": "Loading payment data...",
@@ -2391,6 +2399,7 @@
         "days": "days"
       },
       "transactions": {
+        "titleSentence": "Payment transactions",
         "title": "Payment Transactions",
         "transactionId": "Transaction ID",
         "user": "User",
@@ -2437,9 +2446,22 @@
         "fullRefunded": "Fully refunded"
       },
       "sessions": {
+        "titleSentence": "Checkout sessions",
+        "empty": "No payment sessions found.",
+        "session": "Session",
+        "customer": "Customer",
+        "product": "Product",
+        "amount": "Amount",
+        "status": "Status",
+        "created": "Created",
+        "expires": "Expires",
+        "actions": "Actions",
+        "statuses": {"pending": "Pending", "completed": "Completed", "failed": "Failed", "cancelled": "Cancelled", "expired": "Expired", "refunded": "Refunded", "partially_refunded": "Partially refunded", "disputed": "Disputed", "abandoned": "Abandoned"},
         "title": "Checkout Sessions"
       },
       "refund": {
+        "titleSentence": "Process refund",
+        "fullRefundSentence": "Full refund",
         "title": "Process Refund",
         "reason": "Refund Reason",
         "selectReason": "Select reason",

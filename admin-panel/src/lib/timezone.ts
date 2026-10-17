@@ -71,7 +71,8 @@ export function formatUTCForDisplay(
     hour: '2-digit',
     minute: '2-digit',
     hour12: false
-  }
+  },
+  locale?: string
 ): string {
   if (!utcIsoString) return '';
   
@@ -84,7 +85,7 @@ export function formatUTCForDisplay(
     }
     
     // Format in user's local timezone
-    return utcDate.toLocaleString(undefined, options);
+    return utcDate.toLocaleString(locale, options);
   } catch {
     return '';
   }

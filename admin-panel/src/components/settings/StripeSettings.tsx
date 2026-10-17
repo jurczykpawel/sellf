@@ -6,7 +6,7 @@ import { StripeConfigWizard } from '@/components/stripe/StripeConfigWizard'
 import { listStripeConfigs, getStripeAccountInfo, getStripeKeySource, getWebhookRegistrationInfo, createStripeWebhookEndpoint } from '@/lib/actions/stripe-config'
 import { STRIPE_API_VERSION, STRIPE_WEBHOOK_EVENTS } from '@/lib/constants'
 import type { StripeConfiguration, WebhookRegistrationInfo } from '@/types/stripe-config'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import SourceBadge from '@/components/ui/SourceBadge'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -15,6 +15,7 @@ let _accountInfoCache: { accountId: string | null; accountName: string | null } 
 
 export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
  const t = useTranslations('settings.stripe')
+  const locale = useLocale();
  const { role } = useAuth()
  const [isWizardOpen, setIsWizardOpen] = useState(false)
  const [configs, setConfigs] = useState<StripeConfiguration[]>([])
@@ -207,10 +208,10 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
  <span>{t('account')}: {config.account_id}</span>
  )}
  {config.account_id && ' · '}
- {t('created')}: {new Date(config.created_at).toLocaleDateString()}
+ {t('created')}: {new Date(config.created_at).toLocaleDateString(locale)}
  {config.expires_at && (
  <span>
- {' · '}{t('rotationReminder')}: {new Date(config.expires_at).toLocaleDateString()}
+ {' · '}{t('rotationReminder')}: {new Date(config.expires_at).toLocaleDateString(locale)}
  {new Date(config.expires_at) < new Date() && (
  <span className="ml-1 text-sf-warning font-medium">
  ({t('rotationOverdue', { defaultValue: 'overdue' })})
