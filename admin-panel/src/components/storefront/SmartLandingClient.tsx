@@ -13,7 +13,7 @@ interface SmartLandingClientProps {
   hasProducts: boolean;
   products?: Product[];
   children?: ReactNode;
-  templateId?: 'default' | 'd' | 'storefront-a';
+  templateId?: 'default' | 'd' | 'storefront-a' | 'storefront-b';
   shopConfig: ShopConfig | null;
   /** Override product link prefix. Default: '/p'. For seller storefronts: '/s/seller-slug' */
   productLinkPrefix?: string;

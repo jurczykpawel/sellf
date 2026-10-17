@@ -102,10 +102,10 @@ export async function preparePreview(auth: unknown, input: unknown, startedAt = 
     if (fixture === 'published-products') {
       const [pages, bound] = await Promise.all([
         loadCatalogueGroups(client, { locale, pageSize: spec.pageSize }, spec.variant),
-        loadStorefrontBindings(client, { locale, heroProduct: selection.settings.heroProduct, closingProduct: selection.settings.closingProduct, comparisonProducts: selection.settings.comparisonProducts, starterProducts: selection.settings.starterProducts, taskCategories: selection.settings.taskCategories, target: spec.id }),
+        loadStorefrontBindings(client, { locale, heroProduct: selection.settings.heroProduct, closingProduct: selection.settings.closingProduct, comparisonProducts: selection.settings.comparisonProducts, featuredProducts: selection.settings.featuredProducts, starterProducts: selection.settings.starterProducts, taskCategories: selection.settings.taskCategories, target: spec.id }),
       ]);
       if (!pages.success || !bound.success) return fail('UNAVAILABLE');
-      products = [bound.data.hero, bound.data.closing, ...bound.data.starters, ...bound.data.comparison].filter((p): p is PublicProductInfo => p !== null);
+      products = [bound.data.hero, bound.data.closing, ...bound.data.starters, ...bound.data.comparison, ...bound.data.featured].filter((p): p is PublicProductInfo => p !== null);
       categories = bound.data.categories; groups = pages.data;
     }
     const catalogue: CatalogueProps = { id: spec.id, variant: spec.variant, groups, filters: spec.filters, pageSize: spec.pageSize, density: selection.settings.density ?? 'comfortable', locale, categories };

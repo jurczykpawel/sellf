@@ -228,3 +228,28 @@ it('saves A visibility, variant and complete order intent while retaining inacti
   expect(saved.overridesByTemplate['storefront-a']).toEqual({ order: ['hero', 'tasks', 'start', 'comparison', 'catalogue', 'faq', 'closing'], sections: { tasks: { visibility: 'hidden' }, start: { variant: 'compact' } } });
   expect(saved.settingsByTemplate.d).toEqual(snapshot().published.settingsByTemplate.d);
 });
+
+it('authors B search, category descriptions, featured products and starter copy without typed IDs', async () => {
+  const view = setup();
+  fireEvent.change(view.getByLabelText('Template'), { target: { value: 'storefront-b' } });
+  expect(view.getByDisplayValue('Search-led storefront')).toBeTruthy();
+  fireEvent.change(view.getByLabelText('Search and topics · EN · Heading'), { target: { value: 'Find your next task' } });
+  await waitFor(() => expect(view.getByRole('button', { name: 'Add Automation', exact: true })).toBeTruthy());
+  fireEvent.click(view.getByRole('button', { name: 'Add Automation', exact: true }));
+  fireEvent.change(view.getByLabelText('Search and topics · EN · Topic 1 description'), { target: { value: 'Build a useful workflow.' } });
+  fireEvent.click(view.getByRole('button', { name: 'Featured products', exact: true }));
+  await waitFor(() => expect(view.getByRole('button', { name: /Add Reporting course/ })).toBeTruthy());
+  fireEvent.click(view.getByRole('button', { name: /Add Reporting course/ }));
+  fireEvent.change(view.getByLabelText('Featured products · EN · Heading'), { target: { value: 'Recommended guides' } });
+  fireEvent.click(view.getByRole('button', { name: 'Starter product', exact: true }));
+  fireEvent.change(view.getByLabelText('Starter product · EN · Heading'), { target: { value: 'Start with one guide' } });
+  action.mockResolvedValueOnce({ success: true, revision: 8, validation: { valid: true, errors: [], warnings: [] } });
+  fireEvent.click(view.getByRole('button', { name: 'Save draft' }));
+  await waitFor(() => expect(action).toHaveBeenCalled());
+  const saved = action.mock.calls[0][0].config;
+  expect(saved.settingsByTemplate['storefront-b'].featuredProducts).toEqual([products[1].id]);
+  expect(saved.content['home.search'].en.items[0].description).toBe('Build a useful workflow.');
+  expect(saved.content['home.featured'].en.heading).toBe('Recommended guides');
+  expect(saved.content['home.starter'].en.heading).toBe('Start with one guide');
+  expect(saved.settingsByTemplate.d).toEqual(snapshot().published.settingsByTemplate.d);
+});

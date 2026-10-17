@@ -58,15 +58,15 @@ function permutations<T>(items: T[]): T[][] {
   return items.length ? items.flatMap((item, index) => permutations(items.filter((_, i) => i !== index)).map(rest => [item, ...rest])) : [[]];
 }
 it('release gate: every previously supported legacy order and visibility subset resolves without UNSUPPORTED', () => {
-  const legacy = { d: ['hero', 'tasks', 'start', 'catalogue', 'faq', 'closing'], default: ['catalogue'], 'storefront-a': ['hero', 'tasks', 'comparison', 'start', 'catalogue', 'faq', 'closing'] };
+  const legacy = { d: ['hero', 'tasks', 'start', 'catalogue', 'faq', 'closing'], default: ['catalogue'], 'storefront-a': ['hero', 'tasks', 'comparison', 'start', 'catalogue', 'faq', 'closing'], 'storefront-b': ['hero', 'featured', 'catalogue', 'starter', 'faq', 'closing'] };
   let visited = 0; let supported = 0;
-  for (const templateId of ['d', 'default', 'storefront-a'] as const) {
-    const hideable = templateId !== 'default' ? ['tasks', 'start', 'faq'] : [];
+  for (const templateId of ['d', 'default', 'storefront-a', 'storefront-b'] as const) {
+    const hideable = templateId === 'storefront-b' ? ['featured', 'starter', 'faq'] : templateId !== 'default' ? ['tasks', 'start', 'faq'] : [];
     for (const order of permutations(legacy[templateId])) for (let mask = 0; mask < 2 ** hideable.length; mask++) {
       visited++;
       const sections = Object.fromEntries(hideable.map((id, bit) => [id, { visibility: mask & (1 << bit) ? 'hidden' : 'visible' }]));
       const config = { ...D_CONFIG, templateId, overridesByTemplate: { [templateId]: { order, sections } } };
-      const selected = resolveSelection(config, ['default', 'd', 'storefront-a']);
+      const selected = resolveSelection(config, ['default', 'd', 'storefront-a', 'storefront-b']);
       // The legacy contract required the D hero first; all 720 orders are enumerated.
       if (templateId !== 'default' && order.filter(id => sections[id]?.visibility !== 'hidden')[0] !== 'hero') continue;
       supported++;
@@ -74,11 +74,11 @@ it('release gate: every previously supported legacy order and visibility subset 
       expect(selected.recipe.sections.map(section => section.id).filter(id => legacy[templateId].includes(id))).toEqual(order.filter(id => sections[id]?.visibility !== 'hidden'));
     }
   }
-  expect(visited).toBe(46081); expect(supported).toBe(8857);
+  expect(visited).toBe(51841); expect(supported).toBe(10189);
 }, 60000);
 
 it('release gate: anchored additions preserve every supported legacy layout through the real resolver', () => {
-  for (const templateId of ['d', 'default', 'storefront-a'] as const) {
+  for (const templateId of ['d', 'default', 'storefront-a', 'storefront-b'] as const) {
     const entry = STOREFRONT_TEMPLATES[templateId];
     const original = { defaults: entry.defaults, sectionDescriptors: entry.sectionDescriptors };
     const sections = [...entry.defaults.sections];
@@ -87,13 +87,13 @@ it('release gate: anchored additions preserve every supported legacy layout thro
         defaults: { ...entry.defaults, sections: [{ id: 'extra', type: 'faq/1', content: { slot: 'home.faq' } }, ...sections] },
         sectionDescriptors: { ...entry.sectionDescriptors, extra: { hideable: true, defaultVisibility: 'visible', variants: [], placement: { after: 'catalogue' } } },
       });
-      const optional = templateId !== 'default' ? ['tasks', 'start', 'faq'] : [];
+      const optional = templateId === 'storefront-b' ? ['featured', 'starter', 'faq'] : templateId !== 'default' ? ['tasks', 'start', 'faq'] : [];
       for (const order of permutations(sections.map(section => section.id))) for (let mask = 0; mask < 2 ** optional.length; mask++) {
         const hidden = optional.filter((_, bit) => mask & (1 << bit));
         const visible = order.filter(id => !hidden.includes(id));
         if (templateId !== 'default' && visible[0] !== 'hero') continue;
         const config = { ...D_CONFIG, templateId, overridesByTemplate: { [templateId]: { order, sections: Object.fromEntries(hidden.map(id => [id, { visibility: 'hidden' }])) } } };
-        const resolved = resolveSelection(config, ['default', 'd', 'storefront-a']);
+        const resolved = resolveSelection(config, ['default', 'd', 'storefront-a', 'storefront-b']);
         expect(resolved.diagnostic, JSON.stringify({ templateId, order, hidden })).toBeNull();
         const ids = resolved.recipe.sections.map(section => section.id);
         expect(ids.filter(id => id !== 'extra')).toEqual(visible);

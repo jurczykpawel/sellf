@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { test, expect } from '@playwright/test';
 import { checkAccessibility } from './helpers/axe';
-import { A_TOKENS, D_TOKENS } from '../src/lib/storefront-templates/fixtures';
+import { A_TOKENS, B_TOKENS, D_TOKENS } from '../src/lib/storefront-templates/fixtures';
 import type { PresentationModel } from '../src/lib/storefront-templates/resolver';
 let pages: Record<string, { html: string; model: PresentationModel }>;
 let css: string; let script: string;
@@ -18,9 +18,9 @@ test.beforeAll(() => {
     script = readFileSync(path.join(dir, 'composition-browser.js'), 'utf8');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
-for (const theme of ['light', 'dark'] as const) for (const locale of ['en', 'pl'] as const) for (const template of ['default', 'd', 'storefront-a'] as const) {
+for (const theme of ['light', 'dark'] as const) for (const locale of ['en', 'pl'] as const) for (const template of ['default', 'd', 'storefront-a', 'storefront-b'] as const) {
   test(`${locale}/${template}/${theme}: first paint, headings, responsive and shared filters`, async ({ page, context }, testInfo) => {
-    const fixture = pages[`${locale}/${template}`]; const colors = (template === 'storefront-a' ? A_TOKENS : D_TOKENS)[theme];
+    const fixture = pages[`${locale}/${template}`]; const colors = (template === 'storefront-b' ? B_TOKENS : template === 'storefront-a' ? A_TOKENS : D_TOKENS)[theme];
     const requests: string[] = [];
     page.on('request', request => requests.push(request.url()));
     const errors: string[] = []; const inputs: { categoryIds: string[]; search: string }[] = [];
@@ -47,7 +47,7 @@ for (const theme of ['light', 'dark'] as const) for (const locale of ['en', 'pl'
     await expect(page.locator('h1')).toHaveCount(1);
     for (const width of [320, 390, 768, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
-      for (const control of await page.locator('#catalogue select').all()) expect((await control.boundingBox())!.width).toBeGreaterThanOrEqual(template === 'storefront-a' ? 96 : 120);
+      for (const control of await page.locator('#catalogue select').all()) expect((await control.boundingBox())!.width).toBeGreaterThanOrEqual(template.startsWith('storefront-') ? 96 : 120);
       if (width === 390 || width === 1440) await page.screenshot({ path: testInfo.outputPath(`composition-${width}.png`), fullPage: true });
       if (template === 'storefront-a') {
         const footer = page.locator('[data-template] > footer');
@@ -61,6 +61,16 @@ for (const theme of ['light', 'dark'] as const) for (const locale of ['en', 'pl'
         if (width === 390 || width === 1440) {
           await page.screenshot({ path: `/tmp/t2-7-${locale}-${theme}-${width}.png`, fullPage: true });
           if (locale === 'pl' && theme === 'light') await expect(page).toHaveScreenshot(`a-${width}.png`, { fullPage: true, threshold: .2, maxDiffPixelRatio: .005 });
+        }
+      }
+      if (template === 'storefront-b') {
+        expect(await page.locator('[data-template] > footer').evaluate(element => getComputedStyle(element).textAlign)).toBe('center');
+        expect(fixture.model.sections.map(section => section.id)).toEqual(['hero', 'featured', 'catalogue', 'starter', 'faq', 'closing']);
+        await expect(page.locator('[data-variant="featured-grid"] article')).toHaveCount(6);
+        await expect(page.locator('[data-variant="search-hero"]')).toBeVisible();
+        if (width === 390 || width === 1440) {
+          await page.screenshot({ path: `/tmp/t213-${locale}-${theme}-${width}.png`, fullPage: true });
+          if (locale === 'pl' && theme === 'light') await expect(page).toHaveScreenshot(`b-${width}.png`, { fullPage: true, threshold: .2, maxDiffPixelRatio: .005 });
         }
       }
       if (template === 'd') {

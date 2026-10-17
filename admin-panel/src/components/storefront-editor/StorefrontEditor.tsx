@@ -22,7 +22,7 @@ interface StorefrontEditorProps { initial: TemplateReadResult | null }
 export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
   const locale = useLocale() === 'pl' ? 'pl' : 'en';
   const t = useTranslations('storefrontEditor');
-  const templateName = (id: string) => id === 'storefront-a' ? STOREFRONT_TEMPLATES['storefront-a'].label[locale] : t(id === 'd' ? 'dName' : 'defaultName');
+  const templateName = (id: string) => id === 'storefront-a' || id === 'storefront-b' ? STOREFRONT_TEMPLATES[id].label[locale] : t(id === 'd' ? 'dName' : 'defaultName');
   const appearance = useTranslations('storefrontAppearance');
   const sectionListId = useId();
   const sectionListRef = useRef<HTMLOListElement>(null);
@@ -128,7 +128,8 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
   }, [sectionId, orderKey]);
   const selectedSection = layout?.sections.find(item => item.id === sectionId);
   const section = selectedSection?.spec;
-  const sectionName = (id: string) => t(`sectionNames.${id}`);
+  const sectionName = (id: string) => id === 'hero' && config?.templateId === 'storefront-b' ? t('search-hero') : t(`sectionNames.${id}`);
+  const sectionDescription = (id: string) => id === 'hero' && config?.templateId === 'storefront-b' ? t('searchHeroDescription') : t(`sectionDescriptions.${id}`);
   const slotId = section && 'content' in section && section.content ? section.content.slot : null;
   const variants = selectedSection?.descriptor.variants ?? [];
   function changeSection(id: string, patch: SectionIntent) {
@@ -140,7 +141,7 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
   const activeSettings: TemplateSettings = config ? config.settingsByTemplate[config.templateId] ?? {} : {};
   const binding = activeSettings[field ?? 'heroProduct'];
   const bindingIds = Array.isArray(binding) ? binding : binding ? [binding] : [];
-  const bindingLabel = field === 'heroProduct' ? 'primaryOffer' : field === 'closingProduct' ? 'closingOffer' : field === 'comparisonProducts' ? 'comparisonOffers' : field === 'starterProducts' ? 'startingOffers' : 'topics';
+  const bindingLabel = field === 'heroProduct' ? 'primaryOffer' : field === 'closingProduct' ? 'closingOffer' : field === 'featuredProducts' ? 'featuredOffers' : field === 'comparisonProducts' ? 'comparisonOffers' : field === 'starterProducts' ? 'startingOffers' : 'topics';
   function moveSection(index: number, target: number) {
     if (target < 0 || target >= order.length || index === target) return;
     const next = [...order]; const [id] = next.splice(index, 1); next.splice(target, 0, id); changeOverride({ order: next });
@@ -168,7 +169,7 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
             {order.map((id, index) => <li key={id} data-reorder-index={index} className={`flex w-64 shrink-0 items-center rounded-xl border p-2 lg:w-auto ${sectionId === id ? 'border-sf-accent bg-sf-accent-soft' : 'border-sf-border bg-sf-base'}`}
               onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const raw = event.dataTransfer.getData('text/plain'); if (event.dataTransfer.getData('application/x-sellf-list') === sectionListId && /^\d+$/.test(raw)) moveSection(Number(raw), index); }}>
               <ReorderHandle name={sectionName(id)} index={index} count={order.length} onMove={target => moveSection(index, target)} />
-              <button type="button" aria-label={sectionName(id)} aria-pressed={sectionId === id} className="min-w-0 flex-1 rounded-md px-2 py-2 text-left focus-visible:outline-2 focus-visible:outline-sf-accent" onClick={() => setSelected(id)}><span className="block text-sm font-semibold">{sectionName(id)}</span><span className="mt-1 block text-xs leading-relaxed text-sf-muted">{t(`sectionDescriptions.${id}`)}</span></button>
+              <button type="button" aria-label={sectionName(id)} aria-pressed={sectionId === id} className="min-w-0 flex-1 rounded-md px-2 py-2 text-left focus-visible:outline-2 focus-visible:outline-sf-accent" onClick={() => setSelected(id)}><span className="block text-sm font-semibold">{sectionName(id)}</span><span className="mt-1 block text-xs leading-relaxed text-sf-muted">{sectionDescription(id)}</span></button>
               <label className="flex h-11 w-9 shrink-0 items-center justify-center" title={t('show', { id: sectionName(id) })}><input type="checkbox" aria-label={t('show', { id: sectionName(id) })} className="h-4 w-4 accent-sf-accent" checked={layout?.sections.find(section => section.id === id)?.visibility === 'visible'} disabled={!layout?.sections.find(section => section.id === id)?.descriptor.hideable} onChange={event => changeSection(id, { visibility: event.target.checked ? 'visible' : 'hidden' })} /></label>
             </li>)}
           </ol>
@@ -176,14 +177,14 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
         </nav>
         {sectionId === 'appearance' && <AppearanceEditor config={config} dirty={dirty} blocked={busy || conflict} onChange={edit} onReset={async field => { await savedOperation(field); }} onImport={async () => { const response = await savedOperation(); return { success: response.success, ...('code' in response ? { code: response.code } : {}), ...('unsupported' in response ? { unsupported: response.unsupported } : {}) }; }} />}
         {section && <section data-editor-panel aria-label={sectionName(sectionId)} className={`min-w-0 space-y-6 rounded-2xl border bg-sf-base p-4 sm:p-6 ${validation?.errors.length ? 'border-sf-danger' : 'border-sf-border'}`}>
-          <header className="space-y-1 border-b border-sf-border pb-5"><h2 className="text-xl font-semibold">{sectionName(sectionId)}</h2><p className="text-sm text-sf-muted">{t(`sectionDescriptions.${sectionId}`)}</p></header>
-          {field && <div className="space-y-3"><BindingPicker key={`${config.templateId}:${field}`} label={t(bindingLabel)} kind={field === 'taskCategories' ? 'categories' : 'products'} selectedIds={bindingIds} maxItems={field === 'comparisonProducts' ? 2 : field === 'starterProducts' ? 3 : field === 'taskCategories' ? 12 : 1} onChange={ids => {
+          <header className="space-y-1 border-b border-sf-border pb-5"><h2 className="text-xl font-semibold">{sectionName(sectionId)}</h2><p className="text-sm text-sf-muted">{sectionDescription(sectionId)}</p></header>
+          {field && <div className="space-y-3"><BindingPicker key={`${config.templateId}:${field}`} label={t(bindingLabel)} kind={field === 'taskCategories' ? 'categories' : 'products'} selectedIds={bindingIds} maxItems={field === 'featuredProducts' ? 6 : field === 'comparisonProducts' ? 2 : field === 'starterProducts' ? 3 : field === 'taskCategories' ? 12 : 1} onChange={ids => {
             const settings: TemplateSettings = { ...activeSettings };
             if (field === 'heroProduct' || field === 'closingProduct') { if (ids[0]) settings[field] = ids[0]; else delete settings[field]; }
             else settings[field] = ids;
             edit({ ...config, settingsByTemplate: { ...config.settingsByTemplate, [config.templateId]: settings } });
           }} />{(field === 'heroProduct' || field === 'closingProduct') && bindingIds.length === 0 && <p className="text-sm text-sf-muted">{t('missingOffer')}</p>}</div>}
-          {slotId && <SlotEditor comparisonProducts={config.settingsByTemplate['storefront-a']?.comparisonProducts} key={sectionId} id={slotId} value={config.content[slotId]} onChange={value => edit({ ...config, content: { ...config.content, [slotId]: value } } as StorefrontConfig)} />}
+          {slotId && <SlotEditor taskCategories={activeSettings.taskCategories} comparisonProducts={config.settingsByTemplate['storefront-a']?.comparisonProducts} key={sectionId} id={slotId} value={config.content[slotId]} onChange={value => edit({ ...config, content: { ...config.content, [slotId]: value } } as StorefrontConfig)} />}
           {variants.length > 0 && <label className="block space-y-2 text-sm font-medium"><span>{t('layoutStyle')}</span><select aria-label={t('layoutStyle')} className={editorControl} value={selectedSection?.variantOrigin === 'seller' ? selectedSection.variant : ''} onChange={event => changeSection(sectionId, { variant: event.target.value || undefined })}><option value="">{t('inherited')}</option>{variants.map(variant => <option key={variant} value={variant}>{t(variant)}</option>)}</select></label>}
           {sectionId === 'catalogue' && config.templateId === 'd' && <label className="block space-y-2 text-sm font-medium"><span>{t('density')}</span><select aria-label={t('density')} className={editorControl} value={config.settingsByTemplate.d?.density ?? ''} onChange={event => { const settings: TemplateSettings = { ...activeSettings }; if (event.target.value) settings.density = event.target.value as 'compact' | 'comfortable'; else delete settings.density; edit({ ...config, settingsByTemplate: { ...config.settingsByTemplate, [config.templateId]: settings } }); }}><option value="">{t('inherited')}</option><option value="comfortable">{t('comfortable')}</option><option value="compact">{t('densityCompact')}</option></select></label>}
         </section>}

@@ -120,8 +120,7 @@ annotations with optional `eyebrow` (80), `descriptor` (120), `detailHeading` (1
 Compact may bind optional `home.catalogue` heading content (existing heading/body
 limits plus optional 80-character eyebrow); pass resolved slots to its resolver.
 Absent annotations use canonical product marketing and core EN/PL labels. Section
-registration/selection, lifecycle storage adoption and A/B composition remain the
-subsequent tasks; no premium entry is made selectable by this change.
+registration/selection, lifecycle storage adoption and A/B composition is described below; the shared list task itself did not register entries.
 
 The binding loader accepts optional comparison/featured selections and returns
 ordered `comparison`/`featured` arrays. It deduplicates all selected IDs and uses
@@ -171,7 +170,7 @@ The category ribbon uses the existing target-scoped TaskNav events, with A-only
 composition styling. No second finder or product request is added.
 
 `base-schemas.ts` retains the Phase 1 grammar used to build the frozen extension.
-`schemas.ts` adopts only A's sections, slots and retained settings for runtime
+`schemas.ts` adopts the installed A/B sections, slots and retained settings for runtime
 validation; default/D bounds remain unchanged. A's default composition retains that order. Its descriptor-derived override map
 uses `order?: KnownId[]` and `sections.<id>.visibility/variant`; tasks, starters and
 FAQ may hide, while hero, comparison, catalogue and closing remain visible. Only
@@ -197,20 +196,45 @@ T2.8 owns the complete premium author/purchase trial before release.
 
 D-056 replaces the unreleased `hidden`/`variants` fields with strict, finite
 `sections` maps. `section-descriptors.ts` declares visibility, variants and
-pin/after/before placement for default/D/A and the offline B/C contracts. Installed
+pin/after/before placement for default/D/A/B and the offline C contract. Installed
 and frozen Zod/JSON Schema contracts derive from those descriptors; unknown IDs,
-unknown leaves and variants needing different bindings are rejected. B/C remain
-offline contracts. Resolver, content checks, editor, reset paths, capabilities,
+unknown leaves and variants needing different bindings are rejected. C remains
+an offline contract. Resolver, content checks, editor, reset paths, capabilities,
 preview and authored-order normalization share `effectiveLayout()`.
 
 Offers retain their independent frozen config: no section overrides, product IDs,
 visibility or variant controls. The offer editor only edits opt-in, copy, density
 and appearance. The release gate enumerates every offer permutation with/without
-FAQ against the frozen route-product grammar, plus all legacy default/D/A orders
+FAQ against the frozen route-product grammar, plus all legacy default/D/A/B orders
 and optional visibility subsets through the real storefront resolver, including
 an anchored additive section. No adapter or historic JSON rewrite is introduced.
 
-The latest generated storefront schema stays in the separate unreleased A
-migration `20261016223736_storefront_a_contract.sql`. The Phase 1 migration retains
+The generated storefront schema first shipped in the separate A migration
+`20261016223736_storefront_a_contract.sql`; the new B migration below owns the current schema. The Phase 1 migration retains
 its D-056 schema and conditional published-row validation; credential and offer
 migrations remain independent. Released migrations must never be regenerated.
+
+## Installed B composition
+
+`storefront-b` installs search/task hero → up to six featured products → compact
+catalogue (24/page) → optional starter product → FAQ → catalogue-link closing.
+It reuses the frozen Phase 2 grammar, descriptors, public batches and section
+implementations. The B confirmation and Pro/Business are both required; an A key
+does not select B. Missing rights retain saved B state and render the free default.
+
+B's hero, catalogue and closing remain visible; featured, starter and FAQ may hide.
+Explicit orders normalize through the same anchored resolver, and the exhaustive
+legacy-order/visibility gate includes B and additive sections. Category descriptions
+and featured annotations remain localized seller copy. The editor uses product
+and category names; descriptions follow the chosen category order. The optional
+starter uses `closingProduct` and the separate `home.starter` slot, while closing
+only targets the required catalogue. Public/preview reads include the existing
+bounded featured batch; there is no new catalogue or per-card query.
+
+`20261017014729_storefront_b_contract.sql` owns the current generated storefront
+schema and adds item identity checks for B. The generator targets this new
+migration; A and released Phase 1 SQL remain unchanged. Seed retains B bindings
+without selecting or activating it. B uses the reviewed blue palette and bundled
+Geist, with the same core prices, details/offer routing and checkout actions.
+The opt-in premium trial reuses `playwright.premium.config.ts` with
+`PREMIUM_TRIAL=b` and disposable coordinator inputs in `/private/tmp/sellf-t213/`.

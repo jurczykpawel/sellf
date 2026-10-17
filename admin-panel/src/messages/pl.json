@@ -4665,7 +4665,14 @@
     "catalogue-link": "Link do katalogu",
     "detail-cards": "Karty ze szczegółami",
     "default-groups": "Karty w grupach",
+    "searchHeroDescription": "Pomóż klientom znaleźć produkt przez wyszukiwarkę lub temat.",
+    "featuredOffers": "Polecane produkty",
+    "categoryDescription": "Opis tematu {number}",
+    "search-hero": "Wyszukiwarka i tematy",
+    "featured-grid": "Siatka polecanych produktów",
     "sectionNames": {
+      "featured": "Polecane produkty",
+      "starter": "Produkt na start",
       "comparison": "Dwie osobne oferty",
       "hero": "Nagłówek",
       "tasks": "Jak to działa",
@@ -4675,6 +4682,8 @@
       "closing": "Zaproszenie na koniec"
     },
     "sectionDescriptions": {
+      "featured": "Poleć do sześciu produktów w wybranej kolejności.",
+      "starter": "Zaproponuj produkt, od którego warto zacząć.",
       "comparison": "Przedstaw dwa osobne produkty.",
       "hero": "Przedstaw główną ofertę i pierwsze kroki.",
       "tasks": "Pomóż klientom wybrać ofertę według tematu.",

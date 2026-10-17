@@ -1240,6 +1240,9 @@ UPDATE public.storefront_config SET published = jsonb_set(published, '{settingsB
     'heroProduct', (SELECT id FROM public.products WHERE slug = 'premium-course'),
     'comparisonProducts', jsonb_build_array((SELECT id FROM public.products WHERE slug = 'premium-course'), (SELECT id FROM public.products WHERE slug = 'pro-toolkit')),
     'starterProducts', jsonb_build_array((SELECT id FROM public.products WHERE slug = 'premium-course')),
+    'density', 'comfortable'), 'storefront-b', jsonb_build_object(
+    'featuredProducts', (SELECT jsonb_agg(id ORDER BY created_at DESC,id) FROM (SELECT id,created_at FROM public.products WHERE is_active AND is_listed AND price > 0 ORDER BY created_at DESC,id LIMIT 6) featured),
+    'closingProduct', (SELECT id FROM public.products WHERE slug = 'free-tutorial'),
     'density', 'comfortable')))
 WHERE revision = 0;
 UPDATE public.storefront_config_history SET published = (SELECT published FROM public.storefront_config)

@@ -8,16 +8,16 @@ import { D_CONFIG, DEFAULT_CONFIG, PUBLIC_FIXTURE } from '@/lib/storefront-templ
 import { resolvePresentation, resolveSelection } from '@/lib/storefront-templates/resolver';
 import type { PublicProductInfo } from '@/lib/storefront-templates/catalogue';
 import type { CatalogueProps } from '@/lib/storefront-templates/catalogue-section';
-export function compositionFixture(locale: 'en' | 'pl', template: 'default' | 'd' | 'storefront-a') {
-  if (template === 'storefront-a') {
+export function compositionFixture(locale: 'en' | 'pl', template: 'default' | 'd' | 'storefront-a' | 'storefront-b') {
+  if (template === 'storefront-a' || template === 'storefront-b') {
     const reference = referenceConfig();
-    const config = configSchema.parse({ ...reference,
-      settingsByTemplate: { 'storefront-a': reference.settingsByTemplate['storefront-a'] },
-      content: Object.fromEntries(Object.entries(reference.content).filter(([id]) => ['home.hero', 'home.tasks', 'home.starts', 'home.comparison', 'home.catalogue', 'home.faq', 'home.closing'].includes(id))),
+    const config = configSchema.parse({ ...reference, templateId: template, overridesByTemplate: {},
+      settingsByTemplate: { [template]: reference.settingsByTemplate[template] },
+      content: Object.fromEntries(Object.entries(reference.content).filter(([id]) => ['home.hero', 'home.tasks', 'home.starts', 'home.comparison', 'home.catalogue', 'home.faq', 'home.closing', 'home.search', 'home.featured', 'home.starter'].includes(id))),
     });
     const products = referenceProducts(locale).map(product => ({ ...product, price: { ...product.price, display: product.price.kind === 'free' ? (locale === 'pl' ? pl : en).checkout.customPrice.freePreset : product.price.display }, image: { ...product.image!, src: 'https://composition.test/sample.svg' } }));
     const categories = referenceCategories(locale);
-    return resolvePresentation(resolveSelection(config, ['storefront-a']), { locale,
+    return resolvePresentation(resolveSelection(config, [template]), { locale,
       productsById: Object.fromEntries(products.map(product => [product.id, product])), categoriesById: Object.fromEntries(categories.map(category => [category.id, category])),
       catalogue: { variant: 'compact', groups: { all: { products, nextCursor: null } }, filters: ['category', 'price-kind', 'format'], pageSize: 24, density: 'comfortable', locale, categories } });
   }

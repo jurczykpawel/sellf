@@ -9,6 +9,8 @@ SELECT pg_temp.assert_true(to_regprocedure('public.storefront_catalogue_page(jso
 SELECT pg_temp.assert_true(NOT has_function_privilege('anon','public.storefront_catalogue_page(jsonb,timestamp with time zone,uuid,uuid[])','EXECUTE'), 'private read primitive');
 SELECT pg_temp.assert_true(NOT has_function_privilege('authenticated','public.storefront_catalogue_categories(uuid[])','EXECUTE'), 'private taxonomy primitive');
 SELECT pg_temp.assert_true(has_function_privilege('service_role','public.storefront_catalogue_page(jsonb,timestamp with time zone,uuid,uuid[])','EXECUTE'), 'service read primitive');
+-- Bulk fixtures retain price recording; defer statement housekeeping until the fixture is loaded.
+ALTER TABLE public.product_price_history DISABLE TRIGGER cleanup_price_history_trigger;
 INSERT INTO public.products(id, name, slug, price, currency, is_listed, is_active, created_at, is_featured, marketing_fields)
 SELECT ('10000000-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid,
  'Catalogue fixture ' || n, 'catalogue-fixture-' || n, CASE WHEN n%3=0 THEN 0 ELSE 10 END, 'USD', true, true,
@@ -23,6 +25,7 @@ SELECT id,'20000000-0000-4000-8000-000000000002' FROM public.products WHERE slug
 INSERT INTO public.product_categories(product_id,category_id)
 SELECT id,'20000000-0000-4000-8000-000000000004' FROM public.products
 WHERE slug LIKE 'catalogue-fixture-%' AND right(id::text,12)::bigint<=1000;
+ALTER TABLE public.product_price_history ENABLE TRIGGER cleanup_price_history_trigger;
 ANALYZE public.products;
 ANALYZE public.product_categories;
 CREATE TEMP TABLE reached(id uuid PRIMARY KEY);

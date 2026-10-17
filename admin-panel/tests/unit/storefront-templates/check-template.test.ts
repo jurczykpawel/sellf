@@ -108,7 +108,7 @@ describe('template check command', () => {
     const capabilities = run('--capabilities').output;
     expect(capabilities.coreSettings).toEqual(CORE_SETTINGS);
     expect(capabilities.templates).toEqual(Object.values(STOREFRONT_TEMPLATES));
-    expect(capabilities.slots).toEqual({ 'home.hero': 'hero', 'home.tasks': 'heading', 'home.starts': 'heading', 'home.faq': 'faq', 'home.closing': 'cta', 'home.comparison': 'comparison', 'home.catalogue': 'heading' });
+    expect(capabilities.slots).toEqual({ 'home.hero': 'hero', 'home.tasks': 'heading', 'home.starts': 'heading', 'home.faq': 'faq', 'home.closing': 'cta', 'home.comparison': 'comparison', 'home.catalogue': 'heading', 'home.search': 'search', 'home.featured': 'heading', 'home.starter': 'cta' });
     expect(capabilities.schemas.config).toEqual(z.toJSONSchema(configSchema));
     for (const id of ['default', 'd']) {
       const expected = ['settings.density', 'overrides.order', ...(id === 'd' ? ['tasks', 'start', 'faq'].map(section => `overrides.sections.${section}.visibility`) : []), ...(id === 'd' ? ['hero', 'start', 'catalogue'] : ['catalogue']).map(section => `overrides.sections.${section}.variant`), ...Object.entries(D_TOKENS).flatMap(([group, value]) => typeof value === 'object' ? Object.keys(value).map(leaf => `tokens.${group}.${leaf}`) : [])];

@@ -33,8 +33,9 @@ export function checkTemplate(input: unknown, mode: 'draft' | 'publish' = 'draft
     const settings = config.settingsByTemplate[config.templateId] as TemplateSettings | undefined;
     const visible = new Set(layout.recipe.sections.map(section => section.id));
     const references: [string, string | undefined, boolean][] = [
-      ['heroProduct', settings?.heroProduct, true], ['closingProduct', settings?.closingProduct, true],
+      ['heroProduct', settings?.heroProduct, true], ['closingProduct', config.templateId === 'storefront-b' && !visible.has('starter') ? undefined : settings?.closingProduct, true],
       ...(settings?.comparisonProducts ?? []).map((id, index): [string, string, boolean] => [`comparisonProducts/${index}`, id, true]),
+      ...(visible.has('featured') ? (settings?.featuredProducts ?? []).map((id, index): [string, string, boolean] => [`featuredProducts/${index}`, id, false]) : []),
       ...(visible.has('start') ? (settings?.starterProducts ?? []).map((id, index): [string, string, boolean] => [`starterProducts/${index}`, id, false]) : []),
     ];
     for (const [field, id, required] of references) {
@@ -45,7 +46,7 @@ export function checkTemplate(input: unknown, mode: 'draft' | 'publish' = 'draft
         : product.availability !== 'available' ? { code: 'UNAVAILABLE_PRODUCT', path: `/settingsByTemplate/${config.templateId}/${field}`, message: 'Product is unavailable in public fixture' } : undefined;
       if (issue) (required ? issues : warnings).push(issue);
     }
-    if (visible.has('tasks')) for (const [index, id] of (settings?.taskCategories ?? []).entries()) {
+    if (visible.has('tasks') || config.templateId === 'storefront-b') for (const [index, id] of (settings?.taskCategories ?? []).entries()) {
       if (!parsed.data.categories.some(category => category.id === id)) issues.push({ code: 'BINDING', path: `/settingsByTemplate/${config.templateId}/taskCategories/${index}`, message: 'Category is absent from public fixture' });
     }
   }

@@ -39,15 +39,16 @@ export async function validateActiveBindings(client: SupabaseClient<Database>, c
   const settings = selection.settings;
   const visible = new Set(selection.recipe.sections.map(section => section.id));
   const starters = visible.has('start') ? settings.starterProducts ?? [] : [];
-  const categories = visible.has('tasks') ? settings.taskCategories ?? [] : [];
-  const loaded = await loadStorefrontBindings(client, { locale: 'en', heroProduct: settings.heroProduct, closingProduct: settings.closingProduct,
-    comparisonProducts: settings.comparisonProducts, starterProducts: starters, taskCategories: categories, target: 'catalogue' });
+  const closingProduct = config.templateId === 'storefront-b' && !visible.has('starter') ? undefined : settings.closingProduct;
+  const categories = (visible.has('tasks') || config.templateId === 'storefront-b') ? settings.taskCategories ?? [] : [];
+  const loaded = await loadStorefrontBindings(client, { locale: 'en', heroProduct: settings.heroProduct, closingProduct,
+    comparisonProducts: settings.comparisonProducts, featuredProducts: visible.has('featured') ? settings.featuredProducts : [], starterProducts: starters, taskCategories: categories, target: 'catalogue' });
   if (!loaded.success) return null;
   const errors = [...validation.errors]; const warnings = [...validation.warnings];
   const issue = (field: string): ValidationIssue => ({ code: 'BINDING', path: `/settingsByTemplate/${config.templateId}/${field}`, message: 'Reference is not currently public and available' });
   settings.comparisonProducts?.forEach((id, i) => { if (!loaded.data.comparison.some(product => product.id === id.toLowerCase())) errors.push(issue(`comparisonProducts/${i}`)); });
   if (settings.heroProduct && !loaded.data.hero) errors.push(issue('heroProduct'));
-  if (settings.closingProduct && !loaded.data.closing) errors.push(issue('closingProduct'));
+  if (closingProduct && !loaded.data.closing) errors.push(issue('closingProduct'));
   starters.forEach((id, i) => { if (!loaded.data.starters.some(product => product.id === id.toLowerCase())) warnings.push(issue(`starterProducts/${i}`)); });
   categories.forEach((id, i) => { if (!loaded.data.categories.some(category => category.id === id.toLowerCase())) errors.push(issue(`taskCategories/${i}`)); });
   return result(errors, warnings);

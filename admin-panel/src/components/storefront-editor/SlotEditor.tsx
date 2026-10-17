@@ -8,25 +8,26 @@ import type { OfferPageConfig } from '@/lib/storefront-templates/offer-repositor
 import type { SlotContent, StorefrontConfig } from '@/lib/storefront-templates/schemas';
 
 export type SlotId = keyof StorefrontConfig['content'] | keyof OfferPageConfig['content'];
-const KINDS = { 'offer.hero': 'hero', 'offer.faq': 'faq', 'offer.closing': 'cta', 'home.hero': 'hero', 'home.tasks': 'heading', 'home.starts': 'heading', 'home.faq': 'faq', 'home.closing': 'cta', 'home.comparison': 'comparison', 'home.catalogue': 'heading' } as const;
+const KINDS = { 'offer.hero': 'hero', 'offer.faq': 'faq', 'offer.closing': 'cta', 'home.hero': 'hero', 'home.tasks': 'heading', 'home.starts': 'heading', 'home.faq': 'faq', 'home.closing': 'cta', 'home.comparison': 'comparison', 'home.catalogue': 'heading', 'home.search': 'search', 'home.featured': 'heading', 'home.starter': 'cta' } as const;
 export const SLOT_IDS = Object.keys(KINDS).filter(id => id.startsWith('home.')) as (keyof StorefrontConfig['content'])[];
-export const SLOT_SECTIONS = { 'home.hero': 'hero', 'home.tasks': 'tasks', 'home.starts': 'start', 'home.faq': 'faq', 'home.closing': 'closing', 'home.comparison': 'comparison', 'home.catalogue': 'catalogue' } as const;
+export const SLOT_SECTIONS = { 'home.hero': 'hero', 'home.tasks': 'tasks', 'home.starts': 'start', 'home.faq': 'faq', 'home.closing': 'closing', 'home.comparison': 'comparison', 'home.catalogue': 'catalogue', 'home.search': 'hero', 'home.featured': 'featured', 'home.starter': 'starter' } as const;
 export const editorControl = 'block w-full rounded-lg border border-sf-muted bg-sf-input px-3 py-2.5 text-sf-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent';
 export const editorButton = 'min-h-11 rounded-lg border border-sf-border-medium bg-sf-base px-4 py-2 text-sm font-medium hover:bg-sf-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:opacity-50';
 function emptyContent(id: SlotId): SlotContent {
   const kind = KINDS[id];
+  if (kind === 'search') return { kind, heading: '', eyebrow: '', body: '', items: [] };
   if (kind === 'comparison') return { kind, heading: '', body: '', items: [] };
   if (kind === 'faq') return { kind, items: [] };
   if (kind === 'hero') return { kind, heading: '', eyebrow: '', body: '', steps: [] };
   return { kind, heading: '', body: '' };
 }
-interface SlotEditorProps { comparisonProducts?: string[]; id: SlotId; value: (StorefrontConfig['content'] & OfferPageConfig['content'])[SlotId]; onChange: (value: (StorefrontConfig['content'] & OfferPageConfig['content'])[SlotId]) => void }
-export default function SlotEditor({ id, value, onChange, comparisonProducts = [] }: SlotEditorProps) {
+interface SlotEditorProps { taskCategories?: string[]; comparisonProducts?: string[]; id: SlotId; value: (StorefrontConfig['content'] & OfferPageConfig['content'])[SlotId]; onChange: (value: (StorefrontConfig['content'] & OfferPageConfig['content'])[SlotId]) => void }
+export default function SlotEditor({ id, value, onChange, comparisonProducts = [], taskCategories = [] }: SlotEditorProps) {
   const t = useTranslations('storefrontEditor');
   const uiLocale = useLocale() === 'pl' ? 'pl' : 'en';
   const [locale, setLocale] = useState<'en' | 'pl'>(value?.[uiLocale] ? uiLocale : value?.sourceLocale ?? uiLocale);
   const section = id === 'offer.hero' ? 'hero' : id === 'offer.faq' ? 'faq' : id === 'offer.closing' ? 'closing' : SLOT_SECTIONS[id];
-  const name = t(`sectionNames.${section}`);
+  const name = id === 'home.search' ? t('search-hero') : t(`sectionNames.${section}`);
   const current = value ?? { sourceLocale: uiLocale, [uiLocale]: emptyContent(id) } as NonNullable<typeof value>;
   const content = current[locale] ?? emptyContent(id);
   const prefix = `${name} · ${locale.toUpperCase()}`;
@@ -49,6 +50,9 @@ export default function SlotEditor({ id, value, onChange, comparisonProducts = [
     <div className="space-y-5" lang={locale}>
       {textField('eyebrow', 80)}{textField('heading', 160)}{textField('body', 4000)}
       {content.kind === 'hero' && <label className="block space-y-2 text-sm font-medium"><span>{t('steps')}</span><textarea aria-label={`${prefix} · ${t('steps')}`} className={editorControl} rows={3} maxLength={1445} value={content.steps.join('\n')} onChange={event => update({ ...content, steps: event.target.value ? event.target.value.split('\n') : [] })} /></label>}
+      {content.kind === 'search' && taskCategories.map((categoryId, index) => <label key={categoryId} className="block space-y-2 text-sm font-medium">
+        <span>{t('categoryDescription', { number: index + 1 })}</span><textarea className={editorControl} maxLength={240} aria-label={`${prefix} · ${t('categoryDescription', { number: index + 1 })}`} value={content.items.find(item => item.categoryId === categoryId)?.description ?? ''} onChange={event => update({ ...content, items: taskCategories.map((id, i) => ({ id: `task-${i + 1}`, categoryId: id, description: id === categoryId ? event.target.value : content.items.find(item => item.categoryId === id)?.description ?? '' })) })} />
+      </label>)}
       {content.kind === 'comparison' && comparisonProducts.map((productId, index) => {
         const item = content.items.find(item => item.productId === productId) ?? { productId, eyebrow: '', heading: '', body: '', bullets: [] };
         const change = (patch: Partial<typeof item>) => update({ ...content, items: comparisonProducts.map(id => id === productId ? { ...item, ...patch } : content.items.find(value => value.productId === id) ?? { productId: id, eyebrow: '', heading: '', body: '', bullets: [] }) });

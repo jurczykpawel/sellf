@@ -7,6 +7,8 @@ export const A_TOKENS: PublicThemeTokens = { ...D_TOKENS,
   light: { ...D_TOKENS.light, background: '#F5F5F0', foreground: '#17191F', accent: '#244B9A', muted: '#E8EEFB', mutedForeground: '#555D69' },
   dark: { ...D_TOKENS.dark, background: '#151923', foreground: '#F5F6FA', accent: '#ABC6FF', accentForeground: '#142341', muted: '#222D43', mutedForeground: '#BEC9DF', border: '#8192B1' },
 };
+/** Search-led palette shared by the reviewed B sections. */
+export const B_TOKENS: PublicThemeTokens = { ...A_TOKENS, light: { ...A_TOKENS.light, background: '#F3F5F9' } };
 export const DEFAULT_CONFIG: StorefrontConfig = { format: 1, templateId: 'default', settingsByTemplate: {}, overridesByTemplate: {}, content: {}, tokens: null };
 export const D_CONFIG: StorefrontConfig = {
   "format": 1,

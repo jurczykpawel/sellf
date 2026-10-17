@@ -9,7 +9,7 @@ import { resolveProductList } from '@/lib/storefront-templates/sections/product-
 import { resolveTaskNav } from '@/lib/storefront-templates/task-nav';
 import { resolveFaq, resolveProductCta } from '@/lib/storefront-templates/faq-closing';
 import { resolveCatalogue } from '@/lib/storefront-templates/catalogue-section';
-import type { OfferFocusProps, CatalogueLinkProps } from '@/lib/storefront-templates/phase2-contracts';
+import type { OfferFocusProps, CatalogueLinkProps, SearchHeroProps } from '@/lib/storefront-templates/phase2-contracts';
 import type { HeroProductProps } from '@/lib/storefront-templates/hero-product';
 import type { ExtendedProductListProps } from '@/lib/storefront-templates/sections/product-list';
 import type { TaskNavProps } from '@/lib/storefront-templates/task-nav-public';
@@ -20,7 +20,7 @@ import type { SlotContent, StorefrontConfig, TemplateRecipe, TemplateSettings } 
 
 export type ResolvedSection =
   | { id: string; type: 'hero-product/1'; props: HeroProductProps | OfferFocusProps }
-  | { id: string; type: 'task-nav/1'; props: TaskNavProps }
+  | { id: string; type: 'task-nav/1'; props: TaskNavProps | SearchHeroProps }
   | { id: string; type: 'product-list/1'; props: ExtendedProductListProps }
   | { id: string; type: 'catalogue/1'; props: CatalogueProps }
   | { id: string; type: 'faq/1'; props: FaqProps }
@@ -61,9 +61,9 @@ export function resolvePresentation(selection: StorefrontSelection, publicInputs
   const inputs = { ...publicInputs, settings: selection.settings, slots };
   const sections: ResolvedSection[] = [];
   for (const spec of selection.recipe.sections) {
-    if ('variant' in spec && (spec.variant === 'offer-focus' || spec.variant === 'catalogue-link')) {
+    if ('variant' in spec && (spec.variant === 'offer-focus' || spec.variant === 'catalogue-link' || spec.variant === 'search-hero')) {
       const resolved = resolveSharedPhase2Section(spec, inputs, selection.recipe);
-      if (resolved.success && resolved.data.type !== 'task-nav/1') sections.push(resolved.data);
+      if (resolved.success) sections.push(resolved.data);
       continue;
     }
     switch (spec.type) {

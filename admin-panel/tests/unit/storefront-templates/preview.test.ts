@@ -20,7 +20,7 @@ vi.mock('@/lib/storefront-templates/catalogue', () => ({
 vi.mock('@/lib/storefront-templates/repository', () => ({ readStorefrontConfig: m.read }));
 beforeEach(() => {
   vi.resetAllMocks(); m.client.mockReturnValue({}); m.rate.mockResolvedValue(true);
-  m.bindings.mockResolvedValue({ success: true, data: { hero: null, closing: null, starters: [], comparison: [], categories: PUBLIC_FIXTURE.categories } });
+  m.bindings.mockResolvedValue({ success: true, data: { hero: null, closing: null, starters: [], comparison: [], featured: [], categories: PUBLIC_FIXTURE.categories } });
   m.read.mockResolvedValue({ success: true, data: { revision: 3, draft: D_CONFIG, published: DEFAULT_CONFIG } });
 });
 const input = { revision: 3, locale: 'en', fixture: 'standard' };

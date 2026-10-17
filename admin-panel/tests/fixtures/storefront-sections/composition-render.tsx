@@ -2,7 +2,7 @@
 import { renderToString } from 'react-dom/server';
 import StorefrontComposition from '@/components/storefront/StorefrontComposition';
 import { compositionFixture } from './composition';
-const pages = Object.fromEntries((['en', 'pl'] as const).flatMap(locale => (['default', 'd', 'storefront-a'] as const).map(template => {
+const pages = Object.fromEntries((['en', 'pl'] as const).flatMap(locale => (['default', 'd', 'storefront-a', 'storefront-b'] as const).map(template => {
   const model = compositionFixture(locale, template);
   return [`${locale}/${template}`, { model, html: renderToString(<StorefrontComposition renderKey="initial" model={model} shopName="Example shop" />) }];
 })));

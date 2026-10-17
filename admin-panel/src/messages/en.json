@@ -4665,7 +4665,14 @@
     "catalogue-link": "Link to catalogue",
     "detail-cards": "Detailed cards",
     "default-groups": "Grouped cards",
+    "searchHeroDescription": "Help customers find a product by search or topic.",
+    "featuredOffers": "Featured products",
+    "categoryDescription": "Topic {number} description",
+    "search-hero": "Search and topics",
+    "featured-grid": "Featured product grid",
     "sectionNames": {
+      "featured": "Featured products",
+      "starter": "Starter product",
       "comparison": "Compare separate offers",
       "hero": "Hero",
       "tasks": "How it works",
@@ -4675,6 +4682,8 @@
       "closing": "Final invitation"
     },
     "sectionDescriptions": {
+      "featured": "Recommend up to six products in your preferred order.",
+      "starter": "Suggest a product to begin with.",
       "comparison": "Introduce two separate products.",
       "hero": "Introduce your main offer and the steps to get started.",
       "tasks": "Help customers find an offer by topic.",

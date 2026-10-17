@@ -3,7 +3,7 @@ import { configSchema, recipeSchema } from '@/lib/storefront-templates/schemas';
 import { CONFIG_BYTES, isPlainJson, pointer, result, storedJsonBytes } from '@/lib/storefront-templates/json';
 import { effectiveLayout } from '@/lib/storefront-templates/layout';
 import { SECTION_DESCRIPTORS } from '@/lib/storefront-templates/section-descriptors';
-import { A_TOKENS, D_TOKENS } from '@/lib/storefront-templates/fixtures';
+import { A_TOKENS, B_TOKENS, D_TOKENS } from '@/lib/storefront-templates/fixtures';
 import type { ZodIssue } from 'zod';
 import type { SlotContent, StorefrontConfig, TemplateRegistryEntry } from '@/lib/storefront-templates/schemas';
 import type { ValidationIssue, ValidationResult } from '@/lib/storefront-templates/json';
@@ -58,7 +58,26 @@ export const STOREFRONT_TEMPLATES = {
       { id: 'closing', type: 'product-cta/1', variant: 'catalogue-link', content: { slot: 'home.closing' }, target: 'catalogue' },
     ] },
   },
-} satisfies Record<'default' | 'd' | 'storefront-a', TemplateRegistryEntry>;
+  'storefront-b': {
+    sectionDescriptors: SECTION_DESCRIPTORS['storefront-b'],
+    id: 'storefront-b', label: { en: 'Search-led storefront', pl: 'Sklep z wyszukiwarką' }, minSellf: version,
+    entitlement: { kind: 'template-key', templateId: 'storefront-b' }, tokens: B_TOKENS,
+    settings: [
+      { id: 'featuredProducts', label: { en: 'Six featured products', pl: 'Sześć polecanych produktów' }, kind: 'products', required: false, maxItems: 6 },
+      { id: 'taskCategories', label: { en: 'Tasks', pl: 'Zadania' }, kind: 'categories', required: false, maxItems: 12 },
+      { id: 'closingProduct', label: { en: 'Starter product', pl: 'Produkt na start' }, kind: 'product', required: false },
+      { id: 'density', label: { en: 'Density', pl: 'Gęstość' }, kind: 'density', required: false },
+    ],
+    defaults: { format: 1, surface: 'storefront', shell: 'store/1', sections: [
+      { id: 'hero', type: 'task-nav/1', variant: 'search-hero', categories: { setting: 'taskCategories' }, content: { slot: 'home.search' }, target: 'catalogue' },
+      { id: 'featured', type: 'product-list/1', variant: 'featured-grid', products: { setting: 'featuredProducts' }, content: { slot: 'home.featured' } },
+      { id: 'catalogue', type: 'catalogue/1', variant: 'compact', source: 'listed-products', filters: ['category', 'price-kind', 'format'], pageSize: 24, density: { setting: 'density' }, content: { slot: 'home.catalogue' } },
+      { id: 'starter', type: 'product-cta/1', product: { setting: 'closingProduct' }, content: { slot: 'home.starter' }, action: 'details' },
+      { id: 'faq', type: 'faq/1', content: { slot: 'home.faq' } },
+      { id: 'closing', type: 'product-cta/1', variant: 'catalogue-link', content: { slot: 'home.closing' }, target: 'catalogue' },
+    ] },
+  },
+} satisfies Record<'default' | 'd' | 'storefront-a' | 'storefront-b', TemplateRegistryEntry>;
 
 function schemaErrors(issues: ZodIssue[]): ValidationIssue[] {
   return issues.map(issue => ({
@@ -116,7 +135,7 @@ export function validateConfig(input: unknown): ValidationResult {
 }
 
 export function isResetPath(templateId: string, field: string): boolean {
-  if (templateId !== 'default' && templateId !== 'd' && templateId !== 'storefront-a') return false;
+  if (templateId !== 'default' && templateId !== 'd' && templateId !== 'storefront-a' && templateId !== 'storefront-b') return false;
   if (['settings.density', 'overrides.order'].includes(field)) return true;
   const parts = field.split('.');
   if (parts.length === 4 && parts[0] === 'overrides' && parts[1] === 'sections') {

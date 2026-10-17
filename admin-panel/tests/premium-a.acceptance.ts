@@ -8,16 +8,19 @@ import type { Page } from '@playwright/test';
 import { extractMagicLink } from './helpers/mailpit';
 import { acceptAllCookies } from './helpers/consent';
 
-const root = '/private/tmp/sellf-t208/';
+const trial = process.env.PREMIUM_TRIAL === 'b' ? 'b' : 'a';
+const task = trial === 'b' ? 't213' : 't208';
+const templateId = `storefront-${trial}`;
+const root = `/private/tmp/sellf-${task}/`;
 const env = JSON.parse(readFileSync(`${root}env.json`, 'utf8'));
 const handoff = JSON.parse(readFileSync(`${root}handoff.json`, 'utf8'));
 const credentials = JSON.parse(readFileSync(`${root}credentials.json`, 'utf8'));
-if (env.NEXT_PUBLIC_SUPABASE_URL !== 'http://127.0.0.1:55441' || handoff.origin !== 'http://sellf-t208.localhost:55446' || !env.STRIPE_SECRET_KEY.startsWith('sk_test_')) throw new Error('Disposable T2.8 stack and Stripe test keys required');
+if (env.NEXT_PUBLIC_SUPABASE_URL !== 'http://127.0.0.1:55441' || handoff.origin !== `http://sellf-${task}.localhost:55446` || !env.STRIPE_SECRET_KEY.startsWith('sk_test_')) throw new Error('Disposable premium stack and Stripe test keys required');
 const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 const origin = handoff.origin;
 const api = '/api/v1/templates/';
 const evidence: object[] = [];
-function record(step: string, details: object = {}) { evidence.push({ step, at: new Date().toISOString(), ...details }); writeFileSync('/tmp/t208-acceptance.json', JSON.stringify(evidence, null, 2)); }
+function record(step: string, details: object = {}) { evidence.push({ step, at: new Date().toISOString(), ...details }); writeFileSync(`/tmp/${task}-acceptance.json`, JSON.stringify(evidence, null, 2)); }
 async function call(path: string, data?: unknown, method = 'POST', key = handoff.keys.author) {
   const response = await fetch(origin + api + path, { method: data === undefined ? 'GET' : method, headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, ...(data === undefined ? {} : { body: JSON.stringify(data) }) });
   const body = await response.json();
@@ -25,9 +28,9 @@ async function call(path: string, data?: unknown, method = 'POST', key = handoff
   return { status: response.status, body };
 }
 async function storePlatform(token: string | null) { const r = await db.from('integrations_config').update({ sellf_license: token }).eq('id', 1); expect(r.error).toBeNull(); }
-async function status() { return (await call('licenses')).body.statuses.find((s: { templateId: string }) => s.templateId === 'storefront-a')?.state; }
-async function saveCredential(token: string) { expect((await call('licenses', { templateId: 'storefront-a', token })).status).toBe(200); }
-async function waitA() { await expect.poll(async () => (await call('config')).body.rights?.availableTemplateIds.includes('storefront-a') ?? false, { timeout: 65000, intervals: [3000] }).toBe(true); }
+async function status() { return (await call('licenses')).body.statuses.find((s: { templateId: string }) => s.templateId === templateId)?.state; }
+async function saveCredential(token: string) { expect((await call('licenses', { templateId, token })).status).toBe(200); }
+async function waitPremium() { await expect.poll(async () => (await call('config')).body.rights?.availableTemplateIds.includes(templateId) ?? false, { timeout: 65000, intervals: [3000] }).toBe(true); }
 async function rendered() { const response = await fetch(origin); expect(response.status).toBe(200); return (await response.text()).match(/data-template="([^"]+)"/)?.[1]; }
 async function fallback(reason: string) {
   const started = Date.now(); await expect.poll(rendered, { timeout: 61000, intervals: [3000] }).toBe('default');
@@ -50,7 +53,7 @@ async function verifyAccess(page: Page, email: string, product: { id: string; sl
   await page.goto('/my-products'); await expect(page.getByText(product.slug === 't208-paid' ? 'T208 paid workshop' : 'T208 free guide', { exact: true }).first()).toBeVisible();
 }
 
-test('A author lifecycle and cached rights loss', async ({ browser, request }) => {
+test('premium author lifecycle and cached rights loss', async ({ browser, request }) => {
   expect(new URL(env.NEXT_PUBLIC_SUPABASE_URL).port).toBe('55441'); expect(env.STRIPE_SECRET_KEY.startsWith('sk_test_')).toBe(true);
   const author = await browser.newContext({ reducedMotion: 'reduce' }); const page = await author.newPage();
   const outbound: string[] = [];
@@ -64,10 +67,10 @@ test('A author lifecycle and cached rights loss', async ({ browser, request }) =
   expect((await call('capabilities')).status).toBe(200);
   const initial = (await call('config')).body; let revision = initial.revision;
   const candidate = structuredClone(initial.published);
-  candidate.templateId = 'storefront-a';
-  candidate.overridesByTemplate['storefront-a'] = { order: ['hero', 'tasks', 'comparison', 'start', 'catalogue', 'faq', 'closing'], sections: { tasks: { visibility: 'visible' }, start: { variant: 'detail-cards' } } };
-  const products = handoff.products.slice(0, 3);
-  candidate.settingsByTemplate['storefront-a'] = { heroProduct: products[0].id, comparisonProducts: products.slice(0, 2).map((p: { id: string }) => p.id), starterProducts: products.map((p: { id: string }) => p.id), taskCategories: handoff.categories.slice(0, 1).map((c: { id: string }) => c.id), density: 'comfortable' };
+  candidate.templateId = templateId;
+  candidate.overridesByTemplate[templateId] = { order: ['hero', 'tasks', 'comparison', 'start', 'catalogue', 'faq', 'closing'], sections: { tasks: { visibility: 'visible' }, start: { variant: 'detail-cards' } } };
+  const products = handoff.products.slice(0, trial === 'b' ? 6 : 3);
+  candidate.settingsByTemplate[templateId] = { heroProduct: products[0].id, comparisonProducts: products.slice(0, 2).map((p: { id: string }) => p.id), starterProducts: products.map((p: { id: string }) => p.id), taskCategories: handoff.categories.slice(0, 1).map((c: { id: string }) => c.id), density: 'comfortable' };
   candidate.content = { ...candidate.content,
     'home.hero': { sourceLocale: 'en', en: { kind: 'hero', eyebrow: 'Example studio', heading: 'Build a useful workflow', body: 'Explore the available workshops and guides.', steps: ['Choose a task', 'Read the guide', 'Try the process'] } },
     'home.tasks': { sourceLocale: 'en', en: { kind: 'heading', heading: 'Choose a category', body: 'Browse by task.' } },
@@ -76,18 +79,25 @@ test('A author lifecycle and cached rights loss', async ({ browser, request }) =
     'home.faq': { sourceLocale: 'en', en: { kind: 'faq', items: [{ id: 'requirements', question: 'Where are the requirements?', answer: 'Read the canonical product details.' }] } },
     'home.closing': { sourceLocale: 'en', en: { kind: 'cta', heading: 'Explore the catalogue', body: 'Find your next task.' } },
   };
+  if (trial === 'b') {
+    candidate.overridesByTemplate[templateId] = { order: ['hero', 'featured', 'catalogue', 'starter', 'faq', 'closing'], sections: { featured: { visibility: 'visible' } } };
+    candidate.settingsByTemplate[templateId] = { featuredProducts: products.map((p: { id: string }) => p.id), closingProduct: handoff.starter.id, taskCategories: handoff.categories.map((c: { id: string }) => c.id), density: 'comfortable' };
+    candidate.content['home.search'] = { sourceLocale: 'en', en: { kind: 'search', eyebrow: 'Example studio', heading: 'Find your next task', body: 'Search guides and workshops.', items: handoff.categories.map((c: { id: string }, i: number) => ({ id: `task-${i}`, categoryId: c.id, description: 'Explore this topic.' })) } };
+    candidate.content['home.featured'] = { sourceLocale: 'en', en: { kind: 'heading', heading: 'Six starting points', body: 'Choose a guide.' } };
+    candidate.content['home.starter'] = { sourceLocale: 'en', en: { kind: 'cta', heading: 'Start with one task', body: 'Read the guide.' } };
+  }
   expect((await call('draft', { expectedRevision: revision, config: candidate }, 'PUT', handoff.keys.read)).status).toBe(403);
   expect((await call('publish', { expectedRevision: revision }, 'POST', handoff.keys.write)).status).toBe(403);
   const drafted = await call('draft', { expectedRevision: revision, config: candidate }, 'PUT'); expect(drafted.status).toBe(200); revision++;
   const validation = await call('validate', { config: candidate, mode: 'draft' }); expect(validation.body.valid).toBe(true);
-  for (const letter of ['b', 'c']) {
+  for (const letter of (trial === 'a' ? ['b', 'c'] : ['a', 'c'])) {
     await saveCredential(credentials[letter]); await expect.poll(status, { timeout: 65000, intervals: [3000] }).toBe('invalid');
     const before = await db.from('storefront_config_history').select('revision');
     expect((await call('publish', { expectedRevision: revision })).status).toBe(403);
     expect((await db.from('storefront_config_history').select('revision')).data).toEqual(before.data);
     record(`wrong-${letter}-denied`);
   }
-  await saveCredential(credentials.a); await waitA();
+  await saveCredential(credentials[trial]); await waitPremium();
   const valid = await call('validate', { config: candidate, mode: 'publish' }); expect(valid.body.valid).toBe(true);
   expect(valid.body.warnings.some((w: { code: string }) => w.code === 'TRANSLATION_FALLBACK')).toBe(true);
   let oldPath = '';
@@ -111,7 +121,7 @@ test('A author lifecycle and cached rights loss', async ({ browser, request }) =
       expect(await page.evaluate(() => '__next_f' in window)).toBe(false);
       for (const width of [320, 390, 768, 1440]) {
         await page.setViewportSize({ width, height: 1000 }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        if (width === 390 || width === 1440) await page.screenshot({ path: `/tmp/t208-${fixture}-${locale}-${scheme}-${width}.png`, fullPage: true });
+        if (width === 390 || width === 1440) await page.screenshot({ path: `/tmp/${task}-${fixture}-${locale}-${scheme}-${width}.png`, fullPage: true });
       }
       await page.evaluate(() => { document.body.style.zoom = '2'; }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); await page.evaluate(() => { document.body.style.zoom = ''; });
     }
@@ -123,32 +133,32 @@ test('A author lifecycle and cached rights loss', async ({ browser, request }) =
   expect(saved.draft.settingsByTemplate.d).toEqual(initial.published.settingsByTemplate.d);
   expect((await call('diff', { fromRevision: initial.revision, toRevision: revision })).body.changes.length).toBeGreaterThan(0);
   expect((await call('publish', { expectedRevision: revision })).status).toBe(200); revision++;
-  expect((await call('config')).body.published).toEqual(candidate); await expect.poll(rendered).toBe('storefront-a');
-  const aRevision = revision;
+  expect((await call('config')).body.published).toEqual(candidate); await expect.poll(rendered).toBe(templateId);
+  const premiumRevision = revision;
   expect((await call('rollback', { expectedRevision: revision, targetRevision: initial.revision })).status).toBe(200); revision++;
   expect((await call('config')).body.published).toEqual(initial.published);
   await expect.poll(async () => (await call('preview', { revision: revision - 2, locale: 'en', fixture: 'standard' })).status, { timeout: 65000, intervals: [2000] }).toBe(409);
   await page.goto(oldPath); await expect(page.locator('[data-preview-inert]')).toHaveCount(0);
-  record('lifecycle', { initial: initial.revision, draft: initial.revision + 1, published: aRevision, rollback: revision });
+  record('lifecycle', { initial: initial.revision, draft: initial.revision + 1, published: premiumRevision, rollback: revision });
   await author.close();
-  expect((await call('rollback', { expectedRevision: revision, targetRevision: aRevision })).status).toBe(200); revision++;
-  await expect.poll(rendered).toBe('storefront-a');
+  expect((await call('rollback', { expectedRevision: revision, targetRevision: premiumRevision })).status).toBe(200); revision++;
+  await expect.poll(rendered).toBe(templateId);
   const until = Math.floor(Date.now() / 1000) + 45;
-  const c = { ...credentials.common, product: credentials.policies[0].saleProductId, templateId: 'storefront-a', edition: 'standard', tier: 'standard', order: 't208-expiring', exp: until };
+  const c = { ...credentials.common, product: credentials.policies[trial === 'a' ? 0 : 1].saleProductId, templateId, edition: 'standard', tier: 'standard', order: 't208-expiring', exp: until };
   const payload = Buffer.from(JSON.stringify(c)).toString('base64url');
   await saveCredential(payload + '.' + createSign('SHA256').update(payload).end().sign(credentials.privateKey).toString('base64url'));
-  await waitA(); expect(await rendered()).toBe('storefront-a'); await fallback('expiry');
+  await waitPremium(); expect(await rendered()).toBe(templateId); await fallback('expiry');
   const history = (await db.from('storefront_config_history').select('revision')).data;
-  expect((await call('rollback', { expectedRevision: revision, targetRevision: aRevision })).status).toBe(403);
+  expect((await call('rollback', { expectedRevision: revision, targetRevision: premiumRevision })).status).toBe(403);
   expect((await db.from('storefront_config_history').select('revision')).data).toEqual(history);
-  await saveCredential(credentials.a); await waitA(); expect(await rendered()).toBe('storefront-a');
-  writeFileSync(`${root}issuer-state.json`, JSON.stringify({ offline: false, revoked: [createHash('sha256').update('t208-a').digest('hex')] }));
+  await saveCredential(credentials[trial]); await waitPremium(); expect(await rendered()).toBe(templateId);
+  writeFileSync(`${root}issuer-state.json`, JSON.stringify({ offline: false, revoked: [createHash('sha256').update(`${task}-${trial}`).digest('hex')] }));
   await fallback('refund'); expect((await call('config')).body.published).toEqual(candidate);
-  writeFileSync(`${root}issuer-state.json`, JSON.stringify({ offline: false, revoked: [] })); await saveCredential(credentials.a); await waitA();
+  writeFileSync(`${root}issuer-state.json`, JSON.stringify({ offline: false, revoked: [] })); await saveCredential(credentials[trial]); await waitPremium();
   await storePlatform(null); await fallback('downgrade');
-  expect((await call('rollback', { expectedRevision: revision, targetRevision: aRevision })).status).toBe(403);
+  expect((await call('rollback', { expectedRevision: revision, targetRevision: premiumRevision })).status).toBe(403);
   expect((await db.from('storefront_config_history').select('revision')).data).toEqual(history);
-  await storePlatform(credentials.platform); await waitA();
+  await storePlatform(credentials.platform); await waitPremium();
   const snapshots = JSON.stringify((await db.from('storefront_config_history').select('draft,published')).data);
   const audits = JSON.stringify((await db.from('audit_log').select('new_values').eq('table_name', 'storefront_config')).data);
   for (const secret of [...Object.values(handoff.keys), credentials.a, credentials.b, credentials.c, credentials.platform]) {
@@ -157,25 +167,26 @@ test('A author lifecycle and cached rights loss', async ({ browser, request }) =
   record('rights-complete');
 });
 
-test('purchase started on A and free access finish after downgrade during issuer outage', async ({ browser }) => {
+test('purchase started on premium storefront and free access finish after downgrade during issuer outage', async ({ browser }) => {
   await storePlatform(credentials.platform);
   writeFileSync(`${root}issuer-state.json`, JSON.stringify({ offline: false, revoked: [] }));
-  await saveCredential(credentials.a); await waitA();
+  await saveCredential(credentials[trial]); await waitPremium();
   const paid = await db.from('products').upsert({ slug: 't208-paid', name: 'T208 paid workshop', price: 10, currency: 'USD', is_active: true, is_listed: true, vat_exempt: true }, { onConflict: 'slug' }).select('id,slug').single();
   const free = await db.from('products').upsert({ slug: 't208-free', name: 'T208 free guide', price: 0, currency: 'USD', is_active: true, is_listed: true, vat_exempt: true }, { onConflict: 'slug' }).select('id,slug').single();
   expect(paid.error).toBeNull(); expect(free.error).toBeNull();
   const current = (await call('config')).body; const config = structuredClone(current.published);
-  config.templateId = 'storefront-a';
-  config.settingsByTemplate['storefront-a'].heroProduct = paid.data!.id;
+  config.templateId = templateId;
+  if (trial === 'a') config.settingsByTemplate[templateId].heroProduct = paid.data!.id;
+  else config.settingsByTemplate[templateId].featuredProducts = [paid.data!.id, ...config.settingsByTemplate[templateId].featuredProducts.slice(0, 5)];
   expect((await call('draft', { expectedRevision: current.revision, config }, 'PUT')).status).toBe(200);
   expect((await call('publish', { expectedRevision: current.revision + 1 })).status).toBe(200);
   const buyer = await browser.newContext(); const page = await buyer.newPage();
   await acceptAllCookies(page);
   const consent = await buyer.cookies('http://localhost');
   await buyer.addCookies(consent.map(({ name, value }) => ({ name, value, url: origin })));
-  await page.goto('/'); await expect(page.locator('[data-template]')).toHaveAttribute('data-template', 'storefront-a');
-  await page.locator(`[data-variant="offer-focus"] a[href$="/p/${paid.data!.slug}"]`).click();
-  await expect(page).toHaveURL(/\/checkout\/t208-paid/);
+  await page.goto('/'); await expect(page.locator('[data-template]')).toHaveAttribute('data-template', templateId);
+  await page.locator(`[data-variant="${trial === 'a' ? 'offer-focus' : 'featured-grid'}"] a[href$="/p/${paid.data!.slug}"]`).first().click();
+  await expect(page).toHaveURL(/\/p\/t208-paid/);
   const email = `t208-paid-${Date.now()}@example.com`;
   await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
   await page.locator('#checkoutEmail').fill(email); await page.locator('#fullName').fill('Example Buyer');
@@ -212,4 +223,65 @@ test('purchase started on A and free access finish after downgrade during issuer
   expect(await rendered()).toBe('default'); expect((await call('config')).body.revision).toBe(revision);
   record('free-and-access-complete-during-outage');
   await storePlatform(credentials.platform); writeFileSync(`${root}issuer-state.json`, JSON.stringify({ offline: false, revoked: [] }));
+});
+
+if (trial === 'b') test('B uses bounded search, category and cursor controls at 100k, with both details routes', async ({ browser }) => {
+  await storePlatform(credentials.platform); await saveCredential(credentials.b); await waitPremium();
+  const { execFileSync } = await import('node:child_process');
+  expect(env.NEXT_PUBLIC_SUPABASE_URL).toBe('http://127.0.0.1:55441');
+  expect(execFileSync('docker', ['port', 'supabase_kong_sellf-t213', '8000/tcp'], { encoding: 'utf8' })).toContain(':55441');
+  execFileSync('docker', ['exec', '-i', 'supabase_db_sellf-t213', 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1'], { input: `
+    BEGIN;
+    ALTER TABLE public.product_price_history DISABLE TRIGGER cleanup_price_history_trigger;
+    INSERT INTO public.products(id,name,slug,price,currency,is_active,is_listed,created_at)
+    SELECT ('21300000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'B acceptance '||lpad(n::text,6,'0'),'t213-catalogue-'||n,10,'USD',true,true,'2026-10-01'::timestamptz FROM generate_series(1,100000) n WHERE NOT EXISTS (SELECT 1 FROM public.products p WHERE p.id=('21300000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid) ON CONFLICT DO NOTHING;
+    ALTER TABLE public.product_price_history ENABLE TRIGGER cleanup_price_history_trigger;
+    INSERT INTO public.product_categories(product_id,category_id)
+    SELECT ('21300000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,(SELECT id FROM public.categories ORDER BY id LIMIT 1) FROM generate_series(2,100000,2) n ON CONFLICT DO NOTHING;
+    COMMIT;
+  `, stdio: ['pipe', 'pipe', 'pipe'] });
+  const category = await db.from('categories').select('id').order('id').limit(1).single(); expect(category.error).toBeNull();
+  const current = (await call('config')).body;
+  const config = structuredClone(current.published); config.settingsByTemplate[templateId].taskCategories = [category.data!.id];
+  expect((await call('draft', { expectedRevision: current.revision, config }, 'PUT')).status).toBe(200);
+  expect((await call('publish', { expectedRevision: current.revision + 1 })).status).toBe(200);
+  const context = await browser.newContext(); const page = await context.newPage();
+  const batches: { search: string; categoryIds: string[]; cursor: string | null; pageSize: number }[] = [];
+  page.on('response', async response => {
+    if (new URL(response.url()).pathname !== '/api/storefront/catalogue') return;
+    expect(response.status()).toBe(200); const body = await response.json();
+    for (const result of Array.isArray(body) ? body : [body]) expect(result.products.length).toBeLessThanOrEqual(24);
+    const input = JSON.parse(new URL(response.url()).searchParams.get('input')!); batches.push(...(Array.isArray(input) ? input : [input]));
+  });
+  await acceptAllCookies(page); const consent = await context.cookies('http://localhost'); await context.addCookies(consent.map(({ name, value }) => ({ name, value, url: origin })));
+  await page.goto('/'); await expect(page.locator('[data-template]')).toHaveAttribute('data-template', templateId);
+  const search = page.locator('[data-variant="search-hero"] input[type="search"]');
+  await search.fill('B acceptance'); await search.press('Enter');
+  await expect.poll(() => batches.at(-1)?.search).toBe('B acceptance'); await expect(search).toBeFocused();
+  await page.locator('[data-variant="search-hero"] nav a').first().click();
+  await expect.poll(() => batches.at(-1)?.categoryIds).toEqual([category.data!.id]);
+  await expect(page.locator('#catalogue article')).toHaveCount(24);
+  await page.locator('#catalogue button').filter({ hasText: 'More products' }).click();
+  await expect(page.locator('#catalogue article')).toHaveCount(48);
+  expect(batches.at(-1)?.cursor).toBeTruthy(); expect(batches.every(batch => batch.pageSize <= 24)).toBe(true);
+  await search.fill('B acceptance 100000'); await search.press('Enter');
+  await expect(page.locator('#catalogue article')).toHaveCount(1); await expect(page.locator('#catalogue')).toContainText('B acceptance 100000');
+  const product = handoff.products[0];
+  const offerCall = async (operation: string, data?: unknown) => {
+    const response = await fetch(`${origin}/api/v1/products/${product.id}/offer/${operation}`, { method: operation === 'config' ? 'GET' : operation === 'draft' ? 'PUT' : 'POST', headers: { authorization: `Bearer ${handoff.keys.author}`, 'content-type': 'application/json' }, ...(data ? { body: JSON.stringify(data) } : {}) });
+    expect(response.status).toBe(200); return response.json();
+  };
+  const offer = { format: 1, enabled: true, templateId: 'offer-default', settings: { density: 'comfortable' }, content: {}, tokens: null };
+  const initial = await offerCall('config');
+  await offerCall('draft', { expectedRevision: initial.revision, config: offer }); await offerCall('publish', { expectedRevision: initial.revision + 1 });
+  for (const locale of ['en', 'pl']) {
+    await page.goto(locale === 'en' ? '/' : '/pl');
+    const link = page.locator(`[data-variant="featured-grid"] a[href$="/offer/${product.slug}"]`).first(); await expect(link).toBeVisible(); await link.click();
+    await expect(page).toHaveURL(new RegExp(`/offer/${product.slug}$`));
+    await expect(page.locator(`a[href$="/checkout/${product.slug}"]`).first()).toBeVisible();
+  }
+  await offerCall('draft', { expectedRevision: initial.revision + 2, config: { ...offer, enabled: false } }); await offerCall('publish', { expectedRevision: initial.revision + 3 });
+  await page.goto('/'); await expect(page.locator(`[data-variant="featured-grid"] a[href$="/p/${product.slug}"]`).first()).toBeVisible();
+  record('100k-controls-and-offer-details', { batches: batches.length, maxPageSize: Math.max(...batches.map(batch => batch.pageSize)) });
+  await context.close();
 });

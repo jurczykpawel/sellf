@@ -474,11 +474,17 @@ contextual redirects and buyer content. Local appearance rights are rechecked af
 expiry preserves enabled free presentation and stored copy.
 
 
+The installed `storefront-b` entry composes the frozen search hero, six-product
+featured grid, compact catalogue, optional starter, FAQ and catalogue closing.
+It uses D-056 descriptors/anchored intent, bounded featured bindings, and its own
+confirmation plus Pro. The additive B migration owns the current generated config
+schema; released Phase 1 and A migrations remain unchanged.
+
 The installed `storefront-a` entry composes the frozen Phase 2 offer-focus,
 comparison and compact variants with the existing categories/starters/FAQ/closing.
 Its default section order is anchored by descriptors; strict section intent permits optional visibility and declared variants while the catalogue remains required. Runtime schemas
 adopt A from the frozen `base-schemas.ts`/`phase2-contracts.ts` grammar. The additive
-A migration owns the current generated config schema; never regenerate released
+B migration owns the current generated config schema; never regenerate released
 Phase 1 SQL. See `docs/templates/phase2-contracts.md` for the adoption boundary.
 
 `storefront_config` is a boolean-keyed singleton holding the current revision,
@@ -523,7 +529,7 @@ Offline authoring uses `bun run template:check -- --config file --json` (or
 it does not attest live rights or publication readiness. `--print-schema config`
 (or `recipe`) and `--capabilities` generate contracts from Zod/registry sources;
 standalone JSON Schema files are not committed. `template:schema` targets the
-current config block in the later A migration and the marketing block in the
+current config block in the later B migration and the marketing block in the
 consolidated 2026.10.6 RC migration. Its Phase 1 storefront block stays frozen;
 released migration shapes must remain immutable. No renderer or instance connection
 is needed for CLI checks.

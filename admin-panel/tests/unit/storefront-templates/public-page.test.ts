@@ -134,3 +134,18 @@ it('loads A comparison products in the shared batch and uses current local grant
   expect(await loadPublicStorefront('en', {})).toMatchObject({ success: true, model: { templateId: 'default' } });
   expect(config.settingsByTemplate['storefront-a']).toEqual(settings);
 });
+
+it('loads B featured products and search categories through the same bounded adapter', async () => {
+  const products = PUBLIC_FIXTURE.products.map(product => ({ ...product, marketing: { ...product.marketing, format: 'workshop' as const, sourceLocale: 'en' as const } }));
+  const settings = { featuredProducts: products.map(p => p.id), closingProduct: products[0].id, taskCategories: PUBLIC_FIXTURE.categories.map(c => c.id) };
+  mocks.config.mockResolvedValue({ success: true, data: { ...DEFAULT_CONFIG, templateId: 'storefront-b', settingsByTemplate: { 'storefront-b': settings } } });
+  mocks.keys.mockReturnValue(['storefront-b']);
+  mocks.bindings.mockResolvedValue({ success: true, data: { hero: null, closing: products[0], starters: [], comparison: [], featured: products, categories: PUBLIC_FIXTURE.categories } });
+  const result = await loadPublicStorefront('en', {});
+  expect(mocks.bindings).toHaveBeenCalledExactlyOnceWith({}, expect.objectContaining(settings));
+  expect(result).toMatchObject({ success: true, hasProducts: true, model: { templateId: 'storefront-b' } });
+  if (result.success) {
+    expect(result.model.sections.find(section => section.id === 'featured')).toMatchObject({ props: { products } });
+    expect(result.model.sections[0]).toMatchObject({ props: { variant: 'search-hero', categories: PUBLIC_FIXTURE.categories } });
+  }
+});
