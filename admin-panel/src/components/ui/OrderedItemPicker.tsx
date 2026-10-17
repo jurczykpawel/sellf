@@ -2,7 +2,7 @@
 
 /** Search and ordered selection shared by bundle items and storefront bindings. */
 import Image from 'next/image';
-import { useId, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ImageIcon, Plus, X } from 'lucide-react';
 import ReorderHandle from '@/components/ui/ReorderHandle';
@@ -21,6 +21,16 @@ export default function OrderedItemPicker({ label, items, selectedIds, onChange,
   const [localSearch, setLocalSearch] = useState('');
   const term = search ?? localSearch;
   const [announcement, setAnnouncement] = useState('');
+  const selectionNeedsFocus = useRef(false);
+  const restoringFocus = useRef(false);
+  // Restore focus after the selected rows commit, before another user interaction.
+  useLayoutEffect(() => {
+    if (!selectionNeedsFocus.current) return;
+    selectionNeedsFocus.current = false;
+    restoringFocus.current = true;
+    try { (inputRef.current ?? rootRef.current?.querySelector<HTMLButtonElement>('ol li:last-child button:last-of-type'))?.focus(); }
+    finally { restoringFocus.current = false; }
+  });
   const candidates = items.filter(item => !selectedIds.includes(item.id) && item.name.toLocaleLowerCase().includes(term.trim().toLocaleLowerCase()));
   const move = (index: number, target: number) => {
     if (index === target || target < 0 || target >= selectedIds.length) return;
@@ -46,10 +56,10 @@ export default function OrderedItemPicker({ label, items, selectedIds, onChange,
       })}
     </ol>}
     {(selectedIds.length < maxItems || maxItems === 1) && <>
-      <input ref={inputRef} id={inputId} onFocus={() => setExpanded(true)} onKeyDown={event => { if (event.key === 'Escape') setExpanded(false); }} type="search" maxLength={200} value={term} placeholder={t('search')} aria-label={`${label} · ${t('search')}`} className="w-full rounded-lg border border-sf-muted bg-sf-input px-3 py-2.5 text-sm outline-offset-2 focus-visible:outline-sf-accent" onChange={event => { setExpanded(true); setLocalSearch(event.target.value); onSearch?.(event.target.value); }} />
+      <input ref={inputRef} id={inputId} onFocus={() => { if (!restoringFocus.current) setExpanded(true); }} onKeyDown={event => { if (event.key === 'Escape') setExpanded(false); }} type="search" maxLength={200} value={term} placeholder={t('search')} aria-label={`${label} · ${t('search')}`} className="w-full rounded-lg border border-sf-muted bg-sf-input px-3 py-2.5 text-sm outline-offset-2 focus-visible:outline-sf-accent" onChange={event => { setExpanded(true); setLocalSearch(event.target.value); onSearch?.(event.target.value); }} />
       {expanded && <div aria-live="polite" className="text-sm text-sf-muted">{error || (loading ? t('loading') : candidates.length === 0 ? t('noMatches') : '')}{error && onRetry && <button type="button" className="ml-2 underline" onClick={onRetry}>{t('retry')}</button>}</div>}
       {expanded && !loading && <ul className="max-h-56 overflow-y-auto rounded-xl border border-sf-border bg-sf-base divide-y divide-sf-border">
-        {candidates.map(item => <li key={item.id}><button type="button" aria-label={t('add', { name: item.name })} className="flex w-full items-center gap-3 p-3 text-left text-sm hover:bg-sf-hover focus-visible:outline-2 focus-visible:outline-sf-accent" onClick={() => { onChange(maxItems === 1 ? [item.id] : [...selectedIds, item.id]); setLocalSearch(''); onSearch?.(''); setExpanded(false); requestAnimationFrame(() => { (inputRef.current ?? rootRef.current?.querySelector<HTMLButtonElement>('ol li:last-child button:last-of-type'))?.focus(); setExpanded(false); }); }}>{identity(item)}<Plus size={17} className="shrink-0 text-sf-accent" aria-hidden="true" /></button></li>)}
+        {candidates.map(item => <li key={item.id}><button type="button" aria-label={t('add', { name: item.name })} className="flex w-full items-center gap-3 p-3 text-left text-sm hover:bg-sf-hover focus-visible:outline-2 focus-visible:outline-sf-accent" onClick={() => { selectionNeedsFocus.current = true; onChange(maxItems === 1 ? [item.id] : [...selectedIds, item.id]); setLocalSearch(''); onSearch?.(''); setExpanded(false); }}>{identity(item)}<Plus size={17} className="shrink-0 text-sf-accent" aria-hidden="true" /></button></li>)}
       </ul>}
       {expanded && !loading && hasMore && onMore && <button type="button" className="min-h-11 w-full rounded-lg border border-sf-border px-3 text-sm hover:bg-sf-hover focus-visible:outline-2 focus-visible:outline-sf-accent disabled:opacity-50" disabled={loadingMore} onClick={onMore}>{loadingMore ? t('loading') : t('more')}</button>}
     </>}
