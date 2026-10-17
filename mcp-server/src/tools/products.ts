@@ -195,7 +195,7 @@ export function registerProductsTools(server: McpServer): void {
   // Get product stats (uses analytics endpoint)
   server.tool(
     'get_product_stats',
-    'Get sales statistics from a sample of at most the first 100 payments for a product. Returns product.price in major units (49.99 means 49.99 in the product currency), sales.total_revenue and sales.by_currency in minor units (4999 means 49.99 for PLN/USD). The aggregate can mix currencies; use by_currency.',
+    'Get sales statistics from a sample of at most the first 100 payments for a product. Returns product.price in major units (49.99 means 49.99 in the product currency), sales.total_revenue and sales.by_currency in minor units (4999 means 49.99 for PLN/USD; zero-decimal currencies such as JPY are whole units, 1000 means 1000 JPY). The aggregate can mix currencies; use by_currency.',
     {
       product_id: z.string().uuid().describe('Product ID'),
     },

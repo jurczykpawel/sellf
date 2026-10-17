@@ -3,27 +3,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
+import { formatAdminDate } from '@/lib/timezone';
 import { toast } from 'sonner';
 import type { RefundRequest } from '@/types';
 import { getAdminRefundActions } from '@/lib/refunds/flow';
 
+import { fromMinorUnits } from '@/lib/currency/minor-units';
 const formatPriceLocalized = (locale: string, price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
   if (price === null) return naLabel;
   const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
   if (isNaN(numericPrice)) return invalidLabel;
 
-  return formatPrice(numericPrice / 100, currency || 'USD', locale);
-};
-
-const formatDate = (dateString: string | null, naLabel = 'N/A') => {
-  if (!dateString) return naLabel;
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatPrice(fromMinorUnits(numericPrice, currency || 'USD'), currency || 'USD', locale);
 };
 
 export default function RefundRequestsPage() {
@@ -252,7 +243,7 @@ export default function RefundRequestsPage() {
                       {request.product_name}
                     </div>
                     <div className="text-xs text-sf-muted">
-                      {t('purchasedOn', { defaultValue: 'Purchased' })}: {formatDate(request.purchase_date || null, t('naLabel'))}
+                      {t('purchasedOn', { defaultValue: 'Purchased' })}: {formatAdminDate(request.purchase_date, locale, true, t('naLabel'))}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -274,12 +265,12 @@ export default function RefundRequestsPage() {
                     {getStatusBadge(request.status)}
                     {request.processed_at && (
                       <div className="text-xs text-sf-muted mt-1">
-                        {formatDate(request.processed_at, t('naLabel'))}
+                        {formatAdminDate(request.processed_at, locale, true, t('naLabel'))}
                       </div>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-sf-muted">
-                    {formatDate(request.created_at, t('naLabel'))}
+                    {formatAdminDate(request.created_at, locale, true, t('naLabel'))}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     {renderRequestActions(request)}

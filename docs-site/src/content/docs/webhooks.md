@@ -290,7 +290,7 @@ All endpoints under `/api/v1/webhooks/logs/[id]/*` require the `webhooks:write` 
 
 | Method & Path | Effect |
 |---------------|--------|
-| `POST /retry` | Legacy. Creates a new log row and marks the original `retried`. Use only for old `failed` rows. |
+| `POST /retry` | Legacy. Claims and updates the same delivery row. Use only for old `failed` rows. |
 | `POST /replay` | DLQ Replay. Only valid for `permanently_failed`; resets `attempt_count` to 0 and re-queues for immediate retry. |
 | `POST /force-retry` | Pulls a `pending_retry` row forward to `next_retry_at = NOW()`. |
 | `POST /cancel` | Flips a `pending_retry` row to `permanently_failed`. |
@@ -305,6 +305,17 @@ The worker is exposed at `/api/cron?job=webhook-deliveries-retry`. Schedule it t
 ```cron
 * * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$SELLF_URL/api/cron?job=webhook-deliveries-retry" > /dev/null
 ```
+
+PM2 running the app does not schedule this job. Set `SELLF_URL` and `CRON_SECRET`
+in the scheduler environment, and configure this job separately from
+`affiliate-sync`. Check the scheduler's output for unsuccessful requests.
+
+Sellf saves each delivery before sending its first attempt immediately, including
+**Send test** requests. A test has one attempt and no automatic retries. The
+scheduler handles failed or interrupted regular deliveries; it is not required
+for their first attempt or for log rows to appear. Delivery history initially
+shows all statuses; the failed filter includes scheduled retries and exhausted
+deliveries.
 
 ### Queue driver selection
 
@@ -324,7 +335,16 @@ Enable `checkout.session.expired` on the Stripe endpoint that delivers to
 from Sellf settings include it automatically. For an existing endpoint, add the
 event in Stripe Dashboard → Workbench → Webhooks → your endpoint → Edit events.
 
-When a buyer changes the cart, Sellf expires the previous Checkout Session and
-marks its pending transaction `abandoned`. Natural expiration does the same via
+When a buyer changes the cart or leaves checkout before confirming payment,
+Sellf expires the previous Checkout Session and marks its pending transaction
+`abandoned`. Returning with the browser's Back button starts at the first step
+without creating a session until the buyer continues. Confirmation redirects
+keep the active session. Natural expiration does the same reconciliation via
 this Stripe event. Completed transactions remain unchanged, and repeated events
 are safe to process. Failed reconciliation returns HTTP 500 so Stripe can retry.
+
+If the browser closes before a session-creation response arrives, it cannot send
+a later close request, even when creation uses `keepalive`. Keep the expiration
+event enabled to reconcile these attempts. While the page remains alive, queued
+closure waits for creation to finish. Sellf also retains sessions whose
+PaymentIntent is processing, awaiting capture or additional action, or succeeded.

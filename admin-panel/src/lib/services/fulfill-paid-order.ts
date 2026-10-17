@@ -13,6 +13,7 @@ import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
 import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { fromMinorUnits } from '@/lib/currency/minor-units';
 type OrderClient = SupabaseClient<any, any, any>;
 
 export async function fulfillPaidOrder(args: {
@@ -78,8 +79,8 @@ export async function fulfillPaidOrder(args: {
     trackServerSideConversion({
       eventName: 'Purchase', eventId: generatePurchaseEventId(tx.session_id),
       eventSourceUrl: slug ? `${baseUrl}/p/${slug}` : baseUrl,
-      value: args.amount / 100, currency: args.currency.toUpperCase(),
-      items: [{ item_id: args.productId, item_name: 'name' in payload.product ? payload.product.name : 'Unknown Product', price: args.amount / 100, quantity: 1 }],
+      value: fromMinorUnits(args.amount, args.currency), currency: args.currency.toUpperCase(),
+      items: [{ item_id: args.productId, item_name: 'name' in payload.product ? payload.product.name : 'Unknown Product', price: fromMinorUnits(args.amount, args.currency), quantity: 1 }],
       orderId: tx.session_id, userEmail: tx.customer_email || args.customerEmail,
     }).catch(error => console.error('[fulfillPaidOrder] Purchase tracking error:', error));
   }

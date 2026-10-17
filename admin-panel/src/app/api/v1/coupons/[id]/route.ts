@@ -213,7 +213,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
 
       if (finalDiscountType === 'fixed' && discountValue > MAX_FIXED_DISCOUNT) {
-        throw new ApiValidationError(`Fixed discount cannot exceed ${MAX_FIXED_DISCOUNT} cents`);
+        throw new ApiValidationError(`Fixed discount cannot exceed ${MAX_FIXED_DISCOUNT}`);
       }
 
       updateData.discount_value = discountValue;

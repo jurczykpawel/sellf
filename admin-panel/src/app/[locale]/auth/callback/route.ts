@@ -147,15 +147,9 @@ export async function GET(request: NextRequest) {
 
   const redirectTo = requestUrl.searchParams.get('redirect_to')
   let returnPath = getLoginReturnPath(redirectTo)
-  if (!redirectTo && code) {
+  if (redirectTo === null && code) {
     const oauthRedirectCookie = request.cookies.get('sf_oauth_redirect')?.value
-    if (oauthRedirectCookie) {
-      try {
-        returnPath = getLoginReturnPath(decodeURIComponent(oauthRedirectCookie))
-      } catch {
-        returnPath = undefined
-      }
-    }
+    returnPath = getLoginReturnPath(oauthRedirectCookie)
   }
   let redirectPath = returnPath ? resolveSafeRedirectPath(returnPath, origin) : null
   if (!redirectPath) {

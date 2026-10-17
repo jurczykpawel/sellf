@@ -18,6 +18,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from '../helpers/admin-auth';
 import { acceptAllCookies } from '../helpers/consent';
+import { startNativeCheckout } from '../helpers/checkout-intent';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -190,6 +191,7 @@ test.describe('Public Pages', () => {
     // Listed paid products show the purchase view without granting content access.
     await expect(page).toHaveURL(new RegExp(`/p/${paidProduct.slug}$`), { timeout: 10000 });
     await expect(page.getByRole('heading', { name: paidProduct.name, exact: true })).toBeVisible();
+    await startNativeCheckout(page);
     await expect(page.locator('input#fullName')).toBeVisible();
     await expect(page.locator('body')).not.toContainText('Application error');
   });

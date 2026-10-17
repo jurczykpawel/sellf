@@ -4,10 +4,12 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { CheckoutElementsProvider } from '@stripe/react-stripe-js/checkout';
-import { formatPrice, STRIPE_MINIMUM_AMOUNT, STRIPE_MAX_AMOUNT } from '@/lib/constants';
+import { formatPrice, STRIPE_MAX_AMOUNT } from '@/lib/constants';
+import { minimumChargeAmount } from '@/lib/currency/minor-units';
 import { signOutAndRedirectToCheckout } from '@/lib/actions/checkout';
 import { validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
 import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
+import { formatBillingIntervalLabel } from '@/lib/product-pricing-display';
 import { createCheckoutSessionQueue } from '@/lib/checkout/session-queue';
 import { getStripeClient } from '@/lib/stripe/client';
 import { TWO_COLUMN_ROW_CLASSNAME, PANEL_END_CLASSNAME } from '@/lib/two-column-layout';
@@ -22,6 +24,7 @@ import { useFreeAccess } from '@/hooks/useFreeAccess';
 import { useCheckoutRedirect } from '@/hooks/useCheckoutRedirect';
 import { calculatePricing } from '@/hooks/usePricing';
 import PaymentFormSkeleton from '@/components/checkout/PaymentFormSkeleton';
+import OrderSummary from '@/components/checkout/OrderSummary';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
 import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
 import type { StripeCheckoutElementsSdkOptions } from '@stripe/stripe-js';
@@ -73,7 +76,9 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const { track } = useTracking();
   const trackingFired = useRef(false);
   const checkoutTrackingFired = useRef(false);
+  const confirmationPending = useRef(false);
   const [purchaseStarted, setPurchaseStarted] = useState(false);
+  const handleConfirmationChange = useCallback((pending: boolean) => { confirmationPending.current = pending; }, []);
 
   // Funnel test mode: admin-only visual preview (no Stripe, no backend calls)
   const isFunnelTest = searchParams.get('funnel_test') === '1' && isAdmin;
@@ -94,13 +99,36 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     if (!identity.clientSecret?.startsWith('cs_')) return;
     const response = await fetch('/api/create-payment-intent', {
       method: 'POST',
+      keepalive: true,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ productId: product.id, ...identity, expireOnly: true }),
     });
     if (!response.ok) throw new Error('Unable to expire checkout session');
   }));
 
-  useEffect(() => () => sessionQueue.update(null), [sessionQueue]);
+  useEffect(() => {
+    const handlePageHide = () => {
+      if (!confirmationPending.current) sessionQueue.update(null);
+    };
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        confirmationPending.current = false;
+        checkoutTrackingFired.current = false;
+        setPurchaseStarted(false);
+        setClientSecret(null);
+        setBindingToken(null);
+        setCheckoutSessionId(null);
+        setLastCheckoutSessionSignature(null);
+      }
+    };
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('pageshow', handlePageShow);
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('pageshow', handlePageShow);
+      if (!confirmationPending.current) sessionQueue.update(null);
+    };
+  }, [sessionQueue]);
 
   // Email state - from logged in user or from URL param (for OTO redirects)
   const urlEmail = searchParams.get('email');
@@ -138,7 +166,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   // function safe to call from useEffect bodies (no setState cascade).
   const checkCustomAmount = useCallback((amount: number): string | null => {
     if (!product.allow_custom_price) return null;
-    const minPrice = product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
+    const minPrice = product.custom_price_min ?? minimumChargeAmount(product.currency);
     if (amount < minPrice) {
       return t('customPrice.belowMinimum', { minimum: formatPrice(minPrice, product.currency, locale) });
     }
@@ -152,7 +180,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const isPwywFree =
     product.allow_custom_price &&
     customAmount === 0 &&
-    (product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT) === 0;
+    (product.custom_price_min ?? minimumChargeAmount(product.currency)) === 0;
 
   // Order bumps
   const { orderBumps } = useOrderBumps(product.id);
@@ -225,12 +253,17 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     productPrice: effectiveUnitPrice,
     productCurrency: product.currency,
     productVatRate: product.vat_rate ?? undefined,
+    vatExempt: product.vat_exempt,
+    taxMode,
     priceIncludesVat: product.price_includes_vat ?? undefined,
     customAmount: product.allow_custom_price ? customAmount : undefined,
     bumps: availableBumps.map(bump => ({
       id: bump.bump_product_id,
       price: bump.bump_price,
       selected: selectedBumpIds.has(bump.bump_product_id),
+      vatRate: bump.vat_rate,
+      priceIncludesVat: bump.price_includes_vat,
+      vatExempt: bump.vat_exempt,
     })),
     coupon: coupon.appliedCoupon,
   });
@@ -529,10 +562,30 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             </button>
           )}
 
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && (
+            <OrderSummary
+              productName={product.name}
+              currency={product.currency}
+              basePrice={pricing.basePrice}
+              discountAmount={pricing.discountAmount}
+              totalGross={pricing.totalPayable}
+              totalNet={pricing.totalNet}
+              vatRate={pricing.vatRate}
+              vatExempt={product.vat_exempt}
+              vatExemptNote={product.vat_exempt_note}
+              taxMode={taxMode}
+              customAmountError={product.allow_custom_price ? customAmountError : null}
+              appliedCoupon={coupon.appliedCoupon ?? undefined}
+              bumpProducts={availableBumps}
+              selectedBumpIds={selectedBumpIds}
+              intervalLabel={isSubscription ? formatBillingIntervalLabel(product.billing_interval, product.billing_interval_count, locale) : undefined}
+            />
+          )}
+
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && !purchaseStarted && (
             <form onSubmit={event => { event.preventDefault(); setPurchaseStarted(true); }}>
               <button type="submit" className="w-full cursor-pointer rounded-xl bg-sf-accent-bg px-6 py-4 font-semibold text-sf-inverse hover:bg-sf-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent">
-                {t('payButton', { amount: formatPrice(pricing.totalGross, product.currency, locale) })}
+                {t('continueToPayment')}
               </button>
               <p className="mt-3 text-center text-xs text-sf-muted">{t('securePayment')}</p>
             </form>
@@ -569,12 +622,11 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 initialFullName={urlName}
                 bumpProducts={availableBumps}
                 selectedBumpIds={selectedBumpIds}
-                appliedCoupon={coupon.appliedCoupon ?? undefined}
                 onChangeAccount={handleSignOutAndCheckout}
-                customAmount={product.allow_custom_price ? customAmount : undefined}
                 customAmountError={product.allow_custom_price ? customAmountError : null}
                 clientSecret={clientSecret || undefined}
                 bindingToken={bindingToken || undefined}
+                onConfirmationChange={handleConfirmationChange}
                 pricing={pricing}
                 paymentMethodOrder={paymentMethodOrder}
                 expressCheckoutConfig={expressCheckoutConfig}
@@ -583,11 +635,11 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 customFieldValues={customFieldValues}
                 onCustomFieldValuesChange={setCustomFieldValues}
                 customFieldErrors={customFieldErrors}
-                afterCheckoutSlot={afterCheckoutSlot}
                 collectTermsOfService={collectTermsOfService}
               />
             </CheckoutElementsProvider>
           )}
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && afterCheckoutSlot}
         </div>
       )}
     </div>

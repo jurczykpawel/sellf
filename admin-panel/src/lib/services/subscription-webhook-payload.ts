@@ -18,6 +18,7 @@
  */
 
 import type Stripe from 'stripe';
+import { fromMinorUnits } from '@/lib/currency/minor-units';
 import type { OrderTaxSnapshot } from '@/lib/services/tax-snapshot';
 
 export interface SubProductSummary {
@@ -40,8 +41,8 @@ interface BaseInput {
   product: SubProductSummary;
 }
 
-function fromMinor(amount: number | null | undefined): number {
-  return typeof amount === 'number' ? Math.round(amount) / 100 : 0;
+function fromMinor(amount: number | null | undefined, currency: string): number {
+  return typeof amount === 'number' ? fromMinorUnits(Math.round(amount), currency) : 0;
 }
 
 function toIso(unix: number | null | undefined): string | null {
@@ -63,7 +64,7 @@ export function buildSubscriptionCreatedPayload(input: BaseInput & {
       status: sub.status,
       billingInterval: item?.price.recurring?.interval ?? null,
       billingIntervalCount: item?.price.recurring?.interval_count ?? null,
-      recurringPrice: fromMinor(item?.price.unit_amount ?? null),
+      recurringPrice: fromMinor(item?.price.unit_amount ?? null, item?.price.currency ?? 'usd'),
       trialEnd: toIso(sub.trial_end),
       currentPeriodStart: toIso(sub.items.data[0]?.current_period_start ?? null),
       currentPeriodEnd: toIso(sub.items.data[0]?.current_period_end ?? null),
@@ -137,7 +138,7 @@ export function buildSubscriptionRenewalUpcomingPayload(input: BaseInput & {
     },
     invoice: {
       stripeInvoiceId: inv.id ?? null,
-      amountDue: fromMinor(inv.amount_due),
+      amountDue: fromMinor(inv.amount_due, inv.currency || 'usd'),
       currency: (inv.currency || 'usd').toUpperCase(),
       nextPaymentAttempt: toIso(inv.next_payment_attempt),
       billingReason: inv.billing_reason,
@@ -166,7 +167,7 @@ export function buildInvoicePaidPayload(input: BaseInput & {
     subscription: { stripeSubscriptionId: input.subscriptionId },
     invoice: {
       stripeInvoiceId: inv.id,
-      amountPaid: fromMinor(inv.amount_paid),
+      amountPaid: fromMinor(inv.amount_paid, inv.currency || 'usd'),
       currency: (inv.currency || 'usd').toUpperCase(),
       hostedInvoiceUrl: inv.hosted_invoice_url ?? null,
       invoicePdfUrl: inv.invoice_pdf ?? null,
@@ -175,8 +176,8 @@ export function buildInvoicePaidPayload(input: BaseInput & {
       // VAT (present only when captured). net/tax in MAJOR units (like amountPaid);
       // vatRate is the single applied rate or null; taxSnapshotStatus mirrors the tx row.
       ...(snap && {
-        net: fromMinor(snap.netTotal),
-        tax: fromMinor(snap.taxTotal),
+        net: fromMinor(snap.netTotal, inv.currency || 'usd'),
+        tax: fromMinor(snap.taxTotal, inv.currency || 'usd'),
         vatRate: taxLine?.vatRate ?? null,
         taxBehavior: taxLine?.taxBehavior ?? null,
         taxabilityReason: taxLine?.taxabilityReason ?? null,
@@ -210,7 +211,7 @@ export function buildInvoicePaymentFailedPayload(input: BaseInput & {
     },
     invoice: {
       stripeInvoiceId: inv.id,
-      amountDue: fromMinor(inv.amount_due),
+      amountDue: fromMinor(inv.amount_due, inv.currency || 'usd'),
       currency: (inv.currency || 'usd').toUpperCase(),
       attemptCount: inv.attempt_count,
       nextPaymentAttempt: toIso(inv.next_payment_attempt),

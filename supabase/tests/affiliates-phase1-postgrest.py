@@ -3,7 +3,7 @@ import json
 import os
 import subprocess
 import unittest
-from local_stack import get_test_database_container
+from local_stack import get_test_database_container, wait_for_test_api
 import urllib.error
 import urllib.request
 
@@ -18,6 +18,7 @@ class AffiliatePostgrest(unittest.TestCase):
         settings = json.loads(status.stdout)
         self.assertEqual(settings['API_URL'], os.environ['SUPABASE_URL'])
         key = settings['SERVICE_ROLE_KEY']
+        wait_for_test_api(settings['API_URL'], key)
         request = urllib.request.Request(
             settings['API_URL'] + '/rest/v1/rpc/affiliate_member_update',
             data=json.dumps({

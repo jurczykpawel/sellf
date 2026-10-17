@@ -1,31 +1,26 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout';
-import type { StripePaymentElementOptions } from '@stripe/stripe-js';
-import { Product } from '@/types';
-import type { OrderBumpWithProduct } from '@/types/order-bump';
-import { ExpressCheckoutConfig } from '@/types/payment-config';
 import { formatPrice } from '@/lib/constants';
 import { formatBillingIntervalLabel } from '@/lib/product-pricing-display';
-import { useTranslations, useLocale } from 'next-intl';
 import { validateTaxId } from '@/lib/validation/nip';
+import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
+import { shouldRequestInvoice, shouldCollectBuyerCountry } from '@/lib/checkout/invoice-form-logic';
 import { useTracking } from '@/hooks/useTracking';
-import type { PricingResult } from '@/hooks/usePricing';
 import { useInvoiceData } from '@/hooks/useInvoiceData';
 import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
 import InvoiceFields from '@/components/checkout/InvoiceFields';
 import PaymentFormSkeleton from '@/components/checkout/PaymentFormSkeleton';
-import OrderSummary from '@/components/checkout/OrderSummary';
-import type { TaxMode } from '@/lib/actions/shop-config';
-import type { AppliedCoupon } from '@/types/coupon';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
-import type {
-  CustomFieldDefinition,
-  CustomFieldValues,
-} from '@/lib/validations/custom-checkout-fields';
-import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
-import { shouldRequestInvoice, shouldCollectBuyerCountry } from '@/lib/checkout/invoice-form-logic';
+import type { StripePaymentElementOptions } from '@stripe/stripe-js';
+import type { Product } from '@/types';
+import type { OrderBumpWithProduct } from '@/types/order-bump';
+import type { ExpressCheckoutConfig } from '@/types/payment-config';
+import type { PricingResult } from '@/hooks/usePricing';
+import type { TaxMode } from '@/lib/actions/shop-config';
+import type { CustomFieldDefinition, CustomFieldValues } from '@/lib/validations/custom-checkout-fields';
 
 interface CustomPaymentFormProps {
   product: Product;
@@ -33,12 +28,11 @@ interface CustomPaymentFormProps {
   initialFullName?: string;
   bumpProducts?: OrderBumpWithProduct[];
   selectedBumpIds?: Set<string>;
-  appliedCoupon?: AppliedCoupon;
   onChangeAccount?: () => void;
-  customAmount?: number;
   customAmountError?: string | null;
   clientSecret?: string;
   bindingToken?: string;
+  onConfirmationChange?: (pending: boolean) => void;
   pricing: PricingResult;
   paymentMethodOrder?: string[];
   expressCheckoutConfig?: ExpressCheckoutConfig;
@@ -48,7 +42,6 @@ interface CustomPaymentFormProps {
   customFieldValues?: CustomFieldValues;
   onCustomFieldValuesChange?: (next: CustomFieldValues) => void;
   customFieldErrors?: Record<string, string>;
-  afterCheckoutSlot?: React.ReactNode;
 }
 
 type EmailValidationResponse = {
@@ -69,11 +62,11 @@ export default function CustomPaymentForm({
   initialFullName,
   bumpProducts = [],
   selectedBumpIds = new Set(),
-  appliedCoupon,
   onChangeAccount,
   customAmountError,
   clientSecret,
   bindingToken,
+  onConfirmationChange,
   pricing,
   paymentMethodOrder,
   expressCheckoutConfig,
@@ -83,7 +76,6 @@ export default function CustomPaymentForm({
   customFieldValues = {},
   onCustomFieldValuesChange,
   customFieldErrors,
-  afterCheckoutSlot,
 }: CustomPaymentFormProps) {
   const t = useTranslations('checkout');
   const locale = useLocale();
@@ -108,7 +100,7 @@ export default function CustomPaymentForm({
   // Invoice / NIP logic
   const invoice = useInvoiceData(email, { initialFullName });
 
-  const { basePrice, discountAmount, totalGross, totalNet, vatRate } = pricing;
+  const { basePrice, totalPayable } = pricing;
   const paymentElementOptions: StripePaymentElementOptions = {
     layout: {
       type: 'tabs',
@@ -261,7 +253,7 @@ export default function CustomPaymentForm({
         });
       }
       await track('add_payment_info', {
-        value: totalGross,
+        value: totalPayable,
         currency: product.currency,
         items,
         userEmail: finalEmail,
@@ -287,13 +279,16 @@ export default function CustomPaymentForm({
         return;
       }
 
+      onConfirmationChange?.(true);
       const result = await checkout.confirm();
 
       if (result.type === 'error') {
+        onConfirmationChange?.(false);
         setErrorMessage(result.error.message || t('paymentFailed'));
         setIsProcessing(false);
       }
     } catch (err) {
+      onConfirmationChange?.(false);
       setErrorMessage(err instanceof Error ? err.message : t('unexpectedError'));
       setIsProcessing(false);
     }
@@ -419,25 +414,6 @@ export default function CustomPaymentForm({
         />
       )}
 
-      {/* Order Summary */}
-      <OrderSummary
-        productName={product.name}
-        currency={product.currency}
-        basePrice={basePrice}
-        discountAmount={discountAmount}
-        totalGross={totalGross}
-        totalNet={totalNet}
-        vatRate={vatRate}
-        vatExempt={product.vat_exempt}
-        vatExemptNote={product.vat_exempt_note}
-        taxMode={taxMode}
-        customAmountError={customAmountError}
-        appliedCoupon={appliedCoupon}
-        bumpProducts={bumpProducts}
-        selectedBumpIds={selectedBumpIds}
-        intervalLabel={intervalLabel || undefined}
-      />
-
       {/* Confirm Email — when logged-in user uses different email */}
       {emailMismatch && (
         <div className="py-1">
@@ -480,19 +456,18 @@ export default function CustomPaymentForm({
           t('fixAmountFirst', { defaultValue: 'Fix the amount above to continue' })
         ) : isSubscription && intervalLabel ? (
           t('subscribeButton', {
-            amount: `${formatPrice(totalGross, product.currency, locale)} / ${intervalLabel}`,
-            defaultValue: `Subskrybuj ${formatPrice(totalGross, product.currency, locale)} / ${intervalLabel}`,
+            amount: `${formatPrice(totalPayable, product.currency, locale)} / ${intervalLabel}`,
+            defaultValue: `Subskrybuj ${formatPrice(totalPayable, product.currency, locale)} / ${intervalLabel}`,
           })
         ) : (
           t('payButton', {
-            amount: formatPrice(totalGross, product.currency, locale),
-            defaultValue: `Zapłać ${formatPrice(totalGross, product.currency, locale)}`,
+            amount: formatPrice(totalPayable, product.currency, locale),
+            defaultValue: `Zapłać ${formatPrice(totalPayable, product.currency, locale)}`,
           })
         )}
       </button>
 
       <p className="text-xs text-sf-muted text-center">{t('securePayment')}</p>
-      {afterCheckoutSlot}
     </form>
   );
 }

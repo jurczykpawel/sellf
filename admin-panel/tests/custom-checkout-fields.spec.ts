@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { startNativeCheckout } from './helpers/checkout-intent';
 
 // Phase 3a end-to-end coverage:
 //   1. Product without custom fields → checkout behaves like before.
@@ -62,6 +63,7 @@ test.describe('Custom checkout fields', () => {
 
   test('checkout page renders defined custom fields with labels and placeholders', async ({ page }) => {
     await page.goto(`/pl/checkout/${productSlug}`);
+    await startNativeCheckout(page);
     await expect(page.getByLabel('Domena')).toBeVisible({ timeout: 15000 });
     await expect(page.getByLabel('Wiadomość')).toBeVisible();
     await expect(page.getByPlaceholder('Powiedz coś miłego')).toBeVisible();

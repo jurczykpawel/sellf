@@ -27,6 +27,8 @@ import { z } from 'zod';
 import {
   validateProductId,
   validateUpdateProduct,
+  validateWholeAmounts,
+  WHOLE_AMOUNT_FIELDS,
   PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
 import { mapApiInputToProductRow, ProductCategoriesSchema, ProductTagsSchema, BundleItemIdsSchema } from '@/lib/api/dto/product';
@@ -153,6 +155,28 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       throw new ApiValidationError('Validation failed', {
         _errors: validation.errors,
       });
+    }
+
+    // Zero-decimal currencies (JPY, KRW, VND...) need whole prices. Check the MERGED row, so a
+    // price-only PATCH is validated against the stored currency and a currency-only PATCH against
+    // the stored prices.
+    if (WHOLE_AMOUNT_FIELDS.some((field) => sanitizedData[field] !== undefined) || sanitizedData.currency !== undefined) {
+      const { data: stored, error: storedError } = await supabase
+        .from('products')
+        .select(['currency', ...WHOLE_AMOUNT_FIELDS].join(', '))
+        .eq('id', id)
+        .maybeSingle();
+      if (storedError) {
+        console.error('[products.PATCH]', storedError);
+        return apiError(request, 'INTERNAL_ERROR', 'Failed to validate prices');
+      }
+      if (stored) {
+        const merged = { ...(stored as unknown as Record<string, unknown>), ...sanitizedData };
+        const wholeErrors = validateWholeAmounts(merged, merged.currency);
+        if (wholeErrors.length > 0) {
+          throw new ApiValidationError('Validation failed', { _errors: wholeErrors });
+        }
+      }
     }
 
     // If slug is being changed, check uniqueness

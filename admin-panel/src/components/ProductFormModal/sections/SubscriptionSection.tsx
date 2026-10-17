@@ -1,5 +1,6 @@
 'use client';
 
+import { currencyExponent } from '@/lib/currency/minor-units';
 import React from 'react';
 import { ModalSection } from '@/components/ui/Modal';
 import { CURRENCIES, getCurrencySymbol } from '@/lib/constants';
@@ -39,7 +40,7 @@ export function SubscriptionSection({ formData, setFormData, t }: SectionProps) 
               type="number"
               id="recurring_price"
               min="0"
-              step="0.01"
+              step={currencyExponent(formData.currency) === 0 ? "1" : "0.01"}
               value={formData.recurring_price ?? ''}
               onChange={(e) =>
                 setFormData((prev) => ({

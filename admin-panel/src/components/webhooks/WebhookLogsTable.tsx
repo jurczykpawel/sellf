@@ -233,18 +233,13 @@ export default function WebhookLogsTable({
                       {actingId === log.id ? '...' : t('cancel')}
                     </button>
                   )}
-                  {/* Legacy Resend/Retry — kept for success/failed states */}
-                  {(log.status === 'success' || log.status === 'failed') && (
+                  {log.status === 'failed' && (
                     <button
                       onClick={(e) => handleRetryClick(e, log.id)}
                       disabled={retryingId === log.id}
-                      className={`inline-flex items-center px-2.5 py-1.5 border text-xs font-medium rounded disabled:opacity-50 transition-all ${
-                        log.status === 'failed'
-                          ? 'border-sf-border text-sf-accent bg-sf-accent-soft hover:bg-sf-hover'
-                          : 'border-sf-border text-sf-body bg-sf-raised hover:bg-sf-hover'
-                      }`}
+                      className="inline-flex items-center px-2.5 py-1.5 border text-xs font-medium rounded disabled:opacity-50 transition-all border-sf-border text-sf-accent bg-sf-accent-soft hover:bg-sf-hover"
                     >
-                      {retryingId === log.id ? '...' : (log.status === 'failed' ? t('retry') : t('resend'))}
+                      {retryingId === log.id ? '...' : t('retry')}
                     </button>
                   )}
                   {log.status === 'failed' && (

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { supabaseAdmin, setAuthSession } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
+import { startNativeCheckout } from './helpers/checkout-intent';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -203,7 +204,9 @@ test.describe('guest checkout variants', () => {
     await expect(page.getByText(/99,00\s+zł/i).first()).toBeVisible();
     await expect(page.getByText(/Wybierz kwotę/i)).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
-    await expect.poll(() => checkoutRequests.length).toBeGreaterThan(0);
+    expect(checkoutRequests).toHaveLength(0);
+    await page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ }).click();
+    await expect.poll(() => checkoutRequests.length).toBe(1);
     expect(checkoutRequests[0]).toMatchObject({ productId: products.paid.id });
   });
 
@@ -215,7 +218,9 @@ test.describe('guest checkout variants', () => {
     await expect(page.locator('button').filter({ hasText: /10,00\s+zł/i }).first()).toBeVisible();
     await expect(page.locator('input[inputmode="decimal"]').first()).toHaveValue('50');
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
-    await expect.poll(() => checkoutRequests.length).toBeGreaterThan(0);
+    expect(checkoutRequests).toHaveLength(0);
+    await page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ }).click();
+    await expect.poll(() => checkoutRequests.length).toBe(1);
     expect(checkoutRequests[0]).toMatchObject({ productId: products.pwyw.id, customAmount: 50 });
   });
 
@@ -232,27 +237,32 @@ test.describe('guest checkout variants', () => {
     await expect(page.locator('input[type="email"]').first()).toBeVisible();
   });
 
-  test('subscription guest initializes checkout immediately without magic-link or PWYW flow', async ({ page }) => {
+  test('subscription guest starts checkout on intent without magic-link or PWYW flow', async ({ page }) => {
     const checkoutRequests = await captureCheckoutRequests(page);
     await openCheckout(page, products.subscriptionMonth);
 
-    await expect(page.getByText(/99,00\s+zł \/ mies\./i)).toBeVisible();
+    await expect(page.getByTestId('product-price-display')).toHaveText('99,00 zł / mies.');
+    await expect(page.getByTestId('order-summary-total')).toHaveText('99,00 zł / mies.');
     await expect(page.getByTestId('subscription-email-gate')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
     await expect(page.getByText(/Wybierz kwotę/i)).toHaveCount(0);
-    await expect.poll(() => checkoutRequests.length).toBeGreaterThan(0);
+    expect(checkoutRequests).toHaveLength(0);
+    await page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ }).click();
+    await expect.poll(() => checkoutRequests.length).toBe(1);
     expect(checkoutRequests[0]).toMatchObject({
       productId: products.subscriptionMonth.id,
     });
     expect(checkoutRequests[0].email).toBeUndefined();
   });
 
-  test('subscription guest initializes the real Stripe subscription form immediately', async ({ page }) => {
+  test('subscription guest starts the real Stripe subscription form on intent', async ({ page }) => {
     await openCheckout(page, products.subscriptionMonth);
 
-    await expect(page.getByText(/99,00\s+zł \/ mies\./i)).toBeVisible();
+    await expect(page.getByTestId('product-price-display')).toHaveText('99,00 zł / mies.');
+    await expect(page.getByTestId('order-summary-total')).toHaveText('99,00 zł / mies.');
     await expect(page.getByTestId('subscription-email-gate')).toHaveCount(0);
 
+    await startNativeCheckout(page);
     await expect(page.locator('input#checkoutEmail')).toBeVisible({ timeout: 30000 });
     await page.locator('input#checkoutEmail').fill(`subscription-checkout-${Date.now()}@gmail.com`);
     await expect(page.locator('input#fullName')).toBeVisible({ timeout: 30000 });
@@ -275,6 +285,7 @@ test.describe('guest checkout variants', () => {
 
   test('one-time paid product CTA says "Zapłać" (not "Subskrybuj") and has no double currency', async ({ page }) => {
     await openCheckout(page, products.paid);
+    await startNativeCheckout(page);
     await expect(page.locator('input#checkoutEmail')).toBeVisible({ timeout: 30000 });
     await page.locator('input#checkoutEmail').fill(`paid-${Date.now()}@gmail.com`);
     await page.locator('input#fullName').fill('Paid Buyer');
@@ -311,6 +322,7 @@ test.describe('guest checkout variants', () => {
 
     await openCheckout(page, products.subscriptionMonth);
 
+    await startNativeCheckout(page);
     await expect(page.locator('input#checkoutEmail')).toBeVisible({ timeout: 30000 });
     await page.locator('input#checkoutEmail').fill('buyer@mailinator.com');
     await page.locator('input#fullName').fill('Buyer Testowy');
@@ -325,10 +337,13 @@ test.describe('guest checkout variants', () => {
     const checkoutRequests = await captureCheckoutRequests(page);
     await openCheckout(page, products.subscriptionYear);
 
-    await expect(page.getByText(/120,00\s+zł \/ rok/i)).toBeVisible();
+    await expect(page.getByTestId('product-price-display')).toHaveText('120,00 zł / rok');
+    await expect(page.getByTestId('order-summary-total')).toHaveText('120,00 zł / rok');
     await expect(page.getByTestId('subscription-email-gate')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
-    await expect.poll(() => checkoutRequests.length).toBeGreaterThan(0);
+    expect(checkoutRequests).toHaveLength(0);
+    await page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ }).click();
+    await expect.poll(() => checkoutRequests.length).toBe(1);
     expect(checkoutRequests[0]).toMatchObject({ productId: products.subscriptionYear.id });
     expect(checkoutRequests[0].email).toBeUndefined();
   });
@@ -352,7 +367,9 @@ test.describe('logged-in checkout variants', () => {
     await expect(page.getByText(/Dokończ Zakup/i)).toBeVisible();
     await expect(page.getByText(/99,00\s+zł/i).first()).toBeVisible();
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
-    await expect.poll(() => checkoutRequests.length).toBeGreaterThan(0);
+    expect(checkoutRequests).toHaveLength(0);
+    await page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ }).click();
+    await expect.poll(() => checkoutRequests.length).toBe(1);
     expect(checkoutRequests[0]).toMatchObject({ productId: products.paid.id });
   });
 
@@ -360,11 +377,14 @@ test.describe('logged-in checkout variants', () => {
     const checkoutRequests = await captureCheckoutRequests(page);
     await openCheckout(page, products.subscriptionMonth, true);
 
-    await expect(page.getByText(/99,00\s+zł \/ mies\./i)).toBeVisible();
+    await expect(page.getByTestId('product-price-display')).toHaveText('99,00 zł / mies.');
+    await expect(page.getByTestId('order-summary-total')).toHaveText('99,00 zł / mies.');
     await expect(page.getByTestId('subscription-email-gate')).toHaveCount(0);
     await expect(page.getByText(/Wybierz kwotę/i)).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Wyślij magiczny link/i })).toHaveCount(0);
-    await expect.poll(() => checkoutRequests.length).toBeGreaterThan(0);
+    expect(checkoutRequests).toHaveLength(0);
+    await page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ }).click();
+    await expect.poll(() => checkoutRequests.length).toBe(1);
     expect(checkoutRequests[0]).toMatchObject({
       productId: products.subscriptionMonth.id,
       email: testUserEmail,

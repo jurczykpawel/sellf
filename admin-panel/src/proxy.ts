@@ -204,7 +204,7 @@ export async function proxy(request: NextRequest) {
     const absentLease = !url.searchParams.has('issuedAt')
     if (absentLease) url.searchParams.set('issuedAt', String(Date.now()))
     const response = absentLease ? NextResponse.redirect(url) : NextResponse.next({ request: { headers: previewHeaders } })
-    response.headers.set('Cache-Control', 'private, no-store')
+    response.headers.set('Cache-Control', 'private, no-store, no-transform')
     response.headers.set('X-Robots-Tag', 'noindex, nofollow')
     response.headers.set('Content-Security-Policy', "default-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'")
     const issuedAt = Number(url.searchParams.get('issuedAt'))
@@ -231,7 +231,7 @@ export async function proxy(request: NextRequest) {
   const isTemplateHistory = /^\/(?:(?:en|pl)\/)?admin\/templates\/history\/?$/.test(pathname)
   const applyHeaders = (r: NextResponse) => {
     if (isTemplatePreview || isTemplateHistory || privateAffiliate) {
-      r.headers.set('Cache-Control', privateAffiliate ? 'private, no-store, max-age=0' : 'private, no-store')
+      r.headers.set('Cache-Control', privateAffiliate ? 'private, no-store, max-age=0, no-transform' : 'private, no-store, no-transform')
       r.headers.set('X-Robots-Tag', 'noindex, nofollow')
     }
     return addSecurityHeaders(r, isTemplatePreview ? undefined : nonce, cspOrigins.connect, cspOrigins.frame)

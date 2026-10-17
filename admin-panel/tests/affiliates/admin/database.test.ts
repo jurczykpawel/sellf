@@ -28,7 +28,9 @@ beforeAll(async () => {
 }, 125000);
 it('runs application, decisions, conflicts, exact versions and reconstructable terms through real RPCs', async () => {
   state.session = member;
-  expect((await getAdminOverview()).status).toBe(403);
+  const denied = await getAdminOverview();
+  expect(denied.status).toBe(403);
+  expect(denied.data).toBeUndefined();
   const { data: p } = await service.from('affiliate_programs').select('*').single();
   const application = { code: `a12-${Date.now()}`, display_name: 'A12 Test Partner', channel: 'https://example.com', terms_version: p.terms_version, accepted: true, captcha_token: 'integration-widget' };
   expect((await applyToProgram({ ...application, user_id: 'dddddddd-0000-4000-a000-000000000000' })).status).toBe(422);
@@ -52,7 +54,12 @@ it('runs application, decisions, conflicts, exact versions and reconstructable t
   expect(audit.error).toBeNull(); expect(audit.data).toHaveLength(4);
   expect(audit.data!.every(row => row.performed_by === 'dddddddd-0000-4000-a000-000000000000')).toBe(true);
   const page = await getAdminOverview({ limit: 1 }); expect(page.data?.members).toHaveLength(1); expect(page.data?.next_cursor).toBeTruthy();
-  expect(JSON.stringify(page)).not.toContain('email');
+  const selected = page.data!.members[0];
+  expect(Object.keys(selected).sort()).toEqual(['user_id', 'id', 'code', 'status', 'display_name', 'email', 'channel', 'accepted_terms_version', 'accepted_at', 'version', 'created_at'].sort());
+  const membership = await service.from('affiliate_memberships').select('user_id').eq('id', selected.id).single();
+  expect(membership.error).toBeNull(); expect(membership.data!.user_id).toBeTruthy();
+  const owner = await service.auth.admin.getUserById(membership.data!.user_id!);
+  expect(owner.error).toBeNull(); expect(selected.email).toBe(owner.data.user!.email);
 }, 30000);
 
 it('reports aging fulfillment waits even when every retry is scheduled ahead', async () => {

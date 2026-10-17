@@ -53,7 +53,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Return empty array if no bumps found
+    // Return empty array if no bumps found. The RPC includes each bump product's VAT
+    // settings, so the checkout total uses the same per-line rules as the charge.
     return NextResponse.json(data || []);
   } catch (error) {
     console.error('Order bumps API error:', error);

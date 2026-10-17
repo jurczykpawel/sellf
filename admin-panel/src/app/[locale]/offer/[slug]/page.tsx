@@ -6,6 +6,7 @@ import { getProductJsonLd, isIndexableProduct } from '@/lib/seo/products';
 import SmartLandingClient from '@/components/storefront/SmartLandingClient';
 import PublicThemeShell from '@/components/storefront/PublicThemeShell';
 import StorefrontComposition from '@/components/storefront/StorefrontComposition';
+import { checkPublicFeature } from '@/lib/license/public-snapshot';
 import type { Metadata } from 'next';
 
 interface PageProps { params: Promise<{ locale: 'en' | 'pl'; slug: string }> }
@@ -20,8 +21,9 @@ export default async function OfferPage({ params }: PageProps) {
   const result = await loadPublicOffer(locale, slug);
   if (!result) notFound();
   const shop = await getShopConfig();
-  return <SmartLandingClient hasProducts shopConfig={shop}><PublicThemeShell tokens={result.theme.tokens} mode={shop?.checkout_theme}>
+  const year = new Date().getFullYear(), showSellfBranding = !checkPublicFeature('watermark-removal');
+  return <SmartLandingClient hasProducts shopConfig={shop} year={year} showSellfBranding={showSellfBranding}><PublicThemeShell tokens={result.theme.tokens} mode={shop?.checkout_theme}>
     {isIndexableProduct(result.product) && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: getProductJsonLd(result.product, locale, 'offer') }} />}
-    <StorefrontComposition model={result.model} shopName={shop?.shop_name || 'Sellf'} renderKey={JSON.stringify(result.model)} />
+    <StorefrontComposition model={result.model} shopName={shop?.shop_name || 'Sellf'} renderKey={JSON.stringify(result.model)} year={year} showSellfBranding={showSellfBranding} />
   </PublicThemeShell></SmartLandingClient>;
 }

@@ -339,7 +339,7 @@ test.describe('Payment Status Redirect - Logged-in User', () => {
     }
   });
 
-  test('test-no-redirect: should redirect to product page', async ({ page }) => {
+  test('test-no-redirect: keeps confirmation until the buyer opens the product', async ({ page }) => {
     const sessionId = generateSessionId('no_redirect');
 
     try {
@@ -352,7 +352,14 @@ test.describe('Payment Status Redirect - Logged-in User', () => {
 
       await page.goto(`/p/${PRODUCTS.noRedirect}/payment-status?session_id=${sessionId}`);
 
-      // Should eventually land on product page (payment-status → product page)
+      const product = await getProductBySlug(PRODUCTS.noRedirect);
+      expect(product).toBeTruthy();
+      await expect(page).toHaveURL(new RegExp(`/p/${PRODUCTS.noRedirect}/payment-status\\?`));
+      await expect(page.getByText(`Thank you! Your purchase of ${product!.name} is confirmed.`, { exact: true })).toBeVisible();
+      const open = page.getByRole('link', { name: 'Open your purchase', exact: true });
+      await expect(open).toHaveAttribute('href', new RegExp(`/(?:en/)?p/${PRODUCTS.noRedirect}$`));
+      await expect(page.getByRole('link', { name: 'My products', exact: true })).toBeVisible();
+      await open.click();
       await page.waitForURL(new RegExp(`/p/${PRODUCTS.noRedirect}($|[?#])`), { timeout: 15000 });
     } finally {
       await cleanupMockPayment(sessionId);

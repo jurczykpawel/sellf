@@ -38,6 +38,7 @@
 import { test, expect } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
+import { startNativeCheckout } from './helpers/checkout-intent';
 
 test.describe('Product Bundles E2E', () => {
   test.describe.configure({ mode: 'serial' });
@@ -447,6 +448,8 @@ test.describe('Product Bundles E2E', () => {
   test('order bump renders on the bundle checkout page', async ({ page }) => {
     await page.goto(`/pl/checkout/${bundleSlug}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await acceptAllCookies(page);
+
+    await startNativeCheckout(page);
 
     // Checkout form present.
     await page.waitForSelector('input#fullName', { timeout: 15000 });

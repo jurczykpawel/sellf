@@ -9,10 +9,11 @@ import { createClient } from '@supabase/supabase-js';
 import { beforeAll, expect, it, vi } from 'vitest';
 import AffiliatePortal from '@/components/affiliates/portal/AffiliatePortal';
 import { readPartnerPortal, readAdminPortal, portalResponse } from '@/lib/affiliates/portal/service';
-const state = vi.hoisted(() => ({ client: undefined as unknown, user: 'bbbbbbbb-0000-4000-a000-000000000000' }));
+const state = vi.hoisted(() => ({ client: undefined as unknown, user: 'bbbbbbbb-0000-4000-a000-000000000000', livemode: true }));
 vi.mock('next/server', async importOriginal => ({ ...await importOriginal<typeof import('next/server')>(), connection: async () => {} }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => state.client }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: state.user } }, error: null }) } }) }));
+vi.mock('@/lib/stripe/affiliate-mode', () => ({ getAffiliateLivemode: async () => state.livemode }));
 vi.mock('@/lib/auth-server', () => ({ requireAdminApi: async () => ({}) }));
 function sql(statement: string): string {
   return execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql', '-U', 'postgres', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', `SET request.jwt.claims='{"role":"service_role"}'; ${statement}`], { encoding: 'utf8' }).trim();
@@ -110,4 +111,41 @@ it('reconciles recorded allocations, settlements and a refund after payment', as
     expect(JSON.stringify(result)).not.toContain('invoice-sentinel');
     expect(JSON.stringify(result)).not.toContain('bank-');
   } finally { state.user = 'bbbbbbbb-0000-4000-a000-000000000000'; }
+});
+
+it('separates real database balances in both selected modes for the same partner', async () => {
+  const modeUser = randomUUID(), modeMember = randomUUID(), modeCoupon = randomUUID();
+  sql(`INSERT INTO auth.users(id,email) VALUES('${modeUser}','mode-${modeUser}@example.test');
+    INSERT INTO affiliate_memberships(id,user_id,code,status,display_name,accepted_terms_version,accepted_at,created_at)
+    VALUES('${modeMember}','${modeUser}','m_${modeMember.slice(0, 8)}','approved','Mode partner','demo-v1',now(),'2026-01-01');
+    INSERT INTO affiliate_membership_events(member_id,version,status,created_at) VALUES('${modeMember}',1,'approved','2026-01-01');
+    INSERT INTO coupons(id,code,discount_type,discount_value,is_active) VALUES('${modeCoupon}','${modeCoupon}','percentage',10,true);
+    INSERT INTO affiliate_coupon_bindings(coupon_id,member_id,version,created_at) VALUES('${modeCoupon}','${modeMember}',1,'2026-01-01');
+    DO $$ DECLARE p uuid; live boolean; net integer; gross integer; w affiliate_work; BEGIN
+      FOREACH live IN ARRAY ARRAY[true,false] LOOP
+        p:=gen_random_uuid(); net:=CASE WHEN live THEN 10000 ELSE 5000 END; gross:=net*123/100;
+        INSERT INTO payment_transactions(id,product_id,customer_email,amount,currency,status,session_id,fulfillment_pending)
+        VALUES(p,'af000000-0000-4000-a000-000000000003','mode-buyer@example.test',gross,'EUR','completed','cs_mode_'||replace(p::text,'-',''),false);
+        INSERT INTO payment_line_items(transaction_id,product_id,item_type,quantity,unit_price,total_price,currency,net_amount)
+        VALUES(p,'af000000-0000-4000-a000-000000000003','main_product',1,gross/100.0,gross/100.0,'EUR',net);
+        INSERT INTO coupon_redemptions(coupon_id,transaction_id,customer_email,discount_amount,redeemed_at)
+        VALUES('${modeCoupon}',p,'mode-buyer@example.test',10,'2026-01-02');
+        FOR w IN SELECT * FROM affiliate_claim_work(100) LOOP
+          PERFORM affiliate_apply_sync(w.payment_id,w.lease_token,w.requested_generation,'2026-01-02',live);
+        END LOOP;
+      END LOOP;
+    END $$;`);
+  state.user = modeUser;
+  try {
+    for (const live of [true, false]) {
+      state.livemode = live;
+      const result = await readPartnerPortal({ currency: 'EUR' });
+      expect(result.success).toBe(true);
+      if (!result.success) throw new Error('Expected the mode fixture portal');
+      expect(result.data.livemode).toBe(live);
+      expect(result.data.balances).toEqual([{ currency: 'EUR', accrued: live ? '2000' : '1000', reversed: '0', paid: '0', reserved: '0', held: '0', eligible: live ? '2000' : '1000', debt: '0', balance: live ? '2000' : '1000' }]);
+      expect(result.data.commissions.map(c => c.livemode).sort()).toEqual([false, true]);
+      for (const value of ['mode-buyer', 'payment_id', 'customer_email', 'bank_reference', 'stripe']) expect(JSON.stringify(result)).not.toContain(value);
+    }
+  } finally { state.user = 'bbbbbbbb-0000-4000-a000-000000000000'; state.livemode = true; }
 });

@@ -6,6 +6,7 @@
  * DELETE /api/v1/order-bumps/[id] - Delete an order bump
  */
 
+import { currencyExponent } from '@/lib/currency/minor-units';
 import { NextRequest } from 'next/server';
 import {
   handleCorsPreFlight,
@@ -147,6 +148,30 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         return apiError(request, 'VALIDATION_ERROR', 'Bump product not found or inactive', {
           bump_product_id: ['Bump product not found or inactive']
         });
+      }
+    }
+
+    // Zero-decimal bump currencies need whole prices: check the effective (new or stored) price
+    // against the effective (new or stored) bump product.
+    if (bump_price !== undefined || bump_product_id) {
+      const { data: storedBump } = await supabase
+        .from('order_bumps')
+        .select('bump_product_id, bump_price')
+        .eq('id', id)
+        .maybeSingle();
+      const effectiveProductId = String(bump_product_id ?? storedBump?.bump_product_id ?? '');
+      const effectivePrice = bump_price !== undefined ? bump_price : storedBump?.bump_price;
+      if (effectiveProductId && typeof effectivePrice === 'number') {
+        const { data: effectiveProduct } = await supabase
+          .from('products')
+          .select('currency')
+          .eq('id', effectiveProductId)
+          .maybeSingle();
+        if (effectiveProduct && currencyExponent(effectiveProduct.currency) === 0 && !Number.isInteger(effectivePrice)) {
+          return apiError(request, 'VALIDATION_ERROR', 'Invalid bump price', {
+            bump_price: [`Bump price must be a whole number for ${effectiveProduct.currency} (no minor unit)`]
+          });
+        }
       }
     }
 

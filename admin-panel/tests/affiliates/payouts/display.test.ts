@@ -9,8 +9,9 @@ it('reads ordinary money fields as exact minor strings', () => {
 });
 
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
+import { currencyExponent } from '@/lib/currency/minor-units';
 it.each(SUPPORTED_CURRENCY_CODES)('accepts exact payout input for %s', currency => {
-  const zero = ['JPY', 'KRW'].includes(currency);
+  const zero = currencyExponent(currency) === 0;
   expect(parsePayoutAmount(zero ? '1234' : '12,34', currency)).toBe('1234');
   expect(parsePayoutAmount(zero ? '1.1' : '1.001', currency)).toBeNull();
 });

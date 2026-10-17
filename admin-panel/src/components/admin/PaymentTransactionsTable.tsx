@@ -8,9 +8,11 @@ import { useTranslations, useLocale } from 'next-intl';
 import { processRefund } from '@/lib/actions/payment';
 import { getTransactionRefundProgress } from '@/lib/refunds/transaction-refund-progress';
 import { toast } from 'sonner';
+import { formatAdminDate } from '@/lib/timezone';
 import type { PaymentTransaction, PaymentTransactionLineItem } from '@/types/payment';
 import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
 
+import { fromMinorUnits } from '@/lib/currency/minor-units';
 interface PaymentTransactionsTableProps {
   transactions: PaymentTransaction[];
   onRefreshData?: () => void;
@@ -59,7 +61,7 @@ export default function PaymentTransactionsTable({
     return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency.toUpperCase(),
-    }).format(amount / 100);
+    }).format(fromMinorUnits(amount, currency));
   };
 
   const formatMajorCurrency = (amount: number, currency: string) => {
@@ -69,15 +71,6 @@ export default function PaymentTransactionsTable({
     }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(locale, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const getTransactionDisplayItems = (transaction: PaymentTransaction): PaymentTransactionLineItem[] => {
     const storedItems = transaction.line_items ?? [];
@@ -93,8 +86,8 @@ export default function PaymentTransactionsTable({
       item_type: 'main_product',
       product_name: transaction.product?.name ?? null,
       quantity: 1,
-      unit_price: transaction.amount / 100,
-      total_price: transaction.amount / 100,
+      unit_price: fromMinorUnits(transaction.amount, transaction.currency),
+      total_price: fromMinorUnits(transaction.amount, transaction.currency),
       currency: transaction.currency,
     }];
   };
@@ -206,7 +199,7 @@ export default function PaymentTransactionsTable({
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-sf-muted">
-                    {formatDate(transaction.created_at)}
+                    {formatAdminDate(transaction.created_at, locale)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-3">
@@ -238,7 +231,7 @@ export default function PaymentTransactionsTable({
       {detailsTransaction && (() => {
         const displayItems = getTransactionDisplayItems(detailsTransaction);
         const lineItemsSubtotal = displayItems.reduce((sum, item) => sum + item.total_price, 0);
-        const paidTotal = detailsTransaction.amount / 100;
+        const paidTotal = fromMinorUnits(detailsTransaction.amount, detailsTransaction.currency);
         const showSubtotal = Math.abs(lineItemsSubtotal - paidTotal) > 0.009;
 
         return (

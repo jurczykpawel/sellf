@@ -530,7 +530,7 @@ export async function POST(request: NextRequest) {
       } : null,
     });
 
-    const totalAmount = toStripeCents(pricing.totalGross);
+    const totalAmount = toStripeCents(pricing.totalGross, product.currency);
 
     // 7a. Handle 100% coupon — skip Stripe, grant access directly.
     // The grant RPC runs as the buyer (auth.uid()), re-validates the coupon and

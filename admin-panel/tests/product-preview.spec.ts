@@ -23,6 +23,7 @@ import { test, expect } from '@playwright/test';
 import type { ContentItem } from '@/types';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
+import { startNativeCheckout } from './helpers/checkout-intent';
 
 test.describe('Admin Product Preview', () => {
   test.describe.configure({ mode: 'serial' });
@@ -250,6 +251,7 @@ test.describe('Admin Product Preview', () => {
 
     await expect(page).toHaveURL(new RegExp(`/pl/p/${digitalProductSlug}\\?preview=1$`));
     await expect(page.getByRole('heading', { name: 'Preview Test — Digital', exact: true })).toBeVisible();
+    await startNativeCheckout(page);
     await expect(page.locator('input#fullName')).toBeVisible();
     await expect(page.getByText('Główny plik PDF')).not.toBeVisible();
     await expect(page.getByText('Wideo wprowadzające')).not.toBeVisible();
@@ -263,6 +265,7 @@ test.describe('Admin Product Preview', () => {
 
   test('should not show content to unauthenticated user even with ?preview=1', async ({ page }) => {
     await page.goto(`/pl/p/${digitalProductSlug}?preview=1`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await startNativeCheckout(page);
     await expect(page.locator('input#fullName')).toBeVisible();
 
     // Content items must NOT be visible to guests

@@ -15,7 +15,9 @@ export default function LoginPage() {
   const searchParams = useSearchParams()
   const t = useTranslations()
   const returnPath = getLoginReturnPath(searchParams.get('redirect_to'))
-  const { demoMode } = useConfig()
+  const { demoMode, passwordLoginEnabled, oauthProviders } = useConfig()
+  const isPartnerApplication = /^\/(?:en\/|pl\/)?affiliates\/apply(?:\?|$)/.test(returnPath ?? '')
+  const loginHint = demoMode ? 'auth.demoLoginHint' : passwordLoginEnabled ? 'auth.passwordLoginHint' : oauthProviders.length ? 'auth.oauthLoginHint' : 'auth.magicLinkLoginHint'
 
   // Derived from URL params — no state, no effect, no cascading renders.
   const errorParam = searchParams.get('error')
@@ -79,7 +81,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-sf-deep flex items-center justify-center p-4">
       {/* CSS Animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes fadeInShake {
           0% { 
             opacity: 0; 
@@ -117,8 +119,9 @@ export default function LoginPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-sf-heading mb-2">{returnPath ? t('affiliates.admin.joinTitle') : t('auth.title')}</h1>
-          <p className="text-sf-body">{returnPath ? t('affiliates.admin.joinHint') : t('auth.pleaseSignIn')}</p>
+          <h1 className="text-3xl font-bold text-sf-heading mb-2">{isPartnerApplication ? t('affiliates.admin.joinTitle') : t('auth.title')}</h1>
+          <p className="text-sf-body">{t(loginHint)}</p>
+          {isPartnerApplication && <p className="mt-3 text-sm text-sf-muted">{t('affiliates.admin.joinHint')}</p>}
 
           {/* Demo mode credentials */}
           {demoMode && (

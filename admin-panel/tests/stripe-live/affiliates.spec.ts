@@ -2,7 +2,8 @@ import { getTestDatabaseContainer } from '@/../tests/helpers/database-container'
 /** Native and embedded coupon accounting on a disposable stack. */
 import { execFileSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
-import pl from '../../src/messages/pl.json';
+import en from '@/messages/en.json';
+import pl from '@/messages/pl.json';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import { test, expect } from '@playwright/test';
@@ -59,12 +60,12 @@ async function checkout(page: Page, slug: string, email: string, coupon?: string
   await acceptAllCookies(page);
   await page.goto(`/pl/p/${slug}?email=${encodeURIComponent(email)}`);
   if (coupon) {
-    await page.getByRole('button', { name: 'Masz kod rabatowy?' }).click();
+    await page.getByText('Masz kod rabatowy?', { exact: true }).click();
     await page.getByRole('textbox', { name: 'Kod rabatowy' }).fill(coupon);
     await page.getByRole('button', { name: 'Zastosuj' }).click();
     await expect(page.getByRole('textbox', { name: 'Kod rabatowy' })).toBeDisabled();
   }
-  await page.getByRole('button', { name: /Zapłać/ }).click();
+  await page.getByRole('button', { name: /Przejdź do płatności/ }).click();
   await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
   await page.locator('#checkoutEmail').fill(email); await page.locator('#fullName').fill('Affiliate Test Buyer');
   for (const c of await page.locator('input[type="checkbox"]').all()) if (await c.isVisible()) await c.check();
@@ -147,6 +148,7 @@ test('native coupon paid, held, mature and refunded in test mode', async ({ page
   await sync(request); await sync(request);
   const commission = (await rows('affiliate_commissions', 'payment_id', payment.id))[0];
   expect(commission).toBeTruthy(); expect(Date.parse(commission.eligible_at)).toBeGreaterThan(Date.now());
+  expect(Number(payment.amount)).toBe(11070); expect(Number(commission.accrued_minor)).toBe(2214);
   async function assertTestCommission(status: 'held' | 'eligible' | 'reversed') {
     const read = await db.rpc('affiliate_portal_page', { p_member: member.id, p_currency: 'PLN', p_limit: 25, p_as_of: new Date().toISOString() });
     expect(read.error).toBeNull();
@@ -154,8 +156,15 @@ test('native coupon paid, held, mature and refunded in test mode', async ({ page
     expect(projection.commissions).toHaveLength(1);
     expect(projection.commissions[0]).toMatchObject({ reference: commission.id, status, livemode: false, ...(status === 'reversed' ? { current_minor: '0' } : {}) });
     const row = page.getByRole('listitem').filter({ has: page.getByText(product.name, { exact: true }) });
-    await expect(row.locator('span')).toHaveText(['Test']);
-    await expect(row.locator('small')).toHaveCount(0);
+    const labels = { held: en.affiliates.portal.heldStatus, eligible: en.affiliates.portal.eligibleStatus, reversed: en.affiliates.portal.reversedStatus };
+    await expect(row.locator('span')).toHaveText([labels[status], 'Test']);
+    if (status === 'held') {
+      const maturity = new Date(commission.eligible_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+      await expect(row.locator('small')).toHaveText(`${en.affiliates.portal.maturity}: ${maturity}`);
+      expect(Date.parse(await row.locator('small time').getAttribute('datetime') ?? '')).toBe(Date.parse(commission.eligible_at));
+    } else await expect(row.locator('small')).toHaveCount(0);
+    const balance = page.getByRole('article', { name: 'PLN', exact: true }).locator('dl').first().locator('dd');
+    await expect(balance).toHaveText([status === 'eligible' ? '22.14 PLN' : '0.00 PLN', status === 'held' ? '22.14 PLN' : '0.00 PLN', '0.00 PLN']);
   }
   await setAuthSession(page, user.email, user.password); await page.goto('/my-affiliate');
   await assertTestCommission('held');
@@ -165,6 +174,11 @@ test('native coupon paid, held, mature and refunded in test mode', async ({ page
   const reservation = await db.rpc('affiliate_reserve', { p_actor: actor, p_member: member.id, p_currency: 'PLN', p_cutoff: new Date().toISOString(), p_member_version: 2, p_program_version: program.version + 1, p_payee_reference: 'test-fixture' });
   expect(reservation.error).not.toBeNull();
   expect(await rows('affiliate_payouts', 'member_id', member.id)).toHaveLength(0);
+  const testReservation = await db.rpc('affiliate_reserve', { p_actor: actor, p_member: member.id, p_currency: 'PLN', p_cutoff: new Date(sql('SELECT clock_timestamp()')).toISOString(), p_member_version: 2, p_program_version: program.version + 1, p_payee_reference: 'test-fixture', p_livemode: false });
+  expect(testReservation.error).toBeNull();
+  expect(testReservation.data).toMatchObject({ earnings_minor: 2214, livemode: false, currency: 'PLN', status: 'reserved' });
+  const cancelled = await db.rpc('affiliate_cancel_payout', { p_actor: actor, p_payout: testReservation.data!.id, p_expected_version: testReservation.data!.version, p_no_transfer: true, p_reason: 'Test reservation complete' });
+  expect(cancelled.error).toBeNull(); expect(cancelled.data).toMatchObject({ status: 'cancelled', livemode: false });
   const intent = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent!.id;
   await stripe.refunds.create({ payment_intent: intent });
   await expect.poll(async () => Number((await rows('payment_transactions', 'id', payment.id))[0].refunded_amount), { timeout: 90000 }).toBe(Number(payment.amount));

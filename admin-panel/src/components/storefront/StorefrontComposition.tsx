@@ -29,8 +29,10 @@ function Section({ section, templateId }: { section: ResolvedSection; templateId
     case 'product-cta/1': return <ProductCta {...section.props} />;
   }
 }
-export default function StorefrontComposition({ model, shopName, renderKey }: { model: PresentationModel<string>; shopName: string; renderKey: string }) {
+/** `year` and `showSellfBranding` come from the server so first paint and hydration agree. */
+export default function StorefrontComposition({ model, shopName, renderKey, year, showSellfBranding }: { model: PresentationModel<string>; shopName: string; renderKey: string; year: number; showSellfBranding: boolean }) {
   const messages = (model.locale === 'pl' ? pl : en).storefront;
+  const footer = messages.footer;
   const products = [...new Map(Object.values(model.catalogue.groups).flatMap(page => page?.products.map(p => [p.id, p] as const) ?? [])).values()];
   const freeCount = products.filter(p => p.price.kind === 'free').length;
   const paidCount = products.length - freeCount;
@@ -51,7 +53,8 @@ export default function StorefrontComposition({ model, shopName, renderKey }: { 
     </header>}
     {model.sections.map(section => <Section templateId={model.templateId} key={`${renderKey}:${model.templateId}:${section.id}`} section={section} />)}
     <footer className={(model.templateId === 'storefront-a' || model.templateId === 'storefront-b' || model.templateId === 'storefront-c') ? styles.footer : "border-t border-sf-border px-6 py-8 text-center text-sf-muted"}>
-      <p>{(model.locale === 'pl' ? pl : en).storefront.footer.poweredBy.replace('{shopName}', shopName)}</p>
+      <p>{footer.copyright.replace('{year}', String(year)).replace('{shopName}', shopName)}</p>
+      {showSellfBranding && <p className="mt-2 text-xs"><a href="https://sellf.app" target="_blank" rel="noopener" className="underline underline-offset-2">{footer.runsOn}</a></p>}
     </footer>
   </div>;
 }

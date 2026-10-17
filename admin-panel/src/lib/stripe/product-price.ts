@@ -19,6 +19,7 @@
 
 import type Stripe from 'stripe';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { toMinorUnits } from '@/lib/currency/minor-units';
 
 interface ProductForPrice {
   id: string;
@@ -33,7 +34,7 @@ interface ProductForPrice {
 
 export function priceMatchesProduct(stripePrice: Stripe.Price, product: ProductForPrice): boolean {
   if (!stripePrice.active) return false;
-  const expectedAmount = Math.round((product.recurring_price ?? 0) * 100);
+  const expectedAmount = toMinorUnits(product.recurring_price ?? 0, product.currency);
   if (stripePrice.unit_amount !== expectedAmount) return false;
   if (stripePrice.currency.toLowerCase() !== product.currency.toLowerCase()) return false;
   if (stripePrice.recurring?.interval !== product.billing_interval) return false;
@@ -90,7 +91,7 @@ export async function getOrCreateStripePriceForProduct(
   }
 
   const created = await stripe.prices.create({
-    unit_amount: Math.round(product.recurring_price * 100),
+    unit_amount: toMinorUnits(product.recurring_price, product.currency),
     currency: product.currency.toLowerCase(),
     // inclusive/exclusive so Stripe Tax (stripe_tax mode) treats the recurring price as
     // brutto/netto per the product setting — consistent with the one-time line builder.

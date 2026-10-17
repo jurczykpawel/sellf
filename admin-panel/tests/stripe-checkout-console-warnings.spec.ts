@@ -30,6 +30,7 @@
 import { test, expect, type CDPSession } from '@playwright/test';
 import { supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
+import { startNativeCheckout } from './helpers/checkout-intent';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -110,6 +111,7 @@ test('subscription Pay click produces NO Stripe contract warnings in console', a
 
   await acceptAllCookies(page);
   await page.goto(`/pl/checkout/${productSlug}`);
+  await startNativeCheckout(page);
   await page.waitForLoadState('domcontentloaded');
 
   // Minimal happy-path fill — enough to reach checkout.confirm() in the SDK.

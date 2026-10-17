@@ -146,8 +146,13 @@ test.describe('Storefront & Checkout Flows', () => {
     
     await page.goto(magicLink!);
     
-    // 6. Verify Access Granted (UI)
-    await expect(page).toHaveURL(new RegExp(`/p/${freeProductSlug}`), { timeout: 30000 });
+    // 6. Open the confirmed purchase and verify its content.
+    await expect(page).toHaveURL(new RegExp(`/p/${freeProductSlug}/payment-status`), { timeout: 30000 });
+    await expect(page.getByText(`Thank you! Your purchase of ${freeProductName} is confirmed.`, { exact: true })).toBeVisible();
+    const open = page.getByRole('link', { name: 'Open your purchase', exact: true });
+    await expect(open).toHaveAttribute('href', new RegExp(`/(?:en/)?p/${freeProductSlug}$`));
+    await open.click();
+    await expect(page).toHaveURL(new RegExp(`/p/${freeProductSlug}$`));
     await expect(page.getByText(/Welcome Video/i)).toBeVisible({ timeout: 15000 });
 
     // NEW: Verify on My Products dashboard

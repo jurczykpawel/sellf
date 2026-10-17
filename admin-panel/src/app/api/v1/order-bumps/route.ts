@@ -5,6 +5,7 @@
  * POST /api/v1/order-bumps - Create a new order bump
  */
 
+import { currencyExponent } from '@/lib/currency/minor-units';
 import { NextRequest } from 'next/server';
 import {
   handleCorsPreFlight,
@@ -184,7 +185,7 @@ export async function POST(request: NextRequest) {
 
     const { data: bumpProduct } = await supabase
       .from('products')
-      .select('id, is_active, price')
+      .select('id, is_active, price, currency')
       .eq('id', String(bump_product_id))
       .single();
 
@@ -208,6 +209,12 @@ export async function POST(request: NextRequest) {
           bump_price: ['Bump price must be a number between 0 and 999999.99']
         });
       }
+    }
+
+    if (typeof bump_price === 'number' && currencyExponent(bumpProduct.currency) === 0 && !Number.isInteger(bump_price)) {
+      return apiError(request, 'VALIDATION_ERROR', 'Invalid bump price', {
+        bump_price: [`Bump price must be a whole number for ${bumpProduct.currency} (no minor unit)`]
+      });
     }
 
     // Validate display_order

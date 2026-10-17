@@ -57,6 +57,10 @@ export default function ProductShowcase({ product, taxMode, bundleComponents }: 
     vatRate: product.vat_rate,
     vatExempt: product.vat_exempt,
     vatExemptNote: product.vat_exempt_note,
+    // A free product (0) shows no VAT label; a subscription's amount is its recurring price.
+    amount: isSubscription ? product.recurring_price ?? 0 : grossPrice,
+    priceIncludesVat: product.price_includes_vat,
+    allowCustomPrice: product.allow_custom_price,
   });
 
   const parsedVideo = useMemo(
@@ -125,13 +129,18 @@ export default function ProductShowcase({ product, taxMode, bundleComponents }: 
             </div>
           )}
 
-          <div className="text-5xl font-bold text-sf-heading mb-2 tracking-tight">
+          <div data-testid="product-price-display" className="text-5xl font-bold text-sf-heading mb-2 tracking-tight">
             {recurringPriceDisplay ?? formatPrice(grossPrice, product.currency, locale)}
           </div>
 
           {vatDisplay.kind === 'rate' && (
             <div className="text-sm text-sf-muted">
               {t('includingVat', { defaultValue: 'including VAT' })} {vatDisplay.rate}%
+            </div>
+          )}
+          {vatDisplay.kind === 'rate_added' && (
+            <div className="text-sm text-sf-muted">
+              + {t('vat', { defaultValue: 'VAT' })} {vatDisplay.rate}%
             </div>
           )}
           {vatDisplay.kind === 'exempt' && (
@@ -147,12 +156,14 @@ export default function ProductShowcase({ product, taxMode, bundleComponents }: 
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               {t('saleEndsAt', {
-                date: new Date(product.sale_price_until).toLocaleString('pl-PL', {
+                date: new Date(product.sale_price_until).toLocaleString(locale, {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
                   hour: '2-digit',
-                  minute: '2-digit'
+                  minute: '2-digit',
+                  timeZone: 'UTC',
+                  timeZoneName: 'short',
                 })
               })}
             </div>

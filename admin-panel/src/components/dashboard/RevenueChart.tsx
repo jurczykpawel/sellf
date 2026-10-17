@@ -10,6 +10,7 @@ import { useUserPreferences } from '@/contexts/UserPreferencesContext';
 import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
 import DateRangeFilter from './DateRangeFilter';
 
+import { fromMinorUnits } from '@/lib/currency/minor-units';
 type ViewMode = 'daily' | 'hourly';
 
 // Currency colors for the chart
@@ -157,7 +158,7 @@ export default function RevenueChart() {
       currency: currency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(value / 100);
+    }).format(fromMinorUnits(value, currency));
   };
 
   // Helper to format multi-currency amounts
@@ -289,7 +290,7 @@ export default function RevenueChart() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 w-full flex-wrap items-center gap-2 sm:w-auto">
           <div className="flex gap-0">
             <button
               onClick={() => setPredefinedRange(0)}
@@ -412,7 +413,7 @@ export default function RevenueChart() {
                     return new Intl.NumberFormat(locale, {
                       notation: 'compact',
                       maximumFractionDigits: 0
-                    }).format(value / 100);
+                    }).format(fromMinorUnits(value, allCurrencies[0] || 'USD'));
                   }
                   // In converted mode (single currency), show with currency symbol
                   return formatCurrency(value, allCurrencies[0] || 'USD');
@@ -446,7 +447,7 @@ export default function RevenueChart() {
                   formatter={(value) => `${value}`}
                 />
               )}
-              {allCurrencies.map((currency, index) => (
+              {allCurrencies.map(currency => (
                 <Area
                   key={currency}
                   type="monotone"

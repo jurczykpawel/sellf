@@ -133,7 +133,7 @@ describe.each([
 it('updates storefront prices when the page language changes', () => {
   const element = createElement(Storefront, {
     products: [product], shopName: 'Shop', featuredProducts: [], freeProducts: [],
-    paidProducts: [product],
+    paidProducts: [product], year: 2026, showSellfBranding: false,
   });
   const result = render(localized(element, 'pl'));
   expect(result.container.textContent).toContain('49,00\u00a0zł');

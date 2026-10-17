@@ -13,7 +13,7 @@
  * @see /api/admin/payments/refund/route.ts - uses refund validation
  */
 
-import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
+import { minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
 
 // ===== CLIENT SECRET PARSING =====
 
@@ -83,7 +83,7 @@ export interface AmountValidation {
 /**
  * Validate a payment amount against the expected price.
  *
- * @param receivedAmount - Amount received (in cents)
+ * @param receivedAmount - Amount received (in Stripe minor units)
  * @param expectedPrice - Expected price (in currency units, e.g., dollars)
  * @param currency - Payment currency code
  * @param allowCustomPrice - Whether pay-what-you-want pricing is enabled
@@ -94,7 +94,7 @@ export function validatePaymentAmount(
   expectedPrice: number,
   currency: string,
   allowCustomPrice: boolean = false,
-  minCustomPrice: number = STRIPE_MINIMUM_AMOUNT
+  minCustomPrice: number = minimumChargeAmount(currency)
 ): AmountValidation {
   if (receivedAmount === undefined || receivedAmount === null) {
     return { valid: false, error: 'Amount is required' };
@@ -105,9 +105,9 @@ export function validatePaymentAmount(
     return { valid: false, error: 'Invalid amount' };
   }
 
-  // Convert expected price to cents
-  const expectedAmountCents = Math.round(expectedPrice * 100);
-  const minAmountCents = Math.round(minCustomPrice * 100);
+  // Convert expected price to Stripe minor units (cents; whole units for zero-decimal currencies)
+  const expectedAmountCents = toMinorUnits(expectedPrice, currency);
+  const minAmountCents = toMinorUnits(minCustomPrice, currency);
 
   // For fixed-price products, must match exactly
   if (!allowCustomPrice) {
@@ -122,7 +122,7 @@ export function validatePaymentAmount(
     if (receivedAmount < minAmountCents) {
       return {
         valid: false,
-        error: `Amount below minimum: ${minAmountCents} cents`
+        error: `Amount below minimum: ${minAmountCents} (minor units)`
       };
     }
   }

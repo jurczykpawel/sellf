@@ -9,6 +9,7 @@ import { commissionRuleSchema } from '@/lib/affiliates/model';
 import { bindAffiliateCoupon, createAffiliateRule, getAffiliateCoupon, getAffiliateProduct } from '@/lib/affiliates/products/actions';
 import { productAffiliateMessages } from '@/components/affiliates/products/messages';
 import type { AffiliateCouponInfo, AffiliateProductInfo } from '@/lib/affiliates/products/actions';
+import { currencyExponent } from '@/lib/currency/minor-units';
 
 const inputClass = 'block w-full min-w-0 rounded border border-sf-border bg-sf-input px-3 py-2 text-sf-heading';
 const buttonClass = 'max-w-full break-words rounded border border-sf-border px-3 py-2 text-sf-heading disabled:opacity-50 focus-visible:outline-2';
@@ -28,6 +29,7 @@ export function AffiliateRuleEditor(props: AffiliateRuleEditorProps): React.JSX.
 }
 function RuleEditor({ productId, productType, isRefundable, refundPeriodDays }: AffiliateRuleEditorProps): React.JSX.Element {
   const t = useCopy();
+  const id = React.useId();
   const [info, setInfo] = useState<AffiliateProductInfo | null>(null);
   const [kind, setKind] = useState('percentage');
   const [amount, setAmount] = useState('20');
@@ -41,7 +43,7 @@ function RuleEditor({ productId, productType, isRefundable, refundPeriodDays }: 
       setInfo(result.data);
       const rule = result.data.rule;
       setKind(rule?.fixed_minor != null ? 'fixed' : 'percentage');
-      const decimals = rule?.fixed_minor != null && ['JPY', 'KRW'].includes(rule.currency ?? '') ? 0 : 2;
+      const decimals = rule?.fixed_minor != null && currencyExponent(rule.currency ?? '') === 0 ? 0 : 2;
       const digits = (rule?.fixed_minor ?? String(rule?.percentage_bps ?? 2000)).padStart(decimals + 1, '0');
       const display = decimals === 0 ? digits : `${digits.slice(0, -2)}.${digits.slice(-2)}`;
       setAmount(t === productAffiliateMessages.pl ? display.replace('.', ',') : display);
@@ -57,7 +59,7 @@ function RuleEditor({ productId, productType, isRefundable, refundPeriodDays }: 
   const subscription = (productType ?? info?.product.product_type) === 'subscription';
   const unlimited = (isRefundable ?? info?.product.is_refundable) && (refundPeriodDays === undefined ? info?.product.refund_period_days : refundPeriodDays) === null;
   async function save() {
-    const minor = decimalMinor(amount, kind === 'fixed' && ['JPY', 'KRW'].includes(currency) ? 0 : 2);
+    const minor = decimalMinor(amount, kind === 'fixed' ? currencyExponent(currency) : 2);
     const rule = commissionRuleSchema.safeParse(kind === 'fixed' ? { fixed_minor: minor, currency }
       : { percentage_bps: minor === null ? -1 : Number(minor) });
     if (!rule.success) { setMessage(t.invalid); return; }
@@ -68,11 +70,13 @@ function RuleEditor({ productId, productType, isRefundable, refundPeriodDays }: 
       else setMessage(result.errorCode === 'CONFLICT' ? t.conflict : t.error);
     } catch { setMessage(t.error); } finally { setBusy(false); }
   }
-  return <section className="min-w-0 break-words space-y-3 rounded-lg border border-sf-border bg-sf-raised p-4 text-sf-heading">
-    <h4 className="font-medium">{t.title}</h4>
+  return <section aria-labelledby={`${id}-title`} className="min-w-0 break-words space-y-3 rounded-lg border border-sf-border bg-sf-raised p-4 text-sf-heading">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <h4 id={`${id}-title`} className="font-medium">{t.title}</h4>
+      <span className="rounded border border-sf-border px-2 py-1 text-xs font-medium text-sf-muted">{t.ruleSaveLabel}</span>
+    </div>
     {subscription ? <p>{t.subscription}</p> : <>
       <p className="text-sm text-sf-muted">{t.policy}</p>
-      <p className="rounded border border-sf-border bg-sf-base p-3 text-sm">{t.ruleSaveHint}</p>
       {unlimited && <p role="note" className="rounded bg-sf-warning-soft px-3 py-2 text-sm text-sf-heading">{t.unlimited}</p>}
       <fieldset disabled={busy || !info} className="min-w-0 space-y-3">
         <label className="flex gap-2"><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />{t.enabled}</label>
@@ -82,7 +86,10 @@ function RuleEditor({ productId, productType, isRefundable, refundPeriodDays }: 
         {kind === 'fixed' && <label className="block text-sm">{t.currency}<select className={inputClass} value={currency} onChange={e => setCurrency(e.target.value)}>
           {SUPPORTED_CURRENCY_CODES.map(code => <option key={code}>{code}</option>)}</select></label>}
         </div>
-        <button type="button" className={`${buttonClass} bg-sf-accent-bg text-white`} onClick={() => void save()}>{t.ruleSave}</button>
+        <div className="space-y-2 border-t border-sf-border pt-3">
+          <p id={`${id}-save-hint`} className="text-sm text-sf-muted">{t.ruleSaveHint}</p>
+          <button type="button" aria-describedby={`${id}-save-hint`} className={`${buttonClass} bg-sf-base font-medium`} onClick={() => void save()}>{t.ruleSave}</button>
+        </div>
       </fieldset>
     </>}
     <p role="status" className="break-words text-sm">{busy ? t.loading : message}</p>
@@ -122,7 +129,6 @@ function CouponEditor({ couponId }: { couponId: string }): React.JSX.Element {
     let active = true;
     const timer = setTimeout(async () => {
       if (!active || current !== generation.current) return;
-      setSearching(true);
       try {
         const result = await getAffiliateCoupon({ coupon_id: couponId, cursor: null, search });
         if (!active || current !== generation.current) return;
@@ -163,7 +169,7 @@ function CouponEditor({ couponId }: { couponId: string }): React.JSX.Element {
     {info?.binding && <p className="break-all text-sm">{t.current}: <strong>{info.binding.display_name}</strong> ({info.binding.code})</p>}
     <PayoutPicker disabled={busy || !info} label={t.partner} emptyLabel={searching ? t.searching : t.noPartners}
       placeholder={t.choose} options={[...(info?.members ?? []).filter(m => m.id !== selected?.value).map(m => ({ value: m.id, label: `${m.display_name} (${m.code})` })), ...(selected ? [selected] : [])]}
-      selectedValue={member} onSearch={setSearch} onSelect={value => { setMember(value); const choice = info?.members.find(m => m.id === value); if (choice) setSelected({ value, label: `${choice.display_name} (${choice.code})` }); }} />
+      selectedValue={member} onSearch={value => { setSearch(value); setSearching(value.length > 0); }} onSelect={value => { setMember(value); const choice = info?.members.find(m => m.id === value); if (choice) setSelected({ value, label: `${choice.display_name} (${choice.code})` }); }} />
     {info && !search && !info.members.length && <p className="text-sm text-sf-muted">{t.noPartners}</p>}
     <div className="flex flex-wrap gap-2">
       <button type="button" className={`${buttonClass} bg-sf-accent-bg text-white`} disabled={busy || !member} onClick={() => void save()}>{t.assign}</button>

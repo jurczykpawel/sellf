@@ -6,6 +6,7 @@
 
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
+import { currencyExponent } from '@/lib/currency/minor-units';
 import { getTrustedDownloadProviders } from '@/lib/trustedDownloadProviders';
 import { CHECKOUT_TEMPLATE_SLUGS } from '@/lib/checkout-templates/types';
 import { validateCustomFieldDefinitions } from '@/lib/validations/custom-checkout-fields';
@@ -205,6 +206,15 @@ function validatePrice(price: unknown): ValidationResult {
   }
   
   return { isValid: errors.length === 0, errors };
+}
+
+/** Zero-decimal currencies (JPY, KRW, VND...) cannot carry fractional prices: Stripe would charge a different amount than stored. */
+export const WHOLE_AMOUNT_FIELDS = ['price', 'recurring_price', 'sale_price', 'custom_price_min'] as const;
+export function validateWholeAmounts(input: Record<string, unknown>, currency: unknown): string[] {
+  if (typeof currency !== 'string' || currencyExponent(currency) !== 0) return [];
+  return WHOLE_AMOUNT_FIELDS
+    .filter((field) => typeof input[field] === 'number' && !Number.isInteger(input[field]))
+    .map((field) => `${field} must be a whole number for ${currency} (no minor unit)`);
 }
 
 function validateCurrency(currency: unknown): ValidationResult {
@@ -487,6 +497,10 @@ function validateContentConfig(contentConfig: unknown): ValidationResult {
 }
 
 // Main validation functions
+function isSubscriptionInput(input: Record<string, unknown>): boolean {
+  return input.product_type === 'subscription' || Number(input.recurring_price) > 0;
+}
+
 export function validateCreateProduct(data: unknown): ValidationResult {
   const errors: string[] = [];
   const input = data as Record<string, unknown>;
@@ -504,6 +518,7 @@ export function validateCreateProduct(data: unknown): ValidationResult {
     const currencyResult = validateCurrency(input.currency);
     errors.push(...currencyResult.errors);
   }
+  errors.push(...validateWholeAmounts(input, input.currency));
   
   if (input.icon) {
     const iconResult = validateIcon(input.icon);
@@ -576,7 +591,8 @@ export function validateCreateProduct(data: unknown): ValidationResult {
   }
 
   // VAT rate is only relevant for paid products (or PWYW where customer always pays > 0)
-  if (input.price_includes_vat === true && (input.price == null || Number(input.price) <= 0) && !input.allow_custom_price) {
+  // A subscription is paid through recurring_price (its one-time price is 0), so it may be gross.
+  if (input.price_includes_vat === true && (input.price == null || Number(input.price) <= 0) && !input.allow_custom_price && !isSubscriptionInput(input)) {
     errors.push('price_includes_vat cannot be true for free products (price must be greater than 0)');
   }
 
@@ -674,6 +690,7 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
   if (input.currency !== undefined) {
     const currencyResult = validateCurrency(input.currency);
     errors.push(...currencyResult.errors);
+    errors.push(...validateWholeAmounts(input, input.currency));
   }
   
   if (input.icon !== undefined) {
@@ -748,7 +765,7 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
 
   // VAT rate is only relevant for paid products (when both fields are provided together)
   // Exception: PWYW (allow_custom_price) products always have a payment, so price_includes_vat is allowed
-  if (input.price_includes_vat === true && input.price !== undefined && Number(input.price) <= 0 && !input.allow_custom_price) {
+  if (input.price_includes_vat === true && input.price !== undefined && Number(input.price) <= 0 && !input.allow_custom_price && !isSubscriptionInput(input)) {
     errors.push('price_includes_vat cannot be true for free products (price must be greater than 0)');
   }
 

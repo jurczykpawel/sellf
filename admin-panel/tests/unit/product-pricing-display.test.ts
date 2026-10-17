@@ -171,3 +171,28 @@ describe('getVatDisplay', () => {
     expect(getVatDisplay({ vatRate: 23, vatExempt: true })).toEqual({ kind: 'exempt', note: null });
   });
 });
+
+describe('getVatDisplay: price-aware labels', () => {
+  it('hides the VAT label when the shown amount is 0 (free product)', () => {
+    expect(getVatDisplay({ taxMode: 'local', vatRate: 23, vatExempt: false, amount: 0 })).toEqual({ kind: 'none' });
+    expect(getVatDisplay({ vatRate: 0.23, vatExempt: false, amount: 0 })).toEqual({ kind: 'none' });
+  });
+
+  it('keeps the label for a positive amount', () => {
+    expect(getVatDisplay({ taxMode: 'local', vatRate: 23, vatExempt: false, amount: 10 })).toEqual({ kind: 'rate', rate: 23 });
+  });
+
+  it('marks a net price so the page can say "+ VAT" instead of "including VAT"', () => {
+    expect(getVatDisplay({ taxMode: 'local', vatRate: 23, vatExempt: false, amount: 10, priceIncludesVat: false }))
+      .toEqual({ kind: 'rate_added', rate: 23 });
+    expect(getVatDisplay({ taxMode: 'local', vatRate: 23, vatExempt: false, amount: 10, priceIncludesVat: true }))
+      .toEqual({ kind: 'rate', rate: 23 });
+  });
+});
+
+describe('getVatDisplay: pay-what-you-want at price 0', () => {
+  it('keeps the label for PWYW / tip-jar products', () => {
+    expect(getVatDisplay({ taxMode: 'local', vatRate: 23, vatExempt: false, amount: 0, allowCustomPrice: true })).toEqual({ kind: 'rate', rate: 23 });
+    expect(getVatDisplay({ taxMode: 'local', vatRate: 23, vatExempt: false, amount: 0, allowCustomPrice: false })).toEqual({ kind: 'none' });
+  });
+});

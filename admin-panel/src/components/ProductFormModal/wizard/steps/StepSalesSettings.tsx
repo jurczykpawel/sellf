@@ -158,14 +158,14 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
           t={t}
           omnibusEnabled={omnibusEnabled}
         />
-        {currentProductId && <AffiliateRuleEditor key={currentProductId} productId={currentProductId} productType={formData.product_type}
-          isRefundable={formData.is_refundable} refundPeriodDays={formData.refund_period_days} />}
         <EmbedSection formData={formData} setFormData={setFormData} t={t} />
         <div>
           <h4 className="text-sm font-medium text-sf-heading mb-2">{t('license.sectionTitle')}</h4>
           <LicenseSection formData={formData} setFormData={setFormData} t={t} hasLicenseIssuance={hasLicenseIssuance} />
         </div>
       </StepGroup>
+      {currentProductId && <AffiliateRuleEditor key={currentProductId} productId={currentProductId} productType={formData.product_type}
+        isRefundable={formData.is_refundable} refundPeriodDays={formData.refund_period_days} />}
     </div>
   );
 };
