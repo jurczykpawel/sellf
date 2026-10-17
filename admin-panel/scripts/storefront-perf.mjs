@@ -38,6 +38,7 @@ const probe = process.argv.includes('--probe-checkout') || freeProbe || dProbe |
 const runs = 5;
 const samples = [];
 const checks = [];
+const bootstraps = [];
 const sleep = ms => delay(ms);
 let app;
 let browser;
@@ -109,6 +110,7 @@ async function startApp(env, failedCache = false) {
     await writeFile(resolve(standalone, '.next/cache'), 'Unavailable persistent cache');
     cacheFaultInjected = true;
   }
+  const startedAt = Date.now();
   app = spawn('node', [...(phase2 ? ['--import', issuerFixture] : []), 'server.js'], { cwd: standalone, env, stdio: ['ignore', 'pipe', 'pipe'] });
   let output = '';
   appOutput = () => output;
@@ -124,6 +126,15 @@ async function startApp(env, failedCache = false) {
     if (ready) break;
     if (app.exitCode !== null || Date.now() > deadline) throw new Error(output);
     await sleep(100);
+  }
+  if (phase2) {
+    while (Number(sql(`SELECT count(*) FROM public.template_credentials WHERE state='valid' AND verified_at>=to_timestamp(${startedAt}/1000.0);`)) !== 3) {
+      assert(app.exitCode === null && Date.now() < deadline, `Template bootstrap unavailable: ${appOutput()}`);
+      await sleep(50);
+    }
+    bootstraps.push({ startedAt: new Date(startedAt).toISOString(), readyAt: new Date().toISOString(), elapsedMs: Date.now() - startedAt });
+    await writeFile(resolve(out, 'bootstrap.json'), JSON.stringify(bootstraps, null, 2));
+    await idle(`license-ready-${bootstraps.length}`);
   }
 }
 async function queryAcceptance(size, search = 'Performance course') {

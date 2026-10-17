@@ -74,3 +74,13 @@ Verification compares exact table hashes/counts and decrypts all three retained
 credentials. Logs contain only digests; cleanup removes the private dump. This is
 a presentation-data restore check, not a substitute for an operator's full Auth,
 storage and external secret backup.
+
+Phase 2 cold readiness additionally waits for all three background credential
+confirmations to have a `verified_at` at or after that fresh process's launch.
+`bootstrap.json` records every readiness delay; no HTTP request warms the app.
+The first attempted run caught the safe-default fallback while this asynchronous
+bootstrap was still pending, so that attempt cannot supply premium measurements.
+Public config/catalogue caches remain cold. Navigation gets a second <8 load check
+after bootstrap; query counters reset afterward. Metric timing starts with the
+first HTTP navigation, as in the original TCP-readiness profile. Startup readiness
+is reported separately and is not claimed as browser LCP or process-start latency.
