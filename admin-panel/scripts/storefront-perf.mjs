@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { generateKeyPairSync, createSign, randomBytes } from 'node:crypto';
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { cpus, loadavg, totalmem } from 'node:os';
 import { createConnection } from 'node:net';
@@ -24,13 +24,18 @@ const out = resolve(process.argv[2] ?? '/private/tmp/storefront-perf-results');
 const bun = process.env.PERF_BUN ?? '/tmp/bun-1314/bun-darwin-aarch64/bun';
 const freeProbe = process.argv.includes('--probe-free');
 const dProbe = process.argv.includes('--probe-d');
-const probe = process.argv.includes('--probe-checkout') || freeProbe || dProbe;
+const cacheProbe = process.argv.includes('--probe-cache');
+const emptyProbe = process.argv.includes('--probe-empty');
+const cacheCases = process.argv.includes('--cache-cases') || cacheProbe || emptyProbe;
+const probe = process.argv.includes('--probe-checkout') || freeProbe || dProbe || cacheProbe || emptyProbe;
 const runs = 5;
 const samples = [];
 const checks = [];
 const sleep = ms => delay(ms);
 let app;
 let browser;
+let appOutput = () => '';
+let cacheFaultInjected = false;
 function standalonePath() {
   const base = resolve(admin, '.next/standalone');
   return existsSync(resolve(base, 'server.js')) ? base : resolve(base, 'admin-panel');
@@ -66,12 +71,17 @@ async function stopApp() {
     child.kill('SIGTERM');
   });
 }
-async function startApp(env) {
+async function startApp(env, failedCache = false) {
   await stopApp();
   const standalone = standalonePath();
   await rm(resolve(standalone, '.next/cache'), { recursive: true, force: true });
+  if (failedCache) {
+    await writeFile(resolve(standalone, '.next/cache'), 'Unavailable persistent cache');
+    cacheFaultInjected = true;
+  }
   app = spawn('node', ['server.js'], { cwd: standalone, env, stdio: ['ignore', 'pipe', 'pipe'] });
   let output = '';
+  appOutput = () => output;
   app.stdout.on('data', chunk => { output += chunk; }); app.stderr.on('data', chunk => { output += chunk; });
   const deadline = Date.now() + 30_000;
   while (true) {
@@ -172,8 +182,11 @@ try {
         heroProduct: '10000000-0000-4000-8000-000000000001', closingProduct: '10000000-0000-4000-8000-000000000001',
         starterProducts: [2, 3, 4].map(n => `10000000-0000-4000-8000-${String(n).padStart(12, '0')}`), taskCategories: ['20000000-0000-4000-8000-000000000001'] };
       sql(`UPDATE public.storefront_config SET published='${JSON.stringify(config).replaceAll("'", "''")}'::jsonb;`);
-      for (const device of (probe ? ['mobile'] : ['mobile', 'desktop'])) for (const path of (probe ? [dProbe ? '/' : freeProbe ? '/p/perf-course-11' : '/p/perf-course-1'] : ['/', '/store', '/pl', '/p/perf-course-1', '/checkout/perf-course-1', '/p/perf-course-11', '/checkout/perf-course-11'])) {
-        await idle(`${size}/${template}/${device}/${path}`);
+      const edgeCases = [{ path: '/store?search=NoMatchForThisFixture', scenario: 'empty' }, { path: '/store', scenario: 'failed-cache' }];
+      const pageCases = probe ? [{ path: emptyProbe ? '/store?search=NoMatchForThisFixture' : cacheProbe ? '/store' : dProbe ? '/' : freeProbe ? '/p/perf-course-11' : '/p/perf-course-1', scenario: emptyProbe ? 'empty' : cacheProbe ? 'failed-cache' : 'normal' }]
+        : cacheCases ? edgeCases : [...['/', '/store', '/pl', '/p/perf-course-1', '/checkout/perf-course-1', '/p/perf-course-11', '/checkout/perf-course-11'].map(path => ({ path, scenario: 'normal' })), ...edgeCases];
+      for (const device of (probe ? ['mobile'] : ['mobile', 'desktop'])) for (const { path, scenario } of pageCases) {
+        await idle(`${scenario}/${size}/${template}/${device}/${path}`);
         for (let repeat = 0; repeat < runs; repeat++) {
           const context = await browser.newContext({ viewport: profile[device].viewport, isMobile: device === 'mobile', hasTouch: device === 'mobile', deviceScaleFactor: device === 'mobile' ? 2 : 1 });
           try {
@@ -184,8 +197,8 @@ try {
             await cdp.send('Emulation.setCPUThrottlingRate', { rate: profile[device].cpu });
             await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: profile[device].rttMs, downloadThroughput: profile[device].downBytesPerSecond, uploadThroughput: profile[device].upBytesPerSecond });
             for (const temperature of ['cold', 'warm']) {
-              await idle(`${size}/${template}/${device}/${path}/${repeat}/${temperature}`);
-              if (temperature === 'cold') await startApp(env);
+              await idle(`${scenario}/${size}/${template}/${device}/${path}/${repeat}/${temperature}`);
+              if (temperature === 'cold') await startApp(env, scenario === 'failed-cache');
               adminSql('SELECT extensions.pg_stat_statements_reset();');
               let bytes = 0;
               const types = {};
@@ -193,7 +206,7 @@ try {
               const responseListener = event => resourceTypes.set(event.requestId, event.type);
               const finishedListener = event => { bytes += event.encodedDataLength; const type = resourceTypes.get(event.requestId) ?? 'Other'; types[type] = (types[type] ?? 0) + event.encodedDataLength; };
               cdp.on('Network.responseReceived', responseListener); cdp.on('Network.loadingFinished', finishedListener);
-              const storefront = ['/', '/store', '/pl'].includes(path);
+              const storefront = ['/', '/store', '/pl'].includes(new URL(path, origin).pathname);
               const response = await page.goto(`${origin}${path}`, { waitUntil: storefront ? 'networkidle' : 'load' });
               assert.equal(response.status(), 200);
               await expect(page.locator('h1')).toBeVisible();
@@ -209,12 +222,20 @@ try {
                 const reject = page.getByRole('button', { name: /^(Reject all|Odrzuć wszystkie)$/ }).first();
                 await expect(reject).toBeVisible(); await reject.click(); await expect(reject).not.toBeVisible();
               }
-              if (path === '/' || path === '/store' || path === '/pl') {
+              if (storefront) {
                 await expect(page.locator('[data-template]')).toHaveAttribute('data-template', template);
+                if (scenario === 'empty') await expect(page.locator('#catalogue article')).toHaveCount(0);
+                if (scenario === 'failed-cache') {
+                  expect(await page.locator('#catalogue article').count()).toBeGreaterThan(0);
+                  await expect.poll(() => appOutput().includes('ENOTDIR')).toBe(true);
+                  assert((await stat(resolve(standalonePath(), '.next/cache'))).isFile(), 'Persistent cache fault must remain active');
+                }
                 const search = page.locator('#catalogue input[type=search]');
-                await search.click(); await search.pressSequentially('Performance', { delay: 40 });
-                await Promise.all([page.waitForResponse(r => r.url().includes('/api/storefront/catalogue')), page.locator('#catalogue button[type=submit]').click()]);
+                await search.click(); await search.pressSequentially(scenario === 'empty' ? 'NoMatchForThisFixture' : 'Performance', { delay: 40 });
+                const [catalogueResponse] = await Promise.all([page.waitForResponse(r => r.url().includes('/api/storefront/catalogue')), page.locator('#catalogue button[type=submit]').click()]);
+                assert.equal(catalogueResponse.status(), 200);
                 await expect(page.locator('#catalogue [role=status]')).not.toContainText(/Loading|Ładowanie/);
+                if (scenario === 'empty') await expect(page.locator('#catalogue article')).toHaveCount(0);
               } else {
                 const email = page.locator('input[type=email]');
                 await expect(email).toBeVisible({ timeout: 30_000 });
@@ -228,7 +249,8 @@ try {
               await page.goto('about:blank');
               assert(measured?.LCP > 0 && measured?.INP >= 0 && measured?.CLS >= 0, 'All vitals must be observed');
               const queries = JSON.parse(sql(`SELECT coalesce(json_agg(s),'[]') FROM (SELECT query,calls,rows,total_exec_time,shared_blks_hit,shared_blks_read FROM extensions.pg_stat_statements WHERE query ~ '(storefront_catalogue|storefront_config|FROM "public"."products"|omnibus_price_history)' ORDER BY query) s;`));
-              samples.push({ size, template, device, path, repeat, temperature, ...measured, bytes, types, queries });
+              samples.push({ size, template, device, path, repeat, temperature, ...measured, bytes, types, queries,
+                scenario, cacheFailureConfirmed: scenario === 'failed-cache' && appOutput().includes('ENOTDIR') });
               console.log(JSON.stringify({ ...samples.at(-1), queries: undefined, shifts: undefined }));
               await writeFile(resolve(out, 'samples.json'), JSON.stringify(samples, null, 2));
               cdp.off('Network.responseReceived', responseListener); cdp.off('Network.loadingFinished', finishedListener);
@@ -241,12 +263,15 @@ try {
       }
     }
   }
-  const groups = Map.groupBy(samples, sample => JSON.stringify([sample.size, sample.template, sample.device, sample.path, sample.temperature]));
+  const groups = Map.groupBy(samples, sample => JSON.stringify([sample.size, sample.template, sample.device, sample.path, sample.temperature, sample.scenario]));
   const summary = [...groups].map(([key, values]) => ({ case: JSON.parse(key), n: values.length, ...Object.fromEntries(['LCP', 'CLS', 'INP', 'TTFB', 'bytes'].map(metric => [metric, p75(values.map(v => v[metric]))])) }));
   await writeFile(resolve(out, 'summary.json'), JSON.stringify(summary, null, 2));
   assert(summary.every(row => row.n >= 5 && row.LCP <= 2500 && row.CLS <= .1 && row.INP <= 200), 'Performance acceptance FAILED: see summary.json');
-  assert.equal(summary.length, probe ? 2 : 112);
+  assert.equal(summary.length, probe ? 2 : cacheCases ? 32 : 144);
   if (probe) console.log('PASS: diagnostic cases; full acceptance remains pending');
-  else console.log('PASS: all 112 performance cases');
+  else console.log(`PASS: all ${summary.length} ${cacheCases ? 'cache' : 'complete'} performance cases`);
   }
-} finally { await browser?.close(); await stopApp(); }
+} finally {
+  await browser?.close(); await stopApp();
+  if (cacheFaultInjected) await rm(resolve(standalonePath(), '.next/cache'), { recursive: true, force: true });
+}

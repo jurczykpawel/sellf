@@ -335,11 +335,12 @@ CREATE FUNCTION public.storefront_catalogue_categories(category_ids uuid[])
 RETURNS TABLE(id uuid,name text) LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path = '' AS $$
 BEGIN
   IF cardinality(category_ids)>12 THEN RAISE EXCEPTION 'INVALID' USING ERRCODE='22023'; END IF;
-  RETURN QUERY SELECT c.id,c.name FROM public.categories c WHERE c.id=ANY(category_ids)
-    AND EXISTS (SELECT 1 FROM public.product_categories pc JOIN public.products p ON p.id=pc.product_id
+  RETURN QUERY SELECT c.id,c.name FROM public.categories c
+    CROSS JOIN LATERAL (SELECT 1 FROM public.product_categories pc JOIN public.products p ON p.id=pc.product_id
       WHERE pc.category_id=c.id AND p.is_active AND p.is_listed
       AND (p.available_from IS NULL OR p.available_from<=statement_timestamp())
-      AND (p.available_until IS NULL OR p.available_until>statement_timestamp()));
+      AND (p.available_until IS NULL OR p.available_until>statement_timestamp()) LIMIT 1) available
+    WHERE c.id=ANY(category_ids);
 END;
 $$;
 REVOKE ALL ON FUNCTION public.storefront_catalogue_categories(uuid[]) FROM PUBLIC,anon,authenticated;
