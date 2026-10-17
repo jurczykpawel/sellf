@@ -32,7 +32,7 @@ describe('public storefront shell', () => {
   });
   it('renders free default with one h1 and independent catalogue groups on the server', () => {
     const model = resolvePresentation(resolveSelection(DEFAULT_CONFIG), { locale: 'en', productsById: {}, categoriesById: {}, catalogue: { variant: 'default-groups', groups: { featured: { products: [], nextCursor: null }, free: { products: [], nextCursor: null }, paid: { products: [], nextCursor: null } }, filters: [], pageSize: 12, density: 'comfortable', locale: 'en' } });
-    const html = renderToStaticMarkup(createElement(StorefrontComposition, { model, shopName: 'Example shop', renderKey: 'initial' }));
+    const html = renderToStaticMarkup(createElement(StorefrontComposition, { model, shopName: 'Example shop', renderKey: 'initial', year: 2026, showSellfBranding: false }));
     expect(html.match(/<h1/g)).toHaveLength(1); expect(html).toContain('Example shop');
     expect(html).toContain('id="catalogue"'); expect(html).not.toContain('animate-spin');
   });
@@ -45,7 +45,7 @@ describe('default brand states', () => {
       const model = compositionFixture('en', 'default');
       if (state === 'freeOnly') { model.catalogue.groups.paid!.products = []; model.catalogue.groups.featured!.products = []; }
       if (state === 'paidOnly') model.catalogue.groups.free!.products = [];
-      const html = renderToStaticMarkup(createElement(StorefrontComposition, { model, shopName: 'Example shop', renderKey: 'initial' }));
+      const html = renderToStaticMarkup(createElement(StorefrontComposition, { model, shopName: 'Example shop', renderKey: 'initial', year: 2026, showSellfBranding: false }));
       expect(html).toContain(expected);
     });
   }
@@ -57,14 +57,14 @@ describe('default catalogue totals', () => {
     const { compositionFixture } = await import('../../fixtures/storefront-sections/composition');
     const model = compositionFixture('en', 'default');
     model.catalogue.groups[group]!.nextCursor = 'another-page';
-    const html = renderToStaticMarkup(createElement(StorefrontComposition, { model, shopName: 'Example shop', renderKey: 'initial' }));
+    const html = renderToStaticMarkup(createElement(StorefrontComposition, { model, shopName: 'Example shop', renderKey: 'initial', year: 2026, showSellfBranding: false }));
     expect(html).not.toContain('<dl aria-label="Products shown">');
     expect(html).not.toContain('Start with 1 free resources');
   });
   it('retains totals for a complete catalogue', async () => {
     const { compositionFixture } = await import('../../fixtures/storefront-sections/composition');
     const model = compositionFixture('en', 'default');
-    const html = renderToStaticMarkup(createElement(StorefrontComposition, { model, shopName: 'Example shop', renderKey: 'initial' }));
+    const html = renderToStaticMarkup(createElement(StorefrontComposition, { model, shopName: 'Example shop', renderKey: 'initial', year: 2026, showSellfBranding: false }));
     expect(html).toContain('<dl aria-label="Products shown">');
     expect(html).toContain('<dd>4</dd>');
   });

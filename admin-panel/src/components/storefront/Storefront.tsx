@@ -17,6 +17,10 @@ interface StorefrontProps {
   paidProducts: Product[];
   /** Override product link prefix. Default: '/p'. For seller storefronts: '/s/seller-slug' */
   productLinkPrefix?: string;
+  /** Server-provided so first paint and hydration agree. */
+  year: number;
+  /** True when the instance lacks the Pro 'watermark-removal' feature. */
+  showSellfBranding: boolean;
 }
 
 type FilterType = 'all' | 'featured' | 'free' | 'premium';
@@ -28,6 +32,8 @@ export default function Storefront({
   freeProducts,
   paidProducts,
   productLinkPrefix = '/p',
+  year,
+  showSellfBranding,
 }: StorefrontProps) {
   const t = useTranslations('storefront');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
@@ -254,9 +260,16 @@ export default function Storefront({
       {/* Footer */}
       <footer className="border-t border-sf-border">
         <div className="max-w-[960px] mx-auto px-6 py-8 text-center">
-          <p className="text-xs text-sf-muted opacity-50">
-            {t('footer.poweredBy', { shopName })}
+          <p className="text-xs text-sf-muted">
+            {t('footer.copyright', { year: String(year), shopName })}
           </p>
+          {showSellfBranding && (
+            <p className="mt-2 text-xs">
+              <a href="https://sellf.app" target="_blank" rel="noopener" className="text-sf-body hover:text-sf-heading underline decoration-dotted underline-offset-2 transition-colors">
+                {t('footer.runsOn')}
+              </a>
+            </p>
+          )}
         </div>
       </footer>
     </div>

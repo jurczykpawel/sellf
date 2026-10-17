@@ -17,6 +17,9 @@ interface SmartLandingClientProps {
   shopConfig: ShopConfig | null;
   /** Override product link prefix. Default: '/p'. For seller storefronts: '/s/seller-slug' */
   productLinkPrefix?: string;
+  /** Server-provided footer inputs for the classic storefront. */
+  year: number;
+  showSellfBranding: boolean;
 }
 
 export default function SmartLandingClient({
@@ -26,6 +29,8 @@ export default function SmartLandingClient({
   templateId,
   shopConfig,
   productLinkPrefix,
+  year,
+  showSellfBranding,
 }: SmartLandingClientProps) {
   const { user, isAdmin } = useAuth();
 
@@ -74,6 +79,8 @@ export default function SmartLandingClient({
         freeProducts={freeProducts}
         paidProducts={paidProducts}
         productLinkPrefix={productLinkPrefix}
+        year={year}
+        showSellfBranding={showSellfBranding}
       />}
     </DashboardLayout>
   );

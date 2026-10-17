@@ -948,8 +948,7 @@
         "title": "Your Journey Starts Now",
         "description": "Start free, upgrade when ready. No pressure, just progress."
       },
-      "browseAll": "Browse All Products",
-      "poweredBy": "{count, plural, one {# product} other {# products}} available • Powered by {shopName}"
+      "browseAll": "Browse All Products"
     },
     "filters": {
       "all": "All ({count})",
@@ -963,8 +962,8 @@
       "statsPremium": "Premium"
     },
     "footer": {
-      "copyright": "© 2025 Powered by Sellf • Secure Product Access Management",
-      "poweredBy": "Powered by {shopName}"
+      "copyright": "© {year} {shopName}",
+      "runsOn": "Runs on Sellf"
     }
   },
   "productView": {
