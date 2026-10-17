@@ -46,7 +46,7 @@ describe('calculatePricing: payable total', () => {
 });
 
 // Per-line VAT: expected values come from the SERVER's own line builder.
-import { buildCheckoutLineSpecs, computePayableMinor } from '@/lib/services/checkout-line-items';
+import { buildCheckoutLineSpecs, computeLinePayableMinor } from '@/lib/services/checkout-line-items';
 
 describe('calculatePricing: per-line VAT equals the server charge', () => {
   type L = { vat: number | null; incl: boolean; exempt?: boolean };
@@ -63,7 +63,7 @@ describe('calculatePricing: per-line VAT equals the server charge', () => {
       bumps: [{ product: { id: 'b', name: 'b', currency: 'PLN', vatRate: bump.vat, priceIncludesVat: bump.incl, vatExempt: bump.exempt }, price: 40 }],
       coupon, taxMode,
     });
-    return { client, serverMinor: computePayableMinor(server.specs) };
+    return { client, serverMinor: server.specs.reduce((sum, spec) => sum + computeLinePayableMinor(spec), 0) };
   };
 
   it('main gross 23% + bump net 8%', () => {

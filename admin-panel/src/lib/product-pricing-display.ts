@@ -80,11 +80,13 @@ export function getVatDisplay(input: {
   vatExemptNote?: string | null;
   /** Amount shown next to the label; a free product (0) carries no VAT label. */
   amount?: number | null;
+  /** Pay-what-you-want / tip jar: the buyer chooses the amount, so a 0 list price is not "free". */
+  allowCustomPrice?: boolean | null;
   /** false = net price, VAT is added at checkout. Omitted/true = VAT is inside the price. */
   priceIncludesVat?: boolean | null;
 }): VatDisplay {
   if (input.taxMode === 'stripe_tax') return { kind: 'none' };
-  if (input.amount != null && input.amount <= 0) return { kind: 'none' };
+  if (input.amount != null && input.amount <= 0 && !input.allowCustomPrice) return { kind: 'none' };
   if (input.vatExempt) return { kind: 'exempt', note: input.vatExemptNote?.trim() || null };
   if (input.vatRate != null && input.vatRate > 0) {
     return input.priceIncludesVat === false

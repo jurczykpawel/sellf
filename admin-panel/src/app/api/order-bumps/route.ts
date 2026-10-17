@@ -8,7 +8,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
-import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET(request: NextRequest) {
   try {
@@ -54,22 +53,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const bumps = data || [];
-    if (bumps.length === 0) return NextResponse.json([]);
-
-    // Add each bump product's VAT settings (three non-sensitive columns, ids come from
-    // the RPC above) so the checkout total uses the same per-line rules as the charge.
-    const { data: vatRows } = await createAdminClient()
-      .from('products')
-      .select('id, vat_rate, price_includes_vat, vat_exempt')
-      .in('id', bumps.map((b: { bump_product_id: string }) => b.bump_product_id));
-    const vatById = new Map((vatRows ?? []).map((r) => [r.id, r]));
-    return NextResponse.json(
-      bumps.map((b: { bump_product_id: string }) => {
-        const v = vatById.get(b.bump_product_id);
-        return { ...b, vat_rate: v?.vat_rate ?? null, price_includes_vat: v?.price_includes_vat ?? null, vat_exempt: v?.vat_exempt ?? null };
-      })
-    );
+    // Return empty array if no bumps found. The RPC includes each bump product's VAT
+    // settings, so the checkout total uses the same per-line rules as the charge.
+    return NextResponse.json(data || []);
   } catch (error) {
     console.error('Order bumps API error:', error);
     return NextResponse.json(

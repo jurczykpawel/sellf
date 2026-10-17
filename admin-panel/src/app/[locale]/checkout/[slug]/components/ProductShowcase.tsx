@@ -60,6 +60,7 @@ export default function ProductShowcase({ product, taxMode, bundleComponents }: 
     // A free product (0) shows no VAT label; a subscription's amount is its recurring price.
     amount: isSubscription ? product.recurring_price ?? 0 : grossPrice,
     priceIncludesVat: product.price_includes_vat,
+    allowCustomPrice: product.allow_custom_price,
   });
 
   const parsedVideo = useMemo(

@@ -189,3 +189,10 @@ describe('getVatDisplay: price-aware labels', () => {
       .toEqual({ kind: 'rate', rate: 23 });
   });
 });
+
+describe('getVatDisplay: pay-what-you-want at price 0', () => {
+  it('keeps the label for PWYW / tip-jar products', () => {
+    expect(getVatDisplay({ taxMode: 'local', vatRate: 23, vatExempt: false, amount: 0, allowCustomPrice: true })).toEqual({ kind: 'rate', rate: 23 });
+    expect(getVatDisplay({ taxMode: 'local', vatRate: 23, vatExempt: false, amount: 0, allowCustomPrice: false })).toEqual({ kind: 'none' });
+  });
+});
