@@ -1,6 +1,8 @@
 import { getTestDatabaseContainer } from '@/../tests/helpers/database-container';
 /** Native and embedded coupon accounting on a disposable stack. */
 import { execFileSync } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
+import pl from '../../src/messages/pl.json';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import { test, expect } from '@playwright/test';
@@ -46,7 +48,7 @@ async function sync(request: APIRequestContext, errors = 0) {
 async function card(page: Page) {
   // Stripe can paint method tabs before its PaymentElement onReady event.
   await expect(page.locator('button[type="submit"]')).not.toHaveAttribute('data-checkout-pending', 'true', { timeout: 60000 });
-  const frame = page.frameLocator('iframe[title="Secure payment input frame"][src*="elements-inner-payment"]');
+  const frame = page.frameLocator('iframe[src*="elements-inner-payment"]');
   await expect(frame.locator('[data-testid="card"], input[name="number"]').first()).toBeVisible({ timeout: 60000 });
   if (await frame.getByTestId('card').count()) await frame.getByTestId('card').click();
   await expect(frame.locator('input[name="number"]')).toBeVisible();
@@ -55,13 +57,28 @@ async function card(page: Page) {
 }
 async function checkout(page: Page, slug: string, email: string, coupon?: string) {
   await acceptAllCookies(page);
-  await page.goto(`/en/checkout/${slug}?email=${encodeURIComponent(email)}${coupon ? `&coupon=${coupon}` : ''}`);
-    await page.getByRole('button', { name: /Pay|Subscribe/ }).click();
+  await page.goto(`/pl/p/${slug}?email=${encodeURIComponent(email)}`);
+  if (coupon) {
+    await page.getByRole('button', { name: 'Masz kod rabatowy?' }).click();
+    await page.getByRole('textbox', { name: 'Kod rabatowy' }).fill(coupon);
+    await page.getByRole('button', { name: 'Zastosuj' }).click();
+    await expect(page.getByRole('textbox', { name: 'Kod rabatowy' })).toBeDisabled();
+  }
+  await page.getByRole('button', { name: /Zapłać/ }).click();
   await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
   await page.locator('#checkoutEmail').fill(email); await page.locator('#fullName').fill('Affiliate Test Buyer');
   for (const c of await page.locator('input[type="checkbox"]').all()) if (await c.isVisible()) await c.check();
   await card(page); await page.locator('button[type="submit"]').click();
-  await page.waitForURL(/payment-status.*session_id=/, { timeout: 120000 });
+  await page.waitForURL(/\/pl\/p\/.*payment-status.*session_id=/, { timeout: 120000 });
+  await expect(page.getByText(/Potwierdzamy zakup produktu/)).toBeVisible({ timeout: 60000 });
+  if (coupon) {
+    await expect(page.getByText(pl.paymentStatus.magicLinkSent, { exact: false })).toBeVisible({ timeout: 60000 });
+    mkdirSync('/tmp/rcfix-core-shots', { recursive: true });
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.screenshot({ path: `/tmp/rcfix-core-shots/guest-confirmation-pl-${width}.png`, fullPage: true, animations: 'disabled' });
+    }
+  }
 }
 test.beforeAll(() => { expect(process.env.STRIPE_SECRET_KEY).toMatch(/^sk_test_/); expect(process.env.STRIPE_LIVE_E2E).toBe('1'); });
 test('native coupon paid, held, mature and refunded in test mode', async ({ page, request }) => {

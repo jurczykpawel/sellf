@@ -26,6 +26,7 @@ export interface SubscriptionSessionInput {
    */
   stripePriceId: string;
   returnUrl: string;
+  locale?: string;
   email?: string;
   userId?: string;
   checkoutConfig: CheckoutConfig;
@@ -63,6 +64,7 @@ export function buildSubscriptionSessionConfig(
       },
     ],
     return_url: returnUrl,
+    ...(input.locale === 'en' || input.locale === 'pl' ? { locale: input.locale } : {}),
     ...(uiMode === 'embedded_page' ? { redirect_on_completion: 'always' as const } : {}),
     metadata: {
       product_id: product.id,

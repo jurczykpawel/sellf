@@ -8,6 +8,7 @@
 interface PostCheckoutInput {
   origin: string;
   productSlug: string;
+  locale?: string;
   sessionId: string | undefined;
   paymentIntentId: string | undefined;
 }
@@ -15,6 +16,7 @@ interface PostCheckoutInput {
 interface FreeProductInput {
   origin: string;
   productSlug: string;
+  locale?: string;
   couponCode?: string | null;
   successUrl?: string | null;
 }
@@ -23,7 +25,7 @@ function buildAuthCallbackUrl(origin: string, redirectPath: string): string {
   return `${origin}/auth/callback?redirect_to=${encodeURIComponent(redirectPath)}`;
 }
 
-function buildProductAccessPath(productSlug: string, params?: Record<string, string | null | undefined>): string {
+function buildProductAccessPath(productSlug: string, params?: Record<string, string | null | undefined>, locale?: string): string {
   // encodeURIComponent (not URLSearchParams) so spaces become %20, not '+',
   // matching how the rest of the codebase builds redirect targets.
   const parts = [`product=${encodeURIComponent(productSlug)}`];
@@ -32,7 +34,8 @@ function buildProductAccessPath(productSlug: string, params?: Record<string, str
       if (v) parts.push(`${k}=${encodeURIComponent(v)}`);
     }
   }
-  return `/auth/product-access?${parts.join('&')}`;
+  const prefix = locale === 'pl' || locale === 'en' ? `/${locale}` : '';
+  return `${prefix}/auth/product-access?${parts.join('&')}`;
 }
 
 /**
@@ -46,7 +49,7 @@ function buildProductAccessPath(productSlug: string, params?: Record<string, str
 export function buildPostCheckoutMagicLinkRedirect(input: PostCheckoutInput): string {
   void input.sessionId;
   void input.paymentIntentId;
-  const redirectPath = buildProductAccessPath(input.productSlug);
+  const redirectPath = buildProductAccessPath(input.productSlug, undefined, input.locale);
   return buildAuthCallbackUrl(input.origin, redirectPath);
 }
 
@@ -71,6 +74,6 @@ export function buildFreeProductMagicLinkRedirect(input: FreeProductInput): stri
   const redirectPath = buildProductAccessPath(input.productSlug, {
     coupon: input.couponCode ?? undefined,
     success_url: input.successUrl ?? undefined,
-  });
+  }, input.locale);
   return buildAuthCallbackUrl(input.origin, redirectPath);
 }

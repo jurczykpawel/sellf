@@ -51,6 +51,7 @@ export default function PaymentStatusView({
     product,
     accessGranted,
     redirectUrl,
+    disableAutoRedirect: !redirectUrl,
   });
 
   const statusInfo = getStatusInfo(paymentStatus, t);
@@ -136,6 +137,7 @@ export default function PaymentStatusView({
             product={product}
             windowDimensions={windowDimensions}
             countdown={countdown}
+            redirecting={!!redirectUrl}
           />
         </PaymentStatusLayout>
       </>

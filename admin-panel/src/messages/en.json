@@ -1118,6 +1118,11 @@
     "invalidPrice": "Invalid Price"
   },
   "paymentStatus": {
+    "purchaseReceipt": "Thank you! Your purchase of {productName} is confirmed.",
+    "purchaseLibraryHint": "Your purchase is available here and in My products.",
+    "openPurchase": "Open your purchase",
+    "purchaseLibrary": "My products",
+
     "paymentReceived": "Payment received",
     "preparingAccess": "Your payment has been received. We are preparing your access. This page will refresh automatically.",
     "orderNeedsReview": "Payment received — order needs review",

@@ -1,3 +1,4 @@
+import { useLocale } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { COUNTDOWN_START } from '../utils/helpers';
@@ -27,6 +28,7 @@ export function useCountdown({
 }: UseCountdownParams) {
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
   const router = useRouter();
+  const locale = useLocale();
 
   useEffect(() => {
     // Don't run countdown at all if auto-redirect is disabled
@@ -49,14 +51,14 @@ export function useCountdown({
           if (redirectUrl) {
             window.location.href = redirectUrl;
           } else {
-            router.push(productUrl(productSlug));
+            router.push(productUrl(productSlug, locale));
           }
         }
       }, 1000);
 
       return () => clearTimeout(timer);
     }
-  }, [countdown, router, productSlug, paymentStatus, accessGranted, isUserAuthenticated, redirectUrl, disableAutoRedirect, magicLinkSent]);
+  }, [countdown, router, locale, productSlug, paymentStatus, accessGranted, isUserAuthenticated, redirectUrl, disableAutoRedirect, magicLinkSent]);
 
   return countdown;
 }

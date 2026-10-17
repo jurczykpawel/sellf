@@ -98,3 +98,8 @@ describe('Magic-link redirect URL construction', () => {
     });
   });
 });
+
+it('retains the buyer locale in a post-checkout email destination', () => {
+  const url = new URL(buildPostCheckoutMagicLinkRedirect({ origin: 'https://shop.example', productSlug: 'course', sessionId: undefined, paymentIntentId: undefined, locale: 'pl' }));
+  expect(url.searchParams.get('redirect_to')).toBe('/pl/auth/product-access?product=course');
+});

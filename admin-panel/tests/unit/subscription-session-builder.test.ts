@@ -307,3 +307,8 @@ describe('buildSubscriptionSessionConfig', () => {
     expect(config.consent_collection).toEqual({ terms_of_service: 'required' });
   });
 });
+
+it('retains the buyer language in a subscription checkout session', () => {
+  const config = buildSubscriptionSessionConfig({ product: baseProduct, stripePriceId: 'price_durable_locale', returnUrl: 'https://shop.example/return?locale=pl', checkoutConfig: baseConfig, locale: 'pl' });
+  expect(config.locale).toBe('pl');
+});

@@ -10,6 +10,7 @@ const ALLOWED_KEYS = new Set([
   'captchaToken',
   'flow',
   'productSlug',
+  'locale',
   'couponCode',
   'successUrl',
 ]);
@@ -21,6 +22,7 @@ interface ParsedRequest {
   captchaToken: string | null | undefined;
   flow: MagicLinkFlow;
   productSlug?: string;
+  locale?: string;
   couponCode?: string;
   successUrl?: string;
 }
@@ -41,11 +43,12 @@ function parseBody(body: unknown): ParsedRequest | null {
     if (!ALLOWED_KEYS.has(key)) return null;
   }
 
-  const { email, captchaToken, flow, productSlug, couponCode, successUrl } = record;
+  const { email, captchaToken, flow, productSlug, couponCode, successUrl, locale } = record;
 
   if (typeof email !== 'string' || email.length === 0 || email.length > 254) return null;
   if (captchaToken !== undefined && captchaToken !== null && typeof captchaToken !== 'string') return null;
   if (!isFlow(flow)) return null;
+  if (locale !== undefined && locale !== 'en' && locale !== 'pl') return null;
 
   let parsedProductSlug: string | undefined;
   if (productSlug !== undefined) {
@@ -70,6 +73,7 @@ function parseBody(body: unknown): ParsedRequest | null {
     captchaToken: captchaToken as string | null | undefined,
     flow,
     productSlug: parsedProductSlug,
+    locale,
     couponCode: parsedCouponCode,
     successUrl: parsedSuccessUrl,
   };
@@ -111,6 +115,7 @@ export async function POST(request: Request) {
     captchaToken: parsed.captchaToken,
     flow: parsed.flow,
     productSlug: parsed.productSlug,
+    ...(parsed.locale ? { locale: parsed.locale } : {}),
     couponCode: parsed.couponCode,
     successUrl: parsed.successUrl,
   });

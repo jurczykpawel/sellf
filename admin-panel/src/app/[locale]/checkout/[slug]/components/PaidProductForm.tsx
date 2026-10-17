@@ -241,6 +241,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   const isFreeAccess = isPwywFree || isFullDiscountCoupon;
   const checkoutSessionSignature = JSON.stringify({
+    locale,
     productId: product.id,
     email: email || null,
     bumpProductIds: Array.from(selectedBumpIds).sort(),
@@ -317,6 +318,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             productId: product.id,
+            locale,
             clientSecret: previous?.clientSecret,
             bindingToken: previous?.bindingToken ?? undefined,
             email: email?.trim() || undefined,
@@ -360,7 +362,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     });
   }, [
     purchaseStarted, hasAccess, error, authLoading,
-    product, email, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
+    product, email, locale, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
     customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess,
     checkoutSessionSignature, explicitRepurchase, sessionQueue, customFieldDefs, customFieldValues,
   ]);

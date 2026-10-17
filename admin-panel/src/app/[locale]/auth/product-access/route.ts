@@ -32,7 +32,9 @@ function safeRedirect(url: string, returnUrl?: string | null) {
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
+  const { searchParams, pathname } = new URL(request.url);
+  const requestedLocale = pathname.split('/')[1];
+  const prefix = requestedLocale === 'pl' || requestedLocale === 'en' ? `/${requestedLocale}` : '';
   const slug = searchParams.get('product');
   const returnUrl = searchParams.get('return_url');
   const successUrl = searchParams.get('success_url');
@@ -47,8 +49,8 @@ export async function GET(request: Request) {
   }
 
   // Build product URL once - used for all fallback redirects
-  const prodUrl = `/p/${slug}`;
-  const statusUrl = `/p/${slug}/payment-status`;
+  const prodUrl = `${prefix}/p/${slug}`;
+  const statusUrl = `${prefix}/p/${slug}/payment-status`;
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

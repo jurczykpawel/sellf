@@ -1118,6 +1118,11 @@
     "invalidPrice": "Nieprawidłowa cena"
   },
   "paymentStatus": {
+    "purchaseReceipt": "Dziękujemy! Potwierdzamy zakup produktu {productName}.",
+    "purchaseLibraryHint": "Zakupiony produkt jest dostępny tutaj i w zakładce Moje produkty.",
+    "openPurchase": "Otwórz zakupiony produkt",
+    "purchaseLibrary": "Moje produkty",
+
     "paymentReceived": "Płatność otrzymana",
     "preparingAccess": "Otrzymaliśmy Twoją płatność. Przygotowujemy dostęp. Strona odświeży się automatycznie.",
     "orderNeedsReview": "Płatność otrzymana — zamówienie wymaga sprawdzenia",

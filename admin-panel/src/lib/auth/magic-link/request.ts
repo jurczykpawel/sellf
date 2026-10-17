@@ -20,6 +20,7 @@ export interface MagicLinkRequestInput {
   captchaToken: string | null | undefined;
   flow: MagicLinkFlow;
   productSlug?: string;
+  locale?: string;
   couponCode?: string;
   successUrl?: string;
 }
@@ -96,6 +97,7 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
       redirectTo: buildFreeProductMagicLinkRedirect({
         origin,
         productSlug: input.productSlug,
+      locale: input.locale,
         couponCode: input.couponCode,
         successUrl: input.successUrl,
       }),
@@ -113,6 +115,7 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
     redirectTo: buildPostCheckoutMagicLinkRedirect({
       origin,
       productSlug: input.productSlug,
+      locale: input.locale,
       sessionId: undefined,
       paymentIntentId: undefined,
     }),

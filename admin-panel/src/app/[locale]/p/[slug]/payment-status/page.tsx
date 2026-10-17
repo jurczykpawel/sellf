@@ -239,6 +239,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
           redirectTo: buildPostCheckoutMagicLinkRedirect({
             origin: getSellfBaseUrl(),
             productSlug: product.slug,
+            locale: resolvedParams.locale,
             sessionId: session_id,
             paymentIntentId: payment_intent,
           }),

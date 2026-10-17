@@ -11,6 +11,7 @@ import { paymentStatusUrl, productUrl } from '@/lib/utils/product-urls';
 interface PaymentSuccessPageProps {
   searchParams: Promise<{
     session_id?: string;
+    locale?: string;
     product?: string;
     payment_intent?: string;
     product_id?: string;
@@ -21,7 +22,7 @@ interface PaymentSuccessPageProps {
 
 async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) {
   const params = await searchParams;
-  const locale = await getLocale();
+  const locale = params.locale === 'pl' || params.locale === 'en' ? params.locale : await getLocale();
   const t = await getTranslations({ locale, namespace: 'payment.success' });
 
   // Handle legacy PaymentIntent flow
@@ -71,7 +72,7 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
 
   // OLD FLOW: If we have a product slug (embedded checkout), redirect to it
   if (productSlug && !paymentIntent) {
-    redirect(`${productUrl(productSlug)}?payment=success`);
+    redirect(`${productUrl(productSlug, locale)}?payment=success`);
   }
 
   // If we have a session ID but no product slug, show generic success page (old flow)
