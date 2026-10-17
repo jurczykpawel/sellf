@@ -193,7 +193,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       }).observe(document, { childList: true, subtree: true });
     });
     await page.goto(`/en/checkout/${slug}?email=${encodeURIComponent(s.email)}`);
-    await page.getByRole('button', { name: /Pay|Subscribe/ }).click();
+    await page.getByRole('button', { name: /Continue to payment/ }).click();
     if (!s.subscription) await page.getByRole('button', { name: /Add to order/i }).click();
     await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
     await page.locator('#checkoutEmail').fill(s.email);

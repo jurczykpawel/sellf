@@ -65,7 +65,7 @@ async function checkout(page: Page, slug: string, email: string, coupon?: string
     await page.getByRole('button', { name: 'Zastosuj' }).click();
     await expect(page.getByRole('textbox', { name: 'Kod rabatowy' })).toBeDisabled();
   }
-  await page.getByRole('button', { name: /Zapłać/ }).click();
+  await page.getByRole('button', { name: /Przejdź do płatności/ }).click();
   await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
   await page.locator('#checkoutEmail').fill(email); await page.locator('#fullName').fill('Affiliate Test Buyer');
   for (const c of await page.locator('input[type="checkbox"]').all()) if (await c.isVisible()) await c.check();
