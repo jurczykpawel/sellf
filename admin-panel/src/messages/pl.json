@@ -55,6 +55,8 @@
       "publishVersion": "Opublikuj tę wersję"
   },
   "checkout": {
+    "purchaseTitle": "Dokończ zakup",
+    "loadingPaymentMethods": "Wczytujemy metody płatności…",
     "removeCoupon": "Usuń kod rabatowy",
     "couponEntryPrompt": "Masz kod rabatowy?",
     "couponEntryLabel": "Kod rabatowy",

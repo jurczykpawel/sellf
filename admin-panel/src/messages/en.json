@@ -55,6 +55,8 @@
       "publishVersion": "Publish this version"
   },
   "checkout": {
+    "purchaseTitle": "Complete your purchase",
+    "loadingPaymentMethods": "Loading payment methods…",
     "removeCoupon": "Remove discount code",
     "couponEntryPrompt": "Have a discount code?",
     "couponEntryLabel": "Discount code",

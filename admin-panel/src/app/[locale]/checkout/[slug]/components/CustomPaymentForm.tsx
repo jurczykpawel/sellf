@@ -15,6 +15,7 @@ import type { PricingResult } from '@/hooks/usePricing';
 import { useInvoiceData } from '@/hooks/useInvoiceData';
 import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
 import InvoiceFields from '@/components/checkout/InvoiceFields';
+import PaymentFormSkeleton from '@/components/checkout/PaymentFormSkeleton';
 import OrderSummary from '@/components/checkout/OrderSummary';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import type { AppliedCoupon } from '@/types/coupon';
@@ -114,7 +115,7 @@ export default function CustomPaymentForm({
     },
     ...(paymentMethodOrder && paymentMethodOrder.length > 0
       ? { paymentMethodOrder: paymentMethodOrder.filter(m => m !== 'link') }
-      : {}),
+      : { paymentMethodOrder: ['card'] }),
     wallets: {
       applePay: expressCheckoutConfig?.applePay !== false ? 'auto' : 'never',
       googlePay: expressCheckoutConfig?.googlePay !== false ? 'auto' : 'never',
@@ -391,7 +392,8 @@ export default function CustomPaymentForm({
       )}
 
       {/* Payment Element */}
-      <div>
+      <div className="relative min-h-48">
+        {!paymentElementReady && <div className="absolute inset-0 z-10 bg-sf-raised"><PaymentFormSkeleton /></div>}
         <PaymentElement options={paymentElementOptions} onReady={() => setPaymentElementReady(true)} />
       </div>
 
