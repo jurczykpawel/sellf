@@ -79,6 +79,7 @@ for (const locale of ['en', 'pl'] as const) for (const width of [1440, 390]) {
       await page.getByRole('option', { name: 'Demo Partner (demo-partner)', exact: true }).click();
       await expect(picker).toHaveAttribute('aria-expanded', 'false');
       await expect(page.getByRole('listbox')).toHaveCount(0);
+      await expect(owner.locator('..').getByRole('status')).not.toHaveText(copy.affiliates.products.searching);
       await page.getByRole('button', { name: copy.affiliates.products.assign, exact: true }).click();
       await expect(page.getByText(copy.affiliates.products.couponAssigned, { exact: true })).toBeVisible();
       await page.screenshot({ path: `/tmp/fixaff-coupon-${suffix}.png`, fullPage: true });
