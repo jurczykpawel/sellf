@@ -17,4 +17,4 @@ export const payoutProjection = 'id,member_id,currency,earnings_minor::text,vers
 export interface AdjustmentInfo { id: string; member_id: string; currency: string; amount_minor: string }
 export interface MemberChoice { id: string; display_name: string; code: string; status: string }
 export interface CommissionChoice { id: string; version: string; currency: string; paid_at: string; product_name: string }
-export interface PayoutChoices { members: MemberChoice[]; currencies: string[]; payouts: PayoutInfo[]; commissions: CommissionChoice[] }
+export interface PayoutChoices { programConfigured: boolean; members: MemberChoice[]; currencies: string[]; payouts: PayoutInfo[]; commissions: CommissionChoice[] }

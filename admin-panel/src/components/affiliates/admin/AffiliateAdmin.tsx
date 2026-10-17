@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Check, ChevronDown, Plus, Users, X } from 'lucide-react';
 import { applyToProgram, getAcceptedTerms, getAdminOverview, updateMember, updateProgram } from '@/lib/affiliates/admin/actions';
 import { applicationSchema, memberUpdateSchema, programUpdateSchema } from '@/lib/affiliates/admin/contracts';
+import { AFFILIATE_PROGRAM_DEFAULTS } from '@/lib/affiliates/program-defaults';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
 import SyncWorkPanel from '@/components/affiliates/admin/SyncWorkPanel';
 import CaptchaWidget from '@/components/captcha/CaptchaWidget';
@@ -64,10 +65,10 @@ export function AffiliateAdmin({ initial, locale }: { initial: AdminOverview; lo
     <details open={!p} className="min-w-0 rounded-xl border border-sf-border bg-sf-raised">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 focus-visible:outline-2 focus-visible:outline-sf-accent"><div className="min-w-0"><span className="font-semibold">{t.settings}</span><p className="mt-1 text-sm text-sf-body">{t.settingsHint}</p></div><ChevronDown size={18} aria-hidden="true" /></summary>
       <form key={p?.version ?? '0'} action={save} className="grid min-w-0 gap-6 border-t border-sf-border p-4 lg:grid-cols-2">
-        <div className="grid min-w-0 content-start gap-5"><label className="flex items-center gap-3 text-sm font-medium"><input name="enabled" type="checkbox" defaultChecked={p?.enabled ?? false} />{t.enabled}</label>
+        <div className="grid min-w-0 content-start gap-5"><label className="flex items-center gap-3 text-sm font-medium"><input name="enabled" type="checkbox" defaultChecked={p?.enabled ?? AFFILIATE_PROGRAM_DEFAULTS.enabled} />{t.enabled}</label>
           <div><h2 className="font-semibold">{t.timing}</h2><p className="mt-1 text-sm text-sf-body">{t.timingHint}</p></div>
-          <div className="grid min-w-0 grid-cols-2 items-end gap-3"><Field label={t.hold}><input className={fieldClass} name="hold" type="number" min={0} max={3650} required defaultValue={p?.hold_days ?? 30} /></Field><Field label={t.buffer}><input className={fieldClass} name="buffer" type="number" min={0} max={365} required defaultValue={p?.buffer_days ?? 2} /></Field></div>
-          <ThresholdFields initial={p?.thresholds ?? { PLN: '10000' }} locale={locale} />
+          <div className="grid min-w-0 grid-cols-2 items-end gap-3"><Field label={t.hold}><input className={fieldClass} name="hold" type="number" min={0} max={3650} required defaultValue={p?.hold_days ?? AFFILIATE_PROGRAM_DEFAULTS.hold_days} /></Field><Field label={t.buffer}><input className={fieldClass} name="buffer" type="number" min={0} max={365} required defaultValue={p?.buffer_days ?? AFFILIATE_PROGRAM_DEFAULTS.buffer_days} /></Field></div>
+          <ThresholdFields initial={p?.thresholds ?? AFFILIATE_PROGRAM_DEFAULTS.thresholds} locale={locale} />
         </div>
         <div className="grid min-w-0 gap-4"><Field label={t.termsVersion}><input className={fieldClass} name="terms_version" required maxLength={200} defaultValue={p?.terms_version ?? ''} /></Field><p className="text-sm text-sf-body">{t.termsHint}</p>
           <Field label={t.termsEn}><textarea className={fieldClass} name="en" lang="en" required rows={4} defaultValue={p?.terms.en ?? ''} /></Field><Field label={t.termsPl}><textarea className={fieldClass} name="pl" lang="pl" required rows={4} defaultValue={p?.terms.pl ?? ''} /></Field>

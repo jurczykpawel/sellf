@@ -4708,6 +4708,8 @@
     "protectedIntro": "Te strony dziedziczą wybrane kolory i krój pisma. Sellf zachowuje czytelne rozmiary tekstu, zaokrąglenia i elementy płatności. Poniżej ustawienia po zastosowaniu tych zasad."
   },
   "affiliates": {
+    "programNotConfigured": "Program partnerski nie został jeszcze skonfigurowany.",
+    "programSettings": "Przejdź do ustawień programu",
     "navigation": "Program partnerski",
     "partners": "Partnerzy",
     "earnings": "Prowizje",

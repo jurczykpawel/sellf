@@ -6,6 +6,7 @@ import { reservePayout, markPayoutPaid, cancelPayout, adjustCommission } from '@
 import { getPayoutChoices, previewPayout } from '@/lib/affiliates/payouts/reads';
 import { reserveSchema, paidSchema, cancelSchema, adjustmentSchema } from '@/lib/affiliates/payouts/contracts';
 import { displayPayoutAmount, parsePayoutAmount } from '@/lib/affiliates/payouts/display';
+import ProgramSetupNotice from '@/components/affiliates/ProgramSetupNotice';
 import PayoutPicker from '@/components/affiliates/payouts/PayoutPicker';
 import { payoutMessages } from '@/components/affiliates/payouts/messages';
 import type { FormEvent } from 'react';
@@ -14,7 +15,7 @@ import type { ActionResponse } from '@/lib/actions/admin-auth';
 import type { CommissionChoice, PayoutChoices, PayoutInfo, PreviewInfo } from '@/lib/affiliates/payouts/contracts';
 
 interface Props { locale: 'en' | 'pl'; initialPayout?: PayoutInfo; download: (id: string, version: string) => void }
-const empty: PayoutChoices = { members: [], currencies: [], payouts: [], commissions: [] };
+const empty: PayoutChoices = { programConfigured: false, members: [], currencies: [], payouts: [], commissions: [] };
 export default function PayoutPanel({ locale, initialPayout, download }: Props) {
   const t = payoutMessages[locale];
   const [choices, setChoices] = useState(empty);
@@ -79,6 +80,7 @@ export default function PayoutPanel({ locale, initialPayout, download }: Props) 
       } else void run(paidSchema, { ...base, currency, bank_reference: value('bank_reference'), invoice_reference: value('invoice_reference'), bank_amount_minor: minor, paid_at: new Date(value('paid_at')).toISOString(), full_settlement: form.has('full_settlement'), ...(value('reason') ? { reason: value('reason'), evidence_reference: value('evidence_reference') } : {}) }, markPayoutPaid, setPayout);
     }
   }
+  if (!loading && !message && !choices.programConfigured) return <ProgramSetupNotice locale={locale} />;
   return <section className="mx-auto max-w-6xl space-y-5 p-4 text-sf-body sm:p-8">
     <header className="flex items-start justify-between gap-4"><div><p className="mb-2 text-xs font-semibold uppercase tracking-widest text-sf-muted">Sellf · {t.eyebrow}</p><h1 className="text-2xl font-semibold tracking-tight text-sf-heading sm:text-3xl">{t.title}</h1><p className="mt-2 text-sm text-sf-muted">{t.subtitle}</p></div><Wallet className="mt-1 hidden size-7 text-sf-muted sm:block" /></header>
     <div className="flex flex-col gap-3 rounded-xl border border-sf-border bg-sf-base p-4 sm:flex-row sm:items-end">

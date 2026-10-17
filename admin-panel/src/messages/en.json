@@ -4708,6 +4708,8 @@
     "protectedIntro": "These pages inherit selected colours and the font. Sellf keeps readable text sizes, corners and payment controls. These are the values after those rules apply."
   },
   "affiliates": {
+    "programNotConfigured": "The affiliate program has not been set up yet.",
+    "programSettings": "Go to program settings",
     "navigation": "Affiliate program",
     "partners": "Partners",
     "earnings": "Earnings",
