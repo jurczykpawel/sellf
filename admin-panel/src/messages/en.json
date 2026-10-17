@@ -2239,6 +2239,7 @@
       "deleteExpiredSuccess": "Successfully deleted {count} expired coupons",
       "deleteExpiredPartial": "Deleted {deleted} expired coupons, {failed} failed",
       "form": {
+        "perUserLimitHint": "Defaults to one use per person. Clear the field for unlimited uses.",
         "basicInfo": "Basic Information",
         "codeLabel": "Coupon Code",
         "codePlaceholder": "e.g., SUMMER2024",

@@ -2239,6 +2239,7 @@
       "deleteExpiredSuccess": "Pomyślnie usunięto {count} wygasłych kuponów",
       "deleteExpiredPartial": "Usunięto {deleted} wygasłych kuponów, {failed} nie powiodło się",
       "form": {
+        "perUserLimitHint": "Domyślnie jedno użycie na osobę. Usuń wartość, aby nie ograniczać użyć.",
         "basicInfo": "Podstawowe informacje",
         "codeLabel": "Kod kuponu",
         "codePlaceholder": "np. LATO2024",
