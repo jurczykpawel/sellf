@@ -115,3 +115,27 @@ it('returns authoring diagnostics and preserves structured draft limits', async 
   expect(await offerLifecycle(auth, input('validate', { mode: 'draft', config: { ...config, price: 9 } }))).toMatchObject({ success: true, data: { valid: false, errors: [expect.objectContaining({ code: 'SCHEMA' })] } });
   expect(await offerLifecycle(auth, input('draft', { expectedRevision: 3, config: { ...config, content: { 'offer.hero': { sourceLocale: 'en', en: { kind: 'hero', eyebrow: '', heading: 'a'.repeat(161), body: '', steps: [] } } } } }))).toMatchObject({ code: 'LIMIT', validation: { errors: expect.arrayContaining([expect.objectContaining({ code: 'LIMIT' })]) } });
 });
+
+it.each([
+  null,
+  { product_id: productId, updated_at: '2026-10-17T00:00:00Z', updated_by: 'admin', revision: 1, draft: config, published: null },
+  { product_id: productId, updated_at: '2026-10-17T00:00:00Z', updated_by: 'admin', revision: 2, draft: null, published: config },
+  { product_id: productId, updated_at: '2026-10-17T00:00:00Z', updated_by: 'admin', revision: 3, draft: null, published: null },
+])('returns the same documented read fields for every snapshot state', async snapshot => {
+  m.read.mockResolvedValue({ success: true, data: snapshot });
+  const response = await offerLifecycle(await verifyTemplateSession(), input('read'));
+  expect(response).toEqual({ success: true, data: {
+    productId, productName: 'Workshop', revision: snapshot?.revision ?? 0,
+    draft: snapshot?.draft ?? null, published: snapshot?.published ?? null,
+    validation: { validatorVersion: 1, valid: true, errors: [], warnings: [] },
+  } });
+});
+it.each(['draft', 'publish'])('reports source-locale fallback in %s validation', async mode => {
+  const faq = { kind: 'faq', items: [{ id: 'bring', question: 'What to bring?', answer: 'A workflow.' }] };
+  const response = await offerLifecycle(await verifyTemplateSession(), input('validate', {
+    mode, config: { ...config, content: { 'offer.faq': { sourceLocale: 'en', en: faq } } },
+  }));
+  expect(response).toEqual({ success: true, data: { validatorVersion: 1, valid: true, errors: [], warnings: [
+    { code: 'TRANSLATION_FALLBACK', path: '/content/offer.faq', message: 'Missing translation uses source locale' },
+  ] } });
+});

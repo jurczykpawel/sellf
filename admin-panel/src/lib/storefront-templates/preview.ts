@@ -51,6 +51,7 @@ export async function preparePreview(auth: unknown, input: unknown, startedAt = 
     return fail(limit ? 'LIMIT' : 'INVALID', result([{ code: limit ? 'LIMIT' : 'SCHEMA', path: '', message: 'Invalid preview input' }]));
   }
   const { revision, locale, fixture } = parsed.data;
+  if (productId !== undefined && fixture !== 'published-products') return fail('NOT_FOUND');
   if (!(PREVIEW_FIXTURES as readonly string[]).includes(fixture)) return fail('NOT_FOUND');
   try {
     if (!(await checkRateLimit('storefront_preview', 120, 1, actor.userId))) return fail('RATE_LIMITED');

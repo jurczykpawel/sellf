@@ -96,7 +96,7 @@ export async function offerLifecycle(auth: unknown, input: unknown): Promise<Off
     const snapshot = await readOfferConfig(reader, productId);
     if (!snapshot.success) return templateFailure('UNAVAILABLE');
     const current = snapshot.data ?? { revision: 0, draft: null, published: null };
-    if (request.operation === 'read') return { success: true, data: { productId, productName: product.data.name, ...current, validation: inspectOffer(current.draft ?? current.published ?? DEFAULT_OFFER, 'draft') } };
+    if (request.operation === 'read') return { success: true, data: { productId, productName: product.data.name, revision: current.revision, draft: current.draft, published: current.published, validation: inspectOffer(current.draft ?? current.published ?? DEFAULT_OFFER, 'draft') } };
     if (request.expectedRevision !== current.revision) return templateFailure('CONFLICT', null, current.revision);
     let candidate: OfferPageConfig | null = current.draft;
     if (request.operation === 'draft') candidate = request.config;

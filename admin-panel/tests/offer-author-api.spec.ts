@@ -32,18 +32,29 @@ test('offer wrappers preserve product revisions and independent template scopes'
     const candidate = JSON.parse(readFileSync('../skills/sellf-template-author/examples/offer.json', 'utf8'));
     expect((await request.get(`/api/v1/products/${productId}/offer/config`)).status()).toBe(401);
     for (const credential of [write, activate, product]) expect((await call('config', credential)).status).toBe(403);
-    expect((await call('config', read)).data).toMatchObject({ revision: 0, draft: null, published: null });
+    const readKeys = ['productId', 'productName', 'revision', 'draft', 'published', 'validation'].sort();
+    const baseline = (await call('config', read)).data;
+    expect(baseline).toMatchObject({ revision: 0, draft: null, published: null });
+    expect(Object.keys(baseline).sort()).toEqual(readKeys);
     const oversized = await request.post(`/api/v1/products/${productId}/offer/validate`, { headers: { authorization: `Bearer ${read}` }, data: ' '.repeat(1048577) });
     expect(oversized.status()).toBe(422); expect(await oversized.json()).toMatchObject({ code: 'LIMIT' });
     expect((await call('draft', read, { expectedRevision: 0, config: candidate })).status).toBe(403);
     expect((await call('draft', write, { expectedRevision: 0, config: candidate, productId: otherId })).status).toBe(422);
     expect((await call('draft', write, { expectedRevision: 0, config: candidate })).data).toMatchObject({ revision: 1, validation: { valid: true } });
     expect((await call('config', read, undefined, otherId)).data).toMatchObject({ revision: 0, draft: null });
+    const fallback = { ...candidate, content: { ...candidate.content, 'offer.faq': { sourceLocale: 'en', en: { kind: 'faq', items: [{ id: 'bring', question: 'What to bring?', answer: 'A workflow.' }] } } } };
+    for (const mode of ['draft', 'publish']) {
+      const validation = (await call('validate', read, { config: fallback, mode })).data;
+      expect(validation.valid).toBe(true);
+      expect(validation.warnings).toContainEqual({ code: 'TRANSLATION_FALLBACK', path: '/content/offer.faq', message: 'Missing translation uses source locale' });
+    }
     expect((await call('validate', read, { config: candidate, mode: 'publish' })).data.valid).toBe(true);
+    expect(Object.keys((await call('config', read)).data).sort()).toEqual(readKeys);
     expect((await call('diff', read, { fromRevision: 0, toRevision: 1 })).data.changes.length).toBeGreaterThan(0);
     expect((await call('history', read, { limit: 10 })).data.history.map((row: { revision: number }) => row.revision)).toEqual([1, 0]);
     expect((await call('preview', read, { revision: 0, locale: 'en', fixture: 'published-products' })).status).toBe(409);
     expect((await call('preview', read, { revision: 1, locale: 'en', fixture: '../file' })).status).toBe(422);
+    for (const fixture of ['standard', 'empty', 'long', 'unavailable']) expect((await call('preview', read, { revision: 1, locale: 'en', fixture })).status).toBe(404);
     await page.route('**/*', async route => {
       const req = route.request(), url = new URL(req.url());
       if (url.origin !== new URL(baseURL!).origin) return route.abort();
@@ -91,7 +102,9 @@ test('offer wrappers preserve product revisions and independent template scopes'
     expect((await call('rollback', activate, { expectedRevision: 2, targetRevision: 1 }, otherId)).status).toBe(409);
     expect((await call('rollback', activate, { expectedRevision: 0, targetRevision: 1 }, otherId)).status).toBe(404);
     expect((await call('rollback', activate, { expectedRevision: 2, targetRevision: 0 })).data.revision).toBe(3);
-    expect((await call('config', read)).data.published).toBeNull();
+    const rolledBack = (await call('config', read)).data;
+    expect(rolledBack).toMatchObject({ draft: null, published: null });
+    expect(Object.keys(rolledBack).sort()).toEqual(readKeys);
     expect((await call('reset', write, { expectedRevision: 3, field: 'density' })).data.revision).toBe(4);
     const customAppearance = { ...candidate, tokens: CORE_TOKENS };
     expect((await call('draft', write, { expectedRevision: 4, config: customAppearance })).data.revision).toBe(5);

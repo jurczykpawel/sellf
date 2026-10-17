@@ -88,8 +88,7 @@ Allow same-origin Next CSS/bundled fonts and approved existing public media only
 abort other traffic. Preserve the server's script-blocking CSP. Do not extract or
 rebuild HTML/CSS; this is a dynamic page, not a portable snapshot.
 
-Assert page HTTP 200, `Cache-Control: private, no-store`, `X-Robots-Tag: noindex,
-nofollow`, correct `html lang`, `[data-preview-inert][inert]`, no key in HTML/path,
+Assert page HTTP 200, `Cache-Control: private, no-store`, `X-Robots-Tag: noindex, nofollow`, correct `html lang`, `[data-preview-inert][inert]`, no key in HTML/path,
 no executed scripts, payments/auth/grants/experiments requests or off-origin traffic.
 Save private screenshots and inspect them, not just status codes.
 
@@ -148,3 +147,44 @@ The fresh context has empty cookies. Headers are attached only to same-origin ma
 preview navigations, never globally; redirects to other origins are aborted. JS off
 keeps Next CSS/fonts. Repeat with each locale/fixture path and client scheme/width;
 apply the header/lang/key-absence checks above and inspect the screenshots.
+
+
+Python equivalent (same environment variables and private folder; Playwright installed):
+
+```python
+import os
+from urllib.parse import urljoin, urlsplit
+from playwright.sync_api import sync_playwright
+
+origin = urlsplit(os.environ["SELLF_API_URL"])
+target = urljoin(origin.geturl(), os.environ["PREVIEW_PATH"])
+def same_origin(url):
+    return (url.scheme, url.netloc) == (origin.scheme, origin.netloc)
+assert same_origin(urlsplit(target)) and urlsplit(target).path.startswith("/template-preview/")
+with sync_playwright() as p:
+    browser = p.chromium.launch()
+    try:
+        context = browser.new_context(java_script_enabled=False, service_workers="block")
+        def route_request(route):
+            req, url = route.request, urlsplit(route.request.url)
+            if same_origin(url) and url.path.startswith("/template-preview/") and req.is_navigation_request() and req.frame.parent_frame is None:
+                response = route.fetch(max_redirects=0, headers={**req.headers, "authorization": "Bearer " + os.environ["SELLF_API_KEY"]})
+                route.fulfill(response=response)
+            elif same_origin(url) and url.path.startswith("/_next/static/") and req.resource_type in ("stylesheet", "font"):
+                route.continue_()
+            else:
+                route.abort()  # Add only explicitly approved public media if needed.
+        context.route("**/*", route_request)
+        page = context.new_page()
+        page.set_viewport_size({"width": 1440, "height": 1000})
+        page.emulate_media(color_scheme="dark", reduced_motion="reduce")
+        response = page.goto(target)
+        assert response.status == 200
+        assert page.locator("[data-preview-inert][inert]").count() == 1
+        page.screenshot(path=os.environ["SCREENSHOT_PATH"], full_page=True)
+    finally:
+        browser.close()
+```
+
+Apply the same header/lang/key-absence assertions and matrix to either example;
+offer-specific fixtures and evidence requirements are in [offers.md](offers.md).
