@@ -135,7 +135,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
       },
       price: bump.price,
     })),
-    coupon,
+    coupon: coupon ?? null,
     taxMode: input.taxMode ?? 'local',
   }).specs;
   const vatRate = productVatRate || 0;
