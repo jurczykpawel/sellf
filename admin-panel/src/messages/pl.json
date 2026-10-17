@@ -4565,6 +4565,7 @@
     }
   },
   "storefrontEditor": {
+    "classicHint": "Sklep klasyczny ma jedną, zawsze widoczną sekcję: katalog produktów. Możesz wybrać układ kart, a w sekcji Wygląd zmienić kolory, krój pisma i zaokrąglenia. Publikacja własnych ustawień układu i wyglądu wymaga Pro.",
     "preview": "Podgląd",
     "historyPublishing": "Historia i publikacja",
     "draftActionsHelp": "Obejrzyj zapisany szkic w nowej karcie z produktami Twojego sklepu. W historii możesz go opublikować w sklepie lub przywrócić wcześniejszą publikację.",

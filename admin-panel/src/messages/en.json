@@ -4565,6 +4565,7 @@
     }
   },
   "storefrontEditor": {
+    "classicHint": "The classic store has one always-visible section: the product catalogue. Choose a card layout, or open Appearance to change colours, fonts and corners. Publishing custom layout and appearance settings requires Pro.",
     "preview": "Preview",
     "historyPublishing": "History and publishing",
     "draftActionsHelp": "Preview your saved draft in a new tab using your store’s products. In history, you can publish it to your store or restore an earlier publication.",

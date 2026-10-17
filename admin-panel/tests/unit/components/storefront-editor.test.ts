@@ -208,3 +208,12 @@ it.each(['en', 'pl'])('opens only the saved draft from the editor and appearance
   expect(view.queryByRole('link', { name: preview, exact: true })).toBeNull();
   expect(view.getAllByRole('button', { name: preview, exact: true }).every(button => (button as HTMLButtonElement).disabled)).toBe(true);
 });
+
+it.each(['en', 'pl'])('explains the classic catalogue options instead of suggesting reordering in %s', locale => {
+  const view = setup(locale);
+  fireEvent.change(view.getByLabelText(locale === 'pl' ? 'Szablon' : 'Template'), { target: { value: 'default' } });
+  expect(view.getByText(locale === 'pl'
+    ? 'Sklep klasyczny ma jedną, zawsze widoczną sekcję: katalog produktów. Możesz wybrać układ kart, a w sekcji Wygląd zmienić kolory, krój pisma i zaokrąglenia. Publikacja własnych ustawień układu i wyglądu wymaga Pro.'
+    : 'The classic store has one always-visible section: the product catalogue. Choose a card layout, or open Appearance to change colours, fonts and corners. Publishing custom layout and appearance settings requires Pro.')).toBeTruthy();
+  expect(view.queryByText(locale === 'pl' ? pl.storefrontEditor.orderHint : en.storefrontEditor.orderHint)).toBeNull();
+});
