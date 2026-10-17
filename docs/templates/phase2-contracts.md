@@ -307,3 +307,34 @@ or licensing requests:
 `bunx playwright test --config playwright.sections.config.ts tests/storefront-product-paths.spec.ts --workers=1`.
 Mobile ordinals use 38px with tighter tracking inside the frozen 35px column,
 keeping two digits together with clear separation from the situation heading.
+
+## T2.17 project showcase handoff
+
+`projectShowcaseDefinition` exposes `project-showcase/1`, `resolveProjectShowcase`
+and server-rendered `ProjectShowcase`. Pass the already localized `home.projects`
+slot and `mediaById` containing only reviewed product-image adapter DTOs. The
+frozen schema permits three distinct project IDs, bounded name/body and a plain
+HTTPS page link. A fourth item, duplicate IDs, unknown fields, URL media IDs,
+credentials, non-HTTPS schemes, private-host literals, queries, fragments and
+encoded paths fail resolution. Project page links are rendered directly with no
+prefetch, server fetch, redirect resolution or embed. They are never media sources.
+
+`public-media.ts` shares the existing author-hero image projection without changing
+its accepted DTOs. Extra image fields are stripped; missing or malformed approved
+images are omitted. Supplied images use the same unoptimized Next Image rendering
+as the other C families, explicit dimensions, lazy loading and an 8:5 contain
+frame. No player, sample placeholder or proof is manufactured. Empty slots/lists
+render nothing; link labels come from EN/PL messages with the project name in the
+accessible label. C registration, D-056 dispatch, localized slot collection and
+storage/editor adoption remain T2.18, using the frozen `projects` descriptor.
+
+The isolated harness compares C's band padding, gutters, heading position and
+three-column/stacked card geometry within 2px. It removes only reference fields
+absent from the frozen grammar (eyebrow, requirements and missing-sample boxes)
+before structural comparisons. Approved tokens replace prototype colors; localized
+core project-link labels replace the reference offer labels. PL crops are pinned
+at .2/.005; EN/PL 1440/390 captures are `/tmp/t2-17-<locale>-<width>.png`.
+Long/empty/missing media, supplied static media, light/dark, 320/768/1440px,
+200% zoom, keyboard focus, reduced motion, contrast and request bounds run without
+an app server or database:
+`bunx playwright test --config playwright.sections.config.ts tests/storefront-project-showcase.spec.ts --workers=1`.

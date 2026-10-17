@@ -1,18 +1,10 @@
 /** Author hero over resolved public media; pass the visible recipe after layout resolution.
  * @see docs/templates/phase2-contracts.md
  */
-import { z } from 'zod';
 import AuthorHero from '@/components/storefront/sections/AuthorHero';
 import { authorContentSchema, phase2SectionSchema, phase2StorefrontRecipeSchema } from '@/lib/storefront-templates/phase2-contracts';
+import { publicMediaSchema } from '@/lib/storefront-templates/public-media';
 import type { AuthorHeroProps, Phase2PublicInputs } from '@/lib/storefront-templates/phase2-contracts';
-
-const portraitSchema = z.object({
-  src: z.string().max(2048).refine(value => {
-    if (/[\u0000-\u0020\u007f\\]/.test(value)) return false;
-    try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password; } catch { return false; }
-  }),
-  alt: z.string().max(4000), width: z.number().int().positive(), height: z.number().int().positive(),
-});
 
 type AuthorHeroInputs = Pick<Phase2PublicInputs, 'locale' | 'mediaById'> & { slots: Record<string, unknown> };
 export function resolveAuthorHero(spec: unknown, inputs: AuthorHeroInputs, recipe: unknown):
@@ -29,7 +21,7 @@ export function resolveAuthorHero(spec: unknown, inputs: AuthorHeroInputs, recip
   if (content && !content.success) return invalid;
   const author = content?.success ? content.data : null;
   const mediaId = author?.portraitMediaId;
-  const portrait = portraitSchema.safeParse(mediaId && Object.hasOwn(inputs.mediaById, mediaId) ? inputs.mediaById[mediaId] : null);
+  const portrait = publicMediaSchema.safeParse(mediaId && Object.hasOwn(inputs.mediaById, mediaId) ? inputs.mediaById[mediaId] : null);
   return { success: true, data: { content: author, portrait: portrait.success ? portrait.data : null,
     pathsTarget: section.pathsTarget, catalogueTarget: section.catalogueTarget, locale: inputs.locale } };
 }

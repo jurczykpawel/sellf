@@ -4594,6 +4594,9 @@
       "copiedToast": "Copied"
     }
   },
+  "storefrontProjects": {
+    "viewProject": "View project"
+  },
   "storefrontAuthor": {
     "choosePath": "Choose your starting point"
   },

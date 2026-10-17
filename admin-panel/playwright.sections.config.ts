@@ -2,7 +2,7 @@
 import { defineConfig } from '@playwright/test';
 
 export const SECTION_FIXTURE_FILES = [
-  'storefront-product-paths.spec.ts', 'storefront-author-story.spec.ts', 'storefront-author-hero.spec.ts', 'hero-product.spec.ts', 'price-runtime.spec.ts', 'product-marketing-form.spec.ts',
+  'storefront-project-showcase.spec.ts', 'storefront-product-paths.spec.ts', 'storefront-author-story.spec.ts', 'storefront-author-hero.spec.ts', 'hero-product.spec.ts', 'price-runtime.spec.ts', 'product-marketing-form.spec.ts',
   'storefront-catalogue.spec.ts', 'storefront-composition.spec.ts', 'storefront-faq-closing.spec.ts',
   'storefront-task-nav.spec.ts', 'storefront-theme.spec.ts', 'storefront-product-list.spec.ts',
   'storefront-phase2-shared.spec.ts', 'storefront-phase2-reference.spec.ts', 'storefront-phase2-lists.spec.ts',
@@ -17,8 +17,9 @@ export default defineConfig({
   // Unnamed projects preserve the existing screenshot paths and suffixes.
   projects: [
     {
-      testMatch: SECTION_FIXTURE_FILES.filter(file => !file.startsWith('storefront-phase2-') && !['storefront-product-list.spec.ts', 'storefront-composition.spec.ts', 'storefront-author-hero.spec.ts', 'storefront-author-story.spec.ts', 'storefront-product-paths.spec.ts'].includes(file)),
+      testMatch: SECTION_FIXTURE_FILES.filter(file => !file.startsWith('storefront-phase2-') && !['storefront-project-showcase.spec.ts', 'storefront-product-list.spec.ts', 'storefront-composition.spec.ts', 'storefront-author-hero.spec.ts', 'storefront-author-story.spec.ts', 'storefront-product-paths.spec.ts'].includes(file)),
     },
+    { testMatch: 'storefront-project-showcase.spec.ts', snapshotPathTemplate: 'tests/fixtures/storefront-sections/project-showcase-snapshots/{arg}{ext}' },
     { testMatch: 'storefront-product-paths.spec.ts', snapshotPathTemplate: 'tests/fixtures/storefront-sections/product-paths-snapshots/{arg}{ext}' },
     { testMatch: 'storefront-author-story.spec.ts', snapshotPathTemplate: 'tests/fixtures/storefront-sections/author-story-snapshots/{arg}{ext}' },
     { testMatch: 'storefront-author-hero.spec.ts', snapshotPathTemplate: 'tests/fixtures/storefront-sections/author-hero-snapshots/{arg}{ext}' },
