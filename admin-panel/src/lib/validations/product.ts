@@ -6,6 +6,7 @@
 
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
+import { currencyExponent } from '@/lib/currency/minor-units';
 import { getTrustedDownloadProviders } from '@/lib/trustedDownloadProviders';
 import { CHECKOUT_TEMPLATE_SLUGS } from '@/lib/checkout-templates/types';
 import { validateCustomFieldDefinitions } from '@/lib/validations/custom-checkout-fields';
@@ -205,6 +206,15 @@ function validatePrice(price: unknown): ValidationResult {
   }
   
   return { isValid: errors.length === 0, errors };
+}
+
+/** Zero-decimal currencies (JPY, KRW, VND...) cannot carry fractional prices: Stripe would charge a different amount than stored. */
+export const WHOLE_AMOUNT_FIELDS = ['price', 'recurring_price', 'sale_price', 'custom_price_min'] as const;
+export function validateWholeAmounts(input: Record<string, unknown>, currency: unknown): string[] {
+  if (typeof currency !== 'string' || currencyExponent(currency) !== 0) return [];
+  return WHOLE_AMOUNT_FIELDS
+    .filter((field) => typeof input[field] === 'number' && !Number.isInteger(input[field]))
+    .map((field) => `${field} must be a whole number for ${currency} (no minor unit)`);
 }
 
 function validateCurrency(currency: unknown): ValidationResult {
@@ -508,6 +518,7 @@ export function validateCreateProduct(data: unknown): ValidationResult {
     const currencyResult = validateCurrency(input.currency);
     errors.push(...currencyResult.errors);
   }
+  errors.push(...validateWholeAmounts(input, input.currency));
   
   if (input.icon) {
     const iconResult = validateIcon(input.icon);
@@ -679,6 +690,7 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
   if (input.currency !== undefined) {
     const currencyResult = validateCurrency(input.currency);
     errors.push(...currencyResult.errors);
+    errors.push(...validateWholeAmounts(input, input.currency));
   }
   
   if (input.icon !== undefined) {

@@ -1,5 +1,6 @@
 'use client';
 
+import { currencyExponent } from '@/lib/currency/minor-units';
 import React, { useState, useEffect } from 'react';
 import { Product } from '@/types';
 import { useTranslations, useLocale } from 'next-intl';
@@ -304,7 +305,7 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
                         <input
                           type="number"
                           name="bump_price"
-                          step="0.01"
+                          step={currencyExponent(selectedBumpProduct.currency) === 0 ? "1" : "0.01"}
                           min="0"
                           value={bumpPrice}
                           onChange={(e) => setBumpPrice(e.target.value)}

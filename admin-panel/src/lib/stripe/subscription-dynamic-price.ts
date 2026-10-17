@@ -1,4 +1,5 @@
 import type Stripe from 'stripe';
+import { toMinorUnits } from '@/lib/currency/minor-units';
 
 export interface CreateDynamicSubscriptionInput {
   stripe: Stripe;
@@ -47,7 +48,7 @@ export async function createSubscriptionWithDynamicPrice(
     throw new Error('createSubscriptionWithDynamicPrice: amount must be > 0');
   }
 
-  const unitAmount = Math.round(input.amount * 100);
+  const unitAmount = toMinorUnits(input.amount, input.currency);
   // Stripe API 2025+ removed Invoice.payment_intent — the PaymentIntent is
   // now under invoice.payments[].payment.payment_intent. We also have to
   // explicitly request a PaymentIntent via payment_settings so Stripe builds

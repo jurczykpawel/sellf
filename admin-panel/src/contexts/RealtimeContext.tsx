@@ -6,6 +6,7 @@ import { formatPrice } from '@/lib/constants';
 import { createClient } from '@/lib/supabase/client';
 import NewOrderNotification from '@/components/dashboard/NewOrderNotification';
 
+import { fromMinorUnits } from '@/lib/currency/minor-units';
 interface NewOrder {
   amount: number;
   currency: string;
@@ -66,7 +67,7 @@ export const RealtimeProvider = ({ children }: { children: ReactNode }) => {
             if (payload.new?.status === 'completed') {
               listenersRef.current.forEach(listener => listener());
 
-              const amount = (payload.new.amount ?? 0) / 100;
+              const amount = fromMinorUnits(payload.new.amount ?? 0, payload.new.currency || 'USD');
               setNewOrder({
                 amount,
                 currency: payload.new.currency || 'USD',

@@ -89,8 +89,8 @@ describe('admin payments dashboard', () => {
   });
 
   it('formats minor-unit transaction amounts as major-unit currency values', () => {
-    expect(transactionsTableSource).toContain('format(amount / 100)');
-    expect(statsCardsSource).toContain('format(amount / 100)');
+    expect(transactionsTableSource).toContain('format(fromMinorUnits(amount, currency))');
+    expect(statsCardsSource).toContain('format(fromMinorUnits(amount, currency))');
   });
 
   it('shows readable customers and transaction line item details in the payments table', () => {
@@ -103,7 +103,7 @@ describe('admin payments dashboard', () => {
 
   it('formats transaction line items as current major-unit amounts, not minor-unit transaction totals', () => {
     expect(transactionsTableSource).toContain('formatMajorCurrency');
-    expect(transactionsTableSource).toContain('total_price: transaction.amount / 100');
+    expect(transactionsTableSource).toContain('total_price: fromMinorUnits(transaction.amount, transaction.currency)');
     expect(transactionsTableSource).toContain('formatMajorCurrency(item.total_price');
     expect(transactionsTableSource).not.toContain('formatCurrency(item.total_price');
     expect(transactionsTableSource).not.toContain('areLineItemAmountsStoredAsMinorUnits');

@@ -7,15 +7,14 @@
  * charged.
  *
  * SAFETY INVARIANT (covered by tests): the sum of `unitAmountMinor` across the specs
- * equals `Math.round(calculatePricing(...).totalGross * 100)` for the same inputs,
+ * equals `toMinorUnits(calculatePricing(...).totalGross, currency)` for the same inputs,
  * because both derive the per-line amounts from the SAME `allocateCouponDiscount`
  * call. Splitting the charge into per-line items therefore never changes the total.
  */
 
-import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
+import { toMinorUnits } from '@/lib/currency/minor-units';
 import {
   allocateCouponDiscount,
-  toMinorUnits,
   type CouponPricingInput,
 } from '@/lib/pricing/coupon-allocation';
 
@@ -35,7 +34,7 @@ export interface CheckoutLineSpec {
   name: string;
   description: string | null;
   currency: string;
-  /** Post-coupon amount for this line, in MINOR units (cents/grosze). */
+  /** Post-coupon amount for this line, in MINOR units (cents/grosze; whole units for zero-decimal currencies such as JPY). */
   unitAmountMinor: number;
   /** Rate to attach as a Stripe TaxRate in local mode; null when exempt / 0 / stripe_tax. */
   vatRate: number | null;
@@ -85,6 +84,7 @@ export function buildCheckoutLineSpecs(params: BuildLineSpecsParams): BuildLineS
   const { main, mainPrice, bumps, coupon, taxMode } = params;
 
   const allocation = allocateCouponDiscount({
+    currency: main.currency,
     items: [
       { kind: 'base', id: main.id, price: mainPrice },
       ...bumps.map((b) => ({ kind: 'bump' as const, id: b.product.id, price: b.price })),
@@ -92,7 +92,6 @@ export function buildCheckoutLineSpecs(params: BuildLineSpecsParams): BuildLineS
     baseProductId: main.id,
     coupon,
     applyMinimumFloor: true,
-    minimumAmount: STRIPE_MINIMUM_AMOUNT,
   });
 
   const isLocal = taxMode === 'local';
@@ -117,7 +116,7 @@ export function buildCheckoutLineSpecs(params: BuildLineSpecsParams): BuildLineS
       name: product.name,
       description: product.description ?? null,
       currency: product.currency.toLowerCase(),
-      unitAmountMinor: toMinorUnits(finalPrice),
+      unitAmountMinor: toMinorUnits(finalPrice, product.currency),
       vatRate,
       priceIncludesVat,
       taxBehavior,

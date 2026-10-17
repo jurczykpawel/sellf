@@ -4,7 +4,8 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { CheckoutElementsProvider } from '@stripe/react-stripe-js/checkout';
-import { formatPrice, STRIPE_MINIMUM_AMOUNT, STRIPE_MAX_AMOUNT } from '@/lib/constants';
+import { formatPrice, STRIPE_MAX_AMOUNT } from '@/lib/constants';
+import { minimumChargeAmount } from '@/lib/currency/minor-units';
 import { signOutAndRedirectToCheckout } from '@/lib/actions/checkout';
 import { validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
 import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
@@ -165,7 +166,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   // function safe to call from useEffect bodies (no setState cascade).
   const checkCustomAmount = useCallback((amount: number): string | null => {
     if (!product.allow_custom_price) return null;
-    const minPrice = product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
+    const minPrice = product.custom_price_min ?? minimumChargeAmount(product.currency);
     if (amount < minPrice) {
       return t('customPrice.belowMinimum', { minimum: formatPrice(minPrice, product.currency, locale) });
     }
@@ -179,7 +180,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const isPwywFree =
     product.allow_custom_price &&
     customAmount === 0 &&
-    (product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT) === 0;
+    (product.custom_price_min ?? minimumChargeAmount(product.currency)) === 0;
 
   // Order bumps
   const { orderBumps } = useOrderBumps(product.id);

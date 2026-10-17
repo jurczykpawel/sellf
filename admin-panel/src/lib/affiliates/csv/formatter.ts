@@ -4,6 +4,7 @@
 import { z } from 'zod';
 import { currencySchema, minorSchema, signedMinorSchema, versionSchema } from '@/lib/affiliates/model';
 import type { AffiliateResult } from '@/lib/affiliates/model';
+import { currencyExponent } from '@/lib/currency/minor-units';
 
 const columns = ['format_version', 'payout_id', 'version', 'affiliate_code', 'currency', 'earnings_minor', 'debt_offset_minor', 'payable_minor', 'payee_reference'];
 const payoutSchema = z.strictObject({
@@ -36,14 +37,14 @@ export function formatPayoutCsv(input: unknown): AffiliateResult<Uint8Array> {
   return { success: true, data: new TextEncoder().encode('\uFEFF' + columns.join(',') + '\r\n' + cells.join(',') + '\r\n') };
 }
 
-const displayDecimals: Readonly<Record<string, number>> = { PLN: 2, EUR: 2, USD: 2, GBP: 2, JPY: 0 };
+const displayCurrencies: ReadonlySet<string> = new Set(['PLN', 'EUR', 'USD', 'GBP', 'JPY', 'KRW']);
 
 /** Static display only; CSV always retains canonical integer minor strings. */
 export function formatMinorDisplay(minor: unknown, currency: unknown): AffiliateResult<string> {
   const amount = signedMinorSchema.safeParse(minor);
   const code = currencySchema.safeParse(currency);
-  if (!amount.success || !code.success || !Object.hasOwn(displayDecimals, code.data)) return { success: false, error: 'invalid_input' };
-  const decimals = displayDecimals[code.data];
+  if (!amount.success || !code.success || !displayCurrencies.has(code.data)) return { success: false, error: 'invalid_input' };
+  const decimals = currencyExponent(code.data);
   const negative = amount.data.startsWith('-');
   const digits = (negative ? amount.data.slice(1) : amount.data).padStart(decimals + 1, '0');
   return { success: true, data: (negative ? '-' : '') + (decimals === 0 ? digits : `${digits.slice(0, -decimals)}.${digits.slice(-decimals)}`) };

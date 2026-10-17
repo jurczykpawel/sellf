@@ -1,3 +1,5 @@
+import { fromMinorUnits, toMinorUnits } from '@/lib/currency/minor-units';
+
 export type PurchaseDiscountKind = 'percentage' | 'fixed';
 
 export interface ParsedPurchaseDiscount {
@@ -16,8 +18,8 @@ export interface PurchaseDiscountSummary {
 const PERCENTAGE_DISCOUNT_PATTERN = /^([0-9]+(?:\.[0-9]+)?)%$/;
 const FIXED_DISCOUNT_PATTERN = /^([0-9]+(?:\.[0-9]+)?)([A-Z]{3})$/;
 
-function roundToCurrencyPrecision(amount: number): number {
-  return Math.round(amount * 100) / 100;
+function roundToCurrencyPrecision(amount: number, currency: string): number {
+  return fromMinorUnits(toMinorUnits(amount, currency), currency);
 }
 
 export function parseCouponDiscount(rawDiscount: string | null | undefined): ParsedPurchaseDiscount | null {
@@ -50,11 +52,12 @@ export function parseCouponDiscount(rawDiscount: string | null | undefined): Par
 export function buildPurchaseDiscountSummary(params: {
   subtotal: number;
   totalPaid: number;
+  currency: string;
   couponDiscount?: string | null;
 }): PurchaseDiscountSummary | null {
-  const subtotal = Number.isFinite(params.subtotal) ? roundToCurrencyPrecision(params.subtotal) : 0;
-  const totalPaid = Number.isFinite(params.totalPaid) ? roundToCurrencyPrecision(params.totalPaid) : 0;
-  const discountAmount = roundToCurrencyPrecision(subtotal - totalPaid);
+  const subtotal = Number.isFinite(params.subtotal) ? roundToCurrencyPrecision(params.subtotal, params.currency) : 0;
+  const totalPaid = Number.isFinite(params.totalPaid) ? roundToCurrencyPrecision(params.totalPaid, params.currency) : 0;
+  const discountAmount = roundToCurrencyPrecision(subtotal - totalPaid, params.currency);
 
   if (discountAmount <= 0) return null;
 

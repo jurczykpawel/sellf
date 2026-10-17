@@ -4,6 +4,8 @@
  * Just needs exchange rates fetched once from server
  */
 
+import { fromMinorUnits, toMinorUnits } from '@/lib/currency/minor-units';
+
 export interface ExchangeRates {
   base: string;
   rates: { [currency: string]: number };
@@ -58,6 +60,21 @@ export function convertAmount(
 }
 
 /**
+ * Convert an amount in Stripe minor units between currencies. Rates apply to major
+ * units, so go minor -> major -> convert -> minor of the target (JPY has no minor unit).
+ */
+export function convertMinorAmount(
+  minor: number,
+  fromCurrency: string,
+  toCurrency: string,
+  rates: ExchangeRates
+): number {
+  if (fromCurrency === toCurrency) return minor;
+  const major = convertAmount(fromMinorUnits(minor, fromCurrency), fromCurrency, toCurrency, rates);
+  return toMinorUnits(major, toCurrency);
+}
+
+/**
  * Convert CurrencyAmount object (multiple currencies) to single target currency
  * Uses local conversion - no API calls!
  */
@@ -73,7 +90,7 @@ export function convertCurrencyAmount(
       total += amount;
     } else {
       try {
-        const converted = convertAmount(amount, currency, targetCurrency, rates);
+        const converted = convertMinorAmount(amount, currency, targetCurrency, rates);
         total += converted;
       } catch (error) {
         console.error(`Failed to convert ${amount} ${currency} to ${targetCurrency}:`, error);

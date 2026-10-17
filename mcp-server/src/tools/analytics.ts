@@ -73,7 +73,7 @@ export function registerAnalyticsTools(server: McpServer): void {
   // Get dashboard overview
   server.tool(
     'get_dashboard',
-    'Get a comprehensive dashboard overview with key business metrics. Returns all revenue and refunded amounts (including daily and currency breakdowns) in minor units (4999 means 49.99 for PLN/USD). Aggregates may mix currencies; use by_currency where available.',
+    'Get a comprehensive dashboard overview with key business metrics. Returns all revenue and refunded amounts (including daily and currency breakdowns) in minor units (4999 means 49.99 for PLN/USD; zero-decimal currencies such as JPY are whole units, 1000 means 1000 JPY). Aggregates may mix currencies; use by_currency where available.',
     {
       product_id: z.string().uuid().optional().describe('Filter stats by specific product'),
     },
@@ -92,7 +92,7 @@ export function registerAnalyticsTools(server: McpServer): void {
   // Get revenue stats
   server.tool(
     'get_revenue_stats',
-    'Get detailed revenue statistics including trends and refunds. Returns all revenue and refunded amounts (including daily and currency breakdowns) in minor units (4999 means 49.99 for PLN/USD). Aggregates may mix currencies; use by_currency where available.',
+    'Get detailed revenue statistics including trends and refunds. Returns all revenue and refunded amounts (including daily and currency breakdowns) in minor units (4999 means 49.99 for PLN/USD; zero-decimal currencies such as JPY are whole units, 1000 means 1000 JPY). Aggregates may mix currencies; use by_currency where available.',
     {},
     async () => {
       const api = getApiClient();
@@ -107,7 +107,7 @@ export function registerAnalyticsTools(server: McpServer): void {
   // Get revenue by product
   server.tool(
     'get_revenue_by_product',
-    'Get revenue breakdown by product for a specific period. Covers only the returned top products. Returns current_price in major units (49.99 means 49.99 in current_currency); revenue, average_price, summary.total_revenue and by_currency.revenue in minor units (4999 means 49.99 for PLN/USD). Aggregates may mix currencies; use by_currency.',
+    'Get revenue breakdown by product for a specific period. Covers only the returned top products. Returns current_price in major units (49.99 means 49.99 in current_currency); revenue, average_price, summary.total_revenue and by_currency.revenue in minor units (4999 means 49.99 for PLN/USD; zero-decimal currencies such as JPY are whole units, 1000 means 1000 JPY). Aggregates may mix currencies; use by_currency.',
     {
       period: z.enum(['day', 'week', 'month', 'quarter', 'year', 'all']).optional().describe('Time period'),
     },
@@ -133,7 +133,7 @@ export function registerAnalyticsTools(server: McpServer): void {
   // Get sales trends
   server.tool(
     'get_sales_trends',
-    'Get sales trends showing daily activity over recent period. Returns all revenue and refunded amounts (including daily and currency breakdowns) in minor units (4999 means 49.99 for PLN/USD). Aggregates may mix currencies; use by_currency where available.',
+    'Get sales trends showing daily activity over recent period. Returns all revenue and refunded amounts (including daily and currency breakdowns) in minor units (4999 means 49.99 for PLN/USD; zero-decimal currencies such as JPY are whole units, 1000 means 1000 JPY). Aggregates may mix currencies; use by_currency where available.',
     {
       product_id: z.string().uuid().optional().describe('Filter by specific product'),
     },
@@ -170,7 +170,7 @@ export function registerAnalyticsTools(server: McpServer): void {
   // Get top products
   server.tool(
     'get_top_products',
-    'Get the best performing products by revenue or sales count. Covers only the returned top products. Returns current_price in major units (49.99 means 49.99 in current_currency); revenue, average_price, summary.total_revenue and by_currency.revenue in minor units (4999 means 49.99 for PLN/USD). Aggregates may mix currencies; use by_currency.',
+    'Get the best performing products by revenue or sales count. Covers only the returned top products. Returns current_price in major units (49.99 means 49.99 in current_currency); revenue, average_price, summary.total_revenue and by_currency.revenue in minor units (4999 means 49.99 for PLN/USD; zero-decimal currencies such as JPY are whole units, 1000 means 1000 JPY). Aggregates may mix currencies; use by_currency.',
     {
       period: z.enum(['day', 'week', 'month', 'quarter', 'year', 'all']).optional().describe('Time period'),
       limit: z.number().min(1).max(50).optional().describe('Number of products to return (max 50)'),
@@ -229,7 +229,7 @@ export function registerAnalyticsTools(server: McpServer): void {
   // Get refund stats
   server.tool(
     'get_refund_stats',
-    'Get refund statistics including pending requests and total refunded amount. Returns all revenue and refunded amounts (including daily and currency breakdowns) in minor units (4999 means 49.99 for PLN/USD). Aggregates may mix currencies; use by_currency where available.',
+    'Get refund statistics including pending requests and total refunded amount. Returns all revenue and refunded amounts (including daily and currency breakdowns) in minor units (4999 means 49.99 for PLN/USD; zero-decimal currencies such as JPY are whole units, 1000 means 1000 JPY). Aggregates may mix currencies; use by_currency where available.',
     {},
     async () => {
       const api = getApiClient();
@@ -257,7 +257,7 @@ export function registerAnalyticsTools(server: McpServer): void {
   // Compare periods
   server.tool(
     'compare_periods',
-    'Compare the returned top 50 products for two current windows, both ending now; not the previous week or month. day = today, week = trailing 7 days, month = month-to-date, quarter = trailing 3 months, year = year-to-date (API server timezone). Windows may overlap. Returns revenue and revenue_change in minor units (4999 means 49.99 for PLN/USD); aggregates may mix currencies. Changes are between these top-product summaries, not all sales.',
+    'Compare the returned top 50 products for two current windows, both ending now; not the previous week or month. day = today, week = trailing 7 days, month = month-to-date, quarter = trailing 3 months, year = year-to-date (API server timezone). Windows may overlap. Returns revenue and revenue_change in minor units (4999 means 49.99 for PLN/USD; zero-decimal currencies such as JPY are whole units, 1000 means 1000 JPY); aggregates may mix currencies. Changes are between these top-product summaries, not all sales.',
     {
       current_period: z.enum(['day', 'week', 'month', 'quarter', 'year']).describe('First current window ending now'),
       previous_period: z.enum(['day', 'week', 'month', 'quarter', 'year']).describe('Second current window ending now; not a preceding historical period'),

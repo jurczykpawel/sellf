@@ -4,6 +4,7 @@
  */
 
 import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
+import { fromMinorUnits, toMinorUnits } from '@/lib/currency/minor-units';
 import { allocateCouponDiscount } from '@/lib/pricing/coupon-allocation';
 import { buildCheckoutLineSpecs, computeLinePayableMinor } from '@/lib/services/checkout-line-items';
 
@@ -101,6 +102,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
     : bumpSelected ? [{ id: undefined, price: bumpPrice, selected: true }] : [];
 
   const allocation = allocateCouponDiscount({
+    currency: productCurrency,
     items: [
       { kind: 'base', id: baseProductId, price: basePrice },
       ...selectedBumps.map((bump) => ({ kind: 'bump' as const, id: bump.id, price: bump.price })),
@@ -108,7 +110,6 @@ export function calculatePricing(input: PricingInput): PricingResult {
     baseProductId,
     coupon,
     applyMinimumFloor: true,
-    minimumAmount: STRIPE_MINIMUM_AMOUNT,
   });
 
   const bumpAmount = selectedBumps.reduce((sum, bump) => sum + bump.price, 0);
@@ -139,9 +140,9 @@ export function calculatePricing(input: PricingInput): PricingResult {
     taxMode: input.taxMode ?? 'local',
   }).specs;
   const vatRate = productVatRate || 0;
-  const totalPayable = lineSpecs.reduce((sum, spec) => sum + computeLinePayableMinor(spec), 0) / 100;
+  const totalPayable = fromMinorUnits(lineSpecs.reduce((sum, spec) => sum + computeLinePayableMinor(spec), 0), productCurrency);
   const totalNet = lineSpecs.reduce((sum, spec) => {
-    const unit = spec.unitAmountMinor / 100;
+    const unit = fromMinorUnits(spec.unitAmountMinor, productCurrency);
     return sum + (spec.vatRate && spec.priceIncludesVat ? unit / (1 + spec.vatRate / 100) : unit);
   }, 0);
   const vatAmount = totalPayable - totalNet;
@@ -172,8 +173,8 @@ export function usePricing(input: PricingInput): PricingResult {
 }
 
 /**
- * Convert amount to Stripe cents
+ * Convert a display amount to Stripe minor units (cents; whole units for zero-decimal currencies like JPY).
  */
-export function toStripeCents(amount: number): number {
-  return Math.round(amount * 100);
+export function toStripeCents(amount: number, currency: string): number {
+  return toMinorUnits(amount, currency);
 }

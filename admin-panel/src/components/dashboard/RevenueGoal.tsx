@@ -5,7 +5,8 @@ import { useTranslations, useLocale } from 'next-intl';
 import { getRevenueStats, getRevenueGoal, setRevenueGoal, CurrencyAmount } from '@/lib/actions/analytics';
 import { getMyDefaultCurrency } from '@/lib/actions/shop-config';
 import { getExchangeRates } from '@/lib/actions/currency';
-import { convertAmount } from '@/lib/utils/currency-conversion';
+import { convertMinorAmount } from '@/lib/utils/currency-conversion';
+import { fromMinorUnits, toMinorUnits } from '@/lib/currency/minor-units';
 import { useRealtime } from '@/contexts/RealtimeContext';
 import { useUserPreferences } from '@/contexts/UserPreferencesContext';
 import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
@@ -120,7 +121,7 @@ export default function RevenueGoal() {
             }
 
             // Convert goal locally
-            const convertedGoal = Math.round(convertAmount(goal, goalCurrency, displayCurrency, rates));
+            const convertedGoal = Math.round(convertMinorAmount(goal, goalCurrency, displayCurrency, rates));
             setDisplayGoal(convertedGoal);
 
             // Convert revenue locally
@@ -130,7 +131,7 @@ export default function RevenueGoal() {
                 total += amount;
               } else {
                 try {
-                  total += convertAmount(amount, currency, displayCurrency, rates);
+                  total += convertMinorAmount(amount, currency, displayCurrency, rates);
                 } catch (error) {
                   console.error(`Failed to convert ${amount} ${currency}:`, error);
                 }
@@ -164,14 +165,13 @@ export default function RevenueGoal() {
   }, [fetchData, addRefreshListener, removeRefreshListener]);
 
   const handleSave = async () => {
-    const newGoalCents = parseFloat(inputValue) * 100;
-    if (isNaN(newGoalCents)) return;
-
     const startDate = goalStartDate || new Date().toISOString();
 
     try {
       // Save goal in shop's default currency (or current goal currency if already set)
       const currency = goalCurrency || await getMyDefaultCurrency();
+      const newGoalCents = toMinorUnits(parseFloat(inputValue), currency);
+      if (isNaN(newGoalCents)) return;
       const result = await setRevenueGoal(newGoalCents, startDate, currency, productId);
       if (!result.success) {
         console.error('Failed to save goal:', result.error);
@@ -217,7 +217,7 @@ export default function RevenueGoal() {
       style: 'currency',
       currency: activeCurrency,
       maximumFractionDigits: 0,
-    }).format(amount / 100);
+    }).format(fromMinorUnits(amount, activeCurrency));
   };
 
   if (loading) {
@@ -257,7 +257,7 @@ export default function RevenueGoal() {
                     type="text"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
-                    placeholder={hideValues ? '****' : (goal / 100).toString()}
+                    placeholder={hideValues ? '****' : fromMinorUnits(goal, goalCurrency).toString()}
                     className="w-24 px-2 py-1 text-sm border-2 border-sf-border-medium bg-sf-base text-sf-heading"
                     autoFocus
                   />
@@ -287,7 +287,7 @@ export default function RevenueGoal() {
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => {
-                  setInputValue((goal / 100).toString());
+                  setInputValue(fromMinorUnits(goal, goalCurrency).toString());
                   setIsEditing(true);
                 }}
                 className="text-xs text-sf-accent hover:underline font-medium"

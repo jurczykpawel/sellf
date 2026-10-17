@@ -9,6 +9,7 @@ import { commissionRuleSchema } from '@/lib/affiliates/model';
 import { bindAffiliateCoupon, createAffiliateRule, getAffiliateCoupon, getAffiliateProduct } from '@/lib/affiliates/products/actions';
 import { productAffiliateMessages } from '@/components/affiliates/products/messages';
 import type { AffiliateCouponInfo, AffiliateProductInfo } from '@/lib/affiliates/products/actions';
+import { currencyExponent } from '@/lib/currency/minor-units';
 
 const inputClass = 'block w-full min-w-0 rounded border border-sf-border bg-sf-input px-3 py-2 text-sf-heading';
 const buttonClass = 'max-w-full break-words rounded border border-sf-border px-3 py-2 text-sf-heading disabled:opacity-50 focus-visible:outline-2';
@@ -42,7 +43,7 @@ function RuleEditor({ productId, productType, isRefundable, refundPeriodDays }: 
       setInfo(result.data);
       const rule = result.data.rule;
       setKind(rule?.fixed_minor != null ? 'fixed' : 'percentage');
-      const decimals = rule?.fixed_minor != null && ['JPY', 'KRW'].includes(rule.currency ?? '') ? 0 : 2;
+      const decimals = rule?.fixed_minor != null && currencyExponent(rule.currency ?? '') === 0 ? 0 : 2;
       const digits = (rule?.fixed_minor ?? String(rule?.percentage_bps ?? 2000)).padStart(decimals + 1, '0');
       const display = decimals === 0 ? digits : `${digits.slice(0, -2)}.${digits.slice(-2)}`;
       setAmount(t === productAffiliateMessages.pl ? display.replace('.', ',') : display);
@@ -58,7 +59,7 @@ function RuleEditor({ productId, productType, isRefundable, refundPeriodDays }: 
   const subscription = (productType ?? info?.product.product_type) === 'subscription';
   const unlimited = (isRefundable ?? info?.product.is_refundable) && (refundPeriodDays === undefined ? info?.product.refund_period_days : refundPeriodDays) === null;
   async function save() {
-    const minor = decimalMinor(amount, kind === 'fixed' && ['JPY', 'KRW'].includes(currency) ? 0 : 2);
+    const minor = decimalMinor(amount, kind === 'fixed' ? currencyExponent(currency) : 2);
     const rule = commissionRuleSchema.safeParse(kind === 'fixed' ? { fixed_minor: minor, currency }
       : { percentage_bps: minor === null ? -1 : Number(minor) });
     if (!rule.success) { setMessage(t.invalid); return; }

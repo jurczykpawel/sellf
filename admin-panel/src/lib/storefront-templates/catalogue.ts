@@ -4,7 +4,8 @@ import { createHash } from 'node:crypto';
 import { cache } from 'react';
 import { z } from 'zod';
 import { boundedPublicRead } from '@/lib/public-cache';
-import { formatPrice, STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
+import { formatPrice } from '@/lib/constants';
+import { minimumChargeAmount } from '@/lib/currency/minor-units';
 import { formatRecurringProductPrice, getVatDisplay } from '@/lib/product-pricing-display';
 import { getEffectiveUnitPrice, isSalePriceActive } from '@/lib/services/omnibus';
 import { idSchema } from '@/lib/storefront-templates/schemas';
@@ -82,7 +83,7 @@ function projectProduct(row: ProductRow, locale: 'en' | 'pl'): PublicProductInfo
   const amount = formatPrice(effectiveAmount, row.currency, locale);
   const display = kind === 'free' ? messages.checkout.customPrice.freePreset
     : kind === 'subscription' ? formatRecurringProductPrice(row, locale) ?? formatPrice(row.recurring_price ?? 0, row.currency, locale)
-    : kind === 'pwyw' ? messages.admin.products.pwywFromLabel.replace('{amount}', formatPrice(row.custom_price_min ?? STRIPE_MINIMUM_AMOUNT, row.currency, locale)) : amount;
+    : kind === 'pwyw' ? messages.admin.products.pwywFromLabel.replace('{amount}', formatPrice(row.custom_price_min ?? minimumChargeAmount(row.currency), row.currency, locale)) : amount;
   const vat = getVatDisplay({ taxMode: row.tax_mode, vatRate: row.vat_rate, vatExempt: row.vat_exempt, vatExemptNote: row.vat_exempt_note });
   const taxNote = kind === 'free' || vat.kind === 'none' ? null : vat.kind === 'exempt' ? [messages.checkout.vatExempt, vat.note].filter(Boolean).join(' — ')
     : row.price_includes_vat ? `${messages.checkout.includingVat} ${vat.rate}%` : `+ ${messages.checkout.vat} ${vat.rate}%`;

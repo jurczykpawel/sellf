@@ -8,7 +8,7 @@ import {
   CheckoutSessionOptions,
   CreateCheckoutRequest,
 } from '@/types/checkout';
-import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
+import { minimumChargeAmount } from '@/lib/currency/minor-units';
 import { validateCustomAmount } from '@/lib/payment/custom-amount';
 import { STRIPE_CONFIG, CHECKOUT_ERRORS, HTTP_STATUS } from '@/lib/stripe/config';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
@@ -172,7 +172,7 @@ export class CheckoutService {
       // The coupon allocation below then applies on top of whichever base wins.
       let pricedMainProduct = options.product;
       if (customAmount !== undefined && customAmount > 0) {
-        const minPrice = pricedMainProduct.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
+        const minPrice = pricedMainProduct.custom_price_min ?? minimumChargeAmount(pricedMainProduct.currency);
         if (customAmount < minPrice) {
           throw new CheckoutError(
             CheckoutErrorType.VALIDATION_ERROR,

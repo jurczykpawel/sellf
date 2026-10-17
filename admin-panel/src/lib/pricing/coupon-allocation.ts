@@ -1,4 +1,4 @@
-import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
+import { fromMinorUnits, minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
 
 export interface CouponPricingInput {
   discount_type: 'percentage' | 'fixed';
@@ -31,16 +31,9 @@ export interface CouponAllocationResult {
   isFree: boolean;
 }
 
-export function toMinorUnits(amount: number): number {
-  return Math.round(amount * 100);
-}
-
-function fromMinorUnits(amount: number): number {
-  return amount / 100;
-}
-
 export function allocateCouponDiscount(params: {
   items: CouponAllocationItem[];
+  currency: string;
   baseProductId?: string;
   coupon?: CouponPricingInput | null;
   applyMinimumFloor?: boolean;
@@ -48,16 +41,17 @@ export function allocateCouponDiscount(params: {
 }): CouponAllocationResult {
   const {
     items,
+    currency,
     baseProductId,
     coupon,
     applyMinimumFloor = true,
-    minimumAmount = STRIPE_MINIMUM_AMOUNT,
+    minimumAmount = minimumChargeAmount(currency),
   } = params;
 
   const workingItems = items.map((item) => ({
     ...item,
-    originalMinor: toMinorUnits(item.price),
-    finalMinor: toMinorUnits(item.price),
+    originalMinor: toMinorUnits(item.price, currency),
+    finalMinor: toMinorUnits(item.price, currency),
     eligible: false,
   }));
 
@@ -68,14 +62,14 @@ export function allocateCouponDiscount(params: {
       items: workingItems.map((item) => ({
         id: item.id,
         kind: item.kind,
-        originalPrice: fromMinorUnits(item.originalMinor),
+        originalPrice: fromMinorUnits(item.originalMinor, currency),
         eligible: false,
         discountAmount: 0,
-        finalPrice: fromMinorUnits(item.finalMinor),
+        finalPrice: fromMinorUnits(item.finalMinor, currency),
       })),
-      subtotal: fromMinorUnits(subtotalMinor),
+      subtotal: fromMinorUnits(subtotalMinor, currency),
       discountAmount: 0,
-      total: fromMinorUnits(subtotalMinor),
+      total: fromMinorUnits(subtotalMinor, currency),
       isFree: false,
     };
   }
@@ -102,7 +96,7 @@ export function allocateCouponDiscount(params: {
           eligibleSubtotalMinor,
           Math.round(eligibleSubtotalMinor * (coupon.discount_value / 100)),
         )
-      : Math.min(eligibleSubtotalMinor, toMinorUnits(coupon.discount_value));
+      : Math.min(eligibleSubtotalMinor, toMinorUnits(coupon.discount_value, currency));
   }
 
   if (discountMinor > 0) {
@@ -133,7 +127,7 @@ export function allocateCouponDiscount(params: {
   }
 
   let totalMinor = workingItems.reduce((sum, item) => sum + item.finalMinor, 0);
-  const minimumMinor = toMinorUnits(minimumAmount);
+  const minimumMinor = toMinorUnits(minimumAmount, currency);
   const isFree = coupon !== null && totalMinor <= 0;
 
   if (applyMinimumFloor && totalMinor > 0 && totalMinor < minimumMinor) {
@@ -148,14 +142,14 @@ export function allocateCouponDiscount(params: {
     items: workingItems.map((item) => ({
       id: item.id,
       kind: item.kind,
-      originalPrice: fromMinorUnits(item.originalMinor),
+      originalPrice: fromMinorUnits(item.originalMinor, currency),
       eligible: item.eligible,
-      discountAmount: fromMinorUnits(item.originalMinor - item.finalMinor),
-      finalPrice: fromMinorUnits(item.finalMinor),
+      discountAmount: fromMinorUnits(item.originalMinor - item.finalMinor, currency),
+      finalPrice: fromMinorUnits(item.finalMinor, currency),
     })),
-    subtotal: fromMinorUnits(subtotalMinor),
-    discountAmount: fromMinorUnits(subtotalMinor - totalMinor),
-    total: isFree ? 0 : fromMinorUnits(totalMinor),
+    subtotal: fromMinorUnits(subtotalMinor, currency),
+    discountAmount: fromMinorUnits(subtotalMinor - totalMinor, currency),
+    total: isFree ? 0 : fromMinorUnits(totalMinor, currency),
     isFree,
   };
 }

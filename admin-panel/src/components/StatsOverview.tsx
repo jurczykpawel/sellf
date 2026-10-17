@@ -12,6 +12,7 @@ import { useUserPreferences } from '@/contexts/UserPreferencesContext';
 import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
 import NewOrderNotification from './dashboard/NewOrderNotification';
 
+import { fromMinorUnits } from '@/lib/currency/minor-units';
 interface DashboardStats {
   totalProducts: number;
   totalUsers: number;
@@ -46,11 +47,6 @@ export default function StatsOverview() {
   const prevTotalRevenueRef = useRef<CurrencyAmount>({}); // Track previous revenue using ref to avoid dependency loop
   const isInitialLoadRef = useRef(true);
 
-  // Helper to sum all currency amounts (stable, no dependencies)
-  const sumAllCurrencies = useCallback((amounts: CurrencyAmount): number => {
-    return Object.values(amounts).reduce((sum, amount) => sum + amount, 0);
-  }, []);
-
   // Keep the fetch callback independent of revenueStats to avoid repeated fetching.
   const fetchAllStats = useCallback(async () => {
     try {
@@ -65,23 +61,22 @@ export default function StatsOverview() {
 
         // Trigger notification if a new order has arrived AND it's not the initial load
         if (!isInitialLoadRef.current && prevLastOrderTimeRef.current && revenueData.lastOrderAt && revenueData.lastOrderAt !== prevLastOrderTimeRef.current) {
-           const currentTotalRevenue = sumAllCurrencies(revenueData.totalRevenue);
-           const previousTotalRevenue = sumAllCurrencies(prevTotalRevenueRef.current); // Use ref instead of state
-           const newAmount = (currentTotalRevenue - previousTotalRevenue) / 100;
+           // First currency whose revenue increased is the currency of the new order.
+           let detectedCurrency = 'USD';
+           let newMinor = 0;
+           for (const currency in revenueData.totalRevenue) {
+             const current = revenueData.totalRevenue[currency] || 0;
+             const previous = prevTotalRevenueRef.current[currency] || 0;
+             if (current > previous) {
+               detectedCurrency = currency;
+               newMinor = current - previous;
+               break;
+             }
+           }
+           const newAmount = fromMinorUnits(newMinor, detectedCurrency);
 
            if (newAmount > 0) {
-             // Get the currency of the new order (first currency that increased)
-             let detectedCurrency = 'USD';
-             for (const currency in revenueData.totalRevenue) {
-               const current = revenueData.totalRevenue[currency] || 0;
-               const previous = prevTotalRevenueRef.current[currency] || 0;
-               if (current > previous) {
-                 detectedCurrency = currency;
-                 break;
-               }
-             }
-
-             setNewOrder({
+           setNewOrder({
                amount: newAmount,
                currency: detectedCurrency,
                id: Date.now().toString()
@@ -101,7 +96,7 @@ export default function StatsOverview() {
       setLoading(false);
       isInitialLoadRef.current = false;
     }
-  }, [productId, sumAllCurrencies]);
+  }, [productId]);
 
   const [previousProductId, setPreviousProductId] = useState(productId);
   if (previousProductId !== productId) {
@@ -154,7 +149,7 @@ export default function StatsOverview() {
       currency: currency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(amount / 100);
+    }).format(fromMinorUnits(amount, currency));
   };
 
   // Helper to format multi-currency amounts (or converted single currency)

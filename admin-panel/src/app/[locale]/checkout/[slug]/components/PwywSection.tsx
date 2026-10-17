@@ -3,7 +3,8 @@
 import { useTranslations, useLocale } from 'next-intl';
 import type { Product } from '@/types';
 import type { User } from '@supabase/supabase-js';
-import { formatPrice, STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
+import { formatPrice } from '@/lib/constants';
+import { minimumChargeAmount } from '@/lib/currency/minor-units';
 import CaptchaWidget from '@/components/captcha/CaptchaWidget';
 import TermsCheckbox from '@/components/TermsCheckbox';
 import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
@@ -82,11 +83,11 @@ export default function PwywSection({
           {product.show_price_presets &&
             product.custom_price_presets &&
             product.custom_price_presets.filter(
-              p => p >= 0 && (p > 0 || (product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT) === 0)
+              p => p >= 0 && (p > 0 || (product.custom_price_min ?? minimumChargeAmount(product.currency)) === 0)
             ).length > 0 && (
               <div className="flex gap-2 mb-3">
                 {product.custom_price_presets
-                  .filter(p => p >= 0 && (p > 0 || (product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT) === 0))
+                  .filter(p => p >= 0 && (p > 0 || (product.custom_price_min ?? minimumChargeAmount(product.currency)) === 0))
                   .map((preset) => (
                     <button
                       key={preset}
@@ -119,7 +120,7 @@ export default function PwywSection({
                   }
                 }}
                 onBlur={onAmountBlur}
-                placeholder={`${product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT}`}
+                placeholder={`${product.custom_price_min ?? minimumChargeAmount(product.currency)}`}
                 className={`
                   w-full px-4 py-3 bg-sf-input border rounded-lg text-lg font-semibold text-sf-heading
                   focus:outline-none focus:ring-2 focus:ring-sf-accent transition-all
@@ -137,7 +138,7 @@ export default function PwywSection({
           )}
 
           <p className="text-xs text-sf-muted mt-2">
-            {t('customPrice.minimum')}: {formatPrice(product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT, product.currency, locale)}
+            {t('customPrice.minimum')}: {formatPrice(product.custom_price_min ?? minimumChargeAmount(product.currency), product.currency, locale)}
           </p>
         </div>
       )}

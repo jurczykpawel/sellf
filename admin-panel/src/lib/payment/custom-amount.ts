@@ -1,4 +1,5 @@
-import { STRIPE_MAX_AMOUNT, STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
+import { STRIPE_MAX_AMOUNT } from '@/lib/constants';
+import { minimumChargeAmount } from '@/lib/currency/minor-units';
 
 export type CustomAmountValidation =
   | { ok: true }
@@ -27,7 +28,7 @@ export function validateCustomAmount(
   if (!product.allow_custom_price) {
     return { ok: false, error: 'This product does not allow custom pricing' };
   }
-  const minPrice = product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
+  const minPrice = product.custom_price_min ?? minimumChargeAmount(product.currency);
   if (amount < minPrice) {
     return { ok: false, error: `Amount must be at least ${minPrice} ${product.currency}` };
   }

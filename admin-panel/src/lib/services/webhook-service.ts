@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { currencyExponent, fromMinorUnits } from '@/lib/currency/minor-units';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { WEBHOOK_MOCK_PAYLOADS } from '@/lib/webhooks/mock-payloads';
 import { SupabaseWebhookQueue } from '@/lib/services/webhook-queue/supabase-queue';
@@ -176,7 +177,7 @@ export function buildPlaceholderContext(data: unknown): Record<string, string> {
     first_name: str(customer.firstName),
     last_name: str(customer.lastName),
     amount: str(amount),                                   // raw minor units (cents)
-    amount_major: amount != null ? (Number(amount) / 100).toFixed(2) : '', // convenience
+    amount_major: amount != null ? fromMinorUnits(Number(amount), str(order.currency) || 'usd').toFixed(currencyExponent(str(order.currency) || 'usd')) : '', // convenience
     currency: str(order.currency),
     product_name: str(product.name),
     product_slug: str(product.slug),

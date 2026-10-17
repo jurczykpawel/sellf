@@ -21,6 +21,7 @@ describe('purchase discounts', () => {
 
   it('builds a summary from subtotal and paid amount', () => {
     expect(buildPurchaseDiscountSummary({
+      currency: 'USD',
       subtotal: 99.99,
       totalPaid: 69.99,
       couponDiscount: '30%',
@@ -38,6 +39,7 @@ describe('purchase discounts', () => {
 
   it('returns null when there is no discount to explain', () => {
     expect(buildPurchaseDiscountSummary({
+      currency: 'USD',
       subtotal: 49.99,
       totalPaid: 49.99,
       couponDiscount: null,
