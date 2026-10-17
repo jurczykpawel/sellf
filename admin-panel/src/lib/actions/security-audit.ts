@@ -8,6 +8,9 @@
  * @see priv/pentest-2026-03-06.md — Supabase Production Configuration Checklist
  */
 
+import { createTranslator } from 'next-intl';
+import en from '@/messages/en.json';
+import pl from '@/messages/pl.json';
 import { getRuntimeSupabaseUrl, getRuntimeSupabaseAnonKey } from '@/lib/config/runtime-env';
 import { withAdminClient } from '@/lib/actions/admin-auth';
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
@@ -33,8 +36,12 @@ export interface SecurityAuditResult {
 // TTL depends on results: 1h if any issues found (re-check sooner), 24h if all pass
 const CACHE_TTL_ISSUES_MS = 1 * 60 * 60 * 1000;  // 1 hour
 const CACHE_TTL_CLEAN_MS = 24 * 60 * 60 * 1000;   // 24 hours
-let cachedResult: SecurityAuditResult | null = null;
-let cachedAt = 0;
+type AuditTranslator = (key: string, values?: Record<string, string | number>) => string;
+const cachedAudits = new Map<string, { result: SecurityAuditResult; cachedAt: number }>();
+
+function getAuditTranslator(locale: string): AuditTranslator {
+  return createTranslator({ locale, messages: (locale === 'pl' ? pl : en).securityAudit.checks as Record<string, string> });
+}
 
 function getCacheTtl(result: SecurityAuditResult): number {
   // Info entries are read-only summaries (e.g., active license tier, Stripe mode);
@@ -47,18 +54,20 @@ function getCacheTtl(result: SecurityAuditResult): number {
  * Returns cached audit result if fresh, otherwise runs a fresh audit.
  * TTL: 1h when issues exist (re-check after fix), 24h when all pass.
  */
-export async function getSecurityAudit(): Promise<SecurityAuditResult> {
+export async function getSecurityAudit(locale = 'en'): Promise<SecurityAuditResult> {
+  locale = locale === 'pl' ? 'pl' : 'en';
   const result = await withAdminClient(async () => {
-    if (cachedResult && (Date.now() - cachedAt) < getCacheTtl(cachedResult)) {
-      return { success: true as const, data: cachedResult };
+    const cached = cachedAudits.get(locale);
+    if (cached && (Date.now() - cached.cachedAt) < getCacheTtl(cached.result)) {
+      return { success: true as const, data: cached.result };
     }
 
-    const audit = await executeAudit();
+    const audit = await executeAudit(locale);
     return { success: true as const, data: audit };
   });
 
   if (!result.success) {
-    return { success: false, checks: [], timestamp: new Date().toISOString(), error: result.error || 'Unauthorized' };
+    return { success: false, checks: [], timestamp: new Date().toISOString(), error: getAuditTranslator(locale)(result.errorCode === 'FORBIDDEN' ? 'forbidden' : result.errorCode === 'UNAUTHORIZED' ? 'unauthorized' : 'requestFailed') };
   }
 
   return result.data!;
@@ -67,25 +76,27 @@ export async function getSecurityAudit(): Promise<SecurityAuditResult> {
 /**
  * Forces a fresh audit run, bypassing cache. Called via "Run again" button.
  */
-export async function runSecurityAudit(): Promise<SecurityAuditResult> {
+export async function runSecurityAudit(locale = 'en'): Promise<SecurityAuditResult> {
+  locale = locale === 'pl' ? 'pl' : 'en';
   const result = await withAdminClient(async () => {
-    const audit = await executeAudit();
+    const audit = await executeAudit(locale);
     return { success: true as const, data: audit };
   });
 
   if (!result.success) {
-    return { success: false, checks: [], timestamp: new Date().toISOString(), error: result.error || 'Unauthorized' };
+    return { success: false, checks: [], timestamp: new Date().toISOString(), error: getAuditTranslator(locale)(result.errorCode === 'FORBIDDEN' ? 'forbidden' : result.errorCode === 'UNAUTHORIZED' ? 'unauthorized' : 'requestFailed') };
   }
 
   return result.data!;
 }
 
-async function executeAudit(): Promise<SecurityAuditResult> {
+async function executeAudit(locale: string): Promise<SecurityAuditResult> {
+  const t = getAuditTranslator(locale);
   const supabaseUrl = getRuntimeSupabaseUrl();
   const anonKey = getRuntimeSupabaseAnonKey();
 
   if (!supabaseUrl || !anonKey) {
-    return { success: false, checks: [], timestamp: new Date().toISOString(), error: 'Missing Supabase configuration' };
+    return { success: false, checks: [], timestamp: new Date().toISOString(), error: t('missingConfiguration') };
   }
 
   const siteUrl = getCanonicalOriginOrNull() ?? '';
@@ -98,25 +109,25 @@ async function executeAudit(): Promise<SecurityAuditResult> {
 
   const allChecks: ScopedCheck[] = [
     // Platform-only checks
-    { scope: 'platform', check: () => checkGraphQLIntrospection(supabaseUrl, anonKey) },
-    { scope: 'platform', check: () => checkMCPEndpoint(supabaseUrl, anonKey) },
-    { scope: 'platform', check: () => checkServerHeaders(supabaseUrl, anonKey) },
-    { scope: 'platform', check: () => checkEmailAutoconfirm(supabaseUrl, anonKey) },
-    { scope: 'platform', check: () => checkProductCountLeak(supabaseUrl, anonKey) },
-    { scope: 'platform', check: () => checkRPCFunctionHints(supabaseUrl, anonKey) },
-    { scope: 'platform', check: () => checkAppEncryptionKey() },
-    { scope: 'platform', check: () => checkCaptcha() },
-    { scope: 'platform', check: () => checkCronSecret() },
-    { scope: 'platform', check: () => checkTrustedProxy() },
-    { scope: 'platform', check: () => checkTrustedDownloadDomains() },
-    { scope: 'platform', check: () => checkAllowedEmbedOrigins() },
-    { scope: 'shop', check: () => checkStripeMode() },
+    { scope: 'platform', check: () => checkGraphQLIntrospection(supabaseUrl, anonKey, t) },
+    { scope: 'platform', check: () => checkMCPEndpoint(supabaseUrl, anonKey, t) },
+    { scope: 'platform', check: () => checkServerHeaders(supabaseUrl, anonKey, t) },
+    { scope: 'platform', check: () => checkEmailAutoconfirm(supabaseUrl, anonKey, t) },
+    { scope: 'platform', check: () => checkProductCountLeak(supabaseUrl, anonKey, t) },
+    { scope: 'platform', check: () => checkRPCFunctionHints(supabaseUrl, anonKey, t) },
+    { scope: 'platform', check: () => checkAppEncryptionKey(t) },
+    { scope: 'platform', check: () => checkCaptcha(t) },
+    { scope: 'platform', check: () => checkCronSecret(t) },
+    { scope: 'platform', check: () => checkTrustedProxy(t) },
+    { scope: 'platform', check: () => checkTrustedDownloadDomains(t) },
+    { scope: 'platform', check: () => checkAllowedEmbedOrigins(t) },
+    { scope: 'shop', check: () => checkStripeMode(t) },
     // Shop-relevant checks
-    { scope: 'shop', check: () => checkHttpsRedirect(siteUrl) },
-    { scope: 'shop', check: () => checkHstsHeader(siteUrl) },
-    { scope: 'shop', check: () => checkAppUrl() },
-    { scope: 'shop', check: () => checkStripeWebhookSecret() },
-    { scope: 'shop', check: () => checkCookieSecure(siteUrl) },
+    { scope: 'shop', check: () => checkHttpsRedirect(siteUrl, t) },
+    { scope: 'shop', check: () => checkHstsHeader(siteUrl, t) },
+    { scope: 'shop', check: () => checkAppUrl(t) },
+    { scope: 'shop', check: () => checkStripeWebhookSecret(t) },
+    { scope: 'shop', check: () => checkCookieSecure(siteUrl, t) },
   ];
 
   const checksToRun = allChecks;
@@ -133,13 +144,12 @@ async function executeAudit(): Promise<SecurityAuditResult> {
 
   const audit: SecurityAuditResult = { success: true, checks, timestamp: new Date().toISOString() };
 
-  cachedResult = audit;
-  cachedAt = Date.now();
+  cachedAudits.set(locale, { result: audit, cachedAt: Date.now() });
 
   return audit;
 }
 
-async function checkGraphQLIntrospection(url: string, key: string): Promise<SecurityCheckResult> {
+async function checkGraphQLIntrospection(url: string, key: string, t: AuditTranslator): Promise<SecurityCheckResult> {
   try {
     const res = await fetch(`${url}/graphql/v1`, {
       method: 'POST',
@@ -151,28 +161,28 @@ async function checkGraphQLIntrospection(url: string, key: string): Promise<Secu
 
     return {
       id: 'graphql-introspection',
-      name: 'GraphQL introspection',
+      name: t('graphQLIntrospectionName'),
       status: exposed ? 'warn' : 'pass',
       message: exposed
-        ? 'GraphQL introspection is enabled. Exposes full schema (table names, columns) to anyone with the anon key.'
-        : 'GraphQL introspection is disabled or blocked.',
+        ? t('graphQLIntrospectionMessage')
+        : t('graphQLIntrospectionMessage2'),
       fix: exposed
-        ? 'Block /graphql/v1 in your reverse proxy (nginx/Cloudflare), or disable introspection in Supabase dashboard under API settings.'
+        ? t('graphQLIntrospectionFix')
         : undefined,
       steps: exposed ? [
-        'Log into Cloudflare Dashboard (dash.cloudflare.com) and select your domain.',
-        'Go to Security → WAF → Custom rules.',
-        'Create a rule: URI Path equals "/graphql/v1" → Block.',
-        'Alternatively, in your nginx config: location /graphql/v1 { deny all; }',
-        'Verify by running the audit again — status should change to PASS.',
+        t('graphQLIntrospectionSteps1'),
+        t('graphQLIntrospectionSteps2'),
+        t('graphQLIntrospectionSteps3'),
+        t('graphQLIntrospectionSteps4'),
+        t('graphQLIntrospectionSteps5'),
       ] : undefined,
     };
   } catch {
-    return { id: 'graphql-introspection', name: 'GraphQL introspection', status: 'pass', message: 'GraphQL endpoint not reachable (likely blocked).' };
+    return { id: 'graphql-introspection', name: t('graphQLIntrospectionName'), status: 'pass', message: t('graphQLIntrospectionMessage3') };
   }
 }
 
-async function checkMCPEndpoint(url: string, key: string): Promise<SecurityCheckResult> {
+async function checkMCPEndpoint(url: string, key: string, t: AuditTranslator): Promise<SecurityCheckResult> {
   try {
     const res = await fetch(`${url}/mcp`, {
       method: 'POST',
@@ -184,27 +194,27 @@ async function checkMCPEndpoint(url: string, key: string): Promise<SecurityCheck
 
     return {
       id: 'mcp-endpoint',
-      name: 'MCP endpoint',
+      name: t('mCPEndpointName'),
       status: accessible ? 'warn' : 'pass',
       message: accessible
-        ? `MCP endpoint is accessible (HTTP ${res.status}). In local dev this grants superadmin access with anon key.`
-        : 'MCP endpoint is blocked.',
+        ? t('mCPEndpointMessage', { value0: res.status })
+        : t('mCPEndpointMessage2'),
       fix: accessible
-        ? 'Block /mcp in your reverse proxy. In production Supabase, this is disabled by default.'
+        ? t('mCPEndpointFix')
         : undefined,
       steps: accessible ? [
-        'In Cloudflare Dashboard: Security → WAF → Custom rules.',
-        'Create a rule: URI Path equals "/mcp" → Block.',
-        'In nginx: location /mcp { deny all; }',
-        'Note: on Supabase Cloud this endpoint is disabled by default — only affects self-hosted Supabase.',
+        t('mCPEndpointSteps1'),
+        t('mCPEndpointSteps2'),
+        t('mCPEndpointSteps3'),
+        t('mCPEndpointSteps4'),
       ] : undefined,
     };
   } catch {
-    return { id: 'mcp-endpoint', name: 'MCP endpoint', status: 'pass', message: 'MCP endpoint not reachable.' };
+    return { id: 'mcp-endpoint', name: t('mCPEndpointName'), status: 'pass', message: t('mCPEndpointMessage3') };
   }
 }
 
-async function checkServerHeaders(url: string, key: string): Promise<SecurityCheckResult> {
+async function checkServerHeaders(url: string, key: string, t: AuditTranslator): Promise<SecurityCheckResult> {
   try {
     const res = await fetch(`${url}/rest/v1/`, { headers: { 'apikey': key } });
     const server = res.headers.get('server');
@@ -228,69 +238,69 @@ async function checkServerHeaders(url: string, key: string): Promise<SecurityChe
     if (!exposed && (server || via)) {
       return {
         id: 'version-headers',
-        name: 'Server version headers',
+        name: t('serverHeadersName'),
         status: 'pass',
-        message: `Edge CDN identifier present (${parts.join(', ')}) but no software/version is leaked.`,
+        message: t('serverHeadersMessage', { value0: parts.join(', ') }),
       };
     }
 
     return {
       id: 'version-headers',
-      name: 'Server version headers',
+      name: t('serverHeadersName'),
       status: exposed ? 'warn' : 'pass',
       message: exposed
-        ? `Version info exposed in response headers: ${parts.join(', ')}. Helps attackers target known vulnerabilities.`
-        : 'Server version headers are stripped.',
+        ? t('serverHeadersMessage2', { value0: parts.join(', ') })
+        : t('serverHeadersMessage3'),
       fix: exposed
-        ? 'Configure your reverse proxy (nginx/Cloudflare) to strip Server and Via headers: proxy_hide_header Server; proxy_hide_header Via;'
+        ? t('serverHeadersFix')
         : undefined,
       steps: exposed ? [
-        'In nginx config, add to your server block: proxy_hide_header Server; and proxy_hide_header Via;',
-        'Reload nginx: sudo nginx -s reload',
-        'In Cloudflare: Rules → Transform Rules → Modify response header → Remove "Server" and "Via".',
+        t('serverHeadersSteps1'),
+        t('serverHeadersSteps2'),
+        t('serverHeadersSteps3'),
       ] : undefined,
     };
   } catch {
-    return { id: 'version-headers', name: 'Server version headers', status: 'pass', message: 'Could not check headers.' };
+    return { id: 'version-headers', name: t('serverHeadersName'), status: 'pass', message: t('serverHeadersMessage4') };
   }
 }
 
-async function checkEmailAutoconfirm(url: string, key: string): Promise<SecurityCheckResult> {
+async function checkEmailAutoconfirm(url: string, key: string, t: AuditTranslator): Promise<SecurityCheckResult> {
   try {
     const res = await fetch(`${url}/auth/v1/settings`, { headers: { 'apikey': key } });
     if (!res.ok) {
-      return { id: 'email-autoconfirm', name: 'Email confirmation', status: 'pass', message: 'Auth settings not accessible (good).' };
+      return { id: 'email-autoconfirm', name: t('emailAutoconfirmName'), status: 'pass', message: t('emailAutoconfirmMessage') };
     }
     const data = await res.json();
     const autoconfirm = data.mailer_autoconfirm === true;
 
     return {
       id: 'email-autoconfirm',
-      name: 'Email confirmation',
+      name: t('emailAutoconfirmName'),
       status: autoconfirm ? 'fail' : 'pass',
       message: autoconfirm
-        ? 'Email confirmation is OFF. New accounts can sign in before confirming their email address.'
-        : 'Email confirmation is required. Users must verify their email before accessing the account.',
+        ? t('emailAutoconfirmMessage2')
+        : t('emailAutoconfirmMessage3'),
       fix: autoconfirm
-        ? 'Enable Confirm Email in the Supabase email provider. For CLI configuration, set [auth.email] enable_confirmations = true in supabase/config.toml.'
+        ? t('emailAutoconfirmFix')
         : undefined,
       steps: autoconfirm ? [
-        'Log into your Supabase dashboard (supabase.com/dashboard).',
-        'Select your project → Authentication → Sign In / Providers → Email.',
-        'Turn "Confirm Email" ON.',
-        'Save changes.',
-        'For local CLI: set [auth.email] enable_confirmations = true in supabase/config.toml, then run supabase stop and supabase start.',
-        'For a linked hosted project: review supabase/config.toml and run supabase config push --project-ref <project-ref>. This applies project configuration, not database migrations.',
-        'For self-hosted Docker: set GOTRUE_MAILER_AUTOCONFIRM=false on the Auth service and recreate that service to load the setting.',
-        'Install both Sellf confirmation and magic-link templates, then test a new address by opening the delivered /auth/callback link.',
+        t('emailAutoconfirmSteps1'),
+        t('emailAutoconfirmSteps2'),
+        t('emailAutoconfirmSteps3'),
+        t('emailAutoconfirmSteps4'),
+        t('emailAutoconfirmSteps5'),
+        t('emailAutoconfirmSteps6'),
+        t('emailAutoconfirmSteps7'),
+        t('emailAutoconfirmSteps8'),
       ] : undefined,
     };
   } catch {
-    return { id: 'email-autoconfirm', name: 'Email confirmation', status: 'pass', message: 'Could not check auth settings.' };
+    return { id: 'email-autoconfirm', name: t('emailAutoconfirmName'), status: 'pass', message: t('emailAutoconfirmMessage4') };
   }
 }
 
-async function checkProductCountLeak(url: string, key: string): Promise<SecurityCheckResult> {
+async function checkProductCountLeak(url: string, key: string, t: AuditTranslator): Promise<SecurityCheckResult> {
   try {
     const res = await fetch(`${url}/rest/v1/products?select=id&limit=0`, {
       headers: { 'apikey': key, 'Prefer': 'count=exact' },
@@ -300,27 +310,27 @@ async function checkProductCountLeak(url: string, key: string): Promise<Security
 
     return {
       id: 'count-header-leak',
-      name: 'Row count via Prefer header',
+      name: t('productCountLeakName'),
       status: leaks ? 'warn' : 'pass',
       message: leaks
-        ? `Anonymous users can learn exact row counts via Prefer: count=exact header (${contentRange}). Low risk but leaks business data.`
-        : 'Row count is not exposed via Prefer header.',
+        ? t('productCountLeakMessage', { value0: contentRange })
+        : t('productCountLeakMessage2'),
       fix: leaks
-        ? 'Configure PostgREST max-rows or use a reverse proxy to strip the Prefer header from incoming requests.'
+        ? t('productCountLeakFix')
         : undefined,
       steps: leaks ? [
-        'This is low-risk (count leak, not data leak). Fix only if you want to minimize information exposure.',
-        'In Cloudflare: Rules → Transform Rules → Modify request header → Remove "Prefer" header.',
-        'Or in nginx: proxy_set_header Prefer "";',
-        'Note: this disables counting in Supabase API responses globally — check if any part of your app uses it.',
+        t('productCountLeakSteps1'),
+        t('productCountLeakSteps2'),
+        t('productCountLeakSteps3'),
+        t('productCountLeakSteps4'),
       ] : undefined,
     };
   } catch {
-    return { id: 'count-header-leak', name: 'Row count via Prefer header', status: 'pass', message: 'Could not check.' };
+    return { id: 'count-header-leak', name: t('productCountLeakName'), status: 'pass', message: t('productCountLeakMessage3') };
   }
 }
 
-async function checkRPCFunctionHints(url: string, key: string): Promise<SecurityCheckResult> {
+async function checkRPCFunctionHints(url: string, key: string, t: AuditTranslator): Promise<SecurityCheckResult> {
   try {
     const res = await fetch(`${url}/rest/v1/rpc/nonexistent_function_xyz`, {
       method: 'POST',
@@ -332,31 +342,31 @@ async function checkRPCFunctionHints(url: string, key: string): Promise<Security
 
     return {
       id: 'rpc-function-hints',
-      name: 'RPC function name hints',
+      name: t('rPCFunctionHintsName'),
       status: hasHint ? 'warn' : 'pass',
       message: hasHint
-        ? `PostgREST suggests real function names when a nonexistent function is called: "${body.hint}". Reveals internal API surface.`
-        : 'PostgREST does not suggest function names.',
+        ? t('rPCFunctionHintsMessage', { value0: body.hint })
+        : t('rPCFunctionHintsMessage2'),
       fix: hasHint
-        ? 'Set db-plan-enabled = false in PostgREST config, or restrict the exposed schema search path.'
+        ? t('rPCFunctionHintsFix')
         : undefined,
       steps: hasHint ? [
-        'In Supabase Cloud this cannot be directly configured — contact support or use a WAF rule.',
-        'In Cloudflare WAF: block or sanitize responses that contain "Perhaps you meant" in the body.',
-        'For self-hosted PostgREST: in postgrest.conf set db-plan-enabled = false.',
-        'This is low-risk — only affects naming hints, not data access.',
+        t('rPCFunctionHintsSteps1'),
+        t('rPCFunctionHintsSteps2'),
+        t('rPCFunctionHintsSteps3'),
+        t('rPCFunctionHintsSteps4'),
       ] : undefined,
     };
   } catch {
-    return { id: 'rpc-function-hints', name: 'RPC function name hints', status: 'pass', message: 'Could not check.' };
+    return { id: 'rpc-function-hints', name: t('rPCFunctionHintsName'), status: 'pass', message: t('rPCFunctionHintsMessage3') };
   }
 }
 
 // ===== Sellf App Configuration Checks =====
 
-async function checkHttpsRedirect(siteUrl: string): Promise<SecurityCheckResult> {
+async function checkHttpsRedirect(siteUrl: string, t: AuditTranslator): Promise<SecurityCheckResult> {
   if (!siteUrl || !siteUrl.startsWith('https://')) {
-    return { id: 'https-redirect', name: 'HTTPS redirect', status: 'warn', message: 'SITE_URL is not HTTPS. Cannot verify redirect.', fix: 'Set SITE_URL to your https:// production URL.' };
+    return { id: 'https-redirect', name: t('httpsRedirectName'), status: 'warn', message: t('httpsRedirectMessage'), fix: t('httpsRedirectFix') };
   }
   try {
     const httpUrl = siteUrl.replace('https://', 'http://');
@@ -366,27 +376,27 @@ async function checkHttpsRedirect(siteUrl: string): Promise<SecurityCheckResult>
 
     return {
       id: 'https-redirect',
-      name: 'HTTPS redirect',
+      name: t('httpsRedirectName'),
       status: redirectsToHttps ? 'pass' : 'warn',
       message: redirectsToHttps
-        ? 'HTTP requests are permanently redirected to HTTPS.'
-        : `HTTP requests are not redirected to HTTPS (HTTP ${res.status}). Users accessing via HTTP get unencrypted content.`,
+        ? t('httpsRedirectMessage2')
+        : t('httpsRedirectMessage3', { value0: res.status }),
       fix: redirectsToHttps ? undefined
-        : 'Enable "Always Use HTTPS" in Cloudflare: SSL/TLS > Edge Certificates. Or configure your reverse proxy to redirect HTTP to HTTPS.',
+        : t('httpsRedirectFix2'),
       steps: redirectsToHttps ? undefined : [
-        'In Cloudflare Dashboard: select your domain → SSL/TLS → Edge Certificates.',
-        'Enable "Always Use HTTPS" toggle.',
-        'Without Cloudflare: add to nginx: return 301 https://$host$request_uri; in the HTTP server block.',
+        t('httpsRedirectSteps1'),
+        t('httpsRedirectSteps2'),
+        t('httpsRedirectSteps3'),
       ],
     };
   } catch {
-    return { id: 'https-redirect', name: 'HTTPS redirect', status: 'pass', message: 'HTTP not reachable (likely blocked — good).' };
+    return { id: 'https-redirect', name: t('httpsRedirectName'), status: 'pass', message: t('httpsRedirectMessage4') };
   }
 }
 
-async function checkHstsHeader(siteUrl: string): Promise<SecurityCheckResult> {
+async function checkHstsHeader(siteUrl: string, t: AuditTranslator): Promise<SecurityCheckResult> {
   if (!siteUrl) {
-    return { id: 'hsts', name: 'HSTS header', status: 'warn', message: 'SITE_URL not set. Cannot check HSTS.', fix: 'Set SITE_URL to your production URL.' };
+    return { id: 'hsts', name: t('hstsHeaderName'), status: 'warn', message: t('hstsHeaderMessage'), fix: t('hstsHeaderFix') };
   }
   try {
     const res = await fetch(siteUrl, { redirect: 'manual' });
@@ -394,57 +404,57 @@ async function checkHstsHeader(siteUrl: string): Promise<SecurityCheckResult> {
 
     return {
       id: 'hsts',
-      name: 'HSTS header',
+      name: t('hstsHeaderName'),
       status: hsts ? 'pass' : 'warn',
       message: hsts
-        ? `HSTS is enabled: ${hsts}`
-        : 'Strict-Transport-Security header is missing. First-time visitors can be intercepted via HTTP before redirect.',
+        ? t('hstsHeaderMessage2', { value0: hsts })
+        : t('hstsHeaderMessage3'),
       fix: hsts ? undefined
-        : 'Enable HSTS in Cloudflare: SSL/TLS > Edge Certificates > Enable HSTS. Or ensure DISABLE_HSTS is not set to "true" in your environment.',
+        : t('hstsHeaderFix2'),
       steps: hsts ? undefined : [
-        'In Cloudflare Dashboard: select your domain → SSL/TLS → Edge Certificates.',
-        'Scroll to "HTTP Strict Transport Security (HSTS)" and click "Enable HSTS".',
-        'Set max-age to at least 6 months (recommended: 1 year = 31536000 seconds).',
-        'Optionally enable "Include subdomains" and "Preload".',
-        'Click "Save". HSTS takes effect immediately for new visitors.',
-        'Without Cloudflare: add to nginx: add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;',
+        t('hstsHeaderSteps1'),
+        t('hstsHeaderSteps2'),
+        t('hstsHeaderSteps3'),
+        t('hstsHeaderSteps4'),
+        t('hstsHeaderSteps5'),
+        t('hstsHeaderSteps6'),
       ],
     };
   } catch {
-    return { id: 'hsts', name: 'HSTS header', status: 'warn', message: 'Could not reach site to check HSTS.' };
+    return { id: 'hsts', name: t('hstsHeaderName'), status: 'warn', message: t('hstsHeaderMessage4') };
   }
 }
 
-async function checkAppUrl(): Promise<SecurityCheckResult> {
+async function checkAppUrl(t: AuditTranslator): Promise<SecurityCheckResult> {
   const siteUrl = getCanonicalOriginOrNull() || '';
   const sourceVar = 'SITE_URL';
   const isLocalhost = !siteUrl || siteUrl.includes('localhost') || siteUrl.includes('127.0.0.1');
 
   return {
     id: 'app-url',
-    name: 'App URL configuration',
+    name: t('appUrlName'),
     status: isLocalhost ? 'fail' : 'pass',
     message: isLocalhost
-      ? `${sourceVar} is ${siteUrl || 'not set'}. Open Graph meta tags (og:url, og:image) and absolute redirects will reference localhost — social previews and magic links break.`
-      : `Site URL is set to ${siteUrl}.`,
+      ? t('appUrlMessage', { value0: sourceVar, value1: siteUrl || t('notSet') })
+      : t('appUrlMessage2', { value0: siteUrl }),
     fix: isLocalhost
-      ? 'Set SITE_URL to your public URL (e.g., https://yourdomain.com) in .env.local and restart the app. Reverse-proxy hostnames are not read automatically — the value must be in the server env.'
+      ? t('appUrlFix')
       : undefined,
   };
 }
 
 // ===== Environment Variable Checks =====
 
-async function checkAppEncryptionKey(): Promise<SecurityCheckResult> {
+async function checkAppEncryptionKey(t: AuditTranslator): Promise<SecurityCheckResult> {
   const key = process.env.APP_ENCRYPTION_KEY || process.env.STRIPE_ENCRYPTION_KEY;
 
   if (!key) {
     return {
       id: 'app-encryption-key',
-      name: 'App encryption key',
+      name: t('appEncryptionKeyName'),
       status: 'fail',
-      message: 'APP_ENCRYPTION_KEY is not set. Stripe keys and webhook secrets stored in the database cannot be decrypted — payments and webhooks will fail.',
-      fix: 'Generate a key with: openssl rand -base64 32, then add APP_ENCRYPTION_KEY=<value> to .env.local and restart.',
+      message: t('appEncryptionKeyMessage'),
+      fix: t('appEncryptionKeyFix'),
     };
   }
 
@@ -453,31 +463,31 @@ async function checkAppEncryptionKey(): Promise<SecurityCheckResult> {
     if (buf.length !== 32) {
       return {
         id: 'app-encryption-key',
-        name: 'App encryption key',
+        name: t('appEncryptionKeyName'),
         status: 'fail',
-        message: `APP_ENCRYPTION_KEY is set but invalid: decoded length is ${buf.length} bytes, expected 32. Database-stored secrets cannot be decrypted.`,
-        fix: 'Generate a valid key with: openssl rand -base64 32',
+        message: t('appEncryptionKeyMessage2', { value0: buf.length }),
+        fix: t('appEncryptionKeyFix2'),
       };
     }
   } catch {
     return {
       id: 'app-encryption-key',
-      name: 'App encryption key',
+      name: t('appEncryptionKeyName'),
       status: 'fail',
-      message: 'APP_ENCRYPTION_KEY is not valid base64.',
-      fix: 'Generate a valid key with: openssl rand -base64 32',
+      message: t('appEncryptionKeyMessage3'),
+      fix: t('appEncryptionKeyFix2'),
     };
   }
 
   return {
     id: 'app-encryption-key',
-    name: 'App encryption key',
+    name: t('appEncryptionKeyName'),
     status: 'pass',
-    message: 'APP_ENCRYPTION_KEY is set and valid.',
+    message: t('appEncryptionKeyMessage4'),
   };
 }
 
-async function checkCaptcha(): Promise<SecurityCheckResult> {
+async function checkCaptcha(t: AuditTranslator): Promise<SecurityCheckResult> {
   const turnstileSiteKey = process.env.CLOUDFLARE_TURNSTILE_SITE_KEY || process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY;
   const turnstileSecretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
   const altchaKey = process.env.ALTCHA_HMAC_KEY;
@@ -486,9 +496,9 @@ async function checkCaptcha(): Promise<SecurityCheckResult> {
   if (turnstileSiteKey && turnstileSecretKey) {
     return {
       id: 'captcha',
-      name: 'Captcha (bot protection)',
+      name: t('captchaName'),
       status: 'pass',
-      message: 'Cloudflare Turnstile is configured (site key + secret key).',
+      message: t('captchaMessage'),
     };
   }
 
@@ -497,10 +507,10 @@ async function checkCaptcha(): Promise<SecurityCheckResult> {
   if (turnstileSiteKey && !turnstileSecretKey && altchaKey) {
     return {
       id: 'captcha',
-      name: 'Captcha (bot protection)',
+      name: t('captchaName'),
       status: 'warn',
-      message: 'ALTCHA is configured and active, but a Cloudflare Turnstile site key is also set without the matching secret key.',
-      fix: 'Remove CLOUDFLARE_TURNSTILE_SITE_KEY / NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY from env if you use ALTCHA, or add CLOUDFLARE_TURNSTILE_SECRET_KEY to use Turnstile instead.',
+      message: t('captchaMessage2'),
+      fix: t('captchaFix'),
     };
   }
 
@@ -508,10 +518,10 @@ async function checkCaptcha(): Promise<SecurityCheckResult> {
   if (turnstileSiteKey && !turnstileSecretKey) {
     return {
       id: 'captcha',
-      name: 'Captcha (bot protection)',
+      name: t('captchaName'),
       status: 'fail',
-      message: 'CLOUDFLARE_TURNSTILE_SITE_KEY is set but CLOUDFLARE_TURNSTILE_SECRET_KEY is missing. Turnstile cannot be verified server-side.',
-      fix: 'Add CLOUDFLARE_TURNSTILE_SECRET_KEY to .env.local, or remove the site key and use ALTCHA instead (set ALTCHA_HMAC_KEY).',
+      message: t('captchaMessage3'),
+      fix: t('captchaFix2'),
     };
   }
 
@@ -519,56 +529,56 @@ async function checkCaptcha(): Promise<SecurityCheckResult> {
   if (altchaKey) {
     return {
       id: 'captcha',
-      name: 'Captcha (bot protection)',
+      name: t('captchaName'),
       status: 'pass',
-      message: 'ALTCHA (self-hosted proof-of-work) is configured via ALTCHA_HMAC_KEY.',
+      message: t('captchaMessage4'),
     };
   }
 
   // Nothing configured
   return {
     id: 'captcha',
-    name: 'Captcha (bot protection)',
+    name: t('captchaName'),
     status: 'warn',
-    message: 'No captcha provider is configured. Bot protection on signup and free product claim endpoints is disabled.',
-    fix: 'Set ALTCHA_HMAC_KEY (self-hosted, zero dependencies) or configure Cloudflare Turnstile (CLOUDFLARE_TURNSTILE_SITE_KEY + CLOUDFLARE_TURNSTILE_SECRET_KEY).',
+    message: t('captchaMessage5'),
+    fix: t('captchaFix3'),
   };
 }
 
-async function checkTrustedProxy(): Promise<SecurityCheckResult> {
+async function checkTrustedProxy(t: AuditTranslator): Promise<SecurityCheckResult> {
   const inProduction = process.env.NODE_ENV === 'production';
   const trusted = process.env.TRUSTED_PROXY === 'true';
 
   if (!inProduction) {
     return {
       id: 'trusted-proxy',
-      name: 'TRUSTED_PROXY (rate-limit identification)',
+      name: t('trustedProxyName'),
       status: 'pass',
-      message: 'NODE_ENV is not production — TRUSTED_PROXY only matters behind a real reverse proxy.',
+      message: t('trustedProxyMessage'),
     };
   }
 
   if (trusted) {
     return {
       id: 'trusted-proxy',
-      name: 'TRUSTED_PROXY (rate-limit identification)',
+      name: t('trustedProxyName'),
       status: 'pass',
-      message: 'TRUSTED_PROXY=true — the app reads the trusted client IP from the last X-Forwarded-For hop, so rate limits target real callers instead of a shared "unknown" bucket.',
+      message: t('trustedProxyMessage2'),
     };
   }
 
   return {
     id: 'trusted-proxy',
-    name: 'TRUSTED_PROXY (rate-limit identification)',
+    name: t('trustedProxyName'),
     status: 'warn',
-    message: 'TRUSTED_PROXY is not "true" in production. Rate limiting falls back to a shared "unknown" identifier for every request behind the proxy — one abusive client can trip the global limit and block everyone else, and per-IP throttles do not apply. Production boot is also supposed to refuse this state (see startup-assertions.ts); if the app is running, the guard is bypassed.',
-    fix: 'Add TRUSTED_PROXY=true to .env.local on every instance that sits behind Caddy / nginx / Cloudflare. Only set it when a reverse proxy is in front of Node — exposing Node directly to the internet with this flag lets clients spoof X-Forwarded-For.',
+    message: t('trustedProxyMessage3'),
+    fix: t('trustedProxyFix'),
     steps: [
-      'Confirm the deploy is reached only via the reverse proxy (Caddy/nginx/Cloudflare) and never directly on the Node port.',
-      'SSH into the server and edit the .env.local for the instance.',
-      'Add: TRUSTED_PROXY=true',
-      'Reload PM2 with a full delete + start so the env actually refreshes (pm2 restart does not pick up env changes).',
-      'Re-run the audit to verify the check passes.',
+      t('trustedProxySteps1'),
+      t('trustedProxySteps2'),
+      t('trustedProxySteps3'),
+      t('trustedProxySteps4'),
+      t('trustedProxySteps5'),
     ],
   };
 }
@@ -581,69 +591,69 @@ function parseDomainList(raw: string | undefined): string[] {
     .filter(Boolean);
 }
 
-async function checkTrustedDownloadDomains(): Promise<SecurityCheckResult> {
+async function checkTrustedDownloadDomains(t: AuditTranslator): Promise<SecurityCheckResult> {
   const domains = parseDomainList(process.env.NEXT_PUBLIC_SELLF_ALLOWED_DOWNLOAD_DOMAINS);
 
   if (domains.length === 0) {
     return {
       id: 'trusted-download-domains',
-      name: 'Trusted lead-magnet download domains',
+      name: t('trustedDownloadDomainsName'),
       status: 'info',
-      message: 'No extra download providers configured. Lead magnet download URLs are restricted to the built-in defaults (your own R2 bucket, the install\'s host).',
+      message: t('trustedDownloadDomainsMessage'),
     };
   }
 
   return {
     id: 'trusted-download-domains',
-    name: 'Trusted lead-magnet download domains',
+    name: t('trustedDownloadDomainsName'),
     status: 'info',
-    message: `NEXT_PUBLIC_SELLF_ALLOWED_DOWNLOAD_DOMAINS adds ${domains.length} ${domains.length === 1 ? 'host' : 'hosts'} to the lead-magnet download allowlist: ${domains.join(', ')}. Anyone who can save a product can point its download URL at one of these hosts; treat the list like an outbound allowlist, not a casual config.`,
+    message: t('trustedDownloadDomainsMessage2', { value0: domains.length, value1: t('hostCount', { count: domains.length }), value2: domains.join(', ') }),
   };
 }
 
-async function checkAllowedEmbedOrigins(): Promise<SecurityCheckResult> {
+async function checkAllowedEmbedOrigins(t: AuditTranslator): Promise<SecurityCheckResult> {
   const origins = parseDomainList(process.env.SELLF_EMBED_ALLOWED_ORIGINS);
 
   if (origins.length === 0) {
     return {
       id: 'allowed-embed-origins',
-      name: 'Allowed embed / loginwall origins',
+      name: t('allowedEmbedOriginsName'),
       status: 'info',
-      message: 'SELLF_EMBED_ALLOWED_ORIGINS is empty. Embedded checkout + login-wall round trips rely on the per-seller allowlist (seller_embed_settings.allowed_embed_origins) — set the env var if you want a global fallback for solo deployments.',
+      message: t('allowedEmbedOriginsMessage'),
     };
   }
 
   return {
     id: 'allowed-embed-origins',
-    name: 'Allowed embed / loginwall origins',
+    name: t('allowedEmbedOriginsName'),
     status: 'info',
-    message: `SELLF_EMBED_ALLOWED_ORIGINS lists ${origins.length} ${origins.length === 1 ? 'origin' : 'origins'} that the embed checkout SDK and the login-wall redirect target trust: ${origins.join(', ')}. Any page on these origins can launch a checkout session for this install and receive a login-wall handoff token, so keep the list tight.`,
+    message: t('allowedEmbedOriginsMessage2', { value0: origins.length, value1: t('originCount', { count: origins.length }), value2: origins.join(', ') }),
   };
 }
 
-async function checkStripeMode(): Promise<SecurityCheckResult> {
+async function checkStripeMode(t: AuditTranslator): Promise<SecurityCheckResult> {
   const envKey = process.env.STRIPE_SECRET_KEY;
   const inProduction = process.env.NODE_ENV === 'production';
 
   if (envKey) {
     const mode = envKey.startsWith('sk_live_') ? 'live' : 'test';
-    const source = 'STRIPE_SECRET_KEY env';
+    const source = t('environmentSource');
     // Production with test keys = sandbox / staging — note but don't alarm.
     // Non-production with live keys = highly unusual, surface as a warning.
     if (mode === 'live' && !inProduction) {
       return {
         id: 'stripe-mode',
-        name: 'Stripe mode (live vs test)',
+        name: t('stripeModeName'),
         status: 'warn',
-        message: `Stripe is in LIVE mode (source: ${source}) but NODE_ENV is "${process.env.NODE_ENV || 'unset'}". Live keys on a non-production build risk capturing real money from test traffic.`,
-        fix: 'Use sk_test_... keys on staging / dev, or set NODE_ENV=production if this really is the live deploy.',
+        message: t('stripeModeMessage', { value0: source, value1: process.env.NODE_ENV || t('notSet') }),
+        fix: t('stripeModeFix'),
       };
     }
     return {
       id: 'stripe-mode',
-      name: 'Stripe mode (live vs test)',
+      name: t('stripeModeName'),
       status: 'info',
-      message: `Stripe is in ${mode.toUpperCase()} mode (source: ${source}).${mode === 'test' && inProduction ? ' This production deploy is running on test keys — payments are sandboxed.' : ''}`,
+      message: t('stripeModeMessage2', { value0: mode.toUpperCase(), value1: source, value2: mode === 'test' && inProduction ? t('stripeSandbox') : '' }),
     };
   }
 
@@ -667,118 +677,118 @@ async function checkStripeMode(): Promise<SecurityCheckResult> {
     if (!dbMode) {
       return {
         id: 'stripe-mode',
-        name: 'Stripe mode (live vs test)',
+        name: t('stripeModeName'),
         status: 'info',
-        message: 'No active Stripe configuration in env or DB. Checkout will refuse to create sessions until Stripe is configured (Settings → Integrations).',
+        message: t('stripeModeMessage3'),
       };
     }
     return {
       id: 'stripe-mode',
-      name: 'Stripe mode (live vs test)',
+      name: t('stripeModeName'),
       status: 'info',
-      message: `Stripe is in ${dbMode.toUpperCase()} mode (source: database, Settings → Integrations).${dbMode === 'test' && inProduction ? ' This production deploy is running on test keys — payments are sandboxed.' : ''}`,
+      message: t('stripeModeMessage4', { value0: dbMode.toUpperCase(), value1: dbMode === 'test' && inProduction ? t('stripeSandbox') : '' }),
     };
   } catch {
     return {
       id: 'stripe-mode',
-      name: 'Stripe mode (live vs test)',
+      name: t('stripeModeName'),
       status: 'info',
-      message: 'Stripe mode could not be resolved (no env key and DB unreachable from this check).',
+      message: t('stripeModeMessage5'),
     };
   }
 }
 
-async function checkCronSecret(): Promise<SecurityCheckResult> {
+async function checkCronSecret(t: AuditTranslator): Promise<SecurityCheckResult> {
   const secret = process.env.CRON_SECRET;
 
   if (!secret) {
     return {
       id: 'cron-secret',
-      name: 'Cron job secret',
+      name: t('cronSecretName'),
       status: 'warn',
-      message: 'CRON_SECRET is not set. All requests to /api/cron are rejected, so scheduled jobs (access-expired webhooks, webhook log cleanup) are not running.',
-      fix: 'Generate a secret with: openssl rand -base64 32, add CRON_SECRET=<value> to .env.local, restart the app, and configure your cron scheduler to call /api/cron with Authorization: Bearer <secret>.',
+      message: t('cronSecretMessage'),
+      fix: t('cronSecretFix'),
       steps: [
-        'Generate a random secret — run in terminal: openssl rand -base64 32',
-        'Copy the output (e.g., "abc123..."). Keep it safe.',
-        'SSH into your server: ssh mikrus',
-        'Edit: nano /opt/stacks/sellf-tsa/admin-panel/.env.local',
-        'Add a new line: CRON_SECRET=<paste-your-secret-here>',
-        'Restart: pm2 restart sellf-tsa',
-        'Set up an hourly cron job — option A: free service at cron-job.org, URL: https://yourdomain.com/api/cron, method: GET, header: Authorization: Bearer <your-secret>',
-        'Option B: on your server — crontab -e → add: 0 * * * * curl -s -H "Authorization: Bearer <secret>" https://yourdomain.com/api/cron',
+        t('cronSecretSteps1'),
+        t('cronSecretSteps2'),
+        t('cronSecretSteps3'),
+        t('cronSecretSteps4'),
+        t('cronSecretSteps5'),
+        t('cronSecretSteps6'),
+        t('cronSecretSteps7'),
+        t('cronSecretSteps8'),
       ],
     };
   }
 
   return {
     id: 'cron-secret',
-    name: 'Cron job secret',
+    name: t('cronSecretName'),
     status: 'pass',
-    message: 'CRON_SECRET is configured. Scheduled jobs are protected and callable.',
+    message: t('cronSecretMessage2'),
   };
 }
 
-async function checkStripeWebhookSecret(): Promise<SecurityCheckResult> {
+async function checkStripeWebhookSecret(t: AuditTranslator): Promise<SecurityCheckResult> {
   const { getStripeWebhookSecretStatus } = await import('@/lib/stripe/internal-config');
   const status = await getStripeWebhookSecretStatus();
 
   if (status.envConfigured) {
     return {
       id: 'stripe-webhook-secret',
-      name: 'Stripe webhook secret',
+      name: t('stripeWebhookSecretName'),
       status: 'pass',
-      message: 'STRIPE_WEBHOOK_SECRET is set in environment variables.',
+      message: t('stripeWebhookSecretMessage'),
     };
   }
 
   if (status.dbPresent && status.dbDecryptable) {
     return {
       id: 'stripe-webhook-secret',
-      name: 'Stripe webhook secret',
+      name: t('stripeWebhookSecretName'),
       status: 'pass',
-      message: 'Stripe webhook secret is stored encrypted in the database (Settings → Integrations) and decrypts cleanly. Webhook signature verification will succeed.',
+      message: t('stripeWebhookSecretMessage2'),
     };
   }
 
   if (status.dbPresent && !status.dbDecryptable) {
     return {
       id: 'stripe-webhook-secret',
-      name: 'Stripe webhook secret',
+      name: t('stripeWebhookSecretName'),
       status: 'fail',
-      message: 'Stripe webhook secret is stored in the database but cannot be decrypted. APP_ENCRYPTION_KEY is missing or no longer matches the value used at encryption time, so Stripe webhooks fail signature verification — payments confirm in Stripe but never grant access in Sellf.',
-      fix: 'Restore the APP_ENCRYPTION_KEY that was active when the webhook secret was saved (preferred), or re-enter the webhook secret in Settings → Integrations → Stripe so it is re-encrypted with the current key.',
+      message: t('stripeWebhookSecretMessage3'),
+      fix: t('stripeWebhookSecretFix'),
       steps: [
-        'If you recently rotated or lost APP_ENCRYPTION_KEY: restore the old value to .env.local and restart.',
-        'Otherwise, fetch the signing secret from Stripe Dashboard → Developers → Webhooks → select endpoint.',
-        'In Sellf admin panel: Settings → Integrations → Stripe → paste and save. The new value is encrypted with the current APP_ENCRYPTION_KEY.',
+        t('stripeWebhookSecretSteps1'),
+        t('stripeWebhookSecretSteps2'),
+        t('stripeWebhookSecretSteps3'),
       ],
     };
   }
 
   return {
     id: 'stripe-webhook-secret',
-    name: 'Stripe webhook secret',
+    name: t('stripeWebhookSecretName'),
     status: 'fail',
-    message: 'Stripe webhook secret is not configured anywhere — neither STRIPE_WEBHOOK_SECRET in env nor an encrypted value in the database. Every Stripe webhook will fail signature verification, so successful payments will not unlock product access.',
-    fix: 'Easiest: open Settings → Integrations → Stripe and click "Auto-connect webhook" — Sellf will register the endpoint with Stripe and save the encrypted signing secret to the database. Requires Stripe API keys already configured.',
+    message: t('stripeWebhookSecretMessage4'),
+    fix: t('stripeWebhookSecretFix2'),
     steps: [
-      'Easiest (one click, if Stripe API keys are already saved):',
-      '1. Go to Settings → Integrations → Stripe.',
-      '2. Click "Auto-connect webhook" — Sellf creates the endpoint via Stripe API and stores the encrypted signing secret in the database.',
-      'Manual (if you already have an endpoint in Stripe Dashboard you want to keep):',
-      '3. Stripe Dashboard → Developers → Webhooks → select your endpoint → copy the "Signing secret" (whsec_...).',
-      '4. Settings → Integrations → Stripe → paste the webhook secret and save.',
-      'Fallback (environment variable):',
-      '5. Edit .env.local on the server, add STRIPE_WEBHOOK_SECRET=whsec_..., restart PM2 with delete + start (restart does not refresh env).',
-      'APP_ENCRYPTION_KEY must be set — it decrypts the DB-stored secret.',
+      t('stripeWebhookSecretSteps12'),
+      t('stripeWebhookSecretSteps22'),
+      t('stripeWebhookSecretSteps32'),
+      t('stripeWebhookSecretSteps4'),
+      t('stripeWebhookSecretSteps5'),
+      t('stripeWebhookSecretSteps6'),
+      t('stripeWebhookSecretSteps7'),
+      t('stripeWebhookSecretSteps8'),
+      t('stripeWebhookSecretSteps9'),
     ],
   };
 }
 
-async function checkCookieSecure(siteUrl: string): Promise<SecurityCheckResult> {
+async function checkCookieSecure(siteUrl: string, t: AuditTranslator): Promise<SecurityCheckResult> {
   if (!siteUrl) {
-    return { id: 'cookie-secure', name: 'Cookie security', status: 'warn', message: 'SITE_URL not set. Cannot check cookies.', fix: 'Set SITE_URL to your production URL.' };
+    return { id: 'cookie-secure', name: t('cookieSecureName'), status: 'warn', message: t('cookieSecureMessage'), fix: t('cookieSecureFix') };
   }
   try {
     const res = await fetch(siteUrl, { redirect: 'follow' });
@@ -786,28 +796,28 @@ async function checkCookieSecure(siteUrl: string): Promise<SecurityCheckResult> 
     const insecureCookies = setCookies.filter(c => !c.toLowerCase().includes('secure'));
 
     if (setCookies.length === 0) {
-      return { id: 'cookie-secure', name: 'Cookie security', status: 'pass', message: 'No cookies set on initial page load.' };
+      return { id: 'cookie-secure', name: t('cookieSecureName'), status: 'pass', message: t('cookieSecureMessage2') };
     }
 
     const allSecure = insecureCookies.length === 0;
 
     return {
       id: 'cookie-secure',
-      name: 'Cookie security',
+      name: t('cookieSecureName'),
       status: allSecure ? 'pass' : 'warn',
       message: allSecure
-        ? `All ${setCookies.length} cookies have the Secure flag.`
-        : `${insecureCookies.length} of ${setCookies.length} cookies are missing the Secure flag. These cookies will be sent over unencrypted HTTP connections.`,
+        ? t('cookieSecureMessage3', { value0: setCookies.length })
+        : t('cookieSecureMessage4', { value0: insecureCookies.length, value1: setCookies.length }),
       fix: allSecure ? undefined
-        : 'Ensure all cookies are set with the Secure flag. For NEXT_LOCALE, this requires next-intl configuration. For auth cookies, check Supabase cookie settings.',
+        : t('cookieSecureFix2'),
       steps: allSecure ? undefined : [
-        'The NEXT_LOCALE cookie (from next-intl) is typically the cause — it lacks the Secure flag by default.',
-        'If your site enforces HTTPS everywhere (recommended), this is low-risk in practice.',
-        'To fix: in your Next.js middleware, manually override the NEXT_LOCALE cookie with the Secure flag after next-intl sets it.',
-        'Auth cookies from Supabase use Secure in production. They are NOT HttpOnly — the @supabase/ssr browser client needs document.cookie access.',
+        t('cookieSecureSteps1'),
+        t('cookieSecureSteps2'),
+        t('cookieSecureSteps3'),
+        t('cookieSecureSteps4'),
       ],
     };
   } catch {
-    return { id: 'cookie-secure', name: 'Cookie security', status: 'warn', message: 'Could not reach site to check cookies.' };
+    return { id: 'cookie-secure', name: t('cookieSecureName'), status: 'warn', message: t('cookieSecureMessage5') };
   }
 }

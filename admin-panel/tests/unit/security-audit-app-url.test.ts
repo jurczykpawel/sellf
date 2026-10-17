@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import en from '@/messages/en.json';
 
 const auditSource = readFileSync(
   resolve(__dirname, '../../src/lib/actions/security-audit.ts'),
@@ -30,6 +31,7 @@ describe('security-audit app-url check', () => {
       auditSource.indexOf('async function checkAppUrl'),
       auditSource.indexOf('// ===== Environment Variable Checks =====')
     );
-    expect(checkAppUrlBlock.toLowerCase()).toMatch(/reverse[- ]proxy|proxy/);
+    expect(checkAppUrlBlock).toContain("t('appUrlFix')");
+    expect(en.securityAudit.checks.appUrlFix.toLowerCase()).toMatch(/reverse[- ]proxy|proxy/);
   });
 });

@@ -165,3 +165,15 @@ export function addTimezoneInfo(baseText: string): string {
   const timezone = getUserTimezone();
   return `${baseText} (${timezone})`;
 }
+
+export function formatAdminDate(
+  value: string | null | undefined,
+  locale: string,
+  includeTime = true,
+  emptyLabel = '—',
+): string {
+  return formatUTCForDisplay(value ?? '', {
+    year: 'numeric', month: 'short', day: 'numeric',
+    ...(includeTime ? { hour: '2-digit', minute: '2-digit', hour12: false } as const : {}),
+  }, locale) || emptyLabel;
+}

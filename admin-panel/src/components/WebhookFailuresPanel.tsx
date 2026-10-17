@@ -27,7 +27,7 @@ export default function WebhookFailuresPanel({ refreshTrigger, onRefresh }: Webh
     try {
       // Use v1 API for webhook logs
       const response = await api.list<WebhookLog>('webhooks/logs', {
-        status: 'failed',
+        status: 'all_failed',
         limit: 5,
       });
       setFailures(response.data || []);

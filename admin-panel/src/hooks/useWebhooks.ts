@@ -91,13 +91,13 @@ export function useWebhooks() {
   const testEndpoint = async (id: string, eventType: string) => {
     try {
       // Use v1 test endpoint
-      const response = await api.postCustom<{ success: boolean; status?: number; error?: string }>(
+      const response = await api.postCustom<{ success: boolean; http_status: number; error?: string }>(
         `webhooks/${id}/test`,
         { event_type: eventType }
       );
 
       if (response.success) {
-        toast.success(t('testSuccess') + ` (HTTP ${response.status})`);
+        toast.success(t('testSuccess') + ` (HTTP ${response.http_status})`);
         return true;
       } else {
         toast.error(t('testFailed') + `: ${response.error}`);

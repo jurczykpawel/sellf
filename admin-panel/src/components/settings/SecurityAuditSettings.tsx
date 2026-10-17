@@ -22,6 +22,7 @@ function CheckIcon({ status }: { status: SecurityCheckResult['status'] }) {
 }
 
 function StatusBadge({ status }: { status: SecurityCheckResult['status'] }) {
+  const t = useTranslations('securityAudit');
   const styles = {
     pass: 'bg-green-500/10 text-green-600 border border-green-500/20',
     fail: 'bg-red-500/10 text-red-600 border border-red-500/20',
@@ -30,12 +31,13 @@ function StatusBadge({ status }: { status: SecurityCheckResult['status'] }) {
   };
   return (
     <span className={`text-xs font-mono px-2 py-0.5 ${styles[status]}`}>
-      {status.toUpperCase()}
+      {t(`statuses.${status}`)}
     </span>
   );
 }
 
 function CheckRow({ check }: { check: SecurityCheckResult }) {
+  const t = useTranslations('securityAudit');
   const collapsedByDefault = check.status === 'pass' || check.status === 'info';
   const [expanded, setExpanded] = useState(!collapsedByDefault);
   const hasDetails = !collapsedByDefault || check.message;
@@ -76,7 +78,7 @@ function CheckRow({ check }: { check: SecurityCheckResult }) {
           {check.steps && check.steps.length > 0 && (
             <div className="space-y-1.5">
               <p className="text-xs font-semibold text-sf-heading uppercase tracking-wide">
-                How to fix
+                {t('howToFix')}
               </p>
               <ol className="space-y-1.5">
                 {check.steps.map((step, i) => {
@@ -113,7 +115,7 @@ function CheckRow({ check }: { check: SecurityCheckResult }) {
           {/* Fallback: plain fix text if no steps */}
           {!check.steps && check.fix && (
             <div className="text-sm bg-sf-surface p-3 border border-sf-border-light">
-              <span className="font-medium text-sf-heading">How to fix: </span>
+              <span className="font-medium text-sf-heading">{t('howToFix')}: </span>
               <span className="text-sf-body">{check.fix}</span>
             </div>
           )}
@@ -132,21 +134,21 @@ export default function SecurityAuditSettings() {
   // Auto-load cached results on mount
   useEffect(() => {
     let mounted = true;
-    getSecurityAudit()
+    getSecurityAudit(locale)
       .then(data => { if (mounted) setResult(data); })
       .catch((err) => { console.warn('[SecurityAuditSettings] Non-critical error:', err); })
       .finally(() => { if (mounted) setRunning(false); });
     return () => { mounted = false; };
-  }, []);
+  }, [locale]);
 
   // Force fresh audit (bypass cache)
   async function handleRun() {
     setRunning(true);
     try {
-      const data = await runSecurityAudit();
+      const data = await runSecurityAudit(locale);
       setResult(data);
     } catch {
-      setResult({ success: false, checks: [], timestamp: new Date().toISOString(), error: 'Audit failed' });
+      setResult({ success: false, checks: [], timestamp: new Date().toISOString(), error: t('runFailed') });
     } finally {
       setRunning(false);
     }
@@ -215,7 +217,7 @@ export default function SecurityAuditSettings() {
             )}
             {infoCount > 0 && (
               <span className="flex items-center gap-1 text-blue-600">
-                <Info className="w-4 h-4" /> {infoCount} info
+                <Info className="w-4 h-4" /> {infoCount} {t('information')}
               </span>
             )}
           </div>

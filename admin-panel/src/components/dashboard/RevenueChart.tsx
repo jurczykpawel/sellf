@@ -289,7 +289,7 @@ export default function RevenueChart() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 w-full flex-wrap items-center gap-2 sm:w-auto">
           <div className="flex gap-0">
             <button
               onClick={() => setPredefinedRange(0)}
@@ -446,7 +446,7 @@ export default function RevenueChart() {
                   formatter={(value) => `${value}`}
                 />
               )}
-              {allCurrencies.map((currency, index) => (
+              {allCurrencies.map(currency => (
                 <Area
                   key={currency}
                   type="monotone"

@@ -38,18 +38,18 @@ export default function DateRangeFilter({ startDate, endDate, onChange }: DateRa
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center gap-1 px-3 py-2 bg-sf-base border-2 border-sf-border-subtle">
-        <CalendarIcon className="w-4 h-4 text-sf-muted" />
+    <div className="flex w-full flex-col items-start gap-2 sm:w-auto sm:flex-row sm:items-center">
+      <div className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 px-3 py-2 bg-sf-base border-2 border-sf-border-subtle sm:flex sm:w-auto sm:gap-1">
+        <CalendarIcon className="row-span-2 w-4 h-4 shrink-0 text-sf-muted" />
         <input
           type="date"
           value={formatDateForInput(startDate)}
           onChange={handleStartChange}
           max={formatDateForInput(endDate || new Date())}
           aria-label={t('startDate', { defaultValue: 'Start date' })}
-          className="bg-transparent border-none outline-none text-sm text-sf-body w-[130px]"
+          className="min-w-0 w-full bg-transparent border-none outline-none text-sm text-sf-body sm:w-[130px]"
         />
-        <span className="text-sf-muted text-sm">-</span>
+        <span className="hidden text-sf-muted text-sm sm:inline">-</span>
         <input
           type="date"
           value={formatDateForInput(endDate)}
@@ -57,7 +57,7 @@ export default function DateRangeFilter({ startDate, endDate, onChange }: DateRa
           min={formatDateForInput(startDate)}
           max={formatDateForInput(new Date())}
           aria-label={t('endDate', { defaultValue: 'End date' })}
-          className="bg-transparent border-none outline-none text-sm text-sf-body w-[130px]"
+          className="min-w-0 w-full bg-transparent border-none outline-none text-sm text-sf-body sm:w-[130px]"
         />
       </div>
       {(startDate || endDate) && (

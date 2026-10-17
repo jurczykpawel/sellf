@@ -21,7 +21,7 @@ export default function WebhookLogsDrawer({ endpoint, onClose, isOpen, onRefresh
 
   const [logs, setLogs] = useState<WebhookLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'success' | 'failed' | 'archived' | 'retried'>('failed');
+  const [filter, setFilter] = useState<'all' | 'success' | 'failed' | 'archived' | 'retried'>('all');
   const [retrying, setRetrying] = useState<string | null>(null);
   const [showInactiveWarning, setShowInactiveWarning] = useState(false);
   const [pendingRetryLogId, setPendingRetryLogId] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export default function WebhookLogsDrawer({ endpoint, onClose, isOpen, onRefresh
       // Use v1 API for webhook logs
       const response = await api.list<WebhookLog>('webhooks/logs', {
         endpoint_id: endpoint.id,
-        status: filter,
+        status: filter === 'failed' ? 'all_failed' : filter,
         limit: 50,
       });
       setLogs(response.data || []);
