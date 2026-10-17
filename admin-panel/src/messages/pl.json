@@ -4565,6 +4565,11 @@
     }
   },
   "storefrontEditor": {
+    "preview": "Podgląd",
+    "historyPublishing": "Historia i publikacja",
+    "draftActionsHelp": "Obejrzyj zapisany szkic w nowej karcie z produktami Twojego sklepu. W historii możesz go opublikować w sklepie lub przywrócić wcześniejszą publikację.",
+    "saveBeforePreview": "Zapisz szkic, aby otworzyć podgląd oraz historię i publikację. Sam zapis nie zmienia publicznego sklepu.",
+    "newTab": " (otwiera się w nowej karcie)",
     "loadedState": "Brak niezapisanych zmian",
     "title": "Szablony sklepu",
     "intro": "Przygotuj prywatny szkic. Zapis nie zmienia publicznego sklepu.",

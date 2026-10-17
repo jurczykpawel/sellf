@@ -9,6 +9,7 @@ import { storefrontTemplateAction } from '@/lib/actions/storefront-templates';
 import { effectiveLayout } from '@/lib/storefront-templates/layout';
 import { normalizeConfigOrders, STOREFRONT_TEMPLATES, validateConfig } from '@/lib/storefront-templates/registry';
 import AppearanceEditor from '@/components/storefront-editor/AppearanceEditor';
+import DraftActions from '@/components/storefront-editor/DraftActions';
 import BindingPicker from '@/components/storefront-editor/BindingPicker';
 import ReorderHandle from '@/components/ui/ReorderHandle';
 import SlotEditor, { SLOT_IDS, SLOT_SECTIONS, editorButton, editorControl } from '@/components/storefront-editor/SlotEditor';
@@ -146,10 +147,11 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
   return <div data-storefront-editor className="mx-auto max-w-6xl space-y-6 text-sf-heading">
     <header className="space-y-2"><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('title')}</h1><p className="max-w-2xl text-sm text-sf-muted">{t('intro')}</p></header>
     <div data-editor-savebar className="sticky top-14 z-30 flex items-center justify-between gap-3 rounded-xl border border-sf-border bg-sf-base p-3 shadow-sm">
-      <p role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2 text-sm text-sf-muted"><Check size={16} className={!saved || dirty ? 'hidden' : 'text-sf-success'} aria-hidden="true" /><span className="truncate">{busy ? t('saving') : dirty ? t('unsaved') : saved ? t('savedState') : t('loadedState')}</span><span className="sr-only">{arrangement}</span></p>
+      <p role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2 text-sm text-sf-muted"><Check size={16} className={!saved || dirty ? 'hidden' : 'text-sf-success'} aria-hidden="true" /><span>{busy ? t('saving') : dirty ? t('unsaved') : saved ? t('savedState') : t('loadedState')}</span><span className="sr-only">{arrangement}</span></p>
       <div className="flex shrink-0 items-center gap-2"><button type="button" className={editorButton} aria-label={t('reload')} title={t('reload')} disabled={busy} onClick={reload}><RotateCcw size={17} aria-hidden="true" /></button>
       <button type="button" className="min-h-11 rounded-lg bg-sf-accent px-5 py-2 text-sm font-semibold text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:opacity-50" disabled={busy || !config || conflict || !dirty} onClick={save}>{t('save')}</button></div>
     </div>
+    <DraftActions revision={snapshot?.revision ?? null} enabled={!!snapshot?.draft && !dirty && !busy && !conflict} />
     {confirmReload && <div className="space-y-3 rounded-xl border border-sf-border bg-sf-base p-4"><p>{t('confirmReload')}</p><button type="button" className={editorButton} disabled={busy} onClick={reload}>{t('discard')}</button> <button type="button" className={editorButton} onClick={() => setConfirmReload(false)}>{t('cancel')}</button></div>}
     {(conflict || message || validation?.errors.length) ? <div role="alert" className="rounded-xl border border-sf-danger bg-sf-danger-soft p-4 text-sm">{conflict ? t('conflict') : message || t('invalidNotice')}</div> : null}
     {config && entry && <fieldset disabled={busy} className="min-w-0 space-y-5">
@@ -170,7 +172,7 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
           </ol>
           <button type="button" aria-pressed={sectionId === 'appearance'} className={`${editorButton} w-full text-left ${sectionId === 'appearance' ? 'border-sf-accent bg-sf-accent-soft' : ''}`} onClick={() => setSelected('appearance')}>{appearance('title')}</button>
         </nav>
-        {sectionId === 'appearance' && <AppearanceEditor config={config} dirty={dirty} blocked={busy || conflict} onChange={edit} onReset={async field => { await savedOperation(field); }} onImport={async () => { const response = await savedOperation(); return { success: response.success, ...('code' in response ? { code: response.code } : {}), ...('unsupported' in response ? { unsupported: response.unsupported } : {}) }; }} />}
+        {sectionId === 'appearance' && <AppearanceEditor draftActions={<DraftActions revision={snapshot?.revision ?? null} enabled={!!snapshot?.draft && !dirty && !busy && !conflict} />} config={config} dirty={dirty} blocked={busy || conflict} onChange={edit} onReset={async field => { await savedOperation(field); }} onImport={async () => { const response = await savedOperation(); return { success: response.success, ...('code' in response ? { code: response.code } : {}), ...('unsupported' in response ? { unsupported: response.unsupported } : {}) }; }} />}
         {section && <section data-editor-panel aria-label={sectionName(sectionId)} className={`min-w-0 space-y-6 rounded-2xl border bg-sf-base p-4 sm:p-6 ${validation?.errors.length ? 'border-sf-danger' : 'border-sf-border'}`}>
           <header className="space-y-1 border-b border-sf-border pb-5"><h2 className="text-xl font-semibold">{sectionName(sectionId)}</h2><p className="text-sm text-sf-muted">{t(`sectionDescriptions.${sectionId}`)}</p></header>
           {field && <div className="space-y-3"><BindingPicker key={`${config.templateId}:${field}`} label={t(bindingLabel)} kind={field === 'taskCategories' ? 'categories' : 'products'} selectedIds={bindingIds} maxItems={field === 'starterProducts' ? 3 : field === 'taskCategories' ? 12 : 1} onChange={ids => {

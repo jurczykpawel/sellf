@@ -189,3 +189,22 @@ it('edits section map leaves independently and returns variants to inherited def
   expect(view.getByRole('status').textContent).toContain(locale === 'pl' ? 'Brak niezapisanych zmian' : 'No unsaved changes');
   expect(view.getByRole('status').textContent).not.toContain(locale === 'pl' ? 'Zapisano zmiany' : 'All changes saved');
 });
+
+it.each(['en', 'pl'])('opens only the saved draft from the editor and appearance in %s', async locale => {
+  const view = setup(locale);
+  const preview = locale === 'pl' ? 'Podgląd' : 'Preview';
+  const history = locale === 'pl' ? 'Historia i publikacja' : 'History and publishing';
+  expect(view.getByRole('button', { name: preview, exact: true })).toHaveProperty('disabled', true);
+  expect(view.getByRole('button', { name: history, exact: true })).toHaveProperty('disabled', true);
+  fireEvent.change(view.getByDisplayValue('A workshop'), { target: { value: 'Saved workshop' } });
+  action.mockResolvedValueOnce({ success: true, revision: 8, validation: { valid: true, errors: [], warnings: [] } });
+  fireEvent.click(view.getByRole('button', { name: locale === 'pl' ? 'Zapisz szkic' : 'Save draft' }));
+  const url = `/template-preview/8?locale=${locale}&fixture=published-products`;
+  await waitFor(() => expect(view.getByRole('link', { name: preview, exact: true }).getAttribute('href')).toBe(url));
+  expect(view.getByRole('link', { name: history, exact: true }).getAttribute('href')).toBe(`${locale === 'pl' ? '/pl' : ''}/admin/templates/history`);
+  fireEvent.click(view.getByRole('button', { name: locale === 'pl' ? 'Wygląd' : 'Appearance', exact: true }));
+  expect(view.getAllByRole('link', { name: preview, exact: true })).toHaveLength(2);
+  fireEvent.change(view.getByLabelText(locale === 'pl' ? 'Jasny · Akcent' : 'Light · Accent'), { target: { value: '#333333' } });
+  expect(view.queryByRole('link', { name: preview, exact: true })).toBeNull();
+  expect(view.getAllByRole('button', { name: preview, exact: true }).every(button => (button as HTMLButtonElement).disabled)).toBe(true);
+});
