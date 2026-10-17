@@ -29,7 +29,13 @@ Read [API and evidence](references/api.md) for exact calls and browser handling.
 1. Read capabilities, then current config/rights. Save the starting revision and
    published snapshot for rollback. Use generated schemas/registry defaults/slots
    as authority; do not guess fields. Check `rights.canPublish` for the chosen
-   template; `default` is free and `d` activation requires Pro.
+   template; `default` is free and `d` activation requires Pro/Business. Installed
+   `storefront-a`, `storefront-b` and `storefront-c` each require Pro/Business
+   plus their own locally confirmed purchase key; one key never unlocks another
+   template. Discover their recipes, settings, slot kinds and exact reset leaves
+   from capabilities. Retain all inactive A/B/C settings and copy when switching.
+   An issuer outage cannot activate a new key or extend a confirmation's deadline;
+   current rights also apply to rollback. A fallback does not erase stored copy.
 2. Start from `draft ?? published`. Preserve inactive settings, unused slots and
    seller text. On an empty instance, keep the returned empty maps and add only
    requested factual content (create the FAQ if absent); choose an existing featured

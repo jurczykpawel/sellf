@@ -4,7 +4,7 @@ import { DEFAULT_CONFIG, D_CONFIG, PUBLIC_FIXTURE } from '@/lib/storefront-templ
 import { verifyTemplateSession, verifyTemplateApiKey } from '@/lib/storefront-templates/mutations';
 import { storefrontTemplateAction } from '@/lib/actions/storefront-templates';
 import { storefrontLifecycle } from '@/lib/storefront-templates/lifecycle';
-const m = vi.hoisted(() => ({ client: vi.fn(), read: vi.fn(), history: vi.fn(), tier: vi.fn(), bindings: vi.fn(), auth: vi.fn() }));
+const m = vi.hoisted(() => ({ client: vi.fn(), read: vi.fn(), history: vi.fn(), tier: vi.fn(), bindings: vi.fn(), auth: vi.fn(), local: vi.fn() }));
 vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ default: {} }));
 vi.mock('next/cache', () => ({ revalidateTag: vi.fn(), revalidatePath: vi.fn() }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: async () => true }));
@@ -12,11 +12,12 @@ vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 vi.mock('@/lib/auth-server', () => ({ requireAdminApi: async () => ({ user: { id: 'dddddddd-0000-4000-a000-000000000000' } }) }));
 vi.mock('@/lib/api/middleware', () => ({ authenticateApiKeyPrincipal: m.auth }));
 vi.mock('@/lib/supabase/admin', () => ({ createPlatformClient: m.client, createAdminClient: m.client }));
+vi.mock('@/lib/storefront-templates/template-license-snapshot', () => ({ getLocalTemplateIds: m.local }));
 vi.mock('@/lib/license/public-snapshot', () => ({ getPublicLicenseTier: m.tier }));
 vi.mock('@/lib/storefront-templates/catalogue', () => ({ loadStorefrontBindings: m.bindings }));
 vi.mock('@/lib/storefront-templates/repository', () => ({ readStorefrontConfig: m.read, readStorefrontHistory: m.history }));
 beforeEach(() => {
-  vi.resetAllMocks(); m.client.mockReturnValue({}); m.tier.mockReturnValue('free');
+  vi.resetAllMocks(); m.local.mockReturnValue([]); m.client.mockReturnValue({}); m.tier.mockReturnValue('free');
   m.read.mockResolvedValue({ success: true, data: { revision: 3, draft: D_CONFIG, published: DEFAULT_CONFIG } });
   m.bindings.mockResolvedValue({ success: true, data: { hero: PUBLIC_FIXTURE.products[0], closing: PUBLIC_FIXTURE.products[0], starters: PUBLIC_FIXTURE.products.slice(1), categories: PUBLIC_FIXTURE.categories } });
   m.history.mockImplementation(async (_: unknown, page: { beforeRevision?: number }) => ({ success: true, data: [{ revision: (page.beforeRevision ?? 4) - 1, draft: page.beforeRevision === 2 ? null : D_CONFIG, published: DEFAULT_CONFIG }] }));
@@ -107,3 +108,23 @@ it('includes active customization in publication rights without mutating the sna
   ] } } });
   expect(draft.templateId).toBe('d');
 });
+
+for (const templateId of ['storefront-a', 'storefront-b', 'storefront-c'] as const) {
+  it.each(['free', 'registered', 'pro', 'business'])(`${templateId} rollback checks current %s rights before mutation`, async tier => {
+    m.tier.mockReturnValue(tier);
+    const retained = { ...DEFAULT_CONFIG, templateId };
+    m.history.mockResolvedValue({ success: true, data: [{ revision: 1, published: retained, draft: null }] });
+    const auth = await verifyTemplateSession();
+    const input = { operation: 'rollback', expectedRevision: 3, targetRevision: 1 };
+    for (const keys of [[], ['storefront-a', 'storefront-b', 'storefront-c'].filter(id => id !== templateId)]) {
+      m.local.mockReturnValue(keys);
+      expect(await storefrontLifecycle(auth, input)).toMatchObject({ code: 'FORBIDDEN' });
+    }
+    if (tier === 'free' || tier === 'registered') {
+      m.local.mockReturnValue([templateId]);
+      expect(await storefrontLifecycle(auth, input)).toMatchObject({ code: 'FORBIDDEN' });
+    }
+    expect(m.bindings).not.toHaveBeenCalled();
+    expect(m.client).toHaveBeenCalled();
+  });
+}

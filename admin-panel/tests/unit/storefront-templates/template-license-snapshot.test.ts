@@ -135,3 +135,24 @@ it('does not restore a prior confirmation after a local replacement finishes', a
   confirm({ data: true, error: null }); await pending;
   expect(getLocalTemplateIds()).toEqual([]);
 });
+
+it.each(PREMIUM_POLICY_FIXTURES)('$templateId keeps rights independent through issuer outage and recovery', async selected => {
+  const policies = PREMIUM_POLICY_FIXTURES.map(p => ({ ...p, trustedKeyIds: [key.kid],
+    keys: [{ kid: key.kid, issuerId: p.issuerId, pem: key.publicKeyPem }], revocationUrl: 'https://issuer.example.test/revoked' }));
+  vi.stubEnv('SELLF_TEMPLATE_LICENSE_POLICIES', JSON.stringify(policies));
+  const encrypted = await encryptSecret(signLicense({ ...claims, product: selected.saleProductId, templateId: selected.templateId }, key.privateKeyPem));
+  row = { ...row, template_id: selected.templateId, encrypted_key: encrypted.encryptedKey, encryption_iv: encrypted.iv, encryption_tag: encrypted.tag };
+  await refreshTemplateLicenseSnapshot();
+  for (const tier of ['free', 'registered', 'pro', 'business'] as const) {
+    const ids = templateRightsForTier(tier, getLocalTemplateIds()).availableTemplateIds;
+    expect(ids.filter(id => id.startsWith('storefront-'))).toEqual(tier === 'pro' || tier === 'business' ? [selected.templateId] : []);
+  }
+  vi.advanceTimersByTime(30000); vi.mocked(fetch).mockRejectedValue(new Error('offline'));
+  await refreshTemplateLicenseSnapshot(); expect(getLocalTemplateIds()).toEqual([selected.templateId]);
+  vi.advanceTimersByTime(30000); expect(getLocalTemplateIds()).toEqual([]);
+  await refreshTemplateLicenseSnapshot(); expect(getLocalTemplateIds()).toEqual([]);
+  vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({ order_hashes: [] })));
+  await refreshTemplateLicenseSnapshot(); expect(getLocalTemplateIds()).toEqual([selected.templateId]);
+  invalidateTemplateLicense(selected.templateId); vi.mocked(fetch).mockRejectedValue(new Error('offline'));
+  await refreshTemplateLicenseSnapshot(); expect(getLocalTemplateIds()).toEqual([]);
+});

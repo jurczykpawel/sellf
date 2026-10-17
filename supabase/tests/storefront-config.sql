@@ -14,10 +14,14 @@ EXCEPTION WHEN insufficient_privilege THEN RETURN true;
 END;
 $$;
 SELECT pg_temp.assert_true((SELECT count(*) = 1 AND min(revision) = 0 FROM public.storefront_config), 'singleton revision zero');
-SELECT pg_temp.assert_true((SELECT published - 'settingsByTemplate' = '{"format":1,"templateId":"default","overridesByTemplate":{},"content":{},"tokens":null}'::jsonb
-  AND (published->'settingsByTemplate') - 'storefront-a' = '{}'::jsonb
+SELECT pg_temp.assert_true((SELECT published - ARRAY['settingsByTemplate','content'] = '{"format":1,"templateId":"default","overridesByTemplate":{},"tokens":null}'::jsonb
+  AND (published->'settingsByTemplate') ?& ARRAY['storefront-a','storefront-b','storefront-c']
+  AND (published->'settingsByTemplate') - ARRAY['storefront-a','storefront-b','storefront-c'] = '{}'::jsonb
+  AND (published->'content') ?& ARRAY['home.author','home.story','home.paths','home.projects']
+  AND (published->'content') - ARRAY['home.author','home.story','home.paths','home.projects'] = '{}'::jsonb
+  AND published #>> '{content,home.author,en,name}' = 'Alex Example'
   AND public.storefront_config_valid(published) AND draft IS NULL AND updated_by IS NULL
-  FROM public.storefront_config), 'default bootstrap config retains valid inactive A seed settings');
+  FROM public.storefront_config), 'default bootstrap retains valid inactive templates and seller copy');
 SELECT pg_temp.assert_true((SELECT h.revision = c.revision AND h.published = c.published AND h.draft IS NULL AND h.actor_id IS NULL FROM public.storefront_config c CROSS JOIN public.storefront_config_history h), 'bootstrap history matches singleton');
 SELECT pg_temp.assert_true((SELECT count(*) = 2 FROM pg_class WHERE oid IN ('public.storefront_config'::regclass, 'public.storefront_config_history'::regclass) AND relrowsecurity), 'both tables enable RLS');
 

@@ -12,14 +12,21 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { chromium, expect } from '@playwright/test';
 import { parse } from 'dotenv';
 import { normalizeLicenseDomain } from '@/lib/license-keys/domain';
+import { encryptSecret } from '@/lib/services/secret-encryption';
+import { configSchema } from '@/lib/storefront-templates/schemas';
 import { PRODUCT_PUBLIC_COLUMNS_CSV } from '@/lib/product-columns';
 import { SHOP_CONFIG_PUBLIC_COLUMNS_CSV } from '@/lib/shop-config-columns';
+import { referenceConfig } from '../tests/fixtures/storefront-sections/phase2/contracts';
 
 const admin = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const root = resolve(admin, '..');
-const stack = '/private/tmp/sellf-perf';
-const container = 'supabase_db_sellf-perf';
-const origin = 'http://sellf-perf.localhost:55325';
+const phase2 = process.argv.includes('--phase2');
+const project = phase2 ? 'sellf-t219' : 'sellf-perf';
+const apiPort = phase2 ? 55441 : 55321;
+const appPort = phase2 ? 55445 : 55325;
+const stack = `/private/tmp/${project}`;
+const container = `supabase_db_${project}`;
+const origin = `http://${project}.localhost:${appPort}`;
 const out = resolve(process.argv[2] ?? '/private/tmp/storefront-perf-results');
 const bun = process.env.PERF_BUN ?? '/tmp/bun-1314/bun-darwin-aarch64/bun';
 const freeProbe = process.argv.includes('--probe-free');
@@ -36,6 +43,29 @@ let app;
 let browser;
 let appOutput = () => '';
 let cacheFaultInjected = false;
+// Deterministic issuer fixture; all credential/decryption/policy checks remain real.
+const issuerFixture = 'data:text/javascript,' + encodeURIComponent(`
+  const original = globalThis.fetch;
+  globalThis.fetch = (input, init) => {
+    const url = new URL(typeof input === 'string' ? input : input.url ?? input);
+    if (url.origin === 'https://example.com' && url.pathname === '/t219-revoked')
+      return Promise.resolve(new Response(JSON.stringify({ order_hashes: [] })));
+    return original(input, init);
+  };`);
+const productId = n => `10000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+function phase2Config(templateId) {
+  const serialized = JSON.stringify(referenceConfig()).replace(/00000000-0000-4000-8000-(\d{12})/g, (_, n) => productId(Number(n) === 1 ? 11 : Number(n) === 2 ? 1 : Number(n)));
+  const config = JSON.parse(serialized);
+  config.templateId = templateId;
+  // The fixture has one truthful category, no seller portrait or project media.
+  for (const id of ['storefront-a', 'storefront-b']) config.settingsByTemplate[id].taskCategories = ['20000000-0000-4000-8000-000000000001'];
+  for (const locale of ['en', 'pl']) {
+    config.content['home.search'][locale].items = config.content['home.search'][locale].items.slice(0, 1).map(item => ({ ...item, categoryId: '20000000-0000-4000-8000-000000000001' }));
+    config.content['home.author'][locale].portraitMediaId = null;
+  }
+  return configSchema.parse(config);
+}
+
 function standalonePath() {
   const base = resolve(admin, '.next/standalone');
   return existsSync(resolve(base, 'server.js')) ? base : resolve(base, 'admin-panel');
@@ -79,14 +109,14 @@ async function startApp(env, failedCache = false) {
     await writeFile(resolve(standalone, '.next/cache'), 'Unavailable persistent cache');
     cacheFaultInjected = true;
   }
-  app = spawn('node', ['server.js'], { cwd: standalone, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  app = spawn('node', [...(phase2 ? ['--import', issuerFixture] : []), 'server.js'], { cwd: standalone, env, stdio: ['ignore', 'pipe', 'pipe'] });
   let output = '';
   appOutput = () => output;
   app.stdout.on('data', chunk => { output += chunk; }); app.stderr.on('data', chunk => { output += chunk; });
   const deadline = Date.now() + 30_000;
   while (true) {
     const ready = await new Promise(accept => {
-      const socket = createConnection({ host: 'localhost', port: 55325 });
+      const socket = createConnection({ host: 'localhost', port: appPort });
       const finish = value => { socket.destroy(); accept(value); };
       socket.once('connect', () => finish(true)); socket.once('error', () => finish(false));
       socket.setTimeout(1000, () => finish(false));
@@ -134,10 +164,10 @@ async function queryAcceptance(size, search = 'Performance course') {
 await mkdir(out, { recursive: true });
 try {
   const config = await readFile(resolve(stack, 'supabase/config.toml'), 'utf8');
-  assert(config.includes('project_id = "sellf-perf"') && config.includes('port = 55321') && config.includes('port = 55322'));
+  assert(config.includes(`project_id = "${project}"`) && config.includes(`port = ${apiPort}`) && config.includes(`port = ${apiPort + 1}`));
   const status = JSON.parse(command('supabase', ['status', '--workdir', stack, '-o', 'json']));
-  assert.equal(status.API_URL, 'http://127.0.0.1:55321');
-  assert.equal(command('docker', ['ps', '--filter', 'publish=55321', '--format', '{{.Names}}']).trim(), 'supabase_kong_sellf-perf');
+  assert.equal(status.API_URL, `http://127.0.0.1:${apiPort}`);
+  assert.equal(command('docker', ['ps', '--filter', `publish=${apiPort}`, '--format', '{{.Names}}']).trim(), `supabase_kong_${project}`);
   if (process.argv.includes('--sql-only')) {
     await queryAcceptance(100000, process.argv.includes('--original-fixture') ? 'Catalogue fixture' : 'Performance course');
   } else {
@@ -147,7 +177,7 @@ try {
   const token = `${payload}.${createSign('SHA256').update(payload).end().sign(privateKey).toString('base64url')}`;
   const local = parse(await readFile(resolve(admin, '.env.local')));
   assert(local.STRIPE_SECRET_KEY?.startsWith('sk_test_') && local.STRIPE_PUBLISHABLE_KEY?.startsWith('pk_test_'), 'Checkout entry requires Stripe test keys');
-  const env = { ...process.env, PATH: `${dirname(bun)}:${process.env.PATH}`, NODE_ENV: 'production', HOSTNAME: 'localhost', PORT: '55325',
+  const env = { ...process.env, PATH: `${dirname(bun)}:${process.env.PATH}`, NODE_ENV: 'production', HOSTNAME: 'localhost', PORT: String(appPort),
     SUPABASE_URL: status.API_URL, NEXT_PUBLIC_SUPABASE_URL: status.API_URL, SUPABASE_ANON_KEY: status.ANON_KEY, NEXT_PUBLIC_SUPABASE_ANON_KEY: status.ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY, SITE_URL: origin, NEXT_PUBLIC_SITE_URL: origin, NEXT_PUBLIC_BASE_URL: origin,
     TRUSTED_PROXY: 'true', DEMO_MODE: 'false', E2E_MODE: 'false', SUPABASE_KEEP_ALIVE: 'false', SELLF_TELEMETRY_DISABLED: 'true',
@@ -155,6 +185,21 @@ try {
     STRIPE_SECRET_KEY: local.STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY: local.STRIPE_PUBLISHABLE_KEY, SELLF_LICENSE_KEY: token,
     SELLF_JWKS_FALLBACK: JSON.stringify([{ kid: 'perf', alg: 'ES256', pem: publicKey.export({ type: 'spki', format: 'pem' }) }]),
     SELLF_PLATFORM_JWKS_URL: `${status.API_URL}/not-a-jwks`, UPSTASH_REDIS_REST_URL: '', UPSTASH_REDIS_REST_TOKEN: '' };
+  if (phase2) {
+    const policies = [];
+    for (const [index, templateId] of ['storefront-a', 'storefront-b', 'storefront-c'].entries()) {
+      const saleProductId = productId(index + 1);
+      policies.push({ templateId, saleProductId, issuerId: 'benchmark-fixture', trustedKeyIds: ['perf'], edition: 'standard', productionHost: new URL(origin).hostname, equivalentHosts: [],
+        keys: [{ kid: 'perf', issuerId: 'benchmark-fixture', pem: publicKey.export({ type: 'spki', format: 'pem' }) }], revocationUrl: 'https://example.com/t219-revoked' });
+      const claims = { v: 1, kid: 'perf', product: saleProductId, email: 'perf@example.invalid', order: templateId, tier: 'standard', domain: new URL(origin).hostname, templateId, edition: 'standard', iat: Math.floor(Date.now() / 1000), exp: null };
+      const body = Buffer.from(JSON.stringify(claims)).toString('base64url');
+      const credential = `${body}.${createSign('SHA256').update(body).end().sign(privateKey).toString('base64url')}`;
+      process.env.APP_ENCRYPTION_KEY = env.APP_ENCRYPTION_KEY;
+      const encrypted = await encryptSecret(credential);
+      sql(`UPDATE public.template_credentials SET encrypted_key='${encrypted.encryptedKey}',encryption_iv='${encrypted.iv}',encryption_tag='${encrypted.tag}',state='unknown' WHERE template_id='${templateId}';`);
+    }
+    env.SELLF_TEMPLATE_LICENSE_POLICIES = JSON.stringify(policies);
+  }
   if (!process.argv.includes('--skip-build')) await run(bun, ['run', 'build'], env, 'build.log');
   const standalone = standalonePath();
   await cp(resolve(admin, '.next/static'), resolve(standalone, '.next/static'), { recursive: true });
@@ -175,15 +220,25 @@ try {
     await queryAcceptance(size);
     await idle(`traversal-${size}`);
     await writeFile(resolve(out, `traversal-${size}.log`), sql(await readFile(resolve(root, 'supabase/tests/storefront-perf-traversal.sql'), 'utf8')));
-    for (const template of (probe ? [dProbe ? 'd' : 'default'] : ['default', 'd'])) {
+    for (const template of (phase2 ? ['storefront-a', 'storefront-b', 'storefront-c', 'offer-default'] : probe ? [dProbe ? 'd' : 'default'] : ['default', 'd'])) {
       const { DEFAULT_CONFIG, D_LOCALIZED_CONFIG } = await import('@/lib/storefront-templates/fixtures');
-      const config = structuredClone(template === 'd' ? D_LOCALIZED_CONFIG : DEFAULT_CONFIG);
+      const config = template.startsWith('storefront-') ? phase2Config(template) : structuredClone(template === 'd' ? D_LOCALIZED_CONFIG : DEFAULT_CONFIG);
+      if (template === 'offer-default') {
+        const offer = { format: 1, enabled: true, templateId: template, settings: { density: 'comfortable' }, content: Object.fromEntries(Object.entries(D_LOCALIZED_CONFIG.content).filter(([key]) => ['home.hero', 'home.faq', 'home.closing'].includes(key)).map(([key, value]) => [key.replace('home.', 'offer.'), value])), tokens: null };
+        sql(`INSERT INTO public.product_offer_config(product_id,published) SELECT id,'${JSON.stringify(offer).replaceAll("'", "''")}'::jsonb FROM public.products WHERE id IN ('${productId(1)}','${productId(11)}') ON CONFLICT(product_id) DO UPDATE SET published=excluded.published;`);
+      }
       if (template === 'd') config.settingsByTemplate.d = { ...config.settingsByTemplate.d,
         heroProduct: '10000000-0000-4000-8000-000000000001', closingProduct: '10000000-0000-4000-8000-000000000001',
         starterProducts: [2, 3, 4].map(n => `10000000-0000-4000-8000-${String(n).padStart(12, '0')}`), taskCategories: ['20000000-0000-4000-8000-000000000001'] };
+      if (template === 'offer-default') {
+        const plan = sql(`SET ROLE service_role; EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT published FROM public.product_offer_config WHERE product_id='${productId(1)}'; RESET ROLE;`);
+        await writeFile(resolve(out, `offer-plans-${size}.log`), plan);
+        const parsed = JSON.parse(plan.slice(plan.indexOf('['), plan.lastIndexOf(']') + 1));
+        assert.equal(parsed[0].Plan['Actual Rows'], 1, 'Offer lookup must return exactly its bound publication');
+      }
       sql(`UPDATE public.storefront_config SET published='${JSON.stringify(config).replaceAll("'", "''")}'::jsonb;`);
       const edgeCases = [{ path: '/store?search=NoMatchForThisFixture', scenario: 'empty' }, { path: '/store', scenario: 'failed-cache' }];
-      const pageCases = probe ? [{ path: emptyProbe ? '/store?search=NoMatchForThisFixture' : cacheProbe ? '/store' : dProbe ? '/' : freeProbe ? '/p/perf-course-11' : '/p/perf-course-1', scenario: emptyProbe ? 'empty' : cacheProbe ? 'failed-cache' : 'normal' }]
+      const pageCases = phase2 ? template === 'offer-default' ? ['/offer/perf-course-1', '/pl/offer/perf-course-1', '/offer/perf-course-11', '/pl/offer/perf-course-11'].map(path => ({ path, scenario: 'normal' })) : [...['/', '/store', '/pl'].map(path => ({ path, scenario: 'normal' })), ...edgeCases] : probe ? [{ path: emptyProbe ? '/store?search=NoMatchForThisFixture' : cacheProbe ? '/store' : dProbe ? '/' : freeProbe ? '/p/perf-course-11' : '/p/perf-course-1', scenario: emptyProbe ? 'empty' : cacheProbe ? 'failed-cache' : 'normal' }]
         : cacheCases ? edgeCases : [...['/', '/store', '/pl', '/p/perf-course-1', '/checkout/perf-course-1', '/p/perf-course-11', '/checkout/perf-course-11'].map(path => ({ path, scenario: 'normal' })), ...edgeCases];
       for (const device of (probe ? ['mobile'] : ['mobile', 'desktop'])) for (const { path, scenario } of pageCases) {
         await idle(`${scenario}/${size}/${template}/${device}/${path}`);
@@ -206,18 +261,19 @@ try {
               const responseListener = event => resourceTypes.set(event.requestId, event.type);
               const finishedListener = event => { bytes += event.encodedDataLength; const type = resourceTypes.get(event.requestId) ?? 'Other'; types[type] = (types[type] ?? 0) + event.encodedDataLength; };
               cdp.on('Network.responseReceived', responseListener); cdp.on('Network.loadingFinished', finishedListener);
+              const offerPage = template === 'offer-default';
               const storefront = ['/', '/store', '/pl'].includes(new URL(path, origin).pathname);
               const response = await page.goto(`${origin}${path}`, { waitUntil: storefront ? 'networkidle' : 'load' });
               assert.equal(response.status(), 200);
               await expect(page.locator('h1')).toBeVisible();
               await page.evaluate(() => document.fonts.ready);
-              if (repeat === 0 && temperature === 'cold' && ['/', '/pl'].includes(path)) {
-                const screenshot = `/private/tmp/t1-26-${template}-${device}-${path === '/pl' ? 'pl' : 'en'}.png`;
+              if (repeat === 0 && temperature === 'cold' && (['/', '/pl', '/offer/perf-course-1', '/pl/offer/perf-course-1'].includes(path))) {
+                const screenshot = `/private/tmp/${phase2 ? 't2-19' : 't1-26'}-${template}-${device}-${path.startsWith('/pl') ? 'pl' : 'en'}.png`;
                 await page.screenshot({ path: screenshot });
                 await cp(screenshot, resolve(out, screenshot.split('/').at(-1)));
               }
               if (probe && repeat === 0 && temperature === 'cold') await page.screenshot({ path: resolve(out, 'entry-before.png') });
-              if (!storefront) await expect(page.locator('input[type=email]')).toBeVisible({ timeout: 30_000 });
+              if (!storefront && !offerPage) await expect(page.locator('input[type=email]')).toBeVisible({ timeout: 30_000 });
               if (temperature === 'cold') {
                 const reject = page.getByRole('button', { name: /^(Reject all|Odrzuć wszystkie)$/ }).first();
                 await expect(reject).toBeVisible(); await reject.click(); await expect(reject).not.toBeVisible();
@@ -236,6 +292,11 @@ try {
                 assert.equal(catalogueResponse.status(), 200);
                 await expect(page.locator('#catalogue [role=status]')).not.toContainText(/Loading|Ładowanie/);
                 if (scenario === 'empty') await expect(page.locator('#catalogue article')).toHaveCount(0);
+              } else if (offerPage) {
+                await expect(page.locator('[data-template]')).toHaveAttribute('data-template', 'offer-default');
+                const question = page.locator('summary').first();
+                await question.click(); await expect(page.locator('details').first()).toHaveAttribute('open', '');
+                await question.click();
               } else {
                 const email = page.locator('input[type=email]');
                 await expect(email).toBeVisible({ timeout: 30_000 });
@@ -248,7 +309,7 @@ try {
               const measured = await page.evaluate(() => ({ ...window.__perfValues, TTFB: performance.getEntriesByType('navigation')[0].responseStart }));
               await page.goto('about:blank');
               assert(measured?.LCP > 0 && measured?.INP >= 0 && measured?.CLS >= 0, 'All vitals must be observed');
-              const queries = JSON.parse(sql(`SELECT coalesce(json_agg(s),'[]') FROM (SELECT query,calls,rows,total_exec_time,shared_blks_hit,shared_blks_read FROM extensions.pg_stat_statements WHERE query ~ '(storefront_catalogue|storefront_config|FROM "public"."products"|omnibus_price_history)' ORDER BY query) s;`));
+              const queries = JSON.parse(sql(`SELECT coalesce(json_agg(s),'[]') FROM (SELECT query,calls,rows,total_exec_time,shared_blks_hit,shared_blks_read FROM extensions.pg_stat_statements WHERE query ~ '(storefront_catalogue|storefront_config|FROM "public"."products"|omnibus_price_history|product_offer_config)' ORDER BY query) s;`));
               samples.push({ size, template, device, path, repeat, temperature, ...measured, bytes, types, queries,
                 scenario, cacheFailureConfirmed: scenario === 'failed-cache' && appOutput().includes('ENOTDIR') });
               console.log(JSON.stringify({ ...samples.at(-1), queries: undefined, shifts: undefined }));
@@ -267,7 +328,7 @@ try {
   const summary = [...groups].map(([key, values]) => ({ case: JSON.parse(key), n: values.length, ...Object.fromEntries(['LCP', 'CLS', 'INP', 'TTFB', 'bytes'].map(metric => [metric, p75(values.map(v => v[metric]))])) }));
   await writeFile(resolve(out, 'summary.json'), JSON.stringify(summary, null, 2));
   assert(summary.every(row => row.n >= 5 && row.LCP <= 2500 && row.CLS <= .1 && row.INP <= 200), 'Performance acceptance FAILED: see summary.json');
-  assert.equal(summary.length, probe ? 2 : cacheCases ? 32 : 144);
+  assert.equal(summary.length, phase2 ? 152 : probe ? 2 : cacheCases ? 32 : 144);
   if (probe) console.log('PASS: diagnostic cases; full acceptance remains pending');
   else console.log(`PASS: all ${summary.length} ${cacheCases ? 'cache' : 'complete'} performance cases`);
   }

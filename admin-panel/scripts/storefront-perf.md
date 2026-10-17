@@ -27,3 +27,50 @@ Metrics use Next's pinned [reference web-vitals implementation](https://github.c
 `--probe-d --skip-build` applies the same assertions to five mobile cold/warm D storefront pairs before a full run. Every storefront navigation asserts its actual rendered template, so a license fallback cannot supply D measurements.
 
 The default matrix also includes empty search results and unavailable persistent-cache storage for both sizes/templates/devices/temperatures. Empty cases assert zero catalogue cards. Failed-cache cases replace only the owned standalone `.next/cache` directory with a regular file, assert actual `ENOTDIR` errors and continued card rendering, and verify the fault remains present. Process memory stays available; the fault targets disk-backed caching. Cleanup removes the injected file. `--probe-cache --skip-build` checks five cold/warm mobile pairs, while `--cache-cases --skip-build` runs only the 32 cache/empty cases; the default 144-case run is required for full acceptance.
+
+## Phase 2 acceptance
+
+`--phase2 --skip-build` uses the owned `sellf-t219` project in
+`/private/tmp/sellf-t219`, API 55441, database 55442 and app 55445. Prepare that
+copy as above with ports 55440–55449. Reuse the final production build only when
+application sources have not changed. All original Q5 device, network, five-pair,
+cold/warm, load <8, quantile and metric gates remain unchanged.
+
+The matrix is 152 cases / 760 navigations: A/B/C each render `/`, `/store`, `/pl`,
+empty search and unavailable persistent cache; offer-default renders paid/free
+offers in EN/PL. Both catalogue sizes, devices and temperatures apply to every
+route. Actual rendered template identity is asserted. Offers exercise the real
+FAQ disclosure; catalogue journeys use real search. Offer queries are included
+in per-navigation counters. Screenshots use `/tmp/t2-19-*.png`.
+
+A/B/C use the existing bilingual reference-copy fixture remapped to actual
+benchmark products and one category; optional seller media are omitted. Each
+has a separate locally signed, encrypted credential and pinned product/template/
+host policy. A narrowly scoped Node preload supplies the deterministic empty
+revocation response at `https://example.com/t219-revoked`; credential decryption,
+signature, policy, status recording, refresh and public rights resolution are
+unchanged. This fixture removes external issuer availability from the performance
+profile; outage, expiry and rollback behavior belong to the rights test matrix.
+No credential or encryption key is written to evidence.
+
+Before performance, `template-persistence.mjs` provides destructive acceptance
+on an explicitly named owned `sellf-t*` stack; it refuses the shared project and
+verifies its API/container pairing:
+
+```sh
+TEMPLATE_TEST_STACK=/private/tmp/sellf-t219 bun scripts/template-persistence.mjs prepare
+# Replace/restart the application image, retaining APP_ENCRYPTION_KEY.
+TEMPLATE_TEST_STACK=/private/tmp/sellf-t219 bun scripts/template-persistence.mjs verify
+TEMPLATE_TEST_STACK=/private/tmp/sellf-t219 bun scripts/template-persistence.mjs restore
+TEMPLATE_TEST_STACK=/private/tmp/sellf-t219 bun scripts/template-persistence.mjs cleanup
+```
+
+Preparation creates A/B/C publication history, a separate draft, independent
+encrypted credentials, a scoped API key and distinct product-offer draft/history.
+The private custom-format public-schema data dump is restored over emptied tables
+using the disposable stack's `supabase_admin` role for constraint triggers. Auth
+identities, schema/migrations and the operator encryption key remain in place.
+Verification compares exact table hashes/counts and decrypts all three retained
+credentials. Logs contain only digests; cleanup removes the private dump. This is
+a presentation-data restore check, not a substitute for an operator's full Auth,
+storage and external secret backup.
