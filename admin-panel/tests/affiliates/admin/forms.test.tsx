@@ -89,3 +89,11 @@ it.each(['en', 'pl'] as const)('keeps application values and identifies an inval
   fireEvent.submit(screen.getByRole('button', { name: t.apply }).closest('form')!);
   await waitFor(() => expect(actions.applyToProgram).toHaveBeenCalled());
 });
+
+it.each(['en', 'pl'] as const)('shows the saved pending application after a refresh in %s', locale => {
+  const t = affiliateAdminMessages[locale];
+  render(<AffiliateApplication locale={locale} program={{ ...program, applicationStatus: 'pending' }} />);
+  expect(screen.getByRole('status').textContent).toContain(t.pending);
+  expect(screen.queryByRole('button', { name: t.apply })).toBeNull();
+  expect(screen.getByRole('link').getAttribute('href')).toContain('/my-affiliate');
+});

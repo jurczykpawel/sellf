@@ -21,7 +21,7 @@ export interface MemberInfo {
 }
 export interface ProgramInfo extends ProgramInput { id: string }
 export interface TermsInfo { terms_version: string; terms: { en: string; pl: string } }
-export interface ApplicationProgramInfo extends TermsInfo { enabled: boolean }
+export interface ApplicationProgramInfo extends TermsInfo { enabled: boolean; applicationStatus?: string | null }
 export interface AdminOverview { program: ProgramInfo | null; members: MemberInfo[]; next_cursor: string | null }
 export type AdminResult<T> = ActionResponse<T> & { status: number };
 // A1.8 applies these on the private route shells/HTTP adapters. Actions opt out of caching themselves.

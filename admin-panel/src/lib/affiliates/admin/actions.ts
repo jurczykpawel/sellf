@@ -98,8 +98,13 @@ export async function getApplicationProgram(): Promise<AdminResult<ApplicationPr
   noStore();
   try {
     const session = await verifiedSession(); if (session.result) return session.result;
-    const { data, error } = await createAdminClient().from('affiliate_programs').select('enabled,terms_version,terms').maybeSingle();
-    return error ? dbFailure(error.code) : { success: true, status: 200, data: data as ApplicationProgramInfo | null };
+    const client = createAdminClient();
+    const [program, member] = await Promise.all([
+      client.from('affiliate_programs').select('enabled,terms_version,terms').maybeSingle(),
+      client.from('affiliate_memberships').select('status').eq('user_id', session.user.id).maybeSingle(),
+    ]);
+    const error = program.error ?? member.error;
+    return error ? dbFailure(error.code) : { success: true, status: 200, data: program.data ? { ...program.data, applicationStatus: member.data?.status ?? null } as ApplicationProgramInfo : null };
   } catch { return failure('INTERNAL_ERROR'); }
 }
 export async function applyToProgram(input: unknown): Promise<AdminResult<MemberInfo>> {

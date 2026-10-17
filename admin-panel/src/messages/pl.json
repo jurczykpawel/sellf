@@ -4777,6 +4777,9 @@
     "unavailable": "Ta strona jest chwilowo niedostępna. Odśwież, aby spróbować ponownie.",
     "apply": "Zgłoś się do programu partnerskiego",
     "admin": {
+      "applicationReceived": "Zgłoszenie wysłane",
+      "applicationNext": "Status zgłoszenia sprawdzisz w panelu partnera.",
+      "viewApplication": "Sprawdź status zgłoszenia",
       "joinTitle": "Dołącz do programu partnerskiego",
       "joinHint": "Zaloguj się lub utwórz konto Sellf, aby wysłać zgłoszenie. Po zalogowaniu wrócisz do formularza.",
       "nameRequired": "Podaj nazwę (do 120 znaków).",

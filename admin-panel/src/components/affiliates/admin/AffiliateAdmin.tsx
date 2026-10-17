@@ -1,6 +1,7 @@
 'use client';
 
 /** Standalone seller forms; session actions own authorization. @see admin/actions.ts */
+import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Check, ChevronDown, Plus, Users, X } from 'lucide-react';
 import { applyToProgram, getAcceptedTerms, getAdminOverview, updateMember, updateProgram } from '@/lib/affiliates/admin/actions';
@@ -118,7 +119,12 @@ export function AffiliateApplication({ program, locale }: { program: Application
   const t = affiliateAdminMessages[locale]; const id = useId(); const [token, setToken] = useState(''); const [reset, setReset] = useState(0); const [busy, setBusy] = useState(false); const [done, setDone] = useState(false); const [notice, setNotice] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const formRef = useRef<HTMLFormElement>(null);
-  if (done) return <p role="status" className="rounded-xl bg-sf-success-soft p-5 text-sf-heading">{t.pending}</p>;
+  if (done || program?.applicationStatus) return <section className="mx-auto grid w-full min-w-0 max-w-2xl gap-4 rounded-xl border border-sf-border bg-sf-raised p-6 text-sf-heading [overflow-wrap:anywhere]">
+    <h1 className="text-2xl font-semibold">{t.applicationReceived}</h1>
+    <p role="status">{done || program?.applicationStatus === 'pending' ? t.pending : statusLabel(program!.applicationStatus!, t)}</p>
+    <p className="text-sm text-sf-body">{t.applicationNext}</p>
+    <Link href={`${locale === 'pl' ? '/pl' : ''}/my-affiliate`} className={`${primaryClass} min-w-0 max-w-full justify-self-start text-center`}>{t.viewApplication}</Link>
+  </section>;
   if (!program?.enabled) return <p>{t.disabled}</p>;
   async function submit(form: FormData) {
     const parsed = applicationSchema.safeParse({ code: form.get('code'), display_name: form.get('display_name'), channel: form.get('channel'), terms_version: program!.terms_version, accepted: form.get('accepted') === 'on', captcha_token: token });
