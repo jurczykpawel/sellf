@@ -948,8 +948,7 @@
         "title": "Twoja podróż zaczyna się teraz",
         "description": "Zacznij za darmo, uaktualnij, gdy będziesz gotowy. Bez presji, tylko postęp."
       },
-      "browseAll": "Przeglądaj wszystkie produkty",
-      "poweredBy": "{count, plural, one {# produkt} few {# produkty} other {# produktów}} dostępnych • Napędzane przez {shopName}"
+      "browseAll": "Przeglądaj wszystkie produkty"
     },
     "filters": {
       "all": "Wszystkie ({count})",
@@ -963,8 +962,8 @@
       "statsPremium": "Premium"
     },
     "footer": {
-      "copyright": "© 2025 Napędzane przez Sellf • Bezpieczne zarządzanie dostępem do produktów",
-      "poweredBy": "Napedzane przez {shopName}"
+      "copyright": "© {year} {shopName}",
+      "runsOn": "Działa na Sellf"
     }
   },
   "productView": {
