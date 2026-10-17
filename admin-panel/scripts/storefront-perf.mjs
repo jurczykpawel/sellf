@@ -18,7 +18,8 @@ const container = 'supabase_db_sellf-perf';
 const origin = 'http://localhost:55325';
 const out = resolve(process.argv[2] ?? '/private/tmp/storefront-perf-results');
 const bun = process.env.PERF_BUN ?? '/tmp/bun-1314/bun-darwin-aarch64/bun';
-const probe = process.argv.includes('--probe-checkout');
+const freeProbe = process.argv.includes('--probe-free');
+const probe = process.argv.includes('--probe-checkout') || freeProbe;
 const runs = 5;
 const samples = [];
 const checks = [];
@@ -149,7 +150,7 @@ try {
         heroProduct: '10000000-0000-4000-8000-000000000001', closingProduct: '10000000-0000-4000-8000-000000000001',
         starterProducts: [2, 3, 4].map(n => `10000000-0000-4000-8000-${String(n).padStart(12, '0')}`), taskCategories: ['20000000-0000-4000-8000-000000000001'] };
       sql(`UPDATE public.storefront_config SET published='${JSON.stringify(config).replaceAll("'", "''")}'::jsonb;`);
-      for (const device of (probe ? ['mobile'] : ['mobile', 'desktop'])) for (const path of (probe ? ['/p/perf-course-1'] : ['/', '/store', '/pl', '/p/perf-course-1', '/checkout/perf-course-1', '/p/perf-course-11', '/checkout/perf-course-11'])) {
+      for (const device of (probe ? ['mobile'] : ['mobile', 'desktop'])) for (const path of (probe ? [freeProbe ? '/p/perf-course-11' : '/p/perf-course-1'] : ['/', '/store', '/pl', '/p/perf-course-1', '/checkout/perf-course-1', '/p/perf-course-11', '/checkout/perf-course-11'])) {
         await idle(`${size}/${template}/${device}/${path}`);
         for (let repeat = 0; repeat < runs; repeat++) {
           const context = await browser.newContext({ viewport: profile[device].viewport, isMobile: device === 'mobile', hasTouch: device === 'mobile', deviceScaleFactor: device === 'mobile' ? 2 : 1 });
@@ -181,6 +182,11 @@ try {
                 await cp(screenshot, resolve(out, screenshot.split('/').at(-1)));
               }
               if (probe && repeat === 0 && temperature === 'cold') await page.screenshot({ path: resolve(out, 'entry-before.png') });
+              if (!storefront) await expect(page.locator('input[type=email]')).toBeVisible({ timeout: 30_000 });
+              if (temperature === 'cold') {
+                const reject = page.getByRole('button', { name: /^(Reject all|Odrzuć wszystkie)$/ }).first();
+                await expect(reject).toBeVisible(); await reject.click(); await expect(reject).not.toBeVisible();
+              }
               if (path === '/' || path === '/store' || path === '/pl') {
                 await expect(page.locator('[data-template]')).toHaveAttribute('data-template', template);
                 const search = page.locator('#catalogue input[type=search]');
