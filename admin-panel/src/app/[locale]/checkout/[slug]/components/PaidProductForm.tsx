@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { CheckoutElementsProvider } from '@stripe/react-stripe-js/checkout';
 import { formatPrice, STRIPE_MAX_AMOUNT } from '@/lib/constants';
@@ -61,6 +61,8 @@ interface PaidProductFormProps {
   afterCheckoutSlot?: React.ReactNode;
 }
 
+const noopSubscribe = () => () => {};
+
 export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, collectTermsOfService, bundleComponents, layoutMode = 'standalone', afterCheckoutSlot }: PaidProductFormProps) {
   const t = useTranslations('checkout');
   const locale = useLocale();
@@ -78,6 +80,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const checkoutTrackingFired = useRef(false);
   const confirmationPending = useRef(false);
   const [purchaseStarted, setPurchaseStarted] = useState(false);
+  // The server-rendered form is clickable before React attaches onSubmit; a native GET submit reloads the page and drops the query (coupon, email, oto).
+  const interactive = useSyncExternalStore(noopSubscribe, () => true, () => false);
   const handleConfirmationChange = useCallback((pending: boolean) => { confirmationPending.current = pending; }, []);
 
   // Funnel test mode: admin-only visual preview (no Stripe, no backend calls)
@@ -584,7 +588,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && !purchaseStarted && (
             <form onSubmit={event => { event.preventDefault(); setPurchaseStarted(true); }}>
-              <button type="submit" className="w-full cursor-pointer rounded-xl bg-sf-accent-bg px-6 py-4 font-semibold text-sf-inverse hover:bg-sf-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent">
+              <button type="submit" disabled={!interactive} className="w-full cursor-pointer disabled:cursor-wait disabled:opacity-60 rounded-xl bg-sf-accent-bg px-6 py-4 font-semibold text-sf-inverse hover:bg-sf-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent">
                 {t('continueToPayment')}
               </button>
               <p className="mt-3 text-center text-xs text-sf-muted">{t('securePayment')}</p>
