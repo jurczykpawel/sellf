@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import type { ReactNode } from 'react';
 import type { Product } from '@/types';
+import type { StorefrontConfig } from '@/lib/storefront-templates/schemas';
 import type { ShopConfig } from '@/lib/actions/shop-config';
 import AdminOnboardingCTA from './AdminOnboardingCTA';
 import ComingSoonEmptyState from './ComingSoonEmptyState';
@@ -13,7 +14,7 @@ interface SmartLandingClientProps {
   hasProducts: boolean;
   products?: Product[];
   children?: ReactNode;
-  templateId?: 'default' | 'd' | 'storefront-a' | 'storefront-b';
+  templateId?: StorefrontConfig['templateId'];
   shopConfig: ShopConfig | null;
   /** Override product link prefix. Default: '/p'. For seller storefronts: '/s/seller-slug' */
   productLinkPrefix?: string;

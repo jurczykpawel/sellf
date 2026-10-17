@@ -51,6 +51,8 @@ export function effectiveLayout(entry: LayoutDefinition, overrides?: LayoutOverr
   valid &&= recipe.sections.some(section => section.type === 'catalogue/1');
   valid &&= (entry.id !== 'd' && entry.id !== 'storefront-a') || recipe.sections[0]?.type === 'hero-product/1';
   valid &&= entry.id !== 'storefront-b' || (recipe.sections[0]?.type === 'task-nav/1' && 'variant' in recipe.sections[0] && recipe.sections[0].variant === 'search-hero');
+  valid &&= entry.id !== 'storefront-c' || recipe.sections[0]?.type === 'author-hero/1';
+  valid &&= recipe.sections.every(section => section.type !== 'author-hero/1' || recipe.sections.some(target => target.id === section.pathsTarget && target.type === 'product-paths/1') && recipe.sections.some(target => target.id === section.catalogueTarget && target.type === 'catalogue/1'));
   valid &&= recipe.sections.every(section => (section.type !== 'task-nav/1' && !(section.type === 'product-cta/1' && 'target' in section)) || recipe.sections.some(target => target.id === section.target && target.type === 'catalogue/1'));
   return { order, sections, valid, recipe };
 }

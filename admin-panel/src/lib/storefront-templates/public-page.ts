@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { readPublishedConfig } from '@/lib/storefront-templates/repository';
 import { loadCatalogueGroups, loadCataloguePage, loadStorefrontBindings } from '@/lib/storefront-templates/catalogue';
 import { resolvePresentation, resolveSelection } from '@/lib/storefront-templates/resolver';
+import { collectAuthorBindings } from '@/lib/storefront-templates/author-bindings';
 import { catalogueRequestSchema } from '@/lib/storefront-templates/catalogue-section';
 import { getLocalTemplateIds } from '@/lib/storefront-templates/template-license-snapshot';
 import { getPublicLicenseTier } from '@/lib/license/public-snapshot';
@@ -35,13 +36,14 @@ export async function loadPublicStorefront(locale: 'en' | 'pl', params: Storefro
     const spec = selection.recipe.sections.find(s => s.type === 'catalogue/1');
     if (!spec || spec.type !== 'catalogue/1') return { success: false };
     const { heroProduct, closingProduct, starterProducts, taskCategories, comparisonProducts, featuredProducts } = selection.settings;
+    const authorBindings = collectAuthorBindings(selection, locale);
     const query = { locale, search: search.data.search ?? '', categoryIds: search.data.category ? [search.data.category] : [], pageSize: spec.pageSize };
     const [pages, bound] = await Promise.all([
       loadCatalogueGroups(client, query, spec.variant),
-      loadStorefrontBindings(client, { locale, heroProduct, closingProduct, starterProducts, taskCategories, comparisonProducts, featuredProducts, target: spec.id }),
+      loadStorefrontBindings(client, { locale, heroProduct, closingProduct, starterProducts, taskCategories, comparisonProducts, featuredProducts, ...authorBindings, target: spec.id }),
     ]);
     if (!pages.success || !bound.success) return { success: false };
-    const products = [bound.data.hero, bound.data.closing, ...bound.data.starters, ...bound.data.comparison, ...bound.data.featured].filter(p => p !== null);
+    const products = [bound.data.hero, bound.data.closing, ...bound.data.starters, ...bound.data.comparison, ...bound.data.featured, ...Object.values(bound.data.paths ?? {})].filter(p => p !== null);
     let hasProducts = Object.values(pages.data).some(page => page && page.products.length > 0) || products.length > 0;
     if (!hasProducts && (query.search || query.categoryIds.length)) {
       const unfiltered = await loadCataloguePage(client, { locale, pageSize: 9 });
@@ -51,7 +53,7 @@ export async function loadPublicStorefront(locale: 'en' | 'pl', params: Storefro
     const catalogue: CatalogueProps = { id: spec.id, variant: spec.variant, groups: pages.data, filters: spec.filters, pageSize: spec.pageSize,
       density: selection.settings.density ?? 'comfortable', locale, categories: bound.data.categories,
       initialQuery: { search: query.search, categoryIds: query.categoryIds, priceKind: null, format: null } };
-    const model = resolvePresentation(selection, { locale, productsById: Object.fromEntries(products.map(p => [p.id, p])),
+    const model = resolvePresentation(selection, { locale, productsById: Object.fromEntries(products.map(p => [p.id, p])), pathProductsById: bound.data.paths ?? {}, mediaById: bound.data.mediaById ?? {},
       categoriesById: Object.fromEntries(bound.data.categories.map(c => [c.id, c])), catalogue });
     return { success: true, model, hasProducts, theme };
   } catch { return { success: false }; }

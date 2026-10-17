@@ -9,6 +9,8 @@ export const A_TOKENS: PublicThemeTokens = { ...D_TOKENS,
 };
 /** Search-led palette shared by the reviewed B sections. */
 export const B_TOKENS: PublicThemeTokens = { ...A_TOKENS, light: { ...A_TOKENS.light, background: '#F3F5F9' } };
+/** Author-led warm palette shared by the reviewed C sections. */
+export const C_TOKENS: PublicThemeTokens = { ...A_TOKENS, light: { ...A_TOKENS.light, background: '#F7F5EF' } };
 export const DEFAULT_CONFIG: StorefrontConfig = { format: 1, templateId: 'default', settingsByTemplate: {}, overridesByTemplate: {}, content: {}, tokens: null };
 export const D_CONFIG: StorefrontConfig = {
   "format": 1,

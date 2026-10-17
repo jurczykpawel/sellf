@@ -227,3 +227,17 @@ it('resolves four path products in one shared batch with explicit absent entries
   expect(c.rpc.mock.calls[0][1].product_ids).toHaveLength(4);
   for (const pathProducts of [[id(1), id(1)], Array.from({ length: 5 }, (_, i) => id(i + 1)), ['unknown']]) expect(await loadStorefrontBindings(c.db, { locale: 'en', pathProducts, target: 'catalogue' })).toEqual({ success: false, error: 'INVALID' });
 });
+
+it('resolves author media from approved public product covers in the shared bounded batches', async () => {
+  const c = client();
+  c.rpc.mockImplementation(async (_name, args) => ({ data: args.product_ids.filter((value: string) => value !== id(9)).map((value: string) => row(Number(value.slice(-12)))), error: null }));
+  const loaded = await loadStorefrontBindings(c.db, { locale: 'en', starterProducts: [id(1), id(2), id(3)], pathProducts: [id(4), id(5), id(6), id(7)], mediaProducts: [id(8), id(9), id(10), id(11)], target: 'catalogue' });
+  expect(loaded.success).toBe(true);
+  if (!loaded.success) return;
+  expect(Object.keys(loaded.data.mediaById)).toEqual([id(8), id(10), id(11)]);
+  expect(loaded.data.mediaById[id(8)]).toEqual({ src: 'https://example.com/product.png', alt: 'Example', width: 800, height: 500 });
+  expect(JSON.stringify(loaded.data.mediaById)).not.toContain('PRIVATE_');
+  expect(c.rpc).toHaveBeenCalledTimes(3);
+  expect(c.rpc.mock.calls.every(([, args]) => args.product_ids.length <= 5)).toBe(true);
+  for (const mediaProducts of [[id(1), id(1)], Array.from({ length: 5 }, (_, index) => id(index + 1)), ['unknown']]) expect(await loadStorefrontBindings(c.db, { locale: 'en', mediaProducts, target: 'catalogue' })).toEqual({ success: false, error: 'INVALID' });
+});

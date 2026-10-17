@@ -1,5 +1,6 @@
 /** Authoring diagnostics and current public binding checks. @see lifecycle.ts */
 import 'server-only';
+import { collectAuthorBindings } from '@/lib/storefront-templates/author-bindings';
 import { loadStorefrontBindings } from '@/lib/storefront-templates/catalogue';
 import { pointer, result } from '@/lib/storefront-templates/json';
 import { CORE_TOKENS, resolvePublicTheme, validateThemeContrast } from '@/lib/storefront-templates/public-theme';
@@ -41,7 +42,8 @@ export async function validateActiveBindings(client: SupabaseClient<Database>, c
   const starters = visible.has('start') ? settings.starterProducts ?? [] : [];
   const closingProduct = config.templateId === 'storefront-b' && !visible.has('starter') ? undefined : settings.closingProduct;
   const categories = (visible.has('tasks') || config.templateId === 'storefront-b') ? settings.taskCategories ?? [] : [];
-  const loaded = await loadStorefrontBindings(client, { locale: 'en', heroProduct: settings.heroProduct, closingProduct,
+  const authorBindings = collectAuthorBindings(selection, 'en');
+  const loaded = await loadStorefrontBindings(client, { ...authorBindings, locale: 'en', heroProduct: settings.heroProduct, closingProduct,
     comparisonProducts: settings.comparisonProducts, featuredProducts: visible.has('featured') ? settings.featuredProducts : [], starterProducts: starters, taskCategories: categories, target: 'catalogue' });
   if (!loaded.success) return null;
   const errors = [...validation.errors]; const warnings = [...validation.warnings];
@@ -51,6 +53,16 @@ export async function validateActiveBindings(client: SupabaseClient<Database>, c
   if (closingProduct && !loaded.data.closing) errors.push(issue('closingProduct'));
   starters.forEach((id, i) => { if (!loaded.data.starters.some(product => product.id === id.toLowerCase())) warnings.push(issue(`starterProducts/${i}`)); });
   categories.forEach((id, i) => { if (!loaded.data.categories.some(category => category.id === id.toLowerCase())) errors.push(issue(`taskCategories/${i}`)); });
+  if (selection.templateId === 'storefront-c') {
+    const translated = collectAuthorBindings(selection, 'pl');
+    const polish = JSON.stringify(translated) === JSON.stringify(authorBindings) ? loaded
+      : await loadStorefrontBindings(client, { ...translated, locale: 'pl', target: 'catalogue' });
+    if (!polish.success) return null;
+    for (const [locale, references, bindings] of [['en', authorBindings, loaded.data], ['pl', translated, polish.data]] as const) {
+      if (references.pathProducts.some(id => !bindings.paths?.[id])) warnings.push({ code: 'BINDING', path: `/content/home.paths/${locale}`, message: 'Unavailable optional paths are omitted' });
+      if (references.mediaProducts.some(id => !bindings.mediaById?.[id])) warnings.push({ code: 'BINDING', path: `/content/${locale}`, message: 'Unavailable optional covers are omitted' });
+    }
+  }
   return result(errors, warnings);
 }
 

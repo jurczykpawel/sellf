@@ -3,7 +3,7 @@ import { configSchema, recipeSchema } from '@/lib/storefront-templates/schemas';
 import { CONFIG_BYTES, isPlainJson, pointer, result, storedJsonBytes } from '@/lib/storefront-templates/json';
 import { effectiveLayout } from '@/lib/storefront-templates/layout';
 import { SECTION_DESCRIPTORS } from '@/lib/storefront-templates/section-descriptors';
-import { A_TOKENS, B_TOKENS, D_TOKENS } from '@/lib/storefront-templates/fixtures';
+import { A_TOKENS, B_TOKENS, C_TOKENS, D_TOKENS } from '@/lib/storefront-templates/fixtures';
 import type { ZodIssue } from 'zod';
 import type { SlotContent, StorefrontConfig, TemplateRegistryEntry } from '@/lib/storefront-templates/schemas';
 import type { ValidationIssue, ValidationResult } from '@/lib/storefront-templates/json';
@@ -77,7 +77,26 @@ export const STOREFRONT_TEMPLATES = {
       { id: 'closing', type: 'product-cta/1', variant: 'catalogue-link', content: { slot: 'home.closing' }, target: 'catalogue' },
     ] },
   },
-} satisfies Record<'default' | 'd' | 'storefront-a' | 'storefront-b', TemplateRegistryEntry>;
+  'storefront-c': {
+    sectionDescriptors: SECTION_DESCRIPTORS['storefront-c'],
+    id: 'storefront-c', label: { en: 'Author-led storefront', pl: 'Sklep twórcy' }, minSellf: version,
+    entitlement: { kind: 'template-key', templateId: 'storefront-c' }, tokens: C_TOKENS,
+    settings: [
+      { id: 'starterProducts', label: { en: 'Three starting points', pl: 'Trzy punkty startowe' }, kind: 'products', required: false, maxItems: 3 },
+      { id: 'density', label: { en: 'Density', pl: 'Gęstość' }, kind: 'density', required: false },
+    ],
+    defaults: { format: 1, surface: 'storefront', shell: 'store/1', sections: [
+      { id: 'hero', type: 'author-hero/1', content: { slot: 'home.author' }, pathsTarget: 'paths', catalogueTarget: 'catalogue' },
+      { id: 'story', type: 'author-story/1', content: { slot: 'home.story' } },
+      { id: 'paths', type: 'product-paths/1', content: { slot: 'home.paths' } },
+      { id: 'projects', type: 'project-showcase/1', content: { slot: 'home.projects' } },
+      { id: 'start', type: 'product-list/1', variant: 'detail-cards', products: { setting: 'starterProducts' }, content: { slot: 'home.starts' } },
+      { id: 'catalogue', type: 'catalogue/1', variant: 'compact', source: 'listed-products', filters: ['category', 'price-kind', 'format'], pageSize: 24, density: { setting: 'density' }, content: { slot: 'home.catalogue' } },
+      { id: 'faq', type: 'faq/1', content: { slot: 'home.faq' } },
+      { id: 'closing', type: 'product-cta/1', variant: 'catalogue-link', content: { slot: 'home.closing' }, target: 'catalogue' },
+    ] },
+  },
+} satisfies Record<'default' | 'd' | 'storefront-a' | 'storefront-b' | 'storefront-c', TemplateRegistryEntry>;
 
 function schemaErrors(issues: ZodIssue[]): ValidationIssue[] {
   return issues.map(issue => ({
@@ -98,7 +117,12 @@ export function validateRecipe(input: unknown): ValidationResult {
     if (ids.has(section.id)) errors.push({ code: 'SCHEMA', path: `/sections/${index}/id`, message: 'Section IDs must be distinct' });
     ids.add(section.id);
     if ((section.type === 'task-nav/1' || section.type === 'product-cta/1' && 'target' in section) && !parsed.data.sections.some(target => target.id === section.target && target.type === 'catalogue/1')) errors.push({ code: 'BINDING', path: `/sections/${index}/target`, message: 'Target must be a declared catalogue' });
+    if (section.type === 'author-hero/1') for (const [field, type] of [['pathsTarget', 'product-paths/1'], ['catalogueTarget', 'catalogue/1']] as const) {
+      if (!parsed.data.sections.some(target => target.id === section[field] && target.type === type)) errors.push({ code: 'BINDING', path: `/sections/${index}/${field}`, message: `Target must be a declared ${type}` });
+    }
   }
+  const headings = parsed.data.sections.filter(section => section.type === 'hero-product/1' || section.type === 'author-hero/1' || (section.type === 'task-nav/1' && 'variant' in section && section.variant === 'search-hero'));
+  if (headings.length > 1) errors.push({ code: 'SCHEMA', path: '/sections', message: 'At most one page heading owner' });
   return result(errors);
 }
 
@@ -117,6 +141,9 @@ export function validateConfig(input: unknown): ValidationResult {
   const hasContent = (content: SlotContent | undefined): boolean => {
     if (!content) return false;
     if (content.kind === 'faq') return content.items.some(item => item.question.trim() || item.answer.trim());
+    if (content.kind === 'author') return Boolean(content.name.trim() || content.heading.trim() || content.intro.trim());
+    if (content.kind === 'biography') return Boolean(content.heading.trim() || content.paragraphs.some(paragraph => paragraph.trim()));
+    if (content.kind === 'projects') return Boolean(content.heading.trim() || content.items.length);
     return Boolean(content.heading.trim() || content.body.trim() || (content.kind === 'hero' && (content.eyebrow.trim() || content.steps.some(step => step.trim()))));
   };
   for (const section of layout.recipe.sections) {
@@ -135,7 +162,7 @@ export function validateConfig(input: unknown): ValidationResult {
 }
 
 export function isResetPath(templateId: string, field: string): boolean {
-  if (templateId !== 'default' && templateId !== 'd' && templateId !== 'storefront-a' && templateId !== 'storefront-b') return false;
+  if (templateId !== 'default' && templateId !== 'd' && templateId !== 'storefront-a' && templateId !== 'storefront-b' && templateId !== 'storefront-c') return false;
   if (['settings.density', 'overrides.order'].includes(field)) return true;
   const parts = field.split('.');
   if (parts.length === 4 && parts[0] === 'overrides' && parts[1] === 'sections') {

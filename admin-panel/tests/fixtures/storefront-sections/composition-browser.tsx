@@ -4,7 +4,8 @@ import StorefrontComposition from '@/components/storefront/StorefrontComposition
 import type { PresentationModel } from '@/lib/storefront-templates/resolver';
 const model: PresentationModel = JSON.parse(document.getElementById('model')!.textContent!);
 const root = hydrateRoot(document.getElementById('root')!, <StorefrontComposition renderKey="initial" model={model} shopName="Example shop" />);
+let replacement = 0;
 window.addEventListener('composition:replace', event => {
   const next: PresentationModel = (event as CustomEvent<PresentationModel>).detail;
-  root.render(<StorefrontComposition renderKey="replacement" model={next} shopName="Example shop" />);
+  root.render(<StorefrontComposition renderKey={`replacement-${++replacement}`} model={next} shopName="Example shop" />);
 });

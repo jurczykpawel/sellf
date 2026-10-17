@@ -92,6 +92,7 @@ it.each(['free', 'registered', 'pro', 'business'])('exposes current per-template
     { templateId: 'd', allowed: paid, reason: paid ? null : 'ENTITLEMENT' },
     { templateId: 'storefront-a', allowed: false, reason: 'ENTITLEMENT' },
     { templateId: 'storefront-b', allowed: false, reason: 'ENTITLEMENT' },
+    { templateId: 'storefront-c', allowed: false, reason: 'ENTITLEMENT' },
   ] } } });
 });
 it('includes active customization in publication rights without mutating the snapshot', async () => {
@@ -102,6 +103,7 @@ it('includes active customization in publication rights without mutating the sna
     { templateId: 'd', allowed: false, reason: 'ENTITLEMENT' },
     { templateId: 'storefront-a', allowed: false, reason: 'ENTITLEMENT' },
     { templateId: 'storefront-b', allowed: false, reason: 'ENTITLEMENT' },
+    { templateId: 'storefront-c', allowed: false, reason: 'ENTITLEMENT' },
   ] } } });
   expect(draft.templateId).toBe('d');
 });

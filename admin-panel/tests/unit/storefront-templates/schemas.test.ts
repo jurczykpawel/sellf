@@ -13,7 +13,7 @@ const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value
 
 describe('storefront schema corpus', () => {
   it('keeps generated draft 2020-12 schema synchronized', () => {
-    const migration = readFileSync('../supabase/migrations/20261017014729_storefront_b_contract.sql', 'utf8');
+    const migration = readFileSync('../supabase/migrations/20261017030527_storefront_c_contract.sql', 'utf8');
     expect(migration).toContain(JSON.stringify(z.toJSONSchema(configSchema)).replaceAll("'", "''"));
   });
 

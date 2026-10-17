@@ -29,6 +29,13 @@ function setup(locale = 'en') {
   return render(React.createElement(NextIntlClientProvider, { locale, messages: locale === 'pl' ? pl : en }, React.createElement(StorefrontEditor, { initial: snapshot() })));
 }
 describe('storefront editor', () => {
+  it.each(['en', 'pl'])('explains matching-key requirements for C in %s', locale => {
+    const view = setup(locale);
+    fireEvent.change(view.getByLabelText(locale === 'pl' ? 'Szablon' : 'Template'), { target: { value: 'storefront-c' } });
+    expect(view.getByText(locale === 'pl'
+      ? 'Ten szablon wymaga Pro i osobnego klucza — dodaj klucz szablonu poniżej. Sklep pokazuje szablon darmowy.'
+      : 'This template needs Pro and its own key — add the matching template key below. Your store shows the free template.')).toBeTruthy();
+  });
   it('retains inactive bindings, slots and overrides through D/default/D and saves at the read revision', async () => {
     action.mockResolvedValueOnce({ success: true, revision: 8, validation: { valid: true, errors: [], warnings: [] } });
     const view = setup();

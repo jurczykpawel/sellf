@@ -149,3 +149,22 @@ it('loads B featured products and search categories through the same bounded ada
     expect(result.model.sections[0]).toMatchObject({ props: { variant: 'search-hero', categories: PUBLIC_FIXTURE.categories } });
   }
 });
+
+it.each(['en', 'pl'] as const)('%s: batches C localized paths and product-cover references before resolving public sections', async locale => {
+  const { phase2Config, uuid } = await import('../../fixtures/storefront-sections/phase2/contracts');
+  const product = { ...PUBLIC_FIXTURE.products[0], id: uuid(1), availability: 'available', marketing: { ...PUBLIC_FIXTURE.products[0].marketing, format: 'workshop', sourceLocale: 'en' } };
+  const cover = { src: 'https://example.test/cover.png', alt: 'Alex', width: 800, height: 500 };
+  const config = { ...phase2Config, templateId: 'storefront-c', content: { ...phase2Config.content,
+    'home.author': { sourceLocale: 'en', en: { ...phase2Config.content['home.author'].en, portraitMediaId: uuid(20) } },
+    'home.projects': { sourceLocale: 'en', en: { ...phase2Config.content['home.projects'].en, items: [{ ...phase2Config.content['home.projects'].en.items[0], mediaId: uuid(20) }] } },
+  } };
+  mocks.config.mockResolvedValue({ success: true, data: config }); mocks.keys.mockReturnValue(['storefront-c']);
+  mocks.bindings.mockResolvedValue({ success: true, data: { hero: null, closing: null, starters: [], comparison: [], featured: [], paths: { [uuid(1)]: product }, mediaById: { [uuid(20)]: cover }, categories: [] } });
+  const result = await loadPublicStorefront(locale, {});
+  expect(result).toMatchObject({ success: true, model: { templateId: 'storefront-c' } });
+  expect(mocks.bindings).toHaveBeenCalledExactlyOnceWith({}, expect.objectContaining({ pathProducts: [uuid(1)], mediaProducts: [uuid(20)] }));
+  if (result.success) {
+    expect(result.model.sections[0]).toMatchObject({ props: { portrait: cover } });
+    expect(result.model.sections.find(section => section.type === 'product-paths/1')).toMatchObject({ props: { items: [{ product }] } });
+  }
+});

@@ -196,21 +196,20 @@ T2.8 owns the complete premium author/purchase trial before release.
 
 D-056 replaces the unreleased `hidden`/`variants` fields with strict, finite
 `sections` maps. `section-descriptors.ts` declares visibility, variants and
-pin/after/before placement for default/D/A/B and the offline C contract. Installed
+pin/after/before placement for default/D/A/B and installed C. Installed
 and frozen Zod/JSON Schema contracts derive from those descriptors; unknown IDs,
-unknown leaves and variants needing different bindings are rejected. C remains
-an offline contract. Resolver, content checks, editor, reset paths, capabilities,
+unknown leaves and variants needing different bindings are rejected. Resolver, content checks, editor, reset paths, capabilities,
 preview and authored-order normalization share `effectiveLayout()`.
 
 Offers retain their independent frozen config: no section overrides, product IDs,
 visibility or variant controls. The offer editor only edits opt-in, copy, density
 and appearance. The release gate enumerates every offer permutation with/without
-FAQ against the frozen route-product grammar, plus all legacy default/D/A/B orders
+FAQ against the frozen route-product grammar, plus all legacy default/D/A/B/C orders
 and optional visibility subsets through the real storefront resolver, including
 an anchored additive section. No adapter or historic JSON rewrite is introduced.
 
 The generated storefront schema first shipped in the separate A migration
-`20261016223736_storefront_a_contract.sql`; the new B migration below owns the current schema. The Phase 1 migration retains
+`20261016223736_storefront_a_contract.sql`; the additive C migration below owns the current schema. The Phase 1 migration retains
 its D-056 schema and conditional published-row validation; credential and offer
 migrations remain independent. Released migrations must never be regenerated.
 
@@ -231,9 +230,9 @@ starter uses `closingProduct` and the separate `home.starter` slot, while closin
 only targets the required catalogue. Public/preview reads include the existing
 bounded featured batch; there is no new catalogue or per-card query.
 
-`20261017014729_storefront_b_contract.sql` owns the current generated storefront
-schema and adds item identity checks for B. The generator targets this new
-migration; A and released Phase 1 SQL remain unchanged. Seed retains B bindings
+`20261017014729_storefront_b_contract.sql` shipped the B generated storefront
+schema and adds item identity checks for B. Its generated block remains frozen
+after C adoption; A and released Phase 1 SQL also remain unchanged. Seed retains B bindings
 without selecting or activating it. B uses the reviewed blue palette and bundled
 Geist, with the same core prices, details/offer routing and checkout actions.
 The opt-in premium trial reuses `playwright.premium.config.ts` with
@@ -338,3 +337,26 @@ Long/empty/missing media, supplied static media, light/dark, 320/768/1440px,
 200% zoom, keyboard focus, reduced motion, contrast and request bounds run without
 an app server or database:
 `bunx playwright test --config playwright.sections.config.ts tests/storefront-project-showcase.spec.ts --workers=1`.
+
+
+## Installed C composition
+
+`storefront-c` installs author hero → optional biography → up to four product
+paths → optional three-project showcase → optional three starters → compact
+catalogue (24/page) → FAQ → catalogue-link closing. It adopts the frozen four
+families and D-056 descriptors, with its own confirmation plus Pro/Business.
+A/B confirmations do not unlock C; expiry selects the free default while retaining
+all localized content and inactive settings. No biography route is introduced.
+
+The editor uses named product pickers for paths and optional cover images.
+Portrait/project media UUIDs refer to existing public product covers; unresolved
+or unavailable covers are omitted. These references add no media store or URL
+fetch. Biography paragraphs, project links and path descriptions follow EN/PL
+source-locale fallback. The bounded media/product batches remain private to the
+core resolver. C orders and all 16 optional-visibility combinations join the
+exhaustive release gate, including an anchored additive section.
+
+`20261017030527_storefront_c_contract.sql` owns the current generated config
+schema and adds C path identity and project-link validation. Released Phase 1,
+A and B migration files remain unchanged. Seed examples retain inactive C copy
+and bindings while the free default stays published.

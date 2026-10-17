@@ -17,7 +17,8 @@ export function resolveProjectShowcase(spec: unknown, inputs: ProjectShowcaseInp
   const content = projectsContentSchema.safeParse(slot);
   if (!content.success) return invalid;
   const items = content.data.items.map(({ id, name, body, url, mediaId }) => {
-    const media = publicMediaSchema.safeParse(mediaId && Object.hasOwn(inputs.mediaById, mediaId) ? inputs.mediaById[mediaId] : null);
+    const key = mediaId?.toLowerCase();
+    const media = publicMediaSchema.safeParse(key && Object.hasOwn(inputs.mediaById, key) ? inputs.mediaById[key] : null);
     return { id, name, body, url, media: media.success ? media.data : null };
   });
   return { success: true, data: { heading: content.data.heading, items, locale: inputs.locale } };

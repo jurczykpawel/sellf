@@ -19,6 +19,7 @@ import { templateRightsForTier } from '@/lib/storefront-templates/rights';
 import { resolvePresentation, resolveSelection } from '@/lib/storefront-templates/resolver';
 import { resolvePublicTheme } from '@/lib/storefront-templates/public-theme';
 import { loadCatalogueGroups, loadStorefrontBindings } from '@/lib/storefront-templates/catalogue';
+import { collectAuthorBindings } from '@/lib/storefront-templates/author-bindings';
 import { PUBLIC_FIXTURE } from '@/lib/storefront-templates/fixtures';
 import type { StorefrontMutationResult } from '@/lib/storefront-templates/mutations';
 import type { EffectiveToken } from '@/lib/storefront-templates/public-theme';
@@ -100,17 +101,21 @@ export async function preparePreview(auth: unknown, input: unknown, startedAt = 
     let groups: CatalogueProps['groups'] = spec.variant !== 'default-groups' ? { all: page(products) } : {
       featured: page(products.slice(0, 1)), free: page(products.filter(p => p.price.kind === 'free')), paid: page(products.filter(p => p.price.kind !== 'free')),
     };
+    const authorBindings = collectAuthorBindings(selection, locale);
+    let pathProductsById: Record<string, PublicProductInfo | null> = Object.fromEntries(authorBindings.pathProducts.map(id => [id, products.find(product => product.id === id) ?? null]));
+    let mediaById: Record<string, NonNullable<PublicProductInfo['image']>> = Object.fromEntries(authorBindings.mediaProducts.flatMap(id => { const image = products.find(product => product.id === id)?.image; return image ? [[id, image]] : []; }));
     if (fixture === 'published-products') {
       const [pages, bound] = await Promise.all([
         loadCatalogueGroups(client, { locale, pageSize: spec.pageSize }, spec.variant),
-        loadStorefrontBindings(client, { locale, heroProduct: selection.settings.heroProduct, closingProduct: selection.settings.closingProduct, comparisonProducts: selection.settings.comparisonProducts, featuredProducts: selection.settings.featuredProducts, starterProducts: selection.settings.starterProducts, taskCategories: selection.settings.taskCategories, target: spec.id }),
+        loadStorefrontBindings(client, { ...authorBindings, locale, heroProduct: selection.settings.heroProduct, closingProduct: selection.settings.closingProduct, comparisonProducts: selection.settings.comparisonProducts, featuredProducts: selection.settings.featuredProducts, starterProducts: selection.settings.starterProducts, taskCategories: selection.settings.taskCategories, target: spec.id }),
       ]);
       if (!pages.success || !bound.success) return fail('UNAVAILABLE');
-      products = [bound.data.hero, bound.data.closing, ...bound.data.starters, ...bound.data.comparison, ...bound.data.featured].filter((p): p is PublicProductInfo => p !== null);
+      products = [bound.data.hero, bound.data.closing, ...bound.data.starters, ...bound.data.comparison, ...bound.data.featured, ...Object.values(bound.data.paths ?? {})].filter((p): p is PublicProductInfo => p !== null);
+      pathProductsById = bound.data.paths ?? {}; mediaById = bound.data.mediaById ?? {};
       categories = bound.data.categories; groups = pages.data;
     }
     const catalogue: CatalogueProps = { id: spec.id, variant: spec.variant, groups, filters: spec.filters, pageSize: spec.pageSize, density: selection.settings.density ?? 'comfortable', locale, categories };
-    const model = resolvePresentation(selection, { locale, productsById: Object.fromEntries(products.map(p => [p.id, p])), categoriesById: Object.fromEntries(categories.map(c => [c.id, c])), catalogue });
+    const model = resolvePresentation(selection, { locale, productsById: Object.fromEntries(products.map(p => [p.id, p])), pathProductsById, mediaById, categoriesById: Object.fromEntries(categories.map(c => [c.id, c])), catalogue });
     const current = await readStorefrontConfig(client);
     if (!current.success) return fail('UNAVAILABLE');
     if (current.data.revision !== revision || !current.data.draft || Date.now() >= startedAt + 600000) return fail('CONFLICT', null, current.data.revision);

@@ -21,9 +21,10 @@ export function resolveProductPaths(spec: unknown, inputs: ProductPathsInputs):
   if (!content.success) return invalid;
   const items: ProductPathsProps['items'] = [];
   for (const item of content.data.items) {
-    if (!Object.hasOwn(inputs.productsById, item.productId)) return invalid;
-    const product = inputs.productsById[item.productId];
-    if (product && product.id !== item.productId) return invalid;
+    const productId = item.productId.toLowerCase();
+    if (!Object.hasOwn(inputs.productsById, productId)) return invalid;
+    const product = inputs.productsById[productId];
+    if (product && product.id.toLowerCase() !== productId) return invalid;
     if (product?.availability === 'available') items.push({ id: item.id, situation: item.situation, body: item.body, ...(item.label !== undefined ? { label: item.label } : {}), product });
   }
   return { success: true, data: { heading: content.data.heading, body: content.data.body, ...(content.data.eyebrow !== undefined ? { eyebrow: content.data.eyebrow } : {}), ...(content.data.actionLabel !== undefined ? { actionLabel: content.data.actionLabel } : {}), items, locale: inputs.locale } };

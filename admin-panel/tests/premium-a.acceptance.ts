@@ -8,8 +8,8 @@ import type { Page } from '@playwright/test';
 import { extractMagicLink } from './helpers/mailpit';
 import { acceptAllCookies } from './helpers/consent';
 
-const trial = process.env.PREMIUM_TRIAL === 'b' ? 'b' : 'a';
-const task = trial === 'b' ? 't213' : 't208';
+const trial = process.env.PREMIUM_TRIAL === 'c' ? 'c' : process.env.PREMIUM_TRIAL === 'b' ? 'b' : 'a';
+const task = trial === 'c' ? 't218' : trial === 'b' ? 't213' : 't208';
 const templateId = `storefront-${trial}`;
 const root = `/private/tmp/sellf-${task}/`;
 const env = JSON.parse(readFileSync(`${root}env.json`, 'utf8'));
@@ -54,6 +54,8 @@ async function verifyAccess(page: Page, email: string, product: { id: string; sl
 }
 
 test('premium author lifecycle and cached rights loss', async ({ browser, request }) => {
+  writeFileSync(`${root}issuer-state.json`, JSON.stringify({ offline: false, revoked: [] }));
+  await storePlatform(credentials.platform);
   expect(new URL(env.NEXT_PUBLIC_SUPABASE_URL).port).toBe('55441'); expect(env.STRIPE_SECRET_KEY.startsWith('sk_test_')).toBe(true);
   const author = await browser.newContext({ reducedMotion: 'reduce' }); const page = await author.newPage();
   const outbound: string[] = [];
@@ -69,7 +71,7 @@ test('premium author lifecycle and cached rights loss', async ({ browser, reques
   const candidate = structuredClone(initial.published);
   candidate.templateId = templateId;
   candidate.overridesByTemplate[templateId] = { order: ['hero', 'tasks', 'comparison', 'start', 'catalogue', 'faq', 'closing'], sections: { tasks: { visibility: 'visible' }, start: { variant: 'detail-cards' } } };
-  const products = handoff.products.slice(0, trial === 'b' ? 6 : 3);
+  const products = handoff.products.slice(0, trial === 'b' ? 6 : trial === 'c' ? 4 : 3);
   candidate.settingsByTemplate[templateId] = { heroProduct: products[0].id, comparisonProducts: products.slice(0, 2).map((p: { id: string }) => p.id), starterProducts: products.map((p: { id: string }) => p.id), taskCategories: handoff.categories.slice(0, 1).map((c: { id: string }) => c.id), density: 'comfortable' };
   candidate.content = { ...candidate.content,
     'home.hero': { sourceLocale: 'en', en: { kind: 'hero', eyebrow: 'Example studio', heading: 'Build a useful workflow', body: 'Explore the available workshops and guides.', steps: ['Choose a task', 'Read the guide', 'Try the process'] } },
@@ -86,11 +88,19 @@ test('premium author lifecycle and cached rights loss', async ({ browser, reques
     candidate.content['home.featured'] = { sourceLocale: 'en', en: { kind: 'heading', heading: 'Six starting points', body: 'Choose a guide.' } };
     candidate.content['home.starter'] = { sourceLocale: 'en', en: { kind: 'cta', heading: 'Start with one task', body: 'Read the guide.' } };
   }
+  if (trial === 'c') {
+    candidate.overridesByTemplate[templateId] = { order: ['hero', 'story', 'paths', 'projects', 'start', 'catalogue', 'faq', 'closing'], sections: { story: { visibility: 'visible' } } };
+    candidate.settingsByTemplate[templateId] = { starterProducts: products.slice(0, 3).map((p: { id: string }) => p.id), density: 'comfortable' };
+    candidate.content['home.author'] = { sourceLocale: 'en', en: { kind: 'author', name: 'Alex Example', eyebrow: 'Independent maker', heading: 'Useful work, shared openly', intro: 'Explore practical projects and guides.', portraitMediaId: null } };
+    candidate.content['home.story'] = { sourceLocale: 'en', en: { kind: 'biography', heading: 'The work behind the guides', paragraphs: ['A synthetic biography retained across template changes.', 'Start with an existing product and build a useful workflow.'] } };
+    candidate.content['home.paths'] = { sourceLocale: 'en', en: { kind: 'paths', heading: 'Choose a starting path', body: 'Choose the task you need.', items: products.map((p: { id: string }, i: number) => ({ id: `path-${i}`, productId: p.id, situation: `Starting point ${i + 1}`, body: 'Explore the canonical product details.' })) } };
+    candidate.content['home.projects'] = { sourceLocale: 'en', en: { kind: 'projects', heading: 'Selected projects', items: [{ id: 'project-one', name: 'Example project', body: 'A synthetic project description.', url: 'https://example.test/project-one', mediaId: null }] } };
+  }
   expect((await call('draft', { expectedRevision: revision, config: candidate }, 'PUT', handoff.keys.read)).status).toBe(403);
   expect((await call('publish', { expectedRevision: revision }, 'POST', handoff.keys.write)).status).toBe(403);
   const drafted = await call('draft', { expectedRevision: revision, config: candidate }, 'PUT'); expect(drafted.status).toBe(200); revision++;
   const validation = await call('validate', { config: candidate, mode: 'draft' }); expect(validation.body.valid).toBe(true);
-  for (const letter of (trial === 'a' ? ['b', 'c'] : ['a', 'c'])) {
+  for (const letter of (['a', 'b', 'c'].filter(letter => letter !== trial))) {
     await saveCredential(credentials[letter]); await expect.poll(status, { timeout: 65000, intervals: [3000] }).toBe('invalid');
     const before = await db.from('storefront_config_history').select('revision');
     expect((await call('publish', { expectedRevision: revision })).status).toBe(403);
@@ -134,6 +144,11 @@ test('premium author lifecycle and cached rights loss', async ({ browser, reques
   expect((await call('diff', { fromRevision: initial.revision, toRevision: revision })).body.changes.length).toBeGreaterThan(0);
   expect((await call('publish', { expectedRevision: revision })).status).toBe(200); revision++;
   expect((await call('config')).body.published).toEqual(candidate); await expect.poll(rendered).toBe(templateId);
+  if (trial === 'c') {
+    const publicHtml = await fetch(origin).then(response => response.text());
+    for (const family of ['author-hero/1', 'author-story/1', 'product-paths/1', 'project-showcase/1']) expect(publicHtml).toContain(`data-section="${family}"`);
+    expect(publicHtml).toContain('id="paths"');
+  }
   const premiumRevision = revision;
   expect((await call('rollback', { expectedRevision: revision, targetRevision: initial.revision })).status).toBe(200); revision++;
   expect((await call('config')).body.published).toEqual(initial.published);
@@ -144,7 +159,7 @@ test('premium author lifecycle and cached rights loss', async ({ browser, reques
   expect((await call('rollback', { expectedRevision: revision, targetRevision: premiumRevision })).status).toBe(200); revision++;
   await expect.poll(rendered).toBe(templateId);
   const until = Math.floor(Date.now() / 1000) + 45;
-  const c = { ...credentials.common, product: credentials.policies[trial === 'a' ? 0 : 1].saleProductId, templateId, edition: 'standard', tier: 'standard', order: 't208-expiring', exp: until };
+  const c = { ...credentials.common, product: credentials.policies[['a', 'b', 'c'].indexOf(trial)].saleProductId, templateId, edition: 'standard', tier: 'standard', order: 't208-expiring', exp: until };
   const payload = Buffer.from(JSON.stringify(c)).toString('base64url');
   await saveCredential(payload + '.' + createSign('SHA256').update(payload).end().sign(credentials.privateKey).toString('base64url'));
   await waitPremium(); expect(await rendered()).toBe(templateId); await fallback('expiry');
@@ -177,6 +192,7 @@ test('purchase started on premium storefront and free access finish after downgr
   const current = (await call('config')).body; const config = structuredClone(current.published);
   config.templateId = templateId;
   if (trial === 'a') config.settingsByTemplate[templateId].heroProduct = paid.data!.id;
+  else if (trial === 'c') config.settingsByTemplate[templateId].starterProducts = [paid.data!.id];
   else config.settingsByTemplate[templateId].featuredProducts = [paid.data!.id, ...config.settingsByTemplate[templateId].featuredProducts.slice(0, 5)];
   expect((await call('draft', { expectedRevision: current.revision, config }, 'PUT')).status).toBe(200);
   expect((await call('publish', { expectedRevision: current.revision + 1 })).status).toBe(200);
@@ -185,7 +201,7 @@ test('purchase started on premium storefront and free access finish after downgr
   const consent = await buyer.cookies('http://localhost');
   await buyer.addCookies(consent.map(({ name, value }) => ({ name, value, url: origin })));
   await page.goto('/'); await expect(page.locator('[data-template]')).toHaveAttribute('data-template', templateId);
-  await page.locator(`[data-variant="${trial === 'a' ? 'offer-focus' : 'featured-grid'}"] a[href$="/p/${paid.data!.slug}"]`).first().click();
+  await page.locator(`[data-variant="${trial === 'a' ? 'offer-focus' : trial === 'b' ? 'featured-grid' : 'detail-cards'}"] a[href$="/p/${paid.data!.slug}"]`).first().click();
   await expect(page).toHaveURL(/\/p\/t208-paid/);
   const email = `t208-paid-${Date.now()}@example.com`;
   await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
@@ -283,5 +299,43 @@ if (trial === 'b') test('B uses bounded search, category and cursor controls at 
   await offerCall('draft', { expectedRevision: initial.revision + 2, config: { ...offer, enabled: false } }); await offerCall('publish', { expectedRevision: initial.revision + 3 });
   await page.goto('/'); await expect(page.locator(`[data-variant="featured-grid"] a[href$="/p/${product.slug}"]`).first()).toBeVisible();
   record('100k-controls-and-offer-details', { batches: batches.length, maxPageSize: Math.max(...batches.map(batch => batch.pageSize)) });
+  await context.close();
+});
+
+if (trial === 'c') test('C retains author content through template switches and routes enabled and disabled offer details', async ({ browser }) => {
+  await storePlatform(credentials.platform); await saveCredential(credentials.c); await waitPremium();
+  const current = (await call('config')).body;
+  const candidate = structuredClone(current.published);
+  let revision = current.revision;
+  const retained = JSON.stringify({ content: candidate.content, settings: candidate.settingsByTemplate, overrides: candidate.overridesByTemplate });
+  for (const id of ['storefront-a', 'storefront-b', 'd', 'storefront-c']) {
+    candidate.templateId = id;
+    expect((await call('draft', { expectedRevision: revision, config: candidate }, 'PUT')).status).toBe(200); revision++;
+    const saved = (await call('config')).body.draft;
+    expect(JSON.stringify({ content: saved.content, settings: saved.settingsByTemplate, overrides: saved.overridesByTemplate })).toBe(retained);
+  }
+  expect((await call('publish', { expectedRevision: revision })).status).toBe(200);
+  const product = handoff.products[0];
+  const offerCall = async (operation: string, data?: unknown) => {
+    const response = await fetch(`${origin}/api/v1/products/${product.id}/offer/${operation}`, { method: operation === 'config' ? 'GET' : operation === 'draft' ? 'PUT' : 'POST', headers: { authorization: `Bearer ${handoff.keys.author}`, 'content-type': 'application/json' }, ...(data ? { body: JSON.stringify(data) } : {}) });
+    expect(response.status).toBe(200); return response.json();
+  };
+  const offer = { format: 1, enabled: true, templateId: 'offer-default', settings: { density: 'comfortable' }, content: {}, tokens: null };
+  const initial = await offerCall('config');
+  await offerCall('draft', { expectedRevision: initial.revision, config: offer }); await offerCall('publish', { expectedRevision: initial.revision + 1 });
+  const context = await browser.newContext(); const page = await context.newPage();
+  await acceptAllCookies(page); const consent = await context.cookies('http://localhost'); await context.addCookies(consent.map(({ name, value }) => ({ name, value, url: origin })));
+  for (const locale of ['en', 'pl']) {
+    await page.goto(locale === 'en' ? '/' : '/pl');
+    await expect(page.locator('[data-template]')).toHaveAttribute('data-template', templateId);
+    const link = page.locator(`#paths a[href$="/offer/${product.slug}"]`).first(); await expect(link).toBeVisible(); await link.click();
+    await expect(page).toHaveURL(new RegExp(`/offer/${product.slug}$`));
+    await expect(page.locator(`a[href$="/checkout/${product.slug}"]`).first()).toBeVisible();
+  }
+  await offerCall('draft', { expectedRevision: initial.revision + 2, config: { ...offer, enabled: false } }); await offerCall('publish', { expectedRevision: initial.revision + 3 });
+  await page.goto('/'); await expect(page.locator(`#paths a[href$="/p/${product.slug}"]`).first()).toBeVisible();
+  await expect(page.locator('h1')).toHaveCount(1);
+  expect(await page.locator('a[href*="about-store"]').count()).toBe(0);
+  record('c-switch-retention-and-offer-details', { switches: ['C', 'A', 'B', 'D', 'C'], locales: ['en', 'pl'] });
   await context.close();
 });

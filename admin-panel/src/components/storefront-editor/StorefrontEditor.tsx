@@ -22,7 +22,7 @@ interface StorefrontEditorProps { initial: TemplateReadResult | null }
 export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
   const locale = useLocale() === 'pl' ? 'pl' : 'en';
   const t = useTranslations('storefrontEditor');
-  const templateName = (id: string) => id === 'storefront-a' || id === 'storefront-b' ? STOREFRONT_TEMPLATES[id].label[locale] : t(id === 'd' ? 'dName' : 'defaultName');
+  const templateName = (id: string) => id === 'storefront-a' || id === 'storefront-b' || id === 'storefront-c' ? STOREFRONT_TEMPLATES[id].label[locale] : t(id === 'd' ? 'dName' : 'defaultName');
   const appearance = useTranslations('storefrontAppearance');
   const sectionListId = useId();
   const sectionListRef = useRef<HTMLOListElement>(null);
@@ -128,8 +128,8 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
   }, [sectionId, orderKey]);
   const selectedSection = layout?.sections.find(item => item.id === sectionId);
   const section = selectedSection?.spec;
-  const sectionName = (id: string) => id === 'hero' && config?.templateId === 'storefront-b' ? t('search-hero') : t(`sectionNames.${id}`);
-  const sectionDescription = (id: string) => id === 'hero' && config?.templateId === 'storefront-b' ? t('searchHeroDescription') : t(`sectionDescriptions.${id}`);
+  const sectionName = (id: string) => id === 'hero' && config?.templateId === 'storefront-c' ? t('authorHero') : id === 'hero' && config?.templateId === 'storefront-b' ? t('search-hero') : t(`sectionNames.${id}`);
+  const sectionDescription = (id: string) => id === 'hero' && config?.templateId === 'storefront-c' ? t('authorHeroDescription') : id === 'hero' && config?.templateId === 'storefront-b' ? t('searchHeroDescription') : t(`sectionDescriptions.${id}`);
   const slotId = section && 'content' in section && section.content ? section.content.slot : null;
   const variants = selectedSection?.descriptor.variants ?? [];
   function changeSection(id: string, patch: SectionIntent) {
@@ -160,7 +160,7 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
       <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-sf-border bg-sf-base p-4 sm:p-5"><Layers size={23} className="shrink-0 text-sf-accent" aria-hidden="true" /><label className="min-w-0 flex-1 space-y-1 text-sm font-semibold"><span>{t('template')}</span><select aria-label={t('template')} className={editorControl} value={config.templateId} onChange={event => { edit({ ...config, templateId: event.target.value as StorefrontConfig['templateId'] }); setSelected(event.target.value === 'default' ? 'catalogue' : 'hero'); }}>
         {Object.values(STOREFRONT_TEMPLATES).map(template => <option key={template.id} value={template.id}>{templateName(template.id)}{template.entitlement.kind === 'pro' ? ' · Pro' : ''}</option>)}
       </select></label></div>
-      {snapshot && config.templateId !== 'default' && !snapshot.rights.availableTemplateIds.includes(config.templateId) && <p className="flex items-start gap-2 rounded-xl bg-sf-warning-soft p-3 text-sm text-sf-warning"><Eye size={18} className="mt-0.5 shrink-0" aria-hidden="true" />{t('proNotice')}</p>}
+      {snapshot && config.templateId !== 'default' && !snapshot.rights.availableTemplateIds.includes(config.templateId) && <p className="flex items-start gap-2 rounded-xl bg-sf-warning-soft p-3 text-sm text-sf-warning"><Eye size={18} className="mt-0.5 shrink-0" aria-hidden="true" />{t(STOREFRONT_TEMPLATES[config.templateId].entitlement.kind === 'template-key' ? 'templateKeyNotice' : 'proNotice')}</p>}
       <TemplateLicenses />
       <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
         <nav aria-label={t('sections')} className="min-w-0 space-y-3">

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { marketingFieldsShapeSchema } from '@/lib/validations/product-marketing';
 import { configSchema } from '@/lib/storefront-templates/schemas';
 
-const migration = new URL('../../supabase/migrations/20261017014729_storefront_b_contract.sql', import.meta.url);
+const migration = new URL('../../supabase/migrations/20261017030527_storefront_c_contract.sql', import.meta.url);
 const sql = `CREATE OR REPLACE FUNCTION public.storefront_config_schema() RETURNS json LANGUAGE sql IMMUTABLE SECURITY INVOKER SET search_path = ''
 AS $schema$ SELECT '${JSON.stringify(z.toJSONSchema(configSchema)).replaceAll("'", "''")}'::json; $schema$;
 REVOKE EXECUTE ON FUNCTION public.storefront_config_schema() FROM PUBLIC, anon, authenticated;

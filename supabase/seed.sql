@@ -1248,6 +1248,18 @@ WHERE revision = 0;
 UPDATE public.storefront_config_history SET published = (SELECT published FROM public.storefront_config)
 WHERE revision = 0;
 
+-- Retained author composition exercises localized copy without selecting premium output.
+UPDATE public.storefront_config SET published = jsonb_set(
+  jsonb_set(published, '{settingsByTemplate,storefront-c}', jsonb_build_object(
+    'starterProducts', jsonb_build_array((SELECT id FROM public.products WHERE slug = 'premium-course')),
+    'density', 'comfortable')), '{content}', published->'content' || jsonb_build_object(
+    'home.author', jsonb_build_object('sourceLocale','en','en',jsonb_build_object('kind','author','name','Alex Example','eyebrow','Independent maker','heading','Make your next useful thing','intro','Practical resources from an independent creator.','portraitMediaId',null),'pl',jsonb_build_object('kind','author','name','Alex Example','eyebrow','Niezależny twórca','heading','Stwórz kolejną przydatną rzecz','intro','Praktyczne materiały niezależnego twórcy.','portraitMediaId',null)),
+    'home.story', '{"sourceLocale":"en","en":{"kind":"biography","heading":"Built through practice","paragraphs":["I share resources developed while building my own projects."]},"pl":{"kind":"biography","heading":"Z własnej praktyki","paragraphs":["Dzielę się materiałami opracowanymi podczas pracy nad własnymi projektami."]}}'::jsonb,
+    'home.paths', jsonb_build_object('sourceLocale','en','en',jsonb_build_object('kind','paths','heading','Choose your starting point','body','One practical step at a time.','items',jsonb_build_array(jsonb_build_object('id','learn','productId',(SELECT id FROM public.products WHERE slug='premium-course'),'situation','Learn a new skill','body','Start with a practical course.')))),
+    'home.projects', '{"sourceLocale":"en","en":{"kind":"projects","heading":"Things I build","items":[{"id":"notebook","name":"Example Notebook","body":"A small independent project.","url":"https://example.test/notebook","mediaId":null}]}}'::jsonb))
+WHERE revision=0;
+UPDATE public.storefront_config_history SET published=(SELECT published FROM public.storefront_config) WHERE revision=0;
+
 -- Product-scoped offer examples: absent publication, disabled publication, localized draft.
 WITH examples AS (
  SELECT id, row_number() OVER (ORDER BY id) AS n FROM public.products ORDER BY id LIMIT 3

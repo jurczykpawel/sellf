@@ -21,7 +21,7 @@ export function templateCapabilities() {
   const slots = Object.fromEntries(Object.entries(contentSchema.shape).map(([id, schema]) => [id, schema.unwrap().options[0].shape.en.shape.kind.value]));
   return {
     validatorVersion: 1, offline: true, templates: Object.values(STOREFRONT_TEMPLATES), coreSettings: CORE_SETTINGS,
-    phase2: { selectable: false, installedTemplateIds: ['storefront-a', 'storefront-b'], slots: Object.fromEntries(Object.entries(phase2ContentSchema.shape).map(([id, schema]) => [id, schema.unwrap().options[0].shape.en.shape.kind.value])), limits: { comparison: 2, featured: 6, paths: 4, projects: 3, categoryDescriptions: 12 } },
+    phase2: { selectable: false, installedTemplateIds: ['storefront-a', 'storefront-b', 'storefront-c'], slots: Object.fromEntries(Object.entries(phase2ContentSchema.shape).map(([id, schema]) => [id, schema.unwrap().options[0].shape.en.shape.kind.value])), limits: { comparison: 2, featured: 6, paths: 4, projects: 3, categoryDescriptions: 12 } },
     offers: { templateIds: ['offer-default'], productBinding: 'route-product', resetPaths: ['appearance', 'density'],
       slots: Object.fromEntries(Object.entries(offerConfigSchema.shape.content.shape).map(([id, schema]) => [id, schema.unwrap().options[0].shape.en.shape.kind.value])) },
     slots, resetPaths, orderPolicy: { read: 'unique-known-subset', write: 'full-resolved-list', omittedSection: 'inherit-default-visibility' }, schemas: templateSchemas(),

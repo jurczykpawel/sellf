@@ -20,7 +20,7 @@ SELECT pg_temp.assert_true(NOT public.storefront_config_valid(jsonb_set(config, 
 SELECT pg_temp.assert_true(NOT public.storefront_config_valid(jsonb_set(config, '{overridesByTemplate,storefront-a}', '{"sections":{"catalogue":{"visibility":"hidden"}}}')), 'A catalogue stays visible') FROM a_fixture;
 SELECT pg_temp.assert_true(NOT public.storefront_config_valid(jsonb_set(config, '{overridesByTemplate,storefront-a}', '{"sections":{"comparison":{"variant":"featured-grid"}}}')), 'A variants follow descriptors') FROM a_fixture;
 SELECT pg_temp.assert_true(NOT public.storefront_config_valid(config || '{"extra":true}'), 'unknown config field rejected') FROM a_fixture;
-SELECT pg_temp.assert_true(NOT public.storefront_config_valid(jsonb_set(config, '{templateId}', '"storefront-c"')), 'unregistered template rejected') FROM a_fixture;
+SELECT pg_temp.assert_true(NOT public.storefront_config_valid(jsonb_set(config, '{templateId}', '"storefront-unknown"')), 'unregistered template rejected') FROM a_fixture;
 SELECT pg_temp.assert_true(NOT public.storefront_config_valid(jsonb_set(config, '{settingsByTemplate,storefront-a,comparisonProducts}', '[]')), 'comparison requires two bindings') FROM a_fixture;
 SELECT pg_temp.assert_true(NOT public.storefront_config_valid(jsonb_set(config, '{content,home.comparison,en,items,1,productId}', config#>'{content,home.comparison,en,items,0,productId}')), 'comparison copy uses distinct products') FROM a_fixture;
 SELECT pg_temp.assert_true(NOT has_table_privilege('anon','public.storefront_config','SELECT'), 'anonymous config read unavailable');

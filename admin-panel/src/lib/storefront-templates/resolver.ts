@@ -4,12 +4,16 @@ import { APP_VERSION, isNewerVersion } from '@/lib/version';
 import { registryEntrySchema } from '@/lib/storefront-templates/schemas';
 import { CORE_SETTINGS, STOREFRONT_TEMPLATES, validateConfig, validateRecipe } from '@/lib/storefront-templates/registry';
 import { resolveSharedPhase2Section } from '@/lib/storefront-templates/phase2-shared';
+import { resolveAuthorHero } from '@/lib/storefront-templates/author-hero';
+import { resolveAuthorStory } from '@/lib/storefront-templates/author-story';
+import { resolveProductPaths } from '@/lib/storefront-templates/product-paths';
+import { resolveProjectShowcase } from '@/lib/storefront-templates/project-showcase';
 import { heroProductDefinition } from '@/lib/storefront-templates/hero-product';
 import { resolveProductList } from '@/lib/storefront-templates/sections/product-list';
 import { resolveTaskNav } from '@/lib/storefront-templates/task-nav';
 import { resolveFaq, resolveProductCta } from '@/lib/storefront-templates/faq-closing';
 import { resolveCatalogue } from '@/lib/storefront-templates/catalogue-section';
-import type { OfferFocusProps, CatalogueLinkProps, SearchHeroProps } from '@/lib/storefront-templates/phase2-contracts';
+import type { OfferFocusProps, CatalogueLinkProps, SearchHeroProps, AuthorHeroProps, AuthorStoryProps, ProductPathsProps, ProjectShowcaseProps } from '@/lib/storefront-templates/phase2-contracts';
 import type { HeroProductProps } from '@/lib/storefront-templates/hero-product';
 import type { ExtendedProductListProps } from '@/lib/storefront-templates/sections/product-list';
 import type { TaskNavProps } from '@/lib/storefront-templates/task-nav-public';
@@ -19,6 +23,10 @@ import type { PublicCategoryInfo, PublicProductInfo } from '@/lib/storefront-tem
 import type { SlotContent, StorefrontConfig, TemplateRecipe, TemplateSettings } from '@/lib/storefront-templates/schemas';
 
 export type ResolvedSection =
+  | { id: string; type: 'author-hero/1'; props: AuthorHeroProps }
+  | { id: string; type: 'author-story/1'; props: AuthorStoryProps }
+  | { id: string; type: 'product-paths/1'; props: ProductPathsProps }
+  | { id: string; type: 'project-showcase/1'; props: ProjectShowcaseProps }
   | { id: string; type: 'hero-product/1'; props: HeroProductProps | OfferFocusProps }
   | { id: string; type: 'task-nav/1'; props: TaskNavProps | SearchHeroProps }
   | { id: string; type: 'product-list/1'; props: ExtendedProductListProps }
@@ -32,6 +40,8 @@ export interface PresentationModel<TemplateId extends string = StorefrontConfig[
 export interface PublicInputs {
   locale: 'en' | 'pl'; productsById: Record<string, PublicProductInfo>;
   categoriesById: Record<string, PublicCategoryInfo>; catalogue: CatalogueProps;
+  pathProductsById?: Record<string, PublicProductInfo | null>;
+  mediaById?: Record<string, NonNullable<PublicProductInfo['image']>>;
 }
 export interface StorefrontSelection {
   templateId: StorefrontConfig['templateId']; recipe: TemplateRecipe; settings: TemplateSettings;
@@ -58,7 +68,7 @@ export function resolveSelection(input: unknown, availableTemplateIds: readonly 
 export function resolvePresentation(selection: StorefrontSelection, publicInputs: PublicInputs): PresentationModel {
   const slots: Record<string, SlotContent> = {};
   for (const [id, slot] of Object.entries(selection.content)) if (slot) slots[id] = slot[publicInputs.locale] ?? slot[slot.sourceLocale]!;
-  const inputs = { ...publicInputs, settings: selection.settings, slots };
+  const inputs = { ...publicInputs, mediaById: publicInputs.mediaById ?? {}, settings: selection.settings, slots };
   const sections: ResolvedSection[] = [];
   for (const spec of selection.recipe.sections) {
     if ('variant' in spec && (spec.variant === 'offer-focus' || spec.variant === 'catalogue-link' || spec.variant === 'search-hero')) {
@@ -67,6 +77,26 @@ export function resolvePresentation(selection: StorefrontSelection, publicInputs
       continue;
     }
     switch (spec.type) {
+      case 'author-hero/1': {
+        const resolved = resolveAuthorHero(spec, inputs, selection.recipe);
+        if (resolved.success) sections.push({ id: spec.id, type: spec.type, props: resolved.data });
+        break;
+      }
+      case 'author-story/1': {
+        const resolved = resolveAuthorStory(spec, inputs);
+        if (resolved.success) sections.push({ id: spec.id, type: spec.type, props: resolved.data });
+        break;
+      }
+      case 'product-paths/1': {
+        const resolved = resolveProductPaths(spec, { ...inputs, productsById: publicInputs.pathProductsById ?? publicInputs.productsById });
+        if (resolved.success) sections.push({ id: spec.id, type: spec.type, props: resolved.data });
+        break;
+      }
+      case 'project-showcase/1': {
+        const resolved = resolveProjectShowcase(spec, inputs);
+        if (resolved.success) sections.push({ id: spec.id, type: spec.type, props: resolved.data });
+        break;
+      }
       case 'hero-product/1': sections.push({ id: spec.id, type: spec.type, props: heroProductDefinition.resolve(spec, inputs) }); break;
       case 'product-list/1': sections.push({ id: spec.id, type: spec.type, props: resolveProductList(spec, inputs) }); break;
       case 'catalogue/1': sections.push({ id: spec.id, type: spec.type, props: resolveCatalogue(spec, inputs) }); break;

@@ -13,23 +13,25 @@ import { CONFIG_BYTES, parseBoundedJson, storedJsonBytes } from '@/lib/storefron
 import { phase2Recipes, phase2Config, referenceConfig, uuid } from '../../fixtures/storefront-sections/phase2/contracts';
 
 describe('frozen Phase 2 contracts', () => {
-  it('accepts synthetic A/B/C and route-bound offers without selecting unfinished renderers', () => {
+  it('accepts synthetic installed A/B/C configurations and route-bound offers', () => {
     for (const recipe of Object.values(phase2Recipes)) expect(validatePhase2(recipe, 'recipe').valid).toBe(true);
     expect(validatePhase2(phase2Config, 'config').valid).toBe(true);
     expect(validatePhase2(referenceConfig(), 'config').valid).toBe(true);
-    expect(configSchema.safeParse(phase2Config).success).toBe(false);
+    expect(configSchema.safeParse(phase2Config).success).toBe(true);
     for (const config of [DEFAULT_CONFIG, D_CONFIG]) expect(configSchema.parse(config)).toEqual(config);
     expect(templateCapabilities().phase2.selectable).toBe(false);
+    expect(templateCapabilities().phase2.installedTemplateIds).toEqual(['storefront-a', 'storefront-b', 'storefront-c']);
+    expect(configSchema.safeParse({ ...phase2Config, templateId: 'storefront-unknown' }).success).toBe(false);
     expect(templateSchemas()['phase2-recipe']).toEqual(z.toJSONSchema(phase2RecipeSchema));
   });
-  it('declares strict section maps for offline B/C variants without installing their renderers', () => {
+  it('shares strict installed B/C section maps with the frozen contract', () => {
     for (const [templateId, sections] of [
       ['storefront-b', { hero: { variant: 'search-hero' }, featured: { variant: 'featured-grid' }, starter: { visibility: 'hidden' } }],
       ['storefront-c', { story: { visibility: 'hidden' }, start: { variant: 'compact' } }],
     ]) {
       const config = { ...phase2Config, templateId, overridesByTemplate: { [String(templateId)]: { sections } } };
       expect(validatePhase2(config, 'config').valid).toBe(true);
-      expect(configSchema.safeParse(config).success).toBe(false);
+      expect(configSchema.safeParse(config).success).toBe(true);
       expect(validatePhase2({ ...config, overridesByTemplate: { [String(templateId)]: { hidden: [] } } }, 'config').valid).toBe(false);
     }
   });

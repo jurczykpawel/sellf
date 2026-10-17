@@ -123,3 +123,19 @@ it('names preview failures by operation', async () => {
   m.rate.mockResolvedValue(false);
   expect(await preparePreview(await verifyTemplateSession(), input)).toMatchObject({ message: 'Storefront preview could not be completed' });
 });
+
+it('uses the C public binding adapter for draft paths and portrait without requiring activation', async () => {
+  const { phase2Config, uuid } = await import('../../fixtures/storefront-sections/phase2/contracts');
+  const cover = { src: 'https://example.test/portrait.png', alt: 'Alex', width: 800, height: 500 };
+  const config = { ...phase2Config, templateId: 'storefront-c', content: { ...phase2Config.content,
+    'home.author': { sourceLocale: 'en', en: { ...phase2Config.content['home.author'].en, portraitMediaId: uuid(20) } },
+  } };
+  m.read.mockResolvedValue({ success: true, data: { revision: 3, draft: config, published: DEFAULT_CONFIG } });
+  m.bindings.mockResolvedValue({ success: true, data: { hero: null, closing: null, starters: [], comparison: [], featured: [], paths: { [uuid(1)]: null }, mediaById: { [uuid(20)]: cover }, categories: [] } });
+  const response = await preparePreview(await verifyTemplateSession(), { ...input, locale: 'pl', fixture: 'published-products' });
+  expect(m.bindings).toHaveBeenCalledExactlyOnceWith({}, expect.objectContaining({ locale: 'pl', pathProducts: [uuid(1)], mediaProducts: [uuid(20)] }));
+  expect(response).toMatchObject({ success: true, data: { model: { templateId: 'storefront-c', sections: expect.arrayContaining([
+    expect.objectContaining({ type: 'author-hero/1', props: expect.objectContaining({ portrait: cover }) }),
+    expect.objectContaining({ type: 'product-paths/1', props: expect.objectContaining({ items: [] }) }),
+  ]) } } });
+});

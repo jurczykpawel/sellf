@@ -20,7 +20,7 @@ export function resolveAuthorHero(spec: unknown, inputs: AuthorHeroInputs, recip
   const content = slot === undefined ? null : authorContentSchema.safeParse(slot);
   if (content && !content.success) return invalid;
   const author = content?.success ? content.data : null;
-  const mediaId = author?.portraitMediaId;
+  const mediaId = author?.portraitMediaId?.toLowerCase();
   const portrait = publicMediaSchema.safeParse(mediaId && Object.hasOwn(inputs.mediaById, mediaId) ? inputs.mediaById[mediaId] : null);
   return { success: true, data: { content: author, portrait: portrait.success ? portrait.data : null,
     pathsTarget: section.pathsTarget, catalogueTarget: section.catalogueTarget, locale: inputs.locale } };
