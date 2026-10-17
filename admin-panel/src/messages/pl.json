@@ -4594,6 +4594,9 @@
       "copiedToast": "Skopiowano"
     }
   },
+  "storefrontAuthor": {
+    "choosePath": "Wybierz swój punkt startu"
+  },
   "storefrontClosing": {
     "catalogue": "Katalog",
     "browseCatalogue": "Przeglądaj katalog"

@@ -238,3 +238,22 @@ without selecting or activating it. B uses the reviewed blue palette and bundled
 Geist, with the same core prices, details/offer routing and checkout actions.
 The opt-in premium trial reuses `playwright.premium.config.ts` with
 `PREMIUM_TRIAL=b` and disposable coordinator inputs in `/private/tmp/sellf-t213/`.
+
+## T2.14 author hero handoff
+
+`authorHeroDefinition` exposes the frozen `author-hero/1` component and
+`resolveAuthorHero`. Pass the visible recipe after D-056 layout resolution: the
+resolver validates both section targets and membership in that recipe. Inputs are
+localized `home.author` and already approved public `mediaById` DTOs; no product,
+client or fetch is required. Missing media is omitted. Missing/blank author copy
+keeps one heading using the author name or the core catalogue label.
+C registration and lifecycle storage adoption remain T2.18; `home.story` remains
+biography, separate from the hero. No trial slot or schema extension is introduced.
+
+The browser harness compares C heading/portrait geometry within 2px in EN/PL,
+with desktop arch and mobile circular crop. Frozen author grammar has no note or
+caption body, so those reference-only fields are omitted; core action labels and
+token colors replace prototype labels/colors. Newlines in the plain heading mark
+the editorial second phrase. Long/empty/missing media, dark, keyboard, reduced
+motion, 320/768/1440px, 200% zoom, escaping and request bounds run without a DB:
+`bunx playwright test --config playwright.sections.config.ts tests/storefront-author-hero.spec.ts --workers=1`.
