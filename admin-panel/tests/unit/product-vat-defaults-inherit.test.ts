@@ -60,17 +60,17 @@ describe('new products inherit shop VAT defaults (UI + API parity)', () => {
     if (created.length) await admin.from('products').delete().in('id', created);
   });
 
-  it('inherits the shop default vat_rate when none is provided', async () => {
-    await setShop({ tax_rate: 23, is_vat_exempt: false });
+  it.each([{ shopRate: 0.23, productRate: 23 }, { shopRate: 0.08, productRate: 8 }])('inherits fractional shop rate $shopRate as product percentage points', async ({ shopRate, productRate }) => {
+    await setShop({ tax_rate: shopRate, is_vat_exempt: false });
     const { data, error } = await insertProduct();
     expect(error).toBeNull();
     created.push(data!.id);
-    expect(Number(data!.vat_rate)).toBe(23);
+    expect(Number(data!.vat_rate)).toBe(productRate);
     expect(data!.vat_exempt).toBe(false);
   });
 
   it('inherits the shop VAT exemption (zw.) when none is provided', async () => {
-    await setShop({ tax_rate: 23, is_vat_exempt: true });
+    await setShop({ tax_rate: 0.23, is_vat_exempt: true });
     const { data, error } = await insertProduct();
     expect(error).toBeNull();
     created.push(data!.id);
@@ -79,12 +79,12 @@ describe('new products inherit shop VAT defaults (UI + API parity)', () => {
     expect(data!.vat_rate).toBeNull();
   });
 
-  it('does NOT override an explicitly provided vat_rate', async () => {
-    await setShop({ tax_rate: 23, is_vat_exempt: true });
-    const { data, error } = await insertProduct({ vat_rate: 7 });
+  it.each([0, 7, 7.5])('retains explicit product rate %s', async vatRate => {
+    await setShop({ tax_rate: 0.23, is_vat_exempt: true });
+    const { data, error } = await insertProduct({ vat_rate: vatRate });
     expect(error).toBeNull();
     created.push(data!.id);
-    expect(Number(data!.vat_rate)).toBe(7);
+    expect(Number(data!.vat_rate)).toBe(vatRate);
     expect(data!.vat_exempt).toBe(false);
   });
 
@@ -100,7 +100,7 @@ describe('new products inherit shop VAT defaults (UI + API parity)', () => {
   });
 
   it('inherits the shop default vat_exempt_note when shop is exempt and none is provided', async () => {
-    await setShop({ tax_rate: 23, is_vat_exempt: true, vat_exempt_note: 'art. 113 ust. 1' });
+    await setShop({ tax_rate: 0.23, is_vat_exempt: true, vat_exempt_note: 'art. 113 ust. 1' });
     const { data, error } = await insertProduct();
     expect(error).toBeNull();
     created.push(data!.id);
@@ -109,7 +109,7 @@ describe('new products inherit shop VAT defaults (UI + API parity)', () => {
   });
 
   it('does NOT set vat_exempt_note when the shop has no default note configured', async () => {
-    await setShop({ tax_rate: 23, is_vat_exempt: true, vat_exempt_note: null });
+    await setShop({ tax_rate: 0.23, is_vat_exempt: true, vat_exempt_note: null });
     const { data, error } = await insertProduct();
     expect(error).toBeNull();
     created.push(data!.id);
@@ -118,7 +118,7 @@ describe('new products inherit shop VAT defaults (UI + API parity)', () => {
   });
 
   it('does NOT override an explicitly provided vat_exempt_note', async () => {
-    await setShop({ tax_rate: 23, is_vat_exempt: true, vat_exempt_note: 'art. 113 ust. 1' });
+    await setShop({ tax_rate: 0.23, is_vat_exempt: true, vat_exempt_note: 'art. 113 ust. 1' });
     const { data, error } = await insertProduct({ vat_exempt: true, vat_exempt_note: 'custom basis' });
     expect(error).toBeNull();
     created.push(data!.id);
@@ -128,7 +128,7 @@ describe('new products inherit shop VAT defaults (UI + API parity)', () => {
   it('does NOT set vat_exempt_note on a non-exempt product even if the shop has a default note', async () => {
     // Shop currently non-exempt but has a leftover default note configured — must
     // not leak onto products that aren't exempt.
-    await setShop({ tax_rate: 23, is_vat_exempt: false, vat_exempt_note: 'art. 113 ust. 1' });
+    await setShop({ tax_rate: 0.23, is_vat_exempt: false, vat_exempt_note: 'art. 113 ust. 1' });
     const { data, error } = await insertProduct();
     expect(error).toBeNull();
     created.push(data!.id);
