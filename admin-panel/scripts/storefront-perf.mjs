@@ -231,6 +231,7 @@ try {
         heroProduct: '10000000-0000-4000-8000-000000000001', closingProduct: '10000000-0000-4000-8000-000000000001',
         starterProducts: [2, 3, 4].map(n => `10000000-0000-4000-8000-${String(n).padStart(12, '0')}`), taskCategories: ['20000000-0000-4000-8000-000000000001'] };
       if (template === 'offer-default') {
+        await idle(`offer-queries-${size}`);
         const plan = sql(`SET ROLE service_role; EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT published FROM public.product_offer_config WHERE product_id='${productId(1)}'; RESET ROLE;`);
         await writeFile(resolve(out, `offer-plans-${size}.log`), plan);
         const parsed = JSON.parse(plan.slice(plan.indexOf('['), plan.lastIndexOf(']') + 1));
