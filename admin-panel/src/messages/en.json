@@ -3223,6 +3223,8 @@
         "step2Body": "Open a product → License section → enable Issue a license key on purchase. Optionally set a Tier (e.g. pro, basic) and an expiry in days (leave blank for perpetual).",
         "deliveryTitle": "License delivery",
         "deliveryBody": "Sellf does not email the license automatically. The token is added to the purchase.completed webhook payload as license.token. You receive it on your webhook endpoint and forward it to the buyer however you prefer — email, n8n automation, your own backend.",
+        "deliverySidebarSetup": "Open Webhooks in the sidebar, add your endpoint and select purchase.completed.",
+        "openWebhooks": "Open Webhooks",
         "deliverySetup": "Set up your webhook endpoint in Settings → Webhooks, subscribe to purchase.completed.",
         "deliveryPayloadLabel": "Webhook payload (excerpt):",
         "generateOwnKeyLabel": "Generate your own key (terminal):",

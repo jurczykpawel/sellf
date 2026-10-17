@@ -3223,6 +3223,8 @@
         "step2Body": "Otwórz produkt → sekcja Licencja → włącz Wystawiaj licencję przy zakupie. Opcjonalnie ustaw Tier (np. pro, basic) i czas ważności w dniach (puste = bezterminowa).",
         "deliveryTitle": "Dostawa licencji",
         "deliveryBody": "Sellf nie wysyła licencji emailem automatycznie. Token jest dodawany do payloadu webhooka purchase.completed jako pole license.token. Odbierasz go na swoim endpoincie i przekazujesz kupującemu według własnej logiki — email, automatyzacja n8n, własny backend.",
+        "deliverySidebarSetup": "Otwórz Webhooki w menu bocznym, dodaj adres odbiorcy i wybierz zdarzenie purchase.completed.",
+        "openWebhooks": "Otwórz Webhooki",
         "deliverySetup": "Skonfiguruj swój endpoint w Ustawienia → Webhooki i zasubskrybuj zdarzenie purchase.completed.",
         "deliveryPayloadLabel": "Payload webhooka (fragment):",
         "generateOwnKeyLabel": "Wygeneruj własny klucz (terminal):",
