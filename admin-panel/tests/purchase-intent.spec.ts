@@ -53,7 +53,7 @@ test('renders coupon entry and card-first payment at desktop and mobile sizes in
     for (const locale of ['en', 'pl']) for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`/${locale}/p/${product.data!.slug}`);
-      await page.getByRole('button', { name: locale === 'pl' ? 'Masz kod rabatowy?' : 'Have a discount code?' }).click();
+      await page.getByText(locale === 'pl' ? 'Masz kod rabatowy?' : 'Have a discount code?', { exact: true }).click();
       const code = page.getByRole('textbox', { name: locale === 'pl' ? 'Kod rabatowy' : 'Discount code' });
       await code.fill(coupon.data!.code);
       await page.getByRole('button', { name: locale === 'pl' ? 'Zastosuj' : 'Apply' }).click();
