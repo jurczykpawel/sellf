@@ -55,6 +55,14 @@ INSERT INTO public.products (name, slug, price, currency, vat_rate) VALUES
 INSERT INTO public.products (name, slug, price, currency, vat_rate, vat_exempt) VALUES
   ('Exempt stored fraction', 'vr-exempt-frac', 10, 'PLN', 0.23, true),
   ('Exempt stored rate', 'vr-exempt-23', 10, 'PLN', 23.00, true);
+-- Subscriptions saved without a gross/net choice (form hid it): fraction + net flag.
+INSERT INTO public.products (name, slug, price, currency, vat_rate, price_includes_vat, product_type, recurring_price, billing_interval, billing_interval_count) VALUES
+  ('Sub fraction', 'vr-sub-frac', 0, 'PLN', 0.23, false, 'subscription', 29, 'month', 1),
+  ('Sub correct net', 'vr-sub-23-net', 0, 'PLN', 23.00, false, 'subscription', 29, 'month', 1),
+  ('One-time net fraction', 'vr-net-frac', 10, 'PLN', 0.08, false, 'one_time', NULL, NULL, NULL);
+-- Product on an active sale, fraction rate: Omnibus history must not move.
+INSERT INTO public.products (name, slug, price, currency, vat_rate, sale_price, sale_price_until) VALUES
+  ('On sale', 'vr-on-sale', 100, 'PLN', 0.23, 80, now() + interval '7 days');
 -- Product with no rate at all (rate cleared after creation).
 INSERT INTO public.products (name, slug, price, currency, vat_rate) VALUES ('No rate', 'vr-null', 10, 'PLN', 23.00);
 UPDATE public.products SET vat_rate = NULL WHERE slug = 'vr-null';
@@ -81,6 +89,17 @@ CREATE TEMP TABLE before_state AS
          (SELECT string_agg(p.slug || '=' || coalesce(p.vat_rate::text, 'null') || '/' || p.vat_exempt, ',' ORDER BY p.slug)
             FROM public.products p WHERE p.slug NOT LIKE 'vr-%') AS other_products;
 CREATE TEMP TABLE before_history AS SELECT * FROM public.product_price_history;
+CREATE FUNCTION pg_temp.history_dump() RETURNS text LANGUAGE sql AS $$
+  SELECT coalesce(string_agg(h::text, '|' ORDER BY h.id), '') FROM public.product_price_history h;
+$$;
+-- The Omnibus reference: lowest price applied in the last 30 days, per product.
+CREATE FUNCTION pg_temp.lowest_30(p_slug text) RETURNS numeric LANGUAGE sql AS $$
+  SELECT min(least(h.price, coalesce(h.sale_price, h.price)))
+    FROM public.product_price_history h JOIN public.products p ON p.id = h.product_id
+   WHERE p.slug = p_slug AND coalesce(h.effective_until, now()) >= now() - interval '30 days';
+$$;
+CREATE TEMP TABLE before_dump AS SELECT pg_temp.history_dump() AS dump, pg_temp.lowest_30('vr-on-sale') AS lowest,
+  (SELECT count(*) FROM public.product_price_history h JOIN public.products p ON p.id = h.product_id WHERE p.slug = 'vr-on-sale') AS on_sale_rows;
 
 -- ---------------------------------------------------------------------------
 -- First run
@@ -111,11 +130,40 @@ SELECT pg_temp.assert_true((SELECT li = (SELECT string_agg(l::text, '|' ORDER BY
 SELECT pg_temp.assert_true((SELECT vat_rate = 0.23 AND tax_amount = 10 AND net_amount = 4890 FROM public.payment_line_items WHERE id = 'bbbbbbbb-0000-4000-b000-0000000000b1'), 'completed line item snapshot keeps recorded rate');
 SELECT pg_temp.assert_true((SELECT vat_rate IS NULL FROM public.payment_line_items WHERE id = 'bbbbbbbb-0000-4000-b000-0000000000b2'), 'pending line item stays empty');
 SELECT pg_temp.assert_true((SELECT status = 'completed' AND tax_total = 10 FROM public.payment_transactions WHERE id = 'aaaaaaaa-0000-4000-a000-0000000000a1'), 'completed payment totals unchanged');
--- Existing history rows are never edited; each repaired product gets one new current row.
+-- Subscriptions: rate fixed and the price becomes gross; correct rows and net one-time untouched flags.
+SELECT pg_temp.assert_true((SELECT vat_rate = 23.00 AND price_includes_vat FROM public.products WHERE slug = 'vr-sub-frac'), 'subscription fraction -> 23.00 and price includes VAT');
+SELECT pg_temp.assert_true((SELECT vat_rate = 23.00 AND NOT price_includes_vat FROM public.products WHERE slug = 'vr-sub-23-net'), 'subscription with a correct rate keeps its flag');
+SELECT pg_temp.assert_true((SELECT vat_rate = 8.00 AND NOT price_includes_vat FROM public.products WHERE slug = 'vr-net-frac'), 'one-time fraction rescaled, gross/net flag untouched');
+
+-- Price history is never edited and the repair adds no row (price did not change).
+SELECT pg_temp.assert_true((SELECT dump = pg_temp.history_dump() FROM before_dump), 'price history identical before and after the repair');
 SELECT pg_temp.assert_true((SELECT count(*) = 0 FROM before_history b JOIN public.product_price_history h USING (id) WHERE h.vat_rate IS DISTINCT FROM b.vat_rate OR h.price IS DISTINCT FROM b.price), 'existing price history rows keep their recorded values');
-SELECT pg_temp.assert_true((SELECT count(*) = 1 FROM public.product_price_history h JOIN public.products p ON p.id = h.product_id WHERE p.slug = 'vr-inherited' AND h.effective_until IS NULL AND h.vat_rate = 23.00), 'one current history row carries the corrected rate');
-SELECT pg_temp.assert_true((SELECT count(*) = 1 FROM public.product_price_history h JOIN public.products p ON p.id = h.product_id WHERE p.slug = 'vr-inherited' AND h.effective_until IS NOT NULL AND h.vat_rate = 0.23), 'previous history row kept and closed');
-SELECT pg_temp.assert_true((SELECT count(*) = 0 FROM public.product_price_history h JOIN public.products p ON p.id = h.product_id WHERE p.slug IN ('vr-23', 'vr-zero', 'vr-8', 'vr-1', 'vr-null') AND h.effective_until IS NOT NULL), 'unaffected products get no new history');
+SELECT pg_temp.assert_true((SELECT count(*) = 1 FROM public.product_price_history h JOIN public.products p ON p.id = h.product_id WHERE p.slug = 'vr-inherited' AND h.effective_until IS NULL AND h.vat_rate = 0.23), 'repaired product keeps its single open history row');
+-- Product on an active sale keeps its Omnibus reference.
+SELECT pg_temp.assert_true((SELECT on_sale_rows = (SELECT count(*) FROM public.product_price_history h JOIN public.products p ON p.id = h.product_id WHERE p.slug = 'vr-on-sale') FROM before_dump), 'on-sale product: no new history row');
+SELECT pg_temp.assert_true((SELECT lowest IS NOT DISTINCT FROM pg_temp.lowest_30('vr-on-sale') FROM before_dump), 'on-sale product: lowest price in 30 days identical before/after');
+SELECT pg_temp.assert_true(pg_temp.rate('vr-on-sale') = 23.00, 'on-sale product rate repaired');
+-- Trigger is enabled again after the repair.
+SELECT pg_temp.assert_true((SELECT tgenabled = 'O' FROM pg_trigger WHERE tgrelid = 'public.products'::regclass AND tgname = 'product_price_change_trigger'), 'price change trigger re-enabled');
+SELECT pg_temp.assert_true((SELECT count(*) = 1 FROM pg_trigger WHERE tgrelid = 'public.products'::regclass AND tgname = 'product_price_change_trigger'), 'price change trigger exists');
+-- A real price change after the repair is still logged.
+UPDATE public.products SET sale_price = 70 WHERE slug = 'vr-on-sale';
+SELECT pg_temp.assert_true((SELECT count(*) FROM public.product_price_history h JOIN public.products p ON p.id = h.product_id WHERE p.slug = 'vr-on-sale') = (SELECT on_sale_rows + 1 FROM before_dump), 'later price change is still logged by the trigger');
+UPDATE public.products SET sale_price = 80 WHERE slug = 'vr-on-sale';
+
+-- Default trigger: shop rate as a fraction or already in percentage points.
+UPDATE public.shop_config SET tax_rate = 0.23, is_vat_exempt = false;
+INSERT INTO public.products (name, slug, price, currency) VALUES ('Default fraction', 'vr-def-frac', 10, 'PLN');
+SELECT pg_temp.assert_true(pg_temp.rate('vr-def-frac') = 23.00, 'trigger: shop rate 0.23 -> product 23.00');
+UPDATE public.shop_config SET tax_rate = 23;
+INSERT INTO public.products (name, slug, price, currency) VALUES ('Default points', 'vr-def-pts', 10, 'PLN');
+SELECT pg_temp.assert_true(pg_temp.rate('vr-def-pts') = 23.00, 'trigger: shop rate 23 -> product 23.00 (no overflow)');
+UPDATE public.shop_config SET tax_rate = 0.05;
+INSERT INTO public.products (name, slug, price, currency) VALUES ('Default reduced', 'vr-def-5', 10, 'PLN');
+SELECT pg_temp.assert_true(pg_temp.rate('vr-def-5') = 5.00, 'trigger: shop rate 0.05 -> product 5.00');
+UPDATE public.shop_config SET tax_rate = 0.23;
+SELECT pg_temp.assert_true((SELECT prosecdef AND proconfig @> ARRAY['search_path=""'] FROM pg_proc WHERE oid = 'public.apply_shop_vat_defaults()'::regprocedure), 'trigger function stays SECURITY DEFINER with empty search_path');
+SELECT pg_temp.assert_true(NOT has_function_privilege('anon', 'public.apply_shop_vat_defaults()', 'EXECUTE') AND NOT has_function_privilege('authenticated', 'public.apply_shop_vat_defaults()', 'EXECUTE'), 'trigger function not executable by anon/authenticated');
 
 -- ---------------------------------------------------------------------------
 -- Second run: nothing changes.
