@@ -97,3 +97,8 @@ it.each(['en', 'pl'] as const)('shows the saved pending application after a refr
   expect(screen.queryByRole('button', { name: t.apply })).toBeNull();
   expect(screen.getByRole('link').getAttribute('href')).toContain('/my-affiliate');
 });
+
+it('shows the applicant email on the application card', () => {
+  render(<AffiliateAdmin locale="en" initial={{ program, members: [{ ...member, email: 'partner@example.com' }], next_cursor: null }} />);
+  expect(screen.getByText('partner@example.com')).toBeTruthy();
+});

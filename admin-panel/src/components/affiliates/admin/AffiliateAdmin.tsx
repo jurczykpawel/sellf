@@ -106,6 +106,7 @@ function MemberDecision({ member, locale, onSaved }: { member: MemberInfo; local
   }
   return <article aria-label={member.display_name} className="grid min-w-0 gap-4 rounded-xl border border-sf-border bg-sf-raised p-5">
     <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h3 className="break-words text-lg font-semibold">{member.display_name}</h3><p className="mt-1 text-sm text-sf-body">{t.code}: <span className="font-medium">{member.code}</span></p></div><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${member.status === 'approved' ? 'bg-sf-success-soft' : 'bg-sf-hover'}`}>{statusLabel(member.status, t)}</span></div>
+    {member.email && <p className="text-sm text-sf-body [overflow-wrap:anywhere]">{member.email}</p>}
     {member.channel && <p className="text-sm text-sf-body [overflow-wrap:anywhere]">{member.channel}</p>}
     {decision ? <form className="grid min-w-0 items-end gap-3 lg:grid-cols-[1fr_auto]" onSubmit={event => { event.preventDefault(); void decide(decision); }}>
       <Field label={t.reason}><input ref={reasonInput} className={fieldClass} value={reason} required maxLength={200} onChange={event => setReason(event.target.value)} /></Field>

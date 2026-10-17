@@ -16,7 +16,7 @@ export function boundedInput(input: unknown): boolean {
   try { return new TextEncoder().encode(JSON.stringify(input)).length <= 32768; } catch { return false; }
 }
 export interface MemberInfo {
-  id: string; code: string; display_name: string; channel: string | null; status: string; version: string;
+  id: string; code: string; display_name: string; email?: string | null; channel: string | null; status: string; version: string;
   accepted_terms_version: string; accepted_at: string; created_at: string;
 }
 export interface ProgramInfo extends ProgramInput { id: string }
