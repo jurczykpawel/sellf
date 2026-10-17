@@ -251,14 +251,18 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     baseProductId: product.id,
     productPrice: effectiveUnitPrice,
     productCurrency: product.currency,
-    // VAT is added on top of net prices only where the shop computes it itself.
-    productVatRate: taxMode === 'stripe_tax' || product.vat_exempt ? undefined : product.vat_rate ?? undefined,
+    productVatRate: product.vat_rate ?? undefined,
+    vatExempt: product.vat_exempt,
+    taxMode,
     priceIncludesVat: product.price_includes_vat ?? undefined,
     customAmount: product.allow_custom_price ? customAmount : undefined,
     bumps: availableBumps.map(bump => ({
       id: bump.bump_product_id,
       price: bump.bump_price,
       selected: selectedBumpIds.has(bump.bump_product_id),
+      vatRate: bump.vat_rate,
+      priceIncludesVat: bump.price_includes_vat,
+      vatExempt: bump.vat_exempt,
     })),
     coupon: coupon.appliedCoupon,
   });

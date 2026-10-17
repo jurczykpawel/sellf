@@ -5,6 +5,7 @@
 
 import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
 import { allocateCouponDiscount } from '@/lib/pricing/coupon-allocation';
+import { buildCheckoutLineSpecs, computeLinePayableMinor } from '@/lib/services/checkout-line-items';
 
 // Re-export for backward compatibility
 export { STRIPE_MINIMUM_AMOUNT };
@@ -13,6 +14,10 @@ export interface BumpPricingItem {
   id?: string;
   price: number;
   selected: boolean;
+  /** The bump product's own VAT settings (each line is taxed by its own product). */
+  vatRate?: number | null;
+  priceIncludesVat?: boolean | null;
+  vatExempt?: boolean | null;
 }
 
 export interface PricingInput {
@@ -21,6 +26,9 @@ export interface PricingInput {
   productCurrency: string;
   productVatRate?: number;
   priceIncludesVat?: boolean;
+  vatExempt?: boolean;
+  /** 'local' (default) computes VAT here; 'stripe_tax' leaves it to Stripe (nothing added). */
+  taxMode?: 'local' | 'stripe_tax';
   customAmount?: number;
   /** @deprecated Use bumps[] instead for multi-bump support */
   bumpPrice?: number;
@@ -109,14 +117,33 @@ export function calculatePricing(input: PricingInput): PricingResult {
   const isFreeWithCoupon = allocation.isFree;
   const totalGross = allocation.total;
 
-  // VAT calculation
+  // VAT per line, using the SAME spec builder the server uses for Stripe line items:
+  // each line follows its own product's rate / gross-net flag / exemption.
+  const lineSpecs = buildCheckoutLineSpecs({
+    main: {
+      id: baseProductId ?? 'main', name: '', currency: productCurrency,
+      vatRate: productVatRate, priceIncludesVat, vatExempt: input.vatExempt,
+    },
+    mainPrice: basePrice,
+    bumps: selectedBumps.map((bump, i) => ({
+      product: {
+        id: bump.id ?? `bump-${i}`, name: '', currency: productCurrency,
+        // Bump without its own VAT data (undefined) follows the main product's settings.
+        ...(bump.vatRate === undefined
+          ? { vatRate: productVatRate, priceIncludesVat, vatExempt: input.vatExempt }
+          : { vatRate: bump.vatRate, priceIncludesVat: bump.priceIncludesVat ?? undefined, vatExempt: bump.vatExempt ?? undefined }),
+      },
+      price: bump.price,
+    })),
+    coupon,
+    taxMode: input.taxMode ?? 'local',
+  }).specs;
   const vatRate = productVatRate || 0;
-  const totalNet = priceIncludesVat && vatRate > 0
-    ? totalGross / (1 + vatRate / 100)
-    : totalGross;
-  const totalPayable = !priceIncludesVat && vatRate > 0
-    ? Math.round(totalGross * (1 + vatRate / 100) * 100) / 100
-    : totalGross;
+  const totalPayable = lineSpecs.reduce((sum, spec) => sum + computeLinePayableMinor(spec), 0) / 100;
+  const totalNet = lineSpecs.reduce((sum, spec) => {
+    const unit = spec.unitAmountMinor / 100;
+    return sum + (spec.vatRate && spec.priceIncludesVat ? unit / (1 + spec.vatRate / 100) : unit);
+  }, 0);
   const vatAmount = totalPayable - totalNet;
 
   return {

@@ -53,6 +53,23 @@ export interface BuildLineSpecsParams {
   taxMode: 'local' | 'stripe_tax';
 }
 
+/**
+ * PURE: what the buyer pays for one line, in MINOR units. A net line (taxBehavior
+ * 'exclusive' with a local TaxRate) gets its VAT added on top, rounded per line like
+ * Stripe does; gross lines, lines without a local rate and Stripe Tax lines (rate
+ * unknown here, Stripe computes it) are charged exactly `unitAmountMinor`.
+ * Client display and the server use this one function so they cannot drift.
+ */
+export function computeLinePayableMinor(spec: Pick<CheckoutLineSpec, 'unitAmountMinor' | 'vatRate' | 'priceIncludesVat'>): number {
+  return spec.vatRate && !spec.priceIncludesVat
+    ? spec.unitAmountMinor + Math.round((spec.unitAmountMinor * spec.vatRate) / 100)
+    : spec.unitAmountMinor;
+}
+
+export function computePayableMinor(specs: CheckoutLineSpec[]): number {
+  return specs.reduce((sum, spec) => sum + computeLinePayableMinor(spec), 0);
+}
+
 export interface BuildLineSpecsResult {
   specs: CheckoutLineSpec[];
   /** True when a coupon covers the full price (pre-minimum-floor) — caller must reject/handle. */
