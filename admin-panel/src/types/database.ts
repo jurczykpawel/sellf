@@ -4129,7 +4129,10 @@ export type Database = {
         Args: { reason_param?: string; transaction_id_param: string }
         Returns: Json
       }
-      currency_minor_factor: { Args: { currency_code: string }; Returns: number }
+      currency_minor_factor: {
+        Args: { currency_code: string }
+        Returns: number
+      }
       enqueue_webhook_delivery: {
         Args: {
           p_delivery_key: string
@@ -4268,10 +4271,10 @@ export type Database = {
           bump_title: string
           display_order: number
           original_price: number
+          price_includes_vat: boolean
           urgency_duration_minutes: number
           vat_exempt: boolean
           vat_rate: number
-          price_includes_vat: boolean
         }[]
       }
       get_public_integrations_config: { Args: never; Returns: Json }
