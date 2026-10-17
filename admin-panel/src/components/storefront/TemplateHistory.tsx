@@ -72,7 +72,7 @@ export default function TemplateHistory() {
     return t(path.startsWith('/templateId') ? 'template' : path.startsWith('/content') ? 'content' : path.startsWith('/tokens') ? 'appearance' : path.startsWith('/settings') ? 'settings' : 'layout');
   }
   return <main className={styles.page} aria-busy={busy}>
-    <a href={`${prefix}/admin/templates`} className={styles.back}>← {t('editor')}</a>
+    <a href={`${prefix}/dashboard/templates`} className={styles.back}>← {t('editor')}</a>
     <header className={styles.header}><div><h1>{t('title')}</h1><p>{t('subtitle')}</p></div>
       <button type="button" disabled={busy} onClick={() => { setDiff(null); void reload(); }} className={styles.secondary}>{t('reload')}</button>
     </header>

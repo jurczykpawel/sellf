@@ -4603,6 +4603,13 @@
     }
   },
   "storefrontEditor": {
+    "classicHint": "The classic store has one always-visible section: the product catalogue. Choose a card layout, or open Appearance to change colours, fonts and corners. Publishing custom layout and appearance settings requires Pro.",
+    "preview": "Preview",
+    "historyPublishing": "History and publishing",
+    "draftActionsHelp": "Preview your saved draft in a new tab using your store’s products. In history, you can publish it to your store or restore an earlier publication.",
+    "saveBeforePreview": "Save your draft to preview it and open history and publishing. Saving alone does not change your public store.",
+    "newTab": " (opens in a new tab)",
+    "loadedState": "No unsaved changes",
     "title": "Storefront templates",
     "intro": "Compose a private draft. Saving does not change your public storefront.",
     "template": "Template",

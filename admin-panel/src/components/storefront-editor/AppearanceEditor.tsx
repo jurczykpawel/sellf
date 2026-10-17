@@ -7,10 +7,12 @@ import { RotateCcw, Palette } from 'lucide-react';
 import { CORE_TOKENS, resolvePublicTheme, validateThemeContrast } from '@/lib/storefront-templates/public-theme';
 import { STOREFRONT_TEMPLATES } from '@/lib/storefront-templates/registry';
 import { editorButton, editorControl } from '@/components/storefront-editor/SlotEditor';
+import type { ReactNode } from 'react';
 import type { StorefrontConfig } from '@/lib/storefront-templates/schemas';
 
 interface AppearanceEditorProps {
   config: StorefrontConfig; dirty: boolean; blocked: boolean;
+  draftActions?: ReactNode;
   onChange: (config: StorefrontConfig) => void;
   onReset: (field: string) => Promise<void>;
   onImport: () => Promise<{ success: boolean; code?: string; unsupported?: string[] }>;
@@ -19,7 +21,7 @@ const choices: Record<string, readonly (string | number)[]> = {
   font: ['geist', 'dm-sans'], bodyWeight: [400, 500], headingWeight: [500, 600, 700], baseSizePx: [16, 17, 18], headingLetterSpacingEm: [-0.02, -0.01, 0],
   radiusSmPx: [0, 4, 8], radiusMdPx: [4, 8, 12], radiusLgPx: [8, 12, 16, 24],
 };
-export default function AppearanceEditor({ config, dirty, blocked, onChange, onReset, onImport }: AppearanceEditorProps) {
+export default function AppearanceEditor({ config, dirty, blocked, onChange, onReset, onImport, draftActions }: AppearanceEditorProps) {
   const t = useTranslations('storefrontAppearance');
   const [mode, setMode] = useState<'light' | 'dark'>('light');
   const [importMessage, setImportMessage] = useState('');
@@ -52,6 +54,7 @@ export default function AppearanceEditor({ config, dirty, blocked, onChange, onR
   }
   return <section aria-label={t('title')} className="min-w-0 space-y-5 rounded-2xl border border-sf-border bg-sf-base p-4 sm:p-6">
     <header className="flex gap-3 border-b border-sf-border pb-5"><Palette size={24} className="shrink-0 text-sf-accent" aria-hidden="true" /><div><h2 className="text-xl font-semibold">{t('title')}</h2><p className="mt-1 text-sm text-sf-muted">{t('intro')}</p></div></header>
+    {draftActions}
     <p role="status" className={`rounded-lg p-3 text-sm ${failures.length ? 'bg-sf-warning-soft text-sf-warning' : 'bg-sf-raised text-sf-muted'}`}>{t(failures.length ? 'contrastBad' : 'contrastOk')}</p>
     <div className="flex gap-2" role="group" aria-label={t('title')}>{(['light', 'dark'] as const).map(item => <button key={item} type="button" aria-pressed={mode === item} className={`${editorButton} ${mode === item ? 'border-sf-accent bg-sf-accent-soft' : ''}`} onClick={() => setMode(item)}>{t(item)}</button>)}</div>
     <div hidden={mode !== 'light'} className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">{controls('light')}</div>
