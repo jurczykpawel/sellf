@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession } from './helpers/admin-auth';
+import { startNativeCheckout } from './helpers/checkout-intent';
 
 // NOTE: Run with --workers=1 because tests modify global DB state
 
@@ -1285,6 +1286,9 @@ test.describe('OTO Checkout Page E2E', () => {
 
     // Wait for page DOM to load (don't use networkidle — Stripe makes continuous requests)
     await page.waitForLoadState('domcontentloaded');
+
+    await expect(page.locator('input[placeholder*="code"], input[placeholder*="kod"]')).toHaveValue(couponCode);
+    await startNativeCheckout(page);
 
     // 1. Email is passed to Stripe's LinkAuthenticationElement (iframe)
     // Verify our code passes the correct email via data-test-email attribute

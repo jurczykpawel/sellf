@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { startNativeCheckout } from './helpers/checkout-intent';
 
 // Enforce single worker
 test.describe.configure({ mode: 'serial' });
@@ -55,6 +56,7 @@ test.describe('GUS Checkout Flow - NIP Validation', () => {
   test('should show NIP field and company fields appear after entering 10 digits', async ({ page }) => {
     // Navigate to checkout
     await page.goto(`/pl/checkout/${testProduct.slug}`);
+    await startNativeCheckout(page);
 
     // Wait for checkout form to load (wait for email or firstName field)
     await page.waitForSelector('input#fullName', { timeout: 30000 });
@@ -78,6 +80,7 @@ test.describe('GUS Checkout Flow - NIP Validation', () => {
   test('should validate NIP checksum and show error for invalid NIP', async ({ page }) => {
     // Navigate to checkout
     await page.goto(`/pl/checkout/${testProduct.slug}`);
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 30000 });
 
     // Fill invalid NIP
@@ -95,6 +98,7 @@ test.describe('GUS Checkout Flow - NIP Validation', () => {
   test('should accept valid NIP format (10 digits)', async ({ page }) => {
     // Navigate to checkout
     await page.goto(`/pl/checkout/${testProduct.slug}`);
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 30000 });
 
     // Fill valid NIP and wait for value to be set
@@ -108,6 +112,7 @@ test.describe('GUS Checkout Flow - NIP Validation', () => {
   test('should enforce maxLength=20 on NIP input (supports international tax IDs)', async ({ page }) => {
     // Navigate to checkout
     await page.goto(`/pl/checkout/${testProduct.slug}`);
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 30000 });
 
     // Try to fill more than 20 characters
@@ -177,6 +182,7 @@ test.describe('GUS Checkout Flow - Autofill (Mocked)', () => {
 
     // Navigate to checkout
     await page.goto(`/pl/checkout/${testProduct.slug}`);
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 30000 });
 
     // Fill valid NIP
@@ -216,6 +222,7 @@ test.describe('GUS Checkout Flow - Autofill (Mocked)', () => {
 
     // Navigate to checkout
     await page.goto(`/pl/checkout/${testProduct.slug}`);
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 30000 });
 
     // Fill valid NIP and blur
@@ -249,6 +256,7 @@ test.describe('GUS Checkout Flow - Autofill (Mocked)', () => {
 
     // Navigate to checkout
     await page.goto(`/pl/checkout/${testProduct.slug}`);
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 30000 });
 
     // Fill NIP and blur
@@ -285,6 +293,7 @@ test.describe('GUS Checkout Flow - Autofill (Mocked)', () => {
 
     // Navigate to checkout
     await page.goto(`/pl/checkout/${testProduct.slug}`);
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 30000 });
 
     // Fill NIP and blur
@@ -312,6 +321,7 @@ test.describe('GUS Checkout Flow - Autofill (Mocked)', () => {
 
     // Navigate to checkout
     await page.goto(`/pl/checkout/${testProduct.slug}`);
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 30000 });
 
     // Fill NIP and blur (will fail)
@@ -358,6 +368,7 @@ test.describe('GUS Checkout Flow - Autofill (Mocked)', () => {
 
     // Navigate to checkout
     await page.goto(`/pl/checkout/${testProduct.slug}`);
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 30000 });
 
     // Fill NIP and blur

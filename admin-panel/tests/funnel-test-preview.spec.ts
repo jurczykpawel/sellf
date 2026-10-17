@@ -243,7 +243,7 @@ test.describe('Admin Funnel Test Preview', () => {
     await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByText('Funnel Test — Simple')).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(/99/)).toBeVisible();
+    await expect(page.getByTestId('product-price-display')).toHaveText('99,00 zł');
   });
 
   test('should show success state when clicking "Zapłać.*symulacja|Pay.*simulation"', async ({ page }) => {

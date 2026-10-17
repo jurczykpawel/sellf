@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { startNativeCheckout } from './helpers/checkout-intent';
 
 // /checkout/{slug} renders the tip-jar layout when product.checkout_template
 // = 'tip-jar'. BMC-style two-column: left = About + Recent supporters, right
@@ -79,6 +80,7 @@ test.describe('Tip-jar checkout template', () => {
     const p = await createTipJarProduct('Postaw kebaba', '🥙');
     try {
       await page.goto(`/pl/checkout/${p.slug}`);
+      await startNativeCheckout(page);
       await expect(page.getByLabel('Powiedz coś miłego')).toBeVisible({ timeout: 15000 });
     } finally {
       await supabaseAdmin.from('products').delete().eq('id', p.id);

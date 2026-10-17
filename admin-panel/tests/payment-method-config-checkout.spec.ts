@@ -15,6 +15,7 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
+import { startNativeCheckout } from './helpers/checkout-intent';
 
 const gotoPaymentsSettings = async (page: Page) => {
   await page.goto('/dashboard/settings?stripe_connected=1');
@@ -100,6 +101,7 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     // Visit checkout page
     expect(testProductSlug).toBeTruthy();
     await page.goto(`/checkout/${testProductSlug}`);
+    await startNativeCheckout(page);
     await page.waitForLoadState('domcontentloaded');
 
     // Wait for Stripe Payment Element to load
@@ -127,6 +129,7 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
 
     // Visit checkout
     await page.goto(`/checkout/${usdProductSlug}`);
+    await startNativeCheckout(page);
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000);
 
@@ -180,6 +183,7 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
 
     expect(testProductSlug).toBeTruthy();
     await page.goto(`/checkout/${testProductSlug}`);
+    await startNativeCheckout(page);
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000);
 
@@ -210,6 +214,7 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     // Visit checkout
     expect(testProductSlug).toBeTruthy();
     await page.goto(`/checkout/${testProductSlug}`);
+    await startNativeCheckout(page);
     await page.waitForLoadState('domcontentloaded');
 
     // Verify checkout loaded with Stripe Payment Element (pay button shows price from payment intent)
@@ -235,6 +240,7 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
 
     // Visit checkout for USD product — Stripe automatically filters BLIK (PLN-only)
     await page.goto(`/checkout/${usdFilterSlug}`);
+    await startNativeCheckout(page);
     await page.waitForLoadState('domcontentloaded');
 
     // Verify checkout loaded (pay button with USD price)
@@ -267,6 +273,7 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     // Visit checkout
     expect(testProductSlug).toBeTruthy();
     await page.goto(`/checkout/${testProductSlug}`);
+    await startNativeCheckout(page);
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000);
 
@@ -300,6 +307,7 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     // Visit checkout
     expect(testProductSlug).toBeTruthy();
     await page.goto(`/checkout/${testProductSlug}`);
+    await startNativeCheckout(page);
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000);
 
@@ -312,6 +320,7 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
 
     expect(testProductSlug).toBeTruthy();
     await page.goto(`/checkout/${testProductSlug}`);
+    await startNativeCheckout(page);
     await page.waitForLoadState('domcontentloaded');
     // Wait for Stripe Elements iframe to mount before asserting Pay button
     await expect(page.locator('iframe[name^="__privateStripeFrame"]').first()).toBeAttached({ timeout: 20000 });
@@ -325,6 +334,7 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
 
     expect(testProductSlug).toBeTruthy();
     await page.goto(`/checkout/${testProductSlug}`);
+    await startNativeCheckout(page);
     await page.waitForLoadState('domcontentloaded');
     // Wait for Stripe Elements iframe to mount before asserting Pay button
     await expect(page.locator('iframe[name^="__privateStripeFrame"]').first()).toBeAttached({ timeout: 20000 });
@@ -336,8 +346,8 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
   test('E2E-CHECKOUT-010: Express Checkout - All disabled', async ({ page }) => {
     await setExpressCheckoutConfig({ enabled: false, applePay: false, googlePay: false, link: false });
 
-    // Visit checkout — the Pay button only renders after clientSecret is set, which
-    // requires /api/create-payment-intent to respond. Wait for that response directly
+    // Start payment initialization explicitly, then verify its response
+    // and the configured payment controls
     // instead of networkidle (which waits unnecessarily for all Stripe background requests).
     expect(testProductSlug).toBeTruthy();
     const responsePromise = page.waitForResponse(
@@ -345,6 +355,7 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
       { timeout: 15000 }
     );
     await page.goto(`/checkout/${testProductSlug}`);
+    await startNativeCheckout(page);
     await responsePromise;
 
     // Verify checkout loaded (no Express Checkout, only regular Payment Element)
@@ -371,6 +382,7 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     // Visit checkout - should work with automatic mode fallback
     expect(testProductSlug).toBeTruthy();
     await page.goto(`/checkout/${testProductSlug}`);
+    await startNativeCheckout(page);
     await page.waitForLoadState('domcontentloaded');
     // Wait for Stripe Elements iframe to mount before asserting Pay button
     await expect(page.locator('iframe[name^="__privateStripeFrame"]').first()).toBeAttached({ timeout: 20000 });
@@ -402,6 +414,7 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     // (Stripe Elements loads = payment intent created successfully with custom method list)
     expect(testProductSlug).toBeTruthy();
     await page.goto(`/checkout/${testProductSlug}`);
+    await startNativeCheckout(page);
     await page.waitForLoadState('domcontentloaded');
 
     // Stripe Elements iframe mounting confirms payment intent was created with custom config

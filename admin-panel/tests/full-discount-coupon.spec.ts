@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { createTestAdmin, loginAsAdmin } from './helpers/admin-auth';
+import { startNativeCheckout } from './helpers/checkout-intent';
 
 /**
  * Full-discount (100%) Coupon E2E
@@ -228,6 +229,7 @@ test.describe('Full-discount coupon flow', () => {
     await loginAsAdmin(page, adminEmail, adminPassword);
 
     await page.goto(`/pl/checkout/${productSlug}`); // no ?coupon
+    await startNativeCheckout(page);
     await page.waitForLoadState('domcontentloaded');
 
     // The first __privateStripeFrame is Stripe's controller iframe (body has display:none by design),

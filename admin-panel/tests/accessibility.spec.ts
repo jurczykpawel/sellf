@@ -13,6 +13,7 @@ import { acceptAllCookies } from './helpers/consent';
 import { checkAccessibility } from './helpers/axe';
 import { readRawActiveTheme, writeActiveTheme, restoreRawActiveTheme } from './helpers/active-theme';
 import { THEME_PRESETS } from '@/lib/themes';
+import { startNativeCheckout } from './helpers/checkout-intent';
 
 test.setTimeout(120_000);
 
@@ -149,6 +150,16 @@ async function visitAndCheck(
     excludeSelectors: [...THIRD_PARTY_EXCLUDES, ...(options?.excludeSelectors || [])],
     excludeRules: options?.excludeRules,
   });
+  if (path === '/p/premium-course' || path === '/checkout/premium-course') {
+    await expect(page.locator('input#fullName')).toHaveCount(0);
+    await startNativeCheckout(page);
+    await expect(page.locator('input#fullName')).toBeVisible({ timeout: 30000 });
+    await waitForSettledButtonStates(page);
+    await checkAccessibility(page, {
+      excludeSelectors: [...THIRD_PARTY_EXCLUDES, ...(options?.excludeSelectors || [])],
+      excludeRules: options?.excludeRules,
+    });
+  }
 }
 
 // ===== PUBLIC PAGES =====
