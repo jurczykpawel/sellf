@@ -52,4 +52,5 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
 
+REVOKE EXECUTE ON FUNCTION public.get_product_order_bumps FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_product_order_bumps TO anon, authenticated, service_role;
