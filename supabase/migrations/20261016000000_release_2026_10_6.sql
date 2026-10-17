@@ -229,9 +229,15 @@ CREATE INDEX storefront_products_featured ON public.products(created_at DESC, id
   WHERE is_active AND is_listed AND is_featured;
 CREATE INDEX storefront_products_free ON public.products(created_at DESC, id ASC)
   WHERE is_active AND is_listed AND product_type<>'subscription' AND NOT allow_custom_price AND price=0;
+CREATE INDEX storefront_products_paid ON public.products(created_at DESC, id ASC)
+  WHERE is_active AND is_listed AND NOT (product_type<>'subscription' AND NOT allow_custom_price AND price=0);
 CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA extensions;
 CREATE INDEX storefront_products_name_trgm ON public.products USING gin (normalize(name,NFC) extensions.gin_trgm_ops)
   WHERE is_active AND is_listed;
+-- Partial expression-index statistics do not supply common-term selectivity.
+-- Global expression statistics let the planner choose the ordered seek instead.
+CREATE STATISTICS storefront_products_name ON (normalize(name,NFC)) FROM public.products;
+ANALYZE public.products;
 CREATE INDEX storefront_products_available_from ON public.products(available_from) WHERE is_active AND is_listed;
 CREATE INDEX storefront_products_available_until ON public.products(available_until) WHERE is_active AND is_listed;
 CREATE INDEX storefront_products_sale_until ON public.products(sale_price_until) WHERE is_active AND is_listed;
@@ -282,14 +288,18 @@ BEGIN
       left(p.vat_exempt_note,501) vat_exempt_note,p.price_includes_vat,p.omnibus_exempt,
       p.auto_grant_duration_days,p.available_until
     FROM public.products p
+    -- The unique junction key makes the per-candidate count an intersection.
+    CROSS JOIN LATERAL (
+      SELECT count(*) FROM public.product_categories pc
+      WHERE pc.product_id=p.id AND pc.category_id=ANY(categories)
+      HAVING count(*)=cardinality(categories)
+    ) membership
     WHERE p.is_active AND p.is_listed
       AND (p.available_from IS NULL OR p.available_from<=statement_timestamp())
       AND (p.available_until IS NULL OR p.available_until>statement_timestamp())
       AND (product_ids IS NULL OR p.id=ANY(product_ids))
       AND (search_text='' OR normalize(p.name,NFC) ILIKE '%' || replace(replace(replace(search_text, E'\\', E'\\\\'), '%', E'\\%'), '_', E'\\_') || '%')
       AND (product_format IS NULL OR p.marketing_fields->>'format'=product_format)
-      AND NOT EXISTS (SELECT 1 FROM unnest(categories) c WHERE NOT EXISTS (
-        SELECT 1 FROM public.product_categories pc WHERE pc.product_id=p.id AND pc.category_id=c))
       AND (group_name<>'featured' OR p.is_featured)
       AND (price_kind IS NULL OR price_kind=CASE WHEN p.product_type='subscription' THEN 'subscription'
         WHEN p.allow_custom_price THEN 'pwyw' WHEN p.price=0 THEN 'free' ELSE 'one-time' END)
@@ -325,11 +335,12 @@ CREATE FUNCTION public.storefront_catalogue_categories(category_ids uuid[])
 RETURNS TABLE(id uuid,name text) LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path = '' AS $$
 BEGIN
   IF cardinality(category_ids)>12 THEN RAISE EXCEPTION 'INVALID' USING ERRCODE='22023'; END IF;
-  RETURN QUERY SELECT c.id,c.name FROM public.categories c WHERE c.id=ANY(category_ids)
-    AND EXISTS (SELECT 1 FROM public.product_categories pc JOIN public.products p ON p.id=pc.product_id
+  RETURN QUERY SELECT c.id,c.name FROM public.categories c
+    CROSS JOIN LATERAL (SELECT 1 FROM public.product_categories pc JOIN public.products p ON p.id=pc.product_id
       WHERE pc.category_id=c.id AND p.is_active AND p.is_listed
       AND (p.available_from IS NULL OR p.available_from<=statement_timestamp())
-      AND (p.available_until IS NULL OR p.available_until>statement_timestamp()));
+      AND (p.available_until IS NULL OR p.available_until>statement_timestamp()) LIMIT 1) available
+    WHERE c.id=ANY(category_ids);
 END;
 $$;
 REVOKE ALL ON FUNCTION public.storefront_catalogue_categories(uuid[]) FROM PUBLIC,anon,authenticated;

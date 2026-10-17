@@ -11,12 +11,17 @@ SELECT pg_temp.assert_true(NOT has_function_privilege('authenticated','public.st
 SELECT pg_temp.assert_true(has_function_privilege('service_role','public.storefront_catalogue_page(jsonb,timestamp with time zone,uuid,uuid[])','EXECUTE'), 'service read primitive');
 -- Bulk fixtures retain price recording; defer statement housekeeping until the fixture is loaded.
 ALTER TABLE public.product_price_history DISABLE TRIGGER cleanup_price_history_trigger;
+-- Batch initial history; fixture ingestion is outside the measured traversal.
+ALTER TABLE public.products DISABLE TRIGGER product_price_change_trigger;
 INSERT INTO public.products(id, name, slug, price, currency, is_listed, is_active, created_at, is_featured, marketing_fields)
 SELECT ('10000000-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid,
  'Catalogue fixture ' || n, 'catalogue-fixture-' || n, CASE WHEN n%3=0 THEN 0 ELSE 10 END, 'USD', true, true,
  '2026-01-01 00:00:00.123456+00'::timestamptz - (n%3)*interval '1 microsecond', n%5=0,
  jsonb_build_object('format',CASE WHEN n%2=0 THEN 'course' ELSE 'ebook' END,'sourceLocale','en','en',jsonb_build_object('result',null,'tools','[]'::jsonb,'requirements','[]'::jsonb))
 FROM generate_series(1,100000) n;
+ALTER TABLE public.products ENABLE TRIGGER product_price_change_trigger;
+INSERT INTO public.product_price_history(product_id,price,sale_price,currency,vat_rate,price_includes_vat)
+SELECT id,price,sale_price,currency,vat_rate,price_includes_vat FROM public.products WHERE slug LIKE 'catalogue-fixture-%';
 INSERT INTO public.categories(id,name,slug) VALUES ('20000000-0000-4000-8000-000000000001','Catalogue A','catalogue-a'),('20000000-0000-4000-8000-000000000002','Catalogue B','catalogue-b'),('20000000-0000-4000-8000-000000000003','Empty','catalogue-empty'),('20000000-0000-4000-8000-000000000004','Small catalogue','catalogue-small');
 INSERT INTO public.product_categories(product_id,category_id)
 SELECT id,'20000000-0000-4000-8000-000000000001' FROM public.products WHERE slug LIKE 'catalogue-fixture-%';
@@ -54,6 +59,7 @@ UPDATE public.products SET name='Żółć 100%_Ready' WHERE slug='catalogue-fixt
 UPDATE public.products SET name='Żółć 100XXReady' WHERE slug='catalogue-fixture-2';
 SELECT pg_temp.assert_true((SELECT count(*)=1 FROM public.storefront_catalogue_page('{"search":"ŻÓŁĆ 100%_ready","pageSize":24}',null,null,null)), 'case/non-ASCII and literal percent/underscore');
 SELECT pg_temp.assert_true((SELECT count(*)=25 AND bool_and(value->'marketing_fields'->>'format'='course') FROM public.storefront_catalogue_page('{"categoryIds":["20000000-0000-4000-8000-000000000001","20000000-0000-4000-8000-000000000002"],"format":"course","pageSize":24}',null,null,null) value), 'category intersection and format before limit');
+SELECT pg_temp.assert_true((SELECT count(*)=0 FROM public.storefront_catalogue_page('{"categoryIds":["20000000-0000-4000-8000-000000000001","20000000-0000-4000-8000-000000000003"],"pageSize":24}',null,null,null)), 'every requested category must match');
 UPDATE public.products SET available_from=now()+interval '1 day' WHERE slug='catalogue-fixture-1';
 UPDATE public.products SET available_until=now()-interval '1 day' WHERE slug='catalogue-fixture-2';
 UPDATE public.products SET is_active=false WHERE slug='catalogue-fixture-3';

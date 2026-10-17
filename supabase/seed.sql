@@ -1227,6 +1227,12 @@ SELECT p.id,c.id FROM public.products p CROSS JOIN public.categories c
 WHERE p.slug IN ('free-tutorial','premium-course','starter-bundle') AND c.slug='storefront-getting-started'
 ON CONFLICT DO NOTHING;
 
+-- Tied public timestamps and a shared search term exercise both price groups.
+INSERT INTO public.products(name,slug,description,price,currency,is_active,is_listed,created_at) VALUES
+ ('Reporting basics','sample-reporting-basics','A free synthetic reporting exercise.',0,'USD',true,true,'2026-01-01 00:00:00.123456+00'),
+ ('Reporting workshop','sample-reporting-workshop','A paid synthetic reporting workshop.',20,'USD',true,true,'2026-01-01 00:00:00.123456+00')
+ON CONFLICT (slug) DO NOTHING;
+
 -- Scheduled catalogue transitions exercise first-page cache deadlines.
 INSERT INTO public.products(name,slug,description,price,currency,is_active,is_listed,is_featured,available_from,available_until,sale_price,sale_price_until,auto_grant_duration_days) VALUES
  ('Upcoming sample workshop','sample-upcoming-workshop','A workshop scheduled to join the catalogue.',20,'USD',true,true,true,now()+interval '1 day',null,null,null,null),
