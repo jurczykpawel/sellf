@@ -8,6 +8,7 @@ import { formatPrice, STRIPE_MINIMUM_AMOUNT, STRIPE_MAX_AMOUNT } from '@/lib/con
 import { signOutAndRedirectToCheckout } from '@/lib/actions/checkout';
 import { validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
 import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
+import { formatBillingIntervalLabel } from '@/lib/product-pricing-display';
 import { createCheckoutSessionQueue } from '@/lib/checkout/session-queue';
 import { getStripeClient } from '@/lib/stripe/client';
 import { TWO_COLUMN_ROW_CLASSNAME, PANEL_END_CLASSNAME } from '@/lib/two-column-layout';
@@ -22,6 +23,7 @@ import { useFreeAccess } from '@/hooks/useFreeAccess';
 import { useCheckoutRedirect } from '@/hooks/useCheckoutRedirect';
 import { calculatePricing } from '@/hooks/usePricing';
 import PaymentFormSkeleton from '@/components/checkout/PaymentFormSkeleton';
+import OrderSummary from '@/components/checkout/OrderSummary';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
 import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
 import type { StripeCheckoutElementsSdkOptions } from '@stripe/stripe-js';
@@ -529,6 +531,26 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             </button>
           )}
 
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && (
+            <OrderSummary
+              productName={product.name}
+              currency={product.currency}
+              basePrice={pricing.basePrice}
+              discountAmount={pricing.discountAmount}
+              totalGross={pricing.totalGross}
+              totalNet={pricing.totalNet}
+              vatRate={pricing.vatRate}
+              vatExempt={product.vat_exempt}
+              vatExemptNote={product.vat_exempt_note}
+              taxMode={taxMode}
+              customAmountError={product.allow_custom_price ? customAmountError : null}
+              appliedCoupon={coupon.appliedCoupon ?? undefined}
+              bumpProducts={availableBumps}
+              selectedBumpIds={selectedBumpIds}
+              intervalLabel={isSubscription ? formatBillingIntervalLabel(product.billing_interval, product.billing_interval_count, locale) : undefined}
+            />
+          )}
+
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && !purchaseStarted && (
             <form onSubmit={event => { event.preventDefault(); setPurchaseStarted(true); }}>
               <button type="submit" className="w-full cursor-pointer rounded-xl bg-sf-accent-bg px-6 py-4 font-semibold text-sf-inverse hover:bg-sf-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent">
@@ -569,9 +591,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 initialFullName={urlName}
                 bumpProducts={availableBumps}
                 selectedBumpIds={selectedBumpIds}
-                appliedCoupon={coupon.appliedCoupon ?? undefined}
                 onChangeAccount={handleSignOutAndCheckout}
-                customAmount={product.allow_custom_price ? customAmount : undefined}
                 customAmountError={product.allow_custom_price ? customAmountError : null}
                 clientSecret={clientSecret || undefined}
                 bindingToken={bindingToken || undefined}
@@ -583,11 +603,11 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 customFieldValues={customFieldValues}
                 onCustomFieldValuesChange={setCustomFieldValues}
                 customFieldErrors={customFieldErrors}
-                afterCheckoutSlot={afterCheckoutSlot}
                 collectTermsOfService={collectTermsOfService}
               />
             </CheckoutElementsProvider>
           )}
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && afterCheckoutSlot}
         </div>
       )}
     </div>

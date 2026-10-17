@@ -327,8 +327,8 @@ describe('custom checkout form source verification', () => {
   });
 
   it('passes intervalLabel to OrderSummary so the total shows "/ mies." for subscriptions', () => {
-    expect(customPaymentFormSource).toMatch(/intervalLabel=\{intervalLabel\s*\|\|\s*undefined\}/);
-    expect(customPaymentFormSource).toContain('formatBillingIntervalLabel(');
+    expect(paidProductFormSource).toMatch(/intervalLabel=\{isSubscription \? formatBillingIntervalLabel\(product\.billing_interval, product\.billing_interval_count, locale\) : undefined\}/);
+    expect(paidProductFormSource).toContain('<OrderSummary');
   });
 
   it('does not duplicate currency code after formatPrice in user-facing checkout strings', () => {

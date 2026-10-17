@@ -125,7 +125,7 @@ export default function ProductShowcase({ product, taxMode, bundleComponents }: 
             </div>
           )}
 
-          <div className="text-5xl font-bold text-sf-heading mb-2 tracking-tight">
+          <div data-testid="product-price-display" className="text-5xl font-bold text-sf-heading mb-2 tracking-tight">
             {recurringPriceDisplay ?? formatPrice(grossPrice, product.currency, locale)}
           </div>
 
