@@ -11,7 +11,7 @@ export default function HeroProduct({ variant, product, content, locale }: HeroP
   const messages = locale === 'pl' ? pl : en;
   const available = product?.availability === 'available';
   const steps = content?.steps.filter(step => step.trim()) ?? [];
-  return <section className={styles.hero} data-variant={variant}>
+  return <section className={styles.hero} lang={locale} data-variant={variant}>
     <div className={styles.layout}>
       <div className={styles.copy}>
         {content?.eyebrow.trim() && <p className={styles.eyebrow}>{content.eyebrow}</p>}

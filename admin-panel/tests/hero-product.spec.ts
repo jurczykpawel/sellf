@@ -143,3 +143,21 @@ test.describe('server first paint', () => {
   }
 
 });
+
+for (const variant of ['split-process', 'simple'] as const) {
+  test(`pl/${variant}: narrow headings use language-aware wrapping`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 1000 });
+    await openFixture(page, 'pl', 'light', variant, 'empty');
+    const heading = page.getByRole('heading', { level: 1 });
+    await expect(heading).toHaveText('Produkt niedostępny');
+    expect(await heading.evaluate(el => ({
+      hyphens: getComputedStyle(el).hyphens,
+      wrapping: getComputedStyle(el).overflowWrap,
+      language: el.closest('[lang]')?.getAttribute('lang'),
+    }))).toEqual({ hyphens: 'auto', wrapping: 'break-word', language: 'pl' });
+    for (const title of ['Produkt niedostępny', 'Zaawansowane przepływy automatyzacji', 'Najczęściej zadawane pytania', 'Źdźbło'.repeat(26)]) {
+      await heading.evaluate((el, text) => { el.textContent = text; }, title);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+  });
+}

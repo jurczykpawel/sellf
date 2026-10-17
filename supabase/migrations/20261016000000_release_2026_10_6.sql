@@ -1338,13 +1338,13 @@ ALTER TABLE public.affiliate_programs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY affiliate_programs_service ON public.affiliate_programs FOR ALL TO service_role
  USING ((select auth.role())='service_role') WITH CHECK ((select auth.role())='service_role');
 REVOKE ALL ON public.affiliate_programs FROM PUBLIC,anon,authenticated,service_role;
-GRANT SELECT,INSERT,UPDATE ON public.affiliate_programs TO service_role;
+GRANT SELECT,INSERT ON public.affiliate_programs TO service_role;
 
 ALTER TABLE public.affiliate_memberships ENABLE ROW LEVEL SECURITY;
 CREATE POLICY affiliate_memberships_service ON public.affiliate_memberships FOR ALL TO service_role
  USING ((select auth.role())='service_role') WITH CHECK ((select auth.role())='service_role');
 REVOKE ALL ON public.affiliate_memberships FROM PUBLIC,anon,authenticated,service_role;
-GRANT SELECT,INSERT,UPDATE ON public.affiliate_memberships TO service_role;
+GRANT SELECT,INSERT ON public.affiliate_memberships TO service_role;
 
 ALTER TABLE public.affiliate_rules ENABLE ROW LEVEL SECURITY;
 CREATE POLICY affiliate_rules_service ON public.affiliate_rules FOR ALL TO service_role

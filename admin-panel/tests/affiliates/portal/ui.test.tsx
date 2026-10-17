@@ -43,11 +43,11 @@ it('shows debt only when present and keeps maturity secondary to the waiting row
   const html = renderToStaticMarkup(createElement(AffiliatePortal, { data, locale: 'pl' })).replace(/<details[\s\S]*?<\/details>/g, '');
   expect(html).toContain('Dług');
   expect(html.match(/Dojrzewa od/g)).toHaveLength(1);
-  for (const label of ['Dojrzała', 'Wypłacona', 'Cofnięta', 'Testowe', 'Oczekuje na sprawdzenie']) expect(html).toContain(label);
+  for (const label of ['Dojrzała', 'Wypłacona', 'Cofnięta', 'Testowa']) expect(html).toContain(label);
 });
 it('distinguishes reserved and processing commissions from mature ones', () => {
   for (const [status, sync_pending, label] of [['reserved', false, portalMessages.pl.reservedStatus], ['eligible', true, portalMessages.pl.processing]] as const) {
-    const data = { ...fixture, commissions: [{ ...fixture.commissions[0], status, sync_pending, needs_review: false }] };
+    const data = { ...fixture, commissions: [{ ...fixture.commissions[0], status, livemode: true, sync_pending, needs_review: false }] };
     const html = renderToStaticMarkup(createElement(AffiliatePortal, { data, locale: 'pl' })).replace(/<details[\s\S]*?<\/details>/g, '');
     expect(html).toContain(label);
     expect(html).not.toContain(portalMessages.pl.eligibleStatus);
@@ -57,4 +57,16 @@ it('distinguishes reserved and processing commissions from mature ones', () => {
 it.each(['en', 'pl'] as const)('explains permanently held commissions in %s even while processing', locale => {
   const html = renderToStaticMarkup(createElement(AffiliatePortal, { data: fixture, locale })).replace(/<details[\s\S]*?<\/details>/g, '');
   expect(html).toContain(locale === 'en' ? 'unlimited refund' : 'bezterminowym zwrotem');
+});
+
+it.each(['en', 'pl'] as const)('uses only the test chip for non-live commissions in %s', locale => {
+  for (const status of ['held', 'eligible', 'reserved', 'paid', 'reversed'] as const) {
+    for (const pending of [false, true]) {
+      const data = { ...fixture, commissions: [{ ...fixture.commissions[0], status, livemode: false, sync_pending: pending, needs_review: pending }] };
+      const html = renderToStaticMarkup(createElement(AffiliatePortal, { data, locale }));
+      const chips = html.match(/<div class="[^"]*chips[^"]*">(.*?)<\/div>/)?.[1];
+      expect(chips).toBeDefined();
+      expect(chips?.replace(/<[^>]+>/g, '')).toBe(portalMessages[locale].test);
+    }
+  }
 });

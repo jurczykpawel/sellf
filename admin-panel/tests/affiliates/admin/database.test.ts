@@ -11,7 +11,7 @@ vi.mock('@/lib/demo-guard', () => ({ isDemoMode: () => false }));
 vi.mock('@/lib/captcha/verify', () => ({ verifyCaptchaToken: async () => ({ success: true }) }));
 // Header acquisition alone is mocked; the real application limiter writes to this stack.
 vi.mock('next/headers', () => ({ headers: async () => new Headers({ 'user-agent': 'affiliate-a12-integration' }) }));
-import { applyToProgram, getAcceptedTerms, getAdminOverview, updateMember, updateProgram } from '@/lib/affiliates/admin/actions';
+import { applyToProgram, getAcceptedTerms, getAdminOverview, getAffiliateSyncOverview, updateMember, updateProgram } from '@/lib/affiliates/admin/actions';
 let service: SupabaseClient, admin: SupabaseClient, member: SupabaseClient;
 beforeAll(async () => {
   resetAffiliateDatabase();
@@ -54,3 +54,22 @@ it('runs application, decisions, conflicts, exact versions and reconstructable t
   const page = await getAdminOverview({ limit: 1 }); expect(page.data?.members).toHaveLength(1); expect(page.data?.next_cursor).toBeTruthy();
   expect(JSON.stringify(page)).not.toContain('email');
 }, 30000);
+
+it('reports aging fulfillment waits even when every retry is scheduled ahead', async () => {
+  state.session = admin;
+  const dates = ['2001-01-01T00:00:00+00:00', '2000-01-01T00:00:00+00:00'];
+  for (const created_at of dates) {
+    const { data: payment, error } = await service.from('payment_transactions').insert({
+      product_id: 'af000000-0000-4000-a000-000000000002', customer_email: 'wait@example.test',
+      amount: 10000, currency: 'PLN', status: 'completed', session_id: `cs_test_wait${Date.parse(created_at)}`,
+      created_at, fulfillment_pending: true,
+    }).select('id').single();
+    expect(error).toBeNull();
+    expect((await service.from('affiliate_work').insert({ payment_id: payment!.id, status: 'pending',
+      next_attempt_at: new Date(Date.now() + 60_000).toISOString(), last_error_code: 'awaiting_fulfillment',
+    })).error).toBeNull();
+  }
+  const overview = await getAffiliateSyncOverview();
+  expect(overview.success).toBe(true);
+  expect(Date.parse(overview.data!.oldest_pending_at!)).toBe(Date.parse(dates[1]));
+});
