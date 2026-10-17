@@ -2,11 +2,11 @@
 /** Shared ordered selection controls for bundles and storefront bindings. */
 import React from 'react';
 import { NextIntlClientProvider } from 'next-intl';
-import { cleanup, fireEvent, render } from '@testing-library/react';
-import { afterEach, expect, it } from 'vitest';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
 import OrderedItemPicker from '@/components/ui/OrderedItemPicker';
 import en from '@/messages/en.json';
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 it('searches by name, adds once, retains unresolved entries and reorders from one handle', () => {
   let ids = ['missing', 'a'];
   const items = [{ id: 'a', name: 'Workshop', detail: '49 PLN', image: '/workshop.png' }, { id: 'b', name: 'Course', detail: '99 PLN' }];
@@ -51,4 +51,64 @@ it('accepts drops from its own drag handle and ignores a different list', () => 
   values.set('application/x-sellf-list', 'another-list');
   fireEvent.drop(view.getByText('Second').closest('li')!, { dataTransfer });
   expect(changed).toHaveLength(1);
+});
+
+function renderFocusPicker(maxItems = 3) {
+  const changes: string[][] = [];
+  function Harness() {
+    const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+    return React.createElement(React.Fragment, null,
+      React.createElement(OrderedItemPicker, {
+        label: 'Offers', items: [{ id: 'a', name: 'Alpha' }, { id: 'b', name: 'Beta' }], selectedIds, maxItems,
+        onChange: (next: string[]) => { changes.push(next); setSelectedIds(next); },
+      }),
+      React.createElement('button', { type: 'button' }, 'Continue'),
+    );
+  }
+  const view = render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(Harness)));
+  return { ...view, changes };
+}
+function holdAnimationFrames() {
+  const frames: FrameRequestCallback[] = [];
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { frames.push(callback); return frames.length; });
+  return () => act(() => { while (frames.length) frames.shift()!(0); });
+}
+
+it('keeps a new search open when selection focus is delivered afterward', () => {
+  const flushFrames = holdAnimationFrames();
+  const view = renderFocusPicker();
+  fireEvent.click(view.getByRole('button', { name: 'Add Alpha' }));
+  const input = view.getByRole('searchbox') as HTMLInputElement;
+  act(() => input.focus());
+  fireEvent.change(input, { target: { value: 'Beta' } });
+  flushFrames();
+  expect(input.value).toBe('Beta');
+  expect(view.getByRole('button', { name: 'Add Beta' })).toBeTruthy();
+  fireEvent.click(view.getByRole('button', { name: 'Add Beta' }));
+  expect(view.changes).toEqual([['a'], ['a', 'b']]);
+});
+
+it('does not steal focus after the user leaves the picker following a selection', () => {
+  const flushFrames = holdAnimationFrames();
+  const view = renderFocusPicker();
+  fireEvent.click(view.getByRole('button', { name: 'Add Alpha' }));
+  const outside = view.getByRole('button', { name: 'Continue' });
+  act(() => outside.focus());
+  flushFrames();
+  expect(document.activeElement).toBe(outside);
+});
+
+it('returns focus to the last removal control when the selection cap removes search', () => {
+  const flushFrames = holdAnimationFrames();
+  const view = renderFocusPicker(2);
+  fireEvent.click(view.getByRole('button', { name: 'Add Alpha' }));
+  flushFrames();
+  expect(document.activeElement).toBe(view.getByRole('searchbox'));
+  expect(view.queryByRole('button', { name: 'Add Beta' })).toBeNull();
+  fireEvent.change(view.getByRole('searchbox'), { target: { value: 'Beta' } });
+  fireEvent.click(view.getByRole('button', { name: 'Add Beta' }));
+  flushFrames();
+  expect(view.queryByRole('searchbox')).toBeNull();
+  expect(document.activeElement).toBe(view.getByRole('button', { name: 'Remove Beta' }));
+  expect(view.changes).toEqual([['a'], ['a', 'b']]);
 });
