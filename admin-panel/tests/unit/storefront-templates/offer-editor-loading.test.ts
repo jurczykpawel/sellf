@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { createElement } from 'react';
+import { createElement, StrictMode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -33,4 +33,22 @@ it('waits for a product selection before loading', () => {
   render(createElement(OfferEditor));
   expect(mocks.action).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: 'loading' })).toBeNull();
+});
+
+it.each(['success', 'failure'])('retains edits when an earlier initial read completes with %s', async completion => {
+  const reads: { resolve: (value: unknown) => void; reject: (error: Error) => void }[] = [];
+  mocks.action.mockImplementation(() => new Promise((resolve, reject) => reads.push({ resolve, reject })));
+  render(createElement(StrictMode, null, createElement(OfferEditor, { initialProductId: '10000000-0000-4000-8000-000000000001' })));
+  expect(reads).toHaveLength(2);
+  const response = { success: true, data: { productName: 'Current offer', revision: 0, draft: null, published: null } };
+  await act(async () => { reads[1].resolve(response); });
+  fireEvent.click(screen.getByRole('checkbox', { name: 'enabled' }));
+  expect((screen.getByRole('checkbox', { name: 'enabled' }) as HTMLInputElement).checked).toBe(true);
+  await act(async () => {
+    if (completion === 'success') reads[0].resolve(response);
+    else reads[0].reject(new Error('Earlier read failed'));
+  });
+  expect((screen.getByRole('checkbox', { name: 'enabled' }) as HTMLInputElement).checked).toBe(true);
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect((screen.getByRole('button', { name: 'save', exact: true }) as HTMLButtonElement).disabled).toBe(false);
 });

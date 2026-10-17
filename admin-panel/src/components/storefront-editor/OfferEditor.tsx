@@ -23,19 +23,24 @@ export default function OfferEditor({ initialProductId }: { initialProductId?: s
   const [section, setSection] = useState<'offer.hero' | 'offer.faq' | 'offer.closing'>('offer.hero');
   const [busy, setBusy] = useState(Boolean(productId)); const [dirty, setDirty] = useState(false);
   const [error, setError] = useState(''); const [confirm, setConfirm] = useState(false);
-  const load = useCallback((id: string) => {
+  const load = useCallback((id: string, isCurrent: () => boolean = () => true) => {
     return productOfferAction({ operation: 'read', productId: id }).then(response => {
+      if (!isCurrent()) return;
       if (!response.success) { setError(response.code); setSnapshot(null); return; }
       if ('data' in response && 'productName' in response.data) {
         setSnapshot(response.data); setConfig(structuredClone(response.data.draft ?? response.data.published ?? DEFAULT_OFFER)); setDirty(false); setConfirm(false);
       }
-    }).catch(() => { setError('UNAVAILABLE'); }).finally(() => { setBusy(false); });
+    }).catch(() => { if (isCurrent()) setError('UNAVAILABLE'); }).finally(() => { if (isCurrent()) setBusy(false); });
   }, []);
   function reload() {
     setBusy(true); setError('');
     return load(productId);
   }
-  useEffect(() => { if (productId) void load(productId); }, [productId, load]);
+  useEffect(() => {
+    let active = true;
+    if (productId) void load(productId, () => active);
+    return () => { active = false; };
+  }, [productId, load]);
   function edit(next: OfferPageConfig) { setConfig(next); setDirty(true); }
   async function save() {
     if (!snapshot) return;
