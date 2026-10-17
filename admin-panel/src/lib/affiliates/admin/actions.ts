@@ -128,13 +128,20 @@ export async function getAffiliateSyncOverview(input: unknown = {}): Promise<Adm
     let query = client.from('affiliate_work').select('payment_id,requested_generation::text,attempts,last_error_code,payment:payment_transactions(created_at,product:products(name))')
       .eq('status', 'needs_review').order('payment_id').limit(limit);
     if (cursor) query = query.gt('payment_id', cursor);
-    const [failed, oldest] = await Promise.all([query,
+    const [failed, oldest, waiting] = await Promise.all([query,
       client.from('affiliate_work').select('next_attempt_at')
         .eq('status', 'pending').order('next_attempt_at').limit(1),
+      client.from('affiliate_work').select('payment:payment_transactions!inner(created_at)')
+        .eq('status', 'pending').eq('last_error_code', 'awaiting_fulfillment')
+        .order('payment(created_at)').limit(1)
+        .overrideTypes<{ payment: { created_at: string } }[], { merge: false }>(),
     ]);
-    if (failed.error || oldest.error) return dbFailure((failed.error ?? oldest.error)!.code);
+    if (failed.error || oldest.error || waiting.error) return dbFailure((failed.error ?? oldest.error ?? waiting.error)!.code);
     const work = failed.data as unknown as SyncWorkInfo[];
-    return { success: true, data: { work, next_cursor: work.length === limit ? work.at(-1)!.payment_id : null, oldest_pending_at: oldest.data?.[0]?.next_attempt_at ?? null } };
+    const waitingPayment = waiting.data?.[0]?.payment;
+    const oldestPending = [oldest.data?.[0]?.next_attempt_at, waitingPayment?.created_at]
+      .filter((value): value is string => !!value).sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null;
+    return { success: true, data: { work, next_cursor: work.length === limit ? work.at(-1)!.payment_id : null, oldest_pending_at: oldestPending } };
   });
 }
 export async function retryAffiliateWork(input: unknown): Promise<AdminResult<undefined>> {

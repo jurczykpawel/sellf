@@ -12,8 +12,8 @@ const application = { code: 'partner-a', display_name: 'Partner A', channel: 'ht
 const program = { version: '1', enabled: true, terms_version: 'v1', terms: { en: 'Terms EN', pl: 'Regulamin PL' }, thresholds: { PLN: '10000' }, hold_days: 30, buffer_days: 2 };
 let db: ReturnType<typeof query>;
 function query(data: unknown = []) {
-  const q = { data, error: null as null | { code: string; message?: string }, select: vi.fn(), eq: vi.fn(), order: vi.fn(), limit: vi.fn(), lt: vi.fn(), gt: vi.fn(), lte: vi.fn(), maybeSingle: vi.fn(), single: vi.fn(), rpc: vi.fn(), from: vi.fn(), then: undefined as unknown };
-  for (const key of ['select', 'eq', 'order', 'limit', 'lt', 'gt', 'lte', 'maybeSingle', 'single', 'rpc', 'from'] as const) q[key].mockImplementation(() => q);
+  const q = { data, error: null as null | { code: string; message?: string }, select: vi.fn(), eq: vi.fn(), order: vi.fn(), limit: vi.fn(), lt: vi.fn(), gt: vi.fn(), lte: vi.fn(), maybeSingle: vi.fn(), single: vi.fn(), rpc: vi.fn(), from: vi.fn(), overrideTypes: vi.fn(), then: undefined as unknown };
+  for (const key of ['select', 'eq', 'order', 'limit', 'lt', 'gt', 'lte', 'maybeSingle', 'single', 'rpc', 'from', 'overrideTypes'] as const) q[key].mockImplementation(() => q);
   q.then = (resolve: (value: unknown) => unknown) => Promise.resolve(resolve({ data: q.data, error: q.error }));
   return q;
 }
@@ -116,7 +116,7 @@ it('returns conflict for changed generation without refreshing', async () => {
 it('bounds recovery rows and projects pending order age without buyer fields', async () => {
   const work = query([{ payment_id: user.id, requested_generation: '9007199254740993', attempts: 10, last_error_code: 'net_unavailable' }]);
   const oldest = query([{ next_attempt_at: '2026-01-01T00:00:00Z' }]);
-  db.from.mockReturnValueOnce(work).mockReturnValueOnce(oldest);
+  db.from.mockReturnValueOnce(work).mockReturnValueOnce(oldest).mockReturnValueOnce(query([]));
   const result = await getAffiliateSyncOverview({ limit: 1, cursor: user.id });
   expect(result.data).toMatchObject({ next_cursor: user.id, oldest_pending_at: '2026-01-01T00:00:00Z' });
   expect(work.limit).toHaveBeenCalledWith(1); expect(work.gt).toHaveBeenCalledWith('payment_id', user.id);
@@ -124,4 +124,14 @@ it('bounds recovery rows and projects pending order age without buyer fields', a
   expect(oldest.eq).toHaveBeenCalledWith('status', 'pending');
   expect(oldest.order).toHaveBeenCalledWith('next_attempt_at');
   expect((await getAffiliateSyncOverview({ limit: 101 })).status).toBe(422);
+});
+
+it('includes fulfillment waits by order age when their next attempt is in the future', async () => {
+  const waiting = query([{ payment: { created_at: '2026-01-01T00:00:00Z' } }]);
+  db.from.mockReturnValueOnce(query([])).mockReturnValueOnce(query([{ next_attempt_at: '2026-10-17T00:01:00Z' }])).mockReturnValueOnce(waiting);
+  const result = await getAffiliateSyncOverview();
+  expect(result.data?.oldest_pending_at).toBe('2026-01-01T00:00:00Z');
+  expect(waiting.eq).toHaveBeenCalledWith('last_error_code', 'awaiting_fulfillment');
+  expect(waiting.eq).toHaveBeenCalledWith('status', 'pending');
+  expect(waiting.order).toHaveBeenCalledWith('payment(created_at)');
 });
