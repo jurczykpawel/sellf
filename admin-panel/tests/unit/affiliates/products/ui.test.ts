@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /** Affiliate product controls. @see src/components/affiliates/products */
 import { createElement } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({ locale: 'en', type: 'one_time', rule: null as { fixed_minor: string; currency: string; percentage_bps: null; revision: number; enabled: boolean } | null, search: vi.fn(), save: vi.fn(), bind: vi.fn() }));
 vi.mock('next-intl', () => ({ useLocale: () => state.locale, useTranslations: () => () => 'No partners found' }));
@@ -42,7 +42,7 @@ it('selects an approved coupon owner and uses its binding version', async () => 
   render(createElement(AffiliateCouponEditor, { couponId: 'coupon' }));
   await screen.findByText(/Current Partner/);
   expect(screen.queryByText(/uuid-should-not-be-visible/)).toBeNull();
-  const picker = screen.getByRole('textbox', { name: 'Approved partner' });
+  const picker = screen.getByRole('combobox', { name: 'Approved partner' });
   fireEvent.focus(picker);
   fireEvent.change(picker, { target: { value: 'Approved' } });
   fireEvent.keyDown(picker, { key: 'ArrowDown' });
@@ -61,7 +61,7 @@ it('saves a localized fixed amount without rounding', async () => {
 });
 it('searches partners by name on the server', async () => {
   render(createElement(AffiliateCouponEditor, { couponId: 'coupon' }));
-  const picker = await screen.findByRole('textbox', { name: 'Approved partner' });
+  const picker = await screen.findByRole('combobox', { name: 'Approved partner' });
   fireEvent.input(picker, { target: { value: 'Maria' } });
   await waitFor(() => expect(state.search).toHaveBeenCalledWith({ coupon_id: 'coupon', cursor: null, search: 'Maria' }));
 });
@@ -69,7 +69,7 @@ it('searches partners by name on the server', async () => {
 it('keeps an empty partner search usable with the keyboard', async () => {
   state.search.mockResolvedValue({ success: true, data: { binding: null, members: [], next_cursor: null } });
   render(createElement(AffiliateCouponEditor, { couponId: 'coupon' }));
-  const picker = await screen.findByRole('textbox', { name: 'Approved partner' });
+  const picker = await screen.findByRole('combobox', { name: 'Approved partner' });
   await screen.findByText(/No approved partners yet/);
   fireEvent.focus(picker); fireEvent.keyDown(picker, { key: 'ArrowDown' }); fireEvent.keyDown(picker, { key: 'Enter' });
   expect(state.bind).not.toHaveBeenCalled();
@@ -100,4 +100,52 @@ it('keeps coupon assignment visible before the coupon fields while loading', () 
   const firstInput = document.querySelector('input')!;
   expect(heading.compareDocumentPosition(firstInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(screen.getByRole('status').textContent).toContain('Loading');
+});
+
+it('closes partner choices after a pointer selection and confirms coupon assignment', async () => {
+  render(createElement(AffiliateCouponEditor, { couponId: 'coupon' }));
+  await screen.findByText(/Current Partner/);
+  const picker = screen.getByRole('combobox', { name: 'Approved partner' });
+  fireEvent.focus(picker);
+  fireEvent.click(screen.getByText('Approved Partner (partner)'));
+  expect(picker.getAttribute('aria-expanded')).toBe('false');
+  expect(screen.queryByRole('listbox')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Assign coupon' }));
+  await screen.findByText('Coupon assigned to the partner.');
+});
+
+it('retains the chosen partner label when the search resets to its first page', async () => {
+  render(createElement(AffiliateCouponEditor, { couponId: 'coupon' }));
+  await screen.findByText(/Current Partner/);
+  const picker = screen.getByRole('combobox', { name: 'Approved partner' });
+  fireEvent.focus(picker); fireEvent.click(screen.getByRole('option', { name: 'Approved Partner (partner)' }));
+  state.search.mockResolvedValue({ success: true, data: { binding: null, members: [], next_cursor: null } });
+  fireEvent.focus(picker); fireEvent.change(picker, { target: { value: 'other' } }); fireEvent.blur(picker);
+  await waitFor(() => expect(state.search).toHaveBeenCalledWith(expect.objectContaining({ search: '' })));
+  await screen.findByText(/No approved partners yet/);
+  expect((picker as HTMLInputElement).value).toBe('Approved Partner (partner)');
+});
+
+it('shows assignment confirmation when an earlier partner search is still pending', async () => {
+  const loaded = { success: true, data: { binding: null, members: [{ id: 'member', code: 'partner', display_name: 'Approved Partner' }], next_cursor: null } };
+  state.search.mockImplementation((input: { search?: string }) => input.search === undefined ? Promise.resolve(loaded) : new Promise(() => {}));
+  render(createElement(AffiliateCouponEditor, { couponId: 'coupon' }));
+  await screen.findByText('Searching…');
+  const picker = screen.getByRole('combobox', { name: 'Approved partner' });
+  fireEvent.focus(picker); fireEvent.click(screen.getByRole('option', { name: 'Approved Partner (partner)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Assign coupon' }));
+  await screen.findByText('Coupon assigned to the partner.');
+});
+
+it('keeps confirmation visible when a queued search starts after the assignment reload', async () => {
+  vi.useFakeTimers();
+  try {
+    render(createElement(AffiliateCouponEditor, { couponId: 'coupon' }));
+    await act(async () => {});
+    const picker = screen.getByRole('combobox', { name: 'Approved partner' });
+    fireEvent.focus(picker); fireEvent.click(screen.getByRole('option', { name: 'Approved Partner (partner)' }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Assign coupon' })); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(250); });
+    expect(screen.getByRole('status').textContent).toBe('Coupon assigned to the partner.');
+  } finally { vi.useRealTimers(); }
 });

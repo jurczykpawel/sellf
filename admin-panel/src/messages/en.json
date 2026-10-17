@@ -4856,6 +4856,7 @@
       "syncRetrySuccess": "Order queued again. The next worker run will process it."
     },
     "products": {
+      "couponAssigned": "Coupon assigned to the partner.",
       "saveCouponFirst": "Save this coupon first, then assign it to an approved partner here.",
       "ownerHint": "Purchases using this coupon earn commission for the assigned partner. Assignment is saved separately from coupon details.",
       "title": "Affiliate commission",

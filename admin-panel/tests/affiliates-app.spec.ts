@@ -83,7 +83,7 @@ for (const locale of ['en', 'pl'] as const) test(`${locale} saved coupon exposes
     const copy = locale === 'en' ? en : pl;
     await page.getByRole('row').filter({ hasText: code }).getByRole('button', { name: copy.admin.coupons.edit, exact: true }).click();
     await expect(page.getByRole('heading', { name: copy.affiliates.products.owner, exact: true })).toBeVisible();
-    const partner = page.getByRole('textbox', { name: copy.affiliates.products.partner, exact: true });
+    const partner = page.getByRole('combobox', { name: copy.affiliates.products.partner, exact: true });
     await expect(partner).toBeEnabled();
     const searched = page.waitForResponse(r => r.request().method() === 'POST' && !!r.request().postData()?.includes('"search":"Demo"'));
     await partner.fill('Demo'); await searched;
