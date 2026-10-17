@@ -1,38 +1,33 @@
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
-/**
- * Validate that a redirect URL is safe (relative path or same-origin).
- * Prevents open redirect attacks via success_url / return_url parameters.
- *
+/** Shared parsing for account and payment return destinations.
  * @see tests/unit/security/open-redirect.test.ts
  */
-export function isSafeRedirectUrl(url: string, siteUrl?: string): boolean {
-  if (!url) return false;
+function hasUnsupportedRedirectCharacters(value: string): boolean {
+  if (/[\u0000-\u0020\u007f]/.test(value)) return true;
+  return /%(?:25)*(?:0[0-9a-f]|1[0-9a-f]|7f)/i.test(value);
+}
 
-  // Normalize backslashes — browsers and Node.js treat \ as / in URLs,
-  // so /\evil.com becomes //evil.com (protocol-relative → open redirect)
-  const normalized = url.replace(/\\/g, '/');
-
-  // Allow relative URLs (starting with /) but block protocol-relative (//evil.com)
-  if (normalized.startsWith('/') && !normalized.startsWith('//')) {
-    return true;
-  }
-
-  // For absolute URLs, validate against site origin
-  const effectiveSiteUrl = siteUrl || getCanonicalOriginOrNull();
-
-  if (!effectiveSiteUrl) {
-    // No site URL configured — only allow relative paths
-    return false;
-  }
-
+/** Resolve supported destinations to the path used by navigation. */
+export function resolveSafeRedirectPath(value: string, siteUrl?: string): string | null {
+  if (!value || hasUnsupportedRedirectCharacters(value)) return null;
+  const normalized = value.replace(/\\/g, '/');
+  if (normalized.startsWith('//')) return null;
+  const configuredSite = siteUrl || getCanonicalOriginOrNull();
+  if (!value.startsWith('/') && (!configuredSite || !/^https?:\/\//i.test(value))) return null;
   try {
-    const parsed = new URL(url);
-    const site = new URL(effectiveSiteUrl);
-    return parsed.origin === site.origin;
+    const site = new URL(configuredSite || 'https://relative.invalid');
+    if (site.protocol !== 'https:' && site.protocol !== 'http:') return null;
+    const resolved = new URL(value, site);
+    if (resolved.origin !== site.origin) return null;
+    return resolved.pathname + resolved.search + resolved.hash;
   } catch {
-    return false;
+    return null;
   }
+}
+
+export function isSafeRedirectUrl(url: string, siteUrl?: string): boolean {
+  return resolveSafeRedirectPath(url, siteUrl) !== null;
 }
 
 /**
@@ -46,7 +41,7 @@ export function isSafeRedirectUrl(url: string, siteUrl?: string): boolean {
  * @see tests/unit/security/open-redirect.test.ts
  */
 export function isRelativeOrHttpUrl(url: string): boolean {
-  if (!url) return false;
+  if (!url || hasUnsupportedRedirectCharacters(url)) return false;
   const normalized = url.replace(/\\/g, '/');
   const isRelative = normalized.startsWith('/') && !normalized.startsWith('//');
   const isHttp = normalized.startsWith('https://') || normalized.startsWith('http://');

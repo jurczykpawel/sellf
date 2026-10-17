@@ -4,7 +4,8 @@ import type { Session, AuthError } from '@supabase/supabase-js'
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { isDemoMode } from '@/lib/demo-guard';
 import { DisposableEmailService } from '@/lib/services/disposable-email'
-import { isSafeRedirectUrl } from '@/lib/validations/redirect'
+import { resolveSafeRedirectPath } from '@/lib/validations/redirect'
+import { getLoginReturnPath } from '@/lib/auth/magic-link-redirect'
 import { buildSupabaseCookieOptions } from '@/lib/supabase/cookie-options'
 import { claimPendingFreeGrants, productSlugHandledByRedirect } from '@/lib/services/pending-free-grants'
 
@@ -144,58 +145,25 @@ export async function GET(request: NextRequest) {
 
   // Paid guest purchases are claimed by the on_auth_user_created trigger.
 
-  // Check for custom redirect URL (for product access etc.)
-  let redirectPath = '/dashboard' // default to dashboard
   const redirectTo = requestUrl.searchParams.get('redirect_to')
-  
-  if (redirectTo) {
-    try {
-      // Decode the redirect URL to handle encoded parameters
-      const decodedRedirectTo = decodeURIComponent(redirectTo)
-
-      // SECURITY: use isSafeRedirectUrl — handles backslash normalization (/\evil.com → //)
-      // and blocks protocol-relative URLs (//evil.com)
-      if (isSafeRedirectUrl(decodedRedirectTo, origin)) {
-        if (decodedRedirectTo.startsWith('/')) {
-          redirectPath = decodedRedirectTo
-        } else {
-          // Absolute same-origin URL — extract just the path
-          const redirectToUrl = new URL(decodedRedirectTo)
-          redirectPath = redirectToUrl.pathname + redirectToUrl.search
-        }
-      }
-    } catch {
-      // Silent error handling - if decoding fails, fallback to default
-    }
-  } else {
-    // No URL-based redirect_to — check for OAuth redirect cookie set by FreeProductForm.
-    // This avoids embedding the redirect path as a query param in the OAuth redirectTo URL,
-    // which would require registering every possible URL variant in the Supabase allowlist.
+  let returnPath = getLoginReturnPath(redirectTo)
+  if (!redirectTo && code) {
     const oauthRedirectCookie = request.cookies.get('sf_oauth_redirect')?.value
-    if (oauthRedirectCookie && code) {
+    if (oauthRedirectCookie) {
       try {
-        const decoded = decodeURIComponent(oauthRedirectCookie)
-        // SECURITY: same validation as redirect_to — blocks backslash tricks and //evil.com
-        if (isSafeRedirectUrl(decoded, origin) && decoded.startsWith('/')) {
-          redirectPath = decoded
-        }
+        returnPath = getLoginReturnPath(decodeURIComponent(oauthRedirectCookie))
       } catch {
-        // Invalid cookie value — fall through to role-based default
+        returnPath = undefined
       }
-    } else {
-      // No custom redirect, check user role to determine default redirect
-      try {
-        const { data: isAdmin } = await supabase.rpc('is_admin')
-
-        if (isAdmin) {
-          redirectPath = '/dashboard' // Admins go to dashboard
-        } else {
-          redirectPath = '/my-products' // Regular users go to their products
-        }
-      } catch {
-        // If we can't determine admin status, send to user page as safer default
-        redirectPath = '/my-products'
-      }
+    }
+  }
+  let redirectPath = returnPath ? resolveSafeRedirectPath(returnPath, origin) : null
+  if (!redirectPath) {
+    try {
+      const { data: isAdmin } = await supabase.rpc('is_admin')
+      redirectPath = isAdmin ? '/dashboard' : '/my-products'
+    } catch {
+      redirectPath = '/my-products'
     }
   }
 
