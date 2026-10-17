@@ -291,8 +291,12 @@ export async function POST(request: NextRequest) {
 
     // Create product
     const { data: product, error: createError } = await supabase
-      .from('products')
-      .insert([{ ...sanitizedData, seller_id: admin.userId }])
+      .rpc('mutate_product_with_audit', {
+        operation_param: 'INSERT',
+        product_data: { ...sanitizedData, seller_id: admin.userId },
+        product_id: null,
+        actor_id: admin.userId,
+      })
       .select(PRODUCT_API_FIELDS)
       .single();
 

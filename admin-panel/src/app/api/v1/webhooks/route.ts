@@ -23,6 +23,7 @@ import {
   validateCustomPayloadFields,
 } from '@/lib/validations/webhook';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
+import { publicWebhookSecret } from '@/lib/webhooks/signing-secret';
 import { checkFeature } from '@/lib/license/resolve';
 import { findDeniedEventFeature } from '@/lib/webhooks/event-feature-gate';
 import { setEndpointScoping, getEndpointProductIdsMap } from '@/lib/webhooks/endpoint-products';
@@ -127,7 +128,7 @@ export async function GET(request: NextRequest) {
       (items as Array<{ id: string }>).map((w) => w.id),
     );
     const itemsWithProducts = await Promise.all(
-      (items as Array<{ id: string; custom_headers_encrypted?: string | null }>).map(async (w) => {
+      (items as Array<{ id: string; secret: string; custom_headers_encrypted?: string | null }>).map(async (w) => {
         const { custom_headers_encrypted, ...rest } = w;
         // Header NAMES are not secret and let the edit form show what's configured;
         // the VALUES never leave the server. Decrypt failure → expose nothing.
@@ -139,7 +140,7 @@ export async function GET(request: NextRequest) {
             custom_header_names = [];
           }
         }
-        return { ...rest, product_ids: productMap[w.id] ?? [], has_custom_headers: custom_headers_encrypted != null, custom_header_names };
+        return { ...rest, secret: publicWebhookSecret(rest.secret), product_ids: productMap[w.id] ?? [], has_custom_headers: custom_headers_encrypted != null, custom_header_names };
       }),
     );
 

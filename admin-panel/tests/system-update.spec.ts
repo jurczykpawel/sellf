@@ -159,20 +159,26 @@ test.describe('System Update API v1', () => {
       expect(response.status()).toBe(401);
     });
 
-    test('should return 400 or 202 depending on whether upgrade script is present', async ({ page }) => {
+    test('should follow the advertised upgrade capability', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
+      const systemResponse = await page.request.get('/api/v1/system/status');
+      expect(systemResponse.status()).toBe(200);
+      const { data: system } = await systemResponse.json();
       const response = await page.request.post('/api/v1/system/upgrade');
       const status = response.status();
       const body = await response.json();
 
-      if (status === 400) {
-        // Script not found (clean environment without admin-panel/scripts/upgrade.sh)
+      if (system.upgrade.mode === 'manual') {
+        expect(status).toBe(409);
+        expect(body.error.code).toBe('MANUAL_UPGRADE_REQUIRED');
+        expect(body.data.upgrade).toEqual(system.upgrade);
+      } else if (status === 400) {
         expect(body.error.code).toBe('NOT_FOUND');
         expect(body.error.message).toContain('Upgrade script not found');
       } else {
-        // Script found (dev env with admin-panel/scripts/upgrade.sh present)
-        // systemd-run may not exist on macOS but the route still returns 202 after spawning
-        expect([202, 500]).toContain(status);
+        expect(system.upgrade.mode).toBe('in-place');
+        expect(status).toBe(202);
+        expect(body.data.token).toMatch(/^[0-9a-f-]{36}$/);
       }
     });
 

@@ -14,7 +14,10 @@ EXCEPTION WHEN insufficient_privilege THEN RETURN true;
 END;
 $$;
 SELECT pg_temp.assert_true((SELECT count(*) = 1 AND min(revision) = 0 FROM public.storefront_config), 'singleton revision zero');
-SELECT pg_temp.assert_true((SELECT published = '{"format":1,"templateId":"default","settingsByTemplate":{},"overridesByTemplate":{},"content":{},"tokens":null}'::jsonb AND draft IS NULL AND updated_by IS NULL FROM public.storefront_config), 'default bootstrap config');
+SELECT pg_temp.assert_true((SELECT published - 'settingsByTemplate' = '{"format":1,"templateId":"default","overridesByTemplate":{},"content":{},"tokens":null}'::jsonb
+  AND (published->'settingsByTemplate') - 'storefront-a' = '{}'::jsonb
+  AND public.storefront_config_valid(published) AND draft IS NULL AND updated_by IS NULL
+  FROM public.storefront_config), 'default bootstrap config retains valid inactive A seed settings');
 SELECT pg_temp.assert_true((SELECT h.revision = c.revision AND h.published = c.published AND h.draft IS NULL AND h.actor_id IS NULL FROM public.storefront_config c CROSS JOIN public.storefront_config_history h), 'bootstrap history matches singleton');
 SELECT pg_temp.assert_true((SELECT count(*) = 2 FROM pg_class WHERE oid IN ('public.storefront_config'::regclass, 'public.storefront_config_history'::regclass) AND relrowsecurity), 'both tables enable RLS');
 

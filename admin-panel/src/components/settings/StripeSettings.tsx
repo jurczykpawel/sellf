@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Shield, ExternalLink, Settings, CheckCircle2, AlertCircle, Info, Copy, Check, Globe } from 'lucide-react'
 import { StripeConfigWizard } from '@/components/stripe/StripeConfigWizard'
 import { listStripeConfigs, getStripeAccountInfo, getStripeKeySource, getWebhookRegistrationInfo, createStripeWebhookEndpoint } from '@/lib/actions/stripe-config'
@@ -26,8 +26,8 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
  const [webhookError, setWebhookError] = useState<string | null>(null)
  const [accountInfo, setAccountInfo] = useState<{ accountId: string | null; accountName: string | null } | null>(null)
 
- const loadConfigs = async (invalidateAccountCache = false) => {
- setLoading(true)
+ const fetchConfigs = useCallback(async (invalidateAccountCache = false) => {
+
  if (invalidateAccountCache) _accountInfoCache = undefined
  try {
  const accountInfoPromise = _accountInfoCache !== undefined
@@ -53,11 +53,17 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
  } finally {
  setLoading(false)
  }
- }
+ }, []);
+
+ const loadConfigs = (invalidateAccountCache = false) => {
+   setLoading(true);
+   return fetchConfigs(invalidateAccountCache);
+ };
 
  useEffect(() => {
- loadConfigs()
- }, [])
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
+ fetchConfigs()
+ }, [fetchConfigs])
 
  const activeConfigs = configs.filter((c) => c.is_active)
  const webhookUrl = `${siteUrl}/api/webhooks/stripe`

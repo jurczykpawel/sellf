@@ -6,8 +6,9 @@
  *
  * Run: bun run test:a11y
  */
-import { test, Page } from '@playwright/test';
-import { createTestAdmin, setAuthSession } from './helpers/admin-auth';
+import { randomUUID } from 'node:crypto';
+import { test, expect, Page } from '@playwright/test';
+import { createTestAdmin, setAuthSession, supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
 import { checkAccessibility } from './helpers/axe';
 import { readRawActiveTheme, writeActiveTheme, restoreRawActiveTheme } from './helpers/active-theme';
@@ -20,6 +21,8 @@ test.setTimeout(120_000);
 let adminEmail: string;
 let adminPassword: string;
 let cleanup: () => Promise<void>;
+let partialRefundId: string;
+const partialRefundEmail = `a11y-partial-${randomUUID()}@example.com`;
 
 // Third-party selectors excluded from all checks
 const THIRD_PARTY_EXCLUDES = ['#cc-main', 'iframe[src*="stripe"]', '[data-turnstile]', 'altcha-widget', '.__PrivateStripeElement', '.__PrivateStripeElementLoader'];
@@ -31,9 +34,17 @@ test.beforeAll(async () => {
   adminEmail = admin.email;
   adminPassword = admin.password;
   cleanup = admin.cleanup;
+  const product = await supabaseAdmin.from('products').select('id').eq('slug', 'premium-course').single();
+  expect(product.error).toBeNull();
+  const payment = await supabaseAdmin.from('payment_transactions').insert({
+    session_id: `cs_a11y_${randomUUID().replaceAll('-', '')}`, product_id: product.data!.id,
+    customer_email: partialRefundEmail, amount: 10000, refunded_amount: 2500, currency: 'USD', status: 'completed',
+  }).select('id').single();
+  expect(payment.error).toBeNull(); partialRefundId = payment.data!.id;
 });
 
 test.afterAll(async () => {
+  if (partialRefundId) expect((await supabaseAdmin.from('payment_transactions').delete().eq('id', partialRefundId)).error).toBeNull();
   await cleanup();
 });
 
@@ -129,6 +140,11 @@ async function visitAndCheck(
   await page.goto(path, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1500);
   await waitForSettledButtonStates(page);
+  if (path === '/dashboard/payments') {
+    const row = page.getByRole('row').filter({ hasText: partialRefundEmail });
+    await expect(row).toBeVisible();
+    await expect(row.getByText(/Partially refunded.*25\.00/)).toBeVisible();
+  }
   await checkAccessibility(page, {
     excludeSelectors: [...THIRD_PARTY_EXCLUDES, ...(options?.excludeSelectors || [])],
     excludeRules: options?.excludeRules,

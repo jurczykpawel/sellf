@@ -5,6 +5,8 @@ description: "Wymagany czas: ~15 minut jeśli masz już konta GitHub, Supabase, 
 
 Włącz **Confirm Email** w Supabase i zainstaluj oba szablony: confirmation oraz magic-link. Zakupy gościa trafiają na konto po potwierdzeniu adresu użytego przy zakupie. Zobacz [konfigurację e-maili](/pl/email-setup/#włącz-potwierdzanie-adresów-e-mail).
 
+> Aktualizacje z panelu: [obsługiwane środowiska, wykrywanie i migracje](/pl/ui-upgrades/). Kontenery nie wykonują migracji przy starcie.
+
 
 **Język:** 🇵🇱 Polski · [🇬🇧 English](/deployment-vercel-netlify/)
 

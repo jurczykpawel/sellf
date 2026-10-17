@@ -17,9 +17,9 @@ ON CONFLICT (template_id) DO NOTHING;
 -- Enable pgcrypto extension for password hashing
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- =====================================================
+-- ==============================================
 -- DEMO ADMIN USER
--- =====================================================
+-- ==============================================
 -- Must be inserted FIRST so the handle_new_user_registration() trigger
 -- makes this user admin (first user in admin_users table).
 -- Credentials: demo@sellf.app / demo123
@@ -61,9 +61,9 @@ INSERT INTO admin_users (user_id)
 VALUES ('dddddddd-0000-4000-a000-000000000000')
 ON CONFLICT DO NOTHING;
 
--- =====================================================
+-- ==============================================
 -- PENTEST REGRESSION: NON-ADMIN BUYER
--- =====================================================
+-- ==============================================
 -- Inserted AFTER the admin so the first-user-becomes-admin trigger has
 -- already fired. Used by tests/api/pentest-regression.test.ts to assert
 -- RLS / IDOR / cross-tenant boundaries from a regular buyer's perspective.
@@ -259,9 +259,9 @@ Basic JavaScript knowledge required. Familiarity with HTML/CSS recommended.',
     false
   );
 
--- =====================================================
+-- ==============================================
 -- PWYW (Pay What You Want) PRODUCTS
--- =====================================================
+-- ==============================================
 
 -- PWYW with free option (custom_price_min = 0) — customer can get it for $0
 INSERT INTO products (
@@ -548,9 +548,9 @@ INSERT INTO product_tags (product_id, tag_id) VALUES
 ((SELECT id FROM products WHERE slug = 'pro-toolkit'), (SELECT id FROM tags WHERE slug = 'new')),
 ((SELECT id FROM products WHERE slug = 'vip-masterclass'), (SELECT id FROM tags WHERE slug = 'bestseller'));
 
--- =====================================================
+-- ==============================================
 -- SAMPLE USERS & PAYMENT TRANSACTIONS (Multi-Currency)
--- =====================================================
+-- ==============================================
 -- Purpose: Seed data for testing currency conversion feature
 -- Creates users and transactions in USD, EUR, and PLN
 
@@ -712,9 +712,9 @@ BEGIN
 
 END $$;
 
--- =====================================================
+-- ==============================================
 -- OTO (One-Time Offer) SAMPLE DATA
--- =====================================================
+-- ==============================================
 -- Purpose: Seed data for testing OTO functionality
 -- These offers demonstrate the OTO system in action
 
@@ -775,9 +775,9 @@ INSERT INTO oto_offers (
   1
 );
 
--- =====================================================
+-- ==============================================
 -- TEST PRODUCTS FOR REDIRECT SCENARIOS
--- =====================================================
+-- ==============================================
 -- Purpose: 5 products for testing different redirect configurations
 --
 -- 1. test-oto-active      → OTO enabled, redirects to OTO product
@@ -938,9 +938,9 @@ INSERT INTO oto_offers (
   1
 );
 
--- =====================================================
+-- ==============================================
 -- VARIANT GROUP DEMO: PWYW + Standard
--- =====================================================
+-- ==============================================
 -- A variant selector group for manual testing of the /v/[groupId] page.
 -- Includes 2 PWYW products and 1 fixed-price product.
 
@@ -1048,9 +1048,9 @@ VALUES (
   (SELECT id FROM products WHERE slug = 'test-oto-target'),
   NOW() - INTERVAL '7 days'
 );
--- =============================================================================
+-- ======================================================================
 -- Subscription products (subscriptions MVP)
--- =============================================================================
+-- ======================================================================
 
 -- Monthly subscription example
 INSERT INTO products (
@@ -1228,10 +1228,10 @@ WHERE p.slug IN ('free-tutorial','premium-course','starter-bundle') AND c.slug='
 ON CONFLICT DO NOTHING;
 
 -- Scheduled catalogue transitions exercise first-page cache deadlines.
-INSERT INTO public.products(name,slug,description,price,currency,is_active,is_listed,is_featured,available_from,available_until,sale_price,sale_price_until) VALUES
- ('Upcoming sample workshop','sample-upcoming-workshop','A workshop scheduled to join the catalogue.',20,'USD',true,true,true,now()+interval '1 day',null,null,null),
- ('Limited sample guide','sample-limited-guide','A guide with a scheduled catalogue end.',10,'USD',true,true,false,null,now()+interval '2 days',null,null),
- ('Sample template sale','sample-template-sale','A template with a scheduled sale end.',25,'USD',true,true,false,null,null,15,now()+interval '3 days')
+INSERT INTO public.products(name,slug,description,price,currency,is_active,is_listed,is_featured,available_from,available_until,sale_price,sale_price_until,auto_grant_duration_days) VALUES
+ ('Upcoming sample workshop','sample-upcoming-workshop','A workshop scheduled to join the catalogue.',20,'USD',true,true,true,now()+interval '1 day',null,null,null,null),
+ ('Limited sample guide','sample-limited-guide','A guide with a scheduled catalogue end.',10,'USD',true,true,false,null,now()+interval '2 days',null,null,30),
+ ('Sample template sale','sample-template-sale','A template with a scheduled sale end.',25,'USD',true,true,false,null,null,15,now()+interval '3 days',90)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Retained offer-led bindings; the published free storefront stays selected.
@@ -1257,3 +1257,41 @@ FROM examples ON CONFLICT(product_id) DO NOTHING;
 INSERT INTO public.product_offer_history(product_id,revision,operation,draft,published)
 SELECT product_id,revision,'draft',draft,published FROM public.product_offer_config WHERE revision=0
 ON CONFLICT(product_id,revision) DO NOTHING;
+
+-- Affiliate demo: finite PLN/EUR and unlimited-refund earnings.
+INSERT INTO public.affiliate_programs(enabled,terms_version,terms,thresholds)
+VALUES(true,'demo-v1','{"en":"Demo partner terms: holds, refunds and debt apply.","pl":"Warunki demo: prowizje podlegają wstrzymaniu, zwrotom i potrąceniom."}', '{"PLN":"1000","EUR":"1000"}');
+INSERT INTO public.affiliate_memberships(id,user_id,code,status,display_name,accepted_terms_version,accepted_at,created_at)
+VALUES('af000000-0000-4000-a000-000000000001','bbbbbbbb-0000-4000-a000-000000000000','demo-partner','approved','Demo Partner','demo-v1','2026-01-01 00:00:00+00'::timestamptz,'2026-01-01 00:00:00+00'::timestamptz);
+INSERT INTO public.affiliate_program_versions(program_id,version,enabled,hold_days,buffer_days,terms_version,terms,thresholds,created_at)
+SELECT id,version,enabled,hold_days,buffer_days,terms_version,terms,thresholds,'2026-01-01' FROM public.affiliate_programs;
+INSERT INTO public.affiliate_membership_events(member_id,version,status,created_at)
+SELECT id,version,status,'2026-01-01' FROM public.affiliate_memberships;
+INSERT INTO public.audit_log(table_name,operation,new_values,performed_by,performed_at)
+SELECT 'affiliate_programs','INSERT',to_jsonb(p),'dddddddd-0000-4000-a000-000000000000','2026-01-01 00:00:00+00'::timestamptz FROM public.affiliate_programs p;
+INSERT INTO public.audit_log(table_name,operation,new_values,performed_by,performed_at)
+SELECT 'affiliate_memberships','INSERT',to_jsonb(m),'dddddddd-0000-4000-a000-000000000000','2026-01-01 00:00:00+00'::timestamptz FROM public.affiliate_memberships m;
+INSERT INTO public.products(id,name,slug,price,currency,is_active,is_refundable,refund_period_days)
+VALUES('af000000-0000-4000-a000-000000000002','Affiliate PLN Course','affiliate-pln-course',123,'PLN',true,true,60),
+ ('af000000-0000-4000-a000-000000000003','Affiliate EUR Toolkit','affiliate-eur-toolkit',123,'EUR',true,false,NULL),
+ ('af000000-0000-4000-a000-000000000004','Affiliate Unlimited Course','affiliate-unlimited-course',123,'PLN',true,true,NULL);
+INSERT INTO public.affiliate_rules(product_id,revision,enabled,percentage_bps,created_at)
+SELECT id,1,true,2000,'2026-01-01 00:00:00+00'::timestamptz FROM public.products WHERE slug IN ('affiliate-pln-course','affiliate-eur-toolkit','affiliate-unlimited-course');
+INSERT INTO public.coupons(id,code,name,discount_type,discount_value,is_active)
+VALUES('af000000-0000-4000-a000-000000000005','PARTNER10','Demo Partner 10%','percentage',10,true);
+INSERT INTO public.affiliate_coupon_bindings(coupon_id,member_id,version,created_at)
+VALUES('af000000-0000-4000-a000-000000000005','af000000-0000-4000-a000-000000000001',1,'2026-01-01 00:00:00+00'::timestamptz);
+INSERT INTO public.payment_transactions(id,product_id,customer_email,amount,currency,status,session_id,fulfillment_pending)
+VALUES('af000000-0000-4000-a000-000000000010','af000000-0000-4000-a000-000000000002','affiliate-customer@example.com',12300,'PLN','completed','cs_affiliate_pln_demo',false),
+ ('af000000-0000-4000-a000-000000000011','af000000-0000-4000-a000-000000000003','affiliate-customer@example.com',12300,'EUR','completed','cs_affiliate_eur_demo',false),
+ ('af000000-0000-4000-a000-000000000012','af000000-0000-4000-a000-000000000004','affiliate-customer@example.com',12300,'PLN','completed','cs_affiliate_unlimited_demo',false);
+INSERT INTO public.payment_line_items(transaction_id,product_id,item_type,quantity,unit_price,total_price,currency,net_amount,tax_amount)
+SELECT id,product_id,'main_product',1,123,123,currency,10000,2300 FROM public.payment_transactions WHERE session_id LIKE 'cs_affiliate_%_demo';
+INSERT INTO public.coupon_redemptions(coupon_id,transaction_id,customer_email,discount_amount,redeemed_at)
+SELECT 'af000000-0000-4000-a000-000000000005',id,customer_email,10,now()-interval '90 days' FROM public.payment_transactions WHERE session_id LIKE 'cs_affiliate_%_demo';
+
+DO $$ DECLARE w public.affiliate_work; BEGIN
+ FOR w IN SELECT * FROM public.affiliate_claim_work(100) LOOP
+  PERFORM public.affiliate_apply_sync(w.payment_id,w.lease_token,w.requested_generation,'2026-01-02 00:00:00+00',true);
+ END LOOP;
+END $$;

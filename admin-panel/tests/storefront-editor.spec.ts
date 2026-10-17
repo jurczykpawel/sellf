@@ -1,3 +1,4 @@
+import { getTestDatabaseContainer } from '@/../tests/helpers/database-container';
 /** Admin composition editor acceptance. @see storefront-config.md */
 import { execFileSync } from 'node:child_process';
 import { test, expect } from '@playwright/test';
@@ -18,11 +19,7 @@ let originalJson: string;
 const sql = (query: string): string => execFileSync('docker', ['exec', '-i', container, 'psql', '-U', 'postgres', '-tA', '-v', 'ON_ERROR_STOP=1'], { input: query, encoding: 'utf8' }).trim();
 const literal = (json: string): string => "'" + json.replaceAll("'", "''") + "'::jsonb";
 test.beforeAll(async () => {
-  const url = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!);
-  expect(['localhost', '127.0.0.1']).toContain(url.hostname);
-  const kong = execFileSync('docker', ['ps', '--filter', `publish=${url.port}`, '--format', '{{.Names}}'], { encoding: 'utf8' }).trim();
-  expect(kong).toMatch(/^supabase_kong_[a-zA-Z0-9_-]+$/);
-  container = kong.replace('supabase_kong_', 'supabase_db_');
+  container = getTestDatabaseContainer();
   originalJson = sql('SELECT to_jsonb(c) FROM public.storefront_config c');
   original = JSON.parse(originalJson);
   sql(`UPDATE public.storefront_config SET draft=NULL,published=${literal(JSON.stringify(DEFAULT_CONFIG))}`);

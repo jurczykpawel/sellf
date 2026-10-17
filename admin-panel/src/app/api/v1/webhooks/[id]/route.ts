@@ -25,6 +25,7 @@ import {
   validateProductFilter,
   validateCustomPayloadFields,
 } from '@/lib/validations/webhook';
+import { publicWebhookSecret } from '@/lib/webhooks/signing-secret';
 import { checkFeature } from '@/lib/license/resolve';
 import { findDeniedEventFeature } from '@/lib/webhooks/event-feature-gate';
 import { setEndpointScoping, getEndpointProductIds } from '@/lib/webhooks/endpoint-products';
@@ -101,7 +102,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         custom_header_names = [];
       }
     }
-    return jsonResponse(successResponse({ ...rest, product_ids, has_custom_headers: custom_headers_encrypted != null, custom_header_names }), request);
+    return jsonResponse(successResponse({ ...rest, secret: publicWebhookSecret(rest.secret), product_ids, has_custom_headers: custom_headers_encrypted != null, custom_header_names }), request);
   } catch (error) {
     return handleApiError(error, request);
   }
@@ -252,7 +253,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         .single();
 
       const product_ids = await getEndpointProductIds(adminClient, id);
-      return jsonResponse(successResponse({ ...webhook, product_ids }), request);
+      return jsonResponse(successResponse({ ...webhook, secret: webhook ? publicWebhookSecret(webhook.secret) : '', product_ids }), request);
     }
 
     // Apply non-scoping field updates (url/events/description/is_active).
@@ -293,7 +294,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .eq('id', id)
       .single();
     const product_ids = await getEndpointProductIds(adminClient, id);
-    return jsonResponse(successResponse({ ...webhook, product_ids }), request);
+    return jsonResponse(successResponse({ ...webhook, secret: webhook ? publicWebhookSecret(webhook.secret) : '', product_ids }), request);
   } catch (error) {
     return handleApiError(error, request);
   }

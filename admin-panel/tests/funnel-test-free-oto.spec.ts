@@ -20,7 +20,7 @@ import { createTestAdmin, loginAsAdmin, supabaseAdmin, setAuthSession } from './
 import { acceptAllCookies } from './helpers/consent';
 
 test.describe('Funnel Test Preview: Free product + OTO', () => {
-  test.describe.configure({ mode: 'serial', retries: 1 });
+  test.describe.configure({ mode: 'serial' });
   test.setTimeout(60_000);
 
   let adminEmail: string;

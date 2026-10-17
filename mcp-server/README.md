@@ -2,6 +2,8 @@
 
 Model Context Protocol (MCP) server for Sellf - enables AI assistants like Claude to manage products, users, payments, coupons, and analytics through natural language.
 
+For client setup and tested seller workflows, see **[Connect your AI agent](https://docs.sellf.app/connect-ai-agent/)** ([Polski](https://docs.sellf.app/pl/connect-ai-agent/)). This README covers the server's tools and development reference.
+
 ## Overview
 
 This MCP server acts as a thin wrapper over Sellf's REST API v1, allowing Claude Desktop and other MCP-compatible AI assistants to:
@@ -214,7 +216,7 @@ Other scopes, only when needed:
 - `webhooks:read`, `webhooks:write`
 - `system:read`
 
-Product inputs mirror persisted fields in the REST product DTO, including full descriptions, media, feature sections, sale prices, custom pricing, subscription billing/trials, VAT, refunds, redirects, licenses, and category/tag/bundle relations. DTO-only fields `tip_icon`, `suggested_amounts`, `min_amount`, and `metadata` have no product database columns and are omitted from MCP inputs.
+Product inputs mirror persisted fields in the REST product DTO, including full descriptions, media, feature sections, sale prices, custom pricing, subscription billing/trials, VAT, refunds, redirects, licenses, and category/tag/bundle relations. DTO-only fields `custom_price_label`, `tip_icon`, `suggested_amounts`, `min_amount`, and `metadata` have no product database columns and are omitted from MCP inputs. REST v1 validates but ignores these legacy fields for compatibility with older clients; they are not persisted or returned.
 
 ## Money units
 

@@ -6,11 +6,12 @@
  * @see supabase/migrations/20260924000000_access_scope_tightening.sql
  */
 
+import { getTestDatabaseContainer } from '../../helpers/database-container';
 import { execSync } from 'child_process';
 import { describe, it, expect } from 'vitest';
 
 function scheduledCommands(): string[] {
-  const out = execSync(`docker exec -i supabase_db_sellf psql -U postgres -t -A`, {
+  const out = execSync(`docker exec -i ${getTestDatabaseContainer()} psql -U postgres -t -A`, {
     input: 'SELECT command FROM cron.job WHERE active;',
     encoding: 'utf-8',
     timeout: 10000,
@@ -19,7 +20,7 @@ function scheduledCommands(): string[] {
 }
 
 function queryOne(sql: string): string {
-  const out = execSync(`docker exec -i supabase_db_sellf psql -U postgres -t -A`, {
+  const out = execSync(`docker exec -i ${getTestDatabaseContainer()} psql -U postgres -t -A`, {
     input: sql,
     encoding: 'utf-8',
     timeout: 10000,

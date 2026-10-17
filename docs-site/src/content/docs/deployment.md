@@ -5,6 +5,8 @@ description: "This page lists every supported way to put Sellf online, ordered f
 
 Enable **Confirm Email** in Supabase and install the confirmation and magic-link templates. Guest purchases join the account after confirming the address used for the purchase. See [e-mail setup](/email-setup/#require-e-mail-confirmation).
 
+> Admin UI updates: [runtime selection, supported deployments and migrations](/ui-upgrades/). Containers do not apply migrations on startup.
+
 
 This page lists every supported way to put Sellf online, ordered from easiest (just clicks in a browser) to most technical (terminal commands on a server). All produce a working Sellf store.
 

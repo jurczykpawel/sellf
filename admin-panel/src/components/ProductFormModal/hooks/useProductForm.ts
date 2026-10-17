@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import { Product } from '@/types';
 import { ProductContentConfig } from '@/types';
 import { marketingFieldsSchema } from '@/lib/validations/product-marketing';
@@ -45,7 +45,11 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   const [priceDisplayValue, setPriceDisplayValue] = useState<string>('');
   const [salePriceDisplayValue, setSalePriceDisplayValue] = useState<string>('');
   const [slugModified, setSlugModified] = useState(false);
-  const [currentDomain, setCurrentDomain] = useState<string>('');
+  const currentDomain = useSyncExternalStore(
+    () => () => {},
+    () => window.location.origin.replace(/\/\/admin\./, '//'),
+    () => '',
+  );
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Validation errors for required fields
@@ -89,7 +93,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   const [oto, setOto] = useState<OtoState>(initialOtoState);
 
   // URL validation state - maps content item index to validation status
-  const [urlValidation, setUrlValidation] = useState<Record<number, UrlValidation>>({});
+  const [urlValidationOverrides, setUrlValidation] = useState<Record<number, UrlValidation>>({});
 
   // Waitlist warning state
   const [waitlistWarning, setWaitlistWarning] = useState<WaitlistWarning>({ show: false, productsCount: 0 });
@@ -101,13 +105,8 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   // Fetch categories, default currency, and omnibus setting
   useEffect(() => {
     if (isOpen) {
-      // Reset per modal-open session — the wizard blocks advancing/
-      // submitting until the shop config fetch below settles again.
-      setShopConfigLoaded(false);
-
       // Fetch all categories
       const fetchCats = async () => {
-        setLoadingCategories(true);
         try {
           const result = await getCategories();
           if (result.success && result.data) {
@@ -123,7 +122,6 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
 
       // Fetch all tags
       const fetchTags = async () => {
-        setLoadingTags(true);
         try {
           const result = await getTags();
           if (result.success && result.data) {
@@ -143,6 +141,11 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
           // Default currency for new products
           if (!product) {
             setDefaultCurrency(config.default_currency || 'USD');
+            setFormData(prev => ({
+              ...prev,
+              currency: prev.currency === initialFormData.currency ? config.default_currency || 'USD' : prev.currency,
+              vat_rate: prev.vat_rate ?? (config.tax_rate != null ? Math.round(config.tax_rate * 100) : null),
+            }));
             // New products inherit the shop's VAT-exempt status (and its default
             // exemption note, if set) as the default.
             if (config.is_vat_exempt) {
@@ -179,187 +182,186 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     }
   }, [isOpen, product]);
 
-  // Initialize form data when editing an existing product.
-  // For new products the useState initializer above already seeds the form
-  // with `initialFormData` — running a non-functional setFormData here would
-  // race the user's first keystrokes (useEffect fires asynchronously after
-  // the first paint, so Playwright can fill an input between commit and
-  // effect-fire and have the reset wipe the value).
-  const initializedRef = useRef(false);
-  useEffect(() => {
-    if (!isOpen) {
-      initializedRef.current = false;
-      return;
-    }
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
-    if (product) {
-      // For existing products. ux_product_type is form-only state — derive it
-      // from the loaded fields so the radio reflects the product's true shape.
-      const derivedUxType = inferProductTypeFromForm({
-        checkout_template: (product as Product & { checkout_template?: string }).checkout_template ?? 'default',
-        product_type: product.product_type ?? 'one_time',
-        allow_custom_price: product.allow_custom_price ?? false,
-        price: product.price,
-      });
-      setFormData({
-        name: product.name,
-        slug: product.slug,
-        description: product.description,
-        long_description: product.long_description || '',
-        marketing_fields: product.marketing_fields ?? initialFormData.marketing_fields,
-        price: product.price,
-        currency: product.currency || 'USD',
-        is_active: product.is_active,
-        is_featured: product.is_featured || false,
-        is_listed: product.is_listed !== false,
-        is_bundle: product.is_bundle ?? false,
-        // Loaded asynchronously below for existing bundles
-        bundleItemIds: [],
-        icon: product.icon || getIconEmoji('rocket'),
-        image_url: product.image_url || null,
-        preview_video_url: product.preview_video_url || null,
-        preview_video_config: (product as Product & { preview_video_config?: Record<string, boolean> | null }).preview_video_config || null,
-        available_from: product.available_from || '',
-        available_until: product.available_until || '',
-        auto_grant_duration_days: product.auto_grant_duration_days || null,
-        content_delivery_type: product.content_delivery_type || 'content',
-        content_config: product.content_config || { content_items: [] },
-        success_redirect_url: product.success_redirect_url || '',
-        pass_params_to_redirect: product.pass_params_to_redirect || false,
-        categories: [],
-        tags: [],
-        omnibus_exempt: product.omnibus_exempt || false,
-        sale_price: product.sale_price || null,
-        sale_price_until: product.sale_price_until || null,
-        sale_quantity_limit: product.sale_quantity_limit || null,
-        sale_quantity_sold: product.sale_quantity_sold || 0,
-        is_refundable: (product as Product & { is_refundable?: boolean }).is_refundable || false,
-        refund_period_days: (product as Product & { refund_period_days?: number | null }).refund_period_days || null,
-        // Waitlist settings
-        enable_waitlist: product.enable_waitlist || false,
-        // VAT/Tax
-        vat_rate: product.vat_rate ?? null,
-        price_includes_vat: product.price_includes_vat ?? true,
-        vat_exempt: product.vat_exempt ?? false,
-        vat_exempt_note: product.vat_exempt_note ?? null,
-        // Pay What You Want / Custom Pricing
-        allow_custom_price: product.allow_custom_price || false,
-        custom_price_min: product.custom_price_min ?? 5.00,
-        show_price_presets: product.show_price_presets !== false, // default true
-        custom_price_presets: Array.isArray(product.custom_price_presets) ? product.custom_price_presets : [5, 10, 25],
-        // Embed checkout
-        embed_enabled: product.embed_enabled ?? false,
-        // License keys
-        issue_license_on_purchase: product.issue_license_on_purchase ?? false,
-        license_tier: product.license_tier ?? null,
-        license_duration_days: product.license_duration_days ?? null,
-        // Subscription (Phase 4)
-        product_type: product.product_type ?? 'one_time',
-        billing_interval: product.billing_interval ?? null,
-        billing_interval_count: product.billing_interval_count ?? null,
-        recurring_price: product.recurring_price ?? null,
-        trial_days: product.trial_days ?? null,
-        // Checkout template + custom fields (Phase 3 — checkout templates feat)
-        checkout_template: (product as Product & { checkout_template?: string }).checkout_template ?? 'default',
-        custom_checkout_fields: Array.isArray((product as Product & { custom_checkout_fields?: unknown }).custom_checkout_fields)
-          ? (product.custom_checkout_fields as ProductFormData['custom_checkout_fields'])
-          : [],
-        ux_product_type: derivedUxType,
-      });
-
-      // Fetch assigned categories
-      getProductCategories(product.id).then(result => {
-        if (result.success && result.data) {
-          setFormData(prev => ({ ...prev, categories: result.data! }));
-        }
-      }).catch(err => console.error(err));
-
-      // Fetch assigned tags. Reads the product_tags junction (getProductTags),
-      // never the single-GET embed, so saving an edited product preserves its
-      // existing tags instead of wiping them via PATCH replace-semantics.
-      getProductTags(product.id).then(result => {
-        if (result.success && result.data) {
-          setFormData(prev => ({ ...prev, tags: result.data! }));
-        }
-      }).catch(err => console.error(err));
-
-      // Fetch existing bundle components (ordered) when editing a bundle
-      if (product.is_bundle) {
-        (async () => {
-          try {
-            const supabase = await createClient();
-            const { data, error } = await supabase
-              .from('bundle_items')
-              .select('component_product_id, display_order')
-              .eq('bundle_product_id', product.id)
-              .order('display_order');
-            if (!error && data) {
-              setFormData(prev => ({
-                ...prev,
-                bundleItemIds: data.map((r: { component_product_id: string }) => r.component_product_id),
-              }));
-            }
-          } catch (err) {
-            console.error('Failed to fetch bundle components', err);
-          }
-        })();
-      }
-
-      // Fetch OTO configuration for this product using v1 API
-      api.getCustom<{
-        has_oto: boolean;
-        oto_product_id?: string;
-        discount_type?: 'percentage' | 'fixed';
-        discount_value?: number;
-        duration_minutes?: number;
-        downsell_product_id?: string | null;
-        downsell_discount_type?: 'percentage' | 'fixed' | null;
-        downsell_discount_value?: number | null;
-        downsell_duration_minutes?: number | null;
-      }>(`products/${product.id}/oto`)
-        .then(data => {
-          if (data.has_oto) {
-            const hasDownsell = !!data.downsell_product_id;
-            setOto({
-              enabled: true,
-              productId: data.oto_product_id || '',
-              discountType: data.discount_type || 'percentage',
-              discountValue: data.discount_value || 20,
-              durationMinutes: data.duration_minutes || 15,
-              downsellEnabled: hasDownsell,
-              downsellProductId: data.downsell_product_id || '',
-              downsellDiscountType: data.downsell_discount_type || 'percentage',
-              downsellDiscountValue: data.downsell_discount_value ?? 50,
-              downsellDurationMinutes: data.downsell_duration_minutes ?? 15,
-            });
-          } else {
-            setOto(initialOtoState);
-          }
-        })
-        .catch(err => {
-          console.error('Failed to fetch OTO config:', err);
+  const [formSession, setFormSession] = useState<{ isOpen: boolean; productId?: string } | null>(null);
+  if (!formSession || formSession.isOpen !== isOpen || formSession.productId !== product?.id) {
+    setFormSession({ isOpen, productId: product?.id });
+    if (isOpen) {
+      setShopConfigLoaded(false);
+      setLoadingCategories(true);
+      setLoadingTags(true);
+      setLoadingProducts(true);
+      setUrlValidation({});
+      if (product) {
+        // For existing products. ux_product_type is form-only state — derive it
+        // from the loaded fields so the radio reflects the product's true shape.
+        const derivedUxType = inferProductTypeFromForm({
+          checkout_template: (product as Product & { checkout_template?: string }).checkout_template ?? 'default',
+          product_type: product.product_type ?? 'one_time',
+          allow_custom_price: product.allow_custom_price ?? false,
+          price: product.price,
+        });
+        setFormData({
+          name: product.name,
+          slug: product.slug,
+          description: product.description,
+          long_description: product.long_description || '',
+          marketing_fields: product.marketing_fields ?? initialFormData.marketing_fields,
+          price: product.price,
+          currency: product.currency || 'USD',
+          is_active: product.is_active,
+          is_featured: product.is_featured || false,
+          is_listed: product.is_listed !== false,
+          is_bundle: product.is_bundle ?? false,
+          // Loaded asynchronously below for existing bundles
+          bundleItemIds: [],
+          icon: product.icon || getIconEmoji('rocket'),
+          image_url: product.image_url || null,
+          preview_video_url: product.preview_video_url || null,
+          preview_video_config: (product as Product & { preview_video_config?: Record<string, boolean> | null }).preview_video_config || null,
+          available_from: product.available_from || '',
+          available_until: product.available_until || '',
+          auto_grant_duration_days: product.auto_grant_duration_days || null,
+          content_delivery_type: product.content_delivery_type || 'content',
+          content_config: product.content_config || { content_items: [] },
+          success_redirect_url: product.success_redirect_url || '',
+          pass_params_to_redirect: product.pass_params_to_redirect || false,
+          categories: [],
+          tags: [],
+          omnibus_exempt: product.omnibus_exempt || false,
+          sale_price: product.sale_price || null,
+          sale_price_until: product.sale_price_until || null,
+          sale_quantity_limit: product.sale_quantity_limit || null,
+          sale_quantity_sold: product.sale_quantity_sold || 0,
+          is_refundable: (product as Product & { is_refundable?: boolean }).is_refundable || false,
+          refund_period_days: (product as Product & { refund_period_days?: number | null }).refund_period_days || null,
+          // Waitlist settings
+          enable_waitlist: product.enable_waitlist || false,
+          // VAT/Tax
+          vat_rate: product.vat_rate ?? null,
+          price_includes_vat: product.price_includes_vat ?? true,
+          vat_exempt: product.vat_exempt ?? false,
+          vat_exempt_note: product.vat_exempt_note ?? null,
+          // Pay What You Want / Custom Pricing
+          allow_custom_price: product.allow_custom_price || false,
+          custom_price_min: product.custom_price_min ?? 5.00,
+          show_price_presets: product.show_price_presets !== false, // default true
+          custom_price_presets: Array.isArray(product.custom_price_presets) ? product.custom_price_presets : [5, 10, 25],
+          // Embed checkout
+          embed_enabled: product.embed_enabled ?? false,
+          // License keys
+          issue_license_on_purchase: product.issue_license_on_purchase ?? false,
+          license_tier: product.license_tier ?? null,
+          license_duration_days: product.license_duration_days ?? null,
+          // Subscription (Phase 4)
+          product_type: product.product_type ?? 'one_time',
+          billing_interval: product.billing_interval ?? null,
+          billing_interval_count: product.billing_interval_count ?? null,
+          recurring_price: product.recurring_price ?? null,
+          trial_days: product.trial_days ?? null,
+          // Checkout template + custom fields (Phase 3 — checkout templates feat)
+          checkout_template: (product as Product & { checkout_template?: string }).checkout_template ?? 'default',
+          custom_checkout_fields: Array.isArray((product as Product & { custom_checkout_fields?: unknown }).custom_checkout_fields)
+            ? (product.custom_checkout_fields as ProductFormData['custom_checkout_fields'])
+            : [],
+          ux_product_type: derivedUxType,
         });
 
-      // Set display value for price
-      setPriceDisplayValue(product.price.toString().replace('.', ','));
-      setSalePriceDisplayValue(product.sale_price ? product.sale_price.toString().replace('.', ',') : '');
-      setSlugModified(true);
-    } else {
-      // For new products — copy shop default VAT rate so it's explicit per product
-      setFormData({
-        ...initialFormData,
-        icon: getIconEmoji('rocket'),
-        vat_rate: shopDefaultVatRate != null ? Math.round(shopDefaultVatRate * 100) : null,
-        // Seed bundle mode when the seller opened the "new bundle" entry point.
-        is_bundle: defaultIsBundle ?? false,
-      });
-      setPriceDisplayValue('');
-      setSalePriceDisplayValue('');
-      setSlugModified(false);
-      setOto(initialOtoState);
+        // Set display value for price
+        setPriceDisplayValue(product.price.toString().replace('.', ','));
+        setSalePriceDisplayValue(product.sale_price ? product.sale_price.toString().replace('.', ',') : '');
+        setSlugModified(true);
+      } else {
+        // For new products — copy shop default VAT rate so it's explicit per product
+        setFormData({
+          ...initialFormData,
+          icon: getIconEmoji('rocket'),
+          vat_rate: shopDefaultVatRate != null ? Math.round(shopDefaultVatRate * 100) : null,
+          // Seed bundle mode when the seller opened the "new bundle" entry point.
+          is_bundle: defaultIsBundle ?? false,
+        });
+        setPriceDisplayValue('');
+        setSalePriceDisplayValue('');
+        setSlugModified(false);
+        setOto(initialOtoState);
+      }
     }
+  }
+
+  useEffect(() => {
+    if (!isOpen || !product) return;
+    // Fetch assigned categories
+    getProductCategories(product.id).then(result => {
+      if (result.success && result.data) {
+        setFormData(prev => ({ ...prev, categories: result.data! }));
+      }
+    }).catch(err => console.error(err));
+
+    // Fetch assigned tags. Reads the product_tags junction (getProductTags),
+    // never the single-GET embed, so saving an edited product preserves its
+    // existing tags instead of wiping them via PATCH replace-semantics.
+    getProductTags(product.id).then(result => {
+      if (result.success && result.data) {
+        setFormData(prev => ({ ...prev, tags: result.data! }));
+      }
+    }).catch(err => console.error(err));
+
+    // Fetch existing bundle components (ordered) when editing a bundle
+    if (product.is_bundle) {
+      (async () => {
+        try {
+          const supabase = await createClient();
+          const { data, error } = await supabase
+            .from('bundle_items')
+            .select('component_product_id, display_order')
+            .eq('bundle_product_id', product.id)
+            .order('display_order');
+          if (!error && data) {
+            setFormData(prev => ({
+              ...prev,
+              bundleItemIds: data.map((r: { component_product_id: string }) => r.component_product_id),
+            }));
+          }
+        } catch (err) {
+          console.error('Failed to fetch bundle components', err);
+        }
+      })();
+    }
+
+    // Fetch OTO configuration for this product using v1 API
+    api.getCustom<{
+      has_oto: boolean;
+      oto_product_id?: string;
+      discount_type?: 'percentage' | 'fixed';
+      discount_value?: number;
+      duration_minutes?: number;
+      downsell_product_id?: string | null;
+      downsell_discount_type?: 'percentage' | 'fixed' | null;
+      downsell_discount_value?: number | null;
+      downsell_duration_minutes?: number | null;
+    }>(`products/${product.id}/oto`)
+      .then(data => {
+        if (data.has_oto) {
+          const hasDownsell = !!data.downsell_product_id;
+          setOto({
+            enabled: true,
+            productId: data.oto_product_id || '',
+            discountType: data.discount_type || 'percentage',
+            discountValue: data.discount_value || 20,
+            durationMinutes: data.duration_minutes || 15,
+            downsellEnabled: hasDownsell,
+            downsellProductId: data.downsell_product_id || '',
+            downsellDiscountType: data.downsell_discount_type || 'percentage',
+            downsellDiscountValue: data.downsell_discount_value ?? 50,
+            downsellDurationMinutes: data.downsell_duration_minutes ?? 15,
+          });
+        } else {
+          setOto(initialOtoState);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch OTO config:', err);
+      });
+
   }, [product, isOpen]);
 
   // Allow the modal to mount, but preserve focus if the user has moved on.
@@ -373,32 +375,11 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     return () => clearTimeout(timer);
   }, [isOpen]);
 
-  // When shop default currency loads, apply it to new products (if user hasn't changed currency yet)
-  useEffect(() => {
-    if (!product && isOpen) {
-      setFormData(prev => {
-        if (prev.currency !== initialFormData.currency) return prev; // user already changed it
-        return { ...prev, currency: defaultCurrency };
-      });
-    }
-  }, [product, isOpen, defaultCurrency]);
-
-  // When shop default VAT rate loads, apply it to new products (if user hasn't set one yet)
-  useEffect(() => {
-    if (!product && isOpen && shopDefaultVatRate != null) {
-      setFormData(prev => {
-        if (prev.vat_rate != null) return prev; // user already set a value
-        return { ...prev, vat_rate: Math.round(shopDefaultVatRate * 100) };
-      });
-    }
-  }, [product, isOpen, shopDefaultVatRate]);
-
   // Fetch products for OTO dropdown using v1 API
   useEffect(() => {
     const fetchProducts = async () => {
       if (!isOpen) return;
       try {
-        setLoadingProducts(true);
         setProducts(await fetchAllProductsForDropdown('active'));
       } catch (err) {
         console.error('Failed to fetch products', err);
@@ -407,15 +388,6 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
       }
     };
     fetchProducts();
-  }, [isOpen]);
-
-  // Get the current domain when the component mounts
-  useEffect(() => {
-    if (typeof window !== 'undefined' && isOpen) {
-      const origin = window.location.origin;
-      const mainDomain = origin.replace(/\/\/admin\./, '//');
-      setCurrentDomain(mainDomain);
-    }
   }, [isOpen]);
 
   // Generate slug from product name
@@ -472,19 +444,15 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     return { isValid: false, message: 'unknownType' };
   }, [trustedDownloadDomains]);
 
-  // Auto-validate existing content item URLs when modal opens with existing product
-  useEffect(() => {
-    if (!isOpen || !product) return;
+  const initialUrlValidation: Record<number, UrlValidation> = {};
+  if (isOpen && product) {
     const items = (product.content_config as ProductContentConfig)?.content_items || [];
-    const initial: Record<number, UrlValidation> = {};
     items.forEach((item, index) => {
       const url = item.type === 'video_embed' ? item.config?.embed_url : item.config?.download_url;
-      if (url) {
-        initial[index] = validateContentItemUrl(url, item.type as 'video_embed' | 'download_link');
-      }
+      if (url) initialUrlValidation[index] = validateContentItemUrl(url, item.type as 'video_embed' | 'download_link');
     });
-    setUrlValidation(initial);
-  }, [isOpen, product, validateContentItemUrl]);
+  }
+  const urlValidation = { ...initialUrlValidation, ...urlValidationOverrides };
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;

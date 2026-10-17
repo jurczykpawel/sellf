@@ -63,8 +63,8 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
     [selectedProduct],
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const fetchSettings = useCallback(async () => {
+
     try {
       const query = new URLSearchParams({ page: String(page), limit: String(limit) });
       if (search.trim()) query.set('search', search.trim());
@@ -84,7 +84,22 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
     }
   }, [page, productId, search, source, status, t]);
 
-  useEffect(() => { if (enabled) void load(); }, [enabled, load]);
+  const requestKey = JSON.stringify([page, productId, search, source, status, enabled]);
+  const [previousKey, setPreviousKey] = useState(requestKey);
+  if (previousKey !== requestKey) {
+    setPreviousKey(requestKey);
+    setLoading(true);
+  }
+
+  const load = useCallback(() => {
+    setLoading(true);
+    return fetchSettings();
+  }, [fetchSettings]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
+    if (enabled) void fetchSettings();
+  }, [enabled, fetchSettings]);
 
   const issue = async (event: React.FormEvent) => {
     event.preventDefault();

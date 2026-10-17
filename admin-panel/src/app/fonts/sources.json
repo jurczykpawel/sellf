@@ -1,0 +1,57 @@
+[
+  {
+    "family": "geist",
+    "file": "Geist[wght].ttf",
+    "commit": "1d0e46c7933245c8180fe83e47917961c913bbdb",
+    "url": "https://raw.githubusercontent.com/google/fonts/1d0e46c7933245c8180fe83e47917961c913bbdb/ofl/geist/Geist%5Bwght%5D.ttf",
+    "sha256": "73894e0448cae90a92b6c2f8732b7bb9acb7b94c418bff559dad4a18e1de9659",
+    "bytes": 169056,
+    "output": "geist-variable.woff2",
+    "output_sha256": "2ffebe993e969069a9789d15164b7715d42491b5835516c5e3b935d5f81b05f1",
+    "output_bytes": 69760
+  },
+  {
+    "family": "geistmono",
+    "file": "GeistMono[wght].ttf",
+    "commit": "1d0e46c7933245c8180fe83e47917961c913bbdb",
+    "url": "https://raw.githubusercontent.com/google/fonts/1d0e46c7933245c8180fe83e47917961c913bbdb/ofl/geistmono/GeistMono%5Bwght%5D.ttf",
+    "sha256": "d00e590b8eb3a59acc329b2d044fd143ae935090b7da33199ebee27cc7de8196",
+    "bytes": 171948,
+    "output": "geist-mono-variable.woff2",
+    "output_sha256": "09853cd11045cf50e8ac07faf08bd5420f181b924f4c65b93b8ee49259a03734",
+    "output_bytes": 71124
+  },
+  {
+    "family": "dmsans",
+    "file": "DMSans[opsz,wght].ttf",
+    "commit": "1d0e46c7933245c8180fe83e47917961c913bbdb",
+    "url": "https://raw.githubusercontent.com/google/fonts/1d0e46c7933245c8180fe83e47917961c913bbdb/ofl/dmsans/DMSans%5Bopsz%2Cwght%5D.ttf",
+    "sha256": "8cd08d97e89c24d0aa92edd2f0f4c8ee6195eee9b7c9f154865a58b02f0c1c0d",
+    "bytes": 240164,
+    "output": "dm-sans-variable.woff2",
+    "output_sha256": "7054b70c8dc077dba2a46ae05114c80e3d9d72bd7f07be71149925c46130f0e9",
+    "output_bytes": 52972
+  },
+  {
+    "family": "dmmono",
+    "file": "DMMono-Regular.ttf",
+    "commit": "1d0e46c7933245c8180fe83e47917961c913bbdb",
+    "url": "https://raw.githubusercontent.com/google/fonts/1d0e46c7933245c8180fe83e47917961c913bbdb/ofl/dmmono/DMMono-Regular.ttf",
+    "sha256": "55b4c98f123daebb3ed27947ba47b2af00554fc6284d639a540bcef5e6258ad2",
+    "bytes": 49744,
+    "output": "dm-mono-regular.woff2",
+    "output_sha256": "8bf6fa1c275a47b29bcff0f49d430e64e556becf80c7b26b9bfcdcafc6e5cc60",
+    "output_bytes": 20656
+  },
+  {
+    "family": "dmmono",
+    "file": "DMMono-Medium.ttf",
+    "commit": "1d0e46c7933245c8180fe83e47917961c913bbdb",
+    "url": "https://raw.githubusercontent.com/google/fonts/1d0e46c7933245c8180fe83e47917961c913bbdb/ofl/dmmono/DMMono-Medium.ttf",
+    "sha256": "fd327daf461db87b44a87def475d251bf03b997f7c07d9680592d75dbbfaad0b",
+    "bytes": 50360,
+    "output": "dm-mono-medium.woff2",
+    "output_sha256": "fc14c1295b7a791159854809e0ae0a5a9a2d165729b96e3f7e3ac51a6fe4e7e3",
+    "output_bytes": 20812
+  }
+]

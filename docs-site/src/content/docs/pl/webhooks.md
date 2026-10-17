@@ -6,6 +6,33 @@ description: "Trwałe dostarczanie zdarzeń Sellf, identyfikatory dostaw i dedup
 Sellf wysyła zdarzenia do skonfigurowanych endpointów HTTPS. Każda dostawa jest
 zapisywana przed wysłaniem żądania HTTP. Nieudane próby trafiają do kolejki ponowień.
 
+
+## Rotacja sekretu podpisującego
+
+W **Webhooki → Edytuj** wybierz **Wygeneruj nowy sekret** i potwierdź. Możesz też
+wywołać `POST /api/v1/webhooks/{id}/rotate-secret` z sesją administratora lub kluczem
+API z uprawnieniem `webhooks:write`. Treść żądania nie jest wymagana. Odpowiedź po
+sukcesie: `{ "data": { "id": "…", "secret": "whsec_…" } }`.
+
+Zmiana i wpis audytu są zatwierdzane atomowo. Nowy sekret jest szyfrowany w bazie
+i zwracany tylko w tej odpowiedzi; panel pokazuje go do zamknięcia okna edycji.
+Skopiuj go teraz do magazynu sekretów odbiornika. Po rotacji odpowiedzi API listy,
+szczegółów i aktualizacji zwracają puste pole `secret`; wartości nie można ponownie
+odczytać. Jeśli ją utracisz, wykonaj kolejną rotację. Istniejące endpointy zachowują
+dotychczasowy sekret do jawnego wykonania rotacji.
+
+**Stary sekret jest unieważniany natychmiast, bez okresu przejściowego.** Uzgodnij
+zmianę z odbiornikiem i natychmiast podmień jego sekret weryfikacyjny. W trakcie
+zmiany dostawy mogą się nie powieść. Żądania już w drodze mogą nadal mieć poprzedni
+podpis; dostawy pobierane po zmianie, także ponowienia i wysyłki testowe, używają
+aktualnego sekretu. Rotacja nie zmienia podpisu już wysłanego żądania HTTP. Po
+aktualizacji odbiornika wyślij test i w razie potrzeby ponów nieudane dostawy.
+Identyfikatory i payloady dostaw pozostają bez zmian: nadal deduplikuj po `id`.
+
+Jeśli odpowiedź zaginie po zatwierdzeniu operacji, stary sekret i tak przestaje
+działać. Wygeneruj kolejny sekret i zainstaluj wartość z nowej odpowiedzi. Nie
+ponawiaj żądań rotacji automatycznie: każde udane wywołanie ponownie zmienia sekret.
+
 ## Identyfikator dostawy
 
 ```json

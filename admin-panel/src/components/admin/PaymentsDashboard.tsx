@@ -76,8 +76,8 @@ export default function PaymentsDashboard() {
   // silently miss older transactions. Stats intentionally ignore these
   // filters: each stat card already names its own fixed period (today, this
   // month, all-time total/refunded), independent of the dashboard filter bar.
-  const fetchPaymentData = useCallback(async () => {
-    setLoading(true);
+  const loadPaymentData = useCallback(async () => {
+
     try {
       const [transactionsPage, sessionsRes, statsRes] = await Promise.all([
         fetchPaymentTransactionsPage(undefined, {
@@ -117,6 +117,18 @@ export default function PaymentsDashboard() {
     }
   }, [filters.status, filters.searchTerm, filters.dateRange, t]);
 
+  const requestKey = JSON.stringify(filters);
+  const [previousKey, setPreviousKey] = useState(requestKey);
+  if (previousKey !== requestKey) {
+    setPreviousKey(requestKey);
+    setLoading(true);
+  }
+
+  const fetchPaymentData = useCallback(() => {
+    setLoading(true);
+    return loadPaymentData();
+  }, [loadPaymentData]);
+
   // Continues the SAME status/search/date-range-filtered result set the
   // current page came from — not a fresh, unfiltered fetch.
   const handleLoadMoreTransactions = useCallback(async () => {
@@ -140,8 +152,9 @@ export default function PaymentsDashboard() {
   }, [hasMoreTransactions, loading, loadingMoreTransactions, searchPending, transactionsCursor, filters.status, filters.searchTerm, filters.dateRange, t]);
 
   useEffect(() => {
-    fetchPaymentData();
-  }, [fetchPaymentData, filters.status, filters.dateRange, filters.searchTerm]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
+    loadPaymentData();
+  }, [loadPaymentData, filters.status, filters.dateRange, filters.searchTerm]);
 
   // Status and search are now applied server-side (see fetchPaymentData /
   // handleLoadMoreTransactions) so a match beyond the currently loaded page
@@ -199,8 +212,8 @@ export default function PaymentsDashboard() {
       {stats && <PaymentStatsCards stats={stats} />}
 
       {/* Filters */}
-      <PaymentFilters 
-        filters={filters} 
+      <PaymentFilters
+        filters={filters}
         onFiltersChange={setFilters}
         onRefresh={fetchPaymentData}
         onSearchPendingChange={setSearchPending}

@@ -6,6 +6,7 @@
  * @see supabase/migrations/20260924000000_access_scope_tightening.sql
  */
 
+import { getTestDatabaseContainer } from '../../helpers/database-container';
 import { execSync } from 'child_process';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
@@ -28,7 +29,7 @@ const RUN = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 let customer: { id: string; client: SupabaseClient };
 
 function clearOtoBucket() {
-  execSync(`docker exec -i supabase_db_sellf psql -U postgres -t -A`, {
+  execSync(`docker exec -i ${getTestDatabaseContainer()} psql -U postgres -t -A`, {
     input: `DELETE FROM public.rate_limits WHERE function_name = 'get_oto_coupon_info';`,
     encoding: 'utf-8',
     timeout: 10000,

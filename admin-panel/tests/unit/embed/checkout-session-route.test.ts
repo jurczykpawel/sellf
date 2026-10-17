@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   createAdminClient: vi.fn(),
   checkRateLimit: vi.fn(),
+  checkRateLimitForIdentifier: vi.fn(),
   createCheckoutSession: vi.fn(),
 }));
 
@@ -12,6 +13,8 @@ vi.mock('@/lib/supabase/admin', () => ({
 
 vi.mock('@/lib/rate-limiting', () => ({
   checkRateLimit: mocks.checkRateLimit,
+  checkRateLimitForIdentifier: mocks.checkRateLimitForIdentifier,
+  getRateLimitIdentifier: vi.fn().mockResolvedValue('ip:203.0.113.9'),
 }));
 
 vi.mock('@/lib/services/checkout', () => ({
@@ -23,6 +26,7 @@ vi.mock('@/lib/services/checkout', () => ({
 }));
 
 import { POST } from '@/app/api/embed/checkout-session/route';
+import { CheckoutError, CheckoutErrorType } from '@/types/checkout';
 
 const product = {
   id: 'product-1',
@@ -110,6 +114,7 @@ beforeEach(() => {
   delete process.env.ALTCHA_HMAC_KEY;
   mocks.createAdminClient.mockReturnValue(makeDbMock());
   mocks.checkRateLimit.mockResolvedValue(true);
+  mocks.checkRateLimitForIdentifier.mockResolvedValue(true);
   mocks.createCheckoutSession.mockResolvedValue({
     clientSecret: 'cs_test_secret',
     sessionId: 'cs_test_session',
@@ -154,6 +159,62 @@ describe('POST /api/embed/checkout-session', () => {
       undefined,
       { embedSessionId: expect.any(String) },
     );
+  });
+
+  describe('coupon codes', () => {
+    const origin = 'https://landing.example.com';
+
+    it('passes the coupon code to the same checkout service path', async () => {
+      const response = await POST(
+        makeRequest({ productSlug: 'kurs-ai', couponCode: 'SAVE20' }, origin),
+      );
+
+      expect(response.status).toBe(200);
+      expect(mocks.createCheckoutSession).toHaveBeenCalledWith(
+        { productId: 'product-1', couponCode: 'SAVE20' },
+        'https://sellf.example.com/p/kurs-ai/payment-status?session_id={CHECKOUT_SESSION_ID}',
+        undefined,
+        { embedSessionId: expect.any(String) },
+      );
+    });
+
+    it('throttles attempts per code and client before touching the checkout service', async () => {
+      mocks.checkRateLimitForIdentifier.mockResolvedValue(false);
+
+      const response = await POST(
+        makeRequest({ productSlug: 'kurs-ai', couponCode: 'save20' }, origin),
+      );
+
+      expect(response.status).toBe(429);
+      expect(mocks.checkRateLimitForIdentifier).toHaveBeenCalledWith(
+        'coupon_verify_code',
+        5,
+        60,
+        'code:SAVE20:ip:203.0.113.9',
+      );
+      expect(mocks.createCheckoutSession).not.toHaveBeenCalled();
+    });
+
+    it('does not apply the per-code throttle when no coupon is sent', async () => {
+      await POST(makeRequest({ productSlug: 'kurs-ai' }, origin));
+
+      expect(mocks.checkRateLimitForIdentifier).not.toHaveBeenCalled();
+    });
+
+    it('returns the validation error for an invalid coupon with CORS headers', async () => {
+      mocks.createCheckoutSession.mockRejectedValue(
+        new CheckoutError(CheckoutErrorType.VALIDATION_ERROR, 'Invalid coupon code', 400),
+      );
+
+      const response = await POST(
+        makeRequest({ productSlug: 'kurs-ai', couponCode: 'NOPE' }, origin),
+      );
+      const payload = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(response.headers.get('Access-Control-Allow-Origin')).toBe(origin);
+      expect(payload).toEqual({ error: 'Invalid coupon code', type: CheckoutErrorType.VALIDATION_ERROR });
+    });
   });
 
   it('returns env origins when DB seller_embed_settings is empty', async () => {

@@ -94,7 +94,7 @@ describe('API test runner contract', () => {
   });
 
   it('frees the exchange-rate stub port along with the dev server between runs', () => {
-    const stubPort = /FX_STUB_PORT = (\d+)/.exec(readFileSync(resolve('playwright.config.ts'), 'utf8'))?.[1];
+    const stubPort = /FX_STUB_PORT = Number\(process\.env\.FX_STUB_PORT \|\| (\d+)\)/.exec(readFileSync(resolve('playwright.config.ts'), 'utf8'))?.[1];
     expect(stubPort).toBeDefined();
     for (const script of [shardedRunner, playwrightRunner, fullRunner]) {
       const cleanups = script.match(/kill-dev-server\.sh [^>|&\n]*/g) ?? [];

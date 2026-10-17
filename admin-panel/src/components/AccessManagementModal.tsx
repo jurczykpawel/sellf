@@ -39,7 +39,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
   const tCommon = useTranslations('common');
   const [userAccess, setUserAccess] = useState<UserAccess[]>([]);
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
@@ -48,16 +48,13 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
   const [accessType, setAccessType] = useState<'permanent' | 'duration' | 'expiration'>('permanent');
   const [error, setError] = useState<string | null>(null);
 
-  const fetchUserAccess = useCallback(async () => {
+  const loadUserAccess = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-      
       const response = await fetch(`/api/users/${user.id}/access`);
       if (!response.ok) {
         throw new Error('Failed to fetch user access');
       }
-      
+
       const data = await response.json();
       setUserAccess(data.access || []);
     } catch (err) {
@@ -67,14 +64,28 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
     }
   }, [user.id, t]);
 
-  const fetchAvailableProducts = useCallback(async (retryCount = 0) => {
+  const requestKey = JSON.stringify([user.id, isOpen]);
+  const [previousKey, setPreviousKey] = useState(requestKey);
+  if (previousKey !== requestKey) {
+    setPreviousKey(requestKey);
+    setLoading(true);
+    setError(null);
+  }
+
+  const fetchUserAccess = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    return loadUserAccess();
+  }, [loadUserAccess]);
+
+  const fetchAvailableProducts = useCallback(async function loadAvailableProducts(retryCount = 0) {
     try {
       // Fetch every active product using v1 API
       setAvailableProducts(await fetchAllProductsForDropdown('active'));
     } catch (err) {
       // Retry on auth errors (session might not be ready yet)
       if (retryCount < 2) {
-        setTimeout(() => fetchAvailableProducts(retryCount + 1), 500);
+        setTimeout(() => loadAvailableProducts(retryCount + 1), 500);
         return;
       }
       console.error('[AccessManagementModal] Error fetching products:', err);
@@ -86,10 +97,11 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
   // Fetch user's current access and available products
   useEffect(() => {
     if (isOpen && user) {
-      fetchUserAccess();
+
+      loadUserAccess();
       fetchAvailableProducts();
     }
-  }, [isOpen, user, fetchUserAccess, fetchAvailableProducts]);
+  }, [isOpen, user, loadUserAccess, fetchAvailableProducts]);
 
   const handleGrantAccess = async () => {
     if (!selectedProductId) {
@@ -100,7 +112,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
     try {
       setActionLoading('grant');
       setError(null);
-      
+
       const response = await fetch(`/api/users/${user.id}/access`, {
         method: 'POST',
         headers: {
@@ -138,7 +150,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
     try {
       setActionLoading(productId);
       setError(null);
-      
+
       const response = await fetch(`/api/users/${user.id}/access?product_id=${productId}`, {
         method: 'DELETE'
       });
@@ -170,7 +182,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
 
   const getAvailableProductsForUser = () => {
     const userProductIds = userAccess.map(access => access.product_id);
-    return availableProducts.filter(product => 
+    return availableProducts.filter(product =>
       product.is_active && !userProductIds.includes(product.id)
     );
   };

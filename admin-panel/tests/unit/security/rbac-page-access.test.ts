@@ -120,6 +120,11 @@ describe('Server actions: correct auth wrapper per scope', () => {
   // ----- Per-shop actions (must use withAdminClient) -----
 
   describe('Per-shop actions use withAdminClient', () => {
+    it('checkout-funnel.ts uses withAdminClient for admin-only analytics', () => {
+      const source = readSource('lib/actions/checkout-funnel.ts');
+      expect(source).toMatch(/return withAdminClient\s*\(/);
+    });
+
     it('shop-config.ts uses withAdminClient', () => {
       const source = readSource('lib/actions/shop-config.ts');
       expect(
@@ -514,6 +519,7 @@ describe('All server action files have auth wrappers', () => {
       'analytics.ts',
       'categories.ts',
       'checkout.ts',
+      'checkout-funnel.ts', // Admin-only analytics via withAdminClient
       'currency-config.ts',
       'currency.ts',
       'dashboard.ts',

@@ -3,11 +3,12 @@ import { createHash, randomBytes } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { DEFAULT_CONFIG, D_LOCALIZED_CONFIG } from '../src/lib/storefront-templates/fixtures';
+import { getTestDatabaseContainer } from './helpers/database-container';
 
 test('template lifecycle with independent keys and an empty browser session', async ({ page, request, baseURL }) => {
   test.setTimeout(180000);
   const apiUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  expect(new URL(apiUrl).port).toBe('55431');
+  expect(getTestDatabaseContainer()).not.toBe('supabase_db_sellf');
   const db = createClient(apiUrl, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const owner = await db.from('admin_users').select('id').eq('user_id', 'dddddddd-0000-4000-a000-000000000000').single();
   expect(owner.error).toBeNull();

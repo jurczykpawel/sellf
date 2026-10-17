@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
-import { setAuthSession } from './helpers/admin-auth';
 import { STRIPE_API_VERSION } from '@/lib/constants';
+import type { Page } from '@playwright/test';
+import { setAuthSession } from './helpers/admin-auth';
 
 // Enforce single worker to avoid race conditions
 test.describe.configure({ mode: 'serial' });
@@ -46,6 +47,13 @@ async function signInUser(page: any, email: string, password: string) {
   await setAuthSession(page, email, password);
 
   await page.waitForTimeout(1000);
+}
+
+async function expectPurchaseView(page: Page, product: { slug: string; name: string }): Promise<void> {
+  await expect(page).toHaveURL(new RegExp(`/p/${product.slug}$`));
+  await expect(page.getByRole('heading', { name: product.name, exact: true })).toBeVisible();
+  await expect(page.locator('input#fullName')).toBeVisible();
+  await expect(page.getByText(/^(Access Granted|Dostęp przyznany)$/i)).not.toBeVisible();
 }
 
 test.describe('Payment Flow - Access Granting', () => {
@@ -134,7 +142,7 @@ test.describe('Payment Flow - Access Granting', () => {
     expect(bodyText?.toLowerCase()).toContain('access granted');
   });
 
-  test('should prevent guest access (redirect to checkout)', async ({ page }) => {
+  test('should show purchase form without granting guest content access', async ({ page }) => {
     // Create a product without granting access
     const { data: restrictedProduct } = await supabaseAdmin
       .from('products')
@@ -150,10 +158,7 @@ test.describe('Payment Flow - Access Granting', () => {
 
     // Try to access as guest (no auth)
     await page.goto(`/p/${restrictedProduct.slug}`);
-    await page.waitForTimeout(2000);
-
-    // Should redirect to checkout
-    expect(page.url()).toContain('/checkout/');
+    await expectPurchaseView(page, restrictedProduct);
 
     // Cleanup
     await supabaseAdmin.from('products').delete().eq('id', restrictedProduct.id);
@@ -836,10 +841,7 @@ test.describe('Payment Flow - Failed Payments', () => {
 
     // User should NOT be able to access product page
     await page.goto(`/p/${testProduct.slug}`);
-    await page.waitForTimeout(2000);
-
-    // Should redirect to checkout
-    expect(page.url()).toContain('/checkout/');
+    await expectPurchaseView(page, testProduct);
 
     // Cleanup
     await supabaseAdmin.from('profiles').delete().eq('id', user.id);
@@ -977,24 +979,18 @@ test.describe('Payment Flow - Access Verification', () => {
     expect(bodyText?.toLowerCase()).toContain('access granted');
   });
 
-  test('user WITHOUT access should redirect to checkout', async ({ page }) => {
+  test('user WITHOUT access should see the purchase form', async ({ page }) => {
     await signInUser(page, userWithoutAccess.email, 'TestPassword123!');
 
     await page.goto(`/p/${testProduct.slug}`);
-    await page.waitForTimeout(2000);
-
-    // Should redirect to checkout
-    expect(page.url()).toContain('/checkout/');
+    await expectPurchaseView(page, testProduct);
     expect(page.url()).toContain(testProduct.slug);
   });
 
-  test('guest user should redirect to checkout', async ({ page }) => {
+  test('guest user should see the purchase form', async ({ page }) => {
     // No authentication
 
     await page.goto(`/p/${testProduct.slug}`);
-    await page.waitForTimeout(2000);
-
-    // Should redirect to checkout
-    expect(page.url()).toContain('/checkout/');
+    await expectPurchaseView(page, testProduct);
   });
 });

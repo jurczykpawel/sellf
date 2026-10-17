@@ -9,10 +9,14 @@ import SystemUpdateSettings from '@/components/settings/SystemUpdateSettings';
 import UpdateNotificationModal from '@/components/UpdateNotificationModal';
 import type { UpdateInfo } from '@/hooks/useUpdateCheck';
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
+vi.mock('next-intl', async (importOriginal) => {
+  const { createNextIntlMock } = await import('@/../tests/mocks/next-intl');
+  return createNextIntlMock(await importOriginal<typeof import('next-intl')>());
+});
 
 const fetchMock = vi.fn();
 const fresh: UpdateInfo = {
+  upgrade: { runtime: 'pm2', mode: 'in-place' },
   current_version: '2026.10.0', latest_version: '2026.10.0', update_available: false,
   release_notes: null, published_at: null, release_url: null, started_at: '2026-10-01T10:00:00.000Z',
 };
@@ -52,17 +56,17 @@ describe('update check across builds', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/system/update-check');
     expect(result.current.updateInfo).toBeNull();
     expect(result.current.showModal).toBe(false);
-    expect(localStorage.getItem('sellf_update_check')).toBeNull();
+    expect(result.current.updateInfo).toBeNull();
   });
 
-  it('serves a matching cache within six hours without fetching', async () => {
+  it('refreshes deployment capability even when a matching cache exists', async () => {
     cache(fresh);
     const { result } = await mount();
     expect(result.current.updateInfo).toEqual(fresh);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
-  it('expires the matching cache after six hours', async () => {
+  it('refreshes the deployment when a six-hour-old cache exists', async () => {
     cache(fresh);
     vi.setSystemTime(Date.now() + 6 * 60 * 60 * 1000);
     await mount();
@@ -101,14 +105,16 @@ describe('upgrade completion', () => {
   async function start(step: string, versionCheckOk = true, reportedVersion = '2026.11.0', startedAt = '2026-10-01T11:00:00.000Z', target = '2026.11.0') {
     cache({ ...fresh, latest_version: target });
     let baselineRead = false;
+    let healthRead = false;
     fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/system/update-check') return reply({ ...fresh, latest_version: target });
       if (url === '/api/v1/system/update-check?force=true' && !baselineRead) {
         baselineRead = true;
         return reply(fresh);
       }
       if (url === '/api/v1/system/upgrade') return reply({ token: 'token' });
-      if (url.startsWith('/api/v1/system/upgrade-status')) return reply({ step, progress: 0, message: '' });
-      if (url === '/api/health') return { ok: true, json: async () => ({ status: 'ok', service: 'sellf-admin' }) };
+      if (url.startsWith('/api/v1/system/upgrade-status')) return reply({ step: healthRead ? 'done' : step, progress: 0, message: '' });
+      if (url === '/api/health') { healthRead = true; return { ok: true, json: async () => ({ status: 'ok', service: 'sellf-admin' }) }; }
       if (!versionCheckOk) throw new Error('Unavailable');
       return reply({ ...fresh, current_version: reportedVersion, started_at: startedAt });
     });
@@ -178,19 +184,22 @@ describe('upgrade result UI', () => {
     cache(fresh);
     const reload = vi.spyOn(window.location, 'reload').mockImplementation(() => {});
     let baselineRead = false;
+    let healthRead = false;
     fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/system/update-check') return reply(fresh);
       if (url === '/api/v1/system/update-check?force=true' && !baselineRead) {
         baselineRead = true;
         return reply(fresh);
       }
       if (url === '/api/v1/system/upgrade') return reply({ token: 'token' });
       if (url.startsWith('/api/v1/system/upgrade-status')) {
-        return reply({ step, progress: step === 'done' ? 100 : 0, message: 'Upgrade completed!' });
+        return reply({ step: healthRead ? 'done' : step, progress: step === 'done' ? 100 : 0, message: 'Upgrade completed!' });
       }
-      if (url === '/api/health') return { ok: true };
+      if (url === '/api/health') { healthRead = true; return { ok: true }; }
       return reply({ ...fresh, started_at: '2026-10-01T11:00:00.000Z' });
     });
     render(createElement(SystemUpdateSettings));
+    await act(async () => {});
     await act(async () => screen.getByRole('button', { name: 'settings.reinstall' }).click());
     await act(async () => vi.advanceTimersByTimeAsync(step === 'pending' ? 180000 : 3000));
     expect(screen.getByRole('heading', { name: 'progress.done' })).toBeTruthy();
@@ -208,6 +217,7 @@ describe('upgrade result UI', () => {
     cache(fresh);
     let baselineRead = false;
     fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/system/update-check') return reply(fresh);
       if (url === '/api/v1/system/update-check?force=true' && !baselineRead) {
         baselineRead = true;
         return reply(fresh);
@@ -219,6 +229,7 @@ describe('upgrade result UI', () => {
       return reply(fresh);
     });
     render(createElement(SystemUpdateSettings));
+    await act(async () => {});
     await act(async () => screen.getByRole('button', { name: 'settings.reinstall' }).click());
     await act(async () => vi.advanceTimersByTimeAsync(3000));
     expect(screen.getByRole('heading', { name: 'progress.failed' })).toBeTruthy();
@@ -232,4 +243,60 @@ describe('upgrade result UI', () => {
     expect(screen.getByText('Initiating upgrade...')).toBeTruthy();
     expect(screen.queryByText('Upgrade failed')).toBeNull();
   });
+});
+
+describe('deployment update controls', () => {
+  it.each(['docker', 'compose', 'coolify', 'systemd', 'vercel', 'netlify', 'manual'] as const)('shows %s instructions without an upgrade action', async (runtime) => {
+    const data: UpdateInfo = { ...fresh, latest_version: '2026.11.0', update_available: true, upgrade: { runtime, mode: 'manual' } };
+    fetchMock.mockResolvedValue(reply(data));
+    render(createElement(SystemUpdateSettings));
+    await act(async () => {});
+    expect(screen.queryByText('settings.upgradeNow')).toBeNull();
+    expect(screen.queryByText('modal.upgradeNow')).toBeNull();
+    expect(screen.getAllByText(`deployment.${runtime}`).length).toBeGreaterThan(0);
+  });
+  it('does not offer reinstall without an in-place capability', async () => {
+    fetchMock.mockResolvedValue(reply({ ...fresh, upgrade: { runtime: 'docker', mode: 'manual' } }));
+    render(createElement(SystemUpdateSettings));
+    await act(async () => {});
+    expect(screen.queryByText('settings.reinstall')).toBeNull();
+  });
+});
+
+describe('upgrade migration outcome', () => {
+  it('keeps a reported migration failure visible when the new process is healthy', async () => {
+    let statusReads = 0;
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/system/update-check') return reply({ ...fresh, latest_version: '2026.11.0' });
+      if (url === '/api/v1/system/update-check?force=true') return reply({ ...fresh, current_version: statusReads ? '2026.11.0' : fresh.current_version });
+      if (url === '/api/v1/system/upgrade') return reply({ token: 'token' });
+      if (url.startsWith('/api/v1/system/upgrade-status')) {
+        statusReads++;
+        return reply(statusReads === 1 ? { step: 'restarting', progress: 90 } : { step: 'failed', progress: -1, message: 'Migrations incomplete' });
+      }
+      return { ok: true };
+    });
+    const { result } = await mount();
+    await act(async () => result.current.startUpgrade());
+    await act(async () => vi.advanceTimersByTimeAsync(3000));
+    expect(result.current.upgradeProgress?.step).toBe('failed');
+    expect(result.current.upgradeProgress?.message).toBe('Migrations incomplete');
+  });
+});
+
+it('waits for the script outcome after the new version becomes healthy', async () => {
+  let baselineRead = false;
+  fetchMock.mockImplementation(async (url: string) => {
+    if (url === '/api/v1/system/update-check') return reply({ ...fresh, latest_version: '2026.11.0' });
+    if (url === '/api/v1/system/update-check?force=true' && !baselineRead) { baselineRead = true; return reply(fresh); }
+    if (url === '/api/v1/system/upgrade') return reply({ token: 'token' });
+    if (url.startsWith('/api/v1/system/upgrade-status')) return reply({ step: 'restarting', progress: 90, message: 'Starting application' });
+    if (url === '/api/health') return { ok: true };
+    return reply({ ...fresh, current_version: '2026.11.0' });
+  });
+  const { result } = await mount();
+  await act(async () => result.current.startUpgrade());
+  await act(async () => vi.advanceTimersByTimeAsync(3000));
+  expect(result.current.upgradeInProgress).toBe(true);
+  expect(result.current.upgradeProgress?.step).not.toBe('done');
 });

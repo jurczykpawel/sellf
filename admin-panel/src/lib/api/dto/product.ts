@@ -177,6 +177,10 @@ export function mapApiInputToProductRow(
 ): Record<string, unknown> {
   const schema = context === 'create' ? ProductCreateDTO : ProductUpdateDTO;
   const parsed = schema.parse(input) as Record<string, unknown>;
+  // Legacy v1 inputs have no product columns; keep accepting them without persisting them.
+  for (const field of ['custom_price_label', 'tip_icon', 'suggested_amounts', 'min_amount', 'metadata']) {
+    delete parsed[field];
+  }
   const normalised = normaliseSaleFields(normaliseEmptyDates(parsed));
   const withDefaults = context === 'create' ? applyCreateDefaults(normalised) : normalised;
   return normaliseSubscriptionFields(withDefaults, context);

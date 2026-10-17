@@ -6,7 +6,7 @@
 
 **An alternative to** Gumroad, LemonSqueezy, Paddle. Zero platform fees.
 
-![Version](https://img.shields.io/badge/version-2026.10.5-blue)
+![Version](https://img.shields.io/badge/version-2026.10.6-blue)
 ![Tests](https://img.shields.io/badge/unit%20tests-3,787%20passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production--Ready-brightgreen)
 ![Source Available](https://img.shields.io/badge/Source%20Available-100%25-brightgreen)
@@ -158,12 +158,18 @@ Sellf connects to **your own Stripe account**. You are the seller, payments go d
 
 | Platform | Fees | Monthly Cost | You Keep |
 |----------|------|:------------:|:--------:|
-| **Sellf + Stripe** | ~3.4% (Stripe only) | ~$340 | **$9,660** |
-| **Paddle** | 5% + 3.5% + $0.30 | ~$880 | $9,120 |
-| **LemonSqueezy** | 5% + 3.5% + $0.30 | ~$880 | $9,120 |
-| **Gumroad** | 10% + 2.9% + $0.30 | ~$1,290 | $8,710 |
+| **Sellf + Stripe** | ~3.4% (illustrative Stripe estimate) | ~$340 | **$9,660** |
+| **Paddle** | 5% + $0.50 | $600 | $9,400 |
+| **LemonSqueezy** | 5% + $0.50 (base rate) | $600 | $9,400 |
+| **Gumroad** | 10% + $0.50 (direct sales) | $1,100 | $8,900 |
 
-That's **$950/month saved** vs Gumroad, **$11,400/year** back in your pocket.
+Under these assumptions, the estimated fee difference vs Gumroad is **$760/month**, or **$9,120/year**, before hosting and tax compliance costs.
+
+Assumptions: $50 average order, 200 transactions/month, revenue before tax. Gumroad direct sales only; Discover is excluded. Paddle and Lemon Squeezy base rates include payment processing; applicable extras, taxes and refunds are excluded. The Sellf row uses an illustrative 3.4% Stripe estimate, not a universal Stripe rate. The `/about` PLN calculator assumes 1 USD = 4 PLN and a 200 PLN average order; this is a modeling assumption, not a live exchange rate.
+
+Official pricing checked **2026-10-15**: [Gumroad](https://gumroad.com/pricing), [Paddle](https://www.paddle.com/pricing), [Lemon Squeezy](https://www.lemonsqueezy.com/pricing).
+
+Other competitor context, checked **2026-10-15**: [ThriveCart Standard monthly pricing](https://checkout.thrivecart.com/thrivecart-standard-monthly-plan/) is **$47/month**, billed monthly, with processing costs separate; it is not modeled in the MoR calculator above. [Gumroad supports upsells](https://gumroad.com/help/article/331-creating-upsells).
 
 <details>
 <summary><strong>What about taxes? (MoR vs Own Stripe)</strong></summary>
@@ -172,7 +178,7 @@ Platforms like Paddle, LemonSqueezy, and Gumroad act as the **Merchant of Record
 
 | | MoR (Paddle, LS, Gumroad) | Sellf + Own Stripe |
 |---|---|---|
-| **Platform fees** | 5–10% of revenue | **$0** |
+| **Base transaction fees** | See dated pricing comparison above | **$0** platform fee |
 | **Payment processing** | Included in platform fee | ~2.9% + 30¢ ([Stripe pricing](https://stripe.com/pricing)) |
 | **Tax calculation** | Handled by MoR | Optional via [Stripe Tax](https://stripe.com/tax) (+0.5%) |
 | **Tax filing & remittance** | Handled by MoR | Your responsibility |

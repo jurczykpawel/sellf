@@ -100,6 +100,13 @@ bunx playwright test tests/checkout-payment-e2e.spec.ts   # Single spec file
 bunx playwright test -g "test name"        # Single test by title
 ```
 
+Direct-SQL tests resolve the local Docker stack from the configured Supabase API
+port through `tests/helpers/database-container.ts`. `SUPABASE_DB_CONTAINER` is the
+only container override and must match that API; a missing or mismatched stack
+fails before SQL runs. Affiliate database acceptance additionally requires
+`AFFILIATE_TEST_ENV` and `SUPABASE_TEST_WORKDIR` pointing to the same disposable
+project; its reset helper refuses the shared `sellf` project.
+
 ### Real Stripe test-mode E2E — admin-panel/
 
 ```bash
@@ -432,6 +439,15 @@ To execute SQL queries directly on the local database, use `docker exec` with th
 
 ## Key Implementation Details
 
+### Public Product Discovery
+
+`/sitemap.xml` is a dynamic index of `/sitemaps/<cursor>.xml` chunks (1,000 products
+per keyset query). Only active, listed, currently available products are included.
+English product canonicals are `/p/<slug>`, Polish canonicals `/pl/p/<slug>`.
+For listed products, visitors without access see the shared `ProductPurchasePage`
+at `/p/<slug>` with Product JSON-LD; existing buyers retain the content view.
+Contextual purchase links continue to redirect to the non-indexed checkout.
+
 ### Storefront Template Snapshots
 
 Per-product offers use `product_offer_config` and `product_offer_history`, keyed by
@@ -501,9 +517,11 @@ Offline authoring uses `bun run template:check -- --config file --json` (or
 `--recipe file`). `--mode publish --fixture file` checks supplied public bindings;
 it does not attest live rights or publication readiness. `--print-schema config`
 (or `recipe`) and `--capabilities` generate contracts from Zod/registry sources;
-standalone JSON Schema files are not committed. `template:schema` only refreshes
-the config schema embedded in the unreleased A migration; released migrations must
-remain immutable. No renderer or instance connection is needed for CLI checks.
+standalone JSON Schema files are not committed. `template:schema` targets the
+current config block in the later A migration and the marketing block in the
+consolidated 2026.10.6 RC migration. Its Phase 1 storefront block stays frozen;
+released migration shapes must remain immutable. No renderer or instance connection
+is needed for CLI checks.
 
 Public catalogue inputs live in `src/lib/storefront-templates/catalogue.ts`.
 They accept caller-authorized service clients and use service-only, bounded
@@ -657,6 +675,46 @@ All paid-order completion paths resume unfinished fulfillment. Invoice retries
 also recover missing access and delivery. Endpoint customization cannot replace
 or remove the envelope `id`. The retry worker leases rows through the existing
 queue; interrupted attempts remain due after the lease expires.
+
+Rotating an outbound secret uses `POST /api/v1/webhooks/:id/rotate-secret`
+(admin session or `webhooks:write` API key). `rotate_webhook_secret()` replaces it
+and records a secret-free audit entry atomically. Rotated secrets use the
+`enc:v1:` AES-256-GCM storage format in `webhook_endpoints.secret`; the dispatcher
+also accepts existing plaintext secrets. Only the rotation response returns the
+new plaintext value; subsequent API reads return an empty `secret`. There is no
+grace period. Receivers must update their verification secret immediately.
+
+### Affiliates
+
+Phase 1 attributes one-time paid orders through existing coupon redemptions, without
+checkout metadata changes. The affiliate tables are `affiliate_programs`,
+`affiliate_program_versions`, `affiliate_memberships`, `affiliate_membership_events`,
+`affiliate_rules`, `affiliate_coupon_bindings`, `affiliate_commissions`,
+`affiliate_ledger`, `affiliate_payouts`, `affiliate_payout_allocations`, and
+`affiliate_work`. Program versions and membership events preserve accounting history;
+the ledger and commission snapshots are immutable. Never use audit-log retention as
+an accounting source. Affiliate projections exclude buyer data.
+
+Redemption/payment triggers enqueue `sync(payment_id)` transactionally. The worker
+(`admin-panel/src/lib/affiliates/sync/worker.ts`) claims leases and applies generations
+through service-only RPCs. Configure a separate minute cron with `CRON_SECRET`:
+
+```cron
+* * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$SELLF_URL/api/cron?job=affiliate-sync" > /dev/null
+```
+
+StackPilot deployment does not install this schedule. See the EN/PL operator guide
+in `docs-site/src/content/docs/configuration.md`. Admin commission processing warns
+when pending work is overdue by more than 15 minutes and offers reason-required, audited retry
+for failed work through `affiliate_work_retry`; the actor always comes from the session.
+Missing net snapshots must be repaired before retry. Never manually edit queue generations.
+
+Lock order: payment IDs ascending → member/currency advisory lock → commission/payout.
+Triggers enqueue under the payment lock without taking the member lock. Shared SQL
+preview/aggregate rules govern reservation and portal balances; test commissions never
+enter real payable balances. Unlimited-refund snapshots have no payout release path,
+including through manual adjustments. CSV is a private same-origin download with audit;
+it never marks a payout paid. Mark-paid requires external bank/document references.
 
 ### License Tier Registry
 
@@ -1155,6 +1213,21 @@ Steps: `bun install --frozen-lockfile` → `bun run typecheck` → `bun run buil
 The tar.gz contains: `.next/` (with `standalone/admin-panel/server.js`), `package.json`, `public/`, `supabase/migrations/`, `supabase/templates/`.
 
 **Important:** The standalone output has a nested `admin-panel/` directory inside `.next/standalone/` because the CI builds from `admin-panel/` with a parent `package.json` at repo root. Next.js file tracing detects the parent and creates this nested structure.
+
+### Upgrade runtime release gate
+
+Run `cd admin-panel && bun run test:upgrade-matrix` before releasing changes to
+upgrades, deployment images or migration delivery. The suite builds local images,
+uses a disposable Supabase project on ports 55321/55322, checks authenticated
+API and real UI states, Compose version persistence and external migrations, and
+runs the signed updater with real PM2. See `tests/upgrade-matrix/README.md`.
+Never point it at the shared development stack. Raw SQL unit tests use
+`SUPABASE_DB_CONTAINER`; set it alongside the Supabase URL for isolated test runs.
+
+`SELLF_DEPLOYMENT_RUNTIME` selects deployment instructions; only preflight-ready
+standalone PM2 enables in-place upgrades. `SELLF_UPDATE_CHECK_URL` overrides only
+notification metadata. Containers and managed hosts require external migrations.
+See `docs-site/src/content/docs/ui-upgrades.md` and its Polish version.
 
 ### Release signing
 

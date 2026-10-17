@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
@@ -23,9 +23,8 @@ export default function WebhookFailuresPanel({ refreshTrigger, onRefresh }: Webh
   const [showInactiveWarning, setShowInactiveWarning] = useState(false);
   const [pendingRetryLog, setPendingRetryLog] = useState<WebhookLog | null>(null);
 
-  const fetchFailures = async () => {
+  const loadFailures = useCallback(async () => {
     try {
-      setLoading(true);
       // Use v1 API for webhook logs
       const response = await api.list<WebhookLog>('webhooks/logs', {
         status: 'failed',
@@ -37,11 +36,22 @@ export default function WebhookFailuresPanel({ refreshTrigger, onRefresh }: Webh
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+ const [previousRefresh, setPreviousRequest] = useState(refreshTrigger);
+ if (previousRefresh !== refreshTrigger) {
+   setPreviousRequest(refreshTrigger);
+   setLoading(true);
+ }
+ const fetchFailures = () => {
+   setLoading(true);
+   return loadFailures();
+ };
 
   useEffect(() => {
-    fetchFailures();
-  }, [refreshTrigger]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- State is updated only after awaiting the request.
+    loadFailures();
+  }, [loadFailures, refreshTrigger]);
 
   const handleRetryClick = (logId: string) => {
     const log = failures.find(f => f.id === logId);
@@ -115,7 +125,7 @@ export default function WebhookFailuresPanel({ refreshTrigger, onRefresh }: Webh
             {t('failuresTitle')}
           </h3>
         </div>
-        <button 
+        <button
           onClick={fetchFailures}
           className="text-sf-danger hover:opacity-80 text-sm flex items-center transition-colors"
         >
@@ -125,7 +135,7 @@ export default function WebhookFailuresPanel({ refreshTrigger, onRefresh }: Webh
           {tCommon('refresh')}
         </button>
       </div>
-      
+
       {/* Use the shared table component */}
       <WebhookLogsTable
         logs={failures}

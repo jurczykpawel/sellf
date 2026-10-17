@@ -76,6 +76,7 @@ function parseBody(body: unknown): ParsedRequest | null {
 }
 
 const STATUS_BY_CODE: Record<MagicLinkErrorCode, number> = {
+  demo_mode: 403,
   invalid_request: 400,
   captcha_failed: 400,
   invalid_email: 400,

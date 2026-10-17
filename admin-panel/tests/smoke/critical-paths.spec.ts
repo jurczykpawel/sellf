@@ -187,8 +187,10 @@ test.describe('Public Pages', () => {
     await acceptAllCookies(page);
     await page.goto(`/p/${paidProduct.slug}`);
 
-    // Should redirect to checkout for paid product (no access)
-    await expect(page).toHaveURL(new RegExp(`/checkout/${paidProduct.slug}`), { timeout: 10000 });
+    // Listed paid products show the purchase view without granting content access.
+    await expect(page).toHaveURL(new RegExp(`/p/${paidProduct.slug}$`), { timeout: 10000 });
+    await expect(page.getByRole('heading', { name: paidProduct.name, exact: true })).toBeVisible();
+    await expect(page.locator('input#fullName')).toBeVisible();
     await expect(page.locator('body')).not.toContainText('Application error');
   });
 
@@ -196,9 +198,9 @@ test.describe('Public Pages', () => {
     await acceptAllCookies(page);
     await page.goto(`/p/${freeProduct.slug}`);
 
-    // Free product should redirect to checkout with email form
-    // Client-side redirect via router.push — needs time for auth context + useProductAccess
-    await expect(page).toHaveURL(new RegExp(`/checkout/${freeProduct.slug}`), { timeout: 15000 });
+    // Listed free products show the email access form at the product URL.
+    await expect(page).toHaveURL(new RegExp(`/p/${freeProduct.slug}$`), { timeout: 15000 });
+    await expect(page.locator('input[type="email"]')).toBeVisible();
     await expect(page.locator('body')).not.toContainText('Application error');
   });
 

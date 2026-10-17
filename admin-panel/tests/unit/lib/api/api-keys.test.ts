@@ -512,7 +512,7 @@ describe('API Keys', () => {
       }
     });
 
-    // The DB migration `20261015201528_storefront_templates_phase1.sql`
+    // The DB migration `20261016000000_release_2026_10_6.sql`
     // defines the default for newly created keys; existing keys keep their snapshot.
     it('matches the current default scope snapshot', () => {
       const migrationSnapshot = [

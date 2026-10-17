@@ -5,21 +5,22 @@
  *
  * Auto-checks on mount with smart caching:
  * - Server-side: 1h cache (GitHub API)
- * - Client localStorage: 6h cache
+ * - Deployment capabilities refreshed on every mount
  * - Dismissed version: 24h before re-showing
  *
  * @see /api/v1/system/update-check
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import type { UpgradeCapability } from '@/lib/system/upgrade-runtime';
 
 const STORAGE_KEY = 'sellf_update_check';
 const DISMISSED_KEY = 'sellf_update_dismissed';
-const CLIENT_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 const PENDING_TIMEOUT = 3 * 60 * 1000; // 3 minutes
 const DISMISS_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 export interface UpdateInfo {
+  upgrade?: UpgradeCapability;
   current_version: string;
   started_at?: string; // Older cached checks may not carry process identity.
   latest_version: string;
@@ -35,11 +36,6 @@ export interface UpgradeProgress {
   message: string;
   rollback?: boolean;
   timestamp?: string;
-}
-
-interface CachedCheck {
-  data: UpdateInfo;
-  timestamp: number;
 }
 
 interface DismissedVersion {
@@ -61,7 +57,7 @@ export interface UseUpdateCheckResult {
 
 export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [isChecking, setIsChecking] = useState(false);
+  const [isChecking, setIsChecking] = useState(isAdmin);
   const [showModal, setShowModal] = useState(false);
   const [upgradeInProgress, setUpgradeInProgress] = useState(false);
   const [upgradeProgress, setUpgradeProgress] = useState<UpgradeProgress | null>(null);
@@ -86,28 +82,8 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
   const checkForUpdate = useCallback(async (force = false) => {
     if (!isAdmin) return;
 
-    // Check client cache
-    if (!force) {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const cached: CachedCheck = JSON.parse(raw);
-          if (cached.data.current_version !== process.env.NEXT_PUBLIC_APP_VERSION) {
-            localStorage.removeItem(STORAGE_KEY);
-          } else if (Date.now() - cached.timestamp < CLIENT_CACHE_TTL) {
-            setUpdateInfo(cached.data);
-            if (cached.data.update_available && !isDismissed(cached.data.latest_version)) {
-              setShowModal(true);
-            }
-            return;
-          }
-        }
-      } catch {
-        // Ignore corrupted cache
-      }
-    }
-
-    setIsChecking(true);
+    // Capabilities describe the live deployment and must be refreshed on mount.
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* Storage may be disabled. */ }
     try {
       const url = force
         ? '/api/v1/system/update-check?force=true'
@@ -119,10 +95,6 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
       const json = await response.json();
       const data: UpdateInfo = json.data;
       setUpdateInfo(data);
-
-      // Cache in localStorage
-      const cached: CachedCheck = { data, timestamp: Date.now() };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
       setShowModal(data.update_available && !isDismissed(data.latest_version));
     } catch {
@@ -210,9 +182,36 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
 
         if (switchedToHealthPoll) {
           healthPollCount++;
+          if (healthPollCount > 30) {
+            if (pollRef.current) clearInterval(pollRef.current);
+            setUpgradeProgress({
+              step: 'failed',
+              progress: -1,
+              message: 'Upgrade did not reach a completed state after 90 seconds. Check server logs.',
+            });
+            setUpgradeInProgress(false);
+            return;
+          }
           try {
             const healthResp = await fetch('/api/health', { signal: AbortSignal.timeout(3000) });
             if (healthResp.ok) {
+              // Read the script's outcome again after the process returns.
+              // Migration errors can be reported after the restart step.
+              try {
+                const statusResp = await fetch(`/api/v1/system/upgrade-status?token=${token}`, {
+                  signal: AbortSignal.timeout(5000), cache: 'no-store',
+                });
+                if (statusResp.ok) {
+                  const finalProgress: UpgradeProgress = (await statusResp.json()).data;
+                  if (finalProgress.step !== 'failed' && finalProgress.step !== 'done') return;
+                  if (finalProgress.step === 'failed') {
+                    if (pollRef.current) clearInterval(pollRef.current);
+                    setUpgradeProgress(finalProgress);
+                    setUpgradeInProgress(false);
+                    return;
+                  }
+                }
+              } catch { /* Confirm the process below when status is unavailable. */ }
               if (pollRef.current) clearInterval(pollRef.current);
               let confirmed = false;
               try {
@@ -252,16 +251,6 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
           } catch {
             // Server still restarting — expected
           }
-
-          if (healthPollCount > 30) {
-            if (pollRef.current) clearInterval(pollRef.current);
-            setUpgradeProgress({
-              step: 'failed',
-              progress: -1,
-              message: 'Server did not respond after 90 seconds. Check server logs.',
-            });
-            setUpgradeInProgress(false);
-          }
         }
       } catch {
         consecutiveErrors++;
@@ -272,6 +261,7 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
   }, []);
 
   const startUpgrade = useCallback(async () => {
+    if (updateInfo?.upgrade?.mode !== 'in-place') return;
     setUpgradeInProgress(true);
     setUpgradeProgress({
       step: 'starting',
@@ -290,6 +280,12 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
       });
       if (!baselineResponse.ok) throw new Error('Could not check running process');
       const baseline = (await baselineResponse.json()).data;
+      if (baseline?.upgrade?.mode !== 'in-place') {
+        setUpdateInfo(baseline);
+        setUpgradeInProgress(false);
+        setUpgradeProgress(null);
+        return;
+      }
       if (typeof baseline?.current_version !== 'string' ||
           typeof baseline?.started_at !== 'string' ||
           !Number.isFinite(Date.parse(baseline.started_at))) {
@@ -323,9 +319,20 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
     }
   }, [pollUpgradeStatus, updateInfo]);
 
+  const [previousAdmin, setPreviousAdmin] = useState(isAdmin);
+  if (previousAdmin !== isAdmin) {
+    setPreviousAdmin(isAdmin);
+    setIsChecking(isAdmin);
+  }
+  const checkNow = useCallback((force = false) => {
+    setIsChecking(true);
+    return checkForUpdate(force);
+  }, [checkForUpdate]);
+
   // Auto-check on mount
   useEffect(() => {
     if (isAdmin) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
       checkForUpdate();
     }
     return () => {
@@ -339,7 +346,7 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
     showModal: showModal || upgradeProgress?.step === 'done' || upgradeProgress?.step === 'failed',
     upgradeInProgress,
     upgradeProgress,
-    checkNow: checkForUpdate,
+    checkNow,
     dismissUpdate,
     startUpgrade,
   };

@@ -21,18 +21,20 @@ export default function OfferEditor({ initialProductId }: { initialProductId?: s
   const [snapshot, setSnapshot] = useState<OfferReadResult | null>(null);
   const [config, setConfig] = useState<OfferPageConfig>(structuredClone(DEFAULT_OFFER));
   const [section, setSection] = useState<'offer.hero' | 'offer.faq' | 'offer.closing'>('offer.hero');
-  const [busy, setBusy] = useState(false); const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(Boolean(productId)); const [dirty, setDirty] = useState(false);
   const [error, setError] = useState(''); const [confirm, setConfirm] = useState(false);
-  const load = useCallback(async (id: string) => {
-    setBusy(true); setError('');
-    try {
-      const response = await productOfferAction({ operation: 'read', productId: id });
+  const load = useCallback((id: string) => {
+    return productOfferAction({ operation: 'read', productId: id }).then(response => {
       if (!response.success) { setError(response.code); setSnapshot(null); return; }
       if ('data' in response && 'productName' in response.data) {
         setSnapshot(response.data); setConfig(structuredClone(response.data.draft ?? response.data.published ?? DEFAULT_OFFER)); setDirty(false); setConfirm(false);
       }
-    } catch { setError('UNAVAILABLE'); } finally { setBusy(false); }
+    }).catch(() => { setError('UNAVAILABLE'); }).finally(() => { setBusy(false); });
   }, []);
+  function reload() {
+    setBusy(true); setError('');
+    return load(productId);
+  }
   useEffect(() => { if (productId) void load(productId); }, [productId, load]);
   function edit(next: OfferPageConfig) { setConfig(next); setDirty(true); }
   async function save() {
@@ -51,14 +53,14 @@ export default function OfferEditor({ initialProductId }: { initialProductId?: s
     <header className="space-y-2"><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('title')}</h1><p className="max-w-2xl text-sm text-sf-muted">{t('intro')}</p></header>
     {!productId && <section className="rounded-2xl border border-sf-border bg-sf-base p-5"><BindingPicker label={t('chooseProduct')} kind="products" selectedIds={[]} maxItems={1} onChange={ids => { if (ids[0]) router.push(`?product=${ids[0]}`); }} /></section>}
     {error && <div role="alert" className="rounded-xl border border-sf-danger bg-sf-danger-soft p-4 text-sm">{t(error === 'CONFLICT' ? 'conflict' : error === 'INVALID' ? 'invalid' : 'failure')}</div>}
-    {productId && !snapshot && <button type="button" className={editorButton} disabled={busy} onClick={() => void load(productId)}>{busy ? t('loading') : shared('reload')}</button>}
+    {productId && !snapshot && <button type="button" className={editorButton} disabled={busy} onClick={() => void reload()}>{busy ? t('loading') : shared('reload')}</button>}
     {snapshot && <>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sf-border bg-sf-base p-5"><div className="min-w-0"><p className="text-xs font-medium uppercase tracking-wider text-sf-muted">{t('product')}</p><h2 className="mt-1 break-words text-xl font-semibold">{snapshot.productName}</h2></div><a className={editorButton} href={`${prefix}/dashboard/templates?surface=offer`}>{t('changeProduct')}</a></div>
       <div className="sticky top-14 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sf-border bg-sf-base p-3 shadow-sm">
         <p role="status" className="flex items-center gap-2 text-sm text-sf-muted"><Check size={16} aria-hidden="true" />{busy ? shared('saving') : dirty ? shared('unsaved') : shared('savedState')}</p>
-        <div className="flex gap-2"><button type="button" className={editorButton} aria-label={shared('reload')} disabled={busy} onClick={() => { if (dirty && !confirm) setConfirm(true); else void load(productId); }}><RotateCcw size={17} aria-hidden="true" /></button><button type="button" className={`${editorButton} border-sf-accent bg-sf-accent-soft text-sf-accent`} disabled={busy || !dirty || error === 'CONFLICT'} onClick={save}>{shared('save')}</button></div>
+        <div className="flex gap-2"><button type="button" className={editorButton} aria-label={shared('reload')} disabled={busy} onClick={() => { if (dirty && !confirm) setConfirm(true); else void reload(); }}><RotateCcw size={17} aria-hidden="true" /></button><button type="button" className={`${editorButton} border-sf-accent bg-sf-accent-soft text-sf-accent`} disabled={busy || !dirty || error === 'CONFLICT'} onClick={save}>{shared('save')}</button></div>
       </div>
-      {confirm && <div className="space-y-3 rounded-xl border border-sf-border p-4"><p>{shared('confirmReload')}</p><button type="button" className={editorButton} onClick={() => void load(productId)}>{shared('discard')}</button> <button type="button" className={editorButton} onClick={() => setConfirm(false)}>{shared('cancel')}</button></div>}
+      {confirm && <div className="space-y-3 rounded-xl border border-sf-border p-4"><p>{shared('confirmReload')}</p><button type="button" className={editorButton} onClick={() => void reload()}>{shared('discard')}</button> <button type="button" className={editorButton} onClick={() => setConfirm(false)}>{shared('cancel')}</button></div>}
       <div className="grid items-start gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="space-y-5">
           <section className="space-y-4 rounded-2xl border border-sf-border bg-sf-base p-5"><h2 className="font-semibold">{t('publication')}</h2><p className="text-sm text-sf-muted">{t(snapshot.published?.enabled ? 'live' : 'notLive')}</p>

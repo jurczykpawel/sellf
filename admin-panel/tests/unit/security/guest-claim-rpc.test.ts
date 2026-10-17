@@ -22,6 +22,7 @@
  * ============================================================================
  */
 
+import { getTestDatabaseContainer } from '../../helpers/database-container';
 import { execSync } from 'child_process';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -1177,7 +1178,7 @@ describe('handle_new_user_registration', () => {
       SELECT count(*) FROM public.admin_users WHERE user_id = '${testUserId}';
       ROLLBACK;
     `;
-    const out = execSync('docker exec -i supabase_db_sellf psql -U postgres -t -A -q', {
+    const out = execSync(`docker exec -i ${getTestDatabaseContainer()} psql -U postgres -t -A -q`, {
       input: sql,
       encoding: 'utf-8',
       timeout: 10000,
@@ -1217,7 +1218,7 @@ describe('handle_new_user_registration', () => {
       SELECT count(*) FROM public.admin_users WHERE user_id = '${testUserId}';
       ROLLBACK;
     `;
-    const out = execSync('docker exec -i supabase_db_sellf psql -U postgres -t -A -q', {
+    const out = execSync(`docker exec -i ${getTestDatabaseContainer()} psql -U postgres -t -A -q`, {
       input: sql,
       encoding: 'utf-8',
       timeout: 10000,

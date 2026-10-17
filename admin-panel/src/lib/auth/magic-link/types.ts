@@ -7,6 +7,7 @@ export const MAGIC_LINK_FLOWS = ['login', 'free_product', 'post_checkout'] as co
 export type MagicLinkFlow = (typeof MAGIC_LINK_FLOWS)[number];
 
 export type MagicLinkErrorCode =
+  | 'demo_mode'
   | 'invalid_request'
   | 'captcha_failed'
   | 'invalid_email'

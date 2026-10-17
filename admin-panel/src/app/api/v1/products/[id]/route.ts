@@ -105,7 +105,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const { supabase } = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
+    const { supabase, admin } = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
     const { id } = await params;
 
     // Validate ID format
@@ -243,13 +243,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     let product = existingCheck;
     if (Object.keys(sanitizedData).length > 0) {
       const { data: updatedProduct, error: updateError } = await supabase
-        .from('products')
-        .update(sanitizedData)
-        .eq('id', id)
+        .rpc('mutate_product_with_audit', {
+          operation_param: 'UPDATE',
+          product_data: sanitizedData,
+          product_id: id,
+          actor_id: admin.userId,
+        })
         .select(PRODUCT_API_FIELDS)
         .single();
 
       if (updateError) {
+        if (updateError.code === 'P0002') return apiError(request, 'NOT_FOUND', 'Product not found');
         const code = (updateError as { code?: string }).code;
         if (code === '23505') {
           return apiError(request, 'ALREADY_EXISTS', 'A product with this slug already exists');
@@ -372,7 +376,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { supabase } = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
+    const { supabase, admin } = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
     const { id } = await params;
 
     // Validate ID format
@@ -392,24 +396,31 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'NOT_FOUND', 'Product not found');
     }
 
-    // Delete product categories first (due to FK constraints)
-    const { error: catDeleteError } = await supabase
-      .from('product_categories')
-      .delete()
-      .eq('product_id', id);
-
-    if (catDeleteError) {
-      console.error('[products.DELETE categories]', catDeleteError);
-      // Continue anyway - might not have any categories
+    const { data: affiliateRule, error: affiliateError } = await supabase
+      .from('affiliate_rules').select('id').eq('product_id', id).limit(1).maybeSingle();
+    if (affiliateError) return apiError(request, 'INTERNAL_ERROR', 'Failed to check product history');
+    const { data: affiliateCommission, error: commissionError } = await supabase
+      .from('affiliate_commissions').select('id,payment:payment_transactions!inner(product_id)')
+      .eq('payment.product_id', id).limit(1).maybeSingle();
+    if (commissionError) return apiError(request, 'INTERNAL_ERROR', 'Failed to check product history');
+    if (affiliateRule || affiliateCommission) {
+      const locale = request.cookies.get('NEXT_LOCALE')?.value ?? request.headers.get('accept-language');
+      return apiError(request, 'CONFLICT', locale?.startsWith('pl')
+        ? 'Ten produkt ma historię partnerską. Wybierz Archiwizuj w menu produktu, aby ją zachować.'
+        : 'This product has affiliate history. Choose Archive in the product menu to keep its history.',
+      { archive: ['PATCH /api/v1/products/' + id, '{"is_active":false}'] });
     }
 
-    // Delete product
-    const { error: deleteError } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', id);
+    // Foreign-key cascades are part of the product transaction.
+    const { error: deleteError } = await supabase.rpc('mutate_product_with_audit', {
+      operation_param: 'DELETE',
+      product_data: {},
+      product_id: id,
+      actor_id: admin.userId,
+    });
 
     if (deleteError) {
+      if (deleteError.code === 'P0002') return apiError(request, 'NOT_FOUND', 'Product not found');
       console.error('[products.DELETE]', deleteError);
 
       // Check for foreign key constraint violations

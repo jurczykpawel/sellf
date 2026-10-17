@@ -121,10 +121,10 @@ test.describe('Variant Selector Page', () => {
     await page.goto(`/pl/v/${variantGroup.id}`);
     await page.waitForLoadState('domcontentloaded');
 
-    // Check that prices are displayed with currency (PLN uses comma or dot as decimal separator)
-    await expect(page.getByText(/zł49[.,]00/)).toBeVisible();
-    await expect(page.getByText(/zł99[.,]00/)).toBeVisible();
-    await expect(page.getByText(/zł299[.,]00/)).toBeVisible();
+    // Check that prices are displayed with currency (Polish pages use a comma and a currency suffix)
+    await expect(page.getByText(/^49,00\s+zł$/)).toBeVisible();
+    await expect(page.getByText(/^99,00\s+zł$/)).toBeVisible();
+    await expect(page.getByText(/^299,00\s+zł$/)).toBeVisible();
   });
 
   test('should display the promotional price (with regular price struck through) when a variant is on sale', async ({ page }) => {
@@ -142,9 +142,9 @@ test.describe('Variant Selector Page', () => {
       await page.waitForLoadState('domcontentloaded');
 
       // The promo price is shown...
-      await expect(page.getByText(/zł79[.,]00/)).toBeVisible();
+      await expect(page.getByText(/79,00\s+zł/)).toBeVisible();
       // ...and the regular price is struck through.
-      const struck = page.locator('.line-through').filter({ hasText: /zł99[.,]00/ });
+      const struck = page.locator('.line-through').filter({ hasText: /^99,00\s+zł$/ });
       await expect(struck).toBeVisible();
       // ...and the sale-ends hint is shown.
       await expect(page.getByText(/Promocja kończy się|Sale ends/i)).toBeVisible();
@@ -669,8 +669,8 @@ test.describe('Variant Selector - PWYW, Icon and Branding', () => {
   });
 
   test('should display minimum price for PWYW product', async ({ page }) => {
-    // Rendered as "min. $9.00" (translation key: minimumFrom = "min. {price}")
-    await expect(page.getByText(/min\. \$9/i)).toBeVisible();
+    // The Polish view retains the minimum amount and USD currency.
+    await expect(page.getByText(/^min\. 9,00\s+USD$/i)).toBeVisible();
   });
 
   test('should NOT display PWYW badge for fixed-price products', async ({ page }) => {

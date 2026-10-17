@@ -69,7 +69,7 @@ export default function IntegrationsForm({ initialData }: IntegrationsFormProps)
   }
 
   // --- UI COMPONENTS ---
-  const TabButton = ({ id, label }: { id: typeof activeTab, label: string }) => (
+  const renderTabButton = ({ id, label }: { id: typeof activeTab, label: string }) => (
     <button
       type="button"
       onClick={() => setActiveTab(id)}
@@ -151,11 +151,11 @@ export default function IntegrationsForm({ initialData }: IntegrationsFormProps)
       <div className="bg-sf-base border-2 border-sf-border-medium overflow-hidden">
         {/* Tabs Header */}
         <div className="flex border-b border-sf-border overflow-x-auto">
-          <TabButton id="analytics" label={t('tabs.analytics')} />
-          <TabButton id="marketing" label={t('tabs.marketing')} />
-          <TabButton id="consents" label={t('tabs.consents')} />
-          <TabButton id="currency" label={t('tabs.currency')} />
-          <TabButton id="gus" label={t('tabs.gus')} />
+          {renderTabButton({ id: 'analytics', label: t('tabs.analytics') })}
+          {renderTabButton({ id: 'marketing', label: t('tabs.marketing') })}
+          {renderTabButton({ id: 'consents', label: t('tabs.consents') })}
+          {renderTabButton({ id: 'currency', label: t('tabs.currency') })}
+          {renderTabButton({ id: 'gus', label: t('tabs.gus') })}
         </div>
 
         {/* Content */}

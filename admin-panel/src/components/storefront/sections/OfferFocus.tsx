@@ -1,5 +1,6 @@
 /** Dominant offer with static, seller-authored sample copy. @see D-055 */
 import Image from 'next/image';
+import { PublicProductPrice } from '@/components/storefront/PublicProductFacts';
 import { resolveMarketingCopy } from '@/lib/validations/product-marketing';
 import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
@@ -11,7 +12,7 @@ export default function OfferFocus({ product, content, locale }: OfferFocusProps
   const available = product?.availability === 'available';
   const editorial = product ? resolveMarketingCopy(product.marketing, locale) : null;
   const lines = (content?.heading.trim() || product?.title || messages.availabilityBanner.productUnavailable).split('\n');
-  return <section className={styles.focusHero} data-variant="offer-focus">
+  return <section className={styles.focusHero} lang={locale} data-variant="offer-focus">
     <div className={styles.focusLayout}>
       <div className={styles.focusCopy}>
         {content?.eyebrow.trim() && <p className={styles.focusEyebrow}>{content.eyebrow}</p>}
@@ -19,7 +20,7 @@ export default function OfferFocus({ product, content, locale }: OfferFocusProps
         <p className={styles.focusLead}>{available ? content?.body : messages.availabilityBanner.productUnavailableMessage}</p>
         {available && <>
           <div className={styles.focusOffer}>
-            <div className={styles.focusPrice}>{product.price.display}
+            <div className={styles.focusPrice}><PublicProductPrice price={product.price} locale={locale} />
               {product.marketing.format && <small>{messages.admin.products.form.marketing.formats[product.marketing.format]}</small>}
               {product.price.taxNote && <small>{product.price.taxNote}</small>}
               {product.price.omnibus && <small>{product.price.omnibus}</small>}

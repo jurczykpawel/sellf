@@ -20,11 +20,12 @@
  */
 
 import { test, expect } from '@playwright/test';
+import type { ContentItem } from '@/types';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
 
 test.describe('Admin Product Preview', () => {
-  test.describe.configure({ mode: 'serial', retries: 1 });
+  test.describe.configure({ mode: 'serial' });
   test.setTimeout(60_000);
 
   let adminEmail: string;
@@ -61,18 +62,20 @@ test.describe('Admin Product Preview', () => {
           {
             id: 'item-1',
             type: 'download_link',
-            label: 'Główny plik PDF',
-            url: 'https://drive.google.com/file/d/test123/view',
+            title: 'Główny plik PDF',
+            config: { download_url: 'https://drive.google.com/file/d/test123/view' },
+            order: 0,
             is_active: true,
           },
           {
             id: 'item-2',
             type: 'video_embed',
-            label: 'Wideo wprowadzające',
-            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            title: 'Wideo wprowadzające',
+            config: { embed_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', autoplay: false },
+            order: 1,
             is_active: true,
           },
-        ],
+        ] satisfies ContentItem[],
       },
     }, { onConflict: 'slug' });
     if (e1) throw new Error(`Failed to create digital product: ${e1.message}`);
@@ -112,11 +115,12 @@ test.describe('Admin Product Preview', () => {
           {
             id: 'item-1',
             type: 'download_link',
-            label: 'Plik do pobrania',
-            url: 'https://drive.google.com/file/d/inactive123/view',
+            title: 'Plik do pobrania',
+            config: { download_url: 'https://drive.google.com/file/d/inactive123/view' },
+            order: 0,
             is_active: true,
           },
-        ],
+        ] satisfies ContentItem[],
       },
     }, { onConflict: 'slug' });
     if (e3) throw new Error(`Failed to create inactive product: ${e3.message}`);
@@ -166,16 +170,12 @@ test.describe('Admin Product Preview', () => {
     await expect(page.getByText(/Tryb podgl[aą]du/i)).toBeVisible({ timeout: 15000 });
   });
 
-  test('should display content section (empty) in preview', async ({ page }) => {
+  test('should display configured content in preview', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto(`/pl/p/${digitalProductSlug}?preview=1`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-
-    // In preview mode, content_config.content_items is emptied for safety (secure
-    // URL configs may be null from the public product object). The content section
-    // should still render — check that the product name heading is visible.
     await expect(page.getByRole('heading', { name: 'Preview Test — Digital' })).toBeVisible({ timeout: 15000 });
-    // The DigitalContentRenderer section renders, just 0 items (no secure data)
-    await expect(page.locator('main')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Główny plik PDF', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Wideo wprowadzające', exact: true })).toBeVisible();
   });
 
   test('should show access granted badge in header', async ({ page }) => {
@@ -234,6 +234,7 @@ test.describe('Admin Product Preview', () => {
 
     // Admin preview bypasses RLS and is_active=false — product page should render
     await expect(page.getByRole('heading', { name: 'Preview Test — Inactive' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Plik do pobrania', { exact: true })).toBeVisible();
     // Preview indicator still visible for inactive products
     await expect(page.getByText(/Tryb podgl[aą]du/i)).toBeVisible({ timeout: 10000 });
   });
@@ -242,14 +243,18 @@ test.describe('Admin Product Preview', () => {
   // Non-admin — ?preview=1 is ignored, normal flow applies
   // =========================================================================
 
-  test('should redirect non-admin to checkout when using ?preview=1', async ({ page }) => {
+  test('should show the purchase view to non-admin with ?preview=1', async ({ page }) => {
     // Visit without logging in
     await page.goto(`/pl/p/${digitalProductSlug}?preview=1`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await acceptAllCookies(page);
 
-    // Non-authenticated user should be sent to checkout, not see content
-    await page.waitForURL(/\/checkout\/|\/login/, { timeout: 15000 });
-    expect(page.url()).not.toContain(`/p/${digitalProductSlug}`);
+    await expect(page).toHaveURL(new RegExp(`/pl/p/${digitalProductSlug}\\?preview=1$`));
+    await expect(page.getByRole('heading', { name: 'Preview Test — Digital', exact: true })).toBeVisible();
+    await expect(page.locator('input#fullName')).toBeVisible();
+    await expect(page.getByText('Główny plik PDF')).not.toBeVisible();
+    await expect(page.getByText('Wideo wprowadzające')).not.toBeVisible();
+    expect(await page.content()).not.toContain('https://drive.google.com/file/d/test123/view');
+    await expect(page.getByText(/Tryb podgl[aą]du/i)).not.toBeVisible();
   });
 
   // =========================================================================
@@ -258,7 +263,7 @@ test.describe('Admin Product Preview', () => {
 
   test('should not show content to unauthenticated user even with ?preview=1', async ({ page }) => {
     await page.goto(`/pl/p/${digitalProductSlug}?preview=1`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForTimeout(3000);
+    await expect(page.locator('input#fullName')).toBeVisible();
 
     // Content items must NOT be visible to guests
     await expect(page.getByText('Główny plik PDF')).not.toBeVisible({ timeout: 3000 });

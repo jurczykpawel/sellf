@@ -8,6 +8,7 @@ export async function GET() {
   // SDK reads data-* attributes:
   //   data-product-slug   (required)
   //   data-email          (optional pre-fill)
+  //   data-coupon         (optional coupon code to pre-fill and apply; buyers can change it)
   //   data-modal          ("true" → render button + modal; default inline)
   //   data-button-label   (modal mode only; text on the trigger button)
   //   data-show-price     (modal mode only; append " · 19,99 USD" to label)
@@ -34,7 +35,11 @@ export async function GET() {
       body: JSON.stringify(payload),
     }).then(function (response) {
       return response.json().then(function (body) {
-        if (!response.ok) throw new Error(body && body.error ? body.error : 'Request failed');
+        if (!response.ok) {
+          var failure = new Error(body && body.error ? body.error : 'Request failed');
+          failure.status = response.status;
+          throw failure;
+        }
         return body;
       });
     });
@@ -303,6 +308,146 @@ export async function GET() {
     };
   }
 
+  // Runs the paid flow (captcha gate -> checkout session -> Stripe mount) inside
+  // host and owns the coupon field. The discount is part of the Stripe session, so
+  // applying a coupon requests a new session; the checkout that is already mounted
+  // is replaced only once that succeeds. A rejected code is reported under the
+  // field and leaves the buyer's current checkout untouched, so they can always
+  // pay. onMounted(checkout) lets a modal track the live instance.
+  function startCheckout(host, productSlug, email, initialCoupon, onMounted) {
+    var CHECKOUT_PATH = '/api/embed/checkout-session';
+    var stripeCheckout = null;
+    var gateSlot = null;
+    var stripeSlot = null;
+    var input = null;
+    var applyButton = null;
+    var status = null;
+
+    function payload(coupon, token) {
+      var body = { productSlug: productSlug, email: email || undefined };
+      if (coupon) body.couponCode = coupon;
+      if (token) body.turnstileToken = token;
+      return body;
+    }
+
+    function setStatus(text, isError) {
+      status.textContent = text;
+      if (isError) status.setAttribute('data-sellf-coupon-error', 'true');
+      else status.removeAttribute('data-sellf-coupon-error');
+      status.style.color = isError ? '#b91c1c' : '#047857';
+    }
+
+    // The coupon field is built once the first response shows the product is paid.
+    // It starts disabled: a run is always in flight at that point.
+    function ensureLayout() {
+      if (stripeSlot) return;
+      var form = document.createElement('form');
+      form.className = 'sellf-coupon';
+      form.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:0 16px 12px;font-family:system-ui,-apple-system,sans-serif;';
+      input = document.createElement('input');
+      input.type = 'text';
+      input.name = 'coupon';
+      input.autocomplete = 'off';
+      input.placeholder = 'Coupon code';
+      input.setAttribute('aria-label', 'Coupon code');
+      input.value = initialCoupon || '';
+      input.style.cssText = 'flex:1;min-width:140px;box-sizing:border-box;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;color:#1f2937;outline:none;';
+      applyButton = document.createElement('button');
+      applyButton.type = 'submit';
+      applyButton.disabled = true;
+      applyButton.textContent = 'Apply';
+      applyButton.style.cssText = 'padding:8px 16px;background:#5b8def;color:#fff;border:0;border-radius:9999px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;';
+      status = document.createElement('div');
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      status.style.cssText = 'flex-basis:100%;font-size:13px;min-height:18px;';
+      form.appendChild(input);
+      form.appendChild(applyButton);
+      form.appendChild(status);
+      gateSlot = document.createElement('div');
+      stripeSlot = document.createElement('div');
+      host.textContent = '';
+      host.appendChild(form);
+      host.appendChild(gateSlot);
+      host.appendChild(stripeSlot);
+      stripeSlot.appendChild(createLoader());
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        if (!applyButton.disabled) run(input.value.trim());
+      });
+    }
+
+    // Resolves to a paid session body, or null when the product turned out to be free.
+    function requestSession(coupon) {
+      return postJson(CHECKOUT_PATH, productSlug, payload(coupon)).then(function (body) {
+        if (body.kind === 'free') {
+          renderFreeForm(host, productSlug, body.captcha || null);
+          return null;
+        }
+        ensureLayout();
+        if (body.kind === 'paid_needs_captcha') {
+          return renderPaidCaptchaGate(gateSlot, body.captcha, productSlug).then(function (token) {
+            gateSlot.textContent = '';
+            return postJson(CHECKOUT_PATH, productSlug, payload(coupon, token));
+          });
+        }
+        return body;
+      });
+    }
+
+    function mountSession(body) {
+      if (body.kind !== 'paid' || !body.clientSecret) {
+        showMessage(host, 'Unexpected response from Sellf.');
+        return Promise.resolve(false);
+      }
+      if (!publishableKey) {
+        showMessage(host, 'Checkout is not configured.');
+        return Promise.resolve(false);
+      }
+      if (stripeCheckout && typeof stripeCheckout.destroy === 'function') {
+        try { stripeCheckout.destroy(); } catch (e) { /* ignore */ }
+      }
+      stripeCheckout = null;
+      return mountStripeInto(stripeSlot, body.clientSecret).then(function (checkout) {
+        stripeCheckout = checkout;
+        if (onMounted) onMounted(checkout);
+        return true;
+      });
+    }
+
+    function run(coupon, rejection) {
+      if (applyButton) {
+        applyButton.disabled = true;
+        setStatus(rejection || '', !!rejection);
+      }
+      return requestSession(coupon).then(function (body) {
+        return body ? mountSession(body) : false;
+      }).then(function (mounted) {
+        if (!stripeSlot) return;
+        applyButton.disabled = false;
+        if (mounted && coupon) setStatus('Coupon ' + coupon.toUpperCase() + ' applied.', false);
+      }, function (error) {
+        var couponProblem = coupon && error.status !== 403 && error.status !== 404;
+        if (!couponProblem) {
+          showMessage(host, error.message);
+          return;
+        }
+        ensureLayout();
+        input.value = coupon;
+        // With a checkout already mounted it stays as is; otherwise (a rejected
+        // prefilled code) start one without the coupon.
+        if (stripeCheckout) {
+          applyButton.disabled = false;
+          setStatus(error.message, true);
+          return;
+        }
+        return run('', error.message);
+      });
+    }
+
+    return run(initialCoupon || '');
+  }
+
   function renderModalTrigger(root, productSlug, options) {
     ensureStyles();
     var button = document.createElement('button');
@@ -336,33 +481,7 @@ export async function GET() {
     button.addEventListener('click', function () {
       button.disabled = true;
       var modal = openModalOverlay();
-      var basePayload = { productSlug: productSlug, email: options.email || undefined };
-      postJson('/api/embed/checkout-session', productSlug, basePayload).then(function (body) {
-        if (body.kind === 'free') {
-          renderFreeForm(modal.slot, productSlug, body.captcha || null);
-        } else if (body.kind === 'paid_needs_captcha') {
-          return renderPaidCaptchaGate(modal.slot, body.captcha, productSlug).then(function (token) {
-            modal.slot.textContent = '';
-            modal.slot.appendChild(createLoader());
-            return postJson('/api/embed/checkout-session', productSlug, Object.assign({}, basePayload, { turnstileToken: token }));
-          }).then(function (next) {
-            if (next.kind === 'paid' && next.clientSecret) {
-              return mountStripeInto(modal.slot, next.clientSecret).then(function (checkout) {
-                modal.attachStripeCheckout(checkout);
-              });
-            }
-            modal.slot.textContent = 'Unexpected response from Sellf.';
-          });
-        } else if (body.kind === 'paid' && body.clientSecret) {
-          return mountStripeInto(modal.slot, body.clientSecret).then(function (checkout) {
-            modal.attachStripeCheckout(checkout);
-          });
-        } else {
-          modal.slot.textContent = 'Unexpected response from Sellf.';
-        }
-      }).catch(function (error) {
-        modal.slot.textContent = error.message;
-      }).finally(function () {
+      startCheckout(modal.slot, productSlug, options.email, options.coupon, modal.attachStripeCheckout).then(function () {
         button.disabled = false;
       });
     });
@@ -370,46 +489,19 @@ export async function GET() {
     return { setLabel: setLabel };
   }
 
-  function renderInline(root, productSlug, email) {
+  function renderInline(root, productSlug, email, coupon) {
     // Show spinner immediately so the host page doesn't render a blank box
     // for the ~400-800ms until Stripe Embedded paints its iframe.
-    // mountStripeInto / renderFreeForm both clear root before mounting.
+    // startCheckout clears root before mounting.
     root.textContent = '';
     root.appendChild(createLoader());
-
-    var basePayload = { productSlug: productSlug, email: email || undefined };
-    postJson('/api/embed/checkout-session', productSlug, basePayload).then(function (body) {
-      if (body.kind === 'free') {
-        renderFreeForm(root, productSlug, body.captcha || null);
-      } else if (body.kind === 'paid_needs_captcha') {
-        return renderPaidCaptchaGate(root, body.captcha, productSlug).then(function (token) {
-          root.textContent = '';
-          root.appendChild(createLoader());
-          return postJson('/api/embed/checkout-session', productSlug, Object.assign({}, basePayload, { turnstileToken: token }));
-        }).then(function (next) {
-          if (next.kind === 'paid' && next.clientSecret) {
-            if (!publishableKey) { showMessage(root, 'Checkout is not configured.'); return; }
-            return mountStripeInto(root, next.clientSecret);
-          }
-          showMessage(root, 'Unexpected response from Sellf.');
-        });
-      } else if (body.kind === 'paid' && body.clientSecret) {
-        if (!publishableKey) {
-          showMessage(root, 'Checkout is not configured.');
-          return;
-        }
-        return mountStripeInto(root, body.clientSecret);
-      } else {
-        showMessage(root, 'Unexpected response from Sellf.');
-      }
-    }).catch(function (error) {
-      showMessage(root, error.message);
-    });
+    startCheckout(root, productSlug, email, coupon);
   }
 
   function initEmbed(root) {
     var productSlug = root.getAttribute('data-product-slug');
     var email = root.getAttribute('data-email') || '';
+    var coupon = (root.getAttribute('data-coupon') || '').trim();
     var modal = root.getAttribute('data-modal') === 'true';
     var buttonLabel = root.getAttribute('data-button-label') || '';
     var showPrice = root.getAttribute('data-show-price') === 'true';
@@ -426,6 +518,7 @@ export async function GET() {
       var trigger = renderModalTrigger(root, productSlug, {
         buttonLabel: buttonLabel,
         email: email,
+        coupon: coupon,
         initialPriceText: showPrice ? { loading: true } : '',
       });
 
@@ -448,7 +541,7 @@ export async function GET() {
       return;
     }
 
-    renderInline(root, productSlug, email);
+    renderInline(root, productSlug, email, coupon);
   }
 
   document.querySelectorAll('[data-sellf-embed]').forEach(initEmbed);

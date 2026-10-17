@@ -79,7 +79,7 @@ function NoneProviderAutoVerify({ onVerify }: { onVerify: (token: string) => voi
 
   if (process.env.NODE_ENV === 'development') {
     return (
-      <div className="text-xs text-sf-muted opacity-50 text-center mb-2">
+      <div className="text-xs text-sf-muted text-center mb-2">
         No captcha provider configured
       </div>
     )

@@ -231,11 +231,11 @@ test.describe('Authenticated Admin Dashboard', () => {
 
     // 3. Verify in UI
     await loginAsAdmin(page, adminEmail, adminPassword);
-    await page.goto('/dashboard/order-bumps');
+    await page.goto('/pl/dashboard/order-bumps');
 
     const row = page.locator('tr', { hasText: mainProduct.name }).first();
     await expect(row).toBeVisible({ timeout: 10000 });
-    await expect(row).toContainText('5');
+    await expect(row.getByRole('cell', { name: /^5,00\s+USD$/ })).toBeVisible();
 
     // 4. Edit (Update Price)
     await row.getByRole('button', { name: /Edit|Edytuj/i }).click();
@@ -246,7 +246,7 @@ test.describe('Authenticated Admin Dashboard', () => {
     await modal.locator('button[type="submit"]').click();
     
     // Verify Update
-    await expect(row).toContainText('7.5');
+    await expect(row.getByRole('cell', { name: /^7,50\s+USD$/ })).toBeVisible();
 
     // 5. Delete
     await row.getByRole('button', { name: /Delete|Usuń/i }).click();

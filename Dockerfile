@@ -19,7 +19,7 @@ RUN bun install --frozen-lockfile --ignore-scripts
 # Next.js builds and runs on Node, as in CI (build job) and on production (PM2 --interpreter
 # node). In oven/bun images `node` is a Bun shim, and Bun 1.3.14 segfaults at the end of
 # `next build` with Next 16.3.
-FROM node:22-slim AS node-base
+FROM node:22.23.3-trixie-slim@sha256:154ba2f4d6fec323d28e4f4bb86bba4677f1223391a1979cf521304e03a98dfa AS node-base
 
 # --- Build ---
 FROM node-base AS builder
@@ -48,7 +48,13 @@ RUN node node_modules/next/dist/bin/next build
 FROM node-base AS runner
 WORKDIR /app
 
-RUN groupadd --gid 1001 nodejs && \
+# Runtime starts standalone server.js and healthchecks through Node. Container
+# updates replace the image; package managers are needed only in build stages.
+RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/* /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack && \
+    rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack && \
+    groupadd --gid 1001 nodejs && \
     useradd --uid 1001 --gid nodejs --no-create-home --shell /usr/sbin/nologin nextjs
 
 # Standalone output — server.js lands at /app/server.js
@@ -67,6 +73,6 @@ COPY supabase/templates ./supabase/templates/
 USER nextjs
 
 EXPOSE 3000
-ENV PORT=3000 HOSTNAME="0.0.0.0"
+ENV PORT=3000 HOSTNAME="0.0.0.0" SELLF_DEPLOYMENT_RUNTIME="docker"
 
 CMD ["node", "server.js"]

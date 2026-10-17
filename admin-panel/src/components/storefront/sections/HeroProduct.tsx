@@ -1,6 +1,7 @@
 /** Server-rendered product hero. @see spec/contracts/section-contract.md */
 import Image from 'next/image';
 import OfferFocus from '@/components/storefront/sections/OfferFocus';
+import { PublicProductPrice } from '@/components/storefront/PublicProductFacts';
 import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
 import type { OfferFocusProps } from '@/lib/storefront-templates/phase2-contracts';
@@ -14,7 +15,7 @@ export default function HeroProduct(props: HeroProductProps | OfferFocusProps): 
   const messages = locale === 'pl' ? pl : en;
   const available = product?.availability === 'available';
   const steps = content?.steps.filter(step => step.trim()) ?? [];
-  return <section className={styles.hero} data-variant={variant}>
+  return <section className={styles.hero} lang={locale} data-variant={variant}>
     <div className={styles.layout}>
       <div className={styles.copy}>
         {content?.eyebrow.trim() && <p className={styles.eyebrow}>{content.eyebrow}</p>}
@@ -23,7 +24,7 @@ export default function HeroProduct(props: HeroProductProps | OfferFocusProps): 
           {content?.body.trim() && <p className={styles.lead}>{content.body}</p>}
           <div className={styles.offer}>
             <div className={styles.price}>
-              <p>{product.price.display}</p>
+              <p><PublicProductPrice price={product.price} locale={locale} /></p>
               {product.price.taxNote && <p className={styles.note}>{product.price.taxNote}</p>}
               {product.price.omnibus && <p className={styles.note}>{product.price.omnibus}</p>}
             </div>

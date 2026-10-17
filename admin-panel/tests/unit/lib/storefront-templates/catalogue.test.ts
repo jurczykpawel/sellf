@@ -73,6 +73,29 @@ describe('storefront catalogue', () => {
     expect(result.data.products[3].price).toMatchObject({ display: '10,00 USD', omnibus: expect.stringContaining('18,00 USD') });
     expect(result.data.products[0].actions.buy).toBe('/pl/checkout/example-1');
   });
+  it('projects the existing buyer facts with regular sale price and normalized availability', async () => {
+    const description = 'A retained description with Polish glyphs: ąęłńóśźż.';
+    const result = await loadCataloguePage(client([{ ...row(), description, auto_grant_duration_days: 30,
+      available_until: '2030-01-02T12:00:00+00:00', sale_price: 10, lowest_prior_price: 18 }]).db, input);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.products[0]).toMatchObject({ description, accessDurationDays: 30,
+      availableUntil: '2030-01-02T12:00:00.000Z', availableUntilLabel: expect.stringContaining('UTC'),
+      price: { display: '$10.00', originalDisplay: '$20.00', omnibus: expect.stringContaining('$18.00') } });
+    expect(JSON.stringify(result)).not.toContain('PRIVATE_');
+  });
+  it('does not present expired, exhausted or non-discount prices as reductions', async () => {
+    const result = await loadCataloguePage(client([
+      { ...row(1), sale_price: 10, sale_price_until: '2000-01-01T00:00:00Z' },
+      { ...row(2), sale_price: 10, sale_quantity_limit: 1, sale_quantity_sold: 1 },
+      { ...row(3), sale_price: 20 },
+      { ...row(4), price: 0, auto_grant_duration_days: 7 },
+    ]).db, input);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    for (const value of result.data.products) expect(value.price).not.toHaveProperty('originalDisplay');
+    expect(result.data.products[3]).toMatchObject({ accessDurationDays: 7, price: { display: 'Free', kind: 'free' } });
+  });
   it('omits unsupported image URLs and returns errors without rows', async () => {
     const withCredentials = new URL('https://example.com/a');
     withCredentials.username = 'example';

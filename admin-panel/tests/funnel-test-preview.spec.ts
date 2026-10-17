@@ -20,7 +20,7 @@ import { acceptAllCookies } from './helpers/consent';
 
 test.describe('Admin Funnel Test Preview', () => {
   // run sequentially because data setup is shared
-  test.describe.configure({ mode: 'serial', retries: 1 });
+  test.describe.configure({ mode: 'serial' });
 
   // increase default test timeout to give slow environments extra margin
   test.setTimeout(60_000);

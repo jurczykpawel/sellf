@@ -5,6 +5,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { getUpgradeCapability } from '@/lib/system/upgrade-runtime-server';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -73,6 +74,7 @@ export async function GET(request: NextRequest) {
     const activeApiKeys = activeApiKeysResult.count;
 
     const response = {
+      upgrade: getUpgradeCapability(),
       status: databaseHealthy ? 'healthy' : 'degraded',
       timestamp: now.toISOString(),
       version: {

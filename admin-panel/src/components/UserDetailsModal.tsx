@@ -52,11 +52,8 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchUserProfile = useCallback(async () => {
+  const loadUserProfile = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-
       const response = await fetch(`/api/users/${userId}/profile`);
       if (!response.ok) {
         throw new Error(`Failed to fetch user profile: ${response.status}`);
@@ -71,11 +68,20 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
     }
   }, [userId, t]);
 
+  const requestKey = JSON.stringify([userId, isOpen]);
+  const [previousKey, setPreviousKey] = useState(requestKey);
+  if (previousKey !== requestKey) {
+    setPreviousKey(requestKey);
+    setLoading(true);
+    setError(null);
+  }
+
   useEffect(() => {
     if (isOpen && userId) {
-      fetchUserProfile();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
+      loadUserProfile();
     }
-  }, [isOpen, userId, fetchUserProfile]);
+  }, [isOpen, userId, loadUserProfile]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return t('modal.never');
@@ -106,8 +112,8 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
             <div className="w-8 h-8 bg-sf-raised animate-pulse" />
           )
         }
-        badge={userProfile ? 
-          { text: `${userProfile.access.length} ${t('modal.productsCount', { count: userProfile.access.length })}`, variant: 'neutral' } : 
+        badge={userProfile ?
+          { text: `${userProfile.access.length} ${t('modal.productsCount', { count: userProfile.access.length })}`, variant: 'neutral' } :
           undefined
         }
       />
@@ -145,7 +151,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                   </p>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-sf-base p-4 border-2 border-sf-border-medium">
                   <p className="text-sm text-sf-muted">{t('modal.joined')}</p>

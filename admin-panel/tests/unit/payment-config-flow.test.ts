@@ -62,6 +62,9 @@ const checkoutPagePath = resolve(
 );
 const checkoutPageSource = readFileSync(checkoutPagePath, 'utf-8');
 
+const purchasePagePath = resolve(__dirname, '../../src/components/ProductPurchasePage.tsx');
+const purchasePageSource = readFileSync(purchasePagePath, 'utf-8');
+
 const stripeClientPath = resolve(
   __dirname,
   '../../src/lib/stripe/client.ts'
@@ -270,7 +273,12 @@ describe('custom checkout form source verification', () => {
   it('does not force currency fallback payment method ordering for dynamic mode', () => {
     expect(customPaymentFormSource).toContain('paymentMethodOrder && paymentMethodOrder.length > 0');
     expect(customPaymentFormSource).not.toContain("product.currency === 'PLN'");
-    expect(checkoutPageSource).toContain("paymentConfig?.config_mode === 'custom'");
+    expect(checkoutPageSource).toContain("import ProductPurchasePage from '@/components/ProductPurchasePage'");
+    expect(checkoutPageSource).toContain('return <ProductPurchasePage product={product} />');
+    expect(purchasePageSource).toMatch(
+      /const paymentMethodOrder = paymentConfig\?\.config_mode === 'custom'\s*\? getEffectivePaymentMethodOrder\(paymentConfig, product\.currency\)\s*: undefined;/,
+    );
+    expect(purchasePageSource).toContain('paymentMethodOrder={paymentMethodOrder}');
   });
 
   // ---- Stripe Custom Checkout contract guards (added after billing/return URL

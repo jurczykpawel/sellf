@@ -116,4 +116,30 @@ describe('loadAllowedOriginsForProduct', () => {
     ]);
     await expect(loadAllowedOriginsForProduct(client, null)).resolves.toEqual(['https://env.example']);
   });
+
+  describe('couponCode field', () => {
+    it('accepts an optional coupon code and trims it', () => {
+      expect(parseEmbedCheckoutBody({ productSlug: 'kurs-ai', couponCode: '  SAVE20 ' })).toEqual({
+        ok: true,
+        value: { productSlug: 'kurs-ai', couponCode: 'SAVE20' },
+      });
+    });
+
+    it('treats an empty coupon code as absent', () => {
+      expect(parseEmbedCheckoutBody({ productSlug: 'kurs-ai', couponCode: '   ' })).toEqual({
+        ok: true,
+        value: { productSlug: 'kurs-ai' },
+      });
+    });
+
+    it.each([123, ['SAVE'], { code: 'SAVE' }, 'A'.repeat(65), 'SAVE 20', 'SAVE;DROP'])(
+      'rejects malformed coupon code %j',
+      (couponCode) => {
+        expect(parseEmbedCheckoutBody({ productSlug: 'kurs-ai', couponCode })).toEqual({
+          ok: false,
+          error: 'Invalid request',
+        });
+      },
+    );
+  });
 });

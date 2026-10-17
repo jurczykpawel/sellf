@@ -1280,7 +1280,7 @@ test.describe('OTO Checkout Page E2E', () => {
 
     // Navigate to checkout with OTO params (email, coupon, oto=1)
     await page.goto(
-      `/checkout/${otoProduct.slug}?email=${encodeURIComponent(testEmail)}&coupon=${couponCode}&oto=1`
+      `/en/checkout/${otoProduct.slug}?email=${encodeURIComponent(testEmail)}&coupon=${couponCode}&oto=1`
     );
 
     // Wait for page DOM to load (don't use networkidle — Stripe makes continuous requests)
@@ -1300,9 +1300,9 @@ test.describe('OTO Checkout Page E2E', () => {
       page.getByText(/discount applied|zastosowano zniżkę/i)
     ).toBeVisible({ timeout: 15000 });
 
-    // 4. Should show the discount amount ($20 or 20 USD) - use first() as it may appear multiple times
+    // 4. The English checkout shows the exact two-decimal discount.
     await expect(
-      page.getByText(/20\s*(USD|\$)/i).first()
+      page.getByText('-$20.00', { exact: true })
     ).toBeVisible({ timeout: 10000 });
 
     // 5. Coupon should show verified state (green checkmark icon or success state)
@@ -1317,7 +1317,7 @@ test.describe('OTO Checkout Page E2E', () => {
     await acceptAllCookies(page);
 
     await page.goto(
-      `/checkout/${otoProduct.slug}?email=${encodeURIComponent(testEmail)}&coupon=${couponCode}&oto=1`
+      `/en/checkout/${otoProduct.slug}?email=${encodeURIComponent(testEmail)}&coupon=${couponCode}&oto=1`
     );
 
     // Wait for page DOM to load (don't use networkidle — Stripe makes continuous requests)

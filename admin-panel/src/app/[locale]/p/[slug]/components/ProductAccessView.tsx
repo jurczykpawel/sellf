@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import Confetti from 'react-confetti';
@@ -55,21 +55,33 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
   const t = useTranslations('productView');
   const tContent = useTranslations('digitalContent');
   const locale = useLocale();
-  
-  const [showConfetti, setShowConfetti] = useState(false);
+
+  const paymentSuccess = useSyncExternalStore(
+    () => () => {},
+    () => new URLSearchParams(window.location.search).get('payment') === 'success',
+    () => false,
+  );
   const [countdown, setCountdown] = useState(3);
   const [licenseCopied, setLicenseCopied] = useState(false);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const viewport = useSyncExternalStore(
+    (notify) => {
+      window.addEventListener('resize', notify, { passive: true });
+      return () => window.removeEventListener('resize', notify);
+    },
+    () => `${window.innerWidth},${window.innerHeight}`,
+    () => '0,0',
+  );
+  const [width, height] = viewport.split(',').map(Number);
+  const dimensions = { width, height };
+  const showConfetti = paymentSuccess && countdown > 0;
   const [secureData, setSecureData] = useState<SecureProductData | null>(initialSecureData ?? null);
   const [loading, setLoading] = useState(!initialSecureData);
   const [error, setError] = useState<string | null>(null);
-  // Footer date — rendered client-side only. Locale-dependent toLocaleDateString
-  // would otherwise mismatch between Node (server) and browser, breaking
-  // hydration of the Suspense boundary that wraps this page.
-  const [todayLabel, setTodayLabel] = useState<string | null>(null);
-  useEffect(() => {
-    setTodayLabel(new Date().toLocaleDateString());
-  }, []);
+  const todayLabel = useSyncExternalStore(
+    () => () => {},
+    () => new Date().toLocaleDateString(),
+    () => null,
+  );
 
   // Fetch secure product data from API (skipped in preview mode + when the
   // server already prefetched the payload).
@@ -182,48 +194,15 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
     });
   };
 
-  // Check if this is a fresh access grant (from payment success)
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentSuccess = urlParams.get('payment') === 'success';
-    
-    if (paymentSuccess) {
-      setShowConfetti(true);
-      
-      // Set window dimensions for confetti
-      const { innerWidth, innerHeight } = window;
-      setDimensions({ width: innerWidth, height: innerHeight });
-
-      const handleResize = () => {
-        setDimensions({ width: window.innerWidth, height: window.innerHeight });
-      };
-
-      window.addEventListener('resize', handleResize, { passive: true });
-      return () => window.removeEventListener('resize', handleResize);
-    }
-  }, []);
-
-  // Handle countdown timer
-  useEffect(() => {
-    if (showConfetti && countdown > 0) {
-      const timer = setTimeout(() => {
-        setCountdown(prev => prev - 1);
-      }, 1000);
-      
+    if (!paymentSuccess) return;
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(previous => previous - 1), 1000);
       return () => clearTimeout(timer);
-    } else if (showConfetti && countdown === 0) {
-      // Check for return URL — uses shared isSafeRedirectUrl validation
-      const urlParams = new URLSearchParams(window.location.search);
-      const rawReturnUrl = urlParams.get('return_url');
-
-      if (rawReturnUrl && isSafeRedirectUrl(rawReturnUrl)) {
-        window.location.href = rawReturnUrl;
-        return;
-      }
-      // No valid return URL, stop confetti and show content
-      setShowConfetti(false);
     }
-  }, [showConfetti, countdown]);
+    const rawReturnUrl = new URLSearchParams(window.location.search).get('return_url');
+    if (rawReturnUrl && isSafeRedirectUrl(rawReturnUrl)) window.location.href = rawReturnUrl;
+  }, [paymentSuccess, countdown]);
 
   // Show success animation
   if (showConfetti) {
@@ -296,13 +275,13 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
     return (
       <>
         <div className="flex justify-center items-center min-h-screen bg-sf-deep overflow-hidden relative font-sans">
-          <div 
+          <div
             className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_20%_20%,var(--sf-accent-glow)_0%,transparent_40%),radial-gradient(circle_at_80%_70%,var(--sf-accent-glow)_0%,transparent_40%)]"
             style={{
               animation: 'aurora 20s infinite linear',
             }}
           />
-          
+
           <style jsx>{`
             @keyframes aurora {
               0% { background-position: 0% 50%; }
@@ -310,7 +289,7 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
               100% { background-position: 0% 50%; }
             }
           `}</style>
-          
+
           <div className="max-w-md mx-auto p-8 bg-sf-raised/80 backdrop-blur-md border border-sf-border rounded-2xl shadow-[var(--sf-shadow-accent)] z-10 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sf-accent mx-auto mb-4"></div>
             <h2 className="text-xl font-semibold text-sf-heading mb-2">{t('redirectingTitle')}</h2>

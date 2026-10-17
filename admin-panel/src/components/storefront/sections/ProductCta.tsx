@@ -1,6 +1,7 @@
 /** Closing offer using core product prices and destinations. @see faq-closing.ts */
 import { useId } from 'react';
 import { hasCoreProductActions } from '@/lib/storefront-templates/faq-closing';
+import { PublicProductPrice } from '@/components/storefront/PublicProductFacts';
 import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
 import type { CatalogueLinkProps } from '@/lib/storefront-templates/phase2-contracts';
@@ -29,7 +30,7 @@ export default function ProductCta(props: ProductCtaProps | CatalogueLinkProps) 
       </div>
       <div className={styles.product}>
         {heading !== product.title && <h3>{product.title}</h3>}
-        {available ? <><div className={styles.price}>{product.price.display}</div>
+        {available ? <><div className={styles.price}><PublicProductPrice price={product.price} locale={locale} /></div>
           {product.price.taxNote && <small>{product.price.taxNote}</small>}
           {product.price.omnibus && <small>{product.price.omnibus}</small>}</>
           : <div>{messages.availabilityBanner.productUnavailable}</div>}

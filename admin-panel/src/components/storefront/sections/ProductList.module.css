@@ -24,7 +24,8 @@
 .compact .cover { flex: 0 0 76px; width: 76px; height: 54px; aspect-ratio: auto; border: 0; }
 .compact .body { padding: 0; flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 24px; }
 .compact :is(h2, h3) { margin: 0; font-size: 20px; }
-.compact .buyrow { border: 0; padding-top: 0; gap: 24px; }
+.compact .buyrow { grid-column: 2; grid-row: 1; border: 0; padding-top: 0; gap: 24px; }
+.compact .outcome { grid-column: 1 / -1; grid-row: 2; min-height: 0; margin-top: 8px; }
 .compact .price { font-size: 22px; }
 .disclosure { grid-column: 1 / -1; margin-top: 8px; border-top: 1px solid var(--sf-border); }
 .disclosure summary { cursor: pointer; min-height: 44px; padding: 10px 3px; font-size: 12px; font-weight: 600; }

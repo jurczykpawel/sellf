@@ -18,10 +18,12 @@ import type { Database } from '@/types/database';
 
 export interface PublicPriceInfo {
   display: string; taxNote: string | null; omnibus: string | null;
+  originalDisplay?: string;
   kind: 'free' | 'one-time' | 'subscription' | 'pwyw';
 }
 export interface PublicProductInfo {
   id: string; slug: string; title: string; price: PublicPriceInfo; marketing: ProductMarketingFields;
+  description?: string; accessDurationDays?: number; availableUntil?: string; availableUntilLabel?: string;
   image: { src: string; alt: string; width: number; height: number } | null;
   actions: { details: string; buy: string }; availability: 'available' | 'unavailable';
 }
@@ -50,9 +52,16 @@ const rowSchema = z.object({
   sale_quantity_limit: z.number().nullable(), sale_quantity_sold: z.number().nullable(), marketing_fields: marketingFieldsSchema,
   image_url: z.string().nullable(), vat_rate: z.number().nullable(), vat_exempt: z.boolean(), vat_exempt_note: z.string().max(500).nullable(),
   price_includes_vat: z.boolean(), tax_mode: z.enum(['local', 'stripe_tax']), lowest_prior_price: z.number().nullable(),
+  description: z.string().refine(value => Array.from(value).length <= 280).nullable().default(null),
+  auto_grant_duration_days: z.number().int().nonnegative().nullable().default(null),
+  available_until: z.iso.datetime({ offset: true }).nullable().default(null),
 });
 type ProductRow = z.infer<typeof rowSchema>;
 type Filters = z.infer<typeof filtersSchema>;
+const AVAILABILITY_FORMATTERS = {
+  en: new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }),
+  pl: new Intl.DateTimeFormat('pl-PL', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }),
+};
 
 function digestFilters(filters: Filters): string {
   return createHash('sha256').update(JSON.stringify({ ...filters, cursor: null, sortVersion: 1 })).digest('hex');
@@ -69,7 +78,8 @@ function image(row: ProductRow): PublicProductInfo['image'] {
 function projectProduct(row: ProductRow, locale: 'en' | 'pl'): PublicProductInfo {
   const messages = locale === 'pl' ? pl : en;
   const kind: PublicPriceInfo['kind'] = row.product_type === 'subscription' ? 'subscription' : row.allow_custom_price ? 'pwyw' : row.price === 0 ? 'free' : 'one-time';
-  const amount = formatPrice(getEffectiveUnitPrice(row), row.currency, locale);
+  const effectiveAmount = getEffectiveUnitPrice(row);
+  const amount = formatPrice(effectiveAmount, row.currency, locale);
   const display = kind === 'free' ? messages.checkout.customPrice.freePreset
     : kind === 'subscription' ? formatRecurringProductPrice(row, locale) ?? formatPrice(row.recurring_price ?? 0, row.currency, locale)
     : kind === 'pwyw' ? messages.admin.products.pwywFromLabel.replace('{amount}', formatPrice(row.custom_price_min ?? STRIPE_MINIMUM_AMOUNT, row.currency, locale)) : amount;
@@ -78,7 +88,12 @@ function projectProduct(row: ProductRow, locale: 'en' | 'pl'): PublicProductInfo
     : row.price_includes_vat ? `${messages.checkout.includingVat} ${vat.rate}%` : `+ ${messages.checkout.vat} ${vat.rate}%`;
   const omnibus = kind === 'one-time' && row.lowest_prior_price !== null && isSalePriceActive(row.sale_price, row.sale_price_until, row.sale_quantity_limit, row.sale_quantity_sold)
     ? `${messages.checkout.lowestPriceLabel}: ${formatPrice(row.lowest_prior_price, row.currency, locale)}` : null;
-  return { id: row.id, slug: row.slug, title: row.name, price: { display, taxNote, omnibus, kind }, marketing: row.marketing_fields,
+  const originalDisplay = kind === 'one-time' && effectiveAmount < row.price ? formatPrice(row.price, row.currency, locale) : undefined;
+  const availableUntil = row.available_until ? new Date(row.available_until).toISOString() : undefined;
+  return { id: row.id, slug: row.slug, title: row.name, price: { display, taxNote, omnibus, kind, ...(originalDisplay ? { originalDisplay } : {}) }, marketing: row.marketing_fields,
+    ...(row.description?.trim() ? { description: row.description.trim() } : {}),
+    ...(kind !== 'subscription' && row.auto_grant_duration_days && row.auto_grant_duration_days > 0 ? { accessDurationDays: row.auto_grant_duration_days } : {}),
+    ...(availableUntil ? { availableUntil, availableUntilLabel: messages.productView.availableUntil.replace('{date}', `${AVAILABILITY_FORMATTERS[locale].format(new Date(availableUntil))} UTC`) } : {}),
     image: image(row), actions: { details: `/${locale}${productUrl(row.slug)}`, buy: `/${locale}${checkoutUrl(row.slug)}` }, availability: 'available' };
 }
 
@@ -121,7 +136,7 @@ export async function loadCataloguePage(client: SupabaseClient<Database>, input:
       return page ? { success: true, data: page } : { success: false, error: 'UNAVAILABLE' };
     }
     const entry = await boundedPublicRead(
-      ['catalogue', '1', filters.locale, filters.group, String(filters.pageSize)], ['storefront-products'],
+      ['catalogue', '2', filters.locale, filters.group, String(filters.pageSize)], ['storefront-products'],
       async () => {
         const boundary = await readCatalogueBoundary(client);
         const page = await read();

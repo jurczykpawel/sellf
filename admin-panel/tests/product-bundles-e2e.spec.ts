@@ -40,7 +40,7 @@ import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-au
 import { acceptAllCookies } from './helpers/consent';
 
 test.describe('Product Bundles E2E', () => {
-  test.describe.configure({ mode: 'serial', retries: 1 });
+  test.describe.configure({ mode: 'serial' });
   test.setTimeout(90_000);
 
   const ts = Date.now();
@@ -295,7 +295,7 @@ test.describe('Product Bundles E2E', () => {
     // and only advances when valid. The price input's onChange commits
     // `formData.price`/`priceDisplayValue` asynchronously, so a click that lands
     // before that state (and the re-rendered handler closure) settles silently
-    // no-ops — the wizard stays on step 1 and `#bundle-search` never mounts. Gate
+    // no-ops — the wizard stays on step 1 and the component picker never mounts. Gate
     // the click on a deterministic signal that the price state has committed: the
     // publish checklist's `price` item turns OK on exactly the same condition the
     // step-1 validator checks (priceDisplayValue !== '' && price > 0).
@@ -316,18 +316,23 @@ test.describe('Product Bundles E2E', () => {
         await expect(step2Heading).toBeVisible({ timeout: 2000 });
       }
     }).toPass({ timeout: 10000 });
-    await expect(dialog.locator('input#bundle-search')).toBeVisible({ timeout: 10000 });
+    const picker = dialog.getByRole('region', { name: 'Dodaj składnik', exact: true });
+    const search = picker.getByRole('searchbox');
+    await expect(search).toBeVisible({ timeout: 10000 });
 
     // --- Step 2: add both seeded components via the picker. ---
     const addComponent = async (name: string) => {
-      await dialog.locator('input#bundle-search').fill(name);
-      await dialog.getByRole('button', { name: new RegExp(name) }).first().click();
+      await search.fill(name);
+      await picker.getByRole('button', { name: `Dodaj ${name}`, exact: true }).click();
     };
     await addComponent(componentAName);
     await addComponent(componentBName);
 
-    // Both components appear in the "Wybrane składniki (2)" selected list.
-    await expect(dialog.getByText('Wybrane składniki (2)')).toBeVisible({ timeout: 5000 });
+    // Both components remain in their chosen order.
+    const selected = picker.locator('[data-reorder-list] > li');
+    await expect(selected).toHaveCount(2);
+    await expect(selected.nth(0)).toContainText(componentAName);
+    await expect(selected.nth(1)).toContainText(componentBName);
 
     // Live savings anchor: bundle 99 < 140 components → "oszczędzasz ... (...%)".
     await expect(dialog.getByText(/oszczędzasz/i)).toBeVisible({ timeout: 5000 });

@@ -77,11 +77,7 @@ export function useOto({
   // through the getter below so they always see the active promise instead
   // of a stale snapshot from an earlier render.
   const funnelTestOtoReadyRef = useRef<{ promise: Promise<void>; resolve: () => void }>(
-    (() => {
-      let resolve: () => void = () => {};
-      const promise = new Promise<void>((r) => { resolve = r; });
-      return { promise, resolve };
-    })(),
+    Promise.withResolvers<void>(),
   );
   const getFunnelTestOtoReady = useCallback(() => funnelTestOtoReadyRef.current.promise, []);
 

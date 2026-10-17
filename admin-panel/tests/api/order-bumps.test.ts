@@ -23,6 +23,7 @@ interface OrderBump {
   main_product?: {
     id: string;
     name: string;
+    currency: string;
   };
   bump_product?: {
     id: string;
@@ -165,6 +166,7 @@ describe('Order Bumps API v1', () => {
         expect(status).toBe(200);
         expect(data.data!.length).toBeGreaterThanOrEqual(1);
         expect(data.data!.some((ob) => ob.main_product_id === mainProductId)).toBe(true);
+        expect(data.data!.find((ob) => ob.id === createResponse.data.data!.id)?.main_product?.currency).toBe('USD');
       } finally {
         await supabase.from('order_bumps').delete().eq('id', createResponse.data.data!.id);
         await supabase.from('products').delete().eq('id', uniqueBump!.id);
@@ -209,6 +211,7 @@ describe('Order Bumps API v1', () => {
       expect(data.data!.main_product_id).toBe(mainProductId);
       expect(data.data!.bump_product_id).toBe(uniqueBump!.id);
       expect(data.data!.bump_title).toBe('Created via API Test');
+      expect(data.data!.main_product?.currency).toBe('USD');
 
       // Cleanup
       await supabase.from('order_bumps').delete().eq('id', data.data!.id);

@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 import path from 'path';
+import { SECTION_FIXTURE_FILES } from './playwright.sections.config';
 
 // Load environment variables from .env.local
 dotenv.config({ path: path.resolve(__dirname, '.env.local') });
@@ -32,7 +33,9 @@ const quietMode = process.env.QUIET_MODE === '1';
 // instead of the real frankfurter.dev host, via the webServer entry below — fixed rates,
 // no network dependency, no flakiness from a third-party API being slow/down/changed.
 // See scripts/fx-rate-stub-server.mjs.
-const FX_STUB_PORT = 3779;
+const FX_STUB_PORT = Number(process.env.FX_STUB_PORT || 3779);
+const APP_PORT = Number(process.env.PW_PORT || 3777);
+const APP_COMMAND = process.env.PW_PRODUCTION === '1' ? 'start' : 'dev';
 const FX_STUB_BASE_URL = `http://127.0.0.1:${FX_STUB_PORT}/v1`;
 
 // Visual test projects run a subset of tests at different viewports with screenshots
@@ -78,8 +81,9 @@ export default defineConfig({
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry failed tests once */
-  retries: 1,
+  /* A failed attempt is a failed run. */
+  retries: 0,
+  updateSnapshots: 'none',
   /* Use single worker for test stability (avoids race conditions with shared database) */
   workers: 1,
   /* Reporter: 'dot' in quiet mode (ttt/tttt), 'list' otherwise */
@@ -90,7 +94,7 @@ export default defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     // Playwright starts its own server on 3777 to avoid conflicts with other dev servers on 3000
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3777',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${APP_PORT}`,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -109,7 +113,7 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
       // Rate-limiting, visual, accessibility, and route-heavy specs are excluded here
-      testIgnore: ['**/stripe-live/**', '**/rate-limiting.spec.ts', '**/rate-limiting-v1.spec.ts', '**/accessibility.spec.ts', ...HEAVY_SPECS],
+      testIgnore: ['**/stripe-live/**', '**/rate-limiting.spec.ts', '**/rate-limiting-v1.spec.ts', '**/accessibility.spec.ts', ...HEAVY_SPECS, ...SECTION_FIXTURE_FILES.map(file => `**/${file}`)],
     },
     {
       // Route-dense specs split off so the sharded runner can isolate them on their own
@@ -214,9 +218,9 @@ export default defineConfig({
       // stub above instead of the real frankfurter.dev host (see currencyService.ts /
       // startup-assertions.ts — this override is refused outside test runs in production).
       command: isRateLimitTestMode
-        ? `NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true NEXT_PUBLIC_TURNSTILE_TEST_MODE=true CURRENCY_ECB_BASE_URL=${FX_STUB_BASE_URL} PORT=3777 RATE_LIMIT_TEST_MODE=true bun run dev`
-        : `NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true NEXT_PUBLIC_TURNSTILE_TEST_MODE=true CURRENCY_ECB_BASE_URL=${FX_STUB_BASE_URL} PORT=3777 bun run dev`,
-      url: 'http://localhost:3777',
+        ? `NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true NEXT_PUBLIC_TURNSTILE_TEST_MODE=${APP_COMMAND === 'start' ? 'false' : 'true'} CURRENCY_ECB_BASE_URL=${APP_COMMAND === 'start' ? '' : FX_STUB_BASE_URL} PORT=${APP_PORT} RATE_LIMIT_TEST_MODE=true bun run ${APP_COMMAND}`
+        : `NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true NEXT_PUBLIC_TURNSTILE_TEST_MODE=${APP_COMMAND === 'start' ? 'false' : 'true'} CURRENCY_ECB_BASE_URL=${APP_COMMAND === 'start' ? '' : FX_STUB_BASE_URL} PORT=${APP_PORT} bun run ${APP_COMMAND}`,
+      url: `http://localhost:${APP_PORT}`,
       // Never reuse — port 3000 may be occupied by another project (e.g. ReelStack)
       reuseExistingServer: process.env.PW_REUSE_SERVER === '1',
       stdout: quietMode ? 'ignore' : 'pipe',

@@ -17,12 +17,11 @@ export default function TemplateLicenses() {
   const [statuses, setStatuses] = useState<TemplateLicenseStatus[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const refresh = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const response = await fetch('/api/v1/templates/licenses', { cache: 'no-store', signal });
+  const refresh = useCallback((signal?: AbortSignal) => {
+    return fetch('/api/v1/templates/licenses', { cache: 'no-store', signal }).then(async response => {
       if (!response.ok) { if (!signal?.aborted) setMessage(t('failure')); return; }
       const data = await response.json(); if (!signal?.aborted) setStatuses(data.statuses);
-    } catch { if (!signal?.aborted) setMessage(t('failure')); }
+    }).catch(() => { if (!signal?.aborted) setMessage(t('failure')); });
   }, [t]);
   useEffect(() => {
     const controller = new AbortController();

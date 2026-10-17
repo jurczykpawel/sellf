@@ -64,40 +64,18 @@ export function usePaymentMethodConfig(): UsePaymentMethodConfigReturn {
   const [pmSource, setPmSource] = useState<ConfigSource>('default');
   const [pmEnvExists, setPmEnvExists] = useState(false);
 
-  // Auto-sync payment method order when custom methods change
-  useEffect(() => {
-    if (configMode === 'custom') {
-      const enabledTypes = customPaymentMethods
-        .filter(pm => pm.enabled)
-        .sort((a, b) => a.display_order - b.display_order)
-        .map(pm => pm.type);
-      setPaymentMethodOrder(enabledTypes);
-    }
-  }, [customPaymentMethods, configMode]);
+  const applyCustomPaymentMethods = useCallback((methods: PaymentMethodMetadata[]) => {
+    setCustomPaymentMethods(methods);
+    const enabledTypes = methods.filter(method => method.enabled)
+      .sort((a, b) => a.display_order - b.display_order).map(method => method.type);
+    setPaymentMethodOrder(enabledTypes);
+    setCurrencyOverrides(previous => Object.fromEntries(
+      Object.entries(previous).map(([currency, order]) => [currency, order.filter(type => enabledTypes.includes(type))])
+        .filter(([, order]) => order.length > 0),
+    ));
+  }, []);
 
-  // Auto-sync currency overrides when global methods change
-  useEffect(() => {
-    if (configMode !== 'custom') return;
-    const enabledTypes = new Set(
-      customPaymentMethods.filter(pm => pm.enabled).map(pm => pm.type)
-    );
-    setCurrencyOverrides(prev => {
-      const updated: Record<string, string[]> = {};
-      let changed = false;
-      for (const [currency, order] of Object.entries(prev)) {
-        const filtered = order.filter(type => enabledTypes.has(type));
-        if (filtered.length !== order.length) changed = true;
-        if (filtered.length > 0) {
-          updated[currency] = filtered;
-        } else {
-          changed = true;
-        }
-      }
-      return changed ? updated : prev;
-    });
-  }, [customPaymentMethods, configMode]);
-
-  function initializeCustomPaymentMethods() {
+  const initializeCustomPaymentMethods = useCallback(() => {
     const defaults: PaymentMethodMetadata[] = [
       { type: 'card', enabled: true, display_order: 0, currency_restrictions: [] },
       { type: 'blik', enabled: false, display_order: 1, currency_restrictions: ['PLN'] },
@@ -105,12 +83,11 @@ export function usePaymentMethodConfig(): UsePaymentMethodConfigReturn {
       { type: 'sepa_debit', enabled: false, display_order: 3, currency_restrictions: ['EUR'] },
       { type: 'ideal', enabled: false, display_order: 4, currency_restrictions: ['EUR'] },
     ];
-    setCustomPaymentMethods(defaults);
-  }
+    applyCustomPaymentMethods(defaults);
+  }, [applyCustomPaymentMethods]);
 
-  const loadConfig = useCallback(async () => {
+  const fetchConfig = useCallback(async () => {
     try {
-      setLoading(true);
       const [config, sourceResult] = await Promise.all([
         getPaymentMethodConfig(),
         getPaymentMethodSourceAction(),
@@ -126,7 +103,9 @@ export function usePaymentMethodConfig(): UsePaymentMethodConfigReturn {
         setStripePmcId(config.stripe_pmc_id || '');
         setStripePmcName(config.stripe_pmc_name || '');
         setCustomPaymentMethods(config.custom_payment_methods || []);
-        setPaymentMethodOrder(config.payment_method_order || []);
+        const enabledTypes = config.custom_payment_methods.filter(method => method.enabled)
+          .sort((a, b) => a.display_order - b.display_order).map(method => method.type);
+        setPaymentMethodOrder(config.config_mode === 'custom' ? enabledTypes : config.payment_method_order || []);
         setEnableExpressCheckout(config.enable_express_checkout);
         setEnableApplePay(config.enable_apple_pay);
         setEnableGooglePay(config.enable_google_pay);
@@ -134,7 +113,10 @@ export function usePaymentMethodConfig(): UsePaymentMethodConfigReturn {
         const rawOverrides = config.currency_overrides || {};
         const safeOverrides: Record<string, string[]> = {};
         for (const [k, v] of Object.entries(rawOverrides)) {
-          if (Array.isArray(v)) safeOverrides[k] = v;
+          if (Array.isArray(v)) {
+            const order = config.config_mode === 'custom' ? v.filter(type => enabledTypes.includes(type)) : v;
+            if (order.length > 0) safeOverrides[k] = order;
+          }
         }
         setCurrencyOverrides(safeOverrides);
         setShowCurrencyOverrides(Object.keys(safeOverrides).length > 0);
@@ -149,26 +131,31 @@ export function usePaymentMethodConfig(): UsePaymentMethodConfigReturn {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, initializeCustomPaymentMethods]);
+
+  const loadConfig = useCallback(() => {
+    setLoading(true);
+    return fetchConfig();
+  }, [fetchConfig]);
 
   useEffect(() => {
-    loadConfig();
-  }, [loadConfig]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
+    fetchConfig();
+  }, [fetchConfig]);
 
   function handleModeChange(mode: PaymentConfigMode, loadStripePmcs: () => void) {
     setConfigMode(mode);
     if (mode === 'stripe_preset') {
       loadStripePmcs();
     }
-    if (mode === 'custom' && customPaymentMethods.length === 0) {
-      initializeCustomPaymentMethods();
+    if (mode === 'custom') {
+      if (customPaymentMethods.length === 0) initializeCustomPaymentMethods();
+      else applyCustomPaymentMethods(customPaymentMethods);
     }
   }
 
   function togglePaymentMethod(type: string) {
-    setCustomPaymentMethods(prev =>
-      prev.map(pm => (pm.type === type ? { ...pm, enabled: !pm.enabled } : pm))
-    );
+    applyCustomPaymentMethods(customPaymentMethods.map(pm => pm.type === type ? { ...pm, enabled: !pm.enabled } : pm));
   }
 
   async function handleSave() {

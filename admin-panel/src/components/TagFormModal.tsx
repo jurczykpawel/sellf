@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { createTag, updateTag, Tag } from '@/lib/actions/tags'
 import { toast } from 'sonner'
@@ -20,7 +20,9 @@ export default function TagFormModal({ isOpen, onClose, tag }: TagFormModalProps
   const [slug, setSlug] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  useEffect(() => {
+  const [previousInput, setPreviousInput] = useState<{ tag: typeof tag; isOpen: boolean } | null>(null)
+  if (!previousInput || previousInput.tag !== tag || previousInput.isOpen !== isOpen) {
+    setPreviousInput({ tag, isOpen })
     if (tag) {
       setName(tag.name)
       setSlug(tag.slug)
@@ -28,7 +30,7 @@ export default function TagFormModal({ isOpen, onClose, tag }: TagFormModalProps
       setName('')
       setSlug('')
     }
-  }, [tag, isOpen])
+    }
 
   const generateSlug = (value: string) => {
     return value

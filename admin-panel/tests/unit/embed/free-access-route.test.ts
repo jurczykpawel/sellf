@@ -200,6 +200,16 @@ describe('POST /api/embed/free-access', () => {
     expect(mocks.requestMagicLink).not.toHaveBeenCalled();
   });
 
+  it('maps a demo gateway result to 403 with CORS headers', async () => {
+    mocks.requestMagicLink.mockResolvedValue({ ok: false, code: 'demo_mode' });
+    const response = await POST(
+      makeRequest({ productSlug: 'free-guide', email: 'lead@example.com' }, 'https://landing.example.com'),
+    );
+    expect(response.status).toBe(403);
+    expect((await response.json()).code).toBe('demo_mode');
+    expect(response.headers.get('access-control-allow-origin')).toBe('https://landing.example.com');
+  });
+
   it('maps a captcha_failed gateway result to 400', async () => {
     mocks.requestMagicLink.mockResolvedValue({ ok: false, code: 'captcha_failed' });
 

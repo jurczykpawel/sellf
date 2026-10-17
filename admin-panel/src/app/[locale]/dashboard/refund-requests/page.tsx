@@ -39,11 +39,8 @@ export default function RefundRequestsPage() {
   const [actionType, setActionType] = useState<'approve' | 'reject'>('approve');
   const [adminResponse, setAdminResponse] = useState('');
 
-  const fetchRequests = useCallback(async () => {
+  const loadRequests = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-
       const params = new URLSearchParams();
       if (statusFilter) params.set('status', statusFilter);
 
@@ -61,9 +58,24 @@ export default function RefundRequestsPage() {
     }
   }, [statusFilter]);
 
+  const requestKey = statusFilter;
+  const [previousKey, setPreviousKey] = useState(requestKey);
+  if (previousKey !== requestKey) {
+    setPreviousKey(requestKey);
+    setLoading(true);
+    setError(null);
+  }
+
+  const fetchRequests = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    return loadRequests();
+  }, [loadRequests]);
+
   useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
+    loadRequests();
+  }, [loadRequests]);
 
   const openActionModal = (request: RefundRequest, action: 'approve' | 'reject') => {
     setSelectedRequest(request);

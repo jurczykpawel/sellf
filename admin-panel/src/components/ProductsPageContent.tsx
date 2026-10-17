@@ -99,13 +99,15 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
     fetchProducts();
   }, [fetchProducts]);
 
-  // Open modal if ?open=new query param is present
-  useEffect(() => {
-    if (searchParams.get('open') === 'new') {
+  const openParam = searchParams.get('open');
+  const [previousOpenParam, setPreviousOpenParam] = useState<string | null>(null);
+  if (previousOpenParam !== openParam) {
+    setPreviousOpenParam(openParam);
+    if (openParam === 'new') {
       setShowProductForm(true);
       setEditingProduct(null);
     }
-  }, [searchParams]);
+  }
 
   // CRUD Handlers
   const handleCreateProduct = async (formData: ProductFormData) => {
@@ -303,7 +305,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
     }
     setShowExportConfirmation(true);
   }, [products, t]);
-  
+
   const confirmExport = () => {
     const filename = `products_${new Date().toISOString().split('T')[0]}.csv`;
     exportProductsToCsv(products, filename);

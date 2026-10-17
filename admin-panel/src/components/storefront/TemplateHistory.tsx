@@ -18,16 +18,18 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
   const [history, setHistory] = useState<(StorefrontHistorySnapshot | OfferHistorySnapshot)[]>([]);
   const [diff, setDiff] = useState<TemplateDiffResult | null>(null);
   const [pending, setPending] = useState<{ revision: number; expectedRevision: number } | null>(null);
-  const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
-  const load = useCallback(async (beforeRevision?: number) => {
-    setBusy(true); setError(''); setPending(null);
-    try {
-      const [read, page] = await Promise.all([action({ operation: 'read' }), action({ operation: 'history', limit: 20, ...(beforeRevision === undefined ? {} : { beforeRevision }) })]);
+  const [busy, setBusy] = useState(true); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
+  const load = useCallback((beforeRevision?: number) => {
+    return Promise.all([action({ operation: 'read' }), action({ operation: 'history', limit: 20, ...(beforeRevision === undefined ? {} : { beforeRevision }) })]).then(([read, page]) => {
       if (!read.success || !page.success) { setError(!read.success ? read.code : !page.success ? page.code : 'error'); return; }
       if ('data' in read && 'revision' in read.data && 'draft' in read.data) setCurrent(read.data);
       if ('data' in page && Array.isArray(page.data)) setHistory(previous => beforeRevision === undefined ? page.data as StorefrontHistorySnapshot[] : [...previous, ...page.data as StorefrontHistorySnapshot[]]);
-    } catch { setError('error'); } finally { setBusy(false); }
+    }).catch(() => { setError('error'); }).finally(() => { setBusy(false); });
   }, [action]);
+  function reload(beforeRevision?: number) {
+    setBusy(true); setError(''); setPending(null);
+    return load(beforeRevision);
+  }
   useEffect(() => { void load(); }, [load]);
   async function act(operation: 'diff' | 'rollback' | 'publish', revision: number, confirmed = false) {
     if (!current) return;
@@ -62,9 +64,9 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
         setPending(null); setNotice(t('draftReplaced'));
       }
       const response = await action(operation === 'diff' ? { operation, fromRevision: revision, toRevision: current.revision } : operation === 'publish' ? { operation, expectedRevision } : { operation, targetRevision: revision, expectedRevision });
-      if (!response.success) { await load(); setError(response.code); return; }
+      if (!response.success) { await reload(); setError(response.code); return; }
       if ('data' in response && 'changes' in response.data) setDiff(response.data);
-      if ('revision' in response) { setNotice(t('success', { revision: response.revision })); setDiff(null); await load(); }
+      if ('revision' in response) { setNotice(t('success', { revision: response.revision })); setDiff(null); await reload(); }
     } catch { setError('error'); } finally { setBusy(false); }
   }
   const [fixture, setFixture] = useState(productId ? 'published-products' : 'standard'); const [previewLocale, setPreviewLocale] = useState(locale);
@@ -76,7 +78,7 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
   return <main className={styles.page} aria-busy={busy}>
     <a href={`${prefix}/dashboard/templates${productId ? `?product=${productId}` : ''}`} className={styles.back}>← {t('editor')}</a>
     <header className={styles.header}><div><h1>{productId ? offerT('historyTitle') : t('title')}{current && 'productName' in current ? ` · ${current.productName}` : ''}</h1><p>{productId ? offerT('historyHelp') : t('subtitle')}</p></div>
-      <button type="button" disabled={busy} onClick={() => { setDiff(null); void load(); }} className={styles.secondary}>{t('reload')}</button>
+      <button type="button" disabled={busy} onClick={() => { setDiff(null); void reload(); }} className={styles.secondary}>{t('reload')}</button>
     </header>
     {error && <p className={styles.error} role="alert">{t.has(error) ? t(error) : t('error')}</p>}
     <p className={styles.status} role="status">{notice}</p>
@@ -101,7 +103,7 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
           <div className={styles.actions}><button type="button" disabled={busy} className={styles.textButton} onClick={() => void act('diff', row.revision)}>{t('compare')}</button>
           {row.revision !== publishedRevision && <button type="button" disabled={busy} className={styles.secondary} onClick={() => void act(row.draft ? 'publish' : 'rollback', row.revision)}>{t(row.draft ? 'publishVersion' : 'rollback')}</button>}</div>
         </li>)}</ol>
-        {history.length > 0 && history.length % 20 === 0 && <button type="button" disabled={busy} className={styles.textButton} onClick={() => void load(history.at(-1)!.revision)}>{t('more')}</button>}
+        {history.length > 0 && history.length % 20 === 0 && <button type="button" disabled={busy} className={styles.textButton} onClick={() => void reload(history.at(-1)!.revision)}>{t('more')}</button>}
       </section>
       {diff && <section className={styles.card} aria-label={t('changes')}>
         <h2 className={styles.heading}>{t('changes')} #{diff.fromRevision} → #{diff.toRevision}</h2>

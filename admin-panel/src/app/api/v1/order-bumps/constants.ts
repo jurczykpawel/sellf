@@ -15,6 +15,6 @@ export const ORDER_BUMP_SELECT = `
   urgency_duration_minutes,
   created_at,
   updated_at,
-  main_product:products!order_bumps_main_product_id_fkey(id, name, slug),
+  main_product:products!order_bumps_main_product_id_fkey(id, name, slug, currency),
   bump_product:products!order_bumps_bump_product_id_fkey(id, name, slug, price, currency)
 `;

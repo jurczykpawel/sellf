@@ -5,6 +5,8 @@ description: "Time required: ~15 minutes if you already have GitHub, Supabase, S
 
 Enable **Confirm Email** in Supabase and install both confirmation and magic-link templates. Guest purchases join the account after confirming the address used for the purchase. See [e-mail setup](/email-setup/#require-e-mail-confirmation).
 
+> Admin UI updates: [runtime selection, supported deployments and migrations](/ui-upgrades/). Containers do not apply migrations on startup.
+
 
 Time required: **~15 minutes** if you already have GitHub, Supabase, Stripe, and Vercel/Netlify accounts. Add 5–10 minutes per account you need to create.
 

@@ -86,8 +86,8 @@ export default function MySubscriptions() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const fetchRows = useCallback(async () => {
-    setLoading(true);
+  const loadRows = useCallback(async () => {
+
     try {
       const res = await fetch('/api/subscriptions', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to load subscriptions');
@@ -101,9 +101,15 @@ export default function MySubscriptions() {
     }
   }, [t]);
 
+  const fetchRows = useCallback(() => {
+    setLoading(true);
+    return loadRows();
+  }, [loadRows]);
+
   useEffect(() => {
-    fetchRows();
-  }, [fetchRows]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
+    loadRows();
+  }, [loadRows]);
 
   const callAction = async (id: string, action: 'cancel' | 'resume') => {
     setBusyId(id);

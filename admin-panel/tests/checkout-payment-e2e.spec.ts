@@ -407,7 +407,7 @@ test.describe('Checkout E2E - Price Display', () => {
     await expect(page.locator(`h1:has-text("${testProduct.name}"), h2:has-text("${testProduct.name}")`).first()).toBeVisible();
 
     // PLN renders as "zł" symbol (not the ISO code) in user-facing checkout copy.
-    await expect(page.locator('text=/zł\\s*123/i').first()).toBeVisible();
+    await expect(page.getByText(/^123,00\s+zł$/).first()).toBeVisible();
     await expect(page.locator('text=/VAT.*23%/i').first()).toBeVisible();
   });
 

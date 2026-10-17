@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { D_CONFIG, DEFAULT_CONFIG, PUBLIC_FIXTURE } from '@/lib/storefront-templates/fixtures';
 import { loadPublicStorefront } from '@/lib/storefront-templates/public-page';
+import { STOREFRONT_TEMPLATES } from '@/lib/storefront-templates/registry';
 const mocks = vi.hoisted(() => ({ rate: vi.fn(), client: vi.fn(), config: vi.fn(), groups: vi.fn(), bindings: vi.fn(), page: vi.fn(), tier: vi.fn(), keys: vi.fn() }));
 vi.mock('@/components/storefront/PublicStorefrontPage', () => ({ default: () => null }));
 vi.mock('@/lib/storefront-templates/template-license-snapshot', () => ({ getLocalTemplateIds: mocks.keys }));
@@ -36,6 +37,20 @@ describe('public storefront loader', () => {
     mocks.config.mockResolvedValue({ success: true, data: D_CONFIG });
     expect(await loadPublicStorefront('en', {})).toMatchObject({ success: true, model: { templateId: 'd' } });
     expect(mocks.bindings).toHaveBeenCalledWith({}, expect.objectContaining({ heroProduct: D_CONFIG.settingsByTemplate.d!.heroProduct, starterProducts: D_CONFIG.settingsByTemplate.d!.starterProducts }));
+  });
+  it.each(['en', 'pl'] as const)('%s: an incompatible template version safely renders the free catalogue without rewriting seller data', async locale => {
+    const stored = structuredClone(D_CONFIG);
+    const before = JSON.stringify(stored);
+    mocks.config.mockResolvedValue({ success: true, data: stored });
+    const previous = STOREFRONT_TEMPLATES.d.minSellf;
+    try {
+      STOREFRONT_TEMPLATES.d.minSellf = '2099.1.0';
+      const result = await loadPublicStorefront(locale, {});
+      expect(result).toMatchObject({ success: true, model: { locale, templateId: 'default', sections: [{ id: 'catalogue', type: 'catalogue/1', props: { variant: 'default-groups', pageSize: 12 } }] } });
+      expect(mocks.groups).toHaveBeenCalledWith({}, expect.objectContaining({ locale, pageSize: 12 }), 'default-groups');
+      expect(mocks.config).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(stored)).toBe(before);
+    } finally { STOREFRONT_TEMPLATES.d.minSellf = previous; }
   });
   it('resolves published appearance separately without a second config read', async () => {
     mocks.config.mockResolvedValue({ success: true, data: { ...D_CONFIG, tokens: { format: 1, typography: { font: 'dm-sans' } } } });

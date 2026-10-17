@@ -132,7 +132,9 @@ export function PriceVatInline({
     setFormData(prev => ({ ...prev, custom_price_min: Math.max(0, value) }));
   };
 
-  const handlePresetChange = (index: number, value: string) => {
+  const handlePresetChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const index = Number(event.currentTarget.dataset.presetIndex);
+    const value = event.currentTarget.value;
     presetsManuallyEdited.current = true;
     const numValue = parseFloat(value) || 0;
     setFormData(prev => {
@@ -184,7 +186,8 @@ export function PriceVatInline({
             key={index}
             type="number"
             value={formData.custom_price_presets?.[index] ?? 0}
-            onChange={(e) => handlePresetChange(index, e.target.value)}
+            data-preset-index={index}
+            onChange={handlePresetChange}
             min="0"
             step="1"
             placeholder="0"
