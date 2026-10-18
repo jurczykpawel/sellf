@@ -82,6 +82,7 @@
     "verifying": "...",
     "invalidCoupon": "Nieprawidłowy kod kuponu",
     "verifyError": "Nie udało się zweryfikować kuponu",
+    "couponRateLimited": "Zbyt wiele prób. Spróbuj ponownie najpóźniej za {minutes} min.",
     "discountApplied": "Zastosowano zniżkę {discount}",
     "paymentError": "Błąd Płatności",
     "accessGranted": "Dostęp Przyznany!",

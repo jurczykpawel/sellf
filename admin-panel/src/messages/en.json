@@ -82,6 +82,7 @@
     "verifying": "...",
     "invalidCoupon": "Invalid coupon code",
     "verifyError": "Failed to verify coupon",
+    "couponRateLimited": "Too many attempts. Try again in up to {minutes} minutes.",
     "discountApplied": "{discount} discount applied",
     "paymentError": "Payment Error",
     "accessGranted": "Access Granted!",

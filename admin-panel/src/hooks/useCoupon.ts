@@ -60,7 +60,11 @@ export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): Us
         }),
       });
       const data = await res.json();
-      if (data.valid) {
+      if (res.status === 429) {
+        const minutes = Math.max(1, Math.ceil((Number(data.retryAfterSeconds) || 3600) / 60));
+        setCouponError(t('couponRateLimited', { minutes }));
+        setAppliedCoupon(null);
+      } else if (data.valid) {
         setAppliedCoupon(data);
         setCouponCode(data.code);
         setShowCouponInput(true);
