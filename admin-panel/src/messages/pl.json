@@ -112,6 +112,7 @@
     "verifying": "...",
     "invalidCoupon": "Nieprawidłowy kod kuponu",
     "verifyError": "Nie udało się zweryfikować kuponu",
+    "couponRateLimited": "Zbyt wiele prób. Spróbuj ponownie najpóźniej za {minutes} min.",
     "discountApplied": "Zastosowano zniżkę {discount}",
     "paymentError": "Błąd Płatności",
     "accessGranted": "Dostęp Przyznany!",
@@ -1254,6 +1255,11 @@
     "minutes": "minuta",
     "minutesPlural": "minut"
   },
+  "moneyInput": {
+    "fractionNotAllowed": "Waluta {currency} nie ma groszy. Wpisz pełną kwotę, np. 1000.",
+    "tooManyDecimals": "Maksymalnie 2 miejsca po przecinku.",
+    "invalidFormat": "Nieprawidłowa kwota. Użyj cyfr oraz przecinka lub kropki."
+  },
   "admin": {
     "dashboard": {
       "checkoutFunnel": {
@@ -1542,7 +1548,9 @@
         "previewVideoUrlPlaceholder": "https://youtube.com/watch?v=... lub https://vimeo.com/...",
         "previewVideoUrlHelp": "Wideo wyświetlane na stronie koszyka. Ma priorytet nad zdjęciem. Obsługuje YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4 i Twitch.",
         "previewVideoUrlUnsupported": "Nieobsługiwana platforma. Użyj YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4 lub Twitch.",
-        "setToZeroForFree": "Ustaw na 0 dla darmowych produktów. Użyj przecinka lub kropki jako separatora dziesiętnego.",
+        "priceHint": "Użyj przecinka lub kropki jako separatora dziesiętnego. Darmowy produkt utwórz jako typ „Lead magnet”.",
+        "priceRequired": "Podaj cenę.",
+        "priceFreeUseLeadMagnet": "Produkt standardowy musi mieć cenę powyżej 0. Darmowy produkt utwórz jako typ „Lead magnet”.",
         "temporalAvailability": "Dostępność czasowa",
         "availabilityAndWaitlist": "Dostępność i Lista oczekujących",
         "availableFrom": "Dostępny od",
@@ -2474,6 +2482,7 @@
         "refunded": "Zwrot: {amount}",
         "partialRefunded": "Częściowo zwrócono: {amount}",
         "partialRefundWarning": "Wykryto częściowy zwrot. Sprawdź, czy potrzebne są dodatkowe działania lub cofnięcie dostępu.",
+        "attemptNote": {"pending": "Próba płatności: jeszcze nie opłacona, zamknie się po wygaśnięciu sesji.", "abandoned": "Próba płatności: bez wpłaty, zamówienie nie powstało."},
         "remainingRefundable": "Pozostało do zwrotu: {amount}",
         "fullRefunded": "Zwrócono w całości"
       },

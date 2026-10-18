@@ -85,3 +85,19 @@ test('renders coupon entry and card-first payment at desktop and mobile sizes in
     await db.from('products').delete().eq('id', product.data!.id);
   }
 });
+
+test('keeps the start-payment button disabled until the page is interactive', async ({ page }) => {
+  // A click before hydration is a native GET form submit: it reloads the page and drops the query (coupon, email, oto).
+  const slug = `intent-hydrate-${randomUUID()}`;
+  const created = await db.from('products').insert({ name: 'Checkout hydration course', slug, price: 49, currency: 'PLN', is_active: true, is_listed: true, vat_rate: 23 }).select('id').single();
+  expect(created.error).toBeNull();
+  try {
+    await page.route(/\/_next\/static\/.*\.js(\?|$)/, route => route.abort());
+    await page.goto(`/pl/p/${slug}?coupon=KEEP`, { waitUntil: 'domcontentloaded' });
+    const start = page.getByRole('button', { name: 'Przejdź do płatności', exact: true });
+    await expect(start).toBeVisible();
+    await expect(start).toBeDisabled();
+  } finally {
+    await db.from('products').delete().eq('id', created.data!.id);
+  }
+});

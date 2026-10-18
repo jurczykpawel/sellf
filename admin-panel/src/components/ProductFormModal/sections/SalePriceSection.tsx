@@ -1,8 +1,12 @@
 'use client';
 
 import React from 'react';
+import { useLocale } from 'next-intl';
 import DateTimePicker from '@/components/ui/DateTimePicker';
 import { getCurrencySymbol } from '@/lib/constants';
+import { parseMoneyInput } from '@/lib/currency/parse-money-input';
+import { MoneyInputError } from '@/components/MoneyInputError';
+import { MONEY_TEXT_CHARS } from '../money-input';
 import { SalePriceSectionProps } from '../types';
 import { ConversionBadge } from './ConversionBadge';
 
@@ -14,6 +18,7 @@ export function SalePriceSection({
   setSalePriceDisplayValue,
   omnibusEnabled,
 }: SalePriceSectionProps) {
+  const locale = useLocale();
   const handleSalePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
 
@@ -23,22 +28,16 @@ export function SalePriceSection({
       return;
     }
 
-    if (!/^[\d,.]*$/.test(inputValue)) return;
+    if (!MONEY_TEXT_CHARS.test(inputValue)) return;
 
-    const processedValue = inputValue.replace(',', '.');
-    const dotCount = (processedValue.match(/\./g) || []).length;
-    if (dotCount > 1) return;
-
-    if (/^\d*\.?\d{0,2}$/.test(processedValue)) {
-      const numericValue = parseFloat(processedValue);
-      setSalePriceDisplayValue(inputValue);
-      setFormData(prev => ({
-        ...prev,
-        sale_price: isNaN(numericValue) ? null : numericValue
-      }));
-    }
+    setSalePriceDisplayValue(inputValue);
+    setFormData(prev => ({
+      ...prev,
+      sale_price: parseMoneyInput(inputValue, prev.currency, locale).value,
+    }));
   };
 
+  const salePriceParseError = parseMoneyInput(salePriceDisplayValue, formData.currency, locale).error;
   const showCurrencyPrefix = formData.currency !== 'PLN' && formData.currency !== 'CHF';
   const salePriceInvalid = formData.sale_price !== null && formData.sale_price !== undefined && formData.sale_price >= formData.price;
   const salePriceActive = formData.sale_price !== null && formData.sale_price !== undefined && formData.sale_price < formData.price;
@@ -72,7 +71,7 @@ export function SalePriceSection({
                 value={salePriceDisplayValue}
                 onChange={handleSalePriceChange}
                 placeholder={!showCurrencyPrefix ? `0,00 ${getCurrencySymbol(formData.currency)}` : t('salePricePlaceholder')}
-                className={`${showCurrencyPrefix ? 'pl-12' : 'pl-3'} pr-12 w-full py-2.5 border ${salePriceInvalid ? 'border-red-500' : 'border-sf-border'} focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent bg-sf-input text-sf-heading`}
+                className={`${showCurrencyPrefix ? 'pl-12' : 'pl-3'} pr-12 w-full py-2.5 border ${salePriceInvalid || salePriceParseError ? 'border-red-500' : 'border-sf-border'} focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent bg-sf-input text-sf-heading`}
               />
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                 <span className="text-sf-muted text-sm">
@@ -83,6 +82,7 @@ export function SalePriceSection({
             <p className="mt-1 text-xs text-sf-muted">
               {t('salePriceDescription')}
             </p>
+            <MoneyInputError error={salePriceParseError} currency={formData.currency} />
             {salePriceInvalid && (
               <p className="mt-1 text-xs text-sf-danger">
                 {t('salePriceMustBeLower')}

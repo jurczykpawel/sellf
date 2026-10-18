@@ -197,6 +197,11 @@ export default function PaymentTransactionsTable({
                         ? t('statuses.partialRefunded', { defaultValue: 'Partially refunded' })
                         : t(`statuses.${transaction.status}`)}
                     </span>
+                    {(transaction.status === 'pending' || transaction.status === 'abandoned') && (
+                      <div className="mt-1 max-w-48 whitespace-normal text-xs text-sf-muted">
+                        {t(`attemptNote.${transaction.status}`)}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-sf-muted">
                     {formatAdminDate(transaction.created_at, locale)}

@@ -9,6 +9,7 @@ import type { StripeConfiguration, WebhookRegistrationInfo } from '@/types/strip
 import { useLocale, useTranslations } from 'next-intl'
 import SourceBadge from '@/components/ui/SourceBadge'
 import { useAuth } from '@/contexts/AuthContext'
+import { formatAdminDate } from '@/lib/timezone';
 
 // Session-level cache for Stripe account info — cleared on config change
 let _accountInfoCache: { accountId: string | null; accountName: string | null } | null | undefined = undefined
@@ -208,10 +209,10 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
  <span>{t('account')}: {config.account_id}</span>
  )}
  {config.account_id && ' · '}
- {t('created')}: {new Date(config.created_at).toLocaleDateString(locale)}
+ {t('created')}: {formatAdminDate(config.created_at, locale, false)}
  {config.expires_at && (
  <span>
- {' · '}{t('rotationReminder')}: {new Date(config.expires_at).toLocaleDateString(locale)}
+ {' · '}{t('rotationReminder')}: {formatAdminDate(config.expires_at, locale, false)}
  {new Date(config.expires_at) < new Date() && (
  <span className="ml-1 text-sf-warning font-medium">
  ({t('rotationOverdue', { defaultValue: 'overdue' })})

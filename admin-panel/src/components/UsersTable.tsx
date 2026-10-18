@@ -4,6 +4,7 @@ import React from 'react';
 import { UserWithAccess } from '@/types';
 import Pagination from './Pagination';
 import { useTranslations, useLocale } from 'next-intl';
+import { formatAdminDate } from '@/lib/timezone';
 
 interface SortableHeaderProps {
   column: string;
@@ -72,13 +73,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
 
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return t('notAvailable');
-    return new Date(dateString).toLocaleDateString(locale, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatAdminDate(dateString, locale);
   };
 
   const sortProps = { sortBy, sortOrder, onSort };

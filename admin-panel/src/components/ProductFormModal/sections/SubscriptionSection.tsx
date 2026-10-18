@@ -1,6 +1,8 @@
 'use client';
 
 import { currencyExponent } from '@/lib/currency/minor-units';
+import { moneyAmountError } from '@/lib/currency/parse-money-input';
+import { MoneyInputError } from '@/components/MoneyInputError';
 import React from 'react';
 import { ModalSection } from '@/components/ui/Modal';
 import { CURRENCIES, getCurrencySymbol } from '@/lib/constants';
@@ -65,6 +67,7 @@ export function SubscriptionSection({ formData, setFormData, t }: SectionProps) 
               ))}
             </select>
           </div>
+          <MoneyInputError error={moneyAmountError(formData.recurring_price, formData.currency)} currency={formData.currency} />
           <p className="mt-1 text-xs text-sf-muted">
             {t('subscription.recurringPriceHelp', {
               defaultValue: 'Charged each billing period. Uses the product currency.',

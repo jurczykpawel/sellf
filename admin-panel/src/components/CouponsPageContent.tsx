@@ -25,6 +25,7 @@ import { formatPrice } from '@/lib/constants';
 import { api, ApiError } from '@/lib/api/client';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
 import { fetchCouponsPage } from '@/lib/coupons/fetch-coupons-page';
+import { formatAdminDate } from '@/lib/timezone';
 
 // Wait for the seller to stop typing before hitting the server — avoids
 // firing a request (and a fresh cursor-reset fetch) on every keystroke.
@@ -508,7 +509,7 @@ const CouponsPageContent: React.FC = () => {
                                 ? 'bg-sf-danger-soft text-sf-danger'
                                 : 'bg-sf-warning-soft text-sf-warning'
                             }`}
-                            title={otoStatus?.expiresAt ? otoStatus.expiresAt.toLocaleString(locale) : ''}
+                            title={otoStatus?.expiresAt ? formatAdminDate(otoStatus.expiresAt.toISOString(), locale) : ''}
                           >
                             {otoStatus?.isExpired
                               ? t('otoExpired')

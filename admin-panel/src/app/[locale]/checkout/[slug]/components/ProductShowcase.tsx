@@ -29,6 +29,7 @@ interface ProductShowcaseProps {
 
 export default function ProductShowcase({ product, taxMode, bundleComponents }: ProductShowcaseProps) {
   const t = useTranslations('checkout');
+  const tView = useTranslations('productView');
   const locale = useLocale();
   const isSubscription = product.product_type === 'subscription';
   const recurringPriceDisplay = formatRecurringProductPrice(product, locale);
@@ -130,7 +131,7 @@ export default function ProductShowcase({ product, taxMode, bundleComponents }: 
           )}
 
           <div data-testid="product-price-display" className="text-5xl font-bold text-sf-heading mb-2 tracking-tight">
-            {recurringPriceDisplay ?? formatPrice(grossPrice, product.currency, locale)}
+            {recurringPriceDisplay ?? (grossPrice === 0 ? tView('free') : formatPrice(grossPrice, product.currency, locale))}
           </div>
 
           {vatDisplay.kind === 'rate' && (
