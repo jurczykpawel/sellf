@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { formatPrice } from '@/lib/constants';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, ModalSection, Button, Message } from '@/components/ui/Modal';
 import { useTranslations, useLocale } from 'next-intl';
+import { formatAdminDate } from '@/lib/timezone';
 
 interface UserDetailsModalProps {
   userId: string;
@@ -85,13 +86,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return t('modal.never');
-    return new Date(dateString).toLocaleDateString(locale, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatAdminDate(dateString, locale);
   };
 
   if (!isOpen) return null;

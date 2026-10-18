@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, Copy, Eye, KeyRound, RefreshCw, ShieldX } from 'lucide-react';
 import { toast } from 'sonner';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { formatAdminDate } from '@/lib/timezone';
 
 interface FieldDefinition {
   id: string;
@@ -40,6 +41,7 @@ const DOMAIN_FIELD = '_sellf_license_domain';
 
 export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }) {
   const t = useTranslations('settings.issuedLicenses');
+  const locale = useLocale();
   const [licenses, setLicenses] = useState<LicenseRow[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [total, setTotal] = useState(0);
@@ -188,7 +190,7 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
         <div className="overflow-x-auto">
           <table className="w-full text-sm"><thead><tr className="border-b border-sf-border text-left text-sf-muted">{['product','email','domain','tier','source','issued','expires','status','actions'].map((key) => <th key={key} className="p-2">{t(key)}</th>)}</tr></thead>
             <tbody>{licenses.map((license) => <tr key={license.id} className="border-b border-sf-border align-top">
-              <td className="p-2 text-sf-heading">{license.products?.name ?? '—'}</td><td className="p-2">{license.email ?? '—'}</td><td className="p-2 font-mono text-xs">{license.license_domain ?? '—'}</td><td className="p-2">{license.products?.license_tier ?? '—'}</td><td className="p-2">{t(license.issuance_source)}</td><td className="p-2 whitespace-nowrap">{date(license.issued_at)}</td><td className="p-2 whitespace-nowrap">{license.expires_at ? date(license.expires_at) : t('unlimited')}</td><td className="p-2">{license.revoked_at ? t('revokedStatus') : license.expires_at && new Date(license.expires_at) < new Date() ? t('expired') : t('active')}</td>
+              <td className="p-2 text-sf-heading">{license.products?.name ?? '—'}</td><td className="p-2">{license.email ?? '—'}</td><td className="p-2 font-mono text-xs">{license.license_domain ?? '—'}</td><td className="p-2">{license.products?.license_tier ?? '—'}</td><td className="p-2">{t(license.issuance_source)}</td><td className="p-2 whitespace-nowrap">{formatAdminDate(license.issued_at, locale, false)}</td><td className="p-2 whitespace-nowrap">{license.expires_at ? formatAdminDate(license.expires_at, locale, false) : t('unlimited')}</td><td className="p-2">{license.revoked_at ? t('revokedStatus') : license.expires_at && new Date(license.expires_at) < new Date() ? t('expired') : t('active')}</td>
               <td className="p-2"><div className="flex gap-2"><button type="button" title={t('reveal')} onClick={() => void reveal(license.id)}><Eye className="w-4 h-4" /></button><button type="button" title={t('copy')} onClick={() => void copy(license.id)}>{copied === license.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}</button>{!license.revoked_at && <button type="button" title={t('revoke')} onClick={() => void revoke(license.id)}><ShieldX className="w-4 h-4 text-sf-danger" /></button>}</div>{revealed[license.id] && <code className="block mt-2 max-w-56 truncate text-xs">{revealed[license.id]}</code>}</td>
             </tr>)}{!loading && licenses.length === 0 && <tr><td colSpan={9} className="p-6 text-center text-sf-muted">{t('empty')}</td></tr>}</tbody>
           </table>
@@ -202,4 +204,3 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block text-sm text-sf-body min-w-44"><span className="block mb-1 font-medium">{label}</span>{children}</label>; }
 function labelFor(label: FieldDefinition['label']) { return typeof label === 'string' ? label : label.en || label.pl || 'Field'; }
-function date(value: string) { return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value)); }

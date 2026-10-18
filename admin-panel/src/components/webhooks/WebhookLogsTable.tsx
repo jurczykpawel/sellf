@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { WebhookLog } from '@/types/webhooks';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+import { formatAdminDate } from '@/lib/timezone';
 
 interface WebhookLogsTableProps {
   logs: WebhookLog[];
@@ -182,7 +183,7 @@ export default function WebhookLogsTable({
                   </td>
                 )}
                 <td className="px-4 py-3 text-sm text-sf-heading whitespace-nowrap">
-                  {new Date(log.created_at).toLocaleString(locale)}
+                  {formatAdminDate(log.created_at, locale)}
                 </td>
                 
                 {showEndpointColumn && (
@@ -299,13 +300,13 @@ export default function WebhookLogsTable({
                         {log.next_retry_at && (
                           <div>
                             <span className="text-sf-muted">{t('nextRetryAt')}: </span>
-                            <span className="text-sf-heading font-mono">{new Date(log.next_retry_at).toLocaleString(locale)}</span>
+                            <span className="text-sf-heading font-mono">{formatAdminDate(log.next_retry_at, locale)}</span>
                           </div>
                         )}
                         {log.failed_permanently_at && (
                           <div>
                             <span className="text-sf-muted">{t('failedPermanentlyAt')}: </span>
-                            <span className="text-sf-heading font-mono">{new Date(log.failed_permanently_at).toLocaleString(locale)}</span>
+                            <span className="text-sf-heading font-mono">{formatAdminDate(log.failed_permanently_at, locale)}</span>
                           </div>
                         )}
                       </div>

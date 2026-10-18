@@ -13,6 +13,7 @@ import { Shield, ShieldCheck, ShieldAlert, AlertTriangle, Info, Loader2, Refresh
 import { useLocale, useTranslations } from 'next-intl';
 import { getSecurityAudit, runSecurityAudit } from '@/lib/actions/security-audit';
 import type { SecurityCheckResult, SecurityAuditResult } from '@/lib/actions/security-audit';
+import { formatAdminDate } from '@/lib/timezone';
 
 function CheckIcon({ status }: { status: SecurityCheckResult['status'] }) {
   if (status === 'pass') return <ShieldCheck className="w-4 h-4 text-green-500 flex-shrink-0" />;
@@ -236,7 +237,7 @@ export default function SecurityAuditSettings() {
           </div>
 
           <p className="text-xs text-sf-muted mt-4">
-            {t('lastRun')}: {new Date(result.timestamp).toLocaleString(locale)}
+            {t('lastRun')}: {formatAdminDate(result.timestamp, locale)}
           </p>
         </>
       )}

@@ -9,6 +9,7 @@ import type { ValidationResult } from '@/lib/storefront-templates/json';
 import type { TemplateReadResult, TemplateDiffResult } from '@/lib/storefront-templates/lifecycle';
 import type { StorefrontHistorySnapshot } from '@/lib/storefront-templates/repository';
 import styles from './TemplateHistory.module.css';
+import { formatAdminDate } from '@/lib/timezone';
 
 export default function TemplateHistory() {
   const t = useTranslations('templatePreview'); const locale = useLocale();
@@ -99,7 +100,7 @@ export default function TemplateHistory() {
         <ol className={styles.list}>{history.map(row => <li key={row.revision} className={styles.row}>
           <div className={styles.entry}>
             <strong>{row.revision === publishedRevision ? t('publishedNow') : row.draft ? t('draft') : t('publish')}</strong>
-            <div className={styles.meta}><time dateTime={row.created_at}>{new Date(row.created_at).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</time><span>· #{row.revision}</span></div>
+            <div className={styles.meta}><time dateTime={row.created_at}>{formatAdminDate(row.created_at, locale)}</time><span>· #{row.revision}</span></div>
           </div>
           <div className={styles.actions}>{row.revision !== current.revision && <button type="button" disabled={busy} className={styles.textButton} onClick={() => void act('diff', row.revision)}>{t('compare')}</button>}
           {row.revision !== publishedRevision && <button type="button" disabled={busy} className={styles.secondary} onClick={() => void act(row.draft ? 'publish' : 'rollback', row.revision)}>{t(row.draft ? 'publishVersion' : 'rollback')}</button>}</div>
