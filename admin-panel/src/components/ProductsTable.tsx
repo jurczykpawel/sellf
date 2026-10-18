@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Product } from '@/types';
 import { formatPrice } from '@/lib/constants';
 import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
-import { formatUTCForDisplay } from '@/lib/timezone';
+import { formatAdminDate } from '@/lib/timezone';
 import Pagination from './Pagination';
 import { getIconEmoji } from '@/utils/themeUtils';
 import { useTranslations } from 'next-intl';
@@ -350,18 +350,10 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                       </div>
                     </td>
                     <td className="px-3 py-4 text-sm text-sf-muted hidden 2xl:table-cell whitespace-nowrap">
-                      {product.available_from ? formatUTCForDisplay(product.available_from, {
-                        year: '2-digit',
-                        month: 'short',
-                        day: 'numeric'
-                      }, locale) : '-'}
+                      {product.available_from ? formatAdminDate(product.available_from, locale, false) : '-'}
                     </td>
                     <td className="px-3 py-4 text-sm text-sf-muted hidden 2xl:table-cell whitespace-nowrap">
-                      {product.available_until ? formatUTCForDisplay(product.available_until, {
-                        year: '2-digit',
-                        month: 'short',
-                        day: 'numeric'
-                      }, locale) : '-'}
+                      {product.available_until ? formatAdminDate(product.available_until, locale, false) : '-'}
                     </td>
                     <td className="px-3 py-4 text-sm text-sf-muted hidden 2xl:table-cell text-center whitespace-nowrap">
                       {product.auto_grant_duration_days ? (
@@ -373,11 +365,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                       )}
                     </td>
                     <td className="px-3 py-4 text-sm text-sf-muted hidden xl:table-cell whitespace-nowrap">
-                      {formatUTCForDisplay(product.created_at, {
-                        year: '2-digit',
-                        month: 'short',
-                        day: 'numeric'
-                      }, locale)}
+                      {formatAdminDate(product.created_at, locale, false)}
                     </td>
                     <td className="px-3 py-4 text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-0.5">

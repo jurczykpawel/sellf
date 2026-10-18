@@ -2452,6 +2452,7 @@
         "refunded": "Zwrot: {amount}",
         "partialRefunded": "Częściowo zwrócono: {amount}",
         "partialRefundWarning": "Wykryto częściowy zwrot. Sprawdź, czy potrzebne są dodatkowe działania lub cofnięcie dostępu.",
+        "attemptNote": {"pending": "Próba płatności: jeszcze nie opłacona, zamknie się po wygaśnięciu sesji.", "abandoned": "Próba płatności: bez wpłaty, zamówienie nie powstało."},
         "remainingRefundable": "Pozostało do zwrotu: {amount}",
         "fullRefunded": "Zwrócono w całości"
       },

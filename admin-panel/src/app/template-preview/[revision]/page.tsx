@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { preparePreview } from '@/lib/storefront-templates/preview';
 import { templateRequestPrincipal } from '@/lib/storefront-templates/http';
 import { checkPublicFeature } from '@/lib/license/public-snapshot';
+import { getShopConfig } from '@/lib/actions/shop-config';
 import PublicThemeShell from '@/components/storefront/PublicThemeShell';
 import StorefrontComposition from '@/components/storefront/StorefrontComposition';
 import en from '@/messages/en.json';
@@ -33,7 +34,9 @@ export default async function TemplatePreview({ params, searchParams }: {
     </main>;
   }
   const { model, tokens } = response.data;
+  // Same footer inputs as PublicStorefrontPage: real shop name, Sellf link only without the Pro license.
+  const shopConfig = await getShopConfig().catch(() => null);
   return <div inert data-preview-inert><PublicThemeShell tokens={tokens}>
-    <StorefrontComposition model={model} shopName={locale === 'pl' ? 'Podgląd sklepu' : 'Store preview'} renderKey="preview" year={new Date().getFullYear()} showSellfBranding={!checkPublicFeature('watermark-removal')} />
+    <StorefrontComposition model={model} shopName={shopConfig?.shop_name || 'Sellf'} renderKey="preview" year={new Date().getFullYear()} showSellfBranding={!checkPublicFeature('watermark-removal')} />
   </PublicThemeShell></div>;
 }

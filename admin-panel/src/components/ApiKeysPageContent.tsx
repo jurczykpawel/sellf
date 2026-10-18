@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Key, Plus, RotateCw, Trash2, Copy, Eye, EyeOff, AlertTriangle, Pencil } from 'lucide-react';
 import ApiKeyFormModal from './ApiKeyFormModal';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from './ui/Modal';
@@ -22,6 +22,7 @@ interface ApiKey {
 }
 
 import { ALL_SCOPES, WILDCARD_SCOPE, scopeToI18nKey } from '@/lib/api/scope-constants';
+import { formatAdminDate } from '@/lib/timezone';
 
 // Stored scopes resolve to the matching i18n key. The wildcard marker is
 // never persisted (resolved at create-time) but is mapped for defensive
@@ -33,6 +34,7 @@ const SCOPE_KEY_MAP: Record<string, string> = {
 
 export default function ApiKeysPageContent({ scopesLocked = false }: { scopesLocked?: boolean }) {
   const t = useTranslations('admin.apiKeys');
+  const locale = useLocale();
   const tCommon = useTranslations('common');
 
   // State
@@ -190,13 +192,7 @@ export default function ApiKeysPageContent({ scopesLocked = false }: { scopesLoc
   // Format date
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatAdminDate(dateStr, locale, true, '-');
   };
 
   // Get status badge

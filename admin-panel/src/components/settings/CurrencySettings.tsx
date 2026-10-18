@@ -9,6 +9,7 @@ import { type ExchangeRates } from '@/lib/services/currencyService';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '@/components/ui/Modal';
 import { toast } from 'sonner';
 import { useTranslations, useLocale } from 'next-intl';
+import { formatAdminDate } from '@/lib/timezone';
 
 export default function CurrencySettings() {
  const t = useTranslations('settings.currency');
@@ -394,25 +395,13 @@ export default function CurrencySettings() {
  <div>
  <span className="text-sf-body">{t('exchangeRates.apiDate')}:</span>{' '}
  <span className="font-medium text-sf-heading">
- {new Date(rates.timestamp).toLocaleString(locale === 'pl' ? 'pl-PL' : 'en-US', {
- year: 'numeric',
- month: '2-digit',
- day: '2-digit',
- hour: '2-digit',
- minute: '2-digit'
- })}
+ {formatAdminDate(new Date(rates.timestamp).toISOString(), locale)}
  </span>
  </div>
  <div>
  <span className="text-sf-body">{t('exchangeRates.cacheExpires')}:</span>{' '}
  <span className="font-medium text-sf-warning">
- 💾 {new Date(ratesFetchedAt + 3600000).toLocaleString(locale === 'pl' ? 'pl-PL' : 'en-US', {
- year: 'numeric',
- month: '2-digit',
- day: '2-digit',
- hour: '2-digit',
- minute: '2-digit'
- })}
+ 💾 {formatAdminDate(new Date(ratesFetchedAt + 3600000).toISOString(), locale)}
  </span>
  </div>
  </div>

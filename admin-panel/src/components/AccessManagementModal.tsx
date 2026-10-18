@@ -6,6 +6,7 @@ import { BaseModal, ModalHeader, ModalBody, ModalFooter, ModalSection, Button, M
 import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
+import { formatAdminDate } from '@/lib/timezone';
 
 interface AccessManagementModalProps {
   user: UserWithAccess;
@@ -171,13 +172,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(locale, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatAdminDate(dateString, locale);
   };
 
   const getAvailableProductsForUser = () => {
