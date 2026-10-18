@@ -871,3 +871,18 @@ input[type="date"]:focus::-webkit-datetime-edit-year-field {
     animation: none !important;
   }
 }
+
+/* Cookie banner on narrow screens: compact so it never hides the primary
+   action of the page, and reserve its height at the end of the page. */
+@media (max-width: 640px) {
+  #cc-main .cm { max-height: 45vh; }
+  #cc-main .cm__texts { padding-top: .6rem; }
+  #cc-main .cm__title { font-size: 1rem; }
+  #cc-main .cm__title + .cm__desc { margin-top: .4em; }
+  #cc-main .cm__desc { font-size: .8rem; line-height: 1.4; max-height: 5.6em; padding-bottom: .5em; }
+  #cc-main .cm .cm__btns { padding-top: .5rem; padding-bottom: .5rem; }
+  #cc-main .cm .cm__btn-group { flex-direction: row !important; gap: .375rem; }
+  #cc-main .cm .cm__btn-group .cm__btn { flex: 1 1 0; margin: 0 !important; padding: .55em .5em; font-size: .85rem; }
+  #cc-main .cm .cm__btn + .cm__btn, #cc-main .cm .cm__btn-group + .cm__btn-group { margin-top: .375rem !important; }
+  html.show--consent body { padding-bottom: 13rem; }
+}
