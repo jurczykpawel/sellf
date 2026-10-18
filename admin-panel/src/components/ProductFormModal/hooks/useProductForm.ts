@@ -678,6 +678,12 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
       });
 
       if (invalidItems.length > 0) {
+        setFieldErrors({ content_url: 'invalid' });
+        window.setTimeout(() => {
+          const field = document.getElementById(`content_url_${invalidItems[0]}`);
+          field?.scrollIntoView({ block: 'center' });
+          field?.focus();
+        }, 0);
         return;
       }
     }

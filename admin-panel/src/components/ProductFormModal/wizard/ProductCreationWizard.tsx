@@ -12,7 +12,7 @@ import { WizardFooter } from './WizardFooter';
 import { StepEssentials } from './steps/StepEssentials';
 import { StepContentDetails } from './steps/StepContentDetails';
 import { StepSalesSettings } from './steps/StepSalesSettings';
-import { formatPrice } from '@/lib/constants';
+import { headerPriceBadge } from './header-price-badge';
 import type { ProductFormData } from '../types';
 
 const TOTAL_STEPS = 3;
@@ -138,7 +138,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     const keys = Object.keys(fieldErrors);
     const step1Keys = ['name', 'slug', 'price', 'recurring_price', 'custom_price_min', 'vat_rate'];
     if (keys.some(key => step1Keys.includes(key))) setCurrentStep(1);
-    else if (keys.includes('description') || keys.includes('marketing_fields')) setCurrentStep(2);
+    else if (keys.includes('description') || keys.includes('marketing_fields') || keys.includes('content_url')) setCurrentStep(2);
     else if (keys.includes('sale_price')) setCurrentStep(3);
   }
 
@@ -157,6 +157,8 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     { number: 3, label: t('wizard.step3') },
   ];
 
+  const priceBadge = headerPriceBadge(formData, priceDisplayValue, t('free'), locale);
+
   if (!isOpen) return null;
 
   return (
@@ -172,13 +174,13 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                   {formData.slug && (
                     <span className="font-mono text-sf-muted truncate max-w-[140px]">/p/{formData.slug}</span>
                   )}
-                  {priceDisplayValue !== '' && (
+                  {priceBadge && (
                     <span className={`inline-flex items-center px-1.5 py-0.5 text-xs font-medium ${
-                      formData.price === 0
+                      priceBadge.free
                         ? 'bg-sf-success-soft text-sf-success'
                         : 'bg-sf-accent-soft text-sf-accent'
                     }`}>
-                      {formData.price === 0 ? t('free') : formatPrice(formData.price, formData.currency, locale)}
+                      {priceBadge.label}
                     </span>
                   )}
                 </span>

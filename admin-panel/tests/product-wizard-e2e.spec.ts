@@ -471,6 +471,68 @@ test.describe('Product type radio', () => {
   });
 });
 
+test.describe('Money input and publish feedback', () => {
+  async function closeWizard(page: Page) {
+    await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
+    const exitModal = page.getByText(/Odrzucić zmiany/i);
+    if (await exitModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await page.getByRole('button', { name: /Odrzuć/i }).click();
+    }
+  }
+
+  test('JPY price keeps what was typed and flags a fraction instead of multiplying it', async ({ page }) => {
+    await goToProducts(page);
+    await openWizard(page);
+
+    await page.locator('[data-product-type="standard"]').click();
+    await page.fill('input#name', `JPY Fraction ${Date.now()}`);
+    await page.selectOption('select#currency', 'JPY');
+    await page.locator('input#price').pressSequentially('1000.5');
+
+    await expect(page.locator('input#price')).toHaveValue('1000.5');
+    await expect(page.getByRole('dialog').getByRole('alert').filter({ hasText: /JPY/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Publikuj/i })).toBeDisabled();
+
+    await page.fill('input#price', '1 000');
+    await expect(page.getByRole('dialog').getByRole('alert')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Publikuj/i })).toBeEnabled();
+
+    await closeWizard(page);
+  });
+
+  test('VAT rate stays editable when the price excludes VAT', async ({ page }) => {
+    await goToProducts(page);
+    await openWizard(page);
+
+    await page.locator('[data-product-type="standard"]').click();
+    await page.fill('input#price', '100');
+    await page.locator('#price_includes_vat').uncheck();
+    await expect(page.locator('input#vat_rate')).toBeVisible();
+
+    await closeWizard(page);
+  });
+
+  test('Publikuj with an invalid content URL jumps to the field and focuses it', async ({ page }) => {
+    await goToProducts(page);
+    await openWizard(page);
+
+    await page.locator('[data-product-type="lead-magnet"]').click();
+    await page.fill('input#name', `Bad Url ${Date.now()}`);
+    await fillDescriptionOnStep2(page, 'desc');
+    await page.getByRole('button', { name: /Dodaj element treści/i }).click();
+    const url = page.locator('input#content_url_0');
+    await url.fill('https://example.com/not-a-video');
+    await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
+    await page.getByRole('button', { name: /^Wstecz|Podstawy/i }).first().click();
+    await page.getByRole('button', { name: /Publikuj/i }).click();
+
+    await expect(url).toBeFocused();
+    await expect(url).toHaveAttribute('aria-invalid', 'true');
+
+    await closeWizard(page);
+  });
+});
+
 // The wizard seeds taxMode + vat_rate defaults from an async shop-config
 // fetch (getMyShopConfig, in useProductForm). Advancing or submitting before
 // that fetch settles would act on placeholder values (taxMode='local',

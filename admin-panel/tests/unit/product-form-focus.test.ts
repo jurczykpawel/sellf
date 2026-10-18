@@ -8,6 +8,7 @@ import { initialFormData } from '@/components/ProductFormModal/types';
 import { getMyShopConfig } from '@/lib/actions/shop-config';
 import { useProductForm } from '@/components/ProductFormModal/hooks/useProductForm';
 
+vi.mock('next-intl', () => ({ useLocale: () => 'en' }));
 vi.mock('@/components/providers/config-provider', () => {
   const config = { trustedDownloadDomains: [] };
   return { useConfig: () => config };
