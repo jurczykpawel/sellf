@@ -49,6 +49,12 @@ const TS = Date.now();
 const TEST_NOW = new Date();
 const TEST_TODAY = TEST_NOW.toISOString().split('T')[0]; // YYYY-MM-DD
 
+// Fixed historic day for exact per-hour assertions. Nothing else in the suite writes
+// completed transactions to this date, and the assertions are scoped by per-run product
+// ids, so results never depend on the wall clock (rows created "now" by other tests
+// or files land on TEST_TODAY, possibly in any hour, e.g. 03:xx UTC).
+const FIXED_DAY = '2021-03-14';
+
 // ============================================================================
 // Shared test data
 // ============================================================================
@@ -185,6 +191,21 @@ beforeAll(async () => {
       status: 'completed',
       created_at: new Date(`${TEST_TODAY}T16:00:00Z`).toISOString(),
     },
+    // Fixed-day transactions for deterministic hourly assertions
+    ...[
+      { n: 'fx1', product: productA.id, amount: 5000, currency: 'USD', hour: '10:30:00' },
+      { n: 'fx2', product: productA.id, amount: 5000, currency: 'USD', hour: '14:15:00' },
+      { n: 'fx3', product: productB.id, amount: 10000, currency: 'PLN', hour: '16:00:00' },
+    ].map((f) => ({
+      session_id: `cs_dash${f.n}${TS}`,
+      stripe_payment_intent_id: `pi_dash${f.n}${TS}`,
+      product_id: f.product,
+      customer_email: `${f.n}-${TS}@example.com`,
+      amount: f.amount,
+      currency: f.currency,
+      status: 'completed',
+      created_at: new Date(`${FIXED_DAY}T${f.hour}Z`).toISOString(),
+    })),
     // Yesterday transaction
     {
       session_id: `cs_dash4${TS}`,
@@ -587,42 +608,56 @@ describe('get_sales_chart_data', () => {
 // ============================================================================
 
 describe('get_hourly_revenue_stats', () => {
-  it('returns 24 hours of data for today', async () => {
+  it('returns 24 hourly buckets with correct counts for a fixed day', async () => {
+    const hourly = async (productId: string) => {
+      const { data, error } = await supabaseAdmin.rpc('get_hourly_revenue_stats', {
+        p_target_date: FIXED_DAY,
+        p_product_id: productId,
+      });
+      expect(error).toBeNull();
+      expect(Array.isArray(data)).toBe(true);
+      expect(data.length).toBe(24);
+      for (let h = 0; h < 24; h++) {
+        expect(data[h].hour).toBe(h);
+        expect(data[h]).toHaveProperty('amount_by_currency');
+        expect(data[h]).toHaveProperty('orders');
+      }
+      return data;
+    };
+
+    // Product A: USD 5000 at 10 UTC and 14 UTC; everything else empty (exact).
+    const a = await hourly(productA.id);
+    for (let h = 0; h < 24; h++) {
+      if (h === 10 || h === 14) {
+        expect(a[h].orders).toBe(1);
+        expect(Number(a[h].amount_by_currency.USD)).toBe(5000);
+      } else {
+        expect(a[h].orders).toBe(0);
+        expect(a[h].amount_by_currency).toEqual({});
+      }
+    }
+
+    // Product B: PLN 10000 at 16 UTC only.
+    const b = await hourly(productB.id);
+    for (let h = 0; h < 24; h++) {
+      if (h === 16) {
+        expect(b[h].orders).toBe(1);
+        expect(Number(b[h].amount_by_currency.PLN)).toBe(10000);
+        expect(b[h].amount_by_currency.USD).toBeUndefined();
+      } else {
+        expect(b[h].orders).toBe(0);
+        expect(b[h].amount_by_currency).toEqual({});
+      }
+    }
+  });
+
+  it('returns 24 hours for today (shape only, data-independent)', async () => {
     const { data, error } = await supabaseAdmin.rpc('get_hourly_revenue_stats', {
       p_target_date: TEST_TODAY,
     });
-
     expect(error).toBeNull();
-    expect(data).toBeDefined();
-    expect(Array.isArray(data)).toBe(true);
     expect(data.length).toBe(24);
-
-    // Verify hours 0-23
-    for (let h = 0; h < 24; h++) {
-      expect(data[h].hour).toBe(h);
-      expect(data[h]).toHaveProperty('amount_by_currency');
-      expect(data[h]).toHaveProperty('orders');
-    }
-
-    // Verify specific hours that match our test data insertion times have non-zero revenue.
-    // We inserted completed transactions at hours 10 (5000 USD), 14 (5000 USD), and 16 (10000 PLN) UTC.
-    const hour10 = data[10];
-    const hour14 = data[14];
-    const hour16 = data[16];
-
-    expect(hour10.orders).toBeGreaterThanOrEqual(1);
-    expect(Number(hour10.amount_by_currency.USD)).toBeGreaterThanOrEqual(5000);
-
-    expect(hour14.orders).toBeGreaterThanOrEqual(1);
-    expect(Number(hour14.amount_by_currency.USD)).toBeGreaterThanOrEqual(5000);
-
-    expect(hour16.orders).toBeGreaterThanOrEqual(1);
-    expect(Number(hour16.amount_by_currency.PLN)).toBeGreaterThanOrEqual(10000);
-
-    // Hours without test data should have 0 orders (pick an hour we know is empty)
-    // Hour 3 UTC has no test transactions
-    expect(data[3].orders).toBe(0);
-    expect(data[3].amount_by_currency).toEqual({});
+    for (let h = 0; h < 24; h++) expect(data[h].hour).toBe(h);
   });
 
   it('returns all zeros for a future date', async () => {
