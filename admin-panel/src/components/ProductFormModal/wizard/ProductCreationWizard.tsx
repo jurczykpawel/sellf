@@ -136,9 +136,10 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
   if (previousErrors !== fieldErrors) {
     setPreviousErrors(fieldErrors);
     const keys = Object.keys(fieldErrors);
-    const step1Keys = ['name', 'slug', 'price', 'recurring_price', 'vat_rate'];
+    const step1Keys = ['name', 'slug', 'price', 'recurring_price', 'custom_price_min', 'vat_rate'];
     if (keys.some(key => step1Keys.includes(key))) setCurrentStep(1);
     else if (keys.includes('description') || keys.includes('marketing_fields')) setCurrentStep(2);
+    else if (keys.includes('sale_price')) setCurrentStep(3);
   }
 
   // Trigger the form submit via the hook's handleSubmit

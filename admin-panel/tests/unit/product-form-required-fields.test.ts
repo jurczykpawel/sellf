@@ -232,3 +232,17 @@ describe('collectStep1FieldErrors — VAT exempt (zw.)', () => {
     expect(errors.vat_rate).toBeUndefined();
   });
 });
+
+describe('amounts the currency cannot hold', () => {
+  it('rejects a fractional recurring price in a zero-decimal currency', () => {
+    const errors = collectRequiredFieldErrors({ ...baseValid, currency: 'JPY', recurring_price: 499.5 }, '', 'local');
+    expect(errors.recurring_price).toBe('invalid');
+    expect(collectRequiredFieldErrors({ ...baseValid, currency: 'JPY', recurring_price: 500 }, '', 'local')).toEqual({});
+  });
+
+  it('rejects a fractional pay-what-you-want minimum in a zero-decimal currency', () => {
+    const pwyw = { ...baseValid, product_type: 'one_time' as const, ux_product_type: 'tip-jar' as const, allow_custom_price: true, currency: 'JPY' };
+    expect(collectRequiredFieldErrors({ ...pwyw, custom_price_min: 50.5 }, '', 'local').custom_price_min).toBe('invalid');
+    expect(collectRequiredFieldErrors({ ...pwyw, custom_price_min: 50 }, '', 'local').custom_price_min).toBeUndefined();
+  });
+});
