@@ -1,8 +1,12 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { useLocale } from 'next-intl';
 import { CURRENCIES, getCurrencySymbol } from '@/lib/constants';
 import { currencyExponent, minimumChargeAmount } from '@/lib/currency/minor-units';
+import { moneyAmountError, parseMoneyInput } from '@/lib/currency/parse-money-input';
+import { MoneyInputError } from '@/components/MoneyInputError';
+import { MONEY_TEXT_CHARS } from '../money-input';
 import type { SectionProps } from '../types';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import { TaxHelper } from './TaxHelper';
@@ -36,6 +40,7 @@ export function PriceVatInline({
   fieldErrors = {},
   setFieldErrors,
 }: PriceVatInlineProps) {
+  const locale = useLocale();
   const presetsManuallyEdited = useRef(false);
   const minManuallyEdited = useRef(false);
   // Mirror of formData.price that updates synchronously inside handlePriceChange.
@@ -64,6 +69,11 @@ export function PriceVatInline({
 
   const handleCurrencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const currency = e.target.value;
+    if (priceDisplayValue !== '') {
+      const reparsed = parseMoneyInput(priceDisplayValue, currency, locale).value ?? 0;
+      latestPriceRef.current = reparsed;
+      setFormData(prev => ({ ...prev, price: reparsed }));
+    }
     setFormData(prev => {
       // Keep the seller's minimum unless it cannot work in the new currency (fractional yen,
       // or below Stripe's minimum charge there); 0 means a free pay-what-you-want option.
@@ -99,27 +109,19 @@ export function PriceVatInline({
       return;
     }
 
-    if (!/^[\d,.]*$/.test(inputValue)) return;
+    if (!MONEY_TEXT_CHARS.test(inputValue)) return;
 
-    const processedValue = inputValue.replace(',', '.');
-    const dotCount = (processedValue.match(/\./g) || []).length;
-    if (dotCount > 1) return;
-
-    const decimals = currencyExponent(formData.currency);
-    if (new RegExp(decimals === 0 ? '^\\d*$' : `^\\d*\\.?\\d{0,${decimals}}$`).test(processedValue)) {
-      const numericValue = parseFloat(processedValue);
-      const price = isNaN(numericValue) ? 0 : numericValue;
-      latestPriceRef.current = price;
-      setPriceDisplayValue(inputValue);
-      setFormData(prev => ({
-        ...prev,
-        price,
-        ...(prev.allow_custom_price && {
-          ...(!presetsManuallyEdited.current && { custom_price_presets: getDefaultPresets(price) }),
-          ...(!minManuallyEdited.current && { custom_price_min: getDefaultMin(price) }),
-        }),
-      }));
-    }
+    const price = parseMoneyInput(inputValue, formData.currency, locale).value ?? 0;
+    latestPriceRef.current = price;
+    setPriceDisplayValue(inputValue);
+    setFormData(prev => ({
+      ...prev,
+      price,
+      ...(prev.allow_custom_price && {
+        ...(!presetsManuallyEdited.current && { custom_price_presets: getDefaultPresets(price) }),
+        ...(!minManuallyEdited.current && { custom_price_min: getDefaultMin(price) }),
+      }),
+    }));
   };
 
   const handleCustomPriceToggle = (enabled: boolean) => {
@@ -162,6 +164,10 @@ export function PriceVatInline({
     });
   };
 
+  const priceParseError = parseMoneyInput(priceDisplayValue, formData.currency, locale).error;
+  const priceErrorMessage = fieldErrors.price
+    ? t(priceDisplayValue !== '' ? 'priceFreeUseLeadMagnet' : 'priceRequired')
+    : null;
   const showCurrencyPrefix = formData.currency !== 'PLN' && formData.currency !== 'CHF';
 
   const pwywConfig = (
@@ -181,6 +187,7 @@ export function PriceVatInline({
           step={currencyExponent(formData.currency) === 0 ? "1" : "0.10"}
           className="w-16 px-2 py-1 border-2 border-sf-border-medium text-sm focus:ring-2 focus:ring-sf-accent focus:border-transparent bg-sf-input text-sf-heading"
         />
+        <MoneyInputError error={moneyAmountError(formData.custom_price_min, formData.currency)} currency={formData.currency} className="text-xs text-sf-danger" />
         <span className="text-xs text-sf-muted">
           {formData.custom_price_min === 0
             ? t('customPricing.freeOptionHint')
@@ -257,33 +264,31 @@ export function PriceVatInline({
               </span>
             </label>
 
-            {formData.price_includes_vat && (
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  id="vat_rate"
-                  value={formData.vat_rate ?? ''}
-                  onChange={(e) => {
-                    if (fieldErrors.vat_rate && setFieldErrors) {
-                      setFieldErrors(prev => { const next = { ...prev }; delete next.vat_rate; return next; });
-                    }
-                    setFormData(prev => ({
-                      ...prev,
-                      vat_rate: e.target.value === '' ? null : parseFloat(e.target.value)
-                    }));
-                  }}
-                  min="0"
-                  max="100"
-                  step="1"
-                  placeholder={shopDefaultVatRate != null ? `${Math.round(shopDefaultVatRate * 100)}` : ''}
-                  required={shopDefaultVatRate == null}
-                  className={`w-14 px-2 py-2 border-2 bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent text-sm text-center ${
-                    fieldErrors.vat_rate ? 'border-red-500' : 'border-sf-border-medium'
-                  }`}
-                />
-                <span className="text-sm text-sf-muted">%</span>
-              </div>
-            )}
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                id="vat_rate"
+                value={formData.vat_rate ?? ''}
+                onChange={(e) => {
+                  if (fieldErrors.vat_rate && setFieldErrors) {
+                    setFieldErrors(prev => { const next = { ...prev }; delete next.vat_rate; return next; });
+                  }
+                  setFormData(prev => ({
+                    ...prev,
+                    vat_rate: e.target.value === '' ? null : parseFloat(e.target.value)
+                  }));
+                }}
+                min="0"
+                max="100"
+                step="1"
+                placeholder={shopDefaultVatRate != null ? `${Math.round(shopDefaultVatRate * 100)}` : ''}
+                required={shopDefaultVatRate == null}
+                className={`w-14 px-2 py-2 border-2 bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent text-sm text-center ${
+                  fieldErrors.vat_rate ? 'border-red-500' : 'border-sf-border-medium'
+                }`}
+              />
+              <span className="text-sm text-sf-muted">%</span>
+            </div>
           </>
         )}
       </div>
@@ -369,7 +374,7 @@ export function PriceVatInline({
             value={priceDisplayValue}
             onChange={handlePriceChange}
             placeholder={!showCurrencyPrefix ? `${getCurrencySymbol(formData.currency)}` : ''}
-            className={`${showCurrencyPrefix ? 'pl-9' : 'pl-3'} pr-[4.5rem] w-full py-2 border ${fieldErrors.price ? 'border-red-500 focus:ring-red-500' : 'border-sf-border focus:ring-sf-accent'} focus:outline-none focus:ring-2 focus:border-transparent bg-sf-input text-sf-heading`}
+            className={`${showCurrencyPrefix ? 'pl-9' : 'pl-3'} pr-[4.5rem] w-full py-2 border ${priceParseError || priceErrorMessage ? 'border-red-500 focus:ring-red-500' : 'border-sf-border focus:ring-sf-accent'} focus:outline-none focus:ring-2 focus:border-transparent bg-sf-input text-sf-heading`}
           />
           <div className="absolute inset-y-0 right-0 pr-2 flex items-center">
             <select
@@ -396,13 +401,15 @@ export function PriceVatInline({
             : null}
       </div>
 
-      {fieldErrors.price ? (
-        <p className="mt-1.5 text-xs text-red-500">{t('price')} is required</p>
+      {priceParseError ? (
+        <MoneyInputError error={priceParseError} currency={formData.currency} className="mt-1.5 text-xs text-red-500" />
+      ) : priceErrorMessage ? (
+        <p role="alert" className="mt-1.5 text-xs text-red-500">{priceErrorMessage}</p>
       ) : fieldErrors.vat_rate ? (
         <p className="mt-1.5 text-xs text-red-500">{t('vatRateRequired', { defaultValue: 'VAT rate is required (no default set in Tax settings)' })}</p>
       ) : (
         <p className="mt-1.5 text-xs text-sf-muted">
-          {t('setToZeroForFree')}
+          {t('priceHint')}
         </p>
       )}
 

@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
+import { useLocale } from 'next-intl';
 import { Product } from '@/types';
+import { parseMoneyInput } from '@/lib/currency/parse-money-input';
 import { ProductContentConfig } from '@/types';
 import { marketingFieldsSchema } from '@/lib/validations/product-marketing';
 import { getIconEmoji } from '@/utils/themeUtils';
@@ -42,6 +44,7 @@ interface UseProductFormProps {
 
 export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: UseProductFormProps) {
   const { trustedDownloadDomains } = useConfig();
+  const locale = useLocale();
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const [priceDisplayValue, setPriceDisplayValue] = useState<string>('');
   const [salePriceDisplayValue, setSalePriceDisplayValue] = useState<string>('');
@@ -607,6 +610,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   const validateRequiredFields = useCallback((): boolean => {
     const errors = collectRequiredFieldErrors(formData, priceDisplayValue, taxMode);
     if (!marketingFieldsSchema.safeParse(formData.marketing_fields).success) errors.marketing_fields = 'invalid';
+    if (parseMoneyInput(salePriceDisplayValue, formData.currency, locale).error) errors.sale_price = 'invalid';
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -615,7 +619,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     }
     setFieldErrors({});
     return true;
-  }, [formData, priceDisplayValue, taxMode]);
+  }, [formData, priceDisplayValue, salePriceDisplayValue, taxMode, locale]);
 
   // Validate just step-1 fields — used by "Dalej" so a missing description
   // doesn't trip the auto-jump-to-step-2 effect when the seller hasn't even
@@ -674,6 +678,12 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
       });
 
       if (invalidItems.length > 0) {
+        setFieldErrors({ content_url: 'invalid' });
+        window.setTimeout(() => {
+          const field = document.getElementById(`content_url_${invalidItems[0]}`);
+          field?.scrollIntoView({ block: 'center' });
+          field?.focus();
+        }, 0);
         return;
       }
     }

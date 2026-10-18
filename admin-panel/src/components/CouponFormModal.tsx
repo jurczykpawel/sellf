@@ -19,6 +19,8 @@ import { Product } from '@/types';
 import { getMyShopConfig } from '@/lib/actions/shop-config';
 import { CURRENCIES } from '@/lib/constants';
 import { useLocale, useTranslations } from 'next-intl';
+import { moneyAmountError } from '@/lib/currency/parse-money-input';
+import { MoneyInputError } from '@/components/MoneyInputError';
 
 interface CouponFormModalProps {
   products: Product[];
@@ -234,6 +236,9 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                     </span>
                   </div>
                 </div>
+                {formData.discount_type === 'fixed' && (
+                  <MoneyInputError error={moneyAmountError(formData.discount_value, formData.currency || defaultCurrency)} currency={formData.currency || defaultCurrency} />
+                )}
               </div>
 
               {formData.discount_type === 'fixed' && (

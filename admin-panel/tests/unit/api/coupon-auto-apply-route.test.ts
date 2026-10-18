@@ -59,10 +59,38 @@ describe('POST /api/coupons/auto-apply', () => {
   });
 
   it('returns 429 before any lookup when the client is over its limit', async () => {
+    userClient.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
     rateLimiting.checkRateLimit.mockResolvedValue(false);
     const res = await POST(request({ email: 'guest@example.com', productId: PRODUCT_ID }));
     expect(res.status).toBe(429);
     expect(serviceClient.rpc).not.toHaveBeenCalled();
     expect(userClient.rpc).not.toHaveBeenCalled();
+  });
+
+  it('counts a signed-in buyer against their own bucket, not the shared client address', async () => {
+    userClient.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'u1', email: 'buyer@example.com' } },
+      error: null,
+    });
+
+    await POST(request({ email: 'buyer@example.com', productId: PRODUCT_ID }));
+
+    expect(rateLimiting.checkRateLimit).toHaveBeenCalledWith('coupon_auto_apply', 60, 60, 'u1');
+  });
+
+  it('keeps guests on the per-client bucket', async () => {
+    userClient.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+
+    await POST(request({ email: 'guest@example.com', productId: PRODUCT_ID }));
+
+    expect(rateLimiting.checkRateLimit).toHaveBeenCalledWith('coupon_auto_apply', 10, 60, undefined);
+  });
+
+  it('tells the client when to retry', async () => {
+    userClient.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+    rateLimiting.checkRateLimit.mockResolvedValue(false);
+    const res = await POST(request({ email: 'guest@example.com', productId: PRODUCT_ID }));
+    expect(res.headers.get('Retry-After')).toBe('3600');
+    expect(await res.json()).toMatchObject({ error: 'rate_limited', retryAfterSeconds: 3600 });
   });
 });

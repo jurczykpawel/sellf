@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit, checkRateLimitForIdentifier, getRateLimitIdentifier } from '@/lib/rate-limiting';
+import { COUPON_RATE_WINDOW_SECONDS, rateLimitedResponse } from '@/lib/api/rate-limited-response';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const TOO_MANY = () => NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+const TOO_MANY = () => rateLimitedResponse(COUPON_RATE_WINDOW_SECONDS);
 
 export async function POST(request: NextRequest) {
   try {

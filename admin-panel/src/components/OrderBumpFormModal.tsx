@@ -4,6 +4,8 @@ import { currencyExponent } from '@/lib/currency/minor-units';
 import React, { useState, useEffect } from 'react';
 import { Product } from '@/types';
 import { useTranslations, useLocale } from 'next-intl';
+import { moneyAmountError } from '@/lib/currency/parse-money-input';
+import { MoneyInputError } from '@/components/MoneyInputError';
 import { formatPrice } from '@/lib/constants';
 
 interface OrderBumpWithDetails {
@@ -313,6 +315,7 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
                           required={useCustomPrice}
                           className="w-full px-4 py-2 border border-sf-warning/30 focus:ring-2 focus:ring-sf-warning bg-sf-input text-sf-heading"
                         />
+                        <MoneyInputError error={moneyAmountError(bumpPrice ? parseFloat(bumpPrice) : null, selectedBumpProduct.currency)} currency={selectedBumpProduct.currency} />
                       </div>
                     )}
                   </div>

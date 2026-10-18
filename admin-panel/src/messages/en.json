@@ -82,6 +82,7 @@
     "verifying": "...",
     "invalidCoupon": "Invalid coupon code",
     "verifyError": "Failed to verify coupon",
+    "couponRateLimited": "Too many attempts. Try again in up to {minutes} minutes.",
     "discountApplied": "{discount} discount applied",
     "paymentError": "Payment Error",
     "accessGranted": "Access Granted!",
@@ -1224,6 +1225,11 @@
     "minutes": "minute",
     "minutesPlural": "minutes"
   },
+  "moneyInput": {
+    "fractionNotAllowed": "{currency} has no minor unit. Enter a whole amount, e.g. 1000.",
+    "tooManyDecimals": "At most 2 decimal places.",
+    "invalidFormat": "Invalid amount. Use digits and a comma or dot."
+  },
   "admin": {
     "dashboard": {
       "checkoutFunnel": {
@@ -1512,7 +1518,9 @@
         "previewVideoUrlPlaceholder": "https://youtube.com/watch?v=... or https://vimeo.com/...",
         "previewVideoUrlHelp": "Video shown on checkout page. Takes priority over image. Supports YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, and Twitch.",
         "previewVideoUrlUnsupported": "Unsupported platform. Use YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, or Twitch.",
-        "setToZeroForFree": "Set to 0 for free products. Use comma or dot for decimal separator.",
+        "priceHint": "Use a comma or dot as the decimal separator. For a free product choose the \"Lead magnet\" type.",
+        "priceRequired": "Enter a price.",
+        "priceFreeUseLeadMagnet": "A standard product needs a price above 0. Create a free product with the \"Lead magnet\" type.",
         "temporalAvailability": "Temporal Availability",
         "availabilityAndWaitlist": "Availability & Waitlist",
         "availableFrom": "Available From",

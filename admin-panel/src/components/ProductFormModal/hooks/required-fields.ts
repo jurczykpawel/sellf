@@ -12,6 +12,7 @@
  * submit time). Description is intentionally optional.
  */
 
+import { moneyAmountError } from '@/lib/currency/parse-money-input';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import type { UxProductType } from '@/lib/product-defaults';
 
@@ -26,6 +27,8 @@ interface FormDataForValidation {
   allow_custom_price: boolean;
   product_type?: 'one_time' | 'subscription';
   recurring_price?: number | null;
+  currency?: string;
+  custom_price_min?: number | null;
   ux_product_type?: UxProductType;
 }
 
@@ -40,11 +43,16 @@ function collectPriceErrors(
   if (isSubscription) {
     if (formData.recurring_price == null || Number(formData.recurring_price) <= 0) {
       errors.recurring_price = 'required';
+    } else if (moneyAmountError(Number(formData.recurring_price), formData.currency ?? '')) {
+      errors.recurring_price = 'invalid';
     }
     return errors;
   }
 
   if (formData.allow_custom_price || uxType === 'tip-jar' || uxType === 'lead-magnet') {
+    if (formData.allow_custom_price && moneyAmountError(formData.custom_price_min, formData.currency ?? '')) {
+      errors.custom_price_min = 'invalid';
+    }
     return errors;
   }
 

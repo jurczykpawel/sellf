@@ -292,6 +292,8 @@ export function ContentDeliverySection({
                     <div className="flex-1 relative">
                       <input
                         type="text"
+                        id={`content_url_${index}`}
+                        aria-invalid={urlValidation[index]?.isValid === false}
                         placeholder={t('url')}
                         value={item.config?.embed_url || item.config?.download_url || ''}
                         onChange={(e) => handleItemUrlChange(index, e.target.value)}

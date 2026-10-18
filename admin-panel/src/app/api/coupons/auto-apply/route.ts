@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { isValidEmailFormat } from '@/lib/validations/email-format';
+import { COUPON_RATE_WINDOW_SECONDS, rateLimitedResponse } from '@/lib/api/rate-limited-response';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -18,10 +19,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Rate Limiting
-    const allowed = await checkRateLimit('coupon_auto_apply', 10, 60);
+    // Signed-in buyers get their own bucket (every product page view calls
+    // this); guests share the per-client bucket because they cannot be told apart.
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const allowed = await checkRateLimit('coupon_auto_apply', user ? 60 : 10, 60, user?.id);
     if (!allowed) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+      return rateLimitedResponse(COUPON_RATE_WINDOW_SECONDS);
     }
 
     const { email, productId } = await readJsonBody<{ email?: string; productId?: string }>(request);
@@ -39,8 +43,6 @@ export async function POST(request: NextRequest) {
     // Signed-in buyers are matched by their account e-mail (the database
     // function reads it from the session); guests by the e-mail they typed,
     // looked up server-side after the per-client limit above.
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
     const lookupClient = user ? supabase : createAdminClient();
 
     const { data, error } = await lookupClient.rpc('find_auto_apply_coupon', {
