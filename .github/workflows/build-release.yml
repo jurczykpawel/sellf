@@ -82,7 +82,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.14
+          bun-version: 1.4.3
 
       - name: Install SSH deploy key (read-only to playerstack)
         uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
@@ -124,53 +124,63 @@ jobs:
         working-directory: /tmp/playerstack/packages/embed
         run: bun run build
 
-      - name: Verify bundle SRI matches sellf source of truth
+      - name: Verify bundle files match sellf source of truth
         shell: bash
         run: |
           set -euo pipefail
-          BUNDLE_PATH="/tmp/playerstack/packages/embed/dist/playerstack.min.js"
-          if [[ ! -s "$BUNDLE_PATH" ]]; then
-            echo "::error::playerstack build did not produce $BUNDLE_PATH" >&2
-            exit 1
-          fi
-
-          UPSTREAM_SRI="sha384-$(openssl dgst -sha384 -binary "$BUNDLE_PATH" | openssl base64 -A)"
-          UPSTREAM_SHORT="$(openssl dgst -sha256 "$BUNDLE_PATH" | awk '{print $2}' | cut -c1-12)"
-
+          DIST="/tmp/playerstack/packages/embed/dist"
           SELLF_SRC_FILE="admin-panel/src/lib/playerstack.ts"
           SELLF_SRI="$(grep -aoE "sha384-[A-Za-z0-9+/=]+" "$SELLF_SRC_FILE" | head -1 || true)"
-          SELLF_BUNDLE_PATH_REL="$(grep -aoE "/vendor/playerstack/playerstack-[a-f0-9]{12}\.min\.js" "$SELLF_SRC_FILE" | head -1 || true)"
+          SELLF_BUNDLE_PATH_REL="$(grep -aoE "/vendor/playerstack/[a-f0-9]{7}/playerstack\.min\.js" "$SELLF_SRC_FILE" | head -1 || true)"
 
           if [[ -z "$SELLF_SRI" || -z "$SELLF_BUNDLE_PATH_REL" ]]; then
             echo "::error::could not extract integrity / bundle path from $SELLF_SRC_FILE" >&2
             exit 1
           fi
 
-          SELLF_BUNDLE_FILE="admin-panel/public${SELLF_BUNDLE_PATH_REL}"
-          if [[ ! -s "$SELLF_BUNDLE_FILE" ]]; then
-            echo "::error::sellf bundle missing on disk: $SELLF_BUNDLE_FILE" >&2
+          SELLF_DIR="admin-panel/public$(dirname "$SELLF_BUNDLE_PATH_REL")"
+          if [[ "$(basename "$SELLF_DIR")" != "$(echo "${{ steps.pin.outputs.ps_sha }}" | cut -c1-7)" ]]; then
+            echo "::error::$SELLF_DIR is not named after the pinned playerstack commit" >&2
             exit 1
           fi
 
-          ON_DISK_SRI="sha384-$(openssl dgst -sha384 -binary "$SELLF_BUNDLE_FILE" | openssl base64 -A)"
+          ON_DISK_SRI="sha384-$(openssl dgst -sha384 -binary "$SELLF_DIR/playerstack.min.js" | openssl base64 -A)"
           if [[ "$ON_DISK_SRI" != "$SELLF_SRI" ]]; then
-            echo "::error::bundle in $SELLF_BUNDLE_FILE does not match integrity declared in $SELLF_SRC_FILE" >&2
+            echo "::error::core script in $SELLF_DIR does not match integrity declared in $SELLF_SRC_FILE" >&2
             echo "::error::on-disk: $ON_DISK_SRI" >&2
             echo "::error::declared: $SELLF_SRI" >&2
-            echo "::error::someone modified files in admin-panel/public/vendor/ or playerstack.ts manually" >&2
             exit 1
           fi
 
-          if [[ "$UPSTREAM_SRI" != "$SELLF_SRI" ]]; then
-            echo "::warning::upstream rebuild SRI differs from sellf declared — likely esbuild cross-platform non-determinism (mac arm64 vs linux x64)" >&2
-            echo "::warning::upstream (rebuilt at ${{ steps.pin.outputs.ps_sha }}): $UPSTREAM_SRI ($UPSTREAM_SHORT)" >&2
-            echo "::warning::sellf (declared):   $SELLF_SRI" >&2
-            echo "::warning::on-disk SRI matches declared, so manual tampering is still detected; only the cross-platform rebuild check is downgraded to a warning"
-          fi
+          # Every module (+ legal notice) must exist in sellf and be byte-identical to the fresh build.
+          # List shared with scripts/sync-playerstack.sh.
+          while IFS= read -r module; do
+            for f in "$module" "$module.LEGAL.txt"; do
+              if [[ ! -s "$DIST/$f" ]]; then
+                echo "::error::playerstack build did not produce $f" >&2
+                exit 1
+              fi
+              if [[ ! -s "$SELLF_DIR/$f" ]]; then
+                echo "::error::sellf is missing $SELLF_DIR/$f" >&2
+                exit 1
+              fi
+              if [[ "$(sha256sum < "$DIST/$f")" != "$(sha256sum < "$SELLF_DIR/$f")" ]]; then
+                echo "::error::$SELLF_DIR/$f differs from the fresh playerstack build" >&2
+                exit 1
+              fi
+            done
+          done < <(grep -vE '^\s*(#|$)' admin-panel/scripts/playerstack-modules.txt)
+
+          for f in LICENSE NOTICE; do
+            if ! cmp -s "/tmp/playerstack/$f" "$SELLF_DIR/$f"; then
+              echo "::error::$SELLF_DIR/$f is missing or differs from upstream" >&2
+              exit 1
+            fi
+          done
 
           echo "✓ bundle matches playerstack@${{ steps.pin.outputs.ps_sha }}"
-          echo "  bundle: $SELLF_BUNDLE_PATH_REL"
-          echo "  sri:    $SELLF_SRI"
+          echo "  dir: $SELLF_DIR"
+          echo "  sri: $SELLF_SRI"
 
   build:
     runs-on: ubuntu-latest
