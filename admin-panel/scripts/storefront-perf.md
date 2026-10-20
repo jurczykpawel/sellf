@@ -8,7 +8,7 @@ Prepare a disposable `/private/tmp/sellf-perf/supabase` copy of the repository's
 supabase start --workdir /private/tmp/sellf-perf
 supabase db reset --workdir /private/tmp/sellf-perf
 docker restart supabase_kong_sellf-perf
-/tmp/bun-1314/bun-darwin-aarch64/bun scripts/storefront-perf.mjs /private/tmp/storefront-perf-results
+bun scripts/storefront-perf.mjs /private/tmp/storefront-perf-results
 supabase stop --no-backup --workdir /private/tmp/sellf-perf
 ```
 

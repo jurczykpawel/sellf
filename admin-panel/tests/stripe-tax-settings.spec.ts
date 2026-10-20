@@ -19,6 +19,7 @@ import { test, expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession } from './helpers/admin-auth';
+import { openSettingsTab, PAYMENTS_TAB } from './helpers/settings-tabs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -64,15 +65,8 @@ test.describe('Stripe Tax Settings Admin UI', () => {
 
   /** Navigate to settings → Payments tab and return the Tax & Checkout section container */
   async function goToStripeTaxSection(page: Page) {
-    await page.goto('/dashboard/settings');
-    await page.waitForLoadState('domcontentloaded');
-    // Payments tab: wait for React hydration (can be slow under full-suite pressure)
-    const paymentsTab = page.getByRole('button', { name: /^Payments$|^Płatności$/i });
-    await expect(paymentsTab).toBeVisible({ timeout: 20000 });
-    await paymentsTab.click();
-
     const heading = page.locator('h2', { hasText: /Tax & Checkout|Stripe Tax|Tax/i }).first();
-    await expect(heading).toBeVisible({ timeout: 10000 });
+    await openSettingsTab(page, PAYMENTS_TAB, heading);
 
     // h2 → div → div.flex → div.card (section container)
     const section = heading.locator('../../..');

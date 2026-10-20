@@ -2,6 +2,7 @@ import { test, expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession } from './helpers/admin-auth';
+import { openSettingsTab, PAYMENTS_TAB } from './helpers/settings-tabs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -45,10 +46,7 @@ test.describe('Stripe Configuration Wizard', () => {
 
 
   const gotoPaymentsSettings = async (page: Page) => {
-    await page.goto('/dashboard/settings');
-    await page.waitForLoadState('domcontentloaded');
-    await page.getByRole('button', { name: /^Payments$|^Płatności$/i }).click();
-    await page.waitForSelector('text=Stripe Configuration', { timeout: 10000 });
+    await openSettingsTab(page, PAYMENTS_TAB, page.locator('text=Stripe Configuration').first());
   };
 
   const navigateToStep4 = async (page: Page) => {
