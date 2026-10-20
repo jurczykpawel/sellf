@@ -1,16 +1,36 @@
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   buildPlayerstackRenderConfig,
   getVideoValidationMessage,
   isPlayerstackPlatform,
+  PLAYERSTACK_COMMIT_SHA,
   PLAYERSTACK_SCRIPT_SRC,
   PLAYERSTACK_SCRIPT_INTEGRITY,
 } from '@/lib/playerstack';
 
+const MODULES = readFileSync(join(process.cwd(), 'scripts/playerstack-modules.txt'), 'utf8')
+  .split('\n')
+  .filter((line) => line.trim() && !line.startsWith('#'));
+
 describe('playerstack integration helpers', () => {
+  it('ships every module, its legal notice and the upstream notices next to the core script', () => {
+    const dir = join(process.cwd(), 'public', dirname(PLAYERSTACK_SCRIPT_SRC));
+    expect(MODULES).toContain('playerstack.min.js');
+    const required = [...MODULES, ...MODULES.map((m) => `${m}.LEGAL.txt`), 'LICENSE', 'NOTICE'];
+    expect(required.filter((f) => !existsSync(join(dir, f)))).toEqual([]);
+  });
+
+  it('keeps the core script hash in sync with the declared SRI', () => {
+    const core = readFileSync(join(process.cwd(), 'public', PLAYERSTACK_SCRIPT_SRC));
+    expect(`sha384-${createHash('sha384').update(core).digest('base64')}`).toBe(PLAYERSTACK_SCRIPT_INTEGRITY);
+  });
+
   it('serves Playerstack from a same-origin path so npm/CDN compromise cannot reach checkout', () => {
     expect(PLAYERSTACK_SCRIPT_SRC.startsWith('/vendor/playerstack/')).toBe(true);
-    expect(PLAYERSTACK_SCRIPT_SRC).toMatch(/playerstack-[a-f0-9]{12}\.min\.js$/);
+    expect(PLAYERSTACK_SCRIPT_SRC).toBe(`/vendor/playerstack/${PLAYERSTACK_COMMIT_SHA.slice(0, 7)}/playerstack.min.js`);
     expect(PLAYERSTACK_SCRIPT_SRC).not.toMatch(/^https?:\/\//);
   });
 

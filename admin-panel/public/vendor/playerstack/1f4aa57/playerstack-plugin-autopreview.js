@@ -1,0 +1,4 @@
+(()=>{var n=new WeakMap;function p(){return typeof matchMedia!="function"?!1:matchMedia("(prefers-reduced-motion: reduce)").matches}var a={name:"autopreview",async init(e){let t=e.config.preview;if(!t?.enabled||p())return;let r=e.mediaPlayer,c=()=>{try{"muted"in r&&(r.muted=!0);let o=r.play?.();o instanceof Promise&&o.catch(()=>{})}catch{}},s=new IntersectionObserver(o=>{for(let u of o)u.isIntersecting?c():r.pause?.()},{threshold:t.threshold??.5});s.observe(e.mediaPlayer),n.set(e,s)},destroy(e){n.get(e)?.disconnect(),n.delete(e)}};var i=Symbol.for("playerstack.plugin-modules");function d(){let e=globalThis;return e[i]??(e[i]=new Map)}function l(e){let t=document.currentScript;if(!(t instanceof HTMLScriptElement))throw new Error("plugin script URL is missing");d().set(t.src,e)}l(a);})();
+//# sourceMappingURL=playerstack-plugin-autopreview.js.map
+
+// License notices: playerstack-plugin-autopreview.js.LEGAL.txt

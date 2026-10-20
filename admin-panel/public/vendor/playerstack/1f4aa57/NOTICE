@@ -1,0 +1,20 @@
+Playerstack, Copyright 2026 Paweł Jurczyk
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party media
+-----------------
+
+The demo video and its poster are not covered by the Apache License 2.0 of the code.
+
+  apps/docs/public/demo.mp4
+  apps/docs/public/demo-poster.webp
+
+  Sintel Trailer, Durian Open Movie Team
+  (c) copyright Blender Foundation | https://durian.blender.org/
+  Licensed under Creative Commons Attribution 3.0 (CC BY 3.0):
+  https://creativecommons.org/licenses/by/3.0/
+
+  Changes: the video is a 12-second, re-encoded excerpt prepared for the web
+  (H.264, 1282x720). The poster is a still taken from the last frame of that
+  video, scaled to 1000x562 and saved as WebP.

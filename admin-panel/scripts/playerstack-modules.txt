@@ -1,0 +1,13 @@
+# PlayerStack files Sellf serves from public/vendor/playerstack/<short sha>/.
+# Single source of truth for sync-playerstack.sh, CI (verify-playerstack-bundle) and unit tests.
+# Each JS file ships with its <file>.LEGAL.txt; upstream LICENSE and NOTICE are added by the sync script.
+playerstack.min.js
+playerstack-youtube.js
+playerstack-vimeo.js
+playerstack-wistia.js
+playerstack-twitch.js
+playerstack-hls.js
+playerstack-plugin-branded-thumb.js
+playerstack-plugin-autopreview.js
+playerstack-plugin-controls-policy.js
+playerstack-plugin-saved-position.js
