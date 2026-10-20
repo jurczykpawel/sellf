@@ -2,6 +2,7 @@ import { test, expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession } from './helpers/admin-auth';
+import { openSettingsTab, PAYMENTS_TAB } from './helpers/settings-tabs';
 import { deleteChecked } from './helpers/db-cleanup';
 import { STRIPE_API_VERSION, STRIPE_WEBHOOK_EVENTS } from '@/lib/constants';
 import { encryptSecret } from '@/lib/services/secret-encryption';
@@ -56,13 +57,7 @@ test.describe('Stripe Webhook Section UI', () => {
     await page.waitForLoadState('domcontentloaded');
     await setAuthSession(page, adminEmail, adminPassword);
     await page.waitForTimeout(1000);
-    await page.goto('/pl/dashboard/settings');
-    await page.waitForLoadState('domcontentloaded');
-    // Wait for React hydration before clicking tab (can be slow under full-suite pressure)
-    const paymentsTab = page.getByRole('button', { name: /^Payments$|^Płatności$/i });
-    await expect(paymentsTab).toBeVisible({ timeout: 20000 });
-    await paymentsTab.click();
-    await page.waitForSelector('h4:has-text("Webhook Endpoint")', { timeout: 15000 });
+    await openSettingsTab(page, PAYMENTS_TAB, page.locator('h4:has-text("Webhook Endpoint")'), '/pl/dashboard/settings');
   };
 
   const setWebhookEndpointId = async (id: string | null) => {

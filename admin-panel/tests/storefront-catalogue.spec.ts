@@ -16,7 +16,7 @@ let css: string;
 test.beforeAll(async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'sellf-catalogue-'));
   try {
-    execFileSync('/tmp/bun-1314/bun-darwin-aarch64/bun', [
+    execFileSync('bun', [
       '-e',
       `
       const result=await Bun.build({entrypoints:['tests/fixtures/storefront-sections/catalogue-browser.tsx'],target:'browser',outdir:${JSON.stringify(dir)},naming:'fixture.[ext]',define:{'process.env':'{"NODE_ENV":"production"}'},plugins:[{name:'next-image-esm',setup(build){build.onResolve({filter:/^next\\/image$/},()=>({path:${JSON.stringify(path.resolve('tests/fixtures/storefront-sections/catalogue-image.ts'))}}));}}]});
