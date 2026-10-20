@@ -301,6 +301,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/payment') ||
     pathname.startsWith('/test-pages') ||
+    pathname.startsWith('/vendor/') ||
     pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|js|css|html)$/)
   ) {
     return applyHeaders(NextResponse.next({ request: { headers: requestHeaders } }));

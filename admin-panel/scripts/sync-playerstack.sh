@@ -26,30 +26,39 @@ if [[ -n "$PS_DIRTY" ]]; then
   exit 1
 fi
 PS_SHA="$(git -C "$PLAYERSTACK_REPO" rev-parse HEAD)"
+PS_SHORT="${PS_SHA:0:7}"
+BUN_VERSION="1.4.3"
 
-echo "[1/4] building playerstack at $PLAYERSTACK_REPO @ ${PS_SHA:0:12}"
-( cd "$EMBED_PKG" && bun run build >/dev/null )
-
-BUNDLE="$EMBED_PKG/dist/playerstack.min.js"
-if [[ ! -s "$BUNDLE" ]]; then
-  echo "error: build did not produce $BUNDLE" >&2
+if [[ "$(bun --version)" != "$BUN_VERSION" ]]; then
+  echo "error: bun $BUN_VERSION required for a reproducible build (found $(bun --version))" >&2
   exit 1
 fi
 
-SHORT_HASH="$(openssl dgst -sha256 "$BUNDLE" | awk '{print $2}' | cut -c1-12)"
-SRI="sha384-$(openssl dgst -sha384 -binary "$BUNDLE" | openssl base64 -A)"
-DEST_DIR="$ADMIN_PANEL_DIR/public/vendor/playerstack"
-DEST_FILE="$DEST_DIR/playerstack-${SHORT_HASH}.min.js"
-SRC_FILE="$ADMIN_PANEL_DIR/src/lib/playerstack.ts"
+echo "[1/4] building playerstack at $PLAYERSTACK_REPO @ $PS_SHORT"
+( cd "$PLAYERSTACK_REPO" && bun install --frozen-lockfile >/dev/null )
+( cd "$EMBED_PKG" && bun run build >/dev/null )
 
-echo "[2/4] copying bundle -> $DEST_FILE"
+DIST="$EMBED_PKG/dist"
+DEST_DIR="$ADMIN_PANEL_DIR/public/vendor/playerstack/$PS_SHORT"
+SRC_FILE="$ADMIN_PANEL_DIR/src/lib/playerstack.ts"
+BUNDLE="$DIST/playerstack.min.js"
+
+echo "[2/4] copying modules -> $DEST_DIR"
+rm -rf "$DEST_DIR"
 mkdir -p "$DEST_DIR"
-find "$DEST_DIR" -maxdepth 1 -type f -name 'playerstack-*.min.js' ! -name "playerstack-${SHORT_HASH}.min.js" -print -delete
-cp "$BUNDLE" "$DEST_FILE"
-chmod 0644 "$DEST_FILE"
+while IFS= read -r module; do
+  for f in "$module" "$module.LEGAL.txt"; do
+    [[ -s "$DIST/$f" ]] || { echo "error: build did not produce $DIST/$f" >&2; exit 1; }
+    cp "$DIST/$f" "$DEST_DIR/$f"
+  done
+done < <(grep -vE '^\s*(#|$)' "$ADMIN_PANEL_DIR/scripts/playerstack-modules.txt")
+cp "$PLAYERSTACK_REPO/LICENSE" "$PLAYERSTACK_REPO/NOTICE" "$DEST_DIR/"
+chmod 0644 "$DEST_DIR"/*
+
+SRI="sha384-$(openssl dgst -sha384 -binary "$BUNDLE" | openssl base64 -A)"
 
 echo "[3/4] patching $SRC_FILE"
-NEW_SRC="/vendor/playerstack/playerstack-${SHORT_HASH}.min.js"
+NEW_SRC="/vendor/playerstack/${PS_SHORT}/playerstack.min.js"
 node -e "
 const fs = require('fs');
 const path = '$SRC_FILE';
@@ -71,5 +80,5 @@ fs.writeFileSync(path, after);
 echo "[4/4] done"
 echo "  src:        $NEW_SRC"
 echo "  integrity:  $SRI"
-echo "  bundle:     $DEST_FILE"
+echo "  dir:        $DEST_DIR"
 echo "  pinned to:  playerstack@${PS_SHA:0:12}"
