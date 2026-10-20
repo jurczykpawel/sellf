@@ -68,6 +68,15 @@ describe('CSP with nonce — production posture', () => {
     expect(csp).toMatch(/object-src 'none'/);
   });
 
+  it('allows the Wistia player fonts and delivery media hosts (exact hosts)', () => {
+    const fontSrc = csp.split(';').find((d) => d.trim().startsWith('font-src'))!.trim().split(/\s+/);
+    expect(fontSrc).toEqual(expect.arrayContaining(["'self'", 'data:', 'fast.wistia.com']));
+    const mediaSrc = csp.split(';').find((d) => d.trim().startsWith('media-src'))!.trim().split(/\s+/);
+    expect(mediaSrc).toContain('embed-ssl.wistia.com');
+    expect(fontSrc).not.toContain('*.wistia.com');
+    expect(mediaSrc).not.toContain('*.wistia.com');
+  });
+
   it('keeps style-src unsafe-inline (Tailwind v4 critical CSS)', () => {
     expect(csp).toMatch(/style-src[^;]*'unsafe-inline'/);
   });
