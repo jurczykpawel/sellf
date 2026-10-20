@@ -16,7 +16,7 @@ vi.mock('@supabase/ssr', () => ({ createServerClient: () => ({ auth: { getUser: 
 
 // next-intl ESM is heavy and not relevant to this test; stub the matcher.
 vi.mock('next-intl/middleware', () => ({
-  default: () => () => new Response(null, { status: 200 }),
+  default: () => () => new Response(null, { status: 200, headers: { 'x-test-intl': '1' } }),
 }));
 
 function makeRequest(path: string): NextRequest {
@@ -42,6 +42,15 @@ describe('proxy CSP nonce', () => {
     const res = await proxy(makeRequest('/checkout/test'));
     const scriptSrc = getScriptSrc(res.headers.get('Content-Security-Policy'));
     expect(scriptSrc).not.toContain("'unsafe-inline'");
+  });
+
+  it('serves vendored assets (any extension) without locale handling but with CSP', async () => {
+    for (const path of ['/vendor/playerstack/abc1234/playerstack.min.js', '/vendor/playerstack/abc1234/playerstack-hls.js.LEGAL.txt', '/vendor/playerstack/abc1234/NOTICE']) {
+      const res = await proxy(makeRequest(path));
+      expect(res.headers.get('x-test-intl')).toBeNull();
+      expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+    }
+    expect((await proxy(makeRequest('/checkout/test'))).headers.get('x-test-intl')).toBe('1');
   });
 
   it('generates a fresh nonce per request', async () => {
