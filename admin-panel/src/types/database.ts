@@ -1271,8 +1271,9 @@ export type Database = {
           id: string
           metadata: Json
           product_id: string
-          session_id: string
+          session_id: string | null
           transaction_amount: number
+          transaction_id: string | null
         }
         Insert: {
           claimed_at?: string | null
@@ -1282,8 +1283,9 @@ export type Database = {
           id?: string
           metadata?: Json
           product_id: string
-          session_id: string
+          session_id?: string | null
           transaction_amount: number
+          transaction_id?: string | null
         }
         Update: {
           claimed_at?: string | null
@@ -1293,8 +1295,9 @@ export type Database = {
           id?: string
           metadata?: Json
           product_id?: string
-          session_id?: string
+          session_id?: string | null
           transaction_amount?: number
+          transaction_id?: string | null
         }
         Relationships: [
           {
@@ -1316,6 +1319,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_purchases_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -1644,6 +1654,7 @@ export type Database = {
           access_duration_override: number | null
           created_at: string
           currency: string
+          discounted_total: number | null
           id: string
           item_type: Database["public"]["Enums"]["line_item_type"]
           metadata: Json
@@ -1666,6 +1677,7 @@ export type Database = {
           access_duration_override?: number | null
           created_at?: string
           currency: string
+          discounted_total?: number | null
           id?: string
           item_type: Database["public"]["Enums"]["line_item_type"]
           metadata?: Json
@@ -1688,6 +1700,7 @@ export type Database = {
           access_duration_override?: number | null
           created_at?: string
           currency?: string
+          discounted_total?: number | null
           id?: string
           item_type?: Database["public"]["Enums"]["line_item_type"]
           metadata?: Json
@@ -1806,6 +1819,7 @@ export type Database = {
         Row: {
           abandoned_at: string | null
           amount: number
+          coupon_id: string | null
           created_at: string
           currency: string
           custom_field_values: Json
@@ -1813,16 +1827,20 @@ export type Database = {
           expires_at: string | null
           fulfillment_pending: boolean
           id: string
+          livemode: boolean
           metadata: Json
           net_total: number | null
           order_details: Json | null
+          order_number: number
+          payment_provider: string
+          pricing_snapshot_version: number | null
           product_id: string
           refund_id: string | null
           refund_reason: string | null
           refunded_amount: number | null
           refunded_at: string | null
           refunded_by: string | null
-          session_id: string
+          session_id: string | null
           status: string
           stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
@@ -1835,6 +1853,7 @@ export type Database = {
         Insert: {
           abandoned_at?: string | null
           amount: number
+          coupon_id?: string | null
           created_at?: string
           currency: string
           custom_field_values?: Json
@@ -1842,16 +1861,20 @@ export type Database = {
           expires_at?: string | null
           fulfillment_pending?: boolean
           id?: string
+          livemode?: boolean
           metadata?: Json
           net_total?: number | null
           order_details?: Json | null
+          order_number?: number
+          payment_provider?: string
+          pricing_snapshot_version?: number | null
           product_id: string
           refund_id?: string | null
           refund_reason?: string | null
           refunded_amount?: number | null
           refunded_at?: string | null
           refunded_by?: string | null
-          session_id: string
+          session_id?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
@@ -1864,6 +1887,7 @@ export type Database = {
         Update: {
           abandoned_at?: string | null
           amount?: number
+          coupon_id?: string | null
           created_at?: string
           currency?: string
           custom_field_values?: Json
@@ -1871,16 +1895,20 @@ export type Database = {
           expires_at?: string | null
           fulfillment_pending?: boolean
           id?: string
+          livemode?: boolean
           metadata?: Json
           net_total?: number | null
           order_details?: Json | null
+          order_number?: number
+          payment_provider?: string
+          pricing_snapshot_version?: number | null
           product_id?: string
           refund_id?: string | null
           refund_reason?: string | null
           refunded_amount?: number | null
           refunded_at?: string | null
           refunded_by?: string | null
-          session_id?: string
+          session_id?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
@@ -1891,6 +1919,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_transactions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_transactions_product_id_fkey"
             columns: ["product_id"]
@@ -2227,6 +2262,7 @@ export type Database = {
       products: {
         Row: {
           allow_custom_price: boolean
+          allow_repeat_purchase: boolean
           auto_grant_duration_days: number | null
           available_from: string | null
           available_until: string | null
@@ -2287,6 +2323,7 @@ export type Database = {
         }
         Insert: {
           allow_custom_price?: boolean
+          allow_repeat_purchase?: boolean
           auto_grant_duration_days?: number | null
           available_from?: string | null
           available_until?: string | null
@@ -2347,6 +2384,7 @@ export type Database = {
         }
         Update: {
           allow_custom_price?: boolean
+          allow_repeat_purchase?: boolean
           auto_grant_duration_days?: number | null
           available_from?: string | null
           available_until?: string | null
@@ -4666,6 +4704,7 @@ export type Database = {
         }
         Returns: {
           allow_custom_price: boolean
+          allow_repeat_purchase: boolean
           auto_grant_duration_days: number | null
           available_from: string | null
           available_until: string | null
