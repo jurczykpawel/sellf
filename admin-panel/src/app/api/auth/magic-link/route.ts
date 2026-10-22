@@ -4,6 +4,7 @@ import { requestMagicLink } from '@/lib/auth/magic-link/request';
 import { MAGIC_LINK_FLOWS } from '@/lib/auth/magic-link/types';
 import type { MagicLinkErrorCode, MagicLinkFlow } from '@/lib/auth/magic-link/types';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
+import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 
 const ALLOWED_KEYS = new Set([
   'email',
@@ -61,7 +62,7 @@ function parseBody(body: unknown): ParsedRequest | null {
 
   let parsedSuccessUrl: string | undefined;
   if (successUrl !== undefined) {
-    if (typeof successUrl !== 'string' || successUrl.length > 2048) return null;
+    if (typeof successUrl !== 'string' || successUrl.length > 2048 || !isSafeRedirectUrl(successUrl)) return null;
     parsedSuccessUrl = successUrl;
   }
 

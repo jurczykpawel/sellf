@@ -19,6 +19,19 @@ describe('POST /api/auth/magic-link', () => {
     requestMagicLink.mockReset();
   });
 
+  it.each(['/\t/elsewhere.test', '/\n/elsewhere.test', '/\r/elsewhere.test', '/%09/elsewhere.test', '/%250a/elsewhere.test', '//elsewhere.test', 'https://elsewhere.test/thanks'])('declines unsupported success destination %j', async successUrl => {
+    const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'free_product', productSlug: 'course', successUrl }));
+    expect(res.status).toBe(400);
+    expect(requestMagicLink).not.toHaveBeenCalled();
+  });
+
+  it('keeps a success destination with its complete query', async () => {
+    requestMagicLink.mockResolvedValue({ ok: true });
+    const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'free_product', productSlug: 'course', successUrl: '/thanks?a=1&b=2' }));
+    expect(res.status).toBe(200);
+    expect(requestMagicLink).toHaveBeenCalledWith(expect.objectContaining({ successUrl: '/thanks?a=1&b=2' }));
+  });
+
   it('rejects non-JSON content-type with 415', async () => {
     const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'login' }, 'text/plain'));
     expect(res.status).toBe(415);
