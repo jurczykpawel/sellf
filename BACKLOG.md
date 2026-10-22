@@ -22,9 +22,21 @@ Advanced email delivery with multiple providers (EmailLabs, AWS SES), email hist
 **Status**: 📋 Planned
 Automated email campaigns triggered after purchase or free download. Per-product configuration with delay settings, dynamic variables, and analytics (open/click rates).
 
+### Custom Checkouts (checkout profiles + built-in modules)
+**Status**: 🏗️ In design (2026-10)
+Sellers adapt the checkout to their buyers without code: a per-product checkout profile enables built-in, versioned modules
+with their own settings (buyer type person/organization with tax ID lookup, invoice recipient different from the buyer,
+phone, quantity, participant list matching the quantity). Delivered in stages, each released on its own:
+1. Provider-independent order core: server-side line-item snapshot, buyer details stored before payment, repeat purchases.
+2. Checkout profiles and the first modules (API/MCP + simple admin settings).
+3. Event products: sessions, price tiers with seat limits and sale end, packages as surcharges, seat reservations, public availability read.
+4. Offline bank transfer with a payment due date, admin mark-as-paid/cancel and an `order.placed` webhook.
+5. Invoicing (see below).
+
 ### Invoicing Integration (Fakturownia, iFirma, KSeF)
-**Status**: 📋 Planned
+**Status**: 📋 Planned (stage 5 of Custom Checkouts, Fakturownia first)
 Automatic invoice generation and delivery for successful purchases. Integration with Fakturownia, iFirma, and Polish KSeF e-invoice system.
+Includes buyer and recipient with tax IDs, VAT-exempt sellers, and one invoice per order.
 
 ---
 
@@ -49,7 +61,7 @@ Full affiliate/referral program where both parties benefit — the referrer earn
 
 ### Per-Product Payment Method Override
 **Status**: 📋 Planned (Phase 2 of Payment Config)
-Override global payment method settings for specific products. Use cases: cards-only for high-value products, local methods for regional products, bank transfers for B2B.
+Override global payment method settings for specific products. Use cases: cards-only for high-value products, local methods for regional products, bank transfers for B2B. Offline bank transfer for organizations is planned as stage 4 of Custom Checkouts.
 
 ### One-Click Auto-Update System
 **Status**: ✅ Done (2026-02)
