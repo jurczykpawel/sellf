@@ -103,7 +103,7 @@ test.describe('GUS Integration - Profile Update After Payment', () => {
 });
 
 test.describe('GUS Integration - API Metadata Update', () => {
-  test('should validate client secret format', async ({ page }) => {
+  test('should validate client secret format', async ({ page, baseURL }) => {
     const response = await page.request.post('/api/update-payment-metadata', {
       data: {
         // Missing clientSecret
@@ -112,7 +112,7 @@ test.describe('GUS Integration - API Metadata Update', () => {
         companyName: 'TEST',
       },
       headers: {
-        'origin': 'http://localhost:3777',
+        'origin': new URL(baseURL!).origin,
         'referer': '/',
       },
     });

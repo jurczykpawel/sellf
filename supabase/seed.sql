@@ -689,6 +689,10 @@ BEGIN
   ('cs_test_pln_002', user3_id, pro_toolkit_id, 'anna.kowalska@example.com', 399.99, 'PLN', 'completed', 'pi_pln_002', NOW() - INTERVAL '3 days', false),
   ('cs_test_pln_003', user3_id, vip_masterclass_id, 'anna.kowalska@example.com', 799.99, 'PLN', 'completed', 'pi_pln_003', NOW(), false);
 
+  UPDATE public.payment_transactions
+  SET order_details = '{"buyer":{"v":1,"first_name":"Anna","last_name":"Kowalska","full_name":"Anna Kowalska","needs_invoice":true,"nip":"5260250274","company_name":"Pracownia Cyfrowa Sp. z o.o.","address":"ul. Prosta 20","city":"Warszawa","postal_code":"00-850","country":"PL","terms_accepted":true,"source":"checkout","saved_at":"2026-10-22T10:00:00Z"}}'::jsonb
+  WHERE session_id = 'cs_test_pln_001';
+
   -- A superseded checkout remains in the transaction history.
   INSERT INTO payment_transactions (
     session_id, product_id, customer_email, amount, currency, status, metadata
