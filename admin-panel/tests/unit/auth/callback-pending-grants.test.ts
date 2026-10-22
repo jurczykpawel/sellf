@@ -127,6 +127,16 @@ describe('auth callback pending free grants', () => {
     expect(response.headers.get('location')).toBe('https://shop.example.com/my-products');
   });
 
+  it.each(['', '/en', '/pl'])('retains the complete loginwall destination for email and OAuth with prefix %s', async prefix => {
+    const path = `${prefix}/loginwall/protect?id=a1b2c3d4-e5f6-4890-abcd-ef0123456789&redirect=${encodeURIComponent('https://customer.example/course?a=1&b=2')}`;
+    const emailResponse = await callback(`redirect_to=${encodeURIComponent(path)}&type=magiclink&token_hash=abc`);
+    expect(emailResponse.headers.get('location')).toBe(`https://shop.example.com${path}`);
+    exchangeCodeForSession.mockResolvedValue({ data: { session: { user: USER } }, error: null });
+    const oauthResponse = await GET(new NextRequest('https://shop.example.com/auth/callback?code=local-code', { headers: { cookie: `sf_oauth_redirect=${encodeURIComponent(path)}` } }));
+    expect(oauthResponse.headers.get('location')).toBe(`https://shop.example.com${path}`);
+    expect(oauthResponse.cookies.get('sf_oauth_redirect')?.value).toBe('');
+  });
+
   it('does not claim when the sign-in failed', async () => {
     verifyOtp.mockResolvedValueOnce({ data: { session: null }, error: { message: 'expired' } });
 

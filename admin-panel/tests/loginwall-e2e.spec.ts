@@ -7,11 +7,13 @@
  *  - Drive the protect route without a session, without access, and with
  *    access; assert the redirect targets directly. The customer page that
  *    finally consumes the token is hosted on an arbitrary external origin
- *    in production — we only assert the redirect URL shape.
+ *    in production; the email return test serves a local browser fixture.
  *  - Hit /api/loginwall/login.js directly to confirm the JS payload.
  */
 import { test, expect } from '@playwright/test';
 import { setAuthSession, supabaseAdmin } from './helpers/admin-auth';
+import { acceptAllCookies } from './helpers/consent';
+import { extractMagicLink, waitForEmail } from './helpers/mailpit';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -110,6 +112,50 @@ test.describe('Loginwall flow', () => {
     const location = res.headers()['location'] ?? '';
     expect(location).toContain('/login');
     expect(location).toContain('redirect_to=');
+  });
+
+  test('email sign-in returns the buyer to the protected customer page', async ({ page, request }) => {
+    const access = await supabaseAdmin.from('user_product_access').insert({
+      user_id: testUser.id,
+      product_id: testProduct.id,
+      access_expires_at: null,
+    });
+    expect(access.error).toBeNull();
+    try {
+      await page.route('https://customer.example/**', route => route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: '<html><body>customer</body></html>',
+      }));
+      await acceptAllCookies(page);
+      const returnPath = `/loginwall/protect?id=${testProduct.id}&redirect=${encodeURIComponent(CUSTOMER_PAGE)}`;
+      await page.goto(returnPath);
+      await expect(page).toHaveURL(/\/login\?redirect_to=/);
+      const loginUrl = new URL(page.url());
+      expect(loginUrl.searchParams.get('redirect_to')).toBe(returnPath);
+      const sent = await request.post('/api/auth/magic-link', {
+        data: { email: testUser.email, flow: 'login', redirectTo: loginUrl.searchParams.get('redirect_to'), captchaToken: 'test-token' },
+      });
+      expect(await sent.json()).toEqual({ ok: true });
+      const message = await waitForEmail(testUser.email);
+      const link = extractMagicLink(message.HTML || message.Text || '');
+      expect(link).not.toBeNull();
+      expect(new URL(link!).searchParams.get('redirect_to')).toBe(returnPath);
+      // Follow the real handoff with browser cookies before opening the routed customer fixture.
+      const callback = await page.context().request.get(link!, { maxRedirects: 0 });
+      expect(callback.status()).toBe(307);
+      const protectUrl = callback.headers()['location'];
+      expect(new URL(protectUrl).pathname + new URL(protectUrl).search).toBe(returnPath);
+      const protectedPage = await page.context().request.get(protectUrl, { maxRedirects: 0 });
+      expect(protectedPage.status()).toBe(307);
+      const customerUrl = protectedPage.headers()['location'];
+      expect(customerUrl.startsWith(`${CUSTOMER_PAGE}#_sf_token=`)).toBe(true);
+      await page.goto(customerUrl);
+      await expect(page).toHaveURL(new RegExp(`^${CUSTOMER_PAGE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}#_sf_token=[A-Za-z0-9._-]+$`));
+      await expect(page.getByText('customer', { exact: true })).toBeVisible();
+    } finally {
+      await supabaseAdmin.from('user_product_access').delete().eq('user_id', testUser.id).eq('product_id', testProduct.id);
+    }
   });
 
   test('GET /loginwall/protect with session but no access redirects to /p/{slug}', async ({ page }) => {
