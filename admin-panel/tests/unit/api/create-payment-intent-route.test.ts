@@ -36,6 +36,7 @@ const mocks = vi.hoisted(() => ({
   sessionsExpire: vi.fn(),
   verifyBinding: vi.fn(() => false),
   pendingInsertError: null as { message: string } | null,
+  pendingInsertThrows: false,
   productOverride: {} as Record<string, unknown>,
 }));
 
@@ -56,6 +57,7 @@ function adminQuery(table: string) {
           : { data: null, error: { code: 'PGRST116' } },
     maybeSingle: async () => ({ data: null, error: null }),
     insert: (value: unknown) => {
+      if (table === 'payment_transactions' && mocks.pendingInsertThrows) throw new Error('insert threw');
       mocks.adminInserts.push({ table, value });
       inserting = true;
       return q;
@@ -144,6 +146,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.adminInserts.length = 0;
   mocks.pendingInsertError = null;
+  mocks.pendingInsertThrows = false;
   mocks.productOverride = {};
   mocks.verifyBinding.mockReturnValue(false);
   mocks.adminRpc.mockResolvedValue({ data: { valid: false, error: 'Invalid coupon' }, error: null });
@@ -230,9 +233,10 @@ describe('POST /api/create-payment-intent — full-discount coupon', () => {
 });
 
 describe('POST /api/create-payment-intent — pending row', () => {
-  it('stops the payment and expires the session when the pending row cannot be saved', async () => {
+  it.each(['returned error', 'thrown exception'])('stops the payment and expires the session on pending insert %s', async (failure) => {
     mocks.getUser.mockResolvedValue({ data: { user: null } });
-    mocks.pendingInsertError = { message: 'insert failed' };
+    mocks.pendingInsertError = failure === 'returned error' ? { message: 'insert failed' } : null;
+    mocks.pendingInsertThrows = failure === 'thrown exception';
     mocks.verifyBinding.mockReturnValue(true);
     mocks.sessionsRetrieve.mockResolvedValue({
       id: 'cs_test_1',
