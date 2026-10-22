@@ -669,6 +669,14 @@ awaiting_payment with local tax snapshots and redeem a reserved coupon immediate
 and records the reason through `log_admin_action`. Existing routes still use their
 legacy Stripe path. List prices remain in `total_price`; `discounted_total` stores
 major units after coupon. Guest purchases additionally support `transaction_id`.
+`_order_grant_and_record` shares access grants, bundle components, saved bump durations,
+guest recording, quantity counters and explicit coupon modes. Stripe completion uses
+exact saved pricing for snapshot orders and retains legacy validation otherwise;
+its result reports `pricing_source`. `complete_offline_order(uuid,numeric)` locks an
+awaiting transfer, checks its saved amount and completes it once without consuming
+the coupon again. These helpers are service-only. Confirmed guest claiming joins
+by `transaction_id`, falling back to the session only for legacy guest rows.
+
 
 ### Guest Checkout to Registered User Flow
 

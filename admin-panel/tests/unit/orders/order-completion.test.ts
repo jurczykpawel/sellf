@@ -1,4 +1,8 @@
-/** Completion contract exercised through the local order RPCs. */
+/**
+ * Completion contract exercised through the local order RPCs.
+ * @see supabase/migrations/20261022210000_order_completion_tail.sql
+ * @see supabase/migrations/20261022211000_offline_order_completion.sql
+ */
 import { createClient } from '@supabase/supabase-js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -106,5 +110,66 @@ describe('saved pricing completion', () => {
   it('rejects transfer-shaped calls to Stripe completion', async () => {
     const tx = await place('bank_transfer'); const r = await complete(tx);
     expect(r.data).toMatchObject({ success: false, error_kind: 'data' });
+  });
+});
+describe('offline completion and claiming', () => {
+  async function offline(tx: Record<string, unknown>, paid = tx.amount) {
+    return db.rpc('complete_offline_order', { p_transaction_id: tx.id, p_paid_minor: paid });
+  }
+  async function user(address: string) {
+    const r = await checked(await db.auth.admin.createUser({ email: address, email_confirm: true })); users.push(r.user.id); return r.user.id;
+  }
+  it('grants a bundle and saved bump, consumes no second coupon and completes once', async () => {
+    const uid = await user(`offline-${crypto.randomUUID()}@example.com`);
+    await checked(await db.from('products').update({ is_bundle: true, sale_price: 80, sale_quantity_sold: 0 }).eq('id', products[0]));
+    await checked(await db.from('bundle_items').insert({ bundle_product_id: products[0], component_product_id: products[2] }));
+    const cid = (await checked(await db.from('coupons').insert({ code: `OFF_${crypto.randomUUID()}`, discount_type: 'percentage', discount_value: 20 }).select('id').single())).id; coupons.push(cid);
+    await checked(await db.from('coupon_reservations').insert({ coupon_id: cid, customer_email: email, expires_at: '2099-01-01T00:00:00Z' }));
+    try {
+      const tx = await place('bank_transfer', { user_id: uid, coupon_id: cid }, [line(), line({ product_id: products[1], item_type: 'order_bump', order_bump_id: bump, quantity: 1, unit_price: 20, total_price: 20, discounted_total: 16, access_duration_override: 7 })]);
+      for (let i = 0; i < 2; i++) {
+        const r = await offline(tx); expect(r.error).toBeNull(); expect(r.data).toMatchObject({ success: true, transaction_id: tx.id });
+      }
+      const access = await checked(await db.from('user_product_access').select('product_id,access_expires_at').eq('user_id', uid));
+      expect(access.map(r => r.product_id).sort()).toEqual([...products].sort());
+      expect(access.find(r => r.product_id === products[1])!.access_expires_at).not.toBeNull();
+      expect((await checked(await db.from('coupons').select('current_usage_count').eq('id', cid).single())).current_usage_count).toBe(1);
+      expect(await checked(await db.from('coupon_redemptions').select('id').eq('transaction_id', tx.id))).toHaveLength(1);
+      expect((await checked(await db.from('products').select('sale_quantity_sold').eq('id', products[0]).single())).sale_quantity_sold).toBe(2);
+    } finally {
+      await checked(await db.from('bundle_items').delete().eq('bundle_product_id', products[0]));
+      await checked(await db.from('products').update({ is_bundle: false }).eq('id', products[0]));
+    }
+  });
+  it('records a guest by transaction and grants main and bump after confirmed registration', async () => {
+    const address = `offline-guest-${crypto.randomUUID()}@example.com`;
+    const tx = await place('bank_transfer', { customer_email: address }, [line(), line({ product_id: products[1], item_type: 'order_bump', order_bump_id: bump, quantity: 1, unit_price: 20, total_price: 20, discounted_total: 16 })]);
+    const r = await offline(tx); expect(r.error).toBeNull(); expect(r.data.success).toBe(true);
+    expect(await checked(await db.from('guest_purchases').select('transaction_id,session_id,claimed_by_user_id').eq('transaction_id', tx.id).single())).toMatchObject({ transaction_id: tx.id, session_id: null, claimed_by_user_id: null });
+    const uid = await user(address);
+    expect(await checked(await db.from('user_product_access').select('product_id').eq('user_id', uid))).toHaveLength(2);
+    expect((await checked(await db.from('guest_purchases').select('claimed_by_user_id').eq('transaction_id', tx.id).single())).claimed_by_user_id).toBe(uid);
+    expect((await checked(await db.from('payment_transactions').select('user_id').eq('id', tx.id).single())).user_id).toBe(uid);
+  });
+  it('rejects Stripe, cancelled, missing orders and amounts different from the saved charge', async () => {
+    const stripe = await place(); expect((await offline(stripe)).data).toMatchObject({ success: false, error_kind: 'data' });
+    const tx = await place('bank_transfer');
+    for (const amount of [tx.amount - 1, tx.amount + 1, null]) expect((await offline(tx, amount)).data).toMatchObject({ success: false, error_kind: 'data' });
+    await checked(await db.rpc('cancel_unpaid_order', { p_transaction_id: tx.id, p_reason: 'Test' }));
+    expect((await offline(tx)).data).toMatchObject({ success: false, error_kind: 'data' });
+    expect((await offline({ id: crypto.randomUUID(), amount: 1 })).data).toMatchObject({ success: false, error_kind: 'data' });
+  });
+  it('restricts completion helpers and claiming to service callers', async () => {
+    const address = `order-role-${crypto.randomUUID()}@example.com`;
+    const password = 'Order-role-test-123!';
+    const u = await checked(await db.auth.admin.createUser({ email: address, password, email_confirm: true })); users.push(u.user.id);
+    const signedIn = createClient(process.env.SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false } });
+    await checked(await signedIn.auth.signInWithPassword({ email: address, password }));
+    for (const client of [anon, signedIn]) {
+      expect((await client.rpc('complete_offline_order', { p_transaction_id: crypto.randomUUID(), p_paid_minor: 1 })).error?.code).toBe('42501');
+      expect((await client.rpc('claim_guest_purchases_for_user', { p_user_id: u.user.id })).error?.code).toBe('42501');
+      expect((await client.rpc('increment_sale_quantity_sold', { p_product_id: products[0], p_quantity: 2 })).error?.code).toBe('42501');
+      expect((await client.rpc('_order_grant_and_record', { p_transaction_id: crypto.randomUUID(), p_user_id: null, p_existing_user_id: null, p_requested_user_id: null, p_coupon_id: null, p_coupon_mode: 'none' })).error?.code).toBe('42501');
+    }
   });
 });

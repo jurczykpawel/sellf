@@ -3785,6 +3785,17 @@ export type Database = {
       }
     }
     Functions: {
+      _order_grant_and_record: {
+        Args: {
+          p_coupon_id: string
+          p_coupon_mode: string
+          p_existing_user_id: string
+          p_requested_user_id: string
+          p_transaction_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       _process_stripe_payment_completion_with_bump_impl: {
         Args: {
           amount_subtotal_param?: number
@@ -4321,6 +4332,10 @@ export type Database = {
       }
       cleanup_rate_limits: { Args: never; Returns: number }
       clear_admin_cache: { Args: never; Returns: undefined }
+      complete_offline_order: {
+        Args: { p_paid_minor: number; p_transaction_id: string }
+        Returns: Json
+      }
       create_refund_request: {
         Args: { reason_param?: string; transaction_id_param: string }
         Returns: Json
@@ -4612,10 +4627,12 @@ export type Database = {
         Args: { coupon_id_param: string }
         Returns: undefined
       }
-      increment_sale_quantity_sold: {
-        Args: { p_product_id: string }
-        Returns: boolean
-      }
+      increment_sale_quantity_sold:
+        | { Args: { p_product_id: string }; Returns: boolean }
+        | {
+            Args: { p_product_id: string; p_quantity: number }
+            Returns: boolean
+          }
       increment_webhook_attempt: {
         Args: {
           p_duration_ms: number
