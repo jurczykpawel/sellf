@@ -5,6 +5,10 @@
  * resolves access state and redirects to the product page.
  */
 
+import { z } from 'zod';
+
+const loginwallIdSchema = z.string().uuid();
+
 interface PostCheckoutInput {
   origin: string;
   productSlug: string;
@@ -83,18 +87,26 @@ export function buildFreeProductMagicLinkRedirect(input: FreeProductInput): stri
   return buildAuthCallbackUrl(input.origin, redirectPath);
 }
 
-/** Supported account and product destinations, in their canonical wire form. */
+/** Supported account, product and loginwall destinations, in their canonical wire form. */
 export function getLoginReturnPath(value: string | null | undefined): string | undefined {
   if (!value || value.length > 4096 || /[\u0000-\u0020\u007f\\#]/.test(value)) return undefined;
   const [path, query, ...rest] = value.split('?');
   if (rest.length) return undefined;
   if (/^\/(?:en\/|pl\/)?affiliates\/apply$/.test(path)) return query === undefined ? value : undefined;
-  if (!/^\/(?:en\/|pl\/)?auth\/product-access$/.test(path) || !query) return undefined;
+  const isLoginwall = /^\/(?:en\/|pl\/)?loginwall\/protect$/.test(path);
+  if ((!isLoginwall && !/^\/(?:en\/|pl\/)?auth\/product-access$/.test(path)) || !query) return undefined;
 
   const params = new URLSearchParams(query);
-  const product = params.get('product');
-  if (!product || !/^[a-zA-Z0-9_ -]{1,100}$/.test(product)) return undefined;
-  const limits: Record<string, number> = { product: 100, coupon: 64, success_url: 2048 };
+  if (isLoginwall) {
+    if (!loginwallIdSchema.safeParse(params.get('id')).success || !params.has('redirect')) return undefined;
+    // The protect route validates the redirect domain against allowed_embed_origins.
+  } else {
+    const product = params.get('product');
+    if (!product || !/^[a-zA-Z0-9_ -]{1,100}$/.test(product)) return undefined;
+  }
+  const limits: Record<string, number> = isLoginwall
+    ? { id: 36, redirect: 2048 }
+    : { product: 100, coupon: 64, success_url: 2048 };
   const seen = new Set<string>();
   const parts: string[] = [];
   for (const [key, item] of params) {
