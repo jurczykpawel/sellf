@@ -41,53 +41,6 @@ $$;
 REVOKE ALL ON FUNCTION public._redeem_coupon_for_order(uuid,uuid,uuid,text,uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public._redeem_coupon_for_order(uuid,uuid,uuid,text,uuid) TO service_role;
 
--- Replace only the reservation block in the installed completion function.
-DO $migration$
-DECLARE
-  definition text;
-  old_block text := $old$
-    IF coupon_id_param IS NOT NULL THEN
-      DELETE FROM public.coupon_reservations
-      WHERE coupon_id = coupon_id_param
-        AND customer_email = customer_email_param
-        AND expires_at > NOW();
-
-      IF NOT FOUND THEN
-        RAISE EXCEPTION 'No valid coupon reservation found. Coupon may have expired or reached limit.';
-      END IF;
-
-      UPDATE public.coupons
-      SET current_usage_count = COALESCE(current_usage_count, 0) + 1
-      WHERE id = coupon_id_param
-        AND is_active = true
-        AND (usage_limit_global IS NULL OR COALESCE(current_usage_count, 0) < usage_limit_global);
-
-      IF NOT FOUND THEN
-        RAISE EXCEPTION 'Coupon limit reached despite reservation (system error)';
-      END IF;
-
-      INSERT INTO public.coupon_redemptions (
-        coupon_id, user_id, customer_email, transaction_id, discount_amount
-      ) VALUES (
-        coupon_id_param,
-        COALESCE(current_user_id, existing_user_id),
-        customer_email_param,
-        transaction_id_var,
-        0
-      );
-    END IF;
-
-$old$;
-BEGIN
-  SELECT pg_get_functiondef('public._process_stripe_payment_completion_with_bump_impl(text,uuid,text,numeric,text,text,uuid,uuid[],uuid,numeric)'::regprocedure) INTO definition;
-  IF position(btrim(old_block, E'\n') IN definition) = 0 THEN
-    RAISE EXCEPTION 'Expected coupon reservation block not found';
-  END IF;
-  EXECUTE replace(definition, btrim(old_block, E'\n'),
-    '    PERFORM public._redeem_coupon_for_order(coupon_id_param, current_user_id, existing_user_id, customer_email_param, transaction_id_var);');
-END;
-$migration$;
-
 CREATE FUNCTION public.place_order(p_order jsonb, p_lines jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
