@@ -52,3 +52,59 @@ describe('shared completion tail', () => {
     expect(r.error?.code).toBe('42501');
   });
 });
+describe('saved pricing completion', () => {
+  it('accepts exact saved price after a sale ends and counts quantity once', async () => {
+    await checked(await db.from('products').update({ sale_price: 80, sale_price_until: '2099-01-01T00:00:00Z', sale_quantity_sold: 0 }).eq('id', products[0]));
+    const tx = await place();
+    await checked(await db.from('products').update({ sale_price_until: '2000-01-01T00:00:00Z' }).eq('id', products[0]));
+    const before = await checked(await db.from('payment_line_items').select('*').eq('transaction_id', tx.id));
+    for (let i = 0; i < 2; i++) {
+      const r = await complete(tx); expect(r.error).toBeNull(); expect(r.data).toMatchObject({ success: true, pricing_source: 'snapshot' });
+    }
+    expect(await checked(await db.from('payment_line_items').select('*').eq('transaction_id', tx.id))).toEqual(before);
+    expect((await checked(await db.from('products').select('sale_quantity_sold').eq('id', products[0]).single())).sale_quantity_sold).toBe(2);
+  });
+  it.each([-1, 1])('rejects a difference of %i minor unit without changing the order', async difference => {
+    const tx = await place(); const r = await complete(tx, { amount_total: tx.amount + difference });
+    expect(r.data).toMatchObject({ success: false, error_kind: 'data' });
+    expect((await checked(await db.from('payment_transactions').select('status,amount').eq('id', tx.id).single()))).toMatchObject({ status: 'pending', amount: tx.amount });
+  });
+  it('uses saved bumps and duration after disabling the offer', async () => {
+    const tx = await place('stripe', {}, [line(), line({ product_id: products[1], item_type: 'order_bump', order_bump_id: bump, quantity: 1, unit_price: 20, total_price: 20, discounted_total: 18, access_duration_override: 7 })]);
+    await checked(await db.from('order_bumps').update({ is_active: false }).eq('id', bump));
+    try {
+      const r = await complete(tx, { bump_product_ids_param: [products[1]] });
+      expect(r.error).toBeNull(); expect(r.data).toMatchObject({ success: true, pricing_source: 'snapshot' });
+    } finally { await checked(await db.from('order_bumps').update({ is_active: true }).eq('id', bump)); }
+  });
+  it('rejects a bump outside the saved lines', async () => {
+    const tx = await place(); expect((await complete(tx, { bump_product_ids_param: [products[2]] })).data).toMatchObject({ success: false, error_kind: 'data' });
+  });
+  it('rejects a different coupon and product binding', async () => {
+    const tx = await place();
+    expect((await complete(tx, { coupon_id_param: crypto.randomUUID() })).data).toMatchObject({ success: false, error_kind: 'data' });
+    await checked(await db.from('payment_line_items').update({ product_id: products[2] }).eq('transaction_id', tx.id));
+    expect((await complete(tx)).data).toMatchObject({ success: false, error_kind: 'data' });
+  });
+  it('checks the saved net basis for exclusive pricing', async () => {
+    const tx = await place('stripe', {}, [line({ tax_behavior: 'exclusive', vat_rate: 23 })]);
+    expect((await complete(tx, { amount_subtotal_param: 16001 })).data).toMatchObject({ success: false, error_kind: 'data' });
+    const r = await complete(tx, { amount_subtotal_param: 16000 });
+    expect(r.error).toBeNull(); expect(r.data).toMatchObject({ success: true, pricing_source: 'snapshot' });
+  });
+  it('consumes the saved Stripe coupon reservation once', async () => {
+    const cid = (await checked(await db.from('coupons').insert({ code: `SNAP_${crypto.randomUUID()}`, discount_type: 'percentage', discount_value: 20 }).select('id').single())).id; coupons.push(cid);
+    await checked(await db.from('coupon_reservations').insert({ coupon_id: cid, customer_email: email, expires_at: '2099-01-01T00:00:00Z' }));
+    const tx = await place('stripe', { coupon_id: cid });
+    for (let i = 0; i < 2; i++) expect((await complete(tx, { coupon_id_param: cid })).data).toMatchObject({ success: true });
+    expect((await checked(await db.from('coupons').select('current_usage_count').eq('id', cid).single())).current_usage_count).toBe(1);
+  });
+  it('marks rows without a snapshot as legacy', async () => {
+    const r = await complete({ session_id: `cs_${crypto.randomUUID().replaceAll('-', '')}`, product_id: products[0], customer_email: email, amount: 10000, currency: 'PLN' });
+    expect(r.error).toBeNull(); expect(r.data).toMatchObject({ success: true, pricing_source: 'legacy' }); txs.push(r.data.transaction_id);
+  });
+  it('rejects transfer-shaped calls to Stripe completion', async () => {
+    const tx = await place('bank_transfer'); const r = await complete(tx);
+    expect(r.data).toMatchObject({ success: false, error_kind: 'data' });
+  });
+});
