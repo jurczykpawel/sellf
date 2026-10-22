@@ -53,6 +53,8 @@ export interface PurchaseWebhookData {
   order: {
     amount: number | null;
     currency: string | null;
+    orderId?: string;
+    orderNumber?: number;
     sessionId?: string;
     paymentIntentId: string | null | undefined;
     couponId: string | null;
@@ -145,7 +147,7 @@ function applyLineTax(
     vatRate: line.vatRate,
     // Product vat_exempt is the label only in local mode. Under Stripe Tax, Stripe decides
     // taxability (taxabilityReason) — never claim exemption from the seller's PL flag.
-    vatExempt: taxSnapshot?.stripeTaxApplied ? false : (vatExemptById.get(detail.id) ?? false),
+    vatExempt: taxSnapshot?.stripeTaxApplied ? false : (line.vatExempt ?? vatExemptById.get(detail.id) ?? false),
     taxBehavior: line.taxBehavior,
     taxabilityReason: line.taxabilityReason,
   };

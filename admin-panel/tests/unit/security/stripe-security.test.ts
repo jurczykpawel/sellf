@@ -313,7 +313,7 @@ describe('Stripe Integration Security', () => {
 
     it('uses recoverable fulfillment for completed events', () => {
       // After finding an existing transaction, the handler returns early
-      expect(ONETIME_HANDLERS_SOURCE).toContain('fulfillPaidOrder');
+      expect(ONETIME_HANDLERS_SOURCE).toContain('fulfillStripeOrder');
       expect(ONETIME_HANDLERS_SOURCE).not.toContain('Already processed');
     });
 

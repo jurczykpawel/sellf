@@ -33,6 +33,7 @@ export interface TaxComponent {
 
 /** Per-line tax snapshot. Amounts MINOR units. */
 export interface LineTaxSnapshot {
+  vatExempt?: boolean;
   productId: string | null;
   isBump: boolean;
   netAmount: number | null;

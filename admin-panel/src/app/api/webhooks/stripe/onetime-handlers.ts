@@ -9,7 +9,7 @@
  */
 
 import { getStripeServer } from '@/lib/stripe/server';
-import { fulfillPaidOrder } from '@/lib/services/fulfill-paid-order';
+import { fulfillStripeOrder } from '@/lib/services/fulfill-paid-order';
 import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
 import type { createAdminClient } from '@/lib/supabase/admin';
 import { redactEmail } from '@/lib/logger';
@@ -147,7 +147,7 @@ export async function handleCheckoutSessionCompleted(
     sessionId, metadata: session.metadata, customerDetails: session.customer_details,
   });
 
-  await fulfillPaidOrder({
+  await fulfillStripeOrder({
     source: 'stripe_webhook', supabase, stripe: await getStripeServer(), transactionId: result.transaction_id as string,
     sessionId, paymentIntentId: stripePaymentIntentId, productId,
     customerEmail, amount: session.amount_total || 0, currency: session.currency || 'usd',
@@ -267,7 +267,7 @@ export async function handlePaymentIntentSucceeded(
     return { processed: false, message: (result?.error as string) || 'Payment processing failed' };
   }
 
-  await fulfillPaidOrder({
+  await fulfillStripeOrder({
     source: 'stripe_webhook', supabase, stripe, transactionId: result.transaction_id as string, sessionId,
     paymentIntentId: paymentIntent.id, productId,
     customerEmail, amount: paymentIntent.amount, currency: paymentIntent.currency,

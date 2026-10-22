@@ -23,7 +23,7 @@ export function snapshotFromRows(rows: SavedTaxLine[]): OrderTaxSnapshot {
     productId: row.product_id, isBump: row.item_type === 'order_bump',
     netAmount: row.net_amount, taxAmount: row.tax_amount,
     grossAmount: row.net_amount === null || row.tax_amount === null ? null : row.net_amount + row.tax_amount,
-    vatRate: row.vat_rate,
+    vatRate: row.vat_rate, vatExempt: row.vat_exempt ?? false,
     taxBehavior: row.tax_behavior === 'inclusive' || row.tax_behavior === 'exclusive' ? row.tax_behavior : null,
     taxabilityReason: null, breakdown: [],
   }));

@@ -8,7 +8,7 @@
 
 import { getStripeServer } from '@/lib/stripe/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { fulfillPaidOrder } from '@/lib/services/fulfill-paid-order';
+import { fulfillStripeOrder } from '@/lib/services/fulfill-paid-order';
 import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
 import { redactEmail } from '@/lib/logger';
 import type Stripe from 'stripe';
@@ -621,7 +621,7 @@ export async function verifyPaymentSession(
             sessionId: session.id, metadata: session.metadata, customerDetails: session.customer_details,
           });
 
-          await fulfillPaidOrder({
+          await fulfillStripeOrder({
             supabase: serviceClient, stripe, transactionId: paymentResult.transaction_id,
             sessionId: session.id, paymentIntentId: stripePaymentIntentId, productId,
             customerEmail, amount: session.amount_total || 0,
@@ -882,7 +882,7 @@ export async function verifyPaymentIntent(
             };
           }
 
-          await fulfillPaidOrder({
+          await fulfillStripeOrder({
             supabase: serviceClient, stripe, transactionId: paymentResult.transaction_id,
             sessionId: canonicalSessionId, paymentIntentId: paymentIntent.id, productId,
             customerEmail, amount: paymentIntent.amount,
