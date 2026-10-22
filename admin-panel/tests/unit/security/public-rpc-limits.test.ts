@@ -10,6 +10,7 @@ import { execSync } from 'child_process';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseDbContainer } from '../../helpers/supabase-db-container';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -28,7 +29,7 @@ const RUN = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 let customer: { id: string; client: SupabaseClient };
 
 function clearOtoBucket() {
-  execSync(`docker exec -i supabase_db_sellf psql -U postgres -t -A`, {
+  execSync(`docker exec -i ${getSupabaseDbContainer()} psql -U postgres -t -A`, {
     input: `DELETE FROM public.rate_limits WHERE function_name = 'get_oto_coupon_info';`,
     encoding: 'utf-8',
     timeout: 10000,

@@ -25,6 +25,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseDbContainer } from '../../helpers/supabase-db-container';
 
 // ---------------------------------------------------------------------------
 // Setup
@@ -58,7 +59,7 @@ const TEST_ID = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
 async function execSql(query: string): Promise<string> {
   const { execSync } = await import('child_process');
   return execSync(
-    `docker exec supabase_db_sellf psql -U postgres -t -A -c "${query.replace(/"/g, '\\"')}"`,
+    `docker exec ${getSupabaseDbContainer()} psql -U postgres -t -A -c "${query.replace(/"/g, '\\"')}"`,
     { encoding: 'utf-8', timeout: 10000 },
   ).trim();
 }
