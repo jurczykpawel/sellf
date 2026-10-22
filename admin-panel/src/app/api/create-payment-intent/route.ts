@@ -372,6 +372,14 @@ export async function POST(request: NextRequest) {
           priceIncludesVat: subscriptionProduct.price_includes_vat,
         });
         const stripeObjectId = extractStripeObjectId(clientSecret);
+        if (stripeObjectId?.startsWith('pi_')) {
+          await stripe.paymentIntents.update(stripeObjectId, {
+            metadata: {
+              product_id: subscriptionProduct.id, product_type: 'subscription',
+              subscription_id: subscriptionId, ...(user?.id ? { user_id: user.id } : {}),
+            },
+          });
+        }
         const bindingToken = stripeObjectId
           ? signCheckoutBinding({
               stripeObjectId,

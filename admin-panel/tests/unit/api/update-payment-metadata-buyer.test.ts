@@ -147,3 +147,23 @@ describe('POST /api/update-payment-metadata — buyer details on the pending row
     expect(await res.json()).toMatchObject({ success: false, code: 'details_not_saved' });
   });
 });
+
+describe('subscription buyer details', () => {
+  it('accepts a subscription session without a pending payment row', async () => {
+    mocks.sessionsRetrieve.mockResolvedValue({ id: SESSION_ID, status: 'open', mode: 'subscription', metadata: { product_id: PRODUCT_ID }, customer: null });
+    mocks.adminRpc.mockResolvedValue({ data: 0, error: null });
+    expect((await POST(makeRequest(SESSION_ID))).status).toBe(200);
+    expect(mocks.sessionsUpdate).toHaveBeenCalledWith(SESSION_ID, { metadata: expect.objectContaining({ full_name: 'Jan Kowalski', nip: '5252248481' }) });
+  });
+  it('accepts a marked subscription intent without a pending payment row', async () => {
+    mocks.piRetrieve.mockResolvedValue({ id: PI_ID, status: 'requires_payment_method', metadata: { product_id: PRODUCT_ID, product_type: 'subscription', subscription_id: 'sub_1' }, customer: null });
+    mocks.adminRpc.mockResolvedValue({ data: 0, error: null });
+    expect((await POST(makeRequest(PI_ID))).status).toBe(200);
+  });
+  it.each([SESSION_ID, PI_ID])('retains the one-time gate for %s regardless of the request flag', async objectId => {
+    mocks.adminRpc.mockResolvedValue({ data: 0, error: null });
+    const res = await POST(makeRequest(objectId, { productType: 'subscription', subscriptionId: 'sub_1' }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ code: 'details_not_saved' });
+  });
+});

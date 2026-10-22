@@ -1,9 +1,8 @@
 /**
  * Buyer details stored with the order (payment_transactions.order_details.buyer).
  *
- * The checkout form stores them on the pending row before the payment can be
- * confirmed; backfillBuyerDetails fills them from the Stripe session when a
- * paid order still has none.
+ * The one-time checkout form stores them on the pending row before confirmation;
+ * backfillBuyerDetails fills missing paid-order details from Stripe metadata.
  *
  * @see supabase/migrations/20261022090000_payment_order_details.sql
  * @see src/app/api/update-payment-metadata/route.ts
@@ -80,7 +79,7 @@ export function buildBuyerDetails(input: RawBuyerInput, source: BuyerDetails['so
 }
 
 /**
- * Fill order_details.buyer from Stripe session data when the row has none.
+ * Fill order_details.buyer from Stripe data for a stored session or invoice key.
  * Idempotent (the database leaves an existing buyer untouched) and never throws:
  * fulfilment must not depend on it.
  */

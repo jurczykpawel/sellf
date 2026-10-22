@@ -32,6 +32,8 @@ const mocks = vi.hoisted(() => ({
   adminInserts: [] as Array<{ table: string; value: unknown }>,
   getOrCreateStripeCustomer: vi.fn(),
   sessionsCreate: vi.fn(),
+  piUpdate: vi.fn(),
+  dynamicSubscription: vi.fn(),
   sessionsRetrieve: vi.fn(),
   sessionsExpire: vi.fn(),
   verifyBinding: vi.fn(() => false),
@@ -98,6 +100,7 @@ vi.mock('@/lib/services/product-validation', async (importOriginal) => {
 
 vi.mock('@/lib/stripe/server', () => ({
   getStripeServer: vi.fn(async () => ({
+    paymentIntents: { update: mocks.piUpdate },
     checkout: {
       sessions: {
         create: mocks.sessionsCreate,
@@ -141,6 +144,9 @@ vi.mock('@/lib/services/checkout-line-items', async (importOriginal) => {
     return result;
   }};
 });
+
+vi.mock('@/lib/stripe/ensure-product', () => ({ ensureStripeProduct: vi.fn().mockResolvedValue('prod_sub') }));
+vi.mock('@/lib/stripe/subscription-dynamic-price', () => ({ createSubscriptionWithDynamicPrice: mocks.dynamicSubscription }));
 
 import { POST } from '@/app/api/create-payment-intent/route';
 
@@ -342,4 +348,15 @@ it('refuses mismatched line totals before creating a Stripe session', async () =
   mocks.drift = true;
   expect((await POST(makeRequest({}))).status).toBe(500);
   expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+});
+
+it('pins the subscription context on a dynamic-price payment intent', async () => {
+  mocks.getUser.mockResolvedValue({ data: { user: SIGNED_IN } });
+  mocks.getOrCreateStripeCustomer.mockResolvedValue('cus_sub');
+  mocks.dynamicSubscription.mockResolvedValue({ clientSecret: 'pi_subtest_secret_value', subscriptionId: 'sub_test' });
+  mocks.productOverride = { product_type: 'subscription', allow_custom_price: true, custom_price_min: 1, billing_interval: 'month', billing_interval_count: 1, recurring_price: 10 };
+  expect((await POST(makeRequest({ customAmount: 10 }))).status).toBe(200);
+  expect(mocks.piUpdate).toHaveBeenCalledWith('pi_subtest', {
+    metadata: expect.objectContaining({ product_id: PRODUCT.id, product_type: 'subscription', subscription_id: 'sub_test', user_id: SIGNED_IN.id }),
+  });
 });

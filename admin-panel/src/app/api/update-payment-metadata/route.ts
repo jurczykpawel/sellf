@@ -164,6 +164,7 @@ export async function POST(request: NextRequest) {
     };
 
     let productIdFromStripe: string | null = null;
+    let isSubscription = false;
     let stripeTaxCustomerId: string | null = null;
 
     const tooManyRequests = () =>
@@ -196,6 +197,7 @@ export async function POST(request: NextRequest) {
       const ownership = assertStripeObjectOwnership(session.metadata ?? null, sessionUserId);
       if (ownership) return ownership;
 
+      isSubscription = session.mode === 'subscription';
       productIdFromStripe = (session.metadata?.product_id as string) || null;
       const sessionOwnerId = (session.metadata?.user_id as string | undefined) || null;
       const limited = await enforcePerOwnerLimit(sessionOwnerId);
@@ -214,6 +216,7 @@ export async function POST(request: NextRequest) {
       const ownership = assertStripeObjectOwnership(pi.metadata ?? null, sessionUserId);
       if (ownership) return ownership;
 
+      isSubscription = pi.metadata?.product_type === 'subscription' && !!pi.metadata.subscription_id;
       productIdFromStripe = (pi.metadata?.product_id as string) || null;
       const piOwnerId = (pi.metadata?.user_id as string | undefined) || null;
       const limited = await enforcePerOwnerLimit(piOwnerId);
@@ -322,7 +325,7 @@ export async function POST(request: NextRequest) {
         console.error('[update-payment-metadata] failed to persist buyer details:', saveError);
         return detailsNotSaved(500);
       }
-      if (!savedRows) {
+      if (!savedRows && !isSubscription) {
         console.error('[update-payment-metadata] no pending payment row for', stripeObjectId);
         return detailsNotSaved(409);
       }

@@ -666,7 +666,7 @@ operator pins; background revocation requests use bounded bodies/timeouts.
 only service_role can call it. Stripe orders start pending; bank transfers start
 awaiting_payment with local tax snapshots and redeem a reserved coupon immediately.
 `cancel_unpaid_order(uuid,text)` cancels unpaid transfers, returns the coupon once,
-and records the reason through `log_admin_action`. The Elements checkout uses the typed `placeOrder` wrapper and shared snapshot
+and records the reason through `log_admin_action`. The one-time Elements checkout uses the typed `placeOrder` wrapper and shared snapshot
 builder; embedded checkout retains the legacy Stripe path. List prices remain in `total_price`; `discounted_total` stores
 major units after coupon. Guest purchases additionally support `transaction_id`.
 `_order_grant_and_record` shares access grants, bundle components, saved bump durations,
@@ -680,6 +680,13 @@ Paid-order fulfillment accepts a Stripe or offline provider context. Stripe call
 use `fulfillStripeOrder`; offline uses saved line tax and the transaction UUID for
 license orders and delivery, adding `orderId` and `orderNumber` to its payload.
 The affiliate worker uses offline creation time and mode from the transaction.
+Subscription checkout keeps buyer metadata on Stripe when no pending payment row
+exists; one-time checkout still requires its pending row. Dynamic subscription
+intents carry server-written product, user and subscription metadata. Invoice
+completion fills missing order buyer details from the subscription's Checkout
+Session or PaymentIntent, without blocking fulfillment on enrichment errors.
+Only buyer fields are mirrored to subscription metadata for later invoices.
+
 
 
 ### Guest Checkout to Registered User Flow

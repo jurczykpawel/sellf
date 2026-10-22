@@ -16,6 +16,7 @@ import type { createAdminClient, createPlatformClient } from '@/lib/supabase/adm
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { issueLicense } from '@/lib/license-keys/issue';
+import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
 import { captureAndPersistInvoiceTax } from '@/lib/services/tax-snapshot';
 import { minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
 import {
@@ -975,6 +976,27 @@ export async function handleInvoicePaid(
     }
   }
   if (!insertedTx) return { processed: false, message: 'Invoice transaction unavailable' };
+  try {
+    const sessions = await stripe.checkout.sessions.list({ subscription: sub.id, limit: 1 });
+    const session = sessions.data[0];
+    const intent = !session && paymentIntentId ? await stripe.paymentIntents.retrieve(paymentIntentId) : null;
+    const buyerMetadata = { ...sub.metadata, ...invoice.metadata, ...session?.metadata, ...intent?.metadata };
+    if (session || buyerMetadata.full_name || buyerMetadata.first_name) {
+      await backfillBuyerDetails(supabase, {
+        sessionId: invoice.id!, metadata: buyerMetadata, customerDetails: session?.customer_details,
+      });
+      if (!sub.metadata.full_name && buyerMetadata.full_name) {
+        await stripe.subscriptions.update(sub.id, {
+          metadata: Object.fromEntries([
+            'first_name', 'last_name', 'full_name', 'terms_accepted', 'needs_invoice', 'nip',
+            'company_name', 'address', 'city', 'postal_code', 'country',
+          ].filter(key => buyerMetadata[key] !== undefined).map(key => [key, buyerMetadata[key]])),
+        });
+      }
+    }
+  } catch (error) {
+    console.error('[handleInvoicePaid] Buyer details unavailable:', error instanceof Error ? error.message : 'Unknown error');
+  }
   if (insertedTx.fulfillment_pending !== true) return { processed: true, message: `Invoice already booked: ${invoice.id}` };
 
   // Grant or refresh access. user_product_access has UNIQUE (user_id, product_id)
