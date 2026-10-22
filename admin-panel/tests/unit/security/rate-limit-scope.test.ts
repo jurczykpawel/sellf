@@ -9,6 +9,7 @@
 import { execSync } from 'child_process';
 import { describe, it, expect, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseDbContainer } from '../../helpers/supabase-db-container';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -28,7 +29,7 @@ const PRODUCT_ID = '00000000-0000-0000-0000-000000000000';
 
 /** Runs SQL as the database owner — no request JWT, like a trigger fired by the auth server. */
 function sql(query: string): string {
-  return execSync(`docker exec -i supabase_db_sellf psql -U postgres -t -A`, {
+  return execSync(`docker exec -i ${getSupabaseDbContainer()} psql -U postgres -t -A`, {
     input: query,
     encoding: 'utf-8',
     timeout: 10000,

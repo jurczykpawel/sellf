@@ -8,9 +8,10 @@
 
 import { execSync } from 'child_process';
 import { describe, it, expect } from 'vitest';
+import { getSupabaseDbContainer } from '../../helpers/supabase-db-container';
 
 function scheduledCommands(): string[] {
-  const out = execSync(`docker exec -i supabase_db_sellf psql -U postgres -t -A`, {
+  const out = execSync(`docker exec -i ${getSupabaseDbContainer()} psql -U postgres -t -A`, {
     input: 'SELECT command FROM cron.job WHERE active;',
     encoding: 'utf-8',
     timeout: 10000,
@@ -19,7 +20,7 @@ function scheduledCommands(): string[] {
 }
 
 function queryOne(sql: string): string {
-  const out = execSync(`docker exec -i supabase_db_sellf psql -U postgres -t -A`, {
+  const out = execSync(`docker exec -i ${getSupabaseDbContainer()} psql -U postgres -t -A`, {
     input: sql,
     encoding: 'utf-8',
     timeout: 10000,

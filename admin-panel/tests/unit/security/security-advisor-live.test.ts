@@ -17,12 +17,13 @@
 
 import { execSync } from 'child_process';
 import { describe, it, expect, beforeAll } from 'vitest';
+import { getSupabaseDbContainer } from '../../helpers/supabase-db-container';
 
 // ============================================================================
 // Helpers
 // ============================================================================
 
-const CONTAINER = 'supabase_db_sellf';
+const CONTAINER = getSupabaseDbContainer();
 const SCHEMAS = "'public', 'public'";
 
 /**

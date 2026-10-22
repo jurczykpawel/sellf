@@ -17,8 +17,9 @@
 import { randomUUID } from 'crypto';
 import { execSync } from 'child_process';
 import { afterAll, beforeAll, describe, it, expect } from 'vitest';
+import { getSupabaseDbContainer } from '../../helpers/supabase-db-container';
 
-const CONTAINER = 'supabase_db_sellf';
+const CONTAINER = getSupabaseDbContainer();
 const NAME_PREFIX = `scope-backfill-test-${Date.now()}`;
 
 function runSql(sql: string): string {

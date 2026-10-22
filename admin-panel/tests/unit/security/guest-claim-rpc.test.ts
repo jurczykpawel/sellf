@@ -25,6 +25,7 @@
 import { execSync } from 'child_process';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseDbContainer } from '../../helpers/supabase-db-container';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -1177,7 +1178,7 @@ describe('handle_new_user_registration', () => {
       SELECT count(*) FROM public.admin_users WHERE user_id = '${testUserId}';
       ROLLBACK;
     `;
-    const out = execSync('docker exec -i supabase_db_sellf psql -U postgres -t -A -q', {
+    const out = execSync(`docker exec -i ${getSupabaseDbContainer()} psql -U postgres -t -A -q`, {
       input: sql,
       encoding: 'utf-8',
       timeout: 10000,
@@ -1217,7 +1218,7 @@ describe('handle_new_user_registration', () => {
       SELECT count(*) FROM public.admin_users WHERE user_id = '${testUserId}';
       ROLLBACK;
     `;
-    const out = execSync('docker exec -i supabase_db_sellf psql -U postgres -t -A -q', {
+    const out = execSync(`docker exec -i ${getSupabaseDbContainer()} psql -U postgres -t -A -q`, {
       input: sql,
       encoding: 'utf-8',
       timeout: 10000,
