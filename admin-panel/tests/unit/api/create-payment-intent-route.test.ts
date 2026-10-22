@@ -38,6 +38,8 @@ const mocks = vi.hoisted(() => ({
   pendingInsertError: null as { message: string } | null,
   pendingInsertThrows: false,
   productOverride: {} as Record<string, unknown>,
+  existingAccess: false,
+  drift: false,
 }));
 
 function adminQuery(table: string) {
@@ -55,7 +57,7 @@ function adminQuery(table: string) {
         : table === 'payment_method_config'
           ? { data: null, error: null }
           : { data: null, error: { code: 'PGRST116' } },
-    maybeSingle: async () => ({ data: null, error: null }),
+    maybeSingle: async () => ({ data: table === 'user_product_access' && mocks.existingAccess ? { access_expires_at: null } : null, error: null }),
     insert: (value: unknown) => {
       if (table === 'payment_transactions' && mocks.pendingInsertThrows) throw new Error('insert threw');
       mocks.adminInserts.push({ table, value });
@@ -130,6 +132,16 @@ vi.mock('@/lib/security/checkout-binding', () => ({
   verifyCheckoutBinding: mocks.verifyBinding,
 }));
 
+vi.mock('@/lib/license-keys/lookup', () => ({ findIssuedLicense: vi.fn().mockResolvedValue(null) }));
+vi.mock('@/lib/services/checkout-line-items', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/services/checkout-line-items')>();
+  return { ...actual, buildCheckoutLineSpecs: (params: Parameters<typeof actual.buildCheckoutLineSpecs>[0]) => {
+    const result = actual.buildCheckoutLineSpecs(params);
+    if (mocks.drift) result.specs[0].unitAmountMinor++;
+    return result;
+  }};
+});
+
 import { POST } from '@/app/api/create-payment-intent/route';
 
 function makeRequest(body: Record<string, unknown>) {
@@ -148,8 +160,16 @@ beforeEach(() => {
   mocks.pendingInsertError = null;
   mocks.pendingInsertThrows = false;
   mocks.productOverride = {};
+  mocks.existingAccess = false;
+  mocks.drift = false;
   mocks.verifyBinding.mockReturnValue(false);
-  mocks.adminRpc.mockResolvedValue({ data: { valid: false, error: 'Invalid coupon' }, error: null });
+  mocks.adminRpc.mockImplementation(async (name: string) => {
+    if (name === 'place_order') {
+      if (mocks.pendingInsertThrows) throw new Error('insert threw');
+      return { data: { success: true, transaction_id: 'tx-1', order_number: 1001, amount: 10000 }, error: mocks.pendingInsertError };
+    }
+    return { data: { valid: false, error: 'Invalid coupon' }, error: null };
+  });
   mocks.sessionsCreate.mockResolvedValue({ id: 'cs_test_1', client_secret: 'cs_test_1_secret_x' });
 });
 
@@ -297,4 +317,29 @@ describe('POST /api/create-payment-intent — sale window', () => {
 
     expect(res.status).toBe(200);
   });
+});
+
+describe('order placement', () => {
+  it('stores the builder snapshot and order context through the RPC', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    expect((await POST(makeRequest({ email: 'guest@example.com' }))).status).toBe(200);
+    expect(mocks.adminRpc).toHaveBeenCalledWith('place_order', {
+      p_order: expect.objectContaining({ payment_provider: 'stripe', session_id: 'cs_test_1', customer_email: 'guest@example.com', coupon_id: null, custom_field_values: {}, metadata: expect.objectContaining({ bump_product_ids_full: [] }) }),
+      p_lines: [expect.objectContaining({ product_id: PRODUCT.id, discounted_total: 100, total_price: 100, quantity: 1 })],
+    });
+    expect(mocks.adminInserts.filter(w => w.table === 'payment_transactions')).toHaveLength(0);
+  });
+  it.each([false, true])('repeat purchase flag %s governs existing access', async (allow_repeat_purchase) => {
+    mocks.getUser.mockResolvedValue({ data: { user: SIGNED_IN } });
+    mocks.existingAccess = true;
+    mocks.productOverride = { allow_repeat_purchase };
+    expect((await POST(makeRequest({}))).status).toBe(allow_repeat_purchase ? 200 : 400);
+  });
+});
+
+it('refuses mismatched line totals before creating a Stripe session', async () => {
+  mocks.getUser.mockResolvedValue({ data: { user: null } });
+  mocks.drift = true;
+  expect((await POST(makeRequest({}))).status).toBe(500);
+  expect(mocks.sessionsCreate).not.toHaveBeenCalled();
 });

@@ -23,6 +23,7 @@ export interface ValidatedProduct {
   available_until: string | null;
   auto_grant_duration_days?: number | null;
   // Pay What You Want fields
+  allow_repeat_purchase?: boolean;
   allow_custom_price?: boolean;
   custom_price_min?: number;
   // Sale price (Omnibus) — when active, this is the price actually charged

@@ -26,7 +26,7 @@ import type { PaymentMethodConfig } from '@/types/payment-config';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { getOrCreateStripeCustomer } from '@/lib/stripe/customer';
 import { getOrCreateStripeTaxRate, resolveLocalSubscriptionTaxRateId } from '@/lib/stripe/tax-rate-manager';
-import { buildCheckoutLineSpecs, buildStripeLineItems } from '@/lib/services/checkout-line-items';
+import { buildCheckoutLineSpecs, buildOrderSnapshotLines, buildStripeLineItems } from '@/lib/services/checkout-line-items';
 import { getOrCreateStripePriceForProduct } from '@/lib/stripe/product-price';
 import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checkout';
 import { createSubscriptionWithDynamicPrice } from '@/lib/stripe/subscription-dynamic-price';
@@ -36,6 +36,7 @@ import { signCheckoutBinding } from '@/lib/security/checkout-binding';
 import { canRenewExpiredLicenseWithActiveAccess } from '@/lib/license-keys/renewal';
 import { findIssuedLicense } from '@/lib/license-keys/lookup';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
+import { placeOrder } from '@/lib/orders/place-order';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 function extractStripeObjectId(clientSecret: string): string | null {
@@ -260,7 +261,7 @@ export async function POST(request: NextRequest) {
           });
           canRepurchaseTipJar = explicitRepurchase && product.checkout_template === 'tip-jar';
 
-          if (!canRenewLicense && !canRepurchaseTipJar) {
+          if (!product.allow_repeat_purchase && !canRenewLicense && !canRepurchaseTipJar) {
             return NextResponse.json(
               { error: 'You already have access to this product' },
               { status: 400 }
@@ -433,6 +434,8 @@ export async function POST(request: NextRequest) {
     type ProductRow = typeof product;
     interface ValidatedBump { product: ProductRow; bumpPrice: number }
     const validatedBumps: ValidatedBump[] = [];
+    const orderBumpIds: Record<string, string> = {};
+    const accessOverrides: Record<string, number | null> = {};
 
     if (requestedBumpIds.length > 0) {
       // Use the same RPC function that frontend uses to get valid bumps
@@ -447,6 +450,8 @@ export async function POST(request: NextRequest) {
         if (validBump && validBump.bump_currency === product.currency) {
           // SECURITY: Use the bump_price from order_bumps, not the product's regular price
           validBumpMap.set(reqBumpId, validBump.bump_price);
+          orderBumpIds[reqBumpId] = validBump.bump_id;
+          accessOverrides[reqBumpId] = validBump.bump_access_duration;
         }
         // Invalid bump IDs are silently ignored
       }
@@ -669,12 +674,13 @@ export async function POST(request: NextRequest) {
 
     // SAFETY: per-line split must never change the charged total. Both totalAmount and
     // these specs derive from the same allocateCouponDiscount, so equality holds by
-    // construction — log loudly if it ever diverges (would signal a pricing-logic drift).
+    // construction; refuse checkout if pricing diverges.
     const lineItemsTotalMinor = specs.reduce((sum, s) => sum + s.unitAmountMinor, 0);
     if (lineItemsTotalMinor !== totalAmount) {
       console.error(
         `[create-payment-intent] Tax-split total mismatch: lines=${lineItemsTotalMinor} expected=${totalAmount} product=${product.id}`
       );
+      return NextResponse.json({ error: 'Failed to initialize checkout session' }, { status: 500 });
     }
 
     const lineItems = await buildStripeLineItems(specs, {
@@ -797,9 +803,10 @@ export async function POST(request: NextRequest) {
       productId,
     });
     try {
-      const { error: insertError } = await dataClient
-        .from('payment_transactions')
-        .insert({
+      const placed = await placeOrder(dataClient, {
+          payment_provider: 'stripe',
+          livemode: checkoutSession.livemode,
+          coupon_id: appliedCoupon?.id ?? null,
           session_id: checkoutSession.id,
           user_id: user?.id || null,
           product_id: productId,
@@ -815,8 +822,8 @@ export async function POST(request: NextRequest) {
             bump_product_ids_full: bumpIds,
           },
           custom_field_values: validatedCustomFieldValues,
-        });
-      if (insertError) throw insertError;
+        }, buildOrderSnapshotLines(specs, { orderBumpIds, accessOverrides }));
+      if (!placed.success) throw new Error(placed.error);
     } catch (insertError) {
       console.error('[create-payment-intent] Failed to save pending transaction:', insertError);
       await expireBoundCheckoutSession(stripe, dataClient, {

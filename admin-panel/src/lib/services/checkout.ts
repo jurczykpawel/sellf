@@ -418,7 +418,7 @@ export class CheckoutService {
     this.validateTemporalAvailability(product);
 
     // Check existing access for logged-in users
-    if (userId) {
+    if (userId && !product.allow_repeat_purchase) {
       await this.checkExistingAccess(userId, product.id);
     }
 
