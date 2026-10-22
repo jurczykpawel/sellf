@@ -6,10 +6,9 @@
  * combined line) so per-line tax can be captured — WITHOUT changing the amount
  * charged.
  *
- * SAFETY INVARIANT (covered by tests): the sum of `unitAmountMinor` across the specs
- * equals `toMinorUnits(calculatePricing(...).totalGross, currency)` for the same inputs,
- * because both derive the per-line amounts from the SAME `allocateCouponDiscount`
- * call. Splitting the charge into per-line items therefore never changes the total.
+ * The sum of `unitAmountMinor` across specs equals `totalMinor`: the post-coupon
+ * pricing basis before exclusive VAT. `computeLinePayableMinor` adds local VAT
+ * to net lines. Both checkout flows share this allocation.
  */
 
 import { fromMinorUnits, toMinorUnits } from '@/lib/currency/minor-units';
@@ -74,7 +73,7 @@ export interface BuildLineSpecsResult {
   specs: CheckoutLineSpec[];
   /** True when a coupon covers the full price (pre-minimum-floor) — caller must reject/handle. */
   isFree: boolean;
-  /** Sum of line unitAmountMinor (post-floor) — the exact total that will be charged. */
+  /** Sum of post-coupon line amounts after the minimum floor, before exclusive VAT. */
   totalMinor: number;
 }
 
@@ -86,7 +85,6 @@ export interface BuildLineSpecsResult {
 export function buildCheckoutLineSpecs(params: BuildLineSpecsParams): BuildLineSpecsResult {
   const { main, mainPrice, bumps, coupon, taxMode, quantity = 1 } = params;
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) throw new Error('Invalid order quantity');
-  if (bumps.some(b => b.product.currency.toUpperCase() !== main.currency.toUpperCase())) throw new Error('Mixed order currencies');
   const mainListMinor = toMinorUnits(mainPrice, main.currency) * quantity;
 
   const allocation = allocateCouponDiscount({
@@ -190,6 +188,7 @@ export function buildOrderSnapshotLines(
   specs: CheckoutLineSpec[],
   options: { orderBumpIds: Record<string, string>; accessOverrides: Record<string, number | null> },
 ): OrderSnapshotLine[] {
+  if (specs.some(spec => spec.currency.toUpperCase() !== specs[0].currency.toUpperCase())) throw new Error('Mixed order currencies');
   return specs.map(spec => ({
     product_id: spec.productId,
     item_type: spec.isBump ? 'order_bump' : 'main_product',

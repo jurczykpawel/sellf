@@ -3800,6 +3800,16 @@ export type Database = {
         }
         Returns: Json
       }
+      _redeem_coupon_for_order: {
+        Args: {
+          coupon_id_param: string
+          current_user_id: string
+          customer_email_param: string
+          existing_user_id: string
+          transaction_id_var: string
+        }
+        Returns: undefined
+      }
       admin_delete_oto_offer: {
         Args: { source_product_id_param: string }
         Returns: Json
@@ -4230,6 +4240,10 @@ export type Database = {
       }
       batch_check_user_product_access: {
         Args: { product_slugs_param: string[] }
+        Returns: Json
+      }
+      cancel_unpaid_order: {
+        Args: { p_reason: string; p_transaction_id: string }
         Returns: Json
       }
       check_application_rate_limit: {
@@ -4801,6 +4815,7 @@ export type Database = {
           payload: Json
         }[]
       }
+      place_order: { Args: { p_lines: Json; p_order: Json }; Returns: Json }
       process_refund_request: {
         Args: {
           action_param: string

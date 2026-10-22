@@ -43,6 +43,18 @@ CREATE INDEX payment_transactions_coupon_idx ON public.payment_transactions(coup
 ALTER TABLE public.payment_line_items ADD COLUMN discounted_total numeric
   CHECK (discounted_total >= 0 AND discounted_total <= 99999999);
 COMMENT ON COLUMN public.payment_line_items.discounted_total IS 'MAJOR units after coupon; NULL for legacy lines.';
+-- Keep the legacy session join unambiguous when guest rows gain transaction_id.
+DO $migration$
+DECLARE definition text;
+BEGIN
+  SELECT pg_get_functiondef('public.claim_guest_purchases_for_user(uuid)'::regprocedure) INTO definition;
+  IF position('SELECT gp.*, pt.id as transaction_id' IN definition) = 0 THEN
+    RAISE EXCEPTION 'Expected guest purchase projection not found';
+  END IF;
+  EXECUTE replace(definition, 'SELECT gp.*, pt.id as transaction_id',
+    'SELECT gp.id, gp.product_id, gp.session_id, pt.id as transaction_id');
+END;
+$migration$;
 ALTER TABLE public.guest_purchases
   ADD COLUMN transaction_id uuid REFERENCES public.payment_transactions(id) ON DELETE CASCADE,
   ALTER COLUMN session_id DROP NOT NULL,

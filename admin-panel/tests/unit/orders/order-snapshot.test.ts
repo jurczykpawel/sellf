@@ -41,7 +41,8 @@ describe('order snapshot lines', () => {
     expect(() => buildCheckoutLineSpecs({ ...base, quantity })).toThrow();
   });
   it('rejects mixed currencies', () => {
-    expect(() => buildCheckoutLineSpecs({ ...base, bumps: [{ product: { ...bump, currency: 'EUR' }, price: 5 }] })).toThrow();
+    const { specs } = buildCheckoutLineSpecs({ ...base, bumps: [{ product: { ...bump, currency: 'EUR' }, price: 5 }] });
+    expect(() => buildOrderSnapshotLines(specs, options)).toThrow();
   });
   it('refuses quantity above one before resolving Stripe tax rates', async () => {
     const { specs } = buildCheckoutLineSpecs(base);

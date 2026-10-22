@@ -1330,10 +1330,10 @@ WITH sample AS (
   INSERT INTO public.payment_transactions (product_id, customer_email, amount, currency,
     payment_provider, pricing_snapshot_version, status, tax_snapshot_status, net_total, tax_total)
   SELECT id, 'transfer.example@example.com', 12300, 'PLN', 'bank_transfer', 1,
-    'awaiting_payment', 'local', 10000, 2300 FROM public.products WHERE slug = 'premium-course' LIMIT 1
+    'awaiting_payment', 'local', 10000, 2300 FROM public.products WHERE slug = 'affiliate-pln-course' LIMIT 1
   RETURNING id, product_id
 )
 INSERT INTO public.payment_line_items (transaction_id, product_id, item_type, quantity,
-  unit_price, total_price, discounted_total, currency, product_name, net_amount, tax_amount, tax_behavior)
-SELECT sample.id, sample.product_id, 'main_product', 1, 100, 100, 100, 'PLN',
-  'Przykładowy kurs — przelew', 10000, 2300, 'exclusive' FROM sample;
+  unit_price, total_price, discounted_total, currency, product_name, net_amount, tax_amount, vat_rate, tax_behavior)
+SELECT sample.id, sample.product_id, 'main_product', 1, 123, 123, 123, 'PLN',
+  'Affiliate PLN Course', 10000, 2300, 23, 'inclusive' FROM sample;

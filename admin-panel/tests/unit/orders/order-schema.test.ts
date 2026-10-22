@@ -60,6 +60,10 @@ describe('order schema', () => {
   it('backfills historical order numbers and guest transaction references', () => {
     const migration = readFileSync('../supabase/migrations/20261022191538_order_core_schema.sql', 'utf8').replace(/^BEGIN;|^COMMIT;/gm, '');
     const sql = `BEGIN;
+      DO $restore$ DECLARE definition text; BEGIN
+        SELECT pg_get_functiondef('public.claim_guest_purchases_for_user(uuid)'::regprocedure) INTO definition;
+        EXECUTE replace(definition, 'SELECT gp.id, gp.product_id, gp.session_id, pt.id as transaction_id', 'SELECT gp.*, pt.id as transaction_id');
+      END $restore$;
       DELETE FROM public.payment_transactions WHERE payment_provider='bank_transfer';
       DELETE FROM public.guest_purchases WHERE product_id='${productId}';
       DELETE FROM public.payment_transactions WHERE product_id='${productId}';
@@ -72,13 +76,17 @@ describe('order schema', () => {
       ALTER TABLE public.guest_purchases ADD CONSTRAINT guest_purchases_session_id_check CHECK (session_id ~* '^(cs_|pi_|in_)[a-zA-Z0-9_]+$');
       INSERT INTO public.payment_transactions(id, product_id, customer_email, amount, currency, session_id, created_at)
       VALUES ('00000000-0000-4000-8000-000000000101', '${productId}', 'backfill@example.com', 100, 'PLN', 'cs_backfill_old', '2000-01-01'),
-             ('00000000-0000-4000-8000-000000000102', '${productId}', 'backfill@example.com', 100, 'PLN', 'cs_backfill_new', '2000-01-02');
+             ('00000000-0000-4000-8000-000000000102', '${productId}', 'backfill@example.com', 100, 'PLN', 'cs_backfill_new', '2000-01-02'),
+             ('00000000-0000-4000-8000-000000000103', '${productId}', 'backfill@example.com', 100, 'PLN', 'cs_backfill_tie', '2000-01-01');
       INSERT INTO public.guest_purchases(product_id,customer_email,transaction_amount,session_id)
       VALUES ('${productId}', 'backfill@example.com', 100, 'cs_backfill_old');
       ${migration}
       DO $$ BEGIN
-        IF (SELECT order_number FROM public.payment_transactions WHERE session_id='cs_backfill_old') <> 1001
-          OR (SELECT order_number FROM public.payment_transactions WHERE session_id='cs_backfill_new') <> 1002
+        IF (SELECT min(order_number) FROM public.payment_transactions) <> 1001
+          OR (SELECT order_number FROM public.payment_transactions WHERE session_id='cs_backfill_tie') <>
+            (SELECT order_number + 1 FROM public.payment_transactions WHERE session_id='cs_backfill_old')
+          OR (SELECT order_number FROM public.payment_transactions WHERE session_id='cs_backfill_new') <=
+            (SELECT order_number FROM public.payment_transactions WHERE session_id='cs_backfill_tie')
           OR (SELECT transaction_id FROM public.guest_purchases WHERE session_id='cs_backfill_old') IS DISTINCT FROM '00000000-0000-4000-8000-000000000101'::uuid
         THEN RAISE EXCEPTION 'Historical backfill differs'; END IF;
       END $$; ROLLBACK;`;

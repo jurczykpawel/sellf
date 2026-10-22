@@ -660,6 +660,16 @@ operator pins; background revocation requests use bounded bodies/timeouts.
 - Used by admin panel frontend
 - Cached for 5 minutes
 
+### Order placement primitives
+
+`place_order(jsonb,jsonb)` stores a version-1 pricing snapshot and its lines atomically;
+only service_role can call it. Stripe orders start pending; bank transfers start
+awaiting_payment with local tax snapshots and redeem a reserved coupon immediately.
+`cancel_unpaid_order(uuid,text)` cancels unpaid transfers, returns the coupon once,
+and records the reason through `log_admin_action`. Existing routes still use their
+legacy Stripe path. List prices remain in `total_price`; `discounted_total` stores
+major units after coupon. Guest purchases additionally support `transaction_id`.
+
 ### Guest Checkout to Registered User Flow
 
 1. Guest purchases product → stored in `payment_transactions` with email
