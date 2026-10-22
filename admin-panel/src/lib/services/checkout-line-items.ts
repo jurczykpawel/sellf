@@ -12,11 +12,9 @@
  * call. Splitting the charge into per-line items therefore never changes the total.
  */
 
-import { toMinorUnits } from '@/lib/currency/minor-units';
-import {
-  allocateCouponDiscount,
-  type CouponPricingInput,
-} from '@/lib/pricing/coupon-allocation';
+import { fromMinorUnits, toMinorUnits } from '@/lib/currency/minor-units';
+import { allocateCouponDiscount } from '@/lib/pricing/coupon-allocation';
+import type { CouponPricingInput } from '@/lib/pricing/coupon-allocation';
 
 export interface CheckoutLineProduct {
   id: string;
@@ -30,6 +28,10 @@ export interface CheckoutLineProduct {
 
 export interface CheckoutLineSpec {
   productId: string;
+  quantity: number;
+  /** List total for the whole line, before coupon, in minor units. */
+  listAmountMinor: number;
+  vatExempt: boolean;
   isBump: boolean;
   name: string;
   description: string | null;
@@ -47,6 +49,7 @@ export interface BuildLineSpecsParams {
   main: CheckoutLineProduct;
   /** Base price already resolved by the caller (PWYW customAmount or effective unit price). */
   mainPrice: number;
+  quantity?: number;
   bumps: Array<{ product: CheckoutLineProduct; price: number }>;
   coupon: CouponPricingInput | null;
   taxMode: 'local' | 'stripe_tax';
@@ -81,12 +84,15 @@ export interface BuildLineSpecsResult {
  * shared `allocateCouponDiscount` primitive.
  */
 export function buildCheckoutLineSpecs(params: BuildLineSpecsParams): BuildLineSpecsResult {
-  const { main, mainPrice, bumps, coupon, taxMode } = params;
+  const { main, mainPrice, bumps, coupon, taxMode, quantity = 1 } = params;
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) throw new Error('Invalid order quantity');
+  if (bumps.some(b => b.product.currency.toUpperCase() !== main.currency.toUpperCase())) throw new Error('Mixed order currencies');
+  const mainListMinor = toMinorUnits(mainPrice, main.currency) * quantity;
 
   const allocation = allocateCouponDiscount({
     currency: main.currency,
     items: [
-      { kind: 'base', id: main.id, price: mainPrice },
+      { kind: 'base', id: main.id, price: fromMinorUnits(mainListMinor, main.currency) },
       ...bumps.map((b) => ({ kind: 'bump' as const, id: b.product.id, price: b.price })),
     ],
     baseProductId: main.id,
@@ -100,6 +106,8 @@ export function buildCheckoutLineSpecs(params: BuildLineSpecsParams): BuildLineS
     product: CheckoutLineProduct,
     isBump: boolean,
     finalPrice: number,
+    listAmountMinor: number,
+    lineQuantity: number,
   ): CheckoutLineSpec => {
     const priceIncludesVat = product.priceIncludesVat ?? false;
     const exempt = product.vatExempt ?? false;
@@ -112,6 +120,9 @@ export function buildCheckoutLineSpecs(params: BuildLineSpecsParams): BuildLineS
       (isLocal && hasLocalRate) || !isLocal ? (priceIncludesVat ? 'inclusive' : 'exclusive') : null;
     return {
       productId: product.id,
+      quantity: lineQuantity,
+      listAmountMinor,
+      vatExempt: exempt,
       isBump,
       name: product.name,
       description: product.description ?? null,
@@ -123,9 +134,9 @@ export function buildCheckoutLineSpecs(params: BuildLineSpecsParams): BuildLineS
     };
   };
 
-  const specs: CheckoutLineSpec[] = [toSpec(main, false, allocation.items[0].finalPrice)];
+  const specs: CheckoutLineSpec[] = [toSpec(main, false, allocation.items[0].finalPrice, mainListMinor, quantity)];
   bumps.forEach((b, i) => {
-    specs.push(toSpec(b.product, true, allocation.items[i + 1].finalPrice));
+    specs.push(toSpec(b.product, true, allocation.items[i + 1].finalPrice, toMinorUnits(b.price, b.product.currency), 1));
   });
   const totalMinor = specs.reduce((sum, s) => sum + s.unitAmountMinor, 0);
   return { specs, isFree: allocation.isFree, totalMinor };
@@ -148,6 +159,7 @@ export async function buildStripeLineItems(
   specs: CheckoutLineSpec[],
   opts: { resolveTaxRate: StripeTaxRateResolver },
 ): Promise<Record<string, unknown>[]> {
+  if (specs.some(spec => spec.quantity !== 1)) throw new Error('Stripe line quantities must equal one');
   const lineItems: Record<string, unknown>[] = [];
   for (const spec of specs) {
     const taxRates = spec.vatRate
@@ -169,4 +181,44 @@ export async function buildStripeLineItems(
     });
   }
   return lineItems;
+}
+
+/** Saved line prices are in major units; list and discounted totals remain separate.
+ * @see supabase/migrations/20261022191538_order_core_schema.sql
+ */
+export function buildOrderSnapshotLines(
+  specs: CheckoutLineSpec[],
+  options: { orderBumpIds: Record<string, string>; accessOverrides: Record<string, number | null> },
+): OrderSnapshotLine[] {
+  return specs.map(spec => ({
+    product_id: spec.productId,
+    item_type: spec.isBump ? 'order_bump' : 'main_product',
+    quantity: spec.quantity,
+    unit_price: fromMinorUnits(spec.listAmountMinor / spec.quantity, spec.currency),
+    total_price: fromMinorUnits(spec.listAmountMinor, spec.currency),
+    discounted_total: fromMinorUnits(spec.unitAmountMinor, spec.currency),
+    currency: spec.currency.toUpperCase(),
+    product_name: spec.name,
+    order_bump_id: spec.isBump ? options.orderBumpIds[spec.productId] ?? null : null,
+    access_duration_override: spec.isBump ? options.accessOverrides[spec.productId] ?? null : null,
+    vat_rate: spec.vatRate,
+    tax_behavior: spec.taxBehavior,
+    vat_exempt: spec.vatExempt,
+  }));
+}
+
+export interface OrderSnapshotLine {
+  product_id: string;
+  item_type: 'main_product' | 'order_bump';
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  discounted_total: number;
+  currency: string;
+  product_name: string;
+  order_bump_id: string | null;
+  access_duration_override: number | null;
+  vat_rate: number | null;
+  tax_behavior: 'inclusive' | 'exclusive' | null;
+  vat_exempt: boolean;
 }
