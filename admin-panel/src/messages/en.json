@@ -196,6 +196,7 @@
     "invalidTaxIdFormat": "Invalid tax ID format",
     "failedToPreparePayment": "Failed to prepare payment",
     "paymentFailed": "Payment failed",
+    "detailsNotSaved": "Could not save your details. Please try again.",
     "additionalProduct": "Additional Product",
     "gusRateLimitExceeded": "Too many requests. Please wait a moment and try again.",
     "gusNotFound": "Company not found in GUS database",

@@ -1815,6 +1815,7 @@ export type Database = {
           id: string
           metadata: Json
           net_total: number | null
+          order_details: Json | null
           product_id: string
           refund_id: string | null
           refund_reason: string | null
@@ -1843,6 +1844,7 @@ export type Database = {
           id?: string
           metadata?: Json
           net_total?: number | null
+          order_details?: Json | null
           product_id: string
           refund_id?: string | null
           refund_reason?: string | null
@@ -1871,6 +1873,7 @@ export type Database = {
           id?: string
           metadata?: Json
           net_total?: number | null
+          order_details?: Json | null
           product_id?: string
           refund_id?: string | null
           refund_reason?: string | null
@@ -4838,6 +4841,15 @@ export type Database = {
       send_monitoring_email: {
         Args: { alert_details: Json; alert_type: string }
         Returns: undefined
+      }
+      set_payment_order_buyer: {
+        Args: {
+          p_buyer: Json
+          p_only_if_missing?: boolean
+          p_payment_intent_id?: string
+          p_session_id?: string
+        }
+        Returns: number
       }
       set_revenue_goal: {
         Args: {

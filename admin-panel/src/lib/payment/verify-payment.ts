@@ -9,6 +9,7 @@
 import { getStripeServer } from '@/lib/stripe/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fulfillPaidOrder } from '@/lib/services/fulfill-paid-order';
+import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
 import { redactEmail } from '@/lib/logger';
 import type Stripe from 'stripe';
 import type { User } from '@supabase/supabase-js';
@@ -615,6 +616,10 @@ export async function verifyPaymentSession(
               error: paymentResult?.error || 'Payment processing failed'
             };
           }
+
+          await backfillBuyerDetails(serviceClient, {
+            sessionId: session.id, metadata: session.metadata, customerDetails: session.customer_details,
+          });
 
           await fulfillPaidOrder({
             supabase: serviceClient, stripe, transactionId: paymentResult.transaction_id,

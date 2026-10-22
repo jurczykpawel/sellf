@@ -10,6 +10,7 @@
 
 import { getStripeServer } from '@/lib/stripe/server';
 import { fulfillPaidOrder } from '@/lib/services/fulfill-paid-order';
+import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
 import type { createAdminClient } from '@/lib/supabase/admin';
 import { redactEmail } from '@/lib/logger';
 import type Stripe from 'stripe';
@@ -141,6 +142,10 @@ export async function handleCheckoutSessionCompleted(
     );
     return { processed: false, message: (result?.error as string) || 'Payment processing failed' };
   }
+
+  await backfillBuyerDetails(supabase, {
+    sessionId, metadata: session.metadata, customerDetails: session.customer_details,
+  });
 
   await fulfillPaidOrder({
     source: 'stripe_webhook', supabase, stripe: await getStripeServer(), transactionId: result.transaction_id as string,

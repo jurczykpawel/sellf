@@ -782,46 +782,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save pending payment transaction for abandoned cart recovery
-    try {
-      const { error: insertError } = await dataClient
-        .from('payment_transactions')
-        .insert({
-          session_id: checkoutSession.id,
-          user_id: user?.id || null,
-          product_id: productId,
-          customer_email: finalEmail || 'pending@sellf.app', // Fallback for guests without email
-          amount: totalAmount,
-          currency: product.currency,
-          stripe_payment_intent_id: null,
-          status: 'pending',
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
-          metadata: {
-            ...checkoutMetadata,
-            // Full bump list (not subject to Stripe's 500-char metadata limit)
-            bump_product_ids_full: bumpIds,
-          },
-          custom_field_values: validatedCustomFieldValues,
-        });
+    // The pending row is where the buyer details are stored before payment and where abandoned
+    // carts are recovered from; without it the session must not be used.
+    const checkoutBindingToken = signCheckoutBinding({
+      stripeObjectId: checkoutSession.id,
+      userId: user?.id ?? null,
+      productId,
+    });
+    const { error: insertError } = await dataClient
+      .from('payment_transactions')
+      .insert({
+        session_id: checkoutSession.id,
+        user_id: user?.id || null,
+        product_id: productId,
+        customer_email: finalEmail || 'pending@sellf.app', // Fallback for guests without email
+        amount: totalAmount,
+        currency: product.currency,
+        stripe_payment_intent_id: null,
+        status: 'pending',
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+        metadata: {
+          ...checkoutMetadata,
+          // Full bump list (not subject to Stripe's 500-char metadata limit)
+          bump_product_ids_full: bumpIds,
+        },
+        custom_field_values: validatedCustomFieldValues,
+      });
 
-      if (insertError) {
-        // Log error but don't fail the Checkout Session creation
-        console.error('Failed to save pending transaction:', insertError);
-      }
-    } catch (dbError) {
-      // Don't fail Checkout Session creation if DB insert fails
-      console.error('Error saving pending transaction:', dbError);
+    if (insertError) {
+      console.error('[create-payment-intent] Failed to save pending transaction:', insertError);
+      await expireBoundCheckoutSession(stripe, dataClient, {
+        clientSecret: checkoutSession.client_secret,
+        bindingToken: checkoutBindingToken,
+      });
+      return NextResponse.json({ error: 'Failed to initialize checkout session' }, { status: 500 });
     }
 
     return NextResponse.json({
       clientSecret: checkoutSession.client_secret,
       checkoutSessionId: checkoutSession.id,
       paymentIntentId: null,
-      bindingToken: signCheckoutBinding({
-        stripeObjectId: checkoutSession.id,
-        userId: user?.id ?? null,
-        productId,
-      }),
+      bindingToken: checkoutBindingToken,
     });
   } catch (error) {
     if (error instanceof ApiPayloadTooLargeError) {

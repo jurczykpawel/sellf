@@ -32,11 +32,16 @@ const mocks = vi.hoisted(() => ({
   adminInserts: [] as Array<{ table: string; value: unknown }>,
   getOrCreateStripeCustomer: vi.fn(),
   sessionsCreate: vi.fn(),
+  sessionsRetrieve: vi.fn(),
+  sessionsExpire: vi.fn(),
+  verifyBinding: vi.fn(() => false),
+  pendingInsertError: null as { message: string } | null,
 }));
 
 function adminQuery(table: string) {
   const q: Record<string, unknown> = {};
   const self = () => q;
+  let inserting = false;
   Object.assign(q, {
     select: self,
     eq: self,
@@ -51,10 +56,16 @@ function adminQuery(table: string) {
     maybeSingle: async () => ({ data: null, error: null }),
     insert: (value: unknown) => {
       mocks.adminInserts.push({ table, value });
+      inserting = true;
       return q;
     },
     delete: self,
-    then: (resolve: (v: unknown) => void) => resolve({ data: null, error: null }),
+    update: self,
+    then: (resolve: (v: unknown) => void) =>
+      resolve({
+        data: null,
+        error: inserting && table === 'payment_transactions' ? mocks.pendingInsertError : null,
+      }),
   });
   return q;
 }
@@ -78,8 +89,8 @@ vi.mock('@/lib/stripe/server', () => ({
     checkout: {
       sessions: {
         create: mocks.sessionsCreate,
-        retrieve: vi.fn(),
-        expire: vi.fn(),
+        retrieve: mocks.sessionsRetrieve,
+        expire: mocks.sessionsExpire,
       },
     },
   })),
@@ -106,7 +117,7 @@ vi.mock('@/lib/stripe/tax-rate-manager', () => ({
 
 vi.mock('@/lib/security/checkout-binding', () => ({
   signCheckoutBinding: vi.fn(() => 'binding'),
-  verifyCheckoutBinding: vi.fn(() => false),
+  verifyCheckoutBinding: mocks.verifyBinding,
 }));
 
 import { POST } from '@/app/api/create-payment-intent/route';
@@ -124,6 +135,8 @@ const SIGNED_IN = { id: 'user-1', email: 'account@example.com' };
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.adminInserts.length = 0;
+  mocks.pendingInsertError = null;
+  mocks.verifyBinding.mockReturnValue(false);
   mocks.adminRpc.mockResolvedValue({ data: { valid: false, error: 'Invalid coupon' }, error: null });
   mocks.sessionsCreate.mockResolvedValue({ id: 'cs_test_1', client_secret: 'cs_test_1_secret_x' });
 });
@@ -204,5 +217,37 @@ describe('POST /api/create-payment-intent — full-discount coupon', () => {
     expect((await res.json()).freeAccess).toBeUndefined();
     expect(mocks.adminInserts.filter((w) => w.table === 'coupon_redemptions')).toEqual([]);
     expect(adminRpcNames()).not.toContain('increment_coupon_usage');
+  });
+});
+
+describe('POST /api/create-payment-intent — pending row', () => {
+  it('stops the payment and expires the session when the pending row cannot be saved', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    mocks.pendingInsertError = { message: 'insert failed' };
+    mocks.verifyBinding.mockReturnValue(true);
+    mocks.sessionsRetrieve.mockResolvedValue({
+      id: 'cs_test_1',
+      status: 'open',
+      payment_intent: null,
+      metadata: { product_id: PRODUCT.id },
+    });
+    mocks.sessionsExpire.mockResolvedValue({});
+
+    const res = await POST(makeRequest({ email: 'guest@example.com' }));
+
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.clientSecret).toBeUndefined();
+    expect(mocks.sessionsExpire).toHaveBeenCalledWith('cs_test_1');
+  });
+
+  it('returns the client secret when the pending row is saved', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+
+    const res = await POST(makeRequest({ email: 'guest@example.com' }));
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).clientSecret).toBe('cs_test_1_secret_x');
+    expect(mocks.sessionsExpire).not.toHaveBeenCalled();
   });
 });
