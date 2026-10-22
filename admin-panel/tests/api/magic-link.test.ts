@@ -8,7 +8,7 @@
 import { describe, it, expect, afterAll } from 'vitest';
 import { createChallenge, solveChallenge } from 'altcha-lib/v1';
 import { API_URL, supabaseAdmin } from './setup';
-import { waitForEmail } from '../helpers/mailpit';
+import { MAILPIT_URL, waitForEmail } from '../helpers/mailpit';
 import { deleteAuthUsers } from '../helpers/db-cleanup';
 
 // A successful /api/auth/magic-link request materializes the auth user immediately
@@ -99,7 +99,7 @@ describe('Magic-link gateway', () => {
     expect((await response.json()).code).toBe('captcha_failed');
 
     const search = await fetch(
-      `http://127.0.0.1:54324/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`,
+      `${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`,
     );
     const data = await search.json();
     expect(data.messages || []).toHaveLength(0);
@@ -147,7 +147,7 @@ describe('Magic-link gateway', () => {
     expect((await second.json()).code).toBe('captcha_failed');
 
     const search = await fetch(
-      `http://127.0.0.1:54324/api/v1/search?query=${encodeURIComponent(`to:${secondEmail}`)}`,
+      `${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${secondEmail}`)}`,
     );
     const data = await search.json();
     expect(data.messages || []).toHaveLength(0);
