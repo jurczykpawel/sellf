@@ -34,7 +34,7 @@
   "dependencies": {
     "@floating-ui/react": "^0.27.20",
     "@marsidev/react-turnstile": "^1.6.2",
-    "@next/eslint-plugin-next": "^16.4.2",
+    "@next/eslint-plugin-next": "16.3.8",
     "@stripe/react-stripe-js": "^6.12.0",
     "@stripe/stripe-js": "9.17.0",
     "@supabase/ssr": "^0.12.7",
@@ -79,7 +79,7 @@
     "@vitest/coverage-v8": "^4.1.12",
     "dotenv": "^17.4.2",
     "eslint": "^9.39.4",
-    "eslint-config-next": "^16.4.2",
+    "eslint-config-next": "16.3.8",
     "happy-dom": "^20.14.6",
     "postcss": "^8.5.31",
     "tailwindcss": "^4.3.3",
@@ -112,6 +112,10 @@
     "rollup": "^4.60.2",
     "vite": "^8.3.5",
     "vite@^7": "^7.3.2",
-    "source-map-js": "^1.2.2"
+    "source-map-js": "^1.2.2",
+    "eslint-plugin-react-hooks": "7.0.1",
+    "typescript-eslint": "8.52.0",
+    "@typescript-eslint/eslint-plugin": "8.52.0",
+    "@typescript-eslint/parser": "8.52.0"
   }
 }
