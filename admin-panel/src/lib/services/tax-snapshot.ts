@@ -45,7 +45,7 @@ export interface LineTaxSnapshot {
   breakdown: TaxComponent[];
 }
 
-export type TaxSnapshotStatus = 'none' | 'captured' | 'partial' | 'unavailable';
+export type TaxSnapshotStatus = 'none' | 'captured' | 'partial' | 'unavailable' | 'local';
 
 /** Order-level tax snapshot. Amounts MINOR units. */
 export interface OrderTaxSnapshot {
