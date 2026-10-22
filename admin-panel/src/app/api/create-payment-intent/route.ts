@@ -193,6 +193,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Sale window applies to every product type; an open checkout tab must not outlive it.
+    try {
+      ProductValidationService.validateTemporalAvailability(product as unknown as ValidatedProduct);
+    } catch {
+      return NextResponse.json({ error: 'Product not available for purchase' }, { status: 404 });
+    }
+
     // 1a. Validate custom checkout fields against the product's definitions.
     // Defense in depth: client also validates, but server is the source of truth.
     const productCustomFieldDefs = validateCustomFieldDefinitions(

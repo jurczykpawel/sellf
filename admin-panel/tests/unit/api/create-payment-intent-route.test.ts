@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 /**
@@ -36,6 +36,7 @@ const mocks = vi.hoisted(() => ({
   sessionsExpire: vi.fn(),
   verifyBinding: vi.fn(() => false),
   pendingInsertError: null as { message: string } | null,
+  productOverride: {} as Record<string, unknown>,
 }));
 
 function adminQuery(table: string) {
@@ -49,7 +50,7 @@ function adminQuery(table: string) {
     limit: self,
     single: async () =>
       table === 'products'
-        ? { data: PRODUCT, error: null }
+        ? { data: { ...PRODUCT, ...mocks.productOverride }, error: null }
         : table === 'payment_method_config'
           ? { data: null, error: null }
           : { data: null, error: { code: 'PGRST116' } },
@@ -80,9 +81,16 @@ vi.mock('@/lib/supabase/admin', () => ({
 
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: vi.fn().mockResolvedValue(true) }));
 
-vi.mock('@/lib/services/product-validation', () => ({
-  ProductValidationService: { validateEmail: vi.fn().mockResolvedValue(true) },
-}));
+vi.mock('@/lib/services/product-validation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/services/product-validation')>();
+  return {
+    ...actual,
+    ProductValidationService: {
+      validateEmail: vi.fn().mockResolvedValue(true),
+      validateTemporalAvailability: actual.ProductValidationService.validateTemporalAvailability,
+    },
+  };
+});
 
 vi.mock('@/lib/stripe/server', () => ({
   getStripeServer: vi.fn(async () => ({
@@ -136,6 +144,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.adminInserts.length = 0;
   mocks.pendingInsertError = null;
+  mocks.productOverride = {};
   mocks.verifyBinding.mockReturnValue(false);
   mocks.adminRpc.mockResolvedValue({ data: { valid: false, error: 'Invalid coupon' }, error: null });
   mocks.sessionsCreate.mockResolvedValue({ id: 'cs_test_1', client_secret: 'cs_test_1_secret_x' });
@@ -249,5 +258,39 @@ describe('POST /api/create-payment-intent — pending row', () => {
     expect(res.status).toBe(200);
     expect((await res.json()).clientSecret).toBe('cs_test_1_secret_x');
     expect(mocks.sessionsExpire).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/create-payment-intent — sale window', () => {
+  const HOUR = 3600_000;
+  const NOW = Date.parse('2026-10-22T12:00:00Z');
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it.each([
+    ['one_time', 'ended', { available_until: new Date(NOW - HOUR).toISOString() }],
+    ['one_time', 'not started', { available_from: new Date(NOW + HOUR).toISOString() }],
+    ['subscription', 'ended', { available_until: new Date(NOW - HOUR).toISOString() }],
+  ])('refuses a %s product whose sale window has %s', async (product_type, _label, window) => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    mocks.productOverride = { product_type, ...window };
+
+    const res = await POST(makeRequest({ email: 'guest@example.com' }));
+
+    expect(res.status).toBe(404);
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+  });
+
+  it('allows a product inside its sale window', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    mocks.productOverride = { available_until: new Date(NOW + HOUR).toISOString() };
+
+    const res = await POST(makeRequest({ email: 'guest@example.com' }));
+
+    expect(res.status).toBe(200);
   });
 });
