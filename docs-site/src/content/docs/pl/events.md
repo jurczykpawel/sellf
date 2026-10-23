@@ -3,6 +3,8 @@ title: Wydarzenia i progi cen
 description: Terminy, pula miejsc i automatyczne przechodzenie na kolejną cenę.
 ---
 
+Ukryte wydarzenie można kupić z bezpośredniego linku; nie pojawia się ono w katalogu sklepu.
+
 W ustawieniach sprzedaży produktu włącz **Tryb wydarzenia** i otwórz **Terminy i ceny**. Wydarzenie jest produktem jednorazowym; nie może być zestawem, subskrypcją ani produktem z własną ceną kupującego. Przy pierwszym włączeniu trybu Sellf automatycznie zezwala na ponowny zakup.
 
 Dodaj termin: daty początku i końca, strefę czasową, tytuł, miejsce, opcjonalne dodatkowe dni i pulę miejsc. Pola dat przyjmują UTC; kupujący widzi czas w wybranej strefie. Puste pole puli oznacza brak limitu. Link online musi używać HTTPS; pojawia się wyłącznie w dostępie do kupionego terminu i mailu dostępu. Wyłącz sprzedaż, aby zatrzymać nowe zakupy bez usuwania terminu.

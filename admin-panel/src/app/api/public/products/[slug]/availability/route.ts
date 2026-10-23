@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { isAllowedEmbedOrigin, loadAllowedOriginsForProduct } from '@/lib/embed/checkout-embed';
 import { projectEventSessions } from '@/lib/events/presentation';
+import { decideProductAccessOutcome } from '@/lib/payment/product-access-decision';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { NextRequest } from 'next/server';
@@ -14,9 +15,9 @@ async function respond(request: NextRequest, context: Context, preflight: boolea
     const { slug } = await context.params;
     if (!/^[a-zA-Z0-9_-]{1,100}$/.test(slug)) return NextResponse.json({ error: 'Not found' }, { status: 404, headers });
     const db = createAdminClient();
-    const { data: product, error } = await db.from('products').select('id,currency,seller_id,event_mode,is_active,is_listed').eq('slug', slug).maybeSingle();
+    const { data: product, error } = await db.from('products').select('id,currency,seller_id,event_mode,is_active,available_from,available_until').eq('slug', slug).maybeSingle();
     if (error) return NextResponse.json({ error: 'Availability unavailable' }, { status: 503, headers });
-    if (!product?.is_active || !product.event_mode || !product.is_listed) return NextResponse.json({ error: 'Not found' }, { status: 404, headers });
+    if (!product?.event_mode || decideProductAccessOutcome({ user: null, product, userAccess: null, now: new Date() }).kind !== 'redirect-checkout') return NextResponse.json({ error: 'Not found' }, { status: 404, headers });
     const origin = request.headers.get('origin');
     const allowed = await loadAllowedOriginsForProduct(db, product.seller_id);
     if (origin && isAllowedEmbedOrigin(origin, allowed)) headers['Access-Control-Allow-Origin'] = origin;

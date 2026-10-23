@@ -2,13 +2,13 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { GET, OPTIONS } from '@/app/api/public/products/[slug]/availability/route';
-const state = vi.hoisted(() => ({ allowed: true, origins: ['https://shop.example.com'], product: { id: 'p', currency: 'PLN', seller_id: null, event_mode: true, is_active: true, is_listed: true }, sessions: [] as unknown[], rpcError: null as unknown }));
+const state = vi.hoisted(() => ({ allowed: true, origins: ['https://shop.example.com'], product: { id: 'p', currency: 'PLN', seller_id: null, event_mode: true, is_active: true, is_listed: true, available_from: null as string | null, available_until: null as string | null }, sessions: [] as unknown[], rpcError: null as unknown }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: vi.fn(async () => state.allowed) }));
 vi.mock('@/lib/embed/checkout-embed', () => ({ loadAllowedOriginsForProduct: async () => state.origins, isAllowedEmbedOrigin: (o: string, a: string[]) => a.includes(o) }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => ({ from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: state.product, error: null }) }) }) }), rpc: async () => ({ data: state.sessions, error: state.rpcError }) }) }));
 const context = { params: Promise.resolve({ slug: 'workshop' }) };
 const req = () => new NextRequest('http://localhost/api/public/products/workshop/availability', { headers: { origin: 'https://shop.example.com' } });
-beforeEach(() => { state.allowed = true; state.origins = ['https://shop.example.com']; state.product.is_active = true; state.product.event_mode = true; state.rpcError = null; state.sessions = []; });
+beforeEach(() => { vi.useRealTimers(); state.product.is_listed = true; state.product.available_from = null; state.product.available_until = null; state.allowed = true; state.origins = ['https://shop.example.com']; state.product.is_active = true; state.product.event_mode = true; state.rpcError = null; state.sessions = []; });
 it('returns the public contract, no-store and allowlisted CORS', async () => {
   const res = await GET(req(), context);
   expect(await res.json()).toEqual({ productId: 'p', currency: 'PLN', sessions: [] });
@@ -28,4 +28,22 @@ it('projects the session response shape without private source fields', async ()
   expect(body.sessions[0]).toEqual({ id: 'term', startsAt: '2099-06-01T12:00:00Z', endsAt: null, timezone: 'Europe/Warsaw', title: 'Workshop', venue: null, extraDays: null, remaining: 5, soldOut: false, cheaperSoldOut: true, nextTierPrice: 67, currentTier: { id: 'tier', label: 'Early', price: 47, seatsLeft: 5, endsAt: null } });
   expect(JSON.stringify(body)).not.toContain('PRIVATE');
   expect(res.headers.get('Access-Control-Allow-Credentials')).toBeNull();
+});
+
+it('returns sessions for an active unlisted event', async () => {
+  state.product.is_listed = false;
+  const res = await GET(req(), context);
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual({ productId: 'p', currency: 'PLN', sessions: [] });
+});
+it.each([
+  ['2040-03-01T12:00:01Z', null, 404],
+  [null, '2040-03-01T12:00:00Z', 404],
+  ['2040-03-01T12:00:00Z', '2040-03-01T12:00:01Z', 200],
+] as const)('respects the sale window %s / %s', async (from, until, status) => {
+  vi.useFakeTimers(); vi.setSystemTime(new Date('2040-03-01T12:00:00Z'));
+  try {
+    state.product.available_from = from; state.product.available_until = until;
+    expect((await GET(req(), context)).status).toBe(status);
+  } finally { vi.useRealTimers(); }
 });

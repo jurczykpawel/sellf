@@ -3,6 +3,8 @@ title: Events and price tiers
 description: Schedule sessions, limit seats and increase prices automatically.
 ---
 
+An unlisted event can be purchased from its direct link and does not appear in the shop catalogue.
+
 In a product's sales settings, enable **Event mode** and open **Dates and prices**. Events support one-time products; bundles, subscriptions and custom pricing cannot use event mode. Repeat purchases are enabled automatically when event mode is first enabled.
 
 Add a session with start/end dates, time zone, title, venue, optional additional days and total seats. Date inputs use UTC; the selected time zone controls buyer presentation. Leave capacity empty for unlimited seats. The online link must use HTTPS and is shown only in purchased-event access and access emails. Close sales to stop new purchases without removing the session.

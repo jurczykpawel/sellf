@@ -130,3 +130,20 @@ test('catalogue renders the live nearest-session price and date through its publ
   await expect(card.getByText(/America\/New_York/)).toBeVisible();
   await expect(card.getByText(/Najniższa cena/)).toHaveCount(0);
 });
+
+test('unlisted event shows sessions and tier price from a direct link but stays out of the catalogue', async ({ page }) => {
+  await checked(await db.from('products').update({ is_listed: false, name: product.slug }).eq('id', product.id));
+  await acceptAllCookies(page);
+  await page.goto(`/pl/p/${product.slug}`);
+  await expect(page).toHaveURL(new RegExp(`/pl/checkout/${product.slug}`));
+  await expect(page.getByTestId('event-sessions')).toBeVisible();
+  await expect(page.getByText('Edycja czerwcowa', { exact: false }).first()).toBeVisible();
+  await expect(page.getByText('Zostało 30 miejsc w tej cenie')).toBeVisible();
+  await expect(page.getByRole('radio')).toBeChecked();
+  await expect(page.getByTestId('event-sessions').getByText(/^47,00/)).toBeVisible();
+  const availability = await page.request.get(`/api/public/products/${product.slug}/availability`);
+  expect(availability.status()).toBe(200);
+  expect((await availability.json()).sessions[0].currentTier.price).toBe(47);
+  await page.goto(`/pl/store?search=${product.slug}`);
+  await expect(page.locator('article').filter({ hasText: product.slug })).toHaveCount(0);
+});
