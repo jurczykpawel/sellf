@@ -18,7 +18,7 @@ import type { PaymentTransaction, PaymentTransactionLineItem } from '@/types/pay
 
 interface PaymentTransactionsTableProps {
   transactions: PaymentTransaction[];
-  onRefreshData?: () => void;
+  onRefreshData?: () => void | Promise<void>;
 }
 
 export default function PaymentTransactionsTable({ 
@@ -342,7 +342,7 @@ export default function PaymentTransactionsTable({
               </div>
             </div>
 
-<BankTransferSection transaction={detailsTransaction} onRefresh={() => { setDetailsTransactionId(null); onRefreshData?.(); }} />
+<BankTransferSection transaction={detailsTransaction} onRefresh={async () => { await onRefreshData?.(); setDetailsTransactionId(null); }} />
 <InvoiceSection transactionId={detailsTransaction.id} status={detailsTransaction.status} invoice={detailsTransaction.invoice} onRefresh={() => { setDetailsTransactionId(null); onRefreshData?.(); }} />
             <OrderDetailsSection
               details={detailsTransaction.order_details}

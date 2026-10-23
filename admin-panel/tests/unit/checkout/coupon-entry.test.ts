@@ -40,3 +40,24 @@ it.each(['en', 'pl'] as const)('explains a set-price coupon with no reduction in
   expect(screen.getByText(messages.checkout.couponNoReduction)).toBeTruthy();
   expect(screen.queryByText(/discount applied|Zastosowano zniżkę/)).toBeNull();
 });
+
+it.each(['en', 'pl'] as const)('labels net set-price coupons and their gross unit price in %s', locale => {
+  render(React.createElement(NextIntlClientProvider, { locale, messages: locale === 'pl' ? pl : en }, React.createElement(CouponField, {
+    couponCode: 'B2B30', appliedCoupon: { code: 'B2B30', discount_type: 'set_price', discount_value: 30 },
+    isVerifying: false, couponError: null, currency: 'PLN', showCouponInput: true,
+    priceIncludesVat: false, vatDisplay: { kind: 'rate_added', rate: 23 },
+    onCodeChange: vi.fn(), onApply: vi.fn(), onRemove: vi.fn(),
+  })));
+  const label = screen.getByText(locale === 'pl' ? /Cena za sztukę:/ : /Unit price set to/);
+  expect(label.textContent).toMatch(locale === 'pl' ? /30,00\s*zł netto.*36,90\s*zł brutto/ : /PLN\s*30.00 net.*PLN\s*36.90 gross/);
+});
+
+it.each(['none', 'exempt'] as const)('does not invent gross VAT for %s display', kind => {
+  render(React.createElement(NextIntlClientProvider, { locale: 'pl', messages: pl }, React.createElement(CouponField, {
+    couponCode: 'B2B30', appliedCoupon: { code: 'B2B30', discount_type: 'set_price', discount_value: 30 },
+    isVerifying: false, couponError: null, currency: 'PLN', showCouponInput: true,
+    priceIncludesVat: false, vatDisplay: kind === 'exempt' ? { kind, note: null } : { kind },
+    onCodeChange: vi.fn(), onApply: vi.fn(), onRemove: vi.fn(),
+  })));
+  expect(screen.getByText(/Cena za sztukę:/).textContent).toMatch(/30,00\s*zł netto$/);
+});

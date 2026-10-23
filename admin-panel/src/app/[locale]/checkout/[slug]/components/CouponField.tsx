@@ -3,6 +3,9 @@
 import { useCallback, useId } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
+import { fromMinorUnits, toMinorUnits } from '@/lib/currency/minor-units';
+import { computeLinePayableMinor } from '@/lib/services/checkout-line-items';
+import type { VatDisplay } from '@/lib/product-pricing-display';
 import type { AppliedCoupon } from '@/types/coupon';
 
 interface CouponFieldProps {
@@ -12,6 +15,8 @@ interface CouponFieldProps {
   couponError: string | null;
   currency: string;
   noPriceReduction?: boolean;
+  priceIncludesVat?: boolean;
+  vatDisplay?: VatDisplay;
   showCouponInput: boolean;
   onCodeChange: (code: string) => void;
   onApply: () => void;
@@ -25,6 +30,8 @@ export default function CouponField({
   couponError,
   currency,
   noPriceReduction,
+  priceIncludesVat = true,
+  vatDisplay,
   showCouponInput,
   onCodeChange,
   onApply,
@@ -33,6 +40,14 @@ export default function CouponField({
   const t = useTranslations('checkout');
   const locale = useLocale();
 
+  let unitPrice = appliedCoupon ? formatPrice(appliedCoupon.discount_value, currency, locale) : '';
+  if (!priceIncludesVat) {
+    unitPrice = t('couponPriceNet', { price: unitPrice });
+    if (vatDisplay?.kind === 'rate_added' && appliedCoupon) {
+      const gross = fromMinorUnits(computeLinePayableMinor({ unitAmountMinor: toMinorUnits(appliedCoupon.discount_value, currency), vatRate: vatDisplay.rate, priceIncludesVat: false }), currency);
+      unitPrice += ` (${t('couponPriceGross', { price: formatPrice(gross, currency, locale) })})`;
+    }
+  }
   const id = useId();
   const restoreCode = useCallback((input: HTMLInputElement | null) => {
     if (input && !couponCode && input.value) onCodeChange(input.value.toUpperCase());
@@ -101,7 +116,7 @@ export default function CouponField({
         )}
         {appliedCoupon && (
           <p className="text-[10px] text-sf-success mt-1 ml-1 font-medium uppercase tracking-wider">
-            {noPriceReduction ? t('couponNoReduction') : appliedCoupon.discount_type === 'set_price' ? t('couponSetPrice', { price: formatPrice(appliedCoupon.discount_value, currency, locale) }) : t('discountApplied', { discount: appliedCoupon.discount_type === 'percentage' ? `${appliedCoupon.discount_value}%` : formatPrice(appliedCoupon.discount_value, currency, locale) })}
+            {noPriceReduction ? t('couponNoReduction') : appliedCoupon.discount_type === 'set_price' ? t('couponSetPrice', { price: unitPrice }) : t('discountApplied', { discount: appliedCoupon.discount_type === 'percentage' ? `${appliedCoupon.discount_value}%` : formatPrice(appliedCoupon.discount_value, currency, locale) })}
           </p>
         )}
       </div>

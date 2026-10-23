@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
+import { formatAdminDate } from '@/lib/timezone';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/DashboardLayout';
 import MySubscriptions from '@/components/MySubscriptions';
@@ -31,14 +32,6 @@ const formatPriceLocalized = (locale: string, price: number | null, currency: st
   if (isNaN(numericPrice)) return invalidLabel;
 
   return formatPrice(numericPrice, currency || 'USD', locale);
-};
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
 };
 
 export default function MyPurchasesPage() {
@@ -423,7 +416,7 @@ export default function MyPurchasesPage() {
                           {purchase.product_name}
                         </h3>
                         <p className="text-sm text-sf-muted">
-                          {t('purchasedOn', { defaultValue: 'Purchased on' })} {formatDate(purchase.purchase_date)}
+                          {t('purchasedOn', { defaultValue: 'Purchased on' })} {formatAdminDate(purchase.purchase_date, locale, false)}
                         </p>
                       </div>
                     </div>

@@ -226,6 +226,8 @@
     "verifyError": "Nie udało się zweryfikować kuponu",
     "couponRateLimited": "Zbyt wiele prób. Spróbuj ponownie najpóźniej za {minutes} min.",
     "couponNoReduction": "Kupon nie obniża ceny",
+    "couponPriceNet": "{price} netto",
+    "couponPriceGross": "{price} brutto",
     "couponSetPrice": "Cena za sztukę: {price}",
     "discountApplied": "Zastosowano zniżkę {discount}",
     "paymentError": "Błąd Płatności",
@@ -2097,6 +2099,9 @@
         "system": "System"
       },
       "events_desc": {
+        "order_placed": "Złożono zamówienie z płatnością przelewem tradycyjnym. Zawiera dane zamówienia i instrukcje przelewu.",
+        "order_cancelled": "Anulowano zamówienie z płatnością przelewem tradycyjnym.",
+        "order_overdue": "Minął termin płatności zamówienia przelewem tradycyjnym. Zamówienie pozostaje nieopłacone.",
         "purchase_completed": "Jednorazowy zakup zakończony (płatność Stripe powiodła się lub potwierdzona po powrocie kupującego). Zawiera kupującego, produkt, zamówienie i custom fields.",
         "refund_issued": "Wystawiono zwrot za zakup (pełny lub częściowy).",
         "subscription_created": "Subskrypcja stała się aktywna (pierwsza płatność lub start triala) — dostęp przyznany.",
@@ -5492,7 +5497,8 @@
     "sold": "Sprzedane",
     "held": "Zarezerwowane",
     "remaining": "Wolne",
-    "seatsLeft": "Zostało {count} miejsc w tej cenie",
+    "reservationStatus": { "held": "Zarezerwowane", "confirmed": "Potwierdzone", "released": "Zwolnione" },
+    "seatsLeft": "{count, plural, one {Zostało # miejsce} few {Zostały # miejsca} many {Zostało # miejsc} other {Zostało # miejsca}} w tej cenie",
     "until": "Ta cena do",
     "next": "Potem",
     "cheaperSoldOut": "Tańsze miejsca wyprzedane",

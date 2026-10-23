@@ -226,6 +226,8 @@
     "verifyError": "Failed to verify coupon",
     "couponRateLimited": "Too many attempts. Try again in up to {minutes} minutes.",
     "couponNoReduction": "Coupon does not lower the price",
+    "couponPriceNet": "{price} net",
+    "couponPriceGross": "{price} gross",
     "couponSetPrice": "Unit price set to {price}",
     "discountApplied": "{discount} discount applied",
     "paymentError": "Payment Error",
@@ -2097,6 +2099,9 @@
         "system": "System"
       },
       "events_desc": {
+        "order_placed": "An order payable by bank transfer was placed. Includes order details and transfer instructions.",
+        "order_cancelled": "An order payable by bank transfer was cancelled.",
+        "order_overdue": "The payment deadline for a bank transfer order passed. The order remains unpaid.",
         "purchase_completed": "A one-time purchase was completed (Stripe payment succeeded, or confirmed on the buyer's return). Includes buyer, product, order and custom fields.",
         "refund_issued": "A refund was issued for a purchase (full or partial).",
         "subscription_created": "A subscription became active (first payment or trial start) — access is granted.",
@@ -5492,7 +5497,8 @@
     "sold": "Sold",
     "held": "Reserved",
     "remaining": "Available",
-    "seatsLeft": "{count} seats left at this price",
+    "reservationStatus": { "held": "Reserved", "confirmed": "Confirmed", "released": "Released" },
+    "seatsLeft": "{count, plural, one {# seat} other {# seats}} left at this price",
     "until": "This price until",
     "next": "Then",
     "cheaperSoldOut": "Cheaper seats sold out",

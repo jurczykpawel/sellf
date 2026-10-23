@@ -8,7 +8,10 @@ import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 import type { BuildWebhookPayloadParams } from '@/lib/services/webhook-payload';
 import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
-vi.mock('next-intl', () => ({ useLocale: () => 'pl', useTranslations: () => (key: string, values: Record<string, string> = {}) => Object.entries(values).reduce((s, [k,v]) => s.replace(`{${k}}`, v), pl.events[key as keyof typeof pl.events]) }));
+vi.mock('next-intl', async () => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl');
+  return { useLocale: () => 'pl', useTranslations: () => createTranslator({ locale: 'pl', messages: pl, namespace: 'events' }) };
+});
 const raw = { id: 'term', starts_at: '2099-06-01T12:00:00Z', ends_at: null, timezone: 'America/New_York', title: 'Workshop', venue: 'Sala 1', extra_days: 'Drugi dzień', remaining: 40, sold_out: false, current_tier: { id: 'tier', label: 'Early', price: 47, seats_left: 30, ends_at: '2099-05-01T12:00:00Z' }, next_tier_price: 67, cheaper_sold_out: true, online_url: 'https://example.com/private' };
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2099-04-01T00:00:00Z')); vi.stubEnv('TZ', 'Asia/Tokyo'); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });

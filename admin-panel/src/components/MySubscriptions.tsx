@@ -15,6 +15,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
+import { formatAdminDate } from '@/lib/timezone';
 import { toast } from 'sonner';
 
 interface SubscriptionProduct {
@@ -37,15 +38,6 @@ interface SubscriptionRow {
   trial_end: string | null;
   stripe_subscription_id: string;
   product: SubscriptionProduct | null;
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return '—';
-  return new Date(value).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 function formatPriceLocalized(locale: string, amount: number | null, currency: string | null): string {
@@ -195,11 +187,11 @@ export default function MySubscriptions() {
                     {row.cancel_at_period_end || row.status === 'canceled'
                       ? t('endsAt', { defaultValue: 'Ends' })
                       : t('renewsAt', { defaultValue: 'Renews' })}
-                    : {formatDate(row.current_period_end)}
+                    : {formatAdminDate(row.current_period_end, locale, false)}
                   </span>
                   {row.trial_end && new Date(row.trial_end) > new Date() && (
                     <span>
-                      {t('trialUntil', { defaultValue: 'Trial until' })}: {formatDate(row.trial_end)}
+                      {t('trialUntil', { defaultValue: 'Trial until' })}: {formatAdminDate(row.trial_end, locale, false)}
                     </span>
                   )}
                 </div>

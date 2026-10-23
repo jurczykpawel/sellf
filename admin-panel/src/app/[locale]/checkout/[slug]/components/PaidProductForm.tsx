@@ -18,7 +18,7 @@ import { minimumChargeAmount } from '@/lib/currency/minor-units';
 import { signOutAndRedirectToCheckout } from '@/lib/actions/checkout';
 import { validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
 import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
-import { formatBillingIntervalLabel } from '@/lib/product-pricing-display';
+import { formatBillingIntervalLabel, getVatDisplay } from '@/lib/product-pricing-display';
 import { createCheckoutSessionQueue } from '@/lib/checkout/session-queue';
 import { getStripeClient } from '@/lib/stripe/client';
 import { TWO_COLUMN_ROW_CLASSNAME, PANEL_END_CLASSNAME } from '@/lib/two-column-layout';
@@ -570,6 +570,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           review/remove the applied code before confirming free access. */}
       {!isSubscription && !hasAccess && !error && !isPwywFree && (
         <CouponField
+          priceIncludesVat={product.price_includes_vat ?? true}
+          vatDisplay={getVatDisplay({ taxMode: checkoutTaxMode, vatRate: product.vat_rate, vatExempt: product.vat_exempt, priceIncludesVat: product.price_includes_vat })}
           couponCode={coupon.couponCode}
           appliedCoupon={coupon.appliedCoupon}
           noPriceReduction={coupon.appliedCoupon?.discount_type === 'set_price' && pricing.discountAmount === 0}

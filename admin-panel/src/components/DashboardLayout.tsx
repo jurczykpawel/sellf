@@ -697,14 +697,14 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
 
       {/* Mobile Bottom Tab Bar */}
       <nav className="fixed bottom-0 left-0 right-0 h-16 bg-sf-base border-t-2 border-sf-border-medium flex items-stretch z-50 lg:hidden">
-        {[
+        {(isAdmin ? [
           { href: '/dashboard', label: t('dashboard'), icon: Icons.dashboard, exact: true },
           { href: '/dashboard/products', label: t('products'), icon: Icons.products },
           { href: '/dashboard/users', label: t('users'), icon: Icons.users },
           { href: '/dashboard/settings', label: t('settings'), icon: Icons.settings },
           { href: '/profile', label: t('profile'), icon: Icons.profile },
-        ].map(tab => {
-          const active = isSidebarLinkActive(pathname, tab.href, tab.exact);
+        ] : userLinks.filter(link => ['/my-products', '/my-purchases', '/', '/profile'].includes(link.href))).map(tab => {
+          const active = isSidebarLinkActive(pathname, tab.href, 'exact' in tab ? tab.exact : undefined);
           return (
             <Link
               key={tab.href}

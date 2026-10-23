@@ -6,7 +6,7 @@ import TransferInstructions from '@/components/checkout/TransferInstructions';
 import { updateBankTransfer } from '@/lib/orders/bank-transfer-actions';
 import { fromMinorUnits, toMinorUnits, currencyExponent } from '@/lib/currency/minor-units';
 import type { PaymentTransaction } from '@/types/payment';
-export default function BankTransferSection({ transaction: tx, onRefresh }: { transaction: PaymentTransaction; onRefresh(): void }) {
+export default function BankTransferSection({ transaction: tx, onRefresh }: { transaction: PaymentTransaction; onRefresh(): void | Promise<void> }) {
   const t = useTranslations('bankTransfer');
   const [amount, setAmount] = useState(String(fromMinorUnits(tx.amount, tx.currency))), [paidAt, setPaidAt] = useState(''), [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false), [message, setMessage] = useState('');
@@ -15,7 +15,7 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
     setBusy(true);
     try {
       const input = action === 'cancel' ? { action, reason } : { action, amount: toMinorUnits(Number(amount), tx.currency), paidAt: new Date(`${paidAt}T00:00:00Z`).toISOString() };
-      const r = await updateBankTransfer(tx.id, input); if (r.success) onRefresh(); else setMessage(t('operationError'));
+      const r = await updateBankTransfer(tx.id, input); if (r.success) await onRefresh(); else setMessage(t('operationError'));
     } catch { setMessage(t('operationError')); } finally { setBusy(false); }
   }
   if (tx.payment_provider !== 'bank_transfer') return null;
