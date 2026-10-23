@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
+import { validateModuleValues } from '@/lib/checkout-modules/registry';
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
@@ -73,6 +75,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Parse and validate request
     const {
+      moduleValues,
       clientSecret,
       bindingToken,
       productId,
@@ -163,6 +166,7 @@ export async function POST(request: NextRequest) {
       country: buyer.country,
     };
 
+    let stripeMetadata: Record<string, string> = {};
     let productIdFromStripe: string | null = null;
     let isSubscription = false;
     let stripeTaxCustomerId: string | null = null;
@@ -203,7 +207,7 @@ export async function POST(request: NextRequest) {
       const limited = await enforcePerOwnerLimit(sessionOwnerId);
       if (limited) return limited;
 
-      await stripe.checkout.sessions.update(stripeObjectId, { metadata });
+      stripeMetadata = session.metadata ?? {};
       stripeTaxCustomerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null;
     } else {
       const pi = await stripe.paymentIntents.retrieve(stripeObjectId);
@@ -222,9 +226,46 @@ export async function POST(request: NextRequest) {
       const limited = await enforcePerOwnerLimit(piOwnerId);
       if (limited) return limited;
 
-      await stripe.paymentIntents.update(stripeObjectId, { metadata });
+      stripeMetadata = pi.metadata ?? {};
       stripeTaxCustomerId = typeof pi.customer === 'string' ? pi.customer : pi.customer?.id ?? null;
     }
+
+    if (productIdFromStripe !== productId) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    if (!isSubscription) {
+      const admin = createAdminClient();
+      const { data: product, error } = await admin.from('products').select('checkout_profile, currency').eq('id', productId).single();
+      if (error || !product) return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
+      if (product.checkout_profile != null) {
+        const profile = checkoutProfileSchema.safeParse(product.checkout_profile);
+        if (!profile.success) return NextResponse.json({ success: false, error: 'Invalid checkout configuration' }, { status: 500 });
+        const rawQuantity = moduleValues?.quantity ?? 1;
+        const result = validateModuleValues(profile.data, moduleValues, { locale: 'pl', currency: product.currency, quantity: rawQuantity });
+        if (!result.success) return NextResponse.json({ success: false, errors: result.errors }, { status: 422 });
+        if (result.details.buyer && typeof result.details.buyer === 'object' && !Array.isArray(result.details.buyer)) result.details.buyer.terms_accepted = termsAccepted === true;
+        const { data: saved, error: saveError } = await admin.rpc('set_payment_order_details', {
+          p_details: result.details, p_product_id: productId, p_quantity: rawQuantity,
+          ...(isCheckoutSession ? { p_session_id: stripeObjectId } : { p_payment_intent_id: stripeObjectId }),
+        });
+        if (saveError && ['22023', '23514'].includes(saveError.code)) return NextResponse.json({ success: false, errors: [{ field: 'moduleValues', code: 'details_too_large' }] }, { status: 422 });
+        if (saveError) return NextResponse.json({ success: false, error: 'Failed to save order details' }, { status: 500 });
+        if (saved !== 1) return NextResponse.json({ success: false, code: 'quantity_snapshot_mismatch' }, { status: 409 });
+        const personalFields = new Set(['first_name', 'last_name', 'full_name', 'email', 'nip', 'tax_id', 'company_name', 'address', 'city', 'postal_code', 'country', 'phone', 'buyer', 'recipient', 'participants', 'participant_emails']);
+        const profileMetadata = Object.fromEntries(Object.entries(stripeMetadata).map(([key, value]) => [key, personalFields.has(key) ? '' : value]));
+        if (isCheckoutSession) await stripe.checkout.sessions.update(stripeObjectId, { metadata: profileMetadata });
+        else await stripe.paymentIntents.update(stripeObjectId, { metadata: profileMetadata });
+        const party = result.details.buyer;
+        if (stripeTaxCustomerId && party && typeof party === 'object' && !Array.isArray(party)) {
+          const config = await getCheckoutConfig();
+          if (shouldForwardTaxIdentityToStripe(config.tax_mode)) await applyBuyerTaxIdentityToCustomer({
+            stripe, customerId: stripeTaxCustomerId,
+            identity: { country: typeof party.country === 'string' ? party.country : undefined, taxId: typeof party.nip === 'string' ? party.nip : undefined, address: typeof party.address === 'string' ? party.address : undefined, city: typeof party.city === 'string' ? party.city : undefined, postalCode: typeof party.postal_code === 'string' ? party.postal_code : undefined },
+          });
+        }
+        return NextResponse.json({ success: true });
+      }
+    }
+    if (isCheckoutSession) await stripe.checkout.sessions.update(stripeObjectId, { metadata });
+    else await stripe.paymentIntents.update(stripeObjectId, { metadata });
 
     // stripe_tax: set the buyer's country + EU VAT-ID on the Stripe Customer so automatic_tax
     // computes the right jurisdiction and applies EU B2B reverse charge. This runs HERE — not at

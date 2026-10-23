@@ -13,6 +13,7 @@ const PRODUCT_ID = '11111111-1111-4111-8111-111111111111';
 
 const mocks = vi.hoisted(() => ({
   adminRpc: vi.fn(),
+  productRead: vi.fn(),
   sessionsRetrieve: vi.fn(),
   sessionsUpdate: vi.fn(),
   piRetrieve: vi.fn(),
@@ -23,7 +24,7 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => ({ auth: { getUser: async () => ({ data: { user: null } }) } })),
 }));
 vi.mock('@/lib/supabase/admin', () => ({
-  createAdminClient: vi.fn(() => ({ rpc: mocks.adminRpc })),
+  createAdminClient: vi.fn(() => ({ rpc: mocks.adminRpc, from: () => ({ select: () => ({ eq: () => ({ single: mocks.productRead }) }) }) })),
 }));
 vi.mock('@/lib/rate-limiting', () => ({
   checkRateLimit: vi.fn().mockResolvedValue(true),
@@ -71,6 +72,7 @@ beforeEach(() => {
   mocks.sessionsRetrieve.mockResolvedValue({ id: SESSION_ID, status: 'open', metadata: { product_id: PRODUCT_ID }, customer: null });
   mocks.piRetrieve.mockResolvedValue({ id: PI_ID, status: 'requires_payment_method', metadata: { product_id: PRODUCT_ID }, customer: null });
   mocks.adminRpc.mockResolvedValue({ data: 1, error: null });
+  mocks.productRead.mockResolvedValue({ data: { checkout_profile: null }, error: null });
 });
 
 describe('POST /api/update-payment-metadata — buyer details on the pending row', () => {
@@ -165,5 +167,62 @@ describe('subscription buyer details', () => {
     const res = await POST(makeRequest(objectId, { productType: 'subscription', subscriptionId: 'sub_1' }));
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ code: 'details_not_saved' });
+  });
+});
+
+
+describe('profile order details', () => {
+  const profile = { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }, { id: 'quantity', min: 1, max: 5, mode: 'checkout' }] };
+  const moduleValues = { buyer: { type: 'person', first_name: 'Jan', last_name: 'Nowak', email: 'jan@example.com' }, quantity: 2 };
+  beforeEach(() => { mocks.productRead.mockResolvedValue({ data: { checkout_profile: profile, currency: 'PLN' }, error: null }); });
+  it.each([SESSION_ID, PI_ID])('stores modules in one RPC before updating %s without personal metadata', async id => {
+    const res = await POST(makeRequest(id, { moduleValues }));
+    expect(res.status).toBe(200);
+    expect(mocks.adminRpc).toHaveBeenCalledTimes(1);
+    expect(mocks.adminRpc).toHaveBeenCalledWith('set_payment_order_details', expect.objectContaining({ p_product_id: PRODUCT_ID, p_quantity: 2, p_details: expect.objectContaining({ buyer: expect.objectContaining({ type: 'person', v: 1 }), quantity: { v: 1, value: 2 } }) }));
+    const update = id === SESSION_ID ? mocks.sessionsUpdate : mocks.piUpdate;
+    expect(update).toHaveBeenCalledWith(id, { metadata: { product_id: PRODUCT_ID } });
+    expect(mocks.adminRpc.mock.invocationCallOrder[0]).toBeLessThan(update.mock.invocationCallOrder[0]);
+  });
+  it('clears personal metadata and preserves all technical fields', async () => {
+    mocks.sessionsRetrieve.mockResolvedValue({ status: 'open', metadata: { product_id: PRODUCT_ID, bump_product_ids: 'bump1,bump2', has_coupon: 'true', coupon_id: 'coupon1', product_type: 'one_time', checkout_binding: 'binding', has_bump: 'true', bump_count: '2', tax_id: '5252248481', nip: '5252248481', email: 'person@example.com', first_name: 'Jan' } });
+    const res = await POST(makeRequest(SESSION_ID, { moduleValues }));
+    expect(res.status).toBe(200);
+    expect(mocks.sessionsUpdate).toHaveBeenCalledWith(SESSION_ID, { metadata: { product_id: PRODUCT_ID, bump_product_ids: 'bump1,bump2', has_coupon: 'true', coupon_id: 'coupon1', product_type: 'one_time', checkout_binding: 'binding', has_bump: 'true', bump_count: '2', tax_id: '', nip: '', email: '', first_name: '' } });
+  });
+  it('requires all module values even when moduleValues was omitted', async () => {
+    const res = await POST(makeRequest(SESSION_ID));
+    expect(res.status).toBe(422);
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+    expect(mocks.adminRpc).not.toHaveBeenCalled();
+  });
+  it('returns field errors and never saves invalid module data', async () => {
+    const res = await POST(makeRequest(SESSION_ID, { moduleValues: { ...moduleValues, buyer: { ...moduleValues.buyer, email: 'bad' } } }));
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({ errors: expect.arrayContaining([expect.objectContaining({ field: 'buyer.email' })]) });
+    expect(mocks.adminRpc).not.toHaveBeenCalled();
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+  });
+  it.each([0, -1])('returns 409 when the pending snapshot differs or no row matches (%s)', async rows => {
+    mocks.adminRpc.mockResolvedValue({ data: rows, error: null });
+    expect((await POST(makeRequest(SESSION_ID, { moduleValues }))).status).toBe(409);
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+  });
+  it('returns field errors when order details exceed the stored limit', async () => {
+    mocks.adminRpc.mockResolvedValue({ error: { code: '22023' }, data: null });
+    const res = await POST(makeRequest(SESSION_ID, { moduleValues }));
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({ errors: [{ field: 'moduleValues', code: 'details_too_large' }] });
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+  });
+  it('stops when order detail persistence fails', async () => {
+    mocks.adminRpc.mockResolvedValue({ error: { code: 'XX000' }, data: null });
+    expect((await POST(makeRequest(SESSION_ID, { moduleValues }))).status).toBe(500);
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+  });
+  it('rejects a Stripe product binding different from the signed request', async () => {
+    mocks.sessionsRetrieve.mockResolvedValue({ status: 'open', metadata: { product_id: 'other' } });
+    expect((await POST(makeRequest(SESSION_ID, { moduleValues }))).status).toBe(403);
+    expect(mocks.adminRpc).not.toHaveBeenCalled();
   });
 });
