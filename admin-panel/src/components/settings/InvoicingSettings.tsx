@@ -30,6 +30,7 @@ export default function InvoicingSettings() {
     {field('domain')}{field('token')}
     <p>{t('tokenHelp')}</p>
     <label className="block">{t('mode')}<select aria-label={t('mode')} className="block" value={form.mode} onChange={e => setForm({ ...form, mode: e.target.value })}><option value="manual">{t('manual')}</option><option value="auto">{t('auto')}</option></select></label>
+    <p className="text-sm text-sf-muted">{t('autoSinceHelp')}</p>
     {field('exemption')}{field('template')}
     <p>{t('templateHelp')}</p>
     <button className="border p-2 mr-3" disabled={!ready || busy} onClick={() => run(false)}>{t('save')}</button>

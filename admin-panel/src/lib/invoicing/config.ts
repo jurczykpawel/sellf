@@ -14,7 +14,7 @@ export const settingsSchema = z.object({
 }).strict().refine(v => v.provider === 'none' || Boolean(v.domain));
 export interface InvoiceConfig {
   id: boolean; instance_id: string; provider: 'none' | 'fakturownia'; domain: string;
-  token: EncryptedConfig | null; mode: 'auto' | 'manual'; exemption: string; template: string;
+  token: EncryptedConfig | null; mode: 'auto' | 'manual'; auto_since: string | null; exemption: string; template: string;
 }
 export function redactInvoiceConfig(config: InvoiceConfig): Omit<InvoiceConfig, 'token'> & { tokenSet: boolean } {
   const { token, ...rest } = config;

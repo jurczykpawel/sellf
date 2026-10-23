@@ -10,7 +10,7 @@ describe('invoice settings', () => {
     const columns = await invoiceTokenUpdate('test-token');
     expect(JSON.stringify(columns)).not.toContain('test-token');
     expect(await decryptSecret(columns.token!)).toBe('test-token');
-    const config: InvoiceConfig = { id: true, instance_id: 'instance', provider: 'fakturownia', domain: 'example.fakturownia.pl', mode: 'manual', token: columns.token!, exemption: '', template: '{product}' };
+    const config: InvoiceConfig = { id: true, instance_id: 'instance', provider: 'fakturownia', domain: 'example.fakturownia.pl', mode: 'manual', auto_since: null, token: columns.token!, exemption: '', template: '{product}' };
     const response = redactInvoiceConfig(config);
     expect(response.tokenSet).toBe(true);
     expect(response).not.toHaveProperty('token');

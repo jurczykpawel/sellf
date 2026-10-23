@@ -73,9 +73,9 @@ export async function issueInvoiceForTransaction(transactionId: string, options:
 export async function retryInvoices(): Promise<{ processed: number; errors: number }> {
   const client = createAdminClient();
   const config = await readInvoiceConfig(client);
-  if (config?.provider !== 'none' && config?.mode === 'auto') {
+  if (config?.provider !== 'none' && config?.mode === 'auto' && config.auto_since) {
     const { data: missing } = await client.from('payment_transactions').select('id,invoices!left(transaction_id)')
-      .eq('payment_provider', 'bank_transfer').in('status', ['awaiting_payment', 'completed']).is('invoices', null).order('created_at').limit(100);
+      .gte('created_at', config.auto_since).eq('payment_provider', 'bank_transfer').in('status', ['awaiting_payment', 'completed']).is('invoices', null).order('created_at').limit(100);
     for (const tx of missing ?? []) await issueInvoiceForTransaction(tx.id, { client });
   }
   const [attempts, payments] = await Promise.all([

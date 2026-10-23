@@ -9,6 +9,7 @@
     "tokenHelp": "Leave blank to keep the saved token. The saved token is never displayed.",
     "mode": "Issuance mode",
     "manual": "Manual",
+    "autoSinceHelp": "Automatic invoicing applies to orders placed from the moment it is enabled.",
     "auto": "Automatic",
     "exemption": "VAT exemption basis",
     "template": "Line name template",

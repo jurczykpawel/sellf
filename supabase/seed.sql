@@ -1399,6 +1399,9 @@ SELECT session_id,tier_id,transaction_id,2,'confirmed',now() FROM public.payment
 -- Transfer settings remain disabled; these sample details can be enabled locally.
 UPDATE public.bank_transfer_config SET bank_account_holder='Example Workshops',bank_account_number='PL61109010140000071219812874',bank_name='Example Bank' WHERE id;
 
+-- Manual setup keeps automatic recovery inactive for these historical orders.
+UPDATE public.invoicing_config SET mode='manual', auto_since=NULL WHERE id;
+
 -- Sample issued invoice, with a demonstration-only reference.
 INSERT INTO public.invoices(transaction_id,provider,status,external_key,provider_domain,provider_invoice_id,number,view_url,payment_synced)
 SELECT 'e1000000-0000-4000-8000-000000000010','fakturownia','issued',instance_id::text || ':' || (SELECT order_number::text FROM public.payment_transactions WHERE id='e1000000-0000-4000-8000-000000000010'),

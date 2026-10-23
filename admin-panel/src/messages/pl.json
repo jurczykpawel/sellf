@@ -9,6 +9,7 @@
     "tokenHelp": "Puste pole zachowuje zapisany token. Zapisany token nigdy nie jest wyświetlany.",
     "mode": "Tryb wystawiania",
     "manual": "Ręczny",
+    "autoSinceHelp": "Automatyczne wystawianie obejmuje zamówienia złożone od chwili włączenia.",
     "auto": "Automatyczny",
     "exemption": "Podstawa zwolnienia z VAT",
     "template": "Szablon nazwy pozycji",

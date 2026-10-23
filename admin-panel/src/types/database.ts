@@ -1526,6 +1526,7 @@ export type Database = {
       }
       invoicing_config: {
         Row: {
+          auto_since: string | null
           domain: string
           exemption: string
           id: boolean
@@ -1536,6 +1537,7 @@ export type Database = {
           token: Json | null
         }
         Insert: {
+          auto_since?: string | null
           domain?: string
           exemption?: string
           id?: boolean
@@ -1546,6 +1548,7 @@ export type Database = {
           token?: Json | null
         }
         Update: {
+          auto_since?: string | null
           domain?: string
           exemption?: string
           id?: boolean

@@ -83,6 +83,51 @@ describe('invoice service with PostgreSQL persistence', () => {
     await retryInvoices();
     expect(state.issue).toHaveBeenCalledTimes(2);
   });
+  it('recovers only missing transfers created since automatic issuance was enabled', async () => {
+    const { data: config, error } = await client.from('invoicing_config').select('auto_since').single();
+    expect(error).toBeNull();
+    expect(config?.auto_since).toBeTruthy();
+    state.find.mockResolvedValue(null);
+    const original = (await client.from('payment_transactions').select('*').eq('id', id).single()).data!;
+    const ids = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()];
+    const since = Date.parse(config!.auto_since);
+    try {
+      for (const [index, transactionId] of ids.entries()) {
+        expect((await client.from('payment_transactions').insert({ ...original, id: transactionId,
+          order_number: undefined, stripe_payment_intent_id: null, payment_provider: 'bank_transfer',
+          session_id: null, pricing_snapshot_version: 1,
+          created_at: index === 1 ? config!.auto_since : new Date(since + (index - 1) * 1000).toISOString() })).error).toBeNull();
+        const lines = (await client.from('payment_line_items').select('*').eq('transaction_id', id)).data!;
+        expect((await client.from('payment_line_items').insert(lines.map(line => ({ ...line, id: crypto.randomUUID(), transaction_id: transactionId })))).error).toBeNull();
+      }
+      await retryInvoices();
+      expect(state.issue).toHaveBeenCalledTimes(2);
+      expect((await client.from('invoices').select('transaction_id').in('transaction_id', ids)).data?.map(row => row.transaction_id).sort()).toEqual(ids.slice(1).sort());
+    } finally {
+      await client.from('invoices').delete().in('transaction_id', ids);
+      await client.from('payment_line_items').delete().in('transaction_id', ids);
+      await client.from('payment_transactions').delete().in('id', ids);
+    }
+  });
+  it('moves the automatic window on reactivation', async () => {
+    const first = (await client.from('invoicing_config').select('auto_since').single()).data?.auto_since;
+    expect(first).toBeTruthy();
+    expect((await client.from('invoicing_config').update({ mode: 'manual' }).eq('id', true)).error).toBeNull();
+    expect((await client.from('invoicing_config').select('auto_since').single()).data?.auto_since).toBeNull();
+    expect((await client.from('invoicing_config').update({ mode: 'auto' }).eq('id', true)).error).toBeNull();
+    expect(Date.parse((await client.from('invoicing_config').select('auto_since').single()).data!.auto_since)).toBeGreaterThan(Date.parse(first));
+  });
+  it('renews the automatic window for account changes and preserves it for other settings', async () => {
+    const readSince = async () => (await client.from('invoicing_config').select('auto_since').single()).data!.auto_since;
+    const first = await readSince();
+    expect((await client.from('invoicing_config').update({ template: '{product}', auto_since: '2000-01-01T00:00:00Z' }).eq('id', true)).error).toBeNull();
+    expect(await readSince()).toBe(first);
+    expect((await client.from('invoicing_config').update({ domain: 'second.fakturownia.pl' }).eq('id', true)).error).toBeNull();
+    const second = await readSince();
+    expect(Date.parse(second)).toBeGreaterThan(Date.parse(first));
+    expect((await client.from('invoicing_config').update({ provider: 'none' }).eq('id', true)).error).toBeNull();
+    expect(Date.parse(await readSince())).toBeGreaterThan(Date.parse(second));
+  });
   it('keeps failed retries moving past a hundred unpaid invoices', async () => {
     state.fail = true;
     await issueInvoiceForTransaction(id, { client });

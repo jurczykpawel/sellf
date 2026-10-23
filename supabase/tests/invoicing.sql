@@ -1,7 +1,7 @@
 -- Transactional invoice access and uniqueness acceptance. @see ../migrations/20261023100000_invoicing_provider.sql
 BEGIN;
 DO $$
-DECLARE admin_id uuid; invoice_count integer;
+DECLARE admin_id uuid; invoice_count integer; first_auto timestamptz;
 BEGIN
  SELECT user_id INTO STRICT admin_id FROM public.admin_users LIMIT 1;
  SELECT count(*) INTO invoice_count FROM public.invoices;
@@ -30,6 +30,22 @@ BEGIN
  RESET ROLE;
  SET LOCAL ROLE service_role;
  ASSERT (SELECT count(*) FROM public.invoices) = invoice_count;
+ ASSERT (SELECT auto_since IS NULL FROM public.invoicing_config);
+ UPDATE public.invoicing_config SET mode='auto' WHERE id;
+ SELECT auto_since INTO first_auto FROM public.invoicing_config;
+ ASSERT first_auto = now();
+ UPDATE public.invoicing_config SET exemption='Sample exemption', auto_since='2000-01-01' WHERE id;
+ ASSERT (SELECT auto_since = first_auto FROM public.invoicing_config);
+ UPDATE public.invoicing_config SET domain='other.fakturownia.pl' WHERE id;
+ ASSERT (SELECT auto_since = now() FROM public.invoicing_config);
+ UPDATE public.invoicing_config SET provider='fakturownia' WHERE id;
+ ASSERT (SELECT auto_since = now() FROM public.invoicing_config);
+ UPDATE public.invoicing_config SET mode='manual' WHERE id;
+ ASSERT (SELECT auto_since IS NULL FROM public.invoicing_config);
+ UPDATE public.invoicing_config SET mode='auto' WHERE id;
+ ASSERT (SELECT auto_since = now() FROM public.invoicing_config);
+ ASSERT NOT has_function_privilege('anon', 'public.set_invoicing_auto_since()', 'EXECUTE');
+ ASSERT NOT has_function_privilege('authenticated', 'public.set_invoicing_auto_since()', 'EXECUTE');
  BEGIN
    INSERT INTO public.invoices(transaction_id,provider,external_key,provider_domain)
    SELECT transaction_id,provider,'duplicate-test',provider_domain FROM public.invoices LIMIT 1;

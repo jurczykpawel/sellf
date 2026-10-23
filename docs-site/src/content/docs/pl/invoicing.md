@@ -15,6 +15,8 @@ realizacji zamówienia. Lista płatności i szczegóły pokazują numer z linkie
 Fakturowni. **Wystaw ponownie** pojawia się tylko dla błędu. Ponowienia zachowują
 zewnętrzny identyfikator, również po wcześniejszym przyjęciu faktury przez dostawcę.
 
+Automatyczne wystawianie obejmuje zamówienia złożone od chwili włączenia.
+
 Dla produktów zwolnionych wpisz podstawę zwolnienia z VAT i włącz wybór podstawy
 stawki zw w Fakturowni. Szablon pozycji obsługuje `{product}`, `{date}`, `{session}`
 i `{tier}`. Ceny, ilości, podatki i rozdzielony kupon pochodzą z zapisanych pozycji

@@ -171,7 +171,9 @@ Purchase fulfillment runs automatic issuance after its completion webhook; exist
 invoice references enrich the event. Bank-transfer placement calls the same function
 when integrated. Schedule `invoices-retry` each minute; failed attempts back off up
 to five tries and interrupted attempts become eligible after ten minutes. The cron
-also synchronizes paid status for transfer invoices. Corrections remain manual at
+also synchronizes paid status for transfer invoices. Missing transfer invoices are
+recovered only from `invoicing_config.auto_since`, reset when auto is enabled or
+the provider account changes; manual mode clears it. Corrections remain manual at
 the provider, with an admin marker after full refund/cancellation.
 
 ### Event Seat Inventory

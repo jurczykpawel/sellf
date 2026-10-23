@@ -6,6 +6,7 @@ CREATE TABLE public.invoicing_config (
   domain text NOT NULL DEFAULT '',
   token jsonb,
   mode text NOT NULL DEFAULT 'manual' CHECK (mode IN ('auto','manual')),
+  auto_since timestamptz,
   exemption text NOT NULL DEFAULT '' CHECK (length(exemption) <= 1000),
   template text NOT NULL DEFAULT '{product} {date} {session} {tier}' CHECK (length(template) <= 300)
 );
@@ -13,6 +14,21 @@ ALTER TABLE public.invoicing_config ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Service settings" ON public.invoicing_config FOR ALL TO service_role USING (true) WITH CHECK (true);
 REVOKE ALL ON public.invoicing_config FROM PUBLIC, anon, authenticated;
 GRANT ALL ON public.invoicing_config TO service_role;
+CREATE FUNCTION public.set_invoicing_auto_since() RETURNS trigger
+LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+  IF NEW.mode <> 'auto' THEN NEW.auto_since := NULL;
+  ELSIF TG_OP = 'INSERT' THEN NEW.auto_since := now();
+  ELSIF OLD.mode IS DISTINCT FROM NEW.mode OR OLD.provider IS DISTINCT FROM NEW.provider
+    OR OLD.domain IS DISTINCT FROM NEW.domain THEN NEW.auto_since := now();
+  ELSE NEW.auto_since := OLD.auto_since;
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION public.set_invoicing_auto_since() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.set_invoicing_auto_since() TO service_role;
+CREATE TRIGGER invoicing_auto_since BEFORE INSERT OR UPDATE ON public.invoicing_config
+FOR EACH ROW EXECUTE FUNCTION public.set_invoicing_auto_since();
 INSERT INTO public.invoicing_config(id) VALUES (true);
 
 CREATE TABLE public.invoices (

@@ -12,6 +12,7 @@ test('admin configures and checks provider, issues invoice and reads it in order
     await page.goto('/pl/dashboard/settings');
     const settings = page.getByRole('region', { name: 'Faktury', exact: true });
     await expect(settings.getByRole('button', { name: 'Zapisz', exact: true })).toBeEnabled();
+    await expect(settings.getByText('Automatyczne wystawianie obejmuje zamówienia złożone od chwili włączenia.')).toBeVisible();
     await settings.getByLabel('Dostawca', { exact: true }).selectOption('fakturownia');
     await settings.getByLabel('Domena konta Fakturowni').fill('fixture.fakturownia.pl');
     await settings.getByLabel('Token API', { exact: true }).fill('fixture-token');
