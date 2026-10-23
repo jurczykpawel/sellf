@@ -1369,3 +1369,14 @@ INSERT INTO public.payment_line_items (transaction_id, product_id, item_type, qu
 SELECT id, product_id, 'main_product', 5, 149, 745, 'PLN'
 FROM public.payment_transactions WHERE id = 'e1000000-0000-4000-8000-000000000010'
 ON CONFLICT DO NOTHING;
+
+
+-- Warsaw workshop: early seats followed by the regular tier in a shared pool.
+INSERT INTO public.products(id,name,slug,price,currency,event_mode,product_type,price_includes_vat)
+VALUES ('e3000000-0000-4000-a000-000000000001','Warsztat automatyzacji','warsztat-automatyzacji',67,'PLN',true,'one_time',true);
+INSERT INTO public.product_sessions(id,product_id,starts_at,ends_at,title,venue,capacity)
+VALUES ('e3000000-0000-4000-a000-000000000002','e3000000-0000-4000-a000-000000000001',
+  now()+interval '30 days',now()+interval '30 days 4 hours','Edycja warsztatowa','Warszawa, sala warsztatowa',60);
+INSERT INTO public.product_price_tiers(session_id,label,price,seats,sale_ends_at,sort) VALUES
+  ('e3000000-0000-4000-a000-000000000002','Promocja',47,30,now()+interval '7 days',0),
+  ('e3000000-0000-4000-a000-000000000002','Cena regularna',67,NULL,NULL,1);

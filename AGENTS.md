@@ -161,6 +161,20 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
 - Triggers: `handle_new_user_registration()` (first user → admin, claim guest purchases)
 - Scheduled jobs: Rate limit cleanup (hourly via pg_cron)
 
+### Event Seat Inventory
+
+Event products use `product_sessions`, `product_price_tiers` and `seat_reservations`.
+The service-only `event_availability` RPC is the shared availability calculation;
+`public_event_availability` returns public presentation for server route callers.
+`place_order` locks the selected session, rechecks tier pricing and hold limits, and
+calls the private `_place_order_without_event` within the same transaction. Event
+line snapshots retain the session and tier identifiers, title and start time.
+`_order_grant_and_record` confirms seats through `confirm_event_order`; late payments
+retain fulfillment and record `metadata.oversold` when inventory cannot be reacquired.
+Transaction status changes release seats on abandonment, cancellation and full refund.
+Schedule `/api/cron?job=seat-reservations-expire` every minute with the existing
+`CRON_SECRET` bearer credential. Event Stripe sessions and holds share a 30-minute expiry.
+
 ### Data Flow Patterns
 
 **Purchase Flow (on the admin panel):**

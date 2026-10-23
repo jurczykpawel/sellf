@@ -6,6 +6,7 @@
  *   curl -H "Authorization: Bearer $CRON_SECRET" "https://yourdomain.com/api/cron?job=access-expired"
  *
  * Jobs:
+ *   seat-reservations-expire  — release expired event holds (run every minute)
  *   access-expired             — dispatch access.expired webhooks for newly expired access records
  *   cleanup-webhook-logs       — delete webhook_logs older than WEBHOOK_LOG_RETENTION_DAYS
  *   webhook-deliveries-retry   — process due retries (status=pending_retry) with exp backoff;
@@ -257,6 +258,12 @@ export async function handleWebhookDeliveriesRetry(): Promise<CronJobResult> {
   return { processed, errors };
 }
 
+export async function handleSeatReservationsExpire(): Promise<CronJobResult> {
+  const { data, error } = await createAdminClient().rpc('expire_seat_reservations');
+  if (error) throw new Error('Seat reservation cleanup failed');
+  return { processed: data ?? 0, errors: 0 };
+}
+
 // ===== JOB REGISTRY =====
 
 const JOB_REGISTRY: Record<string, () => Promise<CronJobResult>> = {
@@ -265,6 +272,7 @@ const JOB_REGISTRY: Record<string, () => Promise<CronJobResult>> = {
     if (!result.success) throw new Error('Affiliate queue unavailable');
     return { processed: result.data.applied, errors: result.data.failed };
   },
+  'seat-reservations-expire': handleSeatReservationsExpire,
   'access-expired': handleAccessExpired,
   'cleanup-webhook-logs': handleCleanupWebhookLogs,
   'webhook-deliveries-retry': handleWebhookDeliveriesRetry,
