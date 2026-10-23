@@ -1,6 +1,7 @@
 import type { ProductMarketingFields } from '@/lib/validations/product-marketing';
 
 export interface Product {
+  event_mode?: boolean;
   id: string
   name: string
   slug: string

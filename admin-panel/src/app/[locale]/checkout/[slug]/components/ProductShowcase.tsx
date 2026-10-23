@@ -121,7 +121,7 @@ export default function ProductShowcase({ product, taxMode, bundleComponents }: 
       </div>
 
       {/* Price Display - Hide when Pay What You Want is enabled */}
-      {!product.allow_custom_price && (
+      {!product.event_mode && !product.allow_custom_price && (
         <div className="mb-8">
           {/* Strikethrough regular price if on sale */}
           {isSaleActive && (

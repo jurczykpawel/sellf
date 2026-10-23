@@ -49,6 +49,7 @@ const product = z.strictObject({
   accessDurationDays: z.number().int().positive().optional(),
   availableUntil: z.iso.datetime({ offset: true }).optional(),
   availableUntilLabel: z.string().max(500).optional(),
+  eventDateLabel: z.string().max(500).optional(),
   price: z.strictObject({
     display: z.string().max(500),
     originalDisplay: z.string().max(500).optional(),

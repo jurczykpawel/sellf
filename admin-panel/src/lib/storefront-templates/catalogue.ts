@@ -3,6 +3,7 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import { cache } from 'react';
 import { z } from 'zod';
+import { formatEventDate, projectEventSessions } from '@/lib/events/presentation';
 import { resolveOfferDetails } from '@/lib/storefront-templates/offer-actions';
 import { boundedPublicRead } from '@/lib/public-cache';
 import { formatPrice } from '@/lib/constants';
@@ -25,10 +26,12 @@ export interface PublicPriceInfo {
 }
 export interface PublicProductInfo {
   id: string; slug: string; title: string; price: PublicPriceInfo; marketing: ProductMarketingFields;
+  eventDateLabel?: string;
   description?: string; accessDurationDays?: number; availableUntil?: string; availableUntilLabel?: string;
   image: { src: string; alt: string; width: number; height: number } | null;
   actions: { details: string; buy: string }; availability: 'available' | 'unavailable';
 }
+interface CatalogueProduct extends PublicProductInfo { event?: { currency: string } }
 export interface PublicCategoryInfo { id: string; label: string; filterTarget: string }
 export type CatalogueGroup = 'all' | 'featured' | 'free' | 'paid';
 export interface CataloguePage { products: PublicProductInfo[]; nextCursor: string | null }
@@ -47,6 +50,7 @@ const filtersSchema = z.strictObject({
 });
 const cursorSchema = z.strictObject({ v: z.literal(1), timestamp: z.iso.datetime({ offset: true }), id: uuid, digest: z.string().regex(/^[a-f0-9]{64}$/) });
 const rowSchema = z.object({
+  event_mode: z.boolean().default(false),
   id: uuid, slug: z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/), name: z.string().refine(value => Array.from(value).length <= 255), created_at: z.iso.datetime({ offset: true }),
   price: z.number().nonnegative(), currency: z.string().length(3), product_type: z.enum(['one_time', 'subscription']),
   recurring_price: z.number().nullable(), billing_interval: z.enum(['day', 'week', 'month', 'year']).nullable(), billing_interval_count: z.number().nullable(),
@@ -77,9 +81,9 @@ function image(row: ProductRow): PublicProductInfo['image'] {
     return { src: url.href, alt: row.name, width: 800, height: 500 };
   } catch { return null; }
 }
-function projectProduct(row: ProductRow, locale: 'en' | 'pl'): PublicProductInfo {
+function projectProduct(row: ProductRow, locale: 'en' | 'pl'): CatalogueProduct {
   const messages = locale === 'pl' ? pl : en;
-  const kind: PublicPriceInfo['kind'] = row.product_type === 'subscription' ? 'subscription' : row.allow_custom_price ? 'pwyw' : row.price === 0 ? 'free' : 'one-time';
+  const kind: PublicPriceInfo['kind'] = row.event_mode ? 'one-time' : row.product_type === 'subscription' ? 'subscription' : row.allow_custom_price ? 'pwyw' : row.price === 0 ? 'free' : 'one-time';
   const effectiveAmount = getEffectiveUnitPrice(row);
   const amount = formatPrice(effectiveAmount, row.currency, locale);
   const display = kind === 'free' ? messages.checkout.customPrice.freePreset
@@ -94,11 +98,30 @@ function projectProduct(row: ProductRow, locale: 'en' | 'pl'): PublicProductInfo
     ? `${messages.checkout.lowestPriceLabel}: ${formatPrice(row.lowest_prior_price, row.currency, locale)}` : null;
   const originalDisplay = kind === 'one-time' && effectiveAmount < row.price ? formatPrice(row.price, row.currency, locale) : undefined;
   const availableUntil = row.available_until ? new Date(row.available_until).toISOString() : undefined;
-  return { id: row.id, slug: row.slug, title: row.name, price: { display, taxNote, omnibus, kind, ...(originalDisplay ? { originalDisplay } : {}) }, marketing: row.marketing_fields,
+  return { ...(row.event_mode ? { event: { currency: row.currency } } : {}), id: row.id, slug: row.slug, title: row.name, price: { display, taxNote, omnibus, kind, ...(originalDisplay ? { originalDisplay } : {}) }, marketing: row.marketing_fields,
     ...(row.description?.trim() ? { description: row.description.trim() } : {}),
     ...(kind !== 'subscription' && row.auto_grant_duration_days && row.auto_grant_duration_days > 0 ? { accessDurationDays: row.auto_grant_duration_days } : {}),
     ...(availableUntil ? { availableUntil, availableUntilLabel: messages.productView.availableUntil.replace('{date}', `${AVAILABILITY_FORMATTERS[locale].format(new Date(availableUntil))} UTC`) } : {}),
     image: image(row), actions: { details: `/${locale}${productUrl(row.slug)}`, buy: `/${locale}${checkoutUrl(row.slug)}` }, availability: 'available' };
+}
+
+/** Availability is read after shared catalogue caches so holds and tier deadlines stay live. */
+async function resolveCatalogueProducts(client: SupabaseClient<Database>, products: CatalogueProduct[], locale: 'en' | 'pl'): Promise<PublicProductInfo[]> {
+  const live = await Promise.all(products.map(async product => {
+    const { event, ...visible } = product;
+    if (!event) return visible;
+    const { data, error } = await client.rpc('public_event_availability', { p_product_id: product.id });
+    if (error) throw new Error('UNAVAILABLE');
+    const sessions = projectEventSessions(data).filter(s => s.currentTier && !s.soldOut).sort((a,b) => Date.parse(a.startsAt)-Date.parse(b.startsAt));
+    const nearest = sessions[0];
+    const price = { ...product.price, omnibus: null, originalDisplay: undefined };
+    if (!nearest?.currentTier) return { ...visible, price, availability: 'unavailable' as const };
+    const amount = formatPrice(nearest.currentTier.price, event.currency, locale);
+    price.display = new Set(sessions.map(s => s.currentTier!.price)).size > 1
+      ? (locale === 'pl' ? pl : en).events.fromPrice.replace('{price}', amount) : amount;
+    return { ...visible, price, eventDateLabel: formatEventDate(nearest.startsAt, nearest.timezone, locale) };
+  }));
+  return resolveOfferDetails(client, live, locale);
 }
 
 /** One indexed boundary aggregate per render, including products absent from the current page. */
@@ -137,10 +160,10 @@ export async function loadCataloguePage(client: SupabaseClient<Database>, input:
     const neutral = !filters.search && !filters.categoryIds.length && !filters.priceKind && !filters.format && !filters.cursor;
     if (!neutral) {
       const page = await read();
-      return page ? { success: true, data: { ...page, products: await resolveOfferDetails(client, page.products, filters.locale) } } : { success: false, error: 'UNAVAILABLE' };
+      return page ? { success: true, data: { ...page, products: await resolveCatalogueProducts(client, page.products, filters.locale) } } : { success: false, error: 'UNAVAILABLE' };
     }
     const entry = await boundedPublicRead(
-      ['catalogue', '2', filters.locale, filters.group, String(filters.pageSize)], ['storefront-products'],
+      ['catalogue', '3', filters.locale, filters.group, String(filters.pageSize)], ['storefront-products'],
       async () => {
         const boundary = await readCatalogueBoundary(client);
         const page = await read();
@@ -148,7 +171,7 @@ export async function loadCataloguePage(client: SupabaseClient<Database>, input:
       },
       { boundary: value => value.boundary ?? Infinity },
     );
-    return entry ? { success: true, data: { ...entry.page, products: await resolveOfferDetails(client, entry.page.products, filters.locale) } } : { success: false, error: 'UNAVAILABLE' };
+    return entry ? { success: true, data: { ...entry.page, products: await resolveCatalogueProducts(client, entry.page.products, filters.locale) } } : { success: false, error: 'UNAVAILABLE' };
   } catch { return { success: false, error: 'UNAVAILABLE' }; }
 }
 
@@ -181,7 +204,7 @@ export async function loadStorefrontBindings(client: SupabaseClient<Database>, i
     if (products.some(batch => batch.error) || categories.error) return { success: false, error: 'UNAVAILABLE' };
     const rows = products.flatMap(batch => z.array(rowSchema).max(5).parse(batch.data));
     const categoryRows = z.array(z.object({ id: uuid, name: z.string().refine(value => Array.from(value).length <= 100) })).max(12).parse(categories.data);
-    const projected = await resolveOfferDetails(client, rows.map(row => projectProduct(row, b.locale)), b.locale);
+    const projected = await resolveCatalogueProducts(client, rows.map(row => projectProduct(row, b.locale)), b.locale);
     const byId = new Map(projected.map(product => [product.id, product]));
     const byCategory = new Map(categoryRows.map(row => [row.id, row.name]));
     return { success: true, data: { hero: byId.get(b.heroProduct ?? '') ?? null, closing: byId.get(b.closingProduct ?? '') ?? null,

@@ -5424,5 +5424,20 @@
       "unlimited": "Prowizje od produktów z bezterminowym zwrotem nie mogą zostać wypłacone, również przez ręczne korekty."
     },
     "payoutsLabel": "Wypłaty"
+  },
+  "events": {
+    "chooseSession": "Wybierz termin",
+    "noSessions": "Brak dostępnych terminów",
+    "soldOut": "Brak wolnych miejsc",
+    "unavailable": "Sprzedaż zamknięta",
+    "seatsLeft": "Zostało {count} miejsc w tej cenie",
+    "priceUntil": "Ta cena do {date}",
+    "nextPrice": "Potem {price}",
+    "cheaperSoldOut": "Tańsze miejsca wyprzedane",
+    "holdLimit": "Zbyt wiele rezerwacji. Spróbuj ponownie później.",
+    "priceChanged": "Dostępność lub cena uległa zmianie. Wybierz termin ponownie.",
+    "loadError": "Nie udało się pobrać terminów.",
+    "email": "E-mail nabywcy",
+    "fromPrice": "od {price}"
   }
 }

@@ -5424,5 +5424,20 @@
       "unlimited": "Commissions on products with unlimited refunds cannot be paid out, including through manual adjustments."
     },
     "payoutsLabel": "Payouts"
+  },
+  "events": {
+    "chooseSession": "Choose a session",
+    "noSessions": "No available sessions",
+    "soldOut": "No seats available",
+    "unavailable": "Sales closed",
+    "seatsLeft": "{count} seats left at this price",
+    "priceUntil": "This price until {date}",
+    "nextPrice": "Then {price}",
+    "cheaperSoldOut": "Cheaper seats sold out",
+    "holdLimit": "Too many reservations. Please try again later.",
+    "priceChanged": "Availability or pricing changed. Please select a session again.",
+    "loadError": "Unable to load sessions.",
+    "email": "Buyer email",
+    "fromPrice": "from {price}"
   }
 }

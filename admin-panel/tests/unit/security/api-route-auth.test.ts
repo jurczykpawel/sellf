@@ -94,6 +94,7 @@ const PUBLIC_ROUTES = new Set([
   'products/[id]/route.ts',
   'public/products/[slug]/route.ts',
   'public/products/[slug]/access/route.ts',
+  'public/products/[slug]/availability/route.ts',
   'public/products/[slug]/content/route.ts',
   'public/products/[slug]/grant-access/route.ts',
   'public/products/[slug]/recent-supporters/route.ts',

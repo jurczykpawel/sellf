@@ -175,7 +175,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
 
   if (outcome.kind === 'redirect-checkout') {
     // Preserve OTO/coupon query params so the checkout has the same context.
-    const carry = ['email', 'coupon', 'oto']
+    const carry = ['email', 'coupon', 'oto', 'session']
       .map((k) => {
         const v = resolvedSearch?.[k];
         return typeof v === 'string' && v.length > 0 ? `${k}=${encodeURIComponent(v)}` : null;

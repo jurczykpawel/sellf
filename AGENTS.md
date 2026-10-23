@@ -172,6 +172,12 @@ line snapshots retain the session and tier identifiers, title and start time.
 `_order_grant_and_record` confirms seats through `confirm_event_order`; late payments
 retain fulfillment and record `metadata.oversold` when inventory cannot be reacquired.
 Transaction status changes release seats on abandonment, cancellation and full refund.
+Public session presentation is served by `/api/public/products/[slug]/availability`
+with live per-IP limits and seller-origin CORS. Catalogue event pricing is refreshed
+outside presentation caches. Participant recording claims use `guest_purchases`
+with a transaction reference and null Stripe session; claiming participant access
+never assigns the buyer transaction to the participant. Full refunds and cancellation
+remove participant recording claims and the access granted from them.
 Schedule `/api/cron?job=seat-reservations-expire` every minute with the existing
 `CRON_SECRET` bearer credential. Event Stripe sessions and holds share a 30-minute expiry.
 

@@ -1380,3 +1380,9 @@ VALUES ('e3000000-0000-4000-a000-000000000002','e3000000-0000-4000-a000-00000000
 INSERT INTO public.product_price_tiers(session_id,label,price,seats,sale_ends_at,sort) VALUES
   ('e3000000-0000-4000-a000-000000000002','Promocja',47,30,now()+interval '7 days',0),
   ('e3000000-0000-4000-a000-000000000002','Cena regularna',67,NULL,NULL,1);
+
+-- A workshop recording can be included for every named participant.
+INSERT INTO public.products(id,name,slug,price,currency)
+VALUES ('e3000000-0000-4000-a000-000000000003','Nagranie warsztatu','nagranie-warsztatu',19,'PLN');
+INSERT INTO public.order_bumps(main_product_id,bump_product_id,bump_title,bump_price,is_active)
+VALUES ('e3000000-0000-4000-a000-000000000001','e3000000-0000-4000-a000-000000000003','Nagranie dla uczestników',19,true);
