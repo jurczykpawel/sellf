@@ -689,6 +689,17 @@ Only buyer fields are mirrored to subscription metadata for later invoices.
 
 
 
+### Product checkout profiles
+
+`products.checkout_profile` is nullable presentation and data collection configuration;
+`lib/checkout-modules` owns its strict versioned grammar and module validation. Product
+mutations validate the complete candidate and GUS availability, and profile changes
+record `product.checkout_profile.update` in audit metadata. Profile submissions use
+`set_payment_order_details` (service role, pending row, quantity checked against the
+main snapshot line). Details merge by key; buyer retains E0 fields, phone and quantity
+use `{v,value}`, and participants use `{v,people}`. Order details are bounded to 64KiB
+for up to 100 participants. Stripe metadata removes personal fields and preserves technical fields and flags.
+
 ### Guest Checkout to Registered User Flow
 
 1. Guest purchases product → stored in `payment_transactions` with email

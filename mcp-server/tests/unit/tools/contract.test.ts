@@ -217,3 +217,32 @@ describe('product editorial metadata', () => {
     expect(JSON.stringify(schema.properties!.marketing_fields)).toContain('sourceLocale');
   });
 });
+
+describe('checkout profile contracts', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const checkout_profile = { v: 1, modules: [
+    { id: 'buyer', types: ['person', 'organization'], gus: false },
+    { id: 'recipient', for: ['organization'] },
+    { id: 'phone', required: true },
+    { id: 'quantity', min: 1, max: 100, mode: 'hidden' },
+    { id: 'participants', required: true, prefill_from_buyer: true },
+  ] };
+  it('forwards all module configurations on create and update', async () => {
+    api.post.mockResolvedValue({ data: {} }); api.patch.mockResolvedValue({ data: {} });
+    const create = tools.get('create_product')!;
+    await create.handler(z.object(create.schema).parse({ name: 'Seats', slug: 'seats', price: 50, checkout_profile }));
+    expect(api.post).toHaveBeenCalledWith('/api/v1/products', expect.objectContaining({ checkout_profile }));
+    const update = tools.get('update_product')!;
+    await update.handler(z.object(update.schema).parse({ id, checkout_profile }));
+    expect(api.patch).toHaveBeenCalledWith(`/api/v1/products/${id}`, { checkout_profile });
+  });
+  it('allows clearing the profile and rejects unknown keys or versions', async () => {
+    const update = tools.get('update_product')!;
+    api.patch.mockResolvedValue({ data: {} });
+    await update.handler(z.object(update.schema).parse({ id, checkout_profile: null }));
+    expect(api.patch).toHaveBeenCalledWith(`/api/v1/products/${id}`, { checkout_profile: null });
+    for (const value of [{ ...checkout_profile, price: 1 }, { ...checkout_profile, v: 2 }, { v: 1, modules: [{ id: 'phone', required: true, price: 1 }] }]) {
+      expect(update.schema.checkout_profile.safeParse(value).success).toBe(false);
+    }
+  });
+});

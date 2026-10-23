@@ -36,6 +36,7 @@ export const PRODUCT_PUBLIC_COLUMNS = [
   'marketing_fields',
   'layout_template',
   'checkout_template',
+  'checkout_profile',
   'custom_checkout_fields',
   'is_active',
   'is_featured',

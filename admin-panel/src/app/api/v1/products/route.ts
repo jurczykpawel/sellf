@@ -6,6 +6,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { checkoutProfileErrors } from '@/lib/checkout-modules/product-validation';
 import { invalidatePublicProducts } from '@/lib/storefront-templates/invalidation';
 import {
   handleCorsPreFlight,
@@ -255,6 +256,8 @@ export async function POST(request: NextRequest) {
       throw err;
     }
 
+    const profileErrors = await checkoutProfileErrors(sanitizedData);
+    if (profileErrors.length) throw new ApiValidationError('Validation failed', { _errors: profileErrors });
     const validation = validateCreateProduct(sanitizedData);
     if (!validation.isValid) {
       throw new ApiValidationError('Validation failed', {

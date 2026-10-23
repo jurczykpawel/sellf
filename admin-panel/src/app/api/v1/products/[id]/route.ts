@@ -7,6 +7,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { checkoutProfileErrors } from '@/lib/checkout-modules/product-validation';
 import { invalidatePublicProducts } from '@/lib/storefront-templates/invalidation';
 import {
   handleCorsPreFlight,
@@ -201,13 +202,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Check product exists before update
     const { data: existingCheck, error: existsError } = await supabase
       .from('products')
-      .select('id, product_type, is_bundle, is_active')
+      .select('id, product_type, is_bundle, is_active, checkout_profile, checkout_template, allow_custom_price, issue_license_on_purchase')
       .eq('id', id)
       .single();
 
     if (existsError || !existingCheck) {
       return apiError(request, 'NOT_FOUND', 'Product not found');
     }
+
+    const profileErrors = await checkoutProfileErrors({ ...existingCheck, ...sanitizedData });
+    if (profileErrors.length) throw new ApiValidationError('Validation failed', { _errors: profileErrors });
 
     // Server-side empty-bundle guard (mirrors the client PublishChecklist): if the
     // effective post-update state is an ACTIVE bundle, it must have >= 1 component.

@@ -77,6 +77,13 @@ const productShape = {
   custom_price_min: z.number().nonnegative().optional(),
   custom_price_presets: z.array(z.number().nonnegative()).max(20).optional(),
   preview_video_config: z.record(z.string(), z.unknown()).nullable().optional(),
+  checkout_profile: z.object({ v: z.literal(1), modules: z.array(z.discriminatedUnion('id', [
+    z.object({ id: z.literal('buyer'), types: z.array(z.enum(['person', 'organization'])).min(1).max(2), gus: z.boolean() }).strict(),
+    z.object({ id: z.literal('recipient'), for: z.array(z.literal('organization')).length(1) }).strict(),
+    z.object({ id: z.literal('phone'), required: z.boolean() }).strict(),
+    z.object({ id: z.literal('quantity'), min: z.number().int().min(1).max(100), max: z.number().int().min(1).max(100), mode: z.enum(['hidden', 'checkout', 'product_page']) }).strict(),
+    z.object({ id: z.literal('participants'), required: z.boolean(), prefill_from_buyer: z.boolean() }).strict(),
+  ])).max(5) }).strict().nullable().optional(),
   checkout_template: z.string().max(40).optional(),
   custom_checkout_fields: z.array(z.record(z.string(), z.unknown())).max(20).optional(),
   embed_enabled: z.boolean().optional(),
