@@ -2268,6 +2268,7 @@ export type Database = {
           available_until: string | null
           billing_interval: string | null
           billing_interval_count: number | null
+          checkout_profile: Json | null
           checkout_template: string
           content_config: Json
           content_delivery_type: string
@@ -2329,6 +2330,7 @@ export type Database = {
           available_until?: string | null
           billing_interval?: string | null
           billing_interval_count?: number | null
+          checkout_profile?: Json | null
           checkout_template?: string
           content_config?: Json
           content_delivery_type?: string
@@ -2390,6 +2392,7 @@ export type Database = {
           available_until?: string | null
           billing_interval?: string | null
           billing_interval_count?: number | null
+          checkout_profile?: Json | null
           checkout_template?: string
           content_config?: Json
           content_delivery_type?: string
@@ -4741,6 +4744,7 @@ export type Database = {
           available_until: string | null
           billing_interval: string | null
           billing_interval_count: number | null
+          checkout_profile: Json | null
           checkout_template: string
           content_config: Json
           content_delivery_type: string
@@ -4918,6 +4922,16 @@ export type Database = {
           p_buyer: Json
           p_only_if_missing?: boolean
           p_payment_intent_id?: string
+          p_session_id?: string
+        }
+        Returns: number
+      }
+      set_payment_order_details: {
+        Args: {
+          p_details: Json
+          p_payment_intent_id?: string
+          p_product_id: string
+          p_quantity: number
           p_session_id?: string
         }
         Returns: number

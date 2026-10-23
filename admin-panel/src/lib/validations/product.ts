@@ -4,6 +4,7 @@
  * No external dependencies - pure TypeScript validation
  */
 
+import { parseCheckoutProfile } from '@/lib/checkout-modules/profile';
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
 import { currencyExponent } from '@/lib/currency/minor-units';
@@ -20,7 +21,7 @@ import { isRelativeOrHttpUrl } from '@/lib/validations/redirect';
  *
  * @see supabase/migrations/20250101000000_core_schema.sql (products table)
  */
-export const PRODUCT_API_FIELDS = `id, name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, preview_video_config, price, currency, features, marketing_fields, layout_template, checkout_template, custom_checkout_fields, is_active, is_featured, is_listed, is_bundle, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, vat_exempt, vat_exempt_note, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, embed_enabled, issue_license_on_purchase, license_tier, license_duration_days, created_at, updated_at`;
+export const PRODUCT_API_FIELDS = `id, name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, preview_video_config, price, currency, features, marketing_fields, layout_template, checkout_template, checkout_profile, custom_checkout_fields, is_active, is_featured, is_listed, is_bundle, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, vat_exempt, vat_exempt_note, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, embed_enabled, issue_license_on_purchase, license_tier, license_duration_days, created_at, updated_at`;
 
 /**
  * SECURITY FIX (V13): Escape ILIKE special characters to prevent SQL pattern injection
@@ -603,6 +604,11 @@ export function validateCreateProduct(data: unknown): ValidationResult {
   // Subscription fields validation
   errors.push(...validateSubscriptionFields(input).errors);
 
+  if (input.checkout_profile != null) {
+    const profile = parseCheckoutProfile(input.checkout_profile, input, true);
+    if (!profile.success) errors.push(...profile.error.issues.map(i => `checkout_profile: ${i.message}`));
+  }
+
   if (input.checkout_template !== undefined) {
     errors.push(...validateCheckoutTemplate(input.checkout_template).errors);
   }
@@ -782,6 +788,11 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
     input.trial_days !== undefined
   ) {
     errors.push(...validateSubscriptionFields(input).errors);
+  }
+
+  if (input.checkout_profile != null) {
+    const profile = parseCheckoutProfile(input.checkout_profile, input, true);
+    if (!profile.success) errors.push(...profile.error.issues.map(i => `checkout_profile: ${i.message}`));
   }
 
   if (input.checkout_template !== undefined) {
