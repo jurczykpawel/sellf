@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { eventMailForSlug } from '@/lib/events/mail';
 import { isDemoMode } from '@/lib/demo-guard';
 import { validateEmailAction } from '@/lib/actions/validate-email';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
@@ -118,6 +119,7 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
 
   // flow === 'post_checkout'
   return sendTrustedMagicLink({
+    data: await eventMailForSlug(input.email, input.productSlug),
     email: input.email,
     redirectTo: buildPostCheckoutMagicLinkRedirect({
       origin,

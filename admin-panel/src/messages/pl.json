@@ -1,4 +1,5 @@
 {
+  "events": {"repeat": "Pozwól na ponowny zakup","title": "Terminy i ceny", "enabled": "Tryb wydarzenia", "session": "Termin", "tier": "Próg cenowy", "starts_at": "Początek (UTC)", "ends_at": "Koniec (UTC)", "timezone": "Strefa czasowa", "titleField": "Tytuł", "venue": "Miejsce", "online_url": "Link online (tylko kupujący)", "extra_days": "Dodatkowe dni", "capacity": "Pula miejsc (puste: bez limitu)", "sales_open": "Sprzedaż otwarta", "sort": "Kolejność", "label": "Etykieta", "price": "Cena", "seats": "Miejsca w progu (puste: bez limitu)", "sale_ends_at": "Koniec sprzedaży (UTC)", "removeTier": "Usuń próg", "addTier": "Dodaj próg", "removeSession": "Usuń termin", "addSession": "Dodaj termin", "preview": "Co zobaczy kupujący / zamówienia", "savePreview": "Zapisz produkt, aby zobaczyć aktualną dostępność.", "invalid": "Sprawdź daty, link HTTPS, strefę i przynajmniej jeden próg z unikalną kolejnością.", "sold": "Sprzedane", "held": "Zarezerwowane", "remaining": "Wolne", "seatsLeft": "Zostało {count} miejsc w tej cenie", "until": "Ta cena do", "next": "Potem", "cheaperSoldOut": "Tańsze miejsca wyprzedane", "unavailable": "Brak miejsc dostępnych w sprzedaży", "orders": "Zamówienia i uczestnicy", "order": "Zamówienie", "status": "Status", "firstName": "Imię", "lastName": "Nazwisko", "email": "Email", "previous": "Poprzednie", "nextPage": "Następne", "export": "Eksport uczestników CSV", "join": "Dołącz online", "error": "Nie udało się pobrać wydarzenia"},
   "checkoutProfile": {
     "title": "Koszyk",
     "enabled": "Własny koszyk dla tego produktu",
@@ -2573,7 +2574,7 @@
         "refundedTotal": "Zwrócono",
         "remaining": "Pozostało",
         "close": "Zamknij",
-        "statuses": {
+        "statuses": {"awaiting_payment": "Oczekuje na płatność",
           "completed": "Zakończona",
           "pending": "Oczekująca",
           "failed": "Nieudana",
@@ -2601,7 +2602,7 @@
         "created": "Utworzono",
         "expires": "Wygasa",
         "actions": "Akcje",
-        "statuses": {"pending": "Oczekująca", "completed": "Zakończona", "failed": "Nieudana", "cancelled": "Anulowana", "expired": "Wygasła", "refunded": "Zwrócona", "partially_refunded": "Częściowy zwrot", "disputed": "Sporna", "abandoned": "Porzucona"},
+        "statuses": {"awaiting_payment": "Oczekuje na płatność","pending": "Oczekująca", "completed": "Zakończona", "failed": "Nieudana", "cancelled": "Anulowana", "expired": "Wygasła", "refunded": "Zwrócona", "partially_refunded": "Częściowy zwrot", "disputed": "Sporna", "abandoned": "Porzucona"},
         "title": "Sesje checkout"
       },
       "refund": {
@@ -4653,7 +4654,7 @@
     "howToFix": "Jak poprawić",
     "runFailed": "Nie udało się wykonać sprawdzenia. Spróbuj ponownie.",
     "information": "informacje",
-    "statuses": {
+    "statuses": {"awaiting_payment": "Oczekuje na płatność",
       "pass": "OK",
       "warn": "Ostrzeżenie",
       "fail": "Problem",

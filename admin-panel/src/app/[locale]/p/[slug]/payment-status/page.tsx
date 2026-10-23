@@ -6,6 +6,7 @@ import PaymentStatusView from './components/PaymentStatusView';
 import { verifyPaymentSession, verifyPaymentIntent, OtoInfo, mapVerifiedPaymentToStatus } from '@/lib/payment/verify-payment';
 import { buildOtoRedirectUrl, buildSuccessRedirectUrl, hasHideBumpParam } from '@/lib/payment/oto-redirect';
 import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
+import { purchaseEventMail } from '@/lib/events/mail';
 import { sendTrustedMagicLink } from '@/lib/auth/magic-link/request';
 import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
@@ -236,6 +237,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       if (paymentStatus === 'magic_link_sent' && customerEmail) {
         const magicResult = await sendTrustedMagicLink({
           email: customerEmail,
+          data: await purchaseEventMail(customerEmail, product.id, session_id, payment_intent),
           redirectTo: buildPostCheckoutMagicLinkRedirect({
             origin: getSellfBaseUrl(),
             productSlug: product.slug,

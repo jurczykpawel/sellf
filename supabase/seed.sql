@@ -1374,9 +1374,9 @@ ON CONFLICT DO NOTHING;
 -- Warsaw workshop: early seats followed by the regular tier in a shared pool.
 INSERT INTO public.products(id,name,slug,price,currency,event_mode,product_type,price_includes_vat)
 VALUES ('e3000000-0000-4000-a000-000000000001','Warsztat automatyzacji','warsztat-automatyzacji',67,'PLN',true,'one_time',true);
-INSERT INTO public.product_sessions(id,product_id,starts_at,ends_at,title,venue,capacity)
+INSERT INTO public.product_sessions(id,product_id,starts_at,ends_at,title,venue,capacity,online_url)
 VALUES ('e3000000-0000-4000-a000-000000000002','e3000000-0000-4000-a000-000000000001',
-  now()+interval '30 days',now()+interval '30 days 4 hours','Edycja warsztatowa','Warszawa, sala warsztatowa',60);
+  now()+interval '30 days',now()+interval '30 days 4 hours','Edycja warsztatowa','Warszawa, sala warsztatowa',60,'https://meet.example.com/workshop-seed');
 INSERT INTO public.product_price_tiers(session_id,label,price,seats,sale_ends_at,sort) VALUES
   ('e3000000-0000-4000-a000-000000000002','Promocja',47,30,now()+interval '7 days',0),
   ('e3000000-0000-4000-a000-000000000002','Cena regularna',67,NULL,NULL,1);
@@ -1386,3 +1386,12 @@ INSERT INTO public.products(id,name,slug,price,currency)
 VALUES ('e3000000-0000-4000-a000-000000000003','Nagranie warsztatu','nagranie-warsztatu',19,'PLN');
 INSERT INTO public.order_bumps(main_product_id,bump_product_id,bump_title,bump_price,is_active)
 VALUES ('e3000000-0000-4000-a000-000000000001','e3000000-0000-4000-a000-000000000003','Nagranie dla uczestników',19,true);
+-- Two confirmed workshop attendees for the session administration preview.
+INSERT INTO public.payment_transactions(id,product_id,customer_email,amount,currency,status,session_id,order_details)
+VALUES ('e3000000-0000-4000-a000-000000000010','e3000000-0000-4000-a000-000000000001','events@example.com',9400,'PLN','completed','cs_seed_event_admin',
+ '{"participants":{"v":1,"people":[{"first_name":"Anna","last_name":"Nowak","email":"anna.events@example.com"},{"first_name":"Piotr","last_name":"Kowalski","email":"piotr.events@example.com"}]}}');
+INSERT INTO public.payment_line_items(transaction_id,product_id,item_type,quantity,unit_price,total_price,discounted_total,currency,product_name,session_id,tier_id,session_label,session_starts_at)
+SELECT 'e3000000-0000-4000-a000-000000000010',s.product_id,'main_product',2,47,94,94,'PLN','Warsztat automatyzacji',s.id,t.id,s.title,s.starts_at
+FROM public.product_sessions s JOIN public.product_price_tiers t ON t.session_id=s.id AND t.sort=0 WHERE s.id='e3000000-0000-4000-a000-000000000002';
+INSERT INTO public.seat_reservations(session_id,tier_id,transaction_id,quantity,status,confirmed_at)
+SELECT session_id,tier_id,transaction_id,2,'confirmed',now() FROM public.payment_line_items WHERE transaction_id='e3000000-0000-4000-a000-000000000010';

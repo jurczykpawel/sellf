@@ -1,8 +1,11 @@
 'use client';
 
+
 import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import { useLocale } from 'next-intl';
 import { Product } from '@/types';
+import { validateWholeAmounts } from '@/lib/validations/product';
+import { eventSessionsSchema, isEventCompatible } from '@/lib/events/schema';
 import { parseCheckoutProfile } from '@/lib/checkout-modules/profile';
 import { parseMoneyInput } from '@/lib/currency/parse-money-input';
 import { ProductContentConfig } from '@/types';
@@ -269,6 +272,9 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
           // Checkout template + custom fields (Phase 3 — checkout templates feat)
           checkout_template: (product as Product & { checkout_template?: string }).checkout_template ?? 'default',
           checkout_profile: product.checkout_profile ?? null,
+          event_mode: product.event_mode ?? false,
+          allow_repeat_purchase: product.allow_repeat_purchase ?? false,
+          sessions: product.sessions ?? [],
           custom_checkout_fields: Array.isArray((product as Product & { custom_checkout_fields?: unknown }).custom_checkout_fields)
             ? (product.custom_checkout_fields as ProductFormData['custom_checkout_fields'])
             : [],
@@ -654,6 +660,8 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     if (!shopConfigLoaded) return;
 
     if (!validateRequiredFields()) return;
+    if (validateWholeAmounts({ sessions: formData.sessions }, formData.currency).length) return;
+    if (!isEventCompatible(formData) || (formData.event_mode && !eventSessionsSchema.safeParse(formData.sessions ?? []).success)) return;
     if (formData.checkout_profile && !parseCheckoutProfile(formData.checkout_profile, { ...formData }, true).success) return;
 
     // Validate all content items with URLs before submission

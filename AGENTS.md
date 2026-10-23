@@ -171,6 +171,15 @@ calls the private `_place_order_without_event` within the same transaction. Even
 line snapshots retain the session and tier identifiers, title and start time.
 `_order_grant_and_record` confirms seats through `confirm_event_order`; late payments
 retain fulfillment and record `metadata.oversold` when inventory cannot be reacquired.
+Event authoring replaces `sessions` and nested `tiers` atomically through
+`mutate_product_with_audit`; omitted lists remain unchanged. Existing IDs preserve
+reservations, and referenced entries cannot be deleted. Admin `event_session_admin`
+returns availability, counters and paged participant orders; CSV uses `csv-export`.
+`my_event_sessions` returns private online links only for confirmed purchased sessions
+matching the signed-in buyer or participant with current product access. Event webhook
+lines include session and tier labels from immutable order snapshots. Access mail
+checks current account or unclaimed guest entitlement; `prepare_event_mail` updates
+only optional event metadata used by Auth templates and clears it for later mail.
 Transaction status changes release seats on abandonment, cancellation and full refund.
 Public session presentation is served by `/api/public/products/[slug]/availability`
 with live per-IP limits and seller-origin CORS. Catalogue event pricing is refreshed

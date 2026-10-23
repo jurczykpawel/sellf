@@ -75,7 +75,7 @@ describe.each(['session', 'api_key'])('%s product mutations', (method) => {
 
   it.each([
     ['POST', '23505', 409], ['PATCH', '23505', 409], ['DELETE', '23503', 409],
-    ['PATCH', 'P0002', 404], ['DELETE', 'P0002', 404],
+    ['PATCH', '23503', 409], ['PATCH', 'P0002', 404], ['DELETE', 'P0002', 404],
   ] as const)('maps %s transaction error %s to %s', async (method, code, status) => {
     const failure = { data: null, error: { code } };
     mocks.rpc.mockReturnValue({
@@ -89,4 +89,12 @@ describe.each(['session', 'api_key'])('%s product mutations', (method) => {
       : method === 'PATCH' ? await PATCH(request, context) : await DELETE(request, context);
     expect(response.status).toBe(status);
   });
+});
+
+it('replaces nested event sessions in the same audited product transaction', async () => {
+  mocks.authenticate.mockResolvedValue({ admin: { userId: actor }, supabase: { from: mocks.from, rpc: mocks.rpc } });
+  const sessions = [{ starts_at: '2099-01-01T00:00:00Z', tiers: [{ price: 47, seats: 30, sort: 0 }] }];
+  const response = await PATCH(new NextRequest('http://localhost/api/v1/products/'+product.id, { method: 'PATCH', body: JSON.stringify({ sessions }) }), context);
+  expect(response.status).toBe(200);
+  expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_with_audit', expect.objectContaining({ product_data: { sessions: [expect.objectContaining({ tiers: sessions[0].tiers })] } }));
 });

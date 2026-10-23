@@ -1,5 +1,7 @@
-/** Public event projection and timezone presentation. @see components/checkout/EventSessions.tsx */
+/** Shared event projection, timezone presentation, mail and participant exports. @see components/checkout/EventSessions.tsx */
 import { z } from 'zod';
+import { readOrderDetails } from '@/lib/checkout-modules/order-details';
+import { buildCsv } from '@/lib/csv/sanitize';
 
 const rawSession = z.object({
   id: z.string(), starts_at: z.string(), ends_at: z.string().nullable(), timezone: z.string(),
@@ -27,3 +29,19 @@ export function selectEventSession(sessions: EventSession[], requested: string |
   const available = sessions.filter(s => s.currentTier && !s.soldOut);
   return available.find(s => s.id === requested)?.id ?? (sessions.length === 1 ? available[0]?.id ?? null : null);
 }
+
+export interface PurchasedEvent { id: string; starts_at: string; timezone: string; online_url: string | null; title: string | null }
+export interface EventOrder { transaction_id: string; status: string; customer_email?: string | null; order_details?: unknown }
+export function eventMailData(events: PurchasedEvent[]): Record<string, string> {
+  const e = events[0]; if (!e) return {};
+  return { event_date: formatEventDate(e.starts_at, e.timezone, 'en-GB'),
+    ...(e.online_url?.startsWith('https://') ? { event_online_url: e.online_url } : {}) };
+}
+export function participantRows(orders: EventOrder[]): string[][] {
+  return orders.flatMap(o => {
+    const d = readOrderDetails(o.order_details);
+    return (d.participants?.people.length ? d.participants.people : [{ first_name: d.buyer?.first_name ?? '', last_name: d.buyer?.last_name ?? '', email: o.customer_email ?? '' }])
+      .map(p => [o.transaction_id, o.status, p.first_name, p.last_name, p.email]);
+  });
+}
+export function participantCsv(orders: EventOrder[]): string { return buildCsv(['Order', 'Status', 'First name', 'Last name', 'Email'], participantRows(orders)); }
