@@ -1,5 +1,6 @@
-BEGIN;
 -- Provider-independent order references and saved pricing. Existing policies stay in force.
+DO $order_numbers$
+BEGIN
 LOCK TABLE public.payment_transactions IN ACCESS EXCLUSIVE MODE;
 CREATE SEQUENCE public.payment_order_number_seq START WITH 1001;
 REVOKE ALL ON SEQUENCE public.payment_order_number_seq FROM PUBLIC, anon, authenticated;
@@ -16,7 +17,7 @@ WITH numbered AS (
   FROM public.payment_transactions
 )
 UPDATE public.payment_transactions p SET order_number = n.number FROM numbered n WHERE n.id = p.id;
-SELECT setval('public.payment_order_number_seq',
+PERFORM setval('public.payment_order_number_seq',
   greatest(1001, coalesce(max(order_number), 1001)), count(*) > 0) FROM public.payment_transactions;
 ALTER SEQUENCE public.payment_order_number_seq OWNED BY public.payment_transactions.order_number;
 ALTER TABLE public.payment_transactions
@@ -38,6 +39,8 @@ ALTER TABLE public.payment_transactions
   DROP CONSTRAINT payment_transactions_tax_snapshot_status_chk,
   ADD CONSTRAINT payment_transactions_tax_snapshot_status_chk
     CHECK (tax_snapshot_status IN ('none', 'captured', 'partial', 'unavailable', 'local'));
+END;
+$order_numbers$;
 CREATE INDEX payment_transactions_coupon_idx ON public.payment_transactions(coupon_id) WHERE coupon_id IS NOT NULL;
 
 ALTER TABLE public.payment_line_items ADD COLUMN discounted_total numeric
@@ -67,4 +70,3 @@ UPDATE public.guest_purchases g SET transaction_id = p.id
 FROM public.payment_transactions p WHERE p.session_id = g.session_id;
 CREATE UNIQUE INDEX guest_purchases_transaction_idx ON public.guest_purchases(transaction_id) WHERE transaction_id IS NOT NULL;
 ALTER TABLE public.products ADD COLUMN allow_repeat_purchase boolean NOT NULL DEFAULT false;
-COMMIT;

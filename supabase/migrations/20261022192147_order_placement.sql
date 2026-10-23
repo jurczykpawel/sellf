@@ -1,4 +1,3 @@
-BEGIN;
 -- Shared reservation consumption preserves the existing Stripe completion behavior.
 CREATE FUNCTION public._redeem_coupon_for_order(
   coupon_id_param uuid, current_user_id uuid, existing_user_id uuid,
@@ -162,4 +161,3 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.cancel_unpaid_order(uuid,text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.cancel_unpaid_order(uuid,text) TO service_role;
-COMMIT;
