@@ -11,7 +11,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { issueInvoiceForTransaction, retryInvoices } from '@/lib/invoicing/service';
 
 const client = createAdminClient();
-if (process.env.SUPABASE_URL !== 'http://127.0.0.1:55590') throw new Error('Requires the allocated sellf-w19 database');
+if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(process.env.SUPABASE_URL ?? '')) throw new Error('Requires a local disposable Supabase stack');
 const id = 'e1000000-0000-4000-8000-000000000010';
 let invoice: unknown, config: unknown;
 const stale = () => new Date(Date.now() - 660000).toISOString();

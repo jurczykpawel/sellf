@@ -9,7 +9,7 @@ import { issueInvoiceForTransaction, retryInvoices } from '@/lib/invoicing/servi
 import { operateTransfer } from '@/lib/orders/bank-transfer-admin';
 import type { InvoiceInput } from '@/lib/invoicing/provider';
 const db = createAdminClient();
-if (process.env.SUPABASE_URL !== 'http://127.0.0.1:55550') throw new Error('Requires allocated sellf-e1 database');
+if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(process.env.SUPABASE_URL ?? '')) throw new Error('Requires a local disposable Supabase stack');
 let productId: string, adminId: string, config: unknown, transfer: unknown;
 const orders: string[] = [];
 async function checked<T>({ data, error }: { data: T; error: unknown }): Promise<NonNullable<T>> { if (error) throw error; return data!; }
