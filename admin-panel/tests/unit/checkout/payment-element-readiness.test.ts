@@ -4,6 +4,8 @@ import React from 'react';
 import { NextIntlClientProvider } from 'next-intl';
 import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
+import { useInvoiceData } from '@/hooks/useInvoiceData';
+import { useCheckoutProfileValues } from '@/components/checkout/CheckoutProfileFields';
 import CustomPaymentForm from '@/app/[locale]/checkout/[slug]/components/CustomPaymentForm';
 import en from '@/messages/en.json';
 import type { Product } from '@/types';
@@ -21,13 +23,18 @@ vi.mock('@/components/checkout/InvoiceFields', () => ({ default: () => null }));
 vi.mock('@/components/checkout/OrderSummary', () => ({ default: () => null }));
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); stripe.result.type = 'success'; });
 
+function FormFixture({ paymentMethodOrder }: { paymentMethodOrder?: string[] }) {
+  const invoice = useInvoiceData('buyer@example.com');
+  const profileForm = useCheckoutProfileValues(null, invoice, 'buyer@example.com', 1);
+  return React.createElement(CustomPaymentForm, {
+    product: { id: 'test-product', name: 'Course', currency: 'PLN' } as Product,
+    email: 'buyer@example.com', collectTermsOfService: false, paymentMethodOrder,
+    invoice, profileForm, onEmailChange: vi.fn(),
+    pricing: { basePrice: 100, discountAmount: 0, totalGross: 100, totalNet: 100, vatRate: 0 } as PricingResult,
+  });
+}
 function setup(paymentMethodOrder?: string[]) {
-  return render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en },
-    React.createElement(CustomPaymentForm, {
-      product: { id: 'test-product', name: 'Course', currency: 'PLN' } as Product,
-      email: 'buyer@example.com', collectTermsOfService: false, paymentMethodOrder,
-      pricing: { basePrice: 100, discountAmount: 0, totalGross: 100, totalNet: 100, vatRate: 0 } as PricingResult,
-    })));
+  return render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(FormFixture, { paymentMethodOrder })));
 }
 
 it('blocks submission until the payment Element is fully rendered, then exposes readiness', () => {

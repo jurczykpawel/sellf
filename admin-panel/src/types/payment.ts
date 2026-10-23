@@ -21,7 +21,15 @@ export interface PaymentSession {
   updated_at: string;
 }
 
+export interface InvoiceInfo {
+  status: 'issuing' | 'issued' | 'failed' | 'corrected'; number: string | null; view_url: string | null; error: string | null; attempts: number;
+}
+
 export interface PaymentTransaction {
+  payment_provider?: string;
+  payment_due_at?: string | null;
+  transfer_details?: Json | null;
+  invoice?: InvoiceInfo | null;
   id: string;
   session_id: string;
   user_id: string | null;
@@ -30,7 +38,7 @@ export interface PaymentTransaction {
   amount: number;
   currency: string;
   stripe_payment_intent_id?: string;
-  status: 'completed' | 'refunded' | 'disputed' | 'pending' | 'partially_refunded' | 'abandoned';
+  status: 'completed' | 'refunded' | 'disputed' | 'pending' | 'partially_refunded' | 'abandoned' | 'awaiting_payment' | 'cancelled';
   refunded_amount: number;
   refunded_at?: string;
   refunded_by?: string;

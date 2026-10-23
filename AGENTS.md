@@ -161,6 +161,19 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
 - Triggers: `handle_new_user_registration()` (first user → admin, claim guest purchases)
 - Scheduled jobs: Rate limit cleanup (hourly via pg_cron)
 
+### Invoicing
+
+`invoicing_config` holds server-only provider settings and an encrypted API token.
+`invoices` has one row per transaction; admin reads use RLS, writes use service role.
+`issueInvoiceForTransaction(id)` claims a durable attempt before provider calls,
+looks up the stable instance/order `oid`, then issues with `oid_unique`.
+Purchase fulfillment runs automatic issuance after its completion webhook; existing
+invoice references enrich the event. Bank-transfer placement calls the same function
+when integrated. Schedule `invoices-retry` each minute; failed attempts back off up
+to five tries and interrupted attempts become eligible after ten minutes. The cron
+also synchronizes paid status for transfer invoices. Corrections remain manual at
+the provider, with an admin marker after full refund/cancellation.
+
 ### Event Seat Inventory
 
 Event products use `product_sessions`, `product_price_tiers` and `seat_reservations`.
@@ -189,6 +202,30 @@ never assigns the buyer transaction to the participant. Full refunds and cancell
 remove participant recording claims and the access granted from them.
 Schedule `/api/cron?job=seat-reservations-expire` every minute with the existing
 `CRON_SECRET` bearer credential. Event Stripe sessions and holds share a 30-minute expiry.
+
+### Traditional Bank Transfers
+
+`bank_transfer_config` stores private shop settings; `save_bank_transfer_config` is
+admin-only and audits configuration changes without bank details. Buyer profiles
+opt in through `bank_transfer_for`; products without a profile cannot use transfers.
+The captcha-gated `/api/orders/bank-transfer` shares module and price validation with
+online checkout. `bank_transfer_order` serializes unpaid limits per normalized email,
+stores transfer instructions and the due date, consumes coupons, and holds event seats
+without expiry. `transfer_transaction_id` tracks early grants, including guest claims;
+cancellation releases claims and seats while retaining prior or other purchase rights.
+Admin actions and API v1 `mark-paid`/`cancel` share `operateTransfer`; API keys require
+`payments:write`. Payment completion reuses offline fulfillment and leaves early access
+in place. Schedule `/api/cron?job=bank-transfer-overdue` daily and `fulfillment-resume`
+every minute with `CRON_SECRET`; notifications use stable order delivery keys and saved
+notification timestamps. Transfer placement schedules automatic invoice issuance with
+Next.js `after`; `invoices-retry` recovers missed placement callbacks and synchronizes
+receipt dates from `paid_at`. The settings payment tab and product buyer profile
+control availability. Checkout shares buyer state across payment methods.
+`/order/[orderId]/transfer?token=...` reads one order through an HMAC link valid for
+61 days, with no login and no indexing. Auth access mails carry `transfer_text` via
+`prepare_event_mail`; each preparation clears older instructions.
+`transfer_mail_sent_at` records successful delivery for `fulfillment-resume`. Sellf does not send its own transactional emails: Auth magic
+links remain the email channel, and sellers may send messages from `order.placed`.
 
 ### Data Flow Patterns
 

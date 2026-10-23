@@ -8,12 +8,12 @@ import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
 import type { Product } from '@/types';
 import type { AppliedCoupon } from '@/types/coupon';
-const mocks = vi.hoisted(() => ({ track: vi.fn(), fetch: vi.fn(), confirm: vi.fn(), coupon: null as AppliedCoupon | null }));
+const mocks = vi.hoisted(() => ({ track: vi.fn(), fetch: vi.fn(), confirm: vi.fn(), stripe: vi.fn(() => Promise.resolve(null)), coupon: null as AppliedCoupon | null }));
 vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams() }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, isAdmin: false, loading: false }) }));
 vi.mock('@/components/providers/config-provider', () => ({ useConfig: () => ({ stripePublishableKey: 'pk_test_example' }) }));
 vi.mock('@/components/providers/theme-provider', () => ({ useTheme: () => ({ resolvedTheme: 'light' }) }));
-vi.mock('@/lib/stripe/client', () => ({ getStripeClient: () => Promise.resolve(null) }));
+vi.mock('@/lib/stripe/client', () => ({ getStripeClient: mocks.stripe }));
 vi.mock('@/hooks/useTracking', () => ({ useTracking: () => ({ track: mocks.track }) }));
 vi.mock('@/hooks/useOrderBumps', () => ({ useOrderBumps: () => ({ orderBumps: [] }) }));
 vi.mock('@/hooks/useOto', () => ({ useOto: () => ({}) }));
@@ -42,11 +42,13 @@ it.each(['en', 'pl'] as const)('%s: records a view, offers a clear payment step,
     collectTermsOfService: false,
   })));
   expect(mocks.fetch).not.toHaveBeenCalled();
+  expect(mocks.stripe).not.toHaveBeenCalled();
   expect(mocks.track).toHaveBeenCalledWith('view_item', expect.anything());
   expect(mocks.track).not.toHaveBeenCalledWith('begin_checkout', expect.anything());
   const label = locale === 'pl' ? 'Przejdź do płatności' : 'Continue to payment';
   fireEvent.click(screen.getByRole('button', { name: label, exact: true }));
   await waitFor(() => expect(mocks.fetch).toHaveBeenCalledWith('/api/create-payment-intent', expect.anything()));
+  expect(mocks.stripe).toHaveBeenCalledWith('pk_test_example');
   expect(mocks.fetch.mock.calls.filter(call => call[0] === '/api/create-payment-intent')).toHaveLength(1);
   expect(mocks.track).toHaveBeenCalledWith('begin_checkout', expect.anything());
   await waitFor(() => expect(screen.getByTestId('payment-fields')).toBeTruthy());

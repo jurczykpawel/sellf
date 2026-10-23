@@ -4,18 +4,19 @@ import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout';
 import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
-import CheckoutProfileFields, { useCheckoutProfileValues } from '@/components/checkout/CheckoutProfileFields';
+import CheckoutProfileFields from '@/components/checkout/CheckoutProfileFields';
 import { formatPrice } from '@/lib/constants';
 import { formatBillingIntervalLabel } from '@/lib/product-pricing-display';
 import { validateTaxId } from '@/lib/validation/nip';
 import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
 import { shouldRequestInvoice, shouldCollectBuyerCountry } from '@/lib/checkout/invoice-form-logic';
 import { useTracking } from '@/hooks/useTracking';
-import { useInvoiceData } from '@/hooks/useInvoiceData';
 import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
 import InvoiceFields from '@/components/checkout/InvoiceFields';
 import PaymentFormSkeleton from '@/components/checkout/PaymentFormSkeleton';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
+import type { useInvoiceData } from '@/hooks/useInvoiceData';
+import type { useCheckoutProfileValues } from '@/components/checkout/CheckoutProfileFields';
 import type { FieldError } from '@/lib/checkout-modules/registry';
 import type { StripePaymentElementOptions } from '@stripe/stripe-js';
 import type { Product } from '@/types';
@@ -27,9 +28,11 @@ import type { CustomFieldDefinition, CustomFieldValues } from '@/lib/validations
 
 interface CustomPaymentFormProps {
   product: Product;
-  quantity?: number;
   email?: string;
-  initialFullName?: string;
+  invoice: ReturnType<typeof useInvoiceData>;
+  profileForm: ReturnType<typeof useCheckoutProfileValues>;
+  profileHandled?: boolean;
+  onEmailChange(value: string): void;
   bumpProducts?: OrderBumpWithProduct[];
   selectedBumpIds?: Set<string>;
   onChangeAccount?: () => void;
@@ -62,9 +65,8 @@ type EmailValidationResponse = {
 
 export default function CustomPaymentForm({
   product,
-  quantity = 1,
   email,
-  initialFullName,
+  invoice, profileForm, profileHandled, onEmailChange,
   bumpProducts = [],
   selectedBumpIds = new Set(),
   onChangeAccount,
@@ -103,10 +105,8 @@ export default function CustomPaymentForm({
   const [errorMessage, setErrorMessage] = useState('');
 
   // Invoice / NIP logic
-  const invoice = useInvoiceData(email, { initialFullName });
   const parsedProfile = checkoutProfileSchema.safeParse(product.checkout_profile);
   const profile = parsedProfile.success ? parsedProfile.data : null;
-  const profileForm = useCheckoutProfileValues(profile, invoice, linkEmail || email || '', quantity);
   const [moduleErrors, setModuleErrors] = useState<FieldError[]>([]);
 
   const { basePrice, totalPayable } = pricing;
@@ -340,7 +340,7 @@ export default function CustomPaymentForm({
           type="email"
           id="checkoutEmail"
           value={linkEmail}
-          onChange={(e) => setLinkEmail(e.target.value)}
+          onChange={(e) => { setLinkEmail(e.target.value); onEmailChange(e.target.value); }}
           placeholder="you@example.com"
           required
           className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent"
@@ -383,7 +383,7 @@ export default function CustomPaymentForm({
           className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
         />
       </div>}
-      {profile && <CheckoutProfileFields profile={profile} state={profileForm} invoice={invoice} errors={moduleErrors} disabled={isProcessing} />}
+      {profile && !profileHandled && <CheckoutProfileFields profile={profile} state={profileForm} invoice={invoice} errors={moduleErrors} disabled={isProcessing} />}
 
       {/* Terms & Conditions — guests only, and only when collect_terms_of_service is ON */}
       {showTos && (

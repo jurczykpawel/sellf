@@ -142,7 +142,7 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
       // Rate-limiting, visual, accessibility, and route-heavy specs are excluded here
-      testIgnore: ['**/public-hydration.spec.ts', '**/stripe-live/**', '**/rate-limiting.spec.ts', '**/rate-limiting-v1.spec.ts', '**/accessibility.spec.ts', ...HEAVY_SPECS, ...SECTION_FIXTURE_FILES.map(file => `**/${file}`)],
+      testIgnore: ['**/bank-transfer.spec.ts', '**/public-hydration.spec.ts', '**/stripe-live/**', '**/rate-limiting.spec.ts', '**/rate-limiting-v1.spec.ts', '**/accessibility.spec.ts', ...HEAVY_SPECS, ...SECTION_FIXTURE_FILES.map(file => `**/${file}`)],
     },
     {
       // Route-dense specs split off so the sharded runner can isolate them on their own

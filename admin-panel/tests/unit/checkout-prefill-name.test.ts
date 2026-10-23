@@ -32,14 +32,14 @@ describe('Checkout URL pre-fill — full name', () => {
     expect(paidProductFormSource).toMatch(/searchParams\.get\(['"]name['"]\)/);
   });
 
-  it('PaidProductForm passes initialFullName to CustomPaymentForm', () => {
-    // Either the prop is named initialFullName or it is forwarded as
-    // initialFullName={...} — the regex tolerates both spelling.
-    expect(paidProductFormSource).toMatch(/initialFullName=\{/);
+  it('PaidProductForm seeds shared invoice state with the URL name', () => {
+    expect(paidProductFormSource).toMatch(/useInvoiceData\(email, \{ initialFullName: urlName \}\)/);
+    expect(paidProductFormSource).toContain('invoice={invoice}');
   });
 
-  it('CustomPaymentForm accepts initialFullName prop', () => {
-    expect(customPaymentFormSource).toMatch(/initialFullName\??:\s*string/);
+  it('CustomPaymentForm consumes the shared invoice state', () => {
+    expect(customPaymentFormSource).toContain('invoice: ReturnType<typeof useInvoiceData>');
+    expect(customPaymentFormSource).toContain('value={invoice.fullName}');
   });
 
   it('useInvoiceData accepts an initial fullName seed', () => {

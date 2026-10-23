@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Store, CreditCard, FileText, Wrench, KeyRound } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import BankTransferSettings from '@/components/settings/BankTransferSettings'
+import InvoicingSettings from '@/components/settings/InvoicingSettings'
 import ShopSettings from './ShopSettings'
 import BrandingSettings from './BrandingSettings'
 import CheckoutThemeSettings from './CheckoutThemeSettings'
@@ -73,6 +75,7 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicense
         {active === 'shop' && (
           <>
             <ShopSettings />
+            <InvoicingSettings />
             {role === 'platform_admin' && <BrandingSettings />}
             <CheckoutThemeSettings initialTheme={initialCheckoutTheme} />
           </>
@@ -83,6 +86,7 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicense
             {role === 'platform_admin' && <StripeSettings siteUrl={siteUrl} />}
             {role === 'platform_admin' && <StripeTaxSettings />}
             {role === 'platform_admin' && <PaymentMethodSettingsWrapper />}
+            <BankTransferSettings />
           </>
         )}
 

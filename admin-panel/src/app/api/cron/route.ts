@@ -15,10 +15,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash, timingSafeEqual } from 'crypto';
+import { retryInvoices } from '@/lib/invoicing/service';
 import { drainAffiliateWork } from '@/lib/affiliates/sync/worker';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { runTransferJob } from '@/lib/orders/bank-transfer-service';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { getWebhookQueue } from '@/lib/services/webhook-queue';
 import { WebhookDispatcher } from '@/lib/services/webhook-queue/dispatcher';
@@ -267,11 +269,14 @@ export async function handleSeatReservationsExpire(): Promise<CronJobResult> {
 // ===== JOB REGISTRY =====
 
 const JOB_REGISTRY: Record<string, () => Promise<CronJobResult>> = {
+  'invoices-retry': retryInvoices,
   'affiliate-sync': async () => {
     const result = await drainAffiliateWork();
     if (!result.success) throw new Error('Affiliate queue unavailable');
     return { processed: result.data.applied, errors: result.data.failed };
   },
+  'bank-transfer-overdue': () => runTransferJob(createAdminClient(), 'bank-transfer-overdue'),
+  'fulfillment-resume': () => runTransferJob(createAdminClient(), 'fulfillment-resume'),
   'seat-reservations-expire': handleSeatReservationsExpire,
   'access-expired': handleAccessExpired,
   'cleanup-webhook-logs': handleCleanupWebhookLogs,

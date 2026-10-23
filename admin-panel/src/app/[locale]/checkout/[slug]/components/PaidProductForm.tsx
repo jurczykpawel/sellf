@@ -7,7 +7,11 @@ import { CheckoutElementsProvider } from '@stripe/react-stripe-js/checkout';
 import EventSessions from '@/components/checkout/EventSessions';
 import { selectEventSession } from '@/lib/events/presentation';
 import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
-import { CheckoutQuantityField } from '@/components/checkout/CheckoutProfileFields';
+import BankTransferForm from '@/components/checkout/BankTransferForm';
+import { getTransferAvailability } from '@/lib/orders/transfer-public';
+import { availableTransferMethod, canUseBankTransfer } from '@/lib/orders/bank-transfer-config';
+import { useInvoiceData } from '@/hooks/useInvoiceData';
+import CheckoutProfileFields, { CheckoutQuantityField, useCheckoutProfileValues } from '@/components/checkout/CheckoutProfileFields';
 import { formatPrice, STRIPE_MAX_AMOUNT } from '@/lib/constants';
 import { minimumChargeAmount } from '@/lib/currency/minor-units';
 import { signOutAndRedirectToCheckout } from '@/lib/actions/checkout';
@@ -115,11 +119,6 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const isFunnelTest = searchParams.get('funnel_test') === '1' && isAdmin;
   const explicitRepurchase = searchParams.get('repurchase') === '1';
 
-  // Safe loading of Stripe to prevent crashes if key is missing
-  const stripePromise = config.stripePublishableKey
-    ? getStripeClient(config.stripePublishableKey)
-    : null;
-
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [bindingToken, setBindingToken] = useState<string | null>(null);
@@ -176,6 +175,25 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       setEmail(user.email);
     }
   }
+
+  const [formEmail, setFormEmail] = useState<string | undefined>(undefined);
+  const invoice = useInvoiceData(email, { initialFullName: urlName });
+  const profile = parsedProfile.success ? parsedProfile.data : null;
+  const profileForm = useCheckoutProfileValues(profile, invoice, user?.email ?? formEmail ?? email ?? '', quantity);
+  const bt = useTranslations('bankTransfer');
+  const [transfer, setTransfer] = useState({ enabled: false, dueDays: 14 });
+  const [method, setMethod] = useState<'online' | 'transfer'>('online');
+  const profileHasTransfer = !!profile?.modules.some(m => m.id === 'buyer' && !!m.bank_transfer_for?.length);
+  useEffect(() => { if (!profileHasTransfer) return; let active = true; getTransferAvailability().then(value => { if (active) setTransfer(value); }).catch(() => {}); return () => { active = false; }; }, [profileHasTransfer]);
+  const transferProfile = transfer.enabled && !!profile && !product.allow_custom_price && !product.is_bundle && !isSubscription && profileHasTransfer;
+  const transferAllowed = transferProfile && canUseBankTransfer(true, profile, profileForm.buyerType);
+  const activeMethod = availableTransferMethod(method, transferProfile, profile, profileForm.buyerType);
+  if (method !== activeMethod) setMethod(activeMethod);
+
+  // Safe loading of Stripe to prevent crashes if key is missing
+  const stripePromise = config.stripePublishableKey && purchaseStarted && activeMethod === 'online'
+    ? getStripeClient(config.stripePublishableKey)
+    : null;
 
   // Custom price state (Pay What You Want)
   const getInitialAmount = () => {
@@ -279,13 +297,14 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     ? product.recurring_price ?? 0
     : product.event_mode ? eventSession?.currentTier?.price ?? 0 : getEffectiveUnitPrice(product);
 
+  const checkoutTaxMode = activeMethod === 'transfer' ? 'local' : taxMode;
   const pricing = calculatePricing({
     baseProductId: product.id,
     productPrice: effectiveUnitPrice * quantity,
     productCurrency: product.currency,
     productVatRate: product.vat_rate ?? undefined,
     vatExempt: product.vat_exempt,
-    taxMode,
+    taxMode: checkoutTaxMode,
     priceIncludesVat: product.price_includes_vat ?? undefined,
     customAmount: product.allow_custom_price ? customAmount : undefined,
     bumps: availableBumps.map(bump => ({
@@ -370,7 +389,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   // One request at a time; superseded responses remain available for replacement.
   useEffect(() => {
-    if (!eventReady || !purchaseStarted || hasAccess || error || authLoading || isFunnelTest || isFreeAccess ||
+    if (activeMethod === 'transfer' || !eventReady || !purchaseStarted || hasAccess || error || authLoading || isFunnelTest || isFreeAccess ||
       (product.allow_custom_price && checkCustomAmount(customAmount) !== null)) {
       sessionQueue.update(null);
       return;
@@ -433,6 +452,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       },
     });
   }, [
+    activeMethod,
     eventReady, eventSessionId, refreshEvents, eventText, purchaseStarted, hasAccess, error, authLoading,
     product, email, locale, quantity, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
     customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess,
@@ -560,8 +580,17 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             {eventLoadError && <p role="alert">{eventText('loadError')}</p>}
           </>}
 
+          {transferProfile && !hasAccess && !isFunnelTest && !isFreeAccess && profile && <>
+            {activeMethod === 'transfer' && quantityConfig?.mode === 'checkout' && <CheckoutQuantityField config={quantityConfig} value={quantity} onChange={setQuantity} />}
+            <CheckoutProfileFields profile={profile} state={profileForm} invoice={invoice} errors={[]} disabled={false} />
+            {transferAllowed && <fieldset className="my-4 space-y-3"><legend className="font-semibold">{bt('method')}</legend>
+              {(['online', 'transfer'] as const).map(value => <label key={value} className="flex items-center gap-2 rounded-lg border border-sf-border p-3"><input type="radio" name="payment-method" value={value} checked={activeMethod === value} onChange={() => { setMethod(value); setPurchaseStarted(false); setClientSecret(null); setError(null); }} />{bt(value, { days: transfer.dueDays })}</label>)}
+            </fieldset>}
+            {activeMethod === 'transfer' && eventReady && <BankTransferForm product={product} email={user?.email ?? formEmail ?? email ?? ''} lockedEmail={!!user?.email} onEmailChange={setFormEmail} moduleValues={profileForm.values} sessionId={eventSessionId} bumpIds={Array.from(selectedBumpIds)} couponCode={coupon.appliedCoupon?.code} fields={customFieldDefs} values={customFieldValues} onValuesChange={setCustomFieldValues} />}
+          </>}
+
           {/* Missing Config Alert */}
-          {!config.stripePublishableKey && (
+          {activeMethod === 'online' && !config.stripePublishableKey && (
             <div className="mb-4 p-4 bg-sf-danger-soft border border-sf-danger/20 rounded-lg">
               <div className="flex items-start">
                 <svg className="w-5 h-5 text-sf-danger mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -619,7 +648,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
               vatRate={pricing.vatRate}
               vatExempt={product.vat_exempt}
               vatExemptNote={product.vat_exempt_note}
-              taxMode={taxMode}
+              taxMode={checkoutTaxMode}
               customAmountError={product.allow_custom_price ? customAmountError : null}
               appliedCoupon={coupon.appliedCoupon ?? undefined}
               bumpProducts={availableBumps}
@@ -628,7 +657,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             />
           )}
 
-          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && !purchaseStarted && eventReady && (
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && activeMethod === 'online' && !purchaseStarted && eventReady && (
             <form onSubmit={event => { event.preventDefault(); setPurchaseStarted(true); }}>
               {product.event_mode && <label className="mb-4 block">{eventText('email')}<input type="email" required value={email ?? ''} onChange={event => setEmail(event.target.value)} className="mt-1 block w-full rounded border border-sf-border p-3" /></label>}
               {quantityConfig?.mode === 'checkout' && <CheckoutQuantityField config={quantityConfig} value={quantity} onChange={setQuantity} />}
@@ -639,9 +668,9 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             </form>
           )}
 
-          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && purchaseStarted && (!clientSecret || lastCheckoutSessionSignature !== checkoutSessionSignature) && <PaymentFormSkeleton />}
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && activeMethod === 'online' && purchaseStarted && (!clientSecret || lastCheckoutSessionSignature !== checkoutSessionSignature) && <PaymentFormSkeleton />}
 
-          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && stripePromise && clientSecret && lastCheckoutSessionSignature === checkoutSessionSignature && (
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && activeMethod === 'online' && stripePromise && clientSecret && lastCheckoutSessionSignature === checkoutSessionSignature && (
             <CheckoutElementsProvider
               key={`${product.id}-${checkoutSessionId || clientSecret}-${resolvedTheme}`}
               stripe={stripePromise}
@@ -666,9 +695,11 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             >
               <CustomPaymentForm
                 product={product}
-                quantity={quantity}
-                email={email}
-                initialFullName={urlName}
+                email={user?.email ?? formEmail ?? email}
+                invoice={invoice}
+                profileForm={profileForm}
+                profileHandled={transferProfile}
+                onEmailChange={setFormEmail}
                 bumpProducts={availableBumps}
                 selectedBumpIds={selectedBumpIds}
                 onChangeAccount={handleSignOutAndCheckout}
@@ -679,7 +710,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 pricing={pricing}
                 paymentMethodOrder={paymentMethodOrder}
                 expressCheckoutConfig={expressCheckoutConfig}
-                taxMode={taxMode}
+                taxMode={checkoutTaxMode}
                 customFieldDefs={customFieldDefs}
                 customFieldValues={customFieldValues}
                 onCustomFieldValuesChange={setCustomFieldValues}
@@ -708,7 +739,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     <div className="flex justify-center items-start min-h-screen bg-gradient-to-br from-sf-deep to-sf-raised p-4 lg:p-8">
       <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 bg-sf-base border border-sf-border shadow-[var(--sf-shadow-accent)] backdrop-blur-md rounded-2xl">
         <div className={TWO_COLUMN_ROW_CLASSNAME}>
-          <ProductShowcase product={product} taxMode={taxMode} bundleComponents={bundleComponents} />
+          <ProductShowcase product={product} taxMode={checkoutTaxMode} bundleComponents={bundleComponents} />
           {renderCheckoutForm()}
         </div>
       </div>

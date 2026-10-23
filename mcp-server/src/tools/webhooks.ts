@@ -31,6 +31,9 @@ interface WebhookLog {
 
 // Valid webhook event types
 const WEBHOOK_EVENTS = [
+  'order.placed',
+  'order.cancelled',
+  'order.overdue',
   'payment.completed',
   'payment.failed',
   'payment.refunded',

@@ -11,6 +11,8 @@ import { getTransactionRefundProgress } from '@/lib/refunds/transaction-refund-p
 import { formatAdminDate } from '@/lib/timezone';
 import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
 import { fromMinorUnits } from '@/lib/currency/minor-units';
+import BankTransferSection from '@/components/admin/BankTransferSection';
+import InvoiceSection from '@/components/admin/InvoiceSection';
 import OrderDetailsSection from '@/components/admin/OrderDetailsSection';
 import type { PaymentTransaction, PaymentTransactionLineItem } from '@/types/payment';
 
@@ -23,13 +25,16 @@ export default function PaymentTransactionsTable({
   transactions, 
   onRefreshData 
 }: PaymentTransactionsTableProps) {
+  const bt = useTranslations('bankTransfer');
   const t = useTranslations('admin.payments.transactions');
+  const ti = useTranslations('invoicing');
   const tRefund = useTranslations('admin.payments.refund');
   const locale = useLocale();
   const [refundingId, setRefundingId] = useState<string | null>(null);
   const [refundReason, setRefundReason] = useState('');
   const [showRefundModal, setShowRefundModal] = useState<string | null>(null);
-  const [detailsTransaction, setDetailsTransaction] = useState<PaymentTransaction | null>(null);
+  const [detailsTransactionId, setDetailsTransactionId] = useState<string | null>(null);
+  const detailsTransaction = transactions.find(transaction => transaction.id === detailsTransactionId) ?? null;
 
   const handleRefund = async (transactionId: string, amount?: number) => {
     if (refundingId) return;
@@ -120,6 +125,8 @@ export default function PaymentTransactionsTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
                 {t('date')}
               </th>
+<th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">{bt('dueAt')}</th>
+<th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">{ti('column')}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
                 {t('actions')}
               </th>
@@ -134,7 +141,7 @@ export default function PaymentTransactionsTable({
               });
 
               return (
-                <tr key={transaction.id} className={index % 2 === 1 ? 'bg-sf-row-alt' : ''}>
+                <tr key={transaction.id} className={transaction.status === 'awaiting_payment' && transaction.payment_due_at && Date.parse(transaction.payment_due_at) < Date.now() ? 'bg-sf-warning-soft' : index % 2 === 1 ? 'bg-sf-row-alt' : ''}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-sf-heading">
                       {transaction.id.slice(0, 8)}...
@@ -207,10 +214,12 @@ export default function PaymentTransactionsTable({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-sf-muted">
                     {formatAdminDate(transaction.created_at, locale)}
                   </td>
+<td className="px-6 py-4 text-sm">{transaction.payment_due_at ? new Intl.DateTimeFormat(locale, { timeZone: 'UTC' }).format(new Date(transaction.payment_due_at)) : "—"}</td>
+<td className="px-6 py-4 text-sm">{transaction.invoice?.view_url ? <a href={transaction.invoice.view_url} target="_blank" rel="noreferrer" className="underline">{transaction.invoice.number}</a> : transaction.invoice ? ti(transaction.invoice.status) : "—"}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() => setDetailsTransaction(transaction)}
+                        onClick={() => setDetailsTransactionId(transaction.id)}
                         className="text-sf-accent hover:text-sf-accent-hover"
                       >
                         {t('details')}
@@ -253,7 +262,7 @@ export default function PaymentTransactionsTable({
                 </p>
               </div>
               <button
-                onClick={() => setDetailsTransaction(null)}
+                onClick={() => setDetailsTransactionId(null)}
                 className="h-9 w-9 rounded-full bg-sf-base/70 border border-sf-border text-sf-muted hover:text-sf-heading hover:bg-sf-hover transition-colors"
                 aria-label={t('close')}
               >
@@ -333,6 +342,8 @@ export default function PaymentTransactionsTable({
               </div>
             </div>
 
+<BankTransferSection transaction={detailsTransaction} onRefresh={() => { setDetailsTransactionId(null); onRefreshData?.(); }} />
+<InvoiceSection transactionId={detailsTransaction.id} status={detailsTransaction.status} invoice={detailsTransaction.invoice} onRefresh={() => { setDetailsTransactionId(null); onRefreshData?.(); }} />
             <OrderDetailsSection
               details={detailsTransaction.order_details}
               customFields={formatCustomFieldsForDisplay(detailsTransaction.custom_field_values, detailsTransaction.product?.custom_checkout_fields, locale)}
@@ -348,7 +359,7 @@ export default function PaymentTransactionsTable({
                 </div>
               )}
               <div className="flex justify-between gap-4">
-                <span className="text-sf-muted">{showSubtotal ? t('paid') : t('total')}</span>
+                <span className="text-sf-muted">{showSubtotal && !['awaiting_payment', 'cancelled'].includes(detailsTransaction.status) ? t('paid') : t('total')}</span>
                 <span className="font-medium text-sf-heading">
                   {formatCurrency(detailsTransaction.amount, detailsTransaction.currency)}
                 </span>
@@ -373,7 +384,7 @@ export default function PaymentTransactionsTable({
 
             <div className="mt-6 flex justify-end">
               <button
-                onClick={() => setDetailsTransaction(null)}
+                onClick={() => setDetailsTransactionId(null)}
                 className="bg-sf-accent-bg hover:bg-sf-accent-hover text-white font-semibold py-2 px-4 rounded-lg transition-colors"
               >
                 {t('close')}

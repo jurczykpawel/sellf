@@ -160,14 +160,12 @@ describe('admin payments dashboard', () => {
   });
 
   it('only offers payment status filter values that can actually exist in the database', () => {
-    // payment_transactions_status_check allows exactly these six values.
-    for (const value of ['pending', 'completed', 'refunded', 'partially_refunded', 'disputed', 'abandoned']) {
+    // Payment history includes online attempts and traditional transfer orders.
+    for (const value of ['pending', 'completed', 'refunded', 'partially_refunded', 'disputed', 'abandoned', 'awaiting_payment', 'cancelled']) {
       expect(paymentFiltersSource).toContain(`value="${value}"`);
     }
-    // 'failed' and 'cancelled' can never occur on payment_transactions and
-    // previously caused a 400 once the dropdown value reached the server.
+    // Failed attempts are represented by their existing session state.
     expect(paymentFiltersSource).not.toContain('value="failed"');
-    expect(paymentFiltersSource).not.toContain('value="cancelled"');
   });
 
   it('debounces the search input before it triggers a server request', () => {

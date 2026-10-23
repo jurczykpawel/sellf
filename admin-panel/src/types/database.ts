@@ -864,6 +864,42 @@ export type Database = {
           },
         ]
       }
+      bank_transfer_config: {
+        Row: {
+          bank_account_holder: string
+          bank_account_number: string
+          bank_name: string
+          bank_transfer_due_days: number
+          bank_transfer_enabled: boolean
+          bank_transfer_grant_access_on_placement: boolean
+          bank_transfer_max_unpaid_per_email: number
+          bank_transfer_title_template: string
+          id: boolean
+        }
+        Insert: {
+          bank_account_holder?: string
+          bank_account_number?: string
+          bank_name?: string
+          bank_transfer_due_days?: number
+          bank_transfer_enabled?: boolean
+          bank_transfer_grant_access_on_placement?: boolean
+          bank_transfer_max_unpaid_per_email?: number
+          bank_transfer_title_template?: string
+          id?: boolean
+        }
+        Update: {
+          bank_account_holder?: string
+          bank_account_number?: string
+          bank_name?: string
+          bank_transfer_due_days?: number
+          bank_transfer_enabled?: boolean
+          bank_transfer_grant_access_on_placement?: boolean
+          bank_transfer_max_unpaid_per_email?: number
+          bank_transfer_title_template?: string
+          id?: boolean
+        }
+        Relationships: []
+      }
       bundle_items: {
         Row: {
           bundle_product_id: string
@@ -1429,6 +1465,98 @@ export type Database = {
         }
         Relationships: []
       }
+      invoices: {
+        Row: {
+          attempts: number
+          created_at: string
+          error: string | null
+          external_key: string
+          id: string
+          number: string | null
+          payment_synced: boolean
+          provider: string
+          provider_domain: string
+          provider_invoice_id: string | null
+          status: string
+          transaction_id: string
+          updated_at: string
+          view_url: string | null
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          external_key: string
+          id?: string
+          number?: string | null
+          payment_synced?: boolean
+          provider: string
+          provider_domain: string
+          provider_invoice_id?: string | null
+          status?: string
+          transaction_id: string
+          updated_at?: string
+          view_url?: string | null
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          external_key?: string
+          id?: string
+          number?: string | null
+          payment_synced?: boolean
+          provider?: string
+          provider_domain?: string
+          provider_invoice_id?: string | null
+          status?: string
+          transaction_id?: string
+          updated_at?: string
+          view_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: true
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoicing_config: {
+        Row: {
+          domain: string
+          exemption: string
+          id: boolean
+          instance_id: string
+          mode: string
+          provider: string
+          template: string
+          token: Json | null
+        }
+        Insert: {
+          domain?: string
+          exemption?: string
+          id?: boolean
+          instance_id?: string
+          mode?: string
+          provider?: string
+          template?: string
+          token?: Json | null
+        }
+        Update: {
+          domain?: string
+          exemption?: string
+          id?: boolean
+          instance_id?: string
+          mode?: string
+          provider?: string
+          template?: string
+          token?: Json | null
+        }
+        Relationships: []
+      }
       issued_licenses: {
         Row: {
           email: string | null
@@ -1845,8 +1973,13 @@ export type Database = {
           livemode: boolean
           metadata: Json
           net_total: number | null
+          order_cancelled_notified_at: string | null
           order_details: Json | null
           order_number: number
+          order_overdue_notified_at: string | null
+          order_placed_notified_at: string | null
+          paid_at: string | null
+          payment_due_at: string | null
           payment_provider: string
           pricing_snapshot_version: number | null
           product_id: string
@@ -1862,6 +1995,8 @@ export type Database = {
           subscription_id: string | null
           tax_snapshot_status: string
           tax_total: number | null
+          transfer_details: Json | null
+          transfer_mail_sent_at: string | null
           updated_at: string
           user_id: string | null
         }
@@ -1879,8 +2014,13 @@ export type Database = {
           livemode?: boolean
           metadata?: Json
           net_total?: number | null
+          order_cancelled_notified_at?: string | null
           order_details?: Json | null
           order_number?: number
+          order_overdue_notified_at?: string | null
+          order_placed_notified_at?: string | null
+          paid_at?: string | null
+          payment_due_at?: string | null
           payment_provider?: string
           pricing_snapshot_version?: number | null
           product_id: string
@@ -1896,6 +2036,8 @@ export type Database = {
           subscription_id?: string | null
           tax_snapshot_status?: string
           tax_total?: number | null
+          transfer_details?: Json | null
+          transfer_mail_sent_at?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -1913,8 +2055,13 @@ export type Database = {
           livemode?: boolean
           metadata?: Json
           net_total?: number | null
+          order_cancelled_notified_at?: string | null
           order_details?: Json | null
           order_number?: number
+          order_overdue_notified_at?: string | null
+          order_placed_notified_at?: string | null
+          paid_at?: string | null
+          payment_due_at?: string | null
           payment_provider?: string
           pricing_snapshot_version?: number | null
           product_id?: string
@@ -1930,6 +2077,8 @@ export type Database = {
           subscription_id?: string | null
           tax_snapshot_status?: string
           tax_total?: number | null
+          transfer_details?: Json | null
+          transfer_mail_sent_at?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -3524,6 +3673,7 @@ export type Database = {
           id: string
           product_id: string
           subscription_id: string | null
+          transfer_transaction_id: string | null
           user_id: string
           version: number
         }
@@ -3536,6 +3686,7 @@ export type Database = {
           id?: string
           product_id: string
           subscription_id?: string | null
+          transfer_transaction_id?: string | null
           user_id: string
           version?: number
         }
@@ -3548,6 +3699,7 @@ export type Database = {
           id?: string
           product_id?: string
           subscription_id?: string | null
+          transfer_transaction_id?: string | null
           user_id?: string
           version?: number
         }
@@ -3564,6 +3716,13 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_product_access_transfer_transaction_id_fkey"
+            columns: ["transfer_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
             referencedColumns: ["id"]
           },
           {
@@ -4004,6 +4163,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_bank_transfer_order: {
+        Args: {
+          p_action: string
+          p_actor?: string
+          p_amount?: number
+          p_id: string
+          p_paid_at?: string
+          p_reason?: string
+        }
+        Returns: Json
+      }
       admin_delete_oto_offer: {
         Args: { source_product_id_param: string }
         Returns: Json
@@ -4430,6 +4600,10 @@ export type Database = {
           migration_sql: string
           migration_version: string
         }
+        Returns: Json
+      }
+      bank_transfer_order: {
+        Args: { p_lines: Json; p_order: Json }
         Returns: Json
       }
       batch_check_user_product_access: {
@@ -5101,6 +5275,10 @@ export type Database = {
           p_secret: string
         }
         Returns: boolean
+      }
+      save_bank_transfer_config: {
+        Args: { p_actor: string; p_config: Json }
+        Returns: undefined
       }
       save_template_credential: {
         Args: {
