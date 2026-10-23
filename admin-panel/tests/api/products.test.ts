@@ -142,6 +142,49 @@ describe('Products API v1', () => {
     });
   });
 
+  describe('cursor values across database pages', () => {
+    const marker = `CursorValues${Date.now()}`;
+    const ids: string[] = [];
+
+    beforeAll(async () => {
+      const values = ['(', ')', ',', '"', '\\', '.', 'Zażółć', '🐈', 'a),id.gt.(', 'a\\"),id.gt.(', '', 'same'];
+      const { data, error } = await supabaseAdmin().from('products').insert(
+        Array.from({ length: 36 }, (_, i) => ({
+          name: `${marker} ${values[i % values.length]}`,
+          slug: `${marker.toLowerCase()}-${i}`,
+          price: i % 4 + 1.25,
+          is_active: true,
+          created_at: '2026-01-01T00:00:00.123Z',
+        }))
+      ).select('id');
+      expect(error).toBeNull();
+      ids.push(...data!.map(row => row.id));
+      createdProductIds.push(...ids);
+    });
+
+    for (const field of ['name', 'price', 'created_at']) {
+      it.each(['asc', 'desc'] as const)(`visits every product once ordered by ${field} %s`, async (direction) => {
+        const { data: expected, error } = await supabaseAdmin().from('products').select('id')
+          .in('id', ids).order(field, { ascending: direction === 'asc' }).order('id', { ascending: direction === 'asc' });
+        expect(error).toBeNull();
+        const seen: string[] = [];
+        let cursor: string | null = null;
+        for (let page = 0; page < 37; page++) {
+          const params = new URLSearchParams({ status: 'active', search: marker, sort_by: field, sort_order: direction, limit: '1' });
+          if (cursor) params.set('cursor', cursor);
+          const { status, data } = await get<ApiResponse<Product[]>>(`/api/v1/products?${params}`);
+          expect(status, JSON.stringify(data.error)).toBe(200);
+          seen.push(...data.data!.map(row => row.id));
+          if (!data.pagination!.has_more) break;
+          expect(data.pagination!.next_cursor).toBeTruthy();
+          cursor = data.pagination!.next_cursor;
+        }
+        expect(seen).toEqual(expected!.map(row => row.id));
+        expect(new Set(seen).size).toBe(36);
+      });
+    }
+  });
+
   describe('POST /api/v1/products', () => {
     it('should create a product with required fields', async () => {
       const slug = uniqueSlug();

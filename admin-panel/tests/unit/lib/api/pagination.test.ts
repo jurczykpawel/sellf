@@ -16,12 +16,54 @@ import {
 } from '@/lib/api/pagination';
 
 describe('Pagination', () => {
+  describe('cursor literal values', () => {
+    const id = '12345678-1234-1234-1234-123456789abc';
+    const cases = [
+      ['name', 'R3 VAT netto (jednorazowy)', '"R3 VAT netto (jednorazowy)"'],
+      ['name', 'a,b', '"a,b"'],
+      ['name', 'a"b', '"a\\"b"'],
+      ['name', 'a\\b', '"a\\\\b"'],
+      ['name', 'a.b:*(x)', '"a.b:*(x)"'],
+      ['name', 'Zażółć 🐈', '"Zażółć 🐈"'],
+      ['name', '', '""'],
+      ['name', 'a),id.gt.(', '"a),id.gt.("'],
+      ['name', 'a\\"),id.gt.(', '"a\\\\\\"),id.gt.("'],
+      ['created_at', '2026-01-01T00:00:00.123+00:00', '"2026-01-01T00:00:00.123+00:00"'],
+      ['price', '12.50', '"12.50"'],
+      ['is_active', 'true', '"true"'],
+    ];
+    for (const direction of ['asc', 'desc'] as const) {
+      it.each(cases)(`preserves %s value %s (${direction})`, (field, value, literal) => {
+        const cursor = encodeCursor({ field, value, id, direction });
+        expect(decodeCursor(cursor)).toEqual({ field, value, id, direction });
+        const query = { or: vi.fn().mockReturnThis() };
+        applyCursorToQuery(query, cursor, field, direction);
+        const op = direction === 'asc' ? 'gt' : 'lt';
+        expect(query.or).toHaveBeenCalledExactlyOnceWith(
+          `${field}.${op}.${literal},and(${field}.eq.${literal},id.${op}.${id})`
+        );
+      });
+    }
+    it.each(['123', 'uuid-123', `${id}),name.gt.a`, '', `${id}\n`])('rejects invalid UUID %s', (badId) => {
+      expect(decodeCursor(encodeCursor({ field: 'name', value: 'test', id: badId, direction: 'asc' }))).toBeNull();
+    });
+    it('rejects fields outside the allowed list', () => {
+      expect(decodeCursor(encodeCursor({ field: 'name),id', value: 'test', id, direction: 'asc' }))).toBeNull();
+    });
+    it('uses the configured user UUID column', () => {
+      const query = { or: vi.fn().mockReturnThis() };
+      applyCursorToQuery(query, encodeCursor({ field: 'total_value', value: '1.5', id, direction: 'desc' }),
+        'total_value', 'desc', { idField: 'user_id' });
+      expect(query.or).toHaveBeenCalledExactlyOnceWith(`total_value.lt."1.5",and(total_value.eq."1.5",user_id.lt.${id})`);
+    });
+  });
+
   describe('encodeCursor / decodeCursor', () => {
     it('should encode and decode cursor correctly', () => {
       const data = {
         field: 'created_at',
         value: '2024-01-15T10:30:00Z',
-        id: 'uuid-123',
+        id: '00000000-0000-4000-8000-000000000001',
         direction: 'desc' as const,
       };
 
@@ -35,7 +77,7 @@ describe('Pagination', () => {
       const data = {
         field: 'name',
         value: 'Test Product',
-        id: 'abc-123',
+        id: '00000000-0000-4000-8000-000000000002',
         direction: 'asc' as const,
       };
 
@@ -48,7 +90,7 @@ describe('Pagination', () => {
       const data = {
         field: 'name',
         value: 'Product with "quotes" & <special> chars',
-        id: 'id-with-dash',
+        id: '00000000-0000-4000-8000-000000000003',
         direction: 'desc' as const,
       };
 
@@ -62,7 +104,7 @@ describe('Pagination', () => {
       const data = {
         field: 'name',
         value: 'Продукт 日本語 한국어',
-        id: 'unicode-id',
+        id: '00000000-0000-4000-8000-000000000004',
         direction: 'asc' as const,
       };
 
@@ -76,7 +118,7 @@ describe('Pagination', () => {
       const data = {
         field: 'description',
         value: '',
-        id: 'empty-desc',
+        id: '00000000-0000-4000-8000-000000000005',
         direction: 'desc' as const,
       };
 
@@ -98,13 +140,13 @@ describe('Pagination', () => {
     });
 
     it('should return null for missing field', () => {
-      const data = { value: 'test', id: '123', direction: 'asc' };
+      const data = { value: 'test', id: '00000000-0000-4000-8000-000000000006', direction: 'asc' };
       const encoded = Buffer.from(JSON.stringify(data)).toString('base64url');
       expect(decodeCursor(encoded)).toBe(null);
     });
 
     it('should return null for missing value', () => {
-      const data = { field: 'name', id: '123', direction: 'asc' };
+      const data = { field: 'name', id: '00000000-0000-4000-8000-000000000006', direction: 'asc' };
       const encoded = Buffer.from(JSON.stringify(data)).toString('base64url');
       expect(decodeCursor(encoded)).toBe(null);
     });
@@ -116,13 +158,13 @@ describe('Pagination', () => {
     });
 
     it('should return null for invalid direction', () => {
-      const data = { field: 'name', value: 'test', id: '123', direction: 'invalid' };
+      const data = { field: 'name', value: 'test', id: '00000000-0000-4000-8000-000000000006', direction: 'invalid' };
       const encoded = Buffer.from(JSON.stringify(data)).toString('base64url');
       expect(decodeCursor(encoded)).toBe(null);
     });
 
     it('should return null for non-string field', () => {
-      const data = { field: 123, value: 'test', id: '123', direction: 'asc' };
+      const data = { field: 123, value: 'test', id: '00000000-0000-4000-8000-000000000006', direction: 'asc' };
       const encoded = Buffer.from(JSON.stringify(data)).toString('base64url');
       expect(decodeCursor(encoded)).toBe(null);
     });
@@ -171,9 +213,9 @@ describe('Pagination', () => {
 
   describe('createPaginationResponse', () => {
     const sampleItems = [
-      { id: '1', name: 'Item 1', created_at: '2024-01-01' },
-      { id: '2', name: 'Item 2', created_at: '2024-01-02' },
-      { id: '3', name: 'Item 3', created_at: '2024-01-03' },
+      { id: '00000000-0000-4000-8000-000000000007', name: 'Item 1', created_at: '2024-01-01' },
+      { id: '00000000-0000-4000-8000-000000000008', name: 'Item 2', created_at: '2024-01-02' },
+      { id: '00000000-0000-4000-8000-000000000009', name: 'Item 3', created_at: '2024-01-03' },
     ];
 
     it('should return items without next cursor when no more items', () => {
@@ -205,11 +247,11 @@ describe('Pagination', () => {
     });
 
     it('should trim items to limit', () => {
-      const items = [...sampleItems, { id: '4', name: 'Item 4', created_at: '2024-01-04' }];
+      const items = [...sampleItems, { id: '00000000-0000-4000-8000-00000000000a', name: 'Item 4', created_at: '2024-01-04' }];
       const result = createPaginationResponse(items, 3, 'created_at', 'desc', null);
 
       expect(result.items).toHaveLength(3);
-      expect(result.items.map(i => i.id)).toEqual(['1', '2', '3']);
+      expect(result.items.map(i => i.id)).toEqual(['00000000-0000-4000-8000-000000000007', '00000000-0000-4000-8000-000000000008', '00000000-0000-4000-8000-000000000009']);
     });
 
     it('should include current cursor in pagination', () => {
@@ -233,21 +275,21 @@ describe('Pagination', () => {
     });
 
     it('should create valid next cursor that can be decoded', () => {
-      const items = [...sampleItems, { id: '4', name: 'Extra', created_at: '2024-01-04' }];
+      const items = [...sampleItems, { id: '00000000-0000-4000-8000-00000000000a', name: 'Extra', created_at: '2024-01-04' }];
       const result = createPaginationResponse(items, 3, 'created_at', 'desc', null);
 
       const decoded = decodeCursor(result.pagination.next_cursor!);
       expect(decoded).not.toBe(null);
       expect(decoded?.field).toBe('created_at');
-      expect(decoded?.id).toBe('3');
+      expect(decoded?.id).toBe('00000000-0000-4000-8000-000000000009');
       expect(decoded?.direction).toBe('desc');
     });
 
     it('should use correct order field value in cursor', () => {
       const items = [
-        { id: '1', name: 'Alpha', created_at: '2024-01-01' },
-        { id: '2', name: 'Beta', created_at: '2024-01-02' },
-        { id: '3', name: 'Extra', created_at: '2024-01-03' },
+        { id: '00000000-0000-4000-8000-000000000007', name: 'Alpha', created_at: '2024-01-01' },
+        { id: '00000000-0000-4000-8000-000000000008', name: 'Beta', created_at: '2024-01-02' },
+        { id: '00000000-0000-4000-8000-000000000009', name: 'Extra', created_at: '2024-01-03' },
       ];
       const result = createPaginationResponse(items, 2, 'name', 'asc', null);
 
@@ -316,22 +358,22 @@ describe('Pagination', () => {
       // 16 products, 13 share the same created_at (mimics seeded data)
       const sharedTimestamp = '2026-03-06T09:29:43.378612+00';
       const items = [
-        { id: 'a5fe44ed', name: 'Stats-Test', created_at: '2026-03-06T09:30:35+00' },
-        { id: 'ce0e7dbf', name: 'Bump', created_at: '2026-03-06T09:30:34+00' },
-        { id: 'a749b687', name: 'Main', created_at: '2026-03-06T09:30:34+00' },
-        { id: 'f1909203', name: 'Design System', created_at: sharedTimestamp },
-        { id: 'edf55900', name: 'Test OTO Active', created_at: sharedTimestamp },
-        { id: 'ebead6ef', name: 'Enterprise', created_at: sharedTimestamp },
-        { id: 'c5365527', name: 'Test OTO Owned', created_at: sharedTimestamp },
-        { id: 'b86a81ad', name: 'VIP Masterclass', created_at: sharedTimestamp },
-        { id: 'a0ca02d1', name: 'Community Guide', created_at: sharedTimestamp },
-        { id: '7db7e3ee', name: 'Test No Redirect', created_at: sharedTimestamp },
-        { id: '73e47f30', name: 'Premium Course', created_at: sharedTimestamp },
-        { id: '6fc4b6f0', name: 'Pro Toolkit', created_at: sharedTimestamp },
-        { id: '3786354f', name: 'Free Tutorial', created_at: sharedTimestamp },
-        { id: '2fd6727d', name: 'Test Custom Redirect', created_at: sharedTimestamp },
-        { id: '0910b4e3', name: 'Test OTO Target', created_at: sharedTimestamp },
-        { id: '06fbb8cf', name: 'Test Product Redirect', created_at: sharedTimestamp },
+        { id: '00000000-0000-4000-8000-00000000000b', name: 'Stats-Test', created_at: '2026-03-06T09:30:35+00' },
+        { id: '00000000-0000-4000-8000-00000000000c', name: 'Bump', created_at: '2026-03-06T09:30:34+00' },
+        { id: '00000000-0000-4000-8000-00000000000d', name: 'Main', created_at: '2026-03-06T09:30:34+00' },
+        { id: '00000000-0000-4000-8000-00000000000e', name: 'Design System', created_at: sharedTimestamp },
+        { id: '00000000-0000-4000-8000-00000000000f', name: 'Test OTO Active', created_at: sharedTimestamp },
+        { id: '00000000-0000-4000-8000-000000000010', name: 'Enterprise', created_at: sharedTimestamp },
+        { id: '00000000-0000-4000-8000-000000000011', name: 'Test OTO Owned', created_at: sharedTimestamp },
+        { id: '00000000-0000-4000-8000-000000000012', name: 'VIP Masterclass', created_at: sharedTimestamp },
+        { id: '00000000-0000-4000-8000-000000000013', name: 'Community Guide', created_at: sharedTimestamp },
+        { id: '00000000-0000-4000-8000-000000000014', name: 'Test No Redirect', created_at: sharedTimestamp },
+        { id: '00000000-0000-4000-8000-000000000015', name: 'Premium Course', created_at: sharedTimestamp },
+        { id: '00000000-0000-4000-8000-000000000016', name: 'Pro Toolkit', created_at: sharedTimestamp },
+        { id: '00000000-0000-4000-8000-000000000017', name: 'Free Tutorial', created_at: sharedTimestamp },
+        { id: '00000000-0000-4000-8000-000000000018', name: 'Test Custom Redirect', created_at: sharedTimestamp },
+        { id: '00000000-0000-4000-8000-000000000019', name: 'Test OTO Target', created_at: sharedTimestamp },
+        { id: '00000000-0000-4000-8000-00000000001a', name: 'Test Product Redirect', created_at: sharedTimestamp },
       ];
 
       const { seen, pages } = simulatePagination(items, 10, 'created_at', 'desc');
@@ -342,12 +384,12 @@ describe('Pagination', () => {
       const uniqueSeen = new Set(seen);
       expect(uniqueSeen.size).toBe(16);
       // Specifically verify the item at the page boundary
-      expect(seen).toContain('73e47f30'); // Premium Course
+      expect(seen).toContain('00000000-0000-4000-8000-000000000015'); // Premium Course
     });
 
     it('should not skip items with small page size', () => {
       const items = Array.from({ length: 25 }, (_, i) => ({
-        id: String(i).padStart(3, '0'),
+        id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
         name: `Item ${i}`,
         created_at: `2024-01-01T00:00:00Z`,
       }));
@@ -360,7 +402,7 @@ describe('Pagination', () => {
 
     it('should not skip items with ascending sort', () => {
       const items = Array.from({ length: 15 }, (_, i) => ({
-        id: String(i).padStart(3, '0'),
+        id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
         name: `Item ${i}`,
         price: '10.00',
       }));
@@ -373,7 +415,7 @@ describe('Pagination', () => {
 
     it('should handle exact multiple of page size', () => {
       const items = Array.from({ length: 20 }, (_, i) => ({
-        id: String(i).padStart(3, '0'),
+        id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
         name: `Item ${i}`,
         created_at: `2024-01-${String(i + 1).padStart(2, '0')}`,
       }));
@@ -428,7 +470,7 @@ describe('Pagination', () => {
       const cursor = encodeCursor({
         field: 'name',
         value: 'test',
-        id: '123',
+        id: '00000000-0000-4000-8000-000000000006',
         direction: 'desc',
       });
       const result = applyCursorToQuery(query, cursor, 'created_at', 'desc');
@@ -442,7 +484,7 @@ describe('Pagination', () => {
       const cursor = encodeCursor({
         field: 'created_at',
         value: '2024-01-01',
-        id: '123',
+        id: '00000000-0000-4000-8000-000000000006',
         direction: 'asc',
       });
       const result = applyCursorToQuery(query, cursor, 'created_at', 'desc');
@@ -456,14 +498,14 @@ describe('Pagination', () => {
       const cursor = encodeCursor({
         field: 'created_at',
         value: '2024-01-15',
-        id: 'uuid-123',
+        id: '00000000-0000-4000-8000-000000000001',
         direction: 'desc',
       });
       const result = applyCursorToQuery(query, cursor, 'created_at', 'desc');
 
       expect(result).toBe(query);
       expect(query.or).toHaveBeenCalledWith(
-        'created_at.lt.2024-01-15,and(created_at.eq.2024-01-15,id.lt.uuid-123)'
+        'created_at.lt."2024-01-15",and(created_at.eq."2024-01-15",id.lt.00000000-0000-4000-8000-000000000001)'
       );
     });
 
@@ -472,14 +514,14 @@ describe('Pagination', () => {
       const cursor = encodeCursor({
         field: 'name',
         value: 'Product A',
-        id: 'uuid-456',
+        id: '00000000-0000-4000-8000-00000000001b',
         direction: 'asc',
       });
       const result = applyCursorToQuery(query, cursor, 'name', 'asc');
 
       expect(result).toBe(query);
       expect(query.or).toHaveBeenCalledWith(
-        'name.gt.Product A,and(name.eq.Product A,id.gt.uuid-456)'
+        'name.gt."Product A",and(name.eq."Product A",id.gt.00000000-0000-4000-8000-00000000001b)'
       );
     });
   });

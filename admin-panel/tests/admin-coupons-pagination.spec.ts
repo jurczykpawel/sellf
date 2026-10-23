@@ -137,6 +137,38 @@ test.describe('Admin coupons page pagination', () => {
     expect(scopedListRequests.length).toBeGreaterThan(requestsBeforeLoadMore);
   });
 
+  test('loads coupons and all product choices across name cursor pages', async ({ page }) => {
+    const prefix = `!Cursor${Date.now()}`;
+    const names = Array.from({ length: 105 }, (_, i) => `${prefix} (${String(i).padStart(3, '0')}), "produkt" \\ 🐈`);
+    const { data, error } = await supabaseAdmin.from('products').insert(names.map((name, i) => ({
+      name, slug: `cursor-picker-${prefix.slice(1).toLowerCase()}-${i}`, price: 10, is_active: true,
+    }))).select('id');
+    expect(error).toBeNull();
+    const ids = data!.map(row => row.id);
+    try {
+      await loginAsAdmin(page, adminEmail, adminPassword);
+      const productResponses: number[] = [];
+      page.on('response', response => {
+        const url = new URL(response.url());
+        if (url.pathname === '/api/v1/products' && url.searchParams.has('cursor')) {
+          productResponses.push(response.status());
+        }
+      });
+      await page.goto('/dashboard/coupons');
+      const search = page.getByPlaceholder(/Search by code or name|Szukaj po kodzie lub nazwie/i);
+      await search.fill(needleCode);
+      await expect(page.locator('table').getByText(needleCode, { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: /Create coupon|Add coupon|Utwórz kupon|Dodaj kupon/i }).first().click();
+      await expect(page.getByRole('checkbox', { name: names[104], exact: true })).toBeVisible();
+      await expect(page.getByRole('checkbox', { name: new RegExp(prefix) })).toHaveCount(105);
+      expect(productResponses.length).toBeGreaterThan(0);
+      expect(productResponses.every(status => status === 200)).toBe(true);
+    } finally {
+      const { error: cleanupError } = await supabaseAdmin.from('products').delete().in('id', ids);
+      expect(cleanupError).toBeNull();
+    }
+  });
+
   test('finds a coupon that is not on the first loaded page via search', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
 

@@ -7,7 +7,9 @@
  * - Works well with real-time data
  */
 
-import { CursorPagination } from './types';
+import { quoteForPostgrestOr } from '@/lib/api/filters';
+
+import type { CursorPagination } from '@/lib/api/types';
 
 // Default and max limits
 export const DEFAULT_LIMIT = 20;
@@ -28,7 +30,7 @@ export function encodeCursor(data: CursorData): string {
   return Buffer.from(JSON.stringify(data)).toString('base64url');
 }
 
-// Allowed field names for cursor ordering (prevent filter injection via field name)
+// Allowed field names for cursor ordering
 const ALLOWED_CURSOR_FIELDS = new Set([
   'created_at', 'updated_at', 'id', 'name', 'email', 'description',
   // Users
@@ -42,8 +44,7 @@ const ALLOWED_CURSOR_FIELDS = new Set([
   'code', 'current_usage_count',
 ]);
 
-// PostgREST filter metacharacters — commas and parens can inject filter conditions
-const POSTGREST_INJECTION_REGEX = /[(),]/;
+const CURSOR_UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Decode cursor string to data
@@ -63,13 +64,13 @@ export function decodeCursor(cursor: string): CursorData | null {
       return null;
     }
 
-    // Validate field name against allowlist (defense-in-depth against filter injection)
+    // Validate field name against allowlist
     if (!ALLOWED_CURSOR_FIELDS.has(data.field)) {
       return null;
     }
 
-    // Reject id or value containing PostgREST filter metacharacters
-    if (POSTGREST_INJECTION_REGEX.test(data.id) || POSTGREST_INJECTION_REGEX.test(data.value)) {
+    // Validate the UUID used for tie-breaking
+    if (data.id.length !== 36 || !CURSOR_UUID_REGEX.test(data.id)) {
       return null;
     }
 
@@ -203,20 +204,22 @@ export function applyCursorToQuery(
   }
 
   const idField = options?.idField ?? 'id';
+  // https://docs.postgrest.org/en/stable/references/api/url_grammar.html#reserved-characters
+  const value = quoteForPostgrestOr(cursorData.value);
 
   // Apply cursor filter using compound comparison
   // For timestamps, we need special handling
   if (orderDirection === 'desc') {
     // Get items before cursor (older items for desc)
     query = query.or(
-      `${orderField}.lt.${cursorData.value},` +
-      `and(${orderField}.eq.${cursorData.value},${idField}.lt.${cursorData.id})`
+      `${orderField}.lt.${value},` +
+      `and(${orderField}.eq.${value},${idField}.lt.${cursorData.id})`
     );
   } else {
     // Get items after cursor (newer items for asc)
     query = query.or(
-      `${orderField}.gt.${cursorData.value},` +
-      `and(${orderField}.eq.${cursorData.value},${idField}.gt.${cursorData.id})`
+      `${orderField}.gt.${value},` +
+      `and(${orderField}.eq.${value},${idField}.gt.${cursorData.id})`
     );
   }
 
