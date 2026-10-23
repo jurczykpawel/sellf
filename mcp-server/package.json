@@ -23,7 +23,7 @@
   "author": "Sellf",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -45,6 +45,8 @@
     "hono": "^4.13.11",
     "path-to-regexp": "^8.4.2",
     "body-parser": "^2.3.0",
-    "postcss": "^8.5.28"
+    "postcss": "^8.5.28",
+    "source-map-js": "^1.2.2",
+    "vite": "^8.3.5"
   }
 }

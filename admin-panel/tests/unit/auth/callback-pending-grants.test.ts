@@ -71,7 +71,7 @@ describe('auth callback pending free grants', () => {
     expect(response.headers.get('location')).toContain('/auth/product-access?product=widget');
   });
 
-  it.each(['/affiliates/apply', '/pl/affiliates/apply', '/en/affiliates/apply', '/pl/auth/product-access?product=course'])('retains supported arrival destination %s', async path => {
+  it.each(['/affiliates/apply', '/pl/affiliates/apply', '/en/affiliates/apply', '/auth/product-access?product=course', '/pl/auth/product-access?product=course', '/en/auth/product-access?product=course&coupon=SAVE'])('retains supported arrival destination %s', async path => {
     const response = await callback(`redirect_to=${encodeURIComponent(path)}&type=magiclink&token_hash=abc`);
     expect(response.headers.get('location')).toBe(`https://shop.example.com${path}`);
   });
@@ -135,6 +135,19 @@ describe('auth callback pending free grants', () => {
     const oauthResponse = await GET(new NextRequest('https://shop.example.com/auth/callback?code=local-code', { headers: { cookie: `sf_oauth_redirect=${encodeURIComponent(path)}` } }));
     expect(oauthResponse.headers.get('location')).toBe(`https://shop.example.com${path}`);
     expect(oauthResponse.cookies.get('sf_oauth_redirect')?.value).toBe('');
+  });
+
+  it('retains the parsed OAuth return cookie', async () => {
+    exchangeCodeForSession.mockResolvedValue({ data: { session: { user: USER } }, error: null });
+    const path = '/auth/product-access?product=course&success_url=%2Fthanks%3Fa%3D1%26b%3D2';
+    const response = await GET(new NextRequest('https://shop.example.com/auth/callback?code=local-code', { headers: { cookie: `sf_oauth_redirect=${encodeURIComponent(path)}` } }));
+    expect(response.headers.get('location')).toBe(`https://shop.example.com${path}`);
+  });
+
+  it.each(['/other', '/\t/elsewhere.test', '/auth/product-access?product=course&return_url=/dashboard'])('uses the account default for unsupported OAuth return cookie %j', async path => {
+    exchangeCodeForSession.mockResolvedValue({ data: { session: { user: USER } }, error: null });
+    const response = await GET(new NextRequest('https://shop.example.com/auth/callback?code=local-code', { headers: { cookie: `sf_oauth_redirect=${encodeURIComponent(path)}` } }));
+    expect(response.headers.get('location')).toBe('https://shop.example.com/my-products');
   });
 
   it('does not claim when the sign-in failed', async () => {
