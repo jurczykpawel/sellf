@@ -112,9 +112,9 @@ describe('Stripe Custom Checkout contract — fields ↔ update* parity', () => 
 
     if (/name:\s*'never'/.test(fieldsBlock)) {
       // updateBillingAddress is the only update*() call that carries name in
-      // Custom Checkout, so it must exist and reference invoice.fullName.
+      // Custom Checkout, using the profile party or the original full name.
       expect(customPaymentFormSource).toMatch(
-        /checkout\.updateBillingAddress\(\s*\{[\s\S]*?name:\s*invoice\.fullName/,
+        /checkout\.updateBillingAddress\(\s*\{[\s\S]*?name:\s*profile\s*\?[\s\S]*:\s*invoice\.fullName/,
       );
     }
   });

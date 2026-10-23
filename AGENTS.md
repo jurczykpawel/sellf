@@ -699,6 +699,12 @@ record `product.checkout_profile.update` in audit metadata. Profile submissions 
 main snapshot line). Details merge by key; buyer retains E0 fields, phone and quantity
 use `{v,value}`, and participants use `{v,people}`. Order details are bounded to 64KiB
 for up to 100 participants. Stripe metadata removes personal fields and preserves technical fields and flags.
+Quantity is validated against the saved profile before session creation, included in the
+client session signature and retained in the main snapshot line. Stripe charges each
+whole discounted line once and labels multiple units with `× N`. The profile UI lives
+beside checkout components and uses the existing module values. Completion records
+`order_details.details_missing` when required profile modules were not collected;
+access and payment completion continue normally.
 
 ### Guest Checkout to Registered User Flow
 

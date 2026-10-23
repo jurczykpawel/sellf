@@ -44,10 +44,11 @@ describe('order snapshot lines', () => {
     const { specs } = buildCheckoutLineSpecs({ ...base, bumps: [{ product: { ...bump, currency: 'EUR' }, price: 5 }] });
     expect(() => buildOrderSnapshotLines(specs, options)).toThrow();
   });
-  it('refuses quantity above one before resolving Stripe tax rates', async () => {
-    const { specs } = buildCheckoutLineSpecs(base);
-    const resolveTaxRate = vi.fn();
-    await expect(buildStripeLineItems(specs, { resolveTaxRate })).rejects.toThrow();
-    expect(resolveTaxRate).not.toHaveBeenCalled();
+  it('charges the saved whole line once with quantity three and a fixed coupon', async () => {
+    const { specs, totalMinor } = buildCheckoutLineSpecs({ ...base, coupon: { code: 'FIX', discount_type: 'fixed', discount_value: 7.01 } });
+    const lines = buildOrderSnapshotLines(specs, options);
+    const items = await buildStripeLineItems(specs, { resolveTaxRate: vi.fn(async () => 'txr_test') });
+    expect(items[0]).toMatchObject({ quantity: 1, price_data: { unit_amount: toMinorUnits(lines[0].discounted_total, 'PLN'), product_data: { name: 'Main × 3' } } });
+    expect(items.reduce((sum, item) => sum + (item.price_data as { unit_amount: number }).unit_amount, 0)).toBe(totalMinor);
   });
 });

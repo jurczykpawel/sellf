@@ -13,6 +13,7 @@ const PRODUCT_ID = '11111111-1111-4111-8111-111111111111';
 
 const mocks = vi.hoisted(() => ({
   adminRpc: vi.fn(),
+  customUpdate: vi.fn(async () => ({ error: null })),
   productRead: vi.fn(),
   sessionsRetrieve: vi.fn(),
   sessionsUpdate: vi.fn(),
@@ -24,7 +25,7 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => ({ auth: { getUser: async () => ({ data: { user: null } }) } })),
 }));
 vi.mock('@/lib/supabase/admin', () => ({
-  createAdminClient: vi.fn(() => ({ rpc: mocks.adminRpc, from: () => ({ select: () => ({ eq: () => ({ single: mocks.productRead }) }) }) })),
+  createAdminClient: vi.fn(() => ({ rpc: mocks.adminRpc, from: () => ({ update: (value: unknown) => ({ match: () => mocks.customUpdate(value) }), select: () => ({ eq: () => ({ single: mocks.productRead }) }) }) })),
 }));
 vi.mock('@/lib/rate-limiting', () => ({
   checkRateLimit: vi.fn().mockResolvedValue(true),
@@ -42,6 +43,11 @@ vi.mock('@/lib/stripe/checkout-config', () => ({
 }));
 vi.mock('@/lib/stripe/buyer-tax-identity', () => ({ applyBuyerTaxIdentityToCustomer: vi.fn() }));
 
+vi.mock('@/lib/checkout-modules/registry', async original => {
+  const actual = await original<typeof import('@/lib/checkout-modules/registry')>();
+  return { ...actual, validateModuleValues: vi.fn(actual.validateModuleValues) };
+});
+import { validateModuleValues } from '@/lib/checkout-modules/registry';
 import { POST } from '@/app/api/update-payment-metadata/route';
 
 function makeRequest(objectId: string, extra: Record<string, unknown> = {}) {
@@ -225,4 +231,31 @@ describe('profile order details', () => {
     expect((await POST(makeRequest(SESSION_ID, { moduleValues }))).status).toBe(403);
     expect(mocks.adminRpc).not.toHaveBeenCalled();
   });
+});
+
+
+describe('profile and custom fields together', () => {
+  const moduleValues = { quantity: 1 };
+  beforeEach(() => { mocks.productRead.mockResolvedValue({ data: {
+    checkout_profile: { v: 1, modules: [{ id: 'quantity', mode: 'checkout', min: 1, max: 5 }] }, currency: 'PLN',
+    custom_checkout_fields: [{ id: 'note', type: 'text', label: 'Note', required: true, max_length: 200 }],
+  }, error: null }); });
+  it('saves both module and required custom field values', async () => {
+    const res = await POST(makeRequest(SESSION_ID, { moduleValues, customFieldValues: { note: 'Workshop' } }));
+    expect(res.status).toBe(200);
+    expect(mocks.customUpdate).toHaveBeenCalledWith({ custom_field_values: { note: 'Workshop' } });
+    expect(mocks.adminRpc).toHaveBeenCalledWith('set_payment_order_details', expect.anything());
+  });
+  it.each([{}, undefined])('rejects missing required custom values before module persistence: %s', async customFieldValues => {
+    expect((await POST(makeRequest(SESSION_ID, { moduleValues, customFieldValues }))).status).toBe(400);
+    expect(mocks.adminRpc).not.toHaveBeenCalled();
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+  });
+});
+
+
+it.each(['pl', 'en'])('passes request locale %s into the module registry', async locale => {
+  mocks.productRead.mockResolvedValue({ data: { checkout_profile: { v: 1, modules: [] }, currency: 'PLN' }, error: null });
+  expect((await POST(makeRequest(SESSION_ID, { moduleValues: {}, locale }))).status).toBe(200);
+  expect(validateModuleValues).toHaveBeenCalledWith(expect.anything(), {}, expect.objectContaining({ locale }));
 });

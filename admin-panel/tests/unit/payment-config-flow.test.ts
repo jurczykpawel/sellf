@@ -313,7 +313,9 @@ describe('custom checkout form source verification', () => {
     );
     expect(updateCall).not.toBeNull();
     const args = updateCall![1];
-    expect(args).toMatch(/name:\s*invoice\.fullName/);
+    expect(args).toMatch(/name:\s*profile\s*\?[\s\S]*:\s*invoice\.fullName/);
+    expect(args).toContain('profileForm.party.company_name');
+    expect(args).toContain('`${profileForm.person.first_name} ${profileForm.person.last_name}`');
     expect(args).toMatch(/address:\s*\{/);
     expect(args).toMatch(/country:/);
     expect(args).toMatch(/postal_code:/);

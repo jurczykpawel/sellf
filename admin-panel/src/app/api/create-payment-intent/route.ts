@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
+import { valueSchema as quantitySchema } from '@/lib/checkout-modules/quantity';
 import { buildCheckoutReturnUrl } from '@/lib/checkout/return-url';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -95,6 +97,7 @@ export async function POST(request: NextRequest) {
       country,
       successUrl,
       locale,
+      quantity = 1,
       customAmount,  // Pay What You Want
       customFieldValues, // Phase 3a: buyer-typed values for product.custom_checkout_fields
       repurchase: rawRepurchase,
@@ -192,6 +195,18 @@ export async function POST(request: NextRequest) {
         { error: 'Product not found or inactive' },
         { status: 404 }
       );
+    }
+
+    const profile = product.checkout_profile == null ? null : checkoutProfileSchema.safeParse(product.checkout_profile);
+    if (profile && !profile.success) {
+      return NextResponse.json({ error: 'Invalid checkout configuration' }, { status: 500 });
+    }
+    const quantityConfig = profile?.success ? profile.data.modules.find(module => module.id === 'quantity') : undefined;
+    const quantityValid = quantityConfig
+      ? quantitySchema(quantityConfig, { locale: checkoutLocale, quantity: 1, currency: product.currency }).safeParse(quantity).success
+      : quantity === 1;
+    if (!quantityValid || (product.issue_license_on_purchase && quantity !== 1)) {
+      return NextResponse.json({ error: 'Invalid order quantity' }, { status: 400 });
     }
 
     // Sale window applies to every product type; an open checkout tab must not outlive it.
@@ -537,7 +552,7 @@ export async function POST(request: NextRequest) {
     const pricing = calculatePricing({
       baseProductId: product.id,
       // Charge the active sale price (Omnibus) when running; coupon stacks on top.
-      productPrice: getEffectiveUnitPrice(product),
+      productPrice: getEffectiveUnitPrice(product) * quantity,
       productCurrency: product.currency,
       customAmount,
       bumps: validatedBumps.map(vb => ({ id: vb.product.id, price: vb.bumpPrice, selected: true })),
@@ -655,7 +670,8 @@ export async function POST(request: NextRequest) {
         priceIncludesVat: product.price_includes_vat,
         vatExempt: product.vat_exempt,
       },
-      mainPrice: pricing.basePrice,
+      mainPrice: pricing.basePrice / quantity,
+      quantity,
       bumps: validatedBumps.map((vb) => ({
         product: {
           id: vb.product.id,

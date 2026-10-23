@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
     // 3. Parse and validate request
     const {
       moduleValues,
+      locale,
       clientSecret,
       bindingToken,
       productId,
@@ -231,63 +232,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (productIdFromStripe !== productId) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    let profileProduct: { checkout_profile: unknown; currency: string } | null = null;
     if (!isSubscription) {
-      const admin = createAdminClient();
-      const { data: product, error } = await admin.from('products').select('checkout_profile, currency').eq('id', productId).single();
-      if (error || !product) return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
-      if (product.checkout_profile != null) {
-        const profile = checkoutProfileSchema.safeParse(product.checkout_profile);
-        if (!profile.success) return NextResponse.json({ success: false, error: 'Invalid checkout configuration' }, { status: 500 });
-        const rawQuantity = moduleValues?.quantity ?? 1;
-        const result = validateModuleValues(profile.data, moduleValues, { locale: 'pl', currency: product.currency, quantity: rawQuantity });
-        if (!result.success) return NextResponse.json({ success: false, errors: result.errors }, { status: 422 });
-        if (result.details.buyer && typeof result.details.buyer === 'object' && !Array.isArray(result.details.buyer)) result.details.buyer.terms_accepted = termsAccepted === true;
-        const { data: saved, error: saveError } = await admin.rpc('set_payment_order_details', {
-          p_details: result.details, p_product_id: productId, p_quantity: rawQuantity,
-          ...(isCheckoutSession ? { p_session_id: stripeObjectId } : { p_payment_intent_id: stripeObjectId }),
-        });
-        if (saveError && ['22023', '23514'].includes(saveError.code)) return NextResponse.json({ success: false, errors: [{ field: 'moduleValues', code: 'details_too_large' }] }, { status: 422 });
-        if (saveError) return NextResponse.json({ success: false, error: 'Failed to save order details' }, { status: 500 });
-        if (saved !== 1) return NextResponse.json({ success: false, code: 'quantity_snapshot_mismatch' }, { status: 409 });
-        const personalFields = new Set(['first_name', 'last_name', 'full_name', 'email', 'nip', 'tax_id', 'company_name', 'address', 'city', 'postal_code', 'country', 'phone', 'buyer', 'recipient', 'participants', 'participant_emails']);
-        const profileMetadata = Object.fromEntries(Object.entries(stripeMetadata).map(([key, value]) => [key, personalFields.has(key) ? '' : value]));
-        if (isCheckoutSession) await stripe.checkout.sessions.update(stripeObjectId, { metadata: profileMetadata });
-        else await stripe.paymentIntents.update(stripeObjectId, { metadata: profileMetadata });
-        const party = result.details.buyer;
-        if (stripeTaxCustomerId && party && typeof party === 'object' && !Array.isArray(party)) {
-          const config = await getCheckoutConfig();
-          if (shouldForwardTaxIdentityToStripe(config.tax_mode)) await applyBuyerTaxIdentityToCustomer({
-            stripe, customerId: stripeTaxCustomerId,
-            identity: { country: typeof party.country === 'string' ? party.country : undefined, taxId: typeof party.nip === 'string' ? party.nip : undefined, address: typeof party.address === 'string' ? party.address : undefined, city: typeof party.city === 'string' ? party.city : undefined, postalCode: typeof party.postal_code === 'string' ? party.postal_code : undefined },
-          });
-        }
-        return NextResponse.json({ success: true });
-      }
+      const { data, error } = await createAdminClient().from('products')
+        .select('checkout_profile, currency').eq('id', productId).single();
+      if (error || !data) return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
+      profileProduct = data;
     }
-    if (isCheckoutSession) await stripe.checkout.sessions.update(stripeObjectId, { metadata });
-    else await stripe.paymentIntents.update(stripeObjectId, { metadata });
-
-    // stripe_tax: set the buyer's country + EU VAT-ID on the Stripe Customer so automatic_tax
-    // computes the right jurisdiction and applies EU B2B reverse charge. This runs HERE — not at
-    // session creation — because this is where the buyer's NIP/country actually arrive (on submit).
-    // The Customer was attached at create-payment-intent (a session's customer can't be set later).
-    // Gated on stripe_tax; fail-safe (never blocks the metadata update or the payment).
-    if (stripeTaxCustomerId) {
-      const checkoutConfig = await getCheckoutConfig();
-      if (shouldForwardTaxIdentityToStripe(checkoutConfig.tax_mode)) {
-        await applyBuyerTaxIdentityToCustomer({
-          stripe,
-          customerId: stripeTaxCustomerId,
-          identity: { country, taxId: nip, address, city, postalCode },
-        });
-      }
-    }
-
+    let persistCustomFields: () => Promise<Response | null> = async () => null;
     // Phase 3a: validate + persist custom_field_values on the pending row.
     // Definitions come from DB (not the client) so the buyer cannot spoof
     // their own field shape; values from the request body are validated
     // against those definitions with requireAll=true (submit-time gate).
-    if (customFieldValues !== undefined) {
+    if (customFieldValues !== undefined || profileProduct?.checkout_profile != null) {
       if (!productIdFromStripe) {
         return NextResponse.json(
           { success: false, error: 'Cannot persist custom field values: payment has no product binding' },
@@ -321,7 +278,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const valuesResult = validateCustomFieldValues(defs.value, customFieldValues, {
+      const valuesResult = validateCustomFieldValues(defs.value, customFieldValues ?? {}, {
         requireAll: true,
       });
       if (!valuesResult.ok) {
@@ -331,21 +288,104 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const sessionId = isCheckoutSession ? stripeObjectId : null;
-      const piId = isCheckoutSession ? null : stripeObjectId;
-      const matcher = sessionId
-        ? { session_id: sessionId }
-        : { stripe_payment_intent_id: piId as string };
-      const { error: updateError } = await admin
-        .from('payment_transactions')
-        .update({ custom_field_values: valuesResult.values })
-        .match(matcher);
-      if (updateError) {
-        console.error('[update-payment-metadata] failed to persist custom_field_values:', updateError);
-        return NextResponse.json(
-          { success: false, error: 'Failed to save custom field values' },
-          { status: 500 },
+      persistCustomFields = async () => {
+        const sessionId = isCheckoutSession ? stripeObjectId : null;
+        const piId = isCheckoutSession ? null : stripeObjectId;
+        const matcher = sessionId
+          ? { session_id: sessionId }
+          : { stripe_payment_intent_id: piId as string };
+        const { error: updateError } = await admin
+          .from('payment_transactions')
+          .update({ custom_field_values: valuesResult.values })
+          .match(matcher);
+        if (updateError) {
+          console.error('[update-payment-metadata] failed to persist custom_field_values:', updateError);
+          return NextResponse.json(
+            { success: false, error: 'Failed to save custom field values' },
+            { status: 500 },
+          );
+        }
+        return null;
+      };
+    }
+
+    if (!isSubscription) {
+      const admin = createAdminClient();
+      const product = profileProduct!;
+      if (product.checkout_profile != null) {
+        const profile = checkoutProfileSchema.safeParse(product.checkout_profile);
+        if (!profile.success) return NextResponse.json({ success: false, error: 'Invalid checkout configuration' }, { status: 500 });
+        const rawQuantity = moduleValues?.quantity ?? 1;
+        const result = validateModuleValues(profile.data, moduleValues, {
+          locale: locale === 'pl' ? 'pl' : 'en',
+          currency: product.currency,
+          quantity: rawQuantity,
+        });
+        if (!result.success) return NextResponse.json({ success: false, errors: result.errors }, { status: 422 });
+        const customError = await persistCustomFields();
+        if (customError) return customError;
+        const buyerDetails = result.details.buyer;
+        if (buyerDetails && typeof buyerDetails === 'object' && !Array.isArray(buyerDetails)) {
+          buyerDetails.terms_accepted = termsAccepted === true;
+        }
+        const { data: saved, error: saveError } = await admin.rpc('set_payment_order_details', {
+          p_details: result.details,
+          p_product_id: productId,
+          p_quantity: rawQuantity,
+          ...(isCheckoutSession ? { p_session_id: stripeObjectId } : { p_payment_intent_id: stripeObjectId }),
+        });
+        if (saveError && ['22023', '23514'].includes(saveError.code)) {
+          return NextResponse.json({
+            success: false, errors: [{ field: 'moduleValues', code: 'details_too_large' }],
+          }, { status: 422 });
+        }
+        if (saveError) return NextResponse.json({ success: false, error: 'Failed to save order details' }, { status: 500 });
+        if (saved !== 1) return NextResponse.json({ success: false, code: 'quantity_snapshot_mismatch' }, { status: 409 });
+        const personalFields = new Set([
+          'first_name', 'last_name', 'full_name', 'email', 'nip', 'tax_id', 'company_name',
+          'address', 'city', 'postal_code', 'country', 'phone', 'buyer', 'recipient',
+          'participants', 'participant_emails',
+        ]);
+        const profileMetadata = Object.fromEntries(
+          Object.entries(stripeMetadata).map(([key, value]) => [key, personalFields.has(key) ? '' : value]),
         );
+        if (isCheckoutSession) await stripe.checkout.sessions.update(stripeObjectId, { metadata: profileMetadata });
+        else await stripe.paymentIntents.update(stripeObjectId, { metadata: profileMetadata });
+        const party = result.details.buyer;
+        if (stripeTaxCustomerId && party && typeof party === 'object' && !Array.isArray(party)) {
+          const config = await getCheckoutConfig();
+          if (shouldForwardTaxIdentityToStripe(config.tax_mode)) {
+            const text = (key: string) => typeof party[key] === 'string' ? party[key] : undefined;
+            await applyBuyerTaxIdentityToCustomer({
+              stripe, customerId: stripeTaxCustomerId,
+              identity: {
+                country: text('country'), taxId: text('nip'), address: text('address'),
+                city: text('city'), postalCode: text('postal_code'),
+              },
+            });
+          }
+        }
+        return NextResponse.json({ success: true });
+      }
+    }
+    const customError = await persistCustomFields();
+    if (customError) return customError;
+    if (isCheckoutSession) await stripe.checkout.sessions.update(stripeObjectId, { metadata });
+    else await stripe.paymentIntents.update(stripeObjectId, { metadata });
+
+    // stripe_tax: set the buyer's country + EU VAT-ID on the Stripe Customer so automatic_tax
+    // computes the right jurisdiction and applies EU B2B reverse charge. This runs HERE — not at
+    // session creation — because this is where the buyer's NIP/country actually arrive (on submit).
+    // The Customer was attached at create-payment-intent (a session's customer can't be set later).
+    // Gated on stripe_tax; fail-safe (never blocks the metadata update or the payment).
+    if (stripeTaxCustomerId) {
+      const checkoutConfig = await getCheckoutConfig();
+      if (shouldForwardTaxIdentityToStripe(checkoutConfig.tax_mode)) {
+        await applyBuyerTaxIdentityToCustomer({
+          stripe,
+          customerId: stripeTaxCustomerId,
+          identity: { country, taxId: nip, address, city, postalCode },
+        });
       }
     }
 

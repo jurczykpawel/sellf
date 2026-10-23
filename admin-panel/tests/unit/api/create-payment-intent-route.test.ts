@@ -360,3 +360,28 @@ it('pins the subscription context on a dynamic-price payment intent', async () =
     metadata: expect.objectContaining({ product_id: PRODUCT.id, product_type: 'subscription', subscription_id: 'sub_test', user_id: SIGNED_IN.id }),
   });
 });
+
+
+describe('checkout profile quantity', () => {
+  beforeEach(() => { mocks.getUser.mockResolvedValue({ data: { user: null } }); });
+  it.each([0, 2, 1.5, '2', null])('refuses non-default quantity without a profile: %s', async quantity => {
+    expect((await POST(makeRequest({ quantity }))).status).toBe(400);
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+  });
+  it.each([0, 6, 1.5, '3'])('refuses quantity outside profile bounds: %s', async quantity => {
+    mocks.productOverride = { checkout_profile: { v: 1, modules: [{ id: 'quantity', mode: 'checkout', min: 2, max: 5 }] } };
+    expect((await POST(makeRequest({ quantity }))).status).toBe(400);
+  });
+  it('saves three units and charges a whole Stripe line', async () => {
+    mocks.productOverride = { checkout_profile: { v: 1, modules: [{ id: 'quantity', mode: 'checkout', min: 1, max: 5 }] } };
+    expect((await POST(makeRequest({ quantity: 3 }))).status).toBe(200);
+    expect(mocks.sessionsCreate.mock.calls[0][0].line_items[0]).toMatchObject({ quantity: 1, price_data: { unit_amount: 30000, product_data: { name: 'Course × 3' } } });
+    const order = mocks.adminRpc.mock.calls.find(([name]) => name === 'place_order');
+    expect(order?.[1].p_lines[0]).toMatchObject({ quantity: 3, unit_price: 100, total_price: 300 });
+  });
+  it('accepts only the minimum for hidden quantity', async () => {
+    mocks.productOverride = { checkout_profile: { v: 1, modules: [{ id: 'quantity', mode: 'hidden', min: 2, max: 5 }] } };
+    expect((await POST(makeRequest({ quantity: 3 }))).status).toBe(400);
+    expect((await POST(makeRequest({ quantity: 2 }))).status).toBe(200);
+  });
+});

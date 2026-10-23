@@ -157,7 +157,10 @@ export async function buildStripeLineItems(
   specs: CheckoutLineSpec[],
   opts: { resolveTaxRate: StripeTaxRateResolver },
 ): Promise<Record<string, unknown>[]> {
-  if (specs.some(spec => spec.quantity !== 1)) throw new Error('Stripe line quantities must equal one');
+  if (specs.some(spec => !Number.isInteger(spec.quantity) || spec.quantity < 1 || spec.quantity > 100
+    || (spec.isBump && spec.quantity !== 1))) {
+    throw new Error('Invalid Stripe line quantity');
+  }
   const lineItems: Record<string, unknown>[] = [];
   for (const spec of specs) {
     const taxRates = spec.vatRate
@@ -167,7 +170,7 @@ export async function buildStripeLineItems(
       price_data: {
         currency: spec.currency,
         product_data: {
-          name: spec.name,
+          name: spec.quantity > 1 ? `${spec.name} × ${spec.quantity}` : spec.name,
           ...(spec.description ? { description: spec.description } : {}),
           metadata: { product_id: spec.productId, ...(spec.isBump ? { is_bump: 'true' } : {}) },
         },

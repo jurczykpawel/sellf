@@ -1344,3 +1344,17 @@ VALUES ('e1000000-0000-4000-8000-000000000001', 'Warsztat dla zespołu', 'team-w
   'Warsztat z danymi organizacji, odbiorcy i uczestników.', 149, 'PLN',
   '{"v":1,"modules":[{"id":"buyer","types":["person","organization"],"gus":false},{"id":"recipient","for":["organization"]},{"id":"phone","required":true},{"id":"quantity","min":1,"max":20,"mode":"checkout"},{"id":"participants","required":true,"prefill_from_buyer":true}]}'::jsonb)
 ON CONFLICT (id) DO NOTHING;
+
+
+-- A pending checkout keeps the collected profile data with its quantity snapshot.
+WITH example AS (
+  INSERT INTO public.payment_transactions (product_id, session_id, customer_email, amount,
+    currency, status, payment_provider, pricing_snapshot_version, order_details)
+  VALUES ('e1000000-0000-4000-8000-000000000001', 'cs_test_seedProfile', 'team@example.com',
+    14900, 'PLN', 'pending', 'stripe', 1,
+    '{"buyer":{"v":1,"type":"person","first_name":"Anna","last_name":"Nowak","email":"team@example.com"},"recipient":{"v":1,"differs":false},"phone":{"v":1,"value":"+48500100200"},"quantity":{"v":1,"value":1},"participants":{"v":1,"people":[{"first_name":"Anna","last_name":"Nowak","email":"team@example.com"}]}}'::jsonb)
+  RETURNING id, product_id
+)
+INSERT INTO public.payment_line_items (transaction_id, product_id, item_type, quantity,
+  unit_price, total_price, discounted_total, currency, product_name)
+SELECT id, product_id, 'main_product', 1, 149, 149, 149, 'PLN', 'Warsztat dla zespołu' FROM example;

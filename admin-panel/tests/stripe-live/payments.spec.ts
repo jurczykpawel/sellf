@@ -28,6 +28,7 @@ interface Scenario {
   subscription: boolean;
   coupon?: { id: string; code: string };
   netVat?: boolean;
+  profile?: boolean;
 }
 interface Delivery {
   headers: Record<string, string>;
@@ -80,11 +81,19 @@ async function setup(s: Scenario, loggedIn: boolean): Promise<void> {
     ...(s.subscription ? {
       product_type: 'subscription', recurring_price: 10, billing_interval: 'month', billing_interval_count: 1,
     } : {
-      issue_license_on_purchase: true, license_tier: 'pro',
+      issue_license_on_purchase: !s.profile, license_tier: 'pro',
       custom_checkout_fields: [{ ...PREDEFINED_CUSTOM_FIELDS.license_domain, required: true, claim: undefined }],
     }),
   });
   s.productIds.push(main.id);
+  if (s.profile) {
+    const { error } = await supabaseAdmin.from('products').update({ checkout_profile: { v: 1, modules: [
+      { id: 'buyer', types: ['organization'], gus: false }, { id: 'recipient', for: ['organization'] },
+      { id: 'phone', required: true }, { id: 'quantity', min: 1, max: 5, mode: 'product_page' },
+      { id: 'participants', required: true, prefill_from_buyer: true },
+    ] } }).eq('id', main.id);
+    expect(error).toBeNull();
+  }
   if (!s.subscription) {
     const bump = await insert('products', { slug: `${s.slug}-bump`, name: 'Live test bonus', price: 2, currency: 'USD', is_active: true, vat_exempt: true, seller_id: seller.userId });
     s.productIds.push(bump.id);
@@ -179,15 +188,15 @@ async function timing(s: Scenario, sessionId: string, pageAt: number): Promise<s
   return order;
 }
 
-async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; netVat?: boolean } = {}): Promise<void> {
+async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; netVat?: boolean; profile?: boolean } = {}): Promise<void> {
   const slug = `stripe-live-${label}-${randomUUID().slice(0, 8)}`;
-  const s: Scenario = { slug, productIds: [], email: `${slug}@example.com`, domain: `${slug}.example.com`, sessionIds: [], subscription: !!options.subscription, netVat: options.netVat };
+  const s: Scenario = { slug, productIds: [], email: `${slug}@example.com`, domain: `${slug}.example.com`, sessionIds: [], subscription: !!options.subscription, netVat: options.netVat, profile: options.profile };
   let passed = false;
   let order = 'not observed';
   try {
     await setup(s, !!options.loggedIn);
     if (options.coupon) {
-      s.coupon = await insert('coupons', { code: `LIVE-${randomUUID().slice(0, 8)}`.toUpperCase(), name: 'Live percentage', discount_type: 'percentage', discount_value: 25, exclude_order_bumps: false, is_active: true });
+      s.coupon = await insert('coupons', { code: `LIVE-${randomUUID().slice(0, 8)}`.toUpperCase(), name: 'Live percentage', discount_type: s.profile ? 'fixed' : 'percentage', discount_value: s.profile ? 7.01 : 25, exclude_order_bumps: false, is_active: true });
     }
     await acceptAllCookies(page);
     if (s.buyerId) await setAuthSession(page, s.email, password);
@@ -205,6 +214,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       }).observe(document, { childList: true, subtree: true });
     });
     await page.goto(`/en/checkout/${slug}?email=${encodeURIComponent(s.email)}`);
+    if (s.profile) await page.getByLabel('Quantity', { exact: true }).fill('3');
     await page.getByRole('button', { name: /Continue to payment/ }).click();
     if (!s.subscription) await page.getByRole('button', { name: /Add to order/i }).click();
     await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
@@ -221,12 +231,25 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       await expect(page.getByRole('button', { name: /Remove discount code/i })).toBeVisible();
       await page.locator('#checkoutEmail').fill(s.email);
     }
-    await page.locator('#fullName').fill('Stripe Test Buyer');
+    if (s.profile) {
+      for (const prefix of ['buyer', 'recipient']) {
+        if (prefix === 'recipient') await page.getByLabel('Different recipient').check();
+        for (const [key, value] of Object.entries({ company_name: 'Test Organization', nip: '5260250274', address: 'Prosta 1', postal_code: '00-001', city: 'Warszawa' })) {
+          await page.locator(`[id="${prefix}.${key}"]`).fill(value);
+        }
+      }
+      await page.locator('[id="phone"]').fill('500100200');
+      for (let index = 0; index < 3; index++) {
+        for (const [key, value] of Object.entries({ first_name: 'Jan', last_name: 'Nowak', email: `participant${index}@example.com` })) {
+          await page.locator(`[id="participants.${index}.${key}"]`).fill(value);
+        }
+      }
+    } else await page.locator('#fullName').fill('Stripe Test Buyer');
     if (!s.subscription) await page.getByLabel(/License domain/).fill(s.domain);
     const terms = page.locator('input[type="checkbox"]');
     for (const checkbox of await terms.all()) if (await checkbox.isVisible()) await checkbox.check();
     await fillCard(page, card);
-    await expect(page.locator('#fullName')).toHaveValue('Stripe Test Buyer');
+    if (!s.profile) await expect(page.locator('#fullName')).toHaveValue('Stripe Test Buyer');
     await page.locator('button[type="submit"]').click();
     if (options.challenge) {
       let challenge: Frame | undefined;
@@ -293,9 +316,10 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         expect(new Set(items.map(row => row.product_id))).toEqual(new Set(s.productIds));
         for (const item of items) {
           const expectedPrice = item.product_id === s.productIds[0] ? 10 : 2;
-          expect(item.quantity).toBe(1);
+          const quantity = s.profile && item.product_id === s.productIds[0] ? 3 : 1;
+          expect(item.quantity).toBe(quantity);
           expect(Number(item.unit_price)).toBe(expectedPrice);
-          expect(Number(item.total_price)).toBe(expectedPrice);
+          expect(Number(item.total_price)).toBe(expectedPrice * quantity);
           expect(item.currency).toBe('USD');
         }
         const basis = Math.round(items.reduce((total, item) => total + Number(item.discounted_total), 0) * minorFactor(tx.currency));
@@ -303,7 +327,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         expect(basis + exclusiveTax).toBe(Number(tx.amount));
         if (s.coupon) {
           expect(tx.coupon_id).toBe(s.coupon.id);
-          expect(basis).toBe(900);
+          expect(basis).toBe(s.profile ? 2499 : 900);
           expect(await rows('coupon_redemptions', 'transaction_id', tx.id)).toHaveLength(1);
         }
         if (s.netVat) {
@@ -312,9 +336,21 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
           expect(Number(tx.amount)).toBe(1430);
         }
         const licenses = await rows('issued_licenses', 'product_id', s.productIds[0]);
-        expect(licenses).toHaveLength(1);
-        expect(licenses[0].license_domain).toBe(s.domain);
-        expect(deliveries(s)[0].body.data.licenses?.[0].token).toBe(licenses[0].license_key);
+        if (s.profile) {
+          expect(licenses).toHaveLength(0);
+          expect(tx.order_details).toMatchObject({ buyer: { type: 'organization', nip: '5260250274' }, recipient: { differs: true, nip: '5260250274' }, phone: { value: '+48500100200' }, quantity: { value: 3 } });
+          expect(tx.order_details.participants.people).toHaveLength(3);
+          expect(tx.order_details.details_missing).toBeUndefined();
+          expect(Number(tx.amount)).toBe(2499);
+          const stripeLines = await stripe.checkout.sessions.listLineItems(sessionId);
+          expect(stripeLines.data[0].quantity).toBe(1);
+          expect(stripeLines.data[0].description).toContain('× 3');
+          expect(stripeLines.data.reduce((sum, line) => sum + line.amount_total, 0)).toBe(Number(tx.amount));
+        } else {
+          expect(licenses).toHaveLength(1);
+          expect(licenses[0].license_domain).toBe(s.domain);
+          expect(deliveries(s)[0].body.data.licenses?.[0].token).toBe(licenses[0].license_key);
+        }
       }
       if (s.buyerId) {
         for (const id of s.productIds) expect((await rows('user_product_access', 'product_id', id)).some(row => row.user_id === s.buyerId)).toBe(true);
@@ -383,3 +419,5 @@ for (let i = 1; i <= 5; i++) test(`guest repeated purchase ${i}/5`, async ({ pag
 
 test('percentage coupon with bump', async ({ page }) => { await run(page, 'coupon-bump', '4242424242424242', { coupon: true }); });
 test('net product with local VAT', async ({ page }) => { await run(page, 'net-vat', '4242424242424242', { netVat: true }); });
+
+test('B2B profile with three units and a fixed coupon', async ({ page }) => { await run(page, 'profile-b2b', '4242424242424242', { profile: true, coupon: true }); });

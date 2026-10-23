@@ -4,6 +4,8 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useState, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { CheckoutElementsProvider } from '@stripe/react-stripe-js/checkout';
+import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
+import { CheckoutQuantityField } from '@/components/checkout/CheckoutProfileFields';
 import { formatPrice, STRIPE_MAX_AMOUNT } from '@/lib/constants';
 import { minimumChargeAmount } from '@/lib/currency/minor-units';
 import { signOutAndRedirectToCheckout } from '@/lib/actions/checkout';
@@ -66,6 +68,9 @@ const noopSubscribe = () => () => {};
 export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, collectTermsOfService, bundleComponents, layoutMode = 'standalone', afterCheckoutSlot }: PaidProductFormProps) {
   const t = useTranslations('checkout');
   const locale = useLocale();
+  const parsedProfile = checkoutProfileSchema.safeParse(product.checkout_profile);
+  const quantityConfig = parsedProfile.success ? parsedProfile.data.modules.find(module => module.id === 'quantity') : undefined;
+  const [quantity, setQuantity] = useState(quantityConfig?.min ?? 1);
   const isSubscription = product.product_type === 'subscription';
   // PWYW subscriptions allow buyers to choose their recurring amount. The
   // existing PwywSection works regardless of one-shot vs recurring — only
@@ -254,7 +259,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   const pricing = calculatePricing({
     baseProductId: product.id,
-    productPrice: effectiveUnitPrice,
+    productPrice: effectiveUnitPrice * quantity,
     productCurrency: product.currency,
     productVatRate: product.vat_rate ?? undefined,
     vatExempt: product.vat_exempt,
@@ -279,6 +284,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const isFreeAccess = isPwywFree || isFullDiscountCoupon;
   const checkoutSessionSignature = JSON.stringify({
     locale,
+    quantity,
     productId: product.id,
     email: email || null,
     bumpProductIds: Array.from(selectedBumpIds).sort(),
@@ -356,6 +362,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           body: JSON.stringify({
             productId: product.id,
             locale,
+            quantity,
             clientSecret: previous?.clientSecret,
             bindingToken: previous?.bindingToken ?? undefined,
             email: email?.trim() || undefined,
@@ -399,7 +406,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     });
   }, [
     purchaseStarted, hasAccess, error, authLoading,
-    product, email, locale, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
+    product, email, locale, quantity, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
     customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess,
     checkoutSessionSignature, explicitRepurchase, sessionQueue, customFieldDefs, customFieldValues,
   ]);
@@ -518,6 +525,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           )}
 
           <h2 className="text-xl font-semibold text-sf-heading mb-4">{t('purchaseTitle')}</h2>
+          {quantityConfig?.mode === 'product_page' && <CheckoutQuantityField config={quantityConfig} value={quantity} onChange={setQuantity} />}
 
           {/* Missing Config Alert */}
           {!config.stripePublishableKey && (
@@ -568,7 +576,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && (
             <OrderSummary
-              productName={product.name}
+              productName={quantity > 1 ? `${product.name} × ${quantity}` : product.name}
               currency={product.currency}
               basePrice={pricing.basePrice}
               discountAmount={pricing.discountAmount}
@@ -588,6 +596,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && !purchaseStarted && (
             <form onSubmit={event => { event.preventDefault(); setPurchaseStarted(true); }}>
+              {quantityConfig?.mode === 'checkout' && <CheckoutQuantityField config={quantityConfig} value={quantity} onChange={setQuantity} />}
               <button type="submit" disabled={!interactive} className="w-full cursor-pointer disabled:cursor-wait disabled:opacity-60 rounded-xl bg-sf-accent-bg px-6 py-4 font-semibold text-sf-inverse hover:bg-sf-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent">
                 {t('continueToPayment')}
               </button>
@@ -622,6 +631,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             >
               <CustomPaymentForm
                 product={product}
+                quantity={quantity}
                 email={email}
                 initialFullName={urlName}
                 bumpProducts={availableBumps}

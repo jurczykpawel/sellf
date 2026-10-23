@@ -51,7 +51,7 @@ async function fillBuyer(page: Page): Promise<string> {
 
 test.beforeAll(async () => {
   container = getTestDatabaseContainer();
-  expect(container).toBe('supabase_db_sellf-ccheckout');
+  expect(container).toBe(process.env.SUPABASE_DB_CONTAINER);
   const { data, error } = await admin.from('products').insert({
     name: 'Warsztat projektowania produktów cyfrowych', slug: `buyer-details-${randomUUID()}`,
     price: 100, currency: 'PLN', is_active: true, vat_rate: 23, price_includes_vat: true,
