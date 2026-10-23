@@ -246,3 +246,14 @@ describe('checkout profile contracts', () => {
     }
   });
 });
+
+describe('event session contracts', () => {
+  it.each(['create_product','update_product'])('%s accepts complete nested sessions and rejects empty tiers', tool => {
+    const schema=tools.get(tool)!.schema.sessions;
+    const session={starts_at:'2099-01-01T00:00:00Z',tiers:[{price:47,seats:30,sort:0},{price:67,sort:1}]};
+    expect(schema.parse([session])).toMatchObject([{tiers:session.tiers}]);
+    expect(schema.safeParse([{...session,tiers:[]}]).success).toBe(false);
+    expect(schema.safeParse([{...session,online_url:'http://example.com'}]).success).toBe(false);
+    expect(schema.parse([])).toEqual([]); expect(schema.parse(undefined)).toBeUndefined();
+  });
+});

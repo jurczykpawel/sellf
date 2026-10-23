@@ -41,6 +41,8 @@
                 Kliknij poniższy przycisk, aby się zalogować. Link jest ważny przez 1 godzinę.
               </p>
 
+              {{ if .Data.event_date }}<p style="color: #ffffff;">{{ .Data.event_date }}</p>{{ end }}
+              {{ if .Data.event_online_url }}<p><a style="color: #2090D0;" href="{{ .Data.event_online_url }}">Online</a></p>{{ end }}
               <!-- Button -->
               <table role="presentation" style="width: 100%; border-collapse: collapse;">
                 <tr>

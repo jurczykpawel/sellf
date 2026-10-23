@@ -14,7 +14,10 @@ export interface DeliverMagicLinkInput {
 // so every caller MUST have verified a captcha or a paid Stripe session first.
 export async function deliverMagicLink(input: DeliverMagicLinkInput): Promise<MagicLinkResult> {
   try {
-    const { error } = await createAdminClient().auth.signInWithOtp({
+    const client = createAdminClient();
+    const prepared = await client.rpc('prepare_event_mail', { p_email: input.email, p_data: input.data ?? {} });
+    if (prepared.error) return { ok: false, code: 'send_failed' };
+    const { error } = await client.auth.signInWithOtp({
       email: input.email,
       options: {
         shouldCreateUser: input.shouldCreateUser,

@@ -161,10 +161,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Zero-decimal currencies (JPY, KRW, VND...) need whole prices. Check the MERGED row, so a
     // price-only PATCH is validated against the stored currency and a currency-only PATCH against
     // the stored prices.
-    if (WHOLE_AMOUNT_FIELDS.some((field) => sanitizedData[field] !== undefined) || sanitizedData.currency !== undefined) {
+    if (WHOLE_AMOUNT_FIELDS.some((field) => sanitizedData[field] !== undefined) || sanitizedData.currency !== undefined || sanitizedData.sessions !== undefined) {
       const { data: stored, error: storedError } = await supabase
         .from('products')
-        .select(['currency', ...WHOLE_AMOUNT_FIELDS].join(', '))
+        .select(['currency', ...WHOLE_AMOUNT_FIELDS, 'sessions:product_sessions(tiers:product_price_tiers(price))'].join(', '))
         .eq('id', id)
         .maybeSingle();
       if (storedError) {
@@ -281,6 +281,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         .single();
 
       if (updateError) {
+        if (updateError.code === '23503') return apiError(request, 'CONFLICT', 'Cannot remove reserved sessions or tiers');
         if (updateError.code === 'P0002') return apiError(request, 'NOT_FOUND', 'Product not found');
         const code = (updateError as { code?: string }).code;
         if (code === '23505') {

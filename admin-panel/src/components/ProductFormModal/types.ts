@@ -13,6 +13,9 @@ export interface ProductFormModalProps {
 }
 
 export interface ProductFormData {
+  event_mode?: boolean;
+  allow_repeat_purchase?: boolean;
+  sessions?: import('@/lib/events/schema').EventSessionInput[];
   name: string;
   slug: string;
   description: string;

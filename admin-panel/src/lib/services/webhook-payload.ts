@@ -20,6 +20,7 @@ import type { OrderTaxSnapshot } from '@/lib/services/tax-snapshot';
 type AnySupabaseClient = SupabaseClient<any, any, any>;
 
 export interface ProductDetail {
+  sessionId?: string; sessionStartsAt?: string | null; sessionLabel?: string | null; tierId?: string | null; tierLabel?: string | null;
   id: string;
   name: string;
   slug: string;
@@ -92,7 +93,9 @@ export interface PurchaseWebhookData {
   licenses?: Array<{ productId: string; token: string; kid: string; jwksUrl: string }>;
 }
 
+export interface EventWebhookLine { product_id: string; session_id: string | null; session_starts_at: string | null; session_label: string | null; tier_id: string | null; tier_label: string | null }
 export interface BuildWebhookPayloadParams {
+  eventLines?: EventWebhookLine[];
   supabaseClient: AnySupabaseClient;
   customerEmail: string;
   userId: string | null;
@@ -262,6 +265,12 @@ export async function buildPurchaseWebhookPayload(
     },
     ...(source && { source }),
   };
+
+  for (const detail of [webhookData.product, ...webhookData.bumpProducts]) {
+    const line = params.eventLines?.find(l => l.product_id === detail.id && l.session_id);
+    if (line) Object.assign(detail, { sessionId: line.session_id, sessionStartsAt: line.session_starts_at, sessionLabel: line.session_label, tierId: line.tier_id, tierLabel: line.tier_label });
+  }
+  if (webhookData.bumpProduct) Object.assign(webhookData.bumpProduct, webhookData.bumpProducts[0]);
 
   // Add invoice data if requested. On-site (Sellf's InvoiceFields) writes it to metadata;
   // embed collects NIP + address via Stripe → read from customer_details as the fallback,

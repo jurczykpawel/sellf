@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+const eventMailForSlug = vi.hoisted(() => vi.fn(async () => ({} as Record<string,string>)));
+vi.mock('@/lib/events/mail', () => ({ eventMailForSlug }));
 const deliverMagicLink = vi.hoisted(() => vi.fn());
 const verifyCaptchaToken = vi.hoisted(() => vi.fn());
 const validateEmailAction = vi.hoisted(() => vi.fn());
@@ -133,6 +135,12 @@ describe('requestMagicLink', () => {
     );
   });
 
+  it('passes purchased event details into the access mail after captcha verification', async () => {
+    eventMailForSlug.mockResolvedValueOnce({ event_date: '10 Jan 2036', event_online_url: 'https://meet.example.com/private' });
+    await requestMagicLink({ ...BASE_INPUT, flow: 'post_checkout', productSlug: 'event' });
+    expect(eventMailForSlug).toHaveBeenCalledWith(BASE_INPUT.email, 'event');
+    expect(deliverMagicLink).toHaveBeenCalledWith(expect.objectContaining({ data: { event_date: '10 Jan 2036', event_online_url: 'https://meet.example.com/private' } }));
+  });
   it('delivers a post_checkout magic link with the post-checkout redirect', async () => {
     const result = await requestMagicLink({
       ...BASE_INPUT,

@@ -1671,6 +1671,7 @@ export type Database = {
           tax_breakdown: Json
           taxability_reason: string | null
           tier_id: string | null
+          tier_label: string | null
           total_price: number
           transaction_id: string
           unit_price: number
@@ -1698,6 +1699,7 @@ export type Database = {
           tax_breakdown?: Json
           taxability_reason?: string | null
           tier_id?: string | null
+          tier_label?: string | null
           total_price: number
           transaction_id: string
           unit_price: number
@@ -1725,6 +1727,7 @@ export type Database = {
           tax_breakdown?: Json
           taxability_reason?: string | null
           tier_id?: string | null
+          tier_label?: string | null
           total_price?: number
           transaction_id?: string
           unit_price?: number
@@ -4569,6 +4572,18 @@ export type Database = {
         Args: { p_email: string; p_ip: string; p_session_id: string }
         Returns: boolean
       }
+      event_mail_access: {
+        Args: {
+          p_email: string
+          p_product_id: string
+          p_transaction_id: string
+        }
+        Returns: boolean
+      }
+      event_session_admin: {
+        Args: { p_offset?: number; p_session_id: string }
+        Returns: Json
+      }
       expire_seat_reservations: { Args: never; Returns: number }
       find_auto_apply_coupon: {
         Args: { customer_email_param: string; product_id_param: string }
@@ -5009,6 +5024,7 @@ export type Database = {
         }
         Returns: Json
       }
+      my_event_sessions: { Args: { p_product_id: string }; Returns: Json }
       pending_free_grant_products: {
         Args: never
         Returns: {
@@ -5028,6 +5044,10 @@ export type Database = {
         }[]
       }
       place_order: { Args: { p_lines: Json; p_order: Json }; Returns: Json }
+      prepare_event_mail: {
+        Args: { p_data: Json; p_email: string }
+        Returns: undefined
+      }
       process_refund_request: {
         Args: {
           action_param: string

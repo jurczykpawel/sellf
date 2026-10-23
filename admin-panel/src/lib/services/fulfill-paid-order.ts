@@ -49,7 +49,7 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
   const { data: tx, error } = await query.single();
   if (error || !tx) throw new Error('Order transaction unavailable');
   if (tx.fulfillment_pending !== true) return;
-  const { data: items, error: itemsError } = await args.supabase.from('payment_line_items').select('product_id,item_type,discounted_total,currency,vat_rate,tax_behavior,vat_exempt,net_amount,tax_amount').eq('transaction_id', tx.id);
+  const { data: items, error: itemsError } = await args.supabase.from('payment_line_items').select('product_id,item_type,discounted_total,currency,vat_rate,tax_behavior,vat_exempt,net_amount,tax_amount,session_id,tier_id,session_label,session_starts_at,tier_label').eq('transaction_id', tx.id);
   if (itemsError) throw new Error('Order items unavailable');
   const bumpProductIds: string[] = (items ?? []).filter((item: { item_type: string }) => item.item_type === 'order_bump').map((item: { product_id: string }) => item.product_id);
   const componentProductIds = await resolveComponentProductIds(args.supabase, args.productId);
@@ -69,7 +69,7 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
     sessionId: tx.session_id, paymentIntentId: provider.paymentIntentId ?? null,
   });
   const payload = await buildPurchaseWebhookPayload({
-    supabaseClient: args.supabase, customerEmail: tx.customer_email || args.customerEmail,
+    eventLines: items ?? [], supabaseClient: args.supabase, customerEmail: tx.customer_email || args.customerEmail,
     userId: tx.user_id, productId: args.productId, bumpProductIds,
     componentProductIds, metadata, stripeCustomerDetails: args.customerDetails,
     amount: args.amount, currency: args.currency, sessionId: provider.kind === 'stripe' ? tx.session_id : undefined,
