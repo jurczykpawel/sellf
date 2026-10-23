@@ -1271,8 +1271,9 @@ export type Database = {
           id: string
           metadata: Json
           product_id: string
-          session_id: string
+          session_id: string | null
           transaction_amount: number
+          transaction_id: string | null
         }
         Insert: {
           claimed_at?: string | null
@@ -1282,8 +1283,9 @@ export type Database = {
           id?: string
           metadata?: Json
           product_id: string
-          session_id: string
+          session_id?: string | null
           transaction_amount: number
+          transaction_id?: string | null
         }
         Update: {
           claimed_at?: string | null
@@ -1293,8 +1295,9 @@ export type Database = {
           id?: string
           metadata?: Json
           product_id?: string
-          session_id?: string
+          session_id?: string | null
           transaction_amount?: number
+          transaction_id?: string | null
         }
         Relationships: [
           {
@@ -1316,6 +1319,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_purchases_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -1644,6 +1654,7 @@ export type Database = {
           access_duration_override: number | null
           created_at: string
           currency: string
+          discounted_total: number | null
           id: string
           item_type: Database["public"]["Enums"]["line_item_type"]
           metadata: Json
@@ -1666,6 +1677,7 @@ export type Database = {
           access_duration_override?: number | null
           created_at?: string
           currency: string
+          discounted_total?: number | null
           id?: string
           item_type: Database["public"]["Enums"]["line_item_type"]
           metadata?: Json
@@ -1688,6 +1700,7 @@ export type Database = {
           access_duration_override?: number | null
           created_at?: string
           currency?: string
+          discounted_total?: number | null
           id?: string
           item_type?: Database["public"]["Enums"]["line_item_type"]
           metadata?: Json
@@ -1806,6 +1819,7 @@ export type Database = {
         Row: {
           abandoned_at: string | null
           amount: number
+          coupon_id: string | null
           created_at: string
           currency: string
           custom_field_values: Json
@@ -1813,15 +1827,20 @@ export type Database = {
           expires_at: string | null
           fulfillment_pending: boolean
           id: string
+          livemode: boolean
           metadata: Json
           net_total: number | null
+          order_details: Json | null
+          order_number: number
+          payment_provider: string
+          pricing_snapshot_version: number | null
           product_id: string
           refund_id: string | null
           refund_reason: string | null
           refunded_amount: number | null
           refunded_at: string | null
           refunded_by: string | null
-          session_id: string
+          session_id: string | null
           status: string
           stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
@@ -1834,6 +1853,7 @@ export type Database = {
         Insert: {
           abandoned_at?: string | null
           amount: number
+          coupon_id?: string | null
           created_at?: string
           currency: string
           custom_field_values?: Json
@@ -1841,15 +1861,20 @@ export type Database = {
           expires_at?: string | null
           fulfillment_pending?: boolean
           id?: string
+          livemode?: boolean
           metadata?: Json
           net_total?: number | null
+          order_details?: Json | null
+          order_number?: number
+          payment_provider?: string
+          pricing_snapshot_version?: number | null
           product_id: string
           refund_id?: string | null
           refund_reason?: string | null
           refunded_amount?: number | null
           refunded_at?: string | null
           refunded_by?: string | null
-          session_id: string
+          session_id?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
@@ -1862,6 +1887,7 @@ export type Database = {
         Update: {
           abandoned_at?: string | null
           amount?: number
+          coupon_id?: string | null
           created_at?: string
           currency?: string
           custom_field_values?: Json
@@ -1869,15 +1895,20 @@ export type Database = {
           expires_at?: string | null
           fulfillment_pending?: boolean
           id?: string
+          livemode?: boolean
           metadata?: Json
           net_total?: number | null
+          order_details?: Json | null
+          order_number?: number
+          payment_provider?: string
+          pricing_snapshot_version?: number | null
           product_id?: string
           refund_id?: string | null
           refund_reason?: string | null
           refunded_amount?: number | null
           refunded_at?: string | null
           refunded_by?: string | null
-          session_id?: string
+          session_id?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
@@ -1888,6 +1919,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_transactions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_transactions_product_id_fkey"
             columns: ["product_id"]
@@ -2224,6 +2262,7 @@ export type Database = {
       products: {
         Row: {
           allow_custom_price: boolean
+          allow_repeat_purchase: boolean
           auto_grant_duration_days: number | null
           available_from: string | null
           available_until: string | null
@@ -2284,6 +2323,7 @@ export type Database = {
         }
         Insert: {
           allow_custom_price?: boolean
+          allow_repeat_purchase?: boolean
           auto_grant_duration_days?: number | null
           available_from?: string | null
           available_until?: string | null
@@ -2344,6 +2384,7 @@ export type Database = {
         }
         Update: {
           allow_custom_price?: boolean
+          allow_repeat_purchase?: boolean
           auto_grant_duration_days?: number | null
           available_from?: string | null
           available_until?: string | null
@@ -3744,6 +3785,17 @@ export type Database = {
       }
     }
     Functions: {
+      _order_grant_and_record: {
+        Args: {
+          p_coupon_id: string
+          p_coupon_mode: string
+          p_existing_user_id: string
+          p_requested_user_id: string
+          p_transaction_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       _process_stripe_payment_completion_with_bump_impl: {
         Args: {
           amount_subtotal_param?: number
@@ -3758,6 +3810,16 @@ export type Database = {
           user_id_param?: string
         }
         Returns: Json
+      }
+      _redeem_coupon_for_order: {
+        Args: {
+          coupon_id_param: string
+          current_user_id: string
+          customer_email_param: string
+          existing_user_id: string
+          transaction_id_var: string
+        }
+        Returns: undefined
       }
       admin_delete_oto_offer: {
         Args: { source_product_id_param: string }
@@ -4191,6 +4253,10 @@ export type Database = {
         Args: { product_slugs_param: string[] }
         Returns: Json
       }
+      cancel_unpaid_order: {
+        Args: { p_reason: string; p_transaction_id: string }
+        Returns: Json
+      }
       check_application_rate_limit: {
         Args: {
           action_type_param: string
@@ -4266,6 +4332,10 @@ export type Database = {
       }
       cleanup_rate_limits: { Args: never; Returns: number }
       clear_admin_cache: { Args: never; Returns: undefined }
+      complete_offline_order: {
+        Args: { p_paid_minor: number; p_transaction_id: string }
+        Returns: Json
+      }
       create_refund_request: {
         Args: { reason_param?: string; transaction_id_param: string }
         Returns: Json
@@ -4557,10 +4627,12 @@ export type Database = {
         Args: { coupon_id_param: string }
         Returns: undefined
       }
-      increment_sale_quantity_sold: {
-        Args: { p_product_id: string }
-        Returns: boolean
-      }
+      increment_sale_quantity_sold:
+        | { Args: { p_product_id: string }; Returns: boolean }
+        | {
+            Args: { p_product_id: string; p_quantity: number }
+            Returns: boolean
+          }
       increment_webhook_attempt: {
         Args: {
           p_duration_ms: number
@@ -4663,6 +4735,7 @@ export type Database = {
         }
         Returns: {
           allow_custom_price: boolean
+          allow_repeat_purchase: boolean
           auto_grant_duration_days: number | null
           available_from: string | null
           available_until: string | null
@@ -4759,6 +4832,7 @@ export type Database = {
           payload: Json
         }[]
       }
+      place_order: { Args: { p_lines: Json; p_order: Json }; Returns: Json }
       process_refund_request: {
         Args: {
           action_param: string
@@ -4838,6 +4912,15 @@ export type Database = {
       send_monitoring_email: {
         Args: { alert_details: Json; alert_type: string }
         Returns: undefined
+      }
+      set_payment_order_buyer: {
+        Args: {
+          p_buyer: Json
+          p_only_if_missing?: boolean
+          p_payment_intent_id?: string
+          p_session_id?: string
+        }
+        Returns: number
       }
       set_revenue_goal: {
         Args: {

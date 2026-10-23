@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 import { fetch as httpFetch } from 'undici';
 import config from '../playwright.config';
 import type { ChildProcess } from 'node:child_process';
+import { waitForLiveServer } from './stripe-live-server';
 
 const children: ChildProcess[] = [];
 const dir = resolve('test-runs', `stripe-live-${new Date().toISOString().replaceAll(':', '-')}`);
@@ -117,8 +118,11 @@ try {
   // Reuse the Playwright commands, including FX stub, captcha settings and memory limit.
   const servers = Array.isArray(config.webServer) ? config.webServer : [config.webServer!];
   for (const server of servers) {
-    start('/bin/bash', ['-c', server.command], 'server');
-    await until(async () => { try { return (await httpFetch(server.url!, { signal: AbortSignal.timeout(3000) })).ok; } catch { return false; } }, server.url!, 120000);
+    await waitForLiveServer({
+      start: () => start('/bin/bash', ['-c', server.command], 'server'),
+      isReady: async () => { try { return (await httpFetch(server.url!, { signal: AbortSignal.timeout(3000) })).ok; } catch { return false; } },
+      hasUpgradeNotice: () => logText('server').includes('This command stopped to show the upgrade recommendation.'),
+    });
   }
   console.log(`Stripe test-mode artifacts: ${dir}`);
   const pw = spawn('bunx', ['playwright', 'test', '--project=stripe-live', '--max-failures=1', ...process.argv.slice(2)], { env: { ...process.env, PW_REUSE_SERVER: '1' }, detached: true, stdio: 'inherit' });
@@ -126,7 +130,7 @@ try {
   status = await new Promise<number>(resolve => { pw.once('exit', code => resolve(code ?? 1)); pw.once('error', () => resolve(1)); });
   const summary = logText('summary').split('\n').filter(Boolean).map(line => JSON.parse(line));
   console.log('\n| scenario | runs | pass | event order observed |\n|---|---:|---:|---|');
-  for (const name of ['guest', 'signed-in', '3ds', 'declined', 'subscription', 'repeat']) {
+  for (const name of ['guest', 'signed-in', '3ds', 'declined', 'subscription', 'repeat', 'coupon-bump', 'net-vat']) {
     const rows = summary.filter(row => row.scenario === name);
     console.log(`| ${name} | ${rows.length} | ${rows.filter(row => row.pass).length} | ${[...new Set(rows.map(row => row.order))].join('; ') || 'not run'} |`);
   }

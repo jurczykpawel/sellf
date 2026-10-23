@@ -169,6 +169,32 @@ async function createConfirmedCustomer(email: string): Promise<Stripe.Customer> 
 }
 
 describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
+  it.each([true, false])('records invoice intent buyer details when available=%s without blocking fulfillment', async available => {
+    const email = `invoice-buyer-${crypto.randomUUID()}@sellf-test.local`;
+    const product = await createSubscriptionProduct();
+    const customer = await createConfirmedCustomer(email);
+    createdStripeCustomerIds.push(customer.id);
+    const sub = makeFakeSubscription(customer.id, product.id);
+    const pi = `pi_invoice_${crypto.randomUUID().replaceAll('-', '')}`;
+    const stripeShim = {
+      ...stripe!,
+      subscriptions: { retrieve: async () => sub, update: vi.fn().mockResolvedValue(sub) },
+      checkout: { sessions: { list: async () => {
+        if (!available) throw new Error('Buyer source unavailable');
+        return { data: [] };
+      } } },
+      paymentIntents: { retrieve: async () => ({ metadata: { full_name: 'Anna Kowalska', nip: '5260250274' } }) },
+    } as unknown as Stripe;
+    const invoice = makeFakeInvoice(sub.id, customer.id, email, {
+      payments: { data: [{ status: 'paid', is_default: true, payment: { type: 'payment_intent', payment_intent: pi } }] } as Stripe.ApiList<Stripe.InvoicePayment>,
+    });
+    expect((await handleInvoicePaid(invoice, supabaseSeller as never, platformClient as never, stripeShim)).processed).toBe(true);
+    const { data: tx } = await supabaseSeller!.from('payment_transactions').select('order_details,fulfillment_pending,status').eq('stripe_invoice_id', invoice.id!).single();
+    expect(tx).toMatchObject({ status: 'completed', fulfillment_pending: false });
+    if (available) expect(tx?.order_details?.buyer).toMatchObject({ full_name: 'Anna Kowalska', nip: '5260250274', source: 'stripe_metadata' });
+    else expect(tx?.order_details).toBeNull();
+  });
+
   it('handleSubscriptionCreated upserts subscription row + materializes auth user', async () => {
     const email = `sub-integ-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();
@@ -350,6 +376,13 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     } as unknown as Stripe;
 
     await handleSubscriptionCreated(subStripe, supabaseSeller as never, platformClient as never, stripeShim);
+    const sessionsList = vi.fn().mockResolvedValue({ data: [{
+      mode: 'subscription', subscription: subStripe.id,
+      metadata: { full_name: 'Jan Kowalski', needs_invoice: 'true', nip: '5252248481' },
+      customer_details: null,
+    }] });
+    stripeShim.checkout = { sessions: { list: sessionsList } } as unknown as Stripe['checkout'];
+    stripeShim.subscriptions.update = vi.fn().mockResolvedValue(subStripe);
     const paymentIntentId = `pi_invoice_${crypto.randomUUID().replaceAll('-', '')}`;
     const invoice = makeFakeInvoice(subStripe.id, customer.id, email, {
       payments: {
@@ -369,11 +402,19 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
 
     const { data: tx1 } = await supabaseSeller!
       .from('payment_transactions')
-      .select('stripe_invoice_id,stripe_payment_intent_id')
+      .select('stripe_invoice_id,stripe_payment_intent_id,order_details')
       .eq('stripe_invoice_id', invoice.id!)
       .single();
     expect(tx1?.stripe_invoice_id).toBe(invoice.id);
     expect(tx1?.stripe_payment_intent_id).toBe(paymentIntentId);
+    expect(tx1?.order_details?.buyer).toMatchObject({ full_name: 'Jan Kowalski', nip: '5252248481', source: 'stripe_metadata' });
+    const mirrored = vi.mocked(stripeShim.subscriptions.update).mock.calls[0][1]?.metadata;
+    expect(mirrored).toMatchObject({ full_name: 'Jan Kowalski', nip: '5252248481' });
+    expect(mirrored).not.toHaveProperty('product_id');
+    expect(mirrored).not.toHaveProperty('user_id');
+
+    sessionsList.mockResolvedValue({ data: [{ mode: 'subscription', subscription: subStripe.id, metadata: { full_name: 'Changed Buyer' }, customer_details: null }] });
+
 
     const { data: access } = await supabaseSeller!
       .from('user_product_access')
@@ -390,6 +431,9 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
       stripeShim
     );
     expect(r2.message).toContain('already booked');
+    const { data: replayTx } = await supabaseSeller!.from('payment_transactions').select('order_details').eq('stripe_invoice_id', invoice.id!).single();
+    expect(replayTx?.order_details).toEqual(tx1?.order_details);
+
 
     // Track auth user for cleanup
     const { data: userId } = await platformClient!.rpc('find_user_id_by_email', {

@@ -201,7 +201,7 @@ export function buildPlaceholderContext(data: unknown): Record<string, string> {
  */
 export function deriveOrderId(data: unknown): string {
   const order = ((data ?? {}) as Record<string, any>).order ?? {};
-  return str(order.paymentIntentId ?? order.sessionId ?? order.invoiceId ?? ((data ?? {}) as Record<string, any>).invoice?.stripeInvoiceId);
+  return str(order.paymentIntentId ?? order.sessionId ?? order.invoiceId ?? order.orderId ?? ((data ?? {}) as Record<string, any>).invoice?.stripeInvoiceId);
 }
 
 function str(v: unknown): string { return v == null ? '' : String(v); }

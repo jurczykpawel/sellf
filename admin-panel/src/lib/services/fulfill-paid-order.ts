@@ -4,6 +4,7 @@
  * @see supabase/migrations/20261002000000_payment_order_reconciliation.sql
  */
 import { revalidateTag } from 'next/cache';
+import { snapshotFromRows } from '@/lib/orders/local-tax';
 import { issueLicensesForOrder, resolveComponentProductIds } from '@/lib/services/bundle-order';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 import { captureAndPersistOrderTax } from '@/lib/services/tax-snapshot';
@@ -16,13 +17,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { fromMinorUnits } from '@/lib/currency/minor-units';
 type OrderClient = SupabaseClient<any, any, any>;
 
-export async function fulfillPaidOrder(args: {
+type PaymentProvider = { kind: 'stripe'; stripe: Stripe; sessionId: string; paymentIntentId?: string | null }
+  | { kind: 'offline' };
+interface FulfillmentInput {
   supabase: OrderClient;
-  stripe: Stripe;
   source?: 'stripe_webhook';
   transactionId?: string;
-  sessionId: string;
-  paymentIntentId?: string | null;
   productId: string;
   customerEmail: string;
   amount: number;
@@ -31,13 +31,25 @@ export async function fulfillPaidOrder(args: {
   customerDetails?: Stripe.Checkout.Session.CustomerDetails | null;
   isGuest?: boolean;
   couponId?: string | null;
-}): Promise<void> {
-  let query = args.supabase.from('payment_transactions').select('id, session_id, user_id, customer_email, metadata, custom_field_values, fulfillment_pending');
-  query = args.transactionId ? query.eq('id', args.transactionId) : query.eq('session_id', args.sessionId);
+}
+type StripeFulfillmentInput = FulfillmentInput & { stripe: Stripe; sessionId: string; paymentIntentId?: string | null };
+type ProviderFulfillmentInput = FulfillmentInput & { provider: PaymentProvider };
+
+export async function fulfillStripeOrder(args: StripeFulfillmentInput): Promise<void> {
+  const { stripe, sessionId, paymentIntentId, ...order } = args;
+  return fulfillPaidOrder({ ...order, provider: { kind: 'stripe', stripe, sessionId, paymentIntentId } });
+}
+
+export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFulfillmentInput): Promise<void> {
+  const provider: PaymentProvider = 'provider' in args ? args.provider
+    : { kind: 'stripe', stripe: args.stripe, sessionId: args.sessionId, paymentIntentId: args.paymentIntentId };
+  if (provider.kind === 'offline' && !args.transactionId) throw new Error('Order transaction required');
+  let query = args.supabase.from('payment_transactions').select('id, session_id, user_id, customer_email, metadata, custom_field_values, fulfillment_pending, order_number');
+  query = args.transactionId ? query.eq('id', args.transactionId) : query.eq('session_id', provider.kind === 'stripe' ? provider.sessionId : null);
   const { data: tx, error } = await query.single();
   if (error || !tx) throw new Error('Order transaction unavailable');
   if (tx.fulfillment_pending !== true) return;
-  const { data: items, error: itemsError } = await args.supabase.from('payment_line_items').select('product_id,item_type').eq('transaction_id', tx.id);
+  const { data: items, error: itemsError } = await args.supabase.from('payment_line_items').select('product_id,item_type,discounted_total,currency,vat_rate,tax_behavior,vat_exempt,net_amount,tax_amount').eq('transaction_id', tx.id);
   if (itemsError) throw new Error('Order items unavailable');
   const bumpProductIds: string[] = (items ?? []).filter((item: { item_type: string }) => item.item_type === 'order_bump').map((item: { product_id: string }) => item.product_id);
   const componentProductIds = await resolveComponentProductIds(args.supabase, args.productId);
@@ -47,29 +59,34 @@ export async function fulfillPaidOrder(args: {
   }
   const customFieldValues = (tx.custom_field_values ?? {}) as Record<string, string>;
   const metadata = { ...(tx.metadata ?? {}), ...(args.metadata ?? {}) };
+  const orderKey = provider.kind === 'offline' ? tx.id : provider.paymentIntentId || tx.session_id;
   const licenses = await issueLicensesForOrder(args.supabase, {
     productIds: [...productIds], email: tx.customer_email || args.customerEmail,
-    userId: tx.user_id, orderId: args.paymentIntentId || tx.session_id, customFieldValues,
+    userId: tx.user_id, orderId: orderKey, customFieldValues,
   });
-  const taxSnapshot = await captureAndPersistOrderTax({
-    stripe: args.stripe, supabase: args.supabase, transactionId: tx.id,
-    sessionId: tx.session_id, paymentIntentId: args.paymentIntentId ?? null,
+  const taxSnapshot = provider.kind === 'offline' ? snapshotFromRows(items ?? []) : await captureAndPersistOrderTax({
+    stripe: provider.stripe, supabase: args.supabase, transactionId: tx.id,
+    sessionId: tx.session_id, paymentIntentId: provider.paymentIntentId ?? null,
   });
   const payload = await buildPurchaseWebhookPayload({
     supabaseClient: args.supabase, customerEmail: tx.customer_email || args.customerEmail,
     userId: tx.user_id, productId: args.productId, bumpProductIds,
     componentProductIds, metadata, stripeCustomerDetails: args.customerDetails,
-    amount: args.amount, currency: args.currency, sessionId: tx.session_id,
-    paymentIntentId: args.paymentIntentId ?? null, taxSnapshot, couponId: args.couponId ?? null,
+    amount: args.amount, currency: args.currency, sessionId: provider.kind === 'stripe' ? tx.session_id : undefined,
+    paymentIntentId: provider.kind === 'stripe' ? provider.paymentIntentId ?? null : null, taxSnapshot, couponId: args.couponId ?? null,
     isGuest: args.isGuest, customFieldValues, source: args.source,
   });
+  if (provider.kind === 'offline') {
+    payload.order.orderId = tx.id;
+    payload.order.orderNumber = tx.order_number;
+  }
   if (licenses.length) payload.licenses = licenses;
   await WebhookService.trigger('purchase.completed', payload, args.supabase, [...productIds]);
   const { error: savedError } = await args.supabase.from('payment_transactions').update({
     metadata, fulfillment_pending: false,
   }).eq('id', tx.id);
   if (savedError) throw new Error('Order fulfillment state unavailable');
-  if (args.source === 'stripe_webhook') {
+  if (provider.kind === 'stripe' && args.source === 'stripe_webhook') {
     const slug = 'slug' in payload.product ? payload.product.slug : null;
     if (typeof slug === 'string') {
       revalidateTag('recent-supporters', { expire: 0 });

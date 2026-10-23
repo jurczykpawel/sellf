@@ -1,0 +1,62 @@
+import { beforeEach, expect, it, vi } from 'vitest';
+import { fulfillPaidOrder } from '@/lib/services/fulfill-paid-order';
+import { deriveOrderId } from '@/lib/services/webhook-service';
+import type Stripe from 'stripe';
+
+const mocks = vi.hoisted(() => ({ licenses: vi.fn(), trigger: vi.fn(), capture: vi.fn() }));
+vi.mock('@/lib/services/bundle-order', () => ({
+  resolveComponentProductIds: vi.fn(async () => []), issueLicensesForOrder: mocks.licenses,
+}));
+vi.mock('@/lib/services/tax-snapshot', () => ({ captureAndPersistOrderTax: mocks.capture }));
+vi.mock('@/lib/services/webhook-service', async original => ({
+  ...await original<typeof import('@/lib/services/webhook-service')>(),
+  WebhookService: { trigger: mocks.trigger },
+}));
+const tx = { id: 'tx-order', order_number: 1001, session_id: 'cs_order', customer_email: 'buyer@example.test', user_id: null, metadata: {}, custom_field_values: {}, fulfillment_pending: true };
+const line = { product_id: 'product', item_type: 'main_product', discounted_total: 123, currency: 'PLN', vat_rate: 23, tax_behavior: 'inclusive', vat_exempt: false, net_amount: 10000, tax_amount: 2300 };
+const product = { id: 'product', name: 'Course', slug: 'course', price: 123, currency: 'PLN', icon: null };
+function client() {
+  return { from: (table: string) => {
+    const q = {
+      select: () => q, eq: () => q, update: vi.fn(() => q),
+      single: async () => ({ data: table === 'products' ? product : tx, error: null }),
+      then: (resolve: (value: unknown) => void) => resolve({ data: table === 'payment_line_items' ? [line] : null, error: null }),
+    };
+    return q;
+  }};
+}
+const common = () => ({ supabase: client() as never, transactionId: tx.id, productId: 'product', customerEmail: tx.customer_email, amount: 12300, currency: 'PLN', isGuest: true });
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.licenses.mockResolvedValue([]);
+  mocks.capture.mockResolvedValue(undefined);
+});
+
+it.each(['pi_order', null])('preserves the exact serialized Stripe purchase payload for %s', async paymentIntentId => {
+  await fulfillPaidOrder({ ...common(), stripe: {} as Stripe, sessionId: 'cs_order', paymentIntentId });
+  expect(JSON.stringify(mocks.trigger.mock.calls[0][1])).toBe('{"customer":{"email":"buyer@example.test","firstName":null,"lastName":null,"userId":null},"product":{"id":"product","name":"Course","slug":"course","price":123,"currency":"PLN","icon":null},"bumpProduct":null,"bumpProducts":[],"bundleComponents":[],"order":{"amount":12300,"currency":"PLN","sessionId":"cs_order","paymentIntentId":' + JSON.stringify(paymentIntentId) + ',"couponId":null,"isGuest":true}}');
+  expect(mocks.licenses.mock.calls[0][1].orderId).toBe(paymentIntentId ?? 'cs_order');
+});
+
+it('fulfills offline from saved rows using the transaction delivery and license key', async () => {
+  mocks.capture.mockImplementation(() => { throw new Error('Stripe must not be used'); });
+  await fulfillPaidOrder({ ...common(), provider: { kind: 'offline' } });
+  expect(mocks.capture).not.toHaveBeenCalled();
+  const payload = mocks.trigger.mock.calls[0][1];
+  expect(payload.order).toMatchObject({ orderId: 'tx-order', orderNumber: 1001, netTotal: 10000, taxTotal: 2300 });
+  expect(payload.order.sessionId).toBeUndefined();
+  expect(deriveOrderId(payload)).toBe('tx-order');
+  expect(mocks.licenses.mock.calls[0][1].orderId).toBe('tx-order');
+});
+
+it('keeps the saved offline exemption when product settings change', async () => {
+  const saved = { ...line };
+  try {
+    Object.assign(line, { vat_exempt: true, net_amount: 12300, tax_amount: 0 });
+    await fulfillPaidOrder({ ...common(), provider: { kind: 'offline' } });
+    expect(mocks.trigger.mock.calls[0][1].product.vatExempt).toBe(true);
+  } finally {
+    Object.assign(line, saved);
+  }
+});

@@ -660,6 +660,35 @@ operator pins; background revocation requests use bounded bodies/timeouts.
 - Used by admin panel frontend
 - Cached for 5 minutes
 
+### Order placement primitives
+
+`place_order(jsonb,jsonb)` stores a version-1 pricing snapshot and its lines atomically;
+only service_role can call it. Stripe orders start pending; bank transfers start
+awaiting_payment with local tax snapshots and redeem a reserved coupon immediately.
+`cancel_unpaid_order(uuid,text)` cancels unpaid transfers, returns the coupon once,
+and records the reason through `log_admin_action`. The one-time Elements checkout uses the typed `placeOrder` wrapper and shared snapshot
+builder; embedded checkout retains the legacy Stripe path. List prices remain in `total_price`; `discounted_total` stores
+major units after coupon. Guest purchases additionally support `transaction_id`.
+`_order_grant_and_record` shares access grants, bundle components, saved bump durations,
+guest recording, quantity counters and explicit coupon modes. Stripe completion uses
+exact saved pricing for snapshot orders and retains legacy validation otherwise;
+its result reports `pricing_source`. `complete_offline_order(uuid,numeric)` locks an
+awaiting transfer, checks its saved amount and completes it once without consuming
+the coupon again. These helpers are service-only. Confirmed guest claiming joins
+by `transaction_id`, falling back to the session only for legacy guest rows.
+Paid-order fulfillment accepts a Stripe or offline provider context. Stripe callers
+use `fulfillStripeOrder`; offline uses saved line tax and the transaction UUID for
+license orders and delivery, adding `orderId` and `orderNumber` to its payload.
+The affiliate worker uses offline creation time and mode from the transaction.
+Subscription checkout keeps buyer metadata on Stripe when no pending payment row
+exists; one-time checkout still requires its pending row. Dynamic subscription
+intents carry server-written product, user and subscription metadata. Invoice
+completion fills missing order buyer details from the subscription's Checkout
+Session or PaymentIntent, without blocking fulfillment on enrichment errors.
+Only buyer fields are mirrored to subscription metadata for later invoices.
+
+
+
 ### Guest Checkout to Registered User Flow
 
 1. Guest purchases product → stored in `payment_transactions` with email
@@ -695,7 +724,7 @@ Two tables needed a product decision rather than a mechanical "keep vs remove" c
 
 `WebhookService.trigger()` persists one `webhook_logs` delivery per
 order/event/endpoint before HTTP dispatch. `purchase.completed` uses the PI (or
-CS for orders without a PI); `invoice.paid` uses `invoice.stripeInvoiceId`.
+CS for orders without a PI), or the transaction UUID for offline orders; `invoice.paid` uses `invoice.stripeInvoiceId`.
 The queue row UUID is the top-level payload `id` and `X-Sellf-Delivery-Id` header.
 Automatic and manual retries reuse that ID. Receivers must **deduplicate on this
 id** and verify the existing signature against the raw body. Delivery is at least

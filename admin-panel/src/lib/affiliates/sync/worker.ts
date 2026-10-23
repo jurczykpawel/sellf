@@ -54,31 +54,35 @@ export async function drainAffiliateWork(limit = 25): Promise<DrainResult> {
           }
         }
         if (!facts) {
-          const payment = await client.from('payment_transactions').select('session_id')
+          const payment = await client.from('payment_transactions').select('session_id,payment_provider,created_at,livemode')
             .eq('id', work.payment_id).maybeSingle();
           if (payment.error) throw new Error('payment_read_failed');
-          const id = payment.data?.session_id;
-          if (!id || (!id.startsWith('cs_') && !id.startsWith('pi_'))) {
-            errorCode = 'session_unresolved';
-            throw new Error(errorCode);
-          }
-          const stripe = await getStripeServer();
-          let session;
-          if (id.startsWith('cs_')) {
-            session = await stripe.checkout.sessions.retrieve(id);
-            if (session.id !== id) session = undefined;
+          if (payment.data?.payment_provider === 'bank_transfer') {
+            facts = factsSchema.parse({ session_created_at: payment.data.created_at, livemode: payment.data.livemode });
           } else {
-            const sessions = await stripe.checkout.sessions.list({ payment_intent: id, limit: 2 });
-            const owner = sessions.data[0];
-            const intent = typeof owner?.payment_intent === 'string' ? owner.payment_intent : owner?.payment_intent?.id;
-            if (!sessions.has_more && sessions.data.length === 1 && intent === id) session = owner;
+            const id = payment.data?.session_id;
+            if (!id || (!id.startsWith('cs_') && !id.startsWith('pi_'))) {
+              errorCode = 'session_unresolved';
+              throw new Error(errorCode);
+            }
+            const stripe = await getStripeServer();
+            let session;
+            if (id.startsWith('cs_')) {
+              session = await stripe.checkout.sessions.retrieve(id);
+              if (session.id !== id) session = undefined;
+            } else {
+              const sessions = await stripe.checkout.sessions.list({ payment_intent: id, limit: 2 });
+              const owner = sessions.data[0];
+              const intent = typeof owner?.payment_intent === 'string' ? owner.payment_intent : owner?.payment_intent?.id;
+              if (!sessions.has_more && sessions.data.length === 1 && intent === id) session = owner;
+            }
+            if (!session || !Number.isSafeInteger(session.created) || session.created <= 0
+              || session.created * 1000 > Date.now() || typeof session.livemode !== 'boolean') {
+              errorCode = 'session_unresolved';
+              throw new Error(errorCode);
+            }
+            facts = { session_created_at: new Date(session.created * 1000).toISOString(), livemode: session.livemode };
           }
-          if (!session || !Number.isSafeInteger(session.created) || session.created <= 0
-            || session.created * 1000 > Date.now() || typeof session.livemode !== 'boolean') {
-            errorCode = 'session_unresolved';
-            throw new Error(errorCode);
-          }
-          facts = { session_created_at: new Date(session.created * 1000).toISOString(), livemode: session.livemode };
         }
         const applied = await client.rpc('affiliate_apply_sync', {
           ...lease, p_session_created_at: facts.session_created_at, p_livemode: facts.livemode,

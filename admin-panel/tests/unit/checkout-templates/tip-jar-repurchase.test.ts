@@ -25,6 +25,6 @@ describe('tip jar repurchase wiring', () => {
     // one-time handlers extracted to onetime-handlers.ts (Option A).
     const src = read('src/app/api/webhooks/stripe/onetime-handlers.ts');
     expect(src).not.toMatch(/!result\.already_had_access/);
-    expect(src).toMatch(/fulfillPaidOrder/);
+    expect(src).toMatch(/fulfillStripeOrder/);
   });
 });

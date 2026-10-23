@@ -15,6 +15,7 @@ import {
   validateCustomFieldValues,
 } from '@/lib/validations/custom-checkout-fields';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
+import { buildBuyerDetails } from '@/lib/payment/buyer-details';
 
 /**
  * POST /api/update-payment-metadata
@@ -124,21 +125,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Handle fullName - split into firstName and lastName
-    let finalFirstName = firstName || '';
-    let finalLastName = lastName || '';
-
-    if (fullName && !firstName && !lastName) {
-      // Split fullName into first and last name
-      const nameParts = fullName.trim().split(/\s+/);
-      if (nameParts.length === 1) {
-        finalFirstName = nameParts[0];
-      } else {
-        finalFirstName = nameParts[0];
-        finalLastName = nameParts.slice(1).join(' ');
-      }
-    }
-
     const userClient = await createClient();
     const { data: { user: sessionUser } } = await userClient.auth.getUser();
     const sessionUserId = sessionUser?.id ?? null;
@@ -159,21 +145,26 @@ export async function POST(request: NextRequest) {
     }
 
     const stripe = await getStripeServer();
+    const buyer = buildBuyerDetails(
+      { firstName, lastName, fullName, termsAccepted, needsInvoice, nip, companyName, address, city, postalCode, country },
+      'checkout',
+    );
     const metadata = {
-      first_name: finalFirstName,
-      last_name: finalLastName,
-      full_name: fullName || `${finalFirstName} ${finalLastName}`.trim(), // Store full name too for reference
-      terms_accepted: termsAccepted ? 'true' : '',
-      needs_invoice: needsInvoice ? 'true' : 'false',
-      nip: nip || '',
-      company_name: companyName || '',
-      address: address || '',
-      city: city || '',
-      postal_code: postalCode || '',
-      country: country || '',
+      first_name: buyer.first_name,
+      last_name: buyer.last_name,
+      full_name: buyer.full_name,
+      terms_accepted: buyer.terms_accepted ? 'true' : '',
+      needs_invoice: buyer.needs_invoice ? 'true' : 'false',
+      nip: buyer.nip,
+      company_name: buyer.company_name,
+      address: buyer.address,
+      city: buyer.city,
+      postal_code: buyer.postal_code,
+      country: buyer.country,
     };
 
     let productIdFromStripe: string | null = null;
+    let isSubscription = false;
     let stripeTaxCustomerId: string | null = null;
 
     const tooManyRequests = () =>
@@ -206,6 +197,7 @@ export async function POST(request: NextRequest) {
       const ownership = assertStripeObjectOwnership(session.metadata ?? null, sessionUserId);
       if (ownership) return ownership;
 
+      isSubscription = session.mode === 'subscription';
       productIdFromStripe = (session.metadata?.product_id as string) || null;
       const sessionOwnerId = (session.metadata?.user_id as string | undefined) || null;
       const limited = await enforcePerOwnerLimit(sessionOwnerId);
@@ -224,6 +216,7 @@ export async function POST(request: NextRequest) {
       const ownership = assertStripeObjectOwnership(pi.metadata ?? null, sessionUserId);
       if (ownership) return ownership;
 
+      isSubscription = pi.metadata?.product_type === 'subscription' && !!pi.metadata.subscription_id;
       productIdFromStripe = (pi.metadata?.product_id as string) || null;
       const piOwnerId = (pi.metadata?.user_id as string | undefined) || null;
       const limited = await enforcePerOwnerLimit(piOwnerId);
@@ -313,6 +306,32 @@ export async function POST(request: NextRequest) {
           { status: 500 },
         );
       }
+    }
+
+    // The buyer details must be stored with the order before the payment can be confirmed;
+    // the checkout form stops on any failure here.
+    const detailsNotSaved = (status: number) =>
+      NextResponse.json(
+        { success: false, error: 'Failed to save buyer details', code: 'details_not_saved' },
+        { status },
+      );
+    try {
+      const { data: savedRows, error: saveError } = await createAdminClient().rpc('set_payment_order_buyer', {
+        p_buyer: buyer,
+        ...(isCheckoutSession ? { p_session_id: stripeObjectId } : { p_payment_intent_id: stripeObjectId }),
+        p_only_if_missing: false,
+      });
+      if (saveError) {
+        console.error('[update-payment-metadata] failed to persist buyer details:', saveError);
+        return detailsNotSaved(500);
+      }
+      if (!savedRows && !isSubscription) {
+        console.error('[update-payment-metadata] no pending payment row for', stripeObjectId);
+        return detailsNotSaved(409);
+      }
+    } catch (saveError) {
+      console.error('[update-payment-metadata] failed to persist buyer details:', saveError instanceof Error ? saveError.message : 'Unknown error');
+      return detailsNotSaved(500);
     }
 
     return NextResponse.json({ success: true });

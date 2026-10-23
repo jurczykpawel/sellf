@@ -23,11 +23,11 @@ const updateMeta = read('src/app/api/update-payment-metadata/route.ts');
 
 describe('VAT capture wiring — completion entry points', () => {
   it('webhook session + PI handlers both call captureAndPersistOrderTax', () => {
-    expect((route.match(/fulfillPaidOrder\(/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    expect((route.match(/fulfillStripeOrder\(/g) ?? []).length).toBeGreaterThanOrEqual(2);
   });
 
   it('verify-payment session + PI paths both call captureAndPersistOrderTax', () => {
-    expect((verify.match(/fulfillPaidOrder\(/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    expect((verify.match(/fulfillStripeOrder\(/g) ?? []).length).toBeGreaterThanOrEqual(2);
   });
 
   it('net-priced validation: amount_subtotal_param is passed to the completion RPC (both paths)', () => {

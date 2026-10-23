@@ -145,3 +145,20 @@ describe('worker against isolated source writes', () => {
     expect(sql(`SELECT count(*) FROM affiliate_ledger l JOIN affiliate_commissions c ON c.id=l.commission_id WHERE c.payment_id='${id}'`)).toBe('2');
   });
 });
+
+it('accrues a completed offline order after durable fulfillment', async () => {
+  const email = `offline-${randomUUID()}@example.test`;
+  sql(`INSERT INTO coupon_reservations(coupon_id,customer_email,expires_at) VALUES('${coupon}','${email}',now()+interval '1 hour')`);
+  const order = { payment_provider: 'bank_transfer', product_id: product, customer_email: email, currency: 'PLN', coupon_id: coupon, livemode: false };
+  const lines = [{ product_id: product, item_type: 'main_product', quantity: 1, unit_price: 123, total_price: 123, discounted_total: 123, currency: 'PLN', product_name: 'Offline', vat_rate: 23, tax_behavior: 'inclusive' }];
+  const placed = JSON.parse(sql(`SELECT place_order('${JSON.stringify(order)}','${JSON.stringify(lines)}')`));
+  const id = placed.transaction_id;
+  expect(placed.success).toBe(true);
+  await drain(); expect(balance(id)).toBe('0');
+  expect(JSON.parse(sql(`SELECT complete_offline_order('${id}',12300)`)).success).toBe(true);
+  await drain(); expect(balance(id)).toBe('0');
+  sql(`UPDATE payment_transactions SET fulfillment_pending=false WHERE id='${id}'`);
+  await drain(); expect(balance(id)).toBe('2000');
+  await drain();
+  expect(sql(`SELECT count(*) FROM affiliate_commissions WHERE payment_id='${id}'`)).toBe('1');
+});

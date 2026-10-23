@@ -196,6 +196,7 @@
     "invalidTaxIdFormat": "Nieprawidłowy format NIP/ID podatkowego",
     "failedToPreparePayment": "Nie udało się przygotować płatności",
     "paymentFailed": "Płatność nieudana",
+    "detailsNotSaved": "Nie udało się zapisać danych. Spróbuj ponownie.",
     "additionalProduct": "Dodatkowy produkt",
     "gusRateLimitExceeded": "Zbyt wiele zapytań. Poczekaj chwilę i spróbuj ponownie.",
     "gusNotFound": "Nie znaleziono firmy w bazie GUS",

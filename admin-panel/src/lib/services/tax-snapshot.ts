@@ -33,6 +33,7 @@ export interface TaxComponent {
 
 /** Per-line tax snapshot. Amounts MINOR units. */
 export interface LineTaxSnapshot {
+  vatExempt?: boolean;
   productId: string | null;
   isBump: boolean;
   netAmount: number | null;
@@ -45,7 +46,7 @@ export interface LineTaxSnapshot {
   breakdown: TaxComponent[];
 }
 
-export type TaxSnapshotStatus = 'none' | 'captured' | 'partial' | 'unavailable';
+export type TaxSnapshotStatus = 'none' | 'captured' | 'partial' | 'unavailable' | 'local';
 
 /** Order-level tax snapshot. Amounts MINOR units. */
 export interface OrderTaxSnapshot {

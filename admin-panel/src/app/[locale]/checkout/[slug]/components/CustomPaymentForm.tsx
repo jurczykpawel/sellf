@@ -209,8 +209,7 @@ export default function CustomPaymentForm({
         });
 
         if (!updateResponse.ok) {
-          // Custom field validation surfaces per-field detail — block submit
-          // so the buyer sees the error rather than silently failing.
+          // Any failure stops the payment: the details must be stored before confirming.
           const errorBody = await updateResponse.json().catch(() => ({}));
           if (errorBody?.error === 'Invalid custom field values' && errorBody.details) {
             setErrorMessage(
@@ -222,7 +221,9 @@ export default function CustomPaymentForm({
             return;
           }
           console.error('[CustomPaymentForm] Failed to update payment metadata');
-          // Continue anyway — metadata update is not critical for payment
+          setErrorMessage(t('detailsNotSaved'));
+          setIsProcessing(false);
+          return;
         }
       }
 

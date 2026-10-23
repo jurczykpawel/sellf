@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 /**
@@ -32,11 +32,22 @@ const mocks = vi.hoisted(() => ({
   adminInserts: [] as Array<{ table: string; value: unknown }>,
   getOrCreateStripeCustomer: vi.fn(),
   sessionsCreate: vi.fn(),
+  piUpdate: vi.fn(),
+  dynamicSubscription: vi.fn(),
+  sessionsRetrieve: vi.fn(),
+  sessionsExpire: vi.fn(),
+  verifyBinding: vi.fn(() => false),
+  pendingInsertError: null as { message: string } | null,
+  pendingInsertThrows: false,
+  productOverride: {} as Record<string, unknown>,
+  existingAccess: false,
+  drift: false,
 }));
 
 function adminQuery(table: string) {
   const q: Record<string, unknown> = {};
   const self = () => q;
+  let inserting = false;
   Object.assign(q, {
     select: self,
     eq: self,
@@ -44,17 +55,24 @@ function adminQuery(table: string) {
     limit: self,
     single: async () =>
       table === 'products'
-        ? { data: PRODUCT, error: null }
+        ? { data: { ...PRODUCT, ...mocks.productOverride }, error: null }
         : table === 'payment_method_config'
           ? { data: null, error: null }
           : { data: null, error: { code: 'PGRST116' } },
-    maybeSingle: async () => ({ data: null, error: null }),
+    maybeSingle: async () => ({ data: table === 'user_product_access' && mocks.existingAccess ? { access_expires_at: null } : null, error: null }),
     insert: (value: unknown) => {
+      if (table === 'payment_transactions' && mocks.pendingInsertThrows) throw new Error('insert threw');
       mocks.adminInserts.push({ table, value });
+      inserting = true;
       return q;
     },
     delete: self,
-    then: (resolve: (v: unknown) => void) => resolve({ data: null, error: null }),
+    update: self,
+    then: (resolve: (v: unknown) => void) =>
+      resolve({
+        data: null,
+        error: inserting && table === 'payment_transactions' ? mocks.pendingInsertError : null,
+      }),
   });
   return q;
 }
@@ -69,17 +87,25 @@ vi.mock('@/lib/supabase/admin', () => ({
 
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: vi.fn().mockResolvedValue(true) }));
 
-vi.mock('@/lib/services/product-validation', () => ({
-  ProductValidationService: { validateEmail: vi.fn().mockResolvedValue(true) },
-}));
+vi.mock('@/lib/services/product-validation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/services/product-validation')>();
+  return {
+    ...actual,
+    ProductValidationService: {
+      validateEmail: vi.fn().mockResolvedValue(true),
+      validateTemporalAvailability: actual.ProductValidationService.validateTemporalAvailability,
+    },
+  };
+});
 
 vi.mock('@/lib/stripe/server', () => ({
   getStripeServer: vi.fn(async () => ({
+    paymentIntents: { update: mocks.piUpdate },
     checkout: {
       sessions: {
         create: mocks.sessionsCreate,
-        retrieve: vi.fn(),
-        expire: vi.fn(),
+        retrieve: mocks.sessionsRetrieve,
+        expire: mocks.sessionsExpire,
       },
     },
   })),
@@ -106,8 +132,21 @@ vi.mock('@/lib/stripe/tax-rate-manager', () => ({
 
 vi.mock('@/lib/security/checkout-binding', () => ({
   signCheckoutBinding: vi.fn(() => 'binding'),
-  verifyCheckoutBinding: vi.fn(() => false),
+  verifyCheckoutBinding: mocks.verifyBinding,
 }));
+
+vi.mock('@/lib/license-keys/lookup', () => ({ findIssuedLicense: vi.fn().mockResolvedValue(null) }));
+vi.mock('@/lib/services/checkout-line-items', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/services/checkout-line-items')>();
+  return { ...actual, buildCheckoutLineSpecs: (params: Parameters<typeof actual.buildCheckoutLineSpecs>[0]) => {
+    const result = actual.buildCheckoutLineSpecs(params);
+    if (mocks.drift) result.specs[0].unitAmountMinor++;
+    return result;
+  }};
+});
+
+vi.mock('@/lib/stripe/ensure-product', () => ({ ensureStripeProduct: vi.fn().mockResolvedValue('prod_sub') }));
+vi.mock('@/lib/stripe/subscription-dynamic-price', () => ({ createSubscriptionWithDynamicPrice: mocks.dynamicSubscription }));
 
 import { POST } from '@/app/api/create-payment-intent/route';
 
@@ -124,7 +163,19 @@ const SIGNED_IN = { id: 'user-1', email: 'account@example.com' };
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.adminInserts.length = 0;
-  mocks.adminRpc.mockResolvedValue({ data: { valid: false, error: 'Invalid coupon' }, error: null });
+  mocks.pendingInsertError = null;
+  mocks.pendingInsertThrows = false;
+  mocks.productOverride = {};
+  mocks.existingAccess = false;
+  mocks.drift = false;
+  mocks.verifyBinding.mockReturnValue(false);
+  mocks.adminRpc.mockImplementation(async (name: string) => {
+    if (name === 'place_order') {
+      if (mocks.pendingInsertThrows) throw new Error('insert threw');
+      return { data: { success: true, transaction_id: 'tx-1', order_number: 1001, amount: 10000 }, error: mocks.pendingInsertError };
+    }
+    return { data: { valid: false, error: 'Invalid coupon' }, error: null };
+  });
   mocks.sessionsCreate.mockResolvedValue({ id: 'cs_test_1', client_secret: 'cs_test_1_secret_x' });
 });
 
@@ -204,5 +255,108 @@ describe('POST /api/create-payment-intent — full-discount coupon', () => {
     expect((await res.json()).freeAccess).toBeUndefined();
     expect(mocks.adminInserts.filter((w) => w.table === 'coupon_redemptions')).toEqual([]);
     expect(adminRpcNames()).not.toContain('increment_coupon_usage');
+  });
+});
+
+describe('POST /api/create-payment-intent — pending row', () => {
+  it.each(['returned error', 'thrown exception'])('stops the payment and expires the session on pending insert %s', async (failure) => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    mocks.pendingInsertError = failure === 'returned error' ? { message: 'insert failed' } : null;
+    mocks.pendingInsertThrows = failure === 'thrown exception';
+    mocks.verifyBinding.mockReturnValue(true);
+    mocks.sessionsRetrieve.mockResolvedValue({
+      id: 'cs_test_1',
+      status: 'open',
+      payment_intent: null,
+      metadata: { product_id: PRODUCT.id },
+    });
+    mocks.sessionsExpire.mockResolvedValue({});
+
+    const res = await POST(makeRequest({ email: 'guest@example.com' }));
+
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.clientSecret).toBeUndefined();
+    expect(mocks.sessionsExpire).toHaveBeenCalledWith('cs_test_1');
+  });
+
+  it('returns the client secret when the pending row is saved', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+
+    const res = await POST(makeRequest({ email: 'guest@example.com' }));
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).clientSecret).toBe('cs_test_1_secret_x');
+    expect(mocks.sessionsExpire).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/create-payment-intent — sale window', () => {
+  const HOUR = 3600_000;
+  const NOW = Date.parse('2026-10-22T12:00:00Z');
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it.each([
+    ['one_time', 'ended', { available_until: new Date(NOW - HOUR).toISOString() }],
+    ['one_time', 'not started', { available_from: new Date(NOW + HOUR).toISOString() }],
+    ['subscription', 'ended', { available_until: new Date(NOW - HOUR).toISOString() }],
+  ])('refuses a %s product whose sale window has %s', async (product_type, _label, window) => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    mocks.productOverride = { product_type, ...window };
+
+    const res = await POST(makeRequest({ email: 'guest@example.com' }));
+
+    expect(res.status).toBe(404);
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+  });
+
+  it('allows a product inside its sale window', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    mocks.productOverride = { available_until: new Date(NOW + HOUR).toISOString() };
+
+    const res = await POST(makeRequest({ email: 'guest@example.com' }));
+
+    expect(res.status).toBe(200);
+  });
+});
+
+describe('order placement', () => {
+  it('stores the builder snapshot and order context through the RPC', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    expect((await POST(makeRequest({ email: 'guest@example.com' }))).status).toBe(200);
+    expect(mocks.adminRpc).toHaveBeenCalledWith('place_order', {
+      p_order: expect.objectContaining({ payment_provider: 'stripe', session_id: 'cs_test_1', customer_email: 'guest@example.com', coupon_id: null, custom_field_values: {}, metadata: expect.objectContaining({ bump_product_ids_full: [] }) }),
+      p_lines: [expect.objectContaining({ product_id: PRODUCT.id, discounted_total: 100, total_price: 100, quantity: 1 })],
+    });
+    expect(mocks.adminInserts.filter(w => w.table === 'payment_transactions')).toHaveLength(0);
+  });
+  it.each([false, true])('repeat purchase flag %s governs existing access', async (allow_repeat_purchase) => {
+    mocks.getUser.mockResolvedValue({ data: { user: SIGNED_IN } });
+    mocks.existingAccess = true;
+    mocks.productOverride = { allow_repeat_purchase };
+    expect((await POST(makeRequest({}))).status).toBe(allow_repeat_purchase ? 200 : 400);
+  });
+});
+
+it('refuses mismatched line totals before creating a Stripe session', async () => {
+  mocks.getUser.mockResolvedValue({ data: { user: null } });
+  mocks.drift = true;
+  expect((await POST(makeRequest({}))).status).toBe(500);
+  expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+});
+
+it('pins the subscription context on a dynamic-price payment intent', async () => {
+  mocks.getUser.mockResolvedValue({ data: { user: SIGNED_IN } });
+  mocks.getOrCreateStripeCustomer.mockResolvedValue('cus_sub');
+  mocks.dynamicSubscription.mockResolvedValue({ clientSecret: 'pi_subtest_secret_value', subscriptionId: 'sub_test' });
+  mocks.productOverride = { product_type: 'subscription', allow_custom_price: true, custom_price_min: 1, billing_interval: 'month', billing_interval_count: 1, recurring_price: 10 };
+  expect((await POST(makeRequest({ customAmount: 10 }))).status).toBe(200);
+  expect(mocks.piUpdate).toHaveBeenCalledWith('pi_subtest', {
+    metadata: expect.objectContaining({ product_id: PRODUCT.id, product_type: 'subscription', subscription_id: 'sub_test', user_id: SIGNED_IN.id }),
   });
 });

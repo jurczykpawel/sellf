@@ -689,6 +689,10 @@ BEGIN
   ('cs_test_pln_002', user3_id, pro_toolkit_id, 'anna.kowalska@example.com', 399.99, 'PLN', 'completed', 'pi_pln_002', NOW() - INTERVAL '3 days', false),
   ('cs_test_pln_003', user3_id, vip_masterclass_id, 'anna.kowalska@example.com', 799.99, 'PLN', 'completed', 'pi_pln_003', NOW(), false);
 
+  UPDATE public.payment_transactions
+  SET order_details = '{"buyer":{"v":1,"first_name":"Anna","last_name":"Kowalska","full_name":"Anna Kowalska","needs_invoice":true,"nip":"5260250274","company_name":"Pracownia Cyfrowa Sp. z o.o.","address":"ul. Prosta 20","city":"Warszawa","postal_code":"00-850","country":"PL","terms_accepted":true,"source":"checkout","saved_at":"2026-10-22T10:00:00Z"}}'::jsonb
+  WHERE session_id = 'cs_test_pln_001';
+
   -- A superseded checkout remains in the transaction history.
   INSERT INTO payment_transactions (
     session_id, product_id, customer_email, amount, currency, status, metadata
@@ -1320,3 +1324,16 @@ END $$;
 -- A cancelled test-mode transfer remains in the partner's history.
 INSERT INTO public.affiliate_payouts(member_id,currency,earnings_minor,status,cutoff,payee_reference,livemode)
 VALUES('af000000-0000-4000-a000-000000000001','PLN',1000,'cancelled',now()-interval '1 day','Demo test transfer cancelled',false);
+
+-- An unpaid transfer retains its pricing independently of later catalogue edits.
+WITH sample AS (
+  INSERT INTO public.payment_transactions (product_id, customer_email, amount, currency,
+    payment_provider, pricing_snapshot_version, status, tax_snapshot_status, net_total, tax_total)
+  SELECT id, 'transfer.example@example.com', 12300, 'PLN', 'bank_transfer', 1,
+    'awaiting_payment', 'local', 10000, 2300 FROM public.products WHERE slug = 'affiliate-pln-course' LIMIT 1
+  RETURNING id, product_id
+)
+INSERT INTO public.payment_line_items (transaction_id, product_id, item_type, quantity,
+  unit_price, total_price, discounted_total, currency, product_name, net_amount, tax_amount, vat_rate, tax_behavior)
+SELECT sample.id, sample.product_id, 'main_product', 1, 123, 123, 123, 'PLN',
+  'Affiliate PLN Course', 10000, 2300, 23, 'inclusive' FROM sample;
