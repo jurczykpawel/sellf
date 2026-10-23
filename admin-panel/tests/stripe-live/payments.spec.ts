@@ -3,6 +3,7 @@ import { readFileSync, appendFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import Stripe from 'stripe';
+import { solveChallenge } from 'altcha-lib/v1';
 import { minorFactor } from '@/lib/currency/minor-units';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
 import { PREDEFINED_CUSTOM_FIELDS } from '@/lib/validations/custom-checkout-fields';
@@ -28,6 +29,8 @@ interface Scenario {
   subscription: boolean;
   coupon?: { id: string; code: string };
   netVat?: boolean;
+  netCouponQuantity?: number;
+  noBump?: boolean;
   profile?: boolean;
   eventSession?: string;
 }
@@ -76,17 +79,20 @@ async function setup(s: Scenario, loggedIn: boolean): Promise<void> {
     s.buyerId = data.user.id;
   }
   const main = await insert('products', {
-    slug: s.slug, name: `Stripe live ${s.slug}`, price: 10, currency: 'USD', is_active: true,
+    slug: s.slug, name: `Stripe live ${s.slug}`, price: s.netCouponQuantity ? 100 : 10, currency: s.netCouponQuantity ? 'PLN' : 'USD', is_active: true,
     seller_id: seller.userId, vat_exempt: !s.netVat,
     ...(s.netVat ? { vat_rate: 23, price_includes_vat: false } : {}),
     ...(s.subscription ? {
       product_type: 'subscription', recurring_price: 10, billing_interval: 'month', billing_interval_count: 1,
     } : {
-      issue_license_on_purchase: !s.profile, license_tier: 'pro',
+      issue_license_on_purchase: !s.profile && !s.netCouponQuantity, license_tier: 'pro',
       custom_checkout_fields: [{ ...PREDEFINED_CUSTOM_FIELDS.license_domain, required: true, claim: undefined }],
     }),
   });
   s.productIds.push(main.id);
+  if (s.netCouponQuantity) {
+    expect((await supabaseAdmin.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }, { id: 'quantity', min: 1, max: 5, mode: 'product_page' }] } }).eq('id', main.id)).error).toBeNull();
+  }
   if (s.profile) {
     const { error } = await supabaseAdmin.from('products').update({ checkout_profile: { v: 1, modules: [
       { id: 'buyer', types: ['organization'], gus: false }, { id: 'recipient', for: ['organization'] },
@@ -95,10 +101,10 @@ async function setup(s: Scenario, loggedIn: boolean): Promise<void> {
     ] } }).eq('id', main.id);
     expect(error).toBeNull();
   }
-  if (!s.subscription) {
-    const bump = await insert('products', { slug: `${s.slug}-bump`, name: 'Live test bonus', price: 2, currency: 'USD', is_active: true, vat_exempt: true, seller_id: seller.userId });
+  if (!s.subscription && !s.noBump) {
+    const bump = await insert('products', { slug: `${s.slug}-bump`, name: 'Live test bonus', price: s.netCouponQuantity ? 19 : 2, currency: s.netCouponQuantity ? 'PLN' : 'USD', is_active: true, vat_exempt: true, seller_id: seller.userId });
     s.productIds.push(bump.id);
-    await insert('order_bumps', { main_product_id: main.id, bump_product_id: bump.id, bump_title: 'Live test bonus', bump_price: 2, is_active: true });
+    await insert('order_bumps', { main_product_id: main.id, bump_product_id: bump.id, bump_title: 'Live test bonus', bump_price: s.netCouponQuantity ? 19 : 2, is_active: true });
   }
   const endpoint = await insert('webhook_endpoints', {
     url: `${process.env.STRIPE_LIVE_RECEIVER_URL}/${s.slug}`, secret: randomUUID(),
@@ -165,11 +171,17 @@ async function timing(s: Scenario, sessionId: string, pageAt: number): Promise<s
   const session = await stripe.checkout.sessions.retrieve(sessionId);
   const pi = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
   const eventIds: { type: string; id: string }[] = [];
-  for (const type of ['checkout.session.completed', 'payment_intent.succeeded']) {
-    const events = await stripe.events.list({ type, limit: 100 });
-    const event = events.data.find(e => e.data.object.id === (type.startsWith('checkout') ? sessionId : pi));
-    if (event) eventIds.push({ type, id: event.id });
-  }
+  const collectEventIds = async () => {
+    eventIds.length = 0;
+    for (const type of ['checkout.session.completed', 'payment_intent.succeeded']) {
+      const events = await stripe.events.list({ type, limit: 100 });
+      const event = events.data.find(e => e.data.object.id === (type.startsWith('checkout') ? sessionId : pi));
+      if (event) eventIds.push({ type, id: event.id });
+    }
+    return eventIds.length;
+  };
+  if (s.subscription) await collectEventIds();
+  else await expect.poll(collectEventIds, { timeout: 60000, message: 'Both Stripe completion events available' }).toBe(2);
   await expect.poll(() => {
     const listener = readFileSync(`${artifacts}/stripe.jsonl`, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line));
     return eventIds.every(event => listener.some(row => row.line.includes('[200] POST') && row.line.includes(event.id)));
@@ -189,9 +201,9 @@ async function timing(s: Scenario, sessionId: string, pageAt: number): Promise<s
   return order;
 }
 
-async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; setPrice?: boolean; netVat?: boolean; profile?: boolean; event?: boolean } = {}): Promise<void> {
+async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; setPrice?: boolean; fixedPrice?: boolean; netVat?: boolean; profile?: boolean; event?: boolean; netCouponQuantity?: number; noBump?: boolean } = {}): Promise<void> {
   const slug = `stripe-live-${label}-${randomUUID().slice(0, 8)}`;
-  const s: Scenario = { slug, productIds: [], email: `${slug}@example.com`, domain: `${slug}.example.com`, sessionIds: [], subscription: !!options.subscription, netVat: options.netVat, profile: options.profile };
+  const s: Scenario = { slug, productIds: [], email: `${slug}@example.com`, domain: `${slug}.example.com`, sessionIds: [], subscription: !!options.subscription, netVat: options.netVat, profile: options.profile, netCouponQuantity: options.netCouponQuantity, noBump: options.noBump };
   let passed = false;
   let order = 'not observed';
   try {
@@ -203,8 +215,8 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       await insert('product_price_tiers', { session_id: eventSession.id, price: 47, seats: 30, sale_ends_at: '2099-05-01T12:00:00Z', sort: 0 });
       await insert('product_price_tiers', { session_id: eventSession.id, price: 67, sort: 1 });
     }
-    if (options.coupon || options.setPrice) {
-      s.coupon = await insert('coupons', { code: `LIVE-${randomUUID().slice(0, 8)}`.toUpperCase(), name: 'Live percentage', discount_type: options.setPrice ? 'set_price' : s.profile ? 'fixed' : 'percentage', discount_value: options.setPrice ? 3 : s.profile ? 7.01 : 25, currency: options.setPrice ? 'USD' : null, exclude_order_bumps: false, is_active: true });
+    if (options.coupon || options.setPrice || options.fixedPrice) {
+      s.coupon = await insert('coupons', { code: `LIVE-${randomUUID().slice(0, 8)}`.toUpperCase(), name: 'Live percentage', discount_type: options.setPrice ? 'set_price' : options.fixedPrice ? 'fixed' : s.profile ? 'fixed' : 'percentage', discount_value: options.setPrice ? s.netCouponQuantity ? 30 : 3 : options.fixedPrice ? 70 * s.netCouponQuantity! : s.profile ? 7.01 : 25, currency: options.setPrice || options.fixedPrice ? s.netCouponQuantity ? 'PLN' : 'USD' : null, exclude_order_bumps: !!options.fixedPrice, usage_limit_global: s.netCouponQuantity ? 1 : null, is_active: true });
     }
     await acceptAllCookies(page);
     if (s.buyerId) await setAuthSession(page, s.email, password);
@@ -221,13 +233,14 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         if (document.body?.innerText.includes('Payment Failed')) (window as unknown as { recordPaymentFailure: () => void }).recordPaymentFailure();
       }).observe(document, { childList: true, subtree: true });
     });
-    await page.goto(`/en/checkout/${slug}?email=${encodeURIComponent(s.email)}${options.setPrice ? `&coupon=${s.coupon!.code}` : ''}`);
+    await page.goto(`/en/checkout/${slug}?${s.netCouponQuantity ? '' : `email=${encodeURIComponent(s.email)}`}${options.setPrice || options.fixedPrice ? `&coupon=${s.coupon!.code}` : ''}`);
+    if (s.netCouponQuantity) await page.getByLabel('Quantity', { exact: true }).fill(String(s.netCouponQuantity));
     if (s.profile || options.event) await page.getByLabel('Quantity', { exact: true }).fill(options.event ? '2' : '3');
     await page.getByRole('button', { name: /Continue to payment/ }).click();
-    if (!s.subscription) await page.getByRole('button', { name: /Add to order/i }).click();
+    if (!s.subscription && !s.noBump) await page.getByRole('button', { name: /Add to order/i }).click();
     await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
     await page.locator('#checkoutEmail').fill(s.email);
-    if (s.coupon && !options.setPrice) {
+    if (s.coupon && !options.setPrice && !options.fixedPrice) {
       await page.locator('summary').filter({ hasText: /coupon|discount/i }).click();
       await page.getByLabel(/discount code/i).fill(s.coupon.code);
       const couponSession = page.waitForResponse(response =>
@@ -252,7 +265,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
           await page.locator(`[id="participants.${index}.${key}"]`).fill(value);
         }
       }
-    } else if (options.event) {
+    } else if (options.event || s.netCouponQuantity) {
       await page.locator('[id="buyer.first_name"]').fill('Stripe');
       await page.locator('[id="buyer.last_name"]').fill('Test Buyer');
     } else await page.locator('#fullName').fill('Stripe Test Buyer');
@@ -260,7 +273,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
     const terms = page.locator('input[type="checkbox"]');
     for (const checkbox of await terms.all()) if (await checkbox.isVisible()) await checkbox.check();
     await fillCard(page, card);
-    if (!s.profile && !options.event) await expect(page.locator('#fullName')).toHaveValue('Stripe Test Buyer');
+    if (!s.profile && !options.event && !s.netCouponQuantity) await expect(page.locator('#fullName')).toHaveValue('Stripe Test Buyer');
     await page.locator('button[type="submit"]').click();
     if (options.challenge) {
       let challenge: Frame | undefined;
@@ -305,7 +318,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       const completed = txs.filter(row => row.status === 'completed');
       expect(completed).toHaveLength(1);
       for (const superseded of txs.filter(row => row.status !== 'completed')) {
-        expect(superseded.customer_email).toBe(s.email);
+        expect(superseded.customer_email).toBe(s.netCouponQuantity ? 'pending@sellf.app' : s.email);
         expect(superseded.status).toBe('abandoned');
         expect((await stripe.checkout.sessions.retrieve(superseded.session_id)).status).toBe('expired');
       }
@@ -323,15 +336,15 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         expect(Number(tx.order_number)).toBeGreaterThanOrEqual(1001);
         if (!options.event) expect(tx.custom_field_values._sellf_license_domain).toBe(s.domain);
         const items = await rows('payment_line_items', 'transaction_id', tx.id);
-        expect(items).toHaveLength(2);
+        expect(items).toHaveLength(s.noBump ? 1 : 2);
         expect(new Set(items.map(row => row.product_id))).toEqual(new Set(s.productIds));
         for (const item of items) {
-          const expectedPrice = item.product_id === s.productIds[0] ? options.event ? 47 : 10 : 2;
-          const quantity = item.product_id === s.productIds[0] ? options.event ? 2 : s.profile ? 3 : 1 : 1;
+          const expectedPrice = item.product_id === s.productIds[0] ? s.netCouponQuantity ? 100 : options.event ? 47 : 10 : s.netCouponQuantity ? 19 : 2;
+          const quantity = item.product_id === s.productIds[0] ? s.netCouponQuantity ?? (options.event ? 2 : s.profile ? 3 : 1) : 1;
           expect(item.quantity).toBe(quantity);
           expect(Number(item.unit_price)).toBe(expectedPrice);
           expect(Number(item.total_price)).toBe(expectedPrice * quantity);
-          expect(item.currency).toBe('USD');
+          expect(item.currency).toBe(s.netCouponQuantity ? 'PLN' : 'USD');
         }
         if (options.event) {
           const eventLine = items.find(item => item.product_id === s.productIds[0]);
@@ -345,14 +358,14 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         expect(basis + exclusiveTax).toBe(Number(tx.amount));
         if (s.coupon) {
           expect(tx.coupon_id).toBe(s.coupon.id);
-          expect(basis).toBe(options.setPrice ? 500 : s.profile ? 2499 : 900);
-          if (options.setPrice) expect(items.map(item => Number(item.discounted_total)).sort()).toEqual([2, 3]);
+          expect(basis).toBe(s.netCouponQuantity ? (30 * s.netCouponQuantity + (s.noBump ? 0 : 19)) * 100 : options.setPrice ? 500 : s.profile ? 2499 : 900);
+          if (options.setPrice && !s.netCouponQuantity) expect(items.map(item => Number(item.discounted_total)).sort()).toEqual([2, 3]);
           expect(await rows('coupon_redemptions', 'transaction_id', tx.id)).toHaveLength(1);
         }
         if (s.netVat) {
-          expect(Number(tx.tax_total)).toBe(230);
-          expect(Number(tx.net_total)).toBe(1200);
-          expect(Number(tx.amount)).toBe(1430);
+          expect(Number(tx.tax_total)).toBe(s.netCouponQuantity ? 690 * s.netCouponQuantity : 230);
+          expect(Number(tx.net_total)).toBe(s.netCouponQuantity ? basis : 1200);
+          expect(Number(tx.amount)).toBe(s.netCouponQuantity ? basis + 690 * s.netCouponQuantity : 1430);
         }
         const licenses = await rows('issued_licenses', 'product_id', s.productIds[0]);
         if (s.profile) {
@@ -365,7 +378,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
           expect(stripeLines.data[0].quantity).toBe(1);
           expect(stripeLines.data[0].description).toContain('× 3');
           expect(stripeLines.data.reduce((sum, line) => sum + line.amount_total, 0)).toBe(Number(tx.amount));
-        } else if (options.event) {
+        } else if (options.event || s.netCouponQuantity) {
           expect(licenses).toHaveLength(0);
         } else {
           expect(licenses).toHaveLength(1);
@@ -384,7 +397,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         const magicLink = extractMagicLink(message.HTML || message.Text || '');
         expect(magicLink, 'Delivered post-checkout magic link').toBeTruthy();
         await page.goto(magicLink!);
-        await expect(page).toHaveURL(new RegExp(`/p/${slug}(?:[/?]|$)`));
+        await expect(page).toHaveURL(new RegExp(`/p/${slug}(?:[/?]|$)`), { timeout: 90000 });
         await page.goto('/en/my-products');
         await expect(page).toHaveURL(/\/my-products(?:[/?]|$)/);
         const { data: buyerId, error: buyerError } = await supabaseAdmin.rpc('find_user_id_by_email', { p_email: s.email });
@@ -446,3 +459,61 @@ test('B2B profile with three units and a fixed coupon', async ({ page }) => { aw
 test('event with two promotional seats confirms inventory and delivers session snapshot', async ({ page }) => { await run(page, 'event', '4242424242424242', { event: true }); });
 
 test('set price coupon from link with unchanged bump', async ({ page }) => { await run(page, 'set-price', '4242424242424242', { setPrice: true }); });
+
+test('PLN net set price quantity one', async ({ page }) => { await run(page, 'net-set-one', '4242424242424242', { setPrice: true, netVat: true, netCouponQuantity: 1, noBump: true }); });
+test('PLN net set price quantity five and bump', async ({ page }) => { await run(page, 'net-set-five', '4242424242424242', { setPrice: true, netVat: true, netCouponQuantity: 5 }); });
+
+test('PLN net coupons through transfer placement and offline completion', async ({ request }) => {
+  const config = (await rows('bank_transfer_config', 'id', 'true'))[0];
+  const productIds: string[] = [], transactionIds: string[] = [], couponIds: string[] = [];
+  try {
+    expect((await supabaseAdmin.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Local test shop', bank_account_number: 'PL61109010140000071219812874', bank_transfer_grant_access_on_placement: false }).eq('id', true)).error).toBeNull();
+    const main = await insert('products', { slug: `net-transfer-${randomUUID()}`, name: 'Net workshop', price: 100, currency: 'PLN', is_active: true,
+      vat_rate: 23, vat_exempt: false, price_includes_vat: false, checkout_profile: { v: 1, modules: [
+        { id: 'buyer', types: ['person'], gus: false, bank_transfer_for: ['person'] }, { id: 'quantity', min: 1, max: 5, mode: 'checkout' },
+      ] } });
+    productIds.push(main.id);
+    const bump = await insert('products', { slug: `net-bump-${randomUUID()}`, name: 'Bonus', price: 19, currency: 'PLN', is_active: true, vat_exempt: true });
+    productIds.push(bump.id);
+    await insert('order_bumps', { main_product_id: main.id, bump_product_id: bump.id, bump_title: 'Bonus', bump_price: 19, is_active: true });
+    for (const discountType of ['set_price', 'fixed']) for (const quantity of [1, 5]) {
+      const coupon = await insert('coupons', { code: `NET-${randomUUID()}`.toUpperCase(), discount_type: discountType,
+        discount_value: discountType === 'set_price' ? 30 : 70 * quantity, currency: 'PLN', exclude_order_bumps: true });
+      couponIds.push(coupon.id);
+      const email = `net-${randomUUID()}@example.com`;
+      const challengeResponse = await request.get('/api/captcha/challenge');
+      expect(challengeResponse.ok()).toBe(true);
+      const challenge = await challengeResponse.json();
+      const solution = await solveChallenge(challenge.challenge, challenge.salt, challenge.algorithm, challenge.maxnumber).promise;
+      expect(solution).toBeTruthy();
+      const captchaToken = Buffer.from(JSON.stringify({ ...challenge, number: solution!.number, took: solution!.took })).toString('base64');
+      const response = await request.post('/api/orders/bank-transfer', { data: { productId: main.id, email,
+        bumpProductIds: quantity === 5 ? [bump.id] : [], couponCode: coupon.code, captchaToken, termsAccepted: true,
+        moduleValues: { quantity, buyer: { type: 'person', first_name: 'Jan', last_name: 'Nowak', email } },
+      } });
+      expect(response.status(), await response.text()).toBe(200);
+      const order = await response.json(); transactionIds.push(order.orderId);
+      const expected = quantity * 3690 + (quantity === 5 ? 1900 : 0);
+      expect(order.amount).toBe(expected);
+      expect(order.currency).toBe('PLN');
+      const items = await rows('payment_line_items', 'transaction_id', order.orderId);
+      expect(items.find(item => item.item_type === 'main_product')).toMatchObject({ quantity, discounted_total: quantity * 30, tax_amount: quantity * 690 });
+      if (quantity === 5) expect(items.find(item => item.item_type === 'order_bump')).toMatchObject({ quantity: 1, discounted_total: 19, tax_amount: 0 });
+      expect((await supabaseAdmin.rpc('complete_offline_order', { p_transaction_id: order.orderId, p_paid_minor: expected - 1 })).data).toMatchObject({ success: false });
+      for (let i = 0; i < 2; i++) expect((await supabaseAdmin.rpc('complete_offline_order', { p_transaction_id: order.orderId, p_paid_minor: expected })).data).toMatchObject({ success: true });
+      expect((await rows('payment_transactions', 'id', order.orderId))[0].status).toBe('completed');
+      expect(await rows('coupon_redemptions', 'transaction_id', order.orderId)).toHaveLength(1);
+    }
+  } finally {
+    await remove('guest_purchases', 'transaction_id', transactionIds);
+    await remove('coupon_redemptions', 'coupon_id', couponIds);
+    await remove('coupon_reservations', 'coupon_id', couponIds);
+    await remove('payment_transactions', 'id', transactionIds);
+    await remove('coupons', 'id', couponIds);
+    await remove('order_bumps', 'main_product_id', productIds);
+    await remove('products', 'id', productIds);
+    expect((await supabaseAdmin.from('bank_transfer_config').update(config).eq('id', true)).error).toBeNull();
+  }
+});
+
+test('PLN net fixed coupon entered before email with five units and bump', async ({ page }) => { await run(page, 'net-fixed-five', '4242424242424242', { fixedPrice: true, netVat: true, netCouponQuantity: 5 }); });

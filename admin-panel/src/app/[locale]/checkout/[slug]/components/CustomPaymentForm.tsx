@@ -204,6 +204,7 @@ export default function CustomPaymentForm({
             clientSecret,
             bindingToken,
             productId: product.id,
+            email: finalEmail,
             locale,
             moduleValues: profile ? profileForm.values : undefined,
             fullName: invoice.fullName,

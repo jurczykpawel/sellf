@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { validateCheckoutModules } from '@/lib/checkout-modules/validate';
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { getStripeServer } from '@/lib/stripe/server';
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
     // 3. Parse and validate request
     const {
       moduleValues,
+      email,
       locale,
       clientSecret,
       bindingToken,
@@ -237,6 +239,23 @@ export async function POST(request: NextRequest) {
         .select('checkout_profile, currency').eq('id', productId).single();
       if (error || !data) return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
       profileProduct = data;
+    }
+    if (!isSubscription && stripeMetadata.coupon_id) {
+      const buyerEmail = z.email().max(254).safeParse(
+        typeof (sessionUser?.email ?? email ?? stripeMetadata.email) === 'string'
+          ? (sessionUser?.email ?? email ?? stripeMetadata.email).trim().toLowerCase() : '',
+      );
+      if (!buyerEmail.success) return NextResponse.json({ success: false, error: 'Valid email is required' }, { status: 400 });
+      const { data: reservation, error } = await createAdminClient().rpc('verify_coupon', {
+        code_param: stripeMetadata.coupon_code,
+        product_id_param: productId,
+        customer_email_param: buyerEmail.data,
+        currency_param: profileProduct!.currency,
+      });
+      if (error || !reservation || typeof reservation !== 'object' || Array.isArray(reservation)
+        || reservation.valid !== true || reservation.id !== stripeMetadata.coupon_id) {
+        return NextResponse.json({ success: false, error: 'Discount code is no longer available' }, { status: 409 });
+      }
     }
     let persistCustomFields: () => Promise<Response | null> = async () => null;
     // Phase 3a: validate + persist custom_field_values on the pending row.

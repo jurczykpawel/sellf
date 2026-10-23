@@ -57,6 +57,16 @@ describe('shared completion tail', () => {
   });
 });
 describe('saved pricing completion', () => {
+  it.each([1, 5])('completes a net set-price snapshot for quantity %i with exact basis', async (quantity) => {
+    const cid = (await checked(await db.from('coupons').insert({ code: `NET_${crypto.randomUUID()}`, discount_type: 'set_price', discount_value: 30, currency: 'PLN' }).select('id').single())).id;
+    coupons.push(cid);
+    await checked(await db.from('coupon_reservations').insert({ coupon_id: cid, customer_email: email, expires_at: '2099-01-01T00:00:00Z' }));
+    const tx = await place('stripe', { coupon_id: cid }, [line({ quantity, total_price: 100 * quantity, discounted_total: 30 * quantity, tax_behavior: 'exclusive', vat_rate: 23 })]);
+    expect(Number(tx.amount)).toBe(3690 * quantity);
+    expect((await complete(tx, { coupon_id_param: cid, amount_subtotal_param: 3000 * quantity - 1 })).data).toMatchObject({ success: false, error: 'Saved order amount does not match' });
+    expect((await complete(tx, { coupon_id_param: cid, amount_subtotal_param: 3000 * quantity })).data).toMatchObject({ success: true, pricing_source: 'snapshot' });
+  });
+
   it('accepts exact saved price after a sale ends and counts quantity once', async () => {
     await checked(await db.from('products').update({ sale_price: 80, sale_price_until: '2099-01-01T00:00:00Z', sale_quantity_sold: 0 }).eq('id', products[0]));
     const tx = await place();
@@ -113,6 +123,22 @@ describe('saved pricing completion', () => {
   });
 });
 describe('offline completion and claiming', () => {
+  it.each(['set_price', 'fixed'])('completes a net %s coupon with five units and an unchanged bump', async (discountType) => {
+    const cid = (await checked(await db.from('coupons').insert({ code: `OFF_NET_${crypto.randomUUID()}`, discount_type: discountType, discount_value: discountType === 'set_price' ? 30 : 350, currency: 'PLN', exclude_order_bumps: true }).select('id').single())).id;
+    coupons.push(cid);
+    await checked(await db.from('coupon_reservations').insert({ coupon_id: cid, customer_email: email, expires_at: '2099-01-01T00:00:00Z' }));
+    const tx = await place('bank_transfer', { coupon_id: cid }, [
+      line({ quantity: 5, total_price: 500, discounted_total: 150, tax_behavior: 'exclusive', vat_rate: 23 }),
+      line({ product_id: products[1], item_type: 'order_bump', order_bump_id: bump, quantity: 1, unit_price: 20, total_price: 20, discounted_total: 20, vat_exempt: true }),
+    ]);
+    expect(Number(tx.amount)).toBe(20450);
+    expect(Number(tx.net_total)).toBe(17000);
+    expect(Number(tx.tax_total)).toBe(3450);
+    expect((await offline(tx, 20449)).data).toMatchObject({ success: false });
+    for (let i = 0; i < 2; i++) expect((await offline(tx)).data).toMatchObject({ success: true });
+    expect(await checked(await db.from('coupon_redemptions').select('id').eq('transaction_id', tx.id))).toHaveLength(1);
+  });
+
   async function offline(tx: Record<string, unknown>, paid = tx.amount) {
     return db.rpc('complete_offline_order', { p_transaction_id: tx.id, p_paid_minor: paid });
   }

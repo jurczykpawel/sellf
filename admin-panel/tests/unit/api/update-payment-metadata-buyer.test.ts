@@ -191,10 +191,11 @@ describe('profile order details', () => {
     expect(mocks.adminRpc.mock.invocationCallOrder[0]).toBeLessThan(update.mock.invocationCallOrder[0]);
   });
   it('clears personal metadata and preserves all technical fields', async () => {
-    mocks.sessionsRetrieve.mockResolvedValue({ status: 'open', metadata: { product_id: PRODUCT_ID, bump_product_ids: 'bump1,bump2', has_coupon: 'true', coupon_id: 'coupon1', product_type: 'one_time', checkout_binding: 'binding', has_bump: 'true', bump_count: '2', tax_id: '5252248481', nip: '5252248481', email: 'person@example.com', first_name: 'Jan' } });
+    mocks.adminRpc.mockResolvedValueOnce({ data: { valid: true, id: 'coupon1' }, error: null });
+    mocks.sessionsRetrieve.mockResolvedValue({ status: 'open', metadata: { product_id: PRODUCT_ID, bump_product_ids: 'bump1,bump2', has_coupon: 'true', coupon_id: 'coupon1', coupon_code: 'SAVED', product_type: 'one_time', checkout_binding: 'binding', has_bump: 'true', bump_count: '2', tax_id: '5252248481', nip: '5252248481', email: 'person@example.com', first_name: 'Jan' } });
     const res = await POST(makeRequest(SESSION_ID, { moduleValues }));
     expect(res.status).toBe(200);
-    expect(mocks.sessionsUpdate).toHaveBeenCalledWith(SESSION_ID, { metadata: { product_id: PRODUCT_ID, bump_product_ids: 'bump1,bump2', has_coupon: 'true', coupon_id: 'coupon1', product_type: 'one_time', checkout_binding: 'binding', has_bump: 'true', bump_count: '2', tax_id: '', nip: '', email: '', first_name: '' } });
+    expect(mocks.sessionsUpdate).toHaveBeenCalledWith(SESSION_ID, { metadata: { product_id: PRODUCT_ID, bump_product_ids: 'bump1,bump2', has_coupon: 'true', coupon_id: 'coupon1', coupon_code: 'SAVED', product_type: 'one_time', checkout_binding: 'binding', has_bump: 'true', bump_count: '2', tax_id: '', nip: '', email: '', first_name: '' } });
   });
   it('requires all module values even when moduleValues was omitted', async () => {
     const res = await POST(makeRequest(SESSION_ID));
@@ -258,4 +259,34 @@ it.each(['pl', 'en'])('passes request locale %s into the module registry', async
   mocks.productRead.mockResolvedValue({ data: { checkout_profile: { v: 1, modules: [] }, currency: 'PLN' }, error: null });
   expect((await POST(makeRequest(SESSION_ID, { moduleValues: {}, locale }))).status).toBe(200);
   expect(validateModuleValues).toHaveBeenCalledWith(expect.anything(), {}, expect.objectContaining({ locale }));
+});
+
+
+describe('coupon reservation at submit', () => {
+  beforeEach(() => {
+    mocks.sessionsRetrieve.mockResolvedValue({ id: SESSION_ID, status: 'open', mode: 'payment', customer: null,
+      metadata: { product_id: PRODUCT_ID, coupon_id: 'coupon-1', coupon_code: 'NET30' } });
+    mocks.productRead.mockResolvedValue({ data: { checkout_profile: null, currency: 'PLN' }, error: null });
+    mocks.adminRpc.mockImplementation(async (name: string) => name === 'verify_coupon'
+      ? { data: { valid: true, id: 'coupon-1' }, error: null } : { data: 1, error: null });
+  });
+  it('reserves a link coupon for the email first entered on the payment form', async () => {
+    expect((await POST(makeRequest(SESSION_ID, { email: ' Buyer@example.com ' }))).status).toBe(200);
+    expect(mocks.adminRpc).toHaveBeenCalledWith('verify_coupon', {
+      code_param: 'NET30', product_id_param: PRODUCT_ID, customer_email_param: 'buyer@example.com', currency_param: 'PLN',
+    });
+  });
+  it.each([
+    { data: { valid: false, error: 'Code usage limit reached' }, error: null },
+    { data: { valid: true, id: 'another-coupon' }, error: null },
+    { data: null, error: { message: 'unavailable' } },
+  ])('stops confirmation when reservation is unavailable', async (result) => {
+    mocks.adminRpc.mockResolvedValue(result);
+    expect((await POST(makeRequest(SESSION_ID, { email: 'buyer@example.com' }))).status).toBe(409);
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+  });
+  it('requires a valid buyer email for coupon reservation', async () => {
+    expect((await POST(makeRequest(SESSION_ID, { email: 'invalid' }))).status).toBe(400);
+    expect(mocks.adminRpc).not.toHaveBeenCalled();
+  });
 });

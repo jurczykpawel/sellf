@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { buildCheckoutLineSpecs, buildStripeLineItems, type CheckoutLineProduct } from '@/lib/services/checkout-line-items';
+import { buildCheckoutLineSpecs, buildOrderSnapshotLines, buildStripeLineItems, computeLinePayableMinor } from '@/lib/services/checkout-line-items';
 import { calculatePricing } from '@/hooks/usePricing';
 import type { CouponPricingInput } from '@/lib/pricing/coupon-allocation';
+import type { CheckoutLineProduct } from '@/lib/services/checkout-line-items';
 
 const main: CheckoutLineProduct = { id: 'main', name: 'Course', currency: 'PLN', vatRate: 23, priceIncludesVat: false };
 const bumpA: CheckoutLineProduct = { id: 'bumpA', name: 'Toolkit', currency: 'PLN', vatRate: 23, priceIncludesVat: false };
@@ -217,5 +218,26 @@ describe('buildCheckoutLineSpecs — coupon scoping per line', () => {
     expect(isFree).toBe(true);
     expect(totalMinor).toBe(0);
     expect(specs.every((s) => s.unitAmountMinor === 0)).toBe(true);
+  });
+});
+
+describe('PLN net coupon snapshots', () => {
+  it.each([1, 5])('sets each net unit to 30 PLN for quantity %i and preserves the bump', (quantity) => {
+    const { specs, totalMinor } = buildCheckoutLineSpecs({
+      main, mainPrice: 100, quantity, bumps: [{ product: { ...bumpA, vatExempt: true }, price: 19 }],
+      coupon: { discount_type: 'set_price', discount_value: 30, code: 'NET30' }, taxMode: 'local',
+    });
+    expect(totalMinor).toBe((30 * quantity + 19) * 100);
+    expect(specs.map(computeLinePayableMinor)).toEqual([3690 * quantity, 1900]);
+    expect(buildOrderSnapshotLines(specs, { orderBumpIds: { bumpA: 'offer' }, accessOverrides: {} })).toEqual([
+      expect.objectContaining({ quantity, unit_price: 100, total_price: 100 * quantity, discounted_total: 30 * quantity, vat_rate: 23, tax_behavior: 'exclusive' }),
+      expect.objectContaining({ quantity: 1, unit_price: 19, total_price: 19, discounted_total: 19, tax_behavior: null }),
+    ]);
+  });
+  it('applies fixed 70 PLN before VAT on a net product', () => {
+    const { specs } = buildCheckoutLineSpecs({ main, mainPrice: 100, bumps: [],
+      coupon: { discount_type: 'fixed', discount_value: 70, code: 'FIX70' }, taxMode: 'local' });
+    expect(specs[0].unitAmountMinor).toBe(3000);
+    expect(computeLinePayableMinor(specs[0])).toBe(3690);
   });
 });
