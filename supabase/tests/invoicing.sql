@@ -1,4 +1,4 @@
--- Transactional invoice access and uniqueness acceptance. @see ../migrations/20261023044132_invoicing_provider.sql
+-- Transactional invoice access and uniqueness acceptance. @see ../migrations/20261023100000_invoicing_provider.sql
 BEGIN;
 DO $$
 DECLARE admin_id uuid; invoice_count integer;
