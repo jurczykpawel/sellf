@@ -1344,3 +1344,14 @@ VALUES ('e1000000-0000-4000-8000-000000000001', 'Warsztat dla zespołu', 'team-w
   'Warsztat z danymi organizacji, odbiorcy i uczestników.', 149, 'PLN',
   '{"v":1,"modules":[{"id":"buyer","types":["person","organization"],"gus":false},{"id":"recipient","for":["organization"]},{"id":"phone","required":true},{"id":"quantity","min":1,"max":20,"mode":"checkout"},{"id":"participants","required":true,"prefill_from_buyer":true}]}'::jsonb)
 ON CONFLICT (id) DO NOTHING;
+
+-- Completed team workshop order for admin checkout-data previews.
+INSERT INTO public.payment_transactions (id, product_id, customer_email, amount, currency, status, session_id, order_details, custom_field_values)
+VALUES ('e1000000-0000-4000-8000-000000000010', 'e1000000-0000-4000-8000-000000000001',
+ 'office@example.com', 74500, 'PLN', 'completed', 'cs_seed_team_workshop',
+ '{"buyer": {"v": 1, "type": "organization", "needs_invoice": true, "company_name": "Gmina Przykładowa", "nip": "5250001003", "address": "Główna 1", "postal_code": "00-001", "city": "Warszawa", "country": "PL"}, "recipient": {"v": 1, "differs": true, "company_name": "Szkoła Podstawowa nr 1", "nip": "5260250995", "address": "Szkolna 2", "postal_code": "00-002", "city": "Warszawa", "country": "PL"}, "phone": {"v": 1, "value": "+48500100200"}, "quantity": {"v": 1, "value": 5}, "participants": {"v": 1, "people": [{"first_name": "Anna", "last_name": "Kowalska", "email": "anna1@example.com"}, {"first_name": "Piotr", "last_name": "Nowak", "email": "anna2@example.com"}, {"first_name": "Maria", "last_name": "Zielińska", "email": "anna3@example.com"}, {"first_name": "Tomasz", "last_name": "Wójcik", "email": "anna4@example.com"}, {"first_name": "Ewa", "last_name": "Wiśniewska", "email": "anna5@example.com"}]}}'::jsonb, '{}'::jsonb)
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.payment_line_items (transaction_id, product_id, item_type, quantity, unit_price, total_price, currency)
+SELECT id, product_id, 'main_product', 5, 149, 745, 'PLN'
+FROM public.payment_transactions WHERE id = 'e1000000-0000-4000-8000-000000000010'
+ON CONFLICT DO NOTHING;

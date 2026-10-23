@@ -27,3 +27,7 @@ describe('buildCustomizationPayload', () => {
     expect('custom_headers' in buildCustomizationPayload({ ...base, hadHeaders: true })).toBe(false);
   });
 });
+
+it('offers checkout order details for payload field selection', () => {
+  expect(PAYLOAD_TOP_LEVEL_KEYS).toContain('orderDetails');
+});

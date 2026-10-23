@@ -9,8 +9,11 @@
  * @see /app/api/webhooks/stripe/route.ts
  */
 
+import { readOrderDetails } from '@/lib/checkout-modules/order-details';
+import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { formatCustomFieldsForDisplay, type DisplayCustomField } from '@/lib/format-custom-fields';
+import type { WebhookOrderDetails } from '@/lib/checkout-modules/order-details';
+import type { DisplayCustomField } from '@/lib/format-custom-fields';
 import type { CustomFieldDefinition } from '@/lib/validations/custom-checkout-fields';
 import type { OrderTaxSnapshot } from '@/lib/services/tax-snapshot';
 
@@ -63,7 +66,9 @@ export interface PurchaseWebhookData {
     netTotal?: number | null;
     taxTotal?: number | null;
   };
+  orderDetails?: WebhookOrderDetails;
   invoice?: {
+    recipient?: WebhookOrderDetails['recipient'];
     needsInvoice: boolean;
     nip: string | null;
     companyName: string | null;
@@ -113,6 +118,8 @@ export interface BuildWebhookPayloadParams {
    * before landing in the webhook payload.
    */
   customFieldValues?: Record<string, unknown> | null;
+  /** Stored details from the reconciled transaction, including offline orders. */
+  orderDetails?: unknown;
   /** Per-line tax snapshot captured from Stripe (added per product/bump + order totals). */
   taxSnapshot?: OrderTaxSnapshot;
   /**
@@ -172,7 +179,7 @@ export async function buildPurchaseWebhookPayload(
   // Fetch main product details (incl. vat_exempt for the tax-snapshot label)
   const { data: productDetails } = await supabaseClient
     .from('products')
-    .select('id, name, slug, price, currency, icon, custom_checkout_fields, vat_exempt')
+    .select('id, name, slug, price, currency, icon, custom_checkout_fields, vat_exempt, checkout_profile')
     .eq('id', productId)
     .single();
 
@@ -260,7 +267,21 @@ export async function buildPurchaseWebhookPayload(
   // embed collects NIP + address via Stripe → read from customer_details as the fallback,
   // treating a provided tax id as a faktura request (B2B). Without this, embed purchases
   // would emit no invoice data and integrations would issue incomplete fakturas.
-  if (metadata?.needs_invoice === 'true') {
+  if (productDetails?.checkout_profile) {
+    const d = readOrderDetails(params.orderDetails);
+    webhookData.orderDetails = {
+      buyer: d.buyer ?? null, recipient: d.recipient ?? null, phone: d.phone ?? null,
+      participants: d.participants ?? null, quantity: d.quantity ?? null,
+    };
+    if (d.buyer?.needs_invoice || d.buyer?.type === 'organization') {
+      webhookData.invoice = {
+        needsInvoice: true, nip: d.buyer.nip || null, companyName: d.buyer.company_name || null,
+        address: d.buyer.address || null, city: d.buyer.city || null,
+        postalCode: d.buyer.postal_code || null, country: d.buyer.country || null,
+        ...(d.recipient?.differs && { recipient: d.recipient }),
+      };
+    }
+  } else if (metadata?.needs_invoice === 'true') {
     webhookData.invoice = {
       needsInvoice: true,
       nip: metadata.nip || null,

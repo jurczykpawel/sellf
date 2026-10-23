@@ -36,6 +36,8 @@ export interface PaymentTransaction {
   refunded_by?: string;
   refund_reason?: string;
   metadata: Record<string, unknown>;
+  /** Versioned checkout module values saved on the transaction. */
+  order_details?: Json | null;
   /** Buyer answers to product-level custom_checkout_fields. JSONB `{id: value}`. */
   custom_field_values?: Record<string, unknown> | null;
   product?: {

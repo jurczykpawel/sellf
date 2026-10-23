@@ -58,6 +58,7 @@ export default defineConfig({
 						{ slug: 'upstash-redis' },
 						{ slug: 'cookie-consent' },
 						{ slug: 'webhooks' },
+						{ slug: 'custom-checkout' },
 					],
 				},
 				{

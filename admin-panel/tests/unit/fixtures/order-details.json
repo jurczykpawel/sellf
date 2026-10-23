@@ -1,0 +1,61 @@
+{
+  "buyer": {
+    "v": 1,
+    "type": "organization",
+    "needs_invoice": true,
+    "company_name": "Gmina Przykładowa",
+    "nip": "5250001003",
+    "address": "Główna 1",
+    "postal_code": "00-001",
+    "city": "Warszawa",
+    "country": "PL"
+  },
+  "recipient": {
+    "v": 1,
+    "differs": true,
+    "company_name": "Szkoła Podstawowa nr 1",
+    "nip": "5260250995",
+    "address": "Szkolna 2",
+    "postal_code": "00-002",
+    "city": "Warszawa",
+    "country": "PL"
+  },
+  "phone": {
+    "v": 1,
+    "value": "+48500100200"
+  },
+  "quantity": {
+    "v": 1,
+    "value": 5
+  },
+  "participants": {
+    "v": 1,
+    "people": [
+      {
+        "first_name": "Anna",
+        "last_name": "Kowalska",
+        "email": "anna1@example.com"
+      },
+      {
+        "first_name": "Piotr",
+        "last_name": "Nowak",
+        "email": "anna2@example.com"
+      },
+      {
+        "first_name": "Maria",
+        "last_name": "Zielińska",
+        "email": "anna3@example.com"
+      },
+      {
+        "first_name": "Tomasz",
+        "last_name": "Wójcik",
+        "email": "anna4@example.com"
+      },
+      {
+        "first_name": "Ewa",
+        "last_name": "Wiśniewska",
+        "email": "anna5@example.com"
+      }
+    ]
+  }
+}
