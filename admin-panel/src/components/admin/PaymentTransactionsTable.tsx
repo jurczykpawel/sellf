@@ -11,6 +11,7 @@ import { getTransactionRefundProgress } from '@/lib/refunds/transaction-refund-p
 import { formatAdminDate } from '@/lib/timezone';
 import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
 import { fromMinorUnits } from '@/lib/currency/minor-units';
+import InvoiceSection from '@/components/admin/InvoiceSection';
 import OrderDetailsSection from '@/components/admin/OrderDetailsSection';
 import type { PaymentTransaction, PaymentTransactionLineItem } from '@/types/payment';
 
@@ -24,6 +25,7 @@ export default function PaymentTransactionsTable({
   onRefreshData 
 }: PaymentTransactionsTableProps) {
   const t = useTranslations('admin.payments.transactions');
+  const ti = useTranslations('invoicing');
   const tRefund = useTranslations('admin.payments.refund');
   const locale = useLocale();
   const [refundingId, setRefundingId] = useState<string | null>(null);
@@ -120,6 +122,7 @@ export default function PaymentTransactionsTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
                 {t('date')}
               </th>
+<th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">{ti('column')}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
                 {t('actions')}
               </th>
@@ -207,6 +210,7 @@ export default function PaymentTransactionsTable({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-sf-muted">
                     {formatAdminDate(transaction.created_at, locale)}
                   </td>
+<td className="px-6 py-4 text-sm">{transaction.invoice?.view_url ? <a href={transaction.invoice.view_url} target="_blank" rel="noreferrer" className="underline">{transaction.invoice.number}</a> : transaction.invoice ? ti(transaction.invoice.status) : "—"}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-3">
                       <button
@@ -333,6 +337,7 @@ export default function PaymentTransactionsTable({
               </div>
             </div>
 
+<InvoiceSection transactionId={detailsTransaction.id} status={detailsTransaction.status} invoice={detailsTransaction.invoice} onRefresh={() => { setDetailsTransaction(null); onRefreshData?.(); }} />
             <OrderDetailsSection
               details={detailsTransaction.order_details}
               customFields={formatCustomFieldsForDisplay(detailsTransaction.custom_field_values, detailsTransaction.product?.custom_checkout_fields, locale)}

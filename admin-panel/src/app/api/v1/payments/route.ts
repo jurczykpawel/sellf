@@ -97,6 +97,7 @@ export async function GET(request: NextRequest) {
         metadata,
         custom_field_values,
         order_details,
+        invoices(status,number,view_url,error,attempts),
         refund_id,
         refunded_amount,
         refunded_at,
@@ -332,6 +333,7 @@ export async function GET(request: NextRequest) {
             ? { bundle_components: bundleComponentsByProductId.get(p.product_id) ?? [] }
             : {}),
         },
+        invoice: firstRelated(p.invoices) ?? null,
         line_items: lineItemsByTransactionId.get(p.id) ?? [],
         net_total: p.net_total,
         tax_total: p.tax_total,

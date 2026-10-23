@@ -1395,3 +1395,10 @@ SELECT 'e3000000-0000-4000-a000-000000000010',s.product_id,'main_product',2,47,9
 FROM public.product_sessions s JOIN public.product_price_tiers t ON t.session_id=s.id AND t.sort=0 WHERE s.id='e3000000-0000-4000-a000-000000000002';
 INSERT INTO public.seat_reservations(session_id,tier_id,transaction_id,quantity,status,confirmed_at)
 SELECT session_id,tier_id,transaction_id,2,'confirmed',now() FROM public.payment_line_items WHERE transaction_id='e3000000-0000-4000-a000-000000000010';
+
+-- Sample issued invoice, with a demonstration-only reference.
+INSERT INTO public.invoices(transaction_id,provider,status,external_key,provider_domain,provider_invoice_id,number,view_url,payment_synced)
+SELECT 'e1000000-0000-4000-8000-000000000010','fakturownia','issued',instance_id::text || ':' || (SELECT order_number::text FROM public.payment_transactions WHERE id='e1000000-0000-4000-8000-000000000010'),
+ 'example.fakturownia.pl','123','DEMO/2026/1','https://example.fakturownia.pl/invoice/demo',true
+FROM public.invoicing_config WHERE id
+ON CONFLICT (transaction_id) DO NOTHING;

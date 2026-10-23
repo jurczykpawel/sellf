@@ -69,14 +69,15 @@ export interface PurchaseWebhookData {
   };
   orderDetails?: WebhookOrderDetails;
   invoice?: {
+    number?: string; viewUrl?: string;
     recipient?: WebhookOrderDetails['recipient'];
-    needsInvoice: boolean;
-    nip: string | null;
-    companyName: string | null;
-    address: string | null;
-    city: string | null;
-    postalCode: string | null;
-    country: string | null;
+    needsInvoice?: boolean;
+    nip?: string | null;
+    companyName?: string | null;
+    address?: string | null;
+    city?: string | null;
+    postalCode?: string | null;
+    country?: string | null;
   };
   /**
    * Custom checkout-field answers, resolved against the product's

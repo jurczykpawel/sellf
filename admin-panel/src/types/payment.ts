@@ -21,7 +21,12 @@ export interface PaymentSession {
   updated_at: string;
 }
 
+export interface InvoiceInfo {
+  status: 'issuing' | 'issued' | 'failed' | 'corrected'; number: string | null; view_url: string | null; error: string | null; attempts: number;
+}
+
 export interface PaymentTransaction {
+  invoice?: InvoiceInfo | null;
   id: string;
   session_id: string;
   user_id: string | null;
