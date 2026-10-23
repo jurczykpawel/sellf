@@ -133,3 +133,37 @@ describe('supported account return paths', () => {
     expect(buildLoginMagicLinkRedirect('https://shop.example', path)).toBe('https://shop.example/auth/callback?flow=login');
   });
 });
+
+
+describe('loginwall return paths', () => {
+  const id = 'a1b2c3d4-e5f6-4890-abcd-ef0123456789';
+  const redirect = encodeURIComponent('https://customer.example/course?a=1&b=2');
+  const query = `id=${id}&redirect=${redirect}`;
+
+  it.each(['', '/en', '/pl'])('retains a canonical protect destination with prefix %s', prefix => {
+    const path = `${prefix}/loginwall/protect?${query}`;
+    expect(getLoginReturnPath(path)).toBe(path);
+    expect(new URL(buildLoginMagicLinkRedirect('https://shop.example', path)).searchParams.get('redirect_to')).toBe(path);
+  });
+
+  it('retains either canonical parameter order and the redirect length boundary', () => {
+    const path = `/loginwall/protect?redirect=${'a'.repeat(2048)}&id=${id}`;
+    expect(getLoginReturnPath(path)).toBe(path);
+  });
+
+  it.each([
+    `redirect=${redirect}`, `id=invalid&redirect=${redirect}`, `id=${id}`,
+    `${query}&other=value`, `${query}&redirect=${redirect}`, `${query}&id=${id}`,
+    `id=${id}&redirect=`, `id=${id}&redirect=${'a'.repeat(2049)}`,
+    `id=${id}&redirect=${encodeURIComponent('https://customer.example/\n')}`,
+    `id=${id}&redirect=${encodeURIComponent('https://customer.example/\u007f')}`,
+    `${query}#section`, `id=${id}&redirect=https%3a%2f%2fcustomer.example`,
+    `id=${id}&redirect=customer+page`, `id=${id}&%72edirect=${redirect}`,
+  ])('declines unsupported protect query %j', invalid => {
+    expect(getLoginReturnPath(`/loginwall/protect?${invalid}`)).toBeUndefined();
+  });
+
+  it.each(['/de/loginwall/protect', '/loginwall/protect/'])('declines unsupported protect path %s', path => {
+    expect(getLoginReturnPath(`${path}?${query}`)).toBeUndefined();
+  });
+});
