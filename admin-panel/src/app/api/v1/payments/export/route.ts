@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     // Validate inputs BEFORE consuming the rate-limit budget so a garbage
     // request can't burn through a legitimate user's per-hour quota.
     if (filters.status && filters.status !== 'all') {
-      const validStatuses = ['completed', 'refunded', 'failed', 'pending'];
+      const validStatuses = ['completed', 'refunded', 'failed', 'pending', 'awaiting_payment', 'cancelled'];
       if (!validStatuses.includes(filters.status)) {
         return apiError(request, 'INVALID_INPUT', `Invalid status. Valid values: all, ${validStatuses.join(', ')}`);
       }

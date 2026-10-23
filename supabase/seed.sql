@@ -1405,3 +1405,10 @@ SELECT 'e1000000-0000-4000-8000-000000000010','fakturownia','issued',instance_id
  'example.fakturownia.pl','123','DEMO/2026/1','https://example.fakturownia.pl/invoice/demo',true
 FROM public.invoicing_config WHERE id
 ON CONFLICT (transaction_id) DO NOTHING;
+
+-- A paid transfer with an already delivered Auth access email.
+INSERT INTO public.payment_transactions(id,product_id,customer_email,amount,currency,status,payment_provider,payment_due_at,paid_at,transfer_details,transfer_mail_sent_at,created_at,updated_at,pricing_snapshot_version)
+VALUES ('e4000000-0000-4000-a000-000000000010','e1000000-0000-4000-8000-000000000001','transfer-paid@example.com',14900,'PLN','completed','bank_transfer',
+ '2026-10-15T00:00:00Z','2026-10-01T00:00:00Z','{"holder":"Example Workshops","account":"PL61109010140000071219812874","bank":"Example Bank","title":"Workshop recording"}', '2026-10-01T00:00:00Z','2026-10-01T00:00:00Z','2026-10-01T00:00:00Z',1);
+INSERT INTO public.payment_line_items(transaction_id,product_id,item_type,quantity,unit_price,total_price,discounted_total,currency,product_name)
+VALUES ('e4000000-0000-4000-a000-000000000010','e1000000-0000-4000-8000-000000000001','main_product',1,149,149,149,'PLN','Warsztat dla zespołu');

@@ -32,6 +32,7 @@ export default function PaymentFilters({
   onRefresh,
   onSearchPendingChange,
 }: PaymentFiltersProps) {
+  const bt = useTranslations('bankTransfer');
   const t = useTranslations('admin.payments.filters');
 
   // Local, immediately-updated copy of the search text so typing feels
@@ -124,6 +125,8 @@ export default function PaymentFilters({
               className="w-full sm:w-auto px-3 py-2 border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent bg-sf-input text-sf-heading"
             >
               <option value="all">{t('allStatuses')}</option>
+              <option value="awaiting_payment">{bt('status_awaiting_payment')}</option>
+              <option value="cancelled">{bt('status_cancelled')}</option>
               <option value="pending">{t('pending')}</option>
               <option value="completed">{t('completed')}</option>
               <option value="refunded">{t('refunded')}</option>

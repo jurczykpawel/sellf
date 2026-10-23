@@ -217,7 +217,14 @@ Admin actions and API v1 `mark-paid`/`cancel` share `operateTransfer`; API keys 
 `payments:write`. Payment completion reuses offline fulfillment and leaves early access
 in place. Schedule `/api/cron?job=bank-transfer-overdue` daily and `fulfillment-resume`
 every minute with `CRON_SECRET`; notifications use stable order delivery keys and saved
-notification timestamps. Sellf does not send its own transactional emails: Auth magic
+notification timestamps. Transfer placement schedules automatic invoice issuance with
+Next.js `after`; `invoices-retry` recovers missed placement callbacks and synchronizes
+receipt dates from `paid_at`. The settings payment tab and product buyer profile
+control availability. Checkout shares buyer state across payment methods.
+`/order/[orderId]/transfer?token=...` reads one order through an HMAC link valid for
+61 days, with no login and no indexing. Auth access mails carry `transfer_text` via
+`prepare_event_mail`; each preparation clears older instructions.
+`transfer_mail_sent_at` records successful delivery for `fulfillment-resume`. Sellf does not send its own transactional emails: Auth magic
 links remain the email channel, and sellers may send messages from `order.placed`.
 
 ### Data Flow Patterns

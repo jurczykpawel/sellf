@@ -44,6 +44,7 @@
                 {{ .Email }}
               </p>
 
+              {{ if .Data.transfer_text }}<p style="white-space: pre-line; color: #ffffff;">{{ .Data.transfer_text }}</p>{{ end }}
               <!-- Button -->
               <table role="presentation" style="width: 100%; border-collapse: collapse;">
                 <tr>

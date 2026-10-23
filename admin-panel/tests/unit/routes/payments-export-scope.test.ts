@@ -69,14 +69,14 @@ function makeKey(seed: string): string {
   return `sf_test_${hex}`;
 }
 
-function makeRequest(key: string): NextRequest {
+function makeRequest(key: string, filters: Record<string, string> = {}): NextRequest {
   const headers = new Headers();
   headers.set('authorization', `Bearer ${key}`);
   headers.set('content-type', 'application/json');
   return new NextRequest('http://localhost/api/v1/payments/export', {
     method: 'POST',
     headers,
-    body: JSON.stringify({}),
+    body: JSON.stringify(filters),
   });
 }
 
@@ -102,6 +102,10 @@ beforeEach(() => {
 });
 
 describe('POST /api/v1/payments/export — scope gate', () => {
+  it.each(['awaiting_payment', 'cancelled'])('exports the transfer filter %s', async status => {
+    mockKeyScopes(['payments:read']);
+    expect((await POST(makeRequest(makeKey('d'), { status }))).status).toBe(200);
+  });
   it('allows a key with only payments:read', async () => {
     mockKeyScopes(['payments:read']);
     const res = await POST(makeRequest(makeKey('a')));

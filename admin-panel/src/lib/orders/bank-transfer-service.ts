@@ -1,4 +1,5 @@
 /** Recoverable transfer events and fulfillment. @see app/api/cron/route.ts */
+import { sendTransferAccessMail } from '@/lib/orders/transfer-mail';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { fulfillPaidOrder } from '@/lib/services/fulfill-paid-order';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -46,6 +47,12 @@ export async function runTransferJob(db: SupabaseClient<Database>, job: 'bank-tr
       .eq('status', 'completed').eq('fulfillment_pending', true).lt('updated_at', new Date(Date.now() - 120000).toISOString()).limit(100);
     if (error) throw new Error('Transfer fulfillment unavailable');
     for (const tx of data ?? []) await run(tx.id, () => fulfillTransfer(db, tx.id));
+  }
+  if (job === 'fulfillment-resume') {
+    const { data, error } = await db.from('payment_transactions').select('id').eq('payment_provider', 'bank_transfer')
+      .in('status', ['awaiting_payment', 'completed']).contains('metadata', { access_on_placement: true }).is('transfer_mail_sent_at', null).limit(100);
+    if (error) throw new Error('Transfer mail unavailable');
+    for (const tx of data ?? []) await run(tx.id, () => sendTransferAccessMail(db, tx.id));
   }
   return { processed, errors };
 }

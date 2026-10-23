@@ -1,5 +1,5 @@
 /** Public transfer placement. @see lib/orders/bank-transfer-config.ts */
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
@@ -7,6 +7,9 @@ import { verifyCaptchaToken } from '@/lib/captcha/verify';
 import { validateCheckoutModules } from '@/lib/checkout-modules/validate';
 import { resolveEventCheckout } from '@/lib/events/checkout';
 import { bankTransferConfigSchema, canUseBankTransfer } from '@/lib/orders/bank-transfer-config';
+import { issueInvoiceForTransaction } from '@/lib/invoicing/service';
+import { createTransferTokenSigner } from '@/lib/orders/transfer-token';
+import { sendTransferAccessMail } from '@/lib/orders/transfer-mail';
 import { dispatchTransferEvent } from '@/lib/orders/bank-transfer-service';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { getClientIp } from '@/lib/security/client-ip';
@@ -35,6 +38,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const parsed = inputSchema.safeParse(await readJsonBody(request));
     if (!parsed.success) return fail('Invalid order');
     const body = parsed.data;
+    const signToken = createTransferTokenSigner();
     if (!(await verifyCaptchaToken(body.captchaToken, 'altcha')).success) return fail('Captcha required', 403);
     const session = await createClient(); const { data: { user } } = await session.auth.getUser();
     const email = (user?.email ?? body.email).trim().toLowerCase();
@@ -102,14 +106,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const placed = await db.rpc('bank_transfer_order', { p_order: {
       product_id: product.id, currency: product.currency.toUpperCase(), customer_email: email, user_id: user?.id ?? null,
       order_details: { v: 1, ...validation.details }, custom_field_values: custom.values, coupon_id: coupon?.id ?? null,
-      metadata: { event_ip: ip },
+      metadata: { event_ip: ip, locale: body.locale },
     }, p_lines: lines as unknown as Json });
     if (placed.error) return fail(placed.error.code === 'P0429' ? 'Unpaid order limit reached' : 'Order placement failed', placed.error.code === 'P0429' ? 429 : placed.error.code === 'P0409' ? 409 : 400);
     const result = placed.data as { transaction_id: string; order_number: number; amount: number; currency: string; dueAt: string; transfer: Json };
+    after(async () => {
+      await issueInvoiceForTransaction(result.transaction_id, { client: db });
+      await sendTransferAccessMail(db, result.transaction_id);
+    });
     try { await dispatchTransferEvent(db, result.transaction_id, 'order.placed'); }
     catch { console.error('[bank-transfer] Event awaiting recovery:', result.transaction_id); }
     return NextResponse.json({ orderId: result.transaction_id, orderNumber: result.order_number, amount: result.amount,
-      currency: result.currency, dueAt: result.dueAt, transfer: result.transfer }, { headers: { 'Cache-Control': 'no-store' } });
+      currency: result.currency, dueAt: result.dueAt, transfer: result.transfer, token: signToken(result.transaction_id) }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     return fail(error instanceof ApiPayloadTooLargeError ? 'Request too large' : 'Order unavailable', error instanceof ApiPayloadTooLargeError ? 413 : 500);
   }

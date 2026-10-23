@@ -72,9 +72,15 @@ export async function issueInvoiceForTransaction(transactionId: string, options:
 }
 export async function retryInvoices(): Promise<{ processed: number; errors: number }> {
   const client = createAdminClient();
+  const config = await readInvoiceConfig(client);
+  if (config?.provider !== 'none' && config?.mode === 'auto') {
+    const { data: missing } = await client.from('payment_transactions').select('id,invoices!left(transaction_id)')
+      .eq('payment_provider', 'bank_transfer').in('status', ['awaiting_payment', 'completed']).is('invoices', null).order('created_at').limit(100);
+    for (const tx of missing ?? []) await issueInvoiceForTransaction(tx.id, { client });
+  }
   const [attempts, payments] = await Promise.all([
     client.from('invoices').select('transaction_id').or('status.eq.issuing,and(status.eq.failed,attempts.lt.5)').order('updated_at').limit(100),
-    client.from('invoices').select('transaction_id,provider_invoice_id,provider_domain,payment_transactions!inner(status,updated_at)').eq('status', 'issued').eq('payment_synced', false).eq('payment_transactions.status', 'completed').order('updated_at').limit(100),
+    client.from('invoices').select('transaction_id,provider_invoice_id,provider_domain,payment_transactions!inner(status,updated_at,paid_at)').eq('status', 'issued').eq('payment_synced', false).eq('payment_transactions.status', 'completed').order('updated_at').limit(100),
   ]);
   if (attempts.error || payments.error) return { processed: 0, errors: 1 };
   let processed = 0, errors = 0;
@@ -84,11 +90,11 @@ export async function retryInvoices(): Promise<{ processed: number; errors: numb
   }
   for (const row of payments.data ?? []) {
     try {
-      const tx = firstRelated<{ updated_at: string }>(row.payment_transactions);
+      const tx = firstRelated<{ updated_at: string; paid_at?: string | null }>(row.payment_transactions);
       const config = await readInvoiceConfig(client);
       if (!tx || !config || config.domain !== row.provider_domain) continue;
       const provider = await configuredProvider(config);
-      const result = await provider?.markPaid(row.provider_invoice_id!, tx.updated_at.slice(0, 10));
+      const result = await provider?.markPaid(row.provider_invoice_id!, (tx.paid_at || tx.updated_at).slice(0, 10));
       if (!result?.success) { errors++; continue; }
       const { error } = await client.from('invoices').update({ payment_synced: true, updated_at: new Date().toISOString() }).eq('transaction_id', row.transaction_id);
       if (error) errors++; else processed++;

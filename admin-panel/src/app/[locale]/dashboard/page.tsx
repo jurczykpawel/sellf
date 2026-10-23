@@ -1,3 +1,6 @@
+import Link from 'next/link';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { getOverdueTransferCount } from '@/lib/orders/bank-transfer-actions';
 import DashboardContent from '@/components/dashboard/DashboardContent';
 import { createClient } from '@/lib/supabase/server';
 
@@ -16,5 +19,6 @@ export default async function DashboardPage() {
     console.error('Failed to fetch webhook failures count', err);
   }
 
-  return <DashboardContent failedWebhooksCount={failedCount} />;
+  const overdue = await getOverdueTransferCount(), t = await getTranslations('bankTransfer');
+  return <>{overdue.success && (overdue.data ?? 0) > 0 && <Link href={`${await getLocale() === 'pl' ? '/pl' : ''}/dashboard/payments`} className="block rounded-xl border border-sf-warning bg-sf-warning-soft p-4 mb-4">{t('overdueCount', { count: overdue.data ?? 0 })}</Link>}<DashboardContent failedWebhooksCount={failedCount} /></>;
 }

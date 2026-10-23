@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const trigger = vi.hoisted(() => vi.fn());
 const fulfill = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/orders/transfer-mail', () => ({ sendTransferAccessMail: vi.fn() }));
 vi.mock('@/lib/services/webhook-service', () => ({ WebhookService: { trigger } }));
 vi.mock('@/lib/services/fulfill-paid-order', () => ({ fulfillPaidOrder: fulfill }));
 import { dispatchTransferEvent, fulfillTransfer, runTransferJob } from '@/lib/orders/bank-transfer-service';
@@ -15,7 +16,7 @@ function client(results: Array<{ data?: unknown; error?: unknown }> = []) {
   const from = vi.fn(() => {
     const q = Promise.resolve({ data: null, error: null, ...results.shift() });
     const methods: Record<string, ReturnType<typeof vi.fn>> = {};
-    for (const name of ['select', 'update', 'eq', 'single', 'is', 'lt', 'limit', 'not']) {
+    for (const name of ['select', 'update', 'eq', 'single', 'is', 'lt', 'limit', 'not', 'in', 'contains']) {
       methods[name] = vi.fn(() => q); Object.assign(q, { [name]: methods[name] });
     }
     queries.push(methods); return q;

@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-const mocks = vi.hoisted(() => ({ captcha: vi.fn(), rpc: vi.fn(), from: vi.fn(), event: vi.fn(), rate: vi.fn(), identity: vi.fn() }));
+const mocks = vi.hoisted(() => ({ captcha: vi.fn(), rpc: vi.fn(), from: vi.fn(), event: vi.fn(), rate: vi.fn(), identity: vi.fn(), invoice: vi.fn(), after: vi.fn(), token: vi.fn(), signer: vi.fn() }));
+vi.mock('next/server', async original => ({ ...await original<typeof import('next/server')>(), after: mocks.after }));
+vi.mock('@/lib/invoicing/service', () => ({ issueInvoiceForTransaction: mocks.invoice }));
+vi.mock('@/lib/orders/transfer-token', () => ({ signTransferToken: mocks.token, createTransferTokenSigner: mocks.signer }));
+vi.mock('@/lib/orders/transfer-mail', () => ({ sendTransferAccessMail: vi.fn() }));
 vi.mock('@/lib/captcha/verify', () => ({ verifyCaptchaToken: mocks.captcha }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => ({ from: mocks.from, rpc: mocks.rpc }) }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({ auth: { getUser: async () => ({ data: { user: null } }) } }) }));
@@ -23,7 +27,7 @@ function request(value: unknown) { return new NextRequest('http://localhost/api/
 }); }
 beforeEach(() => {
   vi.clearAllMocks(); mocks.captcha.mockResolvedValue({ success: true }); mocks.rate.mockResolvedValue(true); mocks.identity.mockResolvedValue(true);
-  mocks.event.mockResolvedValue(undefined);
+  mocks.event.mockResolvedValue(undefined); mocks.invoice.mockResolvedValue(null); mocks.token.mockReturnValue('signed'); mocks.signer.mockReturnValue(mocks.token);
   mocks.from.mockImplementation((table: string) => {
     const data = table === 'products' ? product : { bank_transfer_enabled: true, bank_account_holder: 'Example', bank_account_number: 'PL61109010140000071219812874' };
     const query = { select: () => query, eq: () => query, single: async () => ({ data, error: null }) }; return query;
@@ -32,6 +36,11 @@ beforeEach(() => {
     : { data: { transaction_id: productId, order_number: 1, amount: 24600, currency: 'PLN', dueAt: '2026-12-01', transfer: {} }, error: null });
 });
 describe('public bank transfer endpoint', () => {
+  it('requires link configuration before writing an order', async () => {
+    mocks.signer.mockImplementationOnce(() => { throw new Error('Configuration required'); });
+    expect((await POST(request(body))).status).toBe(500);
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
   it('requires a captcha token before touching order data', async () => {
     expect((await POST(request({ ...body, captchaToken: undefined }))).status).toBe(400);
     expect(mocks.from).not.toHaveBeenCalled();
@@ -51,6 +60,15 @@ describe('public bank transfer endpoint', () => {
     }));
     expect((await response.json()).amount).toBe(24600);
     expect(mocks.identity).toHaveBeenCalledTimes(2);
+  });
+  it('schedules automatic invoicing after the response and includes an order link token', async () => {
+    const response = await POST(request(body));
+    expect(response.status).toBe(200);
+    expect((await response.json()).token).toBe('signed');
+    expect(mocks.invoice).not.toHaveBeenCalled();
+    expect(mocks.after).toHaveBeenCalledTimes(1);
+    await mocks.after.mock.calls[0][0]();
+    expect(mocks.invoice).toHaveBeenCalledWith(productId, { client: expect.anything() });
   });
   it('refuses products without an enabled profile', async () => {
     const old = product.checkout_profile;

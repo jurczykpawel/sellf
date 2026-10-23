@@ -23,7 +23,7 @@ import type { PaymentTransactionLineItem } from '@/types/payment';
 
 // Valid `payment_transactions.status` values (DB CHECK constraint,
 // `payment_transactions_status_check`). Keep in sync with that constraint.
-const VALID_PAYMENT_STATUSES = ['pending', 'completed', 'refunded', 'partially_refunded', 'disputed', 'abandoned'];
+const VALID_PAYMENT_STATUSES = ['pending', 'completed', 'refunded', 'partially_refunded', 'disputed', 'abandoned', 'awaiting_payment', 'cancelled'];
 
 // Upper bound on how many products a free-text `search` can match by name/slug
 // before we stop widening the `product_id IN (...)` clause. Search is meant to
@@ -97,6 +97,7 @@ export async function GET(request: NextRequest) {
         metadata,
         custom_field_values,
         order_details,
+        payment_provider,payment_due_at,transfer_details,
         invoices(status,number,view_url,error,attempts),
         refund_id,
         refunded_amount,
@@ -319,6 +320,7 @@ export async function GET(request: NextRequest) {
         amount: p.amount,
         currency: p.currency,
         status: p.status,
+        payment_provider: p.payment_provider, payment_due_at: p.payment_due_at, transfer_details: p.transfer_details,
         stripe_payment_intent_id: p.stripe_payment_intent_id,
         product: {
           id: p.product_id,

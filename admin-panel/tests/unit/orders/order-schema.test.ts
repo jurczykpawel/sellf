@@ -64,6 +64,7 @@ describe('order schema', () => {
     const sql = `BEGIN;
       ${historicalClaim}
       DROP TRIGGER IF EXISTS bank_transfer_access_release ON public.payment_transactions;
+      DELETE FROM public.invoices WHERE transaction_id IN (SELECT id FROM public.payment_transactions WHERE payment_provider='bank_transfer');
       DELETE FROM public.payment_transactions WHERE payment_provider='bank_transfer';
       DELETE FROM public.guest_purchases WHERE product_id='${productId}';
       DELETE FROM public.payment_transactions WHERE product_id='${productId}';
