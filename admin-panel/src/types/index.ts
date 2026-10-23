@@ -1,6 +1,9 @@
 import type { ProductMarketingFields } from '@/lib/validations/product-marketing';
 
 export interface Product {
+  event_mode?: boolean;
+  allow_repeat_purchase?: boolean;
+  sessions?: import('@/lib/events/schema').EventSessionInput[];
   id: string
   name: string
   slug: string

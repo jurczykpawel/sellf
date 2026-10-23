@@ -210,6 +210,10 @@ export function buildOrderSnapshotLines(
 }
 
 export interface OrderSnapshotLine {
+  session_id?: string | null;
+  tier_id?: string | null;
+  session_label?: string | null;
+  session_starts_at?: string | null;
   product_id: string;
   item_type: 'main_product' | 'order_bump';
   quantity: number;

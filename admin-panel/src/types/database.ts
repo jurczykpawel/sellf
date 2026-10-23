@@ -1663,10 +1663,15 @@ export type Database = {
           product_id: string
           product_name: string | null
           quantity: number
+          session_id: string | null
+          session_label: string | null
+          session_starts_at: string | null
           tax_amount: number | null
           tax_behavior: string | null
           tax_breakdown: Json
           taxability_reason: string | null
+          tier_id: string | null
+          tier_label: string | null
           total_price: number
           transaction_id: string
           unit_price: number
@@ -1686,10 +1691,15 @@ export type Database = {
           product_id: string
           product_name?: string | null
           quantity?: number
+          session_id?: string | null
+          session_label?: string | null
+          session_starts_at?: string | null
           tax_amount?: number | null
           tax_behavior?: string | null
           tax_breakdown?: Json
           taxability_reason?: string | null
+          tier_id?: string | null
+          tier_label?: string | null
           total_price: number
           transaction_id: string
           unit_price: number
@@ -1709,10 +1719,15 @@ export type Database = {
           product_id?: string
           product_name?: string | null
           quantity?: number
+          session_id?: string | null
+          session_label?: string | null
+          session_starts_at?: string | null
           tax_amount?: number | null
           tax_behavior?: string | null
           tax_breakdown?: Json
           taxability_reason?: string | null
+          tier_id?: string | null
+          tier_label?: string | null
           total_price?: number
           transaction_id?: string
           unit_price?: number
@@ -2181,6 +2196,103 @@ export type Database = {
           },
         ]
       }
+      product_price_tiers: {
+        Row: {
+          id: string
+          label: string | null
+          price: number
+          sale_ends_at: string | null
+          seats: number | null
+          session_id: string
+          sort: number
+        }
+        Insert: {
+          id?: string
+          label?: string | null
+          price: number
+          sale_ends_at?: string | null
+          seats?: number | null
+          session_id: string
+          sort: number
+        }
+        Update: {
+          id?: string
+          label?: string | null
+          price?: number
+          sale_ends_at?: string | null
+          seats?: number | null
+          session_id?: string
+          sort?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_price_tiers_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "product_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_sessions: {
+        Row: {
+          capacity: number | null
+          created_at: string
+          ends_at: string | null
+          extra_days: string | null
+          id: string
+          online_url: string | null
+          product_id: string
+          sales_open: boolean
+          sort: number
+          starts_at: string
+          timezone: string
+          title: string | null
+          updated_at: string
+          venue: string | null
+        }
+        Insert: {
+          capacity?: number | null
+          created_at?: string
+          ends_at?: string | null
+          extra_days?: string | null
+          id?: string
+          online_url?: string | null
+          product_id: string
+          sales_open?: boolean
+          sort?: number
+          starts_at: string
+          timezone?: string
+          title?: string | null
+          updated_at?: string
+          venue?: string | null
+        }
+        Update: {
+          capacity?: number | null
+          created_at?: string
+          ends_at?: string | null
+          extra_days?: string | null
+          id?: string
+          online_url?: string | null
+          product_id?: string
+          sales_open?: boolean
+          sort?: number
+          starts_at?: string
+          timezone?: string
+          title?: string | null
+          updated_at?: string
+          venue?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_sessions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_tags: {
         Row: {
           created_at: string
@@ -2280,6 +2392,7 @@ export type Database = {
           description: string | null
           embed_enabled: boolean
           enable_waitlist: boolean
+          event_mode: boolean
           features: Json | null
           icon: string | null
           id: string
@@ -2342,6 +2455,7 @@ export type Database = {
           description?: string | null
           embed_enabled?: boolean
           enable_waitlist?: boolean
+          event_mode?: boolean
           features?: Json | null
           icon?: string | null
           id?: string
@@ -2404,6 +2518,7 @@ export type Database = {
           description?: string | null
           embed_enabled?: boolean
           enable_waitlist?: boolean
+          event_mode?: boolean
           features?: Json | null
           icon?: string | null
           id?: string
@@ -2693,6 +2808,67 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seat_reservations: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          quantity: number
+          released_at: string | null
+          session_id: string
+          status: string
+          tier_id: string
+          transaction_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          quantity: number
+          released_at?: string | null
+          session_id: string
+          status: string
+          tier_id: string
+          transaction_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          quantity?: number
+          released_at?: string | null
+          session_id?: string
+          status?: string
+          tier_id?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seat_reservations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "product_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seat_reservations_tier_id_session_id_fkey"
+            columns: ["tier_id", "session_id"]
+            isOneToOne: false
+            referencedRelation: "product_price_tiers"
+            referencedColumns: ["id", "session_id"]
+          },
+          {
+            foreignKeyName: "seat_reservations_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: true
+            referencedRelation: "payment_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -3799,6 +3975,10 @@ export type Database = {
         }
         Returns: Json
       }
+      _place_order_without_event: {
+        Args: { p_lines: Json; p_order: Json }
+        Returns: Json
+      }
       _process_stripe_payment_completion_with_bump_impl: {
         Args: {
           amount_subtotal_param?: number
@@ -4339,6 +4519,10 @@ export type Database = {
         Args: { p_paid_minor: number; p_transaction_id: string }
         Returns: Json
       }
+      confirm_event_order: {
+        Args: { p_transaction_id: string }
+        Returns: undefined
+      }
       create_refund_request: {
         Args: { reason_param?: string; transaction_id_param: string }
         Returns: Json
@@ -4380,6 +4564,27 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      event_availability: {
+        Args: { p_at?: string; p_product_id: string }
+        Returns: Json
+      }
+      event_hold_limits: {
+        Args: { p_email: string; p_ip: string; p_session_id: string }
+        Returns: boolean
+      }
+      event_mail_access: {
+        Args: {
+          p_email: string
+          p_product_id: string
+          p_transaction_id: string
+        }
+        Returns: boolean
+      }
+      event_session_admin: {
+        Args: { p_offset?: number; p_session_id: string }
+        Returns: Json
+      }
+      expire_seat_reservations: { Args: never; Returns: number }
       find_auto_apply_coupon: {
         Args: { customer_email_param: string; product_id_param: string }
         Returns: Json
@@ -4756,6 +4961,7 @@ export type Database = {
           description: string | null
           embed_enabled: boolean
           enable_waitlist: boolean
+          event_mode: boolean
           features: Json | null
           icon: string | null
           id: string
@@ -4818,6 +5024,7 @@ export type Database = {
         }
         Returns: Json
       }
+      my_event_sessions: { Args: { p_product_id: string }; Returns: Json }
       pending_free_grant_products: {
         Args: never
         Returns: {
@@ -4837,6 +5044,10 @@ export type Database = {
         }[]
       }
       place_order: { Args: { p_lines: Json; p_order: Json }; Returns: Json }
+      prepare_event_mail: {
+        Args: { p_data: Json; p_email: string }
+        Returns: undefined
+      }
       process_refund_request: {
         Args: {
           action_param: string
@@ -4863,6 +5074,10 @@ export type Database = {
       product_marketing_valid: { Args: { instance: Json }; Returns: boolean }
       product_offer_config_schema: { Args: never; Returns: Json }
       product_offer_config_valid: { Args: { config: Json }; Returns: boolean }
+      public_event_availability: {
+        Args: { p_product_id: string }
+        Returns: Json
+      }
       queue_pending_free_grant: {
         Args: { p_email: string; p_product_slug: string }
         Returns: boolean

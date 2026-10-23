@@ -21,7 +21,7 @@ import { isRelativeOrHttpUrl } from '@/lib/validations/redirect';
  *
  * @see supabase/migrations/20250101000000_core_schema.sql (products table)
  */
-export const PRODUCT_API_FIELDS = `id, name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, preview_video_config, price, currency, features, marketing_fields, layout_template, checkout_template, checkout_profile, custom_checkout_fields, is_active, is_featured, is_listed, is_bundle, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, vat_exempt, vat_exempt_note, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, embed_enabled, issue_license_on_purchase, license_tier, license_duration_days, created_at, updated_at`;
+export const PRODUCT_API_FIELDS = `id, event_mode, allow_repeat_purchase, sessions:product_sessions(id,starts_at,ends_at,timezone,title,venue,online_url,extra_days,capacity,sales_open,sort,tiers:product_price_tiers(id,label,price,seats,sale_ends_at,sort)), name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, preview_video_config, price, currency, features, marketing_fields, layout_template, checkout_template, checkout_profile, custom_checkout_fields, is_active, is_featured, is_listed, is_bundle, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, vat_exempt, vat_exempt_note, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, embed_enabled, issue_license_on_purchase, license_tier, license_duration_days, created_at, updated_at`;
 
 /**
  * SECURITY FIX (V13): Escape ILIKE special characters to prevent SQL pattern injection
@@ -213,9 +213,12 @@ function validatePrice(price: unknown): ValidationResult {
 export const WHOLE_AMOUNT_FIELDS = ['price', 'recurring_price', 'sale_price', 'custom_price_min'] as const;
 export function validateWholeAmounts(input: Record<string, unknown>, currency: unknown): string[] {
   if (typeof currency !== 'string' || currencyExponent(currency) !== 0) return [];
-  return WHOLE_AMOUNT_FIELDS
+  const tiers = Array.isArray(input.sessions) ? input.sessions.flatMap(s => s && Array.isArray(s.tiers) ? s.tiers : []) : [];
+  return [...WHOLE_AMOUNT_FIELDS
     .filter((field) => typeof input[field] === 'number' && !Number.isInteger(input[field]))
-    .map((field) => `${field} must be a whole number for ${currency} (no minor unit)`);
+    .map((field) => `${field} must be a whole number for ${currency} (no minor unit)`),
+    ...tiers.filter(t => t && typeof t.price === 'number' && !Number.isInteger(t.price)).map(() => `Session tier price must be a whole number for ${currency} (no minor unit)`),
+  ];
 }
 
 function validateCurrency(currency: unknown): ValidationResult {

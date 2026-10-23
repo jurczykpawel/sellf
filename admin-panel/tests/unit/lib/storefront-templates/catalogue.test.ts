@@ -1,5 +1,6 @@
 /** Bounded public catalogue reads. @see supabase/tests/storefront-catalogue.sql */
 import { describe, expect, it, vi } from 'vitest';
+import { cataloguePageSchema } from '@/lib/storefront-templates/catalogue-section';
 import { resolveProductPaths } from '@/lib/storefront-templates/product-paths';
 import pl from '@/messages/pl.json';
 import { loadCataloguePage, loadCatalogueGroups, loadStorefrontBindings } from '@/lib/storefront-templates/catalogue';
@@ -240,4 +241,17 @@ it('resolves author media from approved public product covers in the shared boun
   expect(c.rpc).toHaveBeenCalledTimes(3);
   expect(c.rpc.mock.calls.every(([, args]) => args.product_ids.length <= 5)).toBe(true);
   for (const mediaProducts of [[id(1), id(1)], Array.from({ length: 5 }, (_, index) => id(index + 1)), ['unknown']]) expect(await loadStorefrontBindings(c.db, { locale: 'en', mediaProducts, target: 'catalogue' })).toEqual({ success: false, error: 'INVALID' });
+});
+
+it('reads live event tier prices after catalogue caching, with nearest date and no omnibus', async () => {
+  const c = client([{ ...row(), event_mode: true, sale_price: 5, lowest_prior_price: 3 }]);
+  const session = { id: 'session', starts_at: '2099-06-01T12:00:00Z', ends_at: null, timezone: 'Europe/Warsaw', title: null, venue: null, extra_days: null, remaining: 20, sold_out: false, cheaper_sold_out: false, next_tier_price: 67, current_tier: { id: 'tier', label: null, price: 47, seats_left: 20, ends_at: null } };
+  c.rpc.mockImplementation(async (name: string) => ({ data: name === 'public_event_availability' ? [session, { ...session, id: 'later', starts_at: '2099-07-01T12:00:00Z', current_tier: { ...session.current_tier, price: 67 } }] : [{ ...row(), event_mode: true, sale_price: 5, lowest_prior_price: 3 }], error: null }));
+  const result = await loadCataloguePage(c.db, input);
+  expect(result.success).toBe(true);
+  if (!result.success) return;
+  expect(result.data.products[0].price).toMatchObject({ display: 'from $47.00', omnibus: null });
+  expect(result.data.products[0].price.originalDisplay).toBeUndefined();
+  expect(result.data.products[0].eventDateLabel).toContain('Europe/Warsaw');
+  expect(cataloguePageSchema(9).safeParse(result.data).success).toBe(true);
 });

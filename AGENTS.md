@@ -161,6 +161,35 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
 - Triggers: `handle_new_user_registration()` (first user → admin, claim guest purchases)
 - Scheduled jobs: Rate limit cleanup (hourly via pg_cron)
 
+### Event Seat Inventory
+
+Event products use `product_sessions`, `product_price_tiers` and `seat_reservations`.
+The service-only `event_availability` RPC is the shared availability calculation;
+`public_event_availability` returns public presentation for server route callers.
+`place_order` locks the selected session, rechecks tier pricing and hold limits, and
+calls the private `_place_order_without_event` within the same transaction. Event
+line snapshots retain the session and tier identifiers, title and start time.
+`_order_grant_and_record` confirms seats through `confirm_event_order`; late payments
+retain fulfillment and record `metadata.oversold` when inventory cannot be reacquired.
+Event authoring replaces `sessions` and nested `tiers` atomically through
+`mutate_product_with_audit`; omitted lists remain unchanged. Existing IDs preserve
+reservations, and referenced entries cannot be deleted. Admin `event_session_admin`
+returns availability, counters and paged participant orders; CSV uses `csv-export`.
+`my_event_sessions` returns private online links only for confirmed purchased sessions
+matching the signed-in buyer or participant with current product access. Event webhook
+lines include session and tier labels from immutable order snapshots. Access mail
+checks current account or unclaimed guest entitlement; `prepare_event_mail` updates
+only optional event metadata used by Auth templates and clears it for later mail.
+Transaction status changes release seats on abandonment, cancellation and full refund.
+Public session presentation is served by `/api/public/products/[slug]/availability`
+with live per-IP limits and seller-origin CORS. Catalogue event pricing is refreshed
+outside presentation caches. Participant recording claims use `guest_purchases`
+with a transaction reference and null Stripe session; claiming participant access
+never assigns the buyer transaction to the participant. Full refunds and cancellation
+remove participant recording claims and the access granted from them.
+Schedule `/api/cron?job=seat-reservations-expire` every minute with the existing
+`CRON_SECRET` bearer credential. Event Stripe sessions and holds share a 30-minute expiry.
+
 ### Data Flow Patterns
 
 **Purchase Flow (on the admin panel):**

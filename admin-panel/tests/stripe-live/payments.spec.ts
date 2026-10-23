@@ -29,6 +29,7 @@ interface Scenario {
   coupon?: { id: string; code: string };
   netVat?: boolean;
   profile?: boolean;
+  eventSession?: string;
 }
 interface Delivery {
   headers: Record<string, string>;
@@ -188,13 +189,20 @@ async function timing(s: Scenario, sessionId: string, pageAt: number): Promise<s
   return order;
 }
 
-async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; netVat?: boolean; profile?: boolean } = {}): Promise<void> {
+async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; netVat?: boolean; profile?: boolean; event?: boolean } = {}): Promise<void> {
   const slug = `stripe-live-${label}-${randomUUID().slice(0, 8)}`;
   const s: Scenario = { slug, productIds: [], email: `${slug}@example.com`, domain: `${slug}.example.com`, sessionIds: [], subscription: !!options.subscription, netVat: options.netVat, profile: options.profile };
   let passed = false;
   let order = 'not observed';
   try {
     await setup(s, !!options.loggedIn);
+    if (options.event) {
+      expect((await supabaseAdmin.from('products').update({ event_mode: true, issue_license_on_purchase: false, custom_checkout_fields: [], checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }, { id: 'quantity', min: 1, max: 5, mode: 'product_page' }] } }).eq('id',s.productIds[0])).error).toBeNull();
+      const eventSession = await insert('product_sessions', { product_id: s.productIds[0], starts_at: '2099-06-01T12:00:00Z', timezone: 'Europe/Warsaw', title: 'June workshop', capacity: 60 });
+      s.eventSession = eventSession.id;
+      await insert('product_price_tiers', { session_id: eventSession.id, price: 47, seats: 30, sale_ends_at: '2099-05-01T12:00:00Z', sort: 0 });
+      await insert('product_price_tiers', { session_id: eventSession.id, price: 67, sort: 1 });
+    }
     if (options.coupon) {
       s.coupon = await insert('coupons', { code: `LIVE-${randomUUID().slice(0, 8)}`.toUpperCase(), name: 'Live percentage', discount_type: s.profile ? 'fixed' : 'percentage', discount_value: s.profile ? 7.01 : 25, exclude_order_bumps: false, is_active: true });
     }
@@ -214,7 +222,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       }).observe(document, { childList: true, subtree: true });
     });
     await page.goto(`/en/checkout/${slug}?email=${encodeURIComponent(s.email)}`);
-    if (s.profile) await page.getByLabel('Quantity', { exact: true }).fill('3');
+    if (s.profile || options.event) await page.getByLabel('Quantity', { exact: true }).fill(options.event ? '2' : '3');
     await page.getByRole('button', { name: /Continue to payment/ }).click();
     if (!s.subscription) await page.getByRole('button', { name: /Add to order/i }).click();
     await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
@@ -244,12 +252,15 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
           await page.locator(`[id="participants.${index}.${key}"]`).fill(value);
         }
       }
+    } else if (options.event) {
+      await page.locator('[id="buyer.first_name"]').fill('Stripe');
+      await page.locator('[id="buyer.last_name"]').fill('Test Buyer');
     } else await page.locator('#fullName').fill('Stripe Test Buyer');
-    if (!s.subscription) await page.getByLabel(/License domain/).fill(s.domain);
+    if (!s.subscription && !options.event) await page.getByLabel(/License domain/).fill(s.domain);
     const terms = page.locator('input[type="checkbox"]');
     for (const checkbox of await terms.all()) if (await checkbox.isVisible()) await checkbox.check();
     await fillCard(page, card);
-    if (!s.profile) await expect(page.locator('#fullName')).toHaveValue('Stripe Test Buyer');
+    if (!s.profile && !options.event) await expect(page.locator('#fullName')).toHaveValue('Stripe Test Buyer');
     await page.locator('button[type="submit"]').click();
     if (options.challenge) {
       let challenge: Frame | undefined;
@@ -310,17 +321,24 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         expect(tx.session_id).toBe(sessionId);
         expect(tx.pricing_snapshot_version).toBe(1);
         expect(Number(tx.order_number)).toBeGreaterThanOrEqual(1001);
-        expect(tx.custom_field_values._sellf_license_domain).toBe(s.domain);
+        if (!options.event) expect(tx.custom_field_values._sellf_license_domain).toBe(s.domain);
         const items = await rows('payment_line_items', 'transaction_id', tx.id);
         expect(items).toHaveLength(2);
         expect(new Set(items.map(row => row.product_id))).toEqual(new Set(s.productIds));
         for (const item of items) {
-          const expectedPrice = item.product_id === s.productIds[0] ? 10 : 2;
-          const quantity = s.profile && item.product_id === s.productIds[0] ? 3 : 1;
+          const expectedPrice = item.product_id === s.productIds[0] ? options.event ? 47 : 10 : 2;
+          const quantity = item.product_id === s.productIds[0] ? options.event ? 2 : s.profile ? 3 : 1 : 1;
           expect(item.quantity).toBe(quantity);
           expect(Number(item.unit_price)).toBe(expectedPrice);
           expect(Number(item.total_price)).toBe(expectedPrice * quantity);
           expect(item.currency).toBe('USD');
+        }
+        if (options.event) {
+          const eventLine = items.find(item => item.product_id === s.productIds[0]);
+          expect(eventLine).toMatchObject({ session_id: s.eventSession, session_label: 'June workshop', session_starts_at: '2099-06-01T12:00:00+00:00', quantity: 2 });
+          expect(await rows('seat_reservations', 'transaction_id', tx.id)).toEqual([expect.objectContaining({ session_id: s.eventSession, status: 'confirmed', quantity: 2 })]);
+          expect(Number(tx.amount)).toBe(9600);
+          expect(deliveries(s)[0].rawBody).toContain(s.eventSession!);
         }
         const basis = Math.round(items.reduce((total, item) => total + Number(item.discounted_total), 0) * minorFactor(tx.currency));
         const exclusiveTax = items.filter(item => item.tax_behavior === 'exclusive').reduce((sum, item) => sum + Number(item.tax_amount), 0);
@@ -346,6 +364,8 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
           expect(stripeLines.data[0].quantity).toBe(1);
           expect(stripeLines.data[0].description).toContain('× 3');
           expect(stripeLines.data.reduce((sum, line) => sum + line.amount_total, 0)).toBe(Number(tx.amount));
+        } else if (options.event) {
+          expect(licenses).toHaveLength(0);
         } else {
           expect(licenses).toHaveLength(1);
           expect(licenses[0].license_domain).toBe(s.domain);
@@ -421,3 +441,5 @@ test('percentage coupon with bump', async ({ page }) => { await run(page, 'coupo
 test('net product with local VAT', async ({ page }) => { await run(page, 'net-vat', '4242424242424242', { netVat: true }); });
 
 test('B2B profile with three units and a fixed coupon', async ({ page }) => { await run(page, 'profile-b2b', '4242424242424242', { profile: true, coupon: true }); });
+
+test('event with two promotional seats confirms inventory and delivers session snapshot', async ({ page }) => { await run(page, 'event', '4242424242424242', { event: true }); });

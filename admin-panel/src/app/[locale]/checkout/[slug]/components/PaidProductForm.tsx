@@ -4,6 +4,8 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useState, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { CheckoutElementsProvider } from '@stripe/react-stripe-js/checkout';
+import EventSessions from '@/components/checkout/EventSessions';
+import { selectEventSession } from '@/lib/events/presentation';
 import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
 import { CheckoutQuantityField } from '@/components/checkout/CheckoutProfileFields';
 import { formatPrice, STRIPE_MAX_AMOUNT } from '@/lib/constants';
@@ -34,6 +36,7 @@ import type { Product } from '@/types';
 import type { ExpressCheckoutConfig } from '@/types/payment-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import type { CustomFieldDefinition, CustomFieldValues } from '@/lib/validations/custom-checkout-fields';
+import type { EventSession } from '@/lib/events/presentation';
 import type { CheckoutSessionIdentity } from '@/lib/checkout/session-queue';
 import type { BundleComponentSummary } from './BundleContentsPreview';
 import ProductShowcase from './ProductShowcase';
@@ -78,6 +81,25 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const isPwywSubscription = isSubscription && product.allow_custom_price === true;
   const { user, isAdmin, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
+  const eventText = useTranslations('events');
+  const [eventSessions, setEventSessions] = useState<EventSession[]>([]);
+  const [eventSessionId, setEventSessionId] = useState<string | null>(null);
+  const [eventLoadError, setEventLoadError] = useState(false);
+  const requestedSession = searchParams.get('session');
+  const refreshEvents = useCallback(async () => {
+    if (!product.event_mode) return;
+    try {
+      const response = await fetch(`/api/public/products/${encodeURIComponent(product.slug)}/availability`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('Unavailable');
+      const data = await response.json() as { sessions: EventSession[] };
+      setEventSessions(data.sessions);
+      setEventSessionId(current => selectEventSession(data.sessions, current ?? requestedSession));
+      setEventLoadError(false);
+    } catch { setEventLoadError(true); }
+  }, [product.event_mode, product.slug, requestedSession]);
+  useEffect(() => { void refreshEvents(); }, [refreshEvents]);
+  const eventSession = eventSessions.find(s => s.id === eventSessionId);
+  const eventReady = !product.event_mode || (!eventLoadError && !!eventSession?.currentTier && !eventSession.soldOut);
   const config = useConfig();
   const { resolvedTheme } = useTheme();
   const { track } = useTracking();
@@ -255,7 +277,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   // cart total, the "Pay" button and the actual charge can never diverge.
   const effectiveUnitPrice = isSubscription
     ? product.recurring_price ?? 0
-    : getEffectiveUnitPrice(product);
+    : product.event_mode ? eventSession?.currentTier?.price ?? 0 : getEffectiveUnitPrice(product);
 
   const pricing = calculatePricing({
     baseProductId: product.id,
@@ -281,7 +303,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   // same grant flow as PWYW=0. If selected bumps remain payable, keep Stripe.
   const isFullDiscountCoupon = !!coupon.appliedCoupon && pricing.isFreeWithCoupon;
 
-  const isFreeAccess = isPwywFree || isFullDiscountCoupon;
+  const isFreeAccess = !product.event_mode && (isPwywFree || isFullDiscountCoupon);
   const checkoutSessionSignature = JSON.stringify({
     locale,
     quantity,
@@ -291,6 +313,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     couponCode: coupon.appliedCoupon?.code ?? null,
     successUrl: searchParams.get('success_url') || null,
     customAmount: product.allow_custom_price ? customAmount : null,
+    sessionId: product.event_mode ? eventSessionId : undefined,
     repurchase: explicitRepurchase,
   });
 
@@ -347,7 +370,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   // One request at a time; superseded responses remain available for replacement.
   useEffect(() => {
-    if (!purchaseStarted || hasAccess || error || authLoading || isFunnelTest || isFreeAccess ||
+    if (!eventReady || !purchaseStarted || hasAccess || error || authLoading || isFunnelTest || isFreeAccess ||
       (product.allow_custom_price && checkCustomAmount(customAmount) !== null)) {
       sessionQueue.update(null);
       return;
@@ -363,6 +386,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             productId: product.id,
             locale,
             quantity,
+            sessionId: product.event_mode ? eventSessionId : undefined,
             clientSecret: previous?.clientSecret,
             bindingToken: previous?.bindingToken ?? undefined,
             email: email?.trim() || undefined,
@@ -376,6 +400,10 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         });
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
+          if (product.event_mode && (response.status === 409 || response.status === 429)) {
+            if (response.status === 409) await refreshEvents();
+            throw new Error(eventText(response.status === 429 ? 'holdLimit' : data.error === 'sold_out' ? 'soldOut' : 'priceChanged'));
+          }
           throw Object.assign(new Error(data.error || t('createSessionError')), { details: data.details });
         }
         return await response.json() as CheckoutSessionResponse;
@@ -405,7 +433,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       },
     });
   }, [
-    purchaseStarted, hasAccess, error, authLoading,
+    eventReady, eventSessionId, refreshEvents, eventText, purchaseStarted, hasAccess, error, authLoading,
     product, email, locale, quantity, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
     customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess,
     checkoutSessionSignature, explicitRepurchase, sessionQueue, customFieldDefs, customFieldValues,
@@ -527,6 +555,11 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           <h2 className="text-xl font-semibold text-sf-heading mb-4">{t('purchaseTitle')}</h2>
           {quantityConfig?.mode === 'product_page' && <CheckoutQuantityField config={quantityConfig} value={quantity} onChange={setQuantity} />}
 
+          {product.event_mode && <>
+            <EventSessions sessions={eventSessions} currency={product.currency} selected={eventSessionId} onSelect={id => { setEventSessionId(id); setError(null); setPurchaseStarted(false); }} />
+            {eventLoadError && <p role="alert">{eventText('loadError')}</p>}
+          </>}
+
           {/* Missing Config Alert */}
           {!config.stripePublishableKey && (
             <div className="mb-4 p-4 bg-sf-danger-soft border border-sf-danger/20 rounded-lg">
@@ -555,6 +588,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 <div>
                   <h3 className="text-lg font-semibold text-sf-danger mb-1">{t('paymentError')}</h3>
                   <p className="text-sf-danger text-sm">{error}</p>
+                  {product.event_mode && <button type="button" onClick={() => { setError(null); setPurchaseStarted(false); void refreshEvents(); }}>{eventText('chooseSession')}</button>}
                 </div>
               </div>
             </div>
@@ -574,7 +608,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             </button>
           )}
 
-          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && (
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && eventReady && (
             <OrderSummary
               productName={quantity > 1 ? `${product.name} × ${quantity}` : product.name}
               currency={product.currency}
@@ -594,8 +628,9 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             />
           )}
 
-          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && !purchaseStarted && (
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && !purchaseStarted && eventReady && (
             <form onSubmit={event => { event.preventDefault(); setPurchaseStarted(true); }}>
+              {product.event_mode && <label className="mb-4 block">{eventText('email')}<input type="email" required value={email ?? ''} onChange={event => setEmail(event.target.value)} className="mt-1 block w-full rounded border border-sf-border p-3" /></label>}
               {quantityConfig?.mode === 'checkout' && <CheckoutQuantityField config={quantityConfig} value={quantity} onChange={setQuantity} />}
               <button type="submit" disabled={!interactive} className="w-full cursor-pointer disabled:cursor-wait disabled:opacity-60 rounded-xl bg-sf-accent-bg px-6 py-4 font-semibold text-sf-inverse hover:bg-sf-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent">
                 {t('continueToPayment')}

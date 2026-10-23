@@ -59,6 +59,7 @@ export default defineConfig({
 						{ slug: 'cookie-consent' },
 						{ slug: 'webhooks' },
 						{ slug: 'custom-checkout' },
+						{ slug: 'events' },
 					],
 				},
 				{

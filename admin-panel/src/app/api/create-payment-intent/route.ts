@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { resolveEventCheckout } from '@/lib/events/checkout';
+import { getClientIp } from '@/lib/security/client-ip';
 import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
 import { valueSchema as quantitySchema } from '@/lib/checkout-modules/quantity';
 import { buildCheckoutReturnUrl } from '@/lib/checkout/return-url';
@@ -78,6 +80,7 @@ export async function POST(request: NextRequest) {
     const body = await readJsonBody<any>(request);
     const {
       productId,
+      sessionId: eventSessionId,
       clientSecret,
       bindingToken: previousBindingToken,
       expireOnly,
@@ -207,6 +210,14 @@ export async function POST(request: NextRequest) {
       : quantity === 1;
     if (!quantityValid || (product.issue_license_on_purchase && quantity !== 1)) {
       return NextResponse.json({ error: 'Invalid order quantity' }, { status: 400 });
+    }
+
+    const eventIp = getClientIp(request);
+    const eventCheckout = product.event_mode ? await resolveEventCheckout(dataClient, {
+      productId, sessionId: eventSessionId, email: finalEmail, ip: eventIp, quantity,
+    }) : null;
+    if (eventCheckout && !eventCheckout.success) {
+      return NextResponse.json({ error: eventCheckout.error }, { status: eventCheckout.status });
     }
 
     // Sale window applies to every product type; an open checkout tab must not outlive it.
@@ -552,7 +563,7 @@ export async function POST(request: NextRequest) {
     const pricing = calculatePricing({
       baseProductId: product.id,
       // Charge the active sale price (Omnibus) when running; coupon stacks on top.
-      productPrice: getEffectiveUnitPrice(product) * quantity,
+      productPrice: (eventCheckout?.success ? eventCheckout.price : getEffectiveUnitPrice(product)) * quantity,
       productCurrency: product.currency,
       customAmount,
       bumps: validatedBumps.map(vb => ({ id: vb.product.id, price: vb.bumpPrice, selected: true })),
@@ -571,7 +582,7 @@ export async function POST(request: NextRequest) {
     // The grant RPC runs as the buyer (auth.uid()), re-validates the coupon and
     // records the redemption atomically with the access row, so a refused grant
     // leaves the coupon untouched.
-    if (pricing.isFreeWithCoupon && user && appliedCoupon) {
+    if (!product.event_mode && pricing.isFreeWithCoupon && user && appliedCoupon) {
       const grant = await grantFreeProductAccess(supabase, dataClient, {
         product: { id: product.id, slug: product.slug },
         user: { id: user.id, email: user.email ?? '' },
@@ -606,7 +617,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 7a. Handle 100% coupon for guests — require login first
-    if (pricing.isFreeWithCoupon && !user) {
+    if (!product.event_mode && pricing.isFreeWithCoupon && !user) {
       return NextResponse.json(
         { error: 'Please log in to use this coupon for free access' },
         { status: 401 }
@@ -809,6 +820,7 @@ export async function POST(request: NextRequest) {
       delete checkoutSessionParams.customer_email; // Stripe rejects customer + customer_email together
     }
 
+    if (product.event_mode) checkoutSessionParams.expires_at = Math.floor(Date.now() / 1000) + 1800;
     const checkoutSession = await stripe.checkout.sessions.create(checkoutSessionParams);
 
     if (!checkoutSession.client_secret) {
@@ -826,6 +838,7 @@ export async function POST(request: NextRequest) {
       userId: user?.id ?? null,
       productId,
     });
+    let placementFailure: { error?: string; status?: number } | null = null;
     try {
       const placed = await placeOrder(dataClient, {
           payment_provider: 'stripe',
@@ -839,22 +852,27 @@ export async function POST(request: NextRequest) {
           currency: product.currency,
           stripe_payment_intent_id: null,
           status: 'pending',
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+          expires_at: product.event_mode
+            ? new Date(checkoutSession.expires_at * 1000).toISOString()
+            : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
           metadata: {
             ...checkoutMetadata,
+            ...(product.event_mode ? { event_ip: eventIp } : {}),
             // Full bump list (not subject to Stripe's 500-char metadata limit)
             bump_product_ids_full: bumpIds,
           },
           custom_field_values: validatedCustomFieldValues,
-        }, buildOrderSnapshotLines(specs, { orderBumpIds, accessOverrides }));
-      if (!placed.success) throw new Error(placed.error);
+        }, buildOrderSnapshotLines(specs, { orderBumpIds, accessOverrides }).map(line =>
+          eventCheckout?.success && line.item_type === 'main_product'
+            ? { ...line, session_id: eventCheckout.sessionId } : line));
+      if (!placed.success) { placementFailure = placed; throw new Error(placed.error); }
     } catch (insertError) {
       console.error('[create-payment-intent] Failed to save pending transaction:', insertError);
       await expireBoundCheckoutSession(stripe, dataClient, {
         clientSecret: checkoutSession.client_secret,
         bindingToken: checkoutBindingToken,
       });
-      return NextResponse.json({ error: 'Failed to initialize checkout session' }, { status: 500 });
+      return NextResponse.json({ error: placementFailure?.status ? placementFailure.error : 'Failed to initialize checkout session' }, { status: placementFailure?.status ?? 500 });
     }
 
     return NextResponse.json({

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { eventSessionsSchema, isEventCompatible } from '@/lib/events/schema';
 import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
 
 import { marketingFieldsSchema } from '@/lib/validations/product-marketing';
@@ -20,6 +21,9 @@ const featureSection = z.object({
 });
 
 const baseShape = {
+  event_mode: z.boolean().optional(),
+  allow_repeat_purchase: z.boolean().optional(),
+  sessions: eventSessionsSchema.optional(),
   name: z.string().trim().min(1).max(200),
   slug: z
     .string()
@@ -105,8 +109,8 @@ const baseShape = {
   license_duration_days: z.number().int().positive().nullable().optional(),
 };
 
-export const ProductCreateDTO = z.object(baseShape).strip();
-export const ProductUpdateDTO = z.object(baseShape).partial().strip();
+export const ProductCreateDTO = z.object(baseShape).strip().refine(isEventCompatible, 'Invalid event product type');
+export const ProductUpdateDTO = z.object(baseShape).partial().strip().refine(isEventCompatible, 'Invalid event product type');
 
 export type ProductCreateInput = z.infer<typeof ProductCreateDTO>;
 export type ProductUpdateInput = z.infer<typeof ProductUpdateDTO>;

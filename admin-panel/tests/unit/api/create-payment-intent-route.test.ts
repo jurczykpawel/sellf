@@ -385,3 +385,66 @@ describe('checkout profile quantity', () => {
     expect((await POST(makeRequest({ quantity: 2 }))).status).toBe(200);
   });
 });
+
+
+describe('event checkout', () => {
+  const sessionId = '22222222-2222-4222-8222-222222222222';
+  beforeEach(() => {
+    mocks.productOverride = { event_mode: true };
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+  });
+  it('requires a session for an event', async () => {
+    expect((await POST(makeRequest({ email: 'buyer@example.com' }))).status).toBe(400);
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+  });
+  it('refuses a full session before creating Stripe checkout', async () => {
+    mocks.adminRpc.mockResolvedValue({ data: [], error: null });
+    expect((await POST(makeRequest({ sessionId, email: 'buyer@example.com' }))).status).toBe(409);
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+  });
+  function available(limits = true, failureCode?: string) {
+    const original = mocks.adminRpc.getMockImplementation()!;
+    mocks.adminRpc.mockImplementation(async (name: string, args: unknown) => {
+      if (name === 'event_availability') return { data: [{ id: sessionId, title: 'Autumn', starts_at: '2099-01-01T12:00:00Z', remaining: 60,
+        current_tier: { id: 'tier', price: 47, seats_left: 30 } }], error: null };
+      if (name === 'event_hold_limits') return { data: limits, error: null };
+      if (name === 'place_order' && failureCode) return { data: null, error: { code: failureCode, message: failureCode === 'P0429' ? 'event_hold_limit' : 'sold_out' } };
+      return original(name, args);
+    });
+    mocks.sessionsCreate.mockImplementation(async (params: { expires_at: number }) => ({
+      id: 'cs_test_1', client_secret: 'cs_test_1_secret_x', expires_at: params.expires_at,
+    }));
+  }
+  it('charges the authoritative tier and saves the same Stripe expiry and session', async () => {
+    available();
+    const before = Math.floor(Date.now() / 1000);
+    const response = await POST(makeRequest({ sessionId, email: 'buyer@example.com' }));
+    expect(response.status).toBe(200);
+    const params = mocks.sessionsCreate.mock.calls[0][0];
+    expect(params.line_items[0].price_data.unit_amount).toBe(4700);
+    expect(params.expires_at).toBeGreaterThanOrEqual(before + 1800);
+    expect(params.expires_at).toBeLessThanOrEqual(Math.floor(Date.now()/1000) + 1800);
+    const args = mocks.adminRpc.mock.calls.find(([name]) => name === 'place_order')![1];
+    expect(args.p_lines[0]).toMatchObject({ unit_price: 47, session_id: sessionId });
+    expect(Date.parse(args.p_order.expires_at)/1000).toBe(params.expires_at);
+  });
+  it('returns 429 before Stripe when active holds reach the limit', async () => {
+    available(false);
+    expect((await POST(makeRequest({ sessionId, email: 'buyer@example.com' }))).status).toBe(429);
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+  });
+  it.each([['P0409',409],['P0429',429]])('preserves atomic placement error %s after closing Stripe', async (code, status) => {
+    available(true, code as string);
+    mocks.verifyBinding.mockReturnValue(true);
+    mocks.sessionsRetrieve.mockResolvedValue({ status: 'open', metadata: { product_id: PRODUCT.id } });
+    const response = await POST(makeRequest({ sessionId, email: 'buyer@example.com' }));
+    expect(response.status).toBe(status);
+    expect(mocks.sessionsExpire).toHaveBeenCalledWith('cs_test_1');
+  });
+  it('keeps ordinary checkout expiry unchanged', async () => {
+    mocks.productOverride = {};
+    expect((await POST(makeRequest({ email: 'buyer@example.com' }))).status).toBe(200);
+    expect(mocks.sessionsCreate.mock.calls[0][0].expires_at).toBeUndefined();
+  });
+
+});

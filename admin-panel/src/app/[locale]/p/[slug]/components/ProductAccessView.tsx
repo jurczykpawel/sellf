@@ -4,6 +4,7 @@ import { useState, useEffect, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import Confetti from 'react-confetti';
+import EventAccess from '@/components/EventAccess';
 import DigitalContentRenderer from '@/components/DigitalContentRenderer';
 import SellfBranding from '@/components/SellfBranding';
 import FloatingToolbar from '@/components/FloatingToolbar';
@@ -500,6 +501,7 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
           </div>
         )}
 
+        <EventAccess productId={secureProduct.id} />
         {/* Digital content */}
         <DigitalContentRenderer
           contentItems={secureProduct.content_config.content_items || []}

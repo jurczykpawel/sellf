@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { EventSection } from '@/components/ProductFormModal/sections/EventSection';
 import { CheckoutProfileSection } from '@/components/ProductFormModal/sections/CheckoutProfileSection';
 import { AffiliateRuleEditor } from '@/components/affiliates/products/Settings';
 import {
@@ -125,6 +126,7 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
       </StepGroup>
 
       <StepGroup letter="B" title={t('step3.formFields')}>
+        <EventSection formData={formData} setFormData={setFormData} />
         <CheckoutProfileSection formData={formData} setFormData={setFormData} />
         <CustomCheckoutFieldsSection formData={formData} setFormData={setFormData} />
       </StepGroup>
