@@ -3,6 +3,11 @@
  * Used by both server-side WebhookService and client-side WebhookTestModal.
  */
 export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
+  ...Object.fromEntries(['order.placed', 'order.cancelled', 'order.overdue'].map(event => [event, {
+    order: { orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001, amount: 9400, currency: 'PLN', dueAt: '2099-06-15T12:00:00Z',
+      transfer: { holder: 'Example Workshops', account: 'PL61109010140000071219812874', bank: 'Example Bank', title: 'Zamówienie 1001' } },
+    orderDetails: { buyer: { type: 'organization', company_name: 'Example' } }, lines: [],
+  }])),
   'purchase.completed': {
     customer: {
       email: 'customer@example.com',

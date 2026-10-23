@@ -59,11 +59,11 @@ describe('order schema', () => {
   });
   it('backfills historical order numbers and guest transaction references', () => {
     const migration = readFileSync('../supabase/migrations/20261022191538_order_core_schema.sql', 'utf8').replace(/^BEGIN;|^COMMIT;/gm, '');
+    const historicalClaim = readFileSync('../supabase/migrations/20261003120000_claim_after_email_confirmation.sql', 'utf8')
+      .split('CREATE OR REPLACE FUNCTION public.migrate_guest_payment_data_to_profile')[0];
     const sql = `BEGIN;
-      DO $restore$ DECLARE definition text; BEGIN
-        SELECT pg_get_functiondef('public.claim_guest_purchases_for_user(uuid)'::regprocedure) INTO definition;
-        EXECUTE replace(definition, 'SELECT gp.id, gp.product_id, gp.session_id, pt.id as transaction_id', 'SELECT gp.*, pt.id as transaction_id');
-      END $restore$;
+      ${historicalClaim}
+      DROP TRIGGER IF EXISTS bank_transfer_access_release ON public.payment_transactions;
       DELETE FROM public.payment_transactions WHERE payment_provider='bank_transfer';
       DELETE FROM public.guest_purchases WHERE product_id='${productId}';
       DELETE FROM public.payment_transactions WHERE product_id='${productId}';

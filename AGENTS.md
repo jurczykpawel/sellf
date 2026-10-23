@@ -190,6 +190,23 @@ remove participant recording claims and the access granted from them.
 Schedule `/api/cron?job=seat-reservations-expire` every minute with the existing
 `CRON_SECRET` bearer credential. Event Stripe sessions and holds share a 30-minute expiry.
 
+### Traditional Bank Transfers
+
+`bank_transfer_config` stores private shop settings; `save_bank_transfer_config` is
+admin-only and audits configuration changes without bank details. Buyer profiles
+opt in through `bank_transfer_for`; products without a profile cannot use transfers.
+The captcha-gated `/api/orders/bank-transfer` shares module and price validation with
+online checkout. `bank_transfer_order` serializes unpaid limits per normalized email,
+stores transfer instructions and the due date, consumes coupons, and holds event seats
+without expiry. `transfer_transaction_id` tracks early grants, including guest claims;
+cancellation releases claims and seats while retaining prior or other purchase rights.
+Admin actions and API v1 `mark-paid`/`cancel` share `operateTransfer`; API keys require
+`payments:write`. Payment completion reuses offline fulfillment and leaves early access
+in place. Schedule `/api/cron?job=bank-transfer-overdue` daily and `fulfillment-resume`
+every minute with `CRON_SECRET`; notifications use stable order delivery keys and saved
+notification timestamps. Sellf does not send its own transactional emails: Auth magic
+links remain the email channel, and sellers may send messages from `order.placed`.
+
 ### Data Flow Patterns
 
 **Purchase Flow (on the admin panel):**

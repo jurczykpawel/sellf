@@ -2031,6 +2031,9 @@
         "confirmEdit": "Usuń mimo to"
       },
       "events_list": {
+        "order_placed": "Zamówienie złożone",
+        "order_cancelled": "Zamówienie anulowane",
+        "order_overdue": "Zamówienie po terminie",
         "purchase_completed": "Zakup zakończony",
         "lead_captured": "Lead pozyskany (Darmowy produkt)",
         "waitlist_signup": "Zapis na listę oczekujących",

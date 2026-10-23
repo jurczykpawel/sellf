@@ -2031,6 +2031,9 @@
         "confirmEdit": "Remove Anyway"
       },
       "events_list": {
+        "order_placed": "Order Placed",
+        "order_cancelled": "Order Cancelled",
+        "order_overdue": "Order Overdue",
         "purchase_completed": "Purchase Completed",
         "lead_captured": "Lead Captured (Free Product)",
         "waitlist_signup": "Waitlist Signup",

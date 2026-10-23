@@ -4,7 +4,7 @@ import { buildBuyerDetails } from '@/lib/payment/buyer-details';
 import { normalizeNIP, validateNIPChecksum } from '@/lib/validation/nip';
 import type { CheckoutCtx } from '@/lib/checkout-modules/registry';
 
-export const configSchema = z.object({ id: z.literal('buyer'), types: z.array(z.enum(['person', 'organization'])).min(1).max(2).refine(v => new Set(v).size === v.length, 'duplicate_type'), gus: z.boolean() }).strict();
+export const configSchema = z.object({ id: z.literal('buyer'), types: z.array(z.enum(['person', 'organization'])).min(1).max(2).refine(v => new Set(v).size === v.length, 'duplicate_type'), gus: z.boolean(), bank_transfer_for: z.array(z.enum(['person', 'organization'])).max(2).refine(v => new Set(v).size === v.length, 'duplicate_type').optional() }).strict();
 const textSchema = (max: number) => z.string().trim().max(max).regex(/^[^\u0000-\u001f\u007f]*$/, 'invalid_text');
 export const nameSchema = textSchema(100).min(1, 'required');
 export const partyShape = {

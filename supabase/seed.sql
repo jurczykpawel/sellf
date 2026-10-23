@@ -1395,3 +1395,6 @@ SELECT 'e3000000-0000-4000-a000-000000000010',s.product_id,'main_product',2,47,9
 FROM public.product_sessions s JOIN public.product_price_tiers t ON t.session_id=s.id AND t.sort=0 WHERE s.id='e3000000-0000-4000-a000-000000000002';
 INSERT INTO public.seat_reservations(session_id,tier_id,transaction_id,quantity,status,confirmed_at)
 SELECT session_id,tier_id,transaction_id,2,'confirmed',now() FROM public.payment_line_items WHERE transaction_id='e3000000-0000-4000-a000-000000000010';
+
+-- Transfer settings remain disabled; these sample details can be enabled locally.
+UPDATE public.bank_transfer_config SET bank_account_holder='Example Workshops',bank_account_number='PL61109010140000071219812874',bank_name='Example Bank' WHERE id;

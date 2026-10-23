@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
-import { validateModuleValues } from '@/lib/checkout-modules/registry';
+import { validateCheckoutModules } from '@/lib/checkout-modules/validate';
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
@@ -313,21 +312,13 @@ export async function POST(request: NextRequest) {
       const admin = createAdminClient();
       const product = profileProduct!;
       if (product.checkout_profile != null) {
-        const profile = checkoutProfileSchema.safeParse(product.checkout_profile);
-        if (!profile.success) return NextResponse.json({ success: false, error: 'Invalid checkout configuration' }, { status: 500 });
-        const rawQuantity = moduleValues?.quantity ?? 1;
-        const result = validateModuleValues(profile.data, moduleValues, {
-          locale: locale === 'pl' ? 'pl' : 'en',
-          currency: product.currency,
-          quantity: rawQuantity,
+        const result = validateCheckoutModules(product.checkout_profile, moduleValues, {
+          locale, currency: product.currency, termsAccepted,
         });
-        if (!result.success) return NextResponse.json({ success: false, errors: result.errors }, { status: 422 });
+        if (!result.success) return NextResponse.json({ success: false, errors: result.errors }, { status: result.status });
+        const rawQuantity = result.quantity;
         const customError = await persistCustomFields();
         if (customError) return customError;
-        const buyerDetails = result.details.buyer;
-        if (buyerDetails && typeof buyerDetails === 'object' && !Array.isArray(buyerDetails)) {
-          buyerDetails.terms_accepted = termsAccepted === true;
-        }
         const { data: saved, error: saveError } = await admin.rpc('set_payment_order_details', {
           p_details: result.details,
           p_product_id: productId,

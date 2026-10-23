@@ -148,6 +148,9 @@ export async function validateWebhookUrlAsync(
 export const WEBHOOK_EVENT_TYPES = [
   // Active events (used in UI)
   'purchase.completed',
+  'order.placed',
+  'order.cancelled',
+  'order.overdue',
   'lead.captured',
   'waitlist.signup',
   'access.expired',

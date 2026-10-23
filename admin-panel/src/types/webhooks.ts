@@ -60,6 +60,9 @@ export interface WebhookEventDefinition {
 }
 
 export const WEBHOOK_EVENTS: WebhookEventDefinition[] = [
+  { value: 'order.placed', label: 'Order Placed', category: 'purchases' },
+  { value: 'order.cancelled', label: 'Order Cancelled', category: 'purchases' },
+  { value: 'order.overdue', label: 'Order Overdue', category: 'purchases' },
   { value: 'purchase.completed', label: 'Purchase Completed', category: 'purchases' },
   { value: 'lead.captured', label: 'Lead Captured (Free Product)', category: 'leads' },
   { value: 'waitlist.signup', label: 'Waitlist Signup', category: 'leads' },

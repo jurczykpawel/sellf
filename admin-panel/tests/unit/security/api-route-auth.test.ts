@@ -99,6 +99,7 @@ const PUBLIC_ROUTES = new Set([
   'public/products/[slug]/grant-access/route.ts',
   'public/products/[slug]/recent-supporters/route.ts',
   'order-bumps/route.ts',
+  'orders/bank-transfer/route.ts',
   'oto/info/route.ts',
   'tracking/fb-capi/route.ts',                 // CORS-protected server-side CAPI proxy
   'captcha/challenge/route.ts',                // ALTCHA challenge generation — public, stateless
