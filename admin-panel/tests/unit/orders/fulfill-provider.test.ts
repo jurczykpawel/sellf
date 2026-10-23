@@ -60,3 +60,18 @@ it('keeps the saved offline exemption when product settings change', async () =>
     Object.assign(line, saved);
   }
 });
+
+it.each(['stripe', 'offline'] as const)('passes stored profile details to the %s purchase webhook', async kind => {
+  const details = { buyer: { v: 1, type: 'organization', company_name: 'Gmina Przykładowa', needs_invoice: true }, quantity: { v: 1, value: 5 } };
+  const db = client();
+  const originalFrom = db.from;
+  db.from = (table: string) => {
+    const q = originalFrom(table);
+    q.single = async () => ({ data: table === 'products' ? { ...product, checkout_profile: { v: 1, modules: [] } } : { ...tx, order_details: details }, error: null });
+    return q;
+  };
+  const args = { ...common(), supabase: db as never };
+  await fulfillPaidOrder(kind === 'offline' ? { ...args, provider: { kind: 'offline' } } : { ...args, stripe: {} as Stripe, sessionId: tx.session_id, paymentIntentId: 'pi_order' });
+  expect(mocks.trigger.mock.calls[0][1].orderDetails).toMatchObject(details);
+  expect(mocks.trigger.mock.calls[0][1].invoice.companyName).toBe('Gmina Przykładowa');
+});

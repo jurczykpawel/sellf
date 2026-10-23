@@ -5,14 +5,15 @@
 
 import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
+import { toast } from 'sonner';
 import { processRefund } from '@/lib/actions/payment';
 import { getTransactionRefundProgress } from '@/lib/refunds/transaction-refund-progress';
-import { toast } from 'sonner';
 import { formatAdminDate } from '@/lib/timezone';
-import type { PaymentTransaction, PaymentTransactionLineItem } from '@/types/payment';
 import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
-
 import { fromMinorUnits } from '@/lib/currency/minor-units';
+import OrderDetailsSection from '@/components/admin/OrderDetailsSection';
+import type { PaymentTransaction, PaymentTransactionLineItem } from '@/types/payment';
+
 interface PaymentTransactionsTableProps {
   transactions: PaymentTransaction[];
   onRefreshData?: () => void;
@@ -332,37 +333,10 @@ export default function PaymentTransactionsTable({
               </div>
             </div>
 
-            {(() => {
-              const customFields = formatCustomFieldsForDisplay(
-                detailsTransaction.custom_field_values,
-                detailsTransaction.product?.custom_checkout_fields,
-                locale,
-              );
-              if (customFields.length === 0) return null;
-              return (
-                <div className="mt-5 border border-sf-border bg-sf-base/60 rounded-xl overflow-hidden" data-testid="custom-field-values">
-                  <div className="px-4 py-3 bg-sf-float/60 text-sm font-semibold text-sf-heading">
-                    {t('customFields')}
-                  </div>
-                  <dl className="divide-y divide-sf-border-subtle">
-                    {customFields.map((field) => (
-                      <div key={field.id} className="px-4 py-3 grid grid-cols-3 gap-3 text-sm">
-                        <dt className="text-sf-muted col-span-1">{field.label}</dt>
-                        <dd className="text-sf-heading col-span-2 whitespace-pre-wrap break-words">
-                          {field.type === 'email' ? (
-                            <a href={`mailto:${field.value}`} className="text-sf-accent hover:underline">
-                              {field.value}
-                            </a>
-                          ) : (
-                            field.value
-                          )}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                </div>
-              );
-            })()}
+            <OrderDetailsSection
+              details={detailsTransaction.order_details}
+              customFields={formatCustomFieldsForDisplay(detailsTransaction.custom_field_values, detailsTransaction.product?.custom_checkout_fields, locale)}
+            />
 
             <div className="mt-5 space-y-2 text-sm">
               {showSubtotal && (

@@ -2487,6 +2487,26 @@
       "statusError": "Failed to toggle bump status"
     },
     "payments": {
+      "orderDetails": {
+        "title": "Checkout data",
+        "missing": "Checkout details are incomplete.",
+        "buyer": "Buyer",
+        "recipient": "Recipient",
+        "phone": "Phone",
+        "quantity": "Quantity",
+        "participants": "Participants",
+        "type": "Buyer type",
+        "person": "Person",
+        "organization": "Organization",
+        "name": "Name",
+        "email": "Email",
+        "company": "Company",
+        "nip": "Tax ID",
+        "address": "Address",
+        "city": "Postal code, city, country",
+        "firstName": "First name",
+        "lastName": "Last name"
+      },
       "titleSentence": "Payments",
       "title": "Payment Management",
       "subtitle": "Manage all payment transactions, process refunds, and monitor payment activity.",

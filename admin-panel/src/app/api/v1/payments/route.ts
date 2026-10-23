@@ -96,6 +96,7 @@ export async function GET(request: NextRequest) {
         session_id,
         metadata,
         custom_field_values,
+        order_details,
         refund_id,
         refunded_amount,
         refunded_at,
@@ -339,6 +340,7 @@ export async function GET(request: NextRequest) {
         session_id: p.session_id,
         metadata: p.metadata ?? {},
         custom_field_values: p.custom_field_values ?? null,
+        order_details: p.order_details ?? null,
         refunded_amount: p.refunded_amount ?? 0,
         refund: p.refund_id ? {
           id: p.refund_id,

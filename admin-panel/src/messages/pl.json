@@ -2487,6 +2487,26 @@
       "statusError": "Nie udało się zmienić statusu bumpa"
     },
     "payments": {
+      "orderDetails": {
+        "title": "Dane z koszyka",
+        "missing": "Dane z koszyka są niekompletne.",
+        "buyer": "Nabywca",
+        "recipient": "Odbiorca",
+        "phone": "Telefon",
+        "quantity": "Ilość",
+        "participants": "Uczestnicy",
+        "type": "Typ nabywcy",
+        "person": "Osoba prywatna",
+        "organization": "Organizacja",
+        "name": "Imię i nazwisko",
+        "email": "E-mail",
+        "company": "Firma",
+        "nip": "NIP",
+        "address": "Adres",
+        "city": "Kod pocztowy, miasto, kraj",
+        "firstName": "Imię",
+        "lastName": "Nazwisko"
+      },
       "titleSentence": "Płatności",
       "title": "Zarządzanie Płatnościami",
       "subtitle": "Zarządzaj wszystkimi transakcjami, przetwarzaj zwroty i monitoruj aktywność płatności.",

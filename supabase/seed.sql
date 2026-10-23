@@ -17,9 +17,9 @@ ON CONFLICT (template_id) DO NOTHING;
 -- Enable pgcrypto extension for password hashing
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- ==============================================
+-- =======================================
 -- DEMO ADMIN USER
--- ==============================================
+-- =======================================
 -- Must be inserted FIRST so the handle_new_user_registration() trigger
 -- makes this user admin (first user in admin_users table).
 -- Credentials: demo@sellf.app / demo123
@@ -61,9 +61,9 @@ INSERT INTO admin_users (user_id)
 VALUES ('dddddddd-0000-4000-a000-000000000000')
 ON CONFLICT DO NOTHING;
 
--- ==============================================
+-- =======================================
 -- PENTEST REGRESSION: NON-ADMIN BUYER
--- ==============================================
+-- =======================================
 -- Inserted AFTER the admin so the first-user-becomes-admin trigger has
 -- already fired. Used by tests/api/pentest-regression.test.ts to assert
 -- RLS / IDOR / cross-tenant boundaries from a regular buyer's perspective.
@@ -259,9 +259,9 @@ Basic JavaScript knowledge required. Familiarity with HTML/CSS recommended.',
     false
   );
 
--- ==============================================
+-- =======================================
 -- PWYW (Pay What You Want) PRODUCTS
--- ==============================================
+-- =======================================
 
 -- PWYW with free option (custom_price_min = 0) — customer can get it for $0
 INSERT INTO products (
@@ -548,9 +548,9 @@ INSERT INTO product_tags (product_id, tag_id) VALUES
 ((SELECT id FROM products WHERE slug = 'pro-toolkit'), (SELECT id FROM tags WHERE slug = 'new')),
 ((SELECT id FROM products WHERE slug = 'vip-masterclass'), (SELECT id FROM tags WHERE slug = 'bestseller'));
 
--- ==============================================
+-- =======================================
 -- SAMPLE USERS & PAYMENT TRANSACTIONS (Multi-Currency)
--- ==============================================
+-- =======================================
 -- Purpose: Seed data for testing currency conversion feature
 -- Creates users and transactions in USD, EUR, and PLN
 
@@ -716,9 +716,9 @@ BEGIN
 
 END $$;
 
--- ==============================================
+-- =======================================
 -- OTO (One-Time Offer) SAMPLE DATA
--- ==============================================
+-- =======================================
 -- Purpose: Seed data for testing OTO functionality
 -- These offers demonstrate the OTO system in action
 
@@ -779,9 +779,9 @@ INSERT INTO oto_offers (
   1
 );
 
--- ==============================================
+-- =======================================
 -- TEST PRODUCTS FOR REDIRECT SCENARIOS
--- ==============================================
+-- =======================================
 -- Purpose: 5 products for testing different redirect configurations
 --
 -- 1. test-oto-active      → OTO enabled, redirects to OTO product
@@ -942,9 +942,9 @@ INSERT INTO oto_offers (
   1
 );
 
--- ==============================================
+-- =======================================
 -- VARIANT GROUP DEMO: PWYW + Standard
--- ==============================================
+-- =======================================
 -- A variant selector group for manual testing of the /v/[groupId] page.
 -- Includes 2 PWYW products and 1 fixed-price product.
 
@@ -1052,9 +1052,9 @@ VALUES (
   (SELECT id FROM products WHERE slug = 'test-oto-target'),
   NOW() - INTERVAL '7 days'
 );
--- ======================================================================
+-- ===============================================================
 -- Subscription products (subscriptions MVP)
--- ======================================================================
+-- ===============================================================
 
 -- Monthly subscription example
 INSERT INTO products (
@@ -1358,3 +1358,14 @@ WITH example AS (
 INSERT INTO public.payment_line_items (transaction_id, product_id, item_type, quantity,
   unit_price, total_price, discounted_total, currency, product_name)
 SELECT id, product_id, 'main_product', 1, 149, 149, 149, 'PLN', 'Warsztat dla zespołu' FROM example;
+
+-- Completed team workshop order for admin checkout-data previews.
+INSERT INTO public.payment_transactions (id, product_id, customer_email, amount, currency, status, session_id, order_details, custom_field_values)
+VALUES ('e1000000-0000-4000-8000-000000000010', 'e1000000-0000-4000-8000-000000000001',
+ 'office@example.com', 74500, 'PLN', 'completed', 'cs_seed_team_workshop',
+ '{"buyer": {"v": 1, "type": "organization", "needs_invoice": true, "company_name": "Gmina Przykładowa", "nip": "5250001003", "address": "Główna 1", "postal_code": "00-001", "city": "Warszawa", "country": "PL"}, "recipient": {"v": 1, "differs": true, "company_name": "Szkoła Podstawowa nr 1", "nip": "5260250995", "address": "Szkolna 2", "postal_code": "00-002", "city": "Warszawa", "country": "PL"}, "phone": {"v": 1, "value": "+48500100200"}, "quantity": {"v": 1, "value": 5}, "participants": {"v": 1, "people": [{"first_name": "Anna", "last_name": "Kowalska", "email": "anna1@example.com"}, {"first_name": "Piotr", "last_name": "Nowak", "email": "anna2@example.com"}, {"first_name": "Maria", "last_name": "Zielińska", "email": "anna3@example.com"}, {"first_name": "Tomasz", "last_name": "Wójcik", "email": "anna4@example.com"}, {"first_name": "Ewa", "last_name": "Wiśniewska", "email": "anna5@example.com"}]}}'::jsonb, '{}'::jsonb)
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.payment_line_items (transaction_id, product_id, item_type, quantity, unit_price, total_price, currency)
+SELECT id, product_id, 'main_product', 5, 149, 745, 'PLN'
+FROM public.payment_transactions WHERE id = 'e1000000-0000-4000-8000-000000000010'
+ON CONFLICT DO NOTHING;
