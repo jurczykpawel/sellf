@@ -1465,6 +1465,98 @@ export type Database = {
         }
         Relationships: []
       }
+      invoices: {
+        Row: {
+          attempts: number
+          created_at: string
+          error: string | null
+          external_key: string
+          id: string
+          number: string | null
+          payment_synced: boolean
+          provider: string
+          provider_domain: string
+          provider_invoice_id: string | null
+          status: string
+          transaction_id: string
+          updated_at: string
+          view_url: string | null
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          external_key: string
+          id?: string
+          number?: string | null
+          payment_synced?: boolean
+          provider: string
+          provider_domain: string
+          provider_invoice_id?: string | null
+          status?: string
+          transaction_id: string
+          updated_at?: string
+          view_url?: string | null
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          external_key?: string
+          id?: string
+          number?: string | null
+          payment_synced?: boolean
+          provider?: string
+          provider_domain?: string
+          provider_invoice_id?: string | null
+          status?: string
+          transaction_id?: string
+          updated_at?: string
+          view_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: true
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoicing_config: {
+        Row: {
+          domain: string
+          exemption: string
+          id: boolean
+          instance_id: string
+          mode: string
+          provider: string
+          template: string
+          token: Json | null
+        }
+        Insert: {
+          domain?: string
+          exemption?: string
+          id?: boolean
+          instance_id?: string
+          mode?: string
+          provider?: string
+          template?: string
+          token?: Json | null
+        }
+        Update: {
+          domain?: string
+          exemption?: string
+          id?: boolean
+          instance_id?: string
+          mode?: string
+          provider?: string
+          template?: string
+          token?: Json | null
+        }
+        Relationships: []
+      }
       issued_licenses: {
         Row: {
           email: string | null

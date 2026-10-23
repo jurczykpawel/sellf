@@ -17,9 +17,9 @@ ON CONFLICT (template_id) DO NOTHING;
 -- Enable pgcrypto extension for password hashing
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- =======================================
+-- ================================
 -- DEMO ADMIN USER
--- =======================================
+-- ================================
 -- Must be inserted FIRST so the handle_new_user_registration() trigger
 -- makes this user admin (first user in admin_users table).
 -- Credentials: demo@sellf.app / demo123
@@ -61,9 +61,9 @@ INSERT INTO admin_users (user_id)
 VALUES ('dddddddd-0000-4000-a000-000000000000')
 ON CONFLICT DO NOTHING;
 
--- =======================================
+-- ================================
 -- PENTEST REGRESSION: NON-ADMIN BUYER
--- =======================================
+-- ================================
 -- Inserted AFTER the admin so the first-user-becomes-admin trigger has
 -- already fired. Used by tests/api/pentest-regression.test.ts to assert
 -- RLS / IDOR / cross-tenant boundaries from a regular buyer's perspective.
@@ -259,9 +259,9 @@ Basic JavaScript knowledge required. Familiarity with HTML/CSS recommended.',
     false
   );
 
--- =======================================
+-- ================================
 -- PWYW (Pay What You Want) PRODUCTS
--- =======================================
+-- ================================
 
 -- PWYW with free option (custom_price_min = 0) — customer can get it for $0
 INSERT INTO products (
@@ -548,9 +548,9 @@ INSERT INTO product_tags (product_id, tag_id) VALUES
 ((SELECT id FROM products WHERE slug = 'pro-toolkit'), (SELECT id FROM tags WHERE slug = 'new')),
 ((SELECT id FROM products WHERE slug = 'vip-masterclass'), (SELECT id FROM tags WHERE slug = 'bestseller'));
 
--- =======================================
+-- ================================
 -- SAMPLE USERS & PAYMENT TRANSACTIONS (Multi-Currency)
--- =======================================
+-- ================================
 -- Purpose: Seed data for testing currency conversion feature
 -- Creates users and transactions in USD, EUR, and PLN
 
@@ -716,9 +716,9 @@ BEGIN
 
 END $$;
 
--- =======================================
+-- ================================
 -- OTO (One-Time Offer) SAMPLE DATA
--- =======================================
+-- ================================
 -- Purpose: Seed data for testing OTO functionality
 -- These offers demonstrate the OTO system in action
 
@@ -779,9 +779,9 @@ INSERT INTO oto_offers (
   1
 );
 
--- =======================================
+-- ================================
 -- TEST PRODUCTS FOR REDIRECT SCENARIOS
--- =======================================
+-- ================================
 -- Purpose: 5 products for testing different redirect configurations
 --
 -- 1. test-oto-active      → OTO enabled, redirects to OTO product
@@ -942,9 +942,9 @@ INSERT INTO oto_offers (
   1
 );
 
--- =======================================
+-- ================================
 -- VARIANT GROUP DEMO: PWYW + Standard
--- =======================================
+-- ================================
 -- A variant selector group for manual testing of the /v/[groupId] page.
 -- Includes 2 PWYW products and 1 fixed-price product.
 
@@ -1052,9 +1052,9 @@ VALUES (
   (SELECT id FROM products WHERE slug = 'test-oto-target'),
   NOW() - INTERVAL '7 days'
 );
--- ===============================================================
+-- ========================================================
 -- Subscription products (subscriptions MVP)
--- ===============================================================
+-- ========================================================
 
 -- Monthly subscription example
 INSERT INTO products (
@@ -1398,3 +1398,10 @@ SELECT session_id,tier_id,transaction_id,2,'confirmed',now() FROM public.payment
 
 -- Transfer settings remain disabled; these sample details can be enabled locally.
 UPDATE public.bank_transfer_config SET bank_account_holder='Example Workshops',bank_account_number='PL61109010140000071219812874',bank_name='Example Bank' WHERE id;
+
+-- Sample issued invoice, with a demonstration-only reference.
+INSERT INTO public.invoices(transaction_id,provider,status,external_key,provider_domain,provider_invoice_id,number,view_url,payment_synced)
+SELECT 'e1000000-0000-4000-8000-000000000010','fakturownia','issued',instance_id::text || ':' || (SELECT order_number::text FROM public.payment_transactions WHERE id='e1000000-0000-4000-8000-000000000010'),
+ 'example.fakturownia.pl','123','DEMO/2026/1','https://example.fakturownia.pl/invoice/demo',true
+FROM public.invoicing_config WHERE id
+ON CONFLICT (transaction_id) DO NOTHING;

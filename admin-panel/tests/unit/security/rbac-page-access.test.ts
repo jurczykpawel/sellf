@@ -525,6 +525,7 @@ describe('All server action files have auth wrappers', () => {
       'dashboard.ts',
       'gus-config.ts',
       'integrations.ts',
+      'invoicing.ts',
       'license-config.ts',
       'payment-config.ts',
       'payment.ts',

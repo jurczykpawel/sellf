@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash, timingSafeEqual } from 'crypto';
+import { retryInvoices } from '@/lib/invoicing/service';
 import { drainAffiliateWork } from '@/lib/affiliates/sync/worker';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -268,6 +269,7 @@ export async function handleSeatReservationsExpire(): Promise<CronJobResult> {
 // ===== JOB REGISTRY =====
 
 const JOB_REGISTRY: Record<string, () => Promise<CronJobResult>> = {
+  'invoices-retry': retryInvoices,
   'affiliate-sync': async () => {
     const result = await drainAffiliateWork();
     if (!result.success) throw new Error('Affiliate queue unavailable');

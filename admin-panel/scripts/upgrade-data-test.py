@@ -16,7 +16,13 @@ import urllib.error
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
-PROJECT = 'sellf-upg'
+PROJECT = os.environ.get('UPGRADE_TEST_PROJECT', 'sellf-upg')
+PORT_BASE = int(os.environ.get('UPGRADE_TEST_PORT_BASE', '55570'))
+APP_PORT = int(os.environ.get('UPGRADE_TEST_APP_PORT', '55581'))
+if PROJECT != 'sellf-upg' and not re.fullmatch(r'sellf-w[0-9]+', PROJECT):
+    raise ValueError('Upgrade gate requires a disposable worker project')
+if not 1024 <= PORT_BASE <= 65526 or not 1024 <= APP_PORT <= 65535:
+    raise ValueError('Invalid upgrade gate ports')
 CONTAINER = 'supabase_db_' + PROJECT
 TABLES = ('products', 'payment_transactions', 'payment_line_items', 'guest_purchases',
           'user_product_access', 'coupons', 'coupon_redemptions', 'order_bumps', 'oto_offers',
@@ -66,10 +72,10 @@ def rpc(status, name, body):
 def main():
     running = run(['docker', 'ps', '--format', '{{.Names}}'], capture_output=True).stdout.splitlines()
     if any(name.endswith('_' + PROJECT) for name in running):
-        raise RuntimeError('sellf-upg already running; refusing to reuse or reset it')
+        raise RuntimeError(f'{PROJECT} already running; refusing to reuse or reset it')
     if sum(name.startswith('supabase_db_') for name in running) >= 2:
         raise RuntimeError('Two Supabase stacks already running')
-    work = Path(tempfile.mkdtemp(prefix='sellf-upg-'))
+    work = Path(tempfile.mkdtemp(prefix=PROJECT + '-'))
     started = False
     try:
         # Extract the released tree, never rebuild the baseline from candidate files.
@@ -79,9 +85,9 @@ def main():
         if archive.wait() != 0:
             raise RuntimeError('Cannot extract released tag')
         config_path = work / 'supabase/config.toml'
-        config = re.sub(r'^project_id = .*$', 'project_id = "sellf-upg"', config_path.read_text(), flags=re.M)
+        config = re.sub(r'^project_id = .*$', f'project_id = "{PROJECT}"', config_path.read_text(), flags=re.M)
         for i in range(10):
-            config = config.replace(str(54320 + i), str(55570 + i))
+            config = config.replace(str(54320 + i), str(PORT_BASE + i))
         config = config.replace('enabled = true\nclient_id = "env(GITHUB_CLIENT_ID)"', 'enabled = false\nclient_id = "env(GITHUB_CLIENT_ID)"')
         config_path.write_text(config)
         load_gate()
@@ -89,7 +95,7 @@ def main():
         with (work / 'start.log').open('w') as log:
             run(['npx', 'supabase', 'start', '--workdir', str(work)], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
         status = json.loads(run(['npx', 'supabase', 'status', '--workdir', str(work), '-o', 'json'], cwd=ROOT, capture_output=True).stdout)
-        assert status['API_URL'] == 'http://127.0.0.1:55571'
+        assert status['API_URL'] == f'http://127.0.0.1:{PORT_BASE + 1}'
         assert sql('SELECT rolsuper FROM pg_roles WHERE rolname=current_user') == 'f'
         assert sql("SELECT r.rolsuper FROM pg_proc p JOIN pg_roles r ON r.oid=p.proowner WHERE p.oid='public.apply_migration(text,text,text)'::regprocedure") == 'f'
         sql((ROOT / 'supabase/tests/upgrade-fixture-2026-10-6.sql').read_text())
@@ -140,9 +146,9 @@ def main():
             'SUPABASE_URL': status['API_URL'], 'NEXT_PUBLIC_SUPABASE_URL': status['API_URL'],
             'SUPABASE_SERVICE_ROLE_KEY': status['SERVICE_ROLE_KEY'],
             'SUPABASE_ANON_KEY': status['ANON_KEY'], 'NEXT_PUBLIC_SUPABASE_ANON_KEY': status['ANON_KEY'],
-            'MAILPIT_URL': 'http://127.0.0.1:55574', 'PW_PORT': '55581',
-            'PLAYWRIGHT_BASE_URL': 'http://localhost:55581',
-            'SITE_URL': 'http://localhost:55581', 'NEXT_PUBLIC_SITE_URL': 'http://localhost:55581',
+            'MAILPIT_URL': f'http://127.0.0.1:{PORT_BASE + 4}', 'PW_PORT': str(APP_PORT),
+            'PLAYWRIGHT_BASE_URL': f'http://localhost:{APP_PORT}',
+            'SITE_URL': f'http://localhost:{APP_PORT}', 'NEXT_PUBLIC_SITE_URL': f'http://localhost:{APP_PORT}',
         }
         load_gate()
         run(['bunx', 'playwright', 'test', '--config=tests/upgrade-matrix/upgrade-data.config.ts'], cwd=ROOT / 'admin-panel', env=environment)

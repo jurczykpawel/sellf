@@ -161,6 +161,19 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
 - Triggers: `handle_new_user_registration()` (first user → admin, claim guest purchases)
 - Scheduled jobs: Rate limit cleanup (hourly via pg_cron)
 
+### Invoicing
+
+`invoicing_config` holds server-only provider settings and an encrypted API token.
+`invoices` has one row per transaction; admin reads use RLS, writes use service role.
+`issueInvoiceForTransaction(id)` claims a durable attempt before provider calls,
+looks up the stable instance/order `oid`, then issues with `oid_unique`.
+Purchase fulfillment runs automatic issuance after its completion webhook; existing
+invoice references enrich the event. Bank-transfer placement calls the same function
+when integrated. Schedule `invoices-retry` each minute; failed attempts back off up
+to five tries and interrupted attempts become eligible after ten minutes. The cron
+also synchronizes paid status for transfer invoices. Corrections remain manual at
+the provider, with an admin marker after full refund/cancellation.
+
 ### Event Seat Inventory
 
 Event products use `product_sessions`, `product_price_tiers` and `seat_reservations`.

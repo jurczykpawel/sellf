@@ -4,6 +4,7 @@
  * @see supabase/migrations/20261002000000_payment_order_reconciliation.sql
  */
 import { revalidateTag } from 'next/cache';
+import { issuedInvoice, issueInvoiceForTransaction } from '@/lib/invoicing/service';
 import { snapshotFromRows } from '@/lib/orders/local-tax';
 import { issueLicensesForOrder, resolveComponentProductIds } from '@/lib/services/bundle-order';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
@@ -81,7 +82,10 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
     payload.order.orderNumber = tx.order_number;
   }
   if (licenses.length) payload.licenses = licenses;
+  const invoice = await issuedInvoice(tx.id, args.supabase).catch(() => null);
+  if (invoice) payload.invoice = { ...payload.invoice, ...invoice };
   await WebhookService.trigger('purchase.completed', payload, args.supabase, [...productIds]);
+  await issueInvoiceForTransaction(tx.id, { client: args.supabase });
   const { error: savedError } = await args.supabase.from('payment_transactions').update({
     metadata, fulfillment_pending: false,
   }).eq('id', tx.id);

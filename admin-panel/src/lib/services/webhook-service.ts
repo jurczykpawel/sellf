@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { currencyExponent, fromMinorUnits } from '@/lib/currency/minor-units';
+import { issuedInvoice } from '@/lib/invoicing/service';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { WEBHOOK_MOCK_PAYLOADS } from '@/lib/webhooks/mock-payloads';
 import { SupabaseWebhookQueue } from '@/lib/services/webhook-queue/supabase-queue';
@@ -32,6 +33,13 @@ export class WebhookService {
     productIds?: string | string[],
   ): Promise<void> {
     const supabase = client || createAdminClient();
+    if (event === 'order.placed' && data && typeof data === 'object' && 'order' in data) {
+      const order = data.order as { orderId?: string } | null;
+      if (order?.orderId) {
+        const invoice = await issuedInvoice(order.orderId, supabase).catch(() => null);
+        if (invoice) data = { ...data, invoice: { ...('invoice' in data ? data.invoice as object : {}), ...invoice } };
+      }
+    }
     const queue = new SupabaseWebhookQueue(supabase);
 
     const endpoints = await fetchEligibleEndpoints(supabase, event, productIds);
