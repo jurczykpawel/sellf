@@ -6,6 +6,7 @@ import { seedTestEnv } from '../../scripts/test-data/seed-test-env';
 function mockApi() {
   const tables: Record<string, Record<string, unknown>[]> = { products: [], coupons: [], 'order-bumps': [] };
   const writes: Record<string, unknown>[] = [];
+  const methods: string[] = [];
   const fetcher = async (input: string | URL | Request, init?: RequestInit) => {
     const [table, id] = new URL(String(input)).pathname.split('/').slice(3);
     const rows = tables[table];
@@ -14,12 +15,13 @@ function mockApi() {
     if (table === 'products' && id && !validateUpdateProduct(mapApiInputToProductRow(body, 'update')).isValid) return Response.json({}, { status: 400 });
     expect(body).not.toHaveProperty('current_usage_count');
     writes.push(body);
+    methods.push(init!.method!);
     const row = id ? rows.find(r => r.id === id)! : { id: String(writes.length) };
     Object.assign(row, body);
     if (!id) rows.push(row);
     return Response.json({ data: row });
   };
-  return { tables, writes, fetcher: fetcher as typeof fetch };
+  return { tables, writes, methods, fetcher: fetcher as typeof fetch };
 }
 const options = { url: 'http://localhost:3779', key: 'test-key', confirmedTest: true };
 describe('test dataset seed', () => {
@@ -27,7 +29,7 @@ describe('test dataset seed', () => {
     const api = mockApi();
     const first = await seedTestEnv({ ...options, fetcher: api.fetcher });
     expect(first.every(r => r.action === 'utworzone')).toBe(true);
-    expect(first).toHaveLength(13);
+    expect(first).toHaveLength(15);
     api.tables.coupons.forEach(row => { row.current_usage_count = 7; });
     const count = api.writes.length;
     const second = await seedTestEnv({ ...options, fetcher: api.fetcher });
@@ -36,6 +38,41 @@ describe('test dataset seed', () => {
     api.tables.coupons[0].discount_value = 1;
     expect((await seedTestEnv({ ...options, fetcher: api.fetcher })).filter(r => r.action === 'zaktualizowane')).toHaveLength(1);
     expect(api.tables.coupons.every(row => row.current_usage_count === 7)).toBe(true);
+  });
+  it('posts event sessions and a set-price coupon', async () => {
+    const api = mockApi();
+    await seedTestEnv({ ...options, fetcher: api.fetcher });
+    expect(api.methods.every(method => method === 'POST')).toBe(true);
+    expect(api.writes.find(row => row.slug === 'webinar-testowy')).toMatchObject({
+      event_mode: true, price: 67, sessions: [{ tiers: [{ price: 47 }, { price: 67 }] }],
+    });
+    expect(api.writes.find(row => row.code === 'B2B30')).toMatchObject({
+      discount_type: 'set_price', discount_value: 30, currency: 'PLN', usage_limit_per_user: 100,
+    });
+  });
+  it('ignores API session defaults and retains IDs when changing tier prices', async () => {
+    const api = mockApi();
+    await seedTestEnv({ ...options, fetcher: api.fetcher });
+    const event = api.tables.products.find(row => row.slug === 'webinar-testowy')!;
+    expect(event).toBeDefined();
+    const sessions = event.sessions as { id?: string; venue?: null; tiers: { id?: string; price: number; sale_ends_at?: null }[] }[];
+    sessions[0].id = '11111111-1111-4111-8111-111111111111';
+    sessions[0].venue = null;
+    sessions[0].tiers.forEach((tier, index) => {
+      tier.id = `22222222-2222-4222-8222-22222222222${index}`;
+      tier.sale_ends_at = null;
+    });
+    const count = api.writes.length;
+    const unchanged = await seedTestEnv({ ...options, fetcher: api.fetcher });
+    expect(unchanged.every(row => row.action === 'bez zmian')).toBe(true);
+    expect(api.writes).toHaveLength(count);
+    sessions[0].tiers[0].price = 46;
+    await seedTestEnv({ ...options, fetcher: api.fetcher });
+    expect(api.writes).toHaveLength(count + 1);
+    expect(api.methods.at(-1)).toBe('PATCH');
+    expect(api.writes.at(-1)).toMatchObject({ sessions: [{ id: sessions[0].id,
+      tiers: [{ id: sessions[0].tiers[0].id, price: 47 }, { id: sessions[0].tiers[1].id, price: 67 }],
+    }] });
   });
   it.each(['sellf.techskills.academy', 'demo.sellf.app', 'sub.demo.sellf.app', 'DEMO.SELLF.APP.'])('refuses %s before requests', async host => {
     let calls = 0;
@@ -48,7 +85,7 @@ describe('test dataset seed', () => {
   it('dry run plans dependent bump without writing', async () => {
     const api = mockApi();
     const result = await seedTestEnv({ ...options, dryRun: true, fetcher: api.fetcher });
-    expect(result).toHaveLength(13);
+    expect(result).toHaveLength(15);
     expect(result.every(r => r.action === 'utworzone')).toBe(true);
     expect(api.writes).toHaveLength(0);
   });

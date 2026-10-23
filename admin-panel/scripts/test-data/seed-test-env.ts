@@ -24,6 +24,18 @@ function canonical(value: unknown): string {
   ));
   return JSON.stringify(value);
 }
+function normalizeSessions(desired: Record<string, unknown>[], current: Record<string, unknown>[], keepIds = false): Record<string, unknown>[] {
+  if (!keepIds && current.length !== desired.length) return current;
+  return desired.map((entry): Record<string, unknown> => {
+    const existing = current.find(row => row.sort === entry.sort);
+    const fields = Object.fromEntries(Object.entries(entry).map(([key, value]) => {
+      if (key === 'tiers') return [key, normalizeSessions(value as Record<string, unknown>[], (existing?.tiers ?? []) as Record<string, unknown>[], keepIds)];
+      const actual = existing?.[key];
+      return [key, keepIds ? value : key.endsWith('_at') && typeof actual === 'string' ? new Date(actual).toISOString() : actual];
+    }));
+    return { ...fields, ...(keepIds && existing?.id ? { id: existing.id } : {}) };
+  }).sort((a, b) => Number(a.sort) - Number(b.sort));
+}
 export async function seedTestEnv(options: SeedOptions): Promise<SeedResult[]> {
   const base = new URL(options.url);
   const host = base.hostname.toLowerCase().replace(/\.+$/, '');
@@ -64,12 +76,16 @@ export async function seedTestEnv(options: SeedOptions): Promise<SeedResult[]> {
   async function upsert(resource: string, desired: Record<string, unknown>, matches: Row[], name: string): Promise<Row> {
     if (matches.length > 1) throw new Error(`Niejednoznaczny wpis: ${resource}/${name}`);
     const current = matches[0];
-    const changes = Object.fromEntries(Object.entries(desired).filter(([key, value]) => !current || canonical(current[key]) !== canonical(value)));
+    const sessions = desired.sessions as Record<string, unknown>[] | undefined;
+    const existingSessions = (current?.sessions ?? []) as Record<string, unknown>[];
+    const comparable = current && sessions ? { ...current, sessions: normalizeSessions(sessions, existingSessions) } : current;
+    const changes = Object.fromEntries(Object.entries(desired).filter(([key, value]) => !comparable || canonical(comparable[key]) !== canonical(key === 'sessions' && sessions ? normalizeSessions(sessions, sessions) : value)));
+    if (sessions && existingSessions.length !== sessions.length) changes.sessions = sessions;
     const changed = Object.keys(changes).length > 0;
     results.push({ resource, name, action: !current ? 'utworzone' : changed ? 'zaktualizowane' : 'bez zmian' });
     if (options.dryRun || !changed) return current ?? { ...desired, id: `dry:${name}` };
     // Product API validates recurring configuration as a complete group.
-    const body = resource === 'products' ? desired : changes;
+    const body = resource === 'products' ? { ...desired, ...(sessions ? { sessions: normalizeSessions(sessions, existingSessions, true) } : {}) } : changes;
     const response = await request(`${resource}${current ? `/${encodeURIComponent(current.id)}` : ''}`, current ? 'PATCH' : 'POST', body);
     if (Array.isArray(response.data) || typeof response.data?.id !== 'string') throw new Error(`Niepoprawny zapis: ${resource}`);
     return response.data;
