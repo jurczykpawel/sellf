@@ -29,3 +29,14 @@ it.each(['url', 'applied'] as const)('opens coupon entry for %s coupons', source
   expect(container.querySelector('details')?.open).toBe(true);
   expect(screen.getByRole('textbox', { name: 'Discount code' })).toBeTruthy();
 });
+
+it.each(['en', 'pl'] as const)('explains a set-price coupon with no reduction in %s', locale => {
+  const messages = locale === 'pl' ? pl : en;
+  render(React.createElement(NextIntlClientProvider, { locale, messages }, React.createElement(CouponField, {
+    couponCode: 'PRICE50', appliedCoupon: { code: 'PRICE50', discount_type: 'set_price', discount_value: 50 },
+    noPriceReduction: true, isVerifying: false, couponError: null, currency: 'PLN', showCouponInput: true,
+    onCodeChange: vi.fn(), onApply: vi.fn(), onRemove: vi.fn(),
+  })));
+  expect(screen.getByText(messages.checkout.couponNoReduction)).toBeTruthy();
+  expect(screen.queryByText(/discount applied|Zastosowano zniżkę/)).toBeNull();
+});

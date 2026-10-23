@@ -55,6 +55,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Lookup failed' }, { status: 500 });
     }
 
+    if (data && typeof data === 'object' && 'discount_type' in data && data.discount_type === 'set_price' && 'code' in data && typeof data.code === 'string') {
+      const admin = createAdminClient();
+      const product = await admin.from('products').select('currency').eq('id', productId).single();
+      if (product.error || !product.data) return NextResponse.json({ found: false });
+      const verified = await admin.rpc('verify_coupon', { code_param: data.code, product_id_param: productId,
+        customer_email_param: user?.email ?? email, currency_param: product.data.currency });
+      if (verified.error || !verified.data || typeof verified.data !== 'object' || !('valid' in verified.data) || !verified.data.valid) return NextResponse.json({ found: false });
+      return NextResponse.json({ ...verified.data, found: true });
+    }
     return NextResponse.json(data);
   } catch (error) {
     if (error instanceof ApiPayloadTooLargeError) {

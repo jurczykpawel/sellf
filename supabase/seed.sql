@@ -1412,3 +1412,8 @@ VALUES ('e4000000-0000-4000-a000-000000000010','e1000000-0000-4000-8000-00000000
  '2026-10-15T00:00:00Z','2026-10-01T00:00:00Z','{"holder":"Example Workshops","account":"PL61109010140000071219812874","bank":"Example Bank","title":"Workshop recording"}', '2026-10-01T00:00:00Z','2026-10-01T00:00:00Z','2026-10-01T00:00:00Z',1);
 INSERT INTO public.payment_line_items(transaction_id,product_id,item_type,quantity,unit_price,total_price,discounted_total,currency,product_name)
 VALUES ('e4000000-0000-4000-a000-000000000010','e1000000-0000-4000-8000-000000000001','main_product',1,149,149,149,'PLN','Warsztat dla zespołu');
+
+-- Negotiated workshop unit price; list-price history remains unchanged.
+INSERT INTO public.coupons (code, name, discount_type, discount_value, currency, is_active)
+VALUES ('B2B30', 'Negotiated unit price', 'set_price', 30, 'PLN', true)
+ON CONFLICT (code) DO NOTHING;

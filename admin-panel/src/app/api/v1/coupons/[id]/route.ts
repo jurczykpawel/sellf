@@ -21,7 +21,7 @@ import {
 } from '@/lib/api';
 import { validateUUID } from '@/lib/validations/product';
 import { isValidEmailFormat } from '@/lib/validations/email-format';
-import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
+import { couponValueError } from '@/lib/coupons/validate-value';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * Request body (all optional):
  * - code: string
  * - name: string
- * - discount_type: 'percentage' | 'fixed'
+ * - discount_type: 'percentage' | 'fixed' | 'set_price'
  * - discount_value: number
  * - currency: string
  * - is_active: boolean
@@ -124,7 +124,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Check coupon exists
     const { data: existingCoupon, error: checkError } = await supabase
       .from('coupons')
-      .select('id, discount_type, is_oto_coupon')
+      .select('id, discount_type, discount_value, currency, is_oto_coupon')
       .eq('id', id)
       .single();
 
@@ -189,45 +189,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       updateData.name = body.name?.trim() || null;
     }
 
-    // Discount type
-    if (body.discount_type !== undefined) {
-      if (!['percentage', 'fixed'].includes(body.discount_type)) {
-        throw new ApiValidationError('discount_type must be "percentage" or "fixed"');
-      }
-      updateData.discount_type = body.discount_type;
-    }
-
-    // Discount value
-    if (body.discount_value !== undefined) {
-      const discountValue = body.discount_value;
-      const MAX_FIXED_DISCOUNT = 99999999;
-
-      if (!Number.isFinite(discountValue) || discountValue <= 0) {
-        throw new ApiValidationError('Discount value must be a positive number');
-      }
-
-      const finalDiscountType = body.discount_type || existingCoupon.discount_type;
-
-      if (finalDiscountType === 'percentage' && discountValue > 100) {
-        throw new ApiValidationError('Percentage discount cannot exceed 100%');
-      }
-
-      if (finalDiscountType === 'fixed' && discountValue > MAX_FIXED_DISCOUNT) {
-        throw new ApiValidationError(`Fixed discount cannot exceed ${MAX_FIXED_DISCOUNT}`);
-      }
-
-      updateData.discount_value = discountValue;
-    }
-
-    // Currency
-    if (body.currency !== undefined) {
-      if (body.currency) {
-        if (!(SUPPORTED_CURRENCY_CODES as readonly string[]).includes(body.currency.toUpperCase())) {
-          throw new ApiValidationError(`Unsupported currency code. Supported: ${SUPPORTED_CURRENCY_CODES.join(', ')}`);
-        }
-      }
-      updateData.currency = body.currency || null;
-    }
+    const valueError = body.discount_type === undefined && body.discount_value === undefined && body.currency === undefined ? null : couponValueError(
+      body.discount_type === undefined ? existingCoupon.discount_type : body.discount_type,
+      body.discount_value === undefined ? existingCoupon.discount_value : body.discount_value,
+      body.currency === undefined ? existingCoupon.currency : body.currency,
+    );
+    if (valueError) throw new ApiValidationError(valueError);
+    if (body.discount_type !== undefined) updateData.discount_type = body.discount_type;
+    if (body.discount_value !== undefined) updateData.discount_value = body.discount_value;
+    if (body.currency !== undefined) updateData.currency = body.currency?.toUpperCase() || null;
 
     // Boolean fields
     if (body.is_active !== undefined) {

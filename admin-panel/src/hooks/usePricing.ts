@@ -24,6 +24,7 @@ export interface BumpPricingItem {
 export interface PricingInput {
   baseProductId?: string;
   productPrice: number;
+  quantity?: number;
   productCurrency: string;
   productVatRate?: number;
   priceIncludesVat?: boolean;
@@ -38,7 +39,7 @@ export interface PricingInput {
   /** Multi-bump: array of bump items with price and selection state. Takes precedence over bumpPrice/bumpSelected. */
   bumps?: BumpPricingItem[];
   coupon?: {
-    discount_type: 'percentage' | 'fixed';
+    discount_type: 'percentage' | 'fixed' | 'set_price';
     discount_value: number;
     code: string;
     exclude_order_bumps?: boolean;
@@ -104,7 +105,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
   const allocation = allocateCouponDiscount({
     currency: productCurrency,
     items: [
-      { kind: 'base', id: baseProductId, price: basePrice },
+      { kind: 'base', id: baseProductId, price: basePrice, quantity: input.quantity },
       ...selectedBumps.map((bump) => ({ kind: 'bump' as const, id: bump.id, price: bump.price })),
     ],
     baseProductId,
@@ -125,7 +126,8 @@ export function calculatePricing(input: PricingInput): PricingResult {
       id: baseProductId ?? 'main', name: '', currency: productCurrency,
       vatRate: productVatRate, priceIncludesVat, vatExempt: input.vatExempt,
     },
-    mainPrice: basePrice,
+    mainPrice: basePrice / (input.quantity ?? 1),
+    quantity: input.quantity,
     bumps: selectedBumps.map((bump, i) => ({
       product: {
         id: bump.id ?? `bump-${i}`, name: '', currency: productCurrency,

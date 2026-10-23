@@ -527,7 +527,7 @@ export async function POST(request: NextRequest) {
         valid: boolean;
         id: string;
         code: string;
-        discount_type: 'percentage' | 'fixed';
+        discount_type: 'percentage' | 'fixed' | 'set_price';
         discount_value: number;
         exclude_order_bumps: boolean;
         allowed_product_ids?: string[];
@@ -565,6 +565,7 @@ export async function POST(request: NextRequest) {
       // Charge the active sale price (Omnibus) when running; coupon stacks on top.
       productPrice: (eventCheckout?.success ? eventCheckout.price : getEffectiveUnitPrice(product)) * quantity,
       productCurrency: product.currency,
+      quantity,
       customAmount,
       bumps: validatedBumps.map(vb => ({ id: vb.product.id, price: vb.bumpPrice, selected: true })),
       coupon: appliedCoupon ? {

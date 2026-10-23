@@ -490,6 +490,7 @@ const CouponsPageContent: React.FC = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 text-sm text-sf-heading">
+                        {coupon.discount_type === 'set_price' && `${t('setPrice')}: `}
                         {coupon.discount_type === 'percentage'
                           ? `${coupon.discount_value}%`
                           : coupon.currency ? formatPrice(coupon.discount_value, coupon.currency, locale) : `${new Intl.NumberFormat(locale).format(coupon.discount_value)} ${t('allCurrencies')}`}

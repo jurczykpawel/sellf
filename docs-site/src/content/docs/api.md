@@ -392,6 +392,15 @@ All endpoints are prefixed with `/api/v1`. Every endpoint also supports `OPTIONS
 | DELETE | `/coupons/{id}` | `coupons:write` | Delete coupon |
 | GET | `/coupons/{id}/stats` | `coupons:read` | Get usage statistics |
 
+`discount_type` accepts `percentage`, `fixed` and `set_price`.
+For `set_price`, `discount_value` is the final unit price of the main product in
+`currency` (required, must match the product). For example, `30` PLN charges 30 PLN
+at either the 47 or 67 PLN event tier. Quantity multiplies this price; bumps keep
+their price regardless of `exclude_order_bumps`. A higher set price never raises
+the current price. Zero uses the existing free-access flow; embed directs buyers
+to the standard checkout for free access. JPY requires integers. Coupons do not
+change Omnibus lowest-price history. This type is available to all sellers.
+
 ### Payments
 
 | Method | Path | Scope | Description |

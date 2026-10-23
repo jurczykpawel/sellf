@@ -12,7 +12,7 @@ interface Coupon {
   id: string;
   code: string;
   name: string | null;
-  discount_type: 'percentage' | 'fixed';
+  discount_type: 'percentage' | 'fixed' | 'set_price';
   discount_value: number;
   currency: string | null;
   is_active: boolean;
@@ -34,7 +34,7 @@ export function registerCouponsTools(server: McpServer): void {
   // List coupons
   server.tool(
     'list_coupons',
-    'List all discount coupons with optional filters. Returns discount_value as percent (25 means 25%) or, for fixed discounts, major units (49.99 means 49.99 in the coupon currency).',
+    'List all discount coupons with optional filters. Returns discount_value as percent (25 means 25%) or, for fixed or set_price coupons, major units (49.99 means 49.99 in the coupon currency).',
     {
       status: z.enum(['all', 'active', 'inactive', 'expired']).optional().describe('Filter by status'),
       search: z.string().optional().describe('Search in code and name'),
@@ -58,7 +58,7 @@ export function registerCouponsTools(server: McpServer): void {
   // Get single coupon
   server.tool(
     'get_coupon',
-    'Get detailed information about a specific coupon. Returns discount_value as percent (25 means 25%) or, for fixed discounts, major units (49.99 means 49.99 in the coupon currency).',
+    'Get detailed information about a specific coupon. Returns discount_value as percent (25 means 25%) or, for fixed or set_price coupons, major units (49.99 means 49.99 in the coupon currency).',
     {
       id: z.string().uuid().describe('Coupon ID'),
     },
@@ -75,13 +75,13 @@ export function registerCouponsTools(server: McpServer): void {
   // Create coupon
   server.tool(
     'create_coupon',
-    'Create a new discount coupon. Returns discount_value as percent (25 means 25%) or, for fixed discounts, major units (49.99 means 49.99 in the coupon currency).',
+    'Create a new discount coupon. Returns discount_value as percent (25 means 25%) or, for fixed or set_price coupons, major units (49.99 means 49.99 in the coupon currency).',
     {
       code: z.string().min(1).max(50).describe('Unique coupon code (alphanumeric, hyphens, underscores)'),
       name: z.string().optional().describe('Display name'),
-      discount_type: z.enum(['percentage', 'fixed']).describe('Type of discount'),
-      discount_value: z.number().positive().describe('Percentage: 25 means 25%; fixed discount: major units, 49.99 means 49.99 in the coupon currency'),
-      currency: z.string().length(3).optional().describe('Currency for fixed discounts (required for fixed type)'),
+      discount_type: z.enum(['percentage', 'fixed', 'set_price']).describe('percentage, fixed reduction, or set_price final unit price (main product only)'),
+      discount_value: z.number().nonnegative().describe('Percentage: 25 means 25%; fixed reduction or set_price final unit price: major units, 49.99 means 49.99 in the coupon currency'),
+      currency: z.string().length(3).optional().describe('Currency required for fixed and set_price coupons'),
       is_active: z.boolean().optional().describe('Whether coupon is active'),
       is_public: z.boolean().optional().describe('Reserved field for future use; currently not used by runtime logic'),
       starts_at: z.string().optional().describe('Start date (ISO 8601)'),
@@ -105,13 +105,13 @@ export function registerCouponsTools(server: McpServer): void {
   // Update coupon
   server.tool(
     'update_coupon',
-    'Update an existing coupon. Only provided fields will be updated. Returns discount_value as percent (25 means 25%) or, for fixed discounts, major units (49.99 means 49.99 in the coupon currency).',
+    'Update an existing coupon. Only provided fields will be updated. Returns discount_value as percent (25 means 25%) or, for fixed or set_price coupons, major units (49.99 means 49.99 in the coupon currency).',
     {
       id: z.string().uuid().describe('Coupon ID to update'),
       name: z.string().optional().describe('Display name'),
-      discount_type: z.enum(['percentage', 'fixed']).optional().describe('Type of discount'),
-      discount_value: z.number().positive().optional().describe('Percentage: 25 means 25%; fixed discount: major units, 49.99 means 49.99 in the coupon currency'),
-      currency: z.string().length(3).optional().describe('Currency for fixed discounts'),
+      discount_type: z.enum(['percentage', 'fixed', 'set_price']).optional().describe('percentage, fixed reduction, or set_price final unit price (main product only)'),
+      discount_value: z.number().nonnegative().optional().describe('Percentage: 25 means 25%; fixed reduction or set_price final unit price: major units, 49.99 means 49.99 in the coupon currency'),
+      currency: z.string().length(3).optional().describe('Currency for fixed or set_price coupons'),
       is_active: z.boolean().optional().describe('Whether coupon is active'),
       is_public: z.boolean().optional().describe('Reserved field for future use; currently not used by runtime logic'),
       expires_at: z.string().optional().describe('Expiration date (ISO 8601)'),

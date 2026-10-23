@@ -6,6 +6,7 @@ export const FB_GRAPH_API_VERSION = 'v25.0';
 
 // GA4 Event Names (used in dataLayer)
 export type GA4EventName =
+  | 'add_to_cart'
   | 'view_item'
   | 'begin_checkout'
   | 'add_payment_info'

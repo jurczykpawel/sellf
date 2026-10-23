@@ -31,6 +31,7 @@ import { useOto } from '@/hooks/useOto';
 import { useFreeAccess } from '@/hooks/useFreeAccess';
 import { useCheckoutRedirect } from '@/hooks/useCheckoutRedirect';
 import { calculatePricing } from '@/hooks/usePricing';
+import { useCartTracking } from '@/hooks/useCartTracking';
 import PaymentFormSkeleton from '@/components/checkout/PaymentFormSkeleton';
 import OrderSummary from '@/components/checkout/OrderSummary';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
@@ -301,6 +302,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const pricing = calculatePricing({
     baseProductId: product.id,
     productPrice: effectiveUnitPrice * quantity,
+    quantity,
     productCurrency: product.currency,
     productVatRate: product.vat_rate ?? undefined,
     vatExempt: product.vat_exempt,
@@ -359,6 +361,13 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     }
     await pwyw.handlePwywFreeAccess();
   }, [customFieldDefs, customFieldValues, pwyw]);
+
+  const cartItems = [{ item_id: product.id, item_name: product.name, price: effectiveUnitPrice, quantity },
+    ...availableBumps.filter(bump => selectedBumpIds.has(bump.bump_product_id)).map(bump => ({
+      item_id: bump.bump_product_id, item_name: bump.bump_product_name, price: bump.bump_price, quantity: 1,
+    }))];
+  useCartTracking(purchaseStarted, { currency: product.currency,
+    value: cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0), items: cartItems }, track);
 
   // Track view_item and begin_checkout on mount
   useEffect(() => {
@@ -555,6 +564,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         <CouponField
           couponCode={coupon.couponCode}
           appliedCoupon={coupon.appliedCoupon}
+          noPriceReduction={coupon.appliedCoupon?.discount_type === 'set_price' && pricing.discountAmount === 0}
           isVerifying={coupon.isVerifyingCoupon}
           couponError={coupon.couponError}
           currency={product.currency}

@@ -12,7 +12,7 @@ import type {
 import { CONSENT_COOKIE_NAME } from '@/lib/constants';
 
 // Event name mapping: GA4 -> Facebook
-const GA4_TO_FB: Record<GA4EventName, FBEventName> = {
+const GA4_TO_FB: Partial<Record<GA4EventName, FBEventName>> = {
   view_item: 'ViewContent',
   begin_checkout: 'InitiateCheckout',
   add_payment_info: 'AddPaymentInfo',
@@ -214,14 +214,14 @@ export async function trackEvent(
   }
 
   // 2. Track Facebook Pixel (client-side) - only if user consented
-  if (config.fbPixelEnabled && fbConsent) {
+  if (config.fbPixelEnabled && fbConsent && fbEventName) {
     trackFBPixel(fbEventName, data, eventId);
   }
 
   // 3. Send to Facebook CAPI (server-side)
   // Always send request - server decides based on consent + config
   // This allows server-side conversions without consent when configured
-  if (config.fbCAPIEnabled) {
+  if (config.fbCAPIEnabled && fbEventName) {
     await sendToCAPI(fbEventName, data, eventId, fbConsent);
   }
 }

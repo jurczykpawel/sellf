@@ -30,3 +30,13 @@ it('explains empty limits outside the input placeholder', async () => {
   await screen.findByText(`${en.admin.coupons.fixed} (PLN)`);
   expect(screen.getByText(en.admin.coupons.form.unlimited, { exact: true })).toBeTruthy();
 });
+
+it('submits a set-price coupon with zero and shop currency', async () => {
+  const submit = vi.fn();
+  const view = render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(CouponFormModal, { products: [], editingCoupon: null, onSubmit: submit, onClose: vi.fn(), isSubmitting: false })));
+  await screen.findByText(`${en.admin.coupons.fixed} (PLN)`);
+  fireEvent.click(screen.getByRole('button', { name: en.admin.coupons.setPrice }));
+  expect((screen.getByRole('combobox', { name: en.admin.coupons.form.currency }) as HTMLSelectElement).value).toBe('PLN');
+  fireEvent.submit(view.container.querySelector('form')!);
+  await waitFor(() => expect(submit).toHaveBeenCalledWith(expect.objectContaining({ discount_type: 'set_price', discount_value: 0, currency: 'PLN' })));
+});

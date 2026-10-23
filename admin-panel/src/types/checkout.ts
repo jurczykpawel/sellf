@@ -96,7 +96,7 @@ export interface CheckoutSessionOptions {
   coupon?: {
     id: string;
     code: string;
-    discount_type: 'percentage' | 'fixed';
+    discount_type: 'percentage' | 'fixed' | 'set_price';
     discount_value: number;
     exclude_order_bumps?: boolean;
     allowed_product_ids?: string[];

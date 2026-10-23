@@ -90,7 +90,7 @@ export function buildCheckoutLineSpecs(params: BuildLineSpecsParams): BuildLineS
   const allocation = allocateCouponDiscount({
     currency: main.currency,
     items: [
-      { kind: 'base', id: main.id, price: fromMinorUnits(mainListMinor, main.currency) },
+      { kind: 'base', id: main.id, quantity, price: fromMinorUnits(mainListMinor, main.currency) },
       ...bumps.map((b) => ({ kind: 'bump' as const, id: b.product.id, price: b.price })),
     ],
     baseProductId: main.id,

@@ -1,7 +1,7 @@
 import { fromMinorUnits, minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
 
 export interface CouponPricingInput {
-  discount_type: 'percentage' | 'fixed';
+  discount_type: 'percentage' | 'fixed' | 'set_price';
   discount_value: number;
   code: string;
   exclude_order_bumps?: boolean;
@@ -12,6 +12,7 @@ export interface CouponAllocationItem {
   id?: string;
   kind: 'base' | 'bump';
   price: number;
+  quantity?: number;
 }
 
 export interface CouponAllocationLineItem {
@@ -83,7 +84,7 @@ export function allocateCouponDiscount(params: {
       continue;
     }
 
-    item.eligible = !coupon.exclude_order_bumps && couponIsGlobal;
+    item.eligible = coupon.discount_type !== 'set_price' && !coupon.exclude_order_bumps && couponIsGlobal;
   }
 
   const eligibleItems = workingItems.filter((item) => item.eligible && item.originalMinor > 0);
@@ -91,7 +92,9 @@ export function allocateCouponDiscount(params: {
 
   let discountMinor = 0;
   if (eligibleSubtotalMinor > 0) {
-    discountMinor = coupon.discount_type === 'percentage'
+    discountMinor = coupon.discount_type === 'set_price'
+      ? eligibleItems.reduce((sum, item) => sum + Math.max(0, item.originalMinor - toMinorUnits(coupon.discount_value, currency) * (item.quantity ?? 1)), 0)
+      : coupon.discount_type === 'percentage'
       ? Math.min(
           eligibleSubtotalMinor,
           Math.round(eligibleSubtotalMinor * (coupon.discount_value / 100)),

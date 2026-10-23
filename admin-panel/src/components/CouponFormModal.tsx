@@ -47,7 +47,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
     ? {
         code: coupon.code,
         name: coupon.name || '',
-        discount_type: coupon.discount_type as 'percentage' | 'fixed',
+        discount_type: coupon.discount_type as 'percentage' | 'fixed' | 'set_price',
         discount_value: coupon.discount_value,
         currency: coupon.currency || defaultCurrency,
         is_active: coupon.is_active,
@@ -212,11 +212,15 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                 >
                   <div className={`text-sm font-bold ${formData.discount_type === 'fixed' ? 'text-sf-accent' : 'text-sf-heading'}`}>{t('fixed')} ({formData.currency || defaultCurrency})</div>
                 </div>
+                <button type="button" onClick={() => setFormData({ ...formData, discount_type: 'set_price', currency: formData.currency || defaultCurrency })}
+                  aria-pressed={formData.discount_type === 'set_price'} className="border p-3 text-center text-sm font-bold text-sf-heading">
+                  {t('setPrice')}
+                </button>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-sf-body mb-1">
-                  {formData.discount_type === 'percentage' ? t('percentage') : t('fixed')} <span className="text-sf-danger">*</span>
+                  {formData.discount_type === 'set_price' ? t('setPrice') : formData.discount_type === 'percentage' ? t('percentage') : t('fixed')} <span className="text-sf-danger">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -236,12 +240,12 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                     </span>
                   </div>
                 </div>
-                {formData.discount_type === 'fixed' && (
+                {formData.discount_type !== 'percentage' && (
                   <MoneyInputError error={moneyAmountError(formData.discount_value, formData.currency || defaultCurrency)} currency={formData.currency || defaultCurrency} />
                 )}
               </div>
 
-              {formData.discount_type === 'fixed' && (
+              {formData.discount_type !== 'percentage' && (
                 <div>
                   <label htmlFor="couponCurrency" className="block text-sm font-medium text-sf-body mb-1">{t('form.currency')}</label>
                   <select

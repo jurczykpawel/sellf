@@ -152,6 +152,60 @@ porównania z poprzednim tygodniem. Niczego nie zmieniaj.
 
 Korzystaj z `filters.start_date`, `generated_at` i `by_currency` każdego produktu. Dla PLN/USD `4999` drobnych jednostek to `49,99`. Obecna cena produktu jest w głównych jednostkach i może różnić się od historycznych cen sprzedaży. To ostatnie siedem dni w strefie czasowej serwera API, a nie poprzedni tydzień kalendarzowy. Raport liczy zakończone transakcje; nie mierzy zysku ani sprzedaży netto po zwrotach. Sumy obejmują wyłącznie zwrócone produkty; sumy różnych walut nie wolno podpisywać jedną walutą.
 
+## Przepis 4: Koszyk B2B
+
+Użyj klucza z `products:read`, `products:write`, `coupons:read`, `coupons:write`.
+Przykład dla warsztatu WiR: poproś agenta o `create_product` ze szkicem (`is_active: false`),
+ceną 67 PLN, `issue_license_on_purchase: false` i takim `checkout_profile`:
+
+```json
+{
+  "v": 1,
+  "modules": [
+    {
+      "id": "buyer",
+      "types": [
+        "organization"
+      ],
+      "gus": false,
+      "bank_transfer_for": [
+        "organization"
+      ]
+    },
+    {
+      "id": "recipient",
+      "for": [
+        "organization"
+      ]
+    },
+    {
+      "id": "phone",
+      "required": true
+    },
+    {
+      "id": "quantity",
+      "min": 1,
+      "max": 50,
+      "mode": "product_page"
+    },
+    {
+      "id": "participants",
+      "required": true,
+      "prefill_from_buyer": true
+    }
+  ]
+}
+```
+
+Następnie `create_coupon` z `{"code":"WIR30","discount_type":"set_price","discount_value":30,"currency":"PLN","allowed_product_ids":["UUID_ZWROCONEGO_PRODUKTU"]}`.
+Agent odczytuje oba rekordy i pokazuje je do sprawdzenia przed aktywacją produktu.
+Nabywca jest organizacją; odbiorca może być inny, telefon jest wymagany, a liczba
+uczestników odpowiada ilości. Przelew wymaga włączenia i konfiguracji konta sklepu
+w ustawieniach płatności. Przepis nie zmienia tych ustawień i nie składa zamówienia.
+Po publikacji udostępnij `/pl/checkout/SLUG?coupon=WIR30`. Kupon daje 30 zł za sztukę
+zarówno w progu 47, jak i 67 zł; bumpy zachowują cenę. Progi i terminy wydarzenia
+agent dodaje przez pola `sessions` i `tiers` produktu. Usuń nieużywany kupon i szkic po próbie.
+
 ## Weryfikacja i sprzątanie
 
 Przepisy sprawdza [`mcp-server/tests/recipes.e2e.ts`](https://github.com/jurczykpawel/sellf/blob/main/mcp-server/tests/recipes.e2e.ts): klient SDK uruchamia prawdziwy proces stdio przeciwko lokalnemu Sellf, używa oddzielnych kluczy z ograniczonymi zakresami, odczytuje utworzony produkt i kupon, sprawdza checkout po jawnej publikacji i raport tygodniowy na syntetycznych transakcjach zakończonych, oczekujących i starszych, w dwóch walutach. Test usuwa swoje dane i klucze. Nie uruchamia modelu AI ani nie wykonuje płatności Stripe.

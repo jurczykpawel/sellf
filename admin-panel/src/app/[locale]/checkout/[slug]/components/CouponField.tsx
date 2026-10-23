@@ -11,6 +11,7 @@ interface CouponFieldProps {
   isVerifying: boolean;
   couponError: string | null;
   currency: string;
+  noPriceReduction?: boolean;
   showCouponInput: boolean;
   onCodeChange: (code: string) => void;
   onApply: () => void;
@@ -23,6 +24,7 @@ export default function CouponField({
   isVerifying,
   couponError,
   currency,
+  noPriceReduction,
   showCouponInput,
   onCodeChange,
   onApply,
@@ -99,7 +101,7 @@ export default function CouponField({
         )}
         {appliedCoupon && (
           <p className="text-[10px] text-sf-success mt-1 ml-1 font-medium uppercase tracking-wider">
-            🎉 {t('discountApplied', { discount: appliedCoupon.discount_type === 'percentage' ? `${appliedCoupon.discount_value}%` : formatPrice(appliedCoupon.discount_value, currency, locale) })}
+            {noPriceReduction ? t('couponNoReduction') : appliedCoupon.discount_type === 'set_price' ? t('couponSetPrice', { price: formatPrice(appliedCoupon.discount_value, currency, locale) }) : t('discountApplied', { discount: appliedCoupon.discount_type === 'percentage' ? `${appliedCoupon.discount_value}%` : formatPrice(appliedCoupon.discount_value, currency, locale) })}
           </p>
         )}
       </div>

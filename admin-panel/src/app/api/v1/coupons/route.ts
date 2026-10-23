@@ -21,7 +21,7 @@ import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCurso
 import { escapeIlikePattern, validateUUID } from '@/lib/validations/product';
 import { quoteForPostgrestOr } from '@/lib/api/filters';
 import { isValidEmailFormat } from '@/lib/validations/email-format';
-import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
+import { couponValueError } from '@/lib/coupons/validate-value';
 
 const COUPON_API_FIELDS = `
   id, code, name, discount_type, discount_value, currency,
@@ -163,9 +163,9 @@ export async function GET(request: NextRequest) {
  * Request body:
  * - code: string (required) - Unique coupon code
  * - name: string (optional) - Display name
- * - discount_type: 'percentage' | 'fixed' (required)
+ * - discount_type: 'percentage' | 'fixed' | 'set_price' (required)
  * - discount_value: number (required) - Percentage (0-100) or fixed amount in currency units (e.g. 10 = 10.00 PLN, 1000 = 1000 JPY)
- * - currency: string (optional) - Required for fixed discounts
+ * - currency: string (optional) - Required for fixed and set_price coupons
  * - is_active: boolean (default true)
  * - is_public: boolean (default false) - Reserved field; currently not used by runtime logic
  * - starts_at: string ISO date (optional, default now)
@@ -202,37 +202,12 @@ export async function POST(request: NextRequest) {
       throw new ApiValidationError('Coupon code is required');
     }
 
-    if (!body.discount_type || !['percentage', 'fixed'].includes(body.discount_type)) {
-      throw new ApiValidationError('discount_type must be "percentage" or "fixed"');
-    }
-
-    if (body.discount_value === undefined || typeof body.discount_value !== 'number') {
-      throw new ApiValidationError('discount_value is required and must be a number');
-    }
-
-    // Validate discount_value
     const discountValue = body.discount_value;
-    const MAX_FIXED_DISCOUNT = 99999999; // upper bound on the numeric value, in currency units
-
-    if (!Number.isFinite(discountValue) || discountValue <= 0) {
-      throw new ApiValidationError('Discount value must be a positive number');
+    if (!body.discount_type || typeof discountValue !== 'number') {
+      throw new ApiValidationError('Discount type and value are required');
     }
-
-    if (body.discount_type === 'percentage' && discountValue > 100) {
-      throw new ApiValidationError('Percentage discount cannot exceed 100%');
-    }
-
-    if (body.discount_type === 'fixed') {
-      if (discountValue > MAX_FIXED_DISCOUNT) {
-        throw new ApiValidationError(`Fixed discount cannot exceed ${MAX_FIXED_DISCOUNT}`);
-      }
-      if (!body.currency) {
-        throw new ApiValidationError('Currency is required for fixed discount coupons');
-      }
-      if (!(SUPPORTED_CURRENCY_CODES as readonly string[]).includes(body.currency.toUpperCase())) {
-        throw new ApiValidationError(`Unsupported currency code. Supported: ${SUPPORTED_CURRENCY_CODES.join(', ')}`);
-      }
-    }
+    const valueError = couponValueError(body.discount_type, discountValue, body.currency);
+    if (valueError) throw new ApiValidationError(valueError);
 
     // Validate code format (alphanumeric + hyphens/underscores)
     const codeRegex = /^[A-Za-z0-9_-]+$/;
@@ -327,7 +302,7 @@ export async function POST(request: NextRequest) {
         name: body.name?.trim() || null,
         discount_type: body.discount_type,
         discount_value: discountValue,
-        currency: body.currency || null,
+        currency: body.currency?.toUpperCase() || null,
         is_active: body.is_active ?? true,
         is_public: body.is_public ?? false,
         starts_at: startsAt,

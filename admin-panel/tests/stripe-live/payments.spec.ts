@@ -189,7 +189,7 @@ async function timing(s: Scenario, sessionId: string, pageAt: number): Promise<s
   return order;
 }
 
-async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; netVat?: boolean; profile?: boolean; event?: boolean } = {}): Promise<void> {
+async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; setPrice?: boolean; netVat?: boolean; profile?: boolean; event?: boolean } = {}): Promise<void> {
   const slug = `stripe-live-${label}-${randomUUID().slice(0, 8)}`;
   const s: Scenario = { slug, productIds: [], email: `${slug}@example.com`, domain: `${slug}.example.com`, sessionIds: [], subscription: !!options.subscription, netVat: options.netVat, profile: options.profile };
   let passed = false;
@@ -203,8 +203,8 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       await insert('product_price_tiers', { session_id: eventSession.id, price: 47, seats: 30, sale_ends_at: '2099-05-01T12:00:00Z', sort: 0 });
       await insert('product_price_tiers', { session_id: eventSession.id, price: 67, sort: 1 });
     }
-    if (options.coupon) {
-      s.coupon = await insert('coupons', { code: `LIVE-${randomUUID().slice(0, 8)}`.toUpperCase(), name: 'Live percentage', discount_type: s.profile ? 'fixed' : 'percentage', discount_value: s.profile ? 7.01 : 25, exclude_order_bumps: false, is_active: true });
+    if (options.coupon || options.setPrice) {
+      s.coupon = await insert('coupons', { code: `LIVE-${randomUUID().slice(0, 8)}`.toUpperCase(), name: 'Live percentage', discount_type: options.setPrice ? 'set_price' : s.profile ? 'fixed' : 'percentage', discount_value: options.setPrice ? 3 : s.profile ? 7.01 : 25, currency: options.setPrice ? 'USD' : null, exclude_order_bumps: false, is_active: true });
     }
     await acceptAllCookies(page);
     if (s.buyerId) await setAuthSession(page, s.email, password);
@@ -221,13 +221,13 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         if (document.body?.innerText.includes('Payment Failed')) (window as unknown as { recordPaymentFailure: () => void }).recordPaymentFailure();
       }).observe(document, { childList: true, subtree: true });
     });
-    await page.goto(`/en/checkout/${slug}?email=${encodeURIComponent(s.email)}`);
+    await page.goto(`/en/checkout/${slug}?email=${encodeURIComponent(s.email)}${options.setPrice ? `&coupon=${s.coupon!.code}` : ''}`);
     if (s.profile || options.event) await page.getByLabel('Quantity', { exact: true }).fill(options.event ? '2' : '3');
     await page.getByRole('button', { name: /Continue to payment/ }).click();
     if (!s.subscription) await page.getByRole('button', { name: /Add to order/i }).click();
     await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
     await page.locator('#checkoutEmail').fill(s.email);
-    if (s.coupon) {
+    if (s.coupon && !options.setPrice) {
       await page.locator('summary').filter({ hasText: /coupon|discount/i }).click();
       await page.getByLabel(/discount code/i).fill(s.coupon.code);
       const couponSession = page.waitForResponse(response =>
@@ -345,7 +345,8 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         expect(basis + exclusiveTax).toBe(Number(tx.amount));
         if (s.coupon) {
           expect(tx.coupon_id).toBe(s.coupon.id);
-          expect(basis).toBe(s.profile ? 2499 : 900);
+          expect(basis).toBe(options.setPrice ? 500 : s.profile ? 2499 : 900);
+          if (options.setPrice) expect(items.map(item => Number(item.discounted_total)).sort()).toEqual([2, 3]);
           expect(await rows('coupon_redemptions', 'transaction_id', tx.id)).toHaveLength(1);
         }
         if (s.netVat) {
@@ -443,3 +444,5 @@ test('net product with local VAT', async ({ page }) => { await run(page, 'net-va
 test('B2B profile with three units and a fixed coupon', async ({ page }) => { await run(page, 'profile-b2b', '4242424242424242', { profile: true, coupon: true }); });
 
 test('event with two promotional seats confirms inventory and delivers session snapshot', async ({ page }) => { await run(page, 'event', '4242424242424242', { event: true }); });
+
+test('set price coupon from link with unchanged bump', async ({ page }) => { await run(page, 'set-price', '4242424242424242', { setPrice: true }); });

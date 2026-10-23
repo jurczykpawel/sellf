@@ -152,6 +152,60 @@ previous-week comparison. Do not mutate anything.
 
 Use `filters.start_date`, `generated_at` and each product's `by_currency` values. For PLN/USD, `4999` minor units is `49.99`. The current product price is in major units and may differ from historical sales. This is a trailing seven-day window in the API server's timezone, not the previous calendar week. The report counts completed transactions; it does not measure profit or refund-adjusted net sales. Totals cover only returned products; mixed-currency totals must not be labelled as one currency.
 
+## Recipe 4: B2B cart
+
+Use a key with `products:read`, `products:write`, `coupons:read`, `coupons:write`.
+For a WiR workshop, ask the agent to call `create_product` with a draft (`is_active: false`),
+a 67 PLN price, `issue_license_on_purchase: false` and this `checkout_profile`:
+
+```json
+{
+  "v": 1,
+  "modules": [
+    {
+      "id": "buyer",
+      "types": [
+        "organization"
+      ],
+      "gus": false,
+      "bank_transfer_for": [
+        "organization"
+      ]
+    },
+    {
+      "id": "recipient",
+      "for": [
+        "organization"
+      ]
+    },
+    {
+      "id": "phone",
+      "required": true
+    },
+    {
+      "id": "quantity",
+      "min": 1,
+      "max": 50,
+      "mode": "product_page"
+    },
+    {
+      "id": "participants",
+      "required": true,
+      "prefill_from_buyer": true
+    }
+  ]
+}
+```
+
+Then call `create_coupon` with `{"code":"WIR30","discount_type":"set_price","discount_value":30,"currency":"PLN","allowed_product_ids":["RETURNED_PRODUCT_UUID"]}`.
+Have the agent read both records back for review before activating the product.
+The buyer is an organization; the recipient may differ, phone is required, and
+participant count follows quantity. Transfers require shop bank details and the
+payment setting to be enabled. This recipe does not change those settings or place an order.
+After publication, share `/checkout/SLUG?coupon=WIR30`. Each unit costs 30 PLN at
+either the 47 or 67 PLN event tier; bumps keep their price. The agent can add event
+sessions and tiers using the product's `sessions` and `tiers` fields. Delete the unused coupon and draft after a trial.
+
 ## Verification and cleanup
 
 These recipes are exercised by [`mcp-server/tests/recipes.e2e.ts`](https://github.com/jurczykpawel/sellf/blob/main/mcp-server/tests/recipes.e2e.ts): an SDK client starts the real stdio process against local Sellf, uses separate scoped keys, reads the created product/coupon back, checks the explicitly published checkout page, and checks a weekly report against synthetic completed/pending and older transactions in two currencies. The test deletes its fixtures and keys. It does not run an AI model or complete a Stripe charge.

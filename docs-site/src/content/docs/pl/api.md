@@ -53,3 +53,14 @@ Poniższe starsze pola są rozpoznawane i walidowane, ale **ignorowane**, poniew
 To nie są aliasy: v1 nie mapuje ich na alternatywne pola, nie zapisuje ich ani nie zwraca. Starsi klienci MCP mogą wysyłać `custom_price_label`; aktualny schemat narzędzi MCP pomija całą piątkę. Zachowujemy zgodność z klientami v1 bez przekazywania nieobsługiwanych kolumn do bazy.
 
 `categories`, `tags` i `bundleItemIds` są obsługiwanymi polami relacji, zapisywanymi osobno od wiersza produktu. Nie są polami nieznanymi. Pozostałe endpointy mają własne reguły walidacji.
+
+## Kupony „ustal cenę”
+
+`discount_type` obsługuje `percentage`, `fixed` i `set_price` („ustal cenę”).
+Dla `set_price`, `discount_value` to końcowa cena za sztukę produktu głównego
+w `currency` (wymagana, zgodna z produktem). Przykład: `30` PLN daje 30 zł zarówno
+w progu wydarzenia 47, jak i 67 zł. Ilość mnoży tę cenę, a bumpy zachowują cenę,
+niezależnie od `exclude_order_bumps`. Wyższa cena ustalona nigdy nie podnosi bieżącej.
+Cena zero korzysta z istniejącej ścieżki darmowego dostępu; embed odsyła wtedy do
+standardowego checkout. JPY wymaga liczb całkowitych. Kupony nie zmieniają historii
+najniższej ceny Omnibus. Typ dostępny dla wszystkich sprzedawców.

@@ -28,7 +28,7 @@ const inputSchema = z.object({
   moduleValues: z.record(z.string(), z.unknown()), termsAccepted: z.literal(true), locale: z.enum(['pl', 'en']).default('en'),
   captchaToken: z.string().min(1).max(16384), customFieldValues: z.record(z.string(), z.string()).optional(),
 }).strict();
-const couponSchema = z.object({ valid: z.literal(true), id: z.uuid(), code: z.string(), discount_type: z.enum(['percentage', 'fixed']),
+const couponSchema = z.object({ valid: z.literal(true), id: z.uuid(), code: z.string(), discount_type: z.enum(['percentage', 'fixed', 'set_price']),
   discount_value: z.number(), exclude_order_bumps: z.boolean(), allowed_product_ids: z.array(z.string()).optional() });
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const fail = (error: string, status = 400) => NextResponse.json({ error }, { status, headers: { 'Cache-Control': 'no-store' } });

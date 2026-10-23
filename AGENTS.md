@@ -227,6 +227,14 @@ control availability. Checkout shares buyer state across payment methods.
 `transfer_mail_sent_at` records successful delivery for `fulfillment-resume`. Sellf does not send its own transactional emails: Auth magic
 links remain the email channel, and sellers may send messages from `order.placed`.
 
+### Set-price coupons and cart tracking
+
+`set_price` coupons use a currency-matched final unit price for the main line only.
+Shared coupon allocation receives line quantity; bumps retain their price. Saved
+order lines retain list and discounted totals separately. Zero uses existing free
+access. Native checkout emits `add_to_cart` once on entry to payment through the
+existing analytics-consent gate; its payload includes quantity and selected bumps.
+
 ### Data Flow Patterns
 
 **Purchase Flow (on the admin panel):**

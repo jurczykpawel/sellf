@@ -51,6 +51,7 @@ it.each(['en', 'pl'] as const)('%s: records a view, offers a clear payment step,
   expect(mocks.stripe).toHaveBeenCalledWith('pk_test_example');
   expect(mocks.fetch.mock.calls.filter(call => call[0] === '/api/create-payment-intent')).toHaveLength(1);
   expect(mocks.track).toHaveBeenCalledWith('begin_checkout', expect.anything());
+  expect(mocks.track.mock.calls.filter(([event]) => event === 'add_to_cart')).toEqual([['add_to_cart', { value: 49, currency: 'PLN', items: [{ item_id: 'test-product', item_name: 'Course', price: 49, quantity: 1 }] }]]);
   await waitFor(() => expect(screen.getByTestId('payment-fields')).toBeTruthy());
   expect(screen.queryByRole('button', { name: label, exact: true })).toBeNull();
   expect(screen.getByRole('button', { name: locale === 'pl' ? /Zapłać.*49/ : /Pay.*49/ })).toBeTruthy();

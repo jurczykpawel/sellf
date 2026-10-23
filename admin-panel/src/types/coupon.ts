@@ -11,7 +11,7 @@ export type CouponUpdate = Database['public']['Tables']['coupons']['Update'];
 
 export interface CouponFormData {
   code: string;
-  discount_type: 'percentage' | 'fixed';
+  discount_type: 'percentage' | 'fixed' | 'set_price';
   discount_value: number;
   currency?: string | null;
   usage_limit_global?: number | null;
@@ -29,7 +29,7 @@ export interface CouponVerificationResult {
   error?: string;
   id?: string;
   code?: string;
-  discount_type?: 'percentage' | 'fixed';
+  discount_type?: 'percentage' | 'fixed' | 'set_price';
   discount_value?: number;
   exclude_order_bumps?: boolean;
   allowed_product_ids?: string[];
@@ -39,7 +39,7 @@ export interface CouponVerificationResult {
 export interface AppliedCoupon {
   id?: string;
   code: string;
-  discount_type: 'percentage' | 'fixed';
+  discount_type: 'percentage' | 'fixed' | 'set_price';
   discount_value: number;
   exclude_order_bumps?: boolean;
   allowed_product_ids?: string[];
