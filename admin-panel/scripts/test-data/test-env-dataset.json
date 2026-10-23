@@ -1,0 +1,26 @@
+{
+  "products": [
+    { "name": "RC Test – produkt partnerski", "slug": "rc-test-produkt-partnerski", "price": 49, "vat_rate": 23, "price_includes_vat": true },
+    { "name": "R3 VAT netto (jednorazowy)", "slug": "r3-vat-netto-jednorazowy", "price": 100, "vat_rate": 23, "price_includes_vat": false },
+    { "name": "R3 Subskrypcja VAT", "slug": "r3-subskrypcja-vat", "price": 49, "vat_rate": 23, "price_includes_vat": true, "product_type": "subscription", "recurring_price": 49, "billing_interval": "month", "billing_interval_count": 1 },
+    { "name": "R3 Darmowy", "slug": "r3-darmowy", "price": 0, "content_delivery_type": "content", "content_config": { "content_items": [{ "id": "r3test", "type": "download_link", "title": "Plik testowy (atrapa)", "config": { "download_url": "https://drive.google.com/file/d/r3test/view" }, "order": 0, "is_active": true }] } },
+    { "name": "R3 PWYW od zera", "slug": "r3-pwyw-od-zera", "price": 5, "allow_custom_price": true, "custom_price_min": 5 },
+    { "name": "R3 JPY 1000", "slug": "r3-jpy-1000", "price": 1000, "currency": "JPY" },
+    { "name": "R4 Wideo YouTube", "slug": "r4-wideo-youtube", "price": 19, "vat_rate": 23, "price_includes_vat": true, "preview_video_url": "https://www.youtube.com/watch?v=aqz-KE-bpKQ", "preview_video_config": { "autoplay": true, "muted": true, "loop": true, "controls": false } },
+    { "name": "R4 Wideo Wistia", "slug": "r4-wideo-wistia", "price": 19, "vat_rate": 23, "price_includes_vat": true, "preview_video_url": "https://support.wistia.com/medias/e4a27b971d", "preview_video_config": { "autoplay": true, "muted": true, "loop": true, "controls": false } },
+    { "name": "Warsztat B2B", "slug": "warsztat-b2b", "price": 100, "vat_rate": 23, "price_includes_vat": false, "checkout_profile": { "v": 1, "modules": [
+      { "id": "buyer", "types": ["person", "organization"], "gus": false },
+      { "id": "recipient", "for": ["organization"] },
+      { "id": "phone", "required": true },
+      { "id": "quantity", "min": 1, "max": 20, "mode": "checkout" },
+      { "id": "participants", "required": true, "prefill_from_buyer": true }
+    ] } },
+    { "name": "Nagranie", "slug": "warsztat-b2b-nagranie", "price": 19, "vat_rate": 23, "price_includes_vat": true }
+  ],
+  "coupons": [
+    { "code": "RCPARTNER10", "discount_type": "percentage", "discount_value": 10, "is_active": true },
+    { "code": "RCANNA5", "discount_type": "percentage", "discount_value": 5, "is_active": true }
+  ],
+  "bumps": [{ "main_slug": "warsztat-b2b", "bump_slug": "warsztat-b2b-nagranie", "bump_title": "Nagranie", "is_active": true }],
+  "disabled": [{ "enabled": false, "name": "Wydarzenie testowe", "todo": "TODO E3: dodać produkt-wydarzenie po udostępnieniu API wydarzeń." }]
+}
