@@ -248,7 +248,7 @@ test.describe('Admin Dashboard Tabs', () => {
     { path: '/dashboard/coupons', marker: /Coupon|Kupon/i },
     { path: '/dashboard/refund-requests', marker: /Refund|Zwrot/i },
     { path: '/dashboard/webhooks', marker: /Webhook|Endpoint/i },
-    { path: '/dashboard/integrations', marker: /Integrat/i },
+    { path: '/dashboard/integrations', marker: /Integra/i },
     { path: '/dashboard/api-keys', marker: /API Key|Klucz API/i },
     { path: '/dashboard/users', marker: /User|Użytkowni/i },
     { path: '/dashboard/payments', marker: /Payment|Płatnoś|Transaction|Transakcj/i },
