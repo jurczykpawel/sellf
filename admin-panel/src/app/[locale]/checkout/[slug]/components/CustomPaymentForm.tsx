@@ -17,7 +17,6 @@ import PaymentFormSkeleton from '@/components/checkout/PaymentFormSkeleton';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
 import type { useInvoiceData } from '@/hooks/useInvoiceData';
 import type { useCheckoutProfileValues } from '@/components/checkout/CheckoutProfileFields';
-import type { FieldError } from '@/lib/checkout-modules/registry';
 import type { StripePaymentElementOptions } from '@stripe/stripe-js';
 import type { Product } from '@/types';
 import type { OrderBumpWithProduct } from '@/types/order-bump';
@@ -37,6 +36,7 @@ interface CustomPaymentFormProps {
   selectedBumpIds?: Set<string>;
   onChangeAccount?: () => void;
   customAmountError?: string | null;
+  quantityInvalid?: boolean;
   clientSecret?: string;
   bindingToken?: string;
   onConfirmationChange?: (pending: boolean) => void;
@@ -70,7 +70,7 @@ export default function CustomPaymentForm({
   bumpProducts = [],
   selectedBumpIds = new Set(),
   onChangeAccount,
-  customAmountError,
+  customAmountError, quantityInvalid = false,
   clientSecret,
   bindingToken,
   onConfirmationChange,
@@ -107,7 +107,7 @@ export default function CustomPaymentForm({
   // Invoice / NIP logic
   const parsedProfile = checkoutProfileSchema.safeParse(product.checkout_profile);
   const profile = parsedProfile.success ? parsedProfile.data : null;
-  const [moduleErrors, setModuleErrors] = useState<FieldError[]>([]);
+  const { errors: moduleErrors, setErrors: setModuleErrors } = profileForm;
 
   const { basePrice, totalPayable } = pricing;
   const paymentElementOptions: StripePaymentElementOptions = {
@@ -140,6 +140,7 @@ export default function CustomPaymentForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (quantityInvalid) return;
 
     if (checkoutResult.type !== 'success' || !paymentElementReady) return;
     const checkout = checkoutResult.checkout;
@@ -339,15 +340,17 @@ export default function CustomPaymentForm({
         <input
           type="email"
           id="checkoutEmail"
+          aria-invalid={moduleErrors.some(error => error.field === 'buyer.email')}
+          aria-describedby={moduleErrors.some(error => error.field === 'buyer.email') ? 'buyer.email-error' : undefined}
           value={linkEmail}
           onChange={(e) => { setLinkEmail(e.target.value); onEmailChange(e.target.value); }}
           placeholder="you@example.com"
           required
-          className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent"
+          className={`w-full px-3 py-2.5 bg-sf-input border ${moduleErrors.some(error => error.field === 'buyer.email') ? 'border-sf-danger' : 'border-sf-border'} rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent`}
         />
       </div>
 
-      {moduleErrors.filter(error => error.field === 'buyer.email').map(error => <p key={error.field} role="alert" className="text-sm text-sf-danger">{t('profile.errors.invalid')}</p>)}
+      {moduleErrors.filter(error => error.field === 'buyer.email').map(error => <p id="buyer.email-error" key={error.field} role="alert" className="text-sm text-sf-danger">{t('profile.errors.invalid')}</p>)}
 
       {/* Email mismatch warning */}
       {emailMismatch && (
@@ -459,7 +462,7 @@ export default function CustomPaymentForm({
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={checkoutResult.type !== 'success' || !paymentElementReady || isProcessing || !!customAmountError || (emailMismatch && !emailConfirmed)}
+        disabled={quantityInvalid || checkoutResult.type !== 'success' || !paymentElementReady || isProcessing || !!customAmountError || (emailMismatch && !emailConfirmed)}
         // Session readiness can precede the Element's interactive DOM. Keep
         // initialization distinct from processing and validation restrictions.
         {...(checkoutResult.type !== 'success' || !paymentElementReady ? { 'data-checkout-pending': true } : {})}

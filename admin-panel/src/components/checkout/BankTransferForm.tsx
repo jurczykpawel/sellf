@@ -8,9 +8,11 @@ import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFields
 import { useCaptcha } from '@/hooks/useCaptcha';
 import { validateCheckoutModules } from '@/lib/checkout-modules/validate';
 import { validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
+import type { FieldError } from '@/lib/checkout-modules/registry';
 import type { Product } from '@/types';
 import type { CustomFieldDefinition, CustomFieldValues } from '@/lib/validations/custom-checkout-fields';
-export default function BankTransferForm({ product, email, lockedEmail, onEmailChange, moduleValues, sessionId, bumpIds, couponCode, fields, values, onValuesChange }: {
+export default function BankTransferForm({ disabled, onModuleErrors, product, email, lockedEmail, onEmailChange, moduleValues, sessionId, bumpIds, couponCode, fields, values, onValuesChange }: {
+  disabled: boolean; onModuleErrors(errors: FieldError[]): void;
   product: Product; email: string; lockedEmail?: boolean; onEmailChange(value: string): void; moduleValues: Record<string, unknown>; sessionId: string | null;
   bumpIds: string[]; couponCode?: string; fields: CustomFieldDefinition[]; values: CustomFieldValues; onValuesChange(value: CustomFieldValues): void;
 }) {
@@ -19,8 +21,9 @@ export default function BankTransferForm({ product, email, lockedEmail, onEmailC
   const [busy, setBusy] = useState(false), [accepted, setAccepted] = useState(false), [error, setError] = useState('');
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!captcha.token || busy) return;
+    if (disabled || !captcha.token || busy) return;
     const modules = validateCheckoutModules(product.checkout_profile, moduleValues, { locale, currency: product.currency, termsAccepted: accepted });
+    onModuleErrors(modules.success ? [] : modules.errors);
     if (!modules.success || !validateCustomFieldValues(fields, values, { requireAll: true }).ok) { setError(ct('profile.fixFields')); return; }
     setBusy(true); setError('');
     try {
@@ -39,6 +42,6 @@ export default function BankTransferForm({ product, email, lockedEmail, onEmailC
     <label className="flex gap-2"><input type="checkbox" required checked={accepted} onChange={e => setAccepted(e.target.checked)} /><span>{ct('iAgree')} <a className="underline" href={`${locale === 'pl' ? '/pl' : ''}/terms`} target="_blank" rel="noreferrer">{ct('termsOfService')}</a> {ct('and')} <a className="underline" href={`${locale === 'pl' ? '/pl' : ''}/privacy`} target="_blank" rel="noreferrer">{ct('privacyPolicy')}</a></span></label>
     <AltchaWidget onVerify={captcha.onVerify} onError={captcha.onError} onTimeout={captcha.onTimeout} resetTrigger={captcha.resetTrigger} />
     {error && <p role="alert" className="text-sf-danger">{error}</p>}
-    <button disabled={busy || !captcha.token || !accepted} className="w-full rounded-xl bg-sf-accent-bg text-sf-inverse p-4 font-semibold disabled:opacity-50">{busy ? ct('processing') : t('placeOrder')}</button>
+    <button disabled={disabled || busy || !captcha.token || !accepted} className="w-full rounded-xl bg-sf-accent-bg text-sf-inverse p-4 font-semibold disabled:opacity-50">{busy ? ct('processing') : t('placeOrder')}</button>
   </form>;
 }

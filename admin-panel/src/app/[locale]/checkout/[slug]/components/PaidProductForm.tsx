@@ -11,6 +11,7 @@ import BankTransferForm from '@/components/checkout/BankTransferForm';
 import { getTransferAvailability } from '@/lib/orders/transfer-public';
 import { availableTransferMethod, canUseBankTransfer } from '@/lib/orders/bank-transfer-config';
 import { useInvoiceData } from '@/hooks/useInvoiceData';
+import { parseQuantityInput } from '@/lib/checkout-modules/quantity';
 import CheckoutProfileFields, { CheckoutQuantityField, useCheckoutProfileValues } from '@/components/checkout/CheckoutProfileFields';
 import { formatPrice, STRIPE_MAX_AMOUNT } from '@/lib/constants';
 import { minimumChargeAmount } from '@/lib/currency/minor-units';
@@ -79,6 +80,13 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const parsedProfile = checkoutProfileSchema.safeParse(product.checkout_profile);
   const quantityConfig = parsedProfile.success ? parsedProfile.data.modules.find(module => module.id === 'quantity') : undefined;
   const [quantity, setQuantity] = useState(quantityConfig?.min ?? 1);
+  const [quantityInput, setQuantityInput] = useState(String(quantity));
+  const quantityInvalid = !!quantityConfig && parseQuantityInput(quantityInput, quantityConfig) === null;
+  const changeQuantity = (value: string) => {
+    setQuantityInput(value);
+    const parsed = quantityConfig ? parseQuantityInput(value, quantityConfig) : null;
+    if (parsed !== null) setQuantity(parsed);
+  };
   const isSubscription = product.product_type === 'subscription';
   // PWYW subscriptions allow buyers to choose their recurring amount. The
   // existing PwywSection works regardless of one-shot vs recurring — only
@@ -583,7 +591,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           )}
 
           <h2 className="text-xl font-semibold text-sf-heading mb-4">{t('purchaseTitle')}</h2>
-          {quantityConfig?.mode === 'product_page' && <CheckoutQuantityField config={quantityConfig} value={quantity} onChange={setQuantity} />}
+          {quantityConfig?.mode === 'product_page' && <CheckoutQuantityField config={quantityConfig} value={quantityInput} onChange={changeQuantity} invalid={quantityInvalid} />}
 
           {product.event_mode && <>
             <EventSessions sessions={eventSessions} currency={product.currency} selected={eventSessionId} onSelect={id => { setEventSessionId(id); setError(null); setPurchaseStarted(false); }} />
@@ -591,12 +599,12 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           </>}
 
           {transferProfile && !hasAccess && !isFunnelTest && !isFreeAccess && profile && <>
-            {activeMethod === 'transfer' && quantityConfig?.mode === 'checkout' && <CheckoutQuantityField config={quantityConfig} value={quantity} onChange={setQuantity} />}
-            <CheckoutProfileFields profile={profile} state={profileForm} invoice={invoice} errors={[]} disabled={false} />
+            {activeMethod === 'transfer' && quantityConfig?.mode === 'checkout' && <CheckoutQuantityField config={quantityConfig} value={quantityInput} onChange={changeQuantity} invalid={quantityInvalid} />}
+            <CheckoutProfileFields profile={profile} state={profileForm} invoice={invoice} errors={profileForm.errors} disabled={false} />
             {transferAllowed && <fieldset className="my-4 space-y-3"><legend className="font-semibold">{bt('method')}</legend>
               {(['online', 'transfer'] as const).map(value => <label key={value} className="flex items-center gap-2 rounded-lg border border-sf-border p-3"><input type="radio" name="payment-method" value={value} checked={activeMethod === value} onChange={() => { setMethod(value); setPurchaseStarted(false); setClientSecret(null); setError(null); }} />{bt(value, { days: transfer.dueDays })}</label>)}
             </fieldset>}
-            {activeMethod === 'transfer' && eventReady && <BankTransferForm product={product} email={user?.email ?? formEmail ?? email ?? ''} lockedEmail={!!user?.email} onEmailChange={setFormEmail} moduleValues={profileForm.values} sessionId={eventSessionId} bumpIds={Array.from(selectedBumpIds)} couponCode={coupon.appliedCoupon?.code} fields={customFieldDefs} values={customFieldValues} onValuesChange={setCustomFieldValues} />}
+            {activeMethod === 'transfer' && eventReady && <BankTransferForm disabled={quantityInvalid} onModuleErrors={profileForm.setErrors} product={product} email={user?.email ?? formEmail ?? email ?? ''} lockedEmail={!!user?.email} onEmailChange={setFormEmail} moduleValues={profileForm.values} sessionId={eventSessionId} bumpIds={Array.from(selectedBumpIds)} couponCode={coupon.appliedCoupon?.code} fields={customFieldDefs} values={customFieldValues} onValuesChange={setCustomFieldValues} />}
           </>}
 
           {/* Missing Config Alert */}
@@ -668,10 +676,10 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           )}
 
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && activeMethod === 'online' && !purchaseStarted && eventReady && (
-            <form onSubmit={event => { event.preventDefault(); setPurchaseStarted(true); }}>
+            <form onSubmit={event => { event.preventDefault(); if (!quantityInvalid) setPurchaseStarted(true); }}>
               {product.event_mode && <label className="mb-4 block">{eventText('email')}<input type="email" required value={email ?? ''} onChange={event => setEmail(event.target.value)} className="mt-1 block w-full rounded border border-sf-border p-3" /></label>}
-              {quantityConfig?.mode === 'checkout' && <CheckoutQuantityField config={quantityConfig} value={quantity} onChange={setQuantity} />}
-              <button type="submit" disabled={!interactive} className="w-full cursor-pointer disabled:cursor-wait disabled:opacity-60 rounded-xl bg-sf-accent-bg px-6 py-4 font-semibold text-sf-inverse hover:bg-sf-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent">
+              {quantityConfig?.mode === 'checkout' && <CheckoutQuantityField config={quantityConfig} value={quantityInput} onChange={changeQuantity} invalid={quantityInvalid} />}
+              <button type="submit" disabled={!interactive || quantityInvalid} className="w-full cursor-pointer disabled:cursor-wait disabled:opacity-60 rounded-xl bg-sf-accent-bg px-6 py-4 font-semibold text-sf-inverse hover:bg-sf-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent">
                 {t('continueToPayment')}
               </button>
               <p className="mt-3 text-center text-xs text-sf-muted">{t('securePayment')}</p>
@@ -704,6 +712,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
               } satisfies StripeCheckoutElementsSdkOptions}
             >
               <CustomPaymentForm
+                quantityInvalid={quantityInvalid}
                 product={product}
                 email={user?.email ?? formEmail ?? email}
                 invoice={invoice}

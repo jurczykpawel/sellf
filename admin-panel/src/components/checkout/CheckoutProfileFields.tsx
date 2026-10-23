@@ -1,7 +1,7 @@
 'use client';
 
 /** Profile UI uses the same values as the server module registry. @see lib/checkout-modules/registry.ts */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import type { CheckoutProfile } from '@/lib/checkout-modules/profile';
@@ -13,6 +13,7 @@ interface Party { company_name: string; nip: string; address: string; city: stri
 const emptyParty: Party = { company_name: '', nip: '', address: '', city: '', postal_code: '', country: 'PL' };
 
 export function useCheckoutProfileValues(profile: CheckoutProfile | null, invoice: UseInvoiceDataReturn, email: string, quantity: number) {
+  const [errors, setErrors] = useState<FieldError[]>([]);
   const buyerConfig = profile?.modules.find(module => module.id === 'buyer');
   const [buyerType, setBuyerType] = useState<'person' | 'organization'>(buyerConfig?.types[0] ?? 'person');
   const [names, setNames] = useState<Partial<Person>>({});
@@ -39,7 +40,7 @@ export function useCheckoutProfileValues(profile: CheckoutProfile | null, invoic
       case 'participants': values.participants = config.required || includeParticipants ? people : []; break;
     }
   }
-  return { values, buyerType, setBuyerType, person, setNames, party, differs, setDiffers, recipient, setRecipient, phone, setPhone, people, setParticipants, includeParticipants, setIncludeParticipants };
+  return { errors, setErrors, values, buyerType, setBuyerType, person, setNames, party, differs, setDiffers, recipient, setRecipient, phone, setPhone, people, setParticipants, includeParticipants, setIncludeParticipants };
 }
 
 type ModuleConfig = CheckoutProfile['modules'][number];
@@ -47,6 +48,9 @@ type ProfileFormState = ReturnType<typeof useCheckoutProfileValues>;
 interface Props { profile: CheckoutProfile; state: ProfileFormState; invoice: UseInvoiceDataReturn; errors: FieldError[]; disabled: boolean }
 export default function CheckoutProfileFields({ profile, state, invoice, errors, disabled }: Props) {
   const t = useTranslations('checkout.profile');
+  useEffect(() => {
+    if (errors.length && !disabled) document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [errors, disabled]);
   const inputClass = 'w-full rounded-lg border border-sf-border bg-sf-input px-3 py-2.5 text-sf-heading focus:outline-none focus:ring-2 focus:ring-sf-accent';
   const errorText = (field: string) => {
     const error = errors.find(error => error.field === field);
@@ -56,7 +60,7 @@ export default function CheckoutProfileFields({ profile, state, invoice, errors,
     <div key={id}>
       <label htmlFor={id} className="mb-1 block text-sm font-medium text-sf-body">{label}</label>
       <input id={id} type={type} value={value} onChange={event => onChange(event.target.value)} onBlur={onBlur}
-        disabled={disabled} className={inputClass} aria-invalid={!!errorText(id)} aria-describedby={errorText(id) ? `${id}-error` : undefined} />
+        disabled={disabled} className={errorText(id) ? inputClass.replace('border-sf-border', 'border-sf-danger') : inputClass} aria-invalid={!!errorText(id)} aria-describedby={errorText(id) ? `${id}-error` : undefined} />
       {errorText(id) && <p id={`${id}-error`} role="alert" className="mt-1 text-sm text-sf-danger">{errorText(id)}</p>}
     </div>
   );
@@ -103,11 +107,12 @@ export default function CheckoutProfileFields({ profile, state, invoice, errors,
   })}</div>;
 }
 
-export function CheckoutQuantityField({ config, value, onChange }: { config: Extract<CheckoutProfile['modules'][number], { id: 'quantity' }>; value: number; onChange: (value: number) => void }) {
+export function CheckoutQuantityField({ config, value, onChange, invalid }: { config: Extract<CheckoutProfile['modules'][number], { id: 'quantity' }>; value: string; onChange: (value: string) => void; invalid: boolean }) {
   const t = useTranslations('checkout.profile');
   return <div className="mb-4">
     <label htmlFor="checkoutQuantity" className="mb-1 block text-sm font-medium text-sf-body">{t('quantity')}</label>
-    <input id="checkoutQuantity" className="w-full rounded-lg border border-sf-border bg-sf-input px-3 py-2.5 text-sf-heading"
-      type="number" min={config.min} max={config.max} step={1} value={value} required onChange={event => onChange(Number(event.target.value))} />
+    <input id="checkoutQuantity" className={`w-full rounded-lg border ${invalid ? 'border-sf-danger' : 'border-sf-border'} bg-sf-input px-3 py-2.5 text-sf-heading`}
+      type="text" inputMode="numeric" value={value} required aria-invalid={invalid} aria-describedby={invalid ? 'checkoutQuantity-error' : undefined} onChange={event => onChange(event.target.value)} />
+    {invalid && <p id="checkoutQuantity-error" role="alert" className="mt-1 text-sm text-sf-danger">{t('errors.invalid')} ({config.min}–{config.max})</p>}
   </div>;
 }
