@@ -30,3 +30,23 @@ under the owner's PM2 service cgroup is still a separate deployment check.
 For repeat development runs against the suite's own already-running stack only,
 use `--stack=/path/to/matrix-stack`. The runner verifies its project ID and API
 ports, and leaves that explicitly supplied stack running for further checks.
+
+## Populated v2026.10.6 upgrade
+
+Run `bash scripts/upgrade-data-test.sh` from admin-panel with Bun, Python 3,
+Supabase CLI, Docker, and Playwright Chromium installed (verified with Bun 1.3.14
+and Node 22). The gate reserves
+`sellf-upg` (55570–55579) and application port 55581. It refuses an existing
+`sellf-upg` stack or a third database. Do not run two copies concurrently.
+
+It extracts the released migrations and seed from the local `v2026.10.6` tag,
+loads `supabase/tests/upgrade-fixture-2026-10-6.sql`, records counts and financial
+sums, and applies every candidate migration from 20261016000000 over the same
+service-role HTTP RPC as `upgrade.sh`, including checksum and repeat checks.
+SQL checks cover historical order references, VAT units, optional checkout
+profiles and completion of a historical pending order through the legacy path.
+The candidate app then runs browser smoke for the shop, product, admin session,
+historical payment list and new checkout payment form (local payment transport).
+No Stripe payment is performed. Any assertion or browser failure returns nonzero.
+The runner stops its stack without backup even on failure; diagnostic start logs
+remain in the printed temporary directory. Playwright shuts down its dev server.
