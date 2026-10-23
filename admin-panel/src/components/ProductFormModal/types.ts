@@ -94,6 +94,7 @@ export interface ProductFormData {
   recurring_price: number | null;
   trial_days: number | null;
   // Checkout template + custom fields (Phase 3 — checkout-templates feat)
+  checkout_profile: import('@/lib/checkout-modules/profile').CheckoutProfile | null;
   checkout_template: string;
   custom_checkout_fields: import('@/lib/validations/custom-checkout-fields').CustomFieldDefinition[];
   // UX product type — form-only state surfacing which radio card the seller
@@ -278,6 +279,7 @@ export const initialFormData: ProductFormData = {
   recurring_price: null,
   trial_days: null,
   // Checkout template + custom fields (Phase 3 — checkout-templates feat)
+  checkout_profile: null,
   checkout_template: 'default',
   custom_checkout_fields: [],
   ux_product_type: 'standard',

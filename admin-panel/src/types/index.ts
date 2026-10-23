@@ -71,6 +71,7 @@ export interface Product {
   show_price_presets: boolean
   custom_price_presets: number[]
   // Checkout template + custom fields (Phase 3 — checkout templates feat)
+  checkout_profile?: import('@/lib/checkout-modules/profile').CheckoutProfile | null
   checkout_template: string
   custom_checkout_fields: import('@/lib/validations/custom-checkout-fields').CustomFieldDefinition[]
   // Embed checkout (per-product toggle; complements env-level origin allowlist)

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import { useLocale } from 'next-intl';
 import { Product } from '@/types';
+import { parseCheckoutProfile } from '@/lib/checkout-modules/profile';
 import { parseMoneyInput } from '@/lib/currency/parse-money-input';
 import { ProductContentConfig } from '@/types';
 import { marketingFieldsSchema } from '@/lib/validations/product-marketing';
@@ -267,6 +268,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
           trial_days: product.trial_days ?? null,
           // Checkout template + custom fields (Phase 3 — checkout templates feat)
           checkout_template: (product as Product & { checkout_template?: string }).checkout_template ?? 'default',
+          checkout_profile: product.checkout_profile ?? null,
           custom_checkout_fields: Array.isArray((product as Product & { custom_checkout_fields?: unknown }).custom_checkout_fields)
             ? (product.custom_checkout_fields as ProductFormData['custom_checkout_fields'])
             : [],
@@ -652,6 +654,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     if (!shopConfigLoaded) return;
 
     if (!validateRequiredFields()) return;
+    if (formData.checkout_profile && !parseCheckoutProfile(formData.checkout_profile, { ...formData }, true).success) return;
 
     // Validate all content items with URLs before submission
     if (formData.content_delivery_type === 'content') {
