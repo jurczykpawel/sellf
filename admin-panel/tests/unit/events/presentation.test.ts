@@ -23,6 +23,9 @@ describe('event presentation', () => {
     expect(formatEventDate(raw.starts_at, raw.timezone, 'en')).toContain('8:00');
     expect(formatEventDate(raw.starts_at, raw.timezone, 'en')).toContain('America/New_York');
   });
+  it('retains the long access-page date style through the shared formatter', () => {
+    expect(formatEventDate('2099-06-01T12:00:00Z', 'Europe/Warsaw', 'en-GB', 'long')).toBe('1 June 2099 at 14:00 (Europe/Warsaw)');
+  });
   it('selects a sole session or an available URL selection only', () => {
     const sessions = projectEventSessions([raw], Date.parse('2099-04-01'));
     expect(selectEventSession(sessions, null)).toBe('term');

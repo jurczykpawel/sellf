@@ -22,8 +22,8 @@ export function projectEventSessions(data: unknown, at = Date.now()): EventSessi
     currentTier: s.current_tier && { id: s.current_tier.id, label: s.current_tier.label, price: s.current_tier.price, seatsLeft: s.current_tier.seats_left, endsAt: s.current_tier.ends_at },
   }));
 }
-export function formatEventDate(date: string, timezone: string, locale: string): string {
-  return `${new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: timezone }).format(new Date(date))} (${timezone})`;
+export function formatEventDate(date: string, timezone: string, locale: string, dateStyle: Intl.DateTimeFormatOptions['dateStyle'] = 'medium'): string {
+  return `${new Intl.DateTimeFormat(locale, { dateStyle, timeStyle: 'short', timeZone: timezone }).format(new Date(date))} (${timezone})`;
 }
 export function selectEventSession(sessions: EventSession[], requested: string | null): string | null {
   const available = sessions.filter(s => s.currentTier && !s.soldOut);
