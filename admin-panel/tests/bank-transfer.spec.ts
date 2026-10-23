@@ -2,14 +2,15 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
-import { createTestAdmin, loginAsAdmin, supabaseAdmin as db } from './helpers/admin-auth';
+import { loginAsAdmin, supabaseAdmin as db } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
+import { MAILPIT_URL } from './helpers/mailpit';
 import type { Page } from '@playwright/test';
 let product: { id: string; slug: string }, sessionId: string, endpointId: string, orderId: string, unpaidId: string;
 let bankConfig: unknown, invoiceConfig: unknown, shop: { id: string; tax_mode: string | null };
 const email = `transfer-${randomUUID()}@example.com`, cancelledEmail = `cancel-${randomUUID()}@example.com`;
 const ids: string[] = [];
-if (process.env.SUPABASE_URL !== 'http://127.0.0.1:55550') throw new Error('Requires allocated sellf-e1 database');
+if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(process.env.SUPABASE_URL ?? '')) throw new Error('Requires a local disposable Supabase stack');
 test.describe.configure({ mode: 'serial' });
 async function checked<T>({ data, error }: { data: T; error: unknown }): Promise<NonNullable<T>> { if (error) throw error; return data!; }
 test.beforeAll(async () => {
@@ -110,9 +111,9 @@ test('(a) organization places transfer with immediate access, unpaid invoice, pr
   expect((await page.request.get(new URL(instructionsUrl).pathname)).status()).toBe(404);
   expect((await page.request.get(instructionsUrl.replace(orderId, randomUUID()))).status()).toBe(404);
   await page.screenshot({ path: test.info().outputPath('instructions.png'), fullPage: true });
-  const messages = await page.request.get(`http://127.0.0.1:55554/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`);
+  const messages = await page.request.get(`${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`);
   expect(messages.ok()).toBe(true); const mailbox = await messages.json(); expect(mailbox.messages.length).toBeGreaterThan(0);
-  const mail = await (await page.request.get(`http://127.0.0.1:55554/api/v1/message/${mailbox.messages[0].ID}`)).json();
+  const mail = await (await page.request.get(`${MAILPIT_URL}/api/v1/message/${mailbox.messages[0].ID}`)).json();
   expect(mail.HTML).toContain('PL61109010140000071219812874'); expect(mail.HTML).toContain('Dane do przelewu');
   await checked(await db.from('payment_transactions').update({ payment_due_at: '2000-01-01T00:00:00Z' }).eq('id', orderId).select());
   expect((await page.request.get('/api/cron?job=bank-transfer-overdue', { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } })).ok()).toBe(true);
