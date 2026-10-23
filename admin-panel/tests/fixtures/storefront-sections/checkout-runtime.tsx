@@ -5,6 +5,7 @@ const noop = () => {};
 export default function Empty(): null { return null; }
 export const signOutAndRedirectToCheckout = noop;
 export const useSearchParams = () => new URLSearchParams(location.search);
+export const useRouter = () => ({ push: noop, replace: noop, refresh: noop, back: noop, forward: noop, prefetch: noop });
 export const useAuth = () => ({ user: null, isAdmin: false, loading: false });
 export const useConfig = () => ({ stripePublishableKey: 'pk_test_fixture' });
 export const useTheme = () => ({ resolvedTheme: 'light' });
