@@ -32,9 +32,12 @@ product-scoped endpoint in local Supabase; one-time purchases subscribe to
 `purchase.completed`, subscription purchases subscribe to `invoice.paid` (the
 billing handler's fulfillment event).
 
-The ten runs cover guest and signed-in buyers, required license-domain input,
+The twelve payment runs cover guest and signed-in buyers, required license-domain input,
 one order bump, 3D Secure, decline, initial subscription payment, and five fresh
-guest repetitions. Assertions require one completed transaction, no pending
+guest repetitions, a percentage coupon with a bump, and a net-priced product with
+local VAT. One-time orders require pricing snapshot version 1, an order number,
+and discounted line totals matching the charge after exclusive tax. Assertions
+require one completed transaction, no pending
 transaction, expired superseded sessions with abandoned history rows, both line
 items with correct amounts, guest access after registration, preserved domain and exactly one matching license,
 access records and one outbound delivery with its envelope ID in the header.
@@ -60,10 +63,13 @@ these artifacts local.
 The `stripe-live` Playwright project is registered only with
 `STRIPE_LIVE_E2E=1`, and its specs are ignored by the default Chromium project.
 Ordinary `bun run test` does not run it. The runner enables it, stops at the first
-failure, disables retries, and cleans up its listener, tunnel and server process
+failure, disables payment-test retries, and cleans up its listener, tunnel and server process
 groups on success, failure or interruption. Additional Playwright arguments can
 be passed to the runner, for example `--grep 'guest license'`.
 
 If a scenario reveals an application bug, preserve the failure evidence and
 report it. Do not change application behavior or relax assertions to obtain a
 green run.
+
+A recognized Next.js one-shot upgrade notice permits one repeat of the same local
+server command. Other startup exits and a second notice stop the runner.
