@@ -31,7 +31,7 @@ it.each([['en', en], ['pl', pl]] as const)('translates a magic-link 429 and keep
   }), { status: 429 }));
   vi.stubGlobal('fetch', fetch);
   const view = render(React.createElement(NextIntlClientProvider, { locale, messages }, React.createElement(Fixture)));
-  await waitFor(() => expect(view.getByText(messages.paymentStatus.rateLimitError, { exact: false })).toBeTruthy());
+  await waitFor(() => expect(view.getByText(messages.paymentStatus.paidLinkRateLimitError, { exact: false })).toBeTruthy());
   expect(view.getByText(messages.paymentStatus.purchaseReceipt.replace('{productName}', product.name))).toBeTruthy();
   expect(view.queryByText('Service request quota reached')).toBeNull();
   expect(fetch).toHaveBeenCalledTimes(1);

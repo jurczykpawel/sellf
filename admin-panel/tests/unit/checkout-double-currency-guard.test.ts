@@ -73,7 +73,7 @@ describe('OrderSummary shape', () => {
     expect(source).toMatch(/intervalLabel\?:\s*string/);
     // The total block renders "{ price }{ intervalLabel && / label }" together.
     expect(source).toMatch(
-      /\{formatPrice\(totalGross, currency, locale\)\}\s*\n\s*\{intervalLabel && [\s\S]+?\/\s*\{intervalLabel\}/,
+      /formatPrice\(totalGross, currency, locale\)\}\s*\n\s*\{(?:!quantityInvalid && )?intervalLabel && [\s\S]+?\/\s*\{intervalLabel\}/,
     );
   });
 
