@@ -1420,3 +1420,8 @@ VALUES ('e4000000-0000-4000-a000-000000000010','e1000000-0000-4000-8000-00000000
 INSERT INTO public.coupons (code, name, discount_type, discount_value, currency, is_active)
 VALUES ('B2B30', 'Negotiated unit price', 'set_price', 30, 'PLN', true)
 ON CONFLICT (code) DO NOTHING;
+
+-- A limited coupon for embedded checkout with buyer email collected during payment.
+INSERT INTO public.coupons (code, name, discount_type, discount_value, usage_limit_global, usage_limit_per_user, is_active)
+VALUES ('EMBED10', 'Embedded checkout 10%', 'percentage', 10, 100, 1, true)
+ON CONFLICT (code) DO NOTHING;

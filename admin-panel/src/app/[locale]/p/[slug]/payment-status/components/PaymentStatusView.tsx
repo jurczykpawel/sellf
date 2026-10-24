@@ -89,7 +89,12 @@ export default function PaymentStatusView({
   }, [paymentStatus, accessGranted, product, sessionId, paymentIntentId, customerEmail, track]);
 
   if (paymentStatus === 'data_error') {
-    return <PaymentStatusLayout product={product} statusInfo={statusInfo}><p className="text-sf-body">{t('orderNeedsReviewDetails')}</p></PaymentStatusLayout>;
+    return (
+      <PaymentStatusLayout product={product} statusInfo={statusInfo}>
+        <p className="text-sf-body">{t('orderNeedsReviewDetails')}</p>
+        <code className="block break-all text-sm">{sessionId || paymentIntentId}</code>
+      </PaymentStatusLayout>
+    );
   }
 
   // Handle error states first
