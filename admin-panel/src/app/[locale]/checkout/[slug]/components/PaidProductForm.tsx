@@ -665,6 +665,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
               vatExempt={product.vat_exempt}
               vatExemptNote={product.vat_exempt_note}
               taxMode={checkoutTaxMode}
+              quantityInvalid={quantityInvalid}
               customAmountError={product.allow_custom_price ? customAmountError : null}
               appliedCoupon={coupon.appliedCoupon ?? undefined}
               bumpProducts={availableBumps}
@@ -674,9 +675,10 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           )}
 
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && activeMethod === 'online' && !purchaseStarted && eventReady && (
-            <form onSubmit={event => { event.preventDefault(); if (!quantityInvalid && !customAmountError) setPurchaseStarted(true); }}>
-              {product.event_mode && <label className="mb-4 block">{eventText('email')}<input type="email" required value={email ?? ''} onChange={event => setEmail(event.target.value)} className="mt-1 block w-full rounded border border-sf-border p-3" /></label>}
+            <form onSubmit={event => { event.preventDefault(); if (!quantityInvalid && !customAmountError && profileForm.validate()) setPurchaseStarted(true); }}>
+              {(product.event_mode || profile) && !user?.email && <label className="mb-4 block">{eventText('email')}<input id="buyer.email" type="email" required value={email ?? ''} onChange={event => setEmail(event.target.value)} className="mt-1 block w-full rounded border border-sf-border p-3" /></label>}
               {quantityConfig?.mode === 'checkout' && <CheckoutQuantityField config={quantityConfig} value={quantityInput} onChange={changeQuantity} invalid={quantityInvalid} />}
+              {profile && !transferProfile && <CheckoutProfileFields profile={profile} state={profileForm} invoice={invoice} errors={profileForm.errors} disabled={false} />}
               <button type="submit" disabled={!interactive || quantityInvalid || !!customAmountError} className="w-full cursor-pointer disabled:cursor-wait disabled:opacity-60 rounded-xl bg-sf-accent-bg px-6 py-4 font-semibold text-sf-inverse hover:bg-sf-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent">
                 {t('continueToPayment')}
               </button>

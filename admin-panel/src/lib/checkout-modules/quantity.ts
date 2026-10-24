@@ -8,6 +8,6 @@ export function valueSchema(config: z.infer<typeof configSchema>, ctx: CheckoutC
 }
 export function toOrder(value: number) { return { quantity: { v: 1, value } }; }
 export function parseQuantityInput(value: string, config: z.infer<typeof configSchema>): number | null {
-  const parsed = valueSchema(config, { locale: 'en', currency: '', quantity: 1 }).safeParse(/^\d+$/.test(value) ? Number(value) : NaN);
+  const parsed = valueSchema(config, { locale: 'en', currency: '', quantity: 1 }).safeParse(/^\d+$/.test(value.trim()) ? Number(value) : NaN);
   return parsed.success ? parsed.data : null;
 }

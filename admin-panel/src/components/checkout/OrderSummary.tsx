@@ -18,6 +18,7 @@ interface OrderSummaryProps {
   vatExempt?: boolean;
   vatExemptNote?: string | null;
   taxMode?: TaxMode;
+  quantityInvalid?: boolean;
   customAmountError?: string | null;
   appliedCoupon?: AppliedCoupon;
   bumpProducts?: OrderBumpWithProduct[];
@@ -40,6 +41,7 @@ export default function OrderSummary({
   vatExempt,
   vatExemptNote,
   taxMode,
+  quantityInvalid,
   customAmountError,
   appliedCoupon,
   bumpProducts = [],
@@ -48,6 +50,7 @@ export default function OrderSummary({
 }: OrderSummaryProps) {
   const t = useTranslations('checkout');
   const locale = useLocale();
+  const totalError = quantityInvalid || !!customAmountError;
 
   const selectedBumpsForSummary = bumpProducts.filter(bp => selectedBumpIds.has(bp.bump_product_id));
   const vatDisplay = getVatDisplay({ taxMode, vatRate, vatExempt, vatExemptNote });
@@ -86,26 +89,26 @@ export default function OrderSummary({
       {/* Total */}
       <div className="flex flex-wrap justify-between items-baseline gap-3">
         <div>
-          <div className={`font-semibold ${customAmountError ? 'text-sf-danger' : 'text-sf-heading'}`}>
+          <div className={`font-semibold ${totalError ? 'text-sf-danger' : 'text-sf-heading'}`}>
             {t('total', { defaultValue: 'Total' })}
-            {customAmountError && (
-              <span className="text-xs font-normal ml-2">({t('invalidAmount', { defaultValue: 'invalid amount' })})</span>
+            {totalError && (
+              <span className="text-xs font-normal ml-2">({quantityInvalid ? t('profile.errors.invalidQuantity') : t('invalidAmount', { defaultValue: 'invalid amount' })})</span>
             )}
           </div>
-          {!customAmountError && vatDisplay.kind === 'rate' && (
+          {!totalError && vatDisplay.kind === 'rate' && (
             <div className="text-xs text-sf-muted">
               {t('netPrice')}: {formatPrice(totalNet, currency, locale)} + {t('vat')} {vatDisplay.rate}%
             </div>
           )}
-          {!customAmountError && vatDisplay.kind === 'exempt' && (
+          {!totalError && vatDisplay.kind === 'exempt' && (
             <div className="text-xs text-sf-muted">
               {t('vatExempt')}{vatDisplay.note && ` (${vatDisplay.note})`}
             </div>
           )}
         </div>
-        <div data-testid="order-summary-total" className={`shrink-0 whitespace-nowrap text-2xl font-bold ${customAmountError ? 'text-sf-danger line-through' : 'text-sf-heading'}`}>
-          {formatPrice(totalGross, currency, locale)}
-          {intervalLabel && <span className="text-base font-medium text-sf-muted"> / {intervalLabel}</span>}
+        <div data-testid="order-summary-total" className={`shrink-0 whitespace-nowrap text-2xl font-bold ${quantityInvalid ? 'text-sf-danger' : customAmountError ? 'text-sf-danger line-through' : 'text-sf-heading'}`}>
+          {quantityInvalid ? '—' : formatPrice(totalGross, currency, locale)}
+          {!quantityInvalid && intervalLabel && <span className="text-base font-medium text-sf-muted"> / {intervalLabel}</span>}
         </div>
       </div>
     </div>

@@ -141,7 +141,7 @@ export default function CustomPaymentForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (quantityInvalid) return;
+    if (quantityInvalid || !profileForm.validate()) return;
 
     if (checkoutResult.type !== 'success' || !paymentElementReady) return;
     const checkout = checkoutResult.checkout;

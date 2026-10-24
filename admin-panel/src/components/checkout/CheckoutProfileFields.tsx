@@ -3,6 +3,8 @@
 /** Profile UI uses the same values as the server module registry. @see lib/checkout-modules/registry.ts */
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { EU_COUNTRIES } from '@/lib/checkout/eu-countries';
+import { validateModuleValues } from '@/lib/checkout-modules/registry';
 import type { ReactNode } from 'react';
 import type { CheckoutProfile } from '@/lib/checkout-modules/profile';
 import type { FieldError } from '@/lib/checkout-modules/registry';
@@ -40,7 +42,13 @@ export function useCheckoutProfileValues(profile: CheckoutProfile | null, invoic
       case 'participants': values.participants = config.required || includeParticipants ? people : []; break;
     }
   }
-  return { errors, setErrors, values, buyerType, setBuyerType, person, setNames, party, differs, setDiffers, recipient, setRecipient, phone, setPhone, people, setParticipants, includeParticipants, setIncludeParticipants };
+  const validate = () => {
+    if (!profile) return true;
+    const result = validateModuleValues(profile, values, { locale: 'en', currency: '', quantity });
+    setErrors(result.success ? [] : result.errors);
+    return result.success;
+  };
+  return { validate, errors, setErrors, values, buyerType, setBuyerType, person, setNames, party, differs, setDiffers, recipient, setRecipient, phone, setPhone, people, setParticipants, includeParticipants, setIncludeParticipants };
 }
 
 type ModuleConfig = CheckoutProfile['modules'][number];
@@ -49,18 +57,24 @@ interface Props { profile: CheckoutProfile; state: ProfileFormState; invoice: Us
 export default function CheckoutProfileFields({ profile, state, invoice, errors, disabled }: Props) {
   const t = useTranslations('checkout.profile');
   useEffect(() => {
-    if (errors.length && !disabled) document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+    if (errors.length && !disabled) {
+      const first = document.getElementById(errors[0].field) ?? document.querySelector<HTMLElement>('[aria-invalid="true"]');
+      first?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      first?.focus({ preventScroll: true });
+    }
   }, [errors, disabled]);
   const inputClass = 'w-full rounded-lg border border-sf-border bg-sf-input px-3 py-2.5 text-sf-heading focus:outline-none focus:ring-2 focus:ring-sf-accent';
   const errorText = (field: string) => {
     const error = errors.find(error => error.field === field);
-    return error ? t(`errors.${t.has(`errors.${error.code}`) ? error.code : 'invalid'}`) : null;
+    return error ? error.maximum ? t('errors.tooLong', { max: error.maximum }) : t(`errors.${t.has(`errors.${error.code}`) ? error.code : 'invalid'}`) : null;
   };
   const field = (id: string, label: string, value: string, onChange: (value: string) => void, type = 'text', onBlur?: () => void) => (
     <div key={id}>
       <label htmlFor={id} className="mb-1 block text-sm font-medium text-sf-body">{label}</label>
-      <input id={id} type={type} value={value} onChange={event => onChange(event.target.value)} onBlur={onBlur}
-        disabled={disabled} className={errorText(id) ? inputClass.replace('border-sf-border', 'border-sf-danger') : inputClass} aria-invalid={!!errorText(id)} aria-describedby={errorText(id) ? `${id}-error` : undefined} />
+      {id.endsWith('.country') ? <select id={id} value={value} disabled={disabled} className={inputClass} onChange={event => onChange(event.target.value)}>
+        {EU_COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
+      </select> : <input id={id} type={type} value={value} onChange={event => onChange(event.target.value)} onBlur={onBlur}
+        disabled={disabled} className={errorText(id) ? inputClass.replace('border-sf-border', 'border-sf-danger') : inputClass} aria-invalid={!!errorText(id)} aria-describedby={errorText(id) ? `${id}-error` : undefined} />}
       {errorText(id) && <p id={`${id}-error`} role="alert" className="mt-1 text-sm text-sf-danger">{errorText(id)}</p>}
     </div>
   );

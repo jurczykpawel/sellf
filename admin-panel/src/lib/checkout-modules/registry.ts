@@ -9,7 +9,7 @@ import type { ComponentType } from 'react';
 import type { CheckoutProfile } from '@/lib/checkout-modules/profile';
 import type { Json } from '@/types/database';
 export interface CheckoutCtx { locale: string; quantity: number; buyerType?: 'person' | 'organization'; currency: string }
-export interface FieldError { field: string; code: string }
+export interface FieldError { field: string; code: string; maximum?: number }
 export interface CheckoutModule<C, V> {
   id: string; version: number; entitlement: 'free' | 'pro'; configSchema: z.ZodType<C>;
   valueSchema(config: C, ctx: CheckoutCtx): z.ZodType<V>;
@@ -23,7 +23,7 @@ function define<C, V>(id: string, module: Omit<CheckoutModule<C, V>, 'id' | 'ver
 export const checkoutModules = { buyer: define('buyer', buyer), recipient: define('recipient', recipient), phone: define('phone', phone), quantity: define('quantity', quantity), participants: define('participants', participants) };
 function parseModule<C, V>(module: CheckoutModule<C, V>, config: unknown, value: unknown, ctx: CheckoutCtx) {
   const result = module.valueSchema(module.configSchema.parse(config), ctx).safeParse(value);
-  return result.success ? { success: true as const, details: module.toOrder(result.data) } : { success: false as const, errors: result.error.issues.map(i => ({ field: [module.id, ...i.path].join('.'), code: i.code === 'custom' || ['invalid_nip', 'invalid_text', 'required'].includes(i.message) ? i.message : i.code })) };
+  return result.success ? { success: true as const, details: module.toOrder(result.data) } : { success: false as const, errors: result.error.issues.map(i => ({ field: [module.id, ...i.path].join('.'), ...(i.code === 'too_big' ? { maximum: Number(i.maximum) } : {}), code: i.code === 'custom' || ['invalid_nip', 'invalid_text', 'required'].includes(i.message) ? i.message : i.code })) };
 }
 export function validateModuleValues(profile: CheckoutProfile, input: unknown, ctx: CheckoutCtx) {
   const values = z.record(z.string(), z.unknown()).safeParse(input);

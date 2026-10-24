@@ -6,7 +6,7 @@ describe('quantity input', () => {
   it.each(['0', '-1', '', ' ', 'abc', '2.5', '6', 'Infinity', '1'])('rejects %j before pricing', value => {
     expect(parseQuantityInput(value, config)).toBeNull();
   });
-  it.each(['2', '3', '5'])('accepts %j within configured limits', value => {
+  it.each(['2', '3', '5', ' 3 '])('accepts %j within configured limits', value => {
     expect(parseQuantityInput(value, config)).toBe(Number(value));
   });
 });

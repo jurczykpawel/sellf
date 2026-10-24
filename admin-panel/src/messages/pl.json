@@ -191,6 +191,8 @@
       "loadingCompany": "Pobieranie danych firmy…",
       "fixFields": "Sprawdź zaznaczone pola.",
       "errors": {
+        "tooLong": "Maksymalnie {max} znaków.",
+        "invalidQuantity": "Nieprawidłowa ilość",
         "invalid": "Wpisz poprawną wartość.",
         "required": "To pole jest wymagane.",
         "invalid_nip": "Wpisz poprawny NIP.",

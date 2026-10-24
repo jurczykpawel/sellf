@@ -191,6 +191,8 @@
       "loadingCompany": "Loading company details…",
       "fixFields": "Check the marked fields.",
       "errors": {
+        "tooLong": "Maximum {max} characters.",
+        "invalidQuantity": "Invalid quantity",
         "invalid": "Enter a valid value.",
         "required": "This field is required.",
         "invalid_nip": "Enter a valid Polish tax number.",
