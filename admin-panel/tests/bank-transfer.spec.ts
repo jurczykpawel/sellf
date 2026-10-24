@@ -64,7 +64,7 @@ async function place(page: Page, buyerEmail: string) {
   const order = await response.json(); expect(order.amount).toBe(12300); ids.push(order.orderId);
   await expect(page).toHaveURL(new RegExp(`/order/${order.orderId}/transfer\\?token=`));
   await expect(page.getByRole('heading', { name: `Dziękujemy za zamówienie nr ${order.orderNumber}` })).toBeVisible();
-  await expect(page.getByText('PL61109010140000071219812874')).toBeVisible();
+  await expect(page.getByText('PL61 1090 1014 0000 0712 1981 2874')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Drukuj / zapisz PDF' })).toBeVisible();
   expect(stripeRequests).toBe(0);
   return order;
@@ -115,6 +115,8 @@ test('(a) organization places transfer with immediate access, unpaid invoice, pr
   expect(messages.ok()).toBe(true); const mailbox = await messages.json(); expect(mailbox.messages.length).toBeGreaterThan(0);
   const mail = await (await page.request.get(`${MAILPIT_URL}/api/v1/message/${mailbox.messages[0].ID}`)).json();
   expect(mail.HTML).toContain('PL61109010140000071219812874'); expect(mail.HTML).toContain('Dane do przelewu');
+  const placed = await checked(await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', 'order.placed').single());
+  expect(placed.payload).toMatchObject({ data: { order: { transfer: { account: 'PL61109010140000071219812874' } } } });
   await checked(await db.from('payment_transactions').update({ payment_due_at: '2000-01-01T00:00:00Z' }).eq('id', orderId).select());
   expect((await page.request.get('/api/cron?job=bank-transfer-overdue', { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } })).ok()).toBe(true);
   expect((await db.from('payment_transactions').select('order_overdue_notified_at').eq('id', orderId).single()).data?.order_overdue_notified_at).toBeTruthy();
