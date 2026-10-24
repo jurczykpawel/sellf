@@ -118,6 +118,7 @@ test('saves, previews, publishes and restores product offers in EN and PL', asyn
     expect((await supabaseAdmin.from('product_offer_config').select('published,draft').eq('product_id', product.id).single()).data).toMatchObject({ published: { enabled: true }, draft: null });
     // Baseline rollback turns the offer off without touching product commerce.
     await page.getByRole('button', { name: 'Restore this version', exact: true }).last().click();
+    await page.getByRole('button', { name: 'Confirm restore', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('Published as revision 4');
     expect((await supabaseAdmin.from('product_offer_config').select('published').eq('product_id', product.id).single()).data?.published).toBeNull();
     expect((await supabaseAdmin.from('products').select('price').eq('id', product.id).single()).data?.price).toBe(149);
