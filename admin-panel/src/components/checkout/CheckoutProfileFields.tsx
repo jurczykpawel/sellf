@@ -1,7 +1,7 @@
 'use client';
 
 /** Profile UI uses the same values as the server module registry. @see lib/checkout-modules/registry.ts */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { getCountryOptions } from '@/lib/checkout/countries';
 import { validateModuleValues } from '@/lib/checkout-modules/registry';
@@ -57,9 +57,10 @@ interface Props { profile: CheckoutProfile; state: ProfileFormState; invoice: Us
 export default function CheckoutProfileFields({ profile, state, invoice, errors, disabled }: Props) {
   const t = useTranslations('checkout.profile');
   const locale = useLocale();
+  const fieldsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (errors.length && !disabled) {
-      const first = document.getElementById(errors[0].field) ?? document.querySelector<HTMLElement>('[aria-invalid="true"]');
+      const first = fieldsRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
       first?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       first?.focus({ preventScroll: true });
     }
@@ -72,7 +73,7 @@ export default function CheckoutProfileFields({ profile, state, invoice, errors,
   const field = (id: string, label: string, value: string, onChange: (value: string) => void, type = 'text', onBlur?: () => void) => (
     <div key={id}>
       <label htmlFor={id} className="mb-1 block text-sm font-medium text-sf-body">{label}</label>
-      {id.endsWith('.country') ? <select id={id} value={value} disabled={disabled} className={inputClass} onChange={event => onChange(event.target.value)}>
+      {id.endsWith('.country') ? <select id={id} value={value} disabled={disabled} aria-invalid={!!errorText(id)} aria-describedby={errorText(id) ? `${id}-error` : undefined} className={inputClass} onChange={event => onChange(event.target.value)}>
         {getCountryOptions(locale, value).map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
       </select> : <input id={id} type={type} value={value} onChange={event => onChange(event.target.value)} onBlur={onBlur}
         disabled={disabled} className={errorText(id) ? inputClass.replace('border-sf-border', 'border-sf-danger') : inputClass} aria-invalid={!!errorText(id)} aria-describedby={errorText(id) ? `${id}-error` : undefined} />}
@@ -112,7 +113,7 @@ export default function CheckoutProfileFields({ profile, state, invoice, errors,
         </div>)}
       </>,
   };
-  return <div className="space-y-6">{profile.modules.map(config => {
+  return <div ref={fieldsRef} className="space-y-6">{profile.modules.map(config => {
     if (config.id === 'quantity' || (config.id === 'recipient' && state.buyerType !== 'organization')) return null;
     return <fieldset key={config.id} disabled={disabled} className="space-y-3 rounded-xl border border-sf-border p-4">
       <legend className="px-1 font-semibold text-sf-heading">{t(config.id)}</legend>

@@ -111,6 +111,43 @@ test('product route validates quantity and initialized checkout keeps its last v
   expect(requests).toEqual([]);
   expect(errors).toEqual([]);
 });
+for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
+  test(`long B2B profile focuses the first displayed error on every attempt at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    expect((await db.from('products').update({ checkout_profile: profile }).eq('id', product.id)).error).toBeNull();
+    await acceptAllCookies(page);
+    await page.goto(`/pl/checkout/${product.slug}`);
+    const start = page.getByRole('button', { name: 'Przejdź do płatności' });
+    await expect(start).toBeEnabled();
+    await page.locator('[id="buyer.email"]').fill('buyer@example.com');
+    await page.getByLabel('Ilość', { exact: true }).fill('5');
+    await page.getByLabel('Typ nabywcy').selectOption('organization');
+    await party(page, 'buyer');
+    await page.locator('[id="buyer.first_name"]').fill('Jan');
+    await page.locator('[id="buyer.last_name"]').fill('Nowak');
+    await page.locator('[id="buyer.nip"]').fill('123');
+    await page.locator('#phone').fill('500100200');
+    for (let i = 0; i < 5; i++) {
+      for (const [key, value] of Object.entries({ first_name: 'Jan', last_name: 'Nowak', email: `person${i}@example.com` })) {
+        await page.locator(`[id="participants.${i}.${key}"]`).fill(value);
+      }
+    }
+    const nip = page.locator('[id="buyer.nip"]');
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await start.scrollIntoViewIfNeeded();
+      await expect(nip).not.toBeInViewport();
+      await start.click();
+      await expect(nip).toBeFocused();
+      await expect(nip).toBeInViewport({ ratio: 1 });
+    }
+    // Organization validation lists company fields before optional buyer names.
+    await page.locator('[id="buyer.first_name"]').fill('J'.repeat(101));
+    await start.click();
+    await expect(page.locator('[id="buyer.first_name"]')).toBeFocused();
+    await expect(page.locator('[id="buyer.first_name"]')).toBeInViewport({ ratio: 1 });
+    await expect(start).toBeEnabled();
+  });
+}
 test('invalid profile fields are marked, described and focused', async ({ page }) => {
   expect((await db.from('products').update({ checkout_profile: profile }).eq('id', product.id)).error).toBeNull();
   await open(page, 2);
