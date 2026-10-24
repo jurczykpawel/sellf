@@ -37,10 +37,11 @@ async function open(page: Page, quantity = 1) {
   const buyerEmail = page.locator('[id="buyer.email"]');
   if (await buyerEmail.count()) await buyerEmail.fill('buyer@example.com');
   const fields = page.locator('input[id^="buyer."], input[id^="participants."], #phone');
-  for (const input of await fields.all()) {
-    const id = await input.getAttribute('id');
-    if (id === 'buyer.email' || quantity === 1 && id!.startsWith('participants.') && await page.locator('[id="buyer.first_name"]').count()) continue;
-    await input.fill(id === 'phone' ? '500100200' : id!.endsWith('.email') ? `${id!.split('.')[1]}@example.com` : 'Jan');
+  const fieldIds = await fields.evaluateAll(inputs => inputs.map(input => input.id));
+  for (const id of fieldIds) {
+    const input = page.locator(`[id="${id}"]`);
+    if (id === 'buyer.email' || quantity === 1 && id.startsWith('participants.') && await page.locator('[id="buyer.first_name"]').count()) continue;
+    await input.fill(id === 'phone' ? '500100200' : id.endsWith('.email') ? `${id.split('.')[1]}@example.com` : 'Jan');
   }
   const response = await startNativeCheckout(page);
   const paymentEmail = page.locator('#checkoutEmail');
@@ -200,19 +201,39 @@ test('shared profile displays online and transfer validation errors', async ({ p
     expect((await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Test', bank_account_number: 'PL61109010140000071219812874' }).eq('id', true)).error).toBeNull();
     const shared = { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], gus: false, bank_transfer_for: ['person', 'organization'] }, { id: 'phone', required: true }] };
     expect((await db.from('products').update({ checkout_profile: shared }).eq('id', product.id)).error).toBeNull();
+    const requests: string[] = [];
+    page.on('request', request => {
+      if (['/api/create-payment-intent', '/api/orders/bank-transfer'].includes(new URL(request.url()).pathname) && !request.postDataJSON()?.expireOnly) requests.push(request.url());
+    });
+    await acceptAllCookies(page);
+    await page.goto(`/pl/checkout/${product.slug}`);
+    await expect(page.getByRole('radio', { name: /Przelew tradycyjny/ })).toBeVisible();
+    await page.locator('[id="buyer.email"]').fill('buyer@example.com');
+    await page.getByRole('button', { name: 'Przejdź do płatności' }).click();
+    await expect(page.locator('[id="buyer.first_name"]')).toBeFocused();
+    await expect(page.locator('#phone-error')).toBeVisible();
+    expect(requests).toEqual([]);
     await open(page);
+    requests.length = 0;
     await page.locator('[id="buyer.first_name"]').fill('');
     await page.locator('#phone').fill('');
     await submit(page);
     await expect(page.locator('[id="buyer.first_name"]')).toHaveAttribute('aria-invalid', 'true');
     await expect(page.locator('[id="buyer.first_name"]')).toBeFocused();
+    await page.locator('[id="buyer.first_name"]').fill('Jan');
     await page.getByRole('radio', { name: /Przelew tradycyjny/ }).check();
     await page.getByRole('checkbox', { name: /Zgadzam|Akceptuję/ }).check();
     const button = page.getByRole('button', { name: 'Zamawiam z obowiązkiem zapłaty' });
     await expect(button).toBeEnabled({ timeout: 30000 });
     await button.click();
     await expect(page.locator('#phone-error')).toBeVisible();
+    await expect(page.locator('[id="buyer.first_name"]')).toHaveAttribute('aria-invalid', 'false');
+    await expect(page.locator('#phone')).toBeFocused();
+    await page.locator('[id="buyer.first_name"]').fill('');
+    await button.click();
+    await expect(page.locator('[id="buyer.first_name"]')).toHaveAttribute('aria-invalid', 'true');
     await expect(page.locator('[id="buyer.first_name"]')).toBeFocused();
+    expect(requests).toEqual([]);
   } finally {
     expect((await db.from('bank_transfer_config').upsert(saved.data!)).error).toBeNull();
     expect((await db.from('products').update({ checkout_profile: profile }).eq('id', product.id)).error).toBeNull();
