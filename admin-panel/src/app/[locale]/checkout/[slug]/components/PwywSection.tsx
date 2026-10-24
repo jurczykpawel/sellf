@@ -44,7 +44,6 @@ interface PwywSectionProps {
   error: string | null;
   pwyw: PwywFreeAccessProps;
   onAmountInputChange: (raw: string) => void;
-  onAmountBlur: () => void;
   onPresetClick: (preset: number) => void;
   collectTermsOfService: boolean;
 }
@@ -61,7 +60,6 @@ export default function PwywSection({
   error,
   pwyw,
   onAmountInputChange,
-  onAmountBlur,
   onPresetClick,
   collectTermsOfService,
 }: PwywSectionProps) {
@@ -113,13 +111,7 @@ export default function PwywSection({
                 type="text"
                 inputMode="decimal"
                 value={customAmountInput}
-                onChange={(e) => {
-                  const rawValue = e.target.value.replace(',', '.');
-                  if (rawValue === '' || /^\d*\.?\d*$/.test(rawValue)) {
-                    onAmountInputChange(rawValue);
-                  }
-                }}
-                onBlur={onAmountBlur}
+                onChange={(e) => onAmountInputChange(e.target.value)}
                 placeholder={`${product.custom_price_min ?? minimumChargeAmount(product.currency)}`}
                 className={`
                   w-full px-4 py-3 bg-sf-input border rounded-lg text-lg font-semibold text-sf-heading

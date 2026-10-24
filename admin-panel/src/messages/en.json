@@ -283,6 +283,7 @@
     "lowestPriceTooltipDisclaimer": "Please note that this price may have been offered only to selected users.",
     "otoExpired": "The special offer has expired",
     "customPrice": {
+      "invalidAmount": "Enter a valid amount: up to 2 decimal places, or a whole number for zero-decimal currencies.",
       "title": "Choose Your Amount",
       "minimum": "Minimum",
       "belowMinimum": "Amount must be at least {minimum}",

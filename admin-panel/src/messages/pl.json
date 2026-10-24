@@ -283,6 +283,7 @@
     "lowestPriceTooltipDisclaimer": "Miej na uwadze, że ta cena mogła być oferowana tylko wybranym użytkownikom.",
     "otoExpired": "Oferta specjalna wygasła",
     "customPrice": {
+      "invalidAmount": "Wpisz poprawną kwotę: maksymalnie 2 miejsca po przecinku, a dla walut bez części dziesiętnej — liczbę całkowitą.",
       "title": "Wybierz kwotę",
       "minimum": "Minimum",
       "belowMinimum": "Kwota musi wynosić co najmniej {minimum}",

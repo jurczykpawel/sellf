@@ -14,6 +14,7 @@ import { useInvoiceData } from '@/hooks/useInvoiceData';
 import { parseQuantityInput } from '@/lib/checkout-modules/quantity';
 import CheckoutProfileFields, { CheckoutQuantityField, useCheckoutProfileValues } from '@/components/checkout/CheckoutProfileFields';
 import { formatPrice, STRIPE_MAX_AMOUNT } from '@/lib/constants';
+import { parseCustomAmountInput } from '@/lib/payment/custom-amount';
 import { minimumChargeAmount } from '@/lib/currency/minor-units';
 import { signOutAndRedirectToCheckout } from '@/lib/actions/checkout';
 import { validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
@@ -216,13 +217,11 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     }
     return product.price;
   };
-  const [customAmount, setCustomAmount] = useState<number>(getInitialAmount);
   const [customAmountInput, setCustomAmountInput] = useState<string>(getInitialAmount().toString());
-  const [customAmountError, setCustomAmountError] = useState<string | null>(null);
+  const parsedAmount = parseCustomAmountInput(customAmountInput, product.currency);
+  const customAmount = parsedAmount ?? 0;
 
-  // Pure validator — returns the error message (or null) without touching state.
-  // The caller decides when to commit the error to UI state, which keeps this
-  // function safe to call from useEffect bodies (no setState cascade).
+  // Validate range separately from the raw input format.
   const checkCustomAmount = useCallback((amount: number): string | null => {
     if (!product.allow_custom_price) return null;
     const minPrice = product.custom_price_min ?? minimumChargeAmount(product.currency);
@@ -235,9 +234,12 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     return null;
   }, [product, t, locale]);
 
+  const customAmountError = !product.allow_custom_price ? null : parsedAmount === null
+    ? t('customPrice.invalidAmount') : checkCustomAmount(customAmount);
+
   // Compute isPwywFree once — shared with PwywSection
   const isPwywFree =
-    product.allow_custom_price &&
+    product.allow_custom_price && !customAmountError &&
     customAmount === 0 &&
     (product.custom_price_min ?? minimumChargeAmount(product.currency)) === 0;
 
@@ -408,7 +410,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   // One request at a time; superseded responses remain available for replacement.
   useEffect(() => {
     if (activeMethod === 'transfer' || !eventReady || !purchaseStarted || hasAccess || error || authLoading || isFunnelTest || isFreeAccess ||
-      (product.allow_custom_price && checkCustomAmount(customAmount) !== null)) {
+      !!customAmountError) {
       sessionQueue.update(null);
       return;
     }
@@ -473,7 +475,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     activeMethod,
     eventReady, eventSessionId, refreshEvents, eventText, purchaseStarted, hasAccess, error, authLoading,
     product, email, locale, quantity, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
-    customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess,
+    customAmount, customAmountError, isFunnelTest, isFreeAccess, grantAccess,
     checkoutSessionSignature, explicitRepurchase, sessionQueue, customFieldDefs, customFieldValues,
   ]);
 
@@ -541,17 +543,10 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           hasAccess={hasAccess}
           error={error}
           pwyw={{ ...pwyw, handlePwywFreeAccess: claimFreeAccess }}
-          onAmountInputChange={(raw) => setCustomAmountInput(raw)}
-          onAmountBlur={() => {
-            const value = parseFloat(customAmountInput) || 0;
-            setCustomAmount(value);
-            if (value > 0) setCustomAmountInput(value.toString());
-            setCustomAmountError(checkCustomAmount(value));
-          }}
+          onAmountInputChange={(raw) => { setCustomAmountInput(raw); setPurchaseStarted(false); }}
           onPresetClick={(preset) => {
-            setCustomAmount(preset);
-            setCustomAmountInput(preset.toString());
-            setCustomAmountError(null);
+            setCustomAmountInput(preset.toLocaleString(locale, { useGrouping: false }));
+            setPurchaseStarted(false);
             setError(null);
           }}
           collectTermsOfService={collectTermsOfService}
@@ -679,10 +674,10 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           )}
 
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && activeMethod === 'online' && !purchaseStarted && eventReady && (
-            <form onSubmit={event => { event.preventDefault(); if (!quantityInvalid) setPurchaseStarted(true); }}>
+            <form onSubmit={event => { event.preventDefault(); if (!quantityInvalid && !customAmountError) setPurchaseStarted(true); }}>
               {product.event_mode && <label className="mb-4 block">{eventText('email')}<input type="email" required value={email ?? ''} onChange={event => setEmail(event.target.value)} className="mt-1 block w-full rounded border border-sf-border p-3" /></label>}
               {quantityConfig?.mode === 'checkout' && <CheckoutQuantityField config={quantityConfig} value={quantityInput} onChange={changeQuantity} invalid={quantityInvalid} />}
-              <button type="submit" disabled={!interactive || quantityInvalid} className="w-full cursor-pointer disabled:cursor-wait disabled:opacity-60 rounded-xl bg-sf-accent-bg px-6 py-4 font-semibold text-sf-inverse hover:bg-sf-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent">
+              <button type="submit" disabled={!interactive || quantityInvalid || !!customAmountError} className="w-full cursor-pointer disabled:cursor-wait disabled:opacity-60 rounded-xl bg-sf-accent-bg px-6 py-4 font-semibold text-sf-inverse hover:bg-sf-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent">
                 {t('continueToPayment')}
               </button>
               <p className="mt-3 text-center text-xs text-sf-muted">{t('securePayment')}</p>

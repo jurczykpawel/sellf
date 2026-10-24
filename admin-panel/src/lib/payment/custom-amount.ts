@@ -1,5 +1,5 @@
 import { STRIPE_MAX_AMOUNT } from '@/lib/constants';
-import { minimumChargeAmount } from '@/lib/currency/minor-units';
+import { currencyExponent, minimumChargeAmount } from '@/lib/currency/minor-units';
 
 export type CustomAmountValidation =
   | { ok: true }
@@ -36,4 +36,12 @@ export function validateCustomAmount(
     return { ok: false, error: `Amount must be no more than ${STRIPE_MAX_AMOUNT} ${product.currency}` };
   }
   return { ok: true };
+}
+
+/** Parse a buyer-entered display amount without rounding fractional digits. */
+export function parseCustomAmountInput(raw: string, currency: string): number | null {
+  const pattern = currencyExponent(currency) === 0 ? /^\d+$/ : /^\d+(?:[.,]\d{0,2})?$/;
+  if (!pattern.test(raw)) return null;
+  const amount = Number(raw.replace(',', '.'));
+  return Number.isFinite(amount) ? amount : null;
 }
