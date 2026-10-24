@@ -4166,6 +4166,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      _reserve_coupon: {
+        Args: {
+          coupon_id_param: string
+          currency_param: string
+          customer_email_param: string
+          product_id_param: string
+        }
+        Returns: Json
+      }
       admin_bank_transfer_order: {
         Args: {
           p_action: string

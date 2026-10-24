@@ -10,7 +10,7 @@ import { deleteAuthUserByEmail } from '../helpers/db-cleanup';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-for (const scenario of ['coupon-stripe-email', 'plain-stripe-email', 'coupon-known-email']) {
+for (const scenario of ['coupon-stripe-email', 'plain-stripe-email', 'coupon-known-email', 'coupon-stripe-email-expired', 'coupon-known-email-expired']) {
   test(`embed completion ${scenario}`, async ({ page, baseURL }) => {
     expect(process.env.STRIPE_LIVE_E2E).toBe('1');
     expect(process.env.STRIPE_SECRET_KEY).toMatch(/^sk_test_/);
@@ -18,7 +18,7 @@ for (const scenario of ['coupon-stripe-email', 'plain-stripe-email', 'coupon-kno
     const slug = `embed-live-${randomUUID()}`;
     const email = `${slug}@example.com`;
     const coupon = scenario.startsWith('coupon');
-    const knownEmail = scenario.endsWith('known-email');
+    const knownEmail = scenario.includes('known-email');
     let productId = '', couponId = '';
     const sessions: string[] = [];
     let html = '';
@@ -55,6 +55,9 @@ for (const scenario of ['coupon-stripe-email', 'plain-stripe-email', 'coupon-kno
       const session = await stripe.checkout.sessions.retrieve(sessionId);
       expect(session.customer_email).toBe(knownEmail ? email : null);
       expect(session.amount_total).toBe(coupon ? 1800 : 2000);
+      if (scenario.endsWith('-expired')) {
+        expect((await db.from('coupons').update({ expires_at: '2000-01-01T00:00:00Z' }).eq('id', couponId)).error).toBeNull();
+      }
       const checkout = page.frameLocator('iframe[name="embedded-checkout"]');
       if (!knownEmail) await checkout.locator('input[name="email"]').fill(email);
       await checkout.getByTestId('card-accordion-item').click({ timeout: 60000 });

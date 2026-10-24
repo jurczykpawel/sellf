@@ -201,7 +201,7 @@ async function timing(s: Scenario, sessionId: string, pageAt: number): Promise<s
   return order;
 }
 
-async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; setPrice?: boolean; fixedPrice?: boolean; netVat?: boolean; profile?: boolean; event?: boolean; netCouponQuantity?: number; noBump?: boolean } = {}): Promise<void> {
+async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; setPrice?: boolean; fixedPrice?: boolean; netVat?: boolean; profile?: boolean; event?: boolean; netCouponQuantity?: number; noBump?: boolean; expireCouponAfterReservation?: boolean } = {}): Promise<void> {
   const slug = `stripe-live-${label}-${randomUUID().slice(0, 8)}`;
   const s: Scenario = { slug, productIds: [], email: `${slug}@example.com`, domain: `${slug}.example.com`, sessionIds: [], subscription: !!options.subscription, netVat: options.netVat, profile: options.profile, netCouponQuantity: options.netCouponQuantity, noBump: options.noBump };
   let passed = false;
@@ -274,6 +274,14 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
     for (const checkbox of await terms.all()) if (await checkbox.isVisible()) await checkbox.check();
     await fillCard(page, card);
     if (!s.profile && !options.event && !s.netCouponQuantity) await expect(page.locator('#fullName')).toHaveValue('Stripe Test Buyer');
+    if (options.expireCouponAfterReservation) {
+      await page.route('**/api/update-payment-metadata', async route => {
+        const response = await route.fetch();
+        expect(response.ok()).toBe(true);
+        expect((await supabaseAdmin.from('coupons').update({ expires_at: '2000-01-01T00:00:00Z' }).eq('id', s.coupon!.id)).error).toBeNull();
+        await route.fulfill({ response });
+      });
+    }
     await page.locator('button[type="submit"]').click();
     if (options.challenge) {
       let challenge: Frame | undefined;
@@ -517,3 +525,5 @@ test('PLN net coupons through transfer placement and offline completion', async 
 });
 
 test('PLN net fixed coupon entered before email with five units and bump', async ({ page }) => { await run(page, 'net-fixed-five', '4242424242424242', { fixedPrice: true, netVat: true, netCouponQuantity: 5 }); });
+
+test('form coupon expires after reservation', async ({ page }) => { await run(page, 'coupon-expired', '4242424242424242', { coupon: true, expireCouponAfterReservation: true }); });
