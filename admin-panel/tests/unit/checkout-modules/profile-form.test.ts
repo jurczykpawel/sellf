@@ -55,3 +55,18 @@ it('focuses a server-reported recipient error once payment processing finishes',
   rerender(show(false));
   expect(document.activeElement?.id).toBe('recipient.city');
 });
+it.each(['GB', 'US'])('allows selecting and validating %s for buyer and recipient', country => {
+  const party = { company_name: 'Example', nip: '5250001003', address: 'Street 1', postal_code: '12345', city: 'City', country: 'PL' };
+  const setCountry = vi.fn();
+  const setRecipient = vi.fn();
+  const state = { buyerType: 'organization', person: { first_name: '', last_name: '', email: '' }, party, differs: true, recipient: party, setRecipient } as unknown as ReturnType<typeof useCheckoutProfileValues>;
+  render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(CheckoutProfileFields, { profile, state, invoice: { ...invoice, setCountry }, errors: [], disabled: false })));
+  for (const id of ['buyer.country', 'recipient.country']) {
+    const select = document.getElementById(id) as HTMLSelectElement;
+    expect(Array.from(select.options).some(option => option.value === country)).toBe(true);
+    fireEvent.change(select, { target: { value: country } });
+  }
+  expect(setCountry).toHaveBeenCalledWith(country);
+  expect(setRecipient).toHaveBeenCalled();
+  expect(validateModuleValues(profile, { buyer: { type: 'organization', ...party, country }, recipient: { differs: true, ...party, country } }, { locale: 'en', currency: 'PLN', quantity: 1 }).success).toBe(true);
+});

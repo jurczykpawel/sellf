@@ -335,6 +335,7 @@ export default function CustomPaymentForm({
             </button>
           </div>
         )}
+        {profile && email ? <div id="buyer.email" tabIndex={-1} className="text-sm text-sf-body">Email: <span className="font-medium">{email}</span></div> : <>
         <label htmlFor="checkoutEmail" className="block text-sm font-medium text-sf-body mb-2">
           Email
         </label>
@@ -349,6 +350,7 @@ export default function CustomPaymentForm({
           required
           className={`w-full px-3 py-2.5 bg-sf-input border ${moduleErrors.some(error => error.field === 'buyer.email') ? 'border-sf-danger' : 'border-sf-border'} rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent`}
         />
+        </>}
       </div>
 
       {moduleErrors.filter(error => error.field === 'buyer.email').map(error => <p id="buyer.email-error" key={error.field} role="alert" className="text-sm text-sf-danger">{t('profile.errors.invalid')}</p>)}

@@ -2,8 +2,8 @@
 
 /** Profile UI uses the same values as the server module registry. @see lib/checkout-modules/registry.ts */
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { EU_COUNTRIES } from '@/lib/checkout/eu-countries';
+import { useLocale, useTranslations } from 'next-intl';
+import { getCountryOptions } from '@/lib/checkout/countries';
 import { validateModuleValues } from '@/lib/checkout-modules/registry';
 import type { ReactNode } from 'react';
 import type { CheckoutProfile } from '@/lib/checkout-modules/profile';
@@ -56,6 +56,7 @@ type ProfileFormState = ReturnType<typeof useCheckoutProfileValues>;
 interface Props { profile: CheckoutProfile; state: ProfileFormState; invoice: UseInvoiceDataReturn; errors: FieldError[]; disabled: boolean }
 export default function CheckoutProfileFields({ profile, state, invoice, errors, disabled }: Props) {
   const t = useTranslations('checkout.profile');
+  const locale = useLocale();
   useEffect(() => {
     if (errors.length && !disabled) {
       const first = document.getElementById(errors[0].field) ?? document.querySelector<HTMLElement>('[aria-invalid="true"]');
@@ -72,7 +73,7 @@ export default function CheckoutProfileFields({ profile, state, invoice, errors,
     <div key={id}>
       <label htmlFor={id} className="mb-1 block text-sm font-medium text-sf-body">{label}</label>
       {id.endsWith('.country') ? <select id={id} value={value} disabled={disabled} className={inputClass} onChange={event => onChange(event.target.value)}>
-        {EU_COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
+        {getCountryOptions(locale, value).map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
       </select> : <input id={id} type={type} value={value} onChange={event => onChange(event.target.value)} onBlur={onBlur}
         disabled={disabled} className={errorText(id) ? inputClass.replace('border-sf-border', 'border-sf-danger') : inputClass} aria-invalid={!!errorText(id)} aria-describedby={errorText(id) ? `${id}-error` : undefined} />}
       {errorText(id) && <p id={`${id}-error`} role="alert" className="mt-1 text-sm text-sf-danger">{errorText(id)}</p>}
