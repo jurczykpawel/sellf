@@ -4,11 +4,13 @@ import { z } from 'zod';
 import Ajv2020 from 'ajv/dist/2020';
 import { configSchema } from '@/lib/storefront-templates/schemas';
 import { DEFAULT_CONFIG, D_CONFIG } from '@/lib/storefront-templates/fixtures';
-import { STOREFRONT_TEMPLATES, normalizeConfigOrders, validateConfig } from '@/lib/storefront-templates/registry';
-import { phase2Recipes } from '../../fixtures/storefront-sections/phase2/contracts';
+import { STOREFRONT_TEMPLATES, normalizeConfigOrders, validateConfig, validateRecipe } from '@/lib/storefront-templates/registry';
 import { offerRecipeSchema, phase2ConfigSchema } from '@/lib/storefront-templates/phase2-contracts';
 import { effectiveLayout } from '@/lib/storefront-templates/layout';
 import { resolveSelection } from '@/lib/storefront-templates/resolver';
+import type { LayoutOverrides } from '@/lib/storefront-templates/section-descriptors';
+import type { StorefrontConfig, TemplateRecipe } from '@/lib/storefront-templates/schemas';
+import { phase2Recipes } from '../../fixtures/storefront-sections/phase2/contracts';
 
 vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ default: {} }));
 
@@ -57,25 +59,49 @@ it('normalizes authored orders losslessly, including inactive templates, without
 function permutations<T>(items: T[]): T[][] {
   return items.length ? items.flatMap((item, index) => permutations(items.filter((_, i) => i !== index)).map(rest => [item, ...rest])) : [[]];
 }
+/** Exhaust layout-dependent checks; exercise selection once per visibility subset. */
+function resolveLayoutCase(templateId: StorefrontConfig['templateId'], overrides: LayoutOverrides, checkSelection: boolean, validatedRecipes: Set<string>): TemplateRecipe {
+  const layout = effectiveLayout(STOREFRONT_TEMPLATES[templateId], overrides);
+  if (!layout.valid) expect(layout.valid, JSON.stringify({ templateId, overrides })).toBe(true);
+  // Hidden sections can occupy different stored positions and produce identical recipes.
+  // Key the complete output so any changed field still receives real recipe validation.
+  const recipeKey = JSON.stringify(layout.recipe);
+  if (!validatedRecipes.has(recipeKey)) {
+    const validation = validateRecipe(layout.recipe);
+    expect(validation.valid, JSON.stringify({ templateId, overrides, validation })).toBe(true);
+    validatedRecipes.add(recipeKey);
+  }
+  if (checkSelection) {
+    const selected = resolveSelection({ ...D_CONFIG, templateId, overridesByTemplate: { [templateId]: overrides } }, ['default', 'd', 'storefront-a', 'storefront-b', 'storefront-c']);
+    expect(selected.diagnostic, JSON.stringify({ templateId, overrides })).toBeNull();
+    expect(selected.recipe).toEqual(layout.recipe);
+  }
+  return layout.recipe;
+}
+
 it('release gate: every previously supported legacy order and visibility subset resolves without UNSUPPORTED', () => {
   const legacy = { d: ['hero', 'tasks', 'start', 'catalogue', 'faq', 'closing'], default: ['catalogue'], 'storefront-a': ['hero', 'tasks', 'comparison', 'start', 'catalogue', 'faq', 'closing'], 'storefront-b': ['hero', 'featured', 'catalogue', 'starter', 'faq', 'closing'], 'storefront-c': ['hero', 'story', 'paths', 'projects', 'start', 'catalogue', 'faq', 'closing'] };
   let visited = 0; let supported = 0;
+  const validatedRecipes = new Set<string>();
   for (const templateId of ['d', 'default', 'storefront-a', 'storefront-b', 'storefront-c'] as const) {
     const hideable = templateId === 'storefront-c' ? ['story', 'projects', 'start', 'faq'] : templateId === 'storefront-b' ? ['featured', 'starter', 'faq'] : templateId !== 'default' ? ['tasks', 'start', 'faq'] : [];
-    for (const order of permutations(legacy[templateId])) for (let mask = 0; mask < 2 ** hideable.length; mask++) {
+    const visibilitySubsets = Array.from({ length: 2 ** hideable.length }, (_, mask) => Object.fromEntries(hideable.map((id, bit) => [id, { visibility: mask & (1 << bit) ? 'hidden' as const : 'visible' as const }])));
+    const checkedMasks = new Set<number>();
+    for (const order of permutations(legacy[templateId])) for (let mask = 0; mask < visibilitySubsets.length; mask++) {
       visited++;
-      const sections = Object.fromEntries(hideable.map((id, bit) => [id, { visibility: mask & (1 << bit) ? 'hidden' : 'visible' }]));
-      const config = { ...D_CONFIG, templateId, overridesByTemplate: { [templateId]: { order, sections } } };
+      const sections = visibilitySubsets[mask];
       // The legacy contract required the D hero first; all 720 orders are enumerated.
       if (templateId !== 'default' && order.filter(id => sections[id]?.visibility !== 'hidden')[0] !== 'hero') continue;
       supported++;
-      const selected = resolveSelection(config, ['default', 'd', 'storefront-a', 'storefront-b', 'storefront-c']);
-      expect(selected.diagnostic, JSON.stringify({ templateId, order, mask })).toBeNull();
-      expect(selected.recipe.sections.map(section => section.id).filter(id => legacy[templateId].includes(id))).toEqual(order.filter(id => sections[id]?.visibility !== 'hidden'));
+      const recipe = resolveLayoutCase(templateId, { order, sections }, !checkedMasks.has(mask), validatedRecipes);
+      checkedMasks.add(mask);
+      expect(recipe.sections.map(section => section.id).filter(id => legacy[templateId].includes(id))).toEqual(order.filter(id => sections[id]?.visibility !== 'hidden'));
     }
+    expect(checkedMasks.size).toBe(visibilitySubsets.length);
   }
   expect(visited).toBe(696961); expect(supported).toBe(120925);
-}, 180000);
+  expect(validatedRecipes.size).toBe(10325);
+}, 30000);
 
 it('release gate: anchored additions preserve every supported legacy layout through the real resolver', () => {
   for (const templateId of ['d', 'default', 'storefront-a', 'storefront-b', 'storefront-c'] as const) {
