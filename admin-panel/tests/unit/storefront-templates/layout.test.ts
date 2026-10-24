@@ -104,31 +104,45 @@ it('release gate: every previously supported legacy order and visibility subset 
 }, 30000);
 
 it('release gate: anchored additions preserve every supported legacy layout through the real resolver', () => {
+  let visited = 0; let supported = 0;
+  const validatedRecipes = new Set<string>();
   for (const templateId of ['d', 'default', 'storefront-a', 'storefront-b', 'storefront-c'] as const) {
     const entry = STOREFRONT_TEMPLATES[templateId];
     const original = { defaults: entry.defaults, sectionDescriptors: entry.sectionDescriptors };
     const sections = [...entry.defaults.sections];
+    const orders = permutations(sections.map(section => section.id));
+    const optional = templateId === 'storefront-c' ? ['story', 'projects', 'start', 'faq'] : templateId === 'storefront-b' ? ['featured', 'starter', 'faq'] : templateId !== 'default' ? ['tasks', 'start', 'faq'] : [];
+    const visibilitySubsets = Array.from({ length: 2 ** optional.length }, (_, mask) => {
+      const hidden = optional.filter((_, bit) => mask & (1 << bit));
+      return { hidden, sections: Object.fromEntries(hidden.map(id => [id, { visibility: 'hidden' as const }])) };
+    });
+    const checkedMasks = new Set<number>();
     try {
       Object.assign(entry, {
         defaults: { ...entry.defaults, sections: [{ id: 'extra', type: 'faq/1', content: { slot: 'home.faq' } }, ...sections] },
         sectionDescriptors: { ...entry.sectionDescriptors, extra: { hideable: true, defaultVisibility: 'visible', variants: [], placement: { after: 'catalogue' } } },
       });
-      const optional = templateId === 'storefront-c' ? ['story', 'projects', 'start', 'faq'] : templateId === 'storefront-b' ? ['featured', 'starter', 'faq'] : templateId !== 'default' ? ['tasks', 'start', 'faq'] : [];
-      for (const order of permutations(sections.map(section => section.id))) for (let mask = 0; mask < 2 ** optional.length; mask++) {
-        const hidden = optional.filter((_, bit) => mask & (1 << bit));
-        const visible = order.filter(id => !hidden.includes(id));
+      for (const order of orders) for (let mask = 0; mask < visibilitySubsets.length; mask++) {
+        visited++;
+        const subset = visibilitySubsets[mask];
+        const visible = order.filter(id => !subset.hidden.includes(id));
         if (templateId !== 'default' && visible[0] !== 'hero') continue;
-        const config = { ...D_CONFIG, templateId, overridesByTemplate: { [templateId]: { order, sections: Object.fromEntries(hidden.map(id => [id, { visibility: 'hidden' }])) } } };
-        const resolved = resolveSelection(config, ['default', 'd', 'storefront-a', 'storefront-b', 'storefront-c']);
-        expect(resolved.diagnostic, JSON.stringify({ templateId, order, hidden })).toBeNull();
-        const ids = resolved.recipe.sections.map(section => section.id);
+        supported++;
+        const overrides = { order, sections: subset.sections };
+        const authoredOrder = [...order];
+        const recipe = resolveLayoutCase(templateId, overrides, !checkedMasks.has(mask), validatedRecipes);
+        checkedMasks.add(mask);
+        const ids = recipe.sections.map(section => section.id);
         expect(ids.filter(id => id !== 'extra')).toEqual(visible);
         expect(ids.indexOf('extra')).toBe(ids.indexOf('catalogue') + 1);
-        expect(config.overridesByTemplate[templateId].order).toEqual(order);
+        expect(overrides.order).toEqual(authoredOrder);
       }
+      expect(checkedMasks.size).toBe(visibilitySubsets.length);
     } finally { Object.assign(entry, original); }
   }
-}, 180000);
+  expect(visited).toBe(696961); expect(supported).toBe(120925);
+  expect(validatedRecipes.size).toBe(10325);
+}, 30000);
 
 it('reports invalid placements and resolved targets without reordering seller IDs', () => {
   const entry = structuredClone(STOREFRONT_TEMPLATES.d);
