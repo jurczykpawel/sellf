@@ -55,8 +55,6 @@ test.describe('Shop Settings', () => {
     await page.waitForLoadState('domcontentloaded');
 
     await setAuthSession(page, adminEmail, password);
-
-    await page.waitForTimeout(1000);
   };
 
   /** Read shop_config from DB */
@@ -66,6 +64,15 @@ test.describe('Shop Settings', () => {
       .select('*')
       .single();
     return data;
+  }
+
+  async function saveShopConfig(page: Page): Promise<void> {
+    const saveBtn = page.locator('form').filter({ has: page.locator('#shop-name') }).locator('button[type="submit"]');
+    await Promise.all([
+      page.waitForResponse(response => response.request().method() === 'POST' && !!response.request().postData()?.includes('shop_name')),
+      saveBtn.click(),
+    ]);
+    await expect(page.getByText('Settings saved successfully', { exact: true })).toBeVisible();
   }
 
   test.beforeAll(async () => {
@@ -92,8 +99,13 @@ test.describe('Shop Settings', () => {
         shop_name: config.shop_name,
         default_currency: config.default_currency,
         contact_email: config.contact_email,
+        country: config.country,
       };
     }
+  });
+
+  test.beforeEach(async () => {
+    expect((await supabaseAdmin.from('shop_config').update({ shop_name: 'Test Shop Display', default_currency: 'PLN', contact_email: 'display@test.com', country: 'PL' }).eq('id', shopConfigId)).error).toBeNull();
   });
 
   test.afterAll(async () => {
@@ -137,15 +149,15 @@ test.describe('Shop Settings', () => {
     await expect(shopHeading).toBeVisible({ timeout: 10000 });
 
     // Shop name field
-    const shopNameInput = page.locator('input[type="text"][placeholder]').first();
+    const shopNameInput = page.locator('#shop-name');
     await expect(shopNameInput).toHaveValue('Test Shop Display');
 
     // Currency dropdown
-    const currencySelect = page.locator('select').first();
+    const currencySelect = page.locator('#shop-currency');
     await expect(currencySelect).toHaveValue('PLN');
 
     // Contact email
-    const emailInput = page.locator('input[type="email"]').first();
+    const emailInput = page.locator('#shop-contact-email');
     await expect(emailInput).toHaveValue('display@test.com');
   });
 
@@ -161,15 +173,11 @@ test.describe('Shop Settings', () => {
     await expect(shopHeading).toBeVisible({ timeout: 10000 });
 
     // Change shop name
-    const shopNameInput = page.locator('input[type="text"][placeholder]').first();
+    const shopNameInput = page.locator('#shop-name');
     await shopNameInput.fill(newName);
 
     // Save
-    const saveBtn = page.locator('button[type="submit"]').first();
-    await saveBtn.click();
-
-    // Wait for save response
-    await page.waitForTimeout(2000);
+    await saveShopConfig(page);
 
     // Verify in DB
     const config = await getShopConfigFromDB();
@@ -180,7 +188,7 @@ test.describe('Shop Settings', () => {
     await page.waitForLoadState('domcontentloaded');
     await expect(shopHeading).toBeVisible({ timeout: 10000 });
 
-    const reloadedInput = page.locator('input[type="text"][placeholder]').first();
+    const reloadedInput = page.locator('#shop-name');
     await expect(reloadedInput).toHaveValue(newName);
   });
 
@@ -193,13 +201,11 @@ test.describe('Shop Settings', () => {
     await expect(shopHeading).toBeVisible({ timeout: 10000 });
 
     // Change currency to EUR
-    const currencySelect = page.locator('select').first();
+    const currencySelect = page.locator('#shop-currency');
     await currencySelect.selectOption('EUR');
 
     // Save
-    const saveBtn = page.locator('button[type="submit"]').first();
-    await saveBtn.click();
-    await page.waitForTimeout(2000);
+    await saveShopConfig(page);
 
     // Verify in DB
     const config = await getShopConfigFromDB();
@@ -216,12 +222,10 @@ test.describe('Shop Settings', () => {
     const shopHeading = page.locator('h2', { hasText: /Shop Configuration|Shop Settings|Konfiguracja sklepu|Ustawienia sklepu/i });
     await expect(shopHeading).toBeVisible({ timeout: 10000 });
 
-    const emailInput = page.locator('input[type="email"]').first();
+    const emailInput = page.locator('#shop-contact-email');
     await emailInput.fill(testEmail);
 
-    const saveBtn = page.locator('button[type="submit"]').first();
-    await saveBtn.click();
-    await page.waitForTimeout(2000);
+    await saveShopConfig(page);
 
     // Verify in DB
     const config = await getShopConfigFromDB();
@@ -243,12 +247,10 @@ test.describe('Shop Settings', () => {
     await expect(shopHeading).toBeVisible({ timeout: 10000 });
 
     // Clear email
-    const emailInput = page.locator('input[type="email"]').first();
+    const emailInput = page.locator('#shop-contact-email');
     await emailInput.fill('');
 
-    const saveBtn = page.locator('button[type="submit"]').first();
-    await saveBtn.click();
-    await page.waitForTimeout(2000);
+    await saveShopConfig(page);
 
     // DB should have null, not empty string
     const config = await getShopConfigFromDB();
@@ -285,12 +287,10 @@ test.describe('Shop Settings', () => {
 
       await setAuthSession(page, nonAdminEmail, 'password123');
 
-      await page.waitForTimeout(1000);
 
       // Try to access settings page
       await page.goto('/dashboard/settings');
       await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(2000);
 
       // Should NOT see Shop Settings heading (redirected or access denied)
       const shopHeading = page.locator('h2', { hasText: /Shop Configuration|Shop Settings|Konfiguracja sklepu|Ustawienia sklepu/i });
