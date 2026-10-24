@@ -3,7 +3,7 @@
 /** Session selection shared by product and checkout. @see lib/events/presentation.ts */
 import { useLocale, useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
-import { formatEventDate } from '@/lib/events/presentation';
+import { formatEventDate, formatEventRange } from '@/lib/events/presentation';
 import type { EventSession } from '@/lib/events/presentation';
 
 export default function EventSessions({ sessions, currency, selected, onSelect }: {
@@ -17,9 +17,8 @@ export default function EventSessions({ sessions, currency, selected, onSelect }
     {sessions.map(s => <div key={s.id} className="rounded-xl border border-sf-border p-4">
       <label className="flex items-start gap-3">
         {s.currentTier && !s.soldOut && <input type="radio" name="event-session" value={s.id} checked={s.id === selected} onChange={() => onSelect(s.id)} className="mt-1" />}
-        <span>{s.title && <strong className="block">{s.title}</strong>}<time dateTime={s.startsAt}>{formatEventDate(s.startsAt, s.timezone, locale)}</time></span>
+        <span>{s.title && <strong className="block">{s.title}</strong>}<time dateTime={s.startsAt}>{formatEventRange(s.startsAt, s.endsAt, s.timezone, locale)}</time></span>
       </label>
-      {s.endsAt && <p>{formatEventDate(s.endsAt, s.timezone, locale)}</p>}
       {s.venue && <p>{s.venue}</p>}{s.extraDays && <p>{s.extraDays}</p>}
       {s.soldOut ? <p role="status">{t('soldOut')}</p> : !s.currentTier ? <p>{t('unavailable')}</p> : <>
         <p className="font-semibold">{formatPrice(s.currentTier.price, currency, locale)}</p>

@@ -58,11 +58,12 @@ export default function ProductPurchaseView({ product, paymentMethodOrder, expre
   const showWaitlist = unavailableReason !== null && product.enable_waitlist;
 
   return (
-    <div>
+    <div className="pt-20 sm:pt-0">
       {/* Unified Floating Toolbar */}
       <FloatingToolbar position="top-right" />
       <DemoResetCountdown />
 
+      <div id="buyer-content" tabIndex={-1}>
       {showWaitlist ? (
         <WaitlistForm product={product} unavailableReason={unavailableReason} />
       ) : !product.event_mode && product.product_type !== 'subscription' && product.price === 0 && !product.allow_custom_price ? (
@@ -71,6 +72,7 @@ export default function ProductPurchaseView({ product, paymentMethodOrder, expre
         <PaidProductForm product={product} paymentMethodOrder={paymentMethodOrder} expressCheckoutConfig={expressCheckoutConfig} taxMode={taxMode} layoutMode={layoutMode} afterCheckoutSlot={afterCheckoutSlot} collectTermsOfService={collectTermsOfService} bundleComponents={bundleComponents} />
       )}
 
+      </div>
       {/* Sellf branding — hidden when a valid license is active. In embedded
           mode the host template (e.g. tip-jar) takes responsibility for branding. */}
       {!licenseValid && layoutMode === 'standalone' && <SellfBranding />}

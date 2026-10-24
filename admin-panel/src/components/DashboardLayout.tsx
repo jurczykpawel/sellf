@@ -534,7 +534,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
           </div>
         </header>
 
-        <main className="flex-1">
+        <main id="buyer-content" tabIndex={-1} className="flex-1">
           {children}
         </main>
       </div>
@@ -687,7 +687,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
 
       {/* Main Content Area */}
       <div className={`min-h-screen pt-14 sf-main-content ${isPinned ? 'sf-pinned' : ''}`}>
-        <main className="bg-sf-deep p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
+        <main id="buyer-content" tabIndex={-1} className="bg-sf-deep p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
           <DemoBanner />
           <div className="max-w-7xl mx-auto">
             {children}

@@ -25,6 +25,37 @@ export function projectEventSessions(data: unknown, at = Date.now()): EventSessi
 export function formatEventDate(date: string, timezone: string, locale: string, dateStyle: Intl.DateTimeFormatOptions['dateStyle'] = 'medium'): string {
   return `${new Intl.DateTimeFormat(locale, { dateStyle, timeStyle: 'short', timeZone: timezone }).format(new Date(date))} (${timezone})`;
 }
+/** Formats an event interval with one timezone and retains dates across days. */
+export function formatEventRange(start: string, end: string | null, timezone: string, locale: string): string {
+  if (!end) return formatEventDate(start, timezone, locale);
+  const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: timezone });
+  const time = new Intl.DateTimeFormat(locale, { timeStyle: 'short', timeZone: timezone });
+  const a = new Date(start), b = new Date(end);
+  return `${date.format(a)}, ${time.format(a)}–${date.format(a) === date.format(b) ? '' : `${date.format(b)}, `}${time.format(b)} (${timezone})`;
+}
+/** Event-zone wall time for a datetime-local input; independent of the host zone. */
+export function eventLocalDate(value: string, timezone: string): string {
+  if (!value) return '';
+  try {
+    const parts = new Intl.DateTimeFormat('sv-SE', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(value));
+    const part = (type: string) => parts.find(p => p.type === type)?.value;
+    return `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}`;
+  } catch { return ''; }
+}
+/** Resolve a wall time using the offset applicable on that event date. */
+export function eventUTCDate(value: string, timezone: string): string {
+  if (!value) return '';
+  const target = Date.parse(`${value}Z`);
+  if (!Number.isFinite(target)) return '';
+  let instant = target;
+  for (let i = 0; i < 3; i++) {
+    const local = eventLocalDate(new Date(instant).toISOString(), timezone);
+    if (!local) return '';
+    if (local === value) return new Date(instant).toISOString();
+    instant += target - Date.parse(`${local}Z`);
+  }
+  return '';
+}
 export function selectEventSession(sessions: EventSession[], requested: string | null): string | null {
   const available = sessions.filter(s => s.currentTier && !s.soldOut);
   return available.find(s => s.id === requested)?.id ?? (sessions.length === 1 ? available[0]?.id ?? null : null);

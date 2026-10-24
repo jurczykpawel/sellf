@@ -564,7 +564,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
       {/* Coupon Field — still shown for full-discount coupons so the user can
           review/remove the applied code before confirming free access. */}
-      {!isSubscription && !hasAccess && !error && !isPwywFree && (
+      {!isSubscription && !hasAccess && !error && !isPwywFree && eventReady && (
         <CouponField
           priceIncludesVat={product.price_includes_vat ?? true}
           vatDisplay={getVatDisplay({ taxMode: checkoutTaxMode, vatRate: product.vat_rate, vatExempt: product.vat_exempt, priceIncludesVat: product.price_includes_vat })}

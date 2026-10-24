@@ -35,6 +35,7 @@ export default async function LocaleLayout({
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
+      <a href="#buyer-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded focus:bg-sf-base focus:px-4 focus:py-3 focus:text-sf-heading focus:ring-2 focus:ring-sf-accent">{locale === 'pl' ? 'Przejdź do treści' : 'Skip to content'}</a>
       <LocalizedFormValidation />
       <AuthProvider>
         <WhitelabelProvider theme={theme} licenseValid={licenseValid}>

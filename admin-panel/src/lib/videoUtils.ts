@@ -343,7 +343,7 @@ export function addEmbedOptions(embedUrl: string, options: VideoEmbedOptions = {
     // YouTube parameters
     if (isHostnameMatch(hostname, 'youtube.com')) {
       if (options.autoplay) url.searchParams.set('autoplay', '1');
-      if (options.loop) url.searchParams.set('loop', '1');
+      if (options.loop) { url.searchParams.set('loop', '1'); url.searchParams.set('playlist', url.pathname.split('/').pop() ?? ''); }
       if (options.muted) url.searchParams.set('mute', '1');
       if (options.controls === false) url.searchParams.set('controls', '0');
     }
