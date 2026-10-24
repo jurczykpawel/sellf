@@ -48,6 +48,8 @@ test('template lifecycle with independent keys and an empty browser session', as
     const before = await call('config', read);
     expect((await call('draft', write, { expectedRevision: revision, config: DEFAULT_CONFIG, actor: { userId: 'other' } }, 'PUT')).status).toBe(422);
     expect((await call('config', read)).data).toEqual(before.data);
+    const baseline = await call('draft', write, { expectedRevision: revision, config: DEFAULT_CONFIG }, 'PUT');
+    expect(baseline.status).toBe(200); revision++;
     const drafted = await call('draft', write, { expectedRevision: revision, config: D_LOCALIZED_CONFIG }, 'PUT');
     expect(drafted.status).toBe(200); revision++; expect(drafted.data.revision).toBe(revision);
     const validation = await call('validate', read, { config: D_LOCALIZED_CONFIG, mode: 'draft' });
