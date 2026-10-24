@@ -25,6 +25,7 @@ import { useOto } from '@/hooks/useOto';
 import { useCheckoutRedirect } from '@/hooks/useCheckoutRedirect';
 import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
 import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
+import { getCheckoutRequestError } from '@/lib/checkout/request-error';
 import ProductShowcase from './ProductShowcase';
 import type { BundleComponentSummary } from './BundleContentsPreview';
 import FunnelTestBanner from './FunnelTestBanner';
@@ -134,7 +135,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
 
         if (!response.ok) {
           const errorData = await response.json();
-          toast.error(errorData.error || t('failedToRequestAccess'));
+          toast.error(getCheckoutRequestError(response.status, errorData.error, t('failedToRequestAccess'), t('requestRateLimit')));
           return;
         }
 

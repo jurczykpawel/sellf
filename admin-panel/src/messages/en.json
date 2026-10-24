@@ -271,6 +271,8 @@
     "priceSummary": "Price Summary",
     "couponDiscount": "Discount",
     "total": "Total",
+    "requestRateLimit": "Too many requests. Please wait and try again later.",
+    "emailValidationRateLimit": "Too many email checks. Please wait and try again later.",
     "emailRequired": "Email is required",
     "fullName": "Full Name",
     "saleEndsAt": "Sale ends {date}",

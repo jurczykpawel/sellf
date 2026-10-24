@@ -8,6 +8,7 @@ import { useInvoiceData } from '@/hooks/useInvoiceData';
 import { useCheckoutProfileValues } from '@/components/checkout/CheckoutProfileFields';
 import CustomPaymentForm from '@/app/[locale]/checkout/[slug]/components/CustomPaymentForm';
 import en from '@/messages/en.json';
+import pl from '@/messages/pl.json';
 import type { Product } from '@/types';
 import type { PricingResult } from '@/hooks/usePricing';
 
@@ -75,4 +76,22 @@ it('starts with card when no method order is configured', () => {
 it('respects the seller payment method order', () => {
   setup(['blik', 'card']);
   expect(stripe.options?.paymentMethodOrder).toEqual(['blik', 'card']);
+});
+
+it.each([
+  ['en', en, 'Too many email checks. Please wait and try again later.'],
+  ['pl', pl, 'Zbyt wiele prób sprawdzenia adresu e-mail. Poczekaj i spróbuj ponownie później.'],
+] as const)('localizes email validation limits in %s without displaying API text', async (locale, messages, expected) => {
+  const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+    success: false, error: { message: 'Service request quota reached' },
+  }), { status: 429 }));
+  vi.stubGlobal('fetch', fetch);
+  const view = render(React.createElement(NextIntlClientProvider, { locale, messages }, React.createElement(FormFixture)));
+  act(() => stripe.ready!());
+  await act(async () => { fireEvent.submit(view.container.querySelector('form')!); });
+  expect(view.getByText(expected)).toBeTruthy();
+  expect(view.queryByText('Service request quota reached')).toBeNull();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch.mock.calls[0][0]).toBe('/api/validate-email');
+  expect((view.container.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(false);
 });

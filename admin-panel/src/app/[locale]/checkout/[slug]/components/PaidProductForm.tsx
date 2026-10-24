@@ -37,6 +37,7 @@ import PaymentFormSkeleton from '@/components/checkout/PaymentFormSkeleton';
 import OrderSummary from '@/components/checkout/OrderSummary';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
 import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
+import { getCheckoutRequestError } from '@/lib/checkout/request-error';
 import type { StripeCheckoutElementsSdkOptions } from '@stripe/stripe-js';
 import type { Product } from '@/types';
 import type { ExpressCheckoutConfig } from '@/types/payment-config';
@@ -440,7 +441,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             if (response.status === 409) await refreshEvents();
             throw new Error(eventText(response.status === 429 ? 'holdLimit' : data.error === 'sold_out' ? 'soldOut' : 'priceChanged'));
           }
-          throw Object.assign(new Error(data.error || t('createSessionError')), { details: data.details });
+          throw Object.assign(new Error(getCheckoutRequestError(response.status, data.error, t('createSessionError'), t('requestRateLimit'))), { details: data.details });
         }
         return await response.json() as CheckoutSessionResponse;
       },

@@ -15,6 +15,7 @@ import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
 import InvoiceFields from '@/components/checkout/InvoiceFields';
 import PaymentFormSkeleton from '@/components/checkout/PaymentFormSkeleton';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
+import { getCheckoutRequestError } from '@/lib/checkout/request-error';
 import type { useInvoiceData } from '@/hooks/useInvoiceData';
 import type { useCheckoutProfileValues } from '@/components/checkout/CheckoutProfileFields';
 import type { StripePaymentElementOptions } from '@stripe/stripe-js';
@@ -188,9 +189,8 @@ export default function CustomPaymentForm({
         .catch(() => null)) as EmailValidationResponse | null;
       if (!validationResponse.ok || !validation?.success || !validation.data?.isValid) {
         setErrorMessage(
-          validation?.data?.error ||
-            validation?.error?.message ||
-            'Invalid or disposable email address not allowed'
+          getCheckoutRequestError(validationResponse.status, validation?.data?.error || validation?.error?.message,
+            'Invalid or disposable email address not allowed', t('emailValidationRateLimit'))
         );
         setIsProcessing(false);
         return;

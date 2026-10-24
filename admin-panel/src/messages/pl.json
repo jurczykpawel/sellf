@@ -271,6 +271,8 @@
     "priceSummary": "Podsumowanie Ceny",
     "couponDiscount": "Rabat",
     "total": "Razem",
+    "requestRateLimit": "Zbyt wiele prób. Poczekaj i spróbuj ponownie później.",
+    "emailValidationRateLimit": "Zbyt wiele prób sprawdzenia adresu e-mail. Poczekaj i spróbuj ponownie później.",
     "emailRequired": "Email jest wymagany",
     "fullName": "Imię i nazwisko",
     "saleEndsAt": "Promocja kończy się {date}",
