@@ -226,6 +226,8 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         if (body.checkoutSessionId && !s.sessionIds.includes(body.checkoutSessionId)) s.sessionIds.push(body.checkoutSessionId);
       }
     });
+    const hydrationErrors: string[] = [];
+    page.on('pageerror', error => { if (error.message.includes('Hydration failed')) hydrationErrors.push(error.message); });
     let failedPageShown = false;
     await page.exposeFunction('recordPaymentFailure', () => { failedPageShown = true; });
     await page.addInitScript(() => {
@@ -234,24 +236,9 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       }).observe(document, { childList: true, subtree: true });
     });
     await page.goto(`/en/checkout/${slug}?${s.netCouponQuantity ? '' : `email=${encodeURIComponent(s.email)}`}${options.setPrice || options.fixedPrice ? `&coupon=${s.coupon!.code}` : ''}`);
+    await expect(page.getByRole('button', { name: /Continue to payment/ })).toBeEnabled();
     if (s.netCouponQuantity) await page.getByLabel('Quantity', { exact: true }).fill(String(s.netCouponQuantity));
     if (s.profile || options.event) await page.getByLabel('Quantity', { exact: true }).fill(options.event ? '2' : '3');
-    await page.getByRole('button', { name: /Continue to payment/ }).click();
-    if (!s.subscription && !s.noBump) await page.getByRole('button', { name: /Add to order/i }).click();
-    await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
-    await page.locator('#checkoutEmail').fill(s.email);
-    if (s.coupon && !options.setPrice && !options.fixedPrice) {
-      await page.locator('summary').filter({ hasText: /coupon|discount/i }).click();
-      await page.getByLabel(/discount code/i).fill(s.coupon.code);
-      const couponSession = page.waitForResponse(response =>
-        new URL(response.url()).pathname === '/api/create-payment-intent'
-        && response.request().postDataJSON()?.couponCode === s.coupon!.code,
-      );
-      await page.getByRole('button', { name: /Apply/i }).click();
-      expect((await couponSession).status()).toBe(200);
-      await expect(page.getByRole('button', { name: /Remove discount code/i })).toBeVisible();
-      await page.locator('#checkoutEmail').fill(s.email);
-    }
     if (s.profile) {
       for (const prefix of ['buyer', 'recipient']) {
         if (prefix === 'recipient') await page.getByLabel('Different recipient').check();
@@ -268,7 +255,32 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
     } else if (options.event || s.netCouponQuantity) {
       await page.locator('[id="buyer.first_name"]').fill('Stripe');
       await page.locator('[id="buyer.last_name"]').fill('Test Buyer');
-    } else await page.locator('#fullName').fill('Stripe Test Buyer');
+    }
+    const hasProfile = !!s.profile || !!options.event || !!s.netCouponQuantity;
+    if (hasProfile && !s.buyerId) await page.locator('[id="buyer.email"]').fill(s.email);
+    await page.getByRole('button', { name: /Continue to payment/ }).click();
+    if (!s.subscription && !s.noBump) await page.getByRole('button', { name: /Add to order/i }).click();
+    if (hasProfile) {
+      await expect(page.locator('#checkoutEmail')).toHaveCount(0);
+      await expect(page.locator('[data-test-email]')).toHaveAttribute('data-test-email', s.email, { timeout: 90000 });
+      await expect(page.locator('[data-test-email]').getByText(s.email, { exact: true })).toBeVisible();
+    } else {
+      await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
+      await page.locator('#checkoutEmail').fill(s.email);
+    }
+    if (s.coupon && !options.setPrice && !options.fixedPrice) {
+      await page.locator('summary').filter({ hasText: /coupon|discount/i }).click();
+      await page.getByLabel(/discount code/i).fill(s.coupon.code);
+      const couponSession = page.waitForResponse(response =>
+        new URL(response.url()).pathname === '/api/create-payment-intent'
+        && response.request().postDataJSON()?.couponCode === s.coupon!.code,
+      );
+      await page.getByRole('button', { name: /Apply/i }).click();
+      expect((await couponSession).status()).toBe(200);
+      await expect(page.getByRole('button', { name: /Remove discount code/i })).toBeVisible();
+      if (!hasProfile) await page.locator('#checkoutEmail').fill(s.email);
+    }
+    if (!s.profile && !options.event && !s.netCouponQuantity) await page.locator('#fullName').fill('Stripe Test Buyer');
     if (!s.subscription && !options.event) await page.getByLabel(/License domain/).fill(s.domain);
     const terms = page.locator('input[type="checkbox"]');
     for (const checkbox of await terms.all()) if (await checkbox.isVisible()) await checkbox.check();
@@ -326,7 +338,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       const completed = txs.filter(row => row.status === 'completed');
       expect(completed).toHaveLength(1);
       for (const superseded of txs.filter(row => row.status !== 'completed')) {
-        expect(superseded.customer_email).toBe(s.netCouponQuantity ? 'pending@sellf.app' : s.email);
+        expect(superseded.customer_email).toBe(s.email);
         expect(superseded.status).toBe('abandoned');
         expect((await stripe.checkout.sessions.retrieve(superseded.session_id)).status).toBe('expired');
       }
@@ -436,6 +448,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         }
       }
     }
+    expect(hydrationErrors).toEqual([]);
     passed = true;
   } finally {
     if (s.productIds.length) {
@@ -462,7 +475,12 @@ for (let i = 1; i <= 5; i++) test(`guest repeated purchase ${i}/5`, async ({ pag
 test('percentage coupon with bump', async ({ page }) => { await run(page, 'coupon-bump', '4242424242424242', { coupon: true }); });
 test('net product with local VAT', async ({ page }) => { await run(page, 'net-vat', '4242424242424242', { netVat: true }); });
 
-test('B2B profile with three units and a fixed coupon', async ({ page }) => { await run(page, 'profile-b2b', '4242424242424242', { profile: true, coupon: true }); });
+test('guest and signed-in B2B profiles with three units and a fixed coupon', async ({ page, context }) => {
+  await run(page, 'profile-b2b', '4242424242424242', { profile: true, coupon: true });
+  const signedIn = await context.newPage();
+  try { await run(signedIn, 'profile-b2b-signed-in', '4242424242424242', { profile: true, coupon: true, loggedIn: true }); }
+  finally { await signedIn.close(); }
+});
 
 test('event with two promotional seats confirms inventory and delivers session snapshot', async ({ page }) => { await run(page, 'event', '4242424242424242', { event: true }); });
 

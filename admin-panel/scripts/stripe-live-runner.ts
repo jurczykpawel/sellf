@@ -11,6 +11,11 @@ import config from '../playwright.config';
 import type { ChildProcess } from 'node:child_process';
 import { waitForLiveServer } from './stripe-live-server';
 
+const appPort = Number(process.env.PW_PORT || 3777);
+const fxPort = Number(process.env.FX_STUB_PORT || 3779);
+const receiverPort = Number(process.env.STRIPE_LIVE_RECEIVER_PORT || 3778);
+const appUrl = `http://localhost:${appPort}`;
+
 const children: ChildProcess[] = [];
 const dir = resolve('test-runs', `stripe-live-${new Date().toISOString().replaceAll(':', '-')}`);
 let receiver: ReturnType<typeof createServer> | undefined;
@@ -52,7 +57,7 @@ async function cleanup(): Promise<void> {
   }
   receiver?.closeAllConnections();
   receiver?.close();
-  spawnSync('bash', ['scripts/kill-dev-server.sh', '3777', '3779'], { stdio: 'ignore' });
+  spawnSync('bash', ['scripts/kill-dev-server.sh', String(appPort), String(fxPort)], { stdio: 'ignore' });
 }
 for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, () => { void cleanup().then(() => process.exit(130)); });
 
@@ -61,7 +66,7 @@ try {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key?.startsWith('sk_test_')) throw new Error('STRIPE_SECRET_KEY must be a Stripe test secret key');
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !['127.0.0.1', 'localhost'].includes(new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname)) throw new Error('This suite requires local disposable Supabase');
-  for (const port of [3777, 3778, 3779]) {
+  for (const port of [appPort, receiverPort, fxPort]) {
     if (spawnSync('lsof', ['-tiTCP:' + port, '-sTCP:LISTEN']).stdout.toString().trim()) throw new Error(`Port ${port} is already in use`);
   }
   for (const command of ['stripe', 'cloudflared']) if (spawnSync(command, ['--version']).status !== 0) throw new Error(`${command} is required`);
@@ -70,9 +75,9 @@ try {
   process.env.STRIPE_LIVE_E2E = '1';
   process.env.STRIPE_LIVE_ARTIFACTS = dir;
   process.env.APP_ENCRYPTION_KEY ||= randomBytes(32).toString('base64');
-  process.env.NEXT_PUBLIC_BASE_URL = 'http://localhost:3777';
-  process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3777';
-  process.env.SITE_URL = 'http://localhost:3777';
+  process.env.NEXT_PUBLIC_BASE_URL = appUrl;
+  process.env.NEXT_PUBLIC_APP_URL = appUrl;
+  process.env.SITE_URL = appUrl;
   // DB configuration takes precedence over env. Refuse an alternate configuration.
   const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const configs = await db.from('stripe_configurations').select('id').eq('is_active', true);
@@ -96,8 +101,8 @@ try {
       response.writeHead(200, { 'content-type': 'application/json' }).end('{"received":true}');
     } catch { response.writeHead(400).end(); }
   });
-  await new Promise<void>((resolve, reject) => { receiver!.once('error', reject); receiver!.listen(3778, '127.0.0.1', resolve); });
-  start('cloudflared', ['tunnel', '--url', 'http://127.0.0.1:3778', '--no-autoupdate', '--no-prechecks', '--protocol', 'http2'], 'tunnel');
+  await new Promise<void>((resolve, reject) => { receiver!.once('error', reject); receiver!.listen(receiverPort, '127.0.0.1', resolve); });
+  start('cloudflared', ['tunnel', '--url', `http://127.0.0.1:${receiverPort}`, '--no-autoupdate', '--no-prechecks', '--protocol', 'http2'], 'tunnel');
   await until(() => /https:\/\/[a-z0-9-]+\.trycloudflare\.com/.test(logText('tunnel')), 'receiver tunnel');
   const tunnel = logText('tunnel').match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/)![0];
   process.env.STRIPE_LIVE_RECEIVER_URL = `${tunnel}/${receiverToken}`;
@@ -109,7 +114,7 @@ try {
     probe.once('exit', code => resolve(code === 0));
     probe.once('error', () => resolve(false));
   }), 'public receiver', 300000);
-  start('stripe', ['listen', '--all-snapshot', '--api-key', key, '--forward-to', 'http://localhost:3777/api/webhooks/stripe'], 'stripe');
+  start('stripe', ['listen', '--all-snapshot', '--api-key', key, '--forward-to', `${appUrl}/api/webhooks/stripe`], 'stripe');
   await until(() => {
     const log = logText('stripe');
     if (log.includes('must specify') || log.includes('Invalid API Key')) throw new Error('Stripe listener rejected its configuration; see stripe.jsonl');
