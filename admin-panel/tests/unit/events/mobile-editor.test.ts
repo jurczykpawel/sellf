@@ -40,10 +40,15 @@ it('adds the single video playlist only when looping', () => {
 });
 it('keeps a focus-visible skip link before buyer menus with focusable targets', async () => {
   const { readFileSync } = await import('node:fs');
-  const locale = readFileSync('src/app/[locale]/layout.tsx', 'utf8');
-  expect(locale).toContain('href="#buyer-content"');
-  expect(locale).toContain('focus:not-sr-only');
-  for (const file of ['src/components/DashboardLayout.tsx', 'src/app/[locale]/checkout/[slug]/components/ProductPurchaseView.tsx']) expect(readFileSync(file, 'utf8')).toMatch(/id="buyer-content" tabIndex=\{-1\}/);
+  const skip = readFileSync('src/components/ui/SkipToContent.tsx', 'utf8');
+  expect(skip).toContain('href="#main-content"');
+  expect(skip).toContain('focus:not-sr-only');
+  expect(readFileSync('src/app/[locale]/layout.tsx', 'utf8')).not.toContain('href="#');
+  for (const file of ['src/components/DashboardLayout.tsx', 'src/app/[locale]/checkout/[slug]/components/ProductPurchaseView.tsx', 'src/app/[locale]/about/page.tsx']) {
+    const source = readFileSync(file, 'utf8');
+    expect(source).toContain('<SkipToContent />');
+    expect(source).toMatch(/id="main-content" tabIndex=\{-1\}/);
+  }
 });
 it('reserves mobile space for the profile toolbar and hides unavailable event coupons', async () => {
   const { readFileSync } = await import('node:fs');

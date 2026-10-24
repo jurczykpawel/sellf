@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { acceptAllCookies } from './helpers/consent';
+import { supabaseAdmin } from './helpers/admin-auth';
 
 for (const path of ['/en/about', '/pl/about'] as const) {
   test.describe(`a11y — ${path}`, () => {
@@ -27,12 +28,14 @@ for (const path of ['/en/about', '/pl/about'] as const) {
       await page.goto(path, { waitUntil: 'domcontentloaded' });
 
       await page.keyboard.press('Tab');
-      const skipLink = page.locator('a[href="#main-content"]').first();
+      const skipLink = page.locator('a[href="#main-content"]');
+      await expect(skipLink).toHaveCount(1);
       await expect(skipLink).toBeFocused();
       await page.keyboard.press('Enter');
 
-      const main = page.locator('#main-content').first();
-      await expect(main).toBeVisible();
+      const main = page.locator('#main-content');
+      await expect(main).toHaveCount(1);
+      await expect(main).toBeFocused();
     });
 
     test('reduced-motion disables snippet flip transform', async ({ browser }) => {
@@ -57,3 +60,23 @@ for (const path of ['/en/about', '/pl/about'] as const) {
     });
   });
 }
+
+test('store, product and checkout each skip their navigation once', async ({ page }) => {
+  const { data: product, error } = await supabaseAdmin.from('products').insert({ name: 'Skip navigation', slug: `skip-${Date.now()}`, price: 10, currency: 'PLN', is_active: true, is_listed: true }).select('id,slug').single();
+  expect(error).toBeNull();
+  try {
+    await acceptAllCookies(page);
+    for (const path of ['/store', `/p/${product!.slug}`, `/checkout/${product!.slug}`]) {
+      await page.goto(path);
+      const skip = page.locator('a[href="#main-content"]');
+      await expect(skip).toHaveCount(1);
+      await page.keyboard.press('Tab');
+      await expect(skip).toBeFocused();
+      await page.keyboard.press('Enter');
+      const target = page.locator('#main-content');
+      await expect(target).toHaveCount(1);
+      await expect(target).toBeFocused();
+      expect(await target.locator('header nav').count()).toBe(0);
+    }
+  } finally { await supabaseAdmin.from('products').delete().eq('id', product!.id); }
+});

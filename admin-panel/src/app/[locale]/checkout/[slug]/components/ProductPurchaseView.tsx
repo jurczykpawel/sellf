@@ -1,15 +1,16 @@
 'use client';
 
-import { Product } from '@/types';
-import { ExpressCheckoutConfig } from '@/types/payment-config';
-import type { TaxMode } from '@/lib/actions/shop-config';
-import type { BundleComponentSummary } from './BundleContentsPreview';
-import FreeProductForm from './FreeProductForm';
-import PaidProductForm from './PaidProductForm';
 import WaitlistForm from '@/components/WaitlistForm';
 import FloatingToolbar from '@/components/FloatingToolbar';
 import { DemoResetCountdown } from '@/components/DemoCheckoutNotice';
 import SellfBranding from '@/components/SellfBranding';
+import SkipToContent from '@/components/ui/SkipToContent';
+import type { Product } from '@/types';
+import type { ExpressCheckoutConfig } from '@/types/payment-config';
+import type { TaxMode } from '@/lib/actions/shop-config';
+import type { BundleComponentSummary } from './BundleContentsPreview';
+import FreeProductForm from './FreeProductForm';
+import PaidProductForm from './PaidProductForm';
 
 interface ProductPurchaseViewProps {
   product: Product;
@@ -59,11 +60,12 @@ export default function ProductPurchaseView({ product, paymentMethodOrder, expre
 
   return (
     <div className="pt-20 sm:pt-0">
+      <SkipToContent />
       {/* Unified Floating Toolbar */}
       <FloatingToolbar position="top-right" />
       <DemoResetCountdown />
 
-      <div id="buyer-content" tabIndex={-1}>
+      <div id="main-content" tabIndex={-1}>
       {showWaitlist ? (
         <WaitlistForm product={product} unavailableReason={unavailableReason} />
       ) : !product.event_mode && product.product_type !== 'subscription' && product.price === 0 && !product.allow_custom_price ? (

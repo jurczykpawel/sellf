@@ -1,4 +1,6 @@
 import { getTranslations } from 'next-intl/server';
+import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
+import SkipToContent from '@/components/ui/SkipToContent';
 import { LandingNav } from './components/LandingNav';
 import { HeroSection } from './components/HeroSection';
 import { SocialProofBar } from './components/SocialProofBar';
@@ -19,7 +21,6 @@ import { FAQSection } from './components/FAQSection';
 import { FinalCTA } from './components/FinalCTA';
 import { LandingFooter } from './components/LandingFooter';
 import { buildLandingJsonLd } from './jsonld';
-import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
 
 
 export async function generateMetadata({
@@ -71,14 +72,9 @@ export default async function AboutPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[60] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-sf-accent-bg focus:text-white focus:outline-none"
-      >
-        Skip to main content
-      </a>
+      <SkipToContent />
       <LandingNav />
-      <main id="main-content">
+      <main id="main-content" tabIndex={-1}>
         {/* Hook + proof — first 3 scrolls answer "kto + co + ile zostaje" */}
         <HeroSection />
         <SocialProofBar />

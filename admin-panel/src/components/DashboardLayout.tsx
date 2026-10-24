@@ -1,19 +1,20 @@
 'use client'
 
-import { useAuth } from '@/contexts/AuthContext'
 import React, { useState, useEffect, useRef, startTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import SiteMenu from './SiteMenu'
-import type { StorefrontConfig } from '@/lib/storefront-templates/schemas';
-import type { ShopConfig } from '@/lib/actions/shop-config'
-import DemoBanner from './DemoBanner'
+import { useAuth } from '@/contexts/AuthContext'
 import { useUpdateCheck } from '@/hooks/useUpdateCheck'
-import UpdateNotificationModal from './UpdateNotificationModal'
 import { api } from '@/lib/api/client'
 import { formatSidebarBadgeCount, isSidebarLinkActive } from '@/lib/navigation/sidebar'
 import { EmailText } from '@/components/ui/EmailText'
+import SkipToContent from '@/components/ui/SkipToContent'
+import type { StorefrontConfig } from '@/lib/storefront-templates/schemas';
+import type { ShopConfig } from '@/lib/actions/shop-config'
+import SiteMenu from './SiteMenu'
+import DemoBanner from './DemoBanner'
+import UpdateNotificationModal from './UpdateNotificationModal'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -487,6 +488,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
   if (!user) {
     return (
       <div className="min-h-screen bg-sf-deep flex flex-col">
+        <SkipToContent />
         <header className={`${(storefrontTemplate === 'd' || storefrontTemplate === 'storefront-a' || storefrontTemplate === 'storefront-b' || storefrontTemplate === 'storefront-c') ? 'h-20 max-[600px]:h-[72px]' : 'h-16'} bg-sf-base border-b border-sf-border flex items-center sticky top-0 z-40`}>
           <div className={`${(storefrontTemplate === 'd' || storefrontTemplate === 'storefront-a' || storefrontTemplate === 'storefront-b' || storefrontTemplate === 'storefront-c') ? 'max-w-[1248px] w-[calc(100%-80px)] max-[600px]:w-[calc(100%-36px)]' : 'max-w-7xl w-full px-4 sm:px-6 lg:px-8'} mx-auto flex items-center justify-between`}>
             <div className="flex items-center">
@@ -534,7 +536,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
           </div>
         </header>
 
-        <main id="buyer-content" tabIndex={-1} className="flex-1">
+        <main id="main-content" tabIndex={-1} className="flex-1">
           {children}
         </main>
       </div>
@@ -546,6 +548,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
   // ---------------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-sf-deep sf-dashboard">
+      <SkipToContent />
       {/* Full-width top header — fixed, logo on the left in sidebar-width zone */}
       <header className="fixed top-0 left-0 right-0 h-14 bg-sf-base border-b border-sf-border-subtle z-50 flex items-center">
         {/* Mobile: hamburger */}
@@ -687,7 +690,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
 
       {/* Main Content Area */}
       <div className={`min-h-screen pt-14 sf-main-content ${isPinned ? 'sf-pinned' : ''}`}>
-        <main id="buyer-content" tabIndex={-1} className="bg-sf-deep p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
+        <main id="main-content" tabIndex={-1} className="bg-sf-deep p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
           <DemoBanner />
           <div className="max-w-7xl mx-auto">
             {children}
