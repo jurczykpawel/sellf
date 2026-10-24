@@ -84,14 +84,13 @@
     "dotenv": "^17.4.2",
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.8",
-    "happy-dom": "^20.14.6",
+    "happy-dom": "^21.0.4",
     "postcss": "^8.5.31",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.12"
   },
   "overrides": {
-    "undici": "^6.27.0",
     "js-yaml": "^4.3.1",
     "@babel/core": "^7.29.6",
     "yaml": "^2.8.3",
