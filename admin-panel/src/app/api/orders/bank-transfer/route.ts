@@ -2,6 +2,7 @@
 import { after, NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { normalizeCouponCode } from '@/lib/coupons/normalize-code';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
 import { validateCheckoutModules } from '@/lib/checkout-modules/validate';
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
     let coupon = null;
     if (body.couponCode) {
-      const verified = await db.rpc('verify_coupon', { code_param: body.couponCode.toUpperCase(), product_id_param: product.id,
+      const verified = await db.rpc('verify_coupon', { code_param: normalizeCouponCode(body.couponCode), product_id_param: product.id,
         customer_email_param: email, currency_param: product.currency });
       const value = couponSchema.safeParse(verified.data);
       if (verified.error || !value.success) return fail('Invalid coupon');

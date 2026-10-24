@@ -10,6 +10,12 @@ import {
 import type { createAdminClient } from '@/lib/supabase/admin';
 
 describe('checkout embed security helpers', () => {
+  it.each([' B2B30 ', '\tb2b30\r\n', '\u00a0B2B30\u00a0'])('normalizes pasted coupon codes: %j', couponCode => {
+    expect(parseEmbedCheckoutBody({ productSlug: 'kurs-ai', couponCode })).toEqual({
+      ok: true, value: { productSlug: 'kurs-ai', couponCode: 'B2B30' },
+    });
+  });
+
   it('allows only exact HTTPS origins from the configured list', () => {
     const allowed = sanitizeAllowedEmbedOrigins([
       'https://landing.example.com',

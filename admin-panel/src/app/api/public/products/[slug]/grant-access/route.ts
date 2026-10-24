@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { normalizeCouponCode } from '@/lib/coupons/normalize-code';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
@@ -54,7 +55,7 @@ export async function POST(
         if (body && typeof body === 'object') {
           const rawCoupon = (body as { couponCode?: unknown }).couponCode;
           if (typeof rawCoupon === 'string' && rawCoupon.trim().length > 0) {
-            couponCode = rawCoupon.trim().toUpperCase();
+            couponCode = normalizeCouponCode(rawCoupon);
           }
           const rawFields = (body as { customFieldValues?: unknown }).customFieldValues;
           if (rawFields && typeof rawFields === 'object' && !Array.isArray(rawFields)) {

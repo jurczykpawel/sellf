@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { normalizeCouponCode } from '@/lib/coupons/normalize-code';
 import { resolveEventCheckout } from '@/lib/events/checkout';
 import { getClientIp } from '@/lib/security/client-ip';
 import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
@@ -518,7 +519,7 @@ export async function POST(request: NextRequest) {
     let appliedCoupon = null;
     if (couponCode) {
       const { data: couponRaw, error: couponError } = await dataClient.rpc('verify_coupon', {
-        code_param: couponCode.toUpperCase(),
+        code_param: normalizeCouponCode(couponCode),
         product_id_param: productId,
         customer_email_param: finalEmail || null,
         currency_param: product.currency,

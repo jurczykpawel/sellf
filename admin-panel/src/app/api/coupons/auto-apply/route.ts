@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { normalizeCouponCode } from '@/lib/coupons/normalize-code';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
       const admin = createAdminClient();
       const product = await admin.from('products').select('currency').eq('id', productId).single();
       if (product.error || !product.data) return NextResponse.json({ found: false });
-      const verified = await admin.rpc('verify_coupon', { code_param: data.code, product_id_param: productId,
+      const verified = await admin.rpc('verify_coupon', { code_param: normalizeCouponCode(data.code), product_id_param: productId,
         customer_email_param: user?.email ?? email, currency_param: product.data.currency });
       if (verified.error || !verified.data || typeof verified.data !== 'object' || !('valid' in verified.data) || !verified.data.valid) return NextResponse.json({ found: false });
       return NextResponse.json({ ...verified.data, found: true });

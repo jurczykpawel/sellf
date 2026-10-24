@@ -1,3 +1,4 @@
+import { normalizeCouponCode } from '@/lib/coupons/normalize-code';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { getStripeServer } from '@/lib/stripe/server';
@@ -498,7 +499,7 @@ export class CheckoutService {
         // Service client: anonymous visitors (embed) must not share the database's
         // single anonymous rate-limit bucket; callers throttle at the application layer.
         const { data: vRaw, error: couponError } = await createAdminClient().rpc('verify_coupon', {
-          code_param: request.couponCode.toUpperCase(),
+          code_param: normalizeCouponCode(request.couponCode),
           product_id_param: product.id,
           customer_email_param: request.email || undefined,
           currency_param: product.currency,

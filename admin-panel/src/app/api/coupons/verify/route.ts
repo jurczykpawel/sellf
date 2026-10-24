@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { normalizeCouponCode } from '@/lib/coupons/normalize-code';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit, checkRateLimitForIdentifier, getRateLimitIdentifier } from '@/lib/rate-limiting';
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
     }
 
-    const normalisedCode = code.toUpperCase();
+    const normalisedCode = normalizeCouponCode(code);
 
     // Layered throttling per client: attempts on one code, then all attempts.
     // The database function is called with the server client, so these are

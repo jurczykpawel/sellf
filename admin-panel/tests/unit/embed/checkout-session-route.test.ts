@@ -164,9 +164,9 @@ describe('POST /api/embed/checkout-session', () => {
   describe('coupon codes', () => {
     const origin = 'https://landing.example.com';
 
-    it('passes the coupon code to the same checkout service path', async () => {
+    it.each(['SAVE20', ' save20 ', '\tsave20\r\n'])('passes the normalized coupon to checkout: %j', async couponCode => {
       const response = await POST(
-        makeRequest({ productSlug: 'kurs-ai', couponCode: 'SAVE20' }, origin),
+        makeRequest({ productSlug: 'kurs-ai', couponCode }, origin),
       );
 
       expect(response.status).toBe(200);
@@ -182,7 +182,7 @@ describe('POST /api/embed/checkout-session', () => {
       mocks.checkRateLimitForIdentifier.mockResolvedValue(false);
 
       const response = await POST(
-        makeRequest({ productSlug: 'kurs-ai', couponCode: 'save20' }, origin),
+        makeRequest({ productSlug: 'kurs-ai', couponCode: '\t save20 \n' }, origin),
       );
 
       expect(response.status).toBe(429);

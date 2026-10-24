@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { normalizeCouponCode } from '@/lib/coupons/normalize-code';
 import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
 import type { createAdminClient } from '@/lib/supabase/admin';
@@ -262,7 +263,7 @@ function parseOptionalEmail(value: unknown): string | false | undefined {
 function parseOptionalCouponCode(value: unknown): string | false | undefined {
   if (value === undefined || value === null) return undefined;
   if (typeof value !== 'string') return false;
-  const code = value.trim();
+  const code = normalizeCouponCode(value);
   if (code === '') return undefined;
   return COUPON_CODE_PATTERN.test(code) ? code : false;
 }

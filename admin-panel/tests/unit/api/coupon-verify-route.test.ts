@@ -41,6 +41,21 @@ beforeEach(() => {
 });
 
 describe('POST /api/coupons/verify', () => {
+  it.each(['B2B30 ', ' b2b30', '\tb2b30\n', '\u00a0b2b30\r\n'])(
+    'normalizes surrounding whitespace before limits and lookup: %j', async code => {
+      await POST(request({ code, productId: PRODUCT_ID }));
+      expect(rateLimiting.checkRateLimitForIdentifier).toHaveBeenCalledWith(
+        'coupon_verify_code', 5, 60, 'code:B2B30:ip:203.0.113.7',
+      );
+      expect(serviceClient.rpc).toHaveBeenCalledWith('verify_coupon', expect.objectContaining({ code_param: 'B2B30' }));
+    },
+  );
+
+  it('preserves whitespace inside a code', async () => {
+    await POST(request({ code: ' B2 B30 ', productId: PRODUCT_ID }));
+    expect(serviceClient.rpc).toHaveBeenCalledWith('verify_coupon', expect.objectContaining({ code_param: 'B2 B30' }));
+  });
+
   it('counts attempts on a code per client, not across all clients', async () => {
     await POST(request({ code: 'spring', productId: PRODUCT_ID }));
 
