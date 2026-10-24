@@ -149,7 +149,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   useEffect(() => {
     const handlePageHide = () => {
-      if (!confirmationPending.current) sessionQueue.update(null);
+      if (!confirmationPending.current) sessionQueue.update(null, true);
     };
     const handlePageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
@@ -167,7 +167,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     return () => {
       window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('pageshow', handlePageShow);
-      if (!confirmationPending.current) sessionQueue.update(null);
+      if (!confirmationPending.current) sessionQueue.update(null, true);
     };
   }, [sessionQueue]);
 

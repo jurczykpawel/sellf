@@ -424,6 +424,7 @@
     "noResults": "Brak wyników dla \"{searchTerm}\""
   },
   "navigation": {
+    "sessionExpired": "Sesja wygasła — zaloguj się ponownie",
     "dashboard": "Pulpit",
     "products": "Produkty",
     "categories": "Kategorie i tagi",

@@ -1,6 +1,7 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { Toaster } from 'sonner';
+import SessionExpiryNotice from '@/components/SessionExpiryNotice';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { locales, Locale } from '@/lib/locales';
 import { notFound } from 'next/navigation';
@@ -36,6 +37,7 @@ export default async function LocaleLayout({
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <LocalizedFormValidation />
+      <SessionExpiryNotice />
       <AuthProvider>
         <WhitelabelProvider theme={theme} licenseValid={licenseValid}>
           <div className="min-h-screen bg-sf-deep">

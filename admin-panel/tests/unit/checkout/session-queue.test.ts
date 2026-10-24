@@ -73,3 +73,36 @@ describe('checkout session queue', () => {
   });
 
 });
+
+it('does not log an aborted expiration and accepts a later checkout', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    const expire = vi.fn().mockRejectedValue(new DOMException('Cancelled', 'AbortError'));
+    const queue = createCheckoutSessionQueue(expire);
+    const apply = vi.fn();
+    const task = { key: 'base', run: async () => identity('cs_test_first'), apply, fail: vi.fn() };
+    queue.update(task);
+    await vi.waitFor(() => expect(apply).toHaveBeenCalledOnce());
+    queue.update(null);
+    await vi.waitFor(() => expect(expire).toHaveBeenCalledOnce());
+    expect(log).not.toHaveBeenCalled();
+    queue.update({ ...task, key: 'next' });
+    await vi.waitFor(() => expect(apply).toHaveBeenCalledTimes(2));
+  } finally { log.mockRestore(); }
+});
+
+it('keeps failed cleanup quiet after page exit while preserving active errors', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    for (const quiet of [true, false]) {
+      const expire = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+      const queue = createCheckoutSessionQueue(expire);
+      const apply = vi.fn();
+      queue.update({ key: 'base', run: async () => identity('cs_test_first'), apply, fail: vi.fn() });
+      await vi.waitFor(() => expect(apply).toHaveBeenCalledOnce());
+      queue.update(null, quiet);
+      await vi.waitFor(() => expect(expire).toHaveBeenCalledOnce());
+      expect(log).toHaveBeenCalledTimes(quiet ? 0 : 1);
+    }
+  } finally { log.mockRestore(); }
+});

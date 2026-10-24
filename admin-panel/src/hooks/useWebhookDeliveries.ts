@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { api } from '@/lib/api/client';
+import { api, isExpectedApiError } from '@/lib/api/client';
 import { runBatch } from '@/lib/webhooks/batch-runner';
 import type { WebhookLog } from '@/types/webhooks';
 
@@ -38,7 +38,7 @@ export function useWebhookDeliveries() {
       if (requestId !== latestRequestRef.current) return;
       setLogs(response.data || []);
     } catch (err) {
-      if (requestId !== latestRequestRef.current) return;
+      if (requestId !== latestRequestRef.current || isExpectedApiError(err)) return;
       console.error('[useWebhookDeliveries] fetch failed', err);
       toast.error(t('loadError'));
     } finally {
@@ -58,8 +58,9 @@ export function useWebhookDeliveries() {
   }, [loadLogs]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
+    const requestState = latestRequestRef;
     loadLogs();
+    return () => { requestState.current++; };
   }, [loadLogs]);
 
   const replay = useCallback(
@@ -70,6 +71,7 @@ export function useWebhookDeliveries() {
         toast.success(t('replaySuccess'));
         await fetchLogs();
       } catch (err) {
+        if (isExpectedApiError(err)) return;
         console.error(err);
         toast.error(t('replayError'));
       } finally {
@@ -87,6 +89,7 @@ export function useWebhookDeliveries() {
         toast.success(t('forceRetrySuccess'));
         await fetchLogs();
       } catch (err) {
+        if (isExpectedApiError(err)) return;
         console.error(err);
         toast.error(tCommon('error'));
       } finally {
@@ -104,6 +107,7 @@ export function useWebhookDeliveries() {
         toast.success(t('cancelSuccess'));
         await fetchLogs();
       } catch (err) {
+        if (isExpectedApiError(err)) return;
         console.error(err);
         toast.error(tCommon('error'));
       } finally {

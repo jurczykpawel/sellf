@@ -17,11 +17,12 @@ export interface CheckoutSessionTask<T extends CheckoutSessionIdentity> {
 
 export function createCheckoutSessionQueue<T extends CheckoutSessionIdentity>(
   expire: (identity: CheckoutSessionIdentity) => Promise<void>,
-): { update: (task: CheckoutSessionTask<T> | null) => void } {
+): { update: (task: CheckoutSessionTask<T> | null, quiet?: boolean) => void } {
   let desired: CheckoutSessionTask<T> | null = null;
   let identity: CheckoutSessionIdentity | null = null;
   let signature: string | null = null;
   let running = false;
+  let quietExpiration = false;
 
   async function drain(): Promise<void> {
     if (running) return;
@@ -58,6 +59,7 @@ export function createCheckoutSessionQueue<T extends CheckoutSessionIdentity>(
         }
       }
     } catch (error) {
+      if (quietExpiration || (error instanceof Error && error.name === 'AbortError')) return;
       console.error('[checkoutSessionQueue] Expiration failed:', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       running = false;
@@ -65,7 +67,8 @@ export function createCheckoutSessionQueue<T extends CheckoutSessionIdentity>(
   }
 
   return {
-    update(task) {
+    update(task, quiet = false) {
+      quietExpiration = quiet;
       desired = task;
       void drain();
     },

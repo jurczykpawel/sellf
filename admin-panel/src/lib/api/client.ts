@@ -5,6 +5,7 @@
  * Provides consistent error handling, pagination, and type safety.
  */
 
+import { createClient } from '@/lib/supabase/client';
 const API_VERSION = 'v1';
 
 export interface PaginationParams {
@@ -63,6 +64,21 @@ export class ApiError extends Error {
   }
 }
 
+export function isExpectedApiError(error: unknown): boolean {
+  return error instanceof Error && (error.name === 'AbortError' || (error instanceof ApiError && error.code === 'SESSION_EXPIRED'));
+}
+let sessionRefresh: Promise<boolean> | null = null;
+async function request(url: string, options: RequestInit): Promise<Response> {
+  let response = await fetch(url, options);
+  if (response.status !== 401) return response;
+  sessionRefresh ??= Promise.resolve().then(createClient).then(client => client.auth.refreshSession())
+    .then(({ data, error }) => !error && !!data.session).catch(() => false)
+    .finally(() => { sessionRefresh = null; });
+  if (await sessionRefresh) response = await fetch(url, options);
+  if (response.status !== 401) return response;
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('sellf:session-expired'));
+  throw new ApiError('SESSION_EXPIRED', 'Session expired — sign in again', 401);
+}
 /**
  * Build query string from params object
  */
@@ -125,7 +141,7 @@ class ApiClient {
       ? `${this.baseUrl}/${resource}?${queryString}`
       : `${this.baseUrl}/${resource}`;
 
-    const response = await fetch(url, {
+    const response = await request(url, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -189,7 +205,7 @@ class ApiClient {
    * GET request for single resource
    */
   async get<T>(resource: string, id: string): Promise<T> {
-    const response = await fetch(`${this.baseUrl}/${resource}/${id}`, {
+    const response = await request(`${this.baseUrl}/${resource}/${id}`, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -213,7 +229,7 @@ class ApiClient {
       ? `${this.baseUrl}/${path}?${queryString}`
       : `${this.baseUrl}/${path}`;
 
-    const response = await fetch(url, {
+    const response = await request(url, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -229,7 +245,7 @@ class ApiClient {
    * POST request to create resource
    */
   async create<T>(resource: string, data: Record<string, unknown>): Promise<T> {
-    const response = await fetch(`${this.baseUrl}/${resource}`, {
+    const response = await request(`${this.baseUrl}/${resource}`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -250,7 +266,7 @@ class ApiClient {
     path: string,
     data: Record<string, unknown> = {}
   ): Promise<T> {
-    const response = await fetch(`${this.baseUrl}/${path}`, {
+    const response = await request(`${this.baseUrl}/${path}`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -272,7 +288,7 @@ class ApiClient {
     id: string,
     data: Record<string, unknown>
   ): Promise<T> {
-    const response = await fetch(`${this.baseUrl}/${resource}/${id}`, {
+    const response = await request(`${this.baseUrl}/${resource}/${id}`, {
       method: 'PATCH',
       credentials: 'include',
       headers: {
@@ -293,7 +309,7 @@ class ApiClient {
     path: string,
     data: Record<string, unknown> = {}
   ): Promise<T> {
-    const response = await fetch(`${this.baseUrl}/${path}`, {
+    const response = await request(`${this.baseUrl}/${path}`, {
       method: 'PUT',
       credentials: 'include',
       headers: {
@@ -311,7 +327,7 @@ class ApiClient {
    * DELETE request
    */
   async delete(resource: string, id: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/${resource}/${id}`, {
+    const response = await request(`${this.baseUrl}/${resource}/${id}`, {
       method: 'DELETE',
       credentials: 'include',
       headers: {
@@ -334,7 +350,7 @@ class ApiClient {
       ? `${this.baseUrl}/${path}?${queryString}`
       : `${this.baseUrl}/${path}`;
 
-    const response = await fetch(url, {
+    const response = await request(url, {
       method: 'DELETE',
       credentials: 'include',
       headers: {

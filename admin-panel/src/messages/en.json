@@ -424,6 +424,7 @@
     "noResults": "No results found for \"{searchTerm}\""
   },
   "navigation": {
+    "sessionExpired": "Session expired — sign in again",
     "dashboard": "Dashboard",
     "products": "Products",
     "categories": "Categories & Tags",

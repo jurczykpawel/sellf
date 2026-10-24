@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { formatRelativeTime } from '@/lib/utils/relative-time';
 import { formatPrice } from '@/lib/constants';
 import { useSearchParams } from 'next/navigation';
+import { isExpectedApiError } from '@/lib/api/client';
 import { getDashboardStats } from '@/lib/actions/dashboard';
 import { getRevenueStats, RevenueStats, CurrencyAmount } from '@/lib/actions/analytics';
 import { useRealtime } from '@/contexts/RealtimeContext';
@@ -47,14 +48,17 @@ export default function StatsOverview() {
   const prevTotalRevenueRef = useRef<CurrencyAmount>({}); // Track previous revenue using ref to avoid dependency loop
   const isInitialLoadRef = useRef(true);
 
+  const statsRequest = useRef(0);
   // Keep the fetch callback independent of revenueStats to avoid repeated fetching.
   const fetchAllStats = useCallback(async () => {
+    const request = ++statsRequest.current;
     try {
       const [dashboardData, revenueData] = await Promise.all([
         getDashboardStats(), // Currently global
         getRevenueStats(productId), // Filtered by product
       ]);
 
+      if (request !== statsRequest.current) return;
       if (dashboardData) setStats(dashboardData as unknown as DashboardStats);
       if (revenueData) {
         setRevenueStats(revenueData);
@@ -91,10 +95,12 @@ export default function StatsOverview() {
         prevTotalRevenueRef.current = revenueData.totalRevenue;
       }
     } catch (err) {
-      console.error('Failed to fetch stats', err);
+      if (request === statsRequest.current && !isExpectedApiError(err)) console.error('[StatsOverview] Failed to fetch stats:', err);
     } finally {
-      setLoading(false);
-      isInitialLoadRef.current = false;
+      if (request === statsRequest.current) {
+        setLoading(false);
+        isInitialLoadRef.current = false;
+      }
     }
   }, [productId]);
 
@@ -105,8 +111,8 @@ export default function StatsOverview() {
   }
 
   useEffect(() => {
+    const requestState = statsRequest;
     // Initial fetch
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
     fetchAllStats();
 
     // Register listener for global refresh events
@@ -114,6 +120,7 @@ export default function StatsOverview() {
     addRefreshListener(fetchAllStats);
 
     return () => {
+      requestState.current++;
       removeRefreshListener(fetchAllStats);
     };
   }, [addRefreshListener, removeRefreshListener, fetchAllStats]); // fetchAllStats depends on productId

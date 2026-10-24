@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useUpdateCheck } from '@/hooks/useUpdateCheck'
-import { api } from '@/lib/api/client'
+import { api, isExpectedApiError } from '@/lib/api/client'
 import { formatSidebarBadgeCount, isSidebarLinkActive } from '@/lib/navigation/sidebar'
 import { EmailText } from '@/components/ui/EmailText'
 import SkipToContent from '@/components/ui/SkipToContent'
@@ -224,7 +224,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
           failedWebhooks: (webhooks.data?.length || 0) + (webhooks.pagination?.has_more ? 1 : 0),
         })
       } catch (err) {
-        if (!cancelled) {
+        if (!cancelled && !isExpectedApiError(err)) {
           console.error('[DashboardLayout] Failed to fetch sidebar badges:', err)
         }
       }

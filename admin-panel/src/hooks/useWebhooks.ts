@@ -4,11 +4,11 @@
  * Provides a consistent interface for webhook endpoint operations.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { WebhookEndpoint } from '@/types/webhooks';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { api, ApiError } from '@/lib/api/client';
+import { api, ApiError, isExpectedApiError } from '@/lib/api/client';
 
 export function useWebhooks() {
   const t = useTranslations('admin.webhooks');
@@ -18,6 +18,8 @@ export function useWebhooks() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const fetchEndpoints = useCallback(async () => {
     try {
       setLoading(true);
@@ -25,12 +27,13 @@ export function useWebhooks() {
       if (truncated) {
         console.warn('[useWebhooks] Endpoint list truncated at the safety ceiling; not every endpoint was loaded.');
       }
-      setEndpoints(data);
+      if (mounted.current) setEndpoints(data);
     } catch (err) {
+      if (!mounted.current || isExpectedApiError(err)) return;
       console.error(err);
       toast.error(tCommon('error'));
     } finally {
-      setLoading(false);
+      if (mounted.current) setLoading(false);
     }
   }, [tCommon]);
 
