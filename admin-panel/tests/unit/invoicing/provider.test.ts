@@ -24,6 +24,9 @@ describe('Fakturownia documented mapping', () => {
     expect(result).toMatchObject({ status: 'issued', payment_to: '2026-11-06', payment_type: 'transfer', positions: [{ total_price_gross: 745 }, { total_price_net: 9, tax: 23 }] });
     expect(result).not.toHaveProperty('paid_date');
   });
+  it('sends the documented reverse charge flag and NP rate', () => {
+    expect(mapInvoice({ ...input, reverseCharge: true, buyer: { name: 'DE buyer', country: 'DE' }, lines: [{ name: 'Service', quantity: 1, total: 100, tax: 'np', net: true }] })).toMatchObject({ reverse_charge: true, positions: [{ tax: 'np' }] });
+  });
   it('finds exact oid, requests all periods and ignores unrelated records', async () => {
     const fetcher = vi.fn().mockResolvedValue(Response.json([{ id: 123, number: 'FV/1', token: 'public-token', oid: input.externalKey }]));
     const provider = new FakturowniaProvider('example.fakturownia.pl', 'secret', fetcher);

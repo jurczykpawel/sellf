@@ -22,6 +22,7 @@ export function mapInvoice(input: InvoiceInput): Record<string, unknown> {
     status: input.paidAt ? 'paid' : 'issued', payment_type: input.paidAt ? 'card' : 'transfer',
     ...(input.paidAt ? { paid_date: input.paidAt } : { payment_to: input.dueAt, payment_to_kind: 'other_date' }),
     ...(input.lines.some(l => l.tax === 'zw') && { exempt_tax_kind: article ? EXEMPTION_CHOICES[article] : input.exemption, description: input.exemption }),
+    ...(input.reverseCharge && { reverse_charge: true }),
     positions: input.lines.map(l => ({ name: l.name, quantity: l.quantity, tax: l.tax, [l.net ? 'total_price_net' : 'total_price_gross']: l.total })),
   };
 }

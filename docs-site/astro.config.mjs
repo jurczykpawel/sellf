@@ -60,6 +60,7 @@ export default defineConfig({
 						{ slug: 'webhooks' },
 						{ slug: 'custom-checkout' },
 						{ slug: 'invoicing' },
+						{ slug: 'taxes' },
 						{ slug: 'bank-transfers' },
 						{ slug: 'events' },
 					],

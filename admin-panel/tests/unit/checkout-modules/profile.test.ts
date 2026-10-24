@@ -103,3 +103,20 @@ describe('module values', () => {
     expect(validate([quantity, { ...participants, required: false }], { quantity: 2, participants: [] }).success).toBe(true);
   });
 });
+
+
+describe('country-specific organization tax numbers', () => {
+  it.each([
+    ['PL', '5252248481', true], ['PL', '1234567890', false],
+    ['DE', 'DE123456789', true], ['DE', 'FR123456789', false],
+    ['FR', 'FRAB123456789', true], ['FR', '', false],
+    ['GR', 'EL123456789', true], ['DE', 'DE12<>3456789', false],
+    ['US', 'AB-123', true], ['US', '', true], ['US', '<invalid>', false],
+    ['US', 'a'.repeat(41), false],
+  ])('%s number %s has validity %s for buyer and recipient', (country, nip, valid) => {
+    const party = { ...company, country, nip };
+    const result = validateModuleValues(checkoutProfileSchema.parse({ v: 1, modules: [buyer, { id: 'recipient', for: ['organization'] }] }),
+      { buyer: party, recipient: { company_name: party.company_name, country, nip, address: party.address, city: party.city, postal_code: party.postal_code, differs: true } }, { ...ctx, buyerType: 'organization' });
+    expect(result.success).toBe(valid);
+  });
+});

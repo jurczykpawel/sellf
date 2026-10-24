@@ -48,6 +48,8 @@ vi.mock('@/lib/checkout-modules/registry', async original => {
   return { ...actual, validateModuleValues: vi.fn(actual.validateModuleValues) };
 });
 import { validateModuleValues } from '@/lib/checkout-modules/registry';
+import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
+import { applyBuyerTaxIdentityToCustomer } from '@/lib/stripe/buyer-tax-identity';
 import { POST } from '@/app/api/update-payment-metadata/route';
 
 function makeRequest(objectId: string, extra: Record<string, unknown> = {}) {
@@ -288,5 +290,23 @@ describe('coupon reservation at submit', () => {
   it('requires a valid buyer email for coupon reservation', async () => {
     expect((await POST(makeRequest(SESSION_ID, { email: 'invalid' }))).status).toBe(400);
     expect(mocks.adminRpc).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('profile tax identity routing', () => {
+  it.each(['stripe_tax', 'local'] as const)('uses buyer rather than recipient in %s mode', async tax_mode => {
+    vi.mocked(getCheckoutConfig).mockResolvedValueOnce({ tax_mode } as Awaited<ReturnType<typeof getCheckoutConfig>>);
+    mocks.sessionsRetrieve.mockResolvedValue({ id: SESSION_ID, status: 'open', metadata: { product_id: PRODUCT_ID }, customer: 'cus_profile' });
+    mocks.productRead.mockResolvedValue({ data: { currency: 'PLN', checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false }, { id: 'recipient', for: ['organization'] }] } }, error: null });
+    const party = { company_name: 'Company', address: 'Street 1', city: 'Berlin', postal_code: '10115' };
+    const res = await POST(makeRequest(SESSION_ID, { moduleValues: {
+      buyer: { ...party, type: 'organization', country: 'DE', nip: 'DE123456789' },
+      recipient: { ...party, differs: true, country: 'FR', nip: 'FRAB123456789' },
+    } }));
+    expect(res.status).toBe(200);
+    expect(mocks.adminRpc).toHaveBeenCalledWith('set_payment_order_details', expect.objectContaining({ p_details: expect.objectContaining({ buyer: expect.objectContaining({ nip: 'DE123456789' }), recipient: expect.objectContaining({ nip: 'FRAB123456789' }) }) }));
+    if (tax_mode === 'stripe_tax') expect(applyBuyerTaxIdentityToCustomer).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'cus_profile', identity: { country: 'DE', taxId: 'DE123456789', address: 'Street 1', city: 'Berlin', postalCode: '10115' } }));
+    else expect(applyBuyerTaxIdentityToCustomer).not.toHaveBeenCalled();
   });
 });

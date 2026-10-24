@@ -72,6 +72,15 @@ describe('immutable order mapping', () => {
   it('uses inclusive gross snapshot and exemption', () => {
     expect(buildInvoiceInput(tx, [{ ...line, vat_exempt: true, tax_behavior: 'inclusive', net_amount: 45000, tax_amount: 0 }], { shop_name: 'Sklep' }, 'key', 'art. 113', '{product}').lines[0]).toMatchObject({ total: 450, tax: 'zw', net: false });
   });
+  it('maps Stripe reverse charge to NP and provider annotation', () => {
+    const mapped = buildInvoiceInput(tx, [{ ...line, taxability_reason: 'reverse_charge', vat_rate: 0, tax_amount: 0 }], { shop_name: 'Sklep' }, 'key', '', '{product}');
+    expect(mapped).toMatchObject({ reverseCharge: true, lines: [{ tax: 'np' }] });
+  });
+  it('does not infer reverse charge from a zero local rate', () => {
+    const mapped = buildInvoiceInput(tx, [{ ...line, vat_rate: 0, tax_amount: 0 }], { shop_name: 'Sklep' }, 'key', '', '{product}');
+    expect(mapped.reverseCharge).not.toBe(true);
+    expect(mapped.lines[0].tax).toBe(0);
+  });
   it('keeps transfer deadline and no paid date', () => {
     const mapped = buildInvoiceInput({ ...tx, status: 'awaiting_payment', payment_due_at: '2026-11-06T10:00:00Z' }, [line], { shop_name: 'Sklep' }, 'key', '', '{product}');
     expect(mapped.dueAt).toBe('2026-11-06');

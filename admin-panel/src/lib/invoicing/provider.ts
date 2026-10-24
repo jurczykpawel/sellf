@@ -5,8 +5,8 @@ export interface InvoiceParty {
 }
 export interface InvoiceInput {
   externalKey: string; currency: string; issuedAt: string; paidAt?: string; dueAt?: string;
-  seller: InvoiceParty; buyer: InvoiceParty; recipient?: InvoiceParty; exemption?: string;
-  lines: { name: string; quantity: number; total: number; tax: number | 'zw'; net: boolean }[];
+  seller: InvoiceParty; buyer: InvoiceParty; recipient?: InvoiceParty; exemption?: string; reverseCharge?: boolean;
+  lines: { name: string; quantity: number; total: number; tax: number | 'zw' | 'np'; net: boolean }[];
 }
 export interface IssueResult {
   success: boolean; paid?: boolean; id?: string; number?: string; viewUrl?: string; error?: string;

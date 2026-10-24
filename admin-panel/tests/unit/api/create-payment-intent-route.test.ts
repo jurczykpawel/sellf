@@ -148,6 +148,7 @@ vi.mock('@/lib/services/checkout-line-items', async (importOriginal) => {
 vi.mock('@/lib/stripe/ensure-product', () => ({ ensureStripeProduct: vi.fn().mockResolvedValue('prod_sub') }));
 vi.mock('@/lib/stripe/subscription-dynamic-price', () => ({ createSubscriptionWithDynamicPrice: mocks.dynamicSubscription }));
 
+import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { POST } from '@/app/api/create-payment-intent/route';
 
 function makeRequest(body: Record<string, unknown>) {
@@ -447,4 +448,14 @@ describe('event checkout', () => {
     expect(mocks.sessionsCreate.mock.calls[0][0].expires_at).toBeUndefined();
   });
 
+});
+
+
+it('attaches a customer and enables automatic tax for a profile in Stripe Tax mode', async () => {
+  mocks.getUser.mockResolvedValue({ data: { user: null } });
+  mocks.getOrCreateStripeCustomer.mockResolvedValue('cus_profile');
+  mocks.productOverride = { checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false }] } };
+  vi.mocked(getCheckoutConfig).mockResolvedValueOnce({ tax_mode: 'stripe_tax', automatic_tax: { enabled: true }, tax_id_collection: { enabled: false }, billing_address_collection: 'auto', expires_hours: 24 } as Awaited<ReturnType<typeof getCheckoutConfig>>);
+  expect((await POST(makeRequest({ email: 'company@example.com' }))).status).toBe(200);
+  expect(mocks.sessionsCreate).toHaveBeenCalledWith(expect.objectContaining({ customer: 'cus_profile', automatic_tax: { enabled: true } }));
 });

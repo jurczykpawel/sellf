@@ -289,3 +289,38 @@ test('product without profile retains the original form', async ({ page }) => {
   await expect(page.getByLabel('Typ nabywcy')).toHaveCount(0);
   await expect(page.getByLabel('Ilość', { exact: true })).toHaveCount(0);
 });
+
+
+for (const [country, nip] of [['DE', 'DE123456789'], ['US', '']] as const) {
+  test(`organization in ${country} saves its tax number and country`, async ({ page }) => {
+    expect((await db.from('products').update({ checkout_profile: profile }).eq('id', product.id)).error).toBeNull();
+    const session = await open(page);
+    await page.getByLabel('Typ nabywcy').selectOption('organization');
+    await party(page, 'buyer');
+    await expect(page.locator('label[for="buyer.nip"]')).toHaveText('NIP / numer VAT');
+    await page.locator('[id="buyer.country"]').selectOption(country);
+    await page.locator('[id="buyer.nip"]').fill(nip);
+    await page.getByLabel('Inny odbiorca').check();
+    await party(page, 'recipient');
+    await page.locator('[id="recipient.country"]').selectOption(country);
+    await page.locator('[id="recipient.nip"]').fill(nip);
+    const updated = page.waitForResponse('**/api/update-payment-metadata');
+    await submit(page);
+    expect((await updated).status()).toBe(200);
+    const { data: tx, error } = await db.from('payment_transactions').select('order_details').eq('session_id', session).single();
+    expect(error).toBeNull();
+    expect(tx!.order_details).toMatchObject({ buyer: { country, nip }, recipient: { country, nip } });
+  });
+}
+
+test('EU tax number error explains that its prefix must match the selected country', async ({ page }) => {
+  expect((await db.from('products').update({ checkout_profile: profile }).eq('id', product.id)).error).toBeNull();
+  await open(page);
+  await page.getByLabel('Typ nabywcy').selectOption('organization');
+  await party(page, 'buyer');
+  await page.locator('[id="buyer.country"]').selectOption('DE');
+  await page.locator('[id="buyer.nip"]').fill('FRAB123456789');
+  await submit(page);
+  await expect(page.locator('[id="buyer.nip-error"]')).toContainText('prefiksem zgodnym z wybranym krajem');
+  await expect(page.locator('[id="buyer.nip"]')).toBeFocused();
+});

@@ -85,7 +85,7 @@ export default function CheckoutProfileFields({ profile, state, invoice, errors,
       field(`${prefix}.${key}`, t(key), person[key], value => update(key, value), key === 'email' ? 'email' : 'text'));
   const partyFields = (prefix: string, party: Party, update: (key: keyof Party, value: string) => void, gus = false) =>
     (['company_name', 'nip', 'address', 'postal_code', 'city', 'country'] as const).map(key =>
-      field(`${prefix}.${key}`, t(key), party[key], value => update(key, value), 'text', key === 'nip' && gus ? invoice.handleNIPBlur : undefined));
+      field(`${prefix}.${key}`, t(key), party[key], value => update(key, value), 'text', key === 'nip' && gus && party.country === 'PL' ? invoice.handleNIPBlur : undefined));
   const buyerSetters = { company_name: invoice.setCompanyName, nip: invoice.setNip, address: invoice.setAddress, city: invoice.setCity, postal_code: invoice.setPostalCode, country: invoice.setCountry };
   const forms: Record<Exclude<ModuleConfig['id'], 'quantity'>, (config: ModuleConfig) => ReactNode> = {
     buyer: config => config.id === 'buyer' && <>
