@@ -24,6 +24,7 @@ import {
 
 interface PurchaseTransactionMetadata {
   coupon_discount?: string | null;
+  refunded_at?: string | null;
 }
 
 const formatPriceLocalized = (locale: string, price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
@@ -78,11 +79,11 @@ export default function MyPurchasesPage() {
       const [{ data: rawLineItems, error: lineItemsError }, { data: transactionMetadata, error: transactionMetadataError }] = await Promise.all([
         supabase
           .from('payment_line_items')
-          .select('id, transaction_id, product_id, item_type, product_name, quantity, total_price, currency')
+          .select('id, transaction_id, product_id, item_type, product_name, quantity, total_price, currency, discounted_total, net_amount, tax_amount, tax_behavior, vat_rate, vat_exempt')
           .in('transaction_id', transactionIds),
         supabase
           .from('payment_transactions')
-          .select('id, metadata')
+          .select('id, metadata, refunded_at')
           .in('id', transactionIds),
       ]);
 
@@ -93,7 +94,7 @@ export default function MyPurchasesPage() {
 
       if (!transactionMetadataError) {
         for (const transaction of transactionMetadata || []) {
-          metadataMap[transaction.id] = transaction.metadata as PurchaseTransactionMetadata | null;
+          metadataMap[transaction.id] = { ...(transaction.metadata as PurchaseTransactionMetadata | null), refunded_at: transaction.refunded_at };
         }
       } else {
         console.warn('[my-purchases] Failed to load transaction metadata:', transactionMetadataError);
@@ -237,6 +238,8 @@ export default function MyPurchasesPage() {
   };
 
   const getRefundButton = (purchase: UserPurchase, lineItems: NormalizedPurchaseLineItem[] = []) => {
+    const action = getCustomerRefundAction(purchase);
+    if (action.type === 'none' || action.type === 'pending') return null;
     if (requiresManualRefundReview(lineItems)) {
       return (
         <span className="max-w-[240px] text-right text-xs text-sf-muted">
@@ -247,8 +250,6 @@ export default function MyPurchasesPage() {
       );
     }
 
-    const action = getCustomerRefundAction(purchase);
-    if (action.type === 'none' || action.type === 'pending') return null;
     if (action.type === 'not_refundable') return <span className="text-xs text-sf-muted">{t('notRefundable', { defaultValue: 'Not refundable' })}</span>;
     if (action.type === 'period_expired') return <span className="text-xs text-sf-muted">{t('refundPeriodExpired', { defaultValue: 'Refund period expired' })}</span>;
     if (action.type === 'rejected_contact') {
@@ -302,13 +303,14 @@ export default function MyPurchasesPage() {
   };
 
   const getLineItemRefundLabel = (item: NormalizedPurchaseLineItem) => {
+    if (item.refundState === 'refunded') return t('statusRefunded');
     if (item.refundState === 'refundable') return t('lineItemRefundable', { defaultValue: 'Refundable' });
     if (item.refundState === 'period_expired') return t('lineItemRefundPeriodExpired', { defaultValue: 'Refund period expired' });
     return t('lineItemNotRefundable', { defaultValue: 'Not refundable' });
   };
 
   const getPurchaseDiscountSummary = (purchase: UserPurchase, lineItems: NormalizedPurchaseLineItem[]) => {
-    const subtotal = lineItems.reduce((sum, item) => sum + item.total_price, 0);
+    const subtotal = lineItems.reduce((sum, item) => sum + item.grossSubtotal, 0);
     const transactionMetadata = transactionMetadataById[purchase.transaction_id];
 
     return buildPurchaseDiscountSummary({
@@ -403,6 +405,7 @@ export default function MyPurchasesPage() {
                 (() => {
                   const lineItems = lineItemsByTransaction[purchase.transaction_id] || [];
                   const mixedRefundPolicies = hasMixedRefundPolicies(lineItems);
+                  const refundedAt = transactionMetadataById[purchase.transaction_id]?.refunded_at;
                   return (
                 <div
                   key={purchase.transaction_id}
@@ -445,9 +448,10 @@ export default function MyPurchasesPage() {
                           </div>
                         );
                       })()}
-                      {purchase.refunded_amount > 0 && purchase.status !== 'refunded' && (
+                      {purchase.refunded_amount > 0 && (
                         <div className="text-sm text-sf-muted">
                           {t('refundedAmount', { defaultValue: 'Refunded' })}: {formatPriceLocalized(locale, fromMinorUnits(purchase.refunded_amount, purchase.currency), purchase.currency, t('naLabel'), t('invalidPrice'))}
+                          {refundedAt && `, ${formatAdminDate(refundedAt, locale, false)}`}
                         </div>
                       )}
                     </div>
@@ -473,7 +477,7 @@ export default function MyPurchasesPage() {
                               </div>
                             </div>
                             <div className="shrink-0 text-sm font-semibold text-sf-heading">
-                              {formatPriceLocalized(locale, item.total_price, item.currency, t('naLabel'), t('invalidPrice'))}
+                              {formatPriceLocalized(locale, item.grossTotal, item.currency, t('naLabel'), t('invalidPrice'))}
                             </div>
                           </div>
                         ))}
