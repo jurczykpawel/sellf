@@ -54,6 +54,7 @@ test('seller saves, previews, publishes and restores a storefront', async ({ pag
     await expect(store.locator('section[data-density]')).toBeVisible();
     await expect(store.locator('section[data-density]')).not.toHaveClass(/defaultGroups/);
     await page.getByRole('button', { name: 'Przywróć tę wersję', exact: true }).last().click();
+    await page.getByRole('button', { name: 'Potwierdź przywrócenie', exact: true }).click();
     await expect(page.getByRole('status')).toContainText(String(revision + 2));
     await store.reload();
     await expect(store.locator('section[data-density]')).toHaveClass(/defaultGroups/);
