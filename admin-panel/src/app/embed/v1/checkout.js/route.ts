@@ -314,7 +314,8 @@ export async function GET() {
   // is replaced only once that succeeds. A rejected code is reported under the
   // field and leaves the buyer's current checkout untouched, so they can always
   // pay. onMounted(checkout) lets a modal track the live instance.
-  function startCheckout(host, productSlug, email, initialCoupon, onMounted) {
+  function startCheckout(host, productSlug, email, initialCoupon, onMounted, language) {
+    var polish = (language || host.getAttribute('lang') || document.documentElement.lang || navigator.language || 'en').toLowerCase().split('-')[0] === 'pl';
     var CHECKOUT_PATH = '/api/embed/checkout-session';
     var stripeCheckout = null;
     var gateSlot = null;
@@ -348,14 +349,14 @@ export async function GET() {
       input.type = 'text';
       input.name = 'coupon';
       input.autocomplete = 'off';
-      input.placeholder = 'Coupon code';
-      input.setAttribute('aria-label', 'Coupon code');
+      input.placeholder = polish ? 'Kod kuponu' : 'Coupon code';
+      input.setAttribute('aria-label', polish ? 'Kod kuponu' : 'Coupon code');
       input.value = initialCoupon || '';
       input.style.cssText = 'flex:1;min-width:140px;box-sizing:border-box;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;color:#1f2937;outline:none;';
       applyButton = document.createElement('button');
       applyButton.type = 'submit';
       applyButton.disabled = true;
-      applyButton.textContent = 'Apply';
+      applyButton.textContent = polish ? 'Zastosuj' : 'Apply';
       applyButton.style.cssText = 'padding:8px 16px;background:#5b8def;color:#fff;border:0;border-radius:9999px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;';
       status = document.createElement('div');
       status.setAttribute('role', 'status');
@@ -425,7 +426,7 @@ export async function GET() {
       }).then(function (mounted) {
         if (!stripeSlot) return;
         applyButton.disabled = false;
-        if (mounted && coupon) setStatus('Coupon ' + coupon.toUpperCase() + ' applied.', false);
+        if (mounted && coupon) setStatus(polish ? 'Zastosowano kupon ' + coupon.toUpperCase() + '.' : 'Coupon ' + coupon.toUpperCase() + ' applied.', false);
       }, function (error) {
         var couponProblem = coupon && error.status !== 403 && error.status !== 404;
         if (!couponProblem) {
@@ -481,7 +482,7 @@ export async function GET() {
     button.addEventListener('click', function () {
       button.disabled = true;
       var modal = openModalOverlay();
-      startCheckout(modal.slot, productSlug, options.email, options.coupon, modal.attachStripeCheckout).then(function () {
+      startCheckout(modal.slot, productSlug, options.email, options.coupon, modal.attachStripeCheckout, root.getAttribute('lang')).then(function () {
         button.disabled = false;
       });
     });

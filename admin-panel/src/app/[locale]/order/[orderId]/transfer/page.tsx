@@ -17,6 +17,6 @@ export default async function TransferPage({ params, searchParams }: { params: P
   const t = await getTranslations({ locale, namespace: 'bankTransfer' });
   return <main className="max-w-2xl mx-auto p-6 my-10"><h1 className="text-2xl font-semibold">{t('thanks', { number: tx.order_number ?? '' })}</h1>
     <p className="mt-3">{t(`status_${tx.status}`)}</p>
-    <TransferInstructions transfer={tx.transfer_details} amount={tx.amount} currency={tx.currency} dueAt={tx.payment_due_at} print />
+    <TransferInstructions paid={tx.status === 'completed'} transfer={tx.transfer_details} amount={tx.amount} currency={tx.currency} dueAt={tx.payment_due_at} print />
   </main>;
 }

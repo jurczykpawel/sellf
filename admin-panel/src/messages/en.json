@@ -1,4 +1,8 @@
 {
+  "loginwallError": {
+    "title": "Invalid return address",
+    "description": "This return address is not allowed. Return to the seller’s page and contact them if the problem persists."
+  },
   "invoicing": {
     "title": "Invoicing",
     "column": "Invoice",
@@ -1281,6 +1285,9 @@
     "invalidPrice": "Invalid Price"
   },
   "paymentStatus": {
+    "processingVerification": "Processing verification…",
+    "invalidSession": "Invalid payment session ID.",
+    "verificationFailed": "Could not verify payment. Please try again.",
     "paidLinkSendError": "Your purchase is paid; we could not send the login link. Please try again.",
     "paidLinkRateLimitError": "Your purchase is paid; we could not send the login link due to a sending limit. Please wait before trying again.",
     "resendLoginLink": "Resend login link",
@@ -5536,6 +5543,8 @@
     "fromPrice": "from {price}"
   },
   "bankTransfer": {
+    "paid": "Order paid",
+
       "title": "Traditional bank transfer",
       "bank_transfer_enabled": "Enable traditional bank transfers",
       "bank_transfer_grant_access_on_placement": "Grant access when the order is placed",

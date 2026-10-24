@@ -165,7 +165,7 @@ export default function MagicLinkStatus({
             <div className="flex items-center space-x-3">
               <div className="animate-spin h-5 w-5 border-2 border-sf-accent border-t-transparent rounded-full"></div>
               <span className="text-sf-accent font-medium">
-                {captchaToken ? t('sendingMagicLink') : 'Processing verification...'}
+                {captchaToken ? t('sendingMagicLink') : t('processingVerification')}
               </span>
             </div>
           </div>

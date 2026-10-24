@@ -134,3 +134,16 @@ describe('POST /api/verify-payment — PII redaction', () => {
     expect(body.metadata.first_name).toBe('Jan');
   });
 });
+
+it('returns a stable code for invalid session format', async () => {
+  const res = await POST(makeRequest('invalid'));
+  expect(res.status).toBe(400);
+  expect(await res.json()).toMatchObject({ error_code: 'INVALID_SESSION' });
+});
+it('preserves the error code for an anonymous caller', async () => {
+  mocks.getUser.mockResolvedValue({ data: { user: null } });
+  mocks.verifyPaymentSession.mockResolvedValue({ session_id: 'cs_test_abc123', status: 'invalid', payment_status: null, error: 'Invalid session ID', error_code: 'INVALID_SESSION' });
+  const res = await POST(makeRequest());
+  expect(res.status).toBe(400);
+  expect(await res.json()).toMatchObject({ error_code: 'INVALID_SESSION' });
+});

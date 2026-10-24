@@ -8,6 +8,7 @@ import {
   rateLimitGuard,
   validateRedirectAgainstAllowlist,
 } from '@/lib/loginwall/request';
+import { invalidRedirectPage } from '@/lib/loginwall/error-page';
 import { signGateToken } from '@/lib/loginwall/token';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const redirectTarget = parseCustomerRedirect(parsed.data.redirect);
   if (!redirectTarget) {
-    return jsonError('Invalid redirect', 400);
+    return invalidRedirectPage(request.nextUrl.pathname);
   }
 
   const origin = getCanonicalOriginOrNull();
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const allowedOrigins = await loadAllowedOriginsForProduct(createAdminClient(), sellerId);
   if (!validateRedirectAgainstAllowlist(redirectTarget.origin, allowedOrigins)) {
-    return jsonError('Invalid redirect', 400);
+    return invalidRedirectPage(request.nextUrl.pathname);
   }
 
   const secret = process.env.LOGINWALL_SECRET;

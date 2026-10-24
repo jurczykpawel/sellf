@@ -1,4 +1,8 @@
 {
+  "loginwallError": {
+    "title": "Nieprawidłowy adres powrotu",
+    "description": "Adres powrotu nie jest dozwolony. Wróć na stronę sprzedawcy i skontaktuj się z nim, jeśli problem się powtarza."
+  },
   "invoicing": {
     "title": "Faktury",
     "column": "Faktura",
@@ -208,14 +212,14 @@
     "removeCoupon": "Usuń kod rabatowy",
     "couponEntryPrompt": "Masz kod rabatowy?",
     "couponEntryLabel": "Kod rabatowy",
-    "title": "Dokończ Zakup",
-    "emailAddress": "Adres Email",
+    "title": "Dokończ zakup",
+    "emailAddress": "Adres e-mail",
     "linkedToAccount": "Ten zakup zostanie przypisany do twojego konta.",
     "changeAccount": "Zmień konto",
     "emailPlaceholder": "jan@firma.pl",
     "emailHelp": "Wyślemy szczegóły dostępu na ten adres email.",
     "daysAccess": "Dostęp na {days} dni",
-    "lifetimeAccess": "Dostęp Dożywotni",
+    "lifetimeAccess": "Dostęp dożywotni",
     "saveAmount": "Oszczędzasz {amount}",
     "addToYourOrder": "Dodaj do zamówienia",
     "addToOrder": "Dodaj",
@@ -232,11 +236,11 @@
     "couponPriceGross": "{price} brutto",
     "couponSetPrice": "Cena za sztukę: {price}",
     "discountApplied": "Zastosowano zniżkę {discount}",
-    "paymentError": "Błąd Płatności",
-    "accessGranted": "Dostęp Przyznany!",
+    "paymentError": "Błąd płatności",
+    "accessGranted": "Dostęp przyznany!",
     "alreadyHasAccess": "Masz już dostęp do tego produktu.",
     "autoRedirect": "Przekierowanie za {seconds} s...",
-    "goToProduct": "Przejdź do Produktu",
+    "goToProduct": "Przejdź do produktu",
     "bundleIncludes": "Ten zestaw zawiera:",
     "bundleSavings": "Oszczędzasz {amount} ({pct}% taniej)",
     "funnelTest": {
@@ -258,19 +262,19 @@
     "fixAmountFirst": "Popraw kwotę powyżej, aby kontynuować",
     "invalidAmount": "nieprawidłowa kwota",
     "processing": "Przetwarzanie płatności...",
-    "paymentSuccessful": "Płatność Zakończona Sukcesem!",
+    "paymentSuccessful": "Płatność zakończona sukcesem!",
     "needInvoice": "Potrzebuję faktury",
     "nipLabel": "NIP",
-    "companyNameLabel": "Nazwa Firmy",
+    "companyNameLabel": "Nazwa firmy",
     "firstName": "Imię",
     "lastName": "Nazwisko",
     "nameRequired": "Imię i nazwisko są wymagane",
     "iAgree": "Zgadzam się z",
     "termsOfService": "Regulaminem",
     "and": "i",
-    "privacyPolicy": "Polityką Prywatności",
-    "termsRequired": "Proszę zaakceptować Regulamin i Politykę Prywatności",
-    "priceSummary": "Podsumowanie Ceny",
+    "privacyPolicy": "polityką prywatności",
+    "termsRequired": "Proszę zaakceptować regulamin i politykę prywatności",
+    "priceSummary": "Podsumowanie ceny",
     "couponDiscount": "Rabat",
     "total": "Razem",
     "requestRateLimit": "Zbyt wiele prób. Poczekaj i spróbuj ponownie później.",
@@ -343,7 +347,7 @@
     "productNotYetAvailable": "Ten produkt nie jest jeszcze dostępny",
     "productNoLongerAvailable": "Ten produkt nie jest już dostępny",
     "productCurrentlyUnavailable": "Ten produkt jest obecnie niedostępny",
-    "emailAddress": "Adres Email",
+    "emailAddress": "Adres e-mail",
     "enterEmailPlaceholder": "Wpisz swój adres email",
     "notifyMe": "Powiadom mnie",
     "signupSuccess": "Jesteś na liście! Powiadomimy Cię, gdy ten produkt będzie dostępny.",
@@ -400,7 +404,7 @@
     "allProducts": "Wszystkie produkty",
     "confirmDelete": "Potwierdź usunięcie",
     "currency": {
-      "grouped": "Pogrupowane według Waluty",
+      "grouped": "Pogrupowane według waluty",
       "convertTo": "Przelicz na",
       "selectCurrency": "Wybierz walutę"
     },
@@ -432,7 +436,7 @@
     "logout": "Wyloguj",
     "login": "Zaloguj",
     "profile": "Profil",
-    "myProducts": "Moje Produkty",
+    "myProducts": "Moje produkty",
     "myPurchases": "Moje zakupy",
     "refundRequests": "Wnioski o zwrot",
     "store": "Sklep",
@@ -453,7 +457,7 @@
   },
   "about": {
     "title": "O Sellf",
-    "backToStore": "Powrót do Sklepu"
+    "backToStore": "Powrót do sklepu"
   },
   "integrations": {
     "title": "Integracje i Śledzenie",
@@ -677,25 +681,25 @@
     }
   },
   "profile": {
-    "title": "Twój Profil",
+    "title": "Twój profil",
     "subtitle": "Zarządzaj swoimi danymi osobistymi i firmowymi.",
     "personalInfo": {
-      "title": "Dane Osobowe",
+      "title": "Dane osobowe",
       "subtitle": "Podstawowe informacje o Tobie."
     },
     "billingInfo": {
-      "title": "Dane Firmowe i Faktury",
+      "title": "Dane firmowe i faktury",
       "subtitle": "Informacje używane do wystawiania faktur i transakcji.",
-      "addressTitle": "Adres Siedziby"
+      "addressTitle": "Adres siedziby"
     },
     "fields": {
-      "email": "Adres Email",
+      "email": "Adres e-mail",
       "emailHelp": "Adresu email nie można tu zmienić.",
       "firstName": "Imię",
       "firstNamePlaceholder": "Jan",
       "lastName": "Nazwisko",
       "lastNamePlaceholder": "Kowalski",
-      "companyName": "Nazwa Firmy",
+      "companyName": "Nazwa firmy",
       "companyNamePlaceholder": "Moja Firma Sp. z o.o.",
       "taxId": "NIP",
       "taxIdPlaceholder": "PL1234567890",
@@ -1192,7 +1196,7 @@
     "exclusiveContent": "Ekskluzywnej zawartości",
     "prioritySupport": "Priorytetowego wsparcia",
     "welcomeUser": "Witaj {userEmail}! Ciesz się zakupem.",
-    "welcomeGuest": "Witaj Gościu! Ciesz się zakupem.",
+    "welcomeGuest": "Witaj gościu! Ciesz się zakupem.",
     "accessExpired": "Dostęp wygasł",
     "accessExpiredMessage": "Twój dostęp do tej zawartości wygasł. Możesz ją zakupić ponownie, aby odzyskać dostęp.",
     "canPurchaseAgain": "Dobra wiadomość! Ten produkt jest nadal dostępny do zakupu.",
@@ -1281,6 +1285,9 @@
     "invalidPrice": "Nieprawidłowa cena"
   },
   "paymentStatus": {
+    "processingVerification": "Trwa weryfikacja…",
+    "invalidSession": "Nieprawidłowy identyfikator sesji płatności.",
+    "verificationFailed": "Nie udało się zweryfikować płatności. Spróbuj ponownie.",
     "paidLinkSendError": "Zakup jest opłacony; nie udało się wysłać linku logowania. Spróbuj ponownie.",
     "paidLinkRateLimitError": "Zakup jest opłacony; nie udało się wysłać linku logowania z powodu limitu wysyłki. Poczekaj przed kolejną próbą.",
     "resendLoginLink": "Wyślij link ponownie",
@@ -1330,14 +1337,14 @@
   },
   "compliance": {
     "termsRequired": "Wymagana akceptacja regulaminu",
-    "mustAcceptTerms": "Musisz zaakceptować nasz Regulamin i Politykę Prywatności, aby kontynuować",
+    "mustAcceptTerms": "Musisz zaakceptować nasz regulamin i politykę prywatności, aby kontynuować",
     "beforeSendingLink": "Zanim wyślemy Ci link dostępu",
-    "pleaseAcceptTerms": "Prosimy o zaakceptowanie Regulaminu i Polityki Prywatności, aby kontynuować.",
+    "pleaseAcceptTerms": "Prosimy o zaakceptowanie regulaminu i polityki prywatności, aby kontynuować.",
     "acceptTermsAndPrivacy": "Zgadzam się z {termsLink} i {privacyLink}",
     "iAgreeWith": "Zgadzam się z",
     "and": "i",
     "termsOfService": "Regulaminem",
-    "privacyPolicy": "Polityką Prywatności",
+    "privacyPolicy": "polityką prywatności",
     "securityVerificationRequired": "Prosimy o ukończenie weryfikacji bezpieczeństwa.",
     "orContinueWith": "lub zaloguj przez konto"
   },
@@ -3748,7 +3755,7 @@
     }
   },
   "refundRequests": {
-    "title": "Prośby o Zwrot",
+    "title": "Wnioski o zwrot",
     "subtitle": "Przeglądaj i rozpatruj prośby klientów o zwrot",
     "filterByStatus": "Filtruj po statusie",
     "allStatuses": "Wszystkie statusy",
@@ -3808,7 +3815,7 @@
       "docs": "Dokumentacja",
       "github": "GitHub",
       "dashboard": "Panel",
-      "myProducts": "Moje Produkty",
+      "myProducts": "Moje produkty",
       "getStarted": "Zaloguj",
       "toggleMenu": "Przełącz menu"
     },
@@ -4316,7 +4323,7 @@
       "note": "Każdy wkład pomaga nam szybciej dostarczać nowe funkcje."
     },
     "faq": {
-      "title": "Najczęściej Zadawane Pytania",
+      "title": "Najczęściej zadawane pytania",
       "items": [
         {
           "q": "Czy ogarnę to bez znajomości Linuxa?",
@@ -4558,15 +4565,15 @@
     }
   },
   "notFound": {
-    "adminTitle": "Brama Admina Zamknięta",
+    "adminTitle": "Brama admina zamknięta",
     "adminDescription": "Nawet administratorzy nie mogą uzyskać dostępu do stron, które nie istnieją.",
-    "adminAction": "Wróć do Panelu",
-    "userTitle": "Strona Nie Znaleziona",
+    "adminAction": "Wróć do panelu",
+    "userTitle": "Strona nie znaleziona",
     "userDescription": "Ta strona może być zastrzeżona lub nie istnieje.",
-    "userAction": "Wróć do Panelu",
-    "guestTitle": "Strona Nie Znaleziona",
+    "userAction": "Wróć do panelu",
+    "guestTitle": "Strona nie znaleziona",
     "guestDescription": "Ta strona nie istnieje lub wymaga uwierzytelnienia.",
-    "guestAction": "Uzyskaj Dostęp",
+    "guestAction": "Uzyskaj dostęp",
     "goBack": "Wróć",
     "linkDashboard": "Panel",
     "linkProducts": "Produkty",
@@ -5536,6 +5543,8 @@
     "fromPrice": "od {price}"
   },
   "bankTransfer": {
+    "paid": "Zamówienie opłacone",
+
       "title": "Przelew tradycyjny",
       "bank_transfer_enabled": "Włącz przelew tradycyjny",
       "bank_transfer_grant_access_on_placement": "Przyznaj dostęp przy złożeniu zamówienia",

@@ -7,6 +7,8 @@ import { GET } from '@/app/embed/v1/checkout.js/route';
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  Reflect.deleteProperty(window, 'Stripe');
   document.body.innerHTML = '';
   document.documentElement.lang = '';
 });
@@ -34,4 +36,20 @@ describe('embedded button price locale', () => {
     await waitFor(() => expect(document.querySelector('button')?.textContent).toContain(expected));
     expect(fetch).toHaveBeenCalledOnce();
   });
+});
+
+it.each(['page', 'attribute'])('uses Polish coupon labels from %s', async (source) => {
+  vi.stubEnv('STRIPE_PUBLISHABLE_KEY', 'pk_test_example');
+  document.documentElement.lang = source === 'page' ? 'pl' : 'en';
+  document.body.innerHTML = '<div data-sellf-embed data-product-slug="course" data-coupon="SAVE"></div>';
+  if (source === 'attribute') document.querySelector('[data-sellf-embed]')?.setAttribute('lang', 'pl');
+  const scriptTag = document.createElement('script');
+  scriptTag.src = 'https://sellf.example/embed/v1/checkout.js';
+  vi.spyOn(document, 'currentScript', 'get').mockReturnValue(scriptTag);
+  Object.defineProperty(window, 'Stripe', { configurable: true, value: () => ({ initEmbeddedCheckout: async () => ({ mount: () => {}, destroy: () => {} }) }) });
+  const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ kind: 'paid', clientSecret: 'secret', publishableKey: 'pk_test', product: { price: 49, currency: 'PLN' } }) });
+  runInNewContext(await (await GET()).text(), { document, window, navigator: { language: 'en' }, URL, fetch });
+  await waitFor(() => expect(document.querySelector('input')?.placeholder).toBe('Kod kuponu'));
+  expect(document.body.innerHTML).toContain('Zastosuj');
+  await waitFor(() => expect(document.querySelector('[role=status]')?.textContent).toBe('Zastosowano kupon SAVE.'));
 });

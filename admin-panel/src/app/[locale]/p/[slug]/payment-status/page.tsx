@@ -1,7 +1,8 @@
+import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { redirect } from 'next/navigation';
 import PaymentStatusView from './components/PaymentStatusView';
 import { verifyPaymentSession, verifyPaymentIntent, OtoInfo, mapVerifiedPaymentToStatus } from '@/lib/payment/verify-payment';
 import { buildOtoRedirectUrl, buildSuccessRedirectUrl, hasHideBumpParam } from '@/lib/payment/oto-redirect';
@@ -24,6 +25,7 @@ interface PageProps {
 
 export default async function PaymentStatusPage({ params, searchParams }: PageProps) {
   const resolvedParams = await params;
+  const t = await getTranslations({ locale: resolvedParams.locale, namespace: 'paymentStatus' });
   const resolvedSearchParams = await searchParams;
 
   const { session_id, payment_intent } = resolvedSearchParams;
@@ -80,7 +82,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
         accessGranted = mapped.accessGranted;
         errorMessage = mapped.errorMessage;
       } else if (result.error) {
-        errorMessage = result.error;
+        errorMessage = t(result.error_code === 'INVALID_SESSION' ? 'invalidSession' : 'verificationFailed');
         paymentStatus = 'failed';
       } else {
         paymentStatus = 'processing';
@@ -104,7 +106,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
         accessGranted = mapped.accessGranted;
         errorMessage = mapped.errorMessage;
       } else if (result.error) {
-        errorMessage = result.error;
+        errorMessage = t(result.error_code === 'INVALID_SESSION' ? 'invalidSession' : 'verificationFailed');
         paymentStatus = 'failed';
       } else {
         paymentStatus = 'processing';

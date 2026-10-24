@@ -15,6 +15,7 @@ const ANONYMOUS_FIELDS = [
   'scenario',
   'send_magic_link',
   'error',
+  'error_code',
   'reconciliation_error',
 ] as const satisfies readonly (keyof PaymentVerificationResult)[];
 
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     const isValidFormat = /^(cs_(test|live)_|pi_)[a-zA-Z0-9]+$/.test(session_id);
     if (!isValidFormat) {
       return NextResponse.json(
-        { error: 'Invalid session ID format' },
+        { error: 'Invalid session ID format', error_code: 'INVALID_SESSION' },
         { status: 400 }
       );
     }

@@ -139,6 +139,7 @@ export interface PaymentIntentVerificationResult {
   scenario?: string;
   send_magic_link?: boolean;
   oto_info?: OtoInfo;
+  error_code?: 'INVALID_SESSION';
   error?: string;
   reconciliation_error?: 'transient' | 'data';
 }
@@ -161,6 +162,7 @@ export interface PaymentVerificationResult {
   access_expires_at?: string | null;
   send_magic_link?: boolean;
   oto_info?: OtoInfo;
+  error_code?: 'INVALID_SESSION';
   error?: string;
   reconciliation_error?: 'transient' | 'data';
 }
@@ -404,6 +406,7 @@ export async function verifyPaymentSession(
       session_id: sessionId || 'invalid',
       status: 'error',
       payment_status: null,
+      error_code: 'INVALID_SESSION',
       error: 'Invalid session ID'
     };
   }
@@ -718,6 +721,7 @@ export async function verifyPaymentSession(
           session_id: sessionId,
           status: 'invalid',
           payment_status: null,
+          error_code: 'INVALID_SESSION',
           error: 'Invalid session ID'
         };
       }

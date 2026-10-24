@@ -158,3 +158,8 @@ describe('verifyPaymentSession — IDOR guard for guest sessions', () => {
     expect(result.customer_email).toBe('buyer@example.com');
   });
 });
+
+it('returns the session error code for an unavailable Stripe session', async () => {
+  mocks.stripeSessionsRetrieve.mockRejectedValue({ type: 'StripeInvalidRequestError' });
+  expect(await verifyPaymentSession('cs_test_unknown', null)).toMatchObject({ error_code: 'INVALID_SESSION' });
+});

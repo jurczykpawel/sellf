@@ -112,6 +112,8 @@ describe('GET /loginwall/protect', () => {
     const disallowedUrl = 'https://not-allowed.example.com/blocked';
     const res = await GET(makeRequest(`/loginwall/protect?id=${PRODUCT_ID}&redirect=` + encodeURIComponent(disallowedUrl)));
     expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toContain('text/html');
+    expect(await res.text()).toContain('return address');
   });
 
   it('redirects to /login when there is no session', async () => {
