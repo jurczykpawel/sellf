@@ -56,7 +56,7 @@ async function submit(page: Page) {
 }
 for (const mode of ['checkout', 'product_page']) {
   for (const value of ['0', '-1', '', 'abc', '1.5', '6']) {
-    test(`${mode} quantity ${JSON.stringify(value)} keeps the last valid price`, async ({ page }) => {
+    test(`${mode} quantity ${JSON.stringify(value)} hides the total until quantity is valid`, async ({ page }) => {
       expect((await db.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'quantity', min: 1, max: 5, mode }] } }).eq('id', product.id)).error).toBeNull();
       const errors: string[] = [];
       page.on('pageerror', error => errors.push(error.message));
@@ -67,14 +67,14 @@ for (const mode of ['checkout', 'product_page']) {
       await quantity.fill('3');
       const summary = page.locator('[data-testid="order-summary-total"]');
       await expect(summary).toContainText('300,00');
-      const before = await summary.textContent();
       await quantity.fill(value);
       await expect(quantity).toHaveAttribute('aria-invalid', 'true');
       await expect(page.locator('#checkoutQuantity-error')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toBeDisabled();
-      expect(await summary.textContent()).toBe(before);
+      await expect(summary).toHaveText('—');
       expect(errors).toEqual([]);
       await quantity.fill('2');
+      await expect(summary).toContainText('200,00');
       await expect(quantity).toHaveAttribute('aria-invalid', 'false');
       await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toBeEnabled();
     });
