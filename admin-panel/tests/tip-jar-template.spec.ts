@@ -76,6 +76,29 @@ test.describe('Tip-jar checkout template', () => {
     }
   });
 
+  for (const [currency, amount, displayAmount] of [['PLN', 700, 7], ['JPY', 1000, 1000]] as const) {
+    test(`shows recent supporter amounts in ${currency} display units`, async ({ page }) => {
+      const p = await createTipJarProduct(`Support ${currency}`);
+      try {
+        const { error } = await supabaseAdmin.from('payment_transactions').insert({
+          product_id: p.id,
+          session_id: `cs_supporter_${p.id.replaceAll('-', '')}`,
+          customer_email: 'supporter@example.com',
+          amount,
+          currency,
+          status: 'completed',
+        });
+        expect(error).toBeNull();
+        await page.goto(`/pl/checkout/${p.slug}`);
+        const recent = page.locator('section[aria-labelledby="tipjar-recent-heading"]');
+        const formatted = new Intl.NumberFormat('pl', { style: 'currency', currency }).format(displayAmount);
+        await expect(recent).toContainText(formatted);
+      } finally {
+        await supabaseAdmin.from('products').delete().eq('id', p.id);
+      }
+    });
+  }
+
   test('renders the product-defined custom field (message)', async ({ page }) => {
     const p = await createTipJarProduct('Postaw kebaba', '🥙');
     try {

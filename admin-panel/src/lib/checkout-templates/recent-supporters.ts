@@ -1,4 +1,5 @@
 import { unstable_cache } from 'next/cache';
+import { fromMinorUnits } from '@/lib/currency/minor-units';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { anonymizeSupporterName } from './anonymize-supporter';
 import { getSupporterActionKey } from './supporter-copy';
@@ -7,6 +8,7 @@ const LIMIT = 10;
 
 export interface SupporterEntry {
   displayName: string;
+  /** Display amount in major currency units. */
   amount: number;
   currency: string;
   when: string;
@@ -63,7 +65,7 @@ export function getRecentSupporters(slug: string) {
               : null;
         return {
           displayName: anonymizeSupporterName(rawName, row.id as string),
-          amount: typeof row.amount === 'number' ? row.amount : 0,
+          amount: fromMinorUnits(typeof row.amount === 'number' ? row.amount : 0, row.currency ?? 'USD'),
           currency: (row.currency as string) ?? 'USD',
           when: (row.created_at as string) ?? new Date(0).toISOString(),
           actionKey: getSupporterActionKey((product.icon as string) ?? null),
