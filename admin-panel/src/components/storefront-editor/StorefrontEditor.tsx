@@ -171,7 +171,7 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
   }
   return <div data-storefront-editor className="mx-auto max-w-6xl space-y-6 text-sf-heading">
     <header className="space-y-2"><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('title')}</h1><p className="max-w-2xl text-sm text-sf-muted">{t('intro')}</p></header>
-    <div data-editor-savebar className="relative z-30 flex items-center justify-between gap-3 rounded-xl border border-sf-border bg-sf-base p-3 shadow-sm">
+    <div data-editor-savebar className="sticky top-14 z-30 flex items-center justify-between gap-3 rounded-xl border border-sf-border bg-sf-base p-3 shadow-sm">
       <p role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2 text-sm text-sf-muted"><Check size={16} className={!saved || dirty ? 'hidden' : 'text-sf-success'} aria-hidden="true" /><span>{busy ? t('saving') : dirty ? t('unsaved') : saved ? t('savedState') : t('loadedState')}</span><span className="sr-only">{arrangement}</span></p>
       <div className="flex shrink-0 items-center gap-2"><button type="button" className={editorButton} aria-label={t('reload')} title={t('reload')} disabled={busy} onClick={reload}><RotateCcw size={17} aria-hidden="true" /></button>
       <button type="button" className="min-h-11 rounded-lg bg-sf-accent px-5 py-2 text-sm font-semibold text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:opacity-50" disabled={busy || !config || conflict || !dirty} onClick={save}>{t('save')}</button></div>
@@ -187,8 +187,8 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
       {snapshot && config.templateId !== 'default' && !snapshot.rights.availableTemplateIds.includes(config.templateId) && <p className="flex items-start gap-2 rounded-xl bg-sf-warning-soft p-3 text-sm text-sf-warning"><Eye size={18} className="mt-0.5 shrink-0" aria-hidden="true" />{t(STOREFRONT_TEMPLATES[config.templateId].entitlement.kind === 'template-key' ? 'templateKeyNotice' : 'proNotice')}</p>}
       <TemplateLicenses />
       <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <nav aria-label={t('sections')} className="min-w-0 space-y-3">
-          <div><h2 className="font-semibold">{t('sections')}</h2><p className="mt-1 text-xs text-sf-muted">{t(config.templateId === 'default' ? 'classicHint' : 'orderHint')}</p></div>
+        <nav aria-label={t('sections')} className="scroll-mt-36 min-w-0 space-y-3">
+          <div><h2 className="scroll-mt-36 font-semibold">{t('sections')}</h2><p className="mt-1 text-xs text-sf-muted">{t(config.templateId === 'default' ? 'classicHint' : 'orderHint')}</p></div>
           <ol ref={sectionListRef} id={sectionListId} data-reorder-list className="relative flex min-w-0 gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-1 lg:overflow-visible">
             {order.map((id, index) => <li key={id} data-reorder-index={index} className={`flex w-64 shrink-0 items-center rounded-xl border p-2 lg:w-auto ${sectionId === id ? 'border-sf-accent bg-sf-accent-soft' : 'border-sf-border bg-sf-base'}`}
               onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const raw = event.dataTransfer.getData('text/plain'); if (event.dataTransfer.getData('application/x-sellf-list') === sectionListId && /^\d+$/.test(raw)) moveSection(Number(raw), index); }}>
