@@ -15,7 +15,7 @@ import type { AdminOverview, AdminResult, ApplicationProgramInfo, MemberInfo, Pr
 
 const programColumns = 'id,version::text,enabled,hold_days,buffer_days,terms_version,terms,thresholds';
 const memberColumns = 'user_id,id,code,status,display_name,channel,accepted_terms_version,accepted_at,version::text,created_at';
-const statusCodes: Record<string, number> = { UNAUTHORIZED: 401, FORBIDDEN: 403, DEMO_MODE: 403, CONFLICT: 409, TERMS_VERSION_CONFLICT: 409, INVALID_INPUT: 422, RATE_LIMITED: 429, NOT_FOUND: 404 };
+const statusCodes: Record<string, number> = { UNAUTHORIZED: 401, FORBIDDEN: 403, DEMO_MODE: 403, CONFLICT: 409, CODE_TAKEN: 409, TERMS_VERSION_CONFLICT: 409, INVALID_INPUT: 422, RATE_LIMITED: 429, NOT_FOUND: 404 };
 function failure<T>(errorCode: string): AdminResult<T> {
   return { success: false, errorCode, error: 'Affiliate request failed', status: statusCodes[errorCode] ?? 500 };
 }
@@ -129,6 +129,7 @@ export async function applyToProgram(input: unknown): Promise<AdminResult<Member
     if (!(await verifyCaptchaToken(parsed.data.captcha_token)).success) return failure('INVALID_INPUT');
     const p = parsed.data;
     const { data, error } = await createAdminClient().rpc('affiliate_apply', { p_user: user.id, p_code: p.code, p_display_name: p.display_name, p_channel: p.channel, p_terms_version: p.terms_version }).select(memberColumns).single();
+    if (error?.code === '23505' && error.message.includes('"affiliate_memberships_code_key"')) return failure('CODE_TAKEN');
     if (error) return dbFailure(error.code);
     refresh(); return { success: true, status: 200, data: data as unknown as MemberInfo };
   } catch { return failure('INTERNAL_ERROR'); }

@@ -135,3 +135,18 @@ it('includes fulfillment waits by order age when their next attempt is in the fu
   expect(waiting.eq).toHaveBeenCalledWith('status', 'pending');
   expect(waiting.order).toHaveBeenCalledWith('payment(created_at)');
 });
+
+it('distinguishes a reserved code from other application conflicts', async () => {
+  db.error = { code: '23505', message: 'duplicate key value violates unique constraint "affiliate_memberships_code_key"' };
+  expect(await applyToProgram(application)).toMatchObject({ status: 409, errorCode: 'CODE_TAKEN' });
+  for (const error of [{ code: 'PT409' }, { code: '23505', message: 'affiliate_memberships_user_id_key' }]) {
+    db.error = error;
+    expect(await applyToProgram(application)).toMatchObject({ status: 409, errorCode: 'CONFLICT' });
+  }
+});
+it('accepts the channel length boundary and rejects longer channels before the RPC', async () => {
+  expect((await applyToProgram({ ...application, channel: 'x'.repeat(500) })).success).toBe(true);
+  db.rpc.mockClear();
+  expect((await applyToProgram({ ...application, channel: 'x'.repeat(501) })).status).toBe(422);
+  expect(db.rpc).not.toHaveBeenCalled();
+});

@@ -37,7 +37,7 @@ for (const locale of ['en', 'pl'] as const) for (const width of [1440, 390]) {
       for (const meta of await page.locator('meta[name="robots"]').all()) await expect(meta).toHaveAttribute('content', /noindex/);
       await expect(page.locator('main h1').first()).toBeVisible();
       if (name === 'payouts') { const picker = page.getByRole('combobox').first(); await picker.fill('Demo'); await page.getByRole('option', { name: 'Demo Partner', exact: true }).click(); await expect(picker).toHaveValue('Demo Partner'); await expect(page.locator('main dl dd').first()).toHaveText(locale === 'pl' ? '0,00 PLN' : '0.00 PLN'); }
-      if (name === 'apply') await expect(page.getByRole('heading', { name: (locale === 'en' ? en : pl).affiliates.admin.applicationReceived })).toBeVisible();
+      if (name === 'apply') await expect(page.getByRole('heading', { name: (locale === 'en' ? en : pl).affiliates.admin.alreadyPartner })).toBeVisible();
       if (name === 'earnings') await expect(page.getByRole('combobox')).toHaveValue('Demo Partner');
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: `/tmp/a18-${name}-${locale}-${width}.png`, fullPage: true });

@@ -5300,6 +5300,9 @@
     "apply": "Zgłoś się do programu partnerskiego",
     "admin": {
       "applicationReceived": "Zgłoszenie wysłane",
+      "codeTaken": "Ten kod jest zajęty",
+      "alreadyPartner": "Jesteś już partnerem",
+      "partnerPanel": "Przejdź do panelu partnera",
       "applicationNext": "Status zgłoszenia sprawdzisz w panelu partnera.",
       "viewApplication": "Sprawdź status zgłoszenia",
       "joinTitle": "Dołącz do programu partnerskiego",

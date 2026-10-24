@@ -119,12 +119,14 @@ function MemberDecision({ member, locale, onSaved }: { member: MemberInfo; local
 export function AffiliateApplication({ program, locale }: { program: ApplicationProgramInfo | null; locale: AffiliateAdminLocale }) {
   const t = affiliateAdminMessages[locale]; const id = useId(); const [token, setToken] = useState(''); const [reset, setReset] = useState(0); const [busy, setBusy] = useState(false); const [done, setDone] = useState(false); const [notice, setNotice] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [channelLength, setChannelLength] = useState(0);
+  const approved = program?.applicationStatus === 'approved';
   const formRef = useRef<HTMLFormElement>(null);
   if (done || program?.applicationStatus) return <section className="mx-auto grid w-full min-w-0 max-w-2xl gap-4 rounded-xl border border-sf-border bg-sf-raised p-6 text-sf-heading [overflow-wrap:anywhere]">
-    <h1 className="text-2xl font-semibold">{t.applicationReceived}</h1>
+    <h1 className="text-2xl font-semibold">{approved ? t.alreadyPartner : t.applicationReceived}</h1>
     <p role="status">{done || program?.applicationStatus === 'pending' ? t.pending : statusLabel(program!.applicationStatus!, t)}</p>
-    <p className="text-sm text-sf-body">{t.applicationNext}</p>
-    <Link href={`${locale === 'pl' ? '/pl' : ''}/my-affiliate`} className={`${primaryClass} min-w-0 max-w-full justify-self-start text-center`}>{t.viewApplication}</Link>
+    {!approved && <p className="text-sm text-sf-body">{t.applicationNext}</p>}
+    <Link href={`${locale === 'pl' ? '/pl' : ''}/my-affiliate`} className={`${primaryClass} min-w-0 max-w-full justify-self-start text-center`}>{approved ? t.partnerPanel : t.viewApplication}</Link>
   </section>;
   if (!program?.enabled) return <p>{t.disabled}</p>;
   async function submit(form: FormData) {
@@ -143,16 +145,19 @@ export function AffiliateApplication({ program, locale }: { program: Application
     }
     setBusy(true);
     try {
-      const result = await applyToProgram(parsed.data); if (result.success) setDone(true); else setNotice(message(result, t));
+      const result = await applyToProgram(parsed.data);
+      if (result.success) setDone(true);
+      else if (result.errorCode === 'CODE_TAKEN') { setErrors({ code: t.codeTaken }); formRef.current?.querySelector<HTMLInputElement>('[name=code]')?.focus(); }
+      else setNotice(message(result, t));
     } catch { setNotice(t.error); } finally { setToken(''); setReset(value => value + 1); setBusy(false); }
   }
   return <section aria-labelledby={`${id}-title`} className="mx-auto grid w-full min-w-0 max-w-2xl gap-5 text-sf-heading"><header><h1 id={`${id}-title`} className="[overflow-wrap:anywhere] text-3xl font-semibold tracking-tight">{t.title}</h1><p className="mt-2 text-sm text-sf-body">{t.applicationHint}</p></header>
     <form ref={formRef} noValidate onSubmit={event => { event.preventDefault(); void submit(new FormData(event.currentTarget)); }} className="grid min-w-0 gap-5 rounded-xl border border-sf-border bg-sf-raised p-5">
-      <div className="grid min-w-0 items-start gap-4 sm:grid-cols-2"><Field label={t.name}><input className={fieldClass} name="display_name" aria-invalid={!!errors.display_name} aria-describedby={errors.display_name ? `${id}-name-error` : undefined} required maxLength={120} /></Field>{errors.display_name && <p id={`${id}-name-error`} className="text-sm text-sf-danger">{errors.display_name}</p>}<div className="min-w-0"><Field label={t.code}><input className={fieldClass} name="code" aria-invalid={!!errors.code} aria-describedby={`${id}-code-hint`} required pattern="[a-z0-9_-]{3,40}" minLength={3} maxLength={40} /></Field><p id={`${id}-code-hint`} className={`mt-1 text-xs ${errors.code ? 'text-sf-danger' : 'text-sf-body'}`}>{t.codeHint}</p></div></div>
-      <Field label={t.channel}><input className={fieldClass} name="channel" aria-invalid={!!errors.channel} aria-describedby={errors.channel ? `${id}-channel-error` : undefined} maxLength={500} /></Field>{errors.channel && <p id={`${id}-channel-error`} className="text-sm text-sf-danger">{errors.channel}</p>}
+      <div className="grid min-w-0 items-start gap-4 sm:grid-cols-2"><Field label={t.name}><input className={fieldClass} name="display_name" aria-invalid={!!errors.display_name} aria-describedby={errors.display_name ? `${id}-name-error` : undefined} required maxLength={120} /></Field>{errors.display_name && <p id={`${id}-name-error`} className="text-sm text-sf-danger">{errors.display_name}</p>}<div className="min-w-0"><Field label={t.code}><input className={fieldClass} name="code" onChange={() => setErrors(current => ({ ...current, code: '' }))} aria-invalid={!!errors.code} aria-describedby={`${id}-code-hint`} required pattern="[a-z0-9_-]{3,40}" minLength={3} maxLength={40} /></Field><p id={`${id}-code-hint`} className={`mt-1 text-xs ${errors.code ? 'text-sf-danger' : 'text-sf-body'}`}>{errors.code || t.codeHint}</p></div></div>
+      <Field label={t.channel}><input className={fieldClass} name="channel" aria-invalid={!!errors.channel} aria-describedby={`${id}-channel-count${errors.channel ? ` ${id}-channel-error` : ''}`} maxLength={500} onChange={event => setChannelLength(event.target.value.length)} /></Field><p id={`${id}-channel-count`} className="text-xs text-sf-body">{channelLength} / 500</p>{errors.channel && <p id={`${id}-channel-error`} className="text-sm text-sf-danger">{errors.channel}</p>}
       <div className="rounded-lg border border-sf-border bg-sf-base p-4"><p className="mb-2 text-xs text-sf-body">{t.termsVersion}: {program.terms_version}</p><p className="whitespace-pre-wrap text-sm leading-relaxed [overflow-wrap:anywhere]">{program.terms[locale]}</p></div>
       <label className="flex items-center gap-3 text-sm font-medium"><input name="accepted" type="checkbox" aria-invalid={!!errors.accepted} aria-describedby={errors.accepted ? `${id}-accepted-error` : undefined} required />{t.accept}</label>{errors.accepted && <p id={`${id}-accepted-error`} className="text-sm text-sf-danger">{errors.accepted}</p>}
-      <CaptchaWidget onVerify={setToken} onError={() => setToken('')} onTimeout={() => setToken('')} resetTrigger={reset} />
+      <CaptchaWidget key={reset} onVerify={setToken} onError={() => setToken('')} onTimeout={() => setToken('')} resetTrigger={reset} />
       <button className={primaryClass} disabled={busy || !token}>{t.apply}</button><Notice value={notice} error />
     </form></section>;
 }

@@ -5300,6 +5300,9 @@
     "apply": "Apply to become a partner",
     "admin": {
       "applicationReceived": "Application submitted",
+      "codeTaken": "This code is taken",
+      "alreadyPartner": "You are already a partner",
+      "partnerPanel": "Go to partner dashboard",
       "applicationNext": "You can check your application status in the partner portal.",
       "viewApplication": "View application status",
       "joinTitle": "Join the partner program",
