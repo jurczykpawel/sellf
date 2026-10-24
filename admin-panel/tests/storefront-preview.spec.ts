@@ -11,11 +11,12 @@ const literal = (value: unknown) => "'" + JSON.stringify(value).replaceAll("'", 
 const stateQuery = `SELECT jsonb_build_array((SELECT to_jsonb(c) FROM storefront_config c),(SELECT jsonb_agg(to_jsonb(h) ORDER BY revision) FROM storefront_config_history h),(SELECT jsonb_agg(to_jsonb(a) ORDER BY id) FROM audit_log a WHERE table_name='storefront_config'),(SELECT md5(coalesce(jsonb_agg(to_jsonb(p) ORDER BY id)::text,'')) FROM products p),(SELECT md5(coalesce(jsonb_agg(to_jsonb(a) ORDER BY id)::text,'')) FROM user_product_access a));`;
 test('private preview matrix and history rollback', async ({ page, browser }) => {
   test.setTimeout(180000);
-  const before = sql(stateQuery); const [original] = JSON.parse(before);
+  const before = sql(stateQuery); const [original, originalHistory] = JSON.parse(before);
   const admin = await createTestAdmin('template-preview');
   const member = await createTestUser('template-preview-member');
   const userId = sql(`SELECT id FROM auth.users WHERE email='${admin.email}';`);
   try {
+    sql(`BEGIN; UPDATE storefront_config SET draft=NULL,published=${literal(DEFAULT_CONFIG)}; DELETE FROM storefront_config_history; INSERT INTO storefront_config_history(revision,operation,draft,published) VALUES (${original.revision},'publish',NULL,${literal(DEFAULT_CONFIG)}); COMMIT;`);
     await setAuthSession(page, admin.email, admin.password);
     await acceptAllCookies(page);
     const drafted = await supabaseAdmin.rpc('mutate_storefront_config', { expected_revision: original.revision, operation: 'draft', validated_config: D_LOCALIZED_CONFIG, actor_user_id: userId, actor_method: 'session' });
@@ -111,6 +112,7 @@ test('private preview matrix and history rollback', async ({ page, browser }) =>
     await page.getByRole('button', { name: 'Replace draft and publish', exact: true }).click();
     await expect(page.getByRole('alert').filter({ hasText: 'Your current plan' })).toBeVisible();
     expect(sql('SELECT row_to_json(c) FROM storefront_config c;')).toBe(preservedDraft);
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     await olderDraft(revision + 1).click();
     await expect(page.getByRole('heading', { name: 'Replace your current draft?' })).toBeVisible();
     await expect(page.getByText('Process storefront → Default', { exact: true })).toBeVisible();
@@ -121,12 +123,14 @@ test('private preview matrix and history rollback', async ({ page, browser }) =>
     await page.getByRole('button', { name: 'Replace draft and publish', exact: true }).click();
     await expect(page.getByRole('status')).toContainText(`Published as revision ${revision + 5}`);
     await page.getByRole('button', { name: 'Restore this version', exact: true }).last().click();
+    await page.getByRole('button', { name: 'Confirm restore', exact: true }).click();
     await expect(page.getByRole('status')).toContainText(`Published as revision ${revision + 6}`);
     expect(sql(`SELECT restored_from FROM storefront_config_history WHERE revision=${revision + 6};`)).toBe(String(original.revision));
   } finally {
     sql(`BEGIN;
       UPDATE storefront_config c SET revision=b.revision,draft=b.draft,published=b.published,updated_at=b.updated_at,updated_by=b.updated_by FROM jsonb_populate_record(NULL::storefront_config,${literal(original)}) b WHERE c.id=true;
-      DELETE FROM storefront_config_history WHERE revision>${original.revision};
+      DELETE FROM storefront_config_history;
+      INSERT INTO storefront_config_history SELECT * FROM jsonb_populate_recordset(NULL::storefront_config_history,${literal(originalHistory ?? [])});
       DELETE FROM audit_log WHERE table_name='storefront_config' AND (new_values->>'revision')::bigint>${original.revision};
       DELETE FROM application_rate_limits WHERE identifier IN ('user:${userId}','user:${member.userId}');
       COMMIT;`);
