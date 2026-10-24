@@ -5487,6 +5487,8 @@
     "payoutsLabel": "Wypłaty"
   },
   "events": {
+    "csvFilename": "uczestnicy",
+    "csvPhone": "Telefon",
     "repeat": "Pozwól na ponowny zakup",
     "title": "Terminy i ceny",
     "enabled": "Tryb wydarzenia",

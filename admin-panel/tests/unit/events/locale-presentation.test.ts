@@ -5,6 +5,7 @@ import { NextIntlClientProvider, createTranslator } from 'next-intl';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { EventSection } from '@/components/ProductFormModal/sections/EventSection';
+import { exportEventParticipants } from '@/lib/events/actions';
 import { participantCsv } from '@/lib/events/presentation';
 import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
@@ -44,4 +45,21 @@ it.each(['pl', 'en'] as const)('%s translates reservation statuses only in the e
   const csv = participantCsv(orders);
   expect(csv).toContain('"Order","Status","First name","Last name","Email"');
   for (const { status } of orders) expect(csv).toContain(`,"${status}",`);
+});
+
+it.each(['pl', 'en'] as const)('%s downloads a named participant file', async locale => {
+  const messages = locale === 'pl' ? pl : en;
+  vi.mocked(exportEventParticipants).mockResolvedValue({ success: true, data: '\uFEFFcsv' });
+  const create = vi.fn(() => 'blob:participants'); const revoke = vi.fn();
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke }));
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  const formData = { slug: 'warsztat', event_mode: true, currency: 'PLN', price: 30, sessions: [{ id: '11111111-1111-4111-a111-111111111111', starts_at: '2099-06-01T12:00:00Z', timezone: 'Europe/Warsaw', sales_open: true, sort: 0, tiers: [] }] } as ProductFormData;
+  render(React.createElement(NextIntlClientProvider, { locale, messages }, React.createElement(EventSection, { formData, setFormData: vi.fn() })));
+  fireEvent.click(screen.getByRole('button', { name: messages.events.preview }));
+  fireEvent.click(await screen.findByRole('button', { name: messages.events.export }));
+  await vi.waitFor(() => expect(click).toHaveBeenCalledOnce());
+  expect(click.mock.instances[0].download).toBe(`${locale === 'pl' ? 'uczestnicy' : 'participants'}-warsztat-2099-06-01.csv`);
+  expect(create.mock.calls[0]).toHaveLength(1);
+  expect(revoke).toHaveBeenCalledWith('blob:participants');
+  click.mockRestore(); vi.unstubAllGlobals();
 });

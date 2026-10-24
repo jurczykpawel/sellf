@@ -5,7 +5,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { validateWholeAmounts } from '@/lib/validations/product';
 import { eventSessionsSchema } from '@/lib/events/schema';
 import { getEventAdmin, exportEventParticipants } from '@/lib/events/actions';
-import { formatEventDate, participantRows } from '@/lib/events/presentation';
+import { formatEventDate, participantRows, participantFilename } from '@/lib/events/presentation';
 import type { EventAdminInfo } from '@/lib/events/actions';
 import type { EventSessionInput } from '@/lib/events/schema';
 import type { Dispatch, SetStateAction } from 'react';
@@ -41,7 +41,7 @@ export function EventSection({ formData, setFormData }: { formData: ProductFormD
       {info.data.availability.current_tier ? <><p>{info.data.availability.current_tier.price} {formData.currency}</p>{info.data.availability.current_tier.seats_left !== null && <p>{t('seatsLeft', { count: info.data.availability.current_tier.seats_left })}</p>}{info.data.availability.current_tier.ends_at && <p>{t('until')}: {info.data.availability.current_tier.ends_at}</p>}{info.data.availability.next_tier_price !== null && <p>{t('next')}: {info.data.availability.next_tier_price} {formData.currency}</p>}{info.data.availability.cheaper_sold_out && <p>{t('cheaperSoldOut')}</p>}</> : <p>{t('salesUnavailable')}</p>}
       <h5>{t('orders')}</h5><div className="overflow-x-auto"><table><thead><tr>{['order','status','firstName','lastName','participantEmail'].map(k => <th className="p-2" key={k}>{t(k)}</th>)}</tr></thead><tbody>{participantRows(info.data.orders).map((r,i) => <tr key={i}>{r.map((cell,j) => <td className="p-2" key={j}>{j === 1 ? t(`reservationStatus.${cell}`) : cell}</td>)}</tr>)}</tbody></table></div>
       <button type="button" disabled={info.offset === 0} onClick={() => void load(info.id, Math.max(0,info.offset-100))}>{t('previous')}</button><button className="ml-4" type="button" disabled={info.data.orders.length < 100} onClick={() => void load(info.id,info.offset+100)}>{t('nextPage')}</button>
-      <button className="ml-4" type="button" onClick={async () => { const r = await exportEventParticipants(info.id); if (!r.success || !r.data) { setError(r.error ?? t('error')); return; } const url = URL.createObjectURL(new Blob([r.data], { type: 'text/csv;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = `participants-${info.id}.csv`; a.click(); URL.revokeObjectURL(url); }}>{t('export')}</button>
+      <button className="ml-4" type="button" onClick={async () => { const r = await exportEventParticipants(info.id); if (!r.success || !r.data) { setError(r.error ?? t('error')); return; } const url = URL.createObjectURL(new Blob([r.data], { type: 'text/csv;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = participantFilename(formData.slug, info.data.availability, t); a.click(); URL.revokeObjectURL(url); }}>{t('export')}</button>
     </section>}
   </section>;
 }

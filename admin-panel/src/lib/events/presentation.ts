@@ -44,4 +44,17 @@ export function participantRows(orders: EventOrder[]): string[][] {
       .map(p => [o.transaction_id, o.status, p.first_name, p.last_name, p.email]);
   });
 }
-export function participantCsv(orders: EventOrder[]): string { return buildCsv(['Order', 'Status', 'First name', 'Last name', 'Email'], participantRows(orders)); }
+interface ParticipantCsvOptions { locale: string; t: (key: string) => string; session: { starts_at: string; timezone: string } }
+export function participantFilename(slug: string, session: ParticipantCsvOptions['session'], t: ParticipantCsvOptions['t']): string {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: session.timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(session.starts_at));
+  const date = ['year', 'month', 'day'].map(k => parts.find(p => p.type === k)!.value).join('-');
+  return `${t('csvFilename')}-${slug.replace(/[^a-zA-Z0-9_-]/g, '-')}-${date}.csv`;
+}
+export function participantCsv(orders: EventOrder[], options?: ParticipantCsvOptions): string {
+  if (options) {
+    const { locale, t, session } = options;
+    const rows = orders.flatMap(o => participantRows([o]).map(row => [row[0], t(`reservationStatus.${row[1]}`), ...row.slice(2), formatEventDate(session.starts_at, session.timezone, locale), readOrderDetails(o.order_details).phone?.value ?? '']));
+    return '\uFEFF' + buildCsv(['order', 'status', 'firstName', 'lastName', 'participantEmail', 'session', 'csvPhone'].map(t), rows);
+  }
+  return buildCsv(['Order', 'Status', 'First name', 'Last name', 'Email'], participantRows(orders));
+}

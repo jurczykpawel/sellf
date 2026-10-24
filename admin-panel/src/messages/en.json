@@ -5487,6 +5487,8 @@
     "payoutsLabel": "Payouts"
   },
   "events": {
+    "csvFilename": "participants",
+    "csvPhone": "Phone",
     "repeat": "Allow repeat purchase",
     "title": "Dates and prices",
     "enabled": "Event mode",

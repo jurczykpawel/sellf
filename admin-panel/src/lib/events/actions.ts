@@ -1,5 +1,6 @@
 'use server';
 /** Private event operations. @see @/lib/events/schema */
+import { getLocale, getTranslations } from 'next-intl/server';
 import { z } from 'zod';
 import { withAdminAuth } from '@/lib/actions/admin-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -25,13 +26,16 @@ export async function exportEventParticipants(sessionId: string): Promise<Action
     if (!hasFeature(await resolveCurrentTier(), 'csv-export')) return { success: false, error: 'CSV export requires a Sellf license' };
     if (!await checkRateLimit(RATE_LIMITS.ADMIN_EXPORT.actionType, RATE_LIMITS.ADMIN_EXPORT.maxRequests, RATE_LIMITS.ADMIN_EXPORT.windowMinutes, user.id)) return { success: false, error: 'Rate limit exceeded' };
     const db = createAdminClient(); const orders: EventOrder[] = [];
+    const locale = await getLocale(); const t = await getTranslations('events');
+    let session: EventAdminInfo['availability'];
     for (let offset = 0; ; offset += 100) {
       const { data, error } = await db.rpc('event_session_admin', { p_session_id: sessionId, p_offset: offset });
       if (error || !data) return { success: false, error: 'Event unavailable' };
+      session = (data as unknown as EventAdminInfo).availability;
       const page = (data as unknown as EventAdminInfo).orders; orders.push(...page);
       if (page.length < 100) break;
     }
-    return { success: true, data: participantCsv(orders.filter(o => o.status === 'confirmed')) };
+    return { success: true, data: participantCsv(orders.filter(o => o.status === 'confirmed'), { locale, t, session: session! }) };
   });
 }
 export async function getMyEventSessions(productId: string): Promise<PurchasedEvent[]> {
