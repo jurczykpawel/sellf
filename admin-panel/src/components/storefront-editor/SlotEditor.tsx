@@ -1,10 +1,10 @@
 'use client';
 
 /** Localized seller content, shown within the selected composition section. */
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import BindingPicker from '@/components/storefront-editor/BindingPicker';
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, ComponentProps } from 'react';
 import type { OfferPageConfig } from '@/lib/storefront-templates/offer-repository';
 import type { SlotContent, StorefrontConfig } from '@/lib/storefront-templates/schemas';
 
@@ -14,6 +14,20 @@ export const SLOT_IDS = Object.keys(KINDS).filter(id => id.startsWith('home.')) 
 export const SLOT_SECTIONS = { 'home.hero': 'hero', 'home.tasks': 'tasks', 'home.starts': 'start', 'home.faq': 'faq', 'home.closing': 'closing', 'home.comparison': 'comparison', 'home.catalogue': 'catalogue', 'home.search': 'hero', 'home.featured': 'featured', 'home.starter': 'starter', 'home.author': 'hero', 'home.story': 'story', 'home.paths': 'paths', 'home.projects': 'projects' } as const;
 export const editorControl = 'block w-full rounded-lg border border-sf-muted bg-sf-input px-3 py-2.5 text-sf-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent';
 export const editorButton = 'min-h-11 rounded-lg border border-sf-border-medium bg-sf-base px-4 py-2 text-sm font-medium hover:bg-sf-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:opacity-50';
+function useTextError(value: unknown) {
+  const id = useId();
+  const t = useTranslations('storefrontEditor');
+  const invalid = typeof value === 'string' && /[<>]/.test(value);
+  return { invalid, id, message: invalid ? <span id={id} className="block text-sm text-sf-danger">{t('forbiddenAngles')}</span> : null };
+}
+function TextInput(props: ComponentProps<'input'>) {
+  const error = useTextError(props.value);
+  return <><input {...props} aria-invalid={error.invalid} aria-describedby={error.invalid ? error.id : undefined} className={`${props.className} ${error.invalid ? 'border-sf-danger' : ''}`} />{error.message}</>;
+}
+function TextArea(props: ComponentProps<'textarea'>) {
+  const error = useTextError(props.value);
+  return <><textarea {...props} aria-invalid={error.invalid} aria-describedby={error.invalid ? error.id : undefined} className={`${props.className} ${error.invalid ? 'border-sf-danger' : ''}`} />{error.message}</>;
+}
 function emptyContent(id: SlotId): SlotContent {
   const kind = KINDS[id];
   if (kind === 'author') return { kind, name: '', eyebrow: '', heading: '', intro: '', portraitMediaId: null };
@@ -40,7 +54,7 @@ export default function SlotEditor({ id, value, onChange, comparisonProducts = [
   const textField = (field: 'heading' | 'eyebrow' | 'body', max: number) => {
     if (!(field in content)) return null;
     const props = { className: editorControl, 'aria-label': `${prefix} · ${t(field)}`, maxLength: max, value: String(content[field as keyof typeof content]), onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => update({ ...content, [field]: event.target.value }) };
-    return <label className="block space-y-2 text-sm font-medium" key={field}><span>{t(field)}</span>{field === 'body' ? <textarea {...props} rows={4} /> : <input {...props} />}</label>;
+    return <label className="block space-y-2 text-sm font-medium" key={field}><span>{t(field)}</span>{field === 'body' ? <TextArea {...props} rows={4} /> : <TextInput {...props} />}</label>;
   };
   return <fieldset className="min-w-0 space-y-5">
     <legend className="sr-only">{t('contentTitle', { name })}</legend>
@@ -54,27 +68,27 @@ export default function SlotEditor({ id, value, onChange, comparisonProducts = [
     </div>
     <div className="space-y-5" lang={locale}>
       {textField('eyebrow', 80)}{textField('heading', 160)}{textField('body', 4000)}
-      {content.kind === 'hero' && <label className="block space-y-2 text-sm font-medium"><span>{t('steps')}</span><textarea aria-label={`${prefix} · ${t('steps')}`} className={editorControl} rows={3} maxLength={1445} value={content.steps.join('\n')} onChange={event => update({ ...content, steps: event.target.value ? event.target.value.split('\n') : [] })} /></label>}
+      {content.kind === 'hero' && <label className="block space-y-2 text-sm font-medium"><span>{t('steps')}</span><TextArea aria-label={`${prefix} · ${t('steps')}`} className={editorControl} rows={3} maxLength={1445} value={content.steps.join('\n')} onChange={event => update({ ...content, steps: event.target.value ? event.target.value.split('\n') : [] })} /></label>}
       {content.kind === 'search' && taskCategories.map((categoryId, index) => <label key={categoryId} className="block space-y-2 text-sm font-medium">
-        <span>{t('categoryDescription', { number: index + 1 })}</span><textarea className={editorControl} maxLength={240} aria-label={`${prefix} · ${t('categoryDescription', { number: index + 1 })}`} value={content.items.find(item => item.categoryId === categoryId)?.description ?? ''} onChange={event => update({ ...content, items: taskCategories.map((id, i) => ({ id: `task-${i + 1}`, categoryId: id, description: id === categoryId ? event.target.value : content.items.find(item => item.categoryId === id)?.description ?? '' })) })} />
+        <span>{t('categoryDescription', { number: index + 1 })}</span><TextArea className={editorControl} maxLength={240} aria-label={`${prefix} · ${t('categoryDescription', { number: index + 1 })}`} value={content.items.find(item => item.categoryId === categoryId)?.description ?? ''} onChange={event => update({ ...content, items: taskCategories.map((id, i) => ({ id: `task-${i + 1}`, categoryId: id, description: id === categoryId ? event.target.value : content.items.find(item => item.categoryId === id)?.description ?? '' })) })} />
       </label>)}
       {content.kind === 'comparison' && comparisonProducts.map((productId, index) => {
         const item = content.items.find(item => item.productId === productId) ?? { productId, eyebrow: '', heading: '', body: '', bullets: [] };
         const change = (patch: Partial<typeof item>) => update({ ...content, items: comparisonProducts.map(id => id === productId ? { ...item, ...patch } : content.items.find(value => value.productId === id) ?? { productId: id, eyebrow: '', heading: '', body: '', bullets: [] }) });
         return <div key={productId} className="space-y-3 rounded-xl border border-sf-border p-4">
           <p>{t('offerNumber', { number: index + 1 })}</p>
-          {(['eyebrow', 'heading', 'body'] as const).map(field => <label key={field} className="block space-y-2 text-sm"><span>{t(field)}</span><textarea className={editorControl} aria-label={`${prefix} · ${index + 1} · ${t(field)}`} maxLength={field === 'body' ? 1000 : field === 'heading' ? 160 : 80} value={item[field]} onChange={event => change({ [field]: event.target.value })} /></label>)}
-          <label className="block space-y-2 text-sm"><span>{t('steps')}</span><textarea className={editorControl} aria-label={`${prefix} · ${index + 1} · ${t('steps')}`} maxLength={1445} value={item.bullets.join('\n')} onChange={event => change({ bullets: event.target.value ? event.target.value.split('\n') : [] })} /></label>
+          {(['eyebrow', 'heading', 'body'] as const).map(field => <label key={field} className="block space-y-2 text-sm"><span>{t(field)}</span><TextArea className={editorControl} aria-label={`${prefix} · ${index + 1} · ${t(field)}`} maxLength={field === 'body' ? 1000 : field === 'heading' ? 160 : 80} value={item[field]} onChange={event => change({ [field]: event.target.value })} /></label>)}
+          <label className="block space-y-2 text-sm"><span>{t('steps')}</span><TextArea className={editorControl} aria-label={`${prefix} · ${index + 1} · ${t('steps')}`} maxLength={1445} value={item.bullets.join('\n')} onChange={event => change({ bullets: event.target.value ? event.target.value.split('\n') : [] })} /></label>
         </div>;
       })}
       {content.kind === 'author' && <>
-        <label className="block space-y-2 text-sm font-medium"><span>{t('authorName')}</span><input aria-label={`${prefix} · ${t('authorName')}`} className={editorControl} maxLength={120} value={content.name} onChange={event => update({ ...content, name: event.target.value })} /></label>
-        <label className="block space-y-2 text-sm font-medium"><span>{t('authorIntro')}</span><textarea aria-label={`${prefix} · ${t('authorIntro')}`} className={editorControl} maxLength={4000} rows={4} value={content.intro} onChange={event => update({ ...content, intro: event.target.value })} /></label>
+        <label className="block space-y-2 text-sm font-medium"><span>{t('authorName')}</span><TextInput aria-label={`${prefix} · ${t('authorName')}`} className={editorControl} maxLength={120} value={content.name} onChange={event => update({ ...content, name: event.target.value })} /></label>
+        <label className="block space-y-2 text-sm font-medium"><span>{t('authorIntro')}</span><TextArea aria-label={`${prefix} · ${t('authorIntro')}`} className={editorControl} maxLength={4000} rows={4} value={content.intro} onChange={event => update({ ...content, intro: event.target.value })} /></label>
         <BindingPicker label={t('portraitCover')} kind="products" selectedIds={content.portraitMediaId ? [content.portraitMediaId] : []} maxItems={1} onChange={ids => update({ ...content, portraitMediaId: ids[0] ?? null })} />
       </>}
       {content.kind === 'biography' && <>
         {content.paragraphs.map((paragraph, index) => <div key={index} className="space-y-2">
-          <label className="block space-y-2 text-sm font-medium"><span>{t('paragraphNumber', { number: index + 1 })}</span><textarea className={editorControl} rows={4} maxLength={2000} value={paragraph} onChange={event => update({ ...content, paragraphs: content.paragraphs.map((value, i) => i === index ? event.target.value : value) })} /></label>
+          <label className="block space-y-2 text-sm font-medium"><span>{t('paragraphNumber', { number: index + 1 })}</span><TextArea className={editorControl} rows={4} maxLength={2000} value={paragraph} onChange={event => update({ ...content, paragraphs: content.paragraphs.map((value, i) => i === index ? event.target.value : value) })} /></label>
           <button className={editorButton} type="button" onClick={() => update({ ...content, paragraphs: content.paragraphs.filter((_, i) => i !== index) })}>{t('removeParagraph', { number: index + 1 })}</button>
         </div>)}
         <button className={editorButton} type="button" disabled={content.paragraphs.length >= 6} onClick={() => update({ ...content, paragraphs: [...content.paragraphs, ''] })}>{t('addParagraph')}</button>
@@ -83,13 +97,13 @@ export default function SlotEditor({ id, value, onChange, comparisonProducts = [
         <BindingPicker label={t('pathOffers')} kind="products" selectedIds={content.items.map(item => item.productId)} maxItems={4} onChange={ids => update({ ...content, items: ids.map(productId => content.items.find(item => item.productId === productId) ?? { id: `path-${productId}`, productId, situation: '', body: '' }) })} />
         {content.items.map((item, index) => <div key={item.id} className="space-y-3 rounded-xl border border-sf-border p-4">
           <p className="text-sm font-medium">{t('pathNumber', { number: index + 1 })}</p>
-          {(['situation', 'body', 'label'] as const).map(field => <label key={field} className="block space-y-2 text-sm"><span>{t(field === 'label' ? 'pathLabel' : field)}</span><textarea className={editorControl} maxLength={field === 'body' ? 1000 : field === 'situation' ? 160 : 80} value={item[field] ?? ''} onChange={event => update({ ...content, items: content.items.map((value, i) => i === index ? { ...value, [field]: event.target.value } : value) })} /></label>)}
+          {(['situation', 'body', 'label'] as const).map(field => <label key={field} className="block space-y-2 text-sm"><span>{t(field === 'label' ? 'pathLabel' : field)}</span><TextArea className={editorControl} maxLength={field === 'body' ? 1000 : field === 'situation' ? 160 : 80} value={item[field] ?? ''} onChange={event => update({ ...content, items: content.items.map((value, i) => i === index ? { ...value, [field]: event.target.value } : value) })} /></label>)}
         </div>)}
       </>}
       {content.kind === 'projects' && <>
         {content.items.map((item, index) => <div key={item.id} className="space-y-3 rounded-xl border border-sf-border p-4">
           <p className="text-sm font-medium">{t('projectNumber', { number: index + 1 })}</p>
-          {(['name', 'body', 'url'] as const).map(field => <label key={field} className="block space-y-2 text-sm"><span>{t(field === 'name' ? 'projectName' : field === 'url' ? 'projectUrl' : 'body')}</span><input type={field === 'url' ? 'url' : 'text'} className={editorControl} maxLength={field === 'body' ? 1000 : field === 'url' ? 2048 : 120} value={item[field]} onChange={event => update({ ...content, items: content.items.map((value, i) => i === index ? { ...value, [field]: event.target.value } : value) })} /></label>)}
+          {(['name', 'body', 'url'] as const).map(field => <label key={field} className="block space-y-2 text-sm"><span>{t(field === 'name' ? 'projectName' : field === 'url' ? 'projectUrl' : 'body')}</span><TextInput type={field === 'url' ? 'url' : 'text'} className={editorControl} maxLength={field === 'body' ? 1000 : field === 'url' ? 2048 : 120} value={item[field]} onChange={event => update({ ...content, items: content.items.map((value, i) => i === index ? { ...value, [field]: event.target.value } : value) })} /></label>)}
           <BindingPicker label={t('projectCover')} kind="products" selectedIds={item.mediaId ? [item.mediaId] : []} maxItems={1} onChange={ids => update({ ...content, items: content.items.map((value, i) => i === index ? { ...value, mediaId: ids[0] ?? null } : value) })} />
           <button type="button" className={editorButton} onClick={() => update({ ...content, items: content.items.filter((_, i) => i !== index) })}>{t('removeProject', { number: index + 1 })}</button>
         </div>)}
@@ -100,8 +114,8 @@ export default function SlotEditor({ id, value, onChange, comparisonProducts = [
       </>}
       {content.kind === 'faq' && <>
         {content.items.map((item, index) => <div key={item.id} className="space-y-3 rounded-xl border border-sf-border p-4">
-          <label className="block space-y-2 text-sm font-medium"><span>{t('question', { number: index + 1 })}</span><input aria-label={`${prefix} · ${t('question', { number: index + 1 })}`} className={editorControl} maxLength={240} value={item.question} onChange={event => update({ ...content, items: content.items.map((old, i) => i === index ? { ...old, question: event.target.value } : old) })} /></label>
-          <label className="block space-y-2 text-sm font-medium"><span>{t('answer', { number: index + 1 })}</span><textarea aria-label={`${prefix} · ${t('answer', { number: index + 1 })}`} className={editorControl} maxLength={4000} rows={3} value={item.answer} onChange={event => update({ ...content, items: content.items.map((old, i) => i === index ? { ...old, answer: event.target.value } : old) })} /></label>
+          <label className="block space-y-2 text-sm font-medium"><span>{t('question', { number: index + 1 })}</span><TextInput aria-label={`${prefix} · ${t('question', { number: index + 1 })}`} className={editorControl} maxLength={240} value={item.question} onChange={event => update({ ...content, items: content.items.map((old, i) => i === index ? { ...old, question: event.target.value } : old) })} /></label>
+          <label className="block space-y-2 text-sm font-medium"><span>{t('answer', { number: index + 1 })}</span><TextArea aria-label={`${prefix} · ${t('answer', { number: index + 1 })}`} className={editorControl} maxLength={4000} rows={3} value={item.answer} onChange={event => update({ ...content, items: content.items.map((old, i) => i === index ? { ...old, answer: event.target.value } : old) })} /></label>
           <button type="button" className={editorButton} onClick={() => update({ ...content, items: content.items.filter((_, i) => i !== index) })}>{t('removeQuestion', { number: index + 1 })}</button>
         </div>)}
         <button type="button" className={editorButton} disabled={content.items.length >= 20} onClick={() => {

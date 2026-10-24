@@ -86,3 +86,20 @@ it('compares every older row to the current revision and omits self comparison',
     await waitFor(() => expect(within(rows[index]).getByRole('button', { name: 'Compare' })).toHaveProperty('disabled', false));
   }
 });
+it('requires confirmation before restoring a public version and supports cancelling', async () => {
+  const rows = [3, 2, 1].map(revision => ({ revision, draft: null, published: DEFAULT_CONFIG, created_at: '2026-10-17T10:00:00Z' }));
+  mocks.action.mockImplementation(async (input: { operation: string }) => input.operation === 'read'
+    ? { success: true, data: { revision: 3, draft: null, published: DEFAULT_CONFIG } }
+    : input.operation === 'history' ? { success: true, data: rows }
+    : { success: true, data: { fromRevision: 3, toRevision: 2, changes: [] } });
+  render(historyView());
+  fireEvent.click((await screen.findAllByRole('button', { name: en.templatePreview.rollback }))[0]);
+  await screen.findByRole('button', { name: en.templatePreview.rollbackConfirm });
+  expect(screen.getByRole('dialog').textContent).toContain(en.templatePreview.rollbackHelp);
+  expect(mocks.action.mock.calls.some(([input]) => input.operation === 'rollback')).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: en.templatePreview.cancel }));
+  expect(screen.queryByRole('button', { name: en.templatePreview.rollbackConfirm })).toBeNull();
+  fireEvent.click(screen.getAllByRole('button', { name: en.templatePreview.rollback })[0]);
+  fireEvent.click(await screen.findByRole('button', { name: en.templatePreview.rollbackConfirm }));
+  await waitFor(() => expect(mocks.action).toHaveBeenCalledWith({ operation: 'rollback', targetRevision: 2, expectedRevision: 3 }));
+});

@@ -118,6 +118,9 @@
   "templatePreview": {
       "confirmTitle": "Replace your current draft?",
       "confirmHelp": "Review the changes above, from your current version to the selected version. Continuing replaces your saved draft and publishes the selected version. If publication fails after saving, this version remains your draft.",
+      "rollbackTitle": "Restore this store version?",
+      "rollbackHelp": "Restoring this version will change the public store. Do you want to continue?",
+      "rollbackConfirm": "Confirm restore",
       "confirmPublish": "Replace draft and publish",
       "cancel": "Cancel",
       "draftReplaced": "The selected version is now saved as your draft. Publication has not completed.",
@@ -5052,6 +5055,7 @@
     "technical": "Technical details",
     "templateKeyNotice": "This template needs Pro and its own key — add the matching template key below. Your store shows the free template.",
     "proNotice": "This template requires Pro — your store shows the free template.",
+    "forbiddenAngles": "The characters < and > are not allowed",
     "invalidNotice": "Check the highlighted settings before saving. Your changes are still here.",
     "beforePublishing": "Before publishing",
     "incompleteDraft": "Drafts can stay incomplete. You can keep editing; fix these before publishing.",

@@ -3,6 +3,7 @@
 /** History/diff controls delegate every operation to the session lifecycle. */
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import BaseModal from '@/components/ui/BaseModal';
 import ValidationIssues from '@/components/storefront-editor/ValidationIssues';
 import { productOfferAction, storefrontTemplateAction } from '@/lib/actions/storefront-templates';
 import type { ValidationResult } from '@/lib/storefront-templates/json';
@@ -21,7 +22,7 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
   const [current, setCurrent] = useState<TemplateReadResult | OfferReadResult | null>(null);
   const [history, setHistory] = useState<(StorefrontHistorySnapshot | OfferHistorySnapshot)[]>([]);
   const [diff, setDiff] = useState<TemplateDiffResult | null>(null);
-  const [pending, setPending] = useState<{ revision: number; expectedRevision: number } | null>(null);
+  const [pending, setPending] = useState<{ revision: number; expectedRevision: number; operation: 'publish' | 'rollback' } | null>(null);
   const [busy, setBusy] = useState(true); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
   const load = useCallback((beforeRevision?: number) => {
     return Promise.all([action({ operation: 'read' }), action({ operation: 'history', limit: 20, ...(beforeRevision === undefined ? {} : { beforeRevision }) })]).then(([read, page]) => {
@@ -40,16 +41,16 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
     setBusy(true); setError(''); setNotice(''); setValidation(null);
     try {
       let expectedRevision = current.revision;
-      if (operation === 'publish' && revision !== current.revision && !confirmed) {
+      if ((operation === 'rollback' || operation === 'publish' && revision !== current.revision) && !confirmed) {
         setPending(null);
         const comparison = await action({ operation: 'diff', fromRevision: current.revision, toRevision: revision });
         if (!comparison.success) { setError(comparison.code); return; }
         if ('data' in comparison && 'changes' in comparison.data) {
-          setDiff(comparison.data); setPending({ revision, expectedRevision: current.revision });
+          setDiff(comparison.data); setPending({ revision, expectedRevision: current.revision, operation });
         }
         return;
       }
-      if (confirmed && (!pending || pending.revision !== revision || pending.expectedRevision !== current.revision)) {
+      if (confirmed && (!pending || pending.operation !== operation || pending.revision !== revision || pending.expectedRevision !== current.revision)) {
         setPending(null); setError('CONFLICT'); return;
       }
       if (!confirmed) setPending(null);
@@ -119,13 +120,13 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
           {change.path === '/templateId' && <p>{productId ? offerT('standard') : t(String(change.before))} → {productId ? offerT('standard') : t(String(change.after))}</p>}
           {change.path.startsWith('/content/') && typeof change.after === 'string' && <p>{change.after}</p>}
         </div>)}
-        {pending && <div role="region" aria-label={t('confirmTitle')}>
-          <h3>{t('confirmTitle')}</h3><p>{t('confirmHelp')}</p>
+        {pending && <BaseModal isOpen onClose={() => { if (!busy) { setPending(null); setDiff(null); } }}><div role="region" aria-label={t(pending.operation === 'rollback' ? 'rollbackTitle' : 'confirmTitle')}>
+          <h3>{t(pending.operation === 'rollback' ? 'rollbackTitle' : 'confirmTitle')}</h3><p>{t(pending.operation === 'rollback' ? 'rollbackHelp' : 'confirmHelp')}</p>
           <div className={styles.actions}>
-            <button type="button" className={styles.primary} disabled={busy} onClick={() => void act('publish', pending.revision, true)}>{t('confirmPublish')}</button>
+            <button type="button" className={styles.primary} disabled={busy} onClick={() => void act(pending.operation, pending.revision, true)}>{t(pending.operation === 'rollback' ? 'rollbackConfirm' : 'confirmPublish')}</button>
             <button type="button" className={styles.secondary} disabled={busy} onClick={() => { setPending(null); setDiff(null); }}>{t('cancel')}</button>
           </div>
-        </div>}
+        </div></BaseModal>}
         <details className={styles.technical}><summary>{t('technical')}</summary><pre>{JSON.stringify(diff, null, 2)}</pre></details>
       </section>}
     </>}

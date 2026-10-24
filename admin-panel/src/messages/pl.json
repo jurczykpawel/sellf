@@ -118,6 +118,9 @@
   "templatePreview": {
       "confirmTitle": "Zastąpić obecną wersję roboczą?",
       "confirmHelp": "Sprawdź powyższe zmiany: od obecnej wersji do wybranej. Kontynuacja zastąpi zapisaną wersję roboczą i opublikuje wybraną wersję. Jeśli publikacja po zapisie się nie powiedzie, ta wersja pozostanie robocza.",
+      "rollbackTitle": "Przywrócić tę wersję sklepu?",
+      "rollbackHelp": "Przywrócenie tej wersji zmieni sklep publiczny. Czy chcesz kontynuować?",
+      "rollbackConfirm": "Potwierdź przywrócenie",
       "confirmPublish": "Zastąp i opublikuj",
       "cancel": "Anuluj",
       "draftReplaced": "Wybrana wersja została zapisana jako robocza. Publikacja nie została ukończona.",
@@ -5052,6 +5055,7 @@
     "technical": "Szczegóły techniczne",
     "templateKeyNotice": "Ten szablon wymaga Pro i osobnego klucza — dodaj klucz szablonu poniżej. Sklep pokazuje szablon darmowy.",
     "proNotice": "Ten szablon wymaga Pro — sklep pokazuje szablon darmowy.",
+    "forbiddenAngles": "Znaki < i > są niedozwolone",
     "invalidNotice": "Sprawdź zaznaczone ustawienia przed zapisem. Twoje zmiany pozostają tutaj.",
     "beforePublishing": "Przed publikacją",
     "incompleteDraft": "Szkic może pozostać niepełny. Możesz go dalej edytować; popraw te ustawienia przed publikacją.",

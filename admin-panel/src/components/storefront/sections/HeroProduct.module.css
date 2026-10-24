@@ -11,7 +11,7 @@
 .hero p, .hero h1 { margin: 0; }
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 62px; align-items: center; }
 .copy { min-width: 0; }
-.hero h1 { overflow-wrap: break-word; hyphens: auto; font-size: 76px; line-height: 1.01; letter-spacing: var(--sf-heading-letter-spacing, -.01em); font-weight: var(--sf-font-heading-weight); white-space: pre-line; }
+.hero h1 { overflow-wrap: break-word; hyphens: none; font-size: 76px; line-height: 1.01; letter-spacing: var(--sf-heading-letter-spacing, -.01em); font-weight: var(--sf-font-heading-weight); white-space: pre-line; }
 .hero .eyebrow { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.7px; color: var(--sf-accent); margin-bottom: 18px; }
 .hero .lead { font-size: 17px; line-height: 1.65; max-width: 490px; margin-top: 24px; color: var(--sf-text-body); white-space: pre-line; }
 .offer { display: flex; flex-wrap: wrap; gap: 25px; align-items: center; margin-top: 26px; }
