@@ -22,10 +22,21 @@ export default function RecentActivity() {
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
 
+  const [failed, setFailed] = useState(false)
+
   useEffect(() => {
+    let active = true
     async function fetchActivity() {
       try {
-        const data: any = await getRecentActivity()
+        let data: any
+        try {
+          data = await getRecentActivity()
+        } catch (error) {
+          if (!active || (error instanceof Error && error.name === 'AbortError')) return
+          data = await getRecentActivity()
+        }
+        if (!active) return
+        setFailed(false)
         if (!data) {
           setActivities([])
           return
@@ -70,13 +81,15 @@ export default function RecentActivity() {
         setActivities(activityItems.slice(0, 8))
 
       } catch (err) {
-        console.error('Failed to fetch activity', err)
+        if (!active || (err instanceof Error && err.name === 'AbortError')) return
+        setFailed(true)
       } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
     }
 
     fetchActivity()
+    return () => { active = false }
   }, [t])
 
   const formatTimeAgo = (timestamp: string) => {
@@ -164,7 +177,9 @@ export default function RecentActivity() {
         </h2>
       </div>
       <div>
-        {activities.length === 0 ? (
+        {failed ? (
+          <p role="alert" className="text-sm text-sf-muted py-8 px-6">{t('recentActivity.loadError')}</p>
+        ) : activities.length === 0 ? (
           <div className="text-center py-8 px-6">
             <div className="text-sf-muted mb-2">
               <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -97,7 +97,7 @@ export default function PaymentStatsCards({ stats }: PaymentStatsCardsProps) {
       value: formatMultiCurrency(stats.totalRevenue, convertedAmounts?.totalRevenue),
       icon: DollarSign,
       color: 'bg-green-500',
-      helper: t('grossCompleted', { defaultValue: 'Completed payments, gross' }),
+      helper: t('revenueScope') + ' · ' + (currencyViewMode === 'converted' && displayCurrency && convertedAmounts ? t('convertedTo', { currency: displayCurrency }) : t('originalCurrencies')),
     },
     {
       title: t('totalTransactions'),

@@ -1441,6 +1441,11 @@
       "accessRecords": "Zapisy dostępu",
       "activeUsers": "Aktywni użytkownicy (7d)",
       "stats": {
+        "revenueScope": "Cały okres · {scope} · zakończone, brutto",
+        "selectedProduct": "wybrany produkt",
+        "allProducts": "wszystkie produkty",
+        "convertedTo": "Po przeliczeniu na {currency} (szacunkowo)",
+        "originalCurrencies": "Waluty oryginalne",
         "todayChange": "+{amount} dzisiaj",
         "totalRevenue": "Przychody ogółem",
         "todayRevenue": "Dzisiejszy przychód",
@@ -1462,6 +1467,7 @@
         "tooltipHourly": "Dziś, {hour}:00–{hourEnd}:59"
       },
       "recentActivity": {
+        "loadError": "Nie udało się wczytać aktywności. Odśwież stronę.",
         "title": "Ostatnia aktywność",
         "accessGranted": "Przyznano dostęp do {product}",
         "productCreated": "Nowy produkt utworzony: {product}",
@@ -2684,6 +2690,9 @@
       },
       "loadError": "Nie udało się załadować danych płatności",
       "stats": {
+        "revenueScope": "Cały okres · wszystkie produkty · zakończone, brutto",
+        "convertedTo": "Po przeliczeniu na {currency} (szacunkowo)",
+        "originalCurrencies": "Waluty oryginalne",
         "totalRevenue": "Łączny przychód",
         "totalTransactions": "Łączna liczba transakcji",
         "todayRevenue": "Dzisiejszy przychód",

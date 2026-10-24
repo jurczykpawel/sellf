@@ -186,6 +186,7 @@ export default function StatsOverview() {
     {
       id: 'total-revenue',
       name: t('stats.totalRevenue', { defaultValue: 'Total Revenue' }),
+      helper: t('stats.revenueScope', { scope: productId ? t('stats.selectedProduct') : t('stats.allProducts') }) + ' · ' + (currencyViewMode === 'converted' && displayCurrency && convertedRevenue ? t('stats.convertedTo', { currency: displayCurrency }) : t('stats.originalCurrencies')),
       value: formatMultiCurrency(revenueStats?.totalRevenue ?? {}, convertedRevenue?.total),
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -282,6 +283,7 @@ export default function StatsOverview() {
             >
               {item.value}
             </p>
+            {item.helper && <p className="text-xs text-sf-muted mt-2">{item.helper}</p>}
             {item.change && (
               <p className={`text-xs font-medium mt-2 ${item.changeType === 'positive' ? 'text-sf-success' : 'text-sf-muted'}`}>
                 {item.change}

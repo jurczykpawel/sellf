@@ -1422,6 +1422,11 @@
       "welcome": "Welcome to Sellf Admin",
       "overview": "Overview",
       "stats": {
+        "revenueScope": "All time · {scope} · completed, gross",
+        "selectedProduct": "selected product",
+        "allProducts": "all products",
+        "convertedTo": "Converted to {currency} (estimate)",
+        "originalCurrencies": "Original currencies",
         "todayChange": "+{amount} today",
         "totalRevenue": "Total Revenue",
         "todayRevenue": "Today's Revenue",
@@ -1430,6 +1435,7 @@
         "lastOrder": "Last: {time}"
       },
       "recentActivity": {
+        "loadError": "Could not load activity. Please refresh the page.",
         "title": "Recent Activity",
         "accessGranted": "Access granted to {product}",
         "productCreated": "New product created: {product}",
@@ -2684,6 +2690,9 @@
       },
       "loadError": "Failed to load payment data",
       "stats": {
+        "revenueScope": "All time · all products · completed, gross",
+        "convertedTo": "Converted to {currency} (estimate)",
+        "originalCurrencies": "Original currencies",
         "totalRevenue": "Total Revenue",
         "totalTransactions": "Total Transactions",
         "todayRevenue": "Today's Revenue",
