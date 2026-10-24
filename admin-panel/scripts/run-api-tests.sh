@@ -48,7 +48,11 @@ if [ "$ready" -ne 1 ]; then
   exit 1
 fi
 
-# Avoid making the first test pay for Turbopack's initial route compilation.
-sleep 3
+# Compile the localized home route before tests so hooks measure the app, not the first build.
+if ! curl -fsS --max-time 300 "http://localhost:$PORT/" -o /dev/null; then
+  echo "[run-api-tests] Home route did not respond; tail of $LOG:" >&2
+  tail -40 "$LOG" >&2
+  exit 1
+fi
 
 TEST_API_URL=http://localhost:$PORT bun run test:api
