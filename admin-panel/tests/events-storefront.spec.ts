@@ -88,9 +88,10 @@ test('(f) recording bump gives three registered participants recording access', 
     await checked(await db.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'quantity', min: 3, max: 3, mode: 'hidden' }, { id: 'participants', required: true, prefill_from_buyer: false }] } }).eq('id', product.id));
     await checked(await db.from('order_bumps').insert({ main_product_id: product.id, bump_product_id: recording.id, bump_title: 'Nagranie', bump_price: 10, is_active: true }));
     await open(page); await page.getByRole('button', { name: 'Dodaj', exact: true }).click();
-    const response = await startNativeCheckout(page); const body = await response.json();
-    await expect(page.locator('#checkoutEmail')).toBeVisible();
     for (let i=0;i<3;i++) for (const [key,value] of Object.entries(people[i])) await page.locator(`[id="participants.${i}.${key}"]`).fill(value);
+    const response = await startNativeCheckout(page); const body = await response.json();
+    await expect(page.locator('[data-test-email]')).toHaveAttribute('data-test-email', 'event-buyer@example.com');
+    await expect(page.locator('#checkoutEmail')).toHaveCount(0);
     const tx = await checked(await db.from('payment_transactions').select('id').eq('session_id',(await response.json()).checkoutSessionId).single());
     const metadata = await page.request.post('/api/update-payment-metadata', { headers: { origin: new URL(page.url()).origin }, data: { clientSecret: body.clientSecret, bindingToken: body.bindingToken, productId: product.id, moduleValues: { quantity: 3, participants: people }, termsAccepted: true, locale: 'pl' } });
     expect(metadata.status()).toBe(200);

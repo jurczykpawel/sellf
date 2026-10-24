@@ -34,9 +34,17 @@ async function open(page: Page, quantity = 1) {
   await page.goto(`/pl/checkout/${product.slug}`);
   await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toBeEnabled();
   if (quantity !== 1) await page.getByLabel('Ilość', { exact: true }).fill(String(quantity));
+  const buyerEmail = page.locator('[id="buyer.email"]');
+  if (await buyerEmail.count()) await buyerEmail.fill('buyer@example.com');
+  const fields = page.locator('input[id^="buyer."], input[id^="participants."], #phone');
+  for (const input of await fields.all()) {
+    const id = await input.getAttribute('id');
+    if (id === 'buyer.email' || quantity === 1 && id!.startsWith('participants.') && await page.locator('[id="buyer.first_name"]').count()) continue;
+    await input.fill(id === 'phone' ? '500100200' : id!.endsWith('.email') ? `${id!.split('.')[1]}@example.com` : 'Jan');
+  }
   const response = await startNativeCheckout(page);
-  await expect(page.locator('#checkoutEmail')).toBeVisible();
-  await page.locator('#checkoutEmail').fill('buyer@example.com');
+  const paymentEmail = page.locator('#checkoutEmail');
+  if (await paymentEmail.count()) await paymentEmail.fill('buyer@example.com');
   await page.route('https://api.stripe.com/**/confirm', route => route.abort());
   return (await response.json()).checkoutSessionId as string;
 }
@@ -50,9 +58,7 @@ async function submit(page: Page) {
   if (await terms.count()) await terms.check();
   const button = page.getByRole('button', { name: /^Zapłać/ });
   await expect(button).toBeEnabled({ timeout: 30000 });
-  const response = page.waitForResponse('**/api/update-payment-metadata');
   await button.click();
-  return await response;
 }
 for (const mode of ['checkout', 'product_page']) {
   for (const value of ['0', '-1', '', 'abc', '1.5', '6']) {
@@ -92,6 +98,7 @@ test('product route validates quantity and initialized checkout keeps its last v
   await expect(page.locator('#checkoutQuantity-error')).toContainText('Enter a valid value.');
   await expect(page.getByRole('button', { name: 'Continue to payment' })).toBeDisabled();
   await quantity.fill('3');
+  await page.locator('[id="buyer.email"]').fill('buyer@example.com');
   await startNativeCheckout(page);
   const pay = page.getByRole('button', { name: /^Pay/ });
   await expect(pay).toBeEnabled({ timeout: 30000 });
@@ -127,7 +134,7 @@ test('invalid profile fields are marked, described and focused', async ({ page }
   };
   const baseline = await scan();
   expect(baseline).toEqual([]);
-  expect((await submit(page)).status()).toBe(422);
+  await submit(page);
   for (const id of ['buyer.nip', 'phone', 'participants.1.email']) {
     const input = page.locator(`[id="${id}"]`);
     await expect(input).toHaveAttribute('aria-invalid', 'true');
@@ -141,7 +148,8 @@ test('invalid profile fields are marked, described and focused', async ({ page }
 test('required profile fields receive inline errors and first-field focus', async ({ page }) => {
   expect((await db.from('products').update({ checkout_profile: profile }).eq('id', product.id)).error).toBeNull();
   await open(page);
-  expect((await submit(page)).status()).toBe(422);
+  for (const id of ['buyer.first_name', 'buyer.last_name', 'phone', 'participants.0.first_name', 'participants.0.last_name']) await page.locator(`[id="${id}"]`).fill('');
+  await submit(page);
   for (const id of ['buyer.first_name', 'buyer.last_name', 'phone', 'participants.0.first_name', 'participants.0.last_name']) {
     await expect(page.locator(`[id="${id}"]`)).toHaveAttribute('aria-invalid', 'true');
     await expect(page.locator(`[id="${id}-error"]`)).toBeVisible();
@@ -156,7 +164,9 @@ test('shared profile displays online and transfer validation errors', async ({ p
     const shared = { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], gus: false, bank_transfer_for: ['person', 'organization'] }, { id: 'phone', required: true }] };
     expect((await db.from('products').update({ checkout_profile: shared }).eq('id', product.id)).error).toBeNull();
     await open(page);
-    expect((await submit(page)).status()).toBe(422);
+    await page.locator('[id="buyer.first_name"]').fill('');
+    await page.locator('#phone').fill('');
+    await submit(page);
     await expect(page.locator('[id="buyer.first_name"]')).toHaveAttribute('aria-invalid', 'true');
     await expect(page.locator('[id="buyer.first_name"]')).toBeFocused();
     await page.getByRole('radio', { name: /Przelew tradycyjny/ }).check();
@@ -183,7 +193,9 @@ test('organization, recipient, phone and five participants save against five uni
       await page.locator(`[id="participants.${i}.${key}"]`).fill(value);
     }
   }
-  expect((await submit(page)).status()).toBe(200);
+  const updated = page.waitForResponse('**/api/update-payment-metadata');
+  await submit(page);
+  expect((await updated).status()).toBe(200);
   const { data: tx } = await db.from('payment_transactions').select('id,amount,order_details').eq('session_id', session).single();
   expect(tx).toMatchObject({ amount: 50000, order_details: { buyer: { type: 'organization', nip: '5260250274' }, recipient: { differs: true }, phone: { value: '+48500100200' }, quantity: { value: 5 } } });
   expect(tx!.order_details.participants.people).toHaveLength(5);
@@ -208,7 +220,7 @@ test('missing recipient tax number renders a field error and stops confirmation'
   await page.getByLabel('Inny odbiorca').check();
   await party(page, 'recipient', true);
   await page.locator('[id="phone"]').fill('500100200');
-  expect((await submit(page)).status()).toBe(422);
+  await submit(page);
   await expect(page.locator('[id="recipient.nip-error"]')).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`/pl/checkout/${product.slug}$`));
 });
