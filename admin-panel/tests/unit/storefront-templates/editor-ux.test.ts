@@ -17,8 +17,8 @@ it.each(['a < b', 'a > b'])('identifies the exact invalid content field: %s', he
   expect(container.querySelector(`[id="${input.getAttribute('aria-describedby')}"]`)?.textContent).toBe('forbiddenAngles');
   expect(screen.getByRole('textbox', { name: 'sectionNames.hero · PL · body' }).getAttribute('aria-invalid')).not.toBe('true');
 });
-it('does not hyphenate hero headings', () => {
-  expect(readFileSync('src/components/storefront/sections/HeroProduct.module.css', 'utf8')).not.toMatch(/hyphens:\s*auto/);
+it('uses language-aware hyphenation for narrow hero headings', () => {
+  expect(readFileSync('src/components/storefront/sections/HeroProduct.module.css', 'utf8')).toMatch(/hyphens:\s*auto/);
 });
 it('keeps save disabled after returning content to its saved value', async () => {
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
