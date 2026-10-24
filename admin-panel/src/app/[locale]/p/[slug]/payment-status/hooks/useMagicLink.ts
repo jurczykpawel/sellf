@@ -22,15 +22,21 @@ export function useMagicLink({
   sessionId,
   paymentIntentId,
   product,
-  termsAccepted,
   captchaToken,
   captchaReset,
   showInteractiveWarning,
-}: UseMagicLinkParams): MagicLinkState & { sendMagicLink: () => Promise<void>; error: string | null } {
+}: UseMagicLinkParams): MagicLinkState & { sendMagicLink: () => Promise<void>; error: string | null; retryCountdown: number } {
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [sendingMagicLink, setSendingMagicLink] = useState(false);
   const [showSpinnerForMinTime, setShowSpinnerForMinTime] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [retryCountdown, setRetryCountdown] = useState(0);
+  useEffect(() => {
+    if (!retryCountdown) return;
+    const timer = setTimeout(() => setRetryCountdown(value => value - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [retryCountdown]);
 
   const requestInFlight = useRef(false);
 
@@ -43,8 +49,8 @@ export function useMagicLink({
     const paymentId = sessionId || paymentIntentId;
     if (!customerEmail || !paymentId) return;
 
-    // Don't send if we already have an error
-    if (error) return;
+    if (!captchaToken || retryCountdown > 0) return;
+    setError(null);
 
     if (requestInFlight.current) return;
     requestInFlight.current = true;
@@ -70,19 +76,20 @@ export function useMagicLink({
         } else if (result.reason === 'captcha_failed' || result.reason === 'captcha_missing') {
           setError(t('captchaFailedError'));
         } else if (result.reason === 'rate_limited') {
-          setError(t('rateLimitError'));
+          setError(t('paidLinkRateLimitError'));
+          setRetryCountdown(60);
         } else {
-          setError(t('unexpectedError'));
+          setError(t('paidLinkSendError'));
         }
       }
     } catch (err) {
       console.error('Exception sending magic link:', err);
-      setError(t('unexpectedError'));
+      setError(t('paidLinkSendError'));
     } finally {
       requestInFlight.current = false;
       setSendingMagicLink(false);
     }
-  }, [locale, customerEmail, sessionId, paymentIntentId, product.slug, captchaToken, captchaReset, error, t, tDemo]);
+  }, [locale, customerEmail, sessionId, paymentIntentId, product.slug, captchaToken, captchaReset, retryCountdown, t, tDemo]);
 
   // Auto-send magic link when conditions are met. Terms are always accepted
   // in checkout before reaching this page, so no terms check is needed here.
@@ -96,7 +103,6 @@ export function useMagicLink({
         captchaToken &&
         !sendingMagicLink &&
         !error) { // Don't auto-send if there's an error
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Only the awaited delivery result updates state.
       sendMagicLinkInternal();
     }
   }, [paymentStatus, customerEmail, sessionId, paymentIntentId, magicLinkSent, sendingMagicLink, captchaToken, sendMagicLinkInternal, error]);
@@ -119,12 +125,13 @@ export function useMagicLink({
   }, [showSpinnerForMinTime, spinnerRequest]);
 
   const sendMagicLink = useCallback(() => {
-    if (!customerEmail || !paymentId || error || requestInFlight.current) return Promise.resolve();
+    if (!customerEmail || !paymentId || !captchaToken || retryCountdown > 0 || magicLinkSent || requestInFlight.current) return Promise.resolve();
     setSendingMagicLink(true);
     return sendMagicLinkInternal();
-  }, [customerEmail, paymentId, error, sendMagicLinkInternal]);
+  }, [customerEmail, paymentId, captchaToken, retryCountdown, magicLinkSent, sendMagicLinkInternal]);
 
   return {
+    retryCountdown,
     sent: magicLinkSent,
     sending: sendingMagicLink || autoSending,
     showSpinnerForMinTime,

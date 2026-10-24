@@ -178,6 +178,8 @@ export default function PaymentStatusView({
             captchaTimeout={turnstile.timeout}
             showInteractiveWarning={turnstile.showInteractiveWarning}
             magicLinkError={magicLink.error}
+            retryCountdown={magicLink.retryCountdown}
+            sending={magicLink.sending}
             onTermsAccept={terms.acceptTerms}
             onCaptchaSuccess={turnstile.setToken}
             onCaptchaError={turnstile.setError}

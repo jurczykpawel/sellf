@@ -1279,6 +1279,10 @@
     "invalidPrice": "Nieprawidłowa cena"
   },
   "paymentStatus": {
+    "paidLinkSendError": "Zakup jest opłacony; nie udało się wysłać linku logowania. Spróbuj ponownie.",
+    "paidLinkRateLimitError": "Zakup jest opłacony; nie udało się wysłać linku logowania z powodu limitu wysyłki. Poczekaj przed kolejną próbą.",
+    "resendLoginLink": "Wyślij link ponownie",
+    "resendLinkCountdown": "Wyślij ponownie za {seconds} s",
     "purchaseReceipt": "Dziękujemy! Potwierdzamy zakup produktu {productName}.",
     "purchaseLibraryHint": "Zakupiony produkt jest dostępny tutaj i w zakładce Moje produkty.",
     "openPurchase": "Otwórz zakupiony produkt",

@@ -14,6 +14,8 @@ interface MagicLinkStatusProps {
   captchaTimeout: boolean;
   showInteractiveWarning: boolean;
   magicLinkError: string | null;
+  retryCountdown: number;
+  sending: boolean;
   onTermsAccept: () => void;
   onCaptchaSuccess: (token: string) => void;
   onCaptchaError: (error: string | null) => void;
@@ -37,6 +39,9 @@ export default function MagicLinkStatus({
   captchaTimeout,
   showInteractiveWarning,
   magicLinkError,
+  retryCountdown,
+  sending,
+  sendMagicLink,
   onTermsAccept,
   onCaptchaSuccess,
   onCaptchaError,
@@ -59,10 +64,10 @@ export default function MagicLinkStatus({
   
   // Show validation block if:
   // 1. We need user action (terms or captcha)
-  // 2. There's no captcha error AND no magic link error
+  // 2. There's no captcha error
   // 3. Magic link hasn't been sent yet
   // 4. Captcha became interactive (showInteractiveWarning is set by onBeforeInteractive)
-  const showValidationBlock = !magicLinkSent && !captchaError && !magicLinkError && (
+  const showValidationBlock = !magicLinkSent && !captchaError && (
     needsCustomTerms || 
     (needsCaptcha && showInteractiveWarning) || 
     showInteractiveWarning
@@ -195,6 +200,10 @@ export default function MagicLinkStatus({
           <div className="bg-sf-danger-soft border border-sf-danger/30 rounded-lg p-3 text-sm text-sf-danger mb-4">
             ❌ {magicLinkError}
             <div className="mt-3">
+              <button type="button" onClick={sendMagicLink} disabled={sending || !captchaToken || retryCountdown > 0}
+                className="inline-block px-4 py-2 bg-sf-accent-bg text-white text-sm rounded disabled:opacity-50">
+                {retryCountdown > 0 ? t('resendLinkCountdown', { seconds: retryCountdown }) : t('resendLoginLink')}
+              </button>
               <Link 
                 href="/login?message=payment_completed_login_required" 
                 className="inline-block px-4 py-2 bg-sf-accent-bg hover:bg-sf-accent-hover text-white text-sm rounded transition-colors"

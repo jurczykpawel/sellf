@@ -1279,6 +1279,10 @@
     "invalidPrice": "Invalid Price"
   },
   "paymentStatus": {
+    "paidLinkSendError": "Your purchase is paid; we could not send the login link. Please try again.",
+    "paidLinkRateLimitError": "Your purchase is paid; we could not send the login link due to a sending limit. Please wait before trying again.",
+    "resendLoginLink": "Resend login link",
+    "resendLinkCountdown": "Resend in {seconds}s",
     "purchaseReceipt": "Thank you! Your purchase of {productName} is confirmed.",
     "purchaseLibraryHint": "Your purchase is available here and in My products.",
     "openPurchase": "Open your purchase",
