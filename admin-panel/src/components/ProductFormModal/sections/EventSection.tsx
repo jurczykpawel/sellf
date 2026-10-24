@@ -34,7 +34,7 @@ export function EventSection({ formData, setFormData }: { formData: ProductFormD
         <button className={buttonClass} type="button" onClick={() => patch(index, { tiers: s.tiers.filter((_,j) => j !== n) })}>{t('removeTier')}</button></fieldset>)}
       <button className={buttonClass} type="button" onClick={() => patch(index, { tiers: [...s.tiers, { label: '', price: formData.price, seats: null, sort: Math.max(-1,...s.tiers.map(v => v.sort))+1 }] })}>{t('addTier')}</button>
       <button className={`${buttonClass} ml-4`} type="button" onClick={() => update(sessions.filter((_,i) => i !== index))}>{t('removeSession')}</button>
-      {s.id ? <button className="ml-4" type="button" onClick={() => void load(s.id!)}>{t('preview')}</button> : <p>{t('savePreview')}</p>}
+      {s.id ? <button className={`${buttonClass} ml-4`} type="button" onClick={() => void load(s.id!)}>{t('preview')}</button> : <p>{t('savePreview')}</p>}
     </fieldset>)}<button className={buttonClass} type="button" onClick={() => update([...sessions, { starts_at: '', timezone: 'Europe/Warsaw', capacity: null, sales_open: true, sort: sessions.length, tiers: [{ label: '', price: formData.price, seats: null, sort: 0 }] }])}>{t('addSession')}</button>
     {(!valid.success || validateWholeAmounts({ sessions }, formData.currency).length > 0) && <p role="alert" className="text-sf-danger">{t('invalid')}</p>}</>}
     {error && <p role="alert">{error}</p>}

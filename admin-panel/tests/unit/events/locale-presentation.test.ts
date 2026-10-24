@@ -37,6 +37,7 @@ it.each(['pl', 'en'] as const)('%s translates reservation statuses only in the e
     starts_at: '2099-06-01T12:00:00Z', timezone: 'Europe/Warsaw', sales_open: true, sort: 0, tiers: [],
   }] } as ProductFormData;
   render(React.createElement(NextIntlClientProvider, { locale, messages }, React.createElement(EventSection, { formData, setFormData: vi.fn() })));
+  expect(screen.getByRole('button', { name: messages.events.preview }).className.split(' ')).toEqual(expect.arrayContaining(['border', 'bg-sf-raised', 'px-4', 'py-2', 'focus-visible:ring-2']));
   fireEvent.click(screen.getByRole('button', { name: messages.events.preview }));
   const table = await screen.findByRole('table');
   for (const label of locale === 'pl' ? ['Zarezerwowane', 'Potwierdzone', 'Zwolnione'] : ['Reserved', 'Confirmed', 'Released']) {
