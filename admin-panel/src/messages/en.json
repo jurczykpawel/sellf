@@ -205,7 +205,7 @@
         "invalid_nip": "Enter a valid Polish NIP (10 digits with a valid checksum).",
         "invalid_eu_vat": "Enter an EU VAT number prefixed with the selected country code (e.g. DE123456789; Greece: EL).",
         "invalid_tax_id": "Use letters, digits or hyphens (maximum 40 characters); this number is optional.",
-        "invalid_phone": "Enter a valid phone number.",
+        "invalid_phone": "Enter the number with a country code (e.g. +48 500 600 700), at least 7 digits.",
         "duplicate_email": "Each participant needs a different email.",
         "participant_count": "Enter one participant per item.",
         "details_too_large": "Order details are too long.",

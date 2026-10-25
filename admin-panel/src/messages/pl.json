@@ -205,7 +205,7 @@
         "invalid_nip": "Wpisz poprawny polski NIP (10 cyfr i prawidłowa suma kontrolna).",
         "invalid_eu_vat": "Wpisz numer VAT UE z prefiksem zgodnym z wybranym krajem (np. DE123456789; Grecja: EL).",
         "invalid_tax_id": "Użyj liter, cyfr lub myślników (maks. 40 znaków); numer jest opcjonalny.",
-        "invalid_phone": "Wpisz poprawny numer telefonu.",
+        "invalid_phone": "Podaj numer z kierunkowym kraju (np. +48 500 600 700), minimum 7 cyfr.",
         "duplicate_email": "Każdy uczestnik musi mieć inny e-mail.",
         "participant_count": "Wpisz jednego uczestnika na każdą sztukę.",
         "details_too_large": "Dane zamówienia są zbyt długie.",

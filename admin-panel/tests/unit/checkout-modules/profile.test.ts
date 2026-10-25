@@ -83,6 +83,20 @@ describe('module values', () => {
     for (const phone of ['', 'abc', '+000000000', '123']) expect(validate(modules, { phone }).success).toBe(false);
     expect(validate([{ id: 'phone', required: false }], { phone: '' }).success).toBe(true);
   });
+  it('treats a leading 00 as the + country prefix', () => {
+    const modules = [{ id: 'phone', required: true }];
+    for (const phone of ['00 48 500 600 700', '0048500600700', '00(48)500-600-700']) {
+      expect(validate(modules, { phone })).toMatchObject({ success: true, details: { phone: { v: 1, value: '+48500600700' } } });
+    }
+    expect(validate(modules, { phone: '00 1 202 555 0100' })).toMatchObject({ success: true, details: { phone: { value: '+12025550100' } } });
+    for (const phone of ['00', '00 48', '0048 12', '1234567']) expect(validate(modules, { phone }).success).toBe(false);
+  });
+  it('explains in the rejection message that a country code and at least 7 digits are needed', async () => {
+    const { default: pl } = await import('@/messages/pl.json');
+    const { default: en } = await import('@/messages/en.json');
+    expect(pl.checkout.profile.errors.invalid_phone).toMatch(/kierunkow.*7 cyfr/);
+    expect(en.checkout.profile.errors.invalid_phone).toMatch(/country code.*7 digits/);
+  });
   it('rejects a phone number whose national part is too short, with or without a country code', () => {
     for (const required of [true, false]) {
       for (const phone of ['12', '+48 12', '+4812', '+48 123']) expect(validate([{ id: 'phone', required }], { phone }).success).toBe(false);

@@ -239,6 +239,34 @@ test('shared profile displays online and transfer validation errors', async ({ p
     expect((await db.from('products').update({ checkout_profile: profile }).eq('id', product.id)).error).toBeNull();
   }
 });
+test('phone: a number without a country code is explained, a 00 prefix is stored as +', async ({ page }) => {
+  expect((await db.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'phone', required: true }] } }).eq('id', product.id)).error).toBeNull();
+  try {
+    await acceptAllCookies(page);
+    await page.goto(`/pl/checkout/${product.slug}`);
+    const start = page.getByRole('button', { name: 'Przejdź do płatności' });
+    await expect(start).toBeEnabled();
+    await page.locator('[id="buyer.email"]').fill('buyer@example.com');
+    await page.locator('#phone').fill('1234567');
+    await start.click();
+    await expect(page.locator('#phone-error')).toContainText('kierunkowym kraju');
+    await expect(page.locator('#phone-error')).toContainText('minimum 7 cyfr');
+    await page.locator('#phone').fill('00 48 500 600 700');
+    const response = await startNativeCheckout(page);
+    await expect(page.locator('#phone-error')).toHaveCount(0);
+    const session = (await response.json()).checkoutSessionId as string;
+    const paymentEmail = page.locator('#checkoutEmail');
+    if (await paymentEmail.count()) await paymentEmail.fill('buyer@example.com');
+    await page.route('https://api.stripe.com/**/confirm', route => route.abort());
+    const updated = page.waitForResponse('**/api/update-payment-metadata');
+    await submit(page);
+    expect((await updated).status()).toBe(200);
+    const { data: tx } = await db.from('payment_transactions').select('order_details').eq('session_id', session).single();
+    expect(tx!.order_details.phone.value).toBe('+48500600700');
+  } finally {
+    expect((await db.from('products').update({ checkout_profile: profile }).eq('id', product.id)).error).toBeNull();
+  }
+});
 test('organization, recipient, phone and five participants save against five units', async ({ page }) => {
   const session = await open(page, 5);
   await page.getByLabel('Typ nabywcy').selectOption('organization');
