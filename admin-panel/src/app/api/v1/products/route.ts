@@ -307,6 +307,11 @@ export async function POST(request: NextRequest) {
       if (createError.code === '23505') {
         return apiError(request, 'ALREADY_EXISTS', 'A product with this slug already exists');
       }
+      if (createError.code === '23514') {
+        throw new ApiValidationError('Validation failed', {
+          _errors: [`Database constraint violation: ${createError.message}`],
+        });
+      }
       console.error('[products.POST]', createError);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to create product');
     }

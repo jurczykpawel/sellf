@@ -15,6 +15,11 @@ import { useTranslations } from 'next-intl';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useProducts } from '@/hooks/useProducts';
 import { isRelativeOrHttpUrl } from '@/lib/validations/redirect';
+import { duplicateProductDraft } from '@/lib/product-duplicate';
+import { ApiError } from '@/lib/api/client';
+
+// Server-side failures carry English text; show the localized fallback instead.
+const isServerError = (err: unknown): boolean => err instanceof ApiError && err.status >= 500;
 
 interface ProductsPageContentProps {
   hasLicenseIssuance?: boolean;
@@ -127,7 +132,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
         addButtonRef.current?.focus();
       }, 0);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('createError'));
+      toast.error(err instanceof Error && !isServerError(err) ? err.message : t('createError'));
       return Promise.reject(err);
     } finally {
       setSubmitting(false);
@@ -146,7 +151,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
       await fetchProducts();
       toast.success(t('updateSuccess', { name: formData.name }));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('updateError'));
+      toast.error(err instanceof Error && !isServerError(err) ? err.message : t('updateError'));
       return Promise.reject(err);
     } finally {
       setSubmitting(false);
@@ -187,17 +192,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   };
 
   const handleDuplicateProduct = (product: Product) => {
-    // Create a copy of the product with modified name and cleared fields
-    const duplicatedProduct: Product = {
-      ...product,
-      name: `[COPY] ${product.name}`,
-      // These will be auto-generated/set by the backend
-      id: '' as any, // Will be generated on save
-      slug: '', // Will be auto-generated from new name
-      created_at: '' as any,
-      updated_at: '' as any,
-    };
-    setEditingProduct(duplicatedProduct);
+    setEditingProduct(duplicateProductDraft(product, '[COPY] '));
     setNewAsBundle(false);
     setShowProductForm(true);
   };

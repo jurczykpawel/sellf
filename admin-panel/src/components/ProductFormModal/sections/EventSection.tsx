@@ -31,7 +31,7 @@ export function EventSection({ formData, setFormData }: { formData: ProductFormD
       {s.tiers.map((tier, n) => <fieldset key={tier.id ?? n} className="grid gap-3 rounded border border-sf-border p-3 sm:grid-cols-2"><legend>{t('tier')} {n + 1}</legend>
         {(['label', 'price', 'seats', 'sort'] as const).map(k => input(k, tier[k], v => patch(index, { tiers: s.tiers.map((x, j) => j === n ? { ...x, [k]: k === 'label' ? v : v ? Number(v) : k === 'seats' ? null : 0 } : x) }), k === 'label' ? 'text' : 'number'))}
         {dateInput('sale_ends_at', tier.sale_ends_at, s.timezone, v => patch(index, { tiers: s.tiers.map((x,j) => j === n ? { ...x, sale_ends_at: v } : x) }))}
-        <button className={buttonClass} type="button" onClick={() => patch(index, { tiers: s.tiers.filter((_,j) => j !== n) })}>{t('removeTier')}</button></fieldset>)}
+        <button className={`${buttonClass} self-start justify-self-start`} type="button" onClick={() => patch(index, { tiers: s.tiers.filter((_,j) => j !== n) })}>{t('removeTier')}</button></fieldset>)}
       <button className={buttonClass} type="button" onClick={() => patch(index, { tiers: [...s.tiers, { label: '', price: formData.price, seats: null, sort: Math.max(-1,...s.tiers.map(v => v.sort))+1 }] })}>{t('addTier')}</button>
       <button className={`${buttonClass} ml-4`} type="button" onClick={() => update(sessions.filter((_,i) => i !== index))}>{t('removeSession')}</button>
       {s.id ? <button className={`${buttonClass} ml-4`} type="button" onClick={() => void load(s.id!)}>{t('preview')}</button> : <p>{t('savePreview')}</p>}

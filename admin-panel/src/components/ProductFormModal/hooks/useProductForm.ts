@@ -214,7 +214,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
         setFormData({
           name: product.name,
           slug: product.slug,
-          description: product.description,
+          description: product.description ?? '',
           long_description: product.long_description || '',
           marketing_fields: product.marketing_fields ?? initialFormData.marketing_fields,
           price: product.price,
@@ -304,7 +304,8 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   }
 
   useEffect(() => {
-    if (!isOpen || !product) return;
+    // A duplicate draft has no id yet: nothing stored to fetch.
+    if (!isOpen || !product?.id) return;
     // Fetch assigned categories
     getProductCategories(product.id).then(result => {
       if (result.success && result.data) {
