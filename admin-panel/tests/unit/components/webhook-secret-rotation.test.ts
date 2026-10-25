@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import WebhookSecretRotation from '@/components/webhooks/WebhookSecretRotation';
 
 const mocks = vi.hoisted(() => ({ post: vi.fn() }));
-vi.mock('@/lib/api/client', () => ({ api: { postCustom: mocks.post } }));
+vi.mock('@/lib/api/client', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api/client')>()), api: { postCustom: mocks.post } }));
 vi.mock('next-intl', async (importOriginal) => {
   const { createNextIntlMock } = await import('@/../tests/mocks/next-intl');
   return createNextIntlMock(await importOriginal<typeof import('next-intl')>());

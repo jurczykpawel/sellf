@@ -17,7 +17,7 @@ vi.mock('next-intl', async (importOriginal) => {
 });
 vi.mock('@/lib/coupons/fetch-coupons-page', () => ({ fetchCouponsPage: mocks.fetchPage }));
 vi.mock('@/hooks/useProducts', () => ({ fetchAllProductsForDropdown: async () => [] }));
-vi.mock('@/lib/api/client', () => ({
+vi.mock('@/lib/api/client', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api/client')>()),
   api: {
     listAll: async () => ({ data: [], truncated: false }),
     getCustom: async () => ({}),

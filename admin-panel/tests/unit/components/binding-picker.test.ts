@@ -7,7 +7,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import BindingPicker from '@/components/storefront-editor/BindingPicker';
 import en from '@/messages/en.json';
 const m = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn() }));
-vi.mock('@/lib/api/client', () => ({ api: m }));
+vi.mock('@/lib/api/client', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api/client')>()), api: m }));
 vi.mock('@/lib/actions/categories', () => ({ getCategories: vi.fn() }));
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 const product = (id: string, name: string) => ({ id, name, price: 49, currency: 'PLN', is_active: true });

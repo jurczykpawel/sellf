@@ -15,7 +15,7 @@ vi.mock('@/components/storefront-editor/TemplateLicenses', () => ({ default: () 
 vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ default: {} }));
 const action = vi.hoisted(() => vi.fn());
 const products = [{ id: '11111111-1111-4111-8111-111111111111', name: 'Automation workshop', price: 49, currency: 'PLN', is_active: true, image_url: null }, { id: '22222222-2222-4222-8222-222222222222', name: 'Reporting course', price: 99, currency: 'PLN', is_active: true, image_url: null }];
-vi.mock('@/lib/api/client', () => ({ api: { list: async () => ({ data: products, pagination: { has_more: false } }), get: async (_resource: string, id: string) => products.find(item => item.id === id) } }));
+vi.mock('@/lib/api/client', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api/client')>()), api: { list: async () => ({ data: products, pagination: { has_more: false } }), get: async (_resource: string, id: string) => products.find(item => item.id === id) } }));
 vi.mock('@/lib/actions/categories', () => ({ getCategories: async () => ({ success: true, data: [{ id: '33333333-3333-4333-8333-333333333333', name: 'Automation' }] }) }));
 vi.mock('@/lib/actions/storefront-templates', () => ({ storefrontTemplateAction: action }));
 afterEach(() => { cleanup(); vi.resetAllMocks(); window.history.replaceState(null, '', '/'); });

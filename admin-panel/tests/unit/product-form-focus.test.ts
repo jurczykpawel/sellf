@@ -20,7 +20,7 @@ vi.mock('@/lib/supabase/client', () => ({
   createClient: vi.fn().mockResolvedValue({ rpc: vi.fn().mockResolvedValue({ data: null, error: null }) }),
 }));
 vi.mock('@/hooks/useProducts', () => ({ fetchAllProductsForDropdown: vi.fn().mockResolvedValue([]) }));
-vi.mock('@/lib/api/client', () => ({ api: { getCustom: vi.fn().mockResolvedValue({ has_oto: false }) } }));
+vi.mock('@/lib/api/client', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api/client')>()), api: { getCustom: vi.fn().mockResolvedValue({ has_oto: false }) } }));
 vi.mock('@/utils/themeUtils', () => ({ getIconEmoji: () => '🚀' }));
 vi.mock('@stripe/stripe-js', () => ({ loadStripe: vi.fn() }));
 
