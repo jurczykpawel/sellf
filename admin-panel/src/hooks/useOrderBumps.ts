@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { isLeavingPage } from '@/lib/page-lifecycle';
 import type { OrderBumpWithProduct } from '@/types/order-bump';
 
 export function useOrderBumps(productId: string) {
@@ -48,7 +49,7 @@ export function useOrderBumps(productId: string) {
         }
       } catch (err) {
         if (controller.signal.aborted) return;
-        console.error('Error fetching order bumps:', err);
+        if (!isLeavingPage()) console.error('Error fetching order bumps:', err);
         setError(err instanceof Error ? err.message : 'Unknown error');
         setOrderBumps([]);
       } finally {

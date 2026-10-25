@@ -1,4 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { isLeavingPage } from '@/lib/page-lifecycle'
 
 interface RuntimeConfig {
   supabaseUrl: string
@@ -60,7 +61,7 @@ async function getRuntimeConfig(): Promise<RuntimeConfig> {
         return config
       }
     } catch (error) {
-      console.error('Failed to load runtime config:', error)
+      if (!isLeavingPage()) console.error('Failed to load runtime config:', error)
     }
 
     throw new Error('Runtime configuration unavailable. Cannot initialize authentication.');

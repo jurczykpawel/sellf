@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import PaymentStatsCards from './PaymentStatsCards';
@@ -76,8 +76,10 @@ export default function PaymentsDashboard() {
   // silently miss older transactions. Stats intentionally ignore these
   // filters: each stat card already names its own fixed period (today, this
   // month, all-time total/refunded), independent of the dashboard filter bar.
+  // Only the newest request may write state: a slower answer to an earlier filter is dropped.
+  const latestRequest = useRef(0);
   const loadPaymentData = useCallback(async () => {
-
+    const request = ++latestRequest.current;
     try {
       const [transactionsPage, sessionsRes, statsRes] = await Promise.all([
         fetchPaymentTransactionsPage(undefined, {
@@ -89,6 +91,8 @@ export default function PaymentsDashboard() {
         api.getCustom<PaymentStatsResponse>('payments/stats'),
       ]);
 
+      if (request !== latestRequest.current) return;
+
       // First page of transactions from v1 API
       setTransactions(transactionsPage.transactions);
       setTransactionsCursor(transactionsPage.nextCursor);
@@ -97,6 +101,7 @@ export default function PaymentsDashboard() {
       // Sessions from old API (embedded checkout doesn't use sessions)
       if (sessionsRes.ok) {
         const sessionsData = await sessionsRes.json();
+        if (request !== latestRequest.current) return;
         setSessions(sessionsData);
       }
 
@@ -111,10 +116,10 @@ export default function PaymentsDashboard() {
         thisMonthRevenue: statsData.this_month_revenue_by_currency || {},
       });
     } catch (err) {
-      if (isExpectedApiError(err)) return;
+      if (request !== latestRequest.current || isExpectedApiError(err)) return;
       toast.error(t('loadError'));
     } finally {
-      setLoading(false);
+      if (request === latestRequest.current) setLoading(false);
     }
   }, [filters.status, filters.searchTerm, filters.dateRange, t]);
 
@@ -248,7 +253,8 @@ export default function PaymentsDashboard() {
           </nav>
         </div>
 
-        <div className="p-6">
+        <div className={`p-6 transition-opacity ${loading ? 'opacity-50' : ''}`} aria-busy={loading}>
+          {loading && <div role="status" className="pb-2 text-sm text-sf-muted">{t('loading')}</div>}
           {activeTab === 'transactions' ? (
             <>
               <PaymentTransactionsTable

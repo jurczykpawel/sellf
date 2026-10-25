@@ -128,6 +128,7 @@ export default function StatsOverview() {
   // Convert revenue when currency view mode changes
   // OPTIMIZED: Uses convertMultipleCurrencies to fetch rates ONCE
   useEffect(() => {
+    let cancelled = false;
     async function convertRevenue() {
       if (currencyViewMode === 'converted' && displayCurrency && revenueStats) {
         try {
@@ -136,9 +137,10 @@ export default function StatsOverview() {
             [revenueStats.totalRevenue, revenueStats.todayRevenue],
             displayCurrency
           );
-          setConvertedRevenue({ total: totalConverted, today: todayConverted });
+          if (!cancelled) setConvertedRevenue({ total: totalConverted, today: todayConverted });
         } catch (error) {
-          console.error('Error converting revenue:', error);
+          if (cancelled) return;
+          if (!isExpectedApiError(error)) console.error('Error converting revenue:', error);
           setConvertedRevenue(null);
         }
       } else {
@@ -147,6 +149,7 @@ export default function StatsOverview() {
     }
 
     convertRevenue();
+    return () => { cancelled = true; };
   }, [revenueStats, currencyViewMode, displayCurrency, convertMultipleCurrencies]);
 
   const formatCurrency = (amount: number, currency: string = 'USD') => {

@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
+import { isLeavingPage } from '@/lib/page-lifecycle'
 import { resolveUserRole } from '@/lib/auth/resolve-role'
 import { AuthContextType, UserRole } from '@/types/auth'
 
@@ -209,7 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         subscription = authSubscription
       } catch (error) {
-        console.error('Failed to setup auth:', error)
+        if (mounted && !isLeavingPage()) console.error('Failed to setup auth:', error)
       }
     }
 

@@ -117,6 +117,7 @@ export default function RevenueChart() {
   // Convert data when currency view mode changes or data updates
   // SUPER OPTIMIZED: Fetches rates ONCE, converts ALL locally on client
   useEffect(() => {
+    let cancelled = false;
     async function convertData() {
       if (currencyViewMode === 'converted' && displayCurrency && data.length > 0) {
         setConverting(true);
@@ -134,17 +135,19 @@ export default function RevenueChart() {
             orders: item.orders
           }));
 
+          if (cancelled) return;
           setConvertedData(converted);
 
           // Calculate converted total
           const total = convertedAmounts.reduce((sum, amount) => sum + amount, 0);
           setConvertedTotal(total);
         } catch (error) {
-          console.error('Error converting currency data:', error);
+          if (cancelled) return;
+          if (!isExpectedApiError(error)) console.error('Error converting currency data:', error);
           setConvertedData([]);
           setConvertedTotal(0);
         } finally {
-          setConverting(false);
+          if (!cancelled) setConverting(false);
         }
       } else {
         setConvertedData([]);
@@ -153,6 +156,7 @@ export default function RevenueChart() {
     }
 
     convertData();
+    return () => { cancelled = true; };
   }, [data, currencyViewMode, displayCurrency, viewMode, convertMultipleCurrencies]);
 
   const formatCurrency = (value: number, currency: string = 'USD') => {

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getProductsList, ProductListItem } from '@/lib/actions/products';
 import { useTranslations } from 'next-intl';
+import { isExpectedApiError } from '@/lib/api/client';
 import { Combobox } from '@/components/ui/Combobox'; // Import the new Combobox
 
 export default function ProductFilter() {
@@ -14,11 +15,13 @@ export default function ProductFilter() {
   const [selectedProduct, setSelectedProduct] = useState<string>(searchParams.get('productId') || '');
 
   useEffect(() => {
-    async function loadProducts() {
-      const data = await getProductsList();
-      setProducts(data);
-    }
-    loadProducts();
+    let unmounted = false;
+    getProductsList().then(data => {
+      if (!unmounted) setProducts(data);
+    }).catch(error => {
+      if (!isExpectedApiError(error, unmounted)) console.error('Failed to load products:', error);
+    });
+    return () => { unmounted = true; };
   }, []);
 
   const handleSelect = (productId: string) => {

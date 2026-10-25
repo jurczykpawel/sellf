@@ -94,6 +94,7 @@ export default function RevenueGoal() {
   // Convert goal and revenue when currency view mode changes
   // OPTIMIZED: Fetch rates ONCE for both conversions
   useEffect(() => {
+    let cancelled = false;
     async function convertBoth() {
       if (currencyViewMode === 'converted' && displayCurrency) {
         if (!goalCurrency || Object.keys(currentRevenueRaw).length === 0) {
@@ -108,15 +109,17 @@ export default function RevenueGoal() {
           // But still convert revenue
           try {
             const converted = await convertToSingleCurrency(currentRevenueRaw, displayCurrency);
-            setCurrentRevenue(converted);
+            if (!cancelled) setCurrentRevenue(converted);
           } catch (error) {
-            console.error('Error converting revenue:', error);
+            if (cancelled) return;
+            if (!isExpectedApiError(error)) console.error('Error converting revenue:', error);
             setCurrentRevenue(sumAllCurrencies(currentRevenueRaw));
           }
         } else {
           // Different currencies - fetch rates once and convert both
           try {
             const rates = await getExchangeRates(displayCurrency);
+            if (cancelled) return;
             if (!rates) {
               setDisplayGoal(goal);
               setCurrentRevenue(sumAllCurrencies(currentRevenueRaw));
@@ -142,7 +145,8 @@ export default function RevenueGoal() {
             }
             setCurrentRevenue(Math.round(total));
           } catch (error) {
-            console.error('Error converting goal and revenue:', error);
+            if (cancelled) return;
+            if (!isExpectedApiError(error)) console.error('Error converting goal and revenue:', error);
             setDisplayGoal(goal);
             setCurrentRevenue(sumAllCurrencies(currentRevenueRaw));
           }
@@ -155,6 +159,7 @@ export default function RevenueGoal() {
     }
 
     convertBoth();
+    return () => { cancelled = true; };
   }, [goal, goalCurrency, currentRevenueRaw, currencyViewMode, displayCurrency, convertToSingleCurrency, sumAllCurrencies]);
 
   useEffect(() => {

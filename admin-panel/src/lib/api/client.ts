@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@/lib/supabase/client';
+import { isLeavingPage } from '@/lib/page-lifecycle';
 const API_VERSION = 'v1';
 
 export interface PaginationParams {
@@ -64,12 +65,6 @@ export class ApiError extends Error {
   }
 }
 
-let leavingPage = false;
-if (typeof window !== 'undefined') {
-  window.addEventListener('pagehide', () => { leavingPage = true; });
-  window.addEventListener('pageshow', () => { leavingPage = false; });
-}
-
 /**
  * Errors that are not failures: cancelled requests, an expired session (announced once by
  * SessionExpiryNotice), and reads interrupted by leaving the page. A dropped fetch or Next's
@@ -80,7 +75,7 @@ export function isExpectedApiError(error: unknown, unmounted = false): boolean {
   if (!(error instanceof Error)) return false;
   if (error.name === 'AbortError') return true;
   if (error instanceof ApiError) return error.code === 'SESSION_EXPIRED';
-  if (leavingPage || unmounted) {
+  if (isLeavingPage() || unmounted) {
     return error instanceof TypeError || error.message.includes('An unexpected response was received from the server');
   }
   return false;
