@@ -66,3 +66,17 @@ describe('OrderSummary VAT line', () => {
     }
   });
 });
+
+describe('OrderSummary total with an invalid custom amount', () => {
+  it('shows a dash and the invalid-amount hint instead of a struck-through number', () => {
+    const html = render({ totalGross: 5, customAmountError: 'invalid', intervalLabel: 'month' }, 'pl');
+    const total = html.match(/data-testid="order-summary-total"[^>]*>(.*?)<\/div>/)?.[1] ?? '';
+    expect(total).toBe('—');
+    expect(html).not.toContain('line-through');
+    expect(html).toContain(`(${pl.checkout.invalidAmount})`);
+  });
+
+  it('still shows the formatted total for a valid amount', () => {
+    expect(render({ totalGross: 5 })).toContain('$5.00');
+  });
+});

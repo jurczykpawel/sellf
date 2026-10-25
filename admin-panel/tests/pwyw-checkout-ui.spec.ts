@@ -246,6 +246,19 @@ test.describe('PWYW Checkout UI', () => {
     await expect(page.locator('.text-sf-danger, .text-red-600, .text-red-400, .text-red-300').filter({ hasText: /co najmniej|at least/i }).first()).toBeVisible({ timeout: 5000 });
   });
 
+  for (const value of ['abc', '-5']) {
+    test(`should show a dash instead of a struck-through total for amount ${JSON.stringify(value)}`, async ({ page }) => {
+      await page.goto(`/pl/checkout/${pwywProduct.slug}`);
+      const customInput = page.locator('input[type="number"]').or(page.locator('input[inputmode="decimal"]')).first();
+      await customInput.fill(value);
+      await customInput.blur();
+      const total = page.getByTestId('order-summary-total');
+      await expect(total).toHaveText('—');
+      await expect(total).not.toHaveClass(/line-through/);
+      await expect(page.getByText('(nieprawidłowa kwota)')).toBeVisible();
+    });
+  }
+
   test('should show product price as default selected', async ({ page }) => {
     await page.goto(`/pl/checkout/${pwywProduct.slug}`);
     await page.waitForLoadState('domcontentloaded');

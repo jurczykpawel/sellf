@@ -106,9 +106,9 @@ export default function OrderSummary({
             </div>
           )}
         </div>
-        <div data-testid="order-summary-total" className={`shrink-0 whitespace-nowrap text-2xl font-bold ${quantityInvalid ? 'text-sf-danger' : customAmountError ? 'text-sf-danger line-through' : 'text-sf-heading'}`}>
-          {quantityInvalid ? '—' : formatPrice(totalGross, currency, locale)}
-          {!quantityInvalid && intervalLabel && <span className="text-base font-medium text-sf-muted"> / {intervalLabel}</span>}
+        <div data-testid="order-summary-total" className={`shrink-0 whitespace-nowrap text-2xl font-bold ${totalError ? 'text-sf-danger' : 'text-sf-heading'}`}>
+          {totalError ? '—' : formatPrice(totalGross, currency, locale)}
+          {!totalError && intervalLabel && <span className="text-base font-medium text-sf-muted"> / {intervalLabel}</span>}
         </div>
       </div>
     </div>
