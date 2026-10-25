@@ -11,6 +11,7 @@ import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
 import DateRangeFilter from './DateRangeFilter';
 
 import { fromMinorUnits } from '@/lib/currency/minor-units';
+import { isExpectedApiError } from '@/lib/api/client';
 type ViewMode = 'daily' | 'hourly';
 
 // Currency colors for the chart
@@ -81,7 +82,7 @@ export default function RevenueChart() {
         }
       }
     } catch (err) {
-      console.error('Failed to fetch chart data', err);
+      if (!isExpectedApiError(err)) console.error('Failed to fetch chart data', err);
       setData([]);
     } finally {
       setLoading(false);

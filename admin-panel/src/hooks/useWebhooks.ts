@@ -45,6 +45,7 @@ export function useWebhooks() {
       fetchEndpoints();
       return true;
     } catch (err) {
+      if (isExpectedApiError(err)) return false;
       if (err instanceof ApiError) {
         toast.error(err.message);
       } else {
@@ -64,6 +65,7 @@ export function useWebhooks() {
       fetchEndpoints();
       return true;
     } catch (err) {
+      if (isExpectedApiError(err)) return false;
       if (err instanceof ApiError) {
         toast.error(err.message);
       } else {
@@ -82,6 +84,7 @@ export function useWebhooks() {
       fetchEndpoints();
       return true;
     } catch (err) {
+      if (isExpectedApiError(err)) return false;
       if (err instanceof ApiError) {
         toast.error(err.message);
       } else {
@@ -107,6 +110,7 @@ export function useWebhooks() {
         return false;
       }
     } catch (err) {
+      if (isExpectedApiError(err)) return false;
       if (err instanceof ApiError) {
         toast.error(t('testFailed') + `: ${err.message}`);
       } else {

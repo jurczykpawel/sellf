@@ -8,7 +8,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { Product } from '@/types';
-import { api, ApiError } from '@/lib/api/client';
+import { api, ApiError, isExpectedApiError } from '@/lib/api/client';
 
 interface UseProductsParams {
   page?: number;
@@ -149,6 +149,7 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
         hasMore,
       });
     } catch (err) {
+      if (isExpectedApiError(err)) return;
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
@@ -329,6 +330,7 @@ export function useProductsDropdown(status: 'all' | 'active' = 'active') {
     try {
       setProducts(await fetchAllProductsForDropdown(status));
     } catch (err) {
+      if (isExpectedApiError(err)) return;
       if (err instanceof ApiError) {
         setError(err.message);
       } else {

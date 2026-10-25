@@ -8,7 +8,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { UserWithAccess } from '@/types';
-import { api, ApiError } from '@/lib/api/client';
+import { api, ApiError, isExpectedApiError } from '@/lib/api/client';
 
 interface UseUsersParams {
   page?: number;
@@ -110,6 +110,7 @@ export function useUsers(params: UseUsersParams = {}): UseUsersResult {
         hasMore,
       });
     } catch (err) {
+      if (isExpectedApiError(err)) return;
       if (err instanceof ApiError) {
         setError(err.message);
       } else {

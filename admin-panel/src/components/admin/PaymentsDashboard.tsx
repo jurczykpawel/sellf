@@ -11,7 +11,7 @@ import PaymentTransactionsTable from './PaymentTransactionsTable';
 import PaymentSessionsTable from './PaymentSessionsTable';
 import PaymentFilters from './PaymentFilters';
 import type { PaymentTransaction, PaymentSession } from '@/types/payment';
-import { api } from '@/lib/api/client';
+import { api, isExpectedApiError } from '@/lib/api/client';
 import { fetchPaymentTransactionsPage, dateRangeToDateFrom } from '@/lib/payments/fetch-transactions-page';
 import CurrencySelector from '@/components/dashboard/CurrencySelector';
 import type { CurrencyAmount } from '@/lib/actions/analytics';
@@ -110,7 +110,8 @@ export default function PaymentsDashboard() {
         todayRevenue: statsData.today_revenue_by_currency || {},
         thisMonthRevenue: statsData.this_month_revenue_by_currency || {},
       });
-    } catch {
+    } catch (err) {
+      if (isExpectedApiError(err)) return;
       toast.error(t('loadError'));
     } finally {
       setLoading(false);
@@ -144,7 +145,8 @@ export default function PaymentsDashboard() {
       setTransactions(prev => [...prev, ...nextPage.transactions]);
       setTransactionsCursor(nextPage.nextCursor);
       setHasMoreTransactions(nextPage.hasMore);
-    } catch {
+    } catch (err) {
+      if (isExpectedApiError(err)) return;
       toast.error(t('moreLoadError'));
     } finally {
       setLoadingMoreTransactions(false);

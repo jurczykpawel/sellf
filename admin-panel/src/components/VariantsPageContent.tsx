@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import VariantGroupFormModal from './VariantGroupFormModal';
-import { api } from '@/lib/api/client';
+import { api, isExpectedApiError } from '@/lib/api/client';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
 
 interface ProductInGroup {
@@ -82,6 +82,7 @@ const VariantsPageContent: React.FC = () => {
       const groups = await api.getCustom<VariantGroup[]>('variant-groups');
       setGroups(groups || []);
     } catch (err) {
+      if (isExpectedApiError(err)) return;
       setError(t('loadError'));
       console.error('Error:', err);
     } finally {
@@ -111,7 +112,7 @@ const VariantsPageContent: React.FC = () => {
       await fetchGroups();
       toast.success(t('deleteSuccess'));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('deleteGroupError'));
+      if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('deleteGroupError'));
     }
   };
 
@@ -140,7 +141,7 @@ const VariantsPageContent: React.FC = () => {
       await fetchGroups();
       toast.success(t('removeSuccess'));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('removeProductError'));
+      if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('removeProductError'));
     }
   };
 
@@ -151,7 +152,7 @@ const VariantsPageContent: React.FC = () => {
       await fetchGroups();
       toast.success(group.is_active ? t('groupDeactivated') : t('groupActivated'));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('toggleActiveError'));
+      if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('toggleActiveError'));
     }
   };
 
@@ -170,7 +171,7 @@ const VariantsPageContent: React.FC = () => {
       await fetchGroups();
       toast.success(t('featuredUpdated'));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('updateError'));
+      if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('updateError'));
     }
   };
 

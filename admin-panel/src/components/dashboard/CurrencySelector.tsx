@@ -6,7 +6,7 @@ import { useUserPreferences } from '@/contexts/UserPreferencesContext';
 import { getUsedCurrencies } from '@/lib/actions/currency';
 import { Info } from 'lucide-react';
 import { Tooltip } from '@/components/ui/Tooltip';
-
+import { isExpectedApiError } from '@/lib/api/client';
 export default function CurrencySelector() {
   const t = useTranslations('common');
   const tCurrency = useTranslations('dashboard.currency');
@@ -23,7 +23,7 @@ export default function CurrencySelector() {
         const usedCurrencies = await getUsedCurrencies();
         setCurrencies(usedCurrencies);
       } catch (error) {
-        console.error('Error fetching currencies:', error);
+        if (!isExpectedApiError(error)) console.error('Error fetching currencies:', error);
       } finally {
         setLoading(false);
       }

@@ -18,7 +18,7 @@ import OrderBumpFormModal from './OrderBumpFormModal';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import Link from 'next/link';
-import { api } from '@/lib/api/client';
+import { api, isExpectedApiError } from '@/lib/api/client';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
 
 interface OrderBumpWithDetails {
@@ -84,6 +84,7 @@ const OrderBumpsPageContent: React.FC = () => {
       const orderBumps = await api.getCustom<OrderBumpWithDetails[]>('order-bumps');
       setOrderBumps(orderBumps || []);
     } catch (err) {
+      if (isExpectedApiError(err)) return;
       setError(t('loadError'));
       console.error('Error:', err);
     } finally {
@@ -115,7 +116,7 @@ const OrderBumpsPageContent: React.FC = () => {
       await fetchOrderBumps();
       toast.success(t('createSuccess'));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('createError'));
+      if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('createError'));
       return Promise.reject(err);
     } finally {
       setSubmitting(false);
@@ -134,7 +135,7 @@ const OrderBumpsPageContent: React.FC = () => {
       await fetchOrderBumps();
       toast.success(t('updateSuccess'));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('updateError'));
+      if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('updateError'));
       return Promise.reject(err);
     } finally {
       setSubmitting(false);
@@ -149,7 +150,7 @@ const OrderBumpsPageContent: React.FC = () => {
       await fetchOrderBumps();
       toast.success(t('deleteSuccess'));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('deleteError'));
+      if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('deleteError'));
     }
   };
 
@@ -160,7 +161,7 @@ const OrderBumpsPageContent: React.FC = () => {
       await fetchOrderBumps();
       toast.success(t('toggleSuccess', { status: t(!bump.is_active ? 'activated' : 'deactivated') }));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('statusError'));
+      if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('statusError'));
     }
   };
 

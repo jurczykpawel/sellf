@@ -11,7 +11,7 @@ import { useRealtime } from '@/contexts/RealtimeContext';
 import { useUserPreferences } from '@/contexts/UserPreferencesContext';
 import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
 import { useSearchParams } from 'next/navigation';
-
+import { isExpectedApiError } from '@/lib/api/client';
 export default function RevenueGoal() {
   const t = useTranslations('admin.dashboard');
   const locale = useLocale();
@@ -82,7 +82,7 @@ export default function RevenueGoal() {
         setCurrentRevenue(sumAllCurrencies(stats.totalRevenue));
       }
     } catch (err) {
-      console.error('Failed to fetch revenue data', err);
+      if (!isExpectedApiError(err)) console.error('Failed to fetch revenue data', err);
     } finally {
       setLoading(false);
     }

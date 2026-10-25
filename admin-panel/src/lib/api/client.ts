@@ -64,8 +64,22 @@ export class ApiError extends Error {
   }
 }
 
+let leavingPage = false;
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => { leavingPage = true; });
+  window.addEventListener('pageshow', () => { leavingPage = false; });
+}
+
+/**
+ * Errors that are not failures: cancelled requests, an expired session (announced once by
+ * SessionExpiryNotice), a Server Action aborted by navigation, and a fetch dropped while the page unloads.
+ */
 export function isExpectedApiError(error: unknown): boolean {
-  return error instanceof Error && (error.name === 'AbortError' || (error instanceof ApiError && error.code === 'SESSION_EXPIRED'));
+  if (!(error instanceof Error)) return false;
+  if (error.name === 'AbortError') return true;
+  if (error instanceof ApiError) return error.code === 'SESSION_EXPIRED';
+  if (error.message.includes('An unexpected response was received from the server')) return true;
+  return leavingPage && error instanceof TypeError;
 }
 let sessionRefresh: Promise<boolean> | null = null;
 async function request(url: string, options: RequestInit): Promise<Response> {

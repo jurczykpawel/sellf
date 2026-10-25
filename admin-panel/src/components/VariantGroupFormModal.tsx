@@ -12,7 +12,7 @@ import { Product } from '@/types';
 import { formatPrice } from '@/lib/constants';
 import { useTranslations, useLocale } from 'next-intl';
 import { toast } from 'sonner';
-import { api } from '@/lib/api/client';
+import { api, isExpectedApiError } from '@/lib/api/client';
 
 interface ProductInGroup {
   id: string;
@@ -248,6 +248,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
 
       onSuccess();
     } catch (err) {
+      if (isExpectedApiError(err)) return;
       const errorMessage = err instanceof Error ? err.message : 'Failed to save variant group';
       // Use translated message for slug exists error
       if (errorMessage === 'Slug already exists') {

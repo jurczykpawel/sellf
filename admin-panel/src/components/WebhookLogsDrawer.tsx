@@ -6,7 +6,7 @@ import { WebhookLog, WebhookEndpoint } from '@/types/webhooks';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from './ui/Modal';
 import { useTranslations } from 'next-intl';
 import WebhookLogsTable from './webhooks/WebhookLogsTable';
-import { api } from '@/lib/api/client';
+import { api, isExpectedApiError } from '@/lib/api/client';
 
 interface WebhookLogsDrawerProps {
   endpoint: WebhookEndpoint;
@@ -36,6 +36,7 @@ export default function WebhookLogsDrawer({ endpoint, onClose, isOpen, onRefresh
       });
       setLogs(response.data || []);
     } catch (err) {
+      if (isExpectedApiError(err)) return;
       console.error(err);
       toast.error(t('loadError'));
     } finally {

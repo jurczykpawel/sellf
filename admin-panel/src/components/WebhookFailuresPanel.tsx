@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { WebhookLog } from '@/types/webhooks';
 import WebhookLogsTable from './webhooks/WebhookLogsTable';
-import { api } from '@/lib/api/client';
+import { api, isExpectedApiError } from '@/lib/api/client';
 
 interface WebhookFailuresPanelProps {
   refreshTrigger: number; // To reload when main list updates
@@ -32,7 +32,7 @@ export default function WebhookFailuresPanel({ refreshTrigger, onRefresh }: Webh
       });
       setFailures(response.data || []);
     } catch (err) {
-      console.error(err);
+      if (!isExpectedApiError(err)) console.error(err);
     } finally {
       setLoading(false);
     }

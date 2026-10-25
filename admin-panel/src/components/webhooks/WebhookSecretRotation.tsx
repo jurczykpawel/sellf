@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { api } from '@/lib/api/client';
+import { api, isExpectedApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/Modal';
 
 interface WebhookSecretRotationProps {
@@ -29,7 +29,8 @@ export default function WebhookSecretRotation({ endpointId, secret, onRotated }:
       setRotated(true);
       setConfirming(false);
       onRotated();
-    } catch {
+    } catch (err) {
+      if (isExpectedApiError(err)) return;
       toast.error(t('rotateSecretError'));
     } finally {
       setPending(false);

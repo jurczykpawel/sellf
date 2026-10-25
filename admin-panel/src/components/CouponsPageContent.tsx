@@ -22,7 +22,7 @@ import CouponFormModal from './CouponFormModal';
 import { Product } from '@/types';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
-import { api, ApiError } from '@/lib/api/client';
+import { api, ApiError, isExpectedApiError } from '@/lib/api/client';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
 import { fetchCouponsPage } from '@/lib/coupons/fetch-coupons-page';
 import { formatAdminDate } from '@/lib/timezone';
@@ -136,6 +136,7 @@ const CouponsPageContent: React.FC = () => {
       setProducts(activeProducts);
       setError(null);
     } catch (err) {
+      if (isExpectedApiError(err)) return;
       console.error('Error fetching data:', err);
       if (err instanceof ApiError) {
         setError(err.message);
@@ -174,6 +175,7 @@ const CouponsPageContent: React.FC = () => {
       setCursor(nextPage.nextCursor);
       setHasMore(nextPage.hasMore);
     } catch (err) {
+      if (isExpectedApiError(err)) return;
       if (err instanceof ApiError) {
         toast.error(err.message);
       } else {
@@ -197,6 +199,7 @@ const CouponsPageContent: React.FC = () => {
       setShowForm(false);
       toast.success(t('createSuccess'));
     } catch (err) {
+      if (isExpectedApiError(err)) return;
       if (err instanceof ApiError) {
         toast.error(err.message);
       } else {
@@ -218,6 +221,7 @@ const CouponsPageContent: React.FC = () => {
       setEditingCoupon(null);
       toast.success(t('updateSuccess'));
     } catch (err) {
+      if (isExpectedApiError(err)) return;
       if (err instanceof ApiError) {
         toast.error(err.message);
       } else {
@@ -236,6 +240,7 @@ const CouponsPageContent: React.FC = () => {
       setCouponToDelete(null);
       toast.success(t('deleteSuccess'));
     } catch (err) {
+      if (isExpectedApiError(err)) return;
       if (err instanceof ApiError) {
         toast.error(err.details?.reason?.includes('affiliate_bound') ? t('affiliateBoundHint') : err.message);
       } else {
@@ -250,7 +255,8 @@ const CouponsPageContent: React.FC = () => {
 
       await fetchData();
       toast.success(t('toggleSuccess', { status: t(!coupon.is_active ? 'activated' : 'deactivated') }));
-    } catch {
+    } catch (err) {
+      if (isExpectedApiError(err)) return;
       toast.error(t('statusError'));
     }
   };
@@ -290,7 +296,8 @@ const CouponsPageContent: React.FC = () => {
       for (const id of ids) {
         try {
           await api.delete('coupons', id);
-        } catch {
+        } catch (err) {
+          if (isExpectedApiError(err)) throw err;
           failed++;
         }
       }
@@ -305,6 +312,7 @@ const CouponsPageContent: React.FC = () => {
         toast.success(t('bulkDeleteSuccess', { count: ids.length }));
       }
     } catch (err) {
+      if (isExpectedApiError(err)) return;
       if (err instanceof ApiError) {
         toast.error(err.message);
       } else {
@@ -321,7 +329,8 @@ const CouponsPageContent: React.FC = () => {
       for (const coupon of deletableExpiredCoupons) {
         try {
           await api.delete('coupons', coupon.id);
-        } catch {
+        } catch (err) {
+          if (isExpectedApiError(err)) throw err;
           failed++;
         }
       }
@@ -336,6 +345,7 @@ const CouponsPageContent: React.FC = () => {
         toast.success(t('deleteExpiredSuccess', { count: deletableExpiredCoupons.length }));
       }
     } catch (err) {
+      if (isExpectedApiError(err)) return;
       if (err instanceof ApiError) {
         toast.error(err.message);
       } else {
