@@ -40,8 +40,9 @@ export function validateCustomAmount(
 
 /** Parse a buyer-entered display amount without rounding fractional digits. */
 export function parseCustomAmountInput(raw: string, currency: string): number | null {
+  const text = raw.trim();
   const pattern = currencyExponent(currency) === 0 ? /^\d+$/ : /^\d+(?:[.,]\d{0,2})?$/;
-  if (!pattern.test(raw)) return null;
-  const amount = Number(raw.replace(',', '.'));
+  if (!pattern.test(text)) return null;
+  const amount = Number(text.replace(',', '.'));
   return Number.isFinite(amount) ? amount : null;
 }

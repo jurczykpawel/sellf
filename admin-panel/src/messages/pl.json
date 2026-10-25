@@ -1291,7 +1291,7 @@
     "invalidPrice": "Nieprawidłowa cena"
   },
   "paymentStatus": {
-    "processingVerification": "Trwa weryfikacja…",
+    "preparingLoginLink": "Przygotowuję link logowania…",
     "invalidSession": "Nieprawidłowy identyfikator sesji płatności.",
     "verificationFailed": "Nie udało się zweryfikować płatności. Spróbuj ponownie.",
     "paidLinkSendError": "Zakup jest opłacony; nie udało się wysłać linku logowania. Spróbuj ponownie.",

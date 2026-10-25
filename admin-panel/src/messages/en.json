@@ -1291,7 +1291,7 @@
     "invalidPrice": "Invalid Price"
   },
   "paymentStatus": {
-    "processingVerification": "Processing verification…",
+    "preparingLoginLink": "Preparing your login link…",
     "invalidSession": "Invalid payment session ID.",
     "verificationFailed": "Could not verify payment. Please try again.",
     "paidLinkSendError": "Your purchase is paid; we could not send the login link. Please try again.",

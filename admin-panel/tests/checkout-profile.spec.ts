@@ -76,7 +76,7 @@ for (const mode of ['checkout', 'product_page']) {
       await expect(summary).toContainText('300,00');
       await quantity.fill(value);
       await expect(quantity).toHaveAttribute('aria-invalid', 'true');
-      await expect(page.locator('#checkoutQuantity-error')).toBeVisible();
+      await expect(page.locator('#checkoutQuantity-error')).toHaveText('Wpisz poprawną wartość. (1–5)');
       await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toBeDisabled();
       await expect(summary).toHaveText('—');
       expect(errors).toEqual([]);
@@ -155,7 +155,7 @@ test('invalid profile fields are marked, described and focused', async ({ page }
   await page.getByLabel('Typ nabywcy').selectOption('organization');
   await party(page, 'buyer');
   await page.locator('[id="buyer.nip"]').fill('123');
-  await page.locator('#phone').fill('abc');
+  await page.locator('#phone').fill('+48 12');
   for (let i = 0; i < 2; i++) {
     for (const [key, value] of Object.entries({ first_name: 'Jan', last_name: 'Nowak', email: 'same@example.com' })) {
       await page.locator(`[id="participants.${i}.${key}"]`).fill(value);

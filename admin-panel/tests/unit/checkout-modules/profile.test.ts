@@ -83,6 +83,13 @@ describe('module values', () => {
     for (const phone of ['', 'abc', '+000000000', '123']) expect(validate(modules, { phone }).success).toBe(false);
     expect(validate([{ id: 'phone', required: false }], { phone: '' }).success).toBe(true);
   });
+  it('rejects a phone number whose national part is too short, with or without a country code', () => {
+    for (const required of [true, false]) {
+      for (const phone of ['12', '+48 12', '+4812', '+48 123']) expect(validate([{ id: 'phone', required }], { phone }).success).toBe(false);
+    }
+    expect(validate([{ id: 'phone', required: true }], { phone: '+48 123 456 789' }).success).toBe(true);
+    expect(validate([{ id: 'phone', required: true }], { phone: '+1 202 555 0100' }).success).toBe(true);
+  });
   it('checks quantity bounds and hidden mode', () => {
     for (const value of [0, 6, 1.5, '2']) expect(validate([quantity], { quantity: value }).success).toBe(false);
     expect(validate([{ ...quantity, mode: 'hidden' }], { quantity: 2 }).success).toBe(false);

@@ -33,6 +33,13 @@ describe('PWYW amount input', () => {
   it.each(['5,555', '1e3', 'abc', '−5', '-5', '', ' ', 'Infinity'])('rejects %j', raw => {
     expect(parseCustomAmountInput(raw, 'PLN')).toBeNull();
   });
+  it.each([[' 7 ', 7], ['\t4,99\n', 4.99], ['\u00a05.55 ', 5.55]])('trims pasted whitespace around %j', (raw, amount) => {
+    expect(parseCustomAmountInput(raw, 'PLN')).toBe(amount);
+    expect(parseCustomAmountInput(' 500 ', 'JPY')).toBe(500);
+  });
+  it.each(['7 0', '   '])('still rejects %j', raw => {
+    expect(parseCustomAmountInput(raw, 'PLN')).toBeNull();
+  });
   it('requires whole JPY amounts', () => {
     expect(parseCustomAmountInput('500', 'JPY')).toBe(500);
     expect(parseCustomAmountInput('500,5', 'JPY')).toBeNull();

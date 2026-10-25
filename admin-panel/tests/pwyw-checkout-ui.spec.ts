@@ -203,6 +203,20 @@ test.describe('PWYW Checkout UI', () => {
     await expect(page.locator('.text-sf-danger, .text-red-400, .text-red-300').filter({ hasText: /co najmniej|at least/i })).toHaveCount(0);
   });
 
+  test('should accept an amount pasted with surrounding spaces', async ({ page }) => {
+    await page.goto(`/pl/checkout/${pwywProduct.slug}`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(2000);
+
+    const customInput = page.locator('input[type="number"]').or(page.locator('input[inputmode="decimal"]'));
+    await expect(customInput.first()).toBeVisible({ timeout: 10000 });
+    await customInput.first().fill(' 7 ');
+    await customInput.first().blur();
+
+    await expect(page.locator('[data-testid="order-summary-total"]')).toContainText('7,00');
+    await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toBeEnabled();
+  });
+
   test('should not show error when amount is above minimum', async ({ page }) => {
     await page.goto(`/pl/checkout/${pwywProduct.slug}`);
     await page.waitForLoadState('domcontentloaded');

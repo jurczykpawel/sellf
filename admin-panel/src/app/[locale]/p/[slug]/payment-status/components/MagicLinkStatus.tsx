@@ -165,7 +165,7 @@ export default function MagicLinkStatus({
             <div className="flex items-center space-x-3">
               <div className="animate-spin h-5 w-5 border-2 border-sf-accent border-t-transparent rounded-full"></div>
               <span className="text-sf-accent font-medium">
-                {captchaToken ? t('sendingMagicLink') : t('processingVerification')}
+                {captchaToken ? t('sendingMagicLink') : t('preparingLoginLink')}
               </span>
             </div>
           </div>
@@ -197,8 +197,8 @@ export default function MagicLinkStatus({
         
         {/* Show magic link errors */}
         {magicLinkError && (
-          <div className="bg-sf-danger-soft border border-sf-danger/30 rounded-lg p-3 text-sm text-sf-danger mb-4">
-            ❌ {magicLinkError}
+          <div className="bg-sf-warning-soft border border-sf-warning/30 rounded-lg p-3 text-sm text-sf-warning mb-4">
+            ⚠️ {magicLinkError}
             <div className="mt-3">
               <button type="button" onClick={sendMagicLink} disabled={sending || !captchaToken || retryCountdown > 0}
                 className="inline-block px-4 py-2 bg-sf-accent-bg text-white text-sm rounded disabled:opacity-50">
