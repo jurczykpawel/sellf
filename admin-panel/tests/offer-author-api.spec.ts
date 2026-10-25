@@ -1,10 +1,11 @@
 /** Product offer HTTP authoring and private rendered preview acceptance. */
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { CORE_TOKENS } from '@/lib/storefront-templates/public-theme';
 import { getTestDatabaseContainer } from './helpers/database-container';
+import { insertTestApiKey } from './helpers/api-key';
 
 test('offer wrappers preserve product revisions and independent template scopes', async ({ page, request, baseURL }) => {
   test.setTimeout(180000);
@@ -15,8 +16,8 @@ test('offer wrappers preserve product revisions and independent template scopes'
   const keys: string[] = [], products: string[] = [];
   const key = async (scope: string) => {
     const value = `sf_test_${randomBytes(32).toString('hex')}`;
-    const inserted = await db.from('api_keys').insert({ name: 'Offer HTTP acceptance', key_prefix: value.slice(0, 16), key_hash: createHash('sha256').update(value).digest('hex'), admin_user_id: owner.data!.id, scopes: [scope], rate_limit_per_minute: 1000 }).select('id').single();
-    expect(inserted.error).toBeNull(); keys.push(inserted.data!.id); return value;
+    const inserted = await insertTestApiKey(db, value, { name: 'Offer HTTP acceptance', admin_user_id: owner.data!.id, scopes: [scope], rate_limit_per_minute: 1000 });
+    keys.push(inserted.data!.id); return value;
   };
   try {
     for (let i = 0; i < 2; i++) {

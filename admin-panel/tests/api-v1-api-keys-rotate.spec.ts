@@ -6,9 +6,10 @@
 
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { ALL_SCOPES } from '@/lib/api/scope-constants';
 import { setAuthSession } from './helpers/admin-auth';
 import { ProductStateGuard } from './helpers/product-state';
-import { ALL_SCOPES } from '@/lib/api/scope-constants';
+import { insertTestApiKey } from './helpers/api-key';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -62,17 +63,16 @@ test.describe('API Key Rotation', () => {
   });
 
   test.afterEach(async () => {
+    for (const keyId of createdKeyIds) {
+      await supabaseAdmin.from('api_key_audit_log').delete().eq('api_key_id', keyId);
+      await supabaseAdmin.from('api_keys').delete().eq('id', keyId);
+    }
+    createdKeyIds.length = 0;
     await productGuard.restore();
   });
 
   test.afterAll(async () => {
     await productGuard.restore();
-    // Cleanup API keys
-    for (const keyId of createdKeyIds) {
-      await supabaseAdmin.from('api_key_audit_log').delete().eq('api_key_id', keyId);
-      await supabaseAdmin.from('api_keys').delete().eq('id', keyId);
-    }
-
     // Cleanup admin
     if (adminUserId) {
       await supabaseAdmin.from('admin_users').delete().eq('user_id', adminUserId);
@@ -84,23 +84,13 @@ test.describe('API Key Rotation', () => {
   async function createTestApiKey(name: string): Promise<string> {
     const crypto = await import('crypto');
     const plainKey = `sf_test_${crypto.randomBytes(24).toString('hex')}`;
-    const keyHash = crypto.createHash('sha256').update(plainKey).digest('hex');
-    const keyPrefix = plainKey.substring(0, 12);
 
-    const { data, error } = await supabaseAdmin
-      .from('api_keys')
-      .insert({
-        name,
-        key_prefix: keyPrefix,
-        key_hash: keyHash,
-        admin_user_id: adminDbId,
-        scopes: [...ALL_SCOPES],
-        is_active: true,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
+    const { data } = await insertTestApiKey(supabaseAdmin, plainKey, {
+      name,
+      admin_user_id: adminDbId,
+      scopes: [...ALL_SCOPES],
+      is_active: true,
+    });
     createdKeyIds.push(data.id);
     return data.id;
   }
@@ -321,22 +311,14 @@ test.describe('API Key Rotation', () => {
       // Create key with specific properties
       const crypto = await import('crypto');
       const plainKey = `sf_test_${crypto.randomBytes(24).toString('hex')}`;
-      const keyHash = crypto.createHash('sha256').update(plainKey).digest('hex');
-      const keyPrefix = plainKey.substring(0, 12);
 
-      const { data: originalKey } = await supabaseAdmin
-        .from('api_keys')
-        .insert({
-          name: 'Original Key with Props',
-          key_prefix: keyPrefix,
-          key_hash: keyHash,
-          admin_user_id: adminDbId,
-          scopes: ['products:read', 'users:write'],
-          rate_limit_per_minute: 100,
-          is_active: true,
-        })
-        .select()
-        .single();
+      const { data: originalKey } = await insertTestApiKey(supabaseAdmin, plainKey, {
+        name: 'Original Key with Props',
+        admin_user_id: adminDbId,
+        scopes: ['products:read', 'users:write'],
+        rate_limit_per_minute: 100,
+        is_active: true,
+      });
 
       createdKeyIds.push(originalKey!.id);
 
@@ -419,21 +401,13 @@ test.describe('API Key Rotation', () => {
       // Create key for other admin
       const crypto = await import('crypto');
       const plainKey = `sf_test_${crypto.randomBytes(24).toString('hex')}`;
-      const keyHash = crypto.createHash('sha256').update(plainKey).digest('hex');
-      const keyPrefix = plainKey.substring(0, 12);
 
-      const { data: otherKey } = await supabaseAdmin
-        .from('api_keys')
-        .insert({
-          name: 'Other Admin Key',
-          key_prefix: keyPrefix,
-          key_hash: keyHash,
-          admin_user_id: otherAdmin!.id,
-          scopes: [...ALL_SCOPES],
-          is_active: true,
-        })
-        .select()
-        .single();
+      const { data: otherKey } = await insertTestApiKey(supabaseAdmin, plainKey, {
+        name: 'Other Admin Key',
+        admin_user_id: otherAdmin!.id,
+        scopes: [...ALL_SCOPES],
+        is_active: true,
+      });
 
       try {
         // Login as first admin and try to rotate other admin's key

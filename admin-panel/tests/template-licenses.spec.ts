@@ -1,7 +1,8 @@
 /** Private template key adapters and localized admin entry. */
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { insertTestApiKey } from './helpers/api-key';
 import { createTestAdmin, setAuthSession } from './helpers/admin-auth';
 
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -13,16 +14,16 @@ test('independent license scopes, bounded inputs and EN/PL key entry', async ({ 
   const ids: string[] = [];
   const key = async (scopes: string[]) => {
     const value = `sf_test_${randomBytes(32).toString('hex')}`;
-    const row = await db.from('api_keys').insert({ name: 'Template key acceptance', key_prefix: value.slice(0, 16), key_hash: createHash('sha256').update(value).digest('hex'), admin_user_id: owner.data!.id, scopes, rate_limit_per_minute: 1000 }).select('id').single();
-    expect(row.error).toBeNull(); ids.push(row.data!.id); return value;
+    const row = await insertTestApiKey(db, value, { name: 'Template key acceptance', admin_user_id: owner.data!.id, scopes, rate_limit_per_minute: 1000 });
+    ids.push(row.data!.id); return value;
   };
-  const read = await key(['templates:read']); const write = await key(['templates:write']);
-  const activate = await key(['templates:activate']);
   const admin = await createTestAdmin('template-keys');
   const endpoint = '/api/v1/templates/licenses';
   const token = 'synthetic-private-template-key';
   const snapshot = await db.from('storefront_config').select('*').single();
   try {
+    const read = await key(['templates:read']); const write = await key(['templates:write']);
+    const activate = await key(['templates:activate']);
     expect((await request.get(endpoint)).status()).toBe(401);
     for (const credential of [write, activate]) expect((await request.get(endpoint, { headers: { 'x-api-key': credential } })).status()).toBe(403);
     for (const credential of [read, activate]) expect((await request.post(endpoint, { headers: { 'x-api-key': credential }, data: { templateId: 'storefront-a', token } })).status()).toBe(403);

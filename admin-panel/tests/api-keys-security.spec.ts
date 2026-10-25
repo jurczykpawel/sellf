@@ -14,6 +14,7 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { ALL_SCOPES } from '@/lib/api/scope-constants';
+import { insertTestApiKey } from './helpers/api-key';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -26,7 +27,7 @@ test.describe('API Keys Security - Self-Management Prevention', () => {
   let testAuthUserId: string; // auth.users.id
   let testAdminRowId: string; // admin_users.id (different!)
 
-  test.beforeAll(async () => {
+  test.beforeEach(async () => {
     // Create a test admin user first
     const adminEmail = `security-test-admin-${Date.now()}@test.com`;
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -52,28 +53,19 @@ test.describe('API Keys Security - Self-Management Prevention', () => {
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
     const keyValue = `sf_live_${randomHex}`;
-    const keyHash = await hashKey(keyValue);
 
-    const { data: key, error } = await supabaseAdmin
-      .from('api_keys')
-      .insert({
-        name: 'Security Test Key - Full Access',
-        key_hash: keyHash,
-        key_prefix: keyValue.substring(0, 12),
-        scopes: [...ALL_SCOPES], // Full access (explicit snapshot — '*' is never persisted)
-        is_active: true,
-        rate_limit_per_minute: 100,
-        admin_user_id: testAdminRowId, // admin_users.id, NOT auth.users.id
-      })
-      .select('id')
-      .single();
-
-    if (error) throw error;
+    const { data: key } = await insertTestApiKey(supabaseAdmin, keyValue, {
+      name: 'Security Test Key - Full Access',
+      scopes: [...ALL_SCOPES], // Full access (explicit snapshot — '*' is never persisted)
+      is_active: true,
+      rate_limit_per_minute: 100,
+      admin_user_id: testAdminRowId, // admin_users.id, NOT auth.users.id
+    });
     testApiKeyId = key.id;
     testApiKey = keyValue;
   });
 
-  test.afterAll(async () => {
+  test.afterEach(async () => {
     // Cleanup
     if (testApiKeyId) {
       await supabaseAdmin.from('api_keys').delete().eq('id', testApiKeyId);
@@ -198,12 +190,3 @@ test.describe('API Keys Security - Self-Management Prevention', () => {
     expect(productsResponse.status()).toBe(200);
   });
 });
-
-// Helper to hash API key (same as in the application)
-async function hashKey(key: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(key);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}

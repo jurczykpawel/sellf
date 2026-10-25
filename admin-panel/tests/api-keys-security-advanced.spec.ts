@@ -11,23 +11,14 @@
 
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { setAuthSession } from './helpers/admin-auth';
 import { ALL_SCOPES } from '@/lib/api/scope-constants';
+import { setAuthSession } from './helpers/admin-auth';
+import { insertTestApiKey } from './helpers/api-key';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-
-// Helper to hash API key (same as in the application)
-async function hashKey(key: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(key);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
 
 // Helper to generate valid format API key
 function generateTestKey(): string {
@@ -52,7 +43,7 @@ test.describe('API Keys Security - Hash Exposure Prevention', () => {
     await page.reload();
   }
 
-  test.beforeAll(async () => {
+  test.beforeEach(async () => {
     // Create test admin
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: adminEmail,
@@ -72,25 +63,17 @@ test.describe('API Keys Security - Hash Exposure Prevention', () => {
 
     // Create a test API key
     const keyValue = generateTestKey();
-    const keyHash = await hashKey(keyValue);
 
-    const { data: key, error } = await supabaseAdmin
-      .from('api_keys')
-      .insert({
-        name: 'Hash Exposure Test Key',
-        key_hash: keyHash,
-        key_prefix: keyValue.substring(0, 12),
-        scopes: [...ALL_SCOPES],
-        is_active: true,
-        admin_user_id: testAdminRowId,
-      })
-      .select('id')
-      .single();
-    if (error) throw error;
+    const { data: key } = await insertTestApiKey(supabaseAdmin, keyValue, {
+      name: 'Hash Exposure Test Key',
+      scopes: [...ALL_SCOPES],
+      is_active: true,
+      admin_user_id: testAdminRowId,
+    });
     testApiKeyId = key.id;
   });
 
-  test.afterAll(async () => {
+  test.afterEach(async () => {
     if (testApiKeyId) {
       await supabaseAdmin.from('api_keys').delete().eq('id', testApiKeyId);
     }
@@ -113,7 +96,7 @@ test.describe('API Keys Security - Hash Exposure Prevention', () => {
     // Verify key_hash is not in the response
     expect(responseText).not.toContain('key_hash');
 
-    // Verify the response structure — we created a key in beforeAll, so data must exist
+    // Verify the response structure — we created a key in beforeEach, so data must exist
     expect(json.data).toBeDefined();
     expect(json.data.length).toBeGreaterThan(0);
     const key = json.data[0];
@@ -191,7 +174,7 @@ test.describe('API Keys Security - IDOR Prevention', () => {
     await page.reload();
   }
 
-  test.beforeAll(async () => {
+  test.beforeEach(async () => {
     // Create Admin 1
     const { data: auth1 } = await supabaseAdmin.auth.admin.createUser({
       email: admin1Email,
@@ -209,18 +192,12 @@ test.describe('API Keys Security - IDOR Prevention', () => {
 
     // Create API key for Admin 1
     const key1 = generateTestKey();
-    const { data: keyData } = await supabaseAdmin
-      .from('api_keys')
-      .insert({
-        name: 'Admin1 Secret Key',
-        key_hash: await hashKey(key1),
-        key_prefix: key1.substring(0, 12),
-        scopes: [...ALL_SCOPES],
-        is_active: true,
-        admin_user_id: admin1RowId,
-      })
-      .select('id')
-      .single();
+    const { data: keyData } = await insertTestApiKey(supabaseAdmin, key1, {
+      name: 'Admin1 Secret Key',
+      scopes: [...ALL_SCOPES],
+      is_active: true,
+      admin_user_id: admin1RowId,
+    });
     admin1KeyId = keyData!.id;
 
     // Create Admin 2
@@ -239,7 +216,7 @@ test.describe('API Keys Security - IDOR Prevention', () => {
     admin2RowId = adminRow2!.id;
   });
 
-  test.afterAll(async () => {
+  test.afterEach(async () => {
     // Cleanup
     if (admin1RowId) {
       await supabaseAdmin.from('api_keys').delete().eq('admin_user_id', admin1RowId);
@@ -393,7 +370,7 @@ test.describe('API Keys Security - Key Rotation', () => {
   let testApiKeyId: string;
   let testApiKey: string;
 
-  test.beforeAll(async () => {
+  test.beforeEach(async () => {
     // Setup test admin and key
     const adminEmail = `rotation-test-${Date.now()}@test.com`;
     const { data: authData } = await supabaseAdmin.auth.admin.createUser({
@@ -411,22 +388,16 @@ test.describe('API Keys Security - Key Rotation', () => {
     testAdminRowId = adminRow!.id;
 
     testApiKey = generateTestKey();
-    const { data: key } = await supabaseAdmin
-      .from('api_keys')
-      .insert({
-        name: 'Rotation Test Key',
-        key_hash: await hashKey(testApiKey),
-        key_prefix: testApiKey.substring(0, 12),
-        scopes: [...ALL_SCOPES],
-        is_active: true,
-        admin_user_id: testAdminRowId,
-      })
-      .select('id')
-      .single();
+    const { data: key } = await insertTestApiKey(supabaseAdmin, testApiKey, {
+      name: 'Rotation Test Key',
+      scopes: [...ALL_SCOPES],
+      is_active: true,
+      admin_user_id: testAdminRowId,
+    });
     testApiKeyId = key!.id;
   });
 
-  test.afterAll(async () => {
+  test.afterEach(async () => {
     await supabaseAdmin.from('api_keys').delete().eq('admin_user_id', testAdminRowId);
     await supabaseAdmin.from('admin_users').delete().eq('id', testAdminRowId);
     await supabaseAdmin.auth.admin.deleteUser(testAuthUserId);

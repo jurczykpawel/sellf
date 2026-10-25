@@ -1,9 +1,10 @@
 /** Scoped template API and header-authenticated private preview acceptance. */
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { DEFAULT_CONFIG, D_LOCALIZED_CONFIG } from '../src/lib/storefront-templates/fixtures';
 import { getTestDatabaseContainer } from './helpers/database-container';
+import { insertTestApiKey } from './helpers/api-key';
 
 test('template lifecycle with independent keys and an empty browser session', async ({ page, request, baseURL }) => {
   test.setTimeout(180000);
@@ -15,16 +16,16 @@ test('template lifecycle with independent keys and an empty browser session', as
   const keys: string[] = [];
   const key = async (scopes: string[]) => {
     const value = `sf_test_${randomBytes(32).toString('hex')}`;
-    const inserted = await db.from('api_keys').insert({ name: 'Template HTTP acceptance', key_prefix: value.slice(0, 16), key_hash: createHash('sha256').update(value).digest('hex'), admin_user_id: owner.data!.id, scopes, rate_limit_per_minute: 1000 }).select('id').single();
-    expect(inserted.error).toBeNull(); keys.push(inserted.data!.id); return value;
-  };
-  const read = await key(['templates:read']); const write = await key(['templates:write']);
-  const activate = await key(['templates:activate']); const product = await key(['products:write']);
-  const call = async (path: string, credential: string, data?: unknown, method = 'POST') => {
-    const response = await request.fetch(`/api/v1/templates/${path}`, { method: data === undefined ? 'GET' : method, headers: { authorization: `Bearer ${credential}` }, ...(data !== undefined ? { data } : {}) });
-    return { status: response.status(), data: await response.json(), headers: response.headers() };
+    const inserted = await insertTestApiKey(db, value, { name: 'Template HTTP acceptance', admin_user_id: owner.data!.id, scopes, rate_limit_per_minute: 1000 });
+    keys.push(inserted.data!.id); return value;
   };
   try {
+    const read = await key(['templates:read']); const write = await key(['templates:write']);
+    const activate = await key(['templates:activate']); const product = await key(['products:write']);
+    const call = async (path: string, credential: string, data?: unknown, method = 'POST') => {
+      const response = await request.fetch(`/api/v1/templates/${path}`, { method: data === undefined ? 'GET' : method, headers: { authorization: `Bearer ${credential}` }, ...(data !== undefined ? { data } : {}) });
+      return { status: response.status(), data: await response.json(), headers: response.headers() };
+    };
     expect((await request.get('/api/v1/templates/config')).status()).toBe(401);
     for (const credential of [write, activate, product]) expect((await call('config', credential)).status).toBe(403);
     const initial = await call('config', read); expect(initial.status).toBe(200); let revision = initial.data.revision;
