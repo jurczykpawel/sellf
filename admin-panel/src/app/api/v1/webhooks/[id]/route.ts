@@ -161,7 +161,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (body.url !== undefined) {
       const urlValidation = await validateWebhookUrlAsync(body.url);
       if (!urlValidation.valid) {
-        return apiError(request, 'INVALID_INPUT', urlValidation.error || 'Invalid webhook URL');
+        return apiError(request, 'INVALID_INPUT', urlValidation.error || 'Invalid webhook URL', urlValidation.reason ? { url_reason: [urlValidation.reason] } : undefined);
       }
       updates.url = body.url;
     }

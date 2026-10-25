@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
     // Validate URL (SSRF protection — sync hostname checks + DNS resolution)
     const urlValidation = await validateWebhookUrlAsync(url);
     if (!urlValidation.valid) {
-      return apiError(request, 'INVALID_INPUT', urlValidation.error || 'Invalid webhook URL');
+      return apiError(request, 'INVALID_INPUT', urlValidation.error || 'Invalid webhook URL', urlValidation.reason ? { url_reason: [urlValidation.reason] } : undefined);
     }
 
     // Validate events

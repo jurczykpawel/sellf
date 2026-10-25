@@ -8,11 +8,19 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { WebhookEndpoint } from '@/types/webhooks';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+import { WEBHOOK_URL_REASONS, type WebhookUrlReason } from '@/lib/validations/webhook';
 import { api, ApiError, isExpectedApiError } from '@/lib/api/client';
 
 export function useWebhooks() {
   const t = useTranslations('admin.webhooks');
   const tCommon = useTranslations('common');
+
+  const errorMessage = (err: ApiError): string => {
+    const reason = err.details?.url_reason?.[0];
+    return reason && (WEBHOOK_URL_REASONS as readonly string[]).includes(reason)
+      ? t(`urlErrors.${reason as WebhookUrlReason}`)
+      : err.message;
+  };
 
   const [endpoints, setEndpoints] = useState<WebhookEndpoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +55,7 @@ export function useWebhooks() {
     } catch (err) {
       if (isExpectedApiError(err)) return false;
       if (err instanceof ApiError) {
-        toast.error(err.message);
+        toast.error(errorMessage(err));
       } else {
         toast.error(tCommon('error'));
       }
@@ -67,7 +75,7 @@ export function useWebhooks() {
     } catch (err) {
       if (isExpectedApiError(err)) return false;
       if (err instanceof ApiError) {
-        toast.error(err.message);
+        toast.error(errorMessage(err));
       } else {
         toast.error(tCommon('error'));
       }
