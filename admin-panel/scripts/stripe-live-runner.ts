@@ -1,5 +1,6 @@
 /** Own the Stripe listener, local receiver, tunnel, and Playwright servers. */
 import { spawn, spawnSync } from 'node:child_process';
+import { promises as dnsPromises } from 'node:dns';
 import { createServer } from 'node:http';
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -114,6 +115,15 @@ try {
     probe.once('exit', code => resolve(code === 0));
     probe.once('error', () => resolve(false));
   }), 'public receiver', 300000);
+  // The webhook URL guard resolves through dns.resolve4/6, which can still miss a fresh tunnel host
+  // after fetch succeeds; wait until that path resolves several times in a row.
+  const tunnelHost = new URL(tunnel).hostname;
+  let resolvedInARow = 0;
+  await until(async () => {
+    resolvedInARow = await dnsPromises.resolve4(tunnelHost).then(() => resolvedInARow + 1, () => 0);
+    if (resolvedInARow < 5) await new Promise(resolve => setTimeout(resolve, 1000));
+    return resolvedInARow >= 5;
+  }, 'receiver tunnel DNS', 300000);
   start('stripe', ['listen', '--all-snapshot', '--api-key', key, '--forward-to', `${appUrl}/api/webhooks/stripe`], 'stripe');
   await until(() => {
     const log = logText('stripe');
