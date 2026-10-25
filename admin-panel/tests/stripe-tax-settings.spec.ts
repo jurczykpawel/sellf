@@ -19,6 +19,7 @@ import { test, expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession } from './helpers/admin-auth';
+import { BASELINE_TAX_MODE, restoreBaselineTaxMode } from './helpers/tax-mode';
 import { openSettingsTab, PAYMENTS_TAB } from './helpers/settings-tabs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -127,11 +128,13 @@ test.describe('Stripe Tax Settings Admin UI', () => {
   });
 
   test.afterAll(async () => {
-    // Restore original values
+    // Restore the original values, but always hand the baseline tax mode to later specs:
+    // an original captured from a leaked stripe_tax state must not be restored (see helpers/tax-mode.ts).
     if (shopConfigId && originalFields) {
+      await restoreBaselineTaxMode(supabaseAdmin);
       await supabaseAdmin
         .from('shop_config')
-        .update(originalFields)
+        .update({ ...originalFields, tax_mode: BASELINE_TAX_MODE })
         .eq('id', shopConfigId);
     }
 

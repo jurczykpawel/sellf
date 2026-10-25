@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { getStripeCheckoutSession } from './helpers/stripe-checkout';
+import { restoreBaselineTaxMode } from './helpers/tax-mode';
 
 /**
  * Regression e2e for the "sale price displayed but full price charged" bug.
@@ -23,6 +24,8 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 test.describe('Sale price is actually charged at checkout', () => {
+  test.beforeEach(async () => { await restoreBaselineTaxMode(supabaseAdmin); });
+
   let saleProduct: any;
   let expiredSaleProduct: any;
 

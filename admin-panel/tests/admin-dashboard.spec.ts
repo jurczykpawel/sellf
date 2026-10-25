@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin, loginAsAdmin } from './helpers/admin-auth';
+import { restoreBaselineTaxMode } from './helpers/tax-mode';
 
 // Enforce single worker
 test.describe.configure({ mode: 'serial' });
@@ -89,7 +90,7 @@ test.describe('Authenticated Admin Dashboard', () => {
 
   test('should perform full CRUD on a product', async ({ page }) => {
     // Force local VAT mode in case a sibling suite flipped it.
-    await supabaseAdmin.from('shop_config').update({ tax_mode: 'local' }).not('id', 'is', null);
+    await restoreBaselineTaxMode(supabaseAdmin);
 
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/dashboard/products');

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 import { loginAsAdmin, supabaseAdmin as db } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
+import { restoreBaselineTaxMode } from './helpers/tax-mode';
 import { MAILPIT_URL } from './helpers/mailpit';
 import type { Page } from '@playwright/test';
 let product: { id: string; slug: string }, sessionId: string, endpointId: string, orderId: string, unpaidId: string;
@@ -43,8 +44,8 @@ test.afterAll(async ({ browser }) => {
       await loginAsAdmin(page, 'demo@sellf.app', 'demo123'); await page.goto('/pl/dashboard/settings');
       await page.getByRole('button', { name: 'Płatności', exact: true }).click();
       await Promise.all([page.waitForResponse(r => r.request().method() === 'POST' && !!r.request().postData()?.includes('tax_mode')),
-        page.getByRole('button', { name: shop.tax_mode === 'stripe_tax' ? 'Stripe Tax' : 'Stała stawka', exact: true }).click()]);
-    } finally { await db.from('shop_config').update({ tax_mode: shop.tax_mode }).eq('id', shop.id); await page.close(); }
+        page.getByRole('button', { name: 'Stała stawka', exact: true }).click()]);
+    } finally { await restoreBaselineTaxMode(db); await page.close(); }
   }
   if (bankConfig) await db.from('bank_transfer_config').upsert(bankConfig as never);
   if (invoiceConfig) await db.from('invoicing_config').upsert(invoiceConfig as never);

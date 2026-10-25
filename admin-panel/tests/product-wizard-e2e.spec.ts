@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
+import { restoreBaselineTaxMode, setTaxMode } from './helpers/tax-mode';
 
 /**
  * Product Wizard E2E Tests
@@ -38,11 +39,10 @@ test.afterAll(async () => {
 });
 
 // shop_config is a GLOBAL singleton. The stripe_tax badge test flips tax_mode='stripe_tax';
-// if its assertion fails the in-body restore never runs, leaking stripe_tax into every later
-// checkout test (which then 500s on Stripe automatic_tax). Guarantee the baseline is restored
-// after EVERY test in this file so no test depends on or leaks global tax state.
+// guarantee the baseline is restored after EVERY test in this file (see helpers/tax-mode.ts,
+// which also waits out the public shop_config cache) so no later checkout test sees stripe_tax.
 test.afterEach(async () => {
-  await supabaseAdmin.from('shop_config').update({ tax_mode: 'local' }).not('id', 'is', null);
+  await restoreBaselineTaxMode(supabaseAdmin);
 });
 
 async function goToProducts(page: Page) {
@@ -269,11 +269,7 @@ test.describe('Product Creation Wizard', () => {
 
   test('should show VAT fields on step 1 in local tax mode', async ({ page }) => {
     // Ensure local tax mode is set
-    const { error: localErr } = await supabaseAdmin
-      .from('shop_config')
-      .update({ tax_mode: 'local' })
-      .not('id', 'is', null);
-    if (localErr) throw localErr;
+    await restoreBaselineTaxMode(supabaseAdmin);
 
     await goToProducts(page);
     await openWizard(page);
@@ -303,11 +299,7 @@ test.describe('Product Creation Wizard', () => {
 
   test('should show Stripe Tax info badge in stripe_tax mode', async ({ page }) => {
     // Switch to stripe_tax mode
-    const { error: stripeErr } = await supabaseAdmin
-      .from('shop_config')
-      .update({ tax_mode: 'stripe_tax' })
-      .not('id', 'is', null);
-    if (stripeErr) throw stripeErr;
+    await setTaxMode(supabaseAdmin, 'stripe_tax');
 
     await goToProducts(page);
     await openWizard(page);

@@ -5,8 +5,11 @@ import { acceptAllCookies } from './helpers/consent';
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { restoreBaselineTaxMode } from './helpers/tax-mode';
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 test.beforeAll(() => { expect(process.env.STRIPE_SECRET_KEY).toMatch(/^sk_test_/); });
+// These tests need the local tax mode: stripe_tax answers 503 on an account without a Tax address.
+test.beforeEach(async () => { await restoreBaselineTaxMode(db); });
 test('counts purchase intent while leaving product views out of the funnel', async ({ page }) => {
   const slug = `intent-${randomUUID()}`;
   const created = await db.from('products').insert({ name: 'Checkout intent course', slug, price: 49, currency: 'PLN', is_active: true, is_listed: true, vat_rate: 23 }).select('id').single();
