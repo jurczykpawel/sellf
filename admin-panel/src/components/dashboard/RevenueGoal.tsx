@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { getRevenueStats, getRevenueGoal, setRevenueGoal, CurrencyAmount } from '@/lib/actions/analytics';
 import { getMyDefaultCurrency } from '@/lib/actions/shop-config';
@@ -37,6 +37,9 @@ export default function RevenueGoal() {
   const sumAllCurrencies = useCallback((amounts: CurrencyAmount): number => {
     return Object.values(amounts).reduce((sum, amount) => sum + amount, 0);
   }, []);
+
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   // Fetch both Goal configuration and Current Revenue
   const fetchData = useCallback(async () => {
@@ -82,7 +85,7 @@ export default function RevenueGoal() {
         setCurrentRevenue(sumAllCurrencies(stats.totalRevenue));
       }
     } catch (err) {
-      if (!isExpectedApiError(err)) console.error('Failed to fetch revenue data', err);
+      if (!isExpectedApiError(err, !mounted.current)) console.error('Failed to fetch revenue data', err);
     } finally {
       setLoading(false);
     }

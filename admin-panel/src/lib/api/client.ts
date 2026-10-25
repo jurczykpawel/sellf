@@ -72,14 +72,18 @@ if (typeof window !== 'undefined') {
 
 /**
  * Errors that are not failures: cancelled requests, an expired session (announced once by
- * SessionExpiryNotice), a Server Action aborted by navigation, and a fetch dropped while the page unloads.
+ * SessionExpiryNotice), and reads interrupted by leaving the page. A dropped fetch or Next's
+ * "unexpected response" (also returned for a real server error) counts only while the page is
+ * unloading or when the caller has already unmounted (`unmounted`).
  */
-export function isExpectedApiError(error: unknown): boolean {
+export function isExpectedApiError(error: unknown, unmounted = false): boolean {
   if (!(error instanceof Error)) return false;
   if (error.name === 'AbortError') return true;
   if (error instanceof ApiError) return error.code === 'SESSION_EXPIRED';
-  if (error.message.includes('An unexpected response was received from the server')) return true;
-  return leavingPage && error instanceof TypeError;
+  if (leavingPage || unmounted) {
+    return error instanceof TypeError || error.message.includes('An unexpected response was received from the server');
+  }
+  return false;
 }
 let sessionRefresh: Promise<boolean> | null = null;
 async function request(url: string, options: RequestInit): Promise<Response> {

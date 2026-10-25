@@ -18,17 +18,19 @@ export default function CurrencySelector() {
 
   // Fetch currencies on mount
   useEffect(() => {
+    let unmounted = false;
     async function loadCurrencies() {
       try {
         const usedCurrencies = await getUsedCurrencies();
         setCurrencies(usedCurrencies);
       } catch (error) {
-        if (!isExpectedApiError(error)) console.error('Error fetching currencies:', error);
+        if (!isExpectedApiError(error, unmounted)) console.error('Error fetching currencies:', error);
       } finally {
         setLoading(false);
       }
     }
     loadCurrencies();
+    return () => { unmounted = true; };
   }, []);
 
   // Close dropdown when clicking outside

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { getSalesChartData, getHourlyRevenueStats, CurrencyAmount } from '@/lib/actions/analytics';
 import { useTranslations, useLocale } from 'next-intl';
@@ -66,6 +66,9 @@ export default function RevenueChart() {
     }
   };
 
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+
   // Stable fetch function
   const fetchData = useCallback(async () => {
     try {
@@ -82,7 +85,7 @@ export default function RevenueChart() {
         }
       }
     } catch (err) {
-      if (!isExpectedApiError(err)) console.error('Failed to fetch chart data', err);
+      if (!isExpectedApiError(err, !mounted.current)) console.error('Failed to fetch chart data', err);
       setData([]);
     } finally {
       setLoading(false);
