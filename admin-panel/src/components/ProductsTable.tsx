@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Product } from '@/types';
 import { formatPrice } from '@/lib/constants';
 import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
@@ -155,6 +155,8 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
   // ---------------------------------------------------------------------------
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const dropdownAnchor = useRef<DOMRect | null>(null);
+  const dropdownPanel = useRef<HTMLDivElement>(null);
 
   const handleToggleDropdown = (productId: string, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -162,16 +164,29 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
       setOpenDropdownId(null);
       return;
     }
-    const rect = e.currentTarget.getBoundingClientRect();
-    setDropdownStyle({
-      position: 'fixed',
-      top: rect.bottom + 4,
-      // align right edge of dropdown with right edge of button
-      right: window.innerWidth - rect.right,
-      zIndex: 9999,
-    });
+    dropdownAnchor.current = e.currentTarget.getBoundingClientRect();
+    setDropdownStyle({ position: 'fixed', visibility: 'hidden', zIndex: 9999 });
     setOpenDropdownId(productId);
   };
+
+  // Place the panel once its height is known: below the button when it fits,
+  // otherwise above it, always clamped to the viewport (scrolls inside when taller).
+  useLayoutEffect(() => {
+    const anchor = dropdownAnchor.current;
+    const panel = dropdownPanel.current;
+    if (!openDropdownId || !anchor || !panel) return;
+    const margin = 8;
+    const gap = 4;
+    const maxHeight = window.innerHeight - 2 * margin;
+    const height = Math.min(panel.offsetHeight, maxHeight);
+    const fitsBelow = anchor.bottom + gap + height <= window.innerHeight - margin;
+    const top = fitsBelow
+      ? anchor.bottom + gap
+      : Math.max(margin, Math.min(anchor.top - gap - height, window.innerHeight - margin - height));
+    // align right edge of dropdown with right edge of button, never past the left edge
+    const right = Math.max(margin, window.innerWidth - anchor.right);
+    setDropdownStyle({ position: 'fixed', top, right, maxHeight, zIndex: 9999 });
+  }, [openDropdownId]);
   const endIndex = Math.min(startIndex + products.length - 1, totalItems);
 
   const sortProps = { sortBy, sortOrder, onSort };
@@ -445,8 +460,9 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
 
                           {openDropdownId === product.id && (
                             <div
+                              ref={dropdownPanel}
                               style={dropdownStyle}
-                              className="bg-sf-raised border border-sf-border rounded-lg shadow-[var(--sf-shadow-accent)] overflow-hidden"
+                              className="bg-sf-raised border border-sf-border rounded-lg shadow-[var(--sf-shadow-accent)] overflow-y-auto"
                             >
                               <ActionsDropdown
                                 onClose={() => setOpenDropdownId(null)}
