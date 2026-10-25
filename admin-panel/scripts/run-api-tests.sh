@@ -49,7 +49,7 @@ if [ "$ready" -ne 1 ]; then
 fi
 
 # Compile the localized home route before tests so hooks measure the app, not the first build.
-if ! curl -fsS --max-time 300 "http://localhost:$PORT/" -o /dev/null; then
+if ! curl -fsS --connect-timeout 5 --max-time 300 "http://localhost:$PORT/" -o /dev/null; then
   echo "[run-api-tests] Home route did not respond; tail of $LOG:" >&2
   tail -40 "$LOG" >&2
   exit 1
