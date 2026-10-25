@@ -120,8 +120,8 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
           {change.path === '/templateId' && <p>{productId ? offerT('standard') : t(String(change.before))} → {productId ? offerT('standard') : t(String(change.after))}</p>}
           {change.path.startsWith('/content/') && typeof change.after === 'string' && <p>{change.after}</p>}
         </div>)}
-        {pending && <BaseModal isOpen onClose={() => { if (!busy) { setPending(null); setDiff(null); } }}><div role="region" aria-label={t(pending.operation === 'rollback' ? 'rollbackTitle' : 'confirmTitle')}>
-          <h3>{t(pending.operation === 'rollback' ? 'rollbackTitle' : 'confirmTitle')}</h3><p>{t(pending.operation === 'rollback' ? 'rollbackHelp' : 'confirmHelp')}</p>
+        {pending && <BaseModal isOpen onClose={() => { if (!busy) { setPending(null); setDiff(null); } }}><div role="region" className={styles.dialog} aria-label={t(pending.operation === 'rollback' ? 'rollbackTitle' : 'confirmTitle')}>
+          <h3 className={styles.heading}>{t(pending.operation === 'rollback' ? 'rollbackTitle' : 'confirmTitle')}</h3><p className={styles.help}>{t(pending.operation === 'rollback' ? 'rollbackHelp' : 'confirmHelp')}</p>
           <div className={styles.actions}>
             <button type="button" className={styles.primary} disabled={busy} onClick={() => void act(pending.operation, pending.revision, true)}>{t(pending.operation === 'rollback' ? 'rollbackConfirm' : 'confirmPublish')}</button>
             <button type="button" className={styles.secondary} disabled={busy} onClick={() => { setPending(null); setDiff(null); }}>{t('cancel')}</button>

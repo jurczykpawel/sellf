@@ -171,11 +171,11 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
   }
   return <div data-storefront-editor className="mx-auto max-w-6xl space-y-6 text-sf-heading">
     <header className="space-y-2"><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('title')}</h1><p className="max-w-2xl text-sm text-sf-muted">{t('intro')}</p></header>
-    <div data-editor-savebar className="sticky top-14 z-30 flex items-center justify-between gap-3 rounded-xl border border-sf-border bg-sf-base p-3 shadow-sm">
+    <div className="sticky top-14 z-30 bg-sf-deep pb-3"><div data-editor-savebar className="flex items-center justify-between gap-3 rounded-xl border border-sf-border bg-sf-base p-3 shadow-sm">
       <p role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2 text-sm text-sf-muted"><Check size={16} className={!saved || dirty ? 'hidden' : 'text-sf-success'} aria-hidden="true" /><span>{busy ? t('saving') : dirty ? t('unsaved') : saved ? t('savedState') : t('loadedState')}</span><span className="sr-only">{arrangement}</span></p>
       <div className="flex shrink-0 items-center gap-2"><button type="button" className={editorButton} aria-label={t('reload')} title={t('reload')} disabled={busy} onClick={reload}><RotateCcw size={17} aria-hidden="true" /></button>
       <button type="button" className="min-h-11 rounded-lg bg-sf-accent px-5 py-2 text-sm font-semibold text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:opacity-50" disabled={busy || !config || conflict || !dirty} onClick={save}>{t('save')}</button></div>
-    </div>
+    </div></div>
     <DraftActions revision={snapshot?.revision ?? null} enabled={!!snapshot?.draft && !dirty && !busy && !conflict} />
     {confirmReload && <div className="space-y-3 rounded-xl border border-sf-border bg-sf-base p-4"><p>{t('confirmReload')}</p><button type="button" className={editorButton} disabled={busy} onClick={reload}>{t('discard')}</button> <button type="button" className={editorButton} onClick={() => setConfirmReload(false)}>{t('cancel')}</button></div>}
     {(conflict || message || validation?.errors.length) ? <div role="alert" className="rounded-xl border border-sf-danger bg-sf-danger-soft p-4 text-sm">{conflict ? t('conflict') : message || t('invalidNotice')}</div> : null}
