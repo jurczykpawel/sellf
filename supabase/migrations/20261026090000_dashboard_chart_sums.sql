@@ -106,7 +106,7 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.get_hourly_revenue_stats(DATE, UUID, TEXT) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.get_hourly_revenue_stats(DATE, UUID, TEXT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_hourly_revenue_stats(DATE, UUID, TEXT) TO authenticated, service_role;
 COMMENT ON FUNCTION public.get_hourly_revenue_stats(DATE, UUID, TEXT)
   IS E'@graphql({"include": false})';
