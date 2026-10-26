@@ -26,6 +26,7 @@ export interface InvoiceInfo {
 }
 
 export interface PaymentTransaction {
+  coupon_code?: string | null;
   payment_provider?: string;
   payment_due_at?: string | null;
   transfer_details?: Json | null;
@@ -69,6 +70,7 @@ export interface PaymentTransactionLineItem {
   quantity: number;
   unit_price: number;
   total_price: number;
+  discounted_total?: number | null;
   currency: string;
   metadata?: Json | null;
   // VAT/tax snapshot, frozen at purchase. Amounts in MINOR units (unlike

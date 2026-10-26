@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
 import { PRODUCT_PUBLIC_COLUMNS_CSV } from '@/lib/product-columns';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTranslations, useLocale } from 'next-intl';
-import DashboardLayout from '@/components/DashboardLayout';
+import { minimumChargeAmount } from '@/lib/currency/minor-units';
 import { filterActiveAccess } from '@/lib/access/filter-active';
+import DashboardLayout from '@/components/DashboardLayout';
 
 interface Product {
   id: string;
@@ -17,6 +18,8 @@ interface Product {
   icon: string;
   image_url: string | null;
   price: number;
+  allow_custom_price?: boolean;
+  custom_price_min?: number | null;
   currency: string;
   is_active: boolean;
   is_featured: boolean;
@@ -91,6 +94,8 @@ function formatPriceLocalized(price: number | null, currency: string | null = 'U
 export default function MyProductsPage() {
   const { user, loading: authLoading } = useAuth();
   const t = useTranslations('myProducts');
+  const tp = useTranslations('admin.products');
+  const tv = useTranslations('variants');
   const locale = useLocale();
   const [userProducts, setUserProducts] = useState<UserProductAccess[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -344,7 +349,7 @@ export default function MyProductsPage() {
           </div>
         )}
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-          {product.price > 0 ? (
+          {product.allow_custom_price ? <span className="inline-flex items-center px-2 py-1 bg-sf-base border border-sf-border rounded-full text-xs font-medium">{tv('payWhatYouWant')}</span> : product.price > 0 ? (
             <div className="flex items-center px-2 py-1 bg-sf-base border border-sf-border-accent rounded-full shadow-sm">
               <svg className="w-3 h-3 text-sf-accent mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
@@ -377,7 +382,7 @@ export default function MyProductsPage() {
         </p>
 
         <div className="text-2xl font-bold text-sf-accent mb-4">
-          {formatPriceLocalized(product.price, product.currency, locale, t('naLabel'), t('invalidPrice'))}
+          {product.allow_custom_price ? tp('pwywFromLabel', { amount: formatPriceLocalized(product.custom_price_min ?? minimumChargeAmount(product.currency), product.currency, locale) }) : formatPriceLocalized(product.price, product.currency, locale, t('naLabel'), t('invalidPrice'))}
         </div>
 
         <Link

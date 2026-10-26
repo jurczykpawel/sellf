@@ -5287,6 +5287,7 @@
       "earnings": "Available earnings",
       "debt": "Debt offset",
       "held": "Still on hold",
+      "noPayable": "No amount available for payout",
       "payable": "Ready to pay",
       "unavailable": "No payout is ready. Check the minimum amount and partner approval, or wait for held earnings to become available.",
       "syncing": "Payment updates are being processed. Refresh balances before reserving a payout.",

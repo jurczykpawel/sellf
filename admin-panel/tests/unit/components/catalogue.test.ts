@@ -25,6 +25,20 @@ const response = (start = 10, nextCursor: string | null = null) => ({
 });
 
 describe('catalogue', () => {
+  it('persists committed search in the URL, preserving unrelated parameters', async () => {
+    window.history.replaceState(null, '', '/?campaign=launch#catalogue');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response()));
+    const view = render(React.createElement(Catalogue, catalogueFixture()));
+    fireEvent.change(view.getByRole('searchbox'), { target: { value: 'Make' } });
+    fireEvent.submit(view.getByRole('search'));
+    await waitFor(() => expect(new URL(window.location.href).searchParams.get('search')).toBe('Make'));
+    expect(new URL(window.location.href).searchParams.get('campaign')).toBe('launch');
+    expect(window.location.hash).toBe('#catalogue');
+    fireEvent.click(view.getByRole('button', { name: 'Clear filters' }));
+    await waitFor(() => expect(new URL(window.location.href).searchParams.has('search')).toBe(false));
+    window.history.replaceState(null, '', '/');
+  });
+
   it('only announces committed query changes, retaining current filters during non-query renders', async () => {
     let finish!: (value: ReturnType<typeof response>) => void;
     const fetcher = vi.fn().mockImplementationOnce(() => new Promise(resolve => { finish = resolve; })).mockResolvedValue(response(11));

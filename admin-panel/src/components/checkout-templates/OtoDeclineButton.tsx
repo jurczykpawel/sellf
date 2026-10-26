@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { resolveSafeRedirectPath } from '@/lib/validations/redirect';
 
 export default function OtoDeclineButton() {
   const params = useParams<{ locale?: string }>();
@@ -16,16 +17,18 @@ export default function OtoDeclineButton() {
 
   const locale = params?.locale ?? 'en';
 
+  const purchaseReturn = resolveSafeRedirectPath(searchParams?.get('purchase_return') ?? '');
   const declineHref = useMemo(() => {
     if (downsellCoupon && downsellSlug) {
       const qs = new URLSearchParams();
       if (email) qs.set('email', email);
       qs.set('coupon', downsellCoupon);
       qs.set('oto', '1');
+      if (purchaseReturn) qs.set('purchase_return', purchaseReturn);
       return `/${locale}/checkout/${downsellSlug}?${qs.toString()}`;
     }
-    return `/${locale}/my-products`;
-  }, [downsellCoupon, downsellSlug, email, locale]);
+    return purchaseReturn || `/${locale}/my-products`;
+  }, [downsellCoupon, downsellSlug, email, locale, purchaseReturn]);
 
   if (!inOtoMode) return null;
 

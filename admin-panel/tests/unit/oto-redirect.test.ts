@@ -528,3 +528,12 @@ describe('Success Redirect URL Builder', () => {
     });
   });
 });
+
+
+describe('purchase return after an offer', () => {
+  it('preserves the original status destination independently of seller passParams', () => {
+    const result = buildOtoRedirectUrl({ locale: 'pl', otoProductSlug: 'upgrade', sessionId: 'cs_test_original',
+      purchaseReturn: '/pl/p/original/payment-status?session_id=cs_test_original&offer_declined=1', passParams: false });
+    expect(new URL(result.url).searchParams.get('purchase_return')).toBe('/pl/p/original/payment-status?session_id=cs_test_original&offer_declined=1');
+  });
+});

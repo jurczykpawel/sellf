@@ -20,7 +20,7 @@ import type { CatalogueProps } from '@/lib/storefront-templates/catalogue-sectio
 import type { ResolvedPublicTheme } from '@/lib/storefront-templates/public-theme';
 
 export type StorefrontSearchParams = Record<string, string | string[] | undefined>;
-const searchSchema = z.object({ search: catalogueRequestSchema.shape.search.optional(), category: z.uuid().optional() });
+const searchSchema = z.object({ search: catalogueRequestSchema.shape.search.optional(), category: z.union([z.uuid(), z.array(z.uuid()).max(12)]).optional(), priceKind: catalogueRequestSchema.shape.priceKind.default(null), format: catalogueRequestSchema.shape.format.default(null) });
 type PageResult = { success: true; model: PresentationModel; hasProducts: boolean; theme: ResolvedPublicTheme } | { success: false };
 
 /** Rights are resolved outside the public presentation model on every render. */
@@ -37,7 +37,7 @@ export async function loadPublicStorefront(locale: 'en' | 'pl', params: Storefro
     if (!spec || spec.type !== 'catalogue/1') return { success: false };
     const { heroProduct, closingProduct, starterProducts, taskCategories, comparisonProducts, featuredProducts } = selection.settings;
     const authorBindings = collectAuthorBindings(selection, locale);
-    const query = { locale, search: search.data.search ?? '', categoryIds: search.data.category ? [search.data.category] : [], pageSize: spec.pageSize };
+    const query = { locale, search: search.data.search ?? '', categoryIds: search.data.category ? [search.data.category].flat() : [], priceKind: search.data.priceKind, format: search.data.format, pageSize: spec.pageSize };
     const [pages, bound] = await Promise.all([
       loadCatalogueGroups(client, query, spec.variant),
       loadStorefrontBindings(client, { locale, heroProduct, closingProduct, starterProducts, taskCategories, comparisonProducts, featuredProducts, ...authorBindings, target: spec.id }),
@@ -45,14 +45,14 @@ export async function loadPublicStorefront(locale: 'en' | 'pl', params: Storefro
     if (!pages.success || !bound.success) return { success: false };
     const products = [bound.data.hero, bound.data.closing, ...bound.data.starters, ...bound.data.comparison, ...bound.data.featured, ...Object.values(bound.data.paths ?? {})].filter(p => p !== null);
     let hasProducts = Object.values(pages.data).some(page => page && page.products.length > 0) || products.length > 0;
-    if (!hasProducts && (query.search || query.categoryIds.length)) {
+    if (!hasProducts && (query.search || query.categoryIds.length || query.priceKind || query.format)) {
       const unfiltered = await loadCataloguePage(client, { locale, pageSize: 9 });
       if (!unfiltered.success) return { success: false };
       hasProducts = unfiltered.data.products.length > 0;
     }
     const catalogue: CatalogueProps = { id: spec.id, variant: spec.variant, groups: pages.data, filters: spec.filters, pageSize: spec.pageSize,
       density: selection.settings.density ?? 'comfortable', locale, categories: bound.data.categories,
-      initialQuery: { search: query.search, categoryIds: query.categoryIds, priceKind: null, format: null } };
+      initialQuery: { search: query.search, categoryIds: query.categoryIds, priceKind: query.priceKind, format: query.format } };
     const model = resolvePresentation(selection, { locale, productsById: Object.fromEntries(products.map(p => [p.id, p])), pathProductsById: bound.data.paths ?? {}, mediaById: bound.data.mediaById ?? {},
       categoriesById: Object.fromEntries(bound.data.categories.map(c => [c.id, c])), catalogue });
     return { success: true, model, hasProducts, theme };

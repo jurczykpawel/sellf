@@ -5287,6 +5287,7 @@
       "earnings": "Dostępne prowizje",
       "debt": "Potrącenie długu",
       "held": "Jeszcze wstrzymane",
+      "noPayable": "Brak kwoty do wypłaty",
       "payable": "Do wypłaty",
       "unavailable": "Brak kwoty gotowej do wypłaty. Sprawdź próg i akceptację partnera lub poczekaj na zakończenie okresu wstrzymania.",
       "syncing": "Trwa przetwarzanie zmian płatności. Odśwież saldo przed rezerwacją wypłaty.",

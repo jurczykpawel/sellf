@@ -63,3 +63,12 @@ it.each(['CHF', 'KRW'])('marks a %s payout paid and submits an exact adjustment'
   await waitFor(() => expect(mocks.adjust).toHaveBeenCalledWith(expect.objectContaining({ commission_id: commission.id, amount_minor: '-1234' })));
 
 });
+
+it.each(['en', 'pl'] as const)('%s: zero balance has no ready-to-pay heading', async locale => {
+  const a = { id: 'aaaaaaaa-0000-4000-a000-000000000001', display_name: 'Anna', code: 'anna', status: 'approved' };
+  mocks.choices.mockResolvedValue({ success: true, data: { programConfigured: true, members: [a], currencies: ['PLN'], payouts: [], commissions: [] } });
+  mocks.preview.mockResolvedValue({ success: true, data: { payable_minor: '0', available: false } });
+  render(<PayoutPanel locale={locale} download={() => {}} />);
+  expect(await screen.findByText(locale === 'pl' ? 'Anna · Brak kwoty do wypłaty' : 'Anna · No amount available for payout')).toBeTruthy();
+  expect(screen.queryByText(/Anna · (Ready to pay|Gotowe do wypłaty)/)).toBeNull();
+});

@@ -10,6 +10,7 @@ import { processRefund } from '@/lib/actions/payment';
 import { getTransactionRefundProgress } from '@/lib/refunds/transaction-refund-progress';
 import { formatAdminDate } from '@/lib/timezone';
 import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
+import { getPaymentDiscount } from '@/lib/payments/discount';
 import { fromMinorUnits } from '@/lib/currency/minor-units';
 import BankTransferSection from '@/components/admin/BankTransferSection';
 import InvoiceSection from '@/components/admin/InvoiceSection';
@@ -28,6 +29,7 @@ export default function PaymentTransactionsTable({
   const bt = useTranslations('bankTransfer');
   const t = useTranslations('admin.payments.transactions');
   const ti = useTranslations('invoicing');
+  const tc = useTranslations('checkout');
   const tRefund = useTranslations('admin.payments.refund');
   const locale = useLocale();
   const [refundingId, setRefundingId] = useState<string | null>(null);
@@ -246,6 +248,7 @@ export default function PaymentTransactionsTable({
       {detailsTransaction && (() => {
         const displayItems = getTransactionDisplayItems(detailsTransaction);
         const lineItemsSubtotal = displayItems.reduce((sum, item) => sum + item.total_price, 0);
+        const discount = getPaymentDiscount(detailsTransaction);
         const paidTotal = fromMinorUnits(detailsTransaction.amount, detailsTransaction.currency);
         const showSubtotal = Math.abs(lineItemsSubtotal - paidTotal) > 0.009;
 
@@ -358,6 +361,10 @@ export default function PaymentTransactionsTable({
                   </span>
                 </div>
               )}
+              {(discount.amount > 0 || discount.code) && <div className="flex justify-between gap-4">
+                <span className="text-sf-muted">{tc('couponDiscount')}{discount.code ? ` (${discount.code})` : ''}</span>
+                {discount.amount > 0 && <span className="font-medium text-sf-heading">−{formatMajorCurrency(discount.amount, detailsTransaction.currency)}</span>}
+              </div>}
               <div className="flex justify-between gap-4">
                 <span className="text-sf-muted">{showSubtotal && !['awaiting_payment', 'cancelled'].includes(detailsTransaction.status) ? t('paid') : t('total')}</span>
                 <span className="font-medium text-sf-heading">

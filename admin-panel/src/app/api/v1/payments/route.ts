@@ -86,6 +86,8 @@ export async function GET(request: NextRequest) {
         user_id,
         session_id,
         metadata,
+        coupons!payment_transactions_coupon_id_fkey(code),
+        coupon_redemptions(coupons!coupon_redemptions_coupon_id_fkey(code)),
         custom_field_values,
         order_details,
         payment_provider,payment_due_at,transfer_details,
@@ -190,6 +192,7 @@ export async function GET(request: NextRequest) {
           quantity,
           unit_price,
           total_price,
+          discounted_total,
           currency,
           metadata,
           net_amount,
@@ -222,6 +225,7 @@ export async function GET(request: NextRequest) {
           quantity: item.quantity ?? 1,
           unit_price: item.unit_price ?? 0,
           total_price: item.total_price ?? 0,
+          discounted_total: item.discounted_total,
           currency: item.currency ?? 'usd',
           metadata: item.metadata,
           // VAT snapshot (minor units; null on legacy/uncaptured rows)
@@ -301,6 +305,7 @@ export async function GET(request: NextRequest) {
             ? { bundle_components: bundleComponentsByProductId.get(p.product_id) ?? [] }
             : {}),
         },
+        coupon_code: firstRelated<{ code: string }>(p.coupons)?.code ?? firstRelated<{ code: string }>(firstRelated<{ coupons: unknown }>(p.coupon_redemptions)?.coupons)?.code ?? null,
         invoice: firstRelated(p.invoices) ?? null,
         line_items: lineItemsByTransactionId.get(p.id) ?? [],
         net_total: p.net_total,

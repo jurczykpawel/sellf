@@ -93,7 +93,7 @@ export default function PayoutPanel({ locale, initialPayout, download }: Props) 
     {member && <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="min-w-0 space-y-5">
         <div className="overflow-hidden rounded-xl border border-sf-border bg-sf-base">
-          <div className="p-5"><p className="text-sm text-sf-muted">{partner?.display_name} · {selected?.status === 'reserved' ? t.current : t.payable}</p><p className="mt-2 break-words text-4xl font-semibold tracking-tight text-sf-heading">{amount(selected?.status === 'reserved' ? selected.earnings_minor : preview?.payable_minor ?? '0')}</p></div>
+          <div className="p-5"><p className="text-sm text-sf-muted">{partner?.display_name} · {selected?.status === 'reserved' ? t.current : preview?.available && BigInt(preview.payable_minor) > BigInt(0) ? t.payable : t.noPayable}</p><p className="mt-2 break-words text-4xl font-semibold tracking-tight text-sf-heading">{amount(selected?.status === 'reserved' ? selected.earnings_minor : preview?.payable_minor ?? '0')}</p></div>
           <dl className="grid grid-cols-3 gap-2 border-t border-sf-border px-5 py-4 text-sm">{(['earnings_minor', 'debt_offset_minor', 'held_minor'] as const).map((key, i) => <div key={key}><dt className="text-xs text-sf-muted">{[t.earnings, t.debt, t.held][i]}</dt><dd className="mt-1 font-medium tabular-nums text-sf-heading">{amount(preview?.[key] ?? '0')}</dd></div>)}</dl>
         </div>
         {selected?.status === 'reserved' ? <div className="space-y-4 rounded-xl border border-sf-border bg-sf-base p-5">

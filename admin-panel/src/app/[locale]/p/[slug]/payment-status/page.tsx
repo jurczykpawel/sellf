@@ -20,6 +20,7 @@ interface PageProps {
     session_id?: string;
     payment_intent?: string;
     success_url?: string;
+    offer_declined?: string;
   }>;
 }
 
@@ -161,7 +162,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
   // page (one fewer click + one fewer URL hop).
   let finalRedirectUrl: string | undefined = undefined;
 
-  if ((accessGranted || paymentStatus === 'magic_link_sent') && otoInfo?.has_oto && otoInfo.oto_product_slug) {
+  if (resolvedSearchParams.offer_declined !== '1' && (accessGranted || paymentStatus === 'magic_link_sent') && otoInfo?.has_oto && otoInfo.oto_product_slug) {
     // Skip the funnel entirely if the buyer already owns the upsell product.
     let customerHasOtoAccess = false;
 
@@ -223,6 +224,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
         passParams: product.pass_params_to_redirect || false,
         sourceProductId: product.id,
         sessionId: session_id,
+        purchaseReturn: `/${resolvedParams.locale}/p/${product.slug}/payment-status?${new URLSearchParams({ ...(session_id ? { session_id } : {}), ...(payment_intent ? { payment_intent } : {}), offer_declined: '1' })}`,
         downsellCouponCode: otoInfo.downsell_code,
         downsellProductSlug: otoInfo.downsell_product_slug,
       });
@@ -265,7 +267,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
   // Include magic_link_sent as a success scenario (guest purchase)
   const isSuccessfulPayment = (accessGranted && paymentStatus === 'completed') || paymentStatus === 'magic_link_sent';
 
-  if (isSuccessfulPayment) {
+  if (isSuccessfulPayment && resolvedSearchParams.offer_declined !== '1') {
     // Check if OTO was configured but skipped (user already owns the product)
     const otoWasSkipped = otoInfo?.reason === 'already_owns_oto_product';
 

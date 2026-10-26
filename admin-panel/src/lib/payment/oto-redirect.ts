@@ -11,6 +11,7 @@ import { isSafeRedirectUrl, isRelativeOrHttpUrl } from '@/lib/validations/redire
 // ============================================
 
 export interface OtoRedirectParams {
+  purchaseReturn?: string;
   locale: string;
   otoProductSlug: string;
   customerEmail?: string;
@@ -102,6 +103,7 @@ export function buildOtoRedirectUrl(params: OtoRedirectParams): OtoRedirectResul
     otoUrl.searchParams.set('coupon', couponCode);
   }
   otoUrl.searchParams.set('oto', '1');
+  if (params.purchaseReturn) otoUrl.searchParams.set('purchase_return', params.purchaseReturn);
 
   if (params.customerName && params.customerName.trim().length > 0) {
     otoUrl.searchParams.set('name', params.customerName);

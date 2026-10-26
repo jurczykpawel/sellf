@@ -60,6 +60,15 @@ export default function Catalogue({
     const abort = new AbortController();
     controller.current = abort;
     const cursor = more ? (groups[more]?.nextCursor ?? null) : null;
+    if (!more) {
+      const url = new URL(window.location.href);
+      for (const key of ['search', 'category', 'priceKind', 'format']) url.searchParams.delete(key);
+      if (next.search) url.searchParams.set('search', next.search);
+      next.categoryIds.forEach(value => url.searchParams.append('category', value));
+      if (next.priceKind) url.searchParams.set('priceKind', next.priceKind);
+      if (next.format) url.searchParams.set('format', next.format);
+      window.history.replaceState(window.history.state, '', url);
+    }
     setQuery(next);
     setFailure(null);
     setPending(true);

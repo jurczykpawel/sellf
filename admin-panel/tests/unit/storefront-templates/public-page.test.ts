@@ -168,3 +168,13 @@ it.each(['en', 'pl'] as const)('%s: batches C localized paths and product-cover 
     expect(result.model.sections.find(section => section.type === 'product-paths/1')).toMatchObject({ props: { items: [{ product }] } });
   }
 });
+
+
+it('restores repeated categories, search, price and format from URL parameters', async () => {
+  const category = ['55555555-5555-4555-8555-555555555555', '66666666-6666-4666-8666-666666666666'];
+  const result = await loadPublicStorefront('pl', { search: 'Make', category, priceKind: 'pwyw', format: 'ebook' });
+  expect(result.success).toBe(true);
+  const query = { search: 'Make', categoryIds: category, priceKind: 'pwyw', format: 'ebook' };
+  expect(mocks.groups).toHaveBeenCalledWith({}, expect.objectContaining(query), expect.any(String));
+  if (result.success) expect(result.model.sections.find(section => section.type === 'catalogue/1')?.props).toMatchObject({ initialQuery: query });
+});

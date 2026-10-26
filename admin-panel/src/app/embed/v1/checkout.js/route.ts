@@ -58,13 +58,25 @@ export async function GET() {
 
   var stripeInstances = {};
 
+  function languageFor(root) {
+    return (root.getAttribute('data-locale') || root.getAttribute('lang') || script.getAttribute('data-locale') || script.getAttribute('lang') || document.documentElement.lang || navigator.language || 'en').toLowerCase().split('-')[0] === 'pl' ? 'pl' : 'en';
+  }
+  function errorMessage(error, language, coupon) {
+    var polish = language === 'pl';
+    if (!error.status) return polish ? 'Nie udało się połączyć. Spróbuj ponownie.' : 'Could not connect. Please try again.';
+    if (error.status === 429) return polish ? 'Zbyt wiele prób. Spróbuj ponownie później.' : 'Too many attempts. Please try again later.';
+    if (error.status === 404 || error.status === 403) return polish ? 'Ten produkt jest niedostępny.' : 'This product is unavailable.';
+    if (error.status === 400 && coupon) return polish ? 'Nieprawidłowy kod kuponu' : 'Invalid coupon code';
+    return polish ? 'Nie udało się otworzyć koszyka. Spróbuj ponownie.' : 'Could not open checkout. Please try again.';
+  }
+
   function showMessage(root, message) {
     root.textContent = message;
   }
 
-  function formatPrice(amount, currency) {
+  function formatPrice(amount, currency, language) {
     try {
-      return new Intl.NumberFormat(document.documentElement.lang || navigator.language || 'en', {
+      return new Intl.NumberFormat(language || 'en', {
         style: 'currency',
         currency: currency || 'USD',
       }).format(Number(amount));
@@ -144,12 +156,12 @@ export async function GET() {
     });
   }
 
-  function renderPaidCaptchaGate(target, captcha, productSlug) {
+  function renderPaidCaptchaGate(target, captcha, productSlug, language) {
     target.textContent = '';
     var wrap = document.createElement('div');
     wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px 16px;font-family:system-ui,-apple-system,sans-serif;color:#1f2937;';
     var label = document.createElement('div');
-    label.textContent = 'Verifying you\\'re human…';
+    label.textContent = language === 'pl' ? 'Trwa weryfikacja…' : 'Verifying you\\'re human…';
     label.style.cssText = 'font-size:14px;color:#475569;text-align:center;';
     var captchaSlot = document.createElement('div');
     captchaSlot.className = 'sellf-captcha';
@@ -159,7 +171,7 @@ export async function GET() {
     return awaitCaptchaToken(captchaSlot, captcha, productSlug);
   }
 
-  function renderFreeForm(root, productSlug, captcha) {
+  function renderFreeForm(root, productSlug, captcha, language) {
     var form = document.createElement('form');
     var input = document.createElement('input');
     var honeypot = document.createElement('input');
@@ -183,7 +195,7 @@ export async function GET() {
     honeypot.setAttribute('aria-hidden', 'true');
     captchaSlot.className = 'sellf-captcha';
     button.type = 'submit';
-    button.textContent = 'Get access';
+    button.textContent = language === 'pl' ? 'Uzyskaj dostęp' : 'Get access';
     button.style.cssText = 'width:100%;padding:12px 24px;background:#5b8def;color:#fff;border:0;border-radius:9999px;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(91,141,239,0.35);';
     status.style.cssText = 'font-size:13px;color:#475569;text-align:center;min-height:20px;';
 
@@ -207,9 +219,9 @@ export async function GET() {
         website: honeypot.value,
         turnstileToken: captchaToken || undefined,
       }).then(function (body) {
-        status.textContent = body.message || 'Check your email.';
+        status.textContent = language === 'pl' ? 'Sprawdź pocztę.' : 'Check your email.';
       }).catch(function (error) {
-        status.textContent = error.message;
+        status.textContent = errorMessage(error, language);
       }).finally(function () {
         button.disabled = false;
       });
@@ -221,9 +233,9 @@ export async function GET() {
   // single Embedded Checkout instance per page; failing to destroy() before
   // mounting another one throws "You cannot have multiple Embedded Checkout
   // objects."
-  function mountStripeInto(target, clientSecret) {
+  function mountStripeInto(target, clientSecret, language) {
     return loadStripeJs().then(function (Stripe) {
-      var stripe = stripeInstances[publishableKey] || (stripeInstances[publishableKey] = Stripe(publishableKey));
+      var stripe = stripeInstances[language] || (stripeInstances[language] = Stripe(publishableKey, { locale: language }));
       return stripe.initEmbeddedCheckout({ clientSecret: clientSecret });
     }).then(function (checkout) {
       target.textContent = '';
@@ -235,14 +247,14 @@ export async function GET() {
   // Idempotent style injection. Called from both renderModalTrigger (button
   // needs sellf-mini-ring before price fetch) and openModalOverlay (modal
   // body needs sellf-loader). @keyframes can't go on inline style attrs.
-  function createLoader(label) {
+  function createLoader(label, language) {
     ensureStyles();
     var el = document.createElement('div');
     el.className = 'sellf-loader';
     var ring = document.createElement('div');
     ring.className = 'sellf-loader__ring';
     var lbl = document.createElement('div');
-    lbl.textContent = label || 'Ładowanie koszyka…';
+    lbl.textContent = label || (language === 'pl' ? 'Ładowanie koszyka…' : 'Loading checkout…');
     el.appendChild(ring);
     el.appendChild(lbl);
     return el;
@@ -283,7 +295,7 @@ export async function GET() {
 
     var slot = document.createElement('div');
     slot.style.cssText = 'padding:24px 16px 16px;';
-    slot.appendChild(createLoader());
+    slot.appendChild(createLoader(null, language));
 
     function focusGuard(atStart) {
       var guard = document.createElement('span');
@@ -341,7 +353,8 @@ export async function GET() {
   // field and leaves the buyer's current checkout untouched, so they can always
   // pay. onMounted(checkout) lets a modal track the live instance.
   function startCheckout(host, productSlug, email, initialCoupon, onMounted, language) {
-    var polish = (language || host.getAttribute('lang') || document.documentElement.lang || navigator.language || 'en').toLowerCase().split('-')[0] === 'pl';
+    language = language || languageFor(host);
+    var polish = language === 'pl';
     var CHECKOUT_PATH = '/api/embed/checkout-session';
     var stripeCheckout = null;
     var gateSlot = null;
@@ -397,7 +410,7 @@ export async function GET() {
       host.appendChild(form);
       host.appendChild(gateSlot);
       host.appendChild(stripeSlot);
-      stripeSlot.appendChild(createLoader());
+      stripeSlot.appendChild(createLoader(null, language));
       form.addEventListener('submit', function (event) {
         event.preventDefault();
         if (!applyButton.disabled) run(input.value.trim());
@@ -408,12 +421,12 @@ export async function GET() {
     function requestSession(coupon) {
       return postJson(CHECKOUT_PATH, productSlug, payload(coupon)).then(function (body) {
         if (body.kind === 'free') {
-          renderFreeForm(host, productSlug, body.captcha || null);
+          renderFreeForm(host, productSlug, body.captcha || null, language);
           return null;
         }
         ensureLayout();
         if (body.kind === 'paid_needs_captcha') {
-          return renderPaidCaptchaGate(gateSlot, body.captcha, productSlug).then(function (token) {
+          return renderPaidCaptchaGate(gateSlot, body.captcha, productSlug, language).then(function (token) {
             gateSlot.textContent = '';
             return postJson(CHECKOUT_PATH, productSlug, payload(coupon, token));
           });
@@ -424,18 +437,18 @@ export async function GET() {
 
     function mountSession(body) {
       if (body.kind !== 'paid' || !body.clientSecret) {
-        showMessage(host, 'Unexpected response from Sellf.');
+        showMessage(host, polish ? 'Nieoczekiwana odpowiedź Sellf.' : 'Unexpected response from Sellf.');
         return Promise.resolve(false);
       }
       if (!publishableKey) {
-        showMessage(host, 'Checkout is not configured.');
+        showMessage(host, polish ? 'Koszyk nie został skonfigurowany.' : 'Checkout is not configured.');
         return Promise.resolve(false);
       }
       if (stripeCheckout && typeof stripeCheckout.destroy === 'function') {
         try { stripeCheckout.destroy(); } catch (e) { /* ignore */ }
       }
       stripeCheckout = null;
-      return mountStripeInto(stripeSlot, body.clientSecret).then(function (checkout) {
+      return mountStripeInto(stripeSlot, body.clientSecret, language).then(function (checkout) {
         stripeCheckout = checkout;
         if (onMounted) onMounted(checkout);
         return true;
@@ -456,20 +469,20 @@ export async function GET() {
       }, function (error) {
         var couponProblem = coupon && error.status !== 403 && error.status !== 404;
         if (!couponProblem) {
-          showMessage(host, error.message);
+          showMessage(host, errorMessage(error, language));
           return;
         }
-        if (error.status === 400 && error.message === 'Invalid request') error.message = polish ? 'Nieprawidłowy kod kuponu' : 'Invalid coupon code';
+        var message = errorMessage(error, language, true);
         ensureLayout();
         input.value = coupon;
         // With a checkout already mounted it stays as is; otherwise (a rejected
         // prefilled code) start one without the coupon.
         if (stripeCheckout) {
           applyButton.disabled = false;
-          setStatus(error.message, true);
+          setStatus(message, true);
           return;
         }
-        return run('', error.message);
+        return run('', message);
       });
     }
 
@@ -483,7 +496,7 @@ export async function GET() {
     button.className = 'sellf-embed-button';
     button.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:#5b8def;color:#fff;border:0;border-radius:9999px;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(91,141,239,0.35);';
 
-    var baseLabel = options.buttonLabel || 'Kup';
+    var baseLabel = options.buttonLabel || (languageFor(root) === 'pl' ? 'Kup' : 'Buy');
 
     // setLabel('price text')   → "<baseLabel> · 19,99 USD"
     // setLabel({loading:true}) → "<baseLabel>  ◌"  (mini spinner while we wait)
@@ -508,8 +521,8 @@ export async function GET() {
 
     button.addEventListener('click', function () {
       button.disabled = true;
-      var modal = openModalOverlay(button, root.getAttribute('lang'));
-      startCheckout(modal.slot, productSlug, options.email, options.coupon, modal.attachStripeCheckout, root.getAttribute('lang')).then(function () {
+      var modal = openModalOverlay(button, languageFor(root));
+      startCheckout(modal.slot, productSlug, options.email, options.coupon, modal.attachStripeCheckout, languageFor(root)).then(function () {
         button.disabled = false;
       });
     });
@@ -522,8 +535,8 @@ export async function GET() {
     // for the ~400-800ms until Stripe Embedded paints its iframe.
     // startCheckout clears root before mounting.
     root.textContent = '';
-    root.appendChild(createLoader());
-    startCheckout(root, productSlug, email, coupon);
+    root.appendChild(createLoader(null, languageFor(root)));
+    startCheckout(root, productSlug, email, coupon, null, languageFor(root));
   }
 
   function initEmbed(root) {
@@ -535,7 +548,7 @@ export async function GET() {
     var showPrice = root.getAttribute('data-show-price') === 'true';
 
     if (!productSlug) {
-      showMessage(root, 'Missing product.');
+      showMessage(root, languageFor(root) === 'pl' ? 'Nie wskazano produktu.' : 'Missing product.');
       return;
     }
 
@@ -557,9 +570,9 @@ export async function GET() {
           var product = body && body.product;
           var priceText = '';
           if (product && typeof product.price === 'number' && product.price > 0) {
-            priceText = formatPrice(product.price, product.currency);
+            priceText = formatPrice(product.price, product.currency, languageFor(root));
           } else if (product && product.price === 0) {
-            priceText = 'Free';
+            priceText = languageFor(root) === 'pl' ? 'Bezpłatnie' : 'Free';
           }
           trigger.setLabel(priceText);
         }).catch(function () {
