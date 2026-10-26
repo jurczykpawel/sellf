@@ -69,13 +69,14 @@ export class ApiError extends Error {
  * Errors that are not failures: cancelled requests, an expired session (announced once by
  * SessionExpiryNotice), and reads interrupted by leaving the page. A dropped fetch or Next's
  * "unexpected response" (also returned for a real server error) counts only while the page is
- * unloading or when the caller has already unmounted (`unmounted`).
+ * unloading. Reads that must survive client-side navigation use `readDashboard` (abortable
+ * fetch) instead of server actions, so they never depend on this check for that case.
  */
-export function isExpectedApiError(error: unknown, unmounted = false): boolean {
+export function isExpectedApiError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   if (error.name === 'AbortError') return true;
   if (error instanceof ApiError) return error.code === 'SESSION_EXPIRED';
-  if (isLeavingPage() || unmounted) {
+  if (isLeavingPage()) {
     return error instanceof TypeError || error.message.includes('An unexpected response was received from the server');
   }
   return false;
@@ -248,6 +249,25 @@ class ApiClient {
       headers: {
         'Accept': 'application/json',
       },
+    });
+
+    const result = await handleResponse<SingleResponse<T>>(response);
+    return result.data;
+  }
+
+  /**
+   * GET request for a session-authenticated internal route outside `/api/v1`; resolves to its `data`.
+   */
+  async getInternal<T>(
+    path: string,
+    params: Record<string, unknown> = {},
+    signal?: AbortSignal
+  ): Promise<T> {
+    const response = await request(`/api/${path}?${buildQueryString(params)}`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+      signal,
     });
 
     const result = await handleResponse<SingleResponse<T>>(response);

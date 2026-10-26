@@ -7,30 +7,32 @@ import { createElement } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { act, cleanup, render } from '@testing-library/react';
 import CurrencySelector from '@/components/dashboard/CurrencySelector';
-const { getUsedCurrencies } = vi.hoisted(() => ({ getUsedCurrencies: vi.fn() }));
-vi.mock('@/lib/actions/currency', () => ({ getUsedCurrencies }));
+const { read } = vi.hoisted(() => ({ read: vi.fn() }));
+vi.mock('@/lib/api/dashboard-reads', () => ({ readDashboard: read }));
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
 vi.mock('@/contexts/UserPreferencesContext', () => ({
   useUserPreferences: () => ({ displayCurrency: null, currencyViewMode: 'grouped', setCurrencyPreferences: vi.fn() }),
 }));
 vi.mock('@/components/ui/Tooltip', () => ({ Tooltip: ({ children }: { children: unknown }) => children }));
-afterEach(() => { cleanup(); vi.restoreAllMocks(); getUsedCurrencies.mockReset(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); read.mockReset(); });
 
-const unexpected = () => new Error('An unexpected response was received from the server.');
+const failure = () => new Error('boom');
 
-it('logs "unexpected response" while the component is mounted', async () => {
-  getUsedCurrencies.mockRejectedValueOnce(unexpected());
+it('logs a failed read while the component is mounted', async () => {
+  read.mockRejectedValueOnce(failure());
   const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   await act(async () => { render(createElement(CurrencySelector)); });
   expect(log).toHaveBeenCalledTimes(1);
 });
 
-it('does not log "unexpected response" that arrives after unmount', async () => {
+it('aborts the read on unmount and ignores its rejection', async () => {
   let reject!: (error: Error) => void;
-  getUsedCurrencies.mockReturnValueOnce(new Promise((_, fail) => { reject = fail; }));
+  read.mockReturnValueOnce(new Promise((_, fail) => { reject = fail; }));
   const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   const { unmount } = render(createElement(CurrencySelector));
+  const signal: AbortSignal = read.mock.calls[0][2];
   unmount();
-  await act(async () => { reject(unexpected()); });
+  expect(signal.aborted).toBe(true);
+  await act(async () => { reject(failure()); });
   expect(log).not.toHaveBeenCalled();
 });

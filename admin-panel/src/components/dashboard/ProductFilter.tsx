@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getProductsList, ProductListItem } from '@/lib/actions/products';
+import type { ProductListItem } from '@/lib/actions/products';
 import { useTranslations } from 'next-intl';
 import { isExpectedApiError } from '@/lib/api/client';
+import { readDashboard } from '@/lib/api/dashboard-reads';
 import { Combobox } from '@/components/ui/Combobox'; // Import the new Combobox
 
 export default function ProductFilter() {
@@ -15,13 +16,11 @@ export default function ProductFilter() {
   const [selectedProduct, setSelectedProduct] = useState<string>(searchParams.get('productId') || '');
 
   useEffect(() => {
-    let unmounted = false;
-    getProductsList().then(data => {
-      if (!unmounted) setProducts(data);
-    }).catch(error => {
-      if (!isExpectedApiError(error, unmounted)) console.error('Failed to load products:', error);
+    const controller = new AbortController();
+    readDashboard<ProductListItem[]>('products', {}, controller.signal).then(setProducts).catch(error => {
+      if (!controller.signal.aborted && !isExpectedApiError(error)) console.error('Failed to load products:', error);
     });
-    return () => { unmounted = true; };
+    return () => controller.abort();
   }, []);
 
   const handleSelect = (productId: string) => {

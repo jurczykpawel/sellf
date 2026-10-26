@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import { getRevenueStats, getRevenueGoal, setRevenueGoal, CurrencyAmount } from '@/lib/actions/analytics';
-import { getMyDefaultCurrency } from '@/lib/actions/shop-config';
-import { getExchangeRates } from '@/lib/actions/currency';
+import { setRevenueGoal, type CurrencyAmount, type RevenueStats } from '@/lib/actions/analytics';
+import type { ExchangeRates } from '@/lib/utils/currency-conversion';
 import { convertMinorAmount } from '@/lib/utils/currency-conversion';
 import { fromMinorUnits, toMinorUnits } from '@/lib/currency/minor-units';
 import { useRealtime } from '@/contexts/RealtimeContext';
@@ -12,6 +11,7 @@ import { useUserPreferences } from '@/contexts/UserPreferencesContext';
 import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
 import { useSearchParams } from 'next/navigation';
 import { isExpectedApiError } from '@/lib/api/client';
+import { readDashboard } from '@/lib/api/dashboard-reads';
 export default function RevenueGoal() {
   const t = useTranslations('admin.dashboard');
   const locale = useLocale();
@@ -38,14 +38,11 @@ export default function RevenueGoal() {
     return Object.values(amounts).reduce((sum, amount) => sum + amount, 0);
   }, []);
 
-  const mounted = useRef(true);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-
-  // Fetch both Goal configuration and Current Revenue
-  const fetchData = useCallback(async () => {
+  // Fetch both Goal configuration and Current Revenue; `signal` aborts it on unmount or a new request
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
       // 1. Get Goal Config from DB
-      const goalData = await getRevenueGoal(productId);
+      const goalData = await readDashboard<{ amount: number; startDate: string; currency: string } | null>('goal', { productId }, signal);
       if (!goalData) {
     // Load goal and start date from local storage (backup/optimistic)
     if (typeof window !== 'undefined') {
@@ -70,14 +67,14 @@ export default function RevenueGoal() {
         startDateForStats = new Date(goalData.startDate);
       } else {
         // No goal set for this context? Use shop default currency
-        const defaultCurrency = await getMyDefaultCurrency();
+        const defaultCurrency = await readDashboard<string>('defaultCurrency', {}, signal);
         setGoal(1000000);
         setGoalCurrency(defaultCurrency);
         setGoalStartDate(null);
       }
 
       // 2. Get Revenue Stats based on goal start date
-      const stats = await getRevenueStats(productId, startDateForStats);
+      const stats = await readDashboard<RevenueStats | null>('stats', { productId, goalStart: startDateForStats?.toISOString() }, signal);
       if (stats) {
         // Store raw multi-currency data
         setCurrentRevenueRaw(stats.totalRevenue);
@@ -85,9 +82,10 @@ export default function RevenueGoal() {
         setCurrentRevenue(sumAllCurrencies(stats.totalRevenue));
       }
     } catch (err) {
-      if (!isExpectedApiError(err, !mounted.current)) console.error('Failed to fetch revenue data', err);
+      if (signal?.aborted) return;
+      if (!isExpectedApiError(err)) console.error('Failed to fetch revenue data', err);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [productId, sumAllCurrencies]);
 
@@ -118,7 +116,7 @@ export default function RevenueGoal() {
         } else {
           // Different currencies - fetch rates once and convert both
           try {
-            const rates = await getExchangeRates(displayCurrency);
+            const rates = await readDashboard<ExchangeRates | null>('rates', { base: displayCurrency });
             if (cancelled) return;
             if (!rates) {
               setDisplayGoal(goal);
@@ -163,12 +161,14 @@ export default function RevenueGoal() {
   }, [goal, goalCurrency, currentRevenueRaw, currencyViewMode, displayCurrency, convertToSingleCurrency, sumAllCurrencies]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
-    fetchData();
-    addRefreshListener(fetchData);
+    const controller = new AbortController();
+    const load = () => { void fetchData(controller.signal); };
+    load();
+    addRefreshListener(load);
 
     return () => {
-      removeRefreshListener(fetchData);
+      controller.abort();
+      removeRefreshListener(load);
     };
   }, [fetchData, addRefreshListener, removeRefreshListener]);
 
@@ -177,7 +177,7 @@ export default function RevenueGoal() {
 
     try {
       // Save goal in shop's default currency (or current goal currency if already set)
-      const currency = goalCurrency || await getMyDefaultCurrency();
+      const currency = goalCurrency || await readDashboard<string>('defaultCurrency');
       const newGoalCents = toMinorUnits(parseFloat(inputValue), currency);
       if (isNaN(newGoalCents)) return;
       const result = await setRevenueGoal(newGoalCents, startDate, currency, productId);

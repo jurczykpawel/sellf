@@ -37,6 +37,33 @@ test.describe('Dashboard interrupted requests', () => {
     });
   }
 
+  test('a slow navigation does not turn the dashboard reads into console errors', async ({ page }) => {
+    // Hold the payments navigation back so the dashboard is still mounted while its reads finish.
+    await page.route(/\/dashboard\/payments\?_rsc=/, async route => {
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      await route.continue().catch(() => undefined);
+    });
+    await page.route(/\/dashboard(\?|$)/, async route => {
+      if (route.request().method() === 'POST' || new URL(route.request().url()).pathname.includes('/api/')) {
+        await new Promise(resolve => setTimeout(resolve, 600));
+      }
+      await route.continue().catch(() => undefined);
+    });
+    await openDashboard(page);
+    await page.waitForTimeout(300);
+    await page.locator('a[href="/dashboard/payments"]').first().click();
+    await page.waitForURL('**/dashboard/payments', { timeout: 15_000 });
+    await page.waitForTimeout(3500);
+    expect(problems).toEqual([]);
+  });
+
+  test('a failing dashboard read is still reported while the page is mounted', async ({ page }) => {
+    await page.route(/\/api\/admin\/dashboard\?read=chart/, route =>
+      route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'boom' }) }));
+    await openDashboard(page);
+    await expect.poll(() => problems.some(entry => entry.includes('Failed to fetch chart data')), { timeout: 10_000 }).toBe(true);
+  });
+
   for (const delay of [300, 1200, 5000]) {
     test(`reloading ${delay} ms after load logs nothing`, async ({ page }) => {
       await openDashboard(page);

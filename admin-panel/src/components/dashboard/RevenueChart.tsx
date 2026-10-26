@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { getSalesChartData, getHourlyRevenueStats, CurrencyAmount } from '@/lib/actions/analytics';
+import type { CurrencyAmount, ChartDataPoint } from '@/lib/actions/analytics';
 import { useTranslations, useLocale } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useRealtime } from '@/contexts/RealtimeContext';
@@ -12,6 +12,7 @@ import DateRangeFilter from './DateRangeFilter';
 
 import { fromMinorUnits } from '@/lib/currency/minor-units';
 import { isExpectedApiError } from '@/lib/api/client';
+import { readDashboard } from '@/lib/api/dashboard-reads';
 type ViewMode = 'daily' | 'hourly';
 
 // Currency colors for the chart
@@ -66,29 +67,24 @@ export default function RevenueChart() {
     }
   };
 
-  const mounted = useRef(true);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-
-  // Stable fetch function
-  const fetchData = useCallback(async () => {
+  // Stable fetch function; `signal` aborts it when the chart unmounts or its request changes
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
       if (viewMode === 'hourly') {
-        const hourlyData = await getHourlyRevenueStats(undefined, productId);
-        setData(hourlyData);
+        setData(await readDashboard<any[]>('hourly', { productId }, signal));
+      } else if (dateRange.start && dateRange.end) {
+        setData(await readDashboard<ChartDataPoint[]>('chart', {
+          days: 0, start: dateRange.start.toISOString(), end: dateRange.end.toISOString(), productId,
+        }, signal));
       } else {
-        if (dateRange.start && dateRange.end) {
-          const chartData = await getSalesChartData(0, dateRange.start, dateRange.end, productId);
-          setData(chartData);
-        } else {
-          const chartData = await getSalesChartData(30, undefined, undefined, productId);
-          setData(chartData);
-        }
+        setData(await readDashboard<ChartDataPoint[]>('chart', { days: 30, productId }, signal));
       }
     } catch (err) {
-      if (!isExpectedApiError(err, !mounted.current)) console.error('Failed to fetch chart data', err);
+      if (signal?.aborted) return;
+      if (!isExpectedApiError(err)) console.error('Failed to fetch chart data', err);
       setData([]);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [
     viewMode,
@@ -105,12 +101,14 @@ export default function RevenueChart() {
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
-    fetchData();
+    const controller = new AbortController();
+    const load = () => { void fetchData(controller.signal); };
+    load();
 
-    addRefreshListener(fetchData);
+    addRefreshListener(load);
     return () => {
-      removeRefreshListener(fetchData);
+      controller.abort();
+      removeRefreshListener(load);
     };
   }, [fetchData, addRefreshListener, removeRefreshListener]);
 

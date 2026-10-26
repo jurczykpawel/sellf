@@ -3,10 +3,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useUserPreferences } from '@/contexts/UserPreferencesContext';
-import { getUsedCurrencies } from '@/lib/actions/currency';
 import { Info } from 'lucide-react';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { isExpectedApiError } from '@/lib/api/client';
+import { readDashboard } from '@/lib/api/dashboard-reads';
 export default function CurrencySelector() {
   const t = useTranslations('common');
   const tCurrency = useTranslations('dashboard.currency');
@@ -18,19 +18,19 @@ export default function CurrencySelector() {
 
   // Fetch currencies on mount
   useEffect(() => {
-    let unmounted = false;
+    const controller = new AbortController();
     async function loadCurrencies() {
       try {
-        const usedCurrencies = await getUsedCurrencies();
-        setCurrencies(usedCurrencies);
+        setCurrencies(await readDashboard<string[]>('currencies', {}, controller.signal));
       } catch (error) {
-        if (!isExpectedApiError(error, unmounted)) console.error('Error fetching currencies:', error);
+        if (controller.signal.aborted) return;
+        if (!isExpectedApiError(error)) console.error('Error fetching currencies:', error);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
     loadCurrencies();
-    return () => { unmounted = true; };
+    return () => controller.abort();
   }, []);
 
   // Close dropdown when clicking outside

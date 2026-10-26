@@ -6,8 +6,8 @@ import { formatRelativeTime } from '@/lib/utils/relative-time';
 import { formatPrice } from '@/lib/constants';
 import { useSearchParams } from 'next/navigation';
 import { isExpectedApiError } from '@/lib/api/client';
-import { getDashboardStats } from '@/lib/actions/dashboard';
-import { getRevenueStats, RevenueStats, CurrencyAmount } from '@/lib/actions/analytics';
+import { readDashboard } from '@/lib/api/dashboard-reads';
+import type { RevenueStats, CurrencyAmount } from '@/lib/actions/analytics';
 import { useRealtime } from '@/contexts/RealtimeContext';
 import { useUserPreferences } from '@/contexts/UserPreferencesContext';
 import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
@@ -50,16 +50,16 @@ export default function StatsOverview() {
 
   const statsRequest = useRef(0);
   // Keep the fetch callback independent of revenueStats to avoid repeated fetching.
-  const fetchAllStats = useCallback(async () => {
+  const fetchAllStats = useCallback(async (signal?: AbortSignal) => {
     const request = ++statsRequest.current;
     try {
       const [dashboardData, revenueData] = await Promise.all([
-        getDashboardStats(), // Currently global
-        getRevenueStats(productId), // Filtered by product
+        readDashboard<DashboardStats | null>('overview', {}, signal), // Currently global
+        readDashboard<RevenueStats | null>('stats', { productId }, signal), // Filtered by product
       ]);
 
       if (request !== statsRequest.current) return;
-      if (dashboardData) setStats(dashboardData as unknown as DashboardStats);
+      if (dashboardData) setStats(dashboardData);
       if (revenueData) {
         setRevenueStats(revenueData);
 
@@ -112,16 +112,18 @@ export default function StatsOverview() {
 
   useEffect(() => {
     const requestState = statsRequest;
+    const controller = new AbortController();
+    const load = () => { void fetchAllStats(controller.signal); };
     // Initial fetch
-    fetchAllStats();
+    load();
 
     // Register listener for global refresh events
-    // Pass fetchAllStats directly as it's stable via useCallback
-    addRefreshListener(fetchAllStats);
+    addRefreshListener(load);
 
     return () => {
       requestState.current++;
-      removeRefreshListener(fetchAllStats);
+      controller.abort();
+      removeRefreshListener(load);
     };
   }, [addRefreshListener, removeRefreshListener, fetchAllStats]); // fetchAllStats depends on productId
 

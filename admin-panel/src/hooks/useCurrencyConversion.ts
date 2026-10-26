@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { getExchangeRates } from '@/lib/actions/currency';
+import { readDashboard } from '@/lib/api/dashboard-reads';
 import { convertCurrencyAmount, convertCurrencyArray, type ExchangeRates } from '@/lib/utils/currency-conversion';
 import { CurrencyAmount } from '@/lib/actions/analytics';
 
@@ -27,7 +27,7 @@ export function useCurrencyConversion() {
     }
 
     // Fetch from server (which has its own cache)
-    const rates = await getExchangeRates(targetCurrency);
+    const rates = await readDashboard<ExchangeRates | null>('rates', { base: targetCurrency });
     if (rates) {
       ratesCache.current.set(targetCurrency, { rates, timestamp: Date.now() });
     }
