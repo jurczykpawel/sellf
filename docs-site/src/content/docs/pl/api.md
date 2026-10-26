@@ -22,7 +22,7 @@ Jednostki pozostają częścią kontraktu v1 i nie są automatycznie przeliczane
 | `GET /payments` | `line_items[].unit_price`, `line_items[].total_price` | Główna |
 | `GET /payments` | `line_items[].net_amount`, `line_items[].tax_amount` | Najmniejsza |
 | `GET /payments/{id}` | `product.price` | Główna |
-| `POST /payments/export` | Kwota, kwota zwrotu, suma netto i VAT w CSV | Najmniejsza; CSV nie dzieli wartości przez 100 |
+| `POST /payments/export` | Kwota, kwota zwrotu, suma netto i VAT w CSV | Główna (od 2026.10.7; nagłówki kończą się na `(major units)`, kropka jako separator dziesiętny; waluty bez części dziesiętnej, np. JPY, w całych jednostkach). Przed 2026.10.7 CSV używał jednostek najmniejszych |
 | `POST /payments/{id}/refund` | `amount` żądania, `amount` i `refunded_amount` odpowiedzi, jeśli zwracane | Najmniejsza; kwota żądania musi być całkowita |
 | `GET /payments/stats` | Kwoty przychodów i zwrotów, średnie i kwoty w podziale na waluty | Najmniejsza |
 | `GET /analytics/dashboard` | Kwoty `revenue.*`, `refunds.total_refunded`, `recent_activity[].revenue` | Najmniejsza |

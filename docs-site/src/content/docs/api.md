@@ -74,7 +74,7 @@ All paths below are relative to `/api/v1`. Units apply to both input and output 
 | `GET /payments` | `line_items[].unit_price`, `line_items[].total_price` | Major |
 | `GET /payments` | `line_items[].net_amount`, `line_items[].tax_amount` | Minor |
 | `GET /payments/{id}` | `product.price` | Major |
-| `POST /payments/export` | CSV amount, refunded amount, net total, tax total | Minor; CSV does not divide by 100 |
+| `POST /payments/export` | CSV amount, refunded amount, net total, tax total | Major (since 2026.10.7; headers end with `(major units)`, dot as decimal separator; zero-decimal currencies such as JPY are whole units). Before 2026.10.7 the CSV used minor units |
 | `POST /payments/{id}/refund` | Request `amount`, response `amount` and `refunded_amount` where returned | Minor; request amount must be an integer |
 | `GET /payments/stats` | Revenue/refund amounts, averages and currency breakdown amounts | Minor |
 | `GET /analytics/dashboard` | `revenue.*` amounts, `refunds.total_refunded`, `recent_activity[].revenue` | Minor |
