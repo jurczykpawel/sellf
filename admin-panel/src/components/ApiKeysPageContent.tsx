@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { toast } from 'sonner';
 import { useLocale, useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { Key, Plus, RotateCw, Trash2, Copy, Eye, EyeOff, AlertTriangle, Pencil } from 'lucide-react';
-import ApiKeyFormModal from './ApiKeyFormModal';
-import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from './ui/Modal';
+import { ALL_SCOPES, WILDCARD_SCOPE, scopeToI18nKey } from '@/lib/api/scope-constants';
+import { formatAdminDate } from '@/lib/timezone';
+import { getApiKeyStatus } from '@/lib/api/api-key-status';
+import ApiKeyFormModal from '@/components/ApiKeyFormModal';
+import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '@/components/ui/Modal';
 
 interface ApiKey {
   id: string;
@@ -14,15 +17,13 @@ interface ApiKey {
   scopes: string[];
   rate_limit_per_minute: number;
   is_active: boolean;
+  rotation_grace_until: string | null;
   expires_at: string | null;
   last_used_at: string | null;
   usage_count: number;
   created_at: string;
   revoked_at: string | null;
 }
-
-import { ALL_SCOPES, WILDCARD_SCOPE, scopeToI18nKey } from '@/lib/api/scope-constants';
-import { formatAdminDate } from '@/lib/timezone';
 
 // Stored scopes resolve to the matching i18n key. The wildcard marker is
 // never persisted (resolved at create-time) but is mapped for defensive
@@ -41,6 +42,17 @@ export default function ApiKeysPageContent({ scopesLocked = false }: { scopesLoc
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const deadlines = apiKeys.flatMap(key => [key.expires_at, key.rotation_grace_until])
+      .filter((value): value is string => !!value)
+      .map(value => Date.parse(value)).filter(value => value >= now);
+    if (!deadlines.length) return;
+    const timer = setTimeout(() => setNow(Date.now()), Math.min(Math.max(0, Math.min(...deadlines) - Date.now() + 1), 2147483647));
+    return () => clearTimeout(timer);
+  }, [apiKeys, now]);
 
   // Modals
   const [showForm, setShowForm] = useState(false);
@@ -72,7 +84,6 @@ export default function ApiKeysPageContent({ scopesLocked = false }: { scopesLoc
   }, [loadApiKeys]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
     loadApiKeys();
   }, [loadApiKeys]);
 
@@ -197,13 +208,17 @@ export default function ApiKeysPageContent({ scopesLocked = false }: { scopesLoc
 
   // Get status badge
   const getStatusBadge = (key: ApiKey) => {
-    if (key.revoked_at) {
+    const status = getApiKeyStatus(key, now);
+    if (status === 'grace') {
+      return <span className="px-2 py-1 text-xs font-medium bg-sf-warning-soft text-sf-warning">{t('statusGrace', { date: formatDate(key.rotation_grace_until) })}</span>;
+    }
+    if (status === 'revoked') {
       return <span className="px-2 py-1 text-xs font-medium bg-sf-danger-soft text-sf-danger">{t('statusRevoked')}</span>;
     }
-    if (!key.is_active) {
+    if (status === 'inactive') {
       return <span className="px-2 py-1 text-xs font-medium bg-sf-raised text-sf-muted">{t('statusInactive')}</span>;
     }
-    if (key.expires_at && new Date(key.expires_at) < new Date()) {
+    if (status === 'expired') {
       return <span className="px-2 py-1 text-xs font-medium bg-sf-warning-soft text-sf-warning">{t('statusExpired')}</span>;
     }
     return <span className="px-2 py-1 text-xs font-medium bg-sf-success-soft text-sf-success">{t('statusActive')}</span>;
@@ -307,22 +322,22 @@ export default function ApiKeysPageContent({ scopesLocked = false }: { scopesLoc
                           </button>
                         )}
                         {!key.revoked_at && key.is_active && (
-                          <>
-                            <button
-                              onClick={() => setKeyToRotate(key)}
-                              className="p-2 text-sf-muted hover:text-blue-600 hover:bg-sf-accent-soft transition-colors"
-                              title={t('rotateKey')}
-                            >
-                              <RotateCw className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setKeyToRevoke(key)}
-                              className="p-2 text-sf-muted hover:text-red-600 hover:bg-sf-danger-soft transition-colors"
-                              title={t('revokeKey')}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
+                          <button
+                            onClick={() => setKeyToRotate(key)}
+                            className="p-2 text-sf-muted hover:text-blue-600 hover:bg-sf-accent-soft transition-colors"
+                            title={t('rotateKey')}
+                          >
+                            <RotateCw className="w-4 h-4" />
+                          </button>
+                        )}
+                        {!key.revoked_at && (
+                          <button
+                            onClick={() => setKeyToRevoke(key)}
+                            className="p-2 text-sf-muted hover:text-red-600 hover:bg-sf-danger-soft transition-colors"
+                            title={t('revokeNow')}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         )}
                       </div>
                     </td>

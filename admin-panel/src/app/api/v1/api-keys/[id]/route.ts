@@ -18,6 +18,7 @@ import {
   ApiValidationError,
   successResponse,
 } from '@/lib/api';
+import { getApiKeyStatus } from '@/lib/api/api-key-status';
 import { createClient } from '@/lib/supabase/server';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { requireAdminApi } from '@/lib/auth-server';
@@ -68,6 +69,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         scopes,
         rate_limit_per_minute,
         is_active,
+        rotation_grace_until,
         expires_at,
         last_used_at,
         last_used_ip,
@@ -90,7 +92,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch API key');
     }
 
-    return jsonResponse(successResponse(key), request);
+    return jsonResponse(successResponse({ ...key, status: getApiKeyStatus(key) }), request);
   } catch (error) {
     return handleApiError(error, request);
   }
@@ -292,6 +294,16 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     // Log revocation event through the shared audit helper (service-role client).
     await logApiKeyAuditEvent(id, 'revoked', { reason });
+    const { error: auditError } = await platformClient.from('audit_log').insert({
+      table_name: 'api_keys',
+      operation: 'UPDATE',
+      performed_by: user.id,
+      new_values: { id, action: 'revoked' },
+    });
+    if (auditError) {
+      console.error('[revokeApiKey] Error recording audit:', auditError);
+    }
+
 
     return jsonResponse(
       successResponse({

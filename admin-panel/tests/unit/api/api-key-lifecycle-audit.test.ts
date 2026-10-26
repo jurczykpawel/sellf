@@ -28,7 +28,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const owner = vi.hoisted(() => ({ adminId: '' }));
+const owner = vi.hoisted(() => ({ adminId: '', userId: '' }));
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: async () => ({
@@ -45,7 +45,7 @@ vi.mock('@/lib/supabase/server', () => ({
   }),
 }));
 vi.mock('@/lib/auth-server', () => ({
-  requireAdminApi: async () => ({ user: { id: 'admin-user' }, role: 'owner' }),
+  requireAdminApi: async () => ({ user: { id: owner.userId }, role: 'owner' }),
 }));
 vi.mock('@/lib/api/owner-resolution', () => ({
   resolveApiKeyOwner: async () => ({ role: 'owner', adminId: owner.adminId }),
@@ -96,12 +96,14 @@ async function auditEvents(apiKeyId: string, eventType: string) {
 }
 
 beforeAll(async () => {
-  const { data } = await admin.from('admin_users').select('id').limit(1).single();
+  const { data } = await admin.from('admin_users').select('id, user_id').limit(1).single();
   owner.adminId = data!.id;
+  owner.userId = data!.user_id;
 });
 
 afterAll(async () => {
   if (createdKeyIds.length) {
+    await admin.from('audit_log').delete().eq('table_name', 'api_keys').in('new_values->>id', createdKeyIds);
     await admin.from('api_key_audit_log').delete().in('api_key_id', createdKeyIds);
     await admin.from('api_keys').delete().in('id', createdKeyIds);
   }
@@ -125,6 +127,12 @@ describe('API key lifecycle audit log', () => {
 
     expect(res.status).toBe(200);
     expect(await auditEvents(key.id, 'revoked')).toHaveLength(1);
+    const { data: audit, error } = await admin.from('audit_log')
+      .select('performed_by, new_values').eq('table_name', 'api_keys')
+      .contains('new_values', { id: key.id, action: 'revoked' });
+    expect(error).toBeNull();
+    expect(audit).toHaveLength(1);
+    expect(audit![0].performed_by).toBe(owner.userId);
   });
 
   it('records a deactivated event when a key is disabled', async () => {

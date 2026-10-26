@@ -2320,6 +2320,8 @@
       "columnCreated": "Utworzony",
       "columnActions": "Akcje",
       "statusActive": "Aktywny",
+      "statusGrace": "Okres przejściowy do {date}",
+      "revokeNow": "Unieważnij teraz",
       "statusInactive": "Nieaktywny",
       "statusRevoked": "Unieważniony",
       "statusExpired": "Wygasły",

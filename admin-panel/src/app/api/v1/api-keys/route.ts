@@ -25,6 +25,7 @@ import {
 } from '@/lib/api';
 import { resolveCurrentTier } from '@/lib/license/resolve';
 import { hasFeature } from '@/lib/license/features';
+import { getApiKeyStatus } from '@/lib/api/api-key-status';
 import { createClient } from '@/lib/supabase/server';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { requireAdminApi } from '@/lib/auth-server';
@@ -71,6 +72,7 @@ export async function GET(request: NextRequest) {
         scopes,
         rate_limit_per_minute,
         is_active,
+        rotation_grace_until,
         expires_at,
         last_used_at,
         usage_count,
@@ -85,7 +87,7 @@ export async function GET(request: NextRequest) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch API keys');
     }
 
-    return jsonResponse(successResponse(keys || []), request);
+    return jsonResponse(successResponse((keys || []).map(key => ({ ...key, status: getApiKeyStatus(key) }))), request);
   } catch (error) {
     return handleApiError(error, request);
   }
