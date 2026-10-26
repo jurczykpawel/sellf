@@ -739,6 +739,7 @@
   "auth": {
     "emailNotConfirmedMessage": "Confirm your email address using the link in your email.",
     "demoLoginHint": "Use the demo account shown below. Creating accounts and sending sign-in emails are unavailable in demo mode.",
+    "buyerPasswordLoginHint": "Sign in to access your purchases.",
     "passwordLoginHint": "Sign in with your existing email and password. No account or forgotten your password? Ask the store owner to arrange access; this page does not offer registration or password reset.",
     "magicLinkLoginHint": "Enter your email to receive a sign-in link. A new account is created automatically for a new email address; no password is needed. If the email does not arrive, check spam or contact the store owner.",
     "oauthLoginHint": "Enter your email for a sign-in link, or use a provider button below. A new account is created on your first sign-in; no separate registration is needed. If the email does not arrive, check spam, use a provider or contact the store owner.",

@@ -739,6 +739,7 @@
   "auth": {
     "emailNotConfirmedMessage": "Potwierdź swój adres e-mail, klikając link w otrzymanej wiadomości.",
     "demoLoginHint": "Użyj konta demonstracyjnego podanego poniżej. W trybie demo tworzenie kont i wysyłanie linków do logowania jest niedostępne.",
+    "buyerPasswordLoginHint": "Zaloguj się, aby uzyskać dostęp do swoich zakupów.",
     "passwordLoginHint": "Zaloguj się swoim adresem e-mail i hasłem. Nie masz konta lub nie pamiętasz hasła? Poproś właściciela sklepu o dostęp; ta strona nie oferuje rejestracji ani resetowania hasła.",
     "magicLinkLoginHint": "Podaj e-mail, aby otrzymać link do logowania. Dla nowego adresu konto powstanie automatycznie; nie potrzebujesz hasła. Jeśli wiadomość nie dotrze, sprawdź spam lub skontaktuj się z właścicielem sklepu.",
     "oauthLoginHint": "Podaj e-mail, aby otrzymać link do logowania, lub użyj przycisku logowania poniżej. Konto powstanie przy pierwszym logowaniu; osobna rejestracja nie jest potrzebna. Jeśli wiadomość nie dotrze, sprawdź spam, wybierz logowanie przez dostawcę lub skontaktuj się z właścicielem sklepu.",

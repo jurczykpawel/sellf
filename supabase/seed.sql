@@ -1425,3 +1425,14 @@ ON CONFLICT (code) DO NOTHING;
 INSERT INTO public.coupons (code, name, discount_type, discount_value, usage_limit_global, usage_limit_per_user, is_active)
 VALUES ('EMBED10', 'Embedded checkout 10%', 'percentage', 10, 100, 1, true)
 ON CONFLICT (code) DO NOTHING;
+
+-- A buyer's pending refund for an accidental duplicate course purchase.
+INSERT INTO public.refund_requests (
+  transaction_id, user_id, customer_email, product_id,
+  requested_amount, currency, reason
+)
+SELECT id, user_id, customer_email, product_id, amount, currency,
+  'I purchased this course twice. Please refund this copy.'
+FROM public.payment_transactions
+WHERE session_id = 'cs_test_pln_001'
+  AND NOT EXISTS (SELECT 1 FROM public.refund_requests WHERE transaction_id = payment_transactions.id);

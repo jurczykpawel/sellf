@@ -402,7 +402,7 @@ export async function proxy(request: NextRequest) {
   if ((!user || userError) && isProtectedRoute) {
     const redirectPath = locale ? `/${locale}/login` : '/login'
     const target = new URL(redirectPath, request.url)
-    if (actualPath === '/affiliates/apply') target.searchParams.set('redirect_to', pathname)
+    if (actualPath === '/affiliates/apply' || /^\/(?:dashboard|admin)(?:\/|$)/.test(actualPath)) target.searchParams.set('redirect_to', pathname)
     return applyHeaders(NextResponse.redirect(target))
   }
 

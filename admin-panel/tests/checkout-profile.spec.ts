@@ -375,3 +375,14 @@ test('EU tax number error explains that its prefix must match the selected count
   await expect(page.locator('[id="buyer.nip-error"]')).toContainText('prefiksem zgodnym z wybranym krajem');
   await expect(page.locator('[id="buyer.nip"]')).toBeFocused();
 });
+
+test('phone has one visible label and an accessible input in both languages', async ({ page }) => {
+  expect((await db.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'phone', required: true }] } }).eq('id', product.id)).error).toBeNull();
+  await acceptAllCookies(page);
+  for (const [locale, label] of [['pl', 'Telefon'], ['en', 'Phone']]) {
+    await page.goto(`/${locale}/checkout/${product.slug}`);
+    await expect(page.getByLabel(label, { exact: true })).toBeVisible();
+    await expect(page.getByText(label, { exact: true })).toHaveCount(1);
+    await page.getByLabel(label, { exact: true }).fill('500100200');
+  }
+});

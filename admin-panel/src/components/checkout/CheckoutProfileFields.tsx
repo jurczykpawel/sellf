@@ -115,9 +115,10 @@ export default function CheckoutProfileFields({ profile, state, invoice, errors,
   };
   return <div ref={fieldsRef} className="space-y-6">{profile.modules.map(config => {
     if (config.id === 'quantity' || (config.id === 'recipient' && state.buyerType !== 'organization')) return null;
+    if (config.id === 'phone') return <div key={config.id} className="rounded-xl border border-sf-border p-4">{forms.phone(config)}</div>;
     return <fieldset key={config.id} disabled={disabled} className="space-y-3 rounded-xl border border-sf-border p-4">
       <legend className="px-1 font-semibold text-sf-heading">{t(config.id)}</legend>
-      {config.id !== 'phone' && errorText(config.id) && <p role="alert" className="text-sm text-sf-danger">{errorText(config.id)}</p>}
+      {errorText(config.id) && <p role="alert" className="text-sm text-sf-danger">{errorText(config.id)}</p>}
       {forms[config.id](config)}
     </fieldset>;
   })}</div>;

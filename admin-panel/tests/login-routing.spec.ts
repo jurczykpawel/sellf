@@ -1,5 +1,7 @@
 /** Fresh browser navigation through the canonical locale routes. */
 import { expect, test } from '@playwright/test';
+import { createTestAdmin, createTestUser } from './helpers/admin-auth';
+import { acceptAllCookies } from './helpers/consent';
 import en from '../src/messages/en.json';
 import pl from '../src/messages/pl.json';
 
@@ -38,5 +40,43 @@ for (const locale of ['en', 'pl'] as const) {
       await page.screenshot({ path: `/private/tmp/rcr2-login-${locale}-${key}-${width}.png`, fullPage: true });
     }
     expect(errors).toEqual([]);
+  });
+}
+
+for (const locale of ['en', 'pl'] as const) {
+  test(`${locale}: buyer login uses shop name and buyer guidance`, async ({ page, request }) => {
+    const { createClient } = await import('@supabase/supabase-js');
+    const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    const { data, error } = await db.from('shop_config').select('shop_name').single();
+    expect(error).toBeNull();
+    const config = await (await request.get('/api/runtime-config')).json();
+    await page.goto(`/${locale}/login`);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(data!.shop_name);
+    if (config.passwordLoginEnabled && !config.demoMode) {
+      await expect(page.getByText(locale === 'pl' ? 'Zaloguj się, aby uzyskać dostęp do swoich zakupów.' : 'Sign in to access your purchases.', { exact: true })).toBeVisible();
+    }
+  });
+  test(`${locale}: dashboard entry keeps panel login heading`, async ({ page }) => {
+    await page.goto(`/${locale}/dashboard/products`);
+    await expect(page).toHaveURL(/\/login\?redirect_to=/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText((locale === 'pl' ? pl : en).auth.title);
+  });
+}
+
+for (const role of ['buyer', 'admin'] as const) {
+  test(`${role} can sign in through the login form`, async ({ page }) => {
+    const user = await (role === 'admin' ? createTestAdmin('login-panel') : createTestUser('login-buyer'));
+    try {
+      await acceptAllCookies(page);
+      await page.goto(role === 'admin' ? '/login?redirect_to=%2Fdashboard' : '/login');
+      await page.locator('input[type="email"]').fill(user.email);
+      await page.locator('input[type="password"]').fill(user.password);
+      await page.getByRole('button', { name: en.auth.signIn, exact: true }).click();
+      await expect(page).not.toHaveURL(/\/login(?:\?|$)/);
+      expect((await page.request.get('/api/refund-requests')).status()).toBe(200);
+      if (role === 'admin') await expect(page).toHaveURL(/\/dashboard/);
+    } finally {
+      await user.cleanup();
+    }
   });
 }

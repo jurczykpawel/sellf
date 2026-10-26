@@ -11,7 +11,7 @@ vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, loading
 vi.mock('@/components/providers/config-provider', () => ({ useConfig: () => state.config }));
 vi.mock('@/components/SiteMenu', () => ({ default: () => null }));
 vi.mock('@/components/LoginForm', () => ({ default: () => createElement('form', { 'aria-label': 'Login' }) }));
-import LoginPage from '@/app/[locale]/login/page';
+import LoginPage from '@/components/LoginPage';
 afterEach(cleanup);
 for (const locale of ['en', 'pl'] as const) {
   it.each([
@@ -27,8 +27,8 @@ for (const locale of ['en', 'pl'] as const) {
   });
   it('uses ordinary login guidance for a product return in ' + locale, () => {
     state.locale = locale; state.config = { demoMode: false, passwordLoginEnabled: true, oauthProviders: [] }; state.path = `/${locale}/p/course`;
-    render(createElement(LoginPage));
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe((locale === 'pl' ? pl : en).auth.title);
-    expect(screen.getByText(locale === 'pl' ? /poproś.*sklep/i : /ask.*store/i)).toBeTruthy();
+    render(createElement(LoginPage, { shopName: 'Pracownia kursów' }));
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Pracownia kursów');
+    expect(screen.getByText(locale === 'pl' ? 'Zaloguj się, aby uzyskać dostęp do swoich zakupów.' : 'Sign in to access your purchases.')).toBeTruthy();
   });
 }

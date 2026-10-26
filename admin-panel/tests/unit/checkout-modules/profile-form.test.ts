@@ -70,3 +70,11 @@ it.each(['GB', 'US'])('allows selecting and validating %s for buyer and recipien
   expect(setRecipient).toHaveBeenCalled();
   expect(validateModuleValues(profile, { buyer: { type: 'organization', ...party, country }, recipient: { differs: true, ...party, country } }, { locale: 'en', currency: 'PLN', quantity: 1 }).success).toBe(true);
 });
+
+it('renders a single phone label with its associated input', () => {
+  const profile: CheckoutProfile = { v: 1, modules: [{ id: 'phone', required: true }] };
+  const state = { phone: '', setPhone: vi.fn() } as unknown as ReturnType<typeof useCheckoutProfileValues>;
+  render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(CheckoutProfileFields, { profile, state, invoice, errors: [], disabled: false })));
+  expect(screen.getAllByText('Phone')).toHaveLength(1);
+  expect(screen.getByLabelText('Phone').tagName).toBe('INPUT');
+});
