@@ -85,7 +85,7 @@ export default function RefundRequestsPage() {
             <button
               onClick={() => openActionModal(request, 'approve')}
               disabled={processingId === request.id}
-              className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-md hover:bg-green-700 disabled:opacity-50"
+              className="px-3 py-1.5 bg-green-700 text-white text-xs rounded-md hover:bg-green-800 disabled:opacity-50"
             >
               {t('approve', { defaultValue: 'Approve' })}
             </button>
