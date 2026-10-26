@@ -165,7 +165,7 @@ export default function RevenueChart() {
       currency: currency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(fromMinorUnits(value, currency));
+    }).format(value);
   };
 
   // Helper to format multi-currency amounts
@@ -175,12 +175,12 @@ export default function RevenueChart() {
     if (currencies.length === 0) return formatCurrency(0);
     if (currencies.length === 1) {
       const currency = currencies[0];
-      return formatCurrency(amounts[currency], currency);
+      return formatCurrency(fromMinorUnits(amounts[currency], currency), currency);
     }
     // Multiple currencies - show them all
     return currencies
       .sort() // Sort for consistency
-      .map(currency => formatCurrency(amounts[currency], currency))
+      .map(currency => formatCurrency(fromMinorUnits(amounts[currency], currency), currency))
       .join(' + ');
   };
 
@@ -366,13 +366,13 @@ export default function RevenueChart() {
 
                 if (isConverted) {
                   // Converted mode: single amount field
-                  transformed[displayCurrency!] = item.amount;
+                  transformed[displayCurrency!] = fromMinorUnits(item.amount, displayCurrency!);
                 } else {
                   // Grouped mode: multiple currency fields
                   // IMPORTANT: For stacked areas, ALL currencies must be present in EVERY data point
                   // even if value is 0, otherwise the stack won't render correctly
                   allCurrencies.forEach(currency => {
-                    transformed[currency] = item.amount?.[currency] || 0;
+                    transformed[currency] = fromMinorUnits(item.amount?.[currency] || 0, currency);
                   });
                 }
 
@@ -420,7 +420,7 @@ export default function RevenueChart() {
                     return new Intl.NumberFormat(locale, {
                       notation: 'compact',
                       maximumFractionDigits: 0
-                    }).format(fromMinorUnits(value, allCurrencies[0] || 'USD'));
+                    }).format(value);
                   }
                   // In converted mode (single currency), show with currency symbol
                   return formatCurrency(value, allCurrencies[0] || 'USD');
