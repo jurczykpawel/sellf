@@ -35,7 +35,7 @@ export default function StatsOverview() {
   const productId = searchParams.get('productId') || undefined;
   const { addRefreshListener, removeRefreshListener } = useRealtime();
   const { hideValues, currencyViewMode, displayCurrency } = useUserPreferences();
-  const { convertToSingleCurrency, convertMultipleCurrencies } = useCurrencyConversion();
+  const { convertMultipleCurrencies } = useCurrencyConversion();
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null);
@@ -207,7 +207,7 @@ export default function StatsOverview() {
       ),
       color: 'from-green-500 to-green-600',
       bgColor: 'bg-sf-success-soft',
-      change: revenueStats?.todayRevenue ? t('stats.todayChange', { amount: formatMultiCurrency(revenueStats.todayRevenue, convertedRevenue?.today) }) : null,
+      change: revenueStats && Object.keys(revenueStats.todayRevenue).length > 0 ? t('stats.todayChange', { amount: formatMultiCurrency(revenueStats.todayRevenue, convertedRevenue?.today) }) : null,
       changeType: 'positive'
     },
     {

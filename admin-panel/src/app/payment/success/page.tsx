@@ -1,9 +1,8 @@
 // app/payment/success/page.tsx
-// Payment success page - handles Checkout Sessions and legacy PaymentIntent flows
+// Stripe return hop - forwards Checkout Sessions and legacy PaymentIntent returns to the payment status page
 
-import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
-import { getTranslations, getLocale } from 'next-intl/server';
+import { getLocale } from 'next-intl/server';
 import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
 import { resolveSafeRedirectPath } from '@/lib/validations/redirect';
 import { paymentStatusUrl, productUrl } from '@/lib/utils/product-urls';
@@ -20,10 +19,9 @@ interface PaymentSuccessPageProps {
   }>;
 }
 
-async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) {
+async function PaymentSuccessPage({ searchParams }: PaymentSuccessPageProps) {
   const params = await searchParams;
   const locale = params.locale === 'pl' || params.locale === 'en' ? params.locale : await getLocale();
-  const t = await getTranslations({ locale, namespace: 'payment.success' });
 
   // Handle legacy PaymentIntent flow
   const paymentIntent = params.payment_intent;
@@ -75,36 +73,8 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
     redirect(`${productUrl(productSlug, locale)}?payment=success`);
   }
 
-  // If we have a session ID but no product slug, show generic success page (old flow)
-  if (sessionId) {
-    // You could fetch additional details here if needed
-  }
-
-  return (
-    <div className="min-h-screen bg-sf-deep flex items-center justify-center">
-      <div className="max-w-md mx-auto bg-sf-raised/80 border border-sf-border rounded-2xl p-8 text-center">
-        <div className="w-16 h-16 bg-sf-success/20 border border-sf-success/30 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8 text-sf-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-          </svg>
-        </div>
-        <h1 className="text-2xl font-bold text-sf-heading mb-2">{t('title')}</h1>
-        <p className="text-sf-muted mb-6">
-          {t('description')}
-        </p>
-      </div>
-    </div>
-  );
+  // Nothing to resolve (no purchase in the URL): never claim success, go to the shop.
+  redirect(`/${locale}`);
 }
 
-export default function PaymentSuccessPage(props: PaymentSuccessPageProps) {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-sf-deep flex items-center justify-center">
-        <div className="text-sf-heading">Loading...</div>
-      </div>
-    }>
-      <PaymentSuccessContent {...props} />
-    </Suspense>
-  );
-}
+export default PaymentSuccessPage;

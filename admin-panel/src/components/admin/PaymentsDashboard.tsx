@@ -159,7 +159,6 @@ export default function PaymentsDashboard() {
   }, [hasMoreTransactions, loading, loadingMoreTransactions, searchPending, transactionsCursor, filters.status, filters.searchTerm, filters.dateRange, t]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
     loadPaymentData();
   }, [loadPaymentData, filters.status, filters.dateRange, filters.searchTerm]);
 
@@ -238,7 +237,7 @@ export default function PaymentsDashboard() {
                   : 'border-transparent text-sf-muted hover:text-sf-heading'
               }`}
             >
-              {t('transactions.titleSentence')} ({transactions.length})
+              {t('transactions.titleSentence')}{!loading && ` (${transactions.length})`}
             </button>
             <button
               onClick={() => setActiveTab('sessions')}
@@ -248,7 +247,7 @@ export default function PaymentsDashboard() {
                   : 'border-transparent text-sf-muted hover:text-sf-heading'
               }`}
             >
-              {t('sessions.titleSentence')} ({filteredSessions.length})
+              {t('sessions.titleSentence')}{!loading && ` (${filteredSessions.length})`}
             </button>
           </nav>
         </div>

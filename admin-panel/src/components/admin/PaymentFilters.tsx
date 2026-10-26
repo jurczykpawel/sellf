@@ -34,6 +34,16 @@ export default function PaymentFilters({
 }: PaymentFiltersProps) {
   const bt = useTranslations('bankTransfer');
   const t = useTranslations('admin.payments.filters');
+  const statusLabels: Record<string, string> = {
+    awaiting_payment: bt('status_awaiting_payment'),
+    cancelled: bt('status_cancelled'),
+    pending: t('pending'),
+    completed: t('completed'),
+    refunded: t('refunded'),
+    partially_refunded: t('partiallyRefunded'),
+    disputed: t('disputed'),
+    abandoned: t('abandoned'),
+  };
 
   // Local, immediately-updated copy of the search text so typing feels
   // responsive; the parent (and therefore the server request) only hears
@@ -125,14 +135,7 @@ export default function PaymentFilters({
               className="w-full sm:w-auto px-3 py-2 border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent bg-sf-input text-sf-heading"
             >
               <option value="all">{t('allStatuses')}</option>
-              <option value="awaiting_payment">{bt('status_awaiting_payment')}</option>
-              <option value="cancelled">{bt('status_cancelled')}</option>
-              <option value="pending">{t('pending')}</option>
-              <option value="completed">{t('completed')}</option>
-              <option value="refunded">{t('refunded')}</option>
-              <option value="partially_refunded">{t('partiallyRefunded')}</option>
-              <option value="disputed">{t('disputed')}</option>
-              <option value="abandoned">{t('abandoned')}</option>
+              {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </div>
 
@@ -200,7 +203,7 @@ export default function PaymentFilters({
           <span className="text-sm text-sf-body">{t('activeFilters')}</span>
           {filters.status !== 'all' && (
             <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-sf-accent-soft text-sf-accent">
-              {t('statusFilter', { status: filters.status })}
+              {t('statusFilter', { status: statusLabels[filters.status] ?? filters.status })}
               <button
                 onClick={() => handleFilterChange('status', 'all')}
                 className="ml-1 text-sf-accent hover:opacity-80"

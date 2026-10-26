@@ -20,7 +20,7 @@ export default function RevenueGoal() {
   const productId = searchParams.get('productId') || undefined;
   const { addRefreshListener, removeRefreshListener } = useRealtime();
   const { hideValues, currencyViewMode, displayCurrency } = useUserPreferences();
-  const { convertToSingleCurrency, convertMultipleCurrencies } = useCurrencyConversion();
+  const { convertToSingleCurrency } = useCurrencyConversion();
 
   const [goal, setGoal] = useState(1000000); // Default $10k in cents
   const [goalCurrency, setGoalCurrency] = useState<string>('USD'); // Currency in which goal is stored
@@ -91,74 +91,71 @@ export default function RevenueGoal() {
 
   // Convert goal and revenue when currency view mode changes
   // OPTIMIZED: Fetch rates ONCE for both conversions
+  // The goal is a single amount, so grouped mode measures it in the goal currency.
+  const targetCurrency = currencyViewMode === 'converted' && displayCurrency ? displayCurrency : goalCurrency;
+
   useEffect(() => {
     let cancelled = false;
     async function convertBoth() {
-      if (currencyViewMode === 'converted' && displayCurrency) {
-        if (!goalCurrency || Object.keys(currentRevenueRaw).length === 0) {
-          setDisplayGoal(goal);
-          setCurrentRevenue(sumAllCurrencies(currentRevenueRaw));
-          return;
-        }
-
-        if (displayCurrency === goalCurrency) {
-          // Same currency for goal, no conversion needed
-          setDisplayGoal(goal);
-          // But still convert revenue
-          try {
-            const converted = await convertToSingleCurrency(currentRevenueRaw, displayCurrency);
-            if (!cancelled) setCurrentRevenue(converted);
-          } catch (error) {
-            if (cancelled) return;
-            if (!isExpectedApiError(error)) console.error('Error converting revenue:', error);
-            setCurrentRevenue(sumAllCurrencies(currentRevenueRaw));
-          }
-        } else {
-          // Different currencies - fetch rates once and convert both
-          try {
-            const rates = await readDashboard<ExchangeRates | null>('rates', { base: displayCurrency });
-            if (cancelled) return;
-            if (!rates) {
-              setDisplayGoal(goal);
-              setCurrentRevenue(sumAllCurrencies(currentRevenueRaw));
-              return;
-            }
-
-            // Convert goal locally
-            const convertedGoal = Math.round(convertMinorAmount(goal, goalCurrency, displayCurrency, rates));
-            setDisplayGoal(convertedGoal);
-
-            // Convert revenue locally
-            let total = 0;
-            for (const [currency, amount] of Object.entries(currentRevenueRaw)) {
-              if (currency === displayCurrency) {
-                total += amount;
-              } else {
-                try {
-                  total += convertMinorAmount(amount, currency, displayCurrency, rates);
-                } catch (error) {
-                  console.error(`Failed to convert ${amount} ${currency}:`, error);
-                }
-              }
-            }
-            setCurrentRevenue(Math.round(total));
-          } catch (error) {
-            if (cancelled) return;
-            if (!isExpectedApiError(error)) console.error('Error converting goal and revenue:', error);
-            setDisplayGoal(goal);
-            setCurrentRevenue(sumAllCurrencies(currentRevenueRaw));
-          }
-        }
-      } else {
-        // Grouped mode: show original values
+      if (!goalCurrency || Object.keys(currentRevenueRaw).length === 0) {
         setDisplayGoal(goal);
         setCurrentRevenue(sumAllCurrencies(currentRevenueRaw));
+        return;
+      }
+
+      if (targetCurrency === goalCurrency) {
+        // Same currency for goal, no conversion needed
+        setDisplayGoal(goal);
+        // But still convert revenue
+        try {
+          const converted = await convertToSingleCurrency(currentRevenueRaw, targetCurrency);
+          if (!cancelled) setCurrentRevenue(converted);
+        } catch (error) {
+          if (cancelled) return;
+          if (!isExpectedApiError(error)) console.error('Error converting revenue:', error);
+          setCurrentRevenue(sumAllCurrencies(currentRevenueRaw));
+        }
+      } else {
+        // Different currencies - fetch rates once and convert both
+        try {
+          const rates = await readDashboard<ExchangeRates | null>('rates', { base: targetCurrency });
+          if (cancelled) return;
+          if (!rates) {
+            setDisplayGoal(goal);
+            setCurrentRevenue(sumAllCurrencies(currentRevenueRaw));
+            return;
+          }
+
+          // Convert goal locally
+          const convertedGoal = Math.round(convertMinorAmount(goal, goalCurrency, targetCurrency, rates));
+          setDisplayGoal(convertedGoal);
+
+          // Convert revenue locally
+          let total = 0;
+          for (const [currency, amount] of Object.entries(currentRevenueRaw)) {
+            if (currency === targetCurrency) {
+              total += amount;
+            } else {
+              try {
+                total += convertMinorAmount(amount, currency, targetCurrency, rates);
+              } catch (error) {
+                console.error(`Failed to convert ${amount} ${currency}:`, error);
+              }
+            }
+          }
+          setCurrentRevenue(Math.round(total));
+        } catch (error) {
+          if (cancelled) return;
+          if (!isExpectedApiError(error)) console.error('Error converting goal and revenue:', error);
+          setDisplayGoal(goal);
+          setCurrentRevenue(sumAllCurrencies(currentRevenueRaw));
+        }
       }
     }
 
     convertBoth();
     return () => { cancelled = true; };
-  }, [goal, goalCurrency, currentRevenueRaw, currencyViewMode, displayCurrency, convertToSingleCurrency, sumAllCurrencies]);
+  }, [goal, goalCurrency, currentRevenueRaw, targetCurrency, convertToSingleCurrency, sumAllCurrencies]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -216,8 +213,8 @@ export default function RevenueGoal() {
   const rawPercentage = displayGoal > 0 ? Math.round((currentRevenue / displayGoal) * 100) : 0;
   const visualPercentage = Math.min(rawPercentage, 100);
 
-  // Determine which currency to use for display
-  const activeCurrency = (currencyViewMode === 'converted' && displayCurrency) ? displayCurrency : goalCurrency;
+  const activeCurrency = targetCurrency;
+  const revenueIsConverted = Object.keys(currentRevenueRaw).some(currency => currency !== targetCurrency);
 
   const formatCurrency = (amount: number) => {
     if (hideValues) return '****';
@@ -320,6 +317,9 @@ export default function RevenueGoal() {
               / {formatCurrency(displayGoal)}
             </span>
           </div>
+          {revenueIsConverted && (
+            <p className="text-[10px] text-sf-muted mb-2">{t('goalConvertedNote', { currency: activeCurrency })}</p>
+          )}
           <div className="overflow-hidden h-3 border border-sf-border-medium bg-sf-raised">
             <div
               style={{ width: `${visualPercentage}%` }}

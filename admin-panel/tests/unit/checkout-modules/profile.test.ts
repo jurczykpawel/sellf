@@ -91,11 +91,16 @@ describe('module values', () => {
     expect(validate(modules, { phone: '00 1 202 555 0100' })).toMatchObject({ success: true, details: { phone: { value: '+12025550100' } } });
     for (const phone of ['00', '00 48', '0048 12', '1234567']) expect(validate(modules, { phone }).success).toBe(false);
   });
-  it('explains in the rejection message that a country code and at least 7 digits are needed', async () => {
+  it('tells a number without a country code apart from one that is too short', async () => {
+    const codes = (phone: string) => (validate([{ id: 'phone', required: true }], { phone }) as { errors?: { code: string }[] }).errors?.map(e => e.code);
+    for (const phone of ['1234567', '123456', 'abc']) expect(codes(phone)).toEqual(['phone_country_code']);
+    for (const phone of ['+48 12', '+4812', '00 48 12']) expect(codes(phone)).toEqual(['phone_too_short']);
     const { default: pl } = await import('@/messages/pl.json');
     const { default: en } = await import('@/messages/en.json');
-    expect(pl.checkout.profile.errors.invalid_phone).toMatch(/kierunkow.*7 cyfr/);
-    expect(en.checkout.profile.errors.invalid_phone).toMatch(/country code.*7 digits/);
+    expect(pl.checkout.profile.errors.phone_country_code).toMatch(/kierunkow/);
+    expect(pl.checkout.profile.errors.phone_too_short).toMatch(/za krótki/);
+    expect(en.checkout.profile.errors.phone_country_code).toMatch(/country code/);
+    expect(en.checkout.profile.errors.phone_too_short).toMatch(/too short/);
   });
   it('rejects a phone number whose national part is too short, with or without a country code', () => {
     for (const required of [true, false]) {

@@ -162,10 +162,10 @@ describe('admin payments dashboard', () => {
   it('only offers payment status filter values that can actually exist in the database', () => {
     // Payment history includes online attempts and traditional transfer orders.
     for (const value of ['pending', 'completed', 'refunded', 'partially_refunded', 'disputed', 'abandoned', 'awaiting_payment', 'cancelled']) {
-      expect(paymentFiltersSource).toContain(`value="${value}"`);
+      expect(paymentFiltersSource).toMatch(new RegExp(`\\b${value}: `));
     }
     // Failed attempts are represented by their existing session state.
-    expect(paymentFiltersSource).not.toContain('value="failed"');
+    expect(paymentFiltersSource).not.toMatch(/\bfailed: /);
   });
 
   it('debounces the search input before it triggers a server request', () => {

@@ -205,7 +205,8 @@
         "invalid_nip": "Enter a valid Polish NIP (10 digits with a valid checksum).",
         "invalid_eu_vat": "Enter an EU VAT number prefixed with the selected country code (e.g. DE123456789; Greece: EL).",
         "invalid_tax_id": "Use letters, digits or hyphens (maximum 40 characters); this number is optional.",
-        "invalid_phone": "Enter the number with a country code (e.g. +48 500 600 700), at least 7 digits.",
+        "phone_country_code": "Start the number with a country code, e.g. +48 500 600 700.",
+        "phone_too_short": "The number is too short or invalid — enter the full number after the country code.",
         "duplicate_email": "Each participant needs a different email.",
         "participant_count": "Enter one participant per item.",
         "details_too_large": "Order details are too long.",
@@ -1483,7 +1484,8 @@
       "showValues": "Show values",
       "hideValues": "Hide values",
       "resetProgressTitle": "Reset progress (start counting from now)",
-      "goalCurrencyNote": "Goal is saved in shop's default currency"
+      "goalCurrencyNote": "Goal is saved in shop's default currency",
+      "goalConvertedNote": "Converted to {currency} (estimate)"
     },
     "products": {
       "title": "Products",
@@ -4645,10 +4647,6 @@
       "genericError": "An error occurred during payment processing. Please try again.",
       "tryAgain": "Try Again",
       "goHome": "Go Home"
-    },
-    "success": {
-      "title": "Payment Successful!",
-      "description": "Your payment has been processed successfully. You now have access to your purchased product."
     }
   },
   "digitalContent": {

@@ -41,14 +41,12 @@ it('uses the resolved product return path and complete query', async () => {
   await expect(productAccess(new Request(`https://shop.example/auth/product-access?product=course&return_url=${encodeURIComponent(value)}`))).rejects.toThrow('NEXT_REDIRECT:/thanks?a=1&b=2');
 });
 
-async function paymentSuccess(value: string): Promise<unknown> {
-  const page = PaymentSuccessPage({ searchParams: Promise.resolve({ success_url: value, redirect_status: 'succeeded' }) });
-  const child = page.props.children;
-  return child.type(child.props);
+function paymentSuccess(value: string): Promise<unknown> {
+  return PaymentSuccessPage({ searchParams: Promise.resolve({ success_url: value, redirect_status: 'succeeded' }) });
 }
-it.each(invalidValues)('keeps the generic success page for %j', async value => {
-  await paymentSuccess(value);
-  expect(state.redirect).not.toHaveBeenCalled();
+it.each(invalidValues)('sends the shop home instead of following %j', async value => {
+  await expect(paymentSuccess(value)).rejects.toThrow('NEXT_REDIRECT:/en');
+  expect(state.redirect).toHaveBeenCalledExactlyOnceWith('/en');
 });
 it('uses the resolved payment success path and complete query', async () => {
   await expect(paymentSuccess('https://shop.example/first/../thanks?a=1&b=2')).rejects.toThrow('NEXT_REDIRECT:/thanks?a=1&b=2');

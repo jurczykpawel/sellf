@@ -249,8 +249,10 @@ test('phone: a number without a country code is explained, a 00 prefix is stored
     await page.locator('[id="buyer.email"]').fill('buyer@example.com');
     await page.locator('#phone').fill('1234567');
     await start.click();
-    await expect(page.locator('#phone-error')).toContainText('kierunkowym kraju');
-    await expect(page.locator('#phone-error')).toContainText('minimum 7 cyfr');
+    await expect(page.locator('#phone-error')).toContainText('Zacznij numer od kierunkowego kraju');
+    await page.locator('#phone').fill('+48 12');
+    await start.click();
+    await expect(page.locator('#phone-error')).toContainText('za krótki');
     await page.locator('#phone').fill('00 48 500 600 700');
     const response = await startNativeCheckout(page);
     await expect(page.locator('#phone-error')).toHaveCount(0);

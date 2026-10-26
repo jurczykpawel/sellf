@@ -67,3 +67,15 @@ it('ignores a slower answer to an earlier filter', async () => {
   await act(async () => { first.resolve(rows('completed')); });
   expect(screen.getByTestId('rows').textContent).toBe('refunded');
 });
+
+it('does not show the previous count in the tab labels while rows are loading', async () => {
+  await mount();
+  const tab = () => screen.getByRole('button', { name: /transactions\.titleSentence/ }).textContent;
+  expect(tab()).toBe('transactions.titleSentence (1)');
+  const next = deferred<ReturnType<typeof rows>>();
+  page.mockReturnValueOnce(next.promise);
+  act(() => { filtersRef.set('completed'); });
+  expect(tab()).toBe('transactions.titleSentence');
+  await act(async () => { next.resolve(rows('completed')); });
+  expect(tab()).toBe('transactions.titleSentence (1)');
+});
