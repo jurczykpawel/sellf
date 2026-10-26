@@ -38,7 +38,7 @@ it('reports an unexpected failure as 500 without its details', async () => {
   expect(JSON.stringify(await response.json())).not.toContain('hunter2');
 });
 
-it.each(['read=nope', 'read=constructor', 'read=chart&productId=not-a-uuid', 'read=chart&start=yesterday', 'read=rates&base=EURO', 'read=rates'])('rejects %s', async query => {
+it.each(['read=nope', 'read=constructor', 'read=chart&productId=not-a-uuid', 'read=chart&start=yesterday', 'read=rates&base=EURO', 'read=rates', 'read=hourly&timezone=Not/AZone'])('rejects %s', async query => {
   m.admin.mockResolvedValue({});
   expect((await call(query)).status).toBe(400);
   expect(m.chart).not.toHaveBeenCalled();
@@ -62,4 +62,13 @@ it('upper-cases the exchange rate base and defaults the chart to 30 days', async
   await call('read=chart');
   expect(m.rates).toHaveBeenCalledWith('EUR');
   expect(m.chart).toHaveBeenCalledWith(30, undefined, undefined, undefined);
+});
+
+it('passes the viewer timezone to the hourly read', async () => {
+  m.admin.mockResolvedValue({});
+  m.hourly.mockResolvedValue([]);
+  await call(`read=hourly&timezone=Europe/Warsaw&productId=${PRODUCT}`);
+  await call('read=hourly');
+  expect(m.hourly).toHaveBeenNthCalledWith(1, 'Europe/Warsaw', PRODUCT);
+  expect(m.hourly).toHaveBeenNthCalledWith(2, undefined, undefined);
 });

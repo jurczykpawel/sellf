@@ -13,6 +13,7 @@ import DateRangeFilter from './DateRangeFilter';
 import { fromMinorUnits } from '@/lib/currency/minor-units';
 import { isExpectedApiError } from '@/lib/api/client';
 import { readDashboard } from '@/lib/api/dashboard-reads';
+import { getUserTimezone } from '@/lib/timezone';
 type ViewMode = 'daily' | 'hourly';
 
 // Currency colors for the chart
@@ -71,7 +72,7 @@ export default function RevenueChart() {
   const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
       if (viewMode === 'hourly') {
-        setData(await readDashboard<any[]>('hourly', { productId }, signal));
+        setData(await readDashboard<any[]>('hourly', { productId, timezone: getUserTimezone() }, signal));
       } else if (dateRange.start && dateRange.end) {
         setData(await readDashboard<ChartDataPoint[]>('chart', {
           days: 0, start: dateRange.start.toISOString(), end: dateRange.end.toISOString(), productId,

@@ -104,6 +104,25 @@ export function getUserTimezone(): string {
 }
 
 /**
+ * Check whether a string is an IANA timezone name known to the runtime
+ */
+export function isValidTimezone(timezone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-CA', { timeZone: timezone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Calendar day (YYYY-MM-DD) of an instant in the given timezone (UTC when omitted)
+ */
+export function getDateInTimezone(timezone: string = 'UTC', now: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(now);
+}
+
+/**
  * Check if a date is in the future (in user's local timezone)
  * @param utcIsoString - ISO string in UTC from database
  * @returns Boolean indicating if date is in the future

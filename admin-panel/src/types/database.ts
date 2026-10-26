@@ -4845,7 +4845,11 @@ export type Database = {
         Returns: Json
       }
       get_hourly_revenue_stats: {
-        Args: { p_product_id?: string; p_target_date?: string }
+        Args: {
+          p_product_id?: string
+          p_target_date?: string
+          p_timezone?: string
+        }
         Returns: {
           amount_by_currency: Json
           hour: number

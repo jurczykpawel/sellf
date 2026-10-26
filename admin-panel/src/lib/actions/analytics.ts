@@ -1,6 +1,7 @@
 'use server'
 
 import { withAdminClient } from '@/lib/actions/admin-auth'
+import { getDateInTimezone } from '@/lib/timezone'
 
 export interface CurrencyAmount {
   [currency: string]: number
@@ -77,13 +78,12 @@ export async function getSalesChartData(days: number = 30, customStart?: Date, c
   return result.data!
 }
 
-export async function getHourlyRevenueStats(date?: string, productId?: string): Promise<{ hour: number, amount: CurrencyAmount, orders: number }[]> {
+export async function getHourlyRevenueStats(timezone?: string, productId?: string): Promise<{ hour: number, amount: CurrencyAmount, orders: number }[]> {
   const result = await withAdminClient(async ({ dataClient }) => {
-    const targetDate = date ? new Date(date) : new Date()
-
     const { data, error } = await (dataClient as any).rpc('get_hourly_revenue_stats', {
-      p_target_date: targetDate.toISOString().split('T')[0],
-      p_product_id: productId || null
+      p_target_date: getDateInTimezone(timezone),
+      p_product_id: productId || null,
+      p_timezone: timezone || 'UTC'
     })
 
     if (error) {

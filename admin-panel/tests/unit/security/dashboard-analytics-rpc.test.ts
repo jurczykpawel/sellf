@@ -508,12 +508,6 @@ describe('get_sales_chart_data', () => {
     expect(Array.isArray(data)).toBe(true);
 
     // Querying a single day should produce exactly 1 row (one date bucket).
-    // NOTE: The SQL function's inner GROUP BY includes pt.created_at (the full timestamp),
-    // which means rows are NOT aggregated by day but by exact timestamp. The outer
-    // GROUP BY on TO_CHAR date re-aggregates via jsonb_object_agg, so the final output
-    // is correct per day BUT only because the outer query fixes it. If the inner
-    // GROUP BY were fixed to remove pt.created_at, performance would improve.
-    // See: 20250103000000_features.sql line 1465
     expect(data.length).toBe(1);
 
     const todayRow = data[0];
