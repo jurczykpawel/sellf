@@ -200,7 +200,7 @@ export default function SecurityAuditSettings() {
       {result?.success && (
         <>
           {/* Summary bar */}
-          <div className="flex items-center gap-4 mb-4 text-sm">
+          <div className="flex flex-wrap items-center gap-4 mb-4 text-sm">
             {passCount > 0 && (
               <span className="flex items-center gap-1 text-green-600">
                 <ShieldCheck className="w-4 h-4" /> {passCount} {t('passed')}

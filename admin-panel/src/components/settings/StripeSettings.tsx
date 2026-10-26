@@ -103,7 +103,7 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
  return (
  <>
  <div className="bg-sf-base border-2 border-sf-border-medium p-6">
- <div className="flex items-start justify-between mb-6">
+ <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
  <div>
  <div className="flex items-center gap-2 mb-2">
  <h2 className="text-xl font-semibold text-sf-heading">
@@ -186,7 +186,7 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
  {accountInfo.accountName}
  </div>
  )}
- <div className="flex items-center gap-3 mb-1">
+ <div className="flex flex-wrap items-center gap-3 mb-1">
  <span
  className={`px-2 py-0.5 text-xs font-medium ${
  config.mode === 'test'
@@ -273,7 +273,7 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
 {/* Webhook Endpoint */}
 {role === 'platform_admin' && (
 <div className="bg-sf-base border-2 border-sf-border-medium p-6">
-   <div className="flex items-center justify-between mb-2">
+   <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
      <div className="flex items-center gap-2">
        <Globe className="w-5 h-5 text-sf-accent" />
        <h4 className="text-base font-semibold text-sf-heading">{t('webhook.title')}</h4>
@@ -294,7 +294,7 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
    <div className="mb-3">
      <p className="text-xs text-sf-muted mb-1">{t('webhook.endpointLabel')}</p>
      <div className="flex items-center gap-2">
-       <code className="flex-1 font-mono text-xs bg-sf-raised px-3 py-2 border border-sf-border-light text-sf-body truncate">
+       <code className="min-w-0 flex-1 font-mono text-xs bg-sf-raised px-3 py-2 border border-sf-border-light text-sf-body truncate">
          {webhookUrl}
        </code>
        <button
@@ -349,11 +349,11 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
            </div>
            <div className="ml-6 space-y-1.5">
              <p className="text-xs text-sf-muted font-medium">1. {t('webhook.localStep1')}</p>
-             <code className="block font-mono text-xs bg-sf-raised px-3 py-2 border border-sf-border-light text-sf-body select-all">
+             <code className="block break-all font-mono text-xs bg-sf-raised px-3 py-2 border border-sf-border-light text-sf-body select-all">
                stripe listen --forward-to {webhookUrl.replace(/^https?:\/\/[^/]+/, 'localhost:3000')}
              </code>
              <p className="text-xs text-sf-muted font-medium">2. {t('webhook.localStep2')}</p>
-             <code className="block font-mono text-xs bg-sf-raised px-3 py-2 border border-sf-border-light text-sf-body">
+             <code className="block break-all font-mono text-xs bg-sf-raised px-3 py-2 border border-sf-border-light text-sf-body">
                STRIPE_WEBHOOK_SECRET=whsec_...
              </code>
            </div>
@@ -366,7 +366,7 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
                {webhookError}
              </p>
            )}
-           <div className="flex items-center justify-between gap-3">
+           <div className="flex flex-wrap items-center justify-between gap-3">
              <div className="flex items-center gap-2">
                {webhookInfo?.status === 'registered' ? (
                  <>
@@ -374,7 +374,7 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
                    <span className="text-xs text-sf-body">
                      {t('webhook.registered')}
                      {webhookInfo.endpointId && (
-                       <span className="ml-1 font-mono text-sf-muted">{webhookInfo.endpointId}</span>
+                       <span className="ml-1 break-all font-mono text-sf-muted">{webhookInfo.endpointId}</span>
                      )}
                    </span>
                  </>

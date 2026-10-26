@@ -217,7 +217,18 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     }
     return product.price;
   };
-  const [customAmountInput, setCustomAmountInput] = useState<string>(getInitialAmount().toString());
+  const [customAmountInput, setCustomAmountInput] = useState<string>(() => {
+    const amount = searchParams.get('amount');
+    return product.allow_custom_price && amount !== null && parseCustomAmountInput(amount, product.currency) !== null
+      ? amount : getInitialAmount().toString();
+  });
+  useEffect(() => {
+    if (!product.allow_custom_price) return;
+    const url = new URL(window.location.href);
+    if (parseCustomAmountInput(customAmountInput, product.currency) === null) url.searchParams.delete('amount');
+    else url.searchParams.set('amount', customAmountInput);
+    if (url.href !== window.location.href) window.history.replaceState(null, '', url);
+  }, [customAmountInput, product.allow_custom_price, product.currency]);
   const parsedAmount = parseCustomAmountInput(customAmountInput, product.currency);
   const customAmount = parsedAmount ?? 0;
 

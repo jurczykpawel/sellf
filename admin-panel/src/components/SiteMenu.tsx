@@ -124,7 +124,7 @@ export default function SiteMenu({
       } else {
         newPath = `/${newLocale}${pathname}`
       }
-      router.push(newPath)
+      router.push(`${newPath}${window.location.search}${window.location.hash}`)
       setIsOpen(false)
     })
   }

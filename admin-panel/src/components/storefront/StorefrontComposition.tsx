@@ -9,6 +9,7 @@ import TaskNav from '@/components/storefront/sections/TaskNav';
 import Catalogue from '@/components/storefront/sections/Catalogue';
 import Faq from '@/components/storefront/sections/Faq';
 import ProductCta from '@/components/storefront/sections/ProductCta';
+import CookiePreferences from '@/components/CookiePreferences';
 import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
 import { catalogueLabels } from '@/lib/storefront-templates/catalogue-section';
@@ -53,6 +54,7 @@ export default function StorefrontComposition({ model, shopName, renderKey, year
     </header>}
     {model.sections.map(section => <Section templateId={model.templateId} key={`${renderKey}:${model.templateId}:${section.id}`} section={section} />)}
     <footer className={(model.templateId === 'storefront-a' || model.templateId === 'storefront-b' || model.templateId === 'storefront-c') ? styles.footer : "border-t border-sf-border px-6 py-8 text-center text-sf-muted"}>
+      <CookiePreferences locale={model.locale} />
       <p>{footer.copyright.replace('{year}', String(year)).replace('{shopName}', shopName)}</p>
       {showSellfBranding && <p className="mt-2 text-xs"><a href="https://sellf.app" target="_blank" rel="noopener" className="underline underline-offset-2">{footer.runsOn}</a></p>}
     </footer>

@@ -4,6 +4,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
 import Link from 'next/link';
 import { useState } from 'react';
+import CookiePreferences from '@/components/CookiePreferences';
 import { Reveal } from '@/components/motion/Reveal';
 import { RevealGroup } from '@/components/motion/RevealGroup';
 import { formatPrice } from '@/lib/constants';
@@ -36,6 +37,7 @@ export default function Storefront({
   showSellfBranding,
 }: StorefrontProps) {
   const t = useTranslations('storefront');
+  const locale = useLocale();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [showAllFree, setShowAllFree] = useState(false);
   const [showAllPaid, setShowAllPaid] = useState(false);
@@ -263,6 +265,7 @@ export default function Storefront({
           <p className="text-xs text-sf-muted">
             {t('footer.copyright', { year: String(year), shopName })}
           </p>
+          <CookiePreferences locale={locale} />
           {showSellfBranding && (
             <p className="mt-2 text-xs">
               <a href="https://sellf.app" target="_blank" rel="noopener" className="text-sf-body hover:text-sf-heading underline decoration-dotted underline-offset-2 transition-colors">

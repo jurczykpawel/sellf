@@ -3,6 +3,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { NextIntlClientProvider } from 'next-intl';
+import { TrackingConfigProvider } from '@/components/providers/tracking-config-provider';
 import Storefront from '@/components/storefront/Storefront';
 import StorefrontComposition from '@/components/storefront/StorefrontComposition';
 import { compositionFixture } from '../../fixtures/storefront-sections/composition';
@@ -50,5 +51,16 @@ describe.each([['composition', composition], ['classic storefront', classic]] as
       expect(html).toContain(copyright);
       expect(html).toMatch(new RegExp(`<a [^>]*href="https://sellf.app"[^>]*rel="noopener[^"]*"[^>]*>${runsOn}</a>`));
     });
+  });
+});
+
+describe.each(['en', 'pl'] as const)('%s consent access', locale => {
+  it.each(['default', 'd', 'storefront-a', 'storefront-b', 'storefront-c', 'classic'] as const)('includes a preferences button in the %s footer', template => {
+    const store = template === 'classic' ? createElement(NextIntlClientProvider, {
+      locale, messages: locale === 'pl' ? pl : en, timeZone: 'UTC',
+      children: createElement(Storefront, { products: [], shopName: 'Shop', featuredProducts: [], freeProducts: [], paidProducts: [], year: 2026, showSellfBranding: false }),
+    }) : createElement(StorefrontComposition, { model: compositionFixture(locale, template), shopName: 'Shop', renderKey: 'consent', year: 2026, showSellfBranding: false });
+    const html = renderToStaticMarkup(createElement(TrackingConfigProvider, { config: { cookie_consent_enabled: true }, children: store }));
+    expect(html).toMatch(new RegExp(`<footer[\\s\\S]*<button[^>]*>${locale === 'pl' ? 'Preferencje ciasteczek' : 'Cookie preferences'}</button>[\\s\\S]*</footer>`));
   });
 });

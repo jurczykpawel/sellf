@@ -8,7 +8,8 @@ import { parseCustomAmountInput } from '@/lib/payment/custom-amount';
 import PaidProductForm from '@/app/[locale]/checkout/[slug]/components/PaidProductForm';
 import type { Product } from '@/types';
 
-vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams() }));
+const navigation = vi.hoisted(() => ({ query: '' }));
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(navigation.query) }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, loading: false }) }));
 vi.mock('@/components/providers/config-provider', () => ({ useConfig: () => ({ config: { stripePublishableKey: 'pk_test_example' } }) }));
 vi.mock('@/components/providers/theme-provider', () => ({ useTheme: () => ({ resolvedTheme: 'light' }) }));
@@ -17,7 +18,7 @@ vi.mock('@/hooks/useTracking', () => ({ useTracking: () => ({ track: vi.fn() }) 
 vi.mock('@/hooks/useCoupon', () => ({ useCoupon: () => ({ appliedCoupon: null }) }));
 vi.mock('@/hooks/useOto', () => ({ useOto: () => ({ otoInfo: null }) }));
 vi.mock('@/hooks/useCheckoutRedirect', () => ({ useCheckoutRedirect: () => ({ hasAccess: false }) }));
-vi.mock('@/hooks/useFreeAccess', () => ({ useFreeAccess: () => ({}) }));
+vi.mock('@/hooks/useFreeAccess', () => ({ useFreeAccess: () => ({ captcha: { isLoading: false }, pwywFreeEmail: '' }) }));
 vi.mock('@/lib/actions/checkout', () => ({ signOutAndRedirectToCheckout: vi.fn() }));
 vi.mock('@/components/captcha/CaptchaWidget', () => ({ default: () => null }));
 vi.mock('@/app/[locale]/checkout/[slug]/components/CustomPaymentForm', () => ({ default: () => null }));
@@ -25,7 +26,7 @@ vi.mock('@/app/[locale]/checkout/[slug]/components/ProductShowcase', () => ({ de
 vi.mock('@/app/[locale]/checkout/[slug]/components/CouponField', () => ({ default: () => null }));
 vi.mock('@/lib/orders/transfer-public', () => ({ getTransferAvailability: vi.fn() }));
 
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); navigation.query = ""; });
 describe('PWYW amount input', () => {
   it.each([['4', 4], ['4,99', 4.99], ['5', 5], ['5.55', 5.55], ['0', 0]])('parses %s', (raw, amount) => {
     expect(parseCustomAmountInput(raw, 'PLN')).toBe(amount);
@@ -75,5 +76,16 @@ describe('PWYW amount input', () => {
     expect((button as HTMLButtonElement).disabled).toBe(true);
     fireEvent.change(input, { target: { value: '' } });
     expect((button as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+// The language menu navigates to a fresh localized product route.
+describe('PWYW amount across localized routes', () => {
+  it.each(['0', '7.25', '7,25'])('restores %s from the URL', raw => {
+    navigation.query = `amount=${encodeURIComponent(raw)}`;
+    const product = { id: 'product', slug: 'pwyw', name: 'Support', price: 19.99, currency: 'USD', allow_custom_price: true, custom_price_min: 0 } as Product;
+    render(React.createElement(NextIntlClientProvider, { locale: 'pl', messages },
+      React.createElement(PaidProductForm, { product, collectTermsOfService: false, layoutMode: 'embedded' })));
+    expect((screen.getByDisplayValue(raw) as HTMLInputElement).value).toBe(raw);
   });
 });

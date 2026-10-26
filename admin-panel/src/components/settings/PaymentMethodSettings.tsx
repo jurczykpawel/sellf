@@ -102,7 +102,7 @@ export default function PaymentMethodSettings() {
 
       {/* Recommended Configuration */}
       <div className="mb-8 p-4 bg-sf-accent-soft border border-sf-border-accent">
-        <div className="flex items-start justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <label className="block text-sm font-medium text-sf-accent mb-1">
               {t('paymentMethods.recommended.title')}
@@ -117,7 +117,7 @@ export default function PaymentMethodSettings() {
           <button
             onClick={cfg.handleResetToRecommended}
             disabled={cfg.resettingToRecommended || cfg.saving}
-            className="px-4 py-2 bg-sf-accent-bg text-white text-sm hover:bg-sf-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+            className="px-4 py-2 bg-sf-accent-bg text-white text-sm hover:bg-sf-accent-hover transition-colors disabled:opacity-50 max-w-full flex items-center gap-2 sm:whitespace-nowrap"
           >
             {cfg.resettingToRecommended ? (
               <>
@@ -135,7 +135,7 @@ export default function PaymentMethodSettings() {
       </div>
 
       {/* Action Buttons */}
-      <div className="flex justify-end gap-3">
+      <div className="flex flex-wrap justify-end gap-3">
         <button
           onClick={cfg.handleReset}
           disabled={cfg.saving}

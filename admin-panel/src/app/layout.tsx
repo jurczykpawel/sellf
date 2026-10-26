@@ -10,6 +10,7 @@ import { TrackingConfigProvider } from "@/components/providers/tracking-config-p
 import { getPublicIntegrationsConfig } from "@/lib/actions/integrations";
 import { getShopConfig } from "@/lib/actions/shop-config";
 import { buildRuntimeConfig } from "@/lib/runtime-config";
+import { BuyerCookieFooter } from '@/components/CookiePreferences';
 import TrackingProvider from "@/components/TrackingProvider";
 import { CSP_NONCE_HEADER } from "@/proxy";
 import { Suspense } from "react";
@@ -116,6 +117,7 @@ export default async function RootLayout({
           <TrackingConfigProvider config={config}>
             <ConfigProvider initialConfig={runtimeConfig}>
               {children}
+              <Suspense fallback={null}><BuyerCookieFooter /></Suspense>
             </ConfigProvider>
           </TrackingConfigProvider>
         </ThemeProvider>

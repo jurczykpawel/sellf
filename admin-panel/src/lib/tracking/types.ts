@@ -57,6 +57,7 @@ export interface TrackingConfig {
 
 // Config from database
 export interface TrackingConfigFromDB {
+  cookie_consent_enabled?: boolean | null;
   gtm_container_id?: string | null;
   gtm_server_container_url?: string | null;
   gtm_ss_enabled?: boolean | null;
