@@ -4,6 +4,8 @@ import {
   buildEmbedCorsHeaders,
   embedJson,
   loadAllowedOriginsForProduct,
+  loadEmbedErrorOrigins,
+  getEnvAllowedEmbedOrigins,
   parseEmbedFreeAccessBody,
 } from '@/lib/embed/checkout-embed';
 import { DEMO_MODE_ERROR } from '@/lib/demo-guard';
@@ -54,14 +56,14 @@ export async function POST(request: Request) {
     body = await readJsonBody(request);
   } catch (err) {
     if (err instanceof ApiPayloadTooLargeError) {
-      return embedJson({ error: 'Request body too large' }, 413, origin, []);
+      return embedJson({ error: 'Request body too large' }, 413, origin, await loadEmbedErrorOrigins(adminClient, request));
     }
-    return embedJson({ error: 'Invalid request' }, 400, origin, []);
+    return embedJson({ error: 'Invalid request' }, 400, origin, await loadEmbedErrorOrigins(adminClient, request, body));
   }
 
   const parsed = parseEmbedFreeAccessBody(body);
   if (!parsed.ok) {
-    return embedJson({ error: parsed.error }, 400, origin, []);
+    return embedJson({ error: parsed.error }, 400, origin, await loadEmbedErrorOrigins(adminClient, request, body));
   }
 
   const { product, allowedOrigins } = await loadEmbedContext(adminClient, parsed.value.productSlug);
@@ -162,7 +164,7 @@ async function loadEmbedContext(
     .eq('slug', productSlug)
     .maybeSingle();
 
-  if (error || !data) return { product: null, allowedOrigins: [] };
+  if (error || !data) return { product: null, allowedOrigins: getEnvAllowedEmbedOrigins() };
 
   const product = data as FreeEmbedProduct;
   const allowedOrigins = await loadAllowedOriginsForProduct(adminClient, product.seller_id);

@@ -260,20 +260,24 @@ export async function GET() {
     document.head.appendChild(style);
   }
 
-  function openModalOverlay() {
+  function openModalOverlay(trigger, language) {
+    var polish = (language || document.documentElement.lang || navigator.language || 'en').toLowerCase().indexOf('pl') === 0;
     ensureStyles();
 
     var overlay = document.createElement('div');
     overlay.className = 'sellf-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:1rem;';
 
-    var modal = document.createElement('div');
+    var modal = document.createElement('dialog');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', polish ? 'Koszyk' : 'Checkout');
     modal.className = 'sellf-modal';
-    modal.style.cssText = 'background:#fff;border-radius:12px;max-width:560px;width:100%;min-height:440px;max-height:90vh;overflow:auto;position:relative;box-shadow:0 25px 50px rgba(0,0,0,0.25);';
+    modal.style.cssText = 'border:0;padding:0;margin:auto;background:#fff;border-radius:12px;max-width:560px;width:100%;min-height:440px;max-height:90vh;overflow:auto;position:relative;box-shadow:0 25px 50px rgba(0,0,0,0.25);';
 
     var closeBtn = document.createElement('button');
     closeBtn.type = 'button';
-    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.setAttribute('aria-label', polish ? 'Zamknij' : 'Close');
     closeBtn.textContent = '×';
     closeBtn.style.cssText = 'position:absolute;top:8px;right:12px;background:transparent;border:0;font-size:28px;line-height:1;cursor:pointer;color:#64748b;padding:4px 8px;z-index:1;';
 
@@ -281,8 +285,21 @@ export async function GET() {
     slot.style.cssText = 'padding:24px 16px 16px;';
     slot.appendChild(createLoader());
 
+    function focusGuard(atStart) {
+      var guard = document.createElement('span');
+      guard.tabIndex = 0;
+      guard.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;';
+      guard.addEventListener('focus', function () {
+        var items = slot.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],iframe,[tabindex="0"]');
+        var last = Array.prototype.filter.call(items, function (item) { return item.getClientRects().length > 0; }).pop();
+        (atStart && last ? last : closeBtn).focus();
+      });
+      return guard;
+    }
+    modal.appendChild(focusGuard(true));
     modal.appendChild(closeBtn);
     modal.appendChild(slot);
+    modal.appendChild(focusGuard(false));
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
@@ -293,13 +310,22 @@ export async function GET() {
         try { stripeCheckout.destroy(); } catch (e) { /* ignore */ }
         stripeCheckout = null;
       }
+      modal.close();
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      trigger.disabled = false;
+      trigger.focus();
       document.removeEventListener('keydown', onKey);
     }
     function onKey(e) { if (e.key === 'Escape') close(); }
+    modal.addEventListener('cancel', function (e) { e.preventDefault(); close(); });
     closeBtn.addEventListener('click', close);
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    modal.addEventListener('click', function (e) {
+      var rect = modal.getBoundingClientRect();
+      if (e.target === modal && (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom)) close();
+    });
     document.addEventListener('keydown', onKey);
+    modal.showModal();
+    closeBtn.focus();
 
     return {
       slot: slot,
@@ -433,6 +459,7 @@ export async function GET() {
           showMessage(host, error.message);
           return;
         }
+        if (error.status === 400 && error.message === 'Invalid request') error.message = polish ? 'Nieprawidłowy kod kuponu' : 'Invalid coupon code';
         ensureLayout();
         input.value = coupon;
         // With a checkout already mounted it stays as is; otherwise (a rejected
@@ -481,7 +508,7 @@ export async function GET() {
 
     button.addEventListener('click', function () {
       button.disabled = true;
-      var modal = openModalOverlay();
+      var modal = openModalOverlay(button, root.getAttribute('lang'));
       startCheckout(modal.slot, productSlug, options.email, options.coupon, modal.attachStripeCheckout, root.getAttribute('lang')).then(function () {
         button.disabled = false;
       });

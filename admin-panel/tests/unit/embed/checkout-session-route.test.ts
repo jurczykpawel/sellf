@@ -344,3 +344,26 @@ describe('POST /api/embed/checkout-session', () => {
     });
   });
 });
+
+
+describe('embed error response origins', () => {
+  it.each(['https://landing.example.com', 'https://other.example.com'])('keeps validation errors readable only for the allowed origin: %s', async (origin) => {
+    const response = await POST(makeRequest({ productSlug: 'kurs-ai', couponCode: 'W82 CODE' }, origin));
+    expect(response.status).toBe(400);
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe(origin === 'https://landing.example.com' ? origin : null);
+  });
+  it('keeps malformed JSON readable using the product query', async () => {
+    const response = await POST(new Request('http://localhost/api/embed/checkout-session?productSlug=kurs-ai', {
+      method: 'POST', headers: { Origin: 'https://landing.example.com', 'Content-Type': 'application/json' }, body: '{',
+    }));
+    expect(response.status).toBe(400);
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://landing.example.com');
+  });
+  it.each([404, 429])('includes CORS for a %s response', async (status) => {
+    if (status === 404) mocks.createAdminClient.mockReturnValue(makeDbMock({ product: { ...product, is_active: false } }));
+    else mocks.checkRateLimit.mockResolvedValue(false);
+    const response = await POST(makeRequest({ productSlug: 'kurs-ai', email: 'buyer@example.com' }, 'https://landing.example.com'));
+    expect(response.status).toBe(status);
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://landing.example.com');
+  });
+});

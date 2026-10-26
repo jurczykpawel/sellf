@@ -73,6 +73,17 @@ export async function loadAllowedOriginsForProductSlug(
   return loadAllowedOriginsForProduct(adminClient, (data as { seller_id: string | null }).seller_id);
 }
 
+/** Resolve early response origins from a valid product slug, before body validation. */
+export async function loadEmbedErrorOrigins(
+  adminClient: ReturnType<typeof createAdminClient>,
+  request: Request,
+  body?: unknown,
+): Promise<string[]> {
+  const slug = parseProductSlug(isRecord(body) ? body.productSlug : undefined)
+    ?? parseProductSlug(new URL(request.url).searchParams.get('productSlug'));
+  return slug ? loadAllowedOriginsForProductSlug(adminClient, slug) : getEnvAllowedEmbedOrigins();
+}
+
 export async function loadAllowedOriginsForProduct(
   adminClient: ReturnType<typeof createAdminClient>,
   sellerId: string | null,
