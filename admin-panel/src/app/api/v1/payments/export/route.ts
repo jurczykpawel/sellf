@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import {
   handleCorsPreFlight,
   apiError,
@@ -16,10 +17,21 @@ import {
   getApiCorsHeaders,
 } from '@/lib/api';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
-import { validateUUID } from '@/lib/validations/product';
+import { buildPaymentSearchFilter, VALID_PAYMENT_STATUSES } from '@/lib/payments/search';
+import { currencyExponent, fromMinorUnits } from '@/lib/currency/minor-units';
 import { resolveCurrentTier } from '@/lib/license/resolve';
 import { hasFeature } from '@/lib/license/features';
 import { buildCsv } from '@/lib/csv/sanitize';
+
+const exportFiltersSchema = z.object({
+  status: z.string().optional(),
+  searchTerm: z.string().max(200).optional(),
+  search: z.string().max(200).optional(),
+  product_id: z.uuid().optional(),
+  date_from: z.string().refine(value => Number.isFinite(Date.parse(value))).optional(),
+  date_to: z.string().refine(value => Number.isFinite(Date.parse(value))).optional(),
+  dateRange: z.string().refine(value => value === 'all' || (/^\d+$/.test(value) && Number(value) > 0 && Number(value) <= 3650)).optional(),
+});
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -35,6 +47,8 @@ export async function OPTIONS(request: NextRequest) {
  * - date_from: ISO date string (optional)
  * - date_to: ISO date string (optional)
  * - product_id: UUID (optional)
+ * - search / searchTerm: free-text payment search (max 200 characters)
+ * - dateRange: lookback in days, or 'all' (optional)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -47,27 +61,11 @@ export async function POST(request: NextRequest) {
       return apiError(request, 'FORBIDDEN', 'CSV export requires a Sellf license. Register at sellf.app to get a free key.');
     }
 
-    const filters = await parseJsonBody<{
-      status?: string;
-      date_from?: string;
-      date_to?: string;
-      product_id?: string;
-      dateRange?: string;
-    }>(request);
-
-    // Validate inputs BEFORE consuming the rate-limit budget so a garbage
-    // request can't burn through a legitimate user's per-hour quota.
-    if (filters.status && filters.status !== 'all') {
-      const validStatuses = ['completed', 'refunded', 'failed', 'pending', 'awaiting_payment', 'cancelled'];
-      if (!validStatuses.includes(filters.status)) {
-        return apiError(request, 'INVALID_INPUT', `Invalid status. Valid values: all, ${validStatuses.join(', ')}`);
-      }
-    }
-    if (filters.product_id) {
-      const idValidation = validateUUID(filters.product_id);
-      if (!idValidation.isValid) {
-        return apiError(request, 'INVALID_INPUT', 'Invalid product ID format');
-      }
+    const parsed = exportFiltersSchema.safeParse(await parseJsonBody<unknown>(request));
+    if (!parsed.success) return apiError(request, 'INVALID_INPUT', 'Invalid export filters');
+    const filters = parsed.data;
+    if (filters.status && filters.status !== 'all' && ![...VALID_PAYMENT_STATUSES, 'failed'].includes(filters.status)) {
+      return apiError(request, 'INVALID_INPUT', 'Invalid payment status');
     }
 
     // Rate limit export operations (heavy DB queries)
@@ -106,7 +104,7 @@ export async function POST(request: NextRequest) {
         updated_at,
         products!inner(name, slug)
       `)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false }).order('id', { ascending: false });
 
     if (filters.status && filters.status !== 'all') {
       query = query.eq('status', filters.status);
@@ -141,11 +139,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { data: transactions, error } = await query;
+    const search = filters.search ?? filters.searchTerm;
+    if (search) {
+      const { filter, error } = await buildPaymentSearchFilter(auth.supabase, search);
+      if (error) return apiError(request, 'INTERNAL_ERROR', 'Failed to search payments');
+      query = query.or(filter!);
+    }
 
-    if (error) {
-      console.error('Error fetching transactions for export:', error);
-      return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch transactions');
+    const transactions: Record<string, unknown>[] = [];
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await query.range(offset, offset + 999);
+      if (error) return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch transactions');
+      transactions.push(...(data ?? []));
+      if (!data || data.length < 1000) break;
     }
 
     // Convert to CSV
@@ -156,13 +162,13 @@ export async function POST(request: NextRequest) {
       'Customer Email',
       'Product Name',
       'Product Slug',
-      'Amount',
+      'Amount (major units)',
       'Currency',
-      'Net Total',
-      'Tax Total',
+      'Net Total (major units)',
+      'Tax Total (major units)',
       'Tax Status',
       'Status',
-      'Refunded Amount',
+      'Refunded Amount (major units)',
       'Refund Reason',
       'Created At',
       'Updated At'
@@ -171,6 +177,8 @@ export async function POST(request: NextRequest) {
     const csvRows = transactions?.map((transaction: Record<string, unknown>) => {
       const products = transaction.products as Record<string, unknown> | Record<string, unknown>[] | null;
       const product = Array.isArray(products) ? products[0] : products;
+      const currency = String(transaction.currency);
+      const money = (value: unknown) => value == null ? '' : fromMinorUnits(Number(value), currency).toFixed(currencyExponent(currency));
       return [
         transaction.id,
         transaction.session_id || '',
@@ -178,13 +186,13 @@ export async function POST(request: NextRequest) {
         transaction.customer_email || '',
         (product as Record<string, unknown> | null)?.name || '',
         (product as Record<string, unknown> | null)?.slug || '',
-        transaction.amount,
+        money(transaction.amount),
         transaction.currency,
-        transaction.net_total ?? '',
-        transaction.tax_total ?? '',
+        money(transaction.net_total),
+        money(transaction.tax_total),
         transaction.tax_snapshot_status ?? '',
         transaction.status,
-        transaction.refunded_amount || 0,
+        money(transaction.refunded_amount ?? 0),
         transaction.refund_reason || '',
         new Date(String(transaction.created_at)).toISOString(),
         new Date(String(transaction.updated_at)).toISOString(),

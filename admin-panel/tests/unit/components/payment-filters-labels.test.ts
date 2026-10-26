@@ -4,7 +4,7 @@
  * @see src/components/admin/PaymentFilters.tsx
  */
 import { createElement } from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import pl from '@/messages/pl.json';
 import PaymentFilters from '@/components/admin/PaymentFilters';
@@ -26,4 +26,12 @@ it.each([
   }));
   expect(screen.getByText(`Status: ${label}`)).toBeTruthy();
   expect(screen.queryByText(`Status: ${status}`)).toBeNull();
+});
+
+it('waits for the pending search before allowing export', () => {
+  render(createElement(PaymentFilters, {
+    filters: { status: 'all', dateRange: 'all', searchTerm: '' }, onFiltersChange: vi.fn(), onRefresh: vi.fn(), onSearchPendingChange: vi.fn(),
+  }));
+  fireEvent.change(screen.getByLabelText('Szukaj'), { target: { value: 'buyer@example.com' } });
+  expect((screen.getByRole('button', { name: /Eksportuj CSV/ }) as HTMLButtonElement).disabled).toBe(true);
 });

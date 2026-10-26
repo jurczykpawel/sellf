@@ -190,6 +190,7 @@ export default function PaymentFilters({
           </button>
           <button
             onClick={exportPayments}
+            disabled={searchInput !== filters.searchTerm}
             className="px-4 py-2 bg-sf-success hover:opacity-90 text-sf-inverse transition-colors"
           >
             📊 {t('exportCsv')}

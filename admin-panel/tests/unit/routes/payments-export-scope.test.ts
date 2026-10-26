@@ -32,6 +32,7 @@ function makeTransactionsChain() {
   chain.gte = self;
   chain.lte = self;
   chain.order = self;
+  chain.range = self;
   chain.then = (resolve: (v: { data: unknown[]; error: null }) => void) =>
     resolve({ data: [], error: null });
   return chain;

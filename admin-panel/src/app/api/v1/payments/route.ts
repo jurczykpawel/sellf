@@ -17,18 +17,9 @@ import {
 } from '@/lib/api';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { escapeIlikePattern, validateUUID } from '@/lib/validations/product';
-import { quoteForPostgrestOr } from '@/lib/api/filters';
+import { buildPaymentSearchFilter, VALID_PAYMENT_STATUSES } from '@/lib/payments/search';
 import { firstRelated } from '@/lib/supabase/relations';
 import type { PaymentTransactionLineItem } from '@/types/payment';
-
-// Valid `payment_transactions.status` values (DB CHECK constraint,
-// `payment_transactions_status_check`). Keep in sync with that constraint.
-const VALID_PAYMENT_STATUSES = ['pending', 'completed', 'refunded', 'partially_refunded', 'disputed', 'abandoned', 'awaiting_payment', 'cancelled'];
-
-// Upper bound on how many products a free-text `search` can match by name/slug
-// before we stop widening the `product_id IN (...)` clause. Search is meant to
-// find a handful of specific payments, not to enumerate an entire catalog.
-const SEARCH_MATCHING_PRODUCTS_LIMIT = 500;
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -136,35 +127,10 @@ export async function GET(request: NextRequest) {
       query = query.ilike('customer_email', `%${escapedEmail}%`);
     }
 
-    // Free-text search across customer email, Stripe session/payment intent id,
-    // and product name/slug. Product name/slug are on a joined table, so we
-    // resolve matching product ids first (bounded) and fold them into the same
-    // .or() as an `in` clause instead of trying to mix a top-level and an
-    // embedded-resource filter in one PostgREST `or=` expression.
     if (search) {
-      const searchPattern = quoteForPostgrestOr(`%${escapeIlikePattern(search)}%`);
-
-      const { data: matchingProducts, error: productSearchError } = await adminClient
-        .from('products')
-        .select('id')
-        .or(`name.ilike.${searchPattern},slug.ilike.${searchPattern}`)
-        .limit(SEARCH_MATCHING_PRODUCTS_LIMIT);
-
-      if (productSearchError) {
-        console.error('Error searching products for payment search:', productSearchError);
-        return apiError(request, 'INTERNAL_ERROR', 'Failed to search payments');
-      }
-
-      const orClauses = [
-        `customer_email.ilike.${searchPattern}`,
-        `session_id.ilike.${searchPattern}`,
-        `stripe_payment_intent_id.ilike.${searchPattern}`,
-      ];
-      const matchingProductIds = (matchingProducts ?? []).map((p) => p.id);
-      if (matchingProductIds.length > 0) {
-        orClauses.push(`product_id.in.(${matchingProductIds.join(',')})`);
-      }
-      query = query.or(orClauses.join(','));
+      const { filter, error } = await buildPaymentSearchFilter(adminClient, search);
+      if (error) return apiError(request, 'INTERNAL_ERROR', 'Failed to search payments');
+      query = query.or(filter!);
     }
 
     // Filter by date range
