@@ -6,6 +6,7 @@ import Script from 'next/script'
 import { CONSENT_COOKIE_NAME } from '@/lib/constants'
 import { isAdminTrackingPath } from '@/lib/tracking/should-track'
 import { gtmLoaderBaseUrl } from '@/lib/tracking/gtm'
+import { markCookieConsentReady } from '@/lib/tracking/consent-ready'
 
 /** Validate GTM container ID format (GTM-XXXXXXX) */
 function isValidGtmId(id: string): boolean {
@@ -420,6 +421,7 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
           logConsent()
         },
       })
+      markCookieConsentReady()
     })().catch((err) => console.warn('[TrackingProvider] consent init failed:', err))
 
     return () => {

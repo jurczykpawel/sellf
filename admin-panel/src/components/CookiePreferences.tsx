@@ -2,6 +2,7 @@
 
 /** Shared consent access for storefront and buyer footers. @see TrackingProvider.tsx */
 import { usePathname } from 'next/navigation';
+import { cookieConsentReady } from '@/lib/tracking/consent-ready';
 import { useTrackingConfig } from '@/components/providers/tracking-config-provider';
 import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
@@ -11,7 +12,11 @@ export default function CookiePreferences({ locale }: { locale: string }) {
   if (!config?.cookie_consent_enabled) return null;
   const label = (locale === 'pl' ? pl : en).landing.footer.cookiePreferences;
   return <button type="button" className="mt-2 cursor-pointer text-xs text-sf-muted underline underline-offset-2 hover:text-sf-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
-    onClick={async () => { const consent = await import('vanilla-cookieconsent'); consent.showPreferences(); }}>
+    onClick={async () => {
+      await cookieConsentReady;
+      const consent = await import('vanilla-cookieconsent');
+      consent.showPreferences();
+    }}>
     {label}
   </button>;
 }

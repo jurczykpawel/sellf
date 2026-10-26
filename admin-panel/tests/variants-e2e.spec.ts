@@ -216,13 +216,11 @@ test.describe('Product Variants E2E Flow', () => {
     await page.goto(`/pl/v/${createdGroupSlug || createdGroupId}`);
     await page.waitForLoadState('domcontentloaded');
 
-    // Click on first visible variant
-    const variant = page.locator('[class*="cursor-pointer"]').first();
+    // Wait for a variant action rather than a footer control visible during loading.
+    const variant = page.getByRole('main').getByRole('button', { name: 'Wybierz', exact: true }).first();
     await variant.click();
 
-    // Should redirect to checkout
-    await page.waitForURL(/\/checkout\//);
-    expect(page.url()).toContain('/checkout/');
+    await expect(page).toHaveURL(`/pl/checkout/${testProducts[0].slug}`);
   });
 
   test('E2E: Edit existing variant group', async ({ page }) => {

@@ -471,11 +471,10 @@ test.describe('Variant Selector - Locale Handling', () => {
     await page.goto(`/pl/v/${variantGroup.id}`);
     await page.waitForLoadState('domcontentloaded');
 
-    const variant = page.locator('[class*="cursor-pointer"]').first();
+    const variant = page.getByRole('main').getByRole('button', { name: 'Wybierz', exact: true }).first();
     await variant.click();
 
-    await page.waitForURL(/\/pl\/checkout\//);
-    expect(page.url()).toContain('/pl/checkout/');
+    await expect(page).toHaveURL(`/pl/checkout/${testProducts[0].slug}`);
   });
 
   test('should redirect to default locale checkout from English', async ({ page }) => {
@@ -483,12 +482,11 @@ test.describe('Variant Selector - Locale Handling', () => {
     await page.goto(`/en/v/${variantGroup.id}`);
     await page.waitForLoadState('domcontentloaded');
 
-    const variant = page.locator('[class*="cursor-pointer"]').first();
+    const variant = page.getByRole('main').getByRole('button', { name: 'Select', exact: true }).first();
     await variant.click();
 
     // Default locale doesn't include prefix with 'as-needed' strategy
-    await page.waitForURL(/\/checkout\//);
-    expect(page.url()).toContain('/checkout/');
+    await expect(page).toHaveURL(`/checkout/${testProducts[0].slug}`);
   });
 });
 
