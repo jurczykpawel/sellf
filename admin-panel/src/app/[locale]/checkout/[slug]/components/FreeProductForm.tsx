@@ -359,16 +359,16 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
             type="submit"
             disabled={
               loading ||
-              captcha.isLoading ||
+              (!user && captcha.isLoading) ||
               (showTos && !termsAccepted) ||
               (!user && (!email || (process.env.NODE_ENV === 'production' && !captcha.token)))
             }
             className="w-full bg-sf-success hover:bg-sf-success/90 disabled:bg-sf-muted/30 disabled:cursor-not-allowed text-sf-inverse font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sf-success focus:ring-offset-2 active:scale-[0.98]"
           >
-            {loading || captcha.isLoading ? (
+            {loading || (!user && captcha.isLoading) ? (
               <div className="flex items-center justify-center">
                 <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                {captcha.isLoading ? tSecurity('verifying') : t('processing')}
+                {(!user && captcha.isLoading) ? tSecurity('verifying') : t('processing')}
               </div>
             ) : (
               user ? t('getFreeAccess') : t('sendMagicLink')

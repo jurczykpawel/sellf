@@ -6,6 +6,7 @@ vi.mock('@/components/providers/config-provider', () => ({ useConfig: () => ({ c
 vi.mock('@/components/TurnstileWidget', () => ({ default: () => null }));
 vi.mock('@/components/captcha/AltchaWidget', () => ({ default: () => null }));
 import CaptchaWidget from '@/components/captcha/CaptchaWidget';
+import { useCaptcha } from '@/hooks/useCaptcha';
 afterEach(cleanup);
 it('makes a form ready again after a request resets verification with no provider configured', () => {
   const onVerify = vi.fn();
@@ -14,4 +15,15 @@ it('makes a form ready again after a request resets verification with no provide
   view.rerender(createElement(CaptchaWidget, { onVerify, resetTrigger: 1 }));
   expect(onVerify).toHaveBeenCalledTimes(2);
   expect(onVerify).toHaveBeenLastCalledWith('captcha-disabled');
+});
+
+it('settles initial loading when no captcha provider is configured', () => {
+  function Form() {
+    const captcha = useCaptcha();
+    return createElement('form', null,
+      createElement('button', { disabled: captcha.isLoading }, 'Send'),
+      createElement(CaptchaWidget, { onVerify: captcha.onVerify, resetTrigger: captcha.resetTrigger }));
+  }
+  const view = render(createElement(Form));
+  expect((view.getByRole('button') as HTMLButtonElement).disabled).toBe(false);
 });

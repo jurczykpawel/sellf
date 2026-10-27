@@ -42,7 +42,7 @@ export interface UseCaptchaReturn {
 
 export function useCaptcha(): UseCaptchaReturn {
   const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [resetTrigger, setResetTrigger] = useState(0);
 
   const reset = useCallback(() => {
@@ -62,6 +62,7 @@ export function useCaptcha(): UseCaptchaReturn {
   }, []);
 
   const onTimeout = useCallback(() => {
+    setToken(null);
     setIsLoading(false);
   }, []);
 

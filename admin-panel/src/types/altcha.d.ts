@@ -12,6 +12,7 @@ declare module 'react' {
     interface IntrinsicElements {
       'altcha-widget': React.DetailedHTMLProps<
         React.HTMLAttributes<HTMLElement> & {
+          form?: string;
           challenge?: string;
           auto?: 'off' | 'onload' | 'onsubmit' | 'onfocus';
           display?: 'standard' | 'bar' | 'floating' | 'overlay' | 'invisible';

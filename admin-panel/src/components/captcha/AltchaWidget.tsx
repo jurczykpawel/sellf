@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 interface AltchaWidgetProps {
@@ -29,10 +29,11 @@ interface AltchaWidgetProps {
 export default function AltchaWidget({
   onVerify,
   onError,
-  onTimeout,
   resetTrigger = 0,
-  compact = false,
 }: AltchaWidgetProps) {
+  const formId = useId()
+  const [status, setStatus] = useState({ attempt: resetTrigger, state: 'verifying' })
+  const state = status.attempt === resetTrigger ? status.state : 'verifying'
   const widgetRef = useRef<HTMLElement>(null)
   const t = useTranslations('security')
   const importedRef = useRef(false)
@@ -43,20 +44,23 @@ export default function AltchaWidget({
     importedRef.current = true
     import('altcha').catch((err) => {
       console.error('[AltchaWidget] Failed to load altcha:', err)
+      setStatus({ attempt: resetTrigger, state: 'error' })
+      onError?.()
     })
-  }, [])
+  }, [onError, resetTrigger])
 
   // Listen for verification events from the web component
   const handleStateChange = useCallback(
     (ev: Event) => {
       const detail = (ev as CustomEvent).detail
+      if (detail?.state) setStatus({ attempt: resetTrigger, state: detail.state })
       if (detail?.state === 'verified' && detail?.payload) {
         onVerify(detail.payload)
       } else if (detail?.state === 'error') {
         onError?.()
       }
     },
-    [onVerify, onError],
+    [onVerify, onError, resetTrigger],
   )
 
   useEffect(() => {
@@ -92,14 +96,23 @@ export default function AltchaWidget({
   })
 
   return (
-    <altcha-widget
-      ref={widgetRef}
-      challenge="/api/captcha/challenge"
-      auto="onload"
-      display="invisible"
-      hidelogo
-      hidefooter
-      strings={strings}
-    />
+    <>
+      {/* React submits the payload; internal controls do not belong to the parent form. */}
+      <altcha-widget
+        form={formId}
+        ref={widgetRef}
+        challenge="/api/captcha/challenge"
+        auto="onload"
+        display="invisible"
+        hidelogo
+        hidefooter
+        strings={strings}
+      />
+      {state !== 'verified' && (
+        <p role={state === 'error' ? 'alert' : 'status'} className="text-sm text-sf-muted text-center">
+          {t(state === 'error' ? 'securityVerificationFailed' : 'verifying')}
+        </p>
+      )}
+    </>
   )
 }
