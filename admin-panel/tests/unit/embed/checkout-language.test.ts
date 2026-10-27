@@ -16,6 +16,7 @@ it.each([['pl', '', 'en-US', 'pl'], ['pl', 'en', 'pl-PL', 'en'], ['', '', 'pl-PL
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ kind: 'paid', clientSecret: 'secret' }) }));
   new Function(await (await GET()).text())();
   await waitFor(() => expect(stripe).toHaveBeenCalledWith('pk_test_fixture', { locale: expected }));
+  expect(JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string).locale).toBe(expected);
   const field = document.querySelector('input')!;
   expect(field.getAttribute('aria-label')).toBe(expected === 'pl' ? 'Kod kuponu' : 'Coupon code');
   await waitFor(() => expect((document.querySelector('button') as HTMLButtonElement).disabled).toBe(false));

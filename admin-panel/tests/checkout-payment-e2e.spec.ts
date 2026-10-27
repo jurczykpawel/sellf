@@ -99,6 +99,7 @@ async function mockStripe(page: any) {
  */
 async function mockStripeAPI(page: any) {
   await page.route('**/api/create-payment-intent', async (route: any) => {
+    expect(route.request().postDataJSON().locale).toBe(new URL(page.url()).pathname.startsWith('/pl/') ? 'pl' : 'en');
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -131,9 +132,11 @@ async function mockStripeAPI(page: any) {
   });
 }
 
-// NOTE: Most tests in this file are skipped because mocking Stripe Elements is unreliable
-// Stripe.js module caching and @stripe/react-stripe-js make it difficult to properly mock
-// Payment flow is comprehensively tested in payment-access-flow.spec.ts using RPC functions
+test.beforeEach(async ({ page }) => {
+  await mockStripe(page);
+  await mockStripeAPI(page);
+});
+
 test.describe('Checkout E2E - Guest Purchase Flow', () => {
   let testProduct: any;
 
@@ -589,7 +592,6 @@ test.describe('Checkout E2E - Authenticated User Profile Data', () => {
   });
 
   test('should render payment form with Express Checkout support', async ({ page }) => {
-    await mockStripe(page);
 
     // Go to checkout as guest
     await page.goto(`/en/checkout/${testProduct.slug}`);

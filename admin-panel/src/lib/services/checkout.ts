@@ -243,6 +243,7 @@ export class CheckoutService {
       // Prepare session configuration
       const sessionConfig: Record<string, unknown> = {
         ui_mode: 'embedded_page' as const,
+        locale: options.locale ?? 'auto',
         line_items: lineItems,
         mode: 'payment' as const,
         return_url: options.returnUrl,
@@ -381,7 +382,7 @@ export class CheckoutService {
       taxRateId,
     });
 
-    const session = await this.stripe.checkout.sessions.create(sessionConfig);
+    const session = await this.stripe.checkout.sessions.create({ ...sessionConfig, locale: options.locale ?? 'auto' });
 
     if (!session.client_secret) {
       throw new CheckoutError(
@@ -403,7 +404,7 @@ export class CheckoutService {
     request: CreateCheckoutRequest,
     returnUrl: string,
     userId?: string,
-    options?: { embedSessionId?: string }
+    options?: Pick<CheckoutSessionOptions, 'embedSessionId' | 'locale'>
   ): Promise<{ clientSecret: string; sessionId: string }> {
     // Initialize service
     await this.initialize();
@@ -575,6 +576,7 @@ export class CheckoutService {
       userId,
       returnUrl,
       embedSessionId: options?.embedSessionId,
+      locale: options?.locale,
       coupon: couponInfo,
       customAmount: request.customAmount,
     });

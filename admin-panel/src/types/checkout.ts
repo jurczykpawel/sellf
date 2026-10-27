@@ -93,6 +93,7 @@ export interface CheckoutSessionOptions {
   userId?: string;
   returnUrl: string;
   embedSessionId?: string;
+  locale?: 'pl' | 'en' | 'auto';
   coupon?: {
     id: string;
     code: string;

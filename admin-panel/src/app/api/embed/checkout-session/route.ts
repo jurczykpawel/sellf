@@ -197,7 +197,7 @@ export async function POST(request: Request) {
       },
       buildEmbedReturnUrl(product.slug),
       undefined,
-      { embedSessionId },
+      { embedSessionId, locale: parsed.value.locale },
     );
 
     await logEmbedCheckoutEvent(adminClient, {

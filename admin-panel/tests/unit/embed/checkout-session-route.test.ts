@@ -122,6 +122,15 @@ beforeEach(() => {
 });
 
 describe('POST /api/embed/checkout-session', () => {
+  it.each(['pl', 'en', 'de', null, 42, {}, undefined])('passes the supported session locale for %j', async locale => {
+    const response = await POST(makeRequest({ productSlug: 'kurs-ai', locale }, 'https://landing.example.com'));
+    expect(response.status).toBe(200);
+    expect(mocks.createCheckoutSession).toHaveBeenCalledWith(
+      expect.any(Object), expect.any(String), undefined,
+      { embedSessionId: expect.any(String), locale: locale === 'pl' || locale === 'en' ? locale : 'auto' },
+    );
+  });
+
   it('requires an explicitly allowed request origin', async () => {
     const response = await POST(makeRequest({ productSlug: 'kurs-ai' }));
 
@@ -157,7 +166,7 @@ describe('POST /api/embed/checkout-session', () => {
       { productId: 'product-1', email: 'buyer@example.com' },
       'https://sellf.example.com/p/kurs-ai/payment-status?session_id={CHECKOUT_SESSION_ID}',
       undefined,
-      { embedSessionId: expect.any(String) },
+      { embedSessionId: expect.any(String), locale: 'auto' },
     );
   });
 
@@ -174,7 +183,7 @@ describe('POST /api/embed/checkout-session', () => {
         { productId: 'product-1', couponCode: 'SAVE20' },
         'https://sellf.example.com/p/kurs-ai/payment-status?session_id={CHECKOUT_SESSION_ID}',
         undefined,
-        { embedSessionId: expect.any(String) },
+        { embedSessionId: expect.any(String), locale: 'auto' },
       );
     });
 

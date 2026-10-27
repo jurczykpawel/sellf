@@ -52,7 +52,9 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://js.stripe.com/v3/', route => route.fulfill({ contentType: 'text/javascript', body: `window.Stripe = function () { return { initEmbeddedCheckout: async function () { return { mount: function (slot) { var frame = document.createElement('iframe'); frame.title = 'Stripe payment'; frame.src = 'https://payment.example.test/frame'; slot.appendChild(frame); }, destroy: function () {} }; } }; };` }));
   // Initial paid session uses a local payment fixture; coupon requests reach the real route.
   await page.route('**/api/embed/checkout-session?*', async route => {
-    if (route.request().method() !== 'POST' || route.request().postDataJSON().couponCode) return route.continue();
+    if (route.request().method() !== 'POST') return route.continue();
+    expect(route.request().postDataJSON().locale).toBe(language);
+    if (route.request().postDataJSON().couponCode) return route.continue();
     await route.fulfill({ json: { kind: 'paid', clientSecret: 'local-payment-fixture', product: { slug, name: 'Modal checkout', price: 20, currency: 'PLN' } }, headers: { 'Access-Control-Allow-Origin': sellerOrigin } });
   });
 });

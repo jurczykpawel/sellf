@@ -10,10 +10,11 @@ const PRODUCT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,120}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const COUPON_CODE_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/;
 
-const PAID_CHECKOUT_KEYS = new Set(['productSlug', 'email', 'couponCode', 'turnstileToken']);
+const PAID_CHECKOUT_KEYS = new Set(['productSlug', 'email', 'couponCode', 'turnstileToken', 'locale']);
 const FREE_ACCESS_KEYS = new Set(['productSlug', 'email', 'website', 'turnstileToken']);
 
 export interface EmbedCheckoutBody {
+  locale?: 'pl' | 'en' | 'auto';
   productSlug: string;
   email?: string;
   couponCode?: string;
@@ -212,6 +213,7 @@ export function parseEmbedCheckoutBody(body: unknown): ParseResult<EmbedCheckout
     ok: true,
     value: {
       productSlug,
+      locale: body.locale === 'pl' || body.locale === 'en' ? body.locale : 'auto',
       ...(email ? { email } : {}),
       ...(couponCode ? { couponCode } : {}),
       ...(turnstileToken ? { turnstileToken } : {}),

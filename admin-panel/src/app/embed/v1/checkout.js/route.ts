@@ -364,7 +364,7 @@ export async function GET() {
     var status = null;
 
     function payload(coupon, token) {
-      var body = { productSlug: productSlug, email: email || undefined };
+      var body = { productSlug: productSlug, email: email || undefined, locale: language };
       if (coupon) body.couponCode = coupon;
       if (token) body.turnstileToken = token;
       return body;
@@ -566,6 +566,7 @@ export async function GET() {
       if (showPrice && trigger && trigger.setLabel) {
         postJson('/api/embed/checkout-session', productSlug, {
           productSlug: productSlug,
+          locale: languageFor(root),
         }).then(function (body) {
           var product = body && body.product;
           var priceText = '';

@@ -12,7 +12,7 @@ import type { createAdminClient } from '@/lib/supabase/admin';
 describe('checkout embed security helpers', () => {
   it.each([' B2B30 ', '\tb2b30\r\n', '\u00a0B2B30\u00a0'])('normalizes pasted coupon codes: %j', couponCode => {
     expect(parseEmbedCheckoutBody({ productSlug: 'kurs-ai', couponCode })).toEqual({
-      ok: true, value: { productSlug: 'kurs-ai', couponCode: 'B2B30' },
+      ok: true, value: { locale: 'auto', productSlug: 'kurs-ai', couponCode: 'B2B30' },
     });
   });
 
@@ -49,7 +49,7 @@ describe('checkout embed security helpers', () => {
   it('accepts only the embed request fields owned by Sellf', () => {
     expect(parseEmbedCheckoutBody({ productSlug: 'kurs-ai', email: 'buyer@example.com' })).toEqual({
       ok: true,
-      value: { productSlug: 'kurs-ai', email: 'buyer@example.com' },
+      value: { locale: 'auto', productSlug: 'kurs-ai', email: 'buyer@example.com' },
     });
 
     expect(parseEmbedCheckoutBody({ productSlug: 'kurs-ai', successUrl: 'https://evil.example' })).toEqual({
@@ -127,14 +127,14 @@ describe('loadAllowedOriginsForProduct', () => {
     it('accepts an optional coupon code and trims it', () => {
       expect(parseEmbedCheckoutBody({ productSlug: 'kurs-ai', couponCode: '  SAVE20 ' })).toEqual({
         ok: true,
-        value: { productSlug: 'kurs-ai', couponCode: 'SAVE20' },
+        value: { locale: 'auto', productSlug: 'kurs-ai', couponCode: 'SAVE20' },
       });
     });
 
     it('treats an empty coupon code as absent', () => {
       expect(parseEmbedCheckoutBody({ productSlug: 'kurs-ai', couponCode: '   ' })).toEqual({
         ok: true,
-        value: { productSlug: 'kurs-ai' },
+        value: { locale: 'auto', productSlug: 'kurs-ai' },
       });
     });
 

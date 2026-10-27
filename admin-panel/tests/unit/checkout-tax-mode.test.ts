@@ -136,6 +136,17 @@ describe('CheckoutService.createStripeSession — tax mode', () => {
     vat_rate: null,
   })
 
+  it.each(['pl', 'en', 'auto', undefined] as const)('passes locale %s to Stripe Checkout', async locale => {
+    mockedGetCheckoutConfig.mockResolvedValue(baseCheckoutConfig)
+    vi.spyOn(service, 'initialize').mockResolvedValue()
+    vi.spyOn(service, 'validateRequest').mockResolvedValue()
+    vi.spyOn(service, 'checkRateLimit').mockResolvedValue()
+    vi.spyOn(service, 'getProduct').mockResolvedValue(baseProduct)
+    vi.spyOn(service, 'validateTemporalAvailability').mockReturnValue()
+    await service.createCheckoutSession({ productId: baseProduct.id }, 'http://localhost/return', undefined, { locale })
+    expect(mockStripeCreate).toHaveBeenCalledWith(expect.objectContaining({ locale: locale ?? 'auto' }))
+  })
+
   describe('local tax mode', () => {
     it('should attach tax_rates to line item when product has vat_rate', async () => {
       mockedGetCheckoutConfig.mockResolvedValue({
