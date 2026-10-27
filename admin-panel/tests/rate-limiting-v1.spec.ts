@@ -34,6 +34,16 @@ if (process.env.RATE_LIMIT_TEST_MODE !== 'true') {
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY!);
 
+// Rate limits count requests in fixed windows aligned to the hour (see check_rate_limit).
+// A burst that straddles a window boundary is split across two windows and never reaches
+// the limit, so start each burst early in a window.
+async function waitForFreshWindow(windowMinutes: number, marginSeconds = 25): Promise<void> {
+  const windowMs = windowMinutes * 60_000;
+  const now = Date.now();
+  const remaining = windowMs - (now % windowMs);
+  if (remaining < marginSeconds * 1000) await new Promise(resolve => setTimeout(resolve, remaining + 1000));
+}
+
 // Helper to login as admin via browser context
 async function loginAsAdmin(page: Page, email: string, password: string) {
   await page.goto('/login');
@@ -242,6 +252,7 @@ test.describe('V1 API Rate Limiting', () => {
   test.describe('Session Auth - Endpoint Rate Limiting', () => {
     test('payments stats should be rate limited (30/5min)', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
+      await waitForFreshWindow(5);
 
       let successCount = 0;
       let rateLimited = false;
@@ -267,6 +278,7 @@ test.describe('V1 API Rate Limiting', () => {
 
     test('payments export should be rate limited (5/hour)', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
+      await waitForFreshWindow(60);
 
       let successCount = 0;
       let rateLimited = false;
@@ -294,6 +306,7 @@ test.describe('V1 API Rate Limiting', () => {
 
     test('refund should be rate limited (10/hour)', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
+      await waitForFreshWindow(60);
 
       // Create multiple test payments for refund testing
       const paymentIds: string[] = [];
