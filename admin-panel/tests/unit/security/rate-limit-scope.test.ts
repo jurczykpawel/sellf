@@ -77,9 +77,13 @@ describe('check_rate_limit scope', () => {
   });
 
   it('still limits repeated anonymous calls for one code', async () => {
+    // check_rate_limit counts in fixed 60 s windows aligned to the minute; a burst that
+    // crosses a boundary splits across two windows, so start early in a window.
+    const msLeft = 60_000 - (Date.now() % 60_000);
+    if (msLeft < 20_000) await new Promise((resolve) => setTimeout(resolve, msLeft + 1000));
     const code = `ANON${RUN_ID}`.toUpperCase();
     const results = [];
     for (let i = 0; i < 7; i++) results.push(await verify(anon, code, null));
     expect(results.map((r) => r.error)).toContain(TOO_MANY);
-  });
+  }, 40_000);
 });
