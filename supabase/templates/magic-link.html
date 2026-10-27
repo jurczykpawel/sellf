@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="{{ if eq .Data.locale "en" }}en{{ else }}pl{{ end }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zaloguj się do Sellf</title>
+  <title>{{ if eq .Data.locale "en" }}Sign in to Sellf{{ else }}Zaloguj się do Sellf{{ end }}</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0B1120;">
   <table role="presentation" style="width: 100%; border-collapse: collapse;">
@@ -32,25 +32,27 @@
           <tr>
             <td style="padding: 40px; background-color: #111B2E;">
               <h2 style="margin: 0 0 16px 0; color: #ffffff; font-size: 20px; font-weight: 600;">
-                Zaloguj się jednym kliknięciem
+                {{ if eq .Data.locale "en" }}Sign in with one click{{ else }}Zaloguj się jednym kliknięciem{{ end }}
               </h2>
               <p style="margin: 0 0 24px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">
-                Otrzymaliśmy prośbę o zalogowanie na konto powiązane z adresem <strong style="color: #ffffff;">{{ .Email }}</strong>.
+                {{ if eq .Data.locale "en" }}We received a request to sign in to the account associated with{{ else }}Otrzymaliśmy prośbę o zalogowanie na konto powiązane z adresem{{ end }} <strong style="color: #ffffff;">{{ .Email }}</strong>.
               </p>
               <p style="margin: 0 0 32px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">
-                Kliknij poniższy przycisk, aby się zalogować. Link jest ważny przez 1 godzinę.
+                {{ if eq .Data.locale "en" }}Click the button below to sign in. The link is valid for 1 hour.{{ else }}Kliknij poniższy przycisk, aby się zalogować. Link jest ważny przez 1 godzinę.{{ end }}
               </p>
 
+              {{ if .Data.purchase_product }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}Product{{ else }}Produkt{{ end }}: {{ .Data.purchase_product }}</p>{{ end }}
+              {{ if .Data.purchase_amount }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}Amount{{ else }}Kwota{{ end }}: {{ .Data.purchase_amount }}</p>{{ end }}
               {{ if .Data.transfer_text }}<p style="white-space: pre-line; color: #ffffff;">{{ .Data.transfer_text }}</p>{{ end }}
               {{ if .Data.event_date }}<p style="color: #ffffff;">{{ .Data.event_date }}</p>{{ end }}
-              {{ if .Data.event_online_url }}<p><a style="color: #2090D0;" href="{{ .Data.event_online_url }}">Online</a></p>{{ end }}
+              {{ if .Data.event_online_url }}<p><a style="color: #2090D0;" href="{{ .Data.event_online_url }}">{{ if eq .Data.locale "en" }}Join online{{ else }}Dołącz online{{ end }}</a></p>{{ end }}
               <!-- Button -->
               <table role="presentation" style="width: 100%; border-collapse: collapse;">
                 <tr>
                   <td align="center">
                     <a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink"
                        style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #0078BB 0%, #2090D0 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 12px; box-shadow: 0 4px 14px 0 rgba(0,120,187,0.4);">
-                      Zaloguj się
+                      {{ if eq .Data.locale "en" }}Sign in{{ else }}Zaloguj się{{ end }}
                     </a>
                   </td>
                 </tr>
@@ -59,8 +61,8 @@
               <!-- Security note -->
               <div style="margin-top: 32px; padding: 16px; background-color: rgba(0,120,187,0.08); border-radius: 8px; border-left: 4px solid #0078BB;">
                 <p style="margin: 0; color: #94a3b8; font-size: 14px; line-height: 1.5;">
-                  <strong style="color: #ffffff;">Nie prosiłeś o ten link?</strong><br>
-                  Możesz zignorować tę wiadomość. Twoje konto jest bezpieczne.
+                  <strong style="color: #ffffff;">{{ if eq .Data.locale "en" }}Didn’t request this link?{{ else }}Nie prosiłeś o ten link?{{ end }}</strong><br>
+                  {{ if eq .Data.locale "en" }}You can ignore this email. Your account is safe.{{ else }}Możesz zignorować tę wiadomość. Twoje konto jest bezpieczne.{{ end }}
                 </p>
               </div>
             </td>
@@ -70,10 +72,10 @@
           <tr>
             <td style="padding: 24px 40px; background-color: #06080D; border-radius: 0 0 16px 16px; border-top: 1px solid #1a2740;">
               <p style="margin: 0 0 8px 0; color: #64748b; font-size: 12px; text-align: center;">
-                Ten email został wysłany automatycznie przez Sellf.
+                {{ if eq .Data.locale "en" }}This email was sent automatically by Sellf.{{ else }}Ten email został wysłany automatycznie przez Sellf.{{ end }}
               </p>
               <p style="margin: 0; color: #64748b; font-size: 12px; text-align: center;">
-                &copy; {{ .SiteURL }} | Wszystkie prawa zastrzeżone
+                &copy; {{ .SiteURL }} | {{ if eq .Data.locale "en" }}All rights reserved{{ else }}Wszystkie prawa zastrzeżone{{ end }}
               </p>
             </td>
           </tr>

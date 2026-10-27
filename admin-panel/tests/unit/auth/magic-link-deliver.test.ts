@@ -28,7 +28,7 @@ describe('deliverMagicLink', () => {
       options: {
         shouldCreateUser: true,
         emailRedirectTo: 'https://shop.example.com/auth/callback',
-        data: { product_slug: 'widget' },
+        data: { product_slug: 'widget', locale: 'en' },
       },
     });
     expect(result).toEqual({ ok: true });

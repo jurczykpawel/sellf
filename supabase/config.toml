@@ -103,11 +103,11 @@ enable_confirmations = true
 # content_path = "./supabase/templates/invite.html"
 
 [auth.email.template.magic_link]
-subject = "Twój link do logowania"
+subject = '{{ if eq .Data.locale "en" }}Your sign-in link{{ else }}Twój link do logowania{{ end }}'
 content_path = "./supabase/templates/magic-link.html"
 
 [auth.email.template.confirmation]
-subject = "Potwierdź swój email"
+subject = '{{ if eq .Data.locale "en" }}Confirm your email{{ else }}Potwierdź swój email{{ end }}'
 content_path = "./supabase/templates/confirmation.html"
 
 [auth.sms]

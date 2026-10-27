@@ -207,6 +207,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
         email,
         captcha,
         flow: 'free_product',
+        locale,
         productSlug: product.slug,
         successUrl,
       });

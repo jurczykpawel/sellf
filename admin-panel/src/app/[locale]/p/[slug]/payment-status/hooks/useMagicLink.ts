@@ -66,6 +66,8 @@ export function useMagicLink({
 
       if (result.ok) {
         setMagicLinkSent(true);
+        setRetryCountdown(60);
+        captchaReset();
         setTimeout(() => setShowSpinnerForMinTime(false), 100);
       } else {
         // Set user-friendly error message based on error code
@@ -125,10 +127,10 @@ export function useMagicLink({
   }, [showSpinnerForMinTime, spinnerRequest]);
 
   const sendMagicLink = useCallback(() => {
-    if (!customerEmail || !paymentId || !captchaToken || retryCountdown > 0 || magicLinkSent || requestInFlight.current) return Promise.resolve();
+    if (!customerEmail || !paymentId || !captchaToken || retryCountdown > 0 || requestInFlight.current) return Promise.resolve();
     setSendingMagicLink(true);
     return sendMagicLinkInternal();
-  }, [customerEmail, paymentId, captchaToken, retryCountdown, magicLinkSent, sendMagicLinkInternal]);
+  }, [customerEmail, paymentId, captchaToken, retryCountdown, sendMagicLinkInternal]);
 
   return {
     retryCountdown,

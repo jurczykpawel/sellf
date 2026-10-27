@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="{{ if eq .Data.locale "en" }}en{{ else }}pl{{ end }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Potwierdź swój email - Sellf</title>
+  <title>{{ if eq .Data.locale "en" }}Confirm your email - Sellf{{ else }}Potwierdź swój email - Sellf{{ end }}</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0B1120;">
   <table role="presentation" style="width: 100%; border-collapse: collapse;">
@@ -32,26 +32,30 @@
           <tr>
             <td style="padding: 40px; background-color: #111B2E;">
               <h2 style="margin: 0 0 16px 0; color: #ffffff; font-size: 20px; font-weight: 600;">
-                Witaj w Sellf!
+                {{ if eq .Data.locale "en" }}Welcome to Sellf!{{ else }}Witaj w Sellf!{{ end }}
               </h2>
               <p style="margin: 0 0 24px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">
-                Dziękujemy za rejestrację. Aby aktywować swoje konto i uzyskać dostęp do zakupionych produktów, potwierdź swój adres email.
+                {{ if eq .Data.locale "en" }}Thank you for signing up. Confirm your email address to activate your account and access your purchased products.{{ else }}Dziękujemy za rejestrację. Aby aktywować swoje konto i uzyskać dostęp do zakupionych produktów, potwierdź swój adres email.{{ end }}
               </p>
               <p style="margin: 0 0 8px 0; color: #94a3b8; font-size: 14px;">
-                Adres email:
+                {{ if eq .Data.locale "en" }}Email address:{{ else }}Adres email:{{ end }}
               </p>
               <p style="margin: 0 0 32px 0; color: #ffffff; font-size: 16px; font-weight: 500;">
                 {{ .Email }}
               </p>
 
+              {{ if .Data.purchase_product }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}Product{{ else }}Produkt{{ end }}: {{ .Data.purchase_product }}</p>{{ end }}
+              {{ if .Data.purchase_amount }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}Amount{{ else }}Kwota{{ end }}: {{ .Data.purchase_amount }}</p>{{ end }}
               {{ if .Data.transfer_text }}<p style="white-space: pre-line; color: #ffffff;">{{ .Data.transfer_text }}</p>{{ end }}
+              {{ if .Data.event_date }}<p style="color: #ffffff;">{{ .Data.event_date }}</p>{{ end }}
+              {{ if .Data.event_online_url }}<p><a style="color: #2090D0;" href="{{ .Data.event_online_url }}">{{ if eq .Data.locale "en" }}Join online{{ else }}Dołącz online{{ end }}</a></p>{{ end }}
               <!-- Button -->
               <table role="presentation" style="width: 100%; border-collapse: collapse;">
                 <tr>
                   <td align="center">
                     <a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=signup"
                        style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 12px; box-shadow: 0 4px 14px 0 rgba(5, 150, 105, 0.4);">
-                      Potwierdź email
+                      {{ if eq .Data.locale "en" }}Confirm email{{ else }}Potwierdź email{{ end }}
                     </a>
                   </td>
                 </tr>
@@ -60,18 +64,18 @@
               <!-- What's next -->
               <div style="margin-top: 32px; padding: 20px; background-color: rgba(16, 185, 129, 0.08); border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2);">
                 <h3 style="margin: 0 0 12px 0; color: #10b981; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-                  Co dalej?
+                  {{ if eq .Data.locale "en" }}What’s next?{{ else }}Co dalej?{{ end }}
                 </h3>
                 <ul style="margin: 0; padding: 0 0 0 20px; color: #94a3b8; font-size: 14px; line-height: 1.8;">
-                  <li>Zaloguj się do swojego konta</li>
-                  <li>Uzyskaj dostęp do zakupionych produktów</li>
-                  <li>Pobierz materiały i zasoby</li>
+                  <li>{{ if eq .Data.locale "en" }}Sign in to your account{{ else }}Zaloguj się do swojego konta{{ end }}</li>
+                  <li>{{ if eq .Data.locale "en" }}Access your purchased products{{ else }}Uzyskaj dostęp do zakupionych produktów{{ end }}</li>
+                  <li>{{ if eq .Data.locale "en" }}Download materials and resources{{ else }}Pobierz materiały i zasoby{{ end }}</li>
                 </ul>
               </div>
 
               <!-- Security note -->
               <p style="margin: 32px 0 0 0; color: #64748b; font-size: 13px; line-height: 1.5;">
-                Jeśli nie zakładałeś konta w Sellf, zignoruj tę wiadomość. Link wygaśnie automatycznie.
+                {{ if eq .Data.locale "en" }}If you did not create a Sellf account, ignore this email. The link will expire automatically.{{ else }}Jeśli nie zakładałeś konta w Sellf, zignoruj tę wiadomość. Link wygaśnie automatycznie.{{ end }}
               </p>
             </td>
           </tr>
@@ -80,10 +84,10 @@
           <tr>
             <td style="padding: 24px 40px; background-color: #06080D; border-radius: 0 0 16px 16px; border-top: 1px solid #1a2740;">
               <p style="margin: 0 0 8px 0; color: #64748b; font-size: 12px; text-align: center;">
-                Ten email został wysłany automatycznie przez Sellf.
+                {{ if eq .Data.locale "en" }}This email was sent automatically by Sellf.{{ else }}Ten email został wysłany automatycznie przez Sellf.{{ end }}
               </p>
               <p style="margin: 0; color: #64748b; font-size: 12px; text-align: center;">
-                &copy; {{ .SiteURL }} | Wszystkie prawa zastrzeżone
+                &copy; {{ .SiteURL }} | {{ if eq .Data.locale "en" }}All rights reserved{{ else }}Wszystkie prawa zastrzeżone{{ end }}
               </p>
             </td>
           </tr>

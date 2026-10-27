@@ -15,14 +15,17 @@ export interface DeliverMagicLinkInput {
 export async function deliverMagicLink(input: DeliverMagicLinkInput): Promise<MagicLinkResult> {
   try {
     const client = createAdminClient();
-    const prepared = await client.rpc('prepare_event_mail', { p_email: input.email, p_data: input.data ?? {} });
+    const redirect = new URL(input.redirectTo);
+    const destination = redirect.searchParams.get('redirect_to') ?? redirect.pathname;
+    const data = { ...input.data, locale: input.data?.locale === 'pl' || (!input.data?.locale && destination.startsWith('/pl/')) ? 'pl' : 'en' };
+    const prepared = await client.rpc('prepare_event_mail', { p_email: input.email, p_data: data });
     if (prepared.error) return { ok: false, code: 'send_failed' };
     const { error } = await client.auth.signInWithOtp({
       email: input.email,
       options: {
         shouldCreateUser: input.shouldCreateUser,
         emailRedirectTo: input.redirectTo,
-        ...(input.data ? { data: input.data } : {}),
+        data,
       },
     });
     if (!error) return { ok: true };

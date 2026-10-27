@@ -65,9 +65,8 @@ export default function MagicLinkStatus({
   // Show validation block if:
   // 1. We need user action (terms or captcha)
   // 2. There's no captcha error
-  // 3. Magic link hasn't been sent yet
-  // 4. Captcha became interactive (showInteractiveWarning is set by onBeforeInteractive)
-  const showValidationBlock = !magicLinkSent && !captchaError && (
+  // 3. Captcha became interactive (showInteractiveWarning is set by onBeforeInteractive)
+  const showValidationBlock = !captchaError && (
     needsCustomTerms || 
     (needsCaptcha && showInteractiveWarning) || 
     showInteractiveWarning
@@ -138,7 +137,8 @@ export default function MagicLinkStatus({
               onBeforeInteractive={onBeforeInteractive}
             />
           </div>
-        ) : magicLinkSent ? (
+        ) : null}
+        {magicLinkSent && (
           // Show success message if magic link was sent successfully
           <div className="bg-sf-success-soft border border-sf-success/30 rounded-lg p-4 mb-6">
             <h3 className="text-lg font-semibold text-sf-success mb-2">
@@ -157,7 +157,7 @@ export default function MagicLinkStatus({
               </div>
             )}
           </div>
-        ) : null}
+        )}
         
         {/* SINGLE SPINNER OUTSIDE YELLOW BLOCK - shows in 2 cases */}
         {shouldShowSpinner && customerEmail && (
@@ -195,10 +195,10 @@ export default function MagicLinkStatus({
           </div>
         )}
         
-        {/* Show magic link errors */}
-        {magicLinkError && (
-          <div className="bg-sf-warning-soft border border-sf-warning/30 rounded-lg p-3 text-sm text-sf-warning mb-4">
-            ⚠️ {magicLinkError}
+        {/* Delivery feedback and explicit resend */}
+        {(magicLinkError || magicLinkSent) && (
+          <div className={`border rounded-lg p-3 text-sm mb-4 ${magicLinkError ? 'bg-sf-warning-soft border-sf-warning/30 text-sf-warning' : 'bg-sf-accent-soft border-sf-border-accent text-sf-body'}`}>
+            {magicLinkError && <>⚠️ {magicLinkError}</>}
             <div className="mt-3">
               <button type="button" onClick={sendMagicLink} disabled={sending || !captchaToken || retryCountdown > 0}
                 className="inline-block px-4 py-2 bg-sf-accent-bg text-white text-sm rounded disabled:opacity-50">

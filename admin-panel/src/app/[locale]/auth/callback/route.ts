@@ -114,12 +114,9 @@ export async function GET(request: NextRequest) {
   
   
   if (error || !session) {
-    // Typical cause: code_verifier cookie missing at exchange time.
-    // Happens when user clicks the magic link in a different browser/incognito session
-    // than where they requested it — PKCE verifier is stored in a first-party cookie
-    // on this origin and must be present when exchangeCodeForSession runs.
     const loginUrl = new URL('/login', origin)
-    loginUrl.searchParams.set('error', 'session_lost')
+    const expired = tokenHash || error?.code === 'otp_expired' || error?.code === 'flow_state_expired';
+    loginUrl.searchParams.set('error', expired ? 'magic_link_expired' : 'session_lost')
     return NextResponse.redirect(loginUrl)
   }
 

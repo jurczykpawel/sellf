@@ -94,6 +94,7 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
     return sendTrustedMagicLink({
       email: input.email,
       redirectTo: buildLoginMagicLinkRedirect(origin, input.redirectTo),
+      data: { locale: input.locale === 'pl' ? 'pl' : 'en' },
     });
   }
 
@@ -109,7 +110,7 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
         couponCode: input.couponCode,
         successUrl: input.successUrl,
       }),
-      data: { product_slug: input.productSlug },
+      data: { product_slug: input.productSlug, locale: input.locale === 'pl' ? 'pl' : 'en' },
     });
     // Remember the request on the account so any later sign-in grants it,
     // not only a click on this particular link.
@@ -119,7 +120,7 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
 
   // flow === 'post_checkout'
   return sendTrustedMagicLink({
-    data: await eventMailForSlug(input.email, input.productSlug),
+    data: { ...await eventMailForSlug(input.email, input.productSlug, input.locale), locale: input.locale === 'pl' ? 'pl' : 'en' },
     email: input.email,
     redirectTo: buildPostCheckoutMagicLinkRedirect({
       origin,

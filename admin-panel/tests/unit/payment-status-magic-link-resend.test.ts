@@ -50,7 +50,7 @@ it('offers retry with a countdown and disables sending until ready', () => {
   const send = vi.fn(async () => {});
   const props = {
     product: { id: 'p', name: 'Product', slug: 'product', description: '', icon: '', price: 10, currency: 'PLN' },
-    customerEmail: 'buyer@example.com', magicLinkSent: false, termsAccepted: true,
+    customerEmail: 'buyer@example.com', magicLinkSent: true, termsAccepted: true,
     captchaToken: 'fresh', captchaError: null, captchaTimeout: false, showInteractiveWarning: false,
     magicLinkError: 'Zakup jest opłacony; nie udało się wysłać linku logowania.', retryCountdown: 60, sending: false,
     onTermsAccept: vi.fn(), onCaptchaSuccess: vi.fn(), onCaptchaError: vi.fn(), onCaptchaTimeout: vi.fn(),
@@ -63,6 +63,28 @@ it('offers retry with a countdown and disables sending until ready', () => {
   rerender(createElement(MagicLinkStatus, { ...props, retryCountdown: 0 }));
   fireEvent.click(screen.getByRole('button', { name: 'resendLoginLink' }));
   expect(send).toHaveBeenCalledOnce();
+  rerender(createElement(MagicLinkStatus, { ...props, magicLinkError: null, retryCountdown: 0 }));
+  expect(screen.getByRole('button', { name: 'resendLoginLink' })).toBeTruthy();
   rerender(createElement(MagicLinkStatus, { ...props, retryCountdown: 0, captchaToken: '' }));
   expect((screen.getByRole('button') as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('allows an explicit resend after success and cooldown without auto-sending again', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+  vi.stubGlobal('fetch', fetchMock);
+  const { result } = renderHook(() => useMagicLink({
+    paymentStatus: 'magic_link_sent', customerEmail: 'buyer@example.com', sessionId: 'cs_test',
+    product: { id: 'p', name: 'Product', slug: 'product', price: 10, currency: 'PLN' },
+    termsAccepted: true, captchaToken: 'fresh', captchaReset: vi.fn(), showInteractiveWarning: false,
+  }));
+  await act(async () => {});
+  expect(result.current.sent).toBe(true);
+  expect(result.current.retryCountdown).toBe(60);
+  await act(async () => { await result.current.sendMagicLink(); });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  for (let second = 0; second < 60; second++) await act(async () => { vi.advanceTimersByTime(1000); });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  await act(async () => { await result.current.sendMagicLink(); });
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(result.current.retryCountdown).toBe(60);
 });

@@ -3,7 +3,7 @@ import { createElement } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ submit: vi.fn(), oauth: vi.fn(), password: vi.fn(), config: { passwordLoginEnabled: false, demoMode: false, oauthProviders: ['google'] } }));
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
+vi.mock('next-intl', () => ({ useLocale: () => 'pl', useTranslations: () => (key: string) => key }));
 vi.mock('@/components/providers/config-provider', () => ({ useConfig: () => mocks.config }));
 vi.mock('@/lib/auth/magic-link/submit', () => ({ submitMagicLink: mocks.submit }));
 vi.mock('@/lib/supabase/client', () => ({ createClient: async () => ({ auth: { signInWithPassword: mocks.password } }) }));
@@ -26,4 +26,13 @@ it('keeps the application destination for configured OAuth', async () => {
   fireEvent.click(screen.getByLabelText('Terms')); fireEvent.click(screen.getByRole('button', { name: 'Google' }));
   await waitFor(() => expect(mocks.oauth).toHaveBeenCalledWith('google', expect.stringContaining('/auth/callback')));
   expect(document.cookie).toContain('sf_oauth_redirect=%2Fpl%2Faffiliates%2Fapply');
+});
+
+it('shows a rate-limit retry time after a login request is limited', async () => {
+  mocks.submit.mockResolvedValueOnce({ ok: false, reason: 'rate_limited' });
+  render(createElement(LoginForm));
+  fireEvent.change(screen.getByLabelText('auth.email'), { target: { value: 'buyer@example.com' } });
+  fireEvent.click(screen.getByLabelText('Terms'));
+  fireEvent.click(screen.getByRole('button', { name: 'auth.sendMagicLink' }));
+  await waitFor(() => expect(screen.getByText('auth.magicLinkRateLimit')).toBeTruthy());
 });

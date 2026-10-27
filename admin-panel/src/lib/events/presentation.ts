@@ -63,9 +63,9 @@ export function selectEventSession(sessions: EventSession[], requested: string |
 
 export interface PurchasedEvent { id: string; starts_at: string; timezone: string; online_url: string | null; title: string | null }
 export interface EventOrder { transaction_id: string; status: string; customer_email?: string | null; order_details?: unknown }
-export function eventMailData(events: PurchasedEvent[]): Record<string, string> {
+export function eventMailData(events: PurchasedEvent[], locale = 'en'): Record<string, string> {
   const e = events[0]; if (!e) return {};
-  return { event_date: formatEventDate(e.starts_at, e.timezone, 'en-GB'),
+  return { event_date: formatEventDate(e.starts_at, e.timezone, locale),
     ...(e.online_url?.startsWith('https://') ? { event_online_url: e.online_url } : {}) };
 }
 export function participantRows(orders: EventOrder[]): string[][] {

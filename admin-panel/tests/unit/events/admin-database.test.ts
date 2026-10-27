@@ -28,6 +28,7 @@ describe('event administration persistence', () => {
     await db.from('payment_transactions').update({status:'completed'}).eq('id',tx);
     expect((await db.from('guest_purchases').insert({product_id:id,customer_email:'admin-event@example.com',transaction_id:tx,transaction_amount:9400})).error).toBeNull();
     expect(await purchaseEventMail('admin-event@example.com',id)).toMatchObject({event_date:expect.stringContaining('2099'),event_online_url:session.online_url});
+    expect(await purchaseEventMail('admin-event@example.com',id,undefined,undefined,'pl')).toMatchObject({ purchase_product: 'Updated event', purchase_amount: '94,00 zł', event_date: expect.stringContaining('lut') });
     expect(await purchaseEventMail('other@example.com',id)).toEqual({});
     await db.from('guest_purchases').delete().eq('transaction_id',tx);
     expect(await purchaseEventMail('admin-event@example.com',id)).toEqual({});

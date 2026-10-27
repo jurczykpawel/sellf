@@ -150,7 +150,19 @@ describe('auth callback pending free grants', () => {
     expect(response.headers.get('location')).toBe('https://shop.example.com/my-products');
   });
 
-  it('does not claim when the sign-in failed', async () => {
+  it('identifies a used token as expired instead of a missing browser session', async () => {
+    verifyOtp.mockResolvedValueOnce({ data: { session: null }, error: { code: 'otp_expired' } });
+    const response = await callback('type=signup&token_hash=used');
+    expect(response.headers.get('location')).toBe('https://shop.example.com/login?error=magic_link_expired');
+  });
+
+  it('retains the browser session message for PKCE without a verifier', async () => {
+    exchangeCodeForSession.mockResolvedValueOnce({ data: { session: null }, error: { code: 'bad_code_verifier' } });
+    const response = await callback('code=unused');
+    expect(response.headers.get('location')).toBe('https://shop.example.com/login?error=session_lost');
+  });
+
+  it('does not claim when the sign-in failed' , async () => {
     verifyOtp.mockResolvedValueOnce({ data: { session: null }, error: { message: 'expired' } });
 
     await callback('flow=login&type=magiclink&token_hash=abc');

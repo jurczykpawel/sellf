@@ -31,6 +31,16 @@ potwierdzić że oba pliki znów są bajt-w-bajt identyczne.
 
 Pełny poradnik SMTP, DNS, szablonów i przekierowań: [po polsku](https://docs.sellf.app/pl/email-setup/) / [in English](https://docs.sellf.app/email-setup/).
 
+Confirmation i magic link wybierają język z `.Data.locale` (`en` albo `pl`).
+Przy aktualizacji wgraj **oba** pliki HTML i ustaw tematy:
+
+- `mailer_subjects_confirmation`: `{{ if eq .Data.locale "en" }}Confirm your email{{ else }}Potwierdź swój email{{ end }}`
+- `mailer_subjects_magic_link`: `{{ if eq .Data.locale "en" }}Your sign-in link{{ else }}Twój link do logowania{{ end }}`
+
+Supabase Auth renderuje temat jako Go Template, tak samo jak treść. Po zmianie
+sprawdź dostawę do nowego i istniejącego konta w obu językach. Migracja
+`20261027143930_auth_mail_context.sql` odświeża kontekst maila dla istniejących kont.
+
 ## Konfiguracja
 
 ### Opcja 1: Dashboard Supabase (Cloud)
@@ -88,8 +98,8 @@ Ustaw w dashboardzie Supabase lub przez API:
 
 | Pole | Wartość |
 |------|---------|
-| `mailer_subjects_magic_link` | `Zaloguj się do Sellf` |
-| `mailer_subjects_confirmation` | `Potwierdź swój email - Sellf` |
+| `mailer_subjects_magic_link` | `{{ if eq .Data.locale "en" }}Your sign-in link{{ else }}Twój link do logowania{{ end }}` |
+| `mailer_subjects_confirmation` | `{{ if eq .Data.locale "en" }}Confirm your email{{ else }}Potwierdź swój email{{ end }}` |
 | `mailer_subjects_recovery` | `Zresetuj hasło - Sellf` |
 | `mailer_subjects_email_change` | `Potwierdź zmianę email - Sellf` |
 | `mailer_subjects_invite` | `Zaproszenie do Sellf` |

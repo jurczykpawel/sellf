@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { submitMagicLink } from '@/lib/auth/magic-link/submit'
 import CaptchaWidget from '@/components/captcha/CaptchaWidget'
 import { useCaptcha } from '@/hooks/useCaptcha'
@@ -25,6 +25,7 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const captcha = useCaptcha()
   const tDemo = useTranslations('demo');
   const t = useTranslations()
+  const locale = useLocale()
 
   const handleOAuthSignIn = async (provider: OAuthProvider) => {
     if (!termsAccepted) {
@@ -67,7 +68,7 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
         return
       }
 
-      const result = await submitMagicLink({ email, captcha, flow: 'login', ...(redirectTo ? { redirectTo } : {}) })
+      const result = await submitMagicLink({ email, captcha, flow: 'login', locale, ...(redirectTo ? { redirectTo } : {}) })
 
       if (!result.ok) {
         const message =
@@ -77,7 +78,9 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
               ? t('compliance.securityVerificationRequired')
               : result.reason === 'invalid_email'
                 ? t('auth.disposableEmailBlocked')
-                : t('auth.loginFailed')
+                : result.reason === 'rate_limited'
+                  ? t('auth.magicLinkRateLimit')
+                  : t('auth.loginFailed')
         setMessage(message)
         setSentEmail(false)
       } else {

@@ -241,7 +241,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       if (paymentStatus === 'magic_link_sent' && customerEmail) {
         const magicResult = await sendTrustedMagicLink({
           email: customerEmail,
-          data: await purchaseEventMail(customerEmail, product.id, session_id, payment_intent),
+          data: await purchaseEventMail(customerEmail, product.id, session_id, payment_intent, resolvedParams.locale),
           redirectTo: buildPostCheckoutMagicLinkRedirect({
             origin: getSellfBaseUrl(),
             productSlug: product.slug,

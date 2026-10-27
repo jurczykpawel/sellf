@@ -107,7 +107,7 @@ test.describe('Magic Link Flow', () => {
     // Navigate with a bogus token_hash — verifyOtp will return an error
     await page.goto('/en/auth/callback?token_hash=invalid-token-hash-that-does-not-exist&type=magiclink');
 
-    // Callback should redirect to /login with session_lost error param
-    await expect(page).toHaveURL(/\/login(\?.*)?$/, { timeout: 10000 });
+    // Callback explains that the token has expired or was already used.
+    await expect(page).toHaveURL(/\/login\?error=magic_link_expired$/, { timeout: 10000 });
   });
 });

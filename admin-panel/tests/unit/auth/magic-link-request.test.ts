@@ -130,7 +130,7 @@ describe('requestMagicLink', () => {
           encodeURIComponent(
             '/auth/product-access?product=widget&coupon=SAVE10&success_url=https%3A%2F%2Fseller.example.com%2Fthanks',
           ),
-        data: { product_slug: 'widget' },
+        data: { product_slug: 'widget', locale: 'en' },
       }),
     );
   });
@@ -138,8 +138,8 @@ describe('requestMagicLink', () => {
   it('passes purchased event details into the access mail after captcha verification', async () => {
     eventMailForSlug.mockResolvedValueOnce({ event_date: '10 Jan 2036', event_online_url: 'https://meet.example.com/private' });
     await requestMagicLink({ ...BASE_INPUT, flow: 'post_checkout', productSlug: 'event' });
-    expect(eventMailForSlug).toHaveBeenCalledWith(BASE_INPUT.email, 'event');
-    expect(deliverMagicLink).toHaveBeenCalledWith(expect.objectContaining({ data: { event_date: '10 Jan 2036', event_online_url: 'https://meet.example.com/private' } }));
+    expect(eventMailForSlug).toHaveBeenCalledWith(BASE_INPUT.email, 'event', undefined);
+    expect(deliverMagicLink).toHaveBeenCalledWith(expect.objectContaining({ data: { event_date: '10 Jan 2036', event_online_url: 'https://meet.example.com/private', locale: 'en' } }));
   });
   it('delivers a post_checkout magic link with the post-checkout redirect', async () => {
     const result = await requestMagicLink({
@@ -299,4 +299,13 @@ describe('demo magic links', () => {
     expect(checkRateLimitForIdentifier).not.toHaveBeenCalled();
     expect(deliverMagicLink).not.toHaveBeenCalled();
   });
+});
+
+it.each(['pl', 'en'])('passes %s to login email data', async locale => {
+  vi.stubEnv('DEMO_MODE', 'false');
+  checkRateLimit.mockResolvedValue(true); checkRateLimitForIdentifier.mockResolvedValue(true);
+  verifyCaptchaToken.mockResolvedValue({ success: true }); validateEmailAction.mockResolvedValue({ isValid: true });
+  deliverMagicLink.mockResolvedValue({ ok: true });
+  await requestMagicLink({ ...BASE_INPUT, locale });
+  expect(deliverMagicLink).toHaveBeenLastCalledWith(expect.objectContaining({ data: { locale } }));
 });

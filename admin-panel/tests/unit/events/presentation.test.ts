@@ -77,3 +77,9 @@ describe('event presentation', () => {
     expect(JSON.stringify(payload)).not.toContain('online_url');
   });
 });
+
+it('formats Polish mail dates in Polish using the event timezone', () => {
+  const event = { id: 'event', starts_at: '2026-12-10T17:00:00Z', timezone: 'Europe/Warsaw', online_url: null, title: null };
+  expect(eventMailData([event], 'pl').event_date).toContain('10 gru 2026');
+  expect(eventMailData([event], 'pl').event_date).toContain('18:00');
+});

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
 import type { Product } from '@/types';
@@ -54,6 +54,7 @@ export function useFreeAccess({
   couponCode,
   customFieldValues,
 }: UseFreeAccessOptions): UseFreeAccessReturn {
+  const locale = useLocale();
   const tDemo = useTranslations('demo');
   const t = useTranslations('checkout');
   const tCompliance = useTranslations('compliance');
@@ -124,6 +125,7 @@ export function useFreeAccess({
         email: pwywFreeEmail,
         captcha,
         flow: 'free_product',
+        locale,
         productSlug: product.slug,
         couponCode,
         successUrl,
@@ -152,7 +154,7 @@ export function useFreeAccess({
     } finally {
       setPwywFreeLoading(false);
     }
-  }, [pwywFreeEmail, pwywFreeTermsAccepted, captcha, product, couponCode, searchParams, t, tCompliance, tDemo, track]);
+  }, [pwywFreeEmail, pwywFreeTermsAccepted, captcha, product, couponCode, searchParams, t, tCompliance, tDemo, track, locale]);
 
   return {
     pwywFreeEmail,
