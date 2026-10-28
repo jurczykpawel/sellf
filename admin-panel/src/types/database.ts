@@ -939,6 +939,39 @@ export type Database = {
           },
         ]
       }
+      business_events: {
+        Row: {
+          created_at: string
+          deduplication_key: string | null
+          dispatched_at: string | null
+          event_type: string
+          id: string
+          leased_until: string | null
+          payload: Json
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          deduplication_key?: string | null
+          dispatched_at?: string | null
+          event_type: string
+          id?: string
+          leased_until?: string | null
+          payload: Json
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          deduplication_key?: string | null
+          dispatched_at?: string | null
+          event_type?: string
+          id?: string
+          leased_until?: string | null
+          payload?: Json
+          product_id?: string
+        }
+        Relationships: []
+      }
       captcha_nonces: {
         Row: {
           created_at: string
@@ -4626,6 +4659,7 @@ export type Database = {
         Args: { p_reason: string; p_transaction_id: string }
         Returns: Json
       }
+      capture_expired_access: { Args: never; Returns: number }
       check_application_rate_limit: {
         Args: {
           action_type_param: string
@@ -4653,6 +4687,25 @@ export type Database = {
         Returns: boolean
       }
       check_waitlist_config: { Args: never; Returns: Json }
+      claim_business_events: {
+        Args: { p_limit?: number }
+        Returns: {
+          created_at: string
+          deduplication_key: string | null
+          dispatched_at: string | null
+          event_type: string
+          id: string
+          leased_until: string | null
+          payload: Json
+          product_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "business_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_guest_purchases_for_user: {
         Args: { p_user_id: string }
         Returns: Json
@@ -5110,6 +5163,35 @@ export type Database = {
       migrate_guest_purchases: {
         Args: { p_email: string; p_user_id: string }
         Returns: number
+      }
+      mutate_access: {
+        Args: {
+          p_access_id?: string
+          p_action: string
+          p_actor?: Json
+          p_product_id?: string
+          p_user_id: string
+          p_values?: Json
+        }
+        Returns: {
+          access_duration_days: number | null
+          access_expires_at: string | null
+          access_granted_at: string
+          created_at: string
+          expiry_notified_at: string | null
+          id: string
+          product_id: string
+          subscription_id: string | null
+          transfer_transaction_id: string | null
+          user_id: string
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "user_product_access"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       mutate_product_offer: {
         Args: {

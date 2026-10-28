@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { mutateAccess } from '@/lib/services/business-events';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdminApi } from '@/lib/auth-server';
@@ -125,8 +126,9 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
 
     // Verify admin access
+    let actorId: string;
     try {
-      await requireAdminApi(supabase, request);
+      actorId = (await requireAdminApi(supabase, request)).user.id;
     } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -165,9 +167,7 @@ export async function POST(request: NextRequest) {
 
     if (action === 'grant') {
       // Grant access to a product
-      const { error } = await adminClient
-        .from('user_product_access')
-        .insert([{ user_id: userId, product_id: productId }]);
+      const { error } = await mutateAccess(adminClient, 'grant', userId, { type: 'user', id: actorId }, {}, undefined, productId);
 
       if (error) {
         console.error('Error granting access:', error);
@@ -177,11 +177,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'Access granted' });
     } else if (action === 'revoke') {
       // Revoke access to a product
-      const { error } = await adminClient
-        .from('user_product_access')
-        .delete()
-        .eq('user_id', userId)
-        .eq('product_id', productId);
+      const { error } = await mutateAccess(adminClient, 'revoke', userId, { type: 'user', id: actorId }, {}, undefined, productId);
 
       if (error) {
         console.error('Error revoking access:', error);

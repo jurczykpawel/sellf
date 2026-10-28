@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildPlaceholderContext, deriveOrderId } from '@/lib/services/webhook-service';
+import recorded from '../../fixtures/business-events/card-purchase.json';
 
 // The real `purchase.completed` payload is the NESTED `PurchaseWebhookData`
 // (see src/lib/services/webhook-payload.ts), NOT a flat object. These tests feed
@@ -62,4 +63,11 @@ describe('deriveOrderId (nested order)', () => {
     expect(deriveOrderId({ order: {} })).toBe('');
     expect(deriveOrderId(undefined)).toBe('');
   });
+});
+
+it('substitutes the internal order UUID without changing the existing delivery identity', () => {
+  const id = '00000000-0000-4000-8000-000000000001';
+  const data = { ...recorded.payload.data, order: { ...recorded.payload.data.order, orderId: id, orderNumber: 1001 } };
+  expect(buildPlaceholderContext(data).order_id).toBe(id);
+  expect(deriveOrderId(data)).toBe(recorded.payload.data.order.paymentIntentId);
 });

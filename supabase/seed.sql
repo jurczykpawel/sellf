@@ -1436,3 +1436,7 @@ SELECT id, user_id, customer_email, product_id, amount, currency,
 FROM public.payment_transactions
 WHERE session_id = 'cs_test_pln_001'
   AND NOT EXISTS (SELECT 1 FROM public.refund_requests WHERE transaction_id = payment_transactions.id);
+
+-- Access examples above also populate the committed business-event history.
+-- Seed fixtures are already observed; only subsequent changes need dispatch.
+UPDATE public.business_events SET dispatched_at = now();

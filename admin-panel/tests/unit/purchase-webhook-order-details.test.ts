@@ -17,10 +17,14 @@ function setup(profile: boolean, stored: unknown = details, sessionId: string | 
   return { params, from };
 }
 describe('purchase order details', () => {
-  it('keeps the serialized legacy payload identical to the recorded pre-change body', async () => {
+  it('keeps recorded customer and invoice data with explicit minor-unit prices', async () => {
     const { params, from } = setup(false);
-    const serialized = JSON.stringify(await buildPurchaseWebhookPayload(params));
-    expect(serialized).toBe(readFileSync('tests/unit/fixtures/purchase-legacy-body.json', 'utf8'));
+    const recorded = JSON.parse(readFileSync('tests/unit/fixtures/purchase-legacy-body.json', 'utf8'));
+    const payload = await buildPurchaseWebhookPayload(params);
+    expect(payload.customer).toEqual(recorded.customer); expect(payload.invoice).toEqual(recorded.invoice);
+    expect(payload.order).toMatchObject(recorded.order);
+    expect(payload.product).toMatchObject({ ...recorded.product, price: 14900, net: null, tax: null });
+    expect(payload.amountUnit).toBe('minor'); expect(payload.order.taxSnapshotStatus).toBe('unavailable');
     expect(from).not.toHaveBeenCalledWith('payment_transactions');
   });
   it('includes all five stable module keys and uses the stored invoice and recipient', async () => {

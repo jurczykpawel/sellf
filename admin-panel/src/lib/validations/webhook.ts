@@ -172,6 +172,13 @@ export async function validateWebhookUrlAsync(
  * Note: Must match WEBHOOK_EVENTS in src/types/webhooks.ts
  */
 export const WEBHOOK_EVENT_TYPES = [
+  'order.abandoned',
+  'seats.held',
+  'seats.confirmed',
+  'seats.released',
+  'access.granted',
+  'access.updated',
+  'access.revoked',
   // Active events (used in UI)
   'purchase.completed',
   'order.placed',

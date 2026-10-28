@@ -77,10 +77,8 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
     paymentIntentId: provider.kind === 'stripe' ? provider.paymentIntentId ?? null : null, taxSnapshot, couponId: args.couponId ?? null,
     isGuest: args.isGuest, customFieldValues, orderDetails: tx.order_details, source: args.source,
   });
-  if (provider.kind === 'offline') {
-    payload.order.orderId = tx.id;
-    payload.order.orderNumber = tx.order_number;
-  }
+  payload.order.orderId = tx.id;
+  payload.order.orderNumber = tx.order_number;
   if (licenses.length) payload.licenses = licenses;
   const invoice = await issuedInvoice(tx.id, args.supabase).catch(() => null);
   if (invoice) payload.invoice = { ...payload.invoice, ...invoice };

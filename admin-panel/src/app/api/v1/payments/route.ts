@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     let query = adminClient
       .from('payment_transactions')
       .select(`
-        id,
+        id,order_number,
         customer_email,
         amount,
         currency,
@@ -286,6 +286,7 @@ export async function GET(request: NextRequest) {
       } | null;
       return {
         id: p.id,
+        order_number: p.order_number,
         customer_email: p.customer_email,
         amount: p.amount,
         currency: p.currency,

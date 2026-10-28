@@ -76,7 +76,7 @@ snapshot captured from Stripe at purchase. **All amounts are in minor units**
 ```json
 {
   "product": {
-    "id": "…", "name": "…", "slug": "…", "price": 100, "currency": "PLN",
+    "id": "…", "name": "…", "slug": "…", "price": 10000, "currency": "PLN",
     "net": 10000, "tax": 2300, "gross": 12300,
     "vatRate": 23, "vatExempt": false,
     "taxBehavior": "exclusive", "taxabilityReason": "standard_rated"
@@ -96,9 +96,8 @@ snapshot captured from Stripe at purchase. **All amounts are in minor units**
   suppresses VAT Stripe legitimately charges in another jurisdiction).
 - `taxBehavior` is `inclusive` / `exclusive`; `taxabilityReason` carries Stripe's
   reason in `stripe_tax` mode (`reverse_charge`, `customer_exempt`, `zero_rated`, …).
-- The tax fields are present only when tax was captured. The order's
-  `tax_snapshot_status` (on `/api/v1/payments`: `none` / `captured` / `partial` /
-  `unavailable`) distinguishes "no VAT line" from "not computed".
+- Tax totals and `order.taxSnapshotStatus` are always present; unavailable values are `null`.
+  The status (`none` / `captured` / `partial` / `unavailable` / `local`) distinguishes no VAT from missing tax data.
 
 #### Bundles & licenses
 
@@ -348,3 +347,58 @@ a later close request, even when creation uses `keepalive`. Keep the expiration
 event enabled to reconcile these attempts. While the page remains alive, queued
 closure waits for creation to finish. Sellf also retains sessions whose
 PaymentIntent is processing, awaiting capture or additional action, or succeeded.
+
+## Order and entitlement contracts
+
+`purchase.completed` always includes `data.order.orderId` (the immutable Sellf payment UUID) and
+`orderNumber`, for both Stripe and offline orders. Provider IDs stay in `sessionId` and
+`paymentIntentId`; they are not substitutes for the UUID accepted by `GET /api/v1/payments/{id}`.
+The detail endpoint includes the provider, order number, due date, transfer instructions,
+order details, line items, coupon and invoice summary available on the payment list.
+
+`purchase.completed` and `order.placed`, `order.cancelled`, `order.overdue`, `order.abandoned`
+use `data.amountUnit = "minor"`. All declared monetary fields are minor units of their currency:
+`order.amount/grossTotal/netTotal/taxTotal`, product/bump/component `price/net/tax/gross`, and
+`lines[].unit_price/total_price/discounted_total/net_amount/tax_amount/gross_amount`.
+A configured unit price remains a unit price; tax snapshots and order totals include quantity.
+For PLN/USD the multiplier is 100; JPY has no fractional unit. `quantity` and VAT percentages are not money.
+These webhook units differ from the stored line-price fields returned by the v1 payment API.
+
+Every order carries `taxSnapshotStatus`: `none`, `captured`, `partial`, `unavailable` or `local`.
+Unknown net/tax values are explicitly `null`, never invented zeroes. `grossTotal` is the saved
+payment amount. Product/line `vatRate` is a percentage or `null`; `unavailable` does not mean VAT-exempt.
+
+Transfer `order.*` events include `access.policy` (`on_placement` or `after_payment`) and
+`access.grants[]`: `productId`, `status`, `grantedAt`, `expiresAt`. A grant may be `granted`,
+`pending_confirmation`, `pending_payment`, `expired`, or `revoked`. Dates are read from saved access;
+for a pending grant they are not assigned yet. A `null` expiry on a granted entitlement means unlimited access.
+
+| Event | Consumer decision and identifiers |
+|---|---|
+| `order.abandoned` | A pending checkout ended without payment: internal order/provider IDs, old/new status, customer, amount and VAT. |
+| `seats.held` | Seats reserved: reservation, order, product, session/tier, session date and quantity. |
+| `seats.confirmed` | Seats confirmed: same identifiers with the actual previous/new reservation status. |
+| `seats.released` | Seats released: same identifiers and reason (`order_abandoned`, `order_cancelled`, `payment_refunded`, `hold_expired`, or `reservation_released`). |
+| `access.granted` | Entitlement created, including free grants, purchases and guest claims. |
+| `access.updated` | Saved entitlement dates or source changed, including administrative extensions. |
+| `access.revoked` | Entitlement record removed; includes the effective revocation time. |
+| `access.expired` | Saved expiry passed; one notification per grant/expiry, including after renewal. |
+
+Access events carry `customer`, `product`, `access.id`, `grantedAt`, `expiresAt`,
+`statusBefore/statusAfter`, `reason` and `actor` (`user`, `api_key`, or `system`; system ID is null).
+The root `accessGrantedAt/accessExpiresAt` aliases contain the same saved dates.
+`sourceOrders` contains related saved orders; `sourceOrder` is populated only when there is one
+unambiguous order. Manual or unlinked grants may have no order. `occurredAt` records the change,
+while the envelope timestamp records delivery preparation. Consumers should use the explicit
+state and dates, not infer access from payment status or from the time a webhook arrives.
+
+Changes are captured transactionally and delivered through the signed queue with stable keys.
+A retry retains its delivery ID. Deduplicate that ID at the receiver. Long-running production
+servers process changes and expiries every 30 seconds; builds and test fixtures do not start
+background processing. Serverless deployments must schedule the authenticated
+`/api/cron?job=business-events` endpoint. The existing `access-expired` job uses the same producer.
+Keep the existing webhook-delivery retry job configured for transient HTTP failures.
+
+Delivery order across workers or retries is not guaranteed. Apply access state by `occurredAt` per grant, ignoring an older transition that arrives later.
+
+The `{{order_id}}` substitution prefers the internal UUID when available; provider references and existing delivery keys are unchanged.

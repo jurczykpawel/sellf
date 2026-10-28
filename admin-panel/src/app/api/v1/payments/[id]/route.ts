@@ -30,7 +30,10 @@ interface PaymentProductRelation {
   price: number;
   currency: string;
   custom_checkout_fields: unknown;
+  is_bundle: boolean;
 }
+
+function firstRelated<T>(value: unknown): T | null { return (Array.isArray(value) ? value[0] : value) as T ?? null; }
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -58,14 +61,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { data: payment, error } = await adminClient
       .from('payment_transactions')
       .select(`
-        id,
+        id,order_number,payment_provider,payment_due_at,transfer_details,order_details,
         customer_email,
         amount,
         currency,
         status,
         stripe_payment_intent_id,
         product_id,
-        products!inner(id, name, slug, price, currency, custom_checkout_fields),
+        products!inner(id, name, slug, price, currency, custom_checkout_fields, is_bundle),
+        coupons!payment_transactions_coupon_id_fkey(code),
+        coupon_redemptions(coupons!coupon_redemptions_coupon_id_fkey(code)),
+        invoices(status,number,view_url,error,attempts),
         user_id,
         session_id,
         refund_id,
@@ -92,6 +98,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch payment');
     }
 
+    const { data: lineItems, error: lineError } = await adminClient.from('payment_line_items').select('*').eq('transaction_id', id);
+    if (lineError) return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch payment items');
+
+    const productRelation = payment.products as unknown as PaymentProductRelation;
+    let bundleComponents: Array<{ name: string; slug: string }> = [];
+    if (productRelation.is_bundle) {
+      const components = await adminClient.from('bundle_items').select('component:products!bundle_items_component_product_id_fkey(name,slug)').eq('bundle_product_id', payment.product_id).order('display_order');
+      if (components.error) return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch payment components');
+      bundleComponents = (components.data ?? []).flatMap(row => { const value = firstRelated<{ name: string; slug: string }>(row.component); return value ? [value] : []; });
+    }
+
     // Get user info if available
     let userInfo = null;
     if (payment.user_id) {
@@ -112,6 +129,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return jsonResponse(
       successResponse({
         id: payment.id,
+        order_number: payment.order_number,
+        user_id: payment.user_id, refunded_amount: payment.refunded_amount ?? 0,
+        coupon_code: firstRelated<{ code: string }>(payment.coupons)?.code ?? firstRelated<{ code: string }>(firstRelated<{ coupons: unknown }>(payment.coupon_redemptions)?.coupons)?.code ?? null,
+        invoice: firstRelated(payment.invoices) ?? null, payment_provider: payment.payment_provider, payment_due_at: payment.payment_due_at,
+        transfer_details: payment.transfer_details, order_details: payment.order_details, line_items: lineItems ?? [],
         customer_email: payment.customer_email,
         amount: payment.amount,
         currency: payment.currency,
@@ -125,6 +147,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             slug: p.slug,
             price: p.price,
             currency: p.currency,
+            is_bundle: p.is_bundle,
+            ...(p.is_bundle ? { bundle_components: bundleComponents } : {}),
             custom_checkout_fields: Array.isArray(p.custom_checkout_fields) ? p.custom_checkout_fields : null,
           };
         })(),

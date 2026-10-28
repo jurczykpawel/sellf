@@ -7,6 +7,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { accessActor, mutateAccess } from '@/lib/services/business-events';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -133,7 +134,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const body = await parseJsonBody<Record<string, unknown>>(request);
 
     // Build update data
-    const updateData: Record<string, unknown> = {};
+    const updateData: Record<string, string | number | null> = {};
 
     if (body.extend_days !== undefined) {
       if (typeof body.extend_days !== 'number' || !Number.isInteger(body.extend_days)) {
@@ -187,10 +188,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Update access
-    const { error: updateError } = await adminClient
-      .from('user_product_access')
-      .update(updateData)
-      .eq('id', accessId);
+    const { error: updateError } = await mutateAccess(adminClient, 'update', userId, accessActor(auth), updateData, accessId);
 
     if (updateError) {
       console.error('Error updating access:', updateError);
@@ -268,10 +266,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Delete access
-    const { error: deleteError } = await adminClient
-      .from('user_product_access')
-      .delete()
-      .eq('id', accessId);
+    const { error: deleteError } = await mutateAccess(adminClient, 'revoke', userId, accessActor(auth), {}, accessId);
 
     if (deleteError) {
       console.error('Error revoking access:', deleteError);

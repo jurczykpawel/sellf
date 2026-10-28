@@ -18,7 +18,7 @@ vi.mock('@/lib/services/bundle-order', () => ({
   resolveComponentProductIds: vi.fn(async () => []), issueLicensesForOrder: mocks.issueLicenses,
 }));
 vi.mock('@/lib/services/tax-snapshot', () => ({ captureAndPersistOrderTax: vi.fn(async () => null) }));
-vi.mock('@/lib/services/webhook-payload', () => ({ buildPurchaseWebhookPayload: vi.fn(async () => ({ product: {} })) }));
+vi.mock('@/lib/services/webhook-payload', () => ({ buildPurchaseWebhookPayload: vi.fn(async () => ({ product: {}, order: {} })) }));
 vi.mock('@/lib/services/webhook-service', () => ({ WebhookService: { trigger: mocks.trigger } }));
 vi.mock('@/lib/services/product-validation', () => ({ ProductValidationService: { validateEmail: vi.fn(async () => true) } }));
 

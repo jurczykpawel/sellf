@@ -1,4 +1,5 @@
 /** Recoverable transfer events and fulfillment. @see app/api/cron/route.ts */
+import { orderMoney, minorOrderLines } from '@/lib/orders/event-money';
 import { sendTransferAccessMail } from '@/lib/orders/transfer-mail';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { fulfillPaidOrder } from '@/lib/services/fulfill-paid-order';
@@ -14,8 +15,22 @@ export async function dispatchTransferEvent(db: SupabaseClient<Database>, id: st
   if (event === 'order.cancelled' && tx.status !== 'cancelled') return;
   const { data: lines, error: lineError } = await db.from('payment_line_items').select('*').eq('transaction_id', id);
   if (lineError) throw new Error('Transfer lines unavailable');
-  await WebhookService.trigger(event, { order: { orderId: tx.id, orderNumber: tx.order_number, amount: tx.amount,
-    currency: tx.currency, dueAt: tx.payment_due_at, transfer: tx.transfer_details }, orderDetails: tx.order_details, lines }, db, (lines ?? []).map(l => l.product_id!));
+  const roots = [...new Set([tx.product_id, ...(lines ?? []).map(l => l.product_id!).filter(Boolean)])];
+  const components = await db.from('bundle_items').select('component_product_id').in('bundle_product_id', roots);
+  if (components.error) throw new Error('Transfer components unavailable');
+  const productIds = [...new Set([...roots, ...(components.data ?? []).map(c => c.component_product_id)])];
+  const buyer = tx.user_id ? { data: tx.user_id, error: null } : await db.rpc('find_user_id_by_email', { p_email: tx.customer_email });
+  if (buyer.error) throw new Error('Transfer buyer unavailable');
+  const { data: grants, error: accessError } = buyer.data ? await db.from('user_product_access').select('product_id,access_granted_at,access_expires_at').eq('user_id', buyer.data).in('product_id', productIds) : { data: [], error: null };
+  if (accessError) throw new Error('Transfer access unavailable');
+  const onPlacement = (tx.metadata as Record<string, unknown> | null)?.access_on_placement === true;
+  const access = { policy: onPlacement ? 'on_placement' : 'after_payment', grants: productIds.map(productId => {
+    const grant = grants?.find(g => g.product_id === productId);
+    return { productId, status: grant ? (grant.access_expires_at && Date.parse(grant.access_expires_at) <= Date.now() ? 'expired' : 'granted') : tx.status === 'cancelled' ? 'revoked' : onPlacement || tx.status === 'completed' ? 'pending_confirmation' : 'pending_payment',
+      grantedAt: grant?.access_granted_at ?? null, expiresAt: grant?.access_expires_at ?? null };
+  }) };
+  await WebhookService.trigger(event, { amountUnit: 'minor', customer: { email: tx.customer_email, userId: buyer.data }, order: { orderId: tx.id, orderNumber: tx.order_number, ...orderMoney(tx),
+    status: tx.status, dueAt: tx.payment_due_at, transfer: tx.transfer_details }, access, orderDetails: tx.order_details, lines: minorOrderLines(lines ?? []) }, db, productIds);
   const saved = await db.from('payment_transactions').update({ [eventColumn[event]]: new Date().toISOString() } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id);
   if (saved.error) throw new Error('Transfer event state unavailable');
 }

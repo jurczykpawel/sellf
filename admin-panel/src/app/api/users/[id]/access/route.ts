@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { mutateAccess } from '@/lib/services/business-events';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { requireAdminApi } from '@/lib/auth-server';
@@ -165,11 +166,8 @@ export async function POST(
       accessData.access_expires_at = sanitizedData.access_expires_at as string;
     }
 
-    const { data: newAccess, error: accessError } = await adminClient
-      .from('user_product_access')
-      .insert(accessData)
-      .select('id, product_id, created_at, access_expires_at, access_duration_days')
-      .single();
+    const { data: newAccess, error: accessError } = await mutateAccess(adminClient, 'grant', userId, { type: 'user', id: adminUser.id },
+      { access_duration_days: accessData.access_duration_days ?? null, access_expires_at: accessData.access_expires_at ?? null }, undefined, productId).single();
 
     if (accessError) {
       console.error('Error granting access:', accessError);
@@ -242,10 +240,7 @@ export async function DELETE(
     }
 
     // Remove access using adminClient
-    const { error: deleteError } = await adminClient
-      .from('user_product_access')
-      .delete()
-      .eq('id', existingAccess.id);
+    const { error: deleteError } = await mutateAccess(adminClient, 'revoke', userId, { type: 'user', id: adminUser.id }, {}, existingAccess.id);
 
     if (deleteError) {
       console.error('Error removing access:', deleteError);

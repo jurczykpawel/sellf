@@ -9,6 +9,7 @@
  * @see /app/api/webhooks/stripe/route.ts
  */
 
+import { toMinorUnits } from '@/lib/currency/minor-units';
 import { readOrderDetails } from '@/lib/checkout-modules/order-details';
 import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -38,6 +39,7 @@ export interface ProductDetail {
 }
 
 export interface PurchaseWebhookData {
+  amountUnit: 'minor';
   customer: {
     email: string;
     firstName: string | null;
@@ -64,8 +66,10 @@ export interface PurchaseWebhookData {
     couponId: string | null;
     isGuest: boolean | undefined;
     // Order-level tax totals (MINOR units), present when tax was captured.
-    netTotal?: number | null;
-    taxTotal?: number | null;
+    netTotal: number | null;
+    taxTotal: number | null;
+    grossTotal: number | null;
+    taxSnapshotStatus: OrderTaxSnapshot['status'];
   };
   orderDetails?: WebhookOrderDetails;
   invoice?: {
@@ -149,7 +153,7 @@ function applyLineTax(
   vatExemptById: Map<string, boolean>,
 ): ProductDetail {
   const line = taxSnapshot?.lines.find((l) => l.productId === detail.id);
-  if (!line) return detail;
+  if (!line) return { ...detail, net: null, tax: null, gross: null, vatRate: null, taxBehavior: null, taxabilityReason: null };
   return {
     ...detail,
     net: line.netAmount,
@@ -229,6 +233,7 @@ export async function buildPurchaseWebhookPayload(
   }
 
   const webhookData: PurchaseWebhookData = {
+    amountUnit: 'minor',
     customer: {
       email: customerEmail,
       firstName: metadata?.first_name || null,
@@ -262,11 +267,14 @@ export async function buildPurchaseWebhookPayload(
       paymentIntentId,
       couponId,
       isGuest,
-      ...(taxSnapshot && { netTotal: taxSnapshot.netTotal, taxTotal: taxSnapshot.taxTotal }),
+      netTotal: taxSnapshot?.netTotal ?? null, taxTotal: taxSnapshot?.taxTotal ?? null, grossTotal: amount, taxSnapshotStatus: taxSnapshot?.status ?? 'unavailable',
     },
     ...(source && { source }),
   };
 
+  for (const detail of new Set([webhookData.product, ...webhookData.bumpProducts, ...webhookData.bundleComponents])) {
+    if ('price' in detail && typeof detail.price === 'number' && 'currency' in detail && typeof detail.currency === 'string') detail.price = toMinorUnits(detail.price, detail.currency);
+  }
   for (const detail of [webhookData.product, ...webhookData.bumpProducts]) {
     const line = params.eventLines?.find(l => l.product_id === detail.id && l.session_id);
     if (line) Object.assign(detail, { sessionId: line.session_id, sessionStartsAt: line.session_starts_at, sessionLabel: line.session_label, tierId: line.tier_id, tierLabel: line.tier_label });

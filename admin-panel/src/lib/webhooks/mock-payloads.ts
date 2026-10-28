@@ -2,13 +2,26 @@
  * Mock payloads for webhook testing and preview.
  * Used by both server-side WebhookService and client-side WebhookTestModal.
  */
+const ACCESS_SAMPLE = {
+  customer: { email: 'customer@example.com', userId: '00000000-0000-4000-8000-000000000002' }, product: { id: '00000000-0000-4000-8000-000000000003', name: 'Example course', slug: 'example-course' },
+  actor: { type: 'system', id: null }, reason: 'access_change', sourceOrder: null, sourceOrders: [],
+  accessGrantedAt: '2099-01-01T00:00:00Z', accessExpiresAt: '2099-01-08T00:00:00Z',
+};
 export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
   ...Object.fromEntries(['order.placed', 'order.cancelled', 'order.overdue'].map(event => [event, {
-    order: { orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001, amount: 9400, currency: 'PLN', dueAt: '2099-06-15T12:00:00Z',
+    amountUnit: 'minor', access: { policy: 'after_payment', grants: [{ productId: '00000000-0000-4000-8000-000000000003', status: 'pending_payment', grantedAt: null, expiresAt: null }] },
+    order: { orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001, amount: 9400, grossTotal: 9400, netTotal: null, taxTotal: null, taxSnapshotStatus: 'unavailable', currency: 'PLN', dueAt: '2099-06-15T12:00:00Z',
       transfer: { holder: 'Example Workshops', account: 'PL61109010140000071219812874', bank: 'Example Bank', title: 'Zamówienie 1001' } },
     orderDetails: { buyer: { type: 'organization', company_name: 'Example' } }, lines: [],
   }])),
+  'order.abandoned': {
+    amountUnit: 'minor', customer: ACCESS_SAMPLE.customer, product: ACCESS_SAMPLE.product, actor: ACCESS_SAMPLE.actor,
+    reason: 'checkout_expired', occurredAt: '2099-01-01T00:30:00Z', lines: [],
+    order: { orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001, amount: 9400, grossTotal: 9400,
+      currency: 'PLN', netTotal: null, taxTotal: null, taxSnapshotStatus: 'unavailable', paymentProvider: 'stripe', sessionId: 'cs_test_sample', paymentIntentId: null, statusBefore: 'pending', statusAfter: 'abandoned' },
+  },
   'purchase.completed': {
+    amountUnit: 'minor',
     customer: {
       email: 'customer@example.com',
       firstName: 'Jan',
@@ -25,7 +38,8 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     },
     bumpProduct: null,
     order: {
-      amount: 4999,
+      orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001,
+      amount: 4999, grossTotal: 4999, netTotal: null, taxTotal: null, taxSnapshotStatus: 'unavailable',
       currency: 'usd',
       sessionId: 'cs_test_a1b2c3d4e5f6g7h8i9j0',
       paymentIntentId: 'pi_test_123',
@@ -61,24 +75,20 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       jwksUrl: 'https://example.com/api/licenses/jwks?seller=seller-id'
     }
   },
-  'access.expired': {
-    customer: {
-      email: 'customer@example.com',
-      userId: 'user_123abc'
-    },
-    product: {
-      id: 'prod_12345678',
-      name: 'Premium Course',
-      slug: 'premium-course',
-      price: 4999,
-      currency: 'usd',
-      icon: '🎓'
-    },
-    access: {
-      grantedAt: '2026-01-01T00:00:00.000Z',
-      expiredAt: new Date().toISOString()
-    }
-  },
+  ...Object.fromEntries(['granted', 'updated', 'revoked', 'expired'].map(status => [`access.${status}`, {
+    ...ACCESS_SAMPLE, occurredAt: status === 'expired' ? ACCESS_SAMPLE.accessExpiresAt : '2099-01-01T00:00:00Z', reason: status === 'expired' ? 'expired' : 'access_change',
+    access: { id: '00000000-0000-4000-8000-000000000004', grantedAt: ACCESS_SAMPLE.accessGrantedAt, expiresAt: ACCESS_SAMPLE.accessExpiresAt,
+      expiredAt: status === 'expired' ? ACCESS_SAMPLE.accessExpiresAt : null, revokedAt: status === 'revoked' ? '2099-01-04T00:00:00Z' : null,
+      statusBefore: status === 'granted' ? 'none' : 'active', statusAfter: status === 'expired' || status === 'revoked' ? status : 'active' },
+  }])),
+  ...Object.fromEntries(['held', 'confirmed', 'released'].map(status => [`seats.${status}`, {
+    customer: ACCESS_SAMPLE.customer, product: ACCESS_SAMPLE.product, actor: ACCESS_SAMPLE.actor,
+    reason: status === 'held' ? 'checkout_started' : status === 'confirmed' ? 'payment_confirmed' : 'order_abandoned',
+    order: { orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001 },
+    occurredAt: '2099-01-01T00:00:00Z',
+    reservation: { id: '00000000-0000-4000-8000-000000000005', sessionId: '00000000-0000-4000-8000-000000000006', tierId: '00000000-0000-4000-8000-000000000007', quantity: 2,
+      sessionStartsAt: '2099-06-01T12:00:00Z', statusBefore: status === 'held' ? null : 'held', statusAfter: status },
+  }])),
   'waitlist.signup': {
     customer: {
       email: 'interested@example.com'

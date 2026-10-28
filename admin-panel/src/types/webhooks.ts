@@ -60,6 +60,13 @@ export interface WebhookEventDefinition {
 }
 
 export const WEBHOOK_EVENTS: WebhookEventDefinition[] = [
+  { value: 'order.abandoned', label: 'Order Abandoned', category: 'purchases' },
+  { value: 'seats.held', label: 'Seats Held', category: 'system' },
+  { value: 'seats.confirmed', label: 'Seats Confirmed', category: 'system' },
+  { value: 'seats.released', label: 'Seats Released', category: 'system' },
+  { value: 'access.granted', label: 'Access Granted', category: 'system' },
+  { value: 'access.updated', label: 'Access Updated', category: 'system' },
+  { value: 'access.revoked', label: 'Access Revoked', category: 'system' },
   { value: 'order.placed', label: 'Order Placed', category: 'purchases' },
   { value: 'order.cancelled', label: 'Order Cancelled', category: 'purchases' },
   { value: 'order.overdue', label: 'Order Overdue', category: 'purchases' },

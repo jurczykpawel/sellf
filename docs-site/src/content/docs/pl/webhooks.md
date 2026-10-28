@@ -120,3 +120,58 @@ Zdarzenie wygaśnięcia musi być włączone, aby rozliczyć takie próby. Gdy s
 nadal działa, kolejka czeka z zamknięciem na zakończenie tworzenia sesji. Sellf
 zachowuje też sesje, których PaymentIntent jest przetwarzany, czeka na pobranie
 środków lub dodatkowe działanie klienta albo zakończył się powodzeniem.
+
+## Kontrakt zamówienia i dostępu
+
+Każdy `purchase.completed` zawiera `data.order.orderId` (trwały UUID płatności Sellf) i `orderNumber`,
+zarówno dla Stripe, jak i przelewu. `sessionId` i `paymentIntentId` pozostają identyfikatorami
+operatora; nie zastępują UUID obsługiwanego przez `GET /api/v1/payments/{id}`. Szczegóły płatności
+zawierają również operatora, numer zamówienia, termin, instrukcje przelewu, dane zamówienia,
+pozycje oraz podsumowanie kuponu i faktury dostępne na liście płatności.
+
+`purchase.completed` oraz `order.placed`, `order.cancelled`, `order.overdue`, `order.abandoned`
+mają `data.amountUnit = "minor"`. Wszystkie zdefiniowane kwoty są w najmniejszych jednostkach waluty:
+`order.amount/grossTotal/netTotal/taxTotal`, `price/net/tax/gross` produktu, dodatków i składników
+pakietu oraz `lines[].unit_price/total_price/discounted_total/net_amount/tax_amount/gross_amount`.
+Cena jednostkowa nadal opisuje jedną sztukę; snapshot VAT i suma zamówienia uwzględniają ilość.
+Dla PLN/USD mnożnik wynosi 100, a JPY nie ma części ułamkowej. Ilość i procent VAT nie są kwotami.
+Te jednostki webhooków różnią się od zapisanych cen pozycji zwracanych przez API płatności v1.
+
+Zamówienie zawsze podaje `taxSnapshotStatus`: `none`, `captured`, `partial`, `unavailable` lub `local`.
+Nieznane netto/VAT mają wartość `null`, zamiast zmyślonego zera. `grossTotal` to zapisana kwota
+płatności. `vatRate` jest procentem albo `null`; `unavailable` nie oznacza zwolnienia z VAT.
+
+Zdarzenia przelewu `order.*` zawierają `access.policy` (`on_placement` albo `after_payment`)
+i `access.grants[]`: `productId`, `status`, `grantedAt`, `expiresAt`. Stany to `granted`,
+`pending_confirmation`, `pending_payment`, `expired` albo `revoked`. Daty pochodzą z zapisanego dostępu;
+dla oczekującego grantu nie zostały jeszcze nadane. `null` końca nadanego dostępu oznacza dostęp bezterminowy.
+
+| Zdarzenie | Dane potrzebne odbiorcy |
+|---|---|
+| `order.abandoned` | Porzucona oczekująca płatność: ID zamówienia i operatora, stary/nowy stan, klient, kwota i VAT. |
+| `seats.held` | Rezerwacja miejsc: ID rezerwacji, zamówienia, produktu, terminu/progu cenowego, data i liczba miejsc. |
+| `seats.confirmed` | Potwierdzenie miejsc: te same identyfikatory oraz poprzedni i nowy stan. |
+| `seats.released` | Zwolnienie miejsc: te same dane i powód (`order_abandoned`, `order_cancelled`, `payment_refunded`, `hold_expired`, `reservation_released`). |
+| `access.granted` | Nadanie dostępu, również darmowego, po zakupie oraz po przejęciu zakupów gościa. |
+| `access.updated` | Zmiana zapisanych dat lub źródła dostępu, również ręczne przedłużenie. |
+| `access.revoked` | Usunięcie grantu wraz z faktycznym czasem odebrania. |
+| `access.expired` | Upłynięcie zapisanego końca dostępu: jeden komunikat na grant/datę końca, także po odnowieniu. |
+
+Zdarzenie dostępu podaje `customer`, `product`, `access.id`, `grantedAt`, `expiresAt`,
+`statusBefore/statusAfter`, `reason` i `actor` (`user`, `api_key` albo `system`; dla systemu ID jest null).
+Pola główne `accessGrantedAt/accessExpiresAt` zawierają te same zapisane daty.
+`sourceOrders` zawiera powiązane zapisane zamówienia; `sourceOrder` jest wypełnione tylko przy jednym
+jednoznacznym zamówieniu. Ręczne lub niepowiązane granty mogą nie mieć zamówienia. `occurredAt`
+opisuje zmianę, a timestamp koperty przygotowanie dostawy. Nie należy wyliczać dostępu ze stanu
+płatności ani z chwili odebrania webhooka — służą do tego jawny stan i zapisane daty.
+
+Zmiany są zapisywane transakcyjnie i trafiają do podpisanej kolejki ze stabilnym kluczem.
+Ponowienie zachowuje ID dostawy — odbiorca deduplikuje po tym ID. Długotrwały proces produkcyjny
+obsługuje zmiany i wygaśnięcia co 30 sekund; build i testy nie uruchamiają tego harmonogramu.
+W środowisku serverless trzeba zaplanować uwierzytelniony `/api/cron?job=business-events`.
+Dotychczasowe zadanie `access-expired` korzysta z tego samego producenta. Zadanie ponowień dostaw
+webhooków nadal powinno być skonfigurowane na wypadek przejściowych błędów HTTP.
+
+Kolejność dostaw pomiędzy workerami i ponowieniami nie jest gwarantowana. Stan grantu aktualizuj według `occurredAt`, pomijając starszą zmianę odebraną później.
+
+Podstawienie `{{order_id}}` preferuje wewnętrzny UUID, gdy jest dostępny; identyfikatory operatora i dotychczasowe klucze dostaw pozostają bez zmian.
