@@ -31,6 +31,7 @@ export class WebhookService {
     data: unknown,
     client?: SupabaseClientLike,
     productIds?: string | string[],
+    deduplicationKey?: string,
   ): Promise<void> {
     const supabase = client || createAdminClient();
     if (event === 'order.placed' && data && typeof data === 'object' && 'order' in data) {
@@ -50,7 +51,7 @@ export class WebhookService {
     const licenseOk = endpoints.some(isCustomized)
       ? await checkFeature('webhook-payload-customization', { dataClient: supabase }) : true;
     const ctx = buildPlaceholderContext(data);
-    const orderId = deriveOrderId(data) || null;
+    const orderId = deduplicationKey || deriveOrderId(data) || null;
     // Persist every eligible endpoint before any HTTP request begins.
     const deliveries = [];
     for (const endpoint of endpoints) {

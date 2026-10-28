@@ -29,6 +29,7 @@ export interface MagicLinkRequestInput {
 }
 
 export interface SendTrustedMagicLinkInput {
+  requirePurchase?: boolean;
   email: string;
   redirectTo: string;
   data?: Record<string, string>;
@@ -73,6 +74,7 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
     redirectTo: input.redirectTo,
     shouldCreateUser: true,
     data: input.data,
+    requirePurchase: input.requirePurchase,
   });
 }
 
@@ -120,6 +122,7 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
 
   // flow === 'post_checkout'
   return sendTrustedMagicLink({
+    requirePurchase: true,
     data: { ...await eventMailForSlug(input.email, input.productSlug, input.locale), locale: input.locale === 'pl' ? 'pl' : 'en' },
     email: input.email,
     redirectTo: buildPostCheckoutMagicLinkRedirect({

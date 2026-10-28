@@ -26,6 +26,6 @@ export function BuyerCookieFooter() {
   const config = useTrackingConfig();
   const locale = pathname.split('/')[1] === 'pl' ? 'pl' : 'en';
   const path = pathname.replace(/^\/(en|pl)(?=\/|$)/, '') || '/';
-  if (!config?.cookie_consent_enabled || path.startsWith('/dashboard') || path.startsWith('/template-preview') || ['/', '/store', '/about'].includes(path)) return null;
+  if (!config?.cookie_consent_enabled || path.startsWith('/dashboard') || path.startsWith('/template-preview') || path.startsWith('/offer/') || ['/', '/store', '/about'].includes(path)) return null;
   return <footer className="border-t border-sf-border px-6 py-6 text-center"><CookiePreferences locale={locale} /></footer>;
 }

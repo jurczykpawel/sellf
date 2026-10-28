@@ -1,7 +1,9 @@
 /** Render actual Supabase auth emails through the local Mailpit stack. */
 import { createClient } from '@supabase/supabase-js';
 import { expect, it } from 'vitest';
+import { purchaseEventMail } from '@/lib/events/mail';
 import { deliverMagicLink } from '@/lib/auth/magic-link/deliver';
+import recordedPurchase from '../../fixtures/stripe/initial-subscription-purchase.json';
 import { waitForEmail } from '../../helpers/mailpit';
 
 it.each(['pl', 'en'])('renders confirmation and magic link purchase details in %s', async locale => {
@@ -56,6 +58,40 @@ it('delivers labeled transfer instructions with a Polish due date and purchase a
   } finally {
     const user = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users.find(u => u.email === email);
     if (user) await db.auth.admin.deleteUser(user.id);
+    await db.from('payment_transactions').delete().eq('product_id', pid);
+    await db.from('products').delete().eq('id', pid);
+  }
+});
+
+it('renders the first purchase email while transaction and guest access arrive after the request', async () => {
+  const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  const email = `first-purchase-${crypto.randomUUID()}@example.com`;
+  const sessionId = `cs_test_${crypto.randomUUID().replaceAll('-', '')}`;
+  const product = await db.from('products').insert({ name: 'First purchase workshop', slug: `first-${crypto.randomUUID()}`, price: recordedPurchase.invoice.amount_paid / 100, currency: recordedPurchase.invoice.currency.toUpperCase() }).select('id').single();
+  expect(product.error).toBeNull();
+  const pid = product.data!.id;
+  const dataPromise = purchaseEventMail(email, pid, sessionId, undefined, 'pl');
+  const persistence = (async () => {
+    await new Promise(resolve => setTimeout(resolve, 200));
+    const tx = await db.from('payment_transactions').insert({ product_id: pid, session_id: sessionId, customer_email: email, amount: recordedPurchase.invoice.amount_paid, currency: recordedPurchase.invoice.currency.toUpperCase(), status: 'completed' }).select('id').single();
+    expect(tx.error).toBeNull();
+    await new Promise(resolve => setTimeout(resolve, 200));
+    expect((await db.from('guest_purchases').insert({ product_id: pid, customer_email: email, transaction_id: tx.data!.id, transaction_amount: recordedPurchase.invoice.amount_paid })).error).toBeNull();
+  })();
+  try {
+    const data = await dataPromise;
+    expect(await deliverMagicLink({ email, shouldCreateUser: true, redirectTo: `${process.env.SITE_URL}/auth/callback?flow=login`, data: { ...data, locale: 'pl' } })).toEqual({ ok: true });
+    const mail = await waitForEmail(email);
+    expect(mail.Subject).toBe('Potwierdź swój email');
+    expect(mail.HTML).toContain('First purchase workshop');
+    expect(mail.HTML).toContain('11,00\u00a0zł');
+    expect(recordedPurchase.checkout.livemode).toBe(false);
+    expect(recordedPurchase.checkout).not.toHaveProperty('payment_intent');
+  } finally {
+    await persistence;
+    const user = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users.find(u => u.email === email);
+    if (user) await db.auth.admin.deleteUser(user.id);
+    await db.from('guest_purchases').delete().eq('product_id', pid);
     await db.from('payment_transactions').delete().eq('product_id', pid);
     await db.from('products').delete().eq('id', pid);
   }

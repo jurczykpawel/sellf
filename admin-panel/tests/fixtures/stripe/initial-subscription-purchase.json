@@ -1,0 +1,27 @@
+{
+  "checkout": {
+    "id": "cs_test_recorded1",
+    "mode": "subscription",
+    "status": "complete",
+    "payment_status": "paid",
+    "customer": "cus_test_recorded2",
+    "subscription": "sub_test_recorded3",
+    "amount_total": 1100,
+    "currency": "pln",
+    "livemode": false
+  },
+  "invoice": {
+    "id": "in_test_recorded4",
+    "customer": "cus_test_recorded2",
+    "status": "paid",
+    "amount_paid": 1100,
+    "amount_due": 1100,
+    "currency": "pln",
+    "billing_reason": "subscription_create",
+    "period_start": 1793204819,
+    "period_end": 1793204819,
+    "livemode": false,
+    "payments": null,
+    "subscription": null
+  }
+}
