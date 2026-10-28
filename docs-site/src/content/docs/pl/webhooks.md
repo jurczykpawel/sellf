@@ -78,6 +78,63 @@ kolejne zdarzenie lub weryfikację zakupu. Zapis zakończonej transakcji nie ozn
 Pełny katalog zdarzeń, przykłady danych VAT i licencji oraz konfiguracja ponowień
 znajdują się w [dokumentacji webhooków po angielsku](/webhooks/).
 
+## Potwierdzenie zwrotu i opłaconego okresu
+
+`invoice.paid` wiąże `data.invoice.stripeInvoiceId` z
+`data.subscription.stripeSubscriptionId`, `data.product.id` i `data.customer.userId`.
+Faktura zawiera `amountPaid` (główna jednostka waluty), `currency` i `paidAt`.
+`subscription.currentPeriodStart` oraz `subscription.currentPeriodEnd` (ISO 8601 UTC)
+pochodzą z konkretnej opłaconej pozycji subskrypcyjnej tej faktury. Jeśli nie ma
+jednoznacznej pozycji bez proporcjonalnego rozliczenia z prawidłowym okresem,
+pola są pomijane. Odbiorca nie powinien wyliczać opłaconego dostępu z daty dostawy
+ani z późniejszej aktualizacji subskrypcji.
+
+`refund.issued` przekazuje `data.refund.stripeRefundId` i rzeczywisty `status`
+Stripe: `pending`, `requires_action`, `succeeded`, `failed` albo `canceled`.
+Potwierdzenie pełnego zwrotu wymaga statusu `succeeded`, `isFullRefund: true`
+i `totalRefunded >= payment.amount` przy dodatniej kwocie płatności.
+Kwoty są w najmniejszych jednostkach waluty. `refund.issued` powstaje dokładnie raz
+na ID zwrotu, z pełną kwotą tego zwrotu i rzeczywistym statusem. Każda późniejsza
+zmiana statusu wysyła osobne `refund.updated`: `stripeRefundId`, `previousStatus`,
+`status`, `statusVersion`, pełne `amount`, `currency`, `totalRefunded`, `isFullRefund`
+oraz `payment.statusAfter`. Zmiana statusu nie oznacza kolejnej korekty faktury;
+dane VAT dotyczą `refund.issued`. Rejestr zmian i unikalny klucz dostawy na
+endpoint/wersję eliminują identyczne potwierdzenia. Odbiorca powinien zachować
+najwyższe `statusVersion` dla ID zwrotu i pomijać starsze wersje, ponieważ dostawy
+i ponowienia mogą nadejść w innej kolejności. Częściowy zwrot ustawia
+`partially_refunded` w DB, API płatności, panelu i payloadzie.
+`GET /api/v1/payments/{id}` zwraca `refund.id`, `refund.status` (null, jeśli nie
+został zaobserwowany) i łączną kwotę `refund.amount`.
+
+Dla `subscription.canceled` i `subscription.updated` pole `endedAt` oznacza faktyczne
+`ended_at` Stripe, a `canceledAt` — moment anulowania lub złożenia takiego żądania.
+`endsAt` oznacza koniec dostępu: pierwszeństwo ma `ended_at`; przy natychmiastowym
+anulowaniu możliwy jest odczyt z `canceled_at`. Przy zaplanowanym anulowaniu okres
+pochodzi z pozycji **opłaconej faktury**, a nie z bieżącego nieopłaconego odnowienia.
+Bez potwierdzonego okresu `endsAt` ma wartość null. Zdarzenia aktualizacji zakończonej
+subskrypcji lub zaplanowanego anulowania przekazują ten sam koniec dostępu w
+`currentPeriodEnd`.
+
+## Spory płatnicze
+
+Podpisane `dispute.created` i `dispute.closed` działają dla wszystkich produktów,
+niezależnie od licencji i `license.revoked`. Na istniejącym endpoincie Stripe włącz
+`charge.dispute.created` oraz `charge.dispute.closed`; nowe endpointy Sellf zawierają je automatycznie.
+
+`data.dispute` zawiera `stripeDisputeId`, `stripeChargeId`, rzeczywisty `status`
+Stripe (m.in. `needs_response`, `won`, `lost`), `reason`, `amount` w najmniejszych
+jednostkach, `currency` i `createdAt` (ISO 8601 UTC). `data.payment` zawiera `id`
+transakcji Sellf, `sessionId`, `paymentIntentId`, `stripeInvoiceId`, `subscriptionId`,
+kwotę i walutę zakupu. `data.product.id` i `data.customer.userId` / `email` wiążą
+zdarzenie z produktem i klientem. Dla subskrypcji dochodzi `data.subscription.id`
+oraz `stripeSubscriptionId`, jeśli jest dostępny.
+
+`accessRevoked` i `accessRestored` opisują działania wykonane podczas tej obsługi.
+Otwarcie i przegrany spór odbierają dostęp; `accessRevoked: true` pojawia się po
+udanym wykonaniu tego kroku. Wynik `won` nie przywraca automatycznie dostępu Sellf
+ani cofniętych licencji (`accessRestored: false`). Odbiorca musi powiązać spór
+z zakupem przed zastosowaniem własnych reguł dostępu.
+
 ## Automatyczne ponowienia
 
 Sellf zapisuje dostawę przed pierwszą próbą i wysyła ją od razu. Dotyczy to również

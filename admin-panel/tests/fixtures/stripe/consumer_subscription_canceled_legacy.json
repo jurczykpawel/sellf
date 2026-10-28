@@ -1,0 +1,32 @@
+{
+  "received_at": "2026-10-28T17:52:46.933084+00:00",
+  "signature_verified_before_anonymization": true,
+  "payload": {
+    "id": "864643ca-6d3e-496b-a3fb-f8ce34aae030",
+    "data": {
+      "product": {
+        "id": "da1e58b1-f4f7-4f94-ad1f-df9ef29c7241",
+        "name": null,
+        "slug": "integrator-w107-subscription",
+        "currency": "PLN",
+        "recurring_price": 9.99,
+        "stripe_price_id": "price_recorded4",
+        "billing_interval": "month",
+        "billing_interval_count": 1
+      },
+      "customer": {
+        "email": null,
+        "userId": "0ddb2ec8-19e3-445d-816a-3ac5b708766b"
+      },
+      "subscription": {
+        "endsAt": "2027-01-28T17:43:03.000Z",
+        "status": "canceled",
+        "canceledAt": "2026-12-28T19:43:13.000Z",
+        "cancelAtPeriodEnd": false,
+        "stripeSubscriptionId": "sub_recorded3"
+      }
+    },
+    "event": "subscription.canceled",
+    "timestamp": "2026-10-28T17:52:46.812Z"
+  }
+}

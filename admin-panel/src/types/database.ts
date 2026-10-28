@@ -1961,6 +1961,88 @@ export type Database = {
           },
         ]
       }
+      payment_refund_events: {
+        Row: {
+          created_at: string
+          notified: boolean
+          previous_status: string | null
+          status: string | null
+          stripe_refund_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          notified?: boolean
+          previous_status?: string | null
+          status?: string | null
+          stripe_refund_id: string
+          version: number
+        }
+        Update: {
+          created_at?: string
+          notified?: boolean
+          previous_status?: string | null
+          status?: string | null
+          stripe_refund_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_refund_events_stripe_refund_id_fkey"
+            columns: ["stripe_refund_id"]
+            isOneToOne: false
+            referencedRelation: "payment_refunds"
+            referencedColumns: ["stripe_refund_id"]
+          },
+        ]
+      }
+      payment_refunds: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          notified_version: number
+          previous_status: string | null
+          status: string | null
+          stripe_refund_id: string
+          transaction_id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency: string
+          notified_version?: number
+          previous_status?: string | null
+          status?: string | null
+          stripe_refund_id: string
+          transaction_id: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          notified_version?: number
+          previous_status?: string | null
+          status?: string | null
+          stripe_refund_id?: string
+          transaction_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_refunds_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_transactions: {
         Row: {
           abandoned_at: string | null
@@ -1988,6 +2070,7 @@ export type Database = {
           product_id: string
           refund_id: string | null
           refund_reason: string | null
+          refund_status: string | null
           refunded_amount: number | null
           refunded_at: string | null
           refunded_by: string | null
@@ -2029,6 +2112,7 @@ export type Database = {
           product_id: string
           refund_id?: string | null
           refund_reason?: string | null
+          refund_status?: string | null
           refunded_amount?: number | null
           refunded_at?: string | null
           refunded_by?: string | null
@@ -2070,6 +2154,7 @@ export type Database = {
           product_id?: string
           refund_id?: string | null
           refund_reason?: string | null
+          refund_status?: string | null
           refunded_amount?: number | null
           refunded_at?: string | null
           refunded_by?: string | null
@@ -4709,6 +4794,10 @@ export type Database = {
         Args: { p_transaction_id: string }
         Returns: undefined
       }
+      confirm_refund_notification: {
+        Args: { p_refund_id: string; p_version: number }
+        Returns: undefined
+      }
       create_refund_request: {
         Args: { reason_param?: string; transaction_id_param: string }
         Returns: Json
@@ -5215,6 +5304,22 @@ export type Database = {
         Returns: Json
       }
       my_event_sessions: { Args: { p_product_id: string }; Returns: Json }
+      observe_payment_refund: {
+        Args: {
+          p_amount: number
+          p_currency: string
+          p_initial_status?: string
+          p_refund_id: string
+          p_status: string
+          p_transaction_id: string
+        }
+        Returns: {
+          notified_version: number
+          previous_status: string
+          refund_status: string
+          refund_version: number
+        }[]
+      }
       pending_free_grant_products: {
         Args: never
         Returns: {

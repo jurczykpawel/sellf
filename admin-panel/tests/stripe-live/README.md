@@ -73,3 +73,17 @@ green run.
 
 A recognized Next.js one-shot upgrade notice permits one repeat of the same local
 server command. Other startup exits and a second notice stop the runner.
+
+The focused `refund-invoice-contract.spec.ts` uses real test-mode PaymentIntents,
+refunds, disputes (won/lost), and a test-clock renewal through Stripe API. The
+runner's Stripe listener feeds the local handler; the public receiver checks the
+actual outgoing body and HMAC signature, purchase bindings, access effects and
+repeat-delivery behavior. It creates products without issued licenses. Run it
+through the same runner, with an allocated disposable stack and browser/test slot:
+
+```sh
+scripts/run-stripe-live-e2e.sh tests/stripe-live/refund-invoice-contract.spec.ts --workers=1
+```
+
+Sanitized recordings in `tests/fixtures/stripe/` exercise missing optional fields,
+pending and failed refunds, paid periods and dispute outcomes in unit tests.

@@ -20,6 +20,7 @@ import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
 import { captureAndPersistInvoiceTax } from '@/lib/services/tax-snapshot';
 import { minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
 import {
+  getPaidInvoicePeriod,
   buildSubscriptionCreatedPayload,
   buildSubscriptionUpdatedPayload,
   buildSubscriptionCanceledPayload,
@@ -27,9 +28,8 @@ import {
   buildSubscriptionRenewalUpcomingPayload,
   buildInvoicePaidPayload,
   buildInvoicePaymentFailedPayload,
-  type SubProductSummary,
-  type SubCustomerSummary,
 } from '@/lib/services/subscription-webhook-payload';
+import type { SubProductSummary, SubCustomerSummary } from '@/lib/services/subscription-webhook-payload';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 type PlatformClient = ReturnType<typeof createPlatformClient>;
@@ -742,6 +742,7 @@ export async function handleSubscriptionUpdated(
     customer: customerSummary(ctx.userId, ctx.email),
     product: ctx.product,
     subscription: current,
+    paidPeriodEnd: await resolvePaidSubscriptionEnd(current, stripe),
     previousAttributes,
   });
   await WebhookService.trigger('subscription.updated', payload, supabase, payload.product.id);
@@ -794,6 +795,7 @@ export async function handleSubscriptionDeleted(
     customer: customerSummary(ctx.userId, ctx.email),
     product: ctx.product,
     subscription: sub,
+    paidPeriodEnd: await resolvePaidSubscriptionEnd(sub, stripe),
   });
   await WebhookService.trigger('subscription.canceled', payload, supabase, payload.product.id);
 
@@ -1113,7 +1115,7 @@ async function resolveInvoicePaymentIntentId(invoice: Stripe.Invoice, stripe: St
   return typeof paymentIntent === 'string' ? paymentIntent : paymentIntent?.id ?? null;
 }
 
-function extractSubscriptionId(invoice: Stripe.Invoice): string | null {
+export function extractSubscriptionId(invoice: Stripe.Invoice): string | null {
   const fromParent = invoice.parent?.subscription_details?.subscription;
   if (typeof fromParent === 'string') return fromParent;
   if (fromParent && typeof fromParent === 'object') return fromParent.id;
@@ -1123,16 +1125,22 @@ function extractSubscriptionId(invoice: Stripe.Invoice): string | null {
   if (typeof fromTopLevel === 'string') return fromTopLevel;
   if (fromTopLevel && typeof fromTopLevel === 'object') return fromTopLevel.id;
 
-  const lineSub = invoice.lines?.data?.find((line) => {
-    const candidate = (line as unknown as { subscription?: string | { id: string } | null })
-      .subscription;
-    return typeof candidate === 'string' || (candidate && typeof candidate === 'object');
-  });
-  if (lineSub) {
-    const candidate = (lineSub as unknown as { subscription?: string | { id: string } })
-      .subscription;
-    if (typeof candidate === 'string') return candidate;
-    if (candidate && typeof candidate === 'object') return candidate.id;
+  const lineIds = new Set((invoice.lines?.data ?? []).flatMap(line => {
+    const candidate = line.parent?.subscription_item_details?.subscription
+      ?? (line as unknown as { subscription?: string | { id: string } | null }).subscription;
+    const id = typeof candidate === 'string' ? candidate : candidate?.id;
+    return id ? [id] : [];
+  }));
+  return lineIds.size === 1 ? [...lineIds][0] : null;
+}
+
+/** Resolve a scheduled end only from an invoice whose payment is confirmed. */
+export async function resolvePaidSubscriptionEnd(sub: Stripe.Subscription, stripe: Stripe): Promise<number | null> {
+  if (!sub.cancel_at_period_end || sub.ended_at != null || !sub.latest_invoice) return null;
+  const invoices = await stripe.invoices.list({ subscription: sub.id, status: 'paid', limit: 10 });
+  for (const invoice of invoices.data) {
+    const period = getPaidInvoicePeriod(invoice, sub.id);
+    if (period) return period.end;
   }
   return null;
 }

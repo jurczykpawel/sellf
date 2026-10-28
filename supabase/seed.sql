@@ -1436,3 +1436,22 @@ SELECT id, user_id, customer_email, product_id, amount, currency,
 FROM public.payment_transactions
 WHERE session_id = 'cs_test_pln_001'
   AND NOT EXISTS (SELECT 1 FROM public.refund_requests WHERE transaction_id = payment_transactions.id);
+
+-- A card payment whose full refund has been confirmed by the processor.
+INSERT INTO public.payment_transactions (
+  id, product_id, customer_email, session_id, stripe_payment_intent_id,
+  amount, currency, status, refund_id, refund_status, refunded_amount, refunded_at
+)
+SELECT 'e5000000-0000-4000-a000-000000000010', id, 'refund-example@example.com',
+  'cs_test_refund_example', 'pi_test_refund_example', 1100, 'PLN', 'refunded',
+  're_test_refund_example', 'succeeded', 1100, '2026-10-01T00:00:00Z'
+FROM public.products WHERE slug = 'premium-course';
+
+-- Notification history for the sample processor-confirmed refund.
+INSERT INTO public.payment_refunds(stripe_refund_id,transaction_id,amount,currency,status,notified_version)
+SELECT refund_id,id,refunded_amount::integer,currency,refund_status,1
+FROM public.payment_transactions WHERE id='e5000000-0000-4000-a000-000000000010';
+
+INSERT INTO public.payment_refund_events(stripe_refund_id,version,status,notified)
+SELECT stripe_refund_id,version,status,true FROM public.payment_refunds
+WHERE transaction_id='e5000000-0000-4000-a000-000000000010';

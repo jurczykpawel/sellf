@@ -1,0 +1,48 @@
+{
+  "id": "evt_recorded3",
+  "object": "event",
+  "api_version": "2025-09-30.clover",
+  "created": 1793208795,
+  "data": {
+    "object": {
+      "id": "re_recorded1",
+      "object": "refund",
+      "amount": 1100,
+      "balance_transaction": "txn_recorded2",
+      "charge": "ch_recorded1",
+      "created": 1793208794,
+      "currency": "pln",
+      "customer": null,
+      "customer_account": null,
+      "destination_details": {
+        "card": {
+          "reference": "9518635959672991",
+          "reference_status": "available",
+          "reference_type": "acquirer_reference_number",
+          "type": "refund"
+        },
+        "type": "card"
+      },
+      "metadata": {},
+      "payment_intent": "pi_recorded1",
+      "payment_method": "pm_recorded1",
+      "reason": null,
+      "receipt_number": null,
+      "source_transfer_reversal": null,
+      "status": "succeeded",
+      "transfer_reversal": null
+    },
+    "previous_attributes": {
+      "destination_details": {
+        "card": {
+          "reference": null,
+          "reference_status": "pending"
+        }
+      }
+    }
+  },
+  "livemode": false,
+  "pending_webhooks": 0,
+  "request": null,
+  "type": "refund.updated"
+}

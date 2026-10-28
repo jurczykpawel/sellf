@@ -43,12 +43,10 @@ describe('stripe refund handling', () => {
 
   it('does not skip full-refund access revocation only because the transaction is already marked refunded', () => {
     const isFullRefundIndex = stripeWebhookSource.indexOf('const isFullRefund = charge.amount_refunded >= charge.amount');
-    const refundedStatusGuardIndex = stripeWebhookSource.indexOf("transaction.status === 'refunded' && !isFullRefund");
     const revocationIndex = stripeWebhookSource.indexOf('const revocation = await revokeTransactionAccess');
 
     expect(isFullRefundIndex).toBeGreaterThan(-1);
-    expect(refundedStatusGuardIndex).toBeGreaterThan(isFullRefundIndex);
-    expect(revocationIndex).toBeGreaterThan(refundedStatusGuardIndex);
+    expect(revocationIndex).toBeGreaterThan(isFullRefundIndex);
     expect(stripeWebhookSource).not.toContain("if (transaction.status === 'refunded') {\n    return");
   });
 

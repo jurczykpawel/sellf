@@ -50,6 +50,26 @@ function toIso(unix: number | null | undefined): string | null {
   return new Date(unix * 1000).toISOString();
 }
 
+export function getPaidInvoicePeriod(invoice: Stripe.Invoice, subscriptionId: string): Stripe.InvoiceLineItem['period'] | null {
+  const recurringLines = invoice.lines?.data.filter((line) => {
+    const parent = line.parent;
+    const details = parent?.subscription_item_details;
+    return parent?.type === 'subscription_item_details'
+      && details?.subscription === subscriptionId && !details.proration;
+  }) ?? [];
+  const period = recurringLines.length === 1 ? recurringLines[0].period : undefined;
+  const hasPeriod = !invoice.lines?.has_more && period && Number.isSafeInteger(period.start) && Number.isSafeInteger(period.end)
+    && period.start >= 0 && period.end >= period.start
+    && period.end <= 8640000000000;
+  return hasPeriod ? period : null;
+}
+
+function subscriptionAccessEnd(sub: Stripe.Subscription, paidPeriodEnd?: number | null): string | null {
+  if (sub.ended_at != null) return toIso(sub.ended_at);
+  if (sub.status === 'canceled' && !sub.cancel_at_period_end) return toIso(sub.canceled_at);
+  return sub.cancel_at_period_end ? toIso(paidPeriodEnd) : null;
+}
+
 export function buildSubscriptionCreatedPayload(input: BaseInput & {
   subscription: Stripe.Subscription;
 }) {
@@ -76,8 +96,10 @@ export function buildSubscriptionCreatedPayload(input: BaseInput & {
 export function buildSubscriptionUpdatedPayload(input: BaseInput & {
   subscription: Stripe.Subscription;
   previousAttributes?: Partial<Stripe.Subscription>;
+  paidPeriodEnd?: number | null;
 }) {
   const sub = input.subscription;
+  const endsAt = subscriptionAccessEnd(sub, input.paidPeriodEnd);
   return {
     customer: input.customer,
     product: input.product,
@@ -85,7 +107,11 @@ export function buildSubscriptionUpdatedPayload(input: BaseInput & {
       stripeSubscriptionId: sub.id,
       status: sub.status,
       cancelAtPeriodEnd: sub.cancel_at_period_end,
-      currentPeriodEnd: toIso(sub.items.data[0]?.current_period_end ?? null),
+      currentPeriodEnd: sub.ended_at != null || sub.status === 'canceled' || sub.cancel_at_period_end
+        ? endsAt : toIso(sub.items?.data[0]?.current_period_end ?? null),
+      endsAt,
+      endedAt: toIso(sub.ended_at),
+      canceledAt: toIso(sub.canceled_at),
       previousAttributes: input.previousAttributes ?? {},
     },
   };
@@ -93,6 +119,7 @@ export function buildSubscriptionUpdatedPayload(input: BaseInput & {
 
 export function buildSubscriptionCanceledPayload(input: BaseInput & {
   subscription: Stripe.Subscription;
+  paidPeriodEnd?: number | null;
 }) {
   const sub = input.subscription;
   return {
@@ -103,7 +130,8 @@ export function buildSubscriptionCanceledPayload(input: BaseInput & {
       status: sub.status,
       canceledAt: toIso(sub.canceled_at),
       cancelAtPeriodEnd: sub.cancel_at_period_end,
-      endsAt: toIso(sub.items.data[0]?.current_period_end ?? null),
+      endedAt: toIso(sub.ended_at),
+      endsAt: subscriptionAccessEnd(sub, input.paidPeriodEnd),
     },
   };
 }
@@ -153,6 +181,7 @@ export function buildInvoicePaidPayload(input: BaseInput & {
   taxSnapshot?: OrderTaxSnapshot;
 }) {
   const inv = input.invoice;
+  const period = getPaidInvoicePeriod(inv, input.subscriptionId);
   const snap = input.taxSnapshot;
   const taxLine = snap?.lines[0];
   // Invoice billing snapshot for credit-note/faktura: NIP + address are snapshotted by
@@ -164,7 +193,13 @@ export function buildInvoicePaidPayload(input: BaseInput & {
   return {
     customer: input.customer,
     product: input.product,
-    subscription: { stripeSubscriptionId: input.subscriptionId },
+    subscription: {
+      stripeSubscriptionId: input.subscriptionId,
+      ...(period && {
+        currentPeriodStart: toIso(period.start),
+        currentPeriodEnd: toIso(period.end),
+      }),
+    },
     invoice: {
       stripeInvoiceId: inv.id,
       amountPaid: fromMinor(inv.amount_paid, inv.currency || 'usd'),

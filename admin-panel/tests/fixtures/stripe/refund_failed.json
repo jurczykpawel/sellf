@@ -1,0 +1,27 @@
+{
+  "id": "re_recorded4",
+  "object": "refund",
+  "amount": 1100,
+  "balance_transaction": "txn_recorded7",
+  "charge": "ch_recorded4",
+  "created": 1793208893,
+  "currency": "pln",
+  "customer": null,
+  "customer_account": null,
+  "destination_details": {
+    "card": {
+      "reference_status": "pending",
+      "reference_type": "acquirer_reference_number",
+      "type": "refund"
+    },
+    "type": "card"
+  },
+  "metadata": {},
+  "payment_intent": "pi_recorded4",
+  "payment_method": "pm_recorded4",
+  "reason": null,
+  "receipt_number": null,
+  "source_transfer_reversal": null,
+  "status": "succeeded",
+  "transfer_reversal": null
+}

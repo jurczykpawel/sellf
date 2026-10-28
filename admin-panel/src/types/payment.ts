@@ -141,6 +141,6 @@ export interface PaymentHistory {
   amount: number;
   currency: string;
   payment_date: string;
-  status: 'completed' | 'refunded' | 'disputed';
+  status: 'completed' | 'partially_refunded' | 'refunded' | 'disputed';
   refunded_amount: number;
 }

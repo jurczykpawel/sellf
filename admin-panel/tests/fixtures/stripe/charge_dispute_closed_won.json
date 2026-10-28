@@ -1,0 +1,123 @@
+{
+  "id": "evt_recorded17",
+  "object": "event",
+  "api_version": "2025-09-30.clover",
+  "created": 1793209256,
+  "data": {
+    "object": {
+      "id": "du_1UVaqACDLaN6dbD5dozKCubq",
+      "object": "dispute",
+      "amount": 1100,
+      "balance_transaction": "txn_recorded11",
+      "balance_transactions": [
+        {
+          "id": "txn_recorded11",
+          "object": "balance_transaction",
+          "amount": -1100,
+          "available_on": 1793209246,
+          "balance_type": "payments",
+          "created": 1793209246,
+          "currency": "pln",
+          "description": null,
+          "exchange_rate": null,
+          "fee": 9000,
+          "fee_details": [
+            {
+              "amount": 9000,
+              "application": null,
+              "currency": "pln",
+              "description": null,
+              "type": "stripe_fee"
+            }
+          ],
+          "net": -10100,
+          "reporting_category": "dispute",
+          "source": "du_1UVaqACDLaN6dbD5dozKCubq",
+          "status": "available",
+          "type": "adjustment"
+        },
+        {
+          "id": "txn_recorded12",
+          "object": "balance_transaction",
+          "amount": 1100,
+          "available_on": 1793750400,
+          "balance_type": "payments",
+          "created": 1793209255,
+          "currency": "pln",
+          "description": null,
+          "exchange_rate": null,
+          "fee": 0,
+          "fee_details": [],
+          "net": 1100,
+          "reporting_category": "dispute_reversal",
+          "source": "du_1UVaqACDLaN6dbD5dozKCubq",
+          "status": "pending",
+          "type": "adjustment"
+        }
+      ],
+      "charge": "ch_recorded6",
+      "created": 1793209246,
+      "currency": "pln",
+      "enhanced_eligibility_types": [],
+      "evidence": {
+        "access_activity_log": null,
+        "appeal": null,
+        "billing_address": null,
+        "cancellation_policy": null,
+        "cancellation_policy_disclosure": null,
+        "cancellation_rebuttal": null,
+        "customer_communication": null,
+        "customer_email_address": null,
+        "customer_name": null,
+        "customer_purchase_ip": null,
+        "customer_signature": null,
+        "duplicate_charge_documentation": null,
+        "duplicate_charge_explanation": null,
+        "duplicate_charge_id": null,
+        "enhanced_evidence": {},
+        "product_description": "Sellf recorded dispute contract",
+        "receipt": null,
+        "refund_policy": null,
+        "refund_policy_disclosure": null,
+        "refund_refusal_explanation": null,
+        "service_date": null,
+        "service_documentation": null,
+        "shipping_address": null,
+        "shipping_carrier": null,
+        "shipping_date": null,
+        "shipping_documentation": null,
+        "shipping_tracking_number": null,
+        "uncategorized_file": null,
+        "uncategorized_text": "winning_evidence"
+      },
+      "evidence_details": {
+        "due_by": 1793923199,
+        "enhanced_eligibility": {},
+        "has_evidence": true,
+        "past_due": false,
+        "submission_count": 1,
+        "submission_method": "manual"
+      },
+      "intended_submission_method": "prefer_manual",
+      "is_charge_refundable": true,
+      "livemode": false,
+      "metadata": {},
+      "payment_intent": "pi_recorded6",
+      "payment_method_details": {
+        "card": {
+          "brand": "visa",
+          "case_type": "chargeback",
+          "network": "visa",
+          "network_reason_code": "10.4"
+        },
+        "type": "card"
+      },
+      "reason": "fraudulent",
+      "status": "won"
+    }
+  },
+  "livemode": false,
+  "pending_webhooks": 0,
+  "request": null,
+  "type": "charge.dispute.closed"
+}

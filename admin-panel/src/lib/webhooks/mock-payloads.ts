@@ -179,6 +179,21 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       hostedInvoiceUrl: 'https://invoice.stripe.com/i/...',
     },
   },
+  ...Object.fromEntries(['dispute.created', 'dispute.closed'].map(event => [event, {
+    customer: { email: 'customer@example.com', userId: null },
+    product: { id: '00000000-0000-4000-8000-000000000001' },
+    payment: { id: '00000000-0000-4000-8000-000000000002', amount: 1100, currency: 'PLN',
+      sessionId: 'cs_example', paymentIntentId: 'pi_example', stripeInvoiceId: null, subscriptionId: null },
+    dispute: { stripeDisputeId: 'dp_example', stripeChargeId: 'ch_example',
+      status: event === 'dispute.created' ? 'needs_response' : 'lost', reason: 'fraudulent',
+      amount: 1100, currency: 'PLN', createdAt: '2026-10-01T00:00:00Z', accessRevoked: true, accessRestored: false },
+  }])),
+  'refund.updated': {
+    customer: { email: 'customer@example.com', userId: null }, product: { id: 'product_example' },
+    payment: { id: 'payment_example', statusAfter: 'refunded' },
+    refund: { stripeRefundId: 're_example', previousStatus: 'pending', status: 'succeeded',
+      statusVersion: 2, amount: 1100, totalRefunded: 1100, currency: 'PLN', isFullRefund: true },
+  },
   'refund.issued': {
     customer: { email: 'customer@example.com', userId: 'user_123abc' },
     product: {

@@ -384,7 +384,7 @@ describe('Stripe Integration Security', () => {
   describe('Refund Security', () => {
     describe('Production refund route patterns', () => {
       it('should verify production refund route checks transaction status', () => {
-        expect(REFUND_ROUTE_SOURCE).toContain("transaction.status !== 'completed'");
+        expect(REFUND_ROUTE_SOURCE).toContain('isRefundablePaymentStatus(transaction.status)');
       });
 
       it('should verify production refund route validates amount bounds', () => {
@@ -415,7 +415,7 @@ describe('Stripe Integration Security', () => {
       });
 
       it('should allow remaining partial refund', () => {
-        const result = validateRefund(3000, 10000, 5000, 'completed');
+        const result = validateRefund(3000, 10000, 5000, 'partially_refunded');
         expect(result.valid).toBe(true);
       });
     });
