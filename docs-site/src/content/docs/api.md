@@ -542,3 +542,8 @@ Subscribe the Stripe endpoint to the events listed by `STRIPE_WEBHOOK_EVENTS` in
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | `/api/waitlist/signup` | Public or session | Capture waitlist signups and dispatch `waitlist.signup` outgoing webhooks |
+
+
+## PlayerStack leads
+
+[Email-confirmed lead forms and marketing consent](/playerstack-leads/).

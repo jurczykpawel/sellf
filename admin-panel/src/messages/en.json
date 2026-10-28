@@ -1729,6 +1729,12 @@
         "autoGrantDurationTitle": "Auto-Grant Duration",
         "autoGrantDurationDescription": "This setting applies to automatic access grants (e.g., free products, purchases). Manual access grants through the admin panel can override this setting.",
         "embedSection": {
+          "leadTitle": "PlayerStack lead form",
+          "leadRequired": "List signup required",
+          "leadRisk": "The checkbox stays unchecked. Requiring newsletter consent to receive material may affect whether consent is freely given (GDPR Article 7(4)). This is the seller’s decision. Review your wording and change the version whenever you change it.",
+          "leadVersion": "Consent version",
+          "leadTextPl": "Consent wording (Polish)",
+          "leadTextEn": "Consent wording (English)",
           "title": "Embed checkout",
           "toggleLabel": "Allow embedding this product's checkout on a third-party page",
           "toggleHelp": "When ON you can generate a 2-line snippet from the product menu (action “Generate embed checkout snippet”).",

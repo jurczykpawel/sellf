@@ -266,6 +266,28 @@ Supabase Auth's own captcha setting (`security_captcha_enabled` in the dashboard
 
 A solved ALTCHA payload is consumed exactly once: `verifyCaptchaToken()` records it in `public.captcha_nonces` (keyed by a hash of the payload's signature) and rejects a second use, so the payload can't be replayed for the rest of its validity window.
 
+### PlayerStack lead forms
+
+`GET /api/leads/challenge`, `POST /api/leads/submit`, and
+`GET /api/products/[id]/playerstack` implement the email-gate integration through the Sellf adapter (PlayerStack 8baee66+).
+Product identifiers accept slugs or UUIDs; seller embed origins apply throughout.
+The product editor stores `lead_consent_required` (false by default), wording PL/EN
+and its version. For HTTPS instances, the config includes absolute lead endpoint URLs for the
+`trustedOrigins` integration (PlayerStack 90b5f28+); explicit integrator endpoints
+keep priority. The language-qualified wire version is described in
+`docs-site/src/content/docs/playerstack-leads.md`.
+
+`src/lib/leads/server.ts` records pending `lead_submissions`, delivers the shared
+magic link, and completes the submission through `/auth/lead` after sign-in.
+Confirmation grants free access and emits `lead.captured` through the existing
+webhook queue with a stable lead delivery key. Mailing lists and unsubscribe
+handling remain in the receiving integration. Tables and the hourly cleanup are
+in migration `20261028141621_playerstack_leads.sql`. Dedicated local acceptance
+uses `vitest.leads.config.ts` and `playwright.leads.config.ts`; set
+`PLAYERSTACK_TEST_DIST` to a built PlayerStack distribution and
+`PLAYERSTACK_ADAPTER_REPO` to a read-only repository containing commit `8baee66`. The dedicated fixture
+uses the owned local stack on API :55591, app :3893, plugin host :3894, HTTPS receiver :3895 and Mailpit :55594.
+
 ## Critical Security Patterns
 
 **SECURITY IS THE TOP PRIORITY.** Every change must consider security implications.

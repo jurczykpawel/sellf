@@ -1647,6 +1647,94 @@ export type Database = {
           },
         ]
       }
+      lead_nonces: {
+        Row: {
+          expires_at: string
+          nonce_hash: string
+          origin: string
+          product_id: string | null
+          signature: string
+        }
+        Insert: {
+          expires_at?: string
+          nonce_hash: string
+          origin: string
+          product_id?: string | null
+          signature: string
+        }
+        Update: {
+          expires_at?: string
+          nonce_hash?: string
+          origin?: string
+          product_id?: string | null
+          signature?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_nonces_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_submissions: {
+        Row: {
+          client_consent_text: string | null
+          confirmed_at: string | null
+          consent_text: string | null
+          consent_version: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          marketing_consent: boolean
+          product_id: string | null
+          product_slug: string | null
+          source: string
+          token_hash: string
+        }
+        Insert: {
+          client_consent_text?: string | null
+          confirmed_at?: string | null
+          consent_text?: string | null
+          consent_version?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          marketing_consent?: boolean
+          product_id?: string | null
+          product_slug?: string | null
+          source: string
+          token_hash: string
+        }
+        Update: {
+          client_consent_text?: string | null
+          confirmed_at?: string | null
+          consent_text?: string | null
+          consent_version?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          marketing_consent?: boolean
+          product_id?: string | null
+          product_slug?: string | null
+          source?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_submissions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_bumps: {
         Row: {
           access_duration_days: number | null
@@ -2556,6 +2644,10 @@ export type Database = {
           is_refundable: boolean
           issue_license_on_purchase: boolean
           layout_template: string
+          lead_consent_required: boolean
+          lead_consent_text_en: string
+          lead_consent_text_pl: string
+          lead_consent_version: string
           license_duration_days: number | null
           license_tier: string | null
           long_description: string | null
@@ -2619,6 +2711,10 @@ export type Database = {
           is_refundable?: boolean
           issue_license_on_purchase?: boolean
           layout_template?: string
+          lead_consent_required?: boolean
+          lead_consent_text_en?: string
+          lead_consent_text_pl?: string
+          lead_consent_version?: string
           license_duration_days?: number | null
           license_tier?: string | null
           long_description?: string | null
@@ -2682,6 +2778,10 @@ export type Database = {
           is_refundable?: boolean
           issue_license_on_purchase?: boolean
           layout_template?: string
+          lead_consent_required?: boolean
+          lead_consent_text_en?: string
+          lead_consent_text_pl?: string
+          lead_consent_version?: string
           license_duration_days?: number | null
           license_tier?: string | null
           long_description?: string | null
@@ -4709,6 +4809,30 @@ export type Database = {
         Args: { p_transaction_id: string }
         Returns: undefined
       }
+      confirm_lead_submission: {
+        Args: { p_email: string; p_token_hash: string }
+        Returns: {
+          client_consent_text: string | null
+          confirmed_at: string | null
+          consent_text: string | null
+          consent_version: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          marketing_consent: boolean
+          product_id: string | null
+          product_slug: string | null
+          source: string
+          token_hash: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "lead_submissions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       create_refund_request: {
         Args: { reason_param?: string; transaction_id_param: string }
         Returns: Json
@@ -5163,6 +5287,10 @@ export type Database = {
           is_refundable: boolean
           issue_license_on_purchase: boolean
           layout_template: string
+          lead_consent_required: boolean
+          lead_consent_text_en: string
+          lead_consent_text_pl: string
+          lead_consent_version: string
           license_duration_days: number | null
           license_tier: string | null
           long_description: string | null

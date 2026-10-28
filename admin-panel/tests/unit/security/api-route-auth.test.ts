@@ -102,6 +102,9 @@ const PUBLIC_ROUTES = new Set([
   'orders/bank-transfer/route.ts',
   'oto/info/route.ts',
   'tracking/fb-capi/route.ts',                 // CORS-protected server-side CAPI proxy
+  'leads/challenge/route.ts',
+  'leads/submit/route.ts',
+  'products/[id]/playerstack/route.ts',
   'captcha/challenge/route.ts',                // ALTCHA challenge generation — public, stateless
   'auth/magic-link/route.ts',                  // Magic-link request — public, captcha-gated + IP/email rate-limited
   'gus/fetch-company-data/route.ts',          // NIP autofill for checkout — public, rate-limited

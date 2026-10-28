@@ -120,3 +120,8 @@ Zdarzenie wygaśnięcia musi być włączone, aby rozliczyć takie próby. Gdy s
 nadal działa, kolejka czeka z zamknięciem na zakończenie tworzenia sesji. Sellf
 zachowuje też sesje, których PaymentIntent jest przetwarzany, czeka na pobranie
 środków lub dodatkowe działanie klienta albo zakończył się powodzeniem.
+
+
+## Zgłoszenia PlayerStack
+
+[Formularze potwierdzane mailem i zgoda marketingowa](/pl/playerstack-leads/).

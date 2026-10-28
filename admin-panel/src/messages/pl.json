@@ -1729,6 +1729,12 @@
         "autoGrantDurationTitle": "Czas automatycznego przyznawania",
         "autoGrantDurationDescription": "To ustawienie dotyczy automatycznego przyznawania dostępu (np. darmowe produkty, zakupy). Ręczne przyznawanie dostępu przez panel administracyjny może zastąpić to ustawienie.",
         "embedSection": {
+          "leadTitle": "Formularz zgłoszeń PlayerStack",
+          "leadRequired": "Zapis na listę wymagany",
+          "leadRisk": "Checkbox pozostaje niezaznaczony. Uzależnienie odbioru materiału od zgody na newsletter może wpływać na dobrowolność zgody (art. 7 ust. 4 RODO). To decyzja sprzedawcy. Sprawdź treść zgody i zmieniaj wersję przy każdej zmianie treści.",
+          "leadVersion": "Wersja zgody",
+          "leadTextPl": "Treść zgody (polski)",
+          "leadTextEn": "Treść zgody (angielski)",
           "title": "Osadzanie koszyka (embed)",
           "toggleLabel": "Pozwól osadzić koszyk tego produktu na cudzej stronie",
           "toggleHelp": "Po włączeniu wygenerujesz 2-linijkowy snippet w menu produktu (akcja „Generuj kod osadzania koszyka”).",

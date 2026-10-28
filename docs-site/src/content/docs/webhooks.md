@@ -348,3 +348,8 @@ a later close request, even when creation uses `keepalive`. Keep the expiration
 event enabled to reconcile these attempts. While the page remains alive, queued
 closure waits for creation to finish. Sellf also retains sessions whose
 PaymentIntent is processing, awaiting capture or additional action, or succeeded.
+
+
+## PlayerStack leads
+
+[Email-confirmed lead forms and marketing consent](/playerstack-leads/).

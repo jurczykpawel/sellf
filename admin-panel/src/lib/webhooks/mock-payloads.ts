@@ -43,6 +43,11 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     }
   },
   'lead.captured': {
+    leadId: 'lead_example',
+    source: 'https://example.com/video.mp4',
+    marketingConsent: true,
+    consentVersion: '1:en',
+    consentConfirmedAt: '2026-10-28T12:00:00.000Z',
     customer: {
       email: 'lead@example.com',
       userId: 'user_123abc'

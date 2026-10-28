@@ -1436,3 +1436,12 @@ SELECT id, user_id, customer_email, product_id, amount, currency,
 FROM public.payment_transactions
 WHERE session_id = 'cs_test_pln_001'
   AND NOT EXISTS (SELECT 1 FROM public.refund_requests WHERE transaction_id = payment_transactions.id);
+
+-- Example PlayerStack lead magnet: optional newsletter signup, editable wording.
+UPDATE public.products SET embed_enabled = true, lead_consent_version = '1',
+  lead_consent_required = false WHERE slug = 'free-tutorial';
+INSERT INTO public.lead_submissions (token_hash, email, product_id, product_slug, source, marketing_consent,
+  consent_version, consent_text, confirmed_at)
+SELECT repeat('0', 64), 'lead-example@example.com', id, slug, 'https://example.com/tutorial.mp4', true,
+  lead_consent_version || ':en', lead_consent_text_en, now()
+FROM public.products WHERE slug = 'free-tutorial';
