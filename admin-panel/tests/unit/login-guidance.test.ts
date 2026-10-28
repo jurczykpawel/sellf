@@ -15,7 +15,7 @@ import LoginPage from '@/components/LoginPage';
 afterEach(cleanup);
 for (const locale of ['en', 'pl'] as const) {
   it.each([
-    ['password', { demoMode: false, passwordLoginEnabled: true, oauthProviders: [] }, locale === 'pl' ? /poproś.*sklep/i : /ask.*store/i],
+    ['password', { demoMode: false, passwordLoginEnabled: true, oauthProviders: [] }, locale === 'pl' ? /hasłem.*link.*maila/i : /password.*sign-in link/i],
     ['demo', { demoMode: true, passwordLoginEnabled: true, oauthProviders: [] }, locale === 'pl' ? /konta demonstracyjnego/i : /demo account/i],
     ['magic', { demoMode: false, passwordLoginEnabled: false, oauthProviders: [] }, locale === 'pl' ? /konto.*automatycznie/i : /account.*automatically/i],
     ['oauth', { demoMode: false, passwordLoginEnabled: false, oauthProviders: ['google'] }, locale === 'pl' ? /przycisk.*poniżej/i : /button.*below/i],
