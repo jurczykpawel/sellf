@@ -451,6 +451,15 @@ Use `createClient()` from appropriate Supabase client:
 7. **Error Handling**: Never expose sensitive information in error messages
 8. **No Workarounds**: NEVER implement quick fixes or workarounds just to make something work. Always find and fix the root cause. Follow best practices and maintain code quality. Update dependencies when needed instead of patching around issues.
 
+### Integrations: webhooks, not direct integrations (owner 2026-10-28)
+
+Sellf does **not** build direct integrations with external systems (invoicing, CRM, mailing, accounting…) — every
+system has too many cases to support. Sellf emits a signed webhook for **every** business event and status change
+(order placed / awaiting payment / paid / completed / overdue / cancelled, refund, dispute, subscription lifecycle,
+lead, license…), and each seller builds their integration on top (n8n, Make, own code). The payloads are a contract
+from the receiver's side: a receiver must be able to act on them alone (IDs, statuses, amounts, periods, links).
+The existing `InvoiceProvider`/Fakturownia stays for sellers who want it, but no new direct integrations.
+
 ### When Adding Features
 
 1. **Database First**: Design schema with RLS policies before implementing
