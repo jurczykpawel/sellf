@@ -57,6 +57,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
   let errorMessage = '';
   let paymentStatus: PaymentStatus = 'processing'; // processing, completed, failed, expired, guest_purchase, magic_link_sent
   let customerEmail = '';
+  let purchaseSessionId = session_id;
   let userExistsInDatabase = false; // Track if user exists in database
   let otoInfo: OtoInfo | undefined = undefined;
 
@@ -65,6 +66,8 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       // Handle paid product with Stripe Checkout Session (embedded checkout flow)
       const result = await verifyPaymentSession(session_id, user);
       customerEmail = result.customer_email || '';
+      // Subscription receipts are stored under invoice IDs, not Checkout Session IDs.
+      if (result.scenario === 'subscription_guest') purchaseSessionId = undefined;
 
       // Capture OTO info (both active and skipped)
       if (result.oto_info?.has_oto || result.oto_info?.reason) {
@@ -240,8 +243,9 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       // page can be reloaded any number of times with the same session_id.
       if (paymentStatus === 'magic_link_sent' && customerEmail) {
         const magicResult = await sendTrustedMagicLink({
+          requirePurchase: true,
           email: customerEmail,
-          data: await purchaseEventMail(customerEmail, product.id, session_id, payment_intent, resolvedParams.locale),
+          data: await purchaseEventMail(customerEmail, product.id, purchaseSessionId, payment_intent, resolvedParams.locale),
           redirectTo: buildPostCheckoutMagicLinkRedirect({
             origin: getSellfBaseUrl(),
             productSlug: product.slug,

@@ -1,0 +1,38 @@
+/** Shared free-access event keeps the existing license delivery contract. */
+import { beforeEach, expect, it, vi } from 'vitest';
+import type { SupabaseClient } from '@supabase/supabase-js';
+const mocks = vi.hoisted(() => ({ issueLicense: vi.fn(), trigger: vi.fn() }));
+vi.mock('@/lib/license-keys/issue', () => ({ issueLicense: mocks.issueLicense }));
+vi.mock('@/lib/services/webhook-service', () => ({ WebhookService: { trigger: mocks.trigger } }));
+vi.mock('@/lib/utils/canonical-url', () => ({ getCanonicalOriginOrNull: () => 'https://shop.example.com' }));
+import { emitFreeAccessLead } from '@/lib/services/free-access-events';
+const product = { id: 'product-free', name: 'Free guide', slug: 'free-guide', price: 0, currency: 'PLN', icon: null };
+const user = { id: 'buyer', email: 'buyer@example.com' };
+const access = { access_granted_at: '2036-01-01T00:00:00Z', access_expires_at: '2036-01-04T00:00:00Z' };
+function client(details: typeof product | null = product): SupabaseClient {
+  const chain = (data: unknown) => { const query = { select: () => query, eq: () => query, single: async () => ({ data, error: null }) }; return query; };
+  return { from: (table: string) => chain(table === 'products' ? details : access) } as unknown as SupabaseClient;
+}
+beforeEach(() => { vi.clearAllMocks(); mocks.issueLicense.mockResolvedValue(null); mocks.trigger.mockResolvedValue(undefined); });
+it('uses a stable free purchase key and includes the issued license and public verification URL', async () => {
+  mocks.issueLicense.mockResolvedValue({ token: 'test-license', kid: 'key-1', sellerId: 'seller-1' });
+  const db = client();
+  const customFieldValues = { _sellf_license_domain: 'client.example' };
+  await emitFreeAccessLead(db, { product, user, customFieldValues });
+  expect(mocks.issueLicense).toHaveBeenCalledWith(db, { productId: product.id, userId: user.id, email: user.email, orderId: `free_${user.id}_${product.id}`, customFieldValues });
+  expect(mocks.trigger).toHaveBeenCalledWith('lead.captured', { customer: { email: user.email, userId: user.id }, product, accessGrantedAt: access.access_granted_at, accessExpiresAt: access.access_expires_at, license: { token: 'test-license', kid: 'key-1', jwksUrl: 'https://shop.example.com/api/licenses/jwks?seller=seller-1' } }, db, product.id, `free_${user.id}_${product.id}`);
+});
+it.each(['disabled', 'failed'])('still sends the lead when licensing is %s', async result => {
+  if (result === 'failed') mocks.issueLicense.mockRejectedValue(new Error('test signing failure'));
+  await emitFreeAccessLead(client(), { product, user });
+  expect(mocks.trigger).toHaveBeenCalledTimes(1);
+  expect(mocks.trigger.mock.calls[0][1]).not.toHaveProperty('license');
+});
+it('does not send a partial product when the product read failed', async () => {
+  await emitFreeAccessLead(client(null), { product, user });
+  expect(mocks.trigger).not.toHaveBeenCalled();
+});
+it('keeps a delivery failure from undoing granted access', async () => {
+  mocks.trigger.mockRejectedValue(new Error('test delivery failure'));
+  await expect(emitFreeAccessLead(client(), { product, user })).resolves.toBeUndefined();
+});

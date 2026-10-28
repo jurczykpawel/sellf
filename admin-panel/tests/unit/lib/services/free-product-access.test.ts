@@ -22,6 +22,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 
+vi.mock('@/lib/services/free-access-events', () => ({ emitFreeAccessLead: vi.fn() }));
+
 // ---------------------------------------------------------------------------
 // Mock builders
 // ---------------------------------------------------------------------------

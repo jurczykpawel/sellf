@@ -8,11 +8,13 @@ export interface DeliverMagicLinkInput {
   redirectTo: string;
   shouldCreateUser: boolean;
   data?: Record<string, string>;
+  requirePurchase?: boolean;
 }
 
 // Service-role client: Supabase Auth skips its own captcha for admin credentials,
 // so every caller MUST have verified a captcha or a paid Stripe session first.
 export async function deliverMagicLink(input: DeliverMagicLinkInput): Promise<MagicLinkResult> {
+  if (input.requirePurchase && (!input.data?.purchase_product || !input.data?.purchase_amount)) return { ok: false, code: 'send_failed' };
   try {
     const client = createAdminClient();
     const redirect = new URL(input.redirectTo);
