@@ -33,3 +33,8 @@ cancellation (`ended_at` before the unpaid item's period end), plus scheduled
 cancellation and its paid invoice. `consumer_subscription_canceled_legacy.json` is
 the independent consumer's already-anonymized payload from 2026-10-28, with further
 identifier/personal-field cleanup; its old endsAt demonstrates the reported mismatch.
+
+`invoice_expanded_payments.json` records a paid invoice retrieved with
+`expand[]=payments`; its test clock/customer were deleted and price/product archived.
+The regression removes both optional `parent` and `payments` from the event and
+checks that the receiver's payment/refund correlation still gets the real intent ID.

@@ -1100,13 +1100,13 @@ export async function handleInvoicePaymentFailed(
 // utils
 // ---------------------------------------------------------------------------
 
-async function resolveInvoicePaymentIntentId(invoice: Stripe.Invoice, stripe: Stripe): Promise<string | null> {
+export async function resolveInvoicePaymentIntentId(invoice: Stripe.Invoice, stripe: Stripe): Promise<string | null> {
   const legacy = (invoice as unknown as { payment_intent?: string | { id: string } | null }).payment_intent;
   if (typeof legacy === 'string') return legacy;
   if (legacy) return legacy.id;
 
   let payments = invoice.payments;
-  if (!payments && invoice.parent?.type === 'subscription_details') {
+  if (!payments) {
     const expanded = await stripe.invoices.retrieve(invoice.id!, { expand: ['payments'] });
     payments = expanded.payments;
   }
