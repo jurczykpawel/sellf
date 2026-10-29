@@ -175,3 +175,21 @@ webhooków nadal powinno być skonfigurowane na wypadek przejściowych błędów
 Kolejność dostaw pomiędzy workerami i ponowieniami nie jest gwarantowana. Stan grantu aktualizuj według `occurredAt`, pomijając starszą zmianę odebraną później.
 
 Podstawienie `{{order_id}}` preferuje wewnętrzny UUID, gdy jest dostępny; identyfikatory operatora i dotychczasowe klucze dostaw pozostają bez zmian.
+
+### Własne pola darmowego checkoutu
+
+Darmowy checkout waliduje wartości według tych samych definicji produktu co płatny. Przed
+wysłaniem linka wartości trafiają do prywatnego kontekstu żądania. Link zawiera losowy UUID,
+a nie domenę ani inne odpowiedzi. Po potwierdzeniu kontekst jest powiązany ze zweryfikowanym
+adresem klienta i produktem. Pending grant przy innym logowaniu korzysta z tego samego zapisu;
+nie zależy od edytowalnego user_metadata ani nie umieszcza odpowiedzi w tokenie uwierzytelnienia.
+
+Dostęp zachowuje `custom_field_values`, a `access.*` i `lead.captured` podają znormalizowany
+snapshot jako `customFieldValues`. Zapis trafia do wystawiania licencji, także dla
+`_sellf_license_domain`. Ponowne potwierdzenie zachowuje klucz `free_<userId>_<productId>`
+i dotychczasowy token licencji. Konteksty oczekujące mają ważność 30 dni; przejęte są czyszczone
+po jednym dniu, lecz snapshot w grancie pozostaje.
+
+Ręczne wystawianie również respektuje definicję produktu: pole domeny wymagane musi być
+wypełnione, opcjonalne może zostać pominięte, a produkt bez takiego pola otrzymuje token bez
+`claims.domain`. Brak wymaganych wartości zwraca HTTP 400 przed podpisaniem.

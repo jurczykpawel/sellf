@@ -1,3 +1,4 @@
+import { prepareFreeGrantRequest, validateFreeGrantFields } from '@/lib/services/free-grant-context';
 import { emitFreeAccessLead } from '@/lib/services/free-access-events';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -18,6 +19,7 @@ export interface FreeProductInput {
    */
   couponCode?: string;
   customFieldValues?: Record<string, string>;
+  grantRequestId?: string;
 }
 
 export interface FreeProductAccessResult {
@@ -46,7 +48,7 @@ export interface FreeProductAccessResult {
 export async function grantFreeProductAccess(
   userClient: SupabaseClient<any, any>,
   adminClient: SupabaseClient<any, any>,
-  { product, user, couponCode, customFieldValues }: FreeProductInput,
+  { product, user, couponCode, customFieldValues, grantRequestId }: FreeProductInput,
 ): Promise<FreeProductAccessResult> {
   // 1. Pre-check for existing active access so callers can distinguish a fresh
   //    grant from a repeat click. The RPC would also short-circuit, but it
@@ -74,13 +76,23 @@ export async function grantFreeProductAccess(
   //    - coupon_redemptions insert + usage counter bump + reservation cleanup
   //    all in one transaction.
   if (!alreadyHadAccess) {
-    const { data: grantResult, error: grantError } = await userClient.rpc(
-      'grant_free_product_access',
-      {
-        product_slug_param: product.slug,
-        coupon_code_param: couponCode ?? null,
-      },
-    );
+    let contextId = grantRequestId;
+    if (customFieldValues !== undefined) {
+      const prepared = await prepareFreeGrantRequest(adminClient, user.email, product.slug, customFieldValues);
+      if (!prepared.ok || prepared.productId !== product.id) return { alreadyHadAccess: false, accessGranted: false, otoInfo: null, error: 'Invalid checkout fields' };
+      contextId = prepared.requestId; customFieldValues = prepared.values;
+    } else {
+      const context = await userClient.rpc('free_grant_context', { p_product_id: product.id, p_request_id: contextId });
+      const saved = Array.isArray(context.data) ? context.data[0] : null;
+      if (context.error || (contextId && !saved)) return { alreadyHadAccess: false, accessGranted: false, otoInfo: null, error: 'Checkout request unavailable' };
+      const fields = await validateFreeGrantFields(adminClient, product.slug, saved?.custom_field_values ?? {});
+      if (!fields.ok || fields.productId !== product.id) return { alreadyHadAccess: false, accessGranted: false, otoInfo: null, error: 'Invalid checkout fields' };
+      contextId = saved?.request_id; customFieldValues = fields.values;
+    }
+    const { data: grantResult, error: grantError } = contextId
+      ? await userClient.rpc('grant_free_with_context', { product_slug_param: product.slug, coupon_code_param: couponCode ?? null, p_request_id: contextId })
+      : await userClient.rpc('grant_free_product_access', { product_slug_param: product.slug, coupon_code_param: couponCode ?? null });
+
 
     if (grantError) {
       console.error('[grantFreeProductAccess] RPC error:', grantError);

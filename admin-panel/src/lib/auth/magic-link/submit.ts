@@ -19,6 +19,7 @@ export interface SubmitMagicLinkInput {
   locale?: string;
   couponCode?: string | null;
   successUrl?: string | null;
+  customFieldValues?: Record<string, string>;
 }
 
 export type MagicLinkSubmitResult =
@@ -45,6 +46,7 @@ export async function submitMagicLink(input: SubmitMagicLinkInput): Promise<Magi
     locale: input.locale,
     couponCode: input.couponCode,
     successUrl: input.successUrl,
+    customFieldValues: input.customFieldValues,
   });
 
   if (!result.ok) {

@@ -14,7 +14,9 @@ export async function webhookReceiver(secret: string): Promise<{ url: string; re
     let raw = '';
     for await (const chunk of request) raw += chunk;
     if (!verifyWebhookSignature(secret, raw, String(request.headers['x-sellf-signature']))) { response.writeHead(401).end(); return; }
-    received.push(JSON.parse(raw)); response.writeHead(200).end('ok');
+    const message = JSON.parse(raw) as ReceivedWebhook;
+    if (!received.some(existing => existing.id === message.id)) received.push(message);
+    response.writeHead(200).end('ok');
   });
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();

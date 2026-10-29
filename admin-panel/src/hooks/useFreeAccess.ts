@@ -7,6 +7,7 @@ import type { User } from '@supabase/supabase-js';
 import type { Product } from '@/types';
 import { useCaptcha } from '@/hooks/useCaptcha';
 import { useTracking } from '@/hooks/useTracking';
+import { validateCustomFieldDefinitions, validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
 import { submitMagicLink } from '@/lib/auth/magic-link/submit';
 
 /**
@@ -29,7 +30,7 @@ interface UseFreeAccessOptions {
    *  the grant-access request and to the magic-link redirect URL. */
   couponCode?: string | null;
   /** Product-defined custom checkout field values (e.g. license domain) collected
-   *  from the logged-in form. Forwarded to grant-access so the issued license
+   *  from the form. Retained through guest sign-in or sent to grant-access so the license
    *  carries the same claims as a paid purchase. */
   customFieldValues?: Record<string, string>;
 }
@@ -117,6 +118,11 @@ export function useFreeAccess({
       return;
     }
 
+    const definitions = validateCustomFieldDefinitions(product.custom_checkout_fields ?? []);
+    if (!definitions.ok || !validateCustomFieldValues(definitions.value, customFieldValues ?? {}).ok) {
+      setPwywFreeMessage({ type: 'error', text: t('profile.fixFields') }); return;
+    }
+
     setPwywFreeLoading(true);
     setPwywFreeMessage({ type: 'info', text: t('sendingMagicLink') });
     try {
@@ -129,6 +135,7 @@ export function useFreeAccess({
         productSlug: product.slug,
         couponCode,
         successUrl,
+        customFieldValues,
       });
       if (!result.ok) {
         const text =
@@ -154,7 +161,7 @@ export function useFreeAccess({
     } finally {
       setPwywFreeLoading(false);
     }
-  }, [pwywFreeEmail, pwywFreeTermsAccepted, captcha, product, couponCode, searchParams, t, tCompliance, tDemo, track, locale]);
+  }, [customFieldValues, pwywFreeEmail, pwywFreeTermsAccepted, captcha, product, couponCode, searchParams, t, tCompliance, tDemo, track, locale]);
 
   return {
     pwywFreeEmail,

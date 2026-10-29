@@ -24,7 +24,7 @@ describe('claimPendingFreeGrants', () => {
     grantFreeProductAccess.mockResolvedValue({ accessGranted: true, alreadyHadAccess: false, otoInfo: null });
   });
 
-  it('makes no database call when nothing is pending', async () => {
+  it('checks the durable context store even when authentication metadata has no pending marker', async () => {
     const userClient = makeUserClient([]);
 
     const granted = await claimPendingFreeGrants({
@@ -33,7 +33,7 @@ describe('claimPendingFreeGrants', () => {
     });
 
     expect(granted).toBe(0);
-    expect(userClient.rpc).not.toHaveBeenCalled();
+    expect(userClient.rpc).toHaveBeenCalledWith('pending_free_grant_products');
     expect(grantFreeProductAccess).not.toHaveBeenCalled();
   });
 

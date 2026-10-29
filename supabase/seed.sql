@@ -1440,3 +1440,7 @@ WHERE session_id = 'cs_test_pln_001'
 -- Access examples above also populate the committed business-event history.
 -- Seed fixtures are already observed; only subsequent changes need dispatch.
 UPDATE public.business_events SET dispatched_at = now();
+
+-- A consumed, field-bearing free-checkout request for local inspection.
+INSERT INTO public.free_grant_contexts(email,product_id,custom_field_values,claimed_at)
+SELECT 'demo-buyer@example.com',id,'{"example_note":"Local checkout context"}'::jsonb,now() FROM public.products ORDER BY id LIMIT 1;

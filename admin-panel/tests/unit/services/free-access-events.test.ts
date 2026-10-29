@@ -20,7 +20,7 @@ it('uses a stable free purchase key and includes the issued license and public v
   const customFieldValues = { _sellf_license_domain: 'client.example' };
   await emitFreeAccessLead(db, { product, user, customFieldValues });
   expect(mocks.issueLicense).toHaveBeenCalledWith(db, { productId: product.id, userId: user.id, email: user.email, orderId: `free_${user.id}_${product.id}`, customFieldValues });
-  expect(mocks.trigger).toHaveBeenCalledWith('lead.captured', { customer: { email: user.email, userId: user.id }, product, accessGrantedAt: access.access_granted_at, accessExpiresAt: access.access_expires_at, license: { token: 'test-license', kid: 'key-1', jwksUrl: 'https://shop.example.com/api/licenses/jwks?seller=seller-1' } }, db, product.id, `free_${user.id}_${product.id}`);
+  expect(mocks.trigger).toHaveBeenCalledWith('lead.captured', { customer: { email: user.email, userId: user.id }, product, customFieldValues, accessGrantedAt: access.access_granted_at, accessExpiresAt: access.access_expires_at, license: { token: 'test-license', kid: 'key-1', jwksUrl: 'https://shop.example.com/api/licenses/jwks?seller=seller-1' } }, db, product.id, `free_${user.id}_${product.id}`);
 });
 it.each(['disabled', 'failed'])('still sends the lead when licensing is %s', async result => {
   if (result === 'failed') mocks.issueLicense.mockRejectedValue(new Error('test signing failure'));

@@ -402,3 +402,21 @@ Keep the existing webhook-delivery retry job configured for transient HTTP failu
 Delivery order across workers or retries is not guaranteed. Apply access state by `occurredAt` per grant, ignoring an older transition that arrives later.
 
 The `{{order_id}}` substitution prefers the internal UUID when available; provider references and existing delivery keys are unchanged.
+
+### Free-checkout custom answers
+
+Free checkout uses the same product-defined field validation as paid checkout. Before sending
+a signup link, validated answers are stored in a private request context. The link carries
+an opaque UUID, not the domain or other answers. Confirmation binds that context to the
+verified buyer and product. Pending grants from another sign-in consult the same store;
+they do not depend on editable user metadata or put the answer data into the authentication JWT.
+
+The grant saves `custom_field_values`, and `access.*` and `lead.captured` expose the normalized
+snapshot as `customFieldValues`. License issuance receives that snapshot, including
+`_sellf_license_domain`. Repeated confirmation retains the same free order key
+`free_<userId>_<productId>` and existing issued token. Pending contexts have a 30-day lifetime;
+claimed contexts are cleaned after one day, while the grant snapshot remains available.
+
+Manual issuance uses the product's domain definition too: a required domain field must be
+filled, an optional one can be omitted, and a product without that field issues a token
+without `claims.domain`. Missing required values return HTTP 400 before signing.

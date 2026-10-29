@@ -12,7 +12,8 @@ import {
   getLoginReturnPath,
 } from '@/lib/auth/magic-link-redirect';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
-import { queuePendingFreeGrant } from '@/lib/services/pending-free-grants';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { prepareFreeGrantRequest } from '@/lib/services/free-grant-context';
 
 import { deliverMagicLink } from './deliver';
 import type { MagicLinkFlow, MagicLinkResult } from './types';
@@ -26,9 +27,11 @@ export interface MagicLinkRequestInput {
   locale?: string;
   couponCode?: string;
   successUrl?: string;
+  customFieldValues?: Record<string, string>;
 }
 
 export interface SendTrustedMagicLinkInput {
+  freeGrant?: { productSlug: string; locale?: string; couponCode?: string; successUrl?: string; customFieldValues?: Record<string, string> };
   requirePurchase?: boolean;
   email: string;
   redirectTo: string;
@@ -69,9 +72,15 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
   );
   if (!emailAllowed) return { ok: false, code: 'rate_limited' };
 
+  let redirectTo = input.redirectTo;
+  if (input.freeGrant) {
+    const prepared = await prepareFreeGrantRequest(createAdminClient(), normalizedEmail, input.freeGrant.productSlug, input.freeGrant.customFieldValues);
+    if (!prepared.ok) return { ok: false, code: prepared.code };
+    redirectTo = buildFreeProductMagicLinkRedirect({ origin: getSellfBaseUrl(), ...input.freeGrant, grantRequestId: prepared.requestId });
+  }
   return deliverMagicLink({
     email: normalizedEmail,
-    redirectTo: input.redirectTo,
+    redirectTo,
     shouldCreateUser: true,
     data: input.data,
     requirePurchase: input.requirePurchase,
@@ -103,7 +112,8 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
   if (!input.productSlug) return { ok: false, code: 'invalid_request' };
 
   if (input.flow === 'free_product') {
-    const result = await sendTrustedMagicLink({
+    return sendTrustedMagicLink({
+      freeGrant: { productSlug: input.productSlug, locale: input.locale, couponCode: input.couponCode, successUrl: input.successUrl, customFieldValues: input.customFieldValues },
       email: input.email,
       redirectTo: buildFreeProductMagicLinkRedirect({
         origin,
@@ -114,10 +124,7 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
       }),
       data: { product_slug: input.productSlug, locale: input.locale === 'pl' ? 'pl' : 'en' },
     });
-    // Remember the request on the account so any later sign-in grants it,
-    // not only a click on this particular link.
-    if (result.ok) await queuePendingFreeGrant(input.email.trim().toLowerCase(), input.productSlug);
-    return result;
+
   }
 
   // flow === 'post_checkout'

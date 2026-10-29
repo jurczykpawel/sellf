@@ -38,7 +38,8 @@ beforeEach(() => {
   delete process.env.NEXT_PUBLIC_SITE_URL;
   mocks.auth.mockResolvedValue({ user: { id: 'admin-1' }, role: 'platform_admin' });
   mocks.rate.mockResolvedValue(true);
-  mocks.admin.mockReturnValue({});
+  const query = { select: () => query, eq: () => query, single: async () => ({ data: { custom_checkout_fields: [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] }, error: null }) };
+  mocks.admin.mockReturnValue({ from: () => query });
   mocks.platform.mockReturnValue({ from: () => ({ insert: vi.fn().mockResolvedValue({ error: null }) }) });
   mocks.issue.mockResolvedValue({ id: LICENSE, token: 'payload.signature', kid: 'kid-1', sellerId: SELLER });
 });
@@ -90,14 +91,13 @@ describe('POST /api/admin/licenses', () => {
   it('issues through the existing signer with a server-generated order and manual source', async () => {
     const response = await POST(request({ productId: PRODUCT, email: 'buyer@example.com', domain: 'App.Example.com' }));
     expect(response.status).toBe(201);
-    expect(mocks.issue).toHaveBeenCalledWith({}, expect.objectContaining({
+    expect(mocks.issue).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       productId: PRODUCT,
       email: 'buyer@example.com',
       userId: null,
       orderId: expect.stringMatching(/^manual_[0-9a-f-]{36}$/),
       source: 'manual',
-      domain: 'App.Example.com',
-      customFieldValues: {},
+      customFieldValues: { _sellf_license_domain: 'app.example.com' },
     }));
     const body = await response.json();
     expect(body.license).toMatchObject({ id: LICENSE, token: 'payload.signature', sellerId: SELLER });

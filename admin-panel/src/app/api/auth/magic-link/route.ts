@@ -16,6 +16,7 @@ const ALLOWED_KEYS = new Set([
   'locale',
   'couponCode',
   'successUrl',
+  'customFieldValues',
 ]);
 
 const PRODUCT_SLUG_REGEX = /^[a-zA-Z0-9_-]{1,100}$/;
@@ -29,6 +30,7 @@ interface ParsedRequest {
   locale?: string;
   couponCode?: string;
   successUrl?: string;
+  customFieldValues?: Record<string, string>;
 }
 
 function badRequest(): NextResponse {
@@ -47,12 +49,13 @@ function parseBody(body: unknown): ParsedRequest | null {
     if (!ALLOWED_KEYS.has(key)) return null;
   }
 
-  const { email, captchaToken, flow, productSlug, couponCode, successUrl, redirectTo, locale } = record;
+  const { email, captchaToken, flow, productSlug, couponCode, successUrl, redirectTo, locale, customFieldValues } = record;
   if (redirectTo !== undefined && (typeof redirectTo !== 'string' || !getLoginReturnPath(redirectTo))) return null;
 
   if (typeof email !== 'string' || email.length === 0 || email.length > 254) return null;
   if (captchaToken !== undefined && captchaToken !== null && typeof captchaToken !== 'string') return null;
   if (!isFlow(flow)) return null;
+  if (customFieldValues !== undefined && (flow !== 'free_product' || !customFieldValues || typeof customFieldValues !== 'object' || Array.isArray(customFieldValues) || Object.keys(customFieldValues).length > 20 || Object.values(customFieldValues).some(value => typeof value !== 'string' || value.length > 5000))) return null;
   if (locale !== undefined && locale !== 'en' && locale !== 'pl') return null;
 
   let parsedProductSlug: string | undefined;
@@ -82,6 +85,7 @@ function parseBody(body: unknown): ParsedRequest | null {
     locale,
     couponCode: parsedCouponCode,
     successUrl: parsedSuccessUrl,
+    ...(customFieldValues !== undefined ? { customFieldValues: customFieldValues as Record<string, string> } : {}),
   };
 }
 
@@ -125,6 +129,7 @@ export async function POST(request: Request) {
     ...(parsed.locale ? { locale: parsed.locale } : {}),
     couponCode: parsed.couponCode,
     successUrl: parsed.successUrl,
+    customFieldValues: parsed.customFieldValues,
   });
 
   if (result.ok) return NextResponse.json({ ok: true });

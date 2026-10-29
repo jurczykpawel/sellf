@@ -22,6 +22,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 
+vi.mock('@/lib/services/free-grant-context', () => ({ validateFreeGrantFields: async () => ({ ok: true, productId: 'prod-1', values: {} }), prepareFreeGrantRequest: vi.fn() }));
 vi.mock('@/lib/services/free-access-events', () => ({ emitFreeAccessLead: vi.fn() }));
 
 // ---------------------------------------------------------------------------
@@ -30,7 +31,7 @@ vi.mock('@/lib/services/free-access-events', () => ({ emitFreeAccessLead: vi.fn(
 
 function makeUserClient({ grantResult = true as unknown, grantError = null as unknown } = {}) {
   return {
-    rpc: vi.fn().mockResolvedValue({ data: grantResult, error: grantError }),
+    rpc: vi.fn(async (name: string) => name === 'free_grant_context' ? { data: [], error: null } : { data: grantResult, error: grantError }),
   };
 }
 

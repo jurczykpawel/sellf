@@ -60,6 +60,7 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
   const limit = 20;
 
   const selectedProduct = useMemo(() => products.find((p) => p.id === productId) ?? null, [products, productId]);
+  const domainField = selectedProduct?.custom_checkout_fields?.find(field => field.id === DOMAIN_FIELD && field.type === 'domain');
   const extraFields = useMemo(
     () => (selectedProduct?.custom_checkout_fields ?? []).filter((field) => field.id !== DOMAIN_FIELD),
     [selectedProduct],
@@ -111,7 +112,7 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
       const response = await fetch('/api/admin/licenses', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ productId, email, domain, customFieldValues: values }),
+        body: JSON.stringify({ productId, email, ...(domainField && domain.trim() ? { domain: domain.trim() } : {}), customFieldValues: values }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || 'issue');
@@ -171,9 +172,9 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
       <form onSubmit={issue} className="p-6 border-b-2 border-sf-border-medium space-y-4">
         <h3 className="font-semibold text-sf-heading">{t('manualTitle')}</h3>
         <div className="grid md:grid-cols-3 gap-4">
-          <Field label={t('product')}><select required value={productId} onChange={(e) => { setProductId(e.target.value); setValues({}); }} className="input"><option value="">{t('selectProduct')}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
+          <Field label={t('product')}><select required value={productId} onChange={(e) => { setProductId(e.target.value); setValues({}); setDomain(''); }} className="input"><option value="">{t('selectProduct')}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
           <Field label={t('email')}><input required type="email" maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} className="input" /></Field>
-          <Field label={t('domain')}><input required maxLength={253} placeholder="example.com" value={domain} onChange={(e) => setDomain(e.target.value)} className="input" /></Field>
+          {domainField && <Field label={t('domain')}><input required={domainField.required} maxLength={253} placeholder="example.com" value={domain} onChange={(e) => setDomain(e.target.value)} className="input" /></Field>}
         </div>
         {selectedProduct && <p className="text-xs text-sf-muted">{t('policy', { tier: selectedProduct.license_tier ?? '—', days: selectedProduct.license_duration_days ?? t('unlimited') })}</p>}
         {extraFields.length > 0 && <div className="grid md:grid-cols-2 gap-4">{extraFields.map((field) => <Field key={field.id} label={labelFor(field.label)}><input required={field.required} type={field.type === 'email' ? 'email' : 'text'} maxLength={field.max_length} value={values[field.id] ?? ''} onChange={(e) => setValues((v) => ({ ...v, [field.id]: e.target.value }))} className="input" /></Field>)}</div>}

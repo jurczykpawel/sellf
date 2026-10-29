@@ -1331,6 +1331,44 @@ export type Database = {
           },
         ]
       }
+      free_grant_contexts: {
+        Row: {
+          claimed_at: string | null
+          created_at: string
+          custom_field_values: Json
+          email: string
+          expires_at: string
+          id: string
+          product_id: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          created_at?: string
+          custom_field_values: Json
+          email: string
+          expires_at?: string
+          id?: string
+          product_id: string
+        }
+        Update: {
+          claimed_at?: string | null
+          created_at?: string
+          custom_field_values?: Json
+          email?: string
+          expires_at?: string
+          id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "free_grant_contexts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guest_purchases: {
         Row: {
           claimed_at: string | null
@@ -3705,6 +3743,7 @@ export type Database = {
           access_expires_at: string | null
           access_granted_at: string
           created_at: string
+          custom_field_values: Json
           expiry_notified_at: string | null
           id: string
           product_id: string
@@ -3718,6 +3757,7 @@ export type Database = {
           access_expires_at?: string | null
           access_granted_at?: string
           created_at?: string
+          custom_field_values?: Json
           expiry_notified_at?: string | null
           id?: string
           product_id: string
@@ -3731,6 +3771,7 @@ export type Database = {
           access_expires_at?: string | null
           access_granted_at?: string
           created_at?: string
+          custom_field_values?: Json
           expiry_notified_at?: string | null
           id?: string
           product_id?: string
@@ -4829,6 +4870,13 @@ export type Database = {
         Returns: Json
       }
       find_user_id_by_email: { Args: { p_email: string }; Returns: string }
+      free_grant_context: {
+        Args: { p_product_id: string; p_request_id?: string }
+        Returns: {
+          custom_field_values: Json
+          request_id: string
+        }[]
+      }
       generate_oto_coupon: {
         Args: {
           customer_email_param: string
@@ -5057,6 +5105,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      grant_free_with_context: {
+        Args: {
+          coupon_code_param?: string
+          p_request_id?: string
+          product_slug_param: string
+        }
+        Returns: boolean
+      }
       grant_product_access_service_role: {
         Args: {
           max_retries?: number
@@ -5132,6 +5188,13 @@ export type Database = {
           valid: boolean
         }[]
       }
+      legacy_pending_free_grant_products: {
+        Args: never
+        Returns: {
+          product_id: string
+          slug: string
+        }[]
+      }
       log_admin_action: {
         Args: {
           action_details?: Json
@@ -5178,6 +5241,7 @@ export type Database = {
           access_expires_at: string | null
           access_granted_at: string
           created_at: string
+          custom_field_values: Json
           expiry_notified_at: string | null
           id: string
           product_id: string
@@ -5300,7 +5364,9 @@ export type Database = {
       pending_free_grant_products: {
         Args: never
         Returns: {
+          custom_field_values: Json
           product_id: string
+          request_id: string
           slug: string
         }[]
       }
@@ -5319,6 +5385,10 @@ export type Database = {
       prepare_event_mail: {
         Args: { p_data: Json; p_email: string }
         Returns: undefined
+      }
+      prepare_free_grant: {
+        Args: { p_email: string; p_product_id: string; p_values: Json }
+        Returns: string
       }
       process_refund_request: {
         Args: {

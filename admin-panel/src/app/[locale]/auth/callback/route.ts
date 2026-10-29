@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
 
   // Free products requested by e-mail reach the user on any sign-in, not only
   // via the product-access link. The product that link grants is skipped so it
-  // keeps its own success page. Nothing pending = no query (read from session).
+  // keeps its own success page. Durable checkout answers are read from the private store.
   await claimPendingFreeGrants({
     userClient: supabase,
     user: session.user,
