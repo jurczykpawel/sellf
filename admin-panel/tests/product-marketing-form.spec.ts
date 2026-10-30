@@ -23,7 +23,7 @@ test.beforeAll(async () => {
 
 for (const locale of ['en', 'pl'] as const) {
   for (const theme of ['light', 'dark']) {
-    test(`${locale}/${theme}: responsive, keyboard, validation and reload`, async ({ page }, testInfo) => {
+    test(`${locale}/${theme}: responsive, keyboard, validation and reload @J120`, async ({ page }, testInfo) => {
       const errors: string[] = [];
       const requests: string[] = [];
       page.on('pageerror', error => errors.push(error.message));

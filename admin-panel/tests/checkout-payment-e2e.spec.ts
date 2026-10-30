@@ -213,7 +213,7 @@ test.describe('Checkout E2E - Invoice & GUS Integration', () => {
     }
   });
 
-  test('should autofill company data from GUS API', async ({ page }) => {
+  test('should autofill company data from GUS API @J125', async ({ page }) => {
     await page.route('**/api/gus/fetch-company-data', async (route) => {
       await route.fulfill({
         status: 200,

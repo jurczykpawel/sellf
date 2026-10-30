@@ -84,7 +84,7 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     if (cleanup) await cleanup();
   });
 
-  test('E2E-CHECKOUT-001: Automatic mode - PLN product', async ({ page }) => {
+  test('E2E-CHECKOUT-001: Automatic mode - PLN product @J96', async ({ page }) => {
     // Set payment config to automatic mode
     await loginAsAdmin(page, adminEmail, adminPassword);
     await gotoPaymentsSettings(page);

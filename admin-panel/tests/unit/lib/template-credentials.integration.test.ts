@@ -12,7 +12,7 @@ vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: async () => true }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({}) }));
 vi.mock('@/lib/auth-server', () => ({ requireAdminApi: async () => ({ user: { id: 'dddddddd-0000-4000-a000-000000000000' } }) }));
 
-it('persists ciphertext across clients and keeps presentation exports and audit separate', async () => {
+it('persists ciphertext across clients and keeps presentation exports and audit separate @J129', async () => {
   const url = new URL(process.env.SUPABASE_URL ?? '');
   expect(['127.0.0.1', 'localhost']).toContain(url.hostname);
   const container = process.env.SUPABASE_DB_CONTAINER;

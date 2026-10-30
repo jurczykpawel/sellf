@@ -20,7 +20,7 @@ async function edit(page: Page, productName: string) {
   const row=page.locator('tr').filter({hasText:productName});
   await row.locator('button[title*="Edytuj"], button[title*="Edit"]').first().click(); await sales(page);
 }
-test('creates an event with two tiers and previews thirty seats at the early price',async({page})=>{
+test('creates an event with two tiers and previews thirty seats at the early price @J49',async({page})=>{
   await page.getByRole('button',{name:/Dodaj produkt/i}).click();
   await page.locator('#name').fill(name); await page.locator('#price').fill('67'); await page.locator('#currency').selectOption('PLN');
   await expect(page.locator('#slug')).not.toHaveValue(''); await sales(page);
@@ -53,7 +53,7 @@ test('shows seeded sold seats and named participants',async({page})=>{
   expect(response.status()).toBe(409);
 });
 
-test('shows a purchased session and private online link to its participant',async({page})=>{
+test('shows a purchased session and private online link to its participant @J50',async({page})=>{
   const email='anna.events@example.com'; const password='Event-test-123456';
   const created=await supabaseAdmin.auth.admin.createUser({email,password,email_confirm:true}); expect(created.error).toBeNull();
   try {
@@ -65,7 +65,7 @@ test('shows a purchased session and private online link to its participant',asyn
   } finally {await supabaseAdmin.auth.admin.deleteUser(created.data.user!.id);}
 });
 
-test('duplicates an event product with new sessions and tiers and no reservations',async({page})=>{
+test('duplicates an event product with new sessions and tiers and no reservations @J48',async({page})=>{
   const source='e3000000-0000-4000-a000-000000000001'; const copySlug=`event-copy-${Date.now()}`;
   const before=await supabaseAdmin.from('products').select('product_sessions(id,starts_at,capacity,product_price_tiers(id,label,price,seats))').eq('id',source).single();
   expect(before.error).toBeNull(); expect(before.data!.product_sessions.length).toBeGreaterThan(0);

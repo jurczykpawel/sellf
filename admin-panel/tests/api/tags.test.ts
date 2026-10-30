@@ -53,7 +53,7 @@ describe('Tags API v1', () => {
   });
 
   describe('POST /api/v1/tags', () => {
-    it('creates a tag', async () => {
+    it('creates a tag @J99', async () => {
       const slug = uniqueSlug();
       const { status, data } = await post<ApiResp<Tag>>('/api/v1/tags', { name: 'New', slug });
       expect(status).toBe(201);
@@ -100,7 +100,7 @@ describe('Tags API v1', () => {
       const r = await get<ApiResp<Tag>>('/api/v1/tags/not-a-uuid');
       expect(r.status).toBe(400);
     });
-    it('PATCH updates name', async () => {
+    it('PATCH updates name @J99', async () => {
       const r = await patch<ApiResp<Tag>>(`/api/v1/tags/${id}`, { name: 'Renamed' });
       expect(r.status).toBe(200);
       expect(r.data.data!.name).toBe('Renamed');

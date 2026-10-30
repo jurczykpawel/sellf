@@ -54,7 +54,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => { server.closeAllConnections(); await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); });
 
 for (const locale of ['en', 'pl']) for (const outcome of ['leave', 'redirect', 'decline']) {
-  test(`${locale}: checkout ${outcome} retires only unpaid attempts`, async ({ page }) => {
+  test(`${locale}: checkout ${outcome} retires only unpaid attempts @J133`, async ({ page }) => {
     const errors: string[] = [];
     attempts = [];
     page.on('pageerror', error => errors.push(error.message));

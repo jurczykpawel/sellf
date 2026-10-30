@@ -82,7 +82,7 @@ async function checkout(page: Page, slug: string, email: string, coupon?: string
   }
 }
 test.beforeAll(() => { expect(process.env.STRIPE_SECRET_KEY).toMatch(/^sk_test_/); expect(process.env.STRIPE_LIVE_E2E).toBe('1'); });
-test('native coupon paid, held, mature and refunded in test mode', async ({ page, request }) => {
+test('native coupon paid, held, mature and refunded in test mode @J75', async ({ page, request }) => {
   const suffix = randomUUID().slice(0, 8), user = await createTestUser('affiliate-native');
   const program = (await db.from('affiliate_programs').select('*').single()).data!;
   const updated = await db.rpc('affiliate_program_update', { p_actor: actor, p_expected_version: program.version, p_enabled: true, p_hold_days: 1, p_buffer_days: 0, p_terms_version: program.terms_version, p_terms: program.terms, p_thresholds: { PLN: '1', EUR: '1' } });
@@ -189,7 +189,7 @@ test('native coupon paid, held, mature and refunded in test mode', async ({ page
   expect((await rows('payment_transactions', 'id', payment.id))[0].metadata).toEqual(metadata);
   await setAuthSession(page, user.email, user.password); await page.goto('/my-affiliate'); await assertTestCommission('reversed');
 });
-for (const withCoupon of [true, false]) test(`external embed paid ${withCoupon ? 'with partner coupon accrues once' : 'without coupon creates no commission'}`, async ({ page, request }) => {
+for (const withCoupon of [true, false]) test(`external embed paid ${withCoupon ? 'with partner coupon accrues once' : 'without coupon creates no commission'} @J138`, async ({ page, request }) => {
   const suffix = randomUUID().slice(0, 8), email = `embed-${suffix}@example.com`;
   const partner = await createTestUser('affiliate-embed');
   const program = (await db.from('affiliate_programs').select('*').single()).data!;

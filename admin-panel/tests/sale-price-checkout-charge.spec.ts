@@ -70,7 +70,7 @@ test.describe('Sale price is actually charged at checkout', () => {
     if (expiredSaleProduct) await supabaseAdmin.from('products').delete().eq('id', expiredSaleProduct.id);
   });
 
-  test('charges the active sale price, not the regular price', async ({ request }) => {
+  test('charges the active sale price, not the regular price @J126', async ({ request }) => {
     const res = await request.post('/api/create-payment-intent', {
       data: { productId: saleProduct.id, email: 'sale-buyer@example.com' },
     });

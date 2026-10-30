@@ -90,7 +90,7 @@ test.describe('Product Creation Wizard', () => {
     await expect(publishBtn).toBeDisabled();
   });
 
-  test('should create product from step 1 + 2 (fast path)', async ({ page }) => {
+  test('should create product from step 1 + 2 (fast path) @J47', async ({ page }) => {
     await goToProducts(page);
     await openWizard(page);
 

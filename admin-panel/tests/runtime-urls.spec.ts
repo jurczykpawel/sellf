@@ -25,7 +25,7 @@ test.afterAll(async () => {
   for (const user of data.users) if (emails.includes(user.email || '')) await admin.auth.admin.deleteUser(user.id);
 });
 for (const flow of ['login', 'free_product'] as const) {
-  test(`${flow}: email contains runtime callback and authenticates`, async ({ request, page }) => {
+  test(`${flow}: email contains runtime callback and authenticates @J89`, async ({ request, page }) => {
     const email = `${marker}-${flow}@example.com`;
     emails.push(email);
     let productSlug: string | undefined;

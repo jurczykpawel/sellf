@@ -165,7 +165,7 @@ test.describe('Waitlist Feature', () => {
       if (cleanup) await cleanup();
     });
 
-    test('should show waitlist checkbox in product form', async ({ page }) => {
+    test('should show waitlist checkbox in product form @J90', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
       await page.goto('/pl/dashboard/products');
 
@@ -230,7 +230,7 @@ test.describe('Waitlist Feature', () => {
       expect(response.status()).toBe(404);
     });
 
-    test('should show waitlist form for inactive product WITH waitlist enabled', async ({ page }) => {
+    test('should show waitlist form for inactive product WITH waitlist enabled @J90', async ({ page }) => {
       // Navigate to checkout page for inactive product with waitlist
       await page.goto(`/pl/checkout/${testProductWithWaitlistSlug}`);
 
@@ -281,7 +281,7 @@ test.describe('Waitlist Feature', () => {
       await expect(submitButton).toBeDisabled();
     });
 
-    test('should allow filling waitlist form', async ({ page }) => {
+    test('should allow filling waitlist form @J90', async ({ page }) => {
       await page.goto(`/pl/checkout/${testProductWithWaitlistSlug}`);
 
       // Wait for form to load
@@ -386,7 +386,7 @@ test.describe('Waitlist Feature', () => {
       expect(body.error).toContain('not found');
     });
 
-    test('should successfully signup for waitlist', async ({ request }) => {
+    test('should successfully signup for waitlist @J115', async ({ request }) => {
       const response = await request.post('/api/waitlist/signup', {
         data: {
           email: TEST_EMAIL,

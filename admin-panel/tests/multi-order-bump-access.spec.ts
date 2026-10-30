@@ -437,7 +437,7 @@ test.describe('Multi-Bump Access — Logged-in User', () => {
     }
   });
 
-  test('2 of 3 bumps selected → main + 2 selected bumps, unselected NOT granted', async ({ page }) => {
+  test('2 of 3 bumps selected → main + 2 selected bumps, unselected NOT granted @J85', async ({ page }) => {
     const sessionId = generateSessionId('2_of_3');
 
     try {

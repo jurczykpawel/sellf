@@ -53,7 +53,7 @@ async function outgoing(endpointId: string, eventType: string, reference?: strin
   return payloads;
 }
 
-test('receiver can confirm a full refund, preserve a partial refund and renew the paid invoice period', async ({ request }) => {
+test('receiver can confirm a full refund, preserve a partial refund and renew the paid invoice period @J34 @J35 @J36 @J37 @J38', async ({ request }) => {
   test.setTimeout(900000);
   expect(process.env.STRIPE_SECRET_KEY).toMatch(/^sk_test_/);
   expect(new URL(process.env.SUPABASE_URL!).hostname).toMatch(/^(localhost|127\.0\.0\.1)$/);

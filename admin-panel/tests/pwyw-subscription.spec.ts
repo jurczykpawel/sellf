@@ -50,7 +50,7 @@ test.describe('PWYW subscriptions', () => {
     if (productId) await supabaseAdmin.from('products').delete().eq('id', productId);
   });
 
-  test('create-payment-intent accepts customAmount + product_type=subscription, returns clientSecret', async ({ request }) => {
+  test('create-payment-intent accepts customAmount + product_type=subscription, returns clientSecret @J46', async ({ request }) => {
     const response = await request.post('/api/create-payment-intent', {
       data: {
         productId,

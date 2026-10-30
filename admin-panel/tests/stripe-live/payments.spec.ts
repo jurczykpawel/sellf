@@ -465,31 +465,31 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
   }
 }
 
-test('guest license and bump', async ({ page }) => { await run(page, 'guest', '4242424242424242'); });
-test('signed-in license and bump', async ({ page }) => { await run(page, 'signed-in', '4242424242424242', { loggedIn: true }); });
-test('3D Secure license and bump', async ({ page }) => { await run(page, '3ds', '4000002500003155', { challenge: true }); });
-test('declined card', async ({ page }) => { await run(page, 'declined', '4000000000000002', { declined: true }); });
-test('subscription initial purchase', async ({ page }) => { await run(page, 'subscription', '4242424242424242', { subscription: true }); });
-for (let i = 1; i <= 5; i++) test(`guest repeated purchase ${i}/5`, async ({ page }) => { await run(page, 'repeat', '4242424242424242'); });
+test('guest license and bump @J01', async ({ page }) => { await run(page, 'guest', '4242424242424242'); });
+test('signed-in license and bump @J02', async ({ page }) => { await run(page, 'signed-in', '4242424242424242', { loggedIn: true }); });
+test('3D Secure license and bump @J03', async ({ page }) => { await run(page, '3ds', '4000002500003155', { challenge: true }); });
+test('declined card @J04', async ({ page }) => { await run(page, 'declined', '4000000000000002', { declined: true }); });
+test('subscription initial purchase @J05', async ({ page }) => { await run(page, 'subscription', '4242424242424242', { subscription: true }); });
+for (let i = 1; i <= 5; i++) test(`guest repeated purchase ${i}/5 @J01`, async ({ page }) => { await run(page, 'repeat', '4242424242424242'); });
 
-test('percentage coupon with bump', async ({ page }) => { await run(page, 'coupon-bump', '4242424242424242', { coupon: true }); });
-test('net product with local VAT', async ({ page }) => { await run(page, 'net-vat', '4242424242424242', { netVat: true }); });
+test('percentage coupon with bump @J06', async ({ page }) => { await run(page, 'coupon-bump', '4242424242424242', { coupon: true }); });
+test('net product with local VAT @J07', async ({ page }) => { await run(page, 'net-vat', '4242424242424242', { netVat: true }); });
 
-test('guest and signed-in B2B profiles with three units and a fixed coupon', async ({ page, context }) => {
+test('guest and signed-in B2B profiles with three units and a fixed coupon @J08', async ({ page, context }) => {
   await run(page, 'profile-b2b', '4242424242424242', { profile: true, coupon: true });
   const signedIn = await context.newPage();
   try { await run(signedIn, 'profile-b2b-signed-in', '4242424242424242', { profile: true, coupon: true, loggedIn: true }); }
   finally { await signedIn.close(); }
 });
 
-test('event with two promotional seats confirms inventory and delivers session snapshot', async ({ page }) => { await run(page, 'event', '4242424242424242', { event: true }); });
+test('event with two promotional seats confirms inventory and delivers session snapshot @J09', async ({ page }) => { await run(page, 'event', '4242424242424242', { event: true }); });
 
-test('set price coupon from link with unchanged bump', async ({ page }) => { await run(page, 'set-price', '4242424242424242', { setPrice: true }); });
+test('set price coupon from link with unchanged bump @J10', async ({ page }) => { await run(page, 'set-price', '4242424242424242', { setPrice: true }); });
 
 test('PLN net set price quantity one', async ({ page }) => { await run(page, 'net-set-one', '4242424242424242', { setPrice: true, netVat: true, netCouponQuantity: 1, noBump: true }); });
 test('PLN net set price quantity five and bump', async ({ page }) => { await run(page, 'net-set-five', '4242424242424242', { setPrice: true, netVat: true, netCouponQuantity: 5 }); });
 
-test('PLN net coupons through transfer placement and offline completion', async ({ request }) => {
+test('PLN net coupons through transfer placement and offline completion @J11', async ({ request }) => {
   const config = (await rows('bank_transfer_config', 'id', 'true'))[0];
   const productIds: string[] = [], transactionIds: string[] = [], couponIds: string[] = [];
   try {

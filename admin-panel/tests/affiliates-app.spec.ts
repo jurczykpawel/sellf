@@ -19,7 +19,7 @@ test('keeps affiliate pages and CSV private for signed-out visitors', async ({ r
   expect(csv.status()).toBe(401); expect(csv.headers()['cache-control']).toContain('no-store');
 });
 for (const locale of ['en', 'pl'] as const) for (const width of [1440, 390]) {
-  test(`${locale} ${width} integrated partner and seller screens`, async ({ page }) => {
+  test(`${locale} ${width} integrated partner and seller screens @J74`, async ({ page }) => {
     await setConsentPreferences(page, {});
     await page.setViewportSize({ width, height: 1000 });
     const screens = [

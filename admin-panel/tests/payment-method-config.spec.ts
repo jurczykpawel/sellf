@@ -63,7 +63,7 @@ test.describe('Payment Method Configuration - Admin UI', () => {
     ).toBeVisible();
   });
 
-  test('Admin can select automatic mode', async ({ page }) => {
+  test('Admin can select automatic mode @J95', async ({ page }) => {
     await gotoPaymentsSettings(page);
 
     // Select automatic mode
@@ -85,7 +85,7 @@ test.describe('Payment Method Configuration - Admin UI', () => {
     });
   });
 
-  test('Admin can select stripe preset mode', async ({ page }) => {
+  test('Admin can select stripe preset mode @J95', async ({ page }) => {
     await gotoPaymentsSettings(page);
 
     // Select Stripe preset mode

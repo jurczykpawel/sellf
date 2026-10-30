@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { readOfferConfig, readOfferHistory, readPublishedOffer } from '@/lib/storefront-templates/offer-repository';
 import type { Database } from '@/types/database';
 
-it('reloads isolated product presentation through fresh clients', async () => {
+it('reloads isolated product presentation through fresh clients @J131', async () => {
   const url = new URL(process.env.OFFER_TEST_SUPABASE_URL ?? '');
   expect(['127.0.0.1', 'localhost']).toContain(url.hostname);
   const container = process.env.SUPABASE_DB_CONTAINER;

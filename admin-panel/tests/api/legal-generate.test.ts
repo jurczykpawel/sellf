@@ -218,7 +218,7 @@ describe('POST /api/legal/generate', () => {
   });
 
   describe('happy path: renders both → publishes → sets both URLs', () => {
-    it('renders both docs, publishes them, and returns both URLs', async () => {
+    it('renders both docs, publishes them, and returns both URLs @J103', async () => {
       setupAuth(true);
       setupAdminMocks();
 

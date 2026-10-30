@@ -99,7 +99,7 @@ test.describe('Storefront & Checkout Flows', () => {
     await supabaseAdmin.from('products').update({ is_active: true }).eq('id', freeProductId);
   });
 
-  test('UNAUTHENTICATED user should claim free product via Magic Link flow', async ({ page }) => {
+  test('UNAUTHENTICATED user should claim free product via Magic Link flow @J41', async ({ page }) => {
     // Log browser errors
     page.on('console', msg => {
       if (msg.type() === 'error') console.log(`BROWSER ERROR: ${msg.text()}`);
@@ -190,7 +190,7 @@ test.describe('Storefront & Checkout Flows', () => {
     console.log(`Verified access record in DB: ${accessRecord.id}`);
   });
 
-  test('AUTHENTICATED user should claim free product instantly', async ({ page }) => {
+  test('AUTHENTICATED user should claim free product instantly @J42', async ({ page }) => {
     // 1. Fresh user
     const userEmail = `auth-user-${Date.now()}@example.com`;
     const userPassword = 'password123';

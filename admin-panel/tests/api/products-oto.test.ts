@@ -138,7 +138,7 @@ describe('Products OTO API v1', () => {
   });
 
   describe('PUT /api/v1/products/[id]/oto', () => {
-    it('should create OTO configuration with defaults', async () => {
+    it('should create OTO configuration with defaults @J101', async () => {
       const { status, data } = await put<ApiResponse<OtoConfig>>(
         `/api/v1/products/${sourceProductId}/oto`,
         { oto_product_id: otoProductId }
@@ -152,7 +152,7 @@ describe('Products OTO API v1', () => {
       expect(data.data!.duration_minutes).toBe(15);
     });
 
-    it('should create OTO configuration with custom values', async () => {
+    it('should create OTO configuration with custom values @J101', async () => {
       const randomStr = Math.random().toString(36).substring(7);
       const { data: customOto } = await supabase
         .from('products')

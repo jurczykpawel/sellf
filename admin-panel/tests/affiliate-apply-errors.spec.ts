@@ -7,7 +7,7 @@ import { setConsentPreferences } from './helpers/consent';
 import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
 
-for (const locale of ['en', 'pl'] as const) test(`${locale} corrects a taken code and opens the approved partner panel`, async ({ page }) => {
+for (const locale of ['en', 'pl'] as const) test(`${locale} corrects a taken code and opens the approved partner panel @J73`, async ({ page }) => {
   const t = (locale === 'pl' ? pl : en).affiliates.admin;
   const user = await createTestUser('apply-correction');
   const taken = await supabaseAdmin.from('affiliate_memberships').select('code').limit(1).single();

@@ -333,7 +333,7 @@ test.describe('guest checkout variants', () => {
     await expect(page.getByText(/Invalid or disposable email address not allowed/i)).toBeVisible();
   });
 
-  test('yearly subscription guest shows yearly recurring price', async ({ page }) => {
+  test('yearly subscription guest shows yearly recurring price @J134', async ({ page }) => {
     const checkoutRequests = await captureCheckoutRequests(page);
     await openCheckout(page, products.subscriptionYear);
 

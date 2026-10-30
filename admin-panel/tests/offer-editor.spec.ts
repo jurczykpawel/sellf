@@ -6,7 +6,7 @@ import { acceptAllCookies } from './helpers/consent';
 import type { Request } from '@playwright/test';
 import { checkAccessibility } from './helpers/axe';
 
-test('saves, previews, publishes and restores product offers in EN and PL', async ({ page, context, browser }) => {
+test('saves, previews, publishes and restores product offers in EN and PL @J78', async ({ page, context, browser }) => {
   test.setTimeout(180000);
   const url = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!);
   const container = process.env.SUPABASE_DB_CONTAINER;

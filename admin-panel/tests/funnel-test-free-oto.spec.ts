@@ -115,7 +115,7 @@ test.describe('Funnel Test Preview: Free product + OTO', () => {
     await expect(page.getByRole('button', { name: /Wyślij magic link|Send magic link/i })).toHaveCount(0);
   });
 
-  test('completing the simulation redirects into the OTO target checkout', async ({ page }) => {
+  test('completing the simulation redirects into the OTO target checkout @J82', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto(`/checkout/${freeMainSlug}?funnel_test=1`, { timeout: 60000 });
     await page.waitForLoadState('domcontentloaded');

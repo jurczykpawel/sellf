@@ -66,7 +66,7 @@ test.afterAll(async () => {
   await admin.from('products').delete().eq('id', product.id);
 });
 
-test('stores the invoice NIP on this session before Stripe confirmation', async ({ page }) => {
+test('stores the invoice NIP on this session before Stripe confirmation @J94', async ({ page }) => {
   // Stop any payment request; this test ends at the pre-confirmation boundary.
   await page.route('https://api.stripe.com/**/confirm', route => route.abort());
   const sessionId = await fillBuyer(page);

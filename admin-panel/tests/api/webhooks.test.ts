@@ -202,7 +202,7 @@ describe('Webhooks API v1', () => {
   });
 
   describe('POST /api/v1/webhooks', () => {
-    it('should create a new webhook', async () => {
+    it('should create a new webhook @J116', async () => {
       const randomStr = Math.random().toString(36).substring(7);
       const { status, data } = await post<ApiResponse<Webhook>>('/api/v1/webhooks', {
         url: `https://example.com/new-webhook-${randomStr}`,
@@ -316,7 +316,7 @@ describe('Webhooks API v1', () => {
   });
 
   describe('PATCH /api/v1/webhooks/:id', () => {
-    it('should update webhook URL', async () => {
+    it('should update webhook URL @J116', async () => {
       const randomStr = Math.random().toString(36).substring(7);
       const { data: webhook } = await supabase
         .from('webhook_endpoints')
@@ -343,7 +343,7 @@ describe('Webhooks API v1', () => {
       }
     });
 
-    it('should update webhook events', async () => {
+    it('should update webhook events @J116', async () => {
       const randomStr = Math.random().toString(36).substring(7);
       const { data: webhook } = await supabase
         .from('webhook_endpoints')
@@ -370,7 +370,7 @@ describe('Webhooks API v1', () => {
       }
     });
 
-    it('should update webhook is_active status', async () => {
+    it('should update webhook is_active status @J116', async () => {
       const randomStr = Math.random().toString(36).substring(7);
       const { data: webhook } = await supabase
         .from('webhook_endpoints')

@@ -172,7 +172,7 @@ describe('Users API v1 — Per-Role Access Control', () => {
       expect(data.pagination).toBeDefined();
     });
 
-    it('sees buyer in user list', async () => {
+    it('sees buyer in user list @J118', async () => {
       const { status, data } = await apiGet('/api/v1/users?limit=100', platformAdminApiKey);
       expect(status).toBe(200);
       const userIds = data.data.map((u: { id: string }) => u.id);
@@ -185,7 +185,7 @@ describe('Users API v1 — Per-Role Access Control', () => {
       expect(data.data.id).toBe(buyerMainUserId);
     });
 
-    it('shows products for buyer who has access', async () => {
+    it('shows products for buyer who has access @J118', async () => {
       const { status, data } = await apiGet(`/api/v1/users/${buyerMainUserId}`, platformAdminApiKey);
       expect(status).toBe(200);
       expect(data.data.stats.total_products).toBeGreaterThan(0);

@@ -284,7 +284,7 @@ describe('process_stripe_payment_completion_with_bump — access_expires_at sema
       expect(access!.access_duration_days).toBeNull();
     });
 
-    it('2. product limited 30d → access_expires_at ≈ NOW() + 30d', async () => {
+    it('2. product limited 30d → access_expires_at ≈ NOW() + 30d @J127', async () => {
       await clearAccess(userId, pMainLimited30.id);
       const result = await callPurchaseRpc({
         mainProductId: pMainLimited30.id,
@@ -315,7 +315,7 @@ describe('process_stripe_payment_completion_with_bump — access_expires_at sema
       );
     });
 
-    it('3. bump.override=null + bumpProduct.auto_grant=null → NULL', async () => {
+    it('3. bump.override=null + bumpProduct.auto_grant=null → NULL @J127', async () => {
       const result = await callPurchaseRpc({
         mainProductId: pMainUnlimited.id,
         mainProductPrice: pMainUnlimited.price,
@@ -331,7 +331,7 @@ describe('process_stripe_payment_completion_with_bump — access_expires_at sema
       expect(access!.access_expires_at).toBeNull();
     });
 
-    it('4. bump.override=null + bumpProduct.auto_grant=30 → NOW() + 30d', async () => {
+    it('4. bump.override=null + bumpProduct.auto_grant=30 → NOW() + 30d @J127', async () => {
       const result = await callPurchaseRpc({
         mainProductId: pMainUnlimited.id,
         mainProductPrice: pMainUnlimited.price,
@@ -347,7 +347,7 @@ describe('process_stripe_payment_completion_with_bump — access_expires_at sema
       assertWithinDays(access!.access_expires_at, 30);
     });
 
-    it('5. bump.override=14 + bumpProduct.auto_grant=null → NOW() + 14d (override wins)', async () => {
+    it('5. bump.override=14 + bumpProduct.auto_grant=null → NOW() + 14d (override wins) @J127', async () => {
       const result = await callPurchaseRpc({
         mainProductId: pMainUnlimited.id,
         mainProductPrice: pMainUnlimited.price,
@@ -363,7 +363,7 @@ describe('process_stripe_payment_completion_with_bump — access_expires_at sema
       assertWithinDays(access!.access_expires_at, 14);
     });
 
-    it('6. bump.override=14 + bumpProduct.auto_grant=30 → NOW() + 14d (override wins)', async () => {
+    it('6. bump.override=14 + bumpProduct.auto_grant=30 → NOW() + 14d (override wins) @J127', async () => {
       const result = await callPurchaseRpc({
         mainProductId: pMainUnlimited.id,
         mainProductPrice: pMainUnlimited.price,
@@ -379,7 +379,7 @@ describe('process_stripe_payment_completion_with_bump — access_expires_at sema
       assertWithinDays(access!.access_expires_at, 14);
     });
 
-    it('7. bump.override=0 (unlimited) + bumpProduct.auto_grant=30 → NULL (override wins)', async () => {
+    it('7. bump.override=0 (unlimited) + bumpProduct.auto_grant=30 → NULL (override wins) @J127', async () => {
       const result = await callPurchaseRpc({
         mainProductId: pMainUnlimited.id,
         mainProductPrice: pMainUnlimited.price,
@@ -395,7 +395,7 @@ describe('process_stripe_payment_completion_with_bump — access_expires_at sema
       expect(access!.access_expires_at).toBeNull();
     });
 
-    it('8. bump.override=0 (unlimited) + bumpProduct.auto_grant=null → NULL', async () => {
+    it('8. bump.override=0 (unlimited) + bumpProduct.auto_grant=null → NULL @J127', async () => {
       const result = await callPurchaseRpc({
         mainProductId: pMainUnlimited.id,
         mainProductPrice: pMainUnlimited.price,

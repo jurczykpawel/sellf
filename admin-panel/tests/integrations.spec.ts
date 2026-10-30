@@ -86,7 +86,7 @@ test.describe('Integrations & Script Injection', () => {
     });
   });
 
-  test('should save integration settings and verify tracking on product page', async ({ page }) => {
+  test('should save integration settings and verify tracking on product page @J106', async ({ page }) => {
     // Create product for this test
     const productSlug = `int-product-${Date.now()}-1`;
     const { data: product1 } = await supabaseAdmin.from('products').insert({

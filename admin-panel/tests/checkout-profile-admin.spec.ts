@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
 
-test('checkout profile settings persist after reopening the product wizard', async ({ page }) => {
+test('checkout profile settings persist after reopening the product wizard @J97', async ({ page }) => {
   test.setTimeout(90_000);
   const admin = await createTestAdmin('checkout-profile');
   const name = `Profile ${randomUUID()}`;

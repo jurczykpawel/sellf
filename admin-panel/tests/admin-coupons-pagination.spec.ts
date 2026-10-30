@@ -169,7 +169,7 @@ test.describe('Admin coupons page pagination', () => {
     }
   });
 
-  test('finds a coupon that is not on the first loaded page via search', async ({ page }) => {
+  test('finds a coupon that is not on the first loaded page via search @J117', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
 
     await page.goto('/dashboard/coupons');

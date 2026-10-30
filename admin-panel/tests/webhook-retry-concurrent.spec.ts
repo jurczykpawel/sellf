@@ -33,7 +33,7 @@ test.describe('Concurrent webhook-deliveries-retry worker invocations', () => {
     if (endpointId) await supabaseAdmin.from('webhook_endpoints').delete().eq('id', endpointId);
   });
 
-  test('two parallel worker calls together process each row only once', async ({ request }) => {
+  test('two parallel worker calls together process each row only once @J70', async ({ request }) => {
     const past = new Date(Date.now() - 5_000).toISOString();
     const rows = await Promise.all(
       Array.from({ length: 5 }).map(async (_, i) => {

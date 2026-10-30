@@ -97,7 +97,7 @@ test.describe('Coupon Race Condition - Simplified', () => {
     }
   });
 
-  test('concurrent verify requests respect usage_limit_global=1', async ({ request }) => {
+  test('concurrent verify requests respect usage_limit_global=1 @J124', async ({ request }) => {
     // Send 10 concurrent verify requests with different emails
     // With FOR UPDATE lock: exactly 1 succeeds, 9 fail with "usage limit reached"
     // Without lock (vulnerability): multiple succeed simultaneously
@@ -134,7 +134,7 @@ test.describe('Coupon Race Condition - Simplified', () => {
     ).toBe(1);
   });
 
-  test('database has exactly 1 reservation after concurrent race', async () => {
+  test('database has exactly 1 reservation after concurrent race @J124', async () => {
     // verify_coupon() creates reservations (not redemptions) on success.
     // Check coupon_reservations to confirm only 1 reservation was created.
     const { count: reservationCount } = await supabaseAdmin

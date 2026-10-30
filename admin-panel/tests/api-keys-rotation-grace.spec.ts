@@ -7,7 +7,7 @@ import { insertTestApiKey } from './helpers/api-key';
 
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-test('grace-period keys show their deadline and can be revoked immediately', async ({ page, request }) => {
+test('grace-period keys show their deadline and can be revoked immediately @J66', async ({ page, request }) => {
   const owner = await createTestAdmin('rotation-grace');
   const { data: user } = await db.from('admin_users').select('id').eq('user_id',
     (await db.auth.admin.listUsers()).data.users.find(u => u.email === owner.email)!.id).single();

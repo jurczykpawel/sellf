@@ -57,7 +57,7 @@ test.afterAll(async () => {
   for (const id of products) { await db.from('payment_transactions').delete().eq('product_id', id); await db.from('product_sessions').delete().eq('product_id', id); await db.from('products').delete().eq('id', id); }
   await tunnel?.close(); await receiver?.close();
 });
-test('an API consumer receives grant, extension and revocation with the actual API-key actor', async ({ request }) => {
+test('an API consumer receives grant, extension and revocation with the actual API-key actor @J22', async ({ request }) => {
   const p = await product(), email = `http-access-${crypto.randomUUID()}@example.com`;
   const user = await db.auth.admin.createUser({ email, email_confirm: true }); expect(user.error).toBeNull(); const uid = user.data.user!.id; users.push(uid);
   const granted = await request.post(`/api/v1/users/${uid}/access`, { headers: headers(), data: { product_id: p.id, access_duration_days: 7 } });
@@ -70,7 +70,7 @@ test('an API consumer receives grant, extension and revocation with the actual A
   expect(changes.every(e => e.data.actor.type === 'api_key' && e.data.actor.id === keyId)).toBe(true);
   expect(changes[2].data.access).toMatchObject({ id: accessId, statusAfter: 'revoked', revokedAt: expect.any(String) });
 });
-test('a new buyer follows the delivered signup link and receives a claim event for the recorded order', async ({ request }) => {
+test('a new buyer follows the delivered signup link and receives a claim event for the recorded order @J23', async ({ request }) => {
   test.setTimeout(90000);
   const p = await product(card.payload.data.order.amount / 100), email = `http-claim-${crypto.randomUUID()}@example.com`;
   const tx = await db.from('payment_transactions').insert({ product_id: p.id, customer_email: email, amount: card.payload.data.order.amount, currency: 'PLN', status: 'completed', session_id: `cs_test_${crypto.randomUUID().replaceAll('-', '')}` }).select('id').single(); expect(tx.error).toBeNull();
@@ -87,7 +87,7 @@ test('a new buyer follows the delivered signup link and receives a claim event f
   const detail = await request.get(`/api/v1/payments/${tx.data!.id}`, { headers: headers() }); expect(detail.status()).toBe(200);
   expect((await detail.json()).data).toMatchObject({ id: tx.data!.id, payment_provider: 'stripe', order_number: expect.any(Number), line_items: expect.any(Array) });
 });
-test('a committed hold and abandonment are delivered with the reservation, order and minor amount', async ({ request }) => {
+test('a committed hold and abandonment are delivered with the reservation, order and minor amount @J25', async ({ request }) => {
   const p = await product(19, true), sessionId = `cs_test_${crypto.randomUUID().replaceAll('-', '')}`;
   const session = await db.from('product_sessions').insert({ product_id: p.id, starts_at: '2099-06-01T12:00:00Z', capacity: 10 }).select('id').single(); expect(session.error).toBeNull();
   expect((await db.from('product_price_tiers').insert({ session_id: session.data!.id, price: 19, sort: 0 })).error).toBeNull();
@@ -101,7 +101,7 @@ test('a committed hold and abandonment are delivered with the reservation, order
   expect(changes.find(e => e.event === 'order.abandoned')!.data).toMatchObject({ amountUnit: 'minor', order: { amount: 3800, statusBefore: 'pending', statusAfter: 'abandoned' } });
 });
 
-test('a free signup preserves the entered domain in the grant, event and license', async ({ request }) => {
+test('a free signup preserves the entered domain in the grant, event and license @J19', async ({ request }) => {
   test.setTimeout(90000);
   const p = await product(0), email = `http-domain-${crypto.randomUUID()}@example.com`;
   expect((await db.from('products').update({ seller_id: sellerId, issue_license_on_purchase: true, license_tier: 'registered', custom_checkout_fields: [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] }).eq('id', p.id)).error).toBeNull();
@@ -122,7 +122,7 @@ test('a free signup preserves the entered domain in the grant, event and license
   const granted = receiver!.received.find(event => event.event === 'access.granted' && event.data.customer?.email === email)!;
   expect(granted.data.customFieldValues).toEqual(access.data!.custom_field_values);
 });
-test('manual issuance requires a domain only when the product defines it as required', async ({ request }) => {
+test('manual issuance requires a domain only when the product defines it as required @J20 @J21', async ({ request }) => {
   const admin = await createTestAdmin('http-manual-domain');
   let cookies: Array<{ name: string; value: string }> = [];
   const client = createServerClient(process.env.SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { cookies: { getAll: () => cookies, setAll: values => { cookies = values; } } });

@@ -169,7 +169,7 @@ test.describe('Full-discount coupon flow', () => {
       .toHaveCount(0);
   });
 
-  test('logged-in user: applying 100% coupon grants access + records redemption', async ({ page }) => {
+  test('logged-in user: applying 100% coupon grants access + records redemption @J44', async ({ page }) => {
     // Ensure no stale access from previous runs
     if (adminUserId) {
       await supabaseAdminClient

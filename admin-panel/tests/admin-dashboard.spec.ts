@@ -88,7 +88,7 @@ test.describe('Authenticated Admin Dashboard', () => {
     }
   });
 
-  test('should perform full CRUD on a product', async ({ page }) => {
+  test('should perform full CRUD on a product @J47', async ({ page }) => {
     // Force local VAT mode in case a sibling suite flipped it.
     await restoreBaselineTaxMode(supabaseAdmin);
 
@@ -151,7 +151,7 @@ test.describe('Authenticated Admin Dashboard', () => {
     await expect(page.locator('table').getByText(productName).first()).not.toBeVisible({ timeout: 10000 });
   });
 
-  test('should perform CRUD on a webhook endpoint', async ({ page }) => {
+  test('should perform CRUD on a webhook endpoint @J116', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/dashboard/webhooks');
 

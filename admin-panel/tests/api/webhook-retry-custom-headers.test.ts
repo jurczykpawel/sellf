@@ -118,7 +118,7 @@ afterAll(async () => {
 });
 
 describe('cron webhook-deliveries-retry re-applies custom headers', () => {
-  it('carries the decrypted Authorization header on the retried delivery', async () => {
+  it('carries the decrypted Authorization header on the retried delivery @J69', async () => {
     const result = await handleWebhookDeliveriesRetry();
     // At least our delivery was processed (other due rows may also be picked up).
     expect(result.processed).toBeGreaterThanOrEqual(1);

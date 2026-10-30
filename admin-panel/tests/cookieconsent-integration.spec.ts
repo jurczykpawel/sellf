@@ -80,7 +80,7 @@ test.describe('cookieconsent integration', () => {
     expect(klaroGlobals).toBe(false);
   });
 
-  test('accept-all executes managed scripts (window.dataLayer + window.fbq)', async ({ page }) => {
+  test('accept-all executes managed scripts (window.dataLayer + window.fbq) @J91', async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');

@@ -28,7 +28,7 @@ async function publish(id: string, published: unknown) {
   if (error) throw error;
 }
 
-test('public opt-in, core routing, locale SEO, buyer isolation and responsive presentation', async ({ page, browser, baseURL }) => {
+test('public opt-in, core routing, locale SEO, buyer isolation and responsive presentation @J77', async ({ page, browser, baseURL }) => {
   test.setTimeout(90000);
   let product = await fixture();
   const buyer = await createTestUser('offer-buyer');

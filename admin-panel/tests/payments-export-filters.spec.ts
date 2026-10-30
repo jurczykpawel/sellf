@@ -47,7 +47,7 @@ test.describe('Payments CSV active filters', () => {
     await loginAsAdmin(page, admin.email, admin.password);
   });
 
-  test('email filter exports the same single transaction shown in Payments', async ({ page }) => {
+  test('email filter exports the same single transaction shown in Payments @J58', async ({ page }) => {
     await page.goto('/en/dashboard/payments');
     await page.locator('#payment-date-range-filter').selectOption('all');
     await page.locator('#payment-search-filter').fill(needleEmail);

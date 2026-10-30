@@ -41,7 +41,7 @@ test.afterAll(async () => {
   await admin?.cleanup();
 });
 
-test('reads, saves, reloads, retains inactive values and prevents a stale tab from overwriting', async ({ page, context }) => {
+test('reads, saves, reloads, retains inactive values and prevents a stale tab from overwriting @J79', async ({ page, context }) => {
   await acceptAllCookies(page);
   await setAuthSession(page, admin.email, admin.password);
   await page.goto('/en/dashboard/templates');
