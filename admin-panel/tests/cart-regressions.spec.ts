@@ -7,6 +7,7 @@ import Stripe from 'stripe';
 import { acceptAllCookies } from './helpers/consent';
 import { createTestAdmin, createTestUser, setAuthSession } from './helpers/admin-auth';
 import { test, startNativeCheckout } from './helpers/checkout-intent';
+import { openSettingsTab, PAYMENTS_TAB } from './helpers/settings-tabs';
 import type { Page } from '@playwright/test';
 
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -33,6 +34,15 @@ function remember(body: { checkoutSessionId?: string; sessionId?: string }) {
 }
 async function fillBuyer(page: Page) {
   for (const [key, value] of Object.entries(company)) await page.locator(`[id="buyer.${key}"]`).fill(value);
+}
+async function setTerms(page: Page, enabled: boolean) {
+  await setAuthSession(page, admin.email, admin.password);
+  const toggle = page.getByRole('switch', { name: 'Terms of Service Consent', exact: true });
+  await openSettingsTab(page, PAYMENTS_TAB, toggle, '/en/dashboard/settings');
+  if ((await toggle.getAttribute('aria-checked')) !== String(enabled)) await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', String(enabled));
+  await expect.poll(async () => (await db.from('shop_config').select('checkout_collect_terms').single()).data?.checkout_collect_terms).toBe(enabled);
+  await page.context().clearCookies({ name: /^sb-/ });
 }
 test.beforeAll(async ({ baseURL }) => {
   expect(process.env.STRIPE_SECRET_KEY).toMatch(/^sk_test_/);
@@ -80,8 +90,13 @@ for (const locale of ['en', 'pl']) test(`${locale}: coupon stays absent by defau
     let destination = `/${locale}/${entry === 'product' ? 'p' : 'checkout'}/${product.slug}`;
     if (entry === 'offer' || entry === 'store') {
       await page.goto(entry === 'offer' ? `/${locale}/offer/${product.slug}` : `/${locale}/store?search=${encodeURIComponent(product.name)}`);
-      const buy = page.locator(`a[href$="/checkout/${product.slug}"], a[href$="/p/${product.slug}"]`).first();
+      const buy = page.locator(`a[href$="/checkout/${product.slug}"], a[href$="/p/${product.slug}"], a[href$="/offer/${product.slug}"]`).first();
       await expect(buy).toBeVisible(); destination = (await buy.getAttribute('href'))!;
+      if (destination.includes('/offer/')) {
+        await page.goto(destination);
+        const checkout = page.locator(`a[href$="/checkout/${product.slug}"]`).first();
+        await expect(checkout).toBeVisible(); destination = (await checkout.getAttribute('href'))!;
+      }
     }
     await page.goto(`${destination}${linked ? `?coupon=${coupon.code}` : ''}`);
     const response = await startNativeCheckout(page); const body = await response.json(); remember(body);
@@ -98,6 +113,7 @@ for (const locale of ['en', 'pl']) test(`${locale}: coupon stays absent by defau
     await page.locator('input[name=payment-method][value=transfer]').check();
     const field = page.getByRole('textbox', { name: locale === 'pl' ? 'Kod rabatowy' : 'Discount code', exact: true });
     if (linked) await expect(field).toHaveValue(coupon.code); else await expect(field).toHaveCount(0);
+    await expect(page.getByTestId('order-summary-total')).toContainText(locale === 'pl' ? (linked ? '44,10' : '49,00') : (linked ? '44.10' : '49.00'));
   }
 });
 
@@ -105,9 +121,9 @@ for (const locale of ['en', 'pl']) test(`${locale}: external embed only exposes 
   test.setTimeout(120000);
   for (const linked of [false, true]) {
     sellerHtml = `<!doctype html><html lang="${locale}"><body><div data-sellf-embed data-product-slug="${products[0].slug}"></div><script src="${sellfOrigin}/embed/v1/checkout.js"></script></body></html>`;
-    const responsePromise = page.waitForResponse(async r => r.url().includes('/api/embed/checkout-session') && r.ok() && (await r.json()).kind === 'paid');
+    const responsePromise = page.waitForResponse(r => r.url().includes('/api/embed/checkout-session') && r.request().method() === 'POST');
     await page.goto(`${sellerOrigin}/${linked ? `?coupon=${coupon.code}` : ''}`);
-    const response = await responsePromise; const body = await response.json(); remember(body);
+    const response = await responsePromise; const body = await response.json(); expect(response.status(), JSON.stringify(body)).toBe(200); remember(body);
     await expect(page.locator('iframe')).toBeVisible({ timeout: 60000 });
     const input = page.locator('input[name=coupon]');
     if (linked) await expect(input).toHaveValue(coupon.code); else await expect(input).toHaveCount(0);
@@ -136,6 +152,8 @@ test('online-only loads immediately; method choice does not create unused sessio
 
 for (const signedIn of [false, true]) test(`consent follows the same session rule for both methods (signedIn=${signedIn})`, async ({ page }) => {
   test.setTimeout(120000); await acceptAllCookies(page);
+  await setTerms(page, true);
+  try {
   if (signedIn) await setAuthSession(page, buyer.email, buyer.password);
   const email = signedIn ? buyer.email : `cart-guest-${run}@example.com`;
   const legal = page.getByRole('checkbox', { name: /I agree|Zgadzam/ });
@@ -153,9 +171,10 @@ for (const signedIn of [false, true]) test(`consent follows the same session rul
   if (signedIn) await expect(legal).toHaveCount(0); else { await expect(legal).toBeVisible(); await legal.check(); }
   const place = page.getByRole('button', { name: /Place order|Order with|Zamawiam/ }); await expect(place).toBeEnabled();
   const responsePromise = page.waitForResponse('**/api/orders/bank-transfer'); await place.click();
-  const response = await responsePromise; expect(response.status()).toBe(200); const order = await response.json();
+  const response = await responsePromise; const order = await response.json(); expect(response.status(), JSON.stringify(order)).toBe(200);
   const row = await db.from('payment_transactions').select('order_details').eq('id', order.orderId).single();
   expect(row.data!.order_details.buyer.terms_accepted).toBe(!signedIn);
+  } finally { await setTerms(page, false); }
 });
 
 test('panel has a visible persistent expansion control on wide screens', async ({ page }) => {
@@ -169,6 +188,10 @@ test('panel has a visible persistent expansion control on wide screens', async (
   await expand.focus(); await page.keyboard.press('Space'); await expect(collapse).toHaveAttribute('aria-expanded', 'true');
   await page.mouse.move(1400, 850); await page.reload(); await expect(collapse).toHaveAttribute('aria-expanded', 'true');
   await expect.poll(async () => (await side.boundingBox())?.width ?? 0).toBeGreaterThan(180);
-  await page.screenshot({ path: test.info().outputPath('sidebar-expanded.png'), fullPage: true });
+  await expect.poll(async () => {
+    const [navigation, content] = await Promise.all([side.boundingBox(), page.locator('.sf-main-content').boundingBox()]);
+    return content!.x - navigation!.x - navigation!.width;
+  }).toBeGreaterThanOrEqual(0);
+  await page.screenshot({ path: test.info().outputPath('sidebar-expanded.png'), fullPage: true, animations: 'disabled' });
   await page.goto('/pl/dashboard'); await expect(page.getByRole('button', { name: 'Zwiń menu', exact: true })).toBeVisible();
 });

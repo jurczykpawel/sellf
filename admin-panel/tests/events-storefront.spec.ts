@@ -34,7 +34,8 @@ async function hold(quantity: number) {
 }
 test('(a) product and checkout show promotional tier, timezone and hold at 47', async ({ page }) => {
   await acceptAllCookies(page); await page.goto(`/pl/p/${product.slug}`);
-  await page.locator('#checkoutEmail').fill('event-buyer@example.com');
+  await page.getByLabel('E-mail nabywcy').fill('event-buyer@example.com');
+  await page.getByLabel('E-mail nabywcy').blur();
   await expect(page.getByText('Zostało 30 miejsc w tej cenie')).toBeVisible();
   await expect(page.getByText(/Ta cena do/)).toBeVisible();
   await expect(page.getByText(/Potem.*67/)).toBeVisible();

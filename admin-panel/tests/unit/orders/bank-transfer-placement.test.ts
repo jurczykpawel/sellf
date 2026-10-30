@@ -100,4 +100,7 @@ it.each([[true, false, 400], [false, false, 200], [true, true, 200], [false, tru
     mocks.user = signedIn ? { id: 'buyer-id', email: body.email } : null;
     const { termsAccepted: _accepted, ...withoutAcceptance } = body;
     expect((await POST(request(withoutAcceptance))).status).toBe(status);
+    if (status === 200) expect(mocks.rpc).toHaveBeenCalledWith('bank_transfer_order', expect.objectContaining({
+      p_order: expect.objectContaining({ terms_required: false, order_details: expect.objectContaining({ buyer: expect.objectContaining({ terms_accepted: false }) }) }),
+    }));
   });

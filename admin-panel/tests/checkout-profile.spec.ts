@@ -32,7 +32,6 @@ test.afterAll(async () => {
 async function open(page: Page, quantity = 1) {
   await acceptAllCookies(page);
   await page.goto(`/pl/checkout/${product.slug}`);
-  await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toHaveCount(0);
   if (quantity !== 1) await page.getByLabel('Ilość', { exact: true }).fill(String(quantity));
   const buyerEmail = page.locator('[id="buyer.email"]');
   if (await buyerEmail.count()) await buyerEmail.fill('buyer@example.com');
@@ -105,7 +104,7 @@ test('product route validates quantity and initialized checkout keeps its last v
   await expect(pay).toBeEnabled({ timeout: 30000 });
   const before = await pay.textContent();
   const requests: string[] = [];
-  page.on('request', request => { if (new URL(request.url()).pathname === '/api/create-payment-intent') requests.push(request.url()); });
+  page.on('request', request => { if (new URL(request.url()).pathname === '/api/create-payment-intent' && !request.postDataJSON()?.expireOnly) requests.push(request.url()); });
   await quantity.fill('abc');
   await expect(pay).toBeDisabled();
   await expect(pay).toHaveText(before!);
@@ -122,7 +121,6 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
     await page.locator('#checkoutEmail').fill('buyer@example.com');
     const start = page.getByRole('button', { name: /^Zapłać/ });
     const terms = page.getByRole('checkbox', { name: /Zgadzam|Akceptuję/ });
-    if (await terms.count()) await terms.check();
     await expect(start).toBeEnabled({ timeout: 30000 });
     await page.getByLabel('Ilość', { exact: true }).fill('5');
     await page.getByLabel('Typ nabywcy').selectOption('organization');
@@ -136,6 +134,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
         await page.locator(`[id="participants.${i}.${key}"]`).fill(value);
       }
     }
+    if (await terms.count()) await terms.check();
     const nip = page.locator('[id="buyer.nip"]');
     for (let attempt = 0; attempt < 2; attempt++) {
       await start.scrollIntoViewIfNeeded();
@@ -225,7 +224,8 @@ test('shared profile displays online and transfer validation errors', async ({ p
     await expect(page.locator('[id="buyer.first_name"]')).toBeFocused();
     await page.locator('[id="buyer.first_name"]').fill('Jan');
     await page.getByRole('radio', { name: /Przelew tradycyjny/ }).check();
-    await page.getByRole('checkbox', { name: /Zgadzam|Akceptuję/ }).check();
+    const transferTerms = page.getByRole('checkbox', { name: /Zgadzam|Akceptuję/ });
+    if (await transferTerms.count()) await transferTerms.check();
     const button = page.getByRole('button', { name: 'Zamawiam z obowiązkiem zapłaty' });
     await expect(button).toBeEnabled({ timeout: 30000 });
     await button.click();

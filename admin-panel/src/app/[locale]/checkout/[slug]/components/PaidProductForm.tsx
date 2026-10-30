@@ -15,6 +15,7 @@ import { parseQuantityInput } from '@/lib/checkout-modules/quantity';
 import CheckoutProfileFields, { CheckoutQuantityField, useCheckoutProfileValues } from '@/components/checkout/CheckoutProfileFields';
 import { formatPrice, STRIPE_MAX_AMOUNT } from '@/lib/constants';
 import { parseCustomAmountInput } from '@/lib/payment/custom-amount';
+import { isValidEmailFormat } from '@/lib/validations/email-format';
 import { minimumChargeAmount } from '@/lib/currency/minor-units';
 import { signOutAndRedirectToCheckout } from '@/lib/actions/checkout';
 import { validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
@@ -354,8 +355,10 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const isFullDiscountCoupon = !!coupon.appliedCoupon && pricing.isFreeWithCoupon;
 
   const isFreeAccess = !product.event_mode && (isPwywFree || isFullDiscountCoupon);
+  const eventEmailReady = !product.event_mode || isValidEmailFormat(email?.trim() ?? '');
+  const commitEventEmail = () => { const value = (formEmail ?? email ?? '').trim(); if (isValidEmailFormat(value)) setEmail(value); };
   const purchaseStarted = purchaseRequested || (transferResolved && !transferProfile && !isFreeAccess
-    && eventReady && !hasAccess && !authLoading && !isFunnelTest && !coupon.isVerifyingCoupon);
+    && eventReady && eventEmailReady && !hasAccess && !authLoading && !isFunnelTest && !coupon.isVerifyingCoupon);
   const stripePromise = config.stripePublishableKey && purchaseStarted && activeMethod === 'online' && !isFreeAccess
     ? getStripeClient(config.stripePublishableKey) : null;
 
@@ -432,7 +435,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   // One request at a time; superseded responses remain available for replacement.
   useEffect(() => {
-    if (quantityInvalid || coupon.isVerifyingCoupon || activeMethod === 'transfer' || !eventReady || !purchaseStarted || hasAccess || error || authLoading || isFunnelTest || isFreeAccess ||
+    if (!eventEmailReady || quantityInvalid || coupon.isVerifyingCoupon || activeMethod === 'transfer' || !eventReady || !purchaseStarted || hasAccess || error || authLoading || isFunnelTest || isFreeAccess ||
       !!customAmountError) {
       sessionQueue.update(null);
       return;
@@ -496,7 +499,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     });
   }, [
     activeMethod, coupon.isVerifyingCoupon, quantityInvalid, checkoutVisit,
-    eventReady, eventSessionId, refreshEvents, eventText, purchaseStarted, hasAccess, error, authLoading,
+    eventReady, eventEmailReady, eventSessionId, refreshEvents, eventText, purchaseStarted, hasAccess, error, authLoading,
     product, email, locale, quantity, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
     customAmount, customAmountError, isFunnelTest, isFreeAccess, grantAccess,
     checkoutSessionSignature, explicitRepurchase, sessionQueue, customFieldDefs, customFieldValues,
@@ -618,6 +621,12 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             <EventSessions sessions={eventSessions} currency={product.currency} selected={eventSessionId} onSelect={id => { setEventSessionId(id); setError(null); setPurchaseStarted(false); }} />
             {eventLoadError && <p role="alert">{eventText('loadError')}</p>}
           </>}
+
+          {product.event_mode && !transferProfile && !purchaseStarted && !user?.email && !hasAccess && !isFunnelTest && !isFreeAccess && eventReady && (
+            <form onSubmit={event => { event.preventDefault(); commitEventEmail(); }}>
+              <label className="mb-4 block">{eventText('email')}<input id="buyer.email" type="email" required maxLength={254} value={formEmail ?? email ?? ''} onChange={event => setFormEmail(event.target.value)} onBlur={commitEventEmail} className="mt-1 block w-full rounded border border-sf-border p-3" /></label>
+            </form>
+          )}
 
           {profile && !hasAccess && !isFunnelTest && !isFreeAccess && <>
             {quantityConfig?.mode === 'checkout' && <CheckoutQuantityField config={quantityConfig} value={quantityInput} onChange={changeQuantity} invalid={quantityInvalid} />}

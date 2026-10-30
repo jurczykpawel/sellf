@@ -46,7 +46,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const session = await createClient(); const { data: { user } } = await session.auth.getUser();
     const email = (user?.email ?? body.email).trim().toLowerCase();
     const checkoutConfig = await getCheckoutConfig();
-    if (shouldShowTosCheckbox(checkoutConfig.collect_terms_of_service, !user) && body.termsAccepted !== true) return fail('Terms acceptance required');
+    const termsRequired = shouldShowTosCheckbox(checkoutConfig.collect_terms_of_service, !user);
+    if (termsRequired && body.termsAccepted !== true) return fail('Terms acceptance required');
     if (!await ProductValidationService.validateEmail(email)) return fail('Invalid email');
     const db = createAdminClient();
     const { data: product, error } = await db.from('products').select('*').eq('id', body.productId).eq('is_active', true).single();
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const lines = buildOrderSnapshotLines(specs, { orderBumpIds, accessOverrides });
     if (product.event_mode) lines[0].session_id = body.sessionId;
     const placed = await db.rpc('bank_transfer_order', { p_order: {
-      product_id: product.id, currency: product.currency.toUpperCase(), customer_email: email, user_id: user?.id ?? null,
+      product_id: product.id, currency: product.currency.toUpperCase(), customer_email: email, user_id: user?.id ?? null, terms_required: termsRequired,
       order_details: { v: 1, ...validation.details }, custom_field_values: custom.values, coupon_id: coupon?.id ?? null,
       metadata: { event_ip: ip, locale: body.locale },
     }, p_lines: lines as unknown as Json });

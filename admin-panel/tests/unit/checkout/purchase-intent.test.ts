@@ -238,3 +238,25 @@ it('locks shared profile fields while confirming payment and unlocks after a dec
   await act(async () => finish({ type: 'error', error: { message: 'Choose another payment method' } }));
   expect((document.getElementById('phone') as HTMLInputElement).disabled).toBe(false);
 });
+
+it('collects event email before creating a hold and starts automatically after a valid address is committed', async () => {
+  mocks.fetch.mockImplementation(async url => ({ ok: true, json: async () => url.includes('/availability')
+    ? { sessions: [{ id: 'event-session', startsAt: '2099-01-01T12:00:00Z', endsAt: null, timezone: 'UTC', title: 'Workshop', venue: null, extraDays: null, remaining: 5, soldOut: false,
+      currentTier: { id: 'tier', label: null, price: 49, seatsLeft: 5, endsAt: null }, nextTierPrice: null, cheaperSoldOut: false }] }
+    : { clientSecret: 'cs_test_first_secret_value', checkoutSessionId: 'cs_test_first', bindingToken: 'binding-first' } }));
+  vi.stubGlobal('fetch', mocks.fetch);
+  render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, {
+    product: { id: 'test-product', name: 'Workshop', slug: 'workshop', price: 49, currency: 'PLN', event_mode: true } as Product,
+    collectTermsOfService: false,
+  })));
+  await screen.findByRole('radio');
+  const creates = () => mocks.fetch.mock.calls.filter(([url, options]) => url === '/api/create-payment-intent' && !JSON.parse(options.body).expireOnly);
+  expect(creates()).toHaveLength(0);
+  const email = screen.getByLabelText(en.events.email);
+  fireEvent.change(email, { target: { value: 'incomplete' } }); fireEvent.blur(email);
+  expect(creates()).toHaveLength(0);
+  fireEvent.change(email, { target: { value: 'attendee@example.com' } }); fireEvent.blur(email);
+  await waitFor(() => expect(creates()).toHaveLength(1));
+  expect(JSON.parse(creates()[0][1].body)).toMatchObject({ email: 'attendee@example.com', sessionId: 'event-session' });
+  expect(screen.queryByRole('button', { name: 'Continue to payment', exact: true })).toBeNull();
+});
