@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout } from './helpers/checkout-intent';
 
 // /checkout/{slug} renders the tip-jar layout when product.checkout_template
 // = 'tip-jar'. BMC-style two-column: left = About + Recent supporters, right

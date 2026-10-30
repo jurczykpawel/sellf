@@ -23,7 +23,7 @@ test.beforeAll(async ({ baseURL }) => {
   seller = http.createServer((_req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.end(`<!doctype html><html lang="${language}"><body>
-      <button>Before</button><div data-sellf-embed data-product-slug="${slug}" data-modal="true" data-button-label="Kup teraz"></div>
+      <button>Before</button><div data-sellf-embed data-product-slug="${slug}" data-modal="true" data-coupon="LINK" data-button-label="Kup teraz"></div>
       <button>After</button><script src="${appOrigin}/embed/v1/checkout.js"></script></body></html>`);
   });
   await new Promise<void>(resolve => seller.listen(0, '127.0.0.1', resolve));

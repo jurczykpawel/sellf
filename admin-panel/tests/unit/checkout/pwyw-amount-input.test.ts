@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import React from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextIntlClientProvider } from 'next-intl';
 import messages from '@/messages/pl.json';
 import { parseCustomAmountInput } from '@/lib/payment/custom-amount';
@@ -11,8 +11,10 @@ import type { Product } from '@/types';
 const navigation = vi.hoisted(() => ({ query: '' }));
 vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(navigation.query) }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, loading: false }) }));
-vi.mock('@/components/providers/config-provider', () => ({ useConfig: () => ({ config: { stripePublishableKey: 'pk_test_example' } }) }));
+vi.mock('@/components/providers/config-provider', () => ({ useConfig: () => ({ stripePublishableKey: 'pk_test_example' }) }));
 vi.mock('@/components/providers/theme-provider', () => ({ useTheme: () => ({ resolvedTheme: 'light' }) }));
+vi.mock('@/lib/stripe/client', () => ({ getStripeClient: () => Promise.resolve(null) }));
+vi.mock('@/hooks/useInvoiceData', () => ({ useInvoiceData: () => ({ fullName: 'Test Buyer', setFullName: vi.fn(), isLoadingProfile: false }) }));
 vi.mock('@/hooks/useOrderBumps', () => ({ useOrderBumps: () => ({ orderBumps: [] }) }));
 vi.mock('@/hooks/useTracking', () => ({ useTracking: () => ({ track: vi.fn() }) }));
 vi.mock('@/hooks/useCoupon', () => ({ useCoupon: () => ({ appliedCoupon: null }) }));
@@ -26,6 +28,7 @@ vi.mock('@/app/[locale]/checkout/[slug]/components/ProductShowcase', () => ({ de
 vi.mock('@/app/[locale]/checkout/[slug]/components/CouponField', () => ({ default: () => null }));
 vi.mock('@/lib/orders/transfer-public', () => ({ getTransferAvailability: vi.fn() }));
 
+beforeEach(() => vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {}))));
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); navigation.query = ""; });
 describe('PWYW amount input', () => {
   it.each([['4', 4], ['4,99', 4.99], ['5', 5], ['5.55', 5.55], ['0', 0]])('parses %s', (raw, amount) => {
@@ -45,37 +48,25 @@ describe('PWYW amount input', () => {
     expect(parseCustomAmountInput('500', 'JPY')).toBe(500);
     expect(parseCustomAmountInput('500,5', 'JPY')).toBeNull();
   });
-  it('validates before payment, preserves commas and updates the total without blur', () => {
-    const request = vi.fn();
-    vi.stubGlobal('fetch', request);
+  it('validates before initialization, preserves commas and updates the total without blur', async () => {
+    navigation.query = 'amount=4';
+    const request = vi.fn(() => new Promise(() => {})); vi.stubGlobal('fetch', request);
     const product = { id: 'product', slug: 'pwyw', name: 'Support', price: 10, currency: 'PLN', allow_custom_price: true, custom_price_min: 5 } as Product;
-    render(React.createElement(NextIntlClientProvider, { locale: 'pl', messages },
-      React.createElement(PaidProductForm, { product, collectTermsOfService: false, layoutMode: 'embedded' })));
+    render(React.createElement(NextIntlClientProvider, { locale: 'pl', messages }, React.createElement(PaidProductForm, { product, collectTermsOfService: false, layoutMode: 'embedded' })));
     const input = screen.getByRole('textbox');
-    const button = screen.getByRole('button', { name: messages.checkout.continueToPayment });
-    fireEvent.change(input, { target: { value: '4' } });
-    expect((button as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.submit(button.closest('form')!);
-    expect(screen.getByRole('button', { name: messages.checkout.continueToPayment })).toBeTruthy();
     expect(request).not.toHaveBeenCalled();
-    fireEvent.change(input, { target: { value: '4,99' } });
-    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: messages.checkout.continueToPayment })).toBeNull();
+    expect(screen.queryByText(messages.checkout.loadingPaymentMethods)).toBeNull();
+    fireEvent.change(input, { target: { value: '4,99' } }); expect(request).not.toHaveBeenCalled();
     fireEvent.change(input, { target: { value: '5,55' } });
+    await waitFor(() => expect(request).toHaveBeenCalledOnce());
     expect((input as HTMLInputElement).value).toBe('5,55');
     expect(screen.getByTestId('order-summary-total').textContent).toContain('5,55');
-    expect((button as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.blur(input);
-    expect((input as HTMLInputElement).value).toBe('5,55');
+    fireEvent.blur(input); expect((input as HTMLInputElement).value).toBe('5,55');
     fireEvent.change(input, { target: { value: '5,555' } });
-    expect((button as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/Wpisz poprawną kwotę/)).toBeTruthy();
     expect(screen.queryByText(messages.checkout.loadingPaymentMethods)).toBeNull();
-    fireEvent.change(input, { target: { value: '5' } });
-    expect((button as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.change(input, { target: { value: '0' } });
-    expect((button as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.change(input, { target: { value: '' } });
-    expect((button as HTMLButtonElement).disabled).toBe(true);
+    for (const invalid of ['0', '']) { fireEvent.change(input, { target: { value: invalid } }); expect(request).toHaveBeenCalledOnce(); }
   });
 });
 

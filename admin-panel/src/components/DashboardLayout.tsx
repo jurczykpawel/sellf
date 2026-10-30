@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, startTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { PanelLeftOpen, PanelLeftClose } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useUpdateCheck } from '@/hooks/useUpdateCheck'
 import { api, isExpectedApiError } from '@/lib/api/client'
@@ -145,11 +146,13 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
     pendingRefunds: 0,
     failedWebhooks: 0,
   })
-  // Lazy init reads localStorage on first render — no useEffect+setState cascade.
-  const [isPinned, setIsPinned] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    return localStorage.getItem('sf_sidebar_pinned') === 'true'
-  })
+  const [isPinned, setIsPinned] = useState(true)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('sf_sidebar_pinned')
+      startTransition(() => setIsPinned(saved !== 'false'))
+    } catch { /* Keep navigation available when storage is unavailable. */ }
+  }, [])
   const [isHovered, setIsHovered] = useState(false)
   const [mounted, setMounted] = useState(false)
   const { signOut, role: authRole, user: authUser, loading: authLoading } = useAuth()
@@ -188,7 +191,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
   const togglePin = () => {
     setIsPinned(prev => {
       const next = !prev
-      localStorage.setItem('sf_sidebar_pinned', String(next))
+      try { localStorage.setItem('sf_sidebar_pinned', String(next)) } catch { /* The control still works without persistence. */ }
       return next
     })
   }
@@ -595,21 +598,20 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
               {shopName}
             </span>
           </Link>
-          <button
-            onClick={togglePin}
-            className="flex-shrink-0 mr-2 w-7 h-7 flex items-center justify-center text-sf-sidebar-text hover:text-sf-accent hover:bg-sf-hover rounded"
-            style={{
-              opacity: isExpanded ? 1 : 0,
-              pointerEvents: isExpanded ? 'auto' : 'none',
-              transition: 'opacity var(--sf-duration-normal, 250ms) var(--sf-ease-out, ease-out)',
-            }}
-            aria-label={isPinned ? 'Unpin sidebar' : 'Pin sidebar open'}
-          >
-            <span style={{ display: 'inline-flex', transform: isPinned ? 'rotate(45deg)' : 'none', transition: 'transform 250ms' }}>
-              {Icons.pin}
-            </span>
-          </button>
+
         </div>
+
+          <button
+            type="button"
+            onClick={togglePin}
+            className="hidden lg:flex flex-shrink-0 mx-2 w-8 h-8 items-center justify-center rounded border border-sf-border-subtle text-sf-sidebar-text hover:text-sf-accent hover:bg-sf-hover focus-visible:outline-2 focus-visible:outline-sf-accent"
+            aria-controls="dashboard-sidebar"
+            aria-expanded={isExpanded}
+            aria-label={t(isPinned ? 'collapseSidebar' : 'expandSidebar')}
+            title={t(isPinned ? 'collapseSidebar' : 'expandSidebar')}
+          >
+            {isPinned ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
+          </button>
 
         {/* Right-side actions */}
         <div className="flex-1 flex justify-end items-center gap-4 px-4 sm:px-6">
@@ -630,6 +632,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
 
       {/* Desktop Sidebar — navigation only, sits below the fixed header */}
       <aside
+        id="dashboard-sidebar"
         className="hidden lg:flex fixed top-14 bottom-0 left-0 flex-col bg-sf-sidebar-bg border-r border-sf-border-subtle z-40 overflow-hidden"
         style={{
           width: isExpanded ? 'var(--sf-sidebar-width-expanded)' : 'var(--sf-sidebar-width-collapsed)',

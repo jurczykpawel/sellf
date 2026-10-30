@@ -1,11 +1,11 @@
 /** Checkout profile collection and pre-payment validation. @see lib/checkout-modules/registry.ts */
 import { randomUUID } from 'node:crypto';
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { acceptAllCookies } from './helpers/consent';
-import { startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout } from './helpers/checkout-intent';
 
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 const profile = { v: 1, modules: [
@@ -32,7 +32,7 @@ test.afterAll(async () => {
 async function open(page: Page, quantity = 1) {
   await acceptAllCookies(page);
   await page.goto(`/pl/checkout/${product.slug}`);
-  await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toHaveCount(0);
   if (quantity !== 1) await page.getByLabel('Ilość', { exact: true }).fill(String(quantity));
   const buyerEmail = page.locator('[id="buyer.email"]');
   if (await buyerEmail.count()) await buyerEmail.fill('buyer@example.com');
@@ -69,7 +69,7 @@ for (const mode of ['checkout', 'product_page']) {
       page.on('pageerror', error => errors.push(error.message));
       await acceptAllCookies(page);
       await page.goto(`/pl/checkout/${product.slug}`);
-      await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toBeEnabled();
+      await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toHaveCount(0);
       const quantity = page.getByLabel('Ilość', { exact: true });
       await quantity.fill('3');
       const summary = page.locator('[data-testid="order-summary-total"]');
@@ -77,13 +77,13 @@ for (const mode of ['checkout', 'product_page']) {
       await quantity.fill(value);
       await expect(quantity).toHaveAttribute('aria-invalid', 'true');
       await expect(page.locator('#checkoutQuantity-error')).toHaveText('Wpisz poprawną wartość. (1–5)');
-      await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toBeDisabled();
+      await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toHaveCount(0);
       await expect(summary).toHaveText('—');
       expect(errors).toEqual([]);
       await quantity.fill('2');
       await expect(summary).toContainText('200,00');
       await expect(quantity).toHaveAttribute('aria-invalid', 'false');
-      await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toBeEnabled();
+      await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toHaveCount(0);
     });
   }
 }
@@ -93,14 +93,14 @@ test('product route validates quantity and initialized checkout keeps its last v
   page.on('pageerror', error => errors.push(error.message));
   await acceptAllCookies(page);
   await page.goto(`/p/${product.slug}`);
-  await expect(page.getByRole('button', { name: 'Continue to payment' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Continue to payment' })).toHaveCount(0);
   const quantity = page.getByLabel('Quantity', { exact: true });
   await quantity.fill('0');
   await expect(page.locator('#checkoutQuantity-error')).toContainText('Enter a valid value.');
-  await expect(page.getByRole('button', { name: 'Continue to payment' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Continue to payment' })).toHaveCount(0);
   await quantity.fill('3');
-  await page.locator('[id="buyer.email"]').fill('buyer@example.com');
   await startNativeCheckout(page);
+  await page.locator('#checkoutEmail').fill('buyer@example.com');
   const pay = page.getByRole('button', { name: /^Pay/ });
   await expect(pay).toBeEnabled({ timeout: 30000 });
   const before = await pay.textContent();
@@ -118,9 +118,12 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
     expect((await db.from('products').update({ checkout_profile: profile }).eq('id', product.id)).error).toBeNull();
     await acceptAllCookies(page);
     await page.goto(`/pl/checkout/${product.slug}`);
-    const start = page.getByRole('button', { name: 'Przejdź do płatności' });
-    await expect(start).toBeEnabled();
-    await page.locator('[id="buyer.email"]').fill('buyer@example.com');
+    await startNativeCheckout(page);
+    await page.locator('#checkoutEmail').fill('buyer@example.com');
+    const start = page.getByRole('button', { name: /^Zapłać/ });
+    const terms = page.getByRole('checkbox', { name: /Zgadzam|Akceptuję/ });
+    if (await terms.count()) await terms.check();
+    await expect(start).toBeEnabled({ timeout: 30000 });
     await page.getByLabel('Ilość', { exact: true }).fill('5');
     await page.getByLabel('Typ nabywcy').selectOption('organization');
     await party(page, 'buyer');
@@ -244,9 +247,12 @@ test('phone: a number without a country code is explained, a 00 prefix is stored
   try {
     await acceptAllCookies(page);
     await page.goto(`/pl/checkout/${product.slug}`);
-    const start = page.getByRole('button', { name: 'Przejdź do płatności' });
-    await expect(start).toBeEnabled();
-    await page.locator('[id="buyer.email"]').fill('buyer@example.com');
+    const response = await startNativeCheckout(page);
+    await page.locator('#checkoutEmail').fill('buyer@example.com');
+    const start = page.getByRole('button', { name: /^Zapłać/ });
+    const terms = page.getByRole('checkbox', { name: /Zgadzam|Akceptuję/ });
+    if (await terms.count()) await terms.check();
+    await expect(start).toBeEnabled({ timeout: 30000 });
     await page.locator('#phone').fill('1234567');
     await start.click();
     await expect(page.locator('#phone-error')).toContainText('Zacznij numer od kierunkowego kraju');
@@ -254,8 +260,6 @@ test('phone: a number without a country code is explained, a 00 prefix is stored
     await start.click();
     await expect(page.locator('#phone-error')).toContainText('za krótki');
     await page.locator('#phone').fill('00 48 500 600 700');
-    const response = await startNativeCheckout(page);
-    await expect(page.locator('#phone-error')).toHaveCount(0);
     const session = (await response.json()).checkoutSessionId as string;
     const paymentEmail = page.locator('#checkoutEmail');
     if (await paymentEmail.count()) await paymentEmail.fill('buyer@example.com');
@@ -263,6 +267,7 @@ test('phone: a number without a country code is explained, a 00 prefix is stored
     const updated = page.waitForResponse('**/api/update-payment-metadata');
     await submit(page);
     expect((await updated).status()).toBe(200);
+    await expect(page.locator('#phone-error')).toHaveCount(0);
     const { data: tx } = await db.from('payment_transactions').select('order_details').eq('session_id', session).single();
     expect(tx!.order_details.phone.value).toBe('+48500600700');
   } finally {

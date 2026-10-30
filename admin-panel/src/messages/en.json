@@ -216,7 +216,6 @@
     "purchaseTitle": "Complete your purchase",
     "loadingPaymentMethods": "Loading payment methods…",
     "removeCoupon": "Remove discount code",
-    "couponEntryPrompt": "Have a discount code?",
     "couponEntryLabel": "Discount code",
     "title": "Complete Your Purchase",
     "emailAddress": "Email Address",
@@ -427,6 +426,8 @@
     "noResults": "No results found for \"{searchTerm}\""
   },
   "navigation": {
+    "expandSidebar": "Expand navigation",
+    "collapseSidebar": "Collapse navigation",
     "sessionExpired": "Session expired — sign in again",
     "dashboard": "Dashboard",
     "products": "Products",

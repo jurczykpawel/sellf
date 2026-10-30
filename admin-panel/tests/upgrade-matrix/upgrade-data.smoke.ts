@@ -1,5 +1,6 @@
+import { test, startNativeCheckout } from '../helpers/checkout-intent';
 /** Browser smoke on the populated historical database. @see scripts/upgrade-data-test.sh */
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin } from '../helpers/admin-auth';
 import { acceptAllCookies } from '../helpers/consent';
 
@@ -57,9 +58,8 @@ test('historical product without a profile opens a new purchase payment form', a
   }));
   await acceptAllCookies(page);
   await page.goto('/pl/checkout/upgrade-gross');
-  const response = page.waitForResponse('**/api/create-payment-intent');
-  await page.getByRole('button', { name: 'Przejdź do płatności' }).click();
-  expect((await response).status()).toBe(200);
+  const response = await startNativeCheckout(page);
+  expect(response.status()).toBe(200);
   await expect(page.locator('#fullName')).toBeVisible();
   await expect(page.getByTestId('upgrade-payment-element')).toBeVisible();
 });

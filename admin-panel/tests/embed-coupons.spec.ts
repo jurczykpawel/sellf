@@ -171,21 +171,12 @@ test.beforeEach(async () => {
 });
 
 test.describe('Embedded checkout coupon', () => {
-  test('a valid coupon typed into the embed lowers the Stripe session amount', async ({ page }) => {
+  test('an unlinked embed keeps coupon entry absent', async ({ page }) => {
     sellerPage.setHtml(embedHtml());
-
-    const [first] = await Promise.all([
-      page.waitForResponse(isSessionPost),
-      page.goto(sellerPage.origin),
-    ]);
-    expect(postedCoupon(first)).toBeUndefined();
-    expect(await sessionAmount(first)).toBe(FULL_AMOUNT);
-
-    const applied = await applyCoupon(page, VALID_CODE);
-    expect(applied.status()).toBe(200);
-    expect(await sessionAmount(applied)).toBe(DISCOUNTED_AMOUNT);
-    await expect(page.locator('.sellf-coupon [role="status"]')).toContainText(`Coupon ${VALID_CODE} applied`);
-    await expect(page.locator('[data-sellf-coupon-error]')).toHaveCount(0);
+    const paid = page.waitForResponse(async r => isSessionPost(r) && r.ok() && (await r.json()).kind === 'paid');
+    await page.goto(sellerPage.origin);
+    expect(await sessionAmount(await paid)).toBe(PRICE * 100);
+    await expect(page.locator('.sellf-coupon')).toHaveCount(0);
   });
 
   test('data-coupon prefills the field and is applied on the first request', async ({ page }) => {
@@ -201,10 +192,10 @@ test.describe('Embedded checkout coupon', () => {
   });
 
   test('an invalid coupon is rejected clearly and the payable checkout stays mounted', async ({ page }) => {
-    sellerPage.setHtml(embedHtml());
+    sellerPage.setHtml(embedHtml(`data-coupon="${VALID_CODE}"`));
 
     const [initial] = await Promise.all([page.waitForResponse(isSessionPost), page.goto(sellerPage.origin)]);
-    expect(await sessionAmount(initial)).toBe(FULL_AMOUNT);
+    expect(await sessionAmount(initial)).toBe(DISCOUNTED_AMOUNT);
     await expect(page.locator('iframe').first()).toBeAttached();
 
     const sessionPosts: string[] = [];

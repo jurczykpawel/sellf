@@ -9,13 +9,14 @@ export const useRouter = () => ({ push: noop, replace: noop, refresh: noop, back
 export const useAuth = () => ({ user: null, isAdmin: false, loading: false });
 export const useConfig = () => ({ stripePublishableKey: 'pk_test_fixture' });
 export const useTheme = () => ({ resolvedTheme: 'light' });
+export const getTransferAvailability = async () => ({ enabled: false, dueDays: 14 });
 export const getStripeClient = () => Promise.resolve(null);
 export const useTracking = () => ({ track: noop });
 export const useOrderBumps = () => ({ orderBumps: [] });
 export const useOto = () => ({});
 export const useFreeAccess = () => ({});
 export const useCheckoutRedirect = () => ({ hasAccess: false });
-export const useCoupon = () => ({ appliedCoupon: null, couponCode: '', setCouponCode: noop, showCouponInput: false, isVerifyingCoupon: false, couponError: null, showInput: noop, removeCoupon: noop, handleVerifyCoupon: noop, applyOtoCoupon: noop });
+export const useCoupon = () => ({ appliedCoupon: null, couponCode: '', setCouponCode: noop, showCouponInput: false, isVerifyingCoupon: false, couponError: null, removeCoupon: noop, handleVerifyCoupon: noop, applyOtoCoupon: noop });
 export function useInvoiceData() {
   const [fullName, setFullName] = useState('');
   return { fullName, setFullName, isLoadingProfile: false };

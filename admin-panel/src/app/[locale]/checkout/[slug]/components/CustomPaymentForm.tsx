@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout';
 import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
@@ -41,11 +41,13 @@ interface CustomPaymentFormProps {
   clientSecret?: string;
   bindingToken?: string;
   onConfirmationChange?: (pending: boolean) => void;
+  onProcessingChange?: (processing: boolean) => void;
   pricing: PricingResult;
   paymentMethodOrder?: string[];
   expressCheckoutConfig?: ExpressCheckoutConfig;
   taxMode?: TaxMode;
   collectTermsOfService: boolean;
+  isGuest?: boolean;
   customFieldDefs?: CustomFieldDefinition[];
   customFieldValues?: CustomFieldValues;
   onCustomFieldValuesChange?: (next: CustomFieldValues) => void;
@@ -74,12 +76,13 @@ export default function CustomPaymentForm({
   customAmountError, quantityInvalid = false,
   clientSecret,
   bindingToken,
-  onConfirmationChange,
+  onConfirmationChange, onProcessingChange,
   pricing,
   paymentMethodOrder,
   expressCheckoutConfig,
   taxMode,
   collectTermsOfService,
+  isGuest = true,
   customFieldDefs = [],
   customFieldValues = {},
   onCustomFieldValuesChange,
@@ -99,9 +102,11 @@ export default function CustomPaymentForm({
   const [emailConfirmed, setEmailConfirmed] = useState(false);
   const emailMismatch = !!(email && linkEmail && linkEmail.toLowerCase() !== email.toLowerCase());
 
-  const showTos = shouldShowTosCheckbox(collectTermsOfService, !email);
+  const showTos = shouldShowTosCheckbox(collectTermsOfService, isGuest);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  useEffect(() => { onProcessingChange?.(isProcessing); }, [isProcessing, onProcessingChange]);
+  useEffect(() => () => onProcessingChange?.(false), [onProcessingChange]);
   const [paymentElementReady, setPaymentElementReady] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 

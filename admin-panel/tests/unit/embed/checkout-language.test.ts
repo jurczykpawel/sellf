@@ -8,7 +8,7 @@ afterEach(() => { document.body.innerHTML = ''; document.documentElement.lang = 
 it.each([['pl', '', 'en-US', 'pl'], ['pl', 'en', 'pl-PL', 'en'], ['', '', 'pl-PL', 'pl']])('resolves page %s and snippet %s before browser %s', async (page, snippet, browser, expected) => {
   document.documentElement.lang = page;
   vi.spyOn(navigator, 'language', 'get').mockReturnValue(browser);
-  document.body.innerHTML = `<div data-sellf-embed data-product-slug="book" lang="${snippet}"></div>`;
+  document.body.innerHTML = `<div data-sellf-embed data-product-slug="book" data-coupon="SAVE" lang="${snippet}"></div>`;
   const loader = document.createElement('script'); loader.src = 'https://sellf.test/embed/v1/checkout.js';
   vi.spyOn(document, 'currentScript', 'get').mockReturnValue(loader);
   const stripe = vi.fn(() => ({ initEmbeddedCheckout: async () => ({ mount() {} }) }));

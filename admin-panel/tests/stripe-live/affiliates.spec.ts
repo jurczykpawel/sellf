@@ -1,3 +1,4 @@
+import { test, startNativeCheckout } from '../helpers/checkout-intent';
 import { getTestDatabaseContainer } from '@/../tests/helpers/database-container';
 /** Native and embedded coupon accounting on a disposable stack. */
 import { execFileSync } from 'node:child_process';
@@ -6,7 +7,7 @@ import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import Stripe from 'stripe';
 import type { AddressInfo } from 'node:net';
 import type { Page, APIRequestContext } from '@playwright/test';
@@ -65,7 +66,7 @@ async function checkout(page: Page, slug: string, email: string, coupon?: string
     await page.getByRole('button', { name: 'Zastosuj' }).click();
     await expect(page.getByRole('textbox', { name: 'Kod rabatowy' })).toBeDisabled();
   }
-  await page.getByRole('button', { name: /Przejdź do płatności/ }).click();
+  await startNativeCheckout(page);
   await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
   await page.locator('#checkoutEmail').fill(email); await page.locator('#fullName').fill('Affiliate Test Buyer');
   for (const c of await page.locator('input[type="checkbox"]').all()) if (await c.isVisible()) await c.check();

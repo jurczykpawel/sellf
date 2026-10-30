@@ -33,7 +33,7 @@ test.beforeAll(async () => {
     'next/navigation', '@stripe/react-stripe-js/checkout', '@/lib/actions/checkout', '@/lib/stripe/client',
     '@/contexts/AuthContext', '@/components/providers/config-provider', '@/components/providers/theme-provider',
     '@/hooks/useTracking', '@/hooks/useOrderBumps', '@/hooks/useOto', '@/hooks/useFreeAccess', '@/hooks/useCheckoutRedirect',
-    '@/hooks/useCoupon', '@/hooks/useInvoiceData', '@/components/DemoCheckoutNotice', '@/components/checkout/InvoiceFields', './ProductShowcase',
+    '@/hooks/useCoupon', '@/lib/orders/transfer-public', '@/hooks/useInvoiceData', '@/components/DemoCheckoutNotice', '@/components/checkout/InvoiceFields', './ProductShowcase',
   ];
   // Exact-specifier filter: Bun 1.3.14 drops next-intl's provider from the bundle when onResolve matches every import.
   const mockFilter = `^(${mocks.map(name => name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')).join('|')})$`;
@@ -61,11 +61,6 @@ for (const locale of ['en', 'pl']) for (const outcome of ['leave', 'redirect', '
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
     await page.goto(`${origin}/?locale=${locale}${outcome === 'decline' ? '&decline' : ''}`);
     expect(errors).toEqual([]);
-    const continueButton = page.locator('button[type="submit"]');
-    await expect(continueButton).toBeVisible();
-    await expect(continueButton).toHaveText(locale === 'pl' ? 'Przejdź do płatności' : 'Continue to payment');
-    expect(attempts).toEqual([]);
-    await continueButton.click();
     await expect(page.getByTestId('payment-fields')).toBeVisible();
     await expect(page.locator('button[type="submit"]')).toHaveText(locale === 'pl' ? /Zapłać.*49/ : /Pay.*49/);
     expect(attempts).toHaveLength(1);
@@ -82,15 +77,13 @@ for (const locale of ['en', 'pl']) for (const outcome of ['leave', 'redirect', '
       await expect.poll(() => attempts.filter(attempt => attempt.expireOnly)).toHaveLength(1);
       await page.goBack();
       await expect(page.locator('button[type="submit"]')).toBeVisible();
-      await expect(page.getByTestId('payment-fields')).toHaveCount(0);
-      expect(attempts).toHaveLength(2);
+      await expect(page.getByTestId('payment-fields')).toBeVisible();
+      await expect.poll(() => attempts.filter(attempt => !attempt.expireOnly)).toHaveLength(2);
     } else {
       expect(attempts.filter(attempt => attempt.expireOnly)).toEqual([]);
       await page.goBack();
-      await expect(page.locator('button[type="submit"]')).toHaveText(locale === 'pl' ? 'Przejdź do płatności' : 'Continue to payment');
-      await expect(page.getByTestId('payment-fields')).toHaveCount(0);
+      await expect(page.getByTestId('payment-fields')).toBeVisible();
       const retiredBeforeNewAttempt = attempts.filter(attempt => attempt.expireOnly).length;
-      await continueButton.click();
       await expect(page.getByTestId('payment-fields')).toBeVisible();
       await page.getByRole('link', { name: 'Leave checkout' }).click();
       await expect.poll(() => attempts.filter(attempt => attempt.expireOnly)).toHaveLength(retiredBeforeNewAttempt + 1);

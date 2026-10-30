@@ -7,13 +7,13 @@
  * Run: bun run test:a11y
  */
 import { randomUUID } from 'node:crypto';
-import { test, expect, Page } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
 import { createTestAdmin, setAuthSession, supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
 import { checkAccessibility } from './helpers/axe';
 import { readRawActiveTheme, writeActiveTheme, restoreRawActiveTheme } from './helpers/active-theme';
 import { THEME_PRESETS } from '@/lib/themes';
-import { startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout } from './helpers/checkout-intent';
 
 test.setTimeout(120_000);
 

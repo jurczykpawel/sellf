@@ -11,6 +11,7 @@ import { assertStripeObjectOwnership } from '@/lib/api/ownership';
 import { verifyCheckoutBinding } from '@/lib/security/checkout-binding';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { applyBuyerTaxIdentityToCustomer } from '@/lib/stripe/buyer-tax-identity';
+import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
 import { shouldForwardTaxIdentityToStripe } from '@/lib/checkout/invoice-form-logic';
 import {
   validateCustomFieldDefinitions,
@@ -149,6 +150,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const checkoutConfig = await getCheckoutConfig();
+    if (shouldShowTosCheckbox(checkoutConfig.collect_terms_of_service, !sessionUser) && termsAccepted !== true) {
+      return NextResponse.json({ success: false, error: 'Terms acceptance required' }, { status: 400 });
+    }
     const stripe = await getStripeServer();
     const buyer = buildBuyerDetails(
       { firstName, lastName, fullName, termsAccepted, needsInvoice, nip, companyName, address, city, postalCode, country },
@@ -363,8 +368,7 @@ export async function POST(request: NextRequest) {
         else await stripe.paymentIntents.update(stripeObjectId, { metadata: profileMetadata });
         const party = result.details.buyer;
         if (stripeTaxCustomerId && party && typeof party === 'object' && !Array.isArray(party)) {
-          const config = await getCheckoutConfig();
-          if (shouldForwardTaxIdentityToStripe(config.tax_mode)) {
+          if (shouldForwardTaxIdentityToStripe(checkoutConfig.tax_mode)) {
             const text = (key: string) => typeof party[key] === 'string' ? party[key] : undefined;
             await applyBuyerTaxIdentityToCustomer({
               stripe, customerId: stripeTaxCustomerId,
@@ -389,7 +393,6 @@ export async function POST(request: NextRequest) {
     // The Customer was attached at create-payment-intent (a session's customer can't be set later).
     // Gated on stripe_tax; fail-safe (never blocks the metadata update or the payment).
     if (stripeTaxCustomerId) {
-      const checkoutConfig = await getCheckoutConfig();
       if (shouldForwardTaxIdentityToStripe(checkoutConfig.tax_mode)) {
         await applyBuyerTaxIdentityToCustomer({
           stripe,

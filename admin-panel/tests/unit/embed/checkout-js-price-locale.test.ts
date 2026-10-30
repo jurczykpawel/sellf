@@ -53,3 +53,19 @@ it.each(['page', 'attribute'])('uses Polish coupon labels from %s', async (sourc
   expect(document.body.innerHTML).toContain('Zastosuj');
   await waitFor(() => expect(document.querySelector('[role=status]')?.textContent).toBe('Zastosowano kupon SAVE.'));
 });
+
+it.each(['none', 'query', 'attribute'])('only exposes coupon controls for a supplied code: %s', async source => {
+  vi.stubEnv('STRIPE_PUBLISHABLE_KEY', 'pk_test_example');
+  window.history.replaceState({}, '', source === 'query' ? '/?coupon=LINK10' : '/');
+  document.body.innerHTML = `<div data-sellf-embed data-product-slug="course"${source === 'attribute' ? ' data-coupon="LINK10"' : ''}></div>`;
+  const scriptTag = document.createElement('script'); scriptTag.src = 'https://sellf.example/embed/v1/checkout.js';
+  vi.spyOn(document, 'currentScript', 'get').mockReturnValue(scriptTag);
+  const mount = vi.fn();
+  Object.defineProperty(window, 'Stripe', { configurable: true, value: () => ({ initEmbeddedCheckout: async () => ({ mount, destroy: () => {} }) }) });
+  const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ kind: 'paid', clientSecret: 'secret', product: { price: 49, currency: 'PLN' } }) });
+  runInNewContext(await (await GET()).text(), { document, window, navigator: { language: 'en' }, URL, fetch });
+  await waitFor(() => expect(mount).toHaveBeenCalledOnce());
+  expect(!!document.querySelector('input[name=coupon]')).toBe(source !== 'none');
+  expect(JSON.parse(fetch.mock.calls[0][1].body).couponCode).toBe(source === 'none' ? undefined : 'LINK10');
+  window.history.replaceState({}, '', '/');
+});
