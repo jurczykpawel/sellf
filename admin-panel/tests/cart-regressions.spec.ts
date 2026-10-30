@@ -124,7 +124,7 @@ for (const locale of ['en', 'pl']) test(`${locale}: external embed only exposes 
     const responsePromise = page.waitForResponse(r => r.url().includes('/api/embed/checkout-session') && r.request().method() === 'POST');
     await page.goto(`${sellerOrigin}/${linked ? `?coupon=${coupon.code}` : ''}`);
     const response = await responsePromise; const body = await response.json(); expect(response.status(), JSON.stringify(body)).toBe(200); remember(body);
-    await expect(page.locator('iframe')).toBeVisible({ timeout: 60000 });
+    await expect(page.locator('iframe[name="embedded-checkout"]')).toBeVisible({ timeout: 60000 });
     const input = page.locator('input[name=coupon]');
     if (linked) await expect(input).toHaveValue(coupon.code); else await expect(input).toHaveCount(0);
     expect(response.request().postDataJSON().couponCode).toBe(linked ? coupon.code : undefined);

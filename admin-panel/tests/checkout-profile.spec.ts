@@ -33,6 +33,8 @@ async function open(page: Page, quantity = 1) {
   await acceptAllCookies(page);
   await page.goto(`/pl/checkout/${product.slug}`);
   if (quantity !== 1) await page.getByLabel('Ilość', { exact: true }).fill(String(quantity));
+  await expect.poll(async () => await page.getByRole('button', { name: 'Przejdź do płatności', exact: true }).isVisible()
+    || await page.locator('[data-test-email]').isVisible(), { timeout: 30000 }).toBe(true);
   const buyerEmail = page.locator('[id="buyer.email"]');
   if (await buyerEmail.count()) await buyerEmail.fill('buyer@example.com');
   const fields = page.locator('input[id^="buyer."], input[id^="participants."], #phone');
