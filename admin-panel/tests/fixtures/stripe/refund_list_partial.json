@@ -1,0 +1,36 @@
+{
+  "object": "list",
+  "count": 1,
+  "data": [
+    {
+      "id": "re_recorded2",
+      "object": "refund",
+      "amount": 1000,
+      "balance_transaction": "txn_recorded4",
+      "charge": "ch_recorded2",
+      "created": 1793211142,
+      "currency": "pln",
+      "customer": null,
+      "customer_account": null,
+      "destination_details": {
+        "card": {
+          "reference": "7630293219453280",
+          "reference_status": "available",
+          "reference_type": "acquirer_reference_number",
+          "type": "refund"
+        },
+        "type": "card"
+      },
+      "metadata": {},
+      "payment_intent": "pi_recorded2",
+      "payment_method": "pm_recorded2",
+      "reason": null,
+      "receipt_number": null,
+      "source_transfer_reversal": null,
+      "status": "succeeded",
+      "transfer_reversal": null
+    }
+  ],
+  "has_more": false,
+  "url": "/v1/refunds"
+}

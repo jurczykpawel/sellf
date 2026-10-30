@@ -306,6 +306,9 @@ Sellf does not send transactional emails for subscription events. It dispatches 
   - `lead.captured`
   - `waitlist.signup`
   - `refund.issued`
+  - `refund.updated`
+  - `dispute.created`
+  - `dispute.closed`
   - `subscription.created`
   - `subscription.updated`
   - `subscription.canceled`

@@ -20,6 +20,7 @@ import { validateUUID } from '@/lib/validations/product';
 import { getStripeServer } from '@/lib/stripe/server';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
+import { getPaymentRefundStatus } from '@/lib/refunds/payment-status';
 import { buildRefundApprovalLog, canProcessRefundRequest, remainingRefundableAmount } from '@/lib/refunds/flow';
 
 interface RouteParams {
@@ -268,13 +269,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         const refundDelta = stripeRefund.amount ?? refundAmount;
         const totalRefunded = (transaction.refunded_amount || 0) + refundDelta;
         const isFullRefund = totalRefunded >= transaction.amount;
-        const nextStatus = isFullRefund ? 'refunded' : 'completed';
+        const nextStatus = getPaymentRefundStatus(totalRefunded, transaction.amount);
         const refundedAt = new Date().toISOString();
         let revocationResult: Awaited<ReturnType<typeof revokeTransactionAccess>> | null = null;
 
         const { data: updatedRows } = await adminClient
           .from('payment_transactions')
           .update({
+            refund_id: stripeRefund.id,
+            refund_status: stripeRefund.status,
             refunded_amount: totalRefunded,
             status: nextStatus,
             refunded_at: refundedAt,

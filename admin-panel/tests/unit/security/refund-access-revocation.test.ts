@@ -51,8 +51,8 @@ describe('Refund Access Revocation Security', () => {
     it('enforces rate limiting and validates transaction status', () => {
       expect(refundRouteSource).toContain('checkRateLimit');
       expect(refundRouteSource).toContain('RATE_LIMITS.ADMIN_REFUND');
-      expect(refundRouteSource).toContain("transaction.status !== 'completed'");
-      expect(refundRouteSource).toContain("'Only completed transactions can be refunded'");
+      expect(refundRouteSource).toContain('isRefundablePaymentStatus(transaction.status)');
+      expect(refundRouteSource).toContain("'Only completed or partially refunded transactions can be refunded'");
     });
   });
 

@@ -156,9 +156,25 @@ each invoice at purchase (so they don't change if the buyer later edits their pr
 - `nip` / address fields appear only for B2B (a tax id on the invoice); `net`/`tax`/`vatRate`
   only when tax was captured (`taxSnapshotStatus: captured`).
 
+For an `invoice.paid` receiver to extend access, use `data.subscription.stripeSubscriptionId`,
+`data.invoice.stripeInvoiceId`, `data.product.id`, `data.customer.userId`, `amountPaid`,
+`currency` and `paidAt`. The subscription also carries `currentPeriodStart` and
+`currentPeriodEnd` (ISO 8601 UTC) from the **paid invoice's recurring line** for that
+subscription. They are omitted if no unambiguous non-proration line with a valid period
+exists. Do not infer paid access from delivery time or a later subscription update.
+
+For `subscription.canceled` and `subscription.updated`, `subscription.endedAt` is
+Stripe's actual `ended_at`, while `canceledAt` is the cancellation/request timestamp.
+`endsAt` is the observed access end: actual `ended_at` takes precedence; an immediate
+cancellation can fall back to `canceled_at`. A scheduled cancellation uses a recurring
+line from a **paid invoice**, not an unpaid renewal's current billing period. If no
+paid period can be confirmed, `endsAt` is null. Updated terminal/scheduled events also
+use this access end in `currentPeriodEnd`, so receivers cannot mistake an unpaid
+billing end for continued access.
+
 ### `refund.issued` — refund + credit-note VAT
 
-Fired on every refund (full or partial, from any path). Carries the VAT breakdown of the
+Fired exactly once per Stripe refund ID (full or partial, from any path). Carries the VAT breakdown of the
 refunded amount so you can issue a credit note (faktura korygująca):
 
 ```json
@@ -178,13 +194,56 @@ refunded amount so you can issue a credit note (faktura korygująca):
 
 - All amounts are in **minor units** (cents/grosze), matching `payment.amount` — like
   `purchase.completed`, unlike `invoice.paid`.
-- `amount` is the amount refunded in **this** event; `totalRefunded` is the cumulative total.
+- `amount` is the full amount of this Stripe refund; `totalRefunded` is the cumulative processor total. A partial refund sets `payment.statusAfter` to `partially_refunded` in this payload, the database and payments API.
+- `stripeRefundId` identifies the Stripe refund and `status` is its actual processor
+  status (`pending`, `requires_action`, `succeeded`, `failed`, or `canceled`), never inferred
+  from the payment status. A receiver confirming a full refund must check `status ===
+  "succeeded"`, `isFullRefund`, and `totalRefunded >= payment.amount` with a positive payment.
+  Later status changes use `refund.updated`, never a second `refund.issued`.
+  Repeated identical observations do not create another delivery. Payment details at
+  `GET /api/v1/payments/{id}` include `refund.id`, `refund.status` (null if not observed),
+  and cumulative `refund.amount` in minor units.
 - `net` / `tax` / `vatRate` are the refund's VAT split — present only when the original order
   had a tax snapshot. Across a sequence of partial refunds the credited `tax` sums exactly to
   the order's VAT. `vatRate` is the order's effective (blended) rate.
 - `vatExempt: true` marks a **"zw."** order (legal exemption) — distinct from a 0% rate — and
   `taxabilityReason` carries Stripe's reason under Stripe Tax (`reverse_charge`, `customer_exempt`,
   …). Both are omitted when not applicable. Use them to label the credit note correctly.
+
+### `refund.updated` — processor status transitions
+
+Each later status transition of a refund produces one `refund.updated` with the same
+customer/product/payment bindings and `refund.stripeRefundId`, `previousStatus`,
+`status`, `statusVersion`, full refund `amount`, `currency`, `totalRefunded`, and
+`isFullRefund`. `payment.statusAfter` describes the resulting payment state.
+For example pending → succeeded keeps the same refund ID, advances statusVersion
+from 1 to 2, and sends the full amount. It does not represent another monetary refund
+or credit note; VAT adjustments belong to `refund.issued`. Status versions and pending
+notifications are persisted, and each endpoint/version has one durable delivery key.
+Receivers should retain the highest `statusVersion` per refund ID and ignore older
+versions; deliveries and retries may arrive out of order.
+
+### `dispute.created` / `dispute.closed` — payment disputes
+
+These signed events are available for every product, independently of issued licenses
+or the `license.revoked` event. Subscribe to the corresponding incoming Stripe events
+`charge.dispute.created` and `charge.dispute.closed` on existing Stripe endpoints.
+New endpoints registered by Sellf include them automatically.
+
+`data.dispute` carries `stripeDisputeId`, `stripeChargeId`, the actual Stripe `status`
+(`needs_response`, `under_review`, `won`, `lost`, etc.), `reason`, `amount` in minor
+units, uppercase `currency`, and `createdAt` (ISO 8601 UTC). `data.payment` identifies
+`id` (the Sellf transaction), `sessionId`, `paymentIntentId`, `stripeInvoiceId`,
+`subscriptionId`, original `amount` and `currency`. `data.product.id` and
+`data.customer.userId` / `email` bind it to the buyer. Subscription purchases also
+include `data.subscription.id` and `stripeSubscriptionId` when available.
+
+`accessRevoked` and `accessRestored` describe actions taken during this handling.
+Created and lost disputes revoke access; `accessRevoked: true` is sent only after
+successful cleanup. A won dispute reports `status: "won"` without automatically
+restoring Sellf access or revoked licenses (`accessRestored: false`). Receivers must
+correlate the dispute and purchase before applying their own entitlement policy;
+the outcome alone does not prove a Sellf access restoration.
 
 ### Headers
 

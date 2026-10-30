@@ -1,0 +1,41 @@
+{
+  "id": "evt_recorded12",
+  "object": "event",
+  "api_version": "2025-09-30.clover",
+  "created": 1793209012,
+  "data": {
+    "object": {
+      "id": "re_recorded3",
+      "object": "refund",
+      "amount": 1100,
+      "balance_transaction": "txn_recorded5",
+      "charge": "ch_recorded3",
+      "created": 1793208889,
+      "currency": "pln",
+      "customer": null,
+      "customer_account": null,
+      "destination_details": {
+        "card": {
+          "type": "refund"
+        },
+        "type": "card"
+      },
+      "metadata": {},
+      "payment_intent": "pi_recorded3",
+      "payment_method": "pm_recorded3",
+      "reason": null,
+      "receipt_number": null,
+      "source_transfer_reversal": null,
+      "status": "succeeded",
+      "transfer_reversal": null
+    },
+    "previous_attributes": {
+      "pending_reason": "insufficient_funds",
+      "status": "pending"
+    }
+  },
+  "livemode": false,
+  "pending_webhooks": 0,
+  "request": null,
+  "type": "refund.updated"
+}

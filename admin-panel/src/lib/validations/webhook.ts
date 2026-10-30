@@ -189,6 +189,9 @@ export const WEBHOOK_EVENT_TYPES = [
   'invoice.paid',
   'invoice.payment_failed',
   'refund.issued',
+  'refund.updated',
+  'dispute.created',
+  'dispute.closed',
   // License (Pro — gated by EVENT_FEATURE_REQUIREMENTS / 'license-revoked-webhook')
   'license.revoked',
   // Legacy/future events

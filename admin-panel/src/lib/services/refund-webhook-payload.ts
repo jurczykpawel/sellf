@@ -31,6 +31,8 @@ export interface RefundIssuedPayload {
   };
   refund: {
     stripeRefundId: string | null;
+    previousStatus?: string | null;
+    statusVersion?: number;
     amount: number;
     currency: string;
     reason: string | null;
@@ -81,13 +83,6 @@ export interface BuildRefundIssuedPayloadInput {
   refund: RefundIssuedPayload['refund'];
 }
 
-export function shouldEmitRefundWebhook(input: {
-  previousRefundedAmount: number | null | undefined;
-  nextRefundedAmount: number | null | undefined;
-}): boolean {
-  return (input.nextRefundedAmount ?? 0) > (input.previousRefundedAmount ?? 0);
-}
-
 /**
  * PURE: VAT breakdown of a refund delta for a credit note (faktura korygująca).
  *
@@ -115,7 +110,7 @@ export function computeRefundTax(params: {
   if (!amount || amount <= 0) return null;
   const cumulativeTax = Math.round((totalRefunded * taxTotal) / amount);
   const priorTax = Math.round((previousRefundedAmount * taxTotal) / amount);
-  const tax = cumulativeTax - priorTax;
+  const tax = refundAmount === 0 ? 0 : cumulativeTax - priorTax;
   const net = refundAmount - tax;
   // Effective rate from the TRUE net = gross(amount) - taxTotal. NOT netTotal: the stored
   // net_total is GROSS for legacy brutto orders captured before the inclusive-net fix, so
@@ -165,6 +160,7 @@ export async function buildRefundIssuedPayloadFromTransaction(input: {
   refundCurrency?: string | null;
   refundReason?: string | null;
   refundStatus?: string | null;
+  initialRefundStatus?: string | null;
   previousRefundedAmount: number;
   totalRefunded: number;
   isFullRefund: boolean;
@@ -185,9 +181,9 @@ export async function buildRefundIssuedPayloadFromTransaction(input: {
     .select('net_total, tax_total')
     .eq('id', input.transaction.id)
     .maybeSingle();
-  const refundTax = computeRefundTax({
+  const refundTax = input.refundStatus === 'failed' || input.refundStatus === 'canceled' ? null : computeRefundTax({
     refundAmount: input.refundAmount,
-    previousRefundedAmount: input.previousRefundedAmount,
+    previousRefundedAmount: Math.max(input.totalRefunded - input.refundAmount, 0),
     totalRefunded: input.totalRefunded,
     amount: input.transaction.amount,
     netTotal: txTax?.net_total ?? null,
@@ -238,15 +234,31 @@ export async function buildRefundIssuedPayloadFromTransaction(input: {
 }
 
 export async function emitRefundIssuedWebhook(input: Parameters<typeof buildRefundIssuedPayloadFromTransaction>[0]) {
-  if (!shouldEmitRefundWebhook({
-    previousRefundedAmount: input.previousRefundedAmount,
-    nextRefundedAmount: input.totalRefunded,
-  })) {
-    return false;
+  if (!input.stripeRefundId) return false;
+  const { data, error } = await input.supabaseClient.rpc('observe_payment_refund', {
+    p_transaction_id: input.transaction.id, p_refund_id: input.stripeRefundId,
+    p_amount: input.refundAmount, p_currency: input.refundCurrency || input.transaction.currency,
+    p_status: input.refundStatus ?? null,
+    p_initial_status: input.initialRefundStatus ?? input.refundStatus ?? null,
+  });
+  if (error || !data?.[0]) throw new Error('Could not record refund state');
+  let emitted = false;
+  for (const state of data) {
+    if (state.notified_version >= state.refund_version) continue;
+    const payload = await buildRefundIssuedPayloadFromTransaction(input);
+    payload.refund.status = state.refund_status;
+    payload.refund.statusVersion = state.refund_version;
+    const event = state.refund_version === 1 ? 'refund.issued' : 'refund.updated';
+    if (event === 'refund.updated') {
+      payload.refund.previousStatus = state.previous_status;
+      for (const key of ['net', 'tax', 'vatRate', 'vatExempt', 'taxabilityReason']) Reflect.deleteProperty(payload.refund, key);
+    }
+    await WebhookService.trigger(event, payload, input.supabaseClient, payload.product.id);
+    const confirmation = await input.supabaseClient.rpc('confirm_refund_notification', {
+      p_refund_id: input.stripeRefundId, p_version: state.refund_version,
+    });
+    if (confirmation.error) throw new Error('Could not confirm refund notification');
+    emitted = true;
   }
-
-  const payload = await buildRefundIssuedPayloadFromTransaction(input);
-  WebhookService.trigger('refund.issued', payload, input.supabaseClient, payload.product.id)
-    .catch((error) => console.error('[refund-webhook] Failed to dispatch refund.issued:', error));
-  return true;
+  return emitted;
 }

@@ -34,7 +34,7 @@ describe('Partial vs Full Refund Security', () => {
     });
 
     it('sets status to refunded only on full refund', () => {
-      expect(webhookSource).toContain("isFullRefund ? 'refunded' : 'completed'");
+      expect(webhookSource).toContain('getPaymentRefundStatus(');
     });
 
     it('skips access revocation on partial refund', () => {
@@ -61,7 +61,7 @@ describe('Partial vs Full Refund Security', () => {
 
     it('checks isFullRefund before revoking access', () => {
       expect(serverActionSource).toContain('isFullRefund');
-      expect(serverActionSource).toContain("isFullRefund ? 'refunded' : 'completed'");
+      expect(serverActionSource).toContain('getPaymentRefundStatus(');
     });
 
     it('only revokes access on full refund via shared function', () => {
@@ -77,11 +77,11 @@ describe('Partial vs Full Refund Security', () => {
     });
 
     it('sets correct status based on refund type', () => {
-      expect(adminRefundSource).toContain("isFullRefund ? 'refunded' : 'completed'");
+      expect(adminRefundSource).toContain('getPaymentRefundStatus(');
     });
 
-    it('does NOT use partially_refunded status (violates DB constraint)', () => {
-      expect(adminRefundSource).not.toContain('partially_refunded');
+    it('keeps remaining refunds available after a partial refund', () => {
+      expect(adminRefundSource).toContain('isRefundablePaymentStatus(transaction.status)');
     });
 
     it('only revokes access on full refund', () => {
@@ -95,8 +95,8 @@ describe('Partial vs Full Refund Security', () => {
       expect(v1RefundSource).toContain('totalRefunded >= payment.amount');
     });
 
-    it('does NOT use partially_refunded status (violates DB constraint)', () => {
-      expect(v1RefundSource).not.toContain('partially_refunded');
+    it('keeps remaining refunds available after a partial refund', () => {
+      expect(v1RefundSource).toContain('isRefundablePaymentStatus(payment.status)');
     });
 
     it('only revokes access on full refund', () => {
@@ -104,7 +104,7 @@ describe('Partial vs Full Refund Security', () => {
     });
 
     it('sets correct status based on refund type', () => {
-      expect(v1RefundSource).toContain("isFullRefund ? 'refunded' : 'completed'");
+      expect(v1RefundSource).toContain('getPaymentRefundStatus(');
     });
   });
 });

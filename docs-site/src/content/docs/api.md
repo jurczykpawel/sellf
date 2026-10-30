@@ -410,7 +410,7 @@ change Omnibus lowest-price history. This type is available to all sellers.
 | PATCH | `/payments/{id}` | `payments:write` | Update payment metadata |
 | GET | `/payments/stats` | `analytics:read` | Payment statistics (aggregates only) |
 | POST | `/payments/export` | `payments:read` | Export payments (CSV) |
-| POST | `/payments/{id}/refund` | `refund-requests:write` | Refund a payment, including partial refunds |
+| POST | `/payments/{id}/refund` | `payments:refund` | Refund a payment, including partial refunds |
 
 ### Order Bumps
 
@@ -446,7 +446,7 @@ Supported fields: `gtm_container_id`, `gtm_server_container_url`, `gtm_ss_enable
 
 `facebook_capi_token` is write-only: it is stored encrypted and never returned. Omit the field to keep the stored token; send `null` to remove it.
 
-Supported outgoing event types include purchases, leads, waitlist signups, refund issued events, subscription lifecycle events, and invoice payment events.
+Supported outgoing event types include purchases, leads, waitlist signups, `refund.issued`, `refund.updated`, `dispute.created`, `dispute.closed`, subscription lifecycle events, and invoice payment events.
 
 ### Analytics
 

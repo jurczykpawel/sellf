@@ -20,6 +20,8 @@ import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
+import { remainingRefundableAmount } from '@/lib/refunds/flow';
+import { getPaymentRefundStatus, isRefundablePaymentStatus } from '@/lib/refunds/payment-status';
 import { scheduleSubscriptionCancelAfterFullRefund } from '@/lib/services/subscription-refund-cancel';
 import Stripe from 'stripe';
 
@@ -117,11 +119,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch payment');
     }
 
-    if (payment.status !== 'completed') {
+    if (!isRefundablePaymentStatus(payment.status)) {
       return apiError(
         request,
         'INVALID_INPUT',
-        'Only completed payments can be refunded'
+        'Only completed or partially refunded payments can be refunded'
       );
     }
 
@@ -133,7 +135,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const refundAmount = amount ? Number(amount) : payment.amount;
+    const refundAmount = amount == null ? remainingRefundableAmount(payment) : Number(amount);
 
     const alreadyRefunded = payment.refunded_amount || 0;
     const maxRefundable = payment.amount - alreadyRefunded;
@@ -166,7 +168,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Determine new status - partial or full refund
     const totalRefunded = alreadyRefunded + (stripeRefund.amount ?? refundAmount);
     const isFullRefund = totalRefunded >= payment.amount;
-    const nextStatus = isFullRefund ? 'refunded' : 'completed';
+    const nextStatus = getPaymentRefundStatus(totalRefunded, payment.amount);
     const refundedAt = new Date().toISOString();
 
     // Update transaction in database with optimistic lock to prevent concurrent refunds
@@ -175,6 +177,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .update({
         status: nextStatus,
         refund_id: stripeRefund.id,
+        refund_status: stripeRefund.status,
         refunded_amount: totalRefunded,
         refunded_at: refundedAt,
         refunded_by: auth.admin.userId,

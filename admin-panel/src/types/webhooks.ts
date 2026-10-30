@@ -75,6 +75,9 @@ export const WEBHOOK_EVENTS: WebhookEventDefinition[] = [
   { value: 'subscription.renewal_upcoming', label: 'Subscription Renewal Upcoming', category: 'subscriptions' },
   { value: 'invoice.paid', label: 'Invoice Paid (Subscription Renewal)', category: 'subscriptions' },
   { value: 'invoice.payment_failed', label: 'Invoice Payment Failed', category: 'subscriptions' },
+  { value: 'dispute.created', label: 'Dispute Created', category: 'purchases' },
+  { value: 'dispute.closed', label: 'Dispute Closed', category: 'purchases' },
+  { value: 'refund.updated', label: 'Refund Status Updated', category: 'purchases' },
   { value: 'refund.issued', label: 'Refund Issued', category: 'purchases' },
   { value: 'license.revoked', label: 'License Revoked (Pro)', category: 'system' },
 ];

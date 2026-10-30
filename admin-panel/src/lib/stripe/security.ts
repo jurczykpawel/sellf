@@ -14,6 +14,7 @@
  */
 
 import { minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
+import { isRefundablePaymentStatus } from '@/lib/refunds/payment-status';
 
 // ===== CLIENT SECRET PARSING =====
 
@@ -186,8 +187,7 @@ export function validateRefund(
   alreadyRefunded: number,
   transactionStatus: string
 ): RefundValidation {
-  // Status must be 'completed' to refund
-  if (transactionStatus !== 'completed') {
+  if (!isRefundablePaymentStatus(transactionStatus)) {
     return { valid: false, error: `Cannot refund transaction with status: ${transactionStatus}` };
   }
 

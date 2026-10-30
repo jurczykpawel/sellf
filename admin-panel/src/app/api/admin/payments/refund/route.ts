@@ -10,6 +10,8 @@ import { requireAdminApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
+import { remainingRefundableAmount } from '@/lib/refunds/flow';
+import { getPaymentRefundStatus, isRefundablePaymentStatus } from '@/lib/refunds/payment-status';
 import { scheduleSubscriptionCancelAfterFullRefund } from '@/lib/services/subscription-refund-cancel';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
@@ -92,14 +94,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
     }
 
-    if (transaction.status !== 'completed') {
+    if (!isRefundablePaymentStatus(transaction.status)) {
       return NextResponse.json(
-        { error: 'Only completed transactions can be refunded' },
+        { error: 'Only completed or partially refunded transactions can be refunded' },
         { status: 400 }
       );
     }
 
-    const refundAmount = amount ? Number(amount) : transaction.amount;
+    const refundAmount = amount == null ? remainingRefundableAmount(transaction) : Number(amount);
 
     const alreadyRefunded = transaction.refunded_amount || 0;
     const maxRefundable = transaction.amount - alreadyRefunded;
@@ -130,7 +132,7 @@ export async function POST(request: NextRequest) {
     // Determine if this is a full or partial refund
     const totalRefunded = alreadyRefunded + (refund.amount ?? refundAmount);
     const isFullRefund = totalRefunded >= transaction.amount;
-    const nextStatus = isFullRefund ? 'refunded' : 'completed';
+    const nextStatus = getPaymentRefundStatus(totalRefunded, transaction.amount);
     const refundedAt = new Date().toISOString();
 
     // Update transaction status in database (optimistic lock on refunded_amount)
@@ -139,6 +141,7 @@ export async function POST(request: NextRequest) {
       .update({
         status: nextStatus,
         refund_id: refund.id,
+        refund_status: refund.status,
         refunded_amount: totalRefunded,
         refunded_at: refundedAt,
         refunded_by: user.id,

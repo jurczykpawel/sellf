@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { toast } from 'sonner';
+import { isRefundablePaymentStatus } from '@/lib/refunds/payment-status';
 import { processRefund } from '@/lib/actions/payment';
 import { getTransactionRefundProgress } from '@/lib/refunds/transaction-refund-progress';
 import { formatAdminDate } from '@/lib/timezone';
@@ -226,7 +227,7 @@ export default function PaymentTransactionsTable({
                       >
                         {t('details')}
                       </button>
-                      {transaction.status === 'completed' && transaction.amount > transaction.refunded_amount && (
+                      {isRefundablePaymentStatus(transaction.status) && transaction.amount > transaction.refunded_amount && (
                       <button
                         onClick={() => setShowRefundModal(transaction.id)}
                         disabled={refundingId === transaction.id}

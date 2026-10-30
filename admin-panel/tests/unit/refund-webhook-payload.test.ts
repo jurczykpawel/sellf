@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import failedRefund from '../fixtures/stripe/refund_failed_current.json';
 import {
   buildRefundIssuedPayload,
   buildRefundIssuedPayloadFromTransaction,
-  shouldEmitRefundWebhook,
 } from '@/lib/services/refund-webhook-payload';
 
 /** Mock supabase: products + payment_transactions(net_total,tax_total) + payment_line_items(main). */
@@ -168,10 +168,18 @@ describe('refund webhook payload', () => {
     expect((payload.refund as { taxabilityReason?: string }).taxabilityReason).toBeUndefined();
   });
 
-  it('emits only when a new refund increases total refunded amount', () => {
-    expect(shouldEmitRefundWebhook({ previousRefundedAmount: 0, nextRefundedAmount: 5000 })).toBe(true);
-    expect(shouldEmitRefundWebhook({ previousRefundedAmount: 5000, nextRefundedAmount: 8000 })).toBe(true);
-    expect(shouldEmitRefundWebhook({ previousRefundedAmount: 8000, nextRefundedAmount: 8000 })).toBe(false);
-    expect(shouldEmitRefundWebhook({ previousRefundedAmount: 9000, nextRefundedAmount: 8000 })).toBe(false);
+
+});
+
+it('does not attach credit-note VAT to a failed refund with no money returned', async () => {
+  const payload = await buildRefundIssuedPayloadFromTransaction({
+    supabaseClient: mockSupabaseFor({ product: productRow, tx: { net_total: 10000, tax_total: 2300 } }),
+    transaction: { ...txRow, amount: failedRefund.amount, currency: failedRefund.currency },
+    stripeRefundId: failedRefund.id, refundAmount: failedRefund.amount, refundStatus: failedRefund.status,
+    previousRefundedAmount: failedRefund.amount, totalRefunded: 0, isFullRefund: false,
+    statusBefore: 'refunded', statusAfter: 'completed', refundedAt: new Date(failedRefund.created * 1000).toISOString(), source: 'stripe_webhook',
   });
+  expect(payload.refund.amount).toBe(failedRefund.amount);
+  expect(payload.refund).not.toHaveProperty('net');
+  expect(payload.refund).not.toHaveProperty('tax');
 });

@@ -1,0 +1,34 @@
+{
+  "object": "list",
+  "count": 1,
+  "data": [
+    {
+      "id": "re_recorded3",
+      "object": "refund",
+      "amount": 1100,
+      "balance_transaction": "txn_recorded5",
+      "charge": "ch_recorded3",
+      "created": 1793208889,
+      "currency": "pln",
+      "customer": null,
+      "customer_account": null,
+      "destination_details": {
+        "card": {
+          "type": "refund"
+        },
+        "type": "card"
+      },
+      "metadata": {},
+      "payment_intent": "pi_recorded3",
+      "payment_method": "pm_recorded3",
+      "pending_reason": "insufficient_funds",
+      "reason": null,
+      "receipt_number": null,
+      "source_transfer_reversal": null,
+      "status": "pending",
+      "transfer_reversal": null
+    }
+  ],
+  "has_more": false,
+  "url": "/v1/refunds"
+}

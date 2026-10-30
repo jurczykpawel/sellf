@@ -7,6 +7,8 @@ import { revalidatePath } from 'next/cache';
 import { getStripeServer } from '@/lib/stripe/server';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
+import { getPaymentRefundStatus, REFUNDABLE_PAYMENT_STATUSES } from '@/lib/refunds/payment-status';
+import { remainingRefundableAmount } from '@/lib/refunds/flow';
 import { withAdminClient } from '@/lib/actions/admin-auth';
 import type {
   RefundRequest,
@@ -23,7 +25,7 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
       .from('payment_transactions')
       .select('*')
       .eq('id', data.transactionId)
-      .eq('status', 'completed')
+      .in('status', REFUNDABLE_PAYMENT_STATUSES)
       .single();
 
     if (transactionError || !transaction) {
@@ -31,7 +33,7 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
     }
 
     // Calculate refund amount (amounts in DB are already in cents)
-    const refundAmount = data.amount || transaction.amount;
+    const refundAmount = data.amount ?? remainingRefundableAmount(transaction);
     const alreadyRefunded = transaction.refunded_amount || 0;
 
     if (refundAmount > (transaction.amount - alreadyRefunded)) {
@@ -69,10 +71,11 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
       .from('payment_transactions')
       .update({
         refunded_amount: totalRefunded,
-        status: isFullRefund ? 'refunded' : 'completed',
+        status: getPaymentRefundStatus(totalRefunded, transaction.amount),
         refunded_at: refundedAt,
         refunded_by: user.id,
         refund_id: refund.id,
+        refund_status: refund.status,
         refund_reason: data.reason,
         updated_at: new Date().toISOString(),
       })
@@ -129,7 +132,7 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
       totalRefunded,
       isFullRefund,
       statusBefore: transaction.status,
-      statusAfter: isFullRefund ? 'refunded' : 'completed',
+      statusAfter: getPaymentRefundStatus(totalRefunded, transaction.amount),
       refundedAt,
       initiatedByAdminId: user.id,
       source: 'admin',

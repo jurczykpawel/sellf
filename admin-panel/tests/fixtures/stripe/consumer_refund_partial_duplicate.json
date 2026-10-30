@@ -1,0 +1,43 @@
+{
+  "received_at": "2026-10-28T17:59:26.174143+00:00",
+  "signature_verified_before_anonymization": true,
+  "payload": {
+    "id": "0479ed36-1efe-4f18-8604-eb7ef5d4652d",
+    "data": {
+      "refund": {
+        "amount": 1000,
+        "reason": null,
+        "source": "stripe_webhook",
+        "status": null,
+        "currency": "PLN",
+        "refundedAt": "2026-10-28T17:59:25.710Z",
+        "isFullRefund": false,
+        "totalRefunded": 1000,
+        "stripeRefundId": null
+      },
+      "payment": {
+        "id": "f66d97f9-0c9c-421e-b78b-a0cab4595ad5",
+        "amount": 2345,
+        "currency": "PLN",
+        "sessionId": "pi_recorded8",
+        "statusAfter": "completed",
+        "statusBefore": "completed",
+        "paymentIntentId": "pi_recorded8"
+      },
+      "product": {
+        "id": "b540497b-0cd2-4934-994e-7ceb86b2d0f8",
+        "icon": "\ud83e\uddea",
+        "name": null,
+        "slug": "integrator-w107-refund-partial",
+        "price": 23.45,
+        "currency": "PLN"
+      },
+      "customer": {
+        "email": null,
+        "userId": "73a3a7af-3a3d-4f1a-8627-96e366ba8f6b"
+      }
+    },
+    "event": "refund.issued",
+    "timestamp": "2026-10-28T17:59:26.051Z"
+  }
+}

@@ -51,7 +51,7 @@ export class WebhookService {
     const licenseOk = endpoints.some(isCustomized)
       ? await checkFeature('webhook-payload-customization', { dataClient: supabase }) : true;
     const ctx = buildPlaceholderContext(data);
-    const orderId = deduplicationKey || deriveOrderId(data) || null;
+    const orderId = deduplicationKey || deriveDeliveryReference(event, data) || null;
     // Persist every eligible endpoint before any HTTP request begins.
     const deliveries = [];
     for (const endpoint of endpoints) {
@@ -214,3 +214,15 @@ export function deriveOrderId(data: unknown): string {
 }
 
 function str(v: unknown): string { return v == null ? '' : String(v); }
+
+/** A durable delivery identity for a refund observation, dispute outcome, or order. */
+export function deriveDeliveryReference(event: string, data: unknown): string {
+  const payload = (data ?? {}) as Record<string, any>;
+  if ((event === 'refund.issued' || event === 'refund.updated') && payload.refund?.stripeRefundId) {
+    return `${payload.refund.stripeRefundId}:${payload.refund.statusVersion ?? 1}`;
+  }
+  if (event.startsWith('dispute.') && payload.dispute?.stripeDisputeId) {
+    return `${payload.dispute.stripeDisputeId}:${payload.dispute.status}`;
+  }
+  return deriveOrderId(data);
+}

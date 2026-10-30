@@ -161,6 +161,16 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
 - Triggers: `handle_new_user_registration()` (first user → admin, claim guest purchases)
 - Scheduled jobs: Rate limit cleanup (hourly via pg_cron)
 
+### Refund notifications
+
+`payment_refunds` stores each Stripe refund identity and current status;
+`payment_refund_events` retains every observed status version until queued.
+Service-only RPCs `observe_payment_refund` / `confirm_refund_notification` serialize
+observations and retain notification progress. Outgoing `refund.issued` is unique
+per refund ID; later transitions use `refund.updated` with `previousStatus` and
+`statusVersion`. Webhook queue delivery keys deduplicate endpoint/refund/version.
+Partial refunds persist `partially_refunded`; remaining refunds stay available.
+
 ### Invoicing
 
 `invoicing_config` holds server-only provider settings and an encrypted API token.

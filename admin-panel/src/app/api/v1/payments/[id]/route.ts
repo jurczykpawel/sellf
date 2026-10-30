@@ -69,6 +69,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         user_id,
         session_id,
         refund_id,
+        refund_status,
         refunded_amount,
         refunded_at,
         refunded_by,
@@ -135,6 +136,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         tax_snapshot_status: payment.tax_snapshot_status,
         refund: payment.refund_id ? {
           id: payment.refund_id,
+          status: payment.refund_status,
           amount: payment.refunded_amount,
           refunded_at: payment.refunded_at,
           refunded_by: payment.refunded_by,
