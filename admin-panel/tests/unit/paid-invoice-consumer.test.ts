@@ -21,7 +21,7 @@ function paidAccessEnd(payload: ReturnType<typeof build>): string | null {
 }
 
 describe('recorded subscription-cycle invoice consumer', () => {
-  it('can renew access to the exact paid period from the outgoing payload', () => {
+  it('can renew access to the exact paid period from the outgoing payload @J36', () => {
     const payload = build(invoice);
     expect(invoice.billing_reason).toBe('subscription_cycle');
     expect(paidAccessEnd(payload)).toBe(new Date(paidLine.period.end * 1000).toISOString());
@@ -32,7 +32,7 @@ describe('recorded subscription-cycle invoice consumer', () => {
     expect(payload.subscription.stripeSubscriptionId).toBe(subscriptionId);
   });
   it.each(['missing-lines', 'empty-lines', 'other-subscription', 'proration', 'invalid-period', 'missing-parent', 'ambiguous-lines', 'truncated-lines'])
-    ('does not confirm an unproven paid period: %s', (variant) => {
+    ('does not confirm an unproven paid period: %s @J36', (variant) => {
       const modified = structuredClone(invoice);
       switch (variant) {
         case 'missing-lines': Reflect.deleteProperty(modified, 'lines'); break;

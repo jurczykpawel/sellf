@@ -87,7 +87,7 @@ test.describe('License keys', () => {
     expect((await request.get('/api/licenses/jwks?seller=not-a-uuid')).status()).toBe(400);
   });
 
-  test('a license signed with the seller key verifies offline against the published key', async ({ request }) => {
+  test('a license signed with the seller key verifies offline against the published key @J65', async ({ request }) => {
     const res = await request.get(`/api/licenses/jwks?seller=${seller.id}`);
     const pem = (await res.json()).keys[0].pem as string;
 

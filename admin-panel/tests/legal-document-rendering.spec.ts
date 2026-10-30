@@ -77,7 +77,7 @@ test.describe('Generated legal document rendering', () => {
     await expect(page.getByRole('heading', { name: '§ 1. Słownik pojęć', level: 2 })).toBeVisible();
   });
 
-  test('free-product checkout "Regulamin" link opens the readable document, not raw markup', async ({ page }) => {
+  test('free-product checkout "Regulamin" link opens the readable document, not raw markup @J104', async ({ page }) => {
     await acceptAllCookies(page);
     const response = await page.request.get('/terms', { maxRedirects: 0 });
     // /terms redirects (307) to the relative /legal/terms page path.

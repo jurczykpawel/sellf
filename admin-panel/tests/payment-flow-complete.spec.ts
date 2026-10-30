@@ -440,7 +440,7 @@ test.describe('Order Bump - Guest User', () => {
   // Run serially to avoid conflicts with shared cleanup
   test.describe.configure({ mode: 'serial' });
 
-  test('should save guest purchase for ONLY main product when bump NOT selected', async ({ page }) => {
+  test('should save guest purchase for ONLY main product when bump NOT selected @J128', async ({ page }) => {
     const sessionId = generateSessionId('no_bump_guest');
     const guestEmail = `guest-nobump-${Date.now()}@example.com`;
     const product = await getProductBySlug(PRODUCTS.premiumCourse);
@@ -478,7 +478,7 @@ test.describe('Order Bump - Guest User', () => {
     }
   });
 
-  test('should save guest purchase for BOTH products when bump IS selected', async ({ page }) => {
+  test('should save guest purchase for BOTH products when bump IS selected @J128', async ({ page }) => {
     const sessionId = generateSessionId('with_bump_guest');
     const guestEmail = `guest-withbump-${Date.now()}@example.com`;
     const product = await getProductBySlug(PRODUCTS.premiumCourse);

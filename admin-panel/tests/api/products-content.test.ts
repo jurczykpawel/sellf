@@ -356,7 +356,7 @@ describe('Products API v1 — Digital Content Config', () => {
   describe('POST /api/v1/products — pełny content_config (wszystkie platformy i dostawcy)', () => {
     let fullProductId: string;
 
-    it('should create product with all 8 video platforms + 15 download providers + 2 hosted', async () => {
+    it('should create product with all 8 video platforms + 15 download providers + 2 hosted @J135', async () => {
       const { status, data } = await post<ApiResponse<Product>>('/api/v1/products', {
         name: 'Test — Wszystkie typy treści cyfrowych',
         slug: uniqueSlug(),

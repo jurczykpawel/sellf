@@ -171,7 +171,7 @@ test.beforeEach(async () => {
 });
 
 test.describe('Embedded checkout coupon', () => {
-  test('a valid coupon typed into the embed lowers the Stripe session amount', async ({ page }) => {
+  test('a valid coupon typed into the embed lowers the Stripe session amount @J132', async ({ page }) => {
     sellerPage.setHtml(embedHtml());
 
     const [first] = await Promise.all([

@@ -46,7 +46,7 @@ describe('Pending free grants', () => {
     await deleteAuthUsers(admin, createdUserIds.splice(0));
   });
 
-  it('grants a requested free product when the user signs in with a plain login link', async () => {
+  it('grants a requested free product when the user signs in with a plain login link @J43', async () => {
     const email = `pending-api-${Date.now()}@example.com`;
 
     const request = await fetch(`${API_URL}/api/auth/magic-link`, {

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin } from './helpers/admin-auth';
 
-test('admin reads buyer, recipient, phone and five participants from the seeded order', async ({ page }) => {
+test('admin reads buyer, recipient, phone and five participants from the seeded order @J60', async ({ page }) => {
   test.setTimeout(90_000);
   const admin = await createTestAdmin('order-details');
   try {

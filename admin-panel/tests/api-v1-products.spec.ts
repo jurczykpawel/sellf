@@ -191,7 +191,7 @@ test.describe('Products API v1', () => {
   });
 
   test.describe('POST /api/v1/products', () => {
-    test('should create a product with required fields', async ({ page }) => {
+    test('should create a product with required fields @J98', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
       const slug = uniqueSlug();

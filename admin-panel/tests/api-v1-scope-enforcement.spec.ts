@@ -96,14 +96,14 @@ test.describe('API v1 — Scope Enforcement', () => {
   // ─── Key 1: products:read ────────────────────────────────────────────────
 
   test.describe('products:read — own scope', () => {
-    test('GET /products → 200 (read allowed)', async ({ request }) => {
+    test('GET /products → 200 (read allowed) @J67', async ({ request }) => {
       const res = await request.get('/api/v1/products', {
         headers: { Authorization: `Bearer ${productsReadKey}` },
       });
       expect(res.status()).toBe(200);
     });
 
-    test('POST /products → 403 (write blocked)', async ({ request }) => {
+    test('POST /products → 403 (write blocked) @J67', async ({ request }) => {
       const res = await request.post('/api/v1/products', {
         headers: { Authorization: `Bearer ${productsReadKey}` },
         data: { name: 'Should Fail' },
@@ -125,7 +125,7 @@ test.describe('API v1 — Scope Enforcement', () => {
     ];
 
     for (const [label, path] of cases) {
-      test(`${label} → 403 (cross-scope)`, async ({ request }) => {
+      test(`${label} → 403 (cross-scope) @J67`, async ({ request }) => {
         const res = await request.get(path, {
           headers: { Authorization: `Bearer ${productsReadKey}` },
         });

@@ -236,7 +236,7 @@ test.describe('PWYW Free Option — Checkout UI', () => {
     await blockStripeOnPage(page);
   });
 
-  test('should show "Za darmo" preset button on PWYW-free checkout', async ({ page }) => {
+  test('should show "Za darmo" preset button on PWYW-free checkout @J45', async ({ page }) => {
     await page.goto(`/pl/checkout/${pwywFreeProduct.slug}`);
     await page.waitForLoadState('domcontentloaded');
 
@@ -255,7 +255,7 @@ test.describe('PWYW Free Option — Checkout UI', () => {
     await expect(preset49.first()).toBeVisible();
   });
 
-  test('should show free access UI when clicking "Za darmo" preset', async ({ page }) => {
+  test('should show free access UI when clicking "Za darmo" preset @J45', async ({ page }) => {
     await page.goto(`/pl/checkout/${pwywFreeProduct.slug}`);
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByText('Wybierz kwotę')).toBeVisible({ timeout: 15000 });
@@ -289,7 +289,7 @@ test.describe('PWYW Free Option — Checkout UI', () => {
     expect(await page.locator('iframe[name*="stripe"]').count()).toBe(0);
   });
 
-  test('should show "Minimum: 0,00" on PWYW-free checkout', async ({ page }) => {
+  test('should show "Minimum: 0,00" on PWYW-free checkout @J45', async ({ page }) => {
     await page.goto(`/pl/checkout/${pwywFreeProduct.slug}`);
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByText('Wybierz kwotę')).toBeVisible({ timeout: 15000 });
@@ -302,7 +302,7 @@ test.describe('PWYW Free Option — Checkout UI', () => {
     expect(parentText).toMatch(/0[.,]00/);
   });
 
-  test('typing 0 in custom input should show free UI', async ({ page }) => {
+  test('typing 0 in custom input should show free UI @J45', async ({ page }) => {
     await page.goto(`/pl/checkout/${pwywFreeProduct.slug}`);
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByText('Wybierz kwotę')).toBeVisible({ timeout: 15000 });
@@ -345,7 +345,7 @@ test.describe('PWYW Free Option — Checkout UI', () => {
     await expect(pwywSection).not.toBeVisible();
   });
 
-  test('free product (price=0, no PWYW) should show FreeProductForm', async ({ page }) => {
+  test('free product (price=0, no PWYW) should show FreeProductForm @J45', async ({ page }) => {
     await page.goto(`/pl/checkout/${freeProduct.slug}`);
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000);
@@ -359,7 +359,7 @@ test.describe('PWYW Free Option — Checkout UI', () => {
     await expect(pwywSection).not.toBeVisible();
   });
 
-  test('selecting paid preset after free should hide free UI', async ({ page }) => {
+  test('selecting paid preset after free should hide free UI @J45', async ({ page }) => {
     await page.goto(`/pl/checkout/${pwywFreeProduct.slug}`);
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByText('Wybierz kwotę')).toBeVisible({ timeout: 15000 });
@@ -635,7 +635,7 @@ test.describe('PWYW Free Option — Grant Access API', () => {
     }
   });
 
-  test('grant-access API should accept PWYW-free product for authenticated user', async ({ page }) => {
+  test('grant-access API should accept PWYW-free product for authenticated user @J45', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
 
     const response = await page.evaluate(async (slug) => {
@@ -864,7 +864,7 @@ test.describe('PWYW Free Option — Admin Wizard', () => {
     }
   });
 
-  test('min=0 should show free hint, min>0 should show Stripe hint', async ({ page }) => {
+  test('min=0 should show free hint, min>0 should show Stripe hint @J45', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/pl/dashboard/products');
     await page.waitForLoadState('domcontentloaded');

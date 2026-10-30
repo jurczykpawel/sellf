@@ -179,7 +179,7 @@ describe('Coupons API v1', () => {
   });
 
   describe('POST /api/v1/coupons', () => {
-    it('should create percentage discount coupon', async () => {
+    it('should create percentage discount coupon @J100', async () => {
       const code = uniqueCode();
       const { status, data } = await post<ApiResponse<Coupon>>('/api/v1/coupons', {
         code,
@@ -225,7 +225,7 @@ describe('Coupons API v1', () => {
       createdCouponIds.push(data.data!.id);
     });
 
-    it('should create fixed discount coupon', async () => {
+    it('should create fixed discount coupon @J100', async () => {
       const code = uniqueCode();
       const { status, data } = await post<ApiResponse<Coupon>>('/api/v1/coupons', {
         code,

@@ -107,7 +107,7 @@ test.describe('Custom checkout fields', () => {
     expect(response.status()).toBe(400);
   });
 
-  test('create-payment-intent persists valid custom_field_values on the pending payment_transactions row', async ({ request }) => {
+  test('create-payment-intent persists valid custom_field_values on the pending payment_transactions row @J93', async ({ request }) => {
     const email = `cf-ok-${Date.now()}@example.com`;
     const response = await request.post('/api/create-payment-intent', {
       data: {
@@ -137,7 +137,7 @@ test.describe('Custom checkout fields', () => {
     if (tx?.id) await supabaseAdmin.from('payment_transactions').delete().eq('id', tx.id);
   });
 
-  test('update-payment-metadata enforces required custom fields at submit time', async ({ request }) => {
+  test('update-payment-metadata enforces required custom fields at submit time @J93', async ({ request }) => {
     const email = `cf-submit-${Date.now()}@example.com`;
     const initial = await request.post('/api/create-payment-intent', {
       data: { productId, email, customFieldValues: {} },

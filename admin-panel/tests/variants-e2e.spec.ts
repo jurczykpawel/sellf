@@ -196,7 +196,7 @@ test.describe('Product Variants E2E Flow', () => {
     expect(copiedUrl).toContain('/v/');
   });
 
-  test('E2E: Access variant selector page from copied link', async ({ page }) => {
+  test('E2E: Access variant selector page from copied link @J83', async ({ page }) => {
     test.skip(!createdGroupId, 'No variant group created — test #1 may have failed');
     await acceptAllCookies(page);
 

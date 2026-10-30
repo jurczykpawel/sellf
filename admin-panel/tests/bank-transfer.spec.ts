@@ -100,7 +100,7 @@ test('settings validate account and preview the title; person cannot select a tr
   await page.getByLabel('Typ nabywcy').selectOption('person'); await expect(page.getByRole('radio', { name: /Przelew tradycyjny/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toBeVisible();
 });
-test('(a) organization places transfer with immediate access, unpaid invoice, protected instructions and Auth mail', async ({ page }) => {
+test('(a) organization places transfer with immediate access, unpaid invoice, protected instructions and Auth mail @J52', async ({ page }) => {
   test.setTimeout(120000); const order = await place(page, email); orderId = order.orderId;
   const instructionsUrl = page.url();
   const tx = await checked(await db.from('payment_transactions').select('created_at,payment_due_at,status').eq('id', orderId).single());
@@ -126,7 +126,7 @@ test('(a) organization places transfer with immediate access, unpaid invoice, pr
   const section = await adminDetails(page, email); await expect(section.getByText('Testowy sklep')).toBeVisible();
   await expect(page.getByRole('row').filter({ hasText: email })).toHaveClass(/bg-sf-warning-soft/);
 });
-test('(c) admin rejects amount mismatch and marks paid; invoice updates once using the receipt date', async ({ page, request }) => {
+test('(c) admin rejects amount mismatch and marks paid; invoice updates once using the receipt date @J53', async ({ page, request }) => {
   test.setTimeout(120000); const section = await adminDetails(page, email);
   await section.getByLabel('Zaksięgowana kwota').fill('122'); await section.getByLabel('Data wpływu').fill('2026-01-01');
   await section.getByRole('button', { name: 'Oznacz jako opłacone' }).click(); await expect(section.getByRole('status')).toContainText('pełnej kwocie');
@@ -141,7 +141,7 @@ test('(c) admin rejects amount mismatch and marks paid; invoice updates once usi
   expect(log.find(l => l.action === 'paid' && l.oid === issued[0].oid)?.paid_date).toBe('2026-01-01');
   expect((await db.from('webhook_logs').select('id').eq('endpoint_id', endpointId).eq('event_type', 'purchase.completed')).data).toHaveLength(1);
 });
-test('(d) cancel requires a reason, returns event seat and access, and offers manual invoice correction', async ({ page }) => {
+test('(d) cancel requires a reason, returns event seat and access, and offers manual invoice correction @J54', async ({ page }) => {
   test.setTimeout(120000); const order = await place(page, cancelledEmail); unpaidId = order.orderId;
   const section = await adminDetails(page, cancelledEmail); await expect(section.getByRole('button', { name: 'Anuluj zamówienie' })).toBeDisabled();
   await section.getByLabel('Powód anulowania').fill('Rezygnacja klienta'); await section.getByRole('button', { name: 'Anuluj zamówienie' }).click();

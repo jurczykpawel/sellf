@@ -77,7 +77,7 @@ afterAll(async () => {
   vi.unstubAllEnvs();
 });
 
-it.each((['magic-link', 'signed-in', 'pending'] as const).flatMap(flow => [false, true].map(requiredDomain => ({ flow, requiredDomain }))))('issues one registered license via $flow with requiredDomain=$requiredDomain', async ({ flow, requiredDomain }) => {
+it.each((['magic-link', 'signed-in', 'pending'] as const).flatMap(flow => [false, true].map(requiredDomain => ({ flow, requiredDomain }))))('issues one registered license via $flow with requiredDomain=$requiredDomain @J13 @J14 @J15 @J16 @J17 @J18', async ({ flow, requiredDomain }) => {
   const email = `free-license-${crypto.randomUUID()}@example.com`, slug = `registered-${crypto.randomUUID()}`;
   const product = await db.from('products').insert({ name: 'Registered access', slug, price: 0, currency: 'PLN', is_active: true, seller_id: sellerId, auto_grant_duration_days: 3, issue_license_on_purchase: true, license_tier: 'registered', custom_checkout_fields: requiredDomain ? [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] : [] }).select('id').single(); expect(product.error).toBeNull(); const productId = product.data!.id; products.push(productId);
   expect((await db.from('webhook_endpoint_products').insert({ webhook_endpoint_id: endpointId, product_id: productId })).error).toBeNull();
@@ -131,7 +131,7 @@ it.each((['magic-link', 'signed-in', 'pending'] as const).flatMap(flow => [false
   expect(repeated.data).toEqual([{ id: row.id }]); expect(messages.filter(entry => entry.data.customer.email === email).length).toBe(1);
 });
 
-it.each([false, true])('manual issuance follows the product domain policy: required=%s', async required => {
+it.each([false, true])('manual issuance follows the product domain policy: required=%s @J20 @J21', async required => {
   const p = await db.from('products').insert({ name: 'Manual domain policy', slug: `manual-${crypto.randomUUID()}`, price: 0, currency: 'PLN', seller_id: sellerId, issue_license_on_purchase: true, license_tier: 'registered', custom_checkout_fields: required ? [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] : [] }).select('id').single();
   expect(p.error).toBeNull(); products.push(p.data!.id);
   const result = await manualIssue(new NextRequest(`${process.env.SITE_URL}/api/admin/licenses`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId: p.data!.id, email: 'manual-buyer@example.com' }) }));
@@ -151,7 +151,7 @@ it('does not let another authenticated account read or consume a checkout contex
   const grant = await client.rpc('grant_free_with_context', { product_slug_param: p.data!.slug, p_request_id: request.data! }); expect(grant.error).toBeNull(); expect(grant.data).toBe(false);
   expect((await client.from('free_grant_contexts').select('*')).error).not.toBeNull();
 });
-it('manual issuance accepts the required domain when it is supplied', async () => {
+it('manual issuance accepts the required domain when it is supplied @J21', async () => {
   const p = await db.from('products').insert({ name: 'Manual bound license', slug: `manual-domain-${crypto.randomUUID()}`, price: 0, currency: 'PLN', seller_id: sellerId, issue_license_on_purchase: true, license_tier: 'registered', custom_checkout_fields: [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] }).select('id').single(); expect(p.error).toBeNull(); products.push(p.data!.id);
   const result = await manualIssue(new NextRequest(`${process.env.SITE_URL}/api/admin/licenses`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId: p.data!.id, email: 'manual-buyer@example.com', domain: 'https://www.manual.example.org/path' }) }));
   expect(result.status).toBe(201); expect((await result.json()).license.claims.domain).toBe('manual.example.org');

@@ -11,7 +11,7 @@ import { deleteAuthUserByEmail } from '../helpers/db-cleanup';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 for (const scenario of ['coupon-stripe-email', 'plain-stripe-email', 'coupon-known-email', 'coupon-stripe-email-expired', 'coupon-known-email-expired']) {
-  test(`embed completion ${scenario}`, async ({ page, baseURL }) => {
+  test(`embed completion ${scenario} @J12`, async ({ page, baseURL }) => {
     expect(process.env.STRIPE_LIVE_E2E).toBe('1');
     expect(process.env.STRIPE_SECRET_KEY).toMatch(/^sk_test_/);
     const seller = await createTestUser('embed-live-seller');

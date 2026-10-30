@@ -243,7 +243,7 @@ test.describe('Refund System - Customer Purchase History', () => {
     await expect(page.getByRole('button', { name: 'Submit Request' })).toBeVisible();
   });
 
-  test('should submit refund request successfully', async ({ page }) => {
+  test('should submit refund request successfully @J56', async ({ page }) => {
     await signInUser(page, testUser.email, testPassword);
 
     await page.goto('/en/my-purchases');

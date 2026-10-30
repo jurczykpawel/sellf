@@ -186,7 +186,7 @@ describe('Products API v1', () => {
   });
 
   describe('POST /api/v1/products', () => {
-    it('should create a product with required fields', async () => {
+    it('should create a product with required fields @J98', async () => {
       const slug = uniqueSlug();
       const { status, data } = await post<ApiResponse<Product>>('/api/v1/products', {
         name: 'Test Product',
@@ -227,7 +227,7 @@ describe('Products API v1', () => {
       expect(row!.seller_id).toBeTruthy();
     });
 
-    it('should create a product with all optional fields', async () => {
+    it('should create a product with all optional fields @J98', async () => {
       const { status, data } = await post<ApiResponse<Product>>('/api/v1/products', {
         name: 'Full Product',
         slug: uniqueSlug(),
@@ -386,7 +386,7 @@ describe('Products API v1', () => {
       createdProductIds.push(testProductId);
     });
 
-    it('should update product name', async () => {
+    it('should update product name @J98', async () => {
       const { status, data } = await patch<ApiResponse<Product>>(`/api/v1/products/${testProductId}`, {
         name: 'Updated Name',
       });
@@ -396,7 +396,7 @@ describe('Products API v1', () => {
       expect(data.data!.description).toBe('Original description'); // unchanged
     });
 
-    it('should update product price', async () => {
+    it('should update product price @J98', async () => {
       const { status, data } = await patch<ApiResponse<Product>>(`/api/v1/products/${testProductId}`, {
         price: 25.0,
       });

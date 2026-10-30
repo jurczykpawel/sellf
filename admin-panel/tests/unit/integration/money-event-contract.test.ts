@@ -49,7 +49,7 @@ async function order(offline: boolean, onPlacement = false) {
   expect((await db.from('payment_line_items').insert({ transaction_id: t.data!.id, product_id: productId, item_type: 'main_product', product_name: 'Recorded product', quantity: 1, currency: recorded.currency.toUpperCase(), unit_price: line?.unit_price ?? recorded.amount / 100, total_price: line?.total_price ?? recorded.amount / 100, discounted_total: line?.discounted_total ?? recorded.amount / 100, net_amount: line?.net_amount ?? null, tax_amount: line?.tax_amount ?? null, vat_rate: line?.vat_rate ?? null, tax_behavior: line?.tax_behavior ?? null })).error).toBeNull();
   return { tx: t.data!, productId, email };
 }
-it('lets the card consumer reconcile the internal order and distinguish unavailable VAT', async () => {
+it('lets the card consumer reconcile the internal order and distinguish unavailable VAT @J27', async () => {
   const { tx, productId, email } = await order(false);
   // The recorded native PI has no Checkout Session tax source; no provider response is invented.
   const stripe = { checkout: { sessions: { list: async () => { throw Error('No recorded checkout tax source'); } } } } as unknown as Stripe;
@@ -59,7 +59,7 @@ it('lets the card consumer reconcile the internal order and distinguish unavaila
   expect(data.amountUnit).toBe('minor'); expect(data.product.price).toBe(2345);
   expect(data.order).toMatchObject({ amount: 2345, grossTotal: 2345, netTotal: null, taxTotal: null, taxSnapshotStatus: 'unavailable' });
 });
-it('sends minor units, VAT quality and an explicit transfer access policy', async () => {
+it('sends minor units, VAT quality and an explicit transfer access policy @J28', async () => {
   const { tx } = await order(true, false);
   await dispatchTransferEvent(db, tx.id, 'order.placed');
   const data = receiver.received.find(event => event.event === 'order.placed' && event.data.order.orderId === tx.id)!.data;
@@ -68,7 +68,7 @@ it('sends minor units, VAT quality and an explicit transfer access policy', asyn
   expect(data.lines[0]).toMatchObject({ unit_price: 12300, total_price: 12300, discounted_total: 12300, net_amount: 10000, tax_amount: 2300, vat_rate: 23 });
   expect(data.access).toMatchObject({ policy: 'after_payment', grants: [{ productId: tx.product_id, status: 'pending_payment', grantedAt: null, expiresAt: null }] });
 });
-it('returns the same order/provider/line data from a single-payment GET', async () => {
+it('returns the same order/provider/line data from a single-payment GET @J30', async () => {
   const { tx } = await order(true);
   const result = await paymentDetail(new NextRequest(`http://localhost/api/v1/payments/${tx.id}`), { params: Promise.resolve({ id: tx.id }) });
   expect(result.status).toBe(200); const { data } = await result.json();
@@ -78,7 +78,7 @@ it('returns the same order/provider/line data from a single-payment GET', async 
   expect(data.line_items).toHaveLength(1); expect(data.line_items[0]).toMatchObject({ transaction_id: tx.id, unit_price: 123, net_amount: 10000, tax_amount: 2300 });
 });
 
-it('includes the saved entitlement dates when transfer access was granted on placement', async () => {
+it('includes the saved entitlement dates when transfer access was granted on placement @J29', async () => {
   const { tx, productId, email } = await order(true, true);
   const u = await db.auth.admin.createUser({ email, email_confirm: true }); expect(u.error).toBeNull(); users.push(u.data.user!.id);
   const access = await db.from('user_product_access').insert({ user_id: u.data.user!.id, product_id: productId, transfer_transaction_id: tx.id, access_expires_at: new Date(Date.now() + 3 * 86400000).toISOString() }).select('access_granted_at,access_expires_at').single();

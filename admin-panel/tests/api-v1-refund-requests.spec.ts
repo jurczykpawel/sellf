@@ -377,7 +377,7 @@ test.describe('Refund Requests API v1', () => {
       expect(body.error.code).toBe('INVALID_INPUT');
     });
 
-    test('should reject a pending refund request', async ({ page }) => {
+    test('should reject a pending refund request @J57', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
       // Create a new transaction for this test

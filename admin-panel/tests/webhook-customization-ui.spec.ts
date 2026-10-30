@@ -113,7 +113,7 @@ test.describe('Webhook payload customization form', () => {
     await expect(fieldCheckbox(page, 'customer')).toBeChecked();
   });
 
-  test('pro tier: deselect a field, add an extra field + a header, and persist them', async ({ page }) => {
+  test('pro tier: deselect a field, add an extra field + a header, and persist them @J68', async ({ page }) => {
     await gotoWebhooks(page, admin.email, admin.password);
     await openAddEndpoint(page);
 

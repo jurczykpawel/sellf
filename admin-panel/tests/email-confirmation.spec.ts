@@ -18,7 +18,7 @@ const baseUrl = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3777';
 test.describe.configure({ mode: 'serial' });
 
 for (const flow of ['login', 'post_checkout', 'password', 'subscription'] as const) {
-  test(`${flow}: a delivered signup link confirms the address and claims the purchase`, async ({ page, request }) => {
+  test(`${flow}: a delivered signup link confirms the address and claims the purchase @J87`, async ({ page, request }) => {
     const id = randomUUID();
     const email = `confirmation-${id}@example.com`;
     const slug = `confirmation-${id}`;

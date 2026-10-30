@@ -61,7 +61,7 @@ test('product 49 from coupon link places a transfer for 30', async ({ page }) =>
 });
 
 
-test('v1 creates and edits a set-price coupon with currency validation', async ({ page }) => {
+test('v1 creates and edits a set-price coupon with currency validation @J100', async ({ page }) => {
   await loginAsAdmin(page, 'demo@sellf.app', 'demo123');
   let id: string | undefined;
   try {

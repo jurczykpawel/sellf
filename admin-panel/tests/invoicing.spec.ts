@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
 
-test('admin configures and checks provider, issues invoice and reads it in order and payment list', async ({ page }) => {
+test('admin configures and checks provider, issues invoice and reads it in order and payment list @J55', async ({ page }) => {
   test.setTimeout(120000);
   const admin = await createTestAdmin('invoicing');
   const transactionId = 'e1000000-0000-4000-8000-000000000010';

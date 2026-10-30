@@ -25,7 +25,7 @@ const stateQuery = `SELECT jsonb_build_array(
   (SELECT jsonb_agg(to_jsonb(a) ORDER BY id) FROM public.audit_log a WHERE table_name='storefront_config'),
   (SELECT md5(coalesce(jsonb_agg(to_jsonb(p) ORDER BY id)::text,'')) FROM public.products p),
   (SELECT md5(coalesce(jsonb_agg(to_jsonb(i) ORDER BY id)::text,'')) FROM public.integrations_config i));`;
-it('saves free Pro drafts, publishes stored state, resets, diffs and rolls back through the live RPC', async () => {
+it('saves free Pro drafts, publishes stored state, resets, diffs and rolls back through the live RPC @J130', async () => {
   const url = new URL(process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '');
   expect(['localhost', '127.0.0.1']).toContain(url.hostname);
   const before = sql(stateQuery);

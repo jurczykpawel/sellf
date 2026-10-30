@@ -12,7 +12,7 @@ test.describe('Gate examples — interactive demo', () => {
     await page.goto('/gate-examples/index.html');
   });
 
-  test('owner: has-access branch, vip no-access, feature unlocked, verify passes', async ({ page }) => {
+  test('owner: has-access branch, vip no-access, feature unlocked, verify passes @J62', async ({ page }) => {
     await page.locator('label[for="role-owner"]').click();
     await expect(page.locator(`${proKit} [data-has-access]`)).toBeVisible();
     await expect(page.locator(`${proKit} [data-no-access]`)).toBeHidden();
@@ -22,7 +22,7 @@ test.describe('Gate examples — interactive demo', () => {
     await expect(page.locator('.verdict .ok')).toBeVisible();
   });
 
-  test('signed-in non-owner: no-access branch, feature locked, verify denies', async ({ page }) => {
+  test('signed-in non-owner: no-access branch, feature locked, verify denies @J63', async ({ page }) => {
     await page.locator('label[for="role-member"]').click();
     await expect(page.locator(`${proKit} [data-no-access]`)).toBeVisible();
     await expect(page.locator(`${proKit} [data-has-access]`)).toBeHidden();
@@ -30,7 +30,7 @@ test.describe('Gate examples — interactive demo', () => {
     await expect(page.locator('.verdict .no')).toBeVisible();
   });
 
-  test('guest: no-session branch on every block', async ({ page }) => {
+  test('guest: no-session branch on every block @J64', async ({ page }) => {
     await page.locator('label[for="role-guest"]').click();
     await expect(page.locator(`${proKit} [data-no-session]`)).toBeVisible();
     await expect(page.locator(`${proKit} [data-has-access]`)).toBeHidden();

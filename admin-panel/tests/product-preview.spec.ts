@@ -229,7 +229,7 @@ test.describe('Admin Product Preview', () => {
   // Inactive product
   // =========================================================================
 
-  test('should show product content in preview even when product is inactive', async ({ page }) => {
+  test('should show product content in preview even when product is inactive @J121', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto(`/pl/p/${inactiveProductSlug}?preview=1`, { waitUntil: 'domcontentloaded', timeout: 60000 });
 

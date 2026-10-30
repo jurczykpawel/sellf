@@ -22,7 +22,7 @@ const payment = 'af000000-0000-4000-a000-000000000010';
 function sync(): void { sql("SELECT public.affiliate_apply_sync(payment_id,lease_token,requested_generation,'2026-01-02',true) FROM public.affiliate_claim_work(100)"); }
 const cutoff = () => new Date(sql('SELECT clock_timestamp()')).toISOString();
 const preview = () => previewPayout({ member_id: member, currency: 'PLN', cutoff: cutoff() });
-it('runs the seeded manual payout lifecycle and retains debt after actual settlement', async () => {
+it('runs the seeded manual payout lifecycle and retains debt after actual settlement @J76', async () => {
   const options = await getPayoutChoices({ search: 'Demo' });
   expect(options.data?.members[0].display_name).toBe('Demo Partner');
   const before = await preview();

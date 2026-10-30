@@ -15,7 +15,7 @@ const input = (value: unknown) => ({ customer, product, subscription: value as S
 const actualEnd = new Date(canceled.ended_at * 1000).toISOString();
 
 describe('recorded cancellation receiver', () => {
-  it('ends an immediately canceled, failed renewal at ended_at instead of its unpaid billing end', () => {
+  it('ends an immediately canceled, failed renewal at ended_at instead of its unpaid billing end @J37', () => {
     expect(failed.status).toBe('past_due');
     expect(canceled.ended_at).toBeLessThan(canceled.items.data[0].current_period_end);
     // The independent receiver recorded the same error: its old endsAt exceeded canceledAt.
@@ -24,22 +24,22 @@ describe('recorded cancellation receiver', () => {
     expect(payload.subscription).toMatchObject({ endsAt: actualEnd, endedAt: actualEnd,
       canceledAt: new Date(canceled.canceled_at * 1000).toISOString() });
   });
-  it('does not expose an unpaid billing end as the access end in subscription.updated', () => {
+  it('does not expose an unpaid billing end as the access end in subscription.updated @J37', () => {
     const payload = buildSubscriptionUpdatedPayload(input(canceled));
     expect(payload.subscription).toMatchObject({ endsAt: actualEnd, endedAt: actualEnd, currentPeriodEnd: actualEnd });
   });
-  it('retains the scheduling timestamp separately from the proven paid access end', () => {
+  it('retains the scheduling timestamp separately from the proven paid access end @J139', () => {
     const period = paidInvoice.lines.data[0].period;
     const payload = buildSubscriptionUpdatedPayload({ ...input(scheduled), paidPeriodEnd: period.end });
     expect(payload.subscription).toMatchObject({ endsAt: new Date(period.end * 1000).toISOString(),
       endedAt: null, canceledAt: new Date(scheduled.canceled_at * 1000).toISOString() });
     expect(Date.parse(payload.subscription.endsAt!)).toBeGreaterThan(Date.parse(payload.subscription.canceledAt!));
   });
-  it('does not guess a scheduled access end without a paid invoice period', () => {
+  it('does not guess a scheduled access end without a paid invoice period @J139', () => {
     const payload = buildSubscriptionUpdatedPayload(input({ ...failed, cancel_at_period_end: true }));
     expect(payload.subscription).toMatchObject({ endsAt: null, currentPeriodEnd: null });
   });
-  it('retains an observed immediate canceled_at if optional ended_at and items are absent', () => {
+  it('retains an observed immediate canceled_at if optional ended_at and items are absent @J37', () => {
     const sparse = structuredClone(canceled);
     Reflect.deleteProperty(sparse, 'ended_at'); Reflect.deleteProperty(sparse, 'items');
     const payload = buildSubscriptionCanceledPayload(input(sparse));
@@ -47,7 +47,7 @@ describe('recorded cancellation receiver', () => {
   });
 });
 
-it('loads a paid invoice period when scheduled cancellation follows an unpaid renewal', async () => {
+it('loads a paid invoice period when scheduled cancellation follows an unpaid renewal @J139', async () => {
   const list = vi.fn().mockResolvedValue({ data: [paidInvoice] });
   const stripe = { invoices: { list } } as unknown as Stripe;
   const subscription = { ...failed, cancel_at_period_end: true } as unknown as Stripe.Subscription;

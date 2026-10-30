@@ -56,7 +56,7 @@ async function drain(job = 'business-events') {
   return cron(new NextRequest(`http://localhost/api/cron?job=${job}`, { headers: { Authorization: `Bearer ${cronSecret}` } }));
 }
 const context = (id: string, accessId: string) => ({ params: Promise.resolve({ id, accessId }) });
-it('delivers admin grant, extension and deletion with actor and before/after state exactly once', async () => {
+it('delivers admin grant, extension and deletion with actor and before/after state exactly once @J22', async () => {
   const p = await product(), u = await user();
   const result = await grant(new NextRequest('http://localhost/api/v1/users/access', { method: 'POST', body: JSON.stringify({ product_id: p.id, access_duration_days: 7 }) }), { params: Promise.resolve({ id: u.id }) });
   expect(result.status).toBe(201); const access = (await result.json()).data;
@@ -74,7 +74,7 @@ it('delivers admin grant, extension and deletion with actor and before/after sta
   await drain();
   expect(receiver.received.filter(e => e.data.customer?.userId === u.id)).toHaveLength(3);
 });
-it('records the paid guest claim and its source order during registration', async () => {
+it('records the paid guest claim and its source order during registration @J23', async () => {
   const p = await product(), email = `claim-${crypto.randomUUID()}@example.com`;
   const tx = await db.from('payment_transactions').insert({ product_id: p.id, customer_email: email, session_id: `cs_test_${crypto.randomUUID().replaceAll('-', '')}`, amount: 1900, currency: 'PLN', status: 'completed' }).select('id').single(); expect(tx.error).toBeNull();
   expect((await db.from('guest_purchases').insert({ product_id: p.id, customer_email: email, transaction_id: tx.data!.id, transaction_amount: 1900 })).error).toBeNull();
@@ -84,7 +84,7 @@ it('records the paid guest claim and its source order during registration', asyn
   const event = receiver.received.find(e => e.event === 'access.granted' && e.data.customer.userId === u.id);
   expect(event?.data).toMatchObject({ reason: 'guest_purchase_claimed', sourceOrder: { id: tx.data!.id }, customer: { email, userId: u.id }, product: { id: p.id } });
 });
-it('actually dispatches a natural expiry through the cron, without a second notification', async () => {
+it('actually dispatches a natural expiry through the cron, without a second notification @J24', async () => {
   const p = await product(), u = await user();
   const access = await db.from('user_product_access').insert({ user_id: u.id, product_id: p.id, access_granted_at: '1999-01-01T00:00:00Z', created_at: '1999-01-01T00:00:00Z', access_expires_at: '2000-01-01T00:00:00Z' }).select('id').single(); expect(access.error).toBeNull();
   expect((await drain('access-expired')).status).toBe(200); expect((await drain('access-expired')).status).toBe(200);
@@ -92,7 +92,7 @@ it('actually dispatches a natural expiry through the cron, without a second noti
   expect(expired).toHaveLength(1);
   expect(expired[0].data).toMatchObject({ reason: 'expired', actor: { type: 'system' }, access: { id: access.data!.id, statusAfter: 'expired', expiresAt: '2000-01-01T00:00:00+00:00' } });
 });
-it('reports confirmed and released reservations plus their abandoned order, once', async () => {
+it('reports confirmed and released reservations plus their abandoned order, once @J25 @J26', async () => {
   const p = await product(true);
   const session = await db.from('product_sessions').insert({ product_id: p.id, starts_at: '2099-06-01T12:00:00Z', capacity: 10, title: 'Recorded workshop' }).select('id').single(); expect(session.error).toBeNull();
   expect((await db.from('product_price_tiers').insert({ session_id: session.data!.id, price: 19, sort: 0 })).error).toBeNull();
@@ -124,7 +124,7 @@ it('reports a free-product grant made by the authenticated buyer without duplica
   expect(events[0].data).toMatchObject({ reason: 'free_product', actor: { type: 'user', id: u.id } });
 });
 
-it('identifies the purchase source for a bundle component claimed during registration', async () => {
+it('identifies the purchase source for a bundle component claimed during registration @J31', async () => {
   const bundle = await product(), component = await product();
   expect((await db.from('products').update({ is_bundle: true }).eq('id', bundle.id)).error).toBeNull();
   expect((await db.from('bundle_items').insert({ bundle_product_id: bundle.id, component_product_id: component.id })).error).toBeNull();

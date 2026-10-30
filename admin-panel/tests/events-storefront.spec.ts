@@ -48,14 +48,14 @@ test('(a) product and checkout show promotional tier, timezone and hold at 47', 
   expect(Number(tx.amount)).toBe(4700);
   expect(await checked(await db.from('seat_reservations').select('status,tier_id').eq('transaction_id',tx.id).single())).toMatchObject({ status: 'held', tier_id: cheap });
 });
-test('(b) thirty-first buyer sees 67 after thirty promotional places are held', async ({ page }) => {
+test('(b) thirty-first buyer sees 67 after thirty promotional places are held @J51', async ({ page }) => {
   await hold(30); await open(page);
   await expect(page.getByText('Tańsze miejsca wyprzedane')).toBeVisible();
   const response = await startNativeCheckout(page);
   const tx = await checked(await db.from('payment_transactions').select('amount').eq('session_id',(await response.json()).checkoutSessionId).single());
   expect(Number(tx.amount)).toBe(6700);
 });
-test('(c) an elapsed sale deadline switches to 67 without waiting for time', async ({ page }) => {
+test('(c) an elapsed sale deadline switches to 67 without waiting for time @J51', async ({ page }) => {
   sql(`UPDATE public.product_price_tiers SET sale_ends_at='2000-01-01' WHERE id='${cheap}'`);
   await open(page); await expect(page.getByText('Tańsze miejsca wyprzedane')).toBeVisible();
   await expect(page.getByText(/Zostało 30/)).toHaveCount(0);

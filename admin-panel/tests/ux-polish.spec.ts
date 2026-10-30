@@ -46,7 +46,7 @@ test.afterAll(async () => {
 
 for (const locale of ['en', 'pl'] as const) {
   const labels = locale === 'pl' ? pl : en;
-  test(`${locale}: guest declines both offers and returns to purchase status`, async ({ page }) => {
+  test(`${locale}: guest declines both offers and returns to purchase status @J81`, async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto(`/${locale}/p/${slug}/payment-status?session_id=cs_test_${productId.replaceAll('-', '')}`);
     await expect(page).toHaveURL(new RegExp(`/checkout/ux-offer-${upsellId}`));
@@ -71,7 +71,7 @@ for (const locale of ['en', 'pl'] as const) {
     await expect(page.getByText(/−.*4[,.]90/)).toBeVisible();
     await expect(page.getByText(/44[,.]10/).last()).toBeVisible();
   });
-  test(`${locale}: search and price filters survive product navigation and Back`, async ({ page }) => {
+  test(`${locale}: search and price filters survive product navigation and Back @J80`, async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto(`/${locale}/store`);
     const search = page.getByRole('searchbox');

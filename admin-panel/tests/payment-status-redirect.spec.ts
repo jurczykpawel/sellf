@@ -287,7 +287,7 @@ test.describe('Payment Status Redirect - Logged-in User', () => {
     }
   });
 
-  test('test-custom-redirect: should redirect to external URL', async ({ page }) => {
+  test('test-custom-redirect: should redirect to external URL @J136', async ({ page }) => {
     const sessionId = generateSessionId('custom_redirect');
 
     try {

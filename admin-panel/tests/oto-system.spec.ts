@@ -89,7 +89,7 @@ test.describe('OTO (One-Time Offer) System', () => {
     }
   });
 
-  test('should create OTO offer and generate coupon after purchase', async () => {
+  test('should create OTO offer and generate coupon after purchase @J122', async () => {
     const timestamp = Date.now();
 
     // 1. Create source product (what customer buys)
@@ -704,7 +704,7 @@ test.describe('OTO API Edge Cases', () => {
       .neq('id', '00000000-0000-0000-0000-000000000000');
   });
 
-  test('should return error for expired OTO coupon via API', async ({ request }) => {
+  test('should return error for expired OTO coupon via API @J123', async ({ request }) => {
     const timestamp = Date.now();
 
     // Create expired coupon directly
@@ -1273,7 +1273,7 @@ test.describe('OTO Checkout Page E2E', () => {
     }
   });
 
-  test('should prefill email and auto-apply OTO coupon with discount on checkout', async ({ page }) => {
+  test('should prefill email and auto-apply OTO coupon with discount on checkout @J122', async ({ page }) => {
     expect(couponCode, 'OTO coupon should have been generated in beforeAll').toBeTruthy();
     expect(otoProduct, 'OTO product should have been created in beforeAll').toBeTruthy();
 

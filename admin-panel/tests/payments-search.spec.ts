@@ -88,7 +88,7 @@ test.describe('Payments dashboard search', () => {
     }
   });
 
-  test('finds a payment that is not on the first loaded page', async ({ page }) => {
+  test('finds a payment that is not on the first loaded page @J59', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
 
     await page.goto('/dashboard/payments');

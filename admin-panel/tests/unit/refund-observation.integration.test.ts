@@ -7,7 +7,7 @@ import partial from '../fixtures/stripe/refund_list_partial.json';
 import { deriveDeliveryReference } from '@/lib/services/webhook-service';
 import { getTestDatabaseContainer } from '../helpers/database-container';
 
-it('records one issuance and one version per actual processor-status transition', () => {
+it('records one issuance and one version per actual processor-status transition @J35', () => {
   const refund = full.data[0];
   const sql = `BEGIN;
     INSERT INTO public.products(id,name,slug,price,currency) VALUES

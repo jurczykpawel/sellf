@@ -90,7 +90,7 @@ test.describe('System Update API v1', () => {
       expect(response.status()).toBe(401);
     });
 
-    test('should return update info for admin', async ({ page }) => {
+    test('should return update info for admin @J107', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
       const response = await page.request.get('/api/v1/system/update-check');
 

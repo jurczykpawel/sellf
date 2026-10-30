@@ -1,0 +1,3322 @@
+{
+  "format": "JSON subset of YAML 1.2; parse with JSON.parse without adding a parser dependency.",
+  "coverage_policy": "Automated means an existing active test asserts the stated end state, not that it was executed in this change. Partial layers are explicit; unasserted parties say Not exercised. Pairwise candidates are exploration prompts, not guaranteed valid full purchases. IDs are permanent; retire rather than renumber.",
+  "dimensions": {
+    "persona": [
+      "guest",
+      "signed_in",
+      "new",
+      "admin",
+      "integrator",
+      "partner"
+    ],
+    "entry": [
+      "checkout",
+      "api",
+      "embed",
+      "email_link",
+      "login",
+      "dashboard",
+      "cron",
+      "webhook",
+      "storefront"
+    ],
+    "product": [
+      "licensed_bump",
+      "paid",
+      "subscription",
+      "coupon_bump",
+      "local_vat",
+      "b2b_quantity",
+      "event",
+      "set_price",
+      "free_license",
+      "free_license_domain",
+      "timed_access",
+      "bundle",
+      "free",
+      "pwyw",
+      "license",
+      "not_applicable",
+      "oto",
+      "variant",
+      "bump",
+      "unpublished",
+      "coupon",
+      "content_delivery"
+    ],
+    "payment": [
+      "card",
+      "card_3ds",
+      "declined",
+      "bank_transfer",
+      "none",
+      "abandoned",
+      "refund",
+      "dispute"
+    ],
+    "moment": [
+      "immediate",
+      "after_payment",
+      "after_grant",
+      "after_expiry",
+      "after_hold",
+      "after_renewal",
+      "after_retry",
+      "after_edit",
+      "after_navigation"
+    ],
+    "operation": [
+      "purchase",
+      "claim",
+      "issue_license",
+      "change_access",
+      "cancel",
+      "reconcile",
+      "read",
+      "authenticate",
+      "deliver",
+      "consent",
+      "browse",
+      "configure",
+      "publish",
+      "issue_invoice",
+      "refund",
+      "export",
+      "consume",
+      "manage_key",
+      "configure_webhook",
+      "partner",
+      "payout",
+      "preview",
+      "publish_legal",
+      "publish_shop",
+      "publish_storefront",
+      "configure_appearance"
+    ]
+  },
+  "journeys": [
+    {
+      "id": "J01",
+      "title": "Guest buys a licensed product and bump",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "licensed_bump",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Receives main and selected bump access, a receipt link and the stored issued token.",
+        "seller": "Completed order retains the selected lines.",
+        "integrator": "Signed purchase identifies buyer, product, amount and license."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser"
+      ],
+      "limits": "Real Stripe checkout, DB access and token equality are asserted. Offline token signature verification is a separate journey."
+    },
+    {
+      "id": "J02",
+      "title": "Signed-in buyer purchases license and bump",
+      "values": {
+        "persona": "signed_in",
+        "entry": "checkout",
+        "product": "licensed_bump",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Receives purchased access and the issued token stored for the purchase.",
+        "seller": "Completed order records the authenticated buyer.",
+        "integrator": "Purchase delivery carries the license and selected lines."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser"
+      ],
+      "limits": "Real Stripe checkout, DB access and token equality are asserted. Offline token signature verification is a separate journey."
+    },
+    {
+      "id": "J03",
+      "title": "Buyer completes a card authentication challenge",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "licensed_bump",
+        "payment": "card_3ds",
+        "moment": "immediate",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Challenge completes and purchased access is granted.",
+        "seller": "Payment and grant are persisted.",
+        "integrator": "One purchase.completed with matching delivery ID and stored license token is delivered."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J04",
+      "title": "Buyer receives a declined card result",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "paid",
+        "payment": "declined",
+        "moment": "immediate",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Sees payment failure and gets no purchase access.",
+        "seller": "No completed purchase is recorded.",
+        "integrator": "No successful completion is claimed."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J05",
+      "title": "Guest starts a paid subscription",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "subscription",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Initial paid access and purchase email are available.",
+        "seller": "Subscription and initial payment are recorded.",
+        "integrator": "One invoice.paid is delivered; paid-period field assertions belong to the renewal contract journey."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J06",
+      "title": "Coupon purchase retains the bump price",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "coupon_bump",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Pays the discounted main and correct bump amount.",
+        "seller": "Order records matching totals.",
+        "integrator": "One signed completion with matching delivery ID is delivered; price/profile/tax assertions inspect the stored order."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J07",
+      "title": "Net-price purchase retains local VAT",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "local_vat",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Sees and pays the tax-inclusive total.",
+        "seller": "Transaction and line snapshots retain net and tax.",
+        "integrator": "One signed completion with matching delivery ID is delivered; price/profile/tax assertions inspect the stored order."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J08",
+      "title": "B2B quantity purchase keeps invoice details",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "b2b_quantity",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Pays three units with a fixed coupon.",
+        "seller": "Order retains buyer details, quantity and total.",
+        "integrator": "One signed completion with matching delivery ID is delivered; price/profile/tax assertions inspect the stored order."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J09",
+      "title": "Event purchase confirms promotional seats",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "event",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Gets the purchased session information.",
+        "seller": "Two promotional seats become confirmed.",
+        "integrator": "Purchase delivery includes the session ID; tier and quantity are asserted in the saved reservation and line."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J10",
+      "title": "Link coupon fixes the main price",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "set_price",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Pays the final main price and unchanged bump.",
+        "seller": "Order records the configured coupon.",
+        "integrator": "One signed completion with matching delivery ID is delivered; price/profile/tax assertions inspect the stored order."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J11",
+      "title": "Net coupon transfer completes offline",
+      "values": {
+        "persona": "guest",
+        "entry": "api",
+        "product": "local_vat",
+        "payment": "bank_transfer",
+        "moment": "after_payment",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Transfer placement returns the correct total; customer access is not inspected.",
+        "seller": "Offline completion records completed status, exact tax/line totals and one coupon redemption.",
+        "integrator": "Not exercised: no outgoing webhook assertions in this scenario."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "integration"
+      ],
+      "limits": "Located in stripe-live, but this scenario uses local HTTP placement and offline RPC completion, not Stripe capture."
+    },
+    {
+      "id": "J12",
+      "title": "Guest completes embedded checkout with Stripe-collected email",
+      "values": {
+        "persona": "guest",
+        "entry": "embed",
+        "product": "paid",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Reaches payment status with a success message; the test does not follow the access email.",
+        "seller": "Completed transaction and guest claim retain Stripe-collected or prefilled email and coupon redemption.",
+        "integrator": "Not exercised: no external receiver is asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser"
+      ],
+      "limits": "Variants cover plain/coupon, Stripe-collected/prefilled email and coupon expiry. They do not cover signed-in ownership or a 3DS challenge."
+    },
+    {
+      "id": "J13",
+      "title": "Free license via magic-link, domain absent",
+      "values": {
+        "persona": "new",
+        "entry": "email_link",
+        "product": "free_license",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Gets exactly one registered license without a domain claim.",
+        "seller": "Grant and license are stored once under the stable free order.",
+        "integrator": "HMAC lead carries token, real access dates and the saved answer snapshot."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ],
+      "limits": "Real local Auth/Mailpit, DB and signer; framework session and local transport boundaries are substituted."
+    },
+    {
+      "id": "J14",
+      "title": "Free license via magic-link, domain required",
+      "values": {
+        "persona": "new",
+        "entry": "email_link",
+        "product": "free_license_domain",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Gets exactly one registered license bound to the entered domain.",
+        "seller": "Grant and license are stored once under the stable free order.",
+        "integrator": "HMAC lead carries token, real access dates and the saved answer snapshot."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ],
+      "limits": "Real local Auth/Mailpit, DB and signer; framework session and local transport boundaries are substituted."
+    },
+    {
+      "id": "J15",
+      "title": "Free license via signed-in, domain absent",
+      "values": {
+        "persona": "signed_in",
+        "entry": "api",
+        "product": "free_license",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Gets exactly one registered license without a domain claim.",
+        "seller": "Grant and license are stored once under the stable free order.",
+        "integrator": "HMAC lead carries token, real access dates and the saved answer snapshot."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ],
+      "limits": "Real local Auth/Mailpit, DB and signer; framework session and local transport boundaries are substituted."
+    },
+    {
+      "id": "J16",
+      "title": "Free license via signed-in, domain required",
+      "values": {
+        "persona": "signed_in",
+        "entry": "api",
+        "product": "free_license_domain",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Gets exactly one registered license bound to the entered domain.",
+        "seller": "Grant and license are stored once under the stable free order.",
+        "integrator": "HMAC lead carries token, real access dates and the saved answer snapshot."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ],
+      "limits": "Real local Auth/Mailpit, DB and signer; framework session and local transport boundaries are substituted."
+    },
+    {
+      "id": "J17",
+      "title": "Free license via pending, domain absent",
+      "values": {
+        "persona": "new",
+        "entry": "login",
+        "product": "free_license",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Gets exactly one registered license without a domain claim.",
+        "seller": "Grant and license are stored once under the stable free order.",
+        "integrator": "HMAC lead carries token, real access dates and the saved answer snapshot."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ],
+      "limits": "Real local Auth/Mailpit, DB and signer; framework session and local transport boundaries are substituted."
+    },
+    {
+      "id": "J18",
+      "title": "Free license via pending, domain required",
+      "values": {
+        "persona": "new",
+        "entry": "login",
+        "product": "free_license_domain",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Gets exactly one registered license bound to the entered domain.",
+        "seller": "Grant and license are stored once under the stable free order.",
+        "integrator": "HMAC lead carries token, real access dates and the saved answer snapshot."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ],
+      "limits": "Real local Auth/Mailpit, DB and signer; framework session and local transport boundaries are substituted."
+    },
+    {
+      "id": "J19",
+      "title": "Free signup carries the domain through HTTP",
+      "values": {
+        "persona": "new",
+        "entry": "checkout",
+        "product": "free_license_domain",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Delivered signup link leads to access and a token bound to the entered domain.",
+        "seller": "Grant snapshot retains the normalized domain.",
+        "integrator": "Signed lead and access events retain the same answer."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "integration"
+      ]
+    },
+    {
+      "id": "J20",
+      "title": "Admin issues a license without a domain field",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "free_license",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "issue_license"
+      },
+      "end_state": {
+        "buyer": "Token has no domain claim.",
+        "seller": "Manual issuance returns 201 for a product without the domain field.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "integration"
+      ]
+    },
+    {
+      "id": "J21",
+      "title": "Admin must supply a product-required domain",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "free_license_domain",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "issue_license"
+      },
+      "end_state": {
+        "buyer": "Missing required domain produces no token.",
+        "seller": "Missing domain is rejected with 400; a supplied domain is normalized.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "integration"
+      ]
+    },
+    {
+      "id": "J22",
+      "title": "API admin changes and revokes access",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "timed_access",
+        "payment": "none",
+        "moment": "after_grant",
+        "operation": "change_access"
+      },
+      "end_state": {
+        "buyer": "Access follows grant, extension and deletion.",
+        "seller": "Mutations retain the authenticated actor.",
+        "integrator": "Signed events include actual actor and before/after access dates."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "integration",
+        "consumer"
+      ]
+    },
+    {
+      "id": "J23",
+      "title": "Registered guest claims a paid order",
+      "values": {
+        "persona": "new",
+        "entry": "email_link",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Delivered signup link claims the recorded purchase.",
+        "seller": "Guest claim is associated with the same order.",
+        "integrator": "Access event carries the source order."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "integration"
+      ],
+      "limits": "Payment is a recorded/local order fixture; this is not a fresh Stripe checkout."
+    },
+    {
+      "id": "J24",
+      "title": "Natural access expiry reaches the receiver",
+      "values": {
+        "persona": "signed_in",
+        "entry": "cron",
+        "product": "timed_access",
+        "payment": "none",
+        "moment": "after_expiry",
+        "operation": "change_access"
+      },
+      "end_state": {
+        "buyer": "Saved access reaches its expiry.",
+        "seller": "Cron records one expiration notification.",
+        "integrator": "One signed access.expired contains the actual grant and expiry."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ],
+      "limits": "Invokes local cron; does not prove deployed scheduling."
+    },
+    {
+      "id": "J25",
+      "title": "Abandoning an event checkout releases held seats",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "event",
+        "payment": "abandoned",
+        "moment": "after_hold",
+        "operation": "cancel"
+      },
+      "end_state": {
+        "buyer": "Unpaid attempt is abandoned.",
+        "seller": "Reservation moves held to released with the order.",
+        "integrator": "Receiver gets reservation ID, quantity, reason and minor-unit amount."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "integration"
+      ],
+      "limits": "HTTP test commits controlled DB transitions; no browser navigation is claimed."
+    },
+    {
+      "id": "J26",
+      "title": "Paid event reservation confirms seats",
+      "values": {
+        "persona": "guest",
+        "entry": "api",
+        "product": "event",
+        "payment": "bank_transfer",
+        "moment": "after_payment",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Confirmed reservation corresponds to the order.",
+        "seller": "Seat transition is retained.",
+        "integrator": "Confirmed event identifies the reservation and quantity."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ]
+    },
+    {
+      "id": "J27",
+      "title": "Card order reconciles by internal ID and VAT quality",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "reconcile"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Internal order UUID and number remain available.",
+        "integrator": "Receiver distinguishes unavailable VAT from zero tax using minor units."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ],
+      "limits": "Uses recorded card purchase; not a new provider call."
+    },
+    {
+      "id": "J28",
+      "title": "Transfer placement states deferred access policy",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "paid",
+        "payment": "bank_transfer",
+        "moment": "immediate",
+        "operation": "reconcile"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Transfer order retains normalized amounts.",
+        "integrator": "Order payload explicitly states access policy and VAT quality."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ]
+    },
+    {
+      "id": "J29",
+      "title": "Transfer placement states granted access dates",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "timed_access",
+        "payment": "bank_transfer",
+        "moment": "immediate",
+        "operation": "reconcile"
+      },
+      "end_state": {
+        "buyer": "Existing early grant dates remain authoritative.",
+        "seller": "Order links its actual early grant.",
+        "integrator": "Receiver gets the saved entitlement dates."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ]
+    },
+    {
+      "id": "J30",
+      "title": "Single-payment read matches list details",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "paid",
+        "payment": "bank_transfer",
+        "moment": "after_payment",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Single read retains order, provider and line information.",
+        "integrator": "API consumer can reconcile the same order without scanning the list."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ]
+    },
+    {
+      "id": "J31",
+      "title": "Guest claims bundle components",
+      "values": {
+        "persona": "new",
+        "entry": "login",
+        "product": "bundle",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Component access is granted from the bundle purchase.",
+        "seller": "Grant retains its source order.",
+        "integrator": "Access event identifies the purchased bundle source."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ]
+    },
+    {
+      "id": "J32",
+      "title": "First paid signup mail carries product and total",
+      "values": {
+        "persona": "new",
+        "entry": "checkout",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "authenticate"
+      },
+      "end_state": {
+        "buyer": "First Mailpit signup email contains product, full amount and link.",
+        "seller": "Recorded purchase supplies the mail context.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ],
+      "limits": "Seeds completed purchase and uses a provider fixture; does not exercise real card checkout."
+    },
+    {
+      "id": "J33",
+      "title": "Subscription receipt arrives before the offer redirect",
+      "values": {
+        "persona": "new",
+        "entry": "checkout",
+        "product": "subscription",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "authenticate"
+      },
+      "end_state": {
+        "buyer": "First Mailpit email includes invoice product and amount before OTO navigation.",
+        "seller": "Invoice-backed transaction supplies context.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "integration"
+      ],
+      "limits": "Verifier is substituted with the recorded purchase outcome."
+    },
+    {
+      "id": "J34",
+      "title": "Receiver distinguishes full and partial refunds",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "subscription",
+        "payment": "refund",
+        "moment": "after_payment",
+        "operation": "reconcile"
+      },
+      "end_state": {
+        "buyer": "Full refund removes purchase rights; partial refund retains remaining rights.",
+        "seller": "Saved refund has real identity, status and cumulative amount.",
+        "integrator": "Receiver confirms full refund only from observed succeeded status and real refund ID."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "consumer"
+      ],
+      "limits": "Sandbox test creates Stripe payments through API and seeds Sellf orders; not an initial checkout journey."
+    },
+    {
+      "id": "J35",
+      "title": "Refund transitions retain identity and version",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "paid",
+        "payment": "refund",
+        "moment": "after_payment",
+        "operation": "deliver"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Observed refund state and unsent versions survive repeated calls.",
+        "integrator": "One issued event per refund, then ordered status versions."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "integration",
+        "consumer"
+      ]
+    },
+    {
+      "id": "J36",
+      "title": "Paid recurring invoice proves the paid period",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "subscription",
+        "payment": "card",
+        "moment": "after_renewal",
+        "operation": "reconcile"
+      },
+      "end_state": {
+        "buyer": "Renewal follows the exact paid invoice period.",
+        "seller": "Invoice/subscription binding is retained.",
+        "integrator": "Signed invoice.paid gives a proven period without guessing from a later billing cycle."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "consumer"
+      ]
+    },
+    {
+      "id": "J37",
+      "title": "Immediate subscription cancellation follows the actual end",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "subscription",
+        "payment": "declined",
+        "moment": "after_renewal",
+        "operation": "cancel"
+      },
+      "end_state": {
+        "buyer": "Access ends at ended_at after the failed renewal.",
+        "seller": "Canceled subscription and removed access agree.",
+        "integrator": "endsAt is the actual end rather than the unpaid billing end."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "consumer"
+      ]
+    },
+    {
+      "id": "J38",
+      "title": "Dispute without an offline license reports access outcome",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "subscription",
+        "payment": "dispute",
+        "moment": "after_payment",
+        "operation": "change_access"
+      },
+      "end_state": {
+        "buyer": "Disputed purchase loses access; won does not silently restore it.",
+        "seller": "Payment retains dispute identity and status.",
+        "integrator": "Signed created/closed carries payment, customer, product and won/lost result."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "consumer"
+      ]
+    },
+    {
+      "id": "J39",
+      "title": "Optional invoice payments are hydrated",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "subscription",
+        "payment": "card",
+        "moment": "after_renewal",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Invoice retains its PaymentIntent for later refund.",
+        "integrator": "Missing parent/payments does not remove payment correlation."
+      },
+      "status": "automated",
+      "layers": [
+        "consumer"
+      ]
+    },
+    {
+      "id": "J40",
+      "title": "One cookie control reopens preferences",
+      "values": {
+        "persona": "guest",
+        "entry": "storefront",
+        "product": "paid",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "consent"
+      },
+      "end_state": {
+        "buyer": "Offer, store, product and login show one working preferences control.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J41",
+      "title": "Guest claims a free product through the storefront",
+      "values": {
+        "persona": "new",
+        "entry": "storefront",
+        "product": "free",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Magic link leads to the claimed product.",
+        "seller": "Free access is retained.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J42",
+      "title": "Signed-in visitor claims a free product",
+      "values": {
+        "persona": "signed_in",
+        "entry": "storefront",
+        "product": "free",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Product access is granted immediately.",
+        "seller": "Grant is retained.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J43",
+      "title": "Another sign-in claims pending free access",
+      "values": {
+        "persona": "new",
+        "entry": "login",
+        "product": "free",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Plain login link grants the previously requested free product.",
+        "seller": "Pending request becomes access.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "integration"
+      ]
+    },
+    {
+      "id": "J44",
+      "title": "Full-discount coupon grants access without card payment",
+      "values": {
+        "persona": "signed_in",
+        "entry": "checkout",
+        "product": "coupon_bump",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Receives product access.",
+        "seller": "Coupon redemption is recorded.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J45",
+      "title": "PWYW free amount exposes the claim flow",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "pwyw",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "browse"
+      },
+      "end_state": {
+        "buyer": "Free option is available where configured.",
+        "seller": "Zero and positive minimum configurations are checked.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "http"
+      ],
+      "limits": "UI/API option coverage; not a complete license or mail journey."
+    },
+    {
+      "id": "J46",
+      "title": "PWYW subscription accepts a paid amount",
+      "values": {
+        "persona": "guest",
+        "entry": "api",
+        "product": "subscription",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "configure"
+      },
+      "end_state": {
+        "buyer": "Receives a payment client secret for the chosen amount.",
+        "seller": "Checkout accepts the valid custom price.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ],
+      "limits": "Session creation only; no paid renewal asserted."
+    },
+    {
+      "id": "J47",
+      "title": "Admin creates and edits a product",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "configure"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Product is saved through the wizard and CRUD actions.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J48",
+      "title": "Admin duplicates an event product",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "event",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "configure"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "New product gets new session/tier identities without reservations.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J49",
+      "title": "Admin creates event sessions and tiers",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "event",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "publish"
+      },
+      "end_state": {
+        "buyer": "Preview shows configured capacity and price.",
+        "seller": "Event and two tiers are saved.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J50",
+      "title": "Participant reads a purchased event session",
+      "values": {
+        "persona": "signed_in",
+        "entry": "dashboard",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Own participant sees the private online link.",
+        "seller": "Confirmed order binds the session.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J51",
+      "title": "Event tier price changes at capacity and deadline",
+      "values": {
+        "persona": "guest",
+        "entry": "storefront",
+        "product": "event",
+        "payment": "none",
+        "moment": "after_hold",
+        "operation": "browse"
+      },
+      "end_state": {
+        "buyer": "Public price switches from promotional to next tier.",
+        "seller": "Availability follows held places and sale deadline.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J52",
+      "title": "Organization places transfer with immediate access",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "b2b_quantity",
+        "payment": "bank_transfer",
+        "moment": "immediate",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Gets immediate access, transfer instructions and Auth mail.",
+        "seller": "Awaiting order and unpaid invoice are retained.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ]
+    },
+    {
+      "id": "J53",
+      "title": "Admin marks a transfer paid",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "bank_transfer",
+        "moment": "after_payment",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Paid order is completed.",
+        "seller": "Amount mismatch is rejected; same invoice gains receipt date once.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J54",
+      "title": "Admin cancels a transfer event order",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "event",
+        "payment": "bank_transfer",
+        "moment": "after_hold",
+        "operation": "cancel"
+      },
+      "end_state": {
+        "buyer": "Early access is removed.",
+        "seller": "Seats return and invoice correction is offered.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J55",
+      "title": "Admin issues and reads an invoice",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "bank_transfer",
+        "moment": "after_payment",
+        "operation": "issue_invoice"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Provider configuration, issued invoice and order list agree.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ],
+      "limits": "Uses the configured local provider stub; lifecycle webhooks are not asserted."
+    },
+    {
+      "id": "J56",
+      "title": "Buyer requests a refund",
+      "values": {
+        "persona": "signed_in",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "refund"
+      },
+      "end_state": {
+        "buyer": "Can submit an eligible own refund request.",
+        "seller": "Request is visible in saved state.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J57",
+      "title": "Admin reviews refund requests",
+      "values": {
+        "persona": "admin",
+        "entry": "api",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "refund"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Review actions update request state.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ],
+      "limits": "Review API coverage is not notification coverage."
+    },
+    {
+      "id": "J58",
+      "title": "Payment export matches filtered results",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "export"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "CSV contains the same selected transaction as Payments.",
+        "integrator": "Export consumer receives the filtered record."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J59",
+      "title": "Admin searches older payments",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Server-side search finds a transaction outside the first page.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J60",
+      "title": "Admin reads buyer and participants",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "event",
+        "payment": "bank_transfer",
+        "moment": "after_payment",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Buyer, recipient, phone and five participants are visible.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J61",
+      "title": "Buyer follows login-wall access handoff",
+      "values": {
+        "persona": "signed_in",
+        "entry": "embed",
+        "product": "paid",
+        "payment": "none",
+        "moment": "after_grant",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Verified own access returns a usable page handoff.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ],
+      "limits": "Token/redirect checks; seller-page backend authorization is a separate contract."
+    },
+    {
+      "id": "J62",
+      "title": "Seller page verifies an owned element gate",
+      "values": {
+        "persona": "signed_in",
+        "entry": "embed",
+        "product": "paid",
+        "payment": "none",
+        "moment": "after_grant",
+        "operation": "consume"
+      },
+      "end_state": {
+        "buyer": "Owned content branch and feature are enabled; verification succeeds.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Gate verification returns access true."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J63",
+      "title": "Signed-in non-owner sees the gate alternative",
+      "values": {
+        "persona": "signed_in",
+        "entry": "embed",
+        "product": "paid",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "consume"
+      },
+      "end_state": {
+        "buyer": "No-access branch is visible; verification denies the feature.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Verification returns access false."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J64",
+      "title": "Guest sees the no-session element branch",
+      "values": {
+        "persona": "guest",
+        "entry": "embed",
+        "product": "paid",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "consume"
+      },
+      "end_state": {
+        "buyer": "Every gated block selects its no-session branch.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J65",
+      "title": "Product license verifies against public JWKS",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "license",
+        "payment": "none",
+        "moment": "after_grant",
+        "operation": "consume"
+      },
+      "end_state": {
+        "buyer": "Issued token can be verified offline.",
+        "seller": "Only the public key is consumed.",
+        "integrator": "Reference verifier accepts the signed license."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "consumer"
+      ],
+      "limits": "Token is signed in test setup; not a checkout issuance test."
+    },
+    {
+      "id": "J66",
+      "title": "Admin rotates and revokes an API key",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "manage_key"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Retired key shows its deadline and can be immediately revoked.",
+        "integrator": "API access follows the key status."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J67",
+      "title": "API key scopes authorize individual operations",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "consume"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Authorized read works; writes and other scopes are denied."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ]
+    },
+    {
+      "id": "J68",
+      "title": "Seller configures webhook field selection",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "configure_webhook"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Selected payload fields, extra fields and headers persist.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J69",
+      "title": "Webhook retries preserve configured headers",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_retry",
+        "operation": "deliver"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Retry state is retained.",
+        "integrator": "Retried delivery retains configured Authorization."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ],
+      "limits": "Real local queue/cron state; HTTP transport is intercepted to inspect headers."
+    },
+    {
+      "id": "J70",
+      "title": "Parallel webhook workers claim each delivery once",
+      "values": {
+        "persona": "integrator",
+        "entry": "cron",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_retry",
+        "operation": "deliver"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Worker calls jointly process each queue row once.",
+        "integrator": "Not exercised: attempt counts are inspected rather than receiver deliveries."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ],
+      "limits": "Requires a fully disposable isolated database: the existing test postpones other due retry rows. No W110 execution of this scenario."
+    },
+    {
+      "id": "J71",
+      "title": "Seller retries a failed webhook from delivery history",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_retry",
+        "operation": "deliver"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Failed delivery resets to a retryable state.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J72",
+      "title": "Webhook sends customized purchase data",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "deliver"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Endpoint configuration controls dispatch.",
+        "integrator": "Receiver gets selected data, rendered extras and custom header."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ],
+      "limits": "Real local DB and dispatcher; transport captures a constructed Sellf payload. No provider event or real HTTP receiver is asserted."
+    },
+    {
+      "id": "J73",
+      "title": "Guest applies for the partner program",
+      "values": {
+        "persona": "guest",
+        "entry": "login",
+        "product": "paid",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "partner"
+      },
+      "end_state": {
+        "buyer": "Corrects a conflicting code and reaches approved partner panel.",
+        "seller": "Approved membership and coupon selection are available.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J74",
+      "title": "Partner and seller read commission screens",
+      "values": {
+        "persona": "partner",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "partner"
+      },
+      "end_state": {
+        "buyer": "Own portal displays commission balances.",
+        "seller": "Seller screens retain partner state and currencies.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J75",
+      "title": "Partner coupon purchase accrues and reverses commission",
+      "values": {
+        "persona": "partner",
+        "entry": "checkout",
+        "product": "coupon_bump",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "partner"
+      },
+      "end_state": {
+        "buyer": "Paid purchase receives access.",
+        "seller": "Held commission matures and is reversed on refund.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser"
+      ],
+      "limits": "Does not assert outbound affiliate lifecycle notifications."
+    },
+    {
+      "id": "J76",
+      "title": "Seller settles partner payout and later debt",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "bank_transfer",
+        "moment": "after_payment",
+        "operation": "payout"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Reservation, actual payout and later refund debt retain exact balances.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "integration"
+      ],
+      "limits": "Calls real local RPCs; browser/recipient-bank delivery is not asserted."
+    },
+    {
+      "id": "J77",
+      "title": "Buyer navigates a published product offer",
+      "values": {
+        "persona": "guest",
+        "entry": "storefront",
+        "product": "paid",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "browse"
+      },
+      "end_state": {
+        "buyer": "Public opt-in, localized route and responsive offer work.",
+        "seller": "Publication snapshot controls visible content.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J78",
+      "title": "Seller publishes and restores an offer",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "publish"
+      },
+      "end_state": {
+        "buyer": "Published offer follows the saved revision.",
+        "seller": "Save, preview, publish and restore retain EN/PL content.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J79",
+      "title": "Seller saves and reloads storefront configuration",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "configure"
+      },
+      "end_state": {
+        "buyer": "Storefront reflects saved configuration.",
+        "seller": "Independent revisions survive reload and stale-tab checks.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J80",
+      "title": "Buyer keeps filters across product navigation",
+      "values": {
+        "persona": "guest",
+        "entry": "storefront",
+        "product": "paid",
+        "payment": "none",
+        "moment": "after_navigation",
+        "operation": "browse"
+      },
+      "end_state": {
+        "buyer": "Search and price filters survive product navigation and Back.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J81",
+      "title": "Buyer declines upsell and downsell",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "oto",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "cancel"
+      },
+      "end_state": {
+        "buyer": "Returns to purchase status after declining both offers.",
+        "seller": "Original purchase remains the funnel source.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J82",
+      "title": "Admin simulates the free-product funnel",
+      "values": {
+        "persona": "admin",
+        "entry": "checkout",
+        "product": "oto",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "preview"
+      },
+      "end_state": {
+        "buyer": "Preview reaches the configured OTO checkout.",
+        "seller": "Funnel simulation uses the admin path.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ],
+      "limits": "Simulation only; not a real free grant or card payment."
+    },
+    {
+      "id": "J83",
+      "title": "Buyer selects a product variant",
+      "values": {
+        "persona": "guest",
+        "entry": "storefront",
+        "product": "variant",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "browse"
+      },
+      "end_state": {
+        "buyer": "Variant selector is reachable from the copied link.",
+        "seller": "Published group links the variants.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J84",
+      "title": "Buyer sees bundle components",
+      "values": {
+        "persona": "guest",
+        "entry": "storefront",
+        "product": "bundle",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "browse"
+      },
+      "end_state": {
+        "buyer": "Can navigate from bundle to each component.",
+        "seller": "Bundle relationships are displayed.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J85",
+      "title": "Signed-in buyer receives only selected bumps",
+      "values": {
+        "persona": "signed_in",
+        "entry": "api",
+        "product": "bump",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Receives main and selected bump rights, not unselected rights.",
+        "seller": "Product grants match selected order lines.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ],
+      "limits": "Uses completion fixtures; not a fresh Stripe checkout."
+    },
+    {
+      "id": "J86",
+      "title": "Buyer updates their profile",
+      "values": {
+        "persona": "signed_in",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "configure"
+      },
+      "end_state": {
+        "buyer": "Updated own profile survives reload.",
+        "seller": "Own profile values persist.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J87",
+      "title": "Buyer authenticates from a delivered signup link",
+      "values": {
+        "persona": "new",
+        "entry": "email_link",
+        "product": "paid",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "authenticate"
+      },
+      "end_state": {
+        "buyer": "Address becomes confirmed and purchase is claimed.",
+        "seller": "Guest purchase is bound to the verified account.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ]
+    },
+    {
+      "id": "J88",
+      "title": "Expired mail link offers a localized recovery",
+      "values": {
+        "persona": "signed_in",
+        "entry": "email_link",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_expiry",
+        "operation": "authenticate"
+      },
+      "end_state": {
+        "buyer": "Used email link offers a new link in selected locale.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J89",
+      "title": "Buyer logs in at the runtime origin",
+      "values": {
+        "persona": "new",
+        "entry": "email_link",
+        "product": "free",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "authenticate"
+      },
+      "end_state": {
+        "buyer": "Email contains the runtime callback and authenticates the account.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "integration"
+      ]
+    },
+    {
+      "id": "J90",
+      "title": "Waitlisted buyer receives availability guidance",
+      "values": {
+        "persona": "guest",
+        "entry": "storefront",
+        "product": "unpublished",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "browse"
+      },
+      "end_state": {
+        "buyer": "Unavailable product exposes the configured waitlist flow.",
+        "seller": "Waitlist behavior follows product configuration.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J91",
+      "title": "Buyer chooses tracking consent",
+      "values": {
+        "persona": "guest",
+        "entry": "storefront",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "configure"
+      },
+      "end_state": {
+        "buyer": "Consent choice controls managed tracking scripts.",
+        "seller": "Consent preference controls browser integrations.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ],
+      "limits": "Tracking script activation, not server-side event reconciliation."
+    },
+    {
+      "id": "J92",
+      "title": "Consented checkout sends deduplicated analytics",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "paid",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "deliver"
+      },
+      "end_state": {
+        "buyer": "Checkout emits one correlated browser event.",
+        "seller": "Pixel and dataLayer use the same event identity.",
+        "integrator": "Analytics event identities agree."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J93",
+      "title": "Buyer saves required checkout answers",
+      "values": {
+        "persona": "guest",
+        "entry": "api",
+        "product": "free_license_domain",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "configure"
+      },
+      "end_state": {
+        "buyer": "Missing required answers are rejected at submit.",
+        "seller": "Valid answers are retained on the pending transaction.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ],
+      "limits": "Pending payment metadata only; complete free-license journey is mapped separately."
+    },
+    {
+      "id": "J94",
+      "title": "Checkout persists buyer tax details before confirmation",
+      "values": {
+        "persona": "signed_in",
+        "entry": "checkout",
+        "product": "b2b_quantity",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "configure"
+      },
+      "end_state": {
+        "buyer": "Invoice details are stored before payment confirmation.",
+        "seller": "Current session retains the buyer tax number.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J95",
+      "title": "Admin configures payment methods",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "publish"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Payment configuration selection is saved.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J96",
+      "title": "Product checkout renders selected payment configuration",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "paid",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "browse"
+      },
+      "end_state": {
+        "buyer": "Configured methods render for a PLN checkout.",
+        "seller": "Automatic mode is used.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J97",
+      "title": "Admin saves checkout profile",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "b2b_quantity",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "configure"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Profile survives reopening the product wizard.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J98",
+      "title": "Seller creates product through public API",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "paid",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "configure"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "API stores valid product changes.",
+        "integrator": "API returns the saved product representation."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ]
+    },
+    {
+      "id": "J99",
+      "title": "Seller configures product tags",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "paid",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "configure"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Tag dictionary edits persist.",
+        "integrator": "API returns changed tag data."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ]
+    },
+    {
+      "id": "J100",
+      "title": "Seller saves coupon conditions",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "set_price",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "configure"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Coupon edits enforce currency and type conditions.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "browser"
+      ]
+    },
+    {
+      "id": "J101",
+      "title": "Seller saves OTO configuration",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "configure"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "OTO configuration changes persist.",
+        "integrator": "API returns the current OTO definition."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ]
+    },
+    {
+      "id": "J102",
+      "title": "Admin reads payment analytics in display units",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "reconcile"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Revenue chart displays PLN and JPY totals in major units.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J103",
+      "title": "Admin publishes legal documents",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "publish_legal"
+      },
+      "end_state": {
+        "buyer": "Terms and privacy URLs are published.",
+        "seller": "Both rendered documents are stored.",
+        "integrator": "Caller receives both public document URLs."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ]
+    },
+    {
+      "id": "J104",
+      "title": "Buyer reads readable terms before a free claim",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "free",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Terms link opens a readable document.",
+        "seller": "Published legal content is used.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J105",
+      "title": "Admin saves shop identity",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "publish_shop"
+      },
+      "end_state": {
+        "buyer": "Shop identity reflects the saved name.",
+        "seller": "Name persists after refresh.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J106",
+      "title": "Admin tests integration settings",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "deliver"
+      },
+      "end_state": {
+        "buyer": "Product page receives configured tracking.",
+        "seller": "Saved integration settings are retained.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J107",
+      "title": "Admin reads the configured system update",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Update check returns the available information.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ],
+      "limits": "Read/check only; does not install an update."
+    },
+    {
+      "id": "J108",
+      "title": "Invoice lifecycle notifies the external receiver",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "paid",
+        "payment": "bank_transfer",
+        "moment": "after_retry",
+        "operation": "issue_invoice"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Receives invoice issued/failed/retried and payment synchronization changes."
+      },
+      "status": "manual",
+      "layers": [
+        "manual"
+      ],
+      "reason": "Invoice feature tests exist, but no outgoing lifecycle contract test or producer covers this requirement."
+    },
+    {
+      "id": "J109",
+      "title": "Affiliate lifecycle notifies the external receiver",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "partner"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Receives partner, commission and payout transitions with identities and exact amounts."
+      },
+      "status": "manual",
+      "layers": [
+        "manual"
+      ],
+      "reason": "Partner and payout tests check local state; they do not prove outbound lifecycle events."
+    },
+    {
+      "id": "J110",
+      "title": "Refund request lifecycle notifies the external receiver",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "paid",
+        "payment": "refund",
+        "moment": "after_payment",
+        "operation": "refund"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Receives requested/approved/rejected/cancelled request states."
+      },
+      "status": "manual",
+      "layers": [
+        "manual"
+      ],
+      "reason": "Request CRUD tests do not assert an external request-lifecycle notification."
+    },
+    {
+      "id": "J111",
+      "title": "License expiry notifies the external receiver",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "free_license",
+        "payment": "none",
+        "moment": "after_expiry",
+        "operation": "change_access"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Receives an explicit expired-license event."
+      },
+      "status": "manual",
+      "layers": [
+        "manual"
+      ],
+      "reason": "Token expiry verification is covered, but there is no license.expired producer/consumer journey."
+    },
+    {
+      "id": "J112",
+      "title": "Product publication change notifies the external receiver",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "unpublished",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "publish"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Receives effective product/session/tier availability changes."
+      },
+      "status": "manual",
+      "layers": [
+        "manual"
+      ],
+      "reason": "Publication UI tests do not assert lifecycle webhook delivery."
+    },
+    {
+      "id": "J113",
+      "title": "Unpaid checkout creation notifies the external receiver",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "paid",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "reconcile"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Receives a correlated pending-order event before payment completion."
+      },
+      "status": "manual",
+      "layers": [
+        "manual"
+      ],
+      "reason": "Abandonment is covered; creation of every pending online payment is not proven by an order.placed consumer test."
+    },
+    {
+      "id": "J114",
+      "title": "Declined payment notifies the external receiver",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "paid",
+        "payment": "declined",
+        "moment": "immediate",
+        "operation": "reconcile"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Receives an explicit correlated payment-failure outcome."
+      },
+      "status": "manual",
+      "layers": [
+        "manual"
+      ],
+      "reason": "Declined card UI does not prove a payment.failed notification to an integrator."
+    },
+    {
+      "id": "J115",
+      "title": "Visitor signs up to a product waitlist",
+      "values": {
+        "persona": "guest",
+        "entry": "api",
+        "product": "unpublished",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Signup request is accepted.",
+        "seller": "Endpoint acknowledges the waitlist signup.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ],
+      "limits": "The success response is asserted; recipient delivery is not asserted by this test."
+    },
+    {
+      "id": "J116",
+      "title": "Seller creates and edits webhook subscriptions",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "configure_webhook"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Subscription changes persist and are returned to the caller.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "browser"
+      ]
+    },
+    {
+      "id": "J117",
+      "title": "Seller searches and pages coupons",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Search finds a coupon outside the first loaded page.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J118",
+      "title": "Admin reads users and their products",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "paid",
+        "payment": "none",
+        "moment": "after_grant",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "API identifies the selected buyer and granted products.",
+        "integrator": "Consumer receives the selected user details."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ]
+    },
+    {
+      "id": "J119",
+      "title": "Admin sets buyer access through the public API",
+      "values": {
+        "persona": "admin",
+        "entry": "api",
+        "product": "timed_access",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "change_access"
+      },
+      "end_state": {
+        "buyer": "Grant, duration and revocation follow the API mutation.",
+        "seller": "Access changes are persisted.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ],
+      "limits": "The external transition contract is separately mapped under API admin access changes."
+    },
+    {
+      "id": "J120",
+      "title": "Seller configures public product marketing content",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "preview"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Marketing fields validate, save and reload in both languages.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J121",
+      "title": "Admin previews inactive product content",
+      "values": {
+        "persona": "admin",
+        "entry": "storefront",
+        "product": "unpublished",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "preview"
+      },
+      "end_state": {
+        "buyer": "Administrator can inspect inactive content.",
+        "seller": "Preview is distinct from a buyer entitlement.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J122",
+      "title": "Buyer receives the configured offer coupon",
+      "values": {
+        "persona": "signed_in",
+        "entry": "checkout",
+        "product": "oto",
+        "payment": "none",
+        "moment": "after_grant",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Configured OTO checkout contains the offered coupon.",
+        "seller": "Offer coupon is created for the source purchase.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "http"
+      ],
+      "limits": "Coupon generation and checkout rendering; no paid upsell asserted."
+    },
+    {
+      "id": "J123",
+      "title": "Expired offer coupon is refused",
+      "values": {
+        "persona": "guest",
+        "entry": "api",
+        "product": "coupon",
+        "payment": "none",
+        "moment": "after_expiry",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Expired coupon is not accepted.",
+        "seller": "Expired offer remains inactive.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ]
+    },
+    {
+      "id": "J124",
+      "title": "Concurrent coupon reservations respect the final slot",
+      "values": {
+        "persona": "guest",
+        "entry": "api",
+        "product": "set_price",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Only the available coupon reservation succeeds.",
+        "seller": "One reservation is retained for a limit of one.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ]
+    },
+    {
+      "id": "J125",
+      "title": "Company buyer fills details from a registry lookup",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "b2b_quantity",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "configure"
+      },
+      "end_state": {
+        "buyer": "Company form receives the looked-up data.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ],
+      "limits": "Registry result is substituted; this proves form behavior, not the live registry service."
+    },
+    {
+      "id": "J126",
+      "title": "Buyer is charged the active sale price",
+      "values": {
+        "persona": "guest",
+        "entry": "api",
+        "product": "paid",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "reconcile"
+      },
+      "end_state": {
+        "buyer": "Payment setup uses the active sale amount.",
+        "seller": "Checkout session amount matches the current sale.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ],
+      "limits": "Checkout creation assertion, not final card capture."
+    },
+    {
+      "id": "J127",
+      "title": "Buyer receives a timed main and bump entitlement",
+      "values": {
+        "persona": "signed_in",
+        "entry": "api",
+        "product": "bump",
+        "payment": "card",
+        "moment": "after_grant",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Access expiration follows product or bump duration.",
+        "seller": "Saved grant dates follow the configured overrides.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ]
+    },
+    {
+      "id": "J128",
+      "title": "Buyer completes guest purchase with selected bumps",
+      "values": {
+        "persona": "guest",
+        "entry": "api",
+        "product": "bump",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Guest claim records retain only purchased product rights.",
+        "seller": "Guest purchase rows match selected lines.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ],
+      "limits": "Completion inputs are substituted; not a fresh payment provider purchase."
+    },
+    {
+      "id": "J129",
+      "title": "Admin stores independent template credentials",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "manage_key"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Credentials persist across clients while presentation exports and audit stay separate.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "integration"
+      ]
+    },
+    {
+      "id": "J130",
+      "title": "Seller publishes and restores storefront revisions",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "publish_storefront"
+      },
+      "end_state": {
+        "buyer": "Published storefront follows stored state.",
+        "seller": "Draft, publish, diff and rollback operate through real RPCs.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "integration"
+      ]
+    },
+    {
+      "id": "J131",
+      "title": "Seller saves independent product presentations",
+      "values": {
+        "persona": "admin",
+        "entry": "api",
+        "product": "paid",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "publish"
+      },
+      "end_state": {
+        "buyer": "Product presentation is independently reloadable.",
+        "seller": "Product presentation snapshots remain isolated.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "integration"
+      ]
+    },
+    {
+      "id": "J132",
+      "title": "Embedded coupon changes the payable amount",
+      "values": {
+        "persona": "guest",
+        "entry": "embed",
+        "product": "set_price",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "configure"
+      },
+      "end_state": {
+        "buyer": "Valid entered coupon lowers the Stripe session amount.",
+        "seller": "Session creation uses the coupon.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ],
+      "limits": "Payment confirmation and webhook are outside this test."
+    },
+    {
+      "id": "J133",
+      "title": "Checkout retires only unpaid attempts on navigation",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "paid",
+        "payment": "abandoned",
+        "moment": "after_navigation",
+        "operation": "cancel"
+      },
+      "end_state": {
+        "buyer": "Leaving checkout retires unpaid attempts while paid rights remain.",
+        "seller": "Pending attempt lifecycle follows navigation.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ],
+      "limits": "This UI journey is separate from the signed abandonment event contract."
+    },
+    {
+      "id": "J134",
+      "title": "Subscription checkout exposes the configured controls",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "subscription",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "browse"
+      },
+      "end_state": {
+        "buyer": "Subscription checkout presents the configured recurring controls.",
+        "seller": "Not exercised: no seller state change in this probe.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ],
+      "limits": "Presentation only; initial real purchase and renewal have separate sandbox journeys."
+    },
+    {
+      "id": "J135",
+      "title": "Seller saves private product content delivery",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "content_delivery",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "publish"
+      },
+      "end_state": {
+        "buyer": "Product configuration retains ordered content providers.",
+        "seller": "API saves the supported video and download content.",
+        "integrator": "API returns saved content configuration."
+      },
+      "status": "automated",
+      "layers": [
+        "http"
+      ]
+    },
+    {
+      "id": "J136",
+      "title": "Buyer reads a redirect-type product",
+      "values": {
+        "persona": "signed_in",
+        "entry": "storefront",
+        "product": "paid",
+        "payment": "none",
+        "moment": "after_grant",
+        "operation": "browse"
+      },
+      "end_state": {
+        "buyer": "Purchased redirect destination is selected.",
+        "seller": "Product success redirect is honored.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J137",
+      "title": "Admin configures store appearance",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "configure_appearance"
+      },
+      "end_state": {
+        "buyer": "Public presentation retains seller content after appearance edits.",
+        "seller": "Import, leaf edit and reset preserve stored content.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J138",
+      "title": "Partner purchase through embed retains attribution",
+      "values": {
+        "persona": "partner",
+        "entry": "embed",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "partner"
+      },
+      "end_state": {
+        "buyer": "Embedded purchase completes.",
+        "seller": "Partner coupon purchase accrues once; purchase without coupon does not.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J139",
+      "title": "Scheduled subscription cancellation retains the proven paid end",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "subscription",
+        "payment": "card",
+        "moment": "after_renewal",
+        "operation": "cancel"
+      },
+      "end_state": {
+        "buyer": "Paid access remains bounded by the proven invoice period.",
+        "seller": "Scheduling timestamp remains separate from the paid end.",
+        "integrator": "Cancellation payload omits an unproven end and can retain the proven paid end."
+      },
+      "status": "automated",
+      "layers": [
+        "consumer"
+      ],
+      "limits": "Recorded provider fixture with local API substitution; no fresh scheduled cancellation performed in this change."
+    }
+  ],
+  "escapes": [
+    {
+      "id": "E01",
+      "source": "W105 / CLOUD-BILLFIX1 Dla Sellf 1: refund ID/status",
+      "journey": "J34",
+      "why_missed": "Old fixtures supplied refund identity/status instead of testing a recorded Charge with the optional collection absent."
+    },
+    {
+      "id": "E02",
+      "source": "W105: duplicate refund delivery",
+      "journey": "J35",
+      "why_missed": "Separate Stripe entry points were checked individually without a single logical delivery assertion."
+    },
+    {
+      "id": "E03",
+      "source": "W105: partial refund classification and remaining amount",
+      "journey": "J34",
+      "why_missed": "The full refund path did not prove partial status, API reconciliation and refunding the remainder."
+    },
+    {
+      "id": "E04",
+      "source": "W105: delayed refund status and stale charge",
+      "journey": "J35",
+      "why_missed": "Tests did not combine observed state changes, older input and retained notification versions."
+    },
+    {
+      "id": "E05",
+      "source": "W105 / CLOUD-BILLFIX1 Dla Sellf 2: paid renewal period",
+      "journey": "J36",
+      "why_missed": "Tests accepted the builder shape rather than the invoice-specific period needed by the receiver."
+    },
+    {
+      "id": "E06",
+      "source": "W105: missing invoice parent/payments",
+      "journey": "J39",
+      "why_missed": "Optional parent and expandable payments were not both absent in the same test."
+    },
+    {
+      "id": "E07",
+      "source": "W105 / W107-03: actual subscription end",
+      "journey": "J37",
+      "why_missed": "Nominal billing end was not compared with actual access removal after a failed renewal."
+    },
+    {
+      "id": "E08",
+      "source": "CLOUD-BILLFIX1 Dla Sellf 4 / W107-06",
+      "journey": "J38",
+      "why_missed": "License revocation was mistaken for a general dispute notification for products that issue no license."
+    },
+    {
+      "id": "E09",
+      "source": "W106 / CLOUD-BILLFIX1 Dla Sellf 3: initial receipt",
+      "journey": "J32",
+      "why_missed": "Tests inspected later emails instead of the first signup mail before payment context was ready."
+    },
+    {
+      "id": "E10",
+      "source": "W106: pre-OTO subscription receipt",
+      "journey": "J33",
+      "why_missed": "Checkout Session identity was assumed to match an invoice-backed purchase lookup."
+    },
+    {
+      "id": "E11",
+      "source": "W106: duplicated cookie preferences control",
+      "journey": "J40",
+      "why_missed": "Offer composition and global footer were tested separately, not together on the buyer page."
+    },
+    {
+      "id": "E12",
+      "source": "W107-01: missing free lead",
+      "journey": "J13",
+      "why_missed": "Signed-in grant was the only free path proving lead delivery; new account and pending login were absent."
+    },
+    {
+      "id": "E13",
+      "source": "W107-02: payment detail parity",
+      "journey": "J30",
+      "why_missed": "List response had richer order data than the independently asserted detail endpoint."
+    },
+    {
+      "id": "E14",
+      "source": "W107-04: free access expiry in lead",
+      "journey": "J15",
+      "why_missed": "Lead assertions omitted the actual expiry needed for an access decision."
+    },
+    {
+      "id": "E15",
+      "source": "W107-05: transfer access policy",
+      "journey": "J28",
+      "why_missed": "Order placement tests checked money but not whether the receiver could determine access policy."
+    },
+    {
+      "id": "E16",
+      "source": "W107-07: abandoned order",
+      "journey": "J25",
+      "why_missed": "Local expiration state was checked without asserting an external change event."
+    },
+    {
+      "id": "E17",
+      "source": "W107-07: pending creation",
+      "journey": "J113",
+      "why_missed": "Completion and abandonment did not prove notification when the unpaid attempt is first created."
+    },
+    {
+      "id": "E18",
+      "source": "W107-07: declined payment",
+      "journey": "J114",
+      "why_missed": "Decline UI coverage did not assert the external failure contract."
+    },
+    {
+      "id": "E19",
+      "source": "W107-08: admin access grant/update/revoke",
+      "journey": "J22",
+      "why_missed": "API success was not compared with signed before/after access outcomes at the receiver."
+    },
+    {
+      "id": "E20",
+      "source": "W107-08: guest claim",
+      "journey": "J23",
+      "why_missed": "Registration claimed the purchase without a tested event identifying its source order."
+    },
+    {
+      "id": "E21",
+      "source": "W107-08: natural expiry",
+      "journey": "J24",
+      "why_missed": "An expiry producer existed but the cron dispatch was not executed in the consumer test."
+    },
+    {
+      "id": "E22",
+      "source": "W107-09: reservation transitions",
+      "journey": "J25",
+      "why_missed": "Order outcomes were assumed to imply seat outcomes without reservation-specific payload assertions."
+    },
+    {
+      "id": "E23",
+      "source": "W107-10",
+      "journey": "J108",
+      "why_missed": "Invoice tests check provider and stored state without the external lifecycle contract."
+    },
+    {
+      "id": "E24",
+      "source": "W107-11",
+      "journey": "J109",
+      "why_missed": "Partner and commission tests do not observe the required external transition events."
+    },
+    {
+      "id": "E25",
+      "source": "W107-12",
+      "journey": "J110",
+      "why_missed": "Refund execution is covered separately from request review and cancellation notifications."
+    },
+    {
+      "id": "E26",
+      "source": "W107-13",
+      "journey": "J111",
+      "why_missed": "Offline token expiry was treated as sufficient without testing an explicit external expiry event."
+    },
+    {
+      "id": "E27",
+      "source": "W107-14",
+      "journey": "J112",
+      "why_missed": "Publication and availability tests stop at local presentation, not external state changes."
+    },
+    {
+      "id": "E28",
+      "source": "W107-15: VAT quality",
+      "journey": "J27",
+      "why_missed": "A missing tax snapshot was indistinguishable from a zero tax amount in the tested payload."
+    },
+    {
+      "id": "E29",
+      "source": "W107-16: transfer minor units",
+      "journey": "J28",
+      "why_missed": "Amounts were tested independently without asserting one explicit unit contract for all money fields."
+    },
+    {
+      "id": "E30",
+      "source": "W107-17: internal order identity",
+      "journey": "J27",
+      "why_missed": "Provider identity was accepted without the internal order UUID needed for detail reconciliation."
+    },
+    {
+      "id": "E31",
+      "source": "W108 / owner-demo-feedback 10: free license and domain",
+      "journey": "J19",
+      "why_missed": "New account, free grant, required domain and license issuance were tested in isolation rather than end to end."
+    },
+    {
+      "id": "E32",
+      "source": "W108: pending grant retains checkout answers",
+      "journey": "J18",
+      "why_missed": "Account metadata marker coverage did not include answers saved before account confirmation."
+    },
+    {
+      "id": "E33",
+      "source": "W108 / owner-demo-feedback 15: manual domain policy",
+      "journey": "J20",
+      "why_missed": "A domain-required product was used as the only manual issuance fixture."
+    }
+  ]
+}

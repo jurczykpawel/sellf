@@ -379,7 +379,7 @@ test.describe('Product Bundles E2E', () => {
   // 2. Access — buyer owns the bundle + both components
   // =========================================================================
 
-  test('buyer sees bundle includes-links to each component on the bundle page', async ({ page }) => {
+  test('buyer sees bundle includes-links to each component on the bundle page @J84', async ({ page }) => {
     await loginAsAdmin(page, buyerEmail, buyerPassword); // reuses session helper (not admin-specific)
     await page.goto(`/pl/p/${bundleSlug}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
 

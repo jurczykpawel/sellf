@@ -161,7 +161,7 @@ test.describe('Shop Settings', () => {
     await expect(emailInput).toHaveValue('display@test.com');
   });
 
-  test('should update shop name and persist after refresh', async ({ page }) => {
+  test('should update shop name and persist after refresh @J105', async ({ page }) => {
     const newName = `E2E Shop ${Date.now()}`;
 
     await loginAsAdmin(page);

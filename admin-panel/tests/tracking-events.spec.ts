@@ -285,7 +285,7 @@ test.describe('Tracking Events - DataLayer & FB Pixel', () => {
     expect(viewItemEvent.ecommerce.value).toBe(0);
   });
 
-  test('should have same event_id for dataLayer and FB Pixel (deduplication)', async ({ page }) => {
+  test('should have same event_id for dataLayer and FB Pixel (deduplication) @J92', async ({ page }) => {
     await setupDataLayerSpy(page);
     await setupFbqSpy(page);
     await mockStripe(page);

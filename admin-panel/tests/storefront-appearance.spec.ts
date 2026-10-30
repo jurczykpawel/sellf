@@ -35,7 +35,7 @@ test.afterAll(async () => {
   for (const [index, previous] of savedFiles.entries()) { if (previous) await writeFile(path.join(directory, files[index]), previous); else await unlink(path.join(directory, files[index])).catch(() => {}); }
   await admin?.cleanup();
 });
-test('imports once with source audit, edits and resets a leaf while retaining seller content', async ({ page }) => {
+test('imports once with source audit, edits and resets a leaf while retaining seller content @J137', async ({ page }) => {
   await acceptAllCookies(page); await setAuthSession(page, admin.email, admin.password);
   await page.goto('/en/dashboard/templates');
   await page.getByRole('button', { name: 'Appearance', exact: true }).click();

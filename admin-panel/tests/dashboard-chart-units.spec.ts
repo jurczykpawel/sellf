@@ -29,7 +29,7 @@ test.afterEach(async () => {
 });
 
 for (const locale of ['en', 'pl']) {
-  test(`${locale}: grouped 30-day revenue uses major units for PLN and JPY`, async ({ page }, testInfo) => {
+  test(`${locale}: grouped 30-day revenue uses major units for PLN and JPY @J102`, async ({ page }, testInfo) => {
     await page.clock.setFixedTime(new Date('2026-10-26T12:00:00Z'));
     await acceptAllCookies(page);
     await setAuthSession(page, admin.email, admin.password);

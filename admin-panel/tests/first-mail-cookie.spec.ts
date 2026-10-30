@@ -5,7 +5,7 @@ import { acceptAllCookies } from './helpers/consent';
 import { waitForEmail, searchMessages } from './helpers/mailpit';
 import recordedPurchase from './fixtures/stripe/initial-subscription-purchase.json';
 
-test('offers one cookie preferences control on offer, store, product and login', async ({ page }) => {
+test('offers one cookie preferences control on offer, store, product and login @J40', async ({ page }) => {
   test.setTimeout(120000);
   const { data: product, error } = await supabaseAdmin.from('products').insert({ name: 'Cookie workshop', slug: `cookie-${crypto.randomUUID()}`, price: 11, currency: 'PLN', is_active: true, is_listed: true }).select('id,slug').single();
   expect(error).toBeNull();
@@ -29,7 +29,7 @@ test('offers one cookie preferences control on offer, store, product and login',
   }
 });
 
-test('first new-buyer email from payment status contains the paid product and amount', async ({ page }) => {
+test('first new-buyer email from payment status contains the paid product and amount @J32', async ({ page }) => {
   const email = `first-mail-${crypto.randomUUID()}@example.com`;
   const session = `cs_test_${crypto.randomUUID().replaceAll('-', '')}`;
   const invoice = recordedPurchase.invoice;

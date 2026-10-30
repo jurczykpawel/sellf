@@ -61,7 +61,7 @@ test.describe('Webhook DLQ replay (UI + API)', () => {
     if (cleanupAdmin) await cleanupAdmin();
   });
 
-  test('DLQ page lists permanently_failed delivery and Replay resets state', async ({ page }) => {
+  test('DLQ page lists permanently_failed delivery and Replay resets state @J71', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/pl/dashboard/webhooks/deliveries');
 

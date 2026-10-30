@@ -3,7 +3,7 @@ import { acceptAllCookies } from './helpers/consent';
 import { createTestUser, setAuthSession } from './helpers/admin-auth';
 
 test.describe('Profile Management E2E', () => {
-  test('should update user profile successfully', async ({ page }) => {
+  test('should update user profile successfully @J86', async ({ page }) => {
     const user = await createTestUser('profile-test');
     try {
       await acceptAllCookies(page);

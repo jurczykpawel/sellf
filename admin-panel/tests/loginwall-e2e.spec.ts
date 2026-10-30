@@ -175,7 +175,7 @@ test.describe('Loginwall flow', () => {
     expect(location).toContain(`/p/${testProduct.slug}`);
   });
 
-  test('GET /loginwall/protect with session + access redirects back with _sf_token in the URL fragment', async ({ page }) => {
+  test('GET /loginwall/protect with session + access redirects back with _sf_token in the URL fragment @J61', async ({ page }) => {
     await setAuthSession(page, testUser.email, testUser.password);
 
     await supabaseAdmin.from('user_product_access').insert({

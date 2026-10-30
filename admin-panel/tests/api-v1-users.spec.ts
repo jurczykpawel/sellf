@@ -193,7 +193,7 @@ test.describe('Users API v1', () => {
   });
 
   test.describe('GET /api/v1/users/:id', () => {
-    test('should return user details by ID', async ({ page }) => {
+    test('should return user details by ID @J118', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
       const response = await page.request.get(`/api/v1/users/${testUserId}`);
@@ -305,7 +305,7 @@ test.describe('Users API v1', () => {
       await supabaseAdmin.from('products').delete().eq('id', product!.id);
     });
 
-    test('should grant access with duration', async ({ page }) => {
+    test('should grant access with duration @J119', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
       // Create a new product for this test
@@ -397,7 +397,7 @@ test.describe('Users API v1', () => {
   });
 
   test.describe('PATCH /api/v1/users/:id/access/:accessId', () => {
-    test('should extend access by days', async ({ page }) => {
+    test('should extend access by days @J119', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
       // Create product and grant access for this test
@@ -491,7 +491,7 @@ test.describe('Users API v1', () => {
   });
 
   test.describe('DELETE /api/v1/users/:id/access/:accessId', () => {
-    test('should revoke access', async ({ page }) => {
+    test('should revoke access @J119', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
       // Create a new product and grant access for this test

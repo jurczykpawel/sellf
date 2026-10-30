@@ -48,7 +48,7 @@ beforeAll(async () => {
 afterAll(async () => { await admin.from('webhook_endpoints').delete().eq('id', endpointId); delete process.env.DEMO_MODE; });
 
 describe('trigger applies endpoint customization', () => {
-  it('sends selected data + extra fields + custom header (real nested purchase payload)', async () => {
+  it('sends selected data + extra fields + custom header (real nested purchase payload) @J72', async () => {
     // The REAL purchase.completed payload is the nested PurchaseWebhookData
     // (customer/product/order), not a flat object. This is the shape that
     // {{email}}/{{amount_major}} and the field selection must resolve against.

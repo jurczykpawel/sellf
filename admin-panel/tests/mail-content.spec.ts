@@ -5,7 +5,7 @@ import { extractMagicLink, waitForEmail } from './helpers/mailpit';
 import { acceptAllCookies } from './helpers/consent';
 
 for (const locale of ['pl', 'en']) {
-  test(`used email link offers a new link in ${locale}`, async ({ page, baseURL }) => {
+  test(`used email link offers a new link in ${locale} @J88`, async ({ page, baseURL }) => {
     const email = `used-mail-${crypto.randomUUID()}@example.com`;
     const redirectTo = `${baseURL}/auth/callback?flow=login`;
     try {

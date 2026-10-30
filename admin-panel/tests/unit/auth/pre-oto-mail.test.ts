@@ -30,7 +30,7 @@ vi.mock('@/app/[locale]/p/[slug]/payment-status/components/PaymentStatusView', (
 
 import PaymentStatusPage from '@/app/[locale]/p/[slug]/payment-status/page';
 
-it('includes the paid invoice product and amount in the first pre-offer subscription email', async () => {
+it('includes the paid invoice product and amount in the first pre-offer subscription email @J33', async () => {
   const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   state.email = `pre-offer-${crypto.randomUUID()}@example.com`;
   state.slug = `pre-offer-${crypto.randomUUID()}`;
