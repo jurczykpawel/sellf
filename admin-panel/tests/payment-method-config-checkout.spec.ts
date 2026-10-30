@@ -13,9 +13,9 @@
  * Total: 12 checkout flow test cases
  */
 
-import { test, expect, Page } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
-import { startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout } from './helpers/checkout-intent';
 
 const gotoPaymentsSettings = async (page: Page) => {
   await page.goto('/dashboard/settings?stripe_connected=1');

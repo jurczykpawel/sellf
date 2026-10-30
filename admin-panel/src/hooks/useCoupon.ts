@@ -23,8 +23,6 @@ interface UseCouponReturn {
   handleVerifyCoupon: (code: string, currentEmail?: string) => Promise<void>;
   /** Remove the applied coupon and mark as manually removed (prevents auto-reapply) */
   removeCoupon: () => void;
-  /** Show coupon input field */
-  showInput: () => void;
   /** Apply a coupon from OTO flow (called by useOto) */
   applyOtoCoupon: (coupon: AppliedCoupon, code: string) => void;
 }
@@ -135,10 +133,6 @@ export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): Us
     setCouponManuallyRemoved(true);
   }, []);
 
-  const showInput = useCallback(() => {
-    setShowCouponInput(true);
-  }, []);
-
   const applyOtoCoupon = useCallback((coupon: AppliedCoupon, code: string) => {
     setAppliedCoupon(coupon);
     setCouponCode(code);
@@ -151,11 +145,10 @@ export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): Us
     setCouponCode,
     appliedCoupon,
     isVerifyingCoupon,
-    showCouponInput: showCouponInput || (!isOtoMode && searchParams.get('show_promo') === 'true'),
+    showCouponInput,
     couponError,
     handleVerifyCoupon,
     removeCoupon,
-    showInput,
     applyOtoCoupon,
   };
 }

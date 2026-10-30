@@ -377,41 +377,44 @@ export async function GET() {
       status.style.color = isError ? '#b91c1c' : '#047857';
     }
 
-    // The coupon field is built once the first response shows the product is paid.
+    // Coupon controls are attached only for a supplied code on a paid product.
     // It starts disabled: a run is always in flight at that point.
     function ensureLayout() {
       if (stripeSlot) return;
-      var form = document.createElement('form');
-      form.className = 'sellf-coupon';
-      form.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:0 16px 12px;font-family:system-ui,-apple-system,sans-serif;';
-      input = document.createElement('input');
-      input.type = 'text';
-      input.name = 'coupon';
-      input.autocomplete = 'off';
-      input.placeholder = polish ? 'Kod kuponu' : 'Coupon code';
-      input.setAttribute('aria-label', polish ? 'Kod kuponu' : 'Coupon code');
-      input.value = initialCoupon || '';
-      input.style.cssText = 'flex:1;min-width:140px;box-sizing:border-box;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;color:#1f2937;outline:none;';
-      applyButton = document.createElement('button');
-      applyButton.type = 'submit';
-      applyButton.disabled = true;
-      applyButton.textContent = polish ? 'Zastosuj' : 'Apply';
-      applyButton.style.cssText = 'padding:8px 16px;background:#5b8def;color:#fff;border:0;border-radius:9999px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;';
-      status = document.createElement('div');
-      status.setAttribute('role', 'status');
-      status.setAttribute('aria-live', 'polite');
-      status.style.cssText = 'flex-basis:100%;font-size:13px;min-height:18px;';
-      form.appendChild(input);
-      form.appendChild(applyButton);
-      form.appendChild(status);
+      var form = null;
+      if (initialCoupon) {
+        form = document.createElement('form');
+        form.className = 'sellf-coupon';
+        form.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:0 16px 12px;font-family:system-ui,-apple-system,sans-serif;';
+        input = document.createElement('input');
+        input.type = 'text';
+        input.name = 'coupon';
+        input.autocomplete = 'off';
+        input.placeholder = polish ? 'Kod kuponu' : 'Coupon code';
+        input.setAttribute('aria-label', polish ? 'Kod kuponu' : 'Coupon code');
+        input.value = initialCoupon || '';
+        input.style.cssText = 'flex:1;min-width:140px;box-sizing:border-box;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;color:#1f2937;outline:none;';
+        applyButton = document.createElement('button');
+        applyButton.type = 'submit';
+        applyButton.disabled = true;
+        applyButton.textContent = polish ? 'Zastosuj' : 'Apply';
+        applyButton.style.cssText = 'padding:8px 16px;background:#5b8def;color:#fff;border:0;border-radius:9999px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;';
+        status = document.createElement('div');
+        status.setAttribute('role', 'status');
+        status.setAttribute('aria-live', 'polite');
+        status.style.cssText = 'flex-basis:100%;font-size:13px;min-height:18px;';
+        form.appendChild(input);
+        form.appendChild(applyButton);
+        form.appendChild(status);
+      }
       gateSlot = document.createElement('div');
       stripeSlot = document.createElement('div');
       host.textContent = '';
-      host.appendChild(form);
+      if (form) host.appendChild(form);
       host.appendChild(gateSlot);
       host.appendChild(stripeSlot);
       stripeSlot.appendChild(createLoader(null, language));
-      form.addEventListener('submit', function (event) {
+      if (form) form.addEventListener('submit', function (event) {
         event.preventDefault();
         if (!applyButton.disabled) run(input.value.trim());
       });
@@ -464,7 +467,7 @@ export async function GET() {
         return body ? mountSession(body) : false;
       }).then(function (mounted) {
         if (!stripeSlot) return;
-        applyButton.disabled = false;
+        if (applyButton) applyButton.disabled = false;
         if (mounted && coupon) setStatus(polish ? 'Zastosowano kupon ' + coupon.toUpperCase() + '.' : 'Coupon ' + coupon.toUpperCase() + ' applied.', false);
       }, function (error) {
         var couponProblem = coupon && error.status !== 403 && error.status !== 404;
@@ -542,7 +545,7 @@ export async function GET() {
   function initEmbed(root) {
     var productSlug = root.getAttribute('data-product-slug');
     var email = root.getAttribute('data-email') || '';
-    var coupon = (root.getAttribute('data-coupon') || '').trim();
+    var coupon = (root.getAttribute('data-coupon') || new URL(window.location.href).searchParams.get('coupon') || '').trim();
     var modal = root.getAttribute('data-modal') === 'true';
     var buttonLabel = root.getAttribute('data-button-label') || '';
     var showPrice = root.getAttribute('data-show-price') === 'true';

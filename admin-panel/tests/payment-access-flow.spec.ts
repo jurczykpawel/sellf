@@ -1,10 +1,10 @@
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { STRIPE_API_VERSION } from '@/lib/constants';
 import type { Page } from '@playwright/test';
 import { setAuthSession } from './helpers/admin-auth';
-import { startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout } from './helpers/checkout-intent';
 
 // Enforce single worker to avoid race conditions
 test.describe.configure({ mode: 'serial' });
@@ -53,8 +53,7 @@ async function signInUser(page: any, email: string, password: string) {
 async function expectPurchaseView(page: Page, product: { slug: string; name: string }): Promise<void> {
   await expect(page).toHaveURL(new RegExp(`/p/${product.slug}$`));
   await expect(page.getByRole('heading', { name: product.name, exact: true })).toBeVisible();
-  await expect(page.locator('input#fullName')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ })).toHaveCount(0);
   await startNativeCheckout(page);
   await expect(page.locator('input#fullName')).toBeVisible();
   await expect(page.getByText(/^(Access Granted|Dostęp przyznany)$/i)).not.toBeVisible();

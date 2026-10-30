@@ -2,6 +2,8 @@
 import { after, NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
+import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { normalizeCouponCode } from '@/lib/coupons/normalize-code';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
@@ -26,7 +28,7 @@ import type { Json } from '@/types/database';
 const inputSchema = z.object({
   productId: z.uuid(), email: z.email().max(254), quantity: z.number().int().min(1).max(100).optional(),
   sessionId: z.uuid().optional(), bumpProductIds: z.array(z.uuid()).max(20).default([]), couponCode: z.string().trim().max(100).optional(),
-  moduleValues: z.record(z.string(), z.unknown()), termsAccepted: z.literal(true), locale: z.enum(['pl', 'en']).default('en'),
+  moduleValues: z.record(z.string(), z.unknown()), termsAccepted: z.boolean().optional(), locale: z.enum(['pl', 'en']).default('en'),
   captchaToken: z.string().min(1).max(16384), customFieldValues: z.record(z.string(), z.string()).optional(),
 }).strict();
 const couponSchema = z.object({ valid: z.literal(true), id: z.uuid(), code: z.string(), discount_type: z.enum(['percentage', 'fixed', 'set_price']),
@@ -43,6 +45,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!(await verifyCaptchaToken(body.captchaToken, 'altcha')).success) return fail('Captcha required', 403);
     const session = await createClient(); const { data: { user } } = await session.auth.getUser();
     const email = (user?.email ?? body.email).trim().toLowerCase();
+    const checkoutConfig = await getCheckoutConfig();
+    const termsRequired = shouldShowTosCheckbox(checkoutConfig.collect_terms_of_service, !user);
+    if (termsRequired && body.termsAccepted !== true) return fail('Terms acceptance required');
     if (!await ProductValidationService.validateEmail(email)) return fail('Invalid email');
     const db = createAdminClient();
     const { data: product, error } = await db.from('products').select('*').eq('id', body.productId).eq('is_active', true).single();
@@ -105,7 +110,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const lines = buildOrderSnapshotLines(specs, { orderBumpIds, accessOverrides });
     if (product.event_mode) lines[0].session_id = body.sessionId;
     const placed = await db.rpc('bank_transfer_order', { p_order: {
-      product_id: product.id, currency: product.currency.toUpperCase(), customer_email: email, user_id: user?.id ?? null,
+      product_id: product.id, currency: product.currency.toUpperCase(), customer_email: email, user_id: user?.id ?? null, terms_required: termsRequired,
       order_details: { v: 1, ...validation.details }, custom_field_values: custom.values, coupon_id: coupon?.id ?? null,
       metadata: { event_ip: ip, locale: body.locale },
     }, p_lines: lines as unknown as Json });

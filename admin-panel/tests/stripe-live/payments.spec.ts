@@ -1,7 +1,8 @@
+import { test, startNativeCheckout } from '../helpers/checkout-intent';
 /** Real Stripe test-mode checkout, fulfillment, and delivery checks. @see README.md */
 import { readFileSync, appendFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import Stripe from 'stripe';
 import { solveChallenge } from 'altcha-lib/v1';
 import { minorFactor } from '@/lib/currency/minor-units';
@@ -236,7 +237,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       }).observe(document, { childList: true, subtree: true });
     });
     await page.goto(`/en/checkout/${slug}?${s.netCouponQuantity ? '' : `email=${encodeURIComponent(s.email)}`}${options.setPrice || options.fixedPrice ? `&coupon=${s.coupon!.code}` : ''}`);
-    await expect(page.getByRole('button', { name: /Continue to payment/ })).toBeEnabled();
+    await expect(page.getByRole('button', { name: /Continue to payment/ })).toHaveCount(0);
     if (s.netCouponQuantity) await page.getByLabel('Quantity', { exact: true }).fill(String(s.netCouponQuantity));
     if (s.profile || options.event) await page.getByLabel('Quantity', { exact: true }).fill(options.event ? '2' : '3');
     if (s.profile) {
@@ -258,7 +259,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
     }
     const hasProfile = !!s.profile || !!options.event || !!s.netCouponQuantity;
     if (hasProfile && !s.buyerId) await page.locator('[id="buyer.email"]').fill(s.email);
-    await page.getByRole('button', { name: /Continue to payment/ }).click();
+    await startNativeCheckout(page);
     if (!s.subscription && !s.noBump) await page.getByRole('button', { name: /Add to order/i }).click();
     if (hasProfile) {
       await expect(page.locator('#checkoutEmail')).toHaveCount(0);

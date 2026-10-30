@@ -24,12 +24,12 @@ vi.mock('@/components/checkout/InvoiceFields', () => ({ default: () => null }));
 vi.mock('@/components/checkout/OrderSummary', () => ({ default: () => null }));
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); stripe.result.type = 'success'; });
 
-function FormFixture({ paymentMethodOrder }: { paymentMethodOrder?: string[] }) {
+function FormFixture({ paymentMethodOrder, collectTermsOfService = false, isGuest = true }: { paymentMethodOrder?: string[]; collectTermsOfService?: boolean; isGuest?: boolean }) {
   const invoice = useInvoiceData('buyer@example.com');
   const profileForm = useCheckoutProfileValues(null, invoice, 'buyer@example.com', 1);
   return React.createElement(CustomPaymentForm, {
     product: { id: 'test-product', name: 'Course', currency: 'PLN' } as Product,
-    email: 'buyer@example.com', collectTermsOfService: false, paymentMethodOrder,
+    email: 'buyer@example.com', collectTermsOfService, isGuest, paymentMethodOrder,
     invoice, profileForm, onEmailChange: vi.fn(),
     pricing: { basePrice: 100, discountAmount: 0, totalGross: 100, totalNet: 100, vatRate: 0 } as PricingResult,
   });
@@ -95,3 +95,10 @@ it.each([
   expect(fetch.mock.calls[0][0]).toBe('/api/validate-email');
   expect((view.container.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(false);
 });
+
+it.each([[true, true, true], [true, false, false], [false, true, false], [false, false, false]])
+  ('uses the session rather than a prefilled email for consent (collect=%s guest=%s)', (collectTermsOfService, isGuest, visible) => {
+    const view = render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en },
+      React.createElement(FormFixture, { collectTermsOfService, isGuest })));
+    expect(!!view.queryByRole('checkbox')).toBe(visible);
+  });

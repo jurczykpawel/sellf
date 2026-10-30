@@ -35,10 +35,10 @@
  * @see supabase/migrations/20260625000000_product_bundles.sql
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
-import { startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout } from './helpers/checkout-intent';
 
 test.describe('Product Bundles E2E', () => {
   test.describe.configure({ mode: 'serial' });

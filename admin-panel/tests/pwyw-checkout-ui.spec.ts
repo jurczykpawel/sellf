@@ -214,7 +214,7 @@ test.describe('PWYW Checkout UI', () => {
     await customInput.first().blur();
 
     await expect(page.locator('[data-testid="order-summary-total"]')).toContainText('7,00');
-    await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toHaveCount(0);
   });
 
   test('should not show error when amount is above minimum', async ({ page }) => {

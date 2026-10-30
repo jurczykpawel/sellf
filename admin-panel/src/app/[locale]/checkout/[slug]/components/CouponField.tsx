@@ -53,14 +53,10 @@ export default function CouponField({
     if (input && !couponCode && input.value) onCodeChange(input.value.toUpperCase());
   }, [couponCode, onCodeChange]);
 
+  if (!showCouponInput && !appliedCoupon) return null;
+
   return (
-    <details
-      className="mb-4"
-      open={showCouponInput || !!appliedCoupon || undefined}
-      // The browser owns the disclosure state, including clicks before hydration.
-      suppressHydrationWarning
-    >
-      <summary className={`${showCouponInput || appliedCoupon ? 'hidden' : 'cursor-pointer text-sm text-sf-accent underline underline-offset-4'} mb-2`}>{t('couponEntryPrompt')}</summary>
+    <div className="mb-4">
       <div className="animate-in fade-in slide-in-from-top-1 duration-300">
         <div className="flex gap-2">
           <div className="relative min-w-0 flex-1">
@@ -120,6 +116,6 @@ export default function CouponField({
           </p>
         )}
       </div>
-    </details>
+    </div>
   );
 }

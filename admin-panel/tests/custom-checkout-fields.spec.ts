@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout } from './helpers/checkout-intent';
 
 // Phase 3a end-to-end coverage:
 //   1. Product without custom fields → checkout behaves like before.

@@ -1,7 +1,7 @@
-import { test, expect, Page } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies, setConsentPreferences } from './helpers/consent';
-import { startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout } from './helpers/checkout-intent';
 
 // Enforce single worker to avoid race conditions
 test.describe.configure({ mode: 'serial' });

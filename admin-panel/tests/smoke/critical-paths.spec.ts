@@ -15,10 +15,10 @@
  * 8. Internationalization
  */
 
-import { test, expect, Page } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from '../helpers/admin-auth';
 import { acceptAllCookies } from '../helpers/consent';
-import { startNativeCheckout } from '../helpers/checkout-intent';
+import { test, startNativeCheckout } from '../helpers/checkout-intent';
 
 test.describe.configure({ mode: 'serial' });
 

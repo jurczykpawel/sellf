@@ -8,12 +8,13 @@ import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';
 import type { Product } from '@/types';
 import type { AppliedCoupon } from '@/types/coupon';
-const mocks = vi.hoisted(() => ({ track: vi.fn(), fetch: vi.fn(), confirm: vi.fn(), stripe: vi.fn(() => Promise.resolve(null)), coupon: null as AppliedCoupon | null }));
+const mocks = vi.hoisted(() => ({ track: vi.fn(), fetch: vi.fn(), confirm: vi.fn(), stripe: vi.fn(() => Promise.resolve(null)), coupon: null as AppliedCoupon | null, verifying: false, transfer: vi.fn() }));
 vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams() }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, isAdmin: false, loading: false }) }));
 vi.mock('@/components/providers/config-provider', () => ({ useConfig: () => ({ stripePublishableKey: 'pk_test_example' }) }));
 vi.mock('@/components/providers/theme-provider', () => ({ useTheme: () => ({ resolvedTheme: 'light' }) }));
 vi.mock('@/lib/stripe/client', () => ({ getStripeClient: mocks.stripe }));
+vi.mock('@/lib/orders/transfer-public', () => ({ getTransferAvailability: mocks.transfer }));
 vi.mock('@/hooks/useTracking', () => ({ useTracking: () => ({ track: mocks.track }) }));
 vi.mock('@/hooks/useOrderBumps', () => ({ useOrderBumps: () => ({ orderBumps: [] }) }));
 vi.mock('@/hooks/useOto', () => ({ useOto: () => ({}) }));
@@ -23,7 +24,7 @@ vi.mock('@/app/[locale]/checkout/[slug]/components/ProductShowcase', () => ({ de
 vi.mock('@/hooks/useInvoiceData', () => ({ useInvoiceData: () => ({ fullName: 'Test Buyer', setFullName: vi.fn(), isLoadingProfile: false }) }));
 vi.mock('@/components/DemoCheckoutNotice', () => ({ default: () => null }));
 vi.mock('@/components/checkout/InvoiceFields', () => ({ default: () => null }));
-vi.mock('@/hooks/useCoupon', () => ({ useCoupon: () => ({ appliedCoupon: mocks.coupon, couponCode: '', setCouponCode: vi.fn(), showCouponInput: false, isVerifyingCoupon: false, couponError: null, showInput: vi.fn(), removeCoupon: vi.fn(), handleVerifyCoupon: vi.fn(), applyOtoCoupon: vi.fn() }) }));
+vi.mock('@/hooks/useCoupon', () => ({ useCoupon: () => ({ appliedCoupon: mocks.coupon, couponCode: '', setCouponCode: vi.fn(), showCouponInput: false, isVerifyingCoupon: mocks.verifying, couponError: null, removeCoupon: vi.fn(), handleVerifyCoupon: vi.fn(), applyOtoCoupon: vi.fn() }) }));
 vi.mock('@stripe/react-stripe-js/checkout', () => ({
   CheckoutElementsProvider: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
   useCheckoutElements: () => ({ type: 'success', checkout: { confirm: mocks.confirm, updateEmail: async () => ({ type: 'success' }), updateBillingAddress: async () => ({ type: 'success' }) } }),
@@ -33,20 +34,17 @@ vi.mock('@stripe/react-stripe-js/checkout', () => ({
   },
 }));
 import PaidProductForm from '@/app/[locale]/checkout/[slug]/components/PaidProductForm';
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); mocks.coupon = null; });
-it.each(['en', 'pl'] as const)('%s: records a view, offers a clear payment step, then starts exactly once', async locale => {
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); mocks.coupon = null; mocks.verifying = false; });
+it.each(['en', 'pl'] as const)('%s: starts online payment exactly once without a separate continue step', async locale => {
   mocks.fetch.mockResolvedValue({ ok: true, json: async () => ({ clientSecret: 'cs_test_secret', checkoutSessionId: 'cs_test' }) });
   vi.stubGlobal('fetch', mocks.fetch);
   render(React.createElement(NextIntlClientProvider, { locale, messages: locale === 'pl' ? pl : en }, React.createElement(PaidProductForm, {
     product: { id: 'test-product', name: 'Course', slug: 'course', price: 49, currency: 'PLN', vat_rate: 0 } as Product,
     collectTermsOfService: false,
   })));
-  expect(mocks.fetch).not.toHaveBeenCalled();
-  expect(mocks.stripe).not.toHaveBeenCalled();
   expect(mocks.track).toHaveBeenCalledWith('view_item', expect.anything());
-  expect(mocks.track).not.toHaveBeenCalledWith('begin_checkout', expect.anything());
   const label = locale === 'pl' ? 'Przejdź do płatności' : 'Continue to payment';
-  fireEvent.click(screen.getByRole('button', { name: label, exact: true }));
+  expect(screen.queryByRole('button', { name: label, exact: true })).toBeNull();
   await waitFor(() => expect(mocks.fetch).toHaveBeenCalledWith('/api/create-payment-intent', expect.anything()));
   expect(mocks.stripe).toHaveBeenCalledWith('pk_test_example');
   expect(mocks.fetch.mock.calls.filter(call => call[0] === '/api/create-payment-intent')).toHaveLength(1);
@@ -64,7 +62,6 @@ it.each([false, true])('closes an unpaid session on departure (cached: %s)', asy
     product: { id: 'test-product', name: 'Course', slug: 'course', price: 49, currency: 'PLN', vat_rate: 0 } as Product,
     collectTermsOfService: false,
   })));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue to payment', exact: true }));
   await waitFor(() => expect(screen.getByTestId('payment-fields')).toBeTruthy());
   act(() => { window.dispatchEvent(Object.assign(new Event('pagehide'), { persisted })); });
   await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(2));
@@ -74,11 +71,8 @@ it.each([false, true])('closes an unpaid session on departure (cached: %s)', asy
   expect(JSON.parse(options.body)).toEqual({ productId: 'test-product', clientSecret: 'cs_test_first_secret_value', checkoutSessionId: 'cs_test_first', bindingToken: 'binding-first', expireOnly: true });
   if (persisted) {
     await act(async () => { window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true })); });
-    expect(screen.queryByTestId('payment-fields')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Continue to payment', exact: true })).toBeTruthy();
-    expect(mocks.fetch).toHaveBeenCalledTimes(2);
-    fireEvent.click(screen.getByRole('button', { name: 'Continue to payment', exact: true }));
-    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(3));
+    expect(screen.queryByRole('button', { name: 'Continue to payment', exact: true })).toBeNull();
+      await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(3));
     expect(mocks.track.mock.calls.filter(([event]) => event === 'begin_checkout')).toHaveLength(2);
   }
 });
@@ -94,7 +88,6 @@ it('preserves confirmation redirects and restores departure cleanup after a fail
     product: { id: 'test-product', name: 'Course', slug: 'course', price: 49, currency: 'PLN', vat_rate: 0 } as Product,
     collectTermsOfService: false,
   })));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue to payment', exact: true }));
   await waitFor(() => expect(screen.getByTestId('payment-fields')).toBeTruthy());
   fireEvent.change(screen.getByRole('textbox', { name: 'Email', exact: true }), { target: { value: 'buyer@example.com' } });
   fireEvent.click(screen.getByRole('button', { name: /Pay/ }));
@@ -108,7 +101,7 @@ it('preserves confirmation redirects and restores departure cleanup after a fail
   await waitFor(() => expect(expirations()).toHaveLength(1));
 });
 
-it('resets the first step after returning to a cached page from confirmation', async () => {
+it('automatically reloads payment after returning to a cached page from confirmation', async () => {
   mocks.fetch.mockImplementation(async url => ({ ok: true, json: async () => url === '/api/validate-email'
     ? { success: true, data: { isValid: true } }
     : { clientSecret: 'cs_test_first_secret_value', checkoutSessionId: 'cs_test_first', bindingToken: 'binding-first' } }));
@@ -118,17 +111,14 @@ it('resets the first step after returning to a cached page from confirmation', a
     product: { id: 'test-product', name: 'Course', slug: 'course', price: 49, currency: 'PLN', vat_rate: 0 } as Product,
     collectTermsOfService: false,
   })));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue to payment', exact: true }));
   await waitFor(() => expect(screen.getByTestId('payment-fields')).toBeTruthy());
   fireEvent.change(screen.getByRole('textbox', { name: 'Email', exact: true }), { target: { value: 'buyer@example.com' } });
   fireEvent.click(screen.getByRole('button', { name: /Pay/ }));
   await waitFor(() => expect(mocks.confirm).toHaveBeenCalledTimes(1));
   await act(async () => { window.dispatchEvent(Object.assign(new Event('pagehide'), { persisted: true })); });
   await act(async () => { window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true })); });
-  expect(screen.getByRole('button', { name: 'Continue to payment', exact: true })).toBeTruthy();
-  expect(screen.queryByTestId('payment-fields')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Continue to payment', exact: true })).toBeNull();
   await waitFor(() => expect(mocks.fetch.mock.calls.filter(([, options]) => JSON.parse(options.body).expireOnly)).toHaveLength(1));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue to payment', exact: true }));
   await waitFor(() => expect(screen.getByTestId('payment-fields')).toBeTruthy());
   await act(async () => { window.dispatchEvent(Object.assign(new Event('pagehide'), { persisted: false })); });
   await waitFor(() => expect(mocks.fetch.mock.calls.filter(([, options]) => JSON.parse(options.body).expireOnly)).toHaveLength(2));
@@ -155,9 +145,6 @@ it('keeps the order breakdown and decline action available before, during and af
   expectDecisionControls();
   fireEvent.click(screen.getByTestId('oto-decline-button'));
   expect(decline).toHaveBeenCalledTimes(1);
-  expect(mocks.fetch).not.toHaveBeenCalled();
-  expect(mocks.track).not.toHaveBeenCalledWith('begin_checkout', expect.anything());
-  fireEvent.click(screen.getByRole('button', { name: 'Continue to payment', exact: true }));
   await waitFor(() => expect(mocks.fetch.mock.calls.filter(call => call[0] === '/api/create-payment-intent')).toHaveLength(1));
   expectDecisionControls();
   await act(async () => finishRequest({ ok: true, json: async () => ({ clientSecret: 'cs_test_secret', checkoutSessionId: 'cs_test' }) }));
@@ -180,12 +167,96 @@ it.each([['month', 'month'], ['year', 'year']] as const)('retains the %s subscri
     expect(screen.getByTestId('order-summary-total').textContent).toBe(`$99.00 / ${label}`);
   }
   expectInterval();
-  expect(mocks.fetch).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Continue to payment', exact: true }));
   await waitFor(() => expect(mocks.fetch.mock.calls.filter(call => call[0] === '/api/create-payment-intent')).toHaveLength(1));
   expectInterval();
   await act(async () => finishRequest({ ok: true, json: async () => ({ clientSecret: 'cs_test_secret', checkoutSessionId: 'cs_test' }) }));
   await waitFor(() => expect(screen.getByTestId('payment-fields')).toBeTruthy());
   expectInterval();
   expect(mocks.fetch.mock.calls.filter(call => call[0] === '/api/create-payment-intent')).toHaveLength(1);
+});
+
+it('keeps checkout quantity editable before and during payment initialization', async () => {
+  mocks.fetch.mockResolvedValue({ ok: true, json: async () => ({ clientSecret: 'cs_test_secret', checkoutSessionId: 'cs_test' }) });
+  vi.stubGlobal('fetch', mocks.fetch);
+  render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, {
+    product: { id: 'test-product', name: 'Course', slug: 'course', price: 49, currency: 'PLN', vat_rate: 0,
+      checkout_profile: { v: 1, modules: [{ id: 'quantity', min: 1, max: 10, mode: 'checkout' }] } } as Product,
+    collectTermsOfService: false,
+  })));
+  const quantity = screen.getByLabelText('Quantity');
+  await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce());
+  fireEvent.change(quantity, { target: { value: '0' } });
+  expect(screen.getByLabelText('Quantity')).toBe(quantity);
+  expect((quantity as HTMLInputElement).value).toBe('0');
+  const creates = () => mocks.fetch.mock.calls.filter(([, options]) => !JSON.parse(options.body).expireOnly);
+  expect(creates()).toHaveLength(1);
+  fireEvent.change(quantity, { target: { value: '2' } });
+  await waitFor(() => expect(creates()).toHaveLength(2));
+  expect(JSON.parse(creates()[1][1].body).quantity).toBe(2);
+});
+
+it.each([true, false])('resolves transfer availability before deciding how to initialize (enabled=%s)', async enabled => {
+  let resolve!: (value: { enabled: boolean; dueDays: number }) => void;
+  mocks.transfer.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  mocks.fetch.mockImplementation(() => new Promise(() => {})); vi.stubGlobal('fetch', mocks.fetch);
+  render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, {
+    product: { id: 'test-product', name: 'Course', slug: 'course', price: 49, currency: 'PLN', checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false, bank_transfer_for: ['organization'] }] } } as Product,
+    collectTermsOfService: false,
+  })));
+  expect(mocks.fetch).not.toHaveBeenCalled(); expect(mocks.stripe).not.toHaveBeenCalled();
+  await act(async () => resolve({ enabled, dueDays: 14 }));
+  if (enabled) { expect(mocks.fetch).not.toHaveBeenCalled(); expect(screen.getByRole('button', { name: 'Continue to payment', exact: true })).toBeTruthy(); }
+  else await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce());
+});
+it('waits for a linked coupon before creating the first online session', async () => {
+  mocks.verifying = true; mocks.fetch.mockImplementation(() => new Promise(() => {})); vi.stubGlobal('fetch', mocks.fetch);
+  const element = () => React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, {
+    product: { id: 'test-product', name: 'Course', slug: 'course', price: 49, currency: 'PLN' } as Product, collectTermsOfService: false,
+  }));
+  const view = render(element()); expect(mocks.fetch).not.toHaveBeenCalled();
+  mocks.verifying = false; view.rerender(element());
+  await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce());
+});
+
+it('locks shared profile fields while confirming payment and unlocks after a decline', async () => {
+  mocks.fetch.mockImplementation(async url => ({ ok: true, json: async () => url === '/api/validate-email'
+    ? { success: true, data: { isValid: true } }
+    : { clientSecret: 'cs_test_first_secret_value', checkoutSessionId: 'cs_test_first', bindingToken: 'binding-first' } }));
+  let finish!: (value: unknown) => void;
+  mocks.confirm.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  vi.stubGlobal('fetch', mocks.fetch);
+  render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, {
+    product: { id: 'test-product', name: 'Course', slug: 'course', price: 49, currency: 'PLN', vat_rate: 0,
+      checkout_profile: { v: 1, modules: [{ id: 'phone', required: false }] } } as Product,
+    collectTermsOfService: false,
+  })));
+  await waitFor(() => expect(screen.getByTestId('payment-fields')).toBeTruthy());
+  fireEvent.change(screen.getByRole('textbox', { name: 'Email', exact: true }), { target: { value: 'buyer@example.com' } });
+  fireEvent.click(screen.getByRole('button', { name: /Pay/ }));
+  await waitFor(() => expect(mocks.confirm).toHaveBeenCalledTimes(1));
+  expect((document.getElementById('phone') as HTMLInputElement).disabled).toBe(true);
+  await act(async () => finish({ type: 'error', error: { message: 'Choose another payment method' } }));
+  expect((document.getElementById('phone') as HTMLInputElement).disabled).toBe(false);
+});
+
+it('collects event email before creating a hold and starts automatically after a valid address is committed', async () => {
+  mocks.fetch.mockImplementation(async url => ({ ok: true, json: async () => url.includes('/availability')
+    ? { sessions: [{ id: 'event-session', startsAt: '2099-01-01T12:00:00Z', endsAt: null, timezone: 'UTC', title: 'Workshop', venue: null, extraDays: null, remaining: 5, soldOut: false,
+      currentTier: { id: 'tier', label: null, price: 49, seatsLeft: 5, endsAt: null }, nextTierPrice: null, cheaperSoldOut: false }] }
+    : { clientSecret: 'cs_test_first_secret_value', checkoutSessionId: 'cs_test_first', bindingToken: 'binding-first' } }));
+  vi.stubGlobal('fetch', mocks.fetch);
+  render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, {
+    product: { id: 'test-product', name: 'Workshop', slug: 'workshop', price: 49, currency: 'PLN', event_mode: true } as Product,
+    collectTermsOfService: false,
+  })));
+  await screen.findByRole('radio');
+  const creates = () => mocks.fetch.mock.calls.filter(([url, options]) => url === '/api/create-payment-intent' && !JSON.parse(options.body).expireOnly);
+  expect(creates()).toHaveLength(0);
+  const email = screen.getByLabelText(en.events.email);
+  fireEvent.change(email, { target: { value: 'incomplete' } }); fireEvent.blur(email);
+  expect(creates()).toHaveLength(0);
+  fireEvent.change(email, { target: { value: 'attendee@example.com' } }); fireEvent.blur(email);
+  await waitFor(() => expect(creates()).toHaveLength(1));
+  expect(JSON.parse(creates()[0][1].body)).toMatchObject({ email: 'attendee@example.com', sessionId: 'event-session' });
+  expect(screen.queryByRole('button', { name: 'Continue to payment', exact: true })).toBeNull();
 });

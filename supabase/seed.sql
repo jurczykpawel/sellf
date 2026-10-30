@@ -1416,6 +1416,10 @@ VALUES ('e4000000-0000-4000-a000-000000000010','e1000000-0000-4000-8000-00000000
 INSERT INTO public.payment_line_items(transaction_id,product_id,item_type,quantity,unit_price,total_price,discounted_total,currency,product_name)
 VALUES ('e4000000-0000-4000-a000-000000000010','e1000000-0000-4000-8000-000000000001','main_product',1,149,149,149,'PLN','Warsztat dla zespołu');
 
+-- A transfer placed without collecting a new agreement records no new consent.
+UPDATE public.payment_transactions SET order_details='{"v":1,"buyer":{"type":"organization","terms_accepted":false}}'
+WHERE id='e4000000-0000-4000-a000-000000000010';
+
 -- Negotiated workshop unit price; list-price history remains unchanged.
 INSERT INTO public.coupons (code, name, discount_type, discount_value, currency, is_active)
 VALUES ('B2B30', 'Negotiated unit price', 'set_price', 30, 'PLN', true)

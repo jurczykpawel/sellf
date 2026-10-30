@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test, startNativeCheckout } from './helpers/checkout-intent';
+import { expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { setAuthSession } from './helpers/admin-auth';
 
@@ -171,7 +172,7 @@ test.describe('Checkout E2E - Guest Purchase Flow', () => {
 
   test('should validate required fields before submission', async ({ page }) => {
     await page.goto(`/pl/checkout/${testProduct.slug}`);
-    await page.getByRole('button', { name: /Przejdź do płatności/ }).click();
+    await startNativeCheckout(page);
 
     // Email is now handled by Stripe's LinkAuthenticationElement (iframe) — not directly testable
 
@@ -236,7 +237,7 @@ test.describe('Checkout E2E - Invoice & GUS Integration', () => {
     });
 
     await page.goto(`/pl/checkout/${testProduct.slug}`);
-    await page.getByRole('button', { name: /Przejdź do płatności/ }).click();
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 10000 });
 
     // NIP field should be visible (no checkbox needed)
@@ -261,7 +262,7 @@ test.describe('Checkout E2E - Invoice & GUS Integration', () => {
 
   test('should validate NIP before calling GUS API', async ({ page }) => {
     await page.goto(`/pl/checkout/${testProduct.slug}`);
-    await page.getByRole('button', { name: /Przejdź do płatności/ }).click();
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 10000 });
 
     const nipInput = page.locator('input#nip');
@@ -276,7 +277,7 @@ test.describe('Checkout E2E - Invoice & GUS Integration', () => {
 
   test('should show company fields when NIP has 10 digits', async ({ page }) => {
     await page.goto(`/pl/checkout/${testProduct.slug}`);
-    await page.getByRole('button', { name: /Przejdź do płatności/ }).click();
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 10000 });
 
     // NIP field should be visible
@@ -336,7 +337,7 @@ test.describe('Checkout E2E - Error Scenarios', () => {
     });
 
     await page.goto(`/pl/checkout/${testProduct.slug}`);
-    await page.getByRole('button', { name: /Przejdź do płatności/ }).click();
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 10000 });
 
     const nipInput = page.locator('input#nip');
@@ -409,7 +410,7 @@ test.describe('Checkout E2E - Price Display', () => {
 
   test('should display correct price breakdown with VAT', async ({ page }) => {
     await page.goto(`/pl/checkout/${testProduct.slug}`);
-    await page.getByRole('button', { name: /Przejdź do płatności/ }).click();
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 10000 });
 
     // Check product name is visible (not in title tag)
@@ -422,7 +423,7 @@ test.describe('Checkout E2E - Price Display', () => {
 
   test('should show price summary section', async ({ page }) => {
     await page.goto(`/pl/checkout/${testProduct.slug}`);
-    await page.getByRole('button', { name: /Przejdź do płatności/ }).click();
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 10000 });
 
     // Check for order summary or total section
@@ -515,7 +516,7 @@ test.describe('Checkout E2E - Authenticated User Profile Data', () => {
 
     // Go to checkout (using /en for USD product)
     await page.goto(`/en/checkout/${testProduct.slug}`);
-    await page.getByRole('button', { name: /Continue to payment/ }).click();
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 10000 });
 
     // Wait for profile to load (fullName field becomes enabled when loading is done)
@@ -543,7 +544,7 @@ test.describe('Checkout E2E - Authenticated User Profile Data', () => {
 
     // Go to checkout (using /en for USD product)
     await page.goto(`/en/checkout/${testProduct.slug}`);
-    await page.getByRole('button', { name: /Continue to payment/ }).click();
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 10000 });
 
     // Wait for profile to load
@@ -571,7 +572,7 @@ test.describe('Checkout E2E - Authenticated User Profile Data', () => {
 
     // Go to checkout (using /en for USD product)
     await page.goto(`/en/checkout/${testProduct.slug}`);
-    await page.getByRole('button', { name: /Continue to payment/ }).click();
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 10000 });
 
     // Wait for profile to load
@@ -595,7 +596,7 @@ test.describe('Checkout E2E - Authenticated User Profile Data', () => {
 
     // Go to checkout as guest
     await page.goto(`/en/checkout/${testProduct.slug}`);
-    await page.getByRole('button', { name: /Continue to payment/ }).click();
+    await startNativeCheckout(page);
     await page.waitForSelector('input#fullName', { timeout: 10000 });
 
     // Email is in Stripe's LinkAuthenticationElement (iframe) — fill only fullName

@@ -216,7 +216,6 @@
     "purchaseTitle": "Dokończ zakup",
     "loadingPaymentMethods": "Wczytujemy metody płatności…",
     "removeCoupon": "Usuń kod rabatowy",
-    "couponEntryPrompt": "Masz kod rabatowy?",
     "couponEntryLabel": "Kod rabatowy",
     "title": "Dokończ zakup",
     "emailAddress": "Adres e-mail",
@@ -427,6 +426,8 @@
     "noResults": "Brak wyników dla \"{searchTerm}\""
   },
   "navigation": {
+    "expandSidebar": "Rozwiń menu",
+    "collapseSidebar": "Zwiń menu",
     "sessionExpired": "Sesja wygasła — zaloguj się ponownie",
     "dashboard": "Pulpit",
     "products": "Produkty",

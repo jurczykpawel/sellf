@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-const mocks = vi.hoisted(() => ({ captcha: vi.fn(), rpc: vi.fn(), from: vi.fn(), event: vi.fn(), rate: vi.fn(), identity: vi.fn(), invoice: vi.fn(), after: vi.fn(), token: vi.fn(), signer: vi.fn() }));
+const mocks = vi.hoisted(() => ({ captcha: vi.fn(), rpc: vi.fn(), from: vi.fn(), event: vi.fn(), rate: vi.fn(), identity: vi.fn(), invoice: vi.fn(), after: vi.fn(), token: vi.fn(), signer: vi.fn(), collect: true, user: null as null | { id: string; email: string } }));
 vi.mock('next/server', async original => ({ ...await original<typeof import('next/server')>(), after: mocks.after }));
 vi.mock('@/lib/invoicing/service', () => ({ issueInvoiceForTransaction: mocks.invoice }));
 vi.mock('@/lib/orders/transfer-token', () => ({ signTransferToken: mocks.token, createTransferTokenSigner: mocks.signer }));
 vi.mock('@/lib/orders/transfer-mail', () => ({ sendTransferAccessMail: vi.fn() }));
 vi.mock('@/lib/captcha/verify', () => ({ verifyCaptchaToken: mocks.captcha }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => ({ from: mocks.from, rpc: mocks.rpc }) }));
-vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({ auth: { getUser: async () => ({ data: { user: null } }) } }) }));
+vi.mock('@/lib/stripe/checkout-config', () => ({ getCheckoutConfig: async () => ({ collect_terms_of_service: mocks.collect }) }));
+vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({ auth: { getUser: async () => ({ data: { user: mocks.user } }) } }) }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: mocks.rate, checkRateLimitForIdentifier: mocks.identity }));
 vi.mock('@/lib/orders/bank-transfer-service', () => ({ dispatchTransferEvent: mocks.event }));
 vi.mock('@/lib/events/checkout', () => ({ resolveEventCheckout: vi.fn() }));
@@ -26,7 +27,7 @@ function request(value: unknown) { return new NextRequest('http://localhost/api/
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value),
 }); }
 beforeEach(() => {
-  vi.clearAllMocks(); mocks.captcha.mockResolvedValue({ success: true }); mocks.rate.mockResolvedValue(true); mocks.identity.mockResolvedValue(true);
+  vi.clearAllMocks(); mocks.collect = true; mocks.user = null; mocks.captcha.mockResolvedValue({ success: true }); mocks.rate.mockResolvedValue(true); mocks.identity.mockResolvedValue(true);
   mocks.event.mockResolvedValue(undefined); mocks.invoice.mockResolvedValue(null); mocks.token.mockReturnValue('signed'); mocks.signer.mockReturnValue(mocks.token);
   mocks.from.mockImplementation((table: string) => {
     const data = table === 'products' ? product : { bank_transfer_enabled: true, bank_account_holder: 'Example', bank_account_number: 'PL61109010140000071219812874' };
@@ -92,3 +93,14 @@ describe('public bank transfer endpoint', () => {
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
 });
+
+it.each([[true, false, 400], [false, false, 200], [true, true, 200], [false, true, 200]])
+  ('uses shop consent policy (collect=%s, signedIn=%s)', async (collect, signedIn, status) => {
+    mocks.collect = collect as boolean;
+    mocks.user = signedIn ? { id: 'buyer-id', email: body.email } : null;
+    const { termsAccepted: _accepted, ...withoutAcceptance } = body;
+    expect((await POST(request(withoutAcceptance))).status).toBe(status);
+    if (status === 200) expect(mocks.rpc).toHaveBeenCalledWith('bank_transfer_order', expect.objectContaining({
+      p_order: expect.objectContaining({ terms_required: false, order_details: expect.objectContaining({ buyer: expect.objectContaining({ terms_accepted: false }) }) }),
+    }));
+  });

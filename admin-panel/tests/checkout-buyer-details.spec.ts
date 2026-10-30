@@ -4,10 +4,10 @@
  */
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import type { Page } from '@playwright/test';
-import { startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout } from './helpers/checkout-intent';
 import { getTestDatabaseContainer } from './helpers/database-container';
 import { acceptAllCookies } from './helpers/consent';
 

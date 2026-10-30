@@ -19,11 +19,11 @@
  * @see admin-panel/src/app/[locale]/p/[slug]/components/ProductAccessView.tsx
  */
 
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import type { ContentItem } from '@/types';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
-import { startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout } from './helpers/checkout-intent';
 
 test.describe('Admin Product Preview', () => {
   test.describe.configure({ mode: 'serial' });

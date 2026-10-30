@@ -27,10 +27,10 @@
  * `Runtime.consoleAPICalled` so inner Stripe iframes are included.
  */
 
-import { test, expect, type CDPSession } from '@playwright/test';
+import { expect, type CDPSession } from '@playwright/test';
 import { supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
-import { startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout } from './helpers/checkout-intent';
 
 test.describe.configure({ mode: 'serial' });
 

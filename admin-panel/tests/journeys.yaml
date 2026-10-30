@@ -2947,7 +2947,7 @@
     },
     {
       "id": "J132",
-      "title": "Embedded coupon changes the payable amount",
+      "title": "Linked embed coupon changes the payable amount",
       "values": {
         "persona": "guest",
         "entry": "embed",

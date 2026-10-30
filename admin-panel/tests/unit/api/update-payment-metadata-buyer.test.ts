@@ -19,10 +19,11 @@ const mocks = vi.hoisted(() => ({
   sessionsUpdate: vi.fn(),
   piRetrieve: vi.fn(),
   piUpdate: vi.fn(),
+  user: null as null | { id: string; email: string },
 }));
 
 vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => ({ auth: { getUser: async () => ({ data: { user: null } }) } })),
+  createClient: vi.fn(async () => ({ auth: { getUser: async () => ({ data: { user: mocks.user } }) } })),
 }));
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: vi.fn(() => ({ rpc: mocks.adminRpc, from: () => ({ update: (value: unknown) => ({ match: () => mocks.customUpdate(value) }), select: () => ({ eq: () => ({ single: mocks.productRead }) }) }) })),
@@ -75,7 +76,8 @@ function makeRequest(objectId: string, extra: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.clearAllMocks(); mocks.user = null;
+  vi.mocked(getCheckoutConfig).mockResolvedValue({ tax_mode: 'local', collect_terms_of_service: false } as Awaited<ReturnType<typeof getCheckoutConfig>>);
   vi.stubEnv('SITE_URL', 'http://localhost:3000');
   mocks.sessionsRetrieve.mockResolvedValue({ id: SESSION_ID, status: 'open', metadata: { product_id: PRODUCT_ID }, customer: null });
   mocks.piRetrieve.mockResolvedValue({ id: PI_ID, status: 'requires_payment_method', metadata: { product_id: PRODUCT_ID }, customer: null });
@@ -310,3 +312,12 @@ describe('profile tax identity routing', () => {
     else expect(applyBuyerTaxIdentityToCustomer).not.toHaveBeenCalled();
   });
 });
+
+it.each([[true, false, 400], [false, false, 200], [true, true, 200], [false, true, 200]])
+  ('enforces the shared consent rule online (collect=%s signedIn=%s)', async (collect, signedIn, expected) => {
+    mocks.user = signedIn ? { id: 'signed-in-buyer', email: 'buyer@example.com' } : null;
+    const session = await mocks.sessionsRetrieve(SESSION_ID);
+    session.metadata.user_id = mocks.user?.id;
+    vi.mocked(getCheckoutConfig).mockResolvedValue({ tax_mode: 'local', collect_terms_of_service: collect } as Awaited<ReturnType<typeof getCheckoutConfig>>);
+    expect((await POST(makeRequest(SESSION_ID, { termsAccepted: undefined }))).status).toBe(expected);
+  });

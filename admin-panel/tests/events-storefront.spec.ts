@@ -1,10 +1,10 @@
 /** Event storefront acceptance with explicit inventory/deadline fixtures. */
 import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
-import { startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout } from './helpers/checkout-intent';
 import { getTestDatabaseContainer } from './helpers/database-container';
 import type { Page } from '@playwright/test';
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -35,6 +35,7 @@ async function hold(quantity: number) {
 test('(a) product and checkout show promotional tier, timezone and hold at 47', async ({ page }) => {
   await acceptAllCookies(page); await page.goto(`/pl/p/${product.slug}`);
   await page.getByLabel('E-mail nabywcy').fill('event-buyer@example.com');
+  await page.getByLabel('E-mail nabywcy').blur();
   await expect(page.getByText('Zostało 30 miejsc w tej cenie')).toBeVisible();
   await expect(page.getByText(/Ta cena do/)).toBeVisible();
   await expect(page.getByText(/Potem.*67/)).toBeVisible();
@@ -74,9 +75,9 @@ test('(e) URL selects a session and changing it replaces the payment session', a
   await open(page, 'p', `&session=${second}`);
   await expect(page.locator(`input[value="${second}"]`)).toBeChecked();
   const first = await startNativeCheckout(page); const firstBody = await first.json(); expect(first.request().postDataJSON().sessionId).toBe(second);
-  await page.locator(`input[value="${session}"]`).check();
   const nextResponse = page.waitForResponse(r => new URL(r.url()).pathname === '/api/create-payment-intent' && r.request().postDataJSON()?.sessionId === session && !r.request().postDataJSON()?.expireOnly);
-  await page.getByRole('button', { name: 'Przejdź do płatności' }).click();
+  await page.locator(`input[value="${session}"]`).check();
+  await startNativeCheckout(page);
   const next = await nextResponse; expect(next.status()).toBe(200);
   expect((await next.json()).checkoutSessionId).not.toBe(firstBody.checkoutSessionId);
 });
@@ -109,14 +110,12 @@ test('(f) recording bump gives three registered participants recording access', 
   }
 });
 test('409 refreshes current availability and 429 shows a translated retry message', async ({ page }) => {
-  await open(page);
   await page.route('**/api/create-payment-intent', route => route.fulfill({ status: 409, json: { error: 'sold_out' } }));
   const refreshed = page.waitForResponse('**/availability');
-  await page.getByRole('button', { name: 'Przejdź do płatności' }).click(); await refreshed;
+  await open(page); await refreshed;
   await expect(page.getByText('Brak wolnych miejsc')).toBeVisible();
-  await page.getByRole('button', { name: 'Wybierz termin' }).click();
   await page.route('**/api/create-payment-intent', route => route.fulfill({ status: 429, json: { error: 'event_hold_limit' } }));
-  await page.getByRole('button', { name: 'Przejdź do płatności' }).click();
+  await page.reload();
   await expect(page.getByText('Zbyt wiele rezerwacji. Spróbuj ponownie później.')).toBeVisible();
 });
 test('catalogue renders the live nearest-session price and date through its public contract', async ({ page }) => {
