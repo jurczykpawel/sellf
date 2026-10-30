@@ -84,3 +84,11 @@ describe('sendMagicLinkRequest', () => {
     expect(result).toEqual({ ok: false, code: 'send_failed' });
   });
 });
+
+it('forwards free checkout answers in the request body', async () => {
+  const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+  try {
+    await sendMagicLinkRequest({ flow: 'free_product', email: 'buyer@example.com', captchaToken: 'owned-fixture', productSlug: 'registered', customFieldValues: { _sellf_license_domain: 'buyer.example.com' } });
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).customFieldValues).toEqual({ _sellf_license_domain: 'buyer.example.com' });
+  } finally { fetchMock.mockRestore(); }
+});

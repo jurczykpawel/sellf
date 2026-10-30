@@ -6,6 +6,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { accessActor, mutateAccess } from '@/lib/services/business-events';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -201,11 +202,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Grant access
-    const { data: newAccess, error: accessError } = await adminClient
-      .from('user_product_access')
-      .insert(accessData)
-      .select('id, product_id, created_at, access_expires_at, access_duration_days')
-      .single();
+    const { data: newAccess, error: accessError } = await mutateAccess(adminClient, 'grant', userId, accessActor(auth),
+      { access_duration_days: accessData.access_duration_days ?? null, access_expires_at: accessData.access_expires_at ?? null }, undefined, productId).single();
 
     if (accessError) {
       // Check for foreign key violation (user doesn't exist)

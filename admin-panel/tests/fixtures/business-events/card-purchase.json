@@ -1,0 +1,37 @@
+{
+  "received_at": "2026-10-28T17:57:11.966559+00:00",
+  "signature_verified_before_anonymization": true,
+  "payload": {
+    "id": "ff0fc4d2-79a5-414f-8884-9a6042881ddc",
+    "data": {
+      "order": {
+        "amount": 2345,
+        "isGuest": true,
+        "couponId": null,
+        "currency": "pln",
+        "sessionId": "pi_3UVb60CDLaN6dbD50Pr2mAdt",
+        "paymentIntentId": "pi_3UVb60CDLaN6dbD50Pr2mAdt"
+      },
+      "source": "stripe_webhook",
+      "product": {
+        "id": "13cb579a-eb5e-44ad-89f0-f96c2b7df980",
+        "icon": "🧪",
+        "name": "Recorded card",
+        "slug": "recorded-card",
+        "price": 23.45,
+        "currency": "PLN"
+      },
+      "customer": {
+        "email": "integrator-f187574a9a@example.com",
+        "userId": null,
+        "lastName": "Recorded buyer",
+        "firstName": "Recorded buyer"
+      },
+      "bumpProduct": null,
+      "bumpProducts": [],
+      "bundleComponents": []
+    },
+    "event": "purchase.completed",
+    "timestamp": "2026-10-28T17:57:11.382Z"
+  }
+}

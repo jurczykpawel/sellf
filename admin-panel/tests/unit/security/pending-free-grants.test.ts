@@ -128,7 +128,7 @@ describe('pending_free_grant_products', () => {
     const { data, error } = await userClient.rpc('pending_free_grant_products');
 
     expect(error).toBeNull();
-    expect(data).toEqual([{ product_id: freeProductId, slug: FREE_SLUG }]);
+    expect(data).toEqual([{ product_id: freeProductId, slug: FREE_SLUG, request_id: null, custom_field_values: null }]);
     expect(await pendingOf(user.id)).toEqual([freeProductId]);
   });
 

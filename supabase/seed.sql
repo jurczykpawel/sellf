@@ -1455,3 +1455,11 @@ FROM public.payment_transactions WHERE id='e5000000-0000-4000-a000-000000000010'
 INSERT INTO public.payment_refund_events(stripe_refund_id,version,status,notified)
 SELECT stripe_refund_id,version,status,true FROM public.payment_refunds
 WHERE transaction_id='e5000000-0000-4000-a000-000000000010';
+
+-- Access examples above also populate the committed business-event history.
+-- Seed fixtures are already observed; only subsequent changes need dispatch.
+UPDATE public.business_events SET dispatched_at = now();
+
+-- A consumed, field-bearing free-checkout request for local inspection.
+INSERT INTO public.free_grant_contexts(email,product_id,custom_field_values,claimed_at)
+SELECT 'demo-buyer@example.com',id,'{"example_note":"Local checkout context"}'::jsonb,now() FROM public.products ORDER BY id LIMIT 1;

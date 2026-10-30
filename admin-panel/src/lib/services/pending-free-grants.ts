@@ -7,10 +7,9 @@ import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 /**
  * Pending free-product grants.
  *
- * A free product requested by e-mail is remembered on the account
- * (`app_metadata.pending_free_grants`) when the magic link goes out, and
- * granted on the next sign-in through any path — not only through the
- * product-access link from that e-mail.
+ * New checkout contexts are durably stored before email, outside the JWT.
+ * The caller's own pending requests are granted on later sign-in; legacy
+ * app_metadata product markers remain readable for in-flight links.
  *
  * @see supabase/migrations/20260911000000_pending_free_grants.sql
  * @see src/app/[locale]/auth/callback/route.ts
@@ -33,6 +32,7 @@ export interface ClaimPendingFreeGrantsInput {
 interface PendingProductRow {
   product_id: string;
   slug: string;
+  request_id?: string | null;
 }
 
 const PRODUCT_ACCESS_PATH = /^\/(?:[a-z]{2}\/)?auth\/product-access\/?$/;
@@ -49,18 +49,12 @@ export async function queuePendingFreeGrant(email: string, productSlug: string):
   }
 }
 
-function hasPendingGrants(user: PendingGrantUser): boolean {
-  const pending = user.app_metadata?.pending_free_grants;
-  return Array.isArray(pending) && pending.length > 0;
-}
-
 /** Grants every pending free product; never throws. Returns how many were granted. */
 export async function claimPendingFreeGrants({
   userClient,
   user,
   skipSlug,
 }: ClaimPendingFreeGrantsInput): Promise<number> {
-  if (!hasPendingGrants(user)) return 0;
 
   let rows: PendingProductRow[];
   try {
@@ -83,6 +77,7 @@ export async function claimPendingFreeGrants({
       const result = await grantFreeProductAccess(userClient, adminClient, {
         product: { id: row.product_id, slug: row.slug },
         user: { id: user.id, email: user.email ?? '' },
+        ...(row.request_id ? { grantRequestId: row.request_id } : {}),
       });
       if (result.accessGranted) granted += 1;
     } catch (err) {

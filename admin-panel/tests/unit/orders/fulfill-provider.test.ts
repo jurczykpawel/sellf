@@ -33,9 +33,10 @@ beforeEach(() => {
   mocks.capture.mockResolvedValue(undefined);
 });
 
-it.each(['pi_order', null])('preserves the exact serialized Stripe purchase payload for %s', async paymentIntentId => {
+it.each(['pi_order', null])('identifies the saved order and explicit minor-unit values for %s', async paymentIntentId => {
   await fulfillPaidOrder({ ...common(), stripe: {} as Stripe, sessionId: 'cs_order', paymentIntentId });
-  expect(JSON.stringify(mocks.trigger.mock.calls[0][1])).toBe('{"customer":{"email":"buyer@example.test","firstName":null,"lastName":null,"userId":null},"product":{"id":"product","name":"Course","slug":"course","price":123,"currency":"PLN","icon":null},"bumpProduct":null,"bumpProducts":[],"bundleComponents":[],"order":{"amount":12300,"currency":"PLN","sessionId":"cs_order","paymentIntentId":' + JSON.stringify(paymentIntentId) + ',"couponId":null,"isGuest":true}}');
+  const payload = mocks.trigger.mock.calls[0][1];
+  expect(payload).toMatchObject({ amountUnit: 'minor', customer: { email: tx.customer_email }, product: { price: 12300, net: null, tax: null }, order: { orderId: tx.id, orderNumber: 1001, amount: 12300, grossTotal: 12300, taxSnapshotStatus: 'unavailable', sessionId: 'cs_order', paymentIntentId } });
   expect(mocks.licenses.mock.calls[0][1].orderId).toBe(paymentIntentId ?? 'cs_order');
 });
 

@@ -9,6 +9,7 @@ export interface MagicLinkClientRequest {
   locale?: string;
   couponCode?: string | null;
   successUrl?: string | null;
+  customFieldValues?: Record<string, string>;
 }
 
 const KNOWN_ERROR_CODES: readonly MagicLinkErrorCode[] = [
@@ -35,6 +36,7 @@ export async function sendMagicLinkRequest(req: MagicLinkClientRequest): Promise
   if (req.productSlug != null) body.productSlug = req.productSlug;
   if (req.couponCode != null) body.couponCode = req.couponCode;
   if (req.successUrl != null) body.successUrl = req.successUrl;
+  if (req.customFieldValues !== undefined) body.customFieldValues = req.customFieldValues;
 
   try {
     const response = await fetch('/api/auth/magic-link', {

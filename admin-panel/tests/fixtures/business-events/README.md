@@ -1,0 +1,1 @@
+Recorded test-mode deliveries and state observations from 2026-10-28, copied from the private integrator payload collection. Card/transfer inputs retain their recorded amounts, currencies and missing fields. Names and slugs are generalized; the source collection already removed secrets and personal details. Missing events have state evidence only, no invented event payload.

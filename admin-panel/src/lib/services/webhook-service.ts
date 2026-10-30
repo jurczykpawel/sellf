@@ -190,7 +190,7 @@ export function buildPlaceholderContext(data: unknown): Record<string, string> {
     currency: str(order.currency),
     product_name: str(product.name),
     product_slug: str(product.slug),
-    order_id: deriveOrderId(d),
+    order_id: str(order.orderId) || deriveOrderId(d),
   };
   const customFields = Array.isArray(d.customFields) ? d.customFields : [];
   for (const f of customFields) {
@@ -204,9 +204,9 @@ export function buildPlaceholderContext(data: unknown): Record<string, string> {
 }
 
 /**
- * Single source of truth for an event's order id, used both for the {{order_id}}
- * placeholder and the queue delivery key. Returns '' when the (nested) payload
- * has no order id. Exported for unit testing.
+ * Stable delivery identity, retaining provider references across payment retries.
+ * The substitution context separately prefers the internal Sellf orderId.
+ * Returns an empty string when no order reference exists.
  */
 export function deriveOrderId(data: unknown): string {
   const order = ((data ?? {}) as Record<string, any>).order ?? {};

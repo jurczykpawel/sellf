@@ -269,7 +269,7 @@ export function validateCustomFieldValues(
   if (Object.keys(errors).length > 0) return { ok: false, errors };
 
   const serialized = JSON.stringify(out);
-  if (Buffer.byteLength(serialized, 'utf-8') > CUSTOM_FIELDS_VALUES_MAX_BYTES) {
+  if (new TextEncoder().encode(serialized).byteLength > CUSTOM_FIELDS_VALUES_MAX_BYTES) {
     return { ok: false, errors: { _: `Total values exceed ${CUSTOM_FIELDS_VALUES_MAX_BYTES} bytes` } };
   }
 

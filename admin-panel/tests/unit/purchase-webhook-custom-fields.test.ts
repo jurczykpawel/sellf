@@ -227,7 +227,7 @@ describe('buildPurchaseWebhookPayload — tax snapshot', () => {
     expect(payload.bumpProducts[0]).toMatchObject({ id: 'bump_1', vatExempt: false, taxabilityReason: 'customer_exempt' });
   });
 
-  it('omits tax fields when no snapshot provided (backward-compatible)', async () => {
+  it('identifies unavailable tax data with explicit null amounts', async () => {
     const supabase = mockSupabase({
       productRow: {
         id: 'prod_1', name: 'C', slug: 'c', price: 100, currency: 'PLN', icon: null,
@@ -250,8 +250,9 @@ describe('buildPurchaseWebhookPayload — tax snapshot', () => {
       isGuest: true,
     });
 
-    expect((payload.product as { net?: number }).net).toBeUndefined();
-    expect(payload.order.netTotal).toBeUndefined();
+    expect((payload.product as { net?: number | null }).net).toBeNull();
+    expect(payload.order).toMatchObject({ netTotal: null, taxTotal: null, grossTotal: 10000, taxSnapshotStatus: 'unavailable' });
+    expect(payload.amountUnit).toBe('minor');
   });
 });
 

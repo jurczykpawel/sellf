@@ -23,6 +23,7 @@ interface FreeProductInput {
   locale?: string;
   couponCode?: string | null;
   successUrl?: string | null;
+  grantRequestId?: string;
 }
 
 function buildAuthCallbackUrl(origin: string, redirectPath: string): string {
@@ -83,6 +84,7 @@ export function buildFreeProductMagicLinkRedirect(input: FreeProductInput): stri
   const redirectPath = buildProductAccessPath(input.productSlug, {
     coupon: input.couponCode ?? undefined,
     success_url: input.successUrl ?? undefined,
+    free_grant: input.grantRequestId,
   }, input.locale);
   return buildAuthCallbackUrl(input.origin, redirectPath);
 }
@@ -101,12 +103,14 @@ export function getLoginReturnPath(value: string | null | undefined): string | u
     if (!loginwallIdSchema.safeParse(params.get('id')).success || !params.has('redirect')) return undefined;
     // The protect route validates the redirect domain against allowed_embed_origins.
   } else {
+    const requestId = params.get('free_grant');
+    if (requestId && !loginwallIdSchema.safeParse(requestId).success) return undefined;
     const product = params.get('product');
     if (!product || !/^[a-zA-Z0-9_ -]{1,100}$/.test(product)) return undefined;
   }
   const limits: Record<string, number> = isLoginwall
     ? { id: 36, redirect: 2048 }
-    : { product: 100, coupon: 64, success_url: 2048 };
+    : { product: 100, coupon: 64, success_url: 2048, free_grant: 36 };
   const seen = new Set<string>();
   const parts: string[] = [];
   for (const [key, item] of params) {

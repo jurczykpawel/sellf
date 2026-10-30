@@ -8,8 +8,9 @@ import { dispatchTransferEvent, fulfillTransfer, runTransferJob } from '@/lib/or
 import { operateTransfer } from '@/lib/orders/bank-transfer-admin';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
+import recorded from '../../fixtures/business-events/transfer-placed.json';
 const id = '10000000-0000-4000-8000-000000000001';
-const row = { id, payment_provider: 'bank_transfer', status: 'awaiting_payment', order_number: '2026/1', amount: 9400,
+const row = { id, product_id: 'product', customer_email: 'buyer@example.com', user_id: null, metadata: { access_on_placement: false }, net_total: 10000, tax_total: 2300, tax_snapshot_status: 'local', payment_provider: 'bank_transfer', status: 'awaiting_payment', order_number: 1001, amount: 12300,
   currency: 'PLN', payment_due_at: '2000-01-01T00:00:00Z', transfer_details: { holder: 'Example' }, order_details: { buyer: { type: 'organization' } } };
 function client(results: Array<{ data?: unknown; error?: unknown }> = []) {
   const queries: Array<Record<string, ReturnType<typeof vi.fn>>> = [];
@@ -21,7 +22,7 @@ function client(results: Array<{ data?: unknown; error?: unknown }> = []) {
     }
     queries.push(methods); return q;
   });
-  const rpc = vi.fn(async () => ({ data: { success: true }, error: null }));
+  const rpc = vi.fn(async (name: string) => ({ data: name === 'find_user_id_by_email' ? null : { success: true }, error: null }));
   return { db: { from, rpc } as unknown as SupabaseClient<Database>, from, rpc, queries };
 }
 beforeEach(() => { vi.clearAllMocks(); trigger.mockResolvedValue(undefined); fulfill.mockResolvedValue(undefined); });
@@ -32,15 +33,15 @@ describe('transfer recovery', () => {
     expect(trigger).not.toHaveBeenCalled();
   });
   it.each(['order.placed', 'order.cancelled', 'order.overdue'] as const)('dispatches %s with stable order identity and details', async event => {
-    const { db } = client([{ data: { ...row, status: event === 'order.cancelled' ? 'cancelled' : 'awaiting_payment' } }, { data: [{ product_id: 'product', session_label: 'Workshop' }] }, {}]);
+    const { db } = client([{ data: { ...row, status: event === 'order.cancelled' ? 'cancelled' : 'awaiting_payment' } }, { data: [{ ...recorded.payload.data.lines[0], product_id: 'product', session_label: 'Workshop' }] }, {}]);
     await dispatchTransferEvent(db, id, event);
-    expect(trigger).toHaveBeenCalledWith(event, expect.objectContaining({ order: expect.objectContaining({ orderId: id, amount: 9400 }),
+    expect(trigger).toHaveBeenCalledWith(event, expect.objectContaining({ order: expect.objectContaining({ orderId: id, amount: 12300 }),
       orderDetails: row.order_details, lines: [expect.objectContaining({ session_label: 'Workshop' })] }), db, ['product']);
   });
   it('marks notification only after a durable enqueue succeeds', async () => {
-    const { db, from } = client([{ data: row }, { data: [] }]); trigger.mockRejectedValueOnce(new Error('queue unavailable'));
+    const { db, queries } = client([{ data: row }, { data: [] }]); trigger.mockRejectedValueOnce(new Error('queue unavailable'));
     await expect(dispatchTransferEvent(db, id, 'order.placed')).rejects.toThrow();
-    expect(from).toHaveBeenCalledTimes(2);
+    expect(queries.every(query => query.update.mock.calls.length === 0)).toBe(true);
   });
   it('does not enqueue an already notified event', async () => {
     const { db } = client([{ data: { ...row, order_overdue_notified_at: '2026-01-01' } }]);
@@ -49,7 +50,7 @@ describe('transfer recovery', () => {
   it('reuses offline fulfillment with the immutable saved amount', async () => {
     const { db } = client([{ data: { ...row, status: 'completed', product_id: 'p', customer_email: 'buyer@example.com' } }]);
     await fulfillTransfer(db, id);
-    expect(fulfill).toHaveBeenCalledWith(expect.objectContaining({ provider: { kind: 'offline' }, transactionId: id, amount: 9400 }));
+    expect(fulfill).toHaveBeenCalledWith(expect.objectContaining({ provider: { kind: 'offline' }, transactionId: id, amount: 12300 }));
   });
   it('bounds pending recovery and includes a two minute age threshold', async () => {
     vi.useFakeTimers(); vi.setSystemTime(new Date('2026-02-02T12:00:00Z'));

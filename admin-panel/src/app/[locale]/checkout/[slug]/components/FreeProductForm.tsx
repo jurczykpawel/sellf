@@ -199,6 +199,10 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
       return;
     }
 
+    const validation = validateCustomFieldValues(customFieldDefs, customFieldValues, { requireAll: true });
+    if (!validation.ok) { setCustomFieldErrors(validation.errors); return; }
+    setCustomFieldErrors({});
+
     setLoading(true);
     setMessage({ type: 'info', text: t('sendingMagicLink') });
 
@@ -210,6 +214,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
         locale,
         productSlug: product.slug,
         successUrl,
+        customFieldValues,
       });
 
       if (!result.ok) {

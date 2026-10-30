@@ -12,17 +12,19 @@ export async function emitFreeAccessLead(adminClient: SupabaseClient, { product,
       console.error('[free-access] Product details unavailable');
       return;
     }
-    const { data: access, error: accessError } = await adminClient.from('user_product_access').select('access_granted_at,access_expires_at').eq('user_id', user.id).eq('product_id', product.id).single();
+    const { data: access, error: accessError } = await adminClient.from('user_product_access').select('access_granted_at,access_expires_at,custom_field_values').eq('user_id', user.id).eq('product_id', product.id).single();
     if (accessError || !access) {
       console.error('[free-access] Access details unavailable');
       return;
     }
+    const savedValues = (access.custom_field_values ?? customFieldValues) as Record<string, string> | undefined;
     const orderId = `free_${user.id}_${product.id}`;
     const license = await issueLicense(adminClient, {
       productId: product.id, email: user.email, userId: user.id, orderId,
-      ...(customFieldValues !== undefined ? { customFieldValues } : {}),
+      ...(savedValues !== undefined ? { customFieldValues: savedValues } : {}),
     }).catch(() => { console.error('[free-access] License issuance failed'); return null; });
     const payload = {
+      ...(savedValues !== undefined ? { customFieldValues: savedValues } : {}),
       customer: { email: user.email, userId: user.id }, product: details,
       accessGrantedAt: access.access_granted_at, accessExpiresAt: access.access_expires_at,
       ...(license ? { license: { token: license.token, kid: license.kid, jwksUrl: `${getCanonicalOriginOrNull() ?? ''}/api/licenses/jwks?seller=${license.sellerId}` } } : {}),

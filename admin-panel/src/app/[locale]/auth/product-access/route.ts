@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveSafeRedirectPath } from '@/lib/validations/redirect';
@@ -30,6 +31,8 @@ export async function GET(request: Request) {
   const slug = searchParams.get('product');
   const returnUrl = searchParams.get('return_url');
   const successUrl = searchParams.get('success_url');
+  const grantRequestId = searchParams.get('free_grant') ?? undefined;
+  if (grantRequestId && !z.string().uuid().safeParse(grantRequestId).success) return safeRedirect('/');
   const rawCoupon = searchParams.get('coupon');
   const couponCode = rawCoupon && rawCoupon.trim().length > 0
     ? rawCoupon.trim().toUpperCase()
@@ -88,6 +91,7 @@ export async function GET(request: Request) {
         product: { id: product.id, slug },
         user: { id: user.id, email: user.email ?? '' },
         couponCode: couponCode ?? undefined,
+        grantRequestId,
       });
 
       if (!result.accessGranted) {

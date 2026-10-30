@@ -17,11 +17,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHash, timingSafeEqual } from 'crypto';
 import { retryInvoices } from '@/lib/invoicing/service';
 import { drainAffiliateWork } from '@/lib/affiliates/sync/worker';
-import { createPlatformClient } from '@/lib/supabase/admin';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { runTransferJob } from '@/lib/orders/bank-transfer-service';
-import { WebhookService } from '@/lib/services/webhook-service';
+import { runBusinessEvents } from '@/lib/services/business-events';
 import { getWebhookQueue } from '@/lib/services/webhook-queue';
 import { WebhookDispatcher } from '@/lib/services/webhook-queue/dispatcher';
 import { computeNextRetry, hasMoreAttempts } from '@/lib/services/webhook-queue/retry-policy';
@@ -62,106 +61,7 @@ function isAuthorized(request: NextRequest): boolean {
 
 // ===== JOB: access-expired =====
 
-async function handleAccessExpired(): Promise<CronJobResult> {
-  const platformClient = createPlatformClient();
-  const adminClient = createAdminClient();
-
-  // Query expired access records that haven't been notified yet
-  const { data: expiredRows, error } = await adminClient
-    .from('user_product_access')
-    .select(`
-      id,
-      user_id,
-      product_id,
-      access_granted_at,
-      access_expires_at,
-      products!inner (
-        name,
-        slug,
-        price,
-        currency,
-        icon
-      )
-    `)
-    .not('access_expires_at', 'is', null)
-    .lt('access_expires_at', new Date().toISOString())
-    .is('expiry_notified_at', null)
-    .limit(100);
-
-  if (error) {
-    console.error('[cron/access-expired] Failed to query expired access:', error);
-    throw new Error('DB query failed');
-  }
-
-  if (!expiredRows || expiredRows.length === 0) {
-    return { processed: 0, errors: 0 };
-  }
-
-  // Batch fetch user emails (auth.users is global)
-  const userIds = [...new Set(expiredRows.map((r) => r.user_id))];
-  const emailMap: Record<string, string | null> = {};
-  const EMAIL_BATCH_SIZE = 10;
-  for (let i = 0; i < userIds.length; i += EMAIL_BATCH_SIZE) {
-    await Promise.all(
-      userIds.slice(i, i + EMAIL_BATCH_SIZE).map(async (userId) => {
-        try {
-          const { data: { user } } = await platformClient.auth.admin.getUserById(userId);
-          emailMap[userId] = user?.email ?? null;
-        } catch {
-          emailMap[userId] = null;
-        }
-      })
-    );
-  }
-
-  let processed = 0;
-  let errors = 0;
-
-  for (const row of expiredRows) {
-    const product = row.products as unknown as {
-      name: string; slug: string; price: number; currency: string; icon: string;
-    };
-
-    try {
-      await WebhookService.trigger('access.expired', {
-        customer: {
-          email: emailMap[row.user_id] ?? null,
-          userId: row.user_id,
-        },
-        product: {
-          id: row.product_id,
-          name: product.name,
-          slug: product.slug,
-          price: product.price,
-          currency: product.currency,
-          icon: product.icon,
-        },
-        access: {
-          grantedAt: row.access_granted_at,
-          expiredAt: row.access_expires_at,
-        },
-      }, adminClient, row.product_id);
-
-      // Mark as notified
-      const { error: updateError } = await adminClient
-        .from('user_product_access')
-        .update({ expiry_notified_at: new Date().toISOString() })
-        .eq('id', row.id);
-
-      if (updateError) {
-        console.error('[cron/access-expired] Failed to mark notified:', row.id, updateError);
-        errors++;
-      } else {
-        processed++;
-      }
-    } catch (err) {
-      console.error('[cron/access-expired] Error processing row:', row.id, err);
-      errors++;
-    }
-  }
-
-  return { processed, errors };
-}
+async function handleAccessExpired(): Promise<CronJobResult> { return runBusinessEvents(); }
 
 // ===== JOB: cleanup-webhook-logs =====
 
@@ -279,6 +179,7 @@ const JOB_REGISTRY: Record<string, () => Promise<CronJobResult>> = {
   'fulfillment-resume': () => runTransferJob(createAdminClient(), 'fulfillment-resume'),
   'seat-reservations-expire': handleSeatReservationsExpire,
   'access-expired': handleAccessExpired,
+  'business-events': () => runBusinessEvents(),
   'cleanup-webhook-logs': handleCleanupWebhookLogs,
   'webhook-deliveries-retry': handleWebhookDeliveriesRetry,
 };

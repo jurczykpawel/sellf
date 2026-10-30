@@ -6,6 +6,7 @@ import { requireAdminApiWithRequest } from '@/lib/auth-server';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { parseLicenseClaims } from '@/lib/license-keys/format';
 import { normalizeLicenseDomain } from '@/lib/license-keys/domain';
+import { validateCustomFieldDefinitions, validateCustomFieldValues, PREDEFINED_CUSTOM_FIELDS } from '@/lib/validations/custom-checkout-fields';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
@@ -14,7 +15,7 @@ import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
 const issueSchema = z.object({
   productId: z.string().uuid(),
   email: z.string().trim().email().max(254),
-  domain: z.string().trim().min(1).max(253).refine((value) => Boolean(normalizeLicenseDomain(value)), 'Invalid domain'),
+  domain: z.string().trim().max(253).refine((value) => !value || Boolean(normalizeLicenseDomain(value)), 'Invalid domain').optional(),
   customFieldValues: z.record(z.string(), z.string().max(500)).optional(),
 }).strict();
 
@@ -71,6 +72,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const admin = createAdminClient();
+  const product = await admin.from('products').select('custom_checkout_fields').eq('id', parsed.data.productId).single();
+  if (product.error || !product.data) return NextResponse.json({ error: 'Product is not configured for license issuance' }, { status: 409, headers: noStore });
+  const definitions = validateCustomFieldDefinitions(product.data.custom_checkout_fields ?? []);
+  if (!definitions.ok) return NextResponse.json({ error: 'Invalid product configuration' }, { status: 400, headers: noStore });
+  const domainField = definitions.value.find(field => field.id === PREDEFINED_CUSTOM_FIELDS.license_domain.id && field.type === 'domain');
+  const inputValues = { ...parsed.data.customFieldValues, ...(domainField && parsed.data.domain ? { [domainField.id]: parsed.data.domain } : {}) };
+  const values = validateCustomFieldValues(definitions.value, inputValues);
+  if (!values.ok) return NextResponse.json({ error: 'Invalid form values', fieldErrors: values.errors }, { status: 400, headers: noStore });
   const orderId = `manual_${randomUUID()}`;
 
   try {
@@ -79,8 +88,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       email: parsed.data.email,
       userId: null,
       orderId,
-      customFieldValues: parsed.data.customFieldValues ?? {},
-      domain: parsed.data.domain,
+      customFieldValues: values.values,
       source: 'manual',
     });
     if (!result || !result.id) {

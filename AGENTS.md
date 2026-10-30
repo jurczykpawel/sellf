@@ -470,6 +470,24 @@ lead, license…), and each seller builds their integration on top (n8n, Make, o
 from the receiver's side: a receiver must be able to act on them alone (IDs, statuses, amounts, periods, links).
 The existing `InvoiceProvider`/Fakturownia stays for sellers who want it, but no new direct integrations.
 
+### Committed business events
+
+`public.business_events` records access, seat and abandoned-order transitions in the same transaction as the change.
+One shared producer (`capture_business_event`) includes saved dates, state transitions, actor and reason, including guest claims.
+Administrative access mutations use `mutate_access` so actor context and data changes commit together.
+`src/lib/services/business-events.ts` leases these records and hands them to the existing signed webhook queue with stable keys.
+Instrumentation starts the production worker every 30 seconds; `/api/cron?job=business-events` is the external scheduler entry point.
+The same worker captures natural access expiry, including renewed grants; test fixtures and builds do not start its timer.
+
+### Free checkout field context
+
+Free magic-link requests validate custom answers before email and persist them in service-only `free_grant_contexts`.
+The redirect carries only an opaque request UUID; authenticated lookup is bound to the verified email and product.
+`grant_free_with_context` copies answers into `user_product_access.custom_field_values` before the access event is captured.
+The signer and lead event read that saved snapshot. Other-login pending grants consult the same store even without an auth metadata marker.
+The older marker RPC remains supported for existing links; consumed contexts expire separately from the durable access snapshot.
+Manual license domains follow the product's `_sellf_license_domain` definition; products without that field issue unbound tokens.
+
 ### When Adding Features
 
 1. **Database First**: Design schema with RLS policies before implementing

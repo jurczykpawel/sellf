@@ -7,10 +7,11 @@ const verifyCaptchaToken = vi.hoisted(() => vi.fn());
 const validateEmailAction = vi.hoisted(() => vi.fn());
 const checkRateLimit = vi.hoisted(() => vi.fn());
 const checkRateLimitForIdentifier = vi.hoisted(() => vi.fn());
-const queuePendingFreeGrant = vi.hoisted(() => vi.fn());
+const prepareFreeGrantRequest = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/auth/magic-link/deliver', () => ({ deliverMagicLink }));
-vi.mock('@/lib/services/pending-free-grants', () => ({ queuePendingFreeGrant }));
+vi.mock('@/lib/services/free-grant-context', () => ({ prepareFreeGrantRequest }));
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => ({}) }));
 vi.mock('@/lib/captcha/verify', () => ({ verifyCaptchaToken }));
 vi.mock('@/lib/actions/validate-email', () => ({ validateEmailAction }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit, checkRateLimitForIdentifier }));
@@ -36,7 +37,8 @@ describe('requestMagicLink', () => {
     validateEmailAction.mockReset();
     checkRateLimit.mockReset();
     checkRateLimitForIdentifier.mockReset();
-    queuePendingFreeGrant.mockReset();
+    prepareFreeGrantRequest.mockReset();
+    prepareFreeGrantRequest.mockResolvedValue({ ok: true, requestId: '00000000-0000-4000-8000-000000000001', values: {} });
 
     deliverMagicLink.mockResolvedValue({ ok: true });
     verifyCaptchaToken.mockResolvedValue({ success: true });
@@ -128,7 +130,7 @@ describe('requestMagicLink', () => {
         redirectTo:
           'https://shop.example.com/auth/callback?redirect_to=' +
           encodeURIComponent(
-            '/auth/product-access?product=widget&coupon=SAVE10&success_url=https%3A%2F%2Fseller.example.com%2Fthanks',
+            '/auth/product-access?product=widget&coupon=SAVE10&success_url=https%3A%2F%2Fseller.example.com%2Fthanks&free_grant=00000000-0000-4000-8000-000000000001',
           ),
         data: { product_slug: 'widget', locale: 'en' },
       }),
@@ -176,25 +178,25 @@ describe('requestMagicLink', () => {
     expect(deliverMagicLink).not.toHaveBeenCalled();
   });
 
-  it('remembers the requested free product after the link is sent, so any later sign-in grants it', async () => {
+  it('stores the requested free product before email so any later sign-in can finish it', async () => {
     await requestMagicLink({ ...BASE_INPUT, flow: 'free_product', productSlug: 'widget' });
 
-    expect(queuePendingFreeGrant).toHaveBeenCalledWith('buyer@example.com', 'widget');
+    expect(prepareFreeGrantRequest).toHaveBeenCalledWith(expect.anything(), 'buyer@example.com', 'widget', undefined);
   });
 
-  it('does not remember the free product when the link could not be sent', async () => {
+  it('retains the prepared checkout context when email delivery fails', async () => {
     deliverMagicLink.mockResolvedValueOnce({ ok: false, code: 'send_failed' });
 
     await requestMagicLink({ ...BASE_INPUT, flow: 'free_product', productSlug: 'widget' });
 
-    expect(queuePendingFreeGrant).not.toHaveBeenCalled();
+    expect(prepareFreeGrantRequest).toHaveBeenCalledTimes(1);
   });
 
   it('never queues a grant for login or post_checkout links', async () => {
     await requestMagicLink({ ...BASE_INPUT, flow: 'login' });
     await requestMagicLink({ ...BASE_INPUT, flow: 'post_checkout', productSlug: 'widget' });
 
-    expect(queuePendingFreeGrant).not.toHaveBeenCalled();
+    expect(prepareFreeGrantRequest).not.toHaveBeenCalled();
   });
 
   it('rejects post_checkout without a productSlug', async () => {
@@ -290,7 +292,7 @@ describe('demo magic links', () => {
     expect(verifyCaptchaToken).not.toHaveBeenCalled();
     expect(validateEmailAction).not.toHaveBeenCalled();
     expect(deliverMagicLink).not.toHaveBeenCalled();
-    expect(queuePendingFreeGrant).not.toHaveBeenCalled();
+    expect(prepareFreeGrantRequest).not.toHaveBeenCalled();
   });
 
   it('declines trusted delivery before processing', async () => {

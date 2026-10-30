@@ -1,0 +1,75 @@
+{
+  "received_at": "2026-10-28T17:42:07.114378+00:00",
+  "signature_verified_before_anonymization": true,
+  "payload": {
+    "id": "64542a9f-f7f4-4ee7-9650-0d8ad1a11dff",
+    "data": {
+      "lines": [
+        {
+          "id": "2097a446-4125-4167-ab0a-60b6a640caed",
+          "tier_id": null,
+          "currency": "PLN",
+          "metadata": {},
+          "quantity": 1,
+          "vat_rate": 23,
+          "item_type": "main_product",
+          "created_at": "2026-10-28T17:42:06.36527+00:00",
+          "net_amount": 10000,
+          "product_id": "627cf4b6-f0f1-4b44-b500-c9d7400f1bc4",
+          "session_id": null,
+          "tax_amount": 2300,
+          "tier_label": null,
+          "unit_price": 123,
+          "vat_exempt": false,
+          "total_price": 123,
+          "product_name": "Recorded transfer",
+          "tax_behavior": "inclusive",
+          "order_bump_id": null,
+          "session_label": null,
+          "tax_breakdown": [],
+          "transaction_id": "523626ea-972b-47b5-aeeb-4ae967b1ae98",
+          "discounted_total": 123,
+          "session_starts_at": null,
+          "taxability_reason": null,
+          "access_duration_override": null
+        }
+      ],
+      "order": {
+        "dueAt": "2026-11-11T17:42:06.36527+00:00",
+        "amount": 12300,
+        "orderId": "523626ea-972b-47b5-aeeb-4ae967b1ae98",
+        "currency": "PLN",
+        "transfer": {
+          "bank": "Bank testowy",
+          "title": "Zamówienie 1319",
+          "holder": "[ANONYMIZED]",
+          "account": "[ANONYMIZED]"
+        },
+        "orderNumber": 1319
+      },
+      "orderDetails": {
+        "v": 1,
+        "buyer": {
+          "v": 1,
+          "nip": "",
+          "city": "",
+          "type": "person",
+          "email": "integrator-606de045ae@example.com",
+          "source": "checkout",
+          "address": "",
+          "country": "PL",
+          "saved_at": "2026-10-28T17:42:06.200Z",
+          "full_name": "Recorded buyer",
+          "last_name": "Recorded buyer",
+          "first_name": "Recorded buyer",
+          "postal_code": "",
+          "company_name": "",
+          "needs_invoice": false,
+          "terms_accepted": true
+        }
+      }
+    },
+    "event": "order.placed",
+    "timestamp": "2026-10-28T17:42:06.760Z"
+  }
+}
