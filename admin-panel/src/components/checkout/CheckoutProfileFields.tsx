@@ -1,7 +1,7 @@
 'use client';
 
 /** Profile UI uses the same values as the server module registry. @see lib/checkout-modules/registry.ts */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { getCountryOptions } from '@/lib/checkout/countries';
 import { validateModuleValues } from '@/lib/checkout-modules/registry';
@@ -12,6 +12,10 @@ import type { UseInvoiceDataReturn } from '@/hooks/useInvoiceData';
 
 interface Person { first_name: string; last_name: string; email: string }
 interface Party { company_name: string; nip: string; address: string; city: string; postal_code: string; country: string }
+const noopSubscribe = () => () => {};
+function useProfileInteractive(): boolean {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
+}
 const emptyParty: Party = { company_name: '', nip: '', address: '', city: '', postal_code: '', country: 'PL' };
 
 export function useCheckoutProfileValues(profile: CheckoutProfile | null, invoice: UseInvoiceDataReturn, email: string, quantity: number) {
@@ -54,7 +58,9 @@ export function useCheckoutProfileValues(profile: CheckoutProfile | null, invoic
 type ModuleConfig = CheckoutProfile['modules'][number];
 type ProfileFormState = ReturnType<typeof useCheckoutProfileValues>;
 interface Props { profile: CheckoutProfile; state: ProfileFormState; invoice: UseInvoiceDataReturn; errors: FieldError[]; disabled: boolean }
-export default function CheckoutProfileFields({ profile, state, invoice, errors, disabled }: Props) {
+export default function CheckoutProfileFields({ profile, state, invoice, errors, disabled: processing }: Props) {
+  const interactive = useProfileInteractive();
+  const disabled = !interactive || processing;
   const t = useTranslations('checkout.profile');
   const locale = useLocale();
   const fieldsRef = useRef<HTMLDivElement>(null);
@@ -125,11 +131,12 @@ export default function CheckoutProfileFields({ profile, state, invoice, errors,
 }
 
 export function CheckoutQuantityField({ config, value, onChange, invalid }: { config: Extract<CheckoutProfile['modules'][number], { id: 'quantity' }>; value: string; onChange: (value: string) => void; invalid: boolean }) {
+  const interactive = useProfileInteractive();
   const t = useTranslations('checkout.profile');
   return <div className="mb-4">
     <label htmlFor="checkoutQuantity" className="mb-1 block text-sm font-medium text-sf-body">{t('quantity')}</label>
     <input id="checkoutQuantity" className={`w-full rounded-lg border ${invalid ? 'border-sf-danger' : 'border-sf-border'} bg-sf-input px-3 py-2.5 text-sf-heading`}
-      type="text" inputMode="numeric" value={value} required aria-invalid={invalid} aria-describedby={invalid ? 'checkoutQuantity-error' : undefined} onChange={event => onChange(event.target.value)} />
+      type="text" inputMode="numeric" value={value} disabled={!interactive} required aria-invalid={invalid} aria-describedby={invalid ? 'checkoutQuantity-error' : undefined} onChange={event => onChange(event.target.value)} />
     {invalid && <p id="checkoutQuantity-error" role="alert" className="mt-1 text-sm text-sf-danger">{t('errors.invalid')} ({config.min}–{config.max})</p>}
   </div>;
 }

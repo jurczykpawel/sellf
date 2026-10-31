@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
 import React from 'react';
+import { renderToString } from 'react-dom/server';
 import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
-import CheckoutProfileFields, { useCheckoutProfileValues } from '@/components/checkout/CheckoutProfileFields';
+import CheckoutProfileFields, { CheckoutQuantityField, useCheckoutProfileValues } from '@/components/checkout/CheckoutProfileFields';
 import { validateModuleValues } from '@/lib/checkout-modules/registry';
 import type { CheckoutProfile } from '@/lib/checkout-modules/profile';
 import type { UseInvoiceDataReturn } from '@/hooks/useInvoiceData';
@@ -77,4 +78,37 @@ it('renders a single phone label with its associated input', () => {
   render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(CheckoutProfileFields, { profile, state, invoice, errors: [], disabled: false })));
   expect(screen.getAllByText('Phone')).toHaveLength(1);
   expect(screen.getByLabelText('Phone').tagName).toBe('INPUT');
+});
+
+const hydrationProfile: CheckoutProfile = { v: 1, modules: [
+  { id: 'buyer', types: ['person', 'organization'], gus: false },
+  { id: 'recipient', for: ['organization'] }, { id: 'phone', required: true },
+  { id: 'participants', required: true, prefill_from_buyer: false },
+] };
+function HydrationHarness({ disabled = false }: { disabled?: boolean }) {
+  const state = useCheckoutProfileValues(hydrationProfile, invoice, 'buyer@example.com', 1);
+  return React.createElement(NextIntlClientProvider, { locale: 'en', messages: en },
+    React.createElement(CheckoutProfileFields, { profile: hydrationProfile, state, invoice, errors: [], disabled }));
+}
+it('keeps every server-rendered profile control inactive until the client is ready', () => {
+  const container = document.createElement('div');
+  container.innerHTML = renderToString(React.createElement(HydrationHarness));
+  const controls = [...container.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input,select')];
+  expect(controls.length).toBeGreaterThan(5);
+  expect(controls.every(control => control.disabled || control.closest('fieldset[disabled]'))).toBe(true);
+});
+it('keeps the server-rendered quantity inactive until the client is ready', () => {
+  const html = renderToString(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en },
+    React.createElement(CheckoutQuantityField, { config: { id: 'quantity', min: 1, max: 5, mode: 'checkout' }, value: '1', onChange: vi.fn(), invalid: false })));
+  const container = document.createElement('div'); container.innerHTML = html;
+  expect(container.querySelector('input')?.disabled).toBe(true);
+});
+it('enables hydrated profile controls and honors payment processing for all modules', () => {
+  const { container, rerender } = render(React.createElement(HydrationHarness));
+  fireEvent.change(screen.getByLabelText('Buyer type'), { target: { value: 'organization' } });
+  fireEvent.click(screen.getByRole('checkbox'));
+  expect(document.getElementById('recipient.country')).not.toBeNull();
+  expect([...container.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input,select')].every(control => !control.disabled && !control.closest('fieldset[disabled]'))).toBe(true);
+  rerender(React.createElement(HydrationHarness, { disabled: true }));
+  expect([...container.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input,select')].every(control => control.disabled || control.closest('fieldset[disabled]'))).toBe(true);
 });
