@@ -121,7 +121,15 @@ describe('Magic-link gateway', () => {
     const href = extractHref(message.HTML || '');
     expect(href).toBeTruthy();
     const redirectTo = decodeURIComponent(href!.split('redirect_to=')[1].split('&token_hash=')[0]);
-    expect(redirectTo).toBe('/auth/product-access?product=free-tutorial');
+    const destination = new URL(redirectTo, API_URL);
+    expect(destination.pathname).toBe('/auth/product-access');
+    expect(destination.searchParams.get('product')).toBe('free-tutorial');
+    const contextId = destination.searchParams.get('free_grant');
+    expect(contextId).toMatch(/^[0-9a-f-]{36}$/);
+    const context = await supabaseAdmin().from('free_grant_contexts').select('email,product_id,custom_field_values').eq('id', contextId!).single();
+    const product = await supabaseAdmin().from('products').select('id').eq('slug', 'free-tutorial').single();
+    expect(context.error).toBeNull();
+    expect(context.data).toEqual({ email, product_id: product.data!.id, custom_field_values: {} });
   });
 
   it('rejects a replayed solved captcha payload on a second request (no mocks: real challenge, real solve)', async () => {

@@ -7,7 +7,7 @@ import Stripe from 'stripe';
 import { acceptAllCookies } from './helpers/consent';
 import { createTestAdmin, createTestUser, setAuthSession } from './helpers/admin-auth';
 import { test, startNativeCheckout } from './helpers/checkout-intent';
-import { openSettingsTab, PAYMENTS_TAB } from './helpers/settings-tabs';
+import { readCheckoutTerms, setCheckoutTerms, restoreCheckoutTerms } from './helpers/checkout-settings';
 import type { Page } from '@playwright/test';
 
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -35,19 +35,17 @@ function remember(body: { checkoutSessionId?: string; sessionId?: string }) {
 async function fillBuyer(page: Page) {
   for (const [key, value] of Object.entries(company)) await page.locator(`[id="buyer.${key}"]`).fill(value);
 }
-async function setTerms(page: Page, enabled: boolean) {
-  await setAuthSession(page, admin.email, admin.password);
-  const toggle = page.getByRole('switch', { name: 'Terms of Service Consent', exact: true });
-  await openSettingsTab(page, PAYMENTS_TAB, toggle, '/en/dashboard/settings');
-  if ((await toggle.getAttribute('aria-checked')) !== String(enabled)) await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-checked', String(enabled));
-  await expect.poll(async () => (await db.from('shop_config').select('checkout_collect_terms').single()).data?.checkout_collect_terms).toBe(enabled);
-  await page.context().clearCookies({ name: /^sb-/ });
-}
+const setTerms = (page: Page, enabled: boolean) => setCheckoutTerms(page, admin, enabled);
+let savedTerms: boolean | null;
+let savedBank: Record<string, unknown>;
 test.beforeAll(async ({ baseURL }) => {
   expect(process.env.STRIPE_SECRET_KEY).toMatch(/^sk_test_/);
   expect(new URL(process.env.SUPABASE_URL!).hostname).toMatch(/^(127\.0\.0\.1|localhost)$/);
   sellfOrigin = baseURL!;
+  savedTerms = await readCheckoutTerms();
+  const bank = await db.from('bank_transfer_config').select('*').single();
+  expect(bank.error).toBeNull(); savedBank = bank.data!;
+  expect((await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_transfer_grant_access_on_placement: false, bank_account_holder: 'Example workshops', bank_account_number: 'PL61109010140000071219812874' }).eq('id', true)).error).toBeNull();
   admin = await createTestAdmin('cart-admin'); buyer = await createTestUser('cart-buyer');
   sellerId = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users.find(u => u.email === admin.email)!.id;
   for (const template of ['default', 'tip-jar', 'oto', 'bank']) {
@@ -66,7 +64,9 @@ test.beforeAll(async ({ baseURL }) => {
   sellerOrigin = `http://127.0.0.1:${address.port}`;
   expect((await db.from('seller_embed_settings').upsert({ seller_id: sellerId, allowed_embed_origins: [sellerOrigin] })).error).toBeNull();
 });
-test.afterAll(async () => {
+test.beforeEach(async ({ page }) => { await acceptAllCookies(page); await setTerms(page, false); });
+test.afterAll(async ({ browser }) => {
+  if (savedBank) expect((await db.from('bank_transfer_config').upsert(savedBank)).error).toBeNull();
   for (const id of sessions) { const row = await stripe.checkout.sessions.retrieve(id); if (row.status === 'open') await stripe.checkout.sessions.expire(id).catch(async error => { if ((await stripe.checkout.sessions.retrieve(id)).status !== 'expired') throw error; }); }
   const ids = products.map(p => p.id);
   if (ids.length) {
@@ -79,8 +79,11 @@ test.afterAll(async () => {
   if (sellerId) await db.from('seller_embed_settings').delete().eq('seller_id', sellerId);
   const guests = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users.filter(user => user.email === `cart-guest-${run}@example.com`);
   for (const guest of guests) await db.auth.admin.deleteUser(guest.id);
-  await buyer?.cleanup(); await admin?.cleanup();
-  seller.closeAllConnections(); await new Promise<void>(resolve => seller.close(() => resolve()));
+  try { if (admin) await restoreCheckoutTerms(browser, admin, savedTerms); }
+  finally {
+    await buyer?.cleanup(); await admin?.cleanup();
+    seller.closeAllConnections(); await new Promise<void>(resolve => seller.close(() => resolve()));
+  }
 });
 
 for (const locale of ['en', 'pl']) test(`${locale}: coupon stays absent by default across native cart entries`, async ({ page }) => {

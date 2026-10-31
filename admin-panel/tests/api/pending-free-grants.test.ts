@@ -75,7 +75,9 @@ describe('Pending free grants', () => {
       .eq('product_id', product!.id);
     expect(access).toHaveLength(1);
 
-    const { data: fresh } = await admin.auth.admin.getUserById(link.user!.id);
-    expect(fresh.user?.app_metadata?.pending_free_grants).toEqual([]);
+    const context = await admin.from('free_grant_contexts').select('claimed_at').eq('email', email).eq('product_id', product!.id);
+    expect(context.error).toBeNull();
+    expect(context.data).toHaveLength(1);
+    expect(context.data![0].claimed_at).not.toBeNull();
   });
 });

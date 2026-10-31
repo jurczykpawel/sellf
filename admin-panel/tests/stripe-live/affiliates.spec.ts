@@ -59,13 +59,8 @@ async function card(page: Page) {
 }
 async function checkout(page: Page, slug: string, email: string, coupon?: string) {
   await acceptAllCookies(page);
-  await page.goto(`/pl/p/${slug}?email=${encodeURIComponent(email)}`);
-  if (coupon) {
-    await page.getByText('Masz kod rabatowy?', { exact: true }).click();
-    await page.getByRole('textbox', { name: 'Kod rabatowy' }).fill(coupon);
-    await page.getByRole('button', { name: 'Zastosuj' }).click();
-    await expect(page.getByRole('textbox', { name: 'Kod rabatowy' })).toBeDisabled();
-  }
+  await page.goto(`/pl/p/${slug}?email=${encodeURIComponent(email)}${coupon ? `&coupon=${encodeURIComponent(coupon)}` : ''}`);
+  if (coupon) await expect(page.getByRole('textbox', { name: 'Kod rabatowy' })).toHaveValue(coupon);
   await startNativeCheckout(page);
   await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
   await page.locator('#checkoutEmail').fill(email); await page.locator('#fullName').fill('Affiliate Test Buyer');

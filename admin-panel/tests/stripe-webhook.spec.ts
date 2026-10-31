@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
+import { paidIntent, refundEvent, clearPaidIntent, saveStripeRecording } from './helpers/stripe-test-events';
 import { STRIPE_API_VERSION } from '@/lib/constants';
 
 /**
@@ -417,14 +418,11 @@ test.describe('Stripe Webhook Security', () => {
 
   test.describe('Refund Handling', () => {
     test('should handle charge.refunded for non-existent transaction', async ({ request }) => {
-      const { payload } = createMockEvent('charge.refunded', {
-        id: 'ch_test_nonexistent',
-        payment_intent: 'pi_test_nonexistent_12345',
-        amount_refunded: 1000,
-        refunds: {
-          data: [{ id: 'ref_test_123' }],
-        },
-      });
+      const intent = await paidIntent(1000, 'usd', `unmatched-${Date.now()}@example.com`);
+      const { event } = await refundEvent(intent.id, 1000, 1000);
+      saveStripeRecording('unmatched_refund', event);
+      const payload = JSON.stringify(event);
+      await clearPaidIntent(intent.id);
       const signature = generateWebhookSignature(payload, WEBHOOK_SECRET);
 
       const response = await request.post(WEBHOOK_URL, {
@@ -438,6 +436,8 @@ test.describe('Stripe Webhook Security', () => {
       expect(response.status()).toBe(200);
       const json = await response.json();
       expect(json.received).toBe(true);
+      const orders = await createClient(SUPABASE_URL, SERVICE_ROLE_KEY).from('payment_transactions').select('id').eq('stripe_payment_intent_id', intent.id);
+      expect(orders.error).toBeNull(); expect(orders.data).toEqual([]);
       // Security-hardened response: refund processing details not exposed
     });
   });

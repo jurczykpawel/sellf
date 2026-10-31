@@ -236,10 +236,23 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         if (document.body?.innerText.includes('Payment Failed')) (window as unknown as { recordPaymentFailure: () => void }).recordPaymentFailure();
       }).observe(document, { childList: true, subtree: true });
     });
-    await page.goto(`/en/checkout/${slug}?${s.netCouponQuantity ? '' : `email=${encodeURIComponent(s.email)}`}${options.setPrice || options.fixedPrice ? `&coupon=${s.coupon!.code}` : ''}`);
+    const query = new URLSearchParams();
+    if (!s.netCouponQuantity) query.set('email', s.email);
+    if (s.coupon) query.set('coupon', s.coupon.code);
+    await page.goto(`/en/checkout/${slug}?${query}`);
     await expect(page.getByRole('button', { name: /Continue to payment/ })).toHaveCount(0);
-    if (s.netCouponQuantity) await page.getByLabel('Quantity', { exact: true }).fill(String(s.netCouponQuantity));
-    if (s.profile || options.event) await page.getByLabel('Quantity', { exact: true }).fill(options.event ? '2' : '3');
+    if (s.coupon) await expect(page.getByRole('button', { name: 'Remove discount code', exact: true })).toBeVisible();
+    const initiallyFree = !!options.fixedPrice && (s.netCouponQuantity ?? 0) > 1;
+    if (initiallyFree) await expect(page.getByRole('button', { name: /Send magic link/i })).toBeVisible();
+    else await startNativeCheckout(page);
+    const desiredQuantity = s.netCouponQuantity ?? (s.profile ? 3 : options.event ? 2 : null);
+    if (desiredQuantity !== null) {
+      const quantity = page.getByLabel('Quantity', { exact: true });
+      if ((await quantity.inputValue()) !== String(desiredQuantity)) {
+        await quantity.fill(String(desiredQuantity));
+        await startNativeCheckout(page);
+      }
+    }
     if (s.profile) {
       for (const prefix of ['buyer', 'recipient']) {
         if (prefix === 'recipient') await page.getByLabel('Different recipient').check();
@@ -258,10 +271,13 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       await page.locator('[id="buyer.last_name"]').fill('Test Buyer');
     }
     const hasProfile = !!s.profile || !!options.event || !!s.netCouponQuantity;
-    if (hasProfile && !s.buyerId) await page.locator('[id="buyer.email"]').fill(s.email);
-    await startNativeCheckout(page);
-    if (!s.subscription && !s.noBump) await page.getByRole('button', { name: /Add to order/i }).click();
+    if (!s.subscription && !s.noBump) {
+      await page.getByRole('button', { name: /Add to order/i }).click();
+      await startNativeCheckout(page);
+    }
     if (hasProfile) {
+      const emailInput = page.locator('input#checkoutEmail');
+      if (await emailInput.count()) await emailInput.fill(s.email);
       await expect(page.locator('#checkoutEmail')).toHaveCount(0);
       await expect(page.locator('[data-test-email]')).toHaveAttribute('data-test-email', s.email, { timeout: 90000 });
       await expect(page.locator('[data-test-email]').getByText(s.email, { exact: true })).toBeVisible();
@@ -269,17 +285,9 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
       await page.locator('#checkoutEmail').fill(s.email);
     }
-    if (s.coupon && !options.setPrice && !options.fixedPrice) {
-      await page.locator('summary').filter({ hasText: /coupon|discount/i }).click();
-      await page.getByLabel(/discount code/i).fill(s.coupon.code);
-      const couponSession = page.waitForResponse(response =>
-        new URL(response.url()).pathname === '/api/create-payment-intent'
-        && response.request().postDataJSON()?.couponCode === s.coupon!.code,
-      );
-      await page.getByRole('button', { name: /Apply/i }).click();
-      expect((await couponSession).status()).toBe(200);
+    if (s.coupon) {
+      await expect(page.getByRole('textbox', { name: 'Discount code', exact: true })).toHaveValue(s.coupon.code);
       await expect(page.getByRole('button', { name: /Remove discount code/i })).toBeVisible();
-      if (!hasProfile) await page.locator('#checkoutEmail').fill(s.email);
     }
     if (!s.profile && !options.event && !s.netCouponQuantity) await page.locator('#fullName').fill('Stripe Test Buyer');
     if (!s.subscription && !options.event) await page.getByLabel(/License domain/).fill(s.domain);
@@ -339,7 +347,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       const completed = txs.filter(row => row.status === 'completed');
       expect(completed).toHaveLength(1);
       for (const superseded of txs.filter(row => row.status !== 'completed')) {
-        expect(superseded.customer_email).toBe(s.email);
+        expect(superseded.customer_email).toBe(s.netCouponQuantity ? 'pending@sellf.app' : s.email);
         expect(superseded.status).toBe('abandoned');
         expect((await stripe.checkout.sessions.retrieve(superseded.session_id)).status).toBe('expired');
       }

@@ -3,7 +3,8 @@ import { test as base, expect } from '@playwright/test';
 import type { Page, Request, Response } from '@playwright/test';
 
 const captured = new WeakMap<Page, Response[]>();
-export const test = base.extend({ page: async ({ page }, use) => {
+function observeCheckout(page: Page): void {
+  if (captured.has(page)) return;
   let visit = 0;
   const requests = new WeakMap<Request, number>();
   captured.set(page, []);
@@ -14,7 +15,11 @@ export const test = base.extend({ page: async ({ page }, use) => {
   page.on('response', response => {
     if (requests.get(response.request()) === visit) captured.get(page)?.push(response);
   });
-  await use(page);
+}
+export const test = base.extend({ context: async ({ context }, use) => {
+  context.pages().forEach(observeCheckout);
+  context.on('page', observeCheckout);
+  try { await use(context); } finally { context.off('page', observeCheckout); }
 } });
 
 export async function startNativeCheckout(page: Page): Promise<Response> {

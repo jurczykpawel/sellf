@@ -65,7 +65,8 @@ for (const locale of ['en', 'pl'] as const) {
     await page.goto(`/${locale}/dashboard/payments`);
     const search = page.getByPlaceholder(labels.admin.payments.filters.searchPlaceholder);
     await search.fill(email);
-    const row = page.getByRole('row').filter({ hasText: email });
+    const row = page.getByRole('row').filter({ hasText: transactionId.slice(0, 8) });
+    await expect(row).toContainText(email);
     await row.getByRole('button', { name: labels.admin.payments.transactions.details }).click();
     await expect(page.getByText(`${labels.checkout.couponDiscount} (UX${productId.replaceAll('-', '').slice(0, 12)})`, { exact: true })).toBeVisible();
     await expect(page.getByText(/−.*4[,.]90/)).toBeVisible();
@@ -114,10 +115,10 @@ for (const locale of ['en', 'pl'] as const) {
 
 test('embedded Polish page uses Polish Stripe configuration and network errors', async ({ page }) => {
   await page.route('**/embed-host', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html lang="pl"><body>
-    <div data-sellf-embed data-product-slug="${slug}"></div>
+    <div data-sellf-embed data-product-slug="${slug}" data-coupon="LINK"></div>
     <script>window.Stripe=function(key, options){window.stripeOptions=options;return {initEmbeddedCheckout:async()=>({mount(target){target.textContent='Stripe fixture'},destroy(){}})}};</script>
     <script src="/embed/v1/checkout.js"></script></body></html>` }));
-  await page.route('**/api/embed/checkout-session?*', route => route.request().postDataJSON().couponCode
+  await page.route('**/api/embed/checkout-session?*', route => route.request().postDataJSON().couponCode === 'SAVE'
     ? route.abort('failed') : route.fulfill({ json: { kind: 'paid', clientSecret: 'fixture' } }));
   await page.goto('/embed-host');
   await expect(page.getByText('Stripe fixture')).toBeVisible();
