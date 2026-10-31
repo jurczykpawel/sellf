@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 import { loginAsAdmin, supabaseAdmin as db } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
+import { readCheckoutTerms, setCheckoutTerms, restoreCheckoutTerms } from './helpers/checkout-settings';
 import { restoreBaselineTaxMode } from './helpers/tax-mode';
 import { MAILPIT_URL } from './helpers/mailpit';
 import type { Page } from '@playwright/test';
@@ -11,10 +12,13 @@ let product: { id: string; slug: string }, sessionId: string, endpointId: string
 let bankConfig: unknown, invoiceConfig: unknown, shop: { id: string; tax_mode: string | null };
 const email = `transfer-${randomUUID()}@example.com`, cancelledEmail = `cancel-${randomUUID()}@example.com`;
 const ids: string[] = [];
+let savedTerms: boolean | null | undefined;
+const settingsAdmin = { email: 'demo@sellf.app', password: 'demo123' };
 if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(process.env.SUPABASE_URL ?? '')) throw new Error('Requires a local disposable Supabase stack');
 test.describe.configure({ mode: 'serial' });
 async function checked<T>({ data, error }: { data: T; error: unknown }): Promise<NonNullable<T>> { if (error) throw error; return data!; }
 test.beforeAll(async () => {
+  savedTerms = await readCheckoutTerms();
   shop = await checked(await db.from('shop_config').select('id,tax_mode').single());
   bankConfig = await checked(await db.from('bank_transfer_config').select('*').single());
   invoiceConfig = await checked(await db.from('invoicing_config').select('*').single());
@@ -26,29 +30,32 @@ test.beforeAll(async () => {
   endpointId = (await checked(await db.from('webhook_endpoints').insert({ url: 'https://127.0.0.1/transfer-fixture', events: ['order.placed', 'order.cancelled', 'order.overdue', 'purchase.completed'], secret: 'test-only-secret', product_filter_mode: 'selected', is_active: true }).select('id').single())).id;
   await checked(await db.from('webhook_endpoint_products').insert({ webhook_endpoint_id: endpointId, product_id: product.id }).select());
 });
+test.beforeEach(async ({ page }) => { await setCheckoutTerms(page, settingsAdmin, true); });
 test.afterAll(async ({ browser }) => {
-  if (endpointId) { await db.from('webhook_logs').delete().eq('endpoint_id', endpointId); await db.from('webhook_endpoints').delete().eq('id', endpointId); }
-  if (product) {
-    if (ids.length) await db.from('invoices').delete().in('transaction_id', ids);
-    await db.from('guest_purchases').delete().eq('product_id', product.id);
-    await db.from('payment_transactions').delete().eq('product_id', product.id);
-    await db.from('products').delete().eq('id', product.id);
-  }
-  for (const buyerEmail of [email, cancelledEmail]) {
-    const users = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users;
-    for (const user of users.filter(u => u.email === buyerEmail)) await db.auth.admin.deleteUser(user.id);
-  }
-  if (shop) {
-    const page = await browser.newPage();
-    try {
-      await loginAsAdmin(page, 'demo@sellf.app', 'demo123'); await page.goto('/pl/dashboard/settings');
-      await page.getByRole('button', { name: 'Płatności', exact: true }).click();
-      await Promise.all([page.waitForResponse(r => r.request().method() === 'POST' && !!r.request().postData()?.includes('tax_mode')),
-        page.getByRole('button', { name: 'Stała stawka', exact: true }).click()]);
-    } finally { await restoreBaselineTaxMode(db); await page.close(); }
-  }
-  if (bankConfig) await db.from('bank_transfer_config').upsert(bankConfig as never);
-  if (invoiceConfig) await db.from('invoicing_config').upsert(invoiceConfig as never);
+  try {
+    if (endpointId) { await db.from('webhook_logs').delete().eq('endpoint_id', endpointId); await db.from('webhook_endpoints').delete().eq('id', endpointId); }
+    if (product) {
+      if (ids.length) await db.from('invoices').delete().in('transaction_id', ids);
+      await db.from('guest_purchases').delete().eq('product_id', product.id);
+      await db.from('payment_transactions').delete().eq('product_id', product.id);
+      await db.from('products').delete().eq('id', product.id);
+    }
+    for (const buyerEmail of [email, cancelledEmail]) {
+      const users = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users;
+      for (const user of users.filter(u => u.email === buyerEmail)) await db.auth.admin.deleteUser(user.id);
+    }
+    if (shop) {
+      const page = await browser.newPage();
+      try {
+        await loginAsAdmin(page, 'demo@sellf.app', 'demo123'); await page.goto('/pl/dashboard/settings');
+        await page.getByRole('button', { name: 'Płatności', exact: true }).click();
+        await Promise.all([page.waitForResponse(r => r.request().method() === 'POST' && !!r.request().postData()?.includes('tax_mode')),
+          page.getByRole('button', { name: 'Stała stawka', exact: true }).click()]);
+      } finally { await restoreBaselineTaxMode(db); await page.close(); }
+    }
+    if (bankConfig) await db.from('bank_transfer_config').upsert(bankConfig as never);
+    if (invoiceConfig) await db.from('invoicing_config').upsert(invoiceConfig as never);
+  } finally { if (savedTerms !== undefined) await restoreCheckoutTerms(browser, settingsAdmin, savedTerms); }
 });
 async function open(page: Page) { await acceptAllCookies(page); await page.goto(`/pl/checkout/${product.slug}`); await expect(page.getByLabel('Typ nabywcy')).toBeVisible(); }
 async function place(page: Page, buyerEmail: string) {
