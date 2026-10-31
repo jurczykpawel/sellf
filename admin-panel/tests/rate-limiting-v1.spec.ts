@@ -162,6 +162,7 @@ test.describe('V1 API Rate Limiting', () => {
       let rateLimited = false;
 
       // The key has 3/min limit, try 10 requests
+      await waitForFreshWindow(1);
       for (let i = 0; i < 10; i++) {
         const response = await request.get('/api/v1/products', {
           headers: {
@@ -189,6 +190,7 @@ test.describe('V1 API Rate Limiting', () => {
 
       // Exhaust rate limit
       let rateLimitResponse: { error: { code: string; message: string } } | null = null;
+      await waitForFreshWindow(1);
       for (let i = 0; i < 10; i++) {
         const response = await request.get('/api/v1/products', {
           headers: {
@@ -227,6 +229,7 @@ test.describe('V1 API Rate Limiting', () => {
 
       try {
         // Exhaust first key's rate limit
+        await waitForFreshWindow(1);
         for (let i = 0; i < 5; i++) {
           await request.get('/api/v1/products', {
             headers: { 'X-API-Key': testApiKey },
@@ -372,6 +375,7 @@ test.describe('V1 API Rate Limiting', () => {
       let successCount = 0;
 
       // Make many requests - no endpoint-level limit
+      await waitForFreshWindow(1);
       for (let i = 0; i < 50; i++) {
         const response = await page.request.get('/api/v1/products');
 
@@ -389,6 +393,7 @@ test.describe('V1 API Rate Limiting', () => {
 
       let successCount = 0;
 
+      await waitForFreshWindow(1);
       for (let i = 0; i < 50; i++) {
         const response = await page.request.get('/api/v1/coupons');
 
@@ -405,6 +410,7 @@ test.describe('V1 API Rate Limiting', () => {
 
       let successCount = 0;
 
+      await waitForFreshWindow(1);
       for (let i = 0; i < 50; i++) {
         const response = await page.request.get('/api/v1/users');
 
@@ -421,6 +427,7 @@ test.describe('V1 API Rate Limiting', () => {
 
       let successCount = 0;
 
+      await waitForFreshWindow(1);
       for (let i = 0; i < 50; i++) {
         const response = await page.request.get('/api/v1/system/status');
 
@@ -479,6 +486,7 @@ test.describe('V1 API Rate Limiting', () => {
       let successCount = 0;
       let rateLimited = false;
 
+      await waitForFreshWindow(1);
       for (let i = 0; i < 10; i++) {
         const response = await request.get('/api/v1/products', {
           headers: {
@@ -551,6 +559,7 @@ test.describe('V1 API Rate Limiting', () => {
       expect(testApiKey, 'API key should have been created by previous test').toBeTruthy();
 
       let got429 = false;
+      await waitForFreshWindow(1);
       for (let i = 0; i < 10; i++) {
         const response = await request.get('/api/v1/products', {
           headers: {
@@ -571,6 +580,7 @@ test.describe('V1 API Rate Limiting', () => {
       expect(testApiKey, 'API key should have been created by previous test').toBeTruthy();
 
       let rateLimitResponse: { error: { code: string; message: string } } | null = null;
+      await waitForFreshWindow(1);
       for (let i = 0; i < 10; i++) {
         const response = await request.get('/api/v1/products', {
           headers: {
@@ -616,6 +626,7 @@ test.describe('V1 API Rate Limiting', () => {
 
       try {
         // Send 10 concurrent requests
+        await waitForFreshWindow(1);
         const promises = Array.from({ length: 10 }, () =>
           request.get('/api/v1/products', {
             headers: { 'X-API-Key': concurrentApiKey },

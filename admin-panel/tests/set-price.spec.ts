@@ -3,18 +3,26 @@ import { randomUUID } from 'node:crypto';
 import { expect } from '@playwright/test';
 import { supabaseAdmin as db, loginAsAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
+import { readCheckoutTerms, setCheckoutTerms, restoreCheckoutTerms } from './helpers/checkout-settings';
 import { test, startNativeCheckout } from './helpers/checkout-intent';
 
 let product: { id: string; slug: string }, code: string, couponId: string;
 let bank: Record<string, unknown>;
+let savedTerms: boolean | null | undefined;
+const settingsAdmin = { email: 'demo@sellf.app', password: 'demo123' };
 async function checked<T>(result: { data: T; error: unknown }): Promise<NonNullable<T>> { if (result.error) throw result.error; return result.data!; }
 test.describe.configure({ mode: 'serial' });
 test.beforeAll(async () => {
+  savedTerms = await readCheckoutTerms();
   bank = await checked(await db.from('bank_transfer_config').select('*').single());
   await checked(await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Test shop', bank_account_number: 'PL61109010140000071219812874' }).eq('id', bank.id as boolean).select());
 });
-test.afterAll(async () => { if (bank) await checked(await db.from('bank_transfer_config').upsert(bank as never).select()); });
-test.beforeEach(async () => {
+test.afterAll(async ({ browser }) => {
+  try { if (bank) await checked(await db.from('bank_transfer_config').upsert(bank as never).select()); }
+  finally { if (savedTerms !== undefined) await restoreCheckoutTerms(browser, settingsAdmin, savedTerms); }
+});
+test.beforeEach(async ({ page }) => {
+  await setCheckoutTerms(page, settingsAdmin, true);
   code = `PRICE-${randomUUID().slice(0, 8)}`.toUpperCase();
   product = await checked(await db.from('products').insert({ name: 'Kupon 49 na 30', slug: `set-price-${randomUUID()}`, price: 49, currency: 'PLN', is_active: true, is_listed: true, vat_exempt: true }).select('id,slug').single());
   couponId = (await checked(await db.from('coupons').insert({ code, discount_type: 'set_price', discount_value: 30, currency: 'PLN', allowed_product_ids: [product.id] }).select('id').single())).id;
