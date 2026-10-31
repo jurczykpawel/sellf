@@ -154,6 +154,7 @@ test.describe('Custom checkout fields', () => {
         bindingToken,
         productId,
         fullName: 'Test',
+        termsAccepted: true,
         customFieldValues: { message: 'hi' },
       },
       headers: {
@@ -171,6 +172,7 @@ test.describe('Custom checkout fields', () => {
         bindingToken,
         productId,
         fullName: 'Test',
+        termsAccepted: true,
         customFieldValues: { domain: 'final.com', message: 'final' },
       },
       headers: {

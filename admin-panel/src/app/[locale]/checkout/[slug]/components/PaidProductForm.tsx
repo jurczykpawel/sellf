@@ -607,6 +607,10 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         />
       )}
 
+      {quantityConfig && !isPwywFree && (quantityConfig.mode === 'product_page' || (quantityConfig.mode === 'checkout' && !hasAccess && !isFunnelTest)) && (
+        <CheckoutQuantityField config={quantityConfig} value={quantityInput} onChange={changeQuantity} invalid={quantityInvalid} />
+      )}
+
       {/* Checkout Card */}
       {!(isFreeAccess && !error && !hasAccess) && (
         <div className="bg-sf-raised backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-sf-border relative overflow-hidden">
@@ -615,7 +619,6 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           )}
 
           <h2 className="text-xl font-semibold text-sf-heading mb-4">{t('purchaseTitle')}</h2>
-          {quantityConfig?.mode === 'product_page' && <CheckoutQuantityField config={quantityConfig} value={quantityInput} onChange={changeQuantity} invalid={quantityInvalid} />}
 
           {product.event_mode && <>
             <EventSessions sessions={eventSessions} currency={product.currency} selected={eventSessionId} onSelect={id => { setEventSessionId(id); setError(null); setPurchaseStarted(false); }} />
@@ -629,7 +632,6 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           )}
 
           {profile && !hasAccess && !isFunnelTest && !isFreeAccess && <>
-            {quantityConfig?.mode === 'checkout' && <CheckoutQuantityField config={quantityConfig} value={quantityInput} onChange={changeQuantity} invalid={quantityInvalid} />}
             <CheckoutProfileFields profile={profile} state={profileForm} invoice={invoice} errors={profileForm.errors} disabled={paymentProcessing} />
             {transferAllowed && <fieldset className="my-4 space-y-3"><legend className="font-semibold">{bt('method')}</legend>
               {(['online', 'transfer'] as const).map(value => <label key={value} className="flex items-center gap-2 rounded-lg border border-sf-border p-3"><input type="radio" name="payment-method" value={value} checked={activeMethod === value} onChange={() => { setMethod(value); setPurchaseStarted(false); setClientSecret(null); setError(null); }} />{bt(value, { days: transfer?.dueDays ?? 14 })}</label>)}

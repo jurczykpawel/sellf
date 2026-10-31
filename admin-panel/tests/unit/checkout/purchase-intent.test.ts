@@ -23,6 +23,7 @@ vi.mock('@/hooks/useCheckoutRedirect', () => ({ useCheckoutRedirect: () => ({ ha
 vi.mock('@/app/[locale]/checkout/[slug]/components/ProductShowcase', () => ({ default: () => null }));
 vi.mock('@/hooks/useInvoiceData', () => ({ useInvoiceData: () => ({ fullName: 'Test Buyer', setFullName: vi.fn(), isLoadingProfile: false }) }));
 vi.mock('@/components/DemoCheckoutNotice', () => ({ default: () => null }));
+vi.mock('@/app/[locale]/checkout/[slug]/components/PwywSection', () => ({ default: ({ isFreeAccess }: { isFreeAccess: boolean }) => isFreeAccess ? React.createElement('div', { 'data-testid': 'free-access-view' }, 'Free access') : null }));
 vi.mock('@/components/checkout/InvoiceFields', () => ({ default: () => null }));
 vi.mock('@/hooks/useCoupon', () => ({ useCoupon: () => ({ appliedCoupon: mocks.coupon, couponCode: '', setCouponCode: vi.fn(), showCouponInput: false, isVerifyingCoupon: mocks.verifying, couponError: null, removeCoupon: vi.fn(), handleVerifyCoupon: vi.fn(), applyOtoCoupon: vi.fn() }) }));
 vi.mock('@stripe/react-stripe-js/checkout', () => ({
@@ -259,4 +260,26 @@ it('collects event email before creating a hold and starts automatically after a
   await waitFor(() => expect(creates()).toHaveLength(1));
   expect(JSON.parse(creates()[0][1].body)).toMatchObject({ email: 'attendee@example.com', sessionId: 'event-session' });
   expect(screen.queryByRole('button', { name: 'Continue to payment', exact: true })).toBeNull();
+});
+
+it.each(['product_page', 'checkout'] as const)('keeps %s quantity editable when a coupon initially makes the basket free', async mode => {
+  mocks.coupon = { id: 'coupon', code: 'FIXED350', discount_type: 'fixed', discount_value: 350, currency: 'PLN' } as AppliedCoupon;
+  mocks.fetch.mockResolvedValue({ ok: true, json: async () => ({ clientSecret: 'cs_test_secret', checkoutSessionId: 'cs_test' }) });
+  vi.stubGlobal('fetch', mocks.fetch);
+  render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, {
+    product: { id: 'test-product', name: 'Workshop', slug: 'workshop', price: 100, currency: 'PLN', vat_rate: 0,
+      checkout_profile: { v: 1, modules: [{ id: 'quantity', min: 1, max: 5, mode }] } } as Product,
+    collectTermsOfService: false,
+  })));
+  expect(screen.getByTestId('free-access-view')).toBeTruthy();
+  const creates = () => mocks.fetch.mock.calls.filter(([url, options]) => url === '/api/create-payment-intent' && !JSON.parse(options.body).expireOnly);
+  expect(creates()).toHaveLength(0);
+  const quantity = screen.getByLabelText('Quantity') as HTMLInputElement;
+  act(() => quantity.focus());
+  fireEvent.change(quantity, { target: { value: '5' } });
+  await waitFor(() => expect(creates()).toHaveLength(1));
+  expect(JSON.parse(creates()[0][1].body)).toMatchObject({ quantity: 5, couponCode: 'FIXED350' });
+  expect(screen.getByLabelText('Quantity')).toBe(quantity);
+  expect(document.activeElement).toBe(quantity);
+  await waitFor(() => expect(screen.getByTestId('payment-fields')).toBeTruthy());
 });

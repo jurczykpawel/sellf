@@ -333,7 +333,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
       {user && isAdmin && (
         <div className="pt-5 pb-2">
           <div
-            className="px-6 pb-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-sf-sidebar-text/70 whitespace-nowrap transition-opacity"
+            className="px-6 pb-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-sf-sidebar-text whitespace-nowrap transition-opacity"
             style={{
               opacity: expanded ? 1 : 0,
               transitionDuration: 'var(--sf-duration-normal, 250ms)',
@@ -351,7 +351,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
       )}
       <div className="pt-5 pb-2">
         <div
-          className="px-6 pb-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-sf-sidebar-text/70 whitespace-nowrap transition-opacity"
+          className="px-6 pb-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-sf-sidebar-text whitespace-nowrap transition-opacity"
           style={{
             opacity: expanded ? 1 : 0,
             transitionDuration: 'var(--sf-duration-normal, 250ms)',

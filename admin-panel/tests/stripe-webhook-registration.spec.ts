@@ -137,7 +137,7 @@ test.describe('Stripe Webhook Registration', () => {
     await gotoPaymentsSettings(page);
 
     for (const event of STRIPE_WEBHOOK_EVENTS) {
-      const eventCode = page.locator('code', { hasText: event });
+      const eventCode = page.locator('code').filter({ hasText: new RegExp('^' + event.replaceAll('.', '\\.') + '$') });
       await expect(eventCode).toBeVisible({ timeout: 10000 });
     }
   });

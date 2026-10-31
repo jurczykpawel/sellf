@@ -181,7 +181,7 @@ test.describe('Stripe Webhook Section UI', () => {
     await loginAndGoToSettings(page);
 
     for (const event of STRIPE_WEBHOOK_EVENTS) {
-      await expect(page.locator('code', { hasText: event })).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('code').filter({ hasText: new RegExp('^' + event.replaceAll('.', '\\.') + '$') })).toBeVisible({ timeout: 10000 });
     }
   });
 

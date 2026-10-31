@@ -232,8 +232,8 @@ test.describe('Tracking Events - DataLayer & FB Pixel', () => {
     await page.waitForLoadState('domcontentloaded');
 
     await expect.poll(async () => (await getDataLayerEvents(page)).filter((event: { event?: string }) => event.event === 'view_item').length).toBe(1);
-    expect((await getDataLayerEvents(page)).filter((event: { event?: string }) => event.event === 'begin_checkout')).toHaveLength(0);
-    expect((await getFbqCalls(page)).filter((call: { event?: string }) => call.event === 'InitiateCheckout')).toHaveLength(0);
+    await expect.poll(async () => (await getDataLayerEvents(page)).filter((event: { event?: string }) => event.event === 'begin_checkout').length).toBe(1);
+    await expect.poll(async () => (await getFbqCalls(page)).filter((call: { event?: string }) => call.event === 'InitiateCheckout').length).toBe(1);
     await startNativeCheckout(page);
     await expect.poll(async () => (await getDataLayerEvents(page)).filter((event: { event?: string }) => event.event === 'begin_checkout').length).toBe(1);
     await expect.poll(async () => (await getFbqCalls(page)).filter((call: { event?: string }) => call.event === 'InitiateCheckout').length).toBe(1);

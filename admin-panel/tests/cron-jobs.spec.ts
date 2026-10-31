@@ -156,10 +156,14 @@ test.describe('Cron job: access-expired', () => {
     expect(updatedRow?.expiry_notified_at).not.toBeNull();
   });
 
-  test('dispatch attempt is recorded in webhook_logs', async () => {
-    // The previous test ran the cron which called WebhookService.trigger('access.expired').
-    // Even though the endpoint URL is unreachable, dispatchWebhook() always writes to
-    // webhook_logs in its finally block. Verify the log entry exists.
+  test('dispatch attempt is recorded in webhook_logs', async ({ request }) => {
+    await expect.poll(async () => {
+      const result = await request.get(cronUrl('business-events'), { headers: authHeader() });
+      expect(result.status()).toBe(200);
+      const logs = await supabaseAdmin.from('webhook_logs').select('id').eq('endpoint_id', testEndpointId).eq('event_type', 'access.expired');
+      expect(logs.error).toBeNull();
+      return logs.data?.length ?? 0;
+    }, { timeout: 30000 }).toBe(1);
     const { data: logs, error } = await supabaseAdmin
       .from('webhook_logs')
       .select('id, event_type, status, http_status')

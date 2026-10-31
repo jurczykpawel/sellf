@@ -322,7 +322,7 @@ test.describe('Admin Funnel Test Preview', () => {
 
   test('should show coupon input and apply coupon in funnel test mode', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
-    await gotoCheckout(page, couponProductSlug, '?funnel_test=1&show_promo=true');
+    await gotoCheckout(page, couponProductSlug, `?funnel_test=1&coupon=${encodeURIComponent(couponCode)}`);
     await page.waitForLoadState('domcontentloaded');
 
     // Funnel test banner present
@@ -332,18 +332,9 @@ test.describe('Admin Funnel Test Preview', () => {
     await expect(page.getByRole('heading', { name: 'Funnel Test — Coupon' })).toBeVisible({ timeout: 10000 });
     await expect(page.getByText(/199/).first()).toBeVisible();
 
-    // Wait for the coupon section to appear, then type
-    await page.waitForTimeout(2000);
-    const couponField = page.locator('input[type="text"]').last();
-    await expect(couponField).toBeVisible({ timeout: 5000 });
-    await couponField.fill(couponCode);
-
-    // Click apply button
-    const applyButton = page.getByRole('button', { name: /Apply|Zastosuj/i });
-    await applyButton.click();
-
-    // Wait for coupon verification
-    await page.waitForTimeout(2000);
+    const couponField = page.getByRole('textbox', { name: /Kod rabatowy|Discount code/, exact: true });
+    await expect(couponField).toHaveValue(couponCode);
+    await expect(couponField).toBeDisabled();
 
     // Discount should be applied (green checkmark or discount text)
     await expect(page.getByText(/20%/)).toBeVisible({ timeout: 5000 });

@@ -34,6 +34,8 @@ export async function checkAccessibility(page: Page, options: A11yCheckOptions =
     builder = builder.exclude(selector);
   }
 
+  await expect.poll(() => page.evaluate(() => document.getAnimations()
+    .filter(animation => animation instanceof CSSTransition && animation.playState === 'running').length), { timeout: 10000 }).toBe(0);
   const results = await builder.analyze();
 
   const violationSummary = results.violations.map(v => ({

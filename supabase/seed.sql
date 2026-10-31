@@ -1467,3 +1467,11 @@ UPDATE public.business_events SET dispatched_at = now();
 -- A consumed, field-bearing free-checkout request for local inspection.
 INSERT INTO public.free_grant_contexts(email,product_id,custom_field_values,claimed_at)
 SELECT 'demo-buyer@example.com',id,'{"example_note":"Local checkout context"}'::jsonb,now() FROM public.products ORDER BY id LIMIT 1;
+
+-- Historical paid guest purchase available for the first access email.
+INSERT INTO public.payment_transactions(id,product_id,customer_email,session_id,amount,currency,status)
+SELECT 'e7000000-0000-4000-a000-000000000010',id,'legacy-mail@example.com','cs_seed_legacy_mail',round(price*100),currency,'completed'
+FROM public.products WHERE slug='premium-course';
+INSERT INTO public.guest_purchases(product_id,customer_email,session_id,transaction_amount)
+SELECT product_id,customer_email,session_id,amount FROM public.payment_transactions
+WHERE id='e7000000-0000-4000-a000-000000000010';

@@ -151,7 +151,7 @@ async function visitAndCheck(
     excludeRules: options?.excludeRules,
   });
   if (path === '/p/premium-course' || path === '/checkout/premium-course') {
-    await expect(page.locator('input#fullName')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ })).toHaveCount(0);
     await startNativeCheckout(page);
     await expect(page.locator('input#fullName')).toBeVisible({ timeout: 30000 });
     await waitForSettledButtonStates(page);

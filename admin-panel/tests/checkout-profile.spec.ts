@@ -136,6 +136,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
         await page.locator(`[id="participants.${i}.${key}"]`).fill(value);
       }
     }
+    await expect(start).toBeEnabled({ timeout: 30000 });
     if (await terms.count()) await terms.check();
     const nip = page.locator('[id="buyer.nip"]');
     for (let attempt = 0; attempt < 2; attempt++) {

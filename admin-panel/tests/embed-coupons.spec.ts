@@ -17,6 +17,9 @@ import { randomUUID } from 'node:crypto';
 import { test, expect, type Page, type Response } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
+import { createTestAdmin } from './helpers/admin-auth';
+import { readCheckoutTerms, setCheckoutTerms, restoreCheckoutTerms } from './helpers/checkout-settings';
+import { acceptAllCookies } from './helpers/consent';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -42,6 +45,8 @@ const DISCOUNTED_AMOUNT = 1500;
 const marker = `embed-coupon-${randomUUID().slice(0, 8)}`;
 const VALID_CODE = `EMBED${randomUUID().slice(0, 6).toUpperCase()}`;
 
+let settingsAdmin: Awaited<ReturnType<typeof createTestAdmin>>;
+let savedTerms: boolean | null;
 let sellerPage: { origin: string; setHtml: (html: string) => void; close: () => Promise<void> };
 let sellfOrigin: string;
 let slug: string;
@@ -102,6 +107,8 @@ async function applyCoupon(page: Page, code: string): Promise<Response> {
 }
 
 test.beforeAll(async ({ baseURL }) => {
+  settingsAdmin = await createTestAdmin('embed-settings');
+  savedTerms = await readCheckoutTerms();
   sellfOrigin = baseURL ?? 'http://localhost:3777';
   slug = `${marker}-paid`;
   sellerPage = await startSellerPage(crossSiteHost(sellfOrigin));
@@ -150,7 +157,8 @@ test.beforeAll(async ({ baseURL }) => {
   couponId = coupon!.id;
 });
 
-test.afterAll(async () => {
+test.beforeEach(async ({ page }) => { await acceptAllCookies(page); await setCheckoutTerms(page, settingsAdmin, false); });
+test.afterAll(async ({ browser }) => {
   for (const id of stripeSessionIds) {
     await stripe.checkout.sessions.expire(id).catch(() => undefined);
     await admin.from('payment_transactions').delete().eq('session_id', id).eq('status', 'pending');
@@ -163,6 +171,9 @@ test.afterAll(async () => {
   await admin.from('seller_embed_settings').delete().eq('seller_id', sellerId);
   await admin.auth.admin.deleteUser(sellerId);
   await sellerPage?.close();
+  if (settingsAdmin) {
+    try { await restoreCheckoutTerms(browser, settingsAdmin, savedTerms); } finally { await settingsAdmin.cleanup(); }
+  }
 });
 
 test.beforeEach(async () => {

@@ -36,7 +36,7 @@ for (const scenario of ['coupon-stripe-email', 'plain-stripe-email', 'coupon-kno
           usage_limit_per_user: 1, usage_limit_global: 5, allowed_product_ids: [productId] }).select('id').single();
         expect(result.error).toBeNull(); couponId = result.data!.id;
       }
-      html = `<!doctype html><html><body><div data-sellf-embed data-product-slug="${slug}" ${knownEmail ? `data-email="${email}"` : ''}></div><script src="${baseURL}/embed/v1/checkout.js"></script></body></html>`;
+      html = `<!doctype html><html><body><div data-sellf-embed data-product-slug="${slug}" ${knownEmail ? `data-email="${email}"` : ''} ${coupon ? `data-coupon="${code}"` : ''}></div><script src="${baseURL}/embed/v1/checkout.js"></script></body></html>`;
       page.on('response', async response => {
         if (new URL(response.url()).pathname === '/api/embed/checkout-session' && response.ok()) {
           const body = await response.json(); if (body.sessionId) sessions.push(body.sessionId);
@@ -45,11 +45,8 @@ for (const scenario of ['coupon-stripe-email', 'plain-stripe-email', 'coupon-kno
       await page.goto(origin);
       await expect.poll(() => sessions.length).toBeGreaterThan(0);
       if (coupon) {
-        await page.locator('.sellf-coupon input[name="coupon"]').fill(code);
-        const response = page.waitForResponse(r => r.url().includes('/api/embed/checkout-session') && r.request().postDataJSON()?.couponCode === code);
-        await page.locator('.sellf-coupon button[type="submit"]').click();
-        expect((await response).status()).toBe(200);
-        await expect.poll(() => sessions.length).toBe(2);
+        await expect(page.locator('.sellf-coupon input[name="coupon"]')).toHaveValue(code);
+        await expect.poll(() => sessions.length).toBe(1);
       }
       const sessionId = sessions.at(-1)!;
       const session = await stripe.checkout.sessions.retrieve(sessionId);

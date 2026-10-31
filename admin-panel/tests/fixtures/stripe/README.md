@@ -38,3 +38,12 @@ identifier/personal-field cleanup; its old endsAt demonstrates the reported mism
 `expand[]=payments`; its test clock/customer were deleted and price/product archived.
 The regression removes both optional `parent` and `payments` from the event and
 checks that the receiver's payment/refund correlation still gets the real intent ID.
+
+The `checkout_completed_receiver`, `dispatch_refund_*` and `unmatched_refund`
+recordings were captured on 2026-10-31 from Stripe test-mode `GET /v1/events`.
+Checkout uses the provider's [Stripe CLI fixture](https://github.com/stripe/stripe-cli/blob/master/pkg/fixtures/triggers/checkout.session.completed.json)
+with an explicit test price and local product binding. Refunds follow real
+`pm_card_visa` PaymentIntents and `refunds.create`, including successive partial
+refunds. IDs/emails are anonymized and personal fields/client secrets removed.
+The integration tests consume fresh provider events, not reconstructed event
+objects; `RECORD_STRIPE_FIXTURES=1` records their sanitized reference copies.
