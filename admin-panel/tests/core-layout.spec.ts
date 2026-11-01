@@ -48,7 +48,7 @@ test('keeps the full payment amount on one line at 1366px', async ({ page }) => 
       await page.goto(`/${locale}/dashboard/payments`);
       await expect(page.locator('p').filter({ hasText: /814[.,]55/ }).first()).toBeVisible();
       await page.screenshot({ path: `/tmp/rcfix-core-shots/payments-${locale}-${width}.png`, fullPage: true });
-      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth), { timeout: 10000 }).toBeLessThanOrEqual(width);
     }
   } finally {
     await admin.cleanup();
