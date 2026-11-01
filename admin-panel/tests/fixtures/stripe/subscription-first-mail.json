@@ -1,0 +1,24 @@
+{
+  "provenance": {
+    "kind": "recorded Stripe test-mode commerce projection",
+    "source_sha256": "3b64ccdde1694d8eda23f7c693edf22d556db842c8bd62ecff620f4a3fdbf4be",
+    "projection": "Only identity kinds, payment totals, subscription status and missing access are retained. Provider identifiers replaced; no provider fields added.",
+    "source": "commerce-b2-paid.json, recorded 2026-11-01 (private evidence retained separately)"
+  },
+  "payment": {
+    "amount": 1700,
+    "currency": "PLN",
+    "status": "completed",
+    "session_id": "in_recordedFirstMail",
+    "stripe_invoice_id": "in_recordedFirstMail",
+    "stripe_payment_intent_id": "pi_recordedFirstMail"
+  },
+  "subscription": {
+    "status": "active",
+    "stripe_subscription_id": "sub_recordedFirstMail",
+    "stripe_customer_id": "cus_recordedFirstMail"
+  },
+  "user_product_access": [],
+  "guest_purchases": [],
+  "email_confirmed": false
+}

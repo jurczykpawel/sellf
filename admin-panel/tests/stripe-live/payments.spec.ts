@@ -74,7 +74,7 @@ test.afterAll(async () => {
 });
 
 async function setup(s: Scenario, loggedIn: boolean): Promise<void> {
-  if (loggedIn || s.subscription) {
+  if (loggedIn) {
     const { data, error } = await supabaseAdmin.auth.admin.createUser({ email: s.email, password, email_confirm: true });
     if (error || !data.user) throw new Error(error?.message ?? 'Buyer creation failed');
     s.buyerId = data.user.id;
@@ -419,10 +419,15 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         for (const id of s.productIds) expect((await rows('user_product_access', 'product_id', id)).some(row => row.user_id === s.buyerId)).toBe(true);
       } else {
         const purchases = await rows('guest_purchases', 'session_id', sessionId);
-        expect(purchases).toHaveLength(1);
-        expect(purchases[0].product_id).toBe(s.productIds[0]);
-        expect(purchases[0].customer_email).toBe(s.email);
+        expect(purchases).toHaveLength(s.subscription ? 0 : 1);
+        if (s.subscription) expect(await rows('user_product_access', 'product_id', s.productIds[0])).toHaveLength(0);
+        else {
+          expect(purchases[0].product_id).toBe(s.productIds[0]);
+          expect(purchases[0].customer_email).toBe(s.email);
+        }
         const message = await waitForEmail(s.email, { timeout: 60000 });
+        expect(message.HTML).toContain(`Stripe live ${s.slug}`);
+        if (s.subscription) expect(message.HTML).toContain('$10.00');
         const magicLink = extractMagicLink(message.HTML || message.Text || '');
         expect(magicLink, 'Delivered post-checkout magic link').toBeTruthy();
         await page.goto(magicLink!);
@@ -436,7 +441,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
           await expect.poll(async () => (await rows('user_product_access', 'product_id', id)).some(row => row.user_id === s.buyerId), { timeout: 60000 }).toBe(true);
         }
         const claimed = await rows('guest_purchases', 'session_id', sessionId);
-        expect(claimed[0].claimed_by_user_id).toBe(s.buyerId);
+        if (!s.subscription) expect(claimed[0].claimed_by_user_id).toBe(s.buyerId);
       }
       const delivery = deliveries(s)[0];
       expect(delivery.body.event).toBe(s.subscription ? 'invoice.paid' : 'purchase.completed');

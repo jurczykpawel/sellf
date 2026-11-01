@@ -3,12 +3,13 @@
 import { useCallback, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import type { User } from '@supabase/supabase-js';
-import type { Product } from '@/types';
 import { useCaptcha } from '@/hooks/useCaptcha';
 import { useTracking } from '@/hooks/useTracking';
 import { validateCustomFieldDefinitions, validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
 import { submitMagicLink } from '@/lib/auth/magic-link/submit';
+import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
+import type { User } from '@supabase/supabase-js';
+import type { Product } from '@/types';
 
 /**
  * Hook for the "get product for free" flow used by checkout pages.
@@ -24,6 +25,7 @@ import { submitMagicLink } from '@/lib/auth/magic-link/submit';
 interface UseFreeAccessOptions {
   user: User | null;
   product: Product;
+  collectTermsOfService: boolean;
   onAccessGranted: () => void;
   onError: (msg: string) => void;
   /** When set, this is a full-discount coupon flow. The code is attached to
@@ -50,6 +52,7 @@ interface UseFreeAccessReturn {
 export function useFreeAccess({
   user,
   product,
+  collectTermsOfService,
   onAccessGranted,
   onError,
   couponCode,
@@ -62,6 +65,7 @@ export function useFreeAccess({
   const searchParams = useSearchParams();
   const { track } = useTracking();
   const captcha = useCaptcha();
+  const showTos = shouldShowTosCheckbox(collectTermsOfService, !user);
 
   const [pwywFreeEmail, setPwywFreeEmail] = useState('');
   const [pwywFreeTermsAccepted, setPwywFreeTermsAccepted] = useState(false);
@@ -112,7 +116,7 @@ export function useFreeAccess({
       return;
     }
 
-    if (!pwywFreeTermsAccepted) {
+    if (showTos && !pwywFreeTermsAccepted) {
       setPwywFreeMessage({ type: 'error', text: tCompliance('pleaseAcceptTerms') });
       captcha.reset();
       return;
@@ -161,7 +165,7 @@ export function useFreeAccess({
     } finally {
       setPwywFreeLoading(false);
     }
-  }, [customFieldValues, pwywFreeEmail, pwywFreeTermsAccepted, captcha, product, couponCode, searchParams, t, tCompliance, tDemo, track, locale]);
+  }, [customFieldValues, pwywFreeEmail, pwywFreeTermsAccepted, showTos, captcha, product, couponCode, searchParams, t, tCompliance, tDemo, track, locale]);
 
   return {
     pwywFreeEmail,
