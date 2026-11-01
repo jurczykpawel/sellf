@@ -24,7 +24,12 @@ export const test = base.extend({ context: async ({ context }, use) => {
 
 export async function startNativeCheckout(page: Page): Promise<Response> {
   const start = page.getByRole('button', { name: /^(Continue to payment|Przejdź do płatności)$/ });
-  await expect.poll(async () => await start.isVisible() || !!captured.get(page)?.length, { timeout: 90000 }).toBe(true);
+  const online = page.locator('input[name=payment-method][value=online]');
+  await expect.poll(async () => await start.isVisible() || !!captured.get(page)?.length || (await online.isVisible() && !await online.isChecked()), { timeout: 90000 }).toBe(true);
+  if (!captured.get(page)?.length && await online.isVisible() && !await online.isChecked()) {
+    await online.check();
+    await expect.poll(() => captured.get(page)?.length ?? 0, { timeout: 90000 }).toBeGreaterThan(0);
+  }
   if (await start.isVisible()) {
     await expect(start).toBeEnabled();
     await start.click();

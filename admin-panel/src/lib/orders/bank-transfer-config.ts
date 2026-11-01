@@ -26,6 +26,6 @@ export function canUseBankTransfer(enabled: boolean, rawProfile: unknown, buyerT
   return enabled && profile.success && profile.data.modules.some(m => m.id === 'buyer'
     && m.bank_transfer_for?.some(t => t === buyerType) && m.types.some(t => t === buyerType));
 }
-export function availableTransferMethod(selected: 'online' | 'transfer', enabled: boolean, profile: unknown, buyerType: unknown): 'online' | 'transfer' {
+export function availableTransferMethod(selected: 'online' | 'transfer' | null, enabled: boolean, profile: unknown, buyerType: unknown): 'online' | 'transfer' | null {
   return canUseBankTransfer(enabled, profile, buyerType) ? selected : 'online';
 }

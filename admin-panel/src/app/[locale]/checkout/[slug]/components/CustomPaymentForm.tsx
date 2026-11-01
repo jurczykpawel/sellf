@@ -49,6 +49,8 @@ interface CustomPaymentFormProps {
   expressCheckoutConfig?: ExpressCheckoutConfig;
   taxMode?: TaxMode;
   collectTermsOfService: boolean;
+  termsAccepted: boolean;
+  onTermsAcceptedChange(value: boolean): void;
   isGuest?: boolean;
   customFieldDefs?: CustomFieldDefinition[];
   customFieldValues?: CustomFieldValues;
@@ -84,6 +86,8 @@ export default function CustomPaymentForm({
   expressCheckoutConfig,
   taxMode,
   collectTermsOfService,
+  termsAccepted,
+  onTermsAcceptedChange: setTermsAccepted,
   isGuest = true,
   customFieldDefs = [],
   customFieldValues = {},
@@ -102,11 +106,15 @@ export default function CustomPaymentForm({
     : '';
 
   const [linkEmail, setLinkEmail] = useState(email || '');
+  const [previousEmail, setPreviousEmail] = useState(email);
+  if (email !== previousEmail) {
+    setPreviousEmail(email);
+    if (isGuest) setLinkEmail(email ?? '');
+  }
   const [emailConfirmed, setEmailConfirmed] = useState(false);
   const emailMismatch = !!(email && linkEmail && linkEmail.toLowerCase() !== email.toLowerCase());
 
   const showTos = shouldShowTosCheckbox(collectTermsOfService, isGuest);
-  const [termsAccepted, setTermsAccepted] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   useEffect(() => { onProcessingChange?.(isProcessing); }, [isProcessing, onProcessingChange]);
   useEffect(() => () => onProcessingChange?.(false), [onProcessingChange]);

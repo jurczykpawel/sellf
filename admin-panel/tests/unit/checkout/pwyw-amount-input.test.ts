@@ -55,7 +55,7 @@ describe('PWYW amount input', () => {
     render(React.createElement(NextIntlClientProvider, { locale: 'pl', messages }, React.createElement(PaidProductForm, { product, collectTermsOfService: false, layoutMode: 'embedded' })));
     const input = screen.getByRole('textbox');
     expect(request).not.toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: messages.checkout.continueToPayment })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Przejdź do płatności' })).toBeNull();
     expect(screen.queryByText(messages.checkout.loadingPaymentMethods)).toBeNull();
     fireEvent.change(input, { target: { value: '4,99' } }); expect(request).not.toHaveBeenCalled();
     fireEvent.change(input, { target: { value: '5,55' } });

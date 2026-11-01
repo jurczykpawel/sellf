@@ -3324,6 +3324,28 @@
         "seller": "Real Stripe subscription has a seven-day trial, zero first invoice and the advertised recurring price.",
         "integrator": "Not exercised; this journey checks buyer-facing trial disclosure and email."
       }
+    },
+    {
+      "id": "J149",
+      "title": "Buyer eligibility and method choice retain one priced checkout",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "b2b_quantity",
+        "payment": "card",
+        "moment": "after_edit",
+        "operation": "purchase"
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser"
+      ],
+      "end_state": {
+        "buyer": "Person sees online immediately; buyer type, payment method, company data, coupon, quantity and consent survive changes; card input stays intact for the unchanged quote.",
+        "seller": "Exactly one real Stripe quote for unchanged cart, one replacement after quantity changes; both superseded and abandoned pending sessions expire and become abandoned.",
+        "integrator": "Not exercised; this journey measures checkout quotes before payment confirmation."
+      }
     }
   ],
   "escapes": [

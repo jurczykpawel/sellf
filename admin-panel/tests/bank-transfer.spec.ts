@@ -105,7 +105,8 @@ test('settings validate account and preview the title; person cannot select a tr
   await expect(page.getByRole('radio', { name: /Przelew tradycyjny/ })).toHaveCount(0);
   await page.getByLabel('Typ nabywcy').selectOption('organization'); await page.getByRole('radio', { name: /Przelew tradycyjny/ }).check();
   await page.getByLabel('Typ nabywcy').selectOption('person'); await expect(page.getByRole('radio', { name: /Przelew tradycyjny/ })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toHaveCount(0);
+  await expect(page.locator('[id="buyer.email"]')).toBeVisible();
 });
 test('(a) organization places transfer with immediate access, unpaid invoice, protected instructions and Auth mail @J52', async ({ page }) => {
   test.setTimeout(120000); const order = await place(page, email); orderId = order.orderId;
