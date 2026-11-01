@@ -175,7 +175,7 @@ test('receiver can confirm a full refund, preserve a partial refund and renew th
       await stripe.disputes.update(dispute!.id, { evidence: { uncategorized_text: outcome === 'won' ? 'winning_evidence' : 'losing_evidence' }, submit: true });
       const closed = await eventFor('charge.dispute.closed', dispute!.id);
       const result = (await outgoing(endpoint.id, 'dispute.closed', transaction.id)).find(item => item.data.payment.id === transaction.id)!.data;
-      expect(result.dispute).toMatchObject({ status: outcome, accessRevoked: outcome === 'lost', accessRestored: false });
+      expect(result.dispute).toMatchObject({ status: outcome, accessRevoked: outcome === 'lost', accessRestored: outcome === 'won' });
       await deliver(request, closed);
       expect((await outgoing(endpoint.id, 'dispute.closed')).filter(item => item.data.payment.id === transaction.id)).toHaveLength(1);
     }

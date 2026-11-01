@@ -18,7 +18,13 @@ export async function handleChargeDispute(
   let dispute = eventDispute.charge ? eventDispute : await stripe.disputes.retrieve(eventDispute.id);
   const chargeId = typeof dispute.charge === 'string' ? dispute.charge : dispute.charge?.id;
   if (!chargeId) return { processed: false, message: 'Dispute charge unavailable' };
-  const charge = await stripe.charges.retrieve(chargeId);
+  let charge: Stripe.Charge;
+  try {
+    charge = await stripe.charges.retrieve(chargeId);
+  } catch (error) {
+    if ((error as { code?: string }).code === 'resource_missing') return { processed: true, message: 'Dispute charge not found' };
+    throw error;
+  }
   let intent = charge.payment_intent ?? dispute.payment_intent;
   if (!intent) {
     dispute = await stripe.disputes.retrieve(dispute.id);
