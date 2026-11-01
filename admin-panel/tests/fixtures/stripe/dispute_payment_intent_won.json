@@ -1,0 +1,65 @@
+{
+  "id": "pi_3UWnOUCDLaN6dbD50ipGfa7r",
+  "object": "payment_intent",
+  "allowed_payment_method_types": null,
+  "amount": 2345,
+  "amount_capturable": 0,
+  "amount_details": {
+    "tip": {}
+  },
+  "amount_received": 2345,
+  "application": null,
+  "application_fee_amount": null,
+  "automatic_payment_methods": null,
+  "canceled_at": null,
+  "cancellation_reason": null,
+  "capture_method": "automatic_async",
+  "confirmation_method": "automatic",
+  "created": 1793495830,
+  "currency": "pln",
+  "customer": null,
+  "customer_account": null,
+  "description": "Retest: W116 won",
+  "excluded_payment_method_types": null,
+  "last_payment_error": null,
+  "latest_charge": "ch_3UWnOUCDLaN6dbD50hd7HLAY",
+  "livemode": false,
+  "managed_payments": {
+    "enabled": false
+  },
+  "metadata": {
+    "email": "buyer-60e4d302@example.com",
+    "first_name": "Retest:",
+    "last_name": "W116",
+    "locale": "pl",
+    "product_id": "d0851d65-c4cc-4df7-b762-556895862739",
+    "terms_accepted": "true",
+    "user_id": "ef05c988-4627-46ad-851f-806bb3f78310"
+  },
+  "next_action": null,
+  "on_behalf_of": null,
+  "payment_method": "pm_1UWnOUCDLaN6dbD5JTmMOw8v",
+  "payment_method_configuration_details": null,
+  "payment_method_options": {
+    "card": {
+      "installments": null,
+      "mandate_options": null,
+      "network": null,
+      "request_three_d_secure": "automatic"
+    }
+  },
+  "payment_method_types": [
+    "card"
+  ],
+  "payment_record": null,
+  "processing": null,
+  "review": null,
+  "setup_future_usage": null,
+  "shared_payment_granted_token": null,
+  "source": null,
+  "statement_descriptor": null,
+  "statement_descriptor_suffix": null,
+  "status": "succeeded",
+  "transfer_data": null,
+  "transfer_group": null
+}

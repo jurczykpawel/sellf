@@ -1851,6 +1851,50 @@ export type Database = {
           },
         ]
       }
+      payment_disputes: {
+        Row: {
+          account_access: Json
+          closed: boolean
+          guest_access: Json
+          payload: Json
+          previous_payment_status: string
+          status: string
+          stripe_dispute_id: string
+          suspended_at: string
+          transaction_id: string
+        }
+        Insert: {
+          account_access?: Json
+          closed?: boolean
+          guest_access?: Json
+          payload?: Json
+          previous_payment_status: string
+          status: string
+          stripe_dispute_id: string
+          suspended_at: string
+          transaction_id: string
+        }
+        Update: {
+          account_access?: Json
+          closed?: boolean
+          guest_access?: Json
+          payload?: Json
+          previous_payment_status?: string
+          status?: string
+          stripe_dispute_id?: string
+          suspended_at?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_disputes_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_line_items: {
         Row: {
           access_duration_override: number | null
@@ -4285,6 +4329,10 @@ export type Database = {
       }
     }
     Functions: {
+      _claim_guest_purchases_before_disputes: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       _order_grant_and_record: {
         Args: {
           p_coupon_id: string
@@ -4770,6 +4818,19 @@ export type Database = {
           content_checksum: string
           migration_sql: string
           migration_version: string
+        }
+        Returns: Json
+      }
+      apply_payment_dispute: {
+        Args: {
+          p_amount: number
+          p_closed: boolean
+          p_created: string
+          p_currency: string
+          p_dispute_id: string
+          p_reason: string
+          p_status: string
+          p_transaction_id: string
         }
         Returns: Json
       }

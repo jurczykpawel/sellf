@@ -129,11 +129,20 @@ kwotę i walutę zakupu. `data.product.id` i `data.customer.userId` / `email` wi
 zdarzenie z produktem i klientem. Dla subskrypcji dochodzi `data.subscription.id`
 oraz `stripeSubscriptionId`, jeśli jest dostępny.
 
-`accessRevoked` i `accessRestored` opisują działania wykonane podczas tej obsługi.
-Otwarcie i przegrany spór odbierają dostęp; `accessRevoked: true` pojawia się po
-udanym wykonaniu tego kroku. Wynik `won` nie przywraca automatycznie dostępu Sellf
-ani cofniętych licencji (`accessRestored: false`). Odbiorca musi powiązać spór
-z zakupem przed zastosowaniem własnych reguł dostępu.
+`accessRevoked` i `accessRestored` opisują wynik zapisanej obsługi sporu.
+Otwarcie i przegrany spór zawieszają dostęp. Po `won` płatność wraca do wcześniejszego
+stanu (`completed` lub `partially_refunded`), a uprawnienie wraca z zachowanym terminem.
+`accessRestored: true` oznacza rzeczywiście przywrócony dostęp; pełny zwrot,
+ręczne usunięcie grantu, upływ terminu lub zakończenie subskrypcji blokują odtworzenie.
+Gość odzyskuje oryginalny nieodebrany zakup. Zapisany termin obowiązuje również przy
+późniejszym odebraniu, także po zmianie czasu dostępu w produkcie. Ponowienie zdarzenia nie przedłuża terminu.
+Odwołana licencja pozostaje odwołana (`licenseRestored: false`), także po wygranej;
+sprzedawca może wydać nową licencję osobno. Odbiorca powinien używać flagi
+`accessRestored` oraz `payment.statusAfter`, a nie samego wyniku `won`.
+`dispute.restoredAccess` wymienia faktycznie przywrócone uprawnienia: `productId`,
+`userId` (null dla gościa), `grantedAt` i `expiresAt` (null dla dostępu bezterminowego).
+Dla gościa dochodzi `guestPurchaseId`. Odbiorca powinien zastosować tę listę:
+ręcznie usunięty grant głównego produktu może pozostać nieobecny, gdy dostęp do dodatku wróci.
 
 ## Automatyczne ponowienia
 
