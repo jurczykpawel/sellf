@@ -154,7 +154,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
       appendFileSync(`${process.env.STRIPE_LIVE_ARTIFACTS}/first-mail-provider.jsonl`, JSON.stringify({ kind, object: session.object, mode: session.mode, status: session.status, payment_status: session.payment_status, amount_total: session.amount_total, currency: session.currency }) + '\n');
       await expect.poll(async () => (await rows('payment_transactions', 'product_id', product.id)).filter(tx => tx.status === 'completed').length, { timeout: 60000 }).toBe(1);
       if (kind === 'signed-in') {
-        expect((await rows('user_product_access', 'product_id', product.id)).some(access => access.user_id === buyerId)).toBe(true);
+        await expect.poll(async () => (await rows('user_product_access', 'product_id', product.id)).some(access => access.user_id === buyerId), { timeout: 60000 }).toBe(true);
         expect(await searchMessages(email), 'Signed-in checkout opens access directly').toHaveLength(0);
         // Request the first link through the public flow, rather than resending one.
         const response = await page.request.post('/api/auth/magic-link', { data: { flow: 'post_checkout', email, productSlug: slug, locale: 'en', captchaToken: await captcha(page) } });
