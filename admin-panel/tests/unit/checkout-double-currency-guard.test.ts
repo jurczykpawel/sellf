@@ -14,6 +14,10 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { NextIntlClientProvider } from 'next-intl';
+import OrderSummary from '@/components/checkout/OrderSummary';
 
 function read(relativePath: string): string {
   return readFileSync(resolve(__dirname, '../../', relativePath), 'utf-8');
@@ -70,11 +74,12 @@ describe('OrderSummary shape', () => {
   const source = read('src/components/checkout/OrderSummary.tsx');
 
   it('accepts an optional intervalLabel prop and renders it after the total', () => {
-    expect(source).toMatch(/intervalLabel\?:\s*string/);
-    // The total block renders "{ price }{ intervalLabel && / label }" together.
-    expect(source).toMatch(
-      /formatPrice\(totalGross, currency, locale\)\}\s*\n\s*\{(?:!(?:quantityInvalid|totalError) && )?intervalLabel && [\s\S]+?\/\s*\{intervalLabel\}/,
-    );
+    const html = renderToStaticMarkup(createElement(NextIntlClientProvider,
+      { locale: 'pl', messages: { checkout: { total: 'Razem' } } },
+      createElement(OrderSummary, { productName: 'Course', currency: 'PLN', basePrice: 20, totalGross: 20, totalNet: 20, discountAmount: 0, vatRate: null, intervalLabel: 'mies.' }),
+    ));
+    expect(html.replace(/<[^>]*>/g, '')).toContain('20,00\u00a0zł / mies.');
+    expect(html).not.toContain('zł PLN');
   });
 
   it('does not append the currency code to net/total/breakdown lines', () => {

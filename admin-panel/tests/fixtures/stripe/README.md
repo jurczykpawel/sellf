@@ -75,3 +75,9 @@ API retest of ordinary, unlicensed products. They preserve the provider's
 product/user metadata for installation ownership checks. Client secrets, receipt
 fields and personal payment details are removed; customer email aliases are
 anonymized. No new remote environment is required to exercise these recordings.
+
+`trial-display-period.json` records a real seven-day PLN trial subscription from
+2026-11-01 (Stripe test mode). Only its real object/mode/status and trial timestamps
+are retained; identifiers, personal data and optional expandable fields are absent.
+The elapsed interval is 604800 seconds. Subscription canceled, customer deleted,
+price and product archived after recording.

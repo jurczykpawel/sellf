@@ -3,7 +3,9 @@ import { Product } from '@/types';
 import FloatingToolbar from '@/components/FloatingToolbar';
 import WaitlistForm from '@/components/WaitlistForm';
 import { formatPrice } from '@/lib/constants';
-import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
+import { formatRecurringProductPrice, formatBillingIntervalLabel } from '@/lib/product-pricing-display';
+import { getTrialDays } from '@/lib/checkout/trial-display';
+import TrialTerms from '@/components/checkout/TrialTerms';
 
 interface ProductTemporalStateProps {
   product: Product;
@@ -12,6 +14,7 @@ interface ProductTemporalStateProps {
 export default function ProductTemporalState({ product }: ProductTemporalStateProps) {
   const t = useTranslations('productView');
   const locale = useLocale();
+  const trialDays = getTrialDays(product);
 
   const now = new Date();
   const availableFrom = product.available_from ? new Date(product.available_from) : null;
@@ -41,7 +44,7 @@ export default function ProductTemporalState({ product }: ProductTemporalStatePr
           <p className="text-sf-body mb-6 max-w-2xl mx-auto">{product.description}</p>
         )}
         <div className="text-xl font-semibold text-sf-accent mb-8">
-          {product.product_type === 'subscription'
+          {trialDays ? <TrialTerms days={trialDays} amount={product.recurring_price ?? 0} currency={product.currency} intervalLabel={formatBillingIntervalLabel(product.billing_interval, product.billing_interval_count, locale)} showToday previewDate={false} /> : product.product_type === 'subscription'
             ? (formatRecurringProductPrice(product, locale) ?? formatPrice(product.recurring_price ?? 0, product.currency, locale))
             : product.price === 0
               ? t('free')
