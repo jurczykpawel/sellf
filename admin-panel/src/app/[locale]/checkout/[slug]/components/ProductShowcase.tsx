@@ -1,24 +1,25 @@
 'use client';
 
-import { useMemo } from 'react';
-import { Product } from '@/types';
-import { formatPrice } from '@/lib/constants';
 import Image from 'next/image';
+import { useMemo } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
-import { useTranslations } from 'next-intl';
-import { useLocale } from 'next-intl';
 import OmnibusPrice from '@/components/OmnibusPrice';
-import type { TaxMode } from '@/lib/actions/shop-config';
-import { parseVideoUrl } from '@/lib/videoUtils';
 import PlayerstackEmbed from '@/components/player/PlayerstackEmbed';
+import TrialTerms from '@/components/checkout/TrialTerms';
+import { formatPrice } from '@/lib/constants';
+import { parseVideoUrl } from '@/lib/videoUtils';
 import { isPlayerstackPlatform } from '@/lib/playerstack';
-import { formatRecurringProductPrice, getVatDisplay } from '@/lib/product-pricing-display';
+import { formatRecurringProductPrice, formatBillingIntervalLabel, getVatDisplay } from '@/lib/product-pricing-display';
 import { isSalePriceActive, getEffectiveUnitPrice } from '@/lib/services/omnibus';
+import { PANEL_START_CLASSNAME } from '@/lib/two-column-layout';
+import { getTrialDays } from '@/lib/checkout/trial-display';
+import type { Product } from '@/types';
+import type { TaxMode } from '@/lib/actions/shop-config';
 import BundleContentsPreview from './BundleContentsPreview';
 import type { BundleComponentSummary } from './BundleContentsPreview';
-import { PANEL_START_CLASSNAME } from '@/lib/two-column-layout';
 
 interface ProductShowcaseProps {
   product: Product;
@@ -32,6 +33,7 @@ export default function ProductShowcase({ product, taxMode, bundleComponents }: 
   const tView = useTranslations('productView');
   const locale = useLocale();
   const isSubscription = product.product_type === 'subscription';
+  const trialDays = getTrialDays(product);
   const recurringPriceDisplay = formatRecurringProductPrice(product, locale);
 
   // Check if sale price is active (considers both time and quantity limits).
@@ -131,22 +133,23 @@ export default function ProductShowcase({ product, taxMode, bundleComponents }: 
           )}
 
           <div data-testid="product-price-display" className="text-5xl font-bold text-sf-heading mb-2 tracking-tight">
-            {recurringPriceDisplay ?? (grossPrice === 0 ? tView('free') : formatPrice(grossPrice, product.currency, locale))}
+            {trialDays ? `${t('trial.today')}: ${formatPrice(0, product.currency, locale)}` : recurringPriceDisplay ?? (grossPrice === 0 ? tView('free') : formatPrice(grossPrice, product.currency, locale))}
           </div>
+          {trialDays && <TrialTerms days={trialDays} amount={product.recurring_price ?? 0} currency={product.currency} intervalLabel={formatBillingIntervalLabel(product.billing_interval, product.billing_interval_count, locale)} />}
 
           {vatDisplay.kind === 'rate' && (
             <div className="text-sm text-sf-muted">
-              {t('includingVat', { defaultValue: 'including VAT' })} {vatDisplay.rate}%
+              {trialDays && `${t('trial.after')}: `}{t('includingVat', { defaultValue: 'including VAT' })} {vatDisplay.rate}%
             </div>
           )}
           {vatDisplay.kind === 'rate_added' && (
             <div className="text-sm text-sf-muted">
-              + {t('vat', { defaultValue: 'VAT' })} {vatDisplay.rate}%
+              {trialDays && `${t('trial.after')}: `}+ {t('vat', { defaultValue: 'VAT' })} {vatDisplay.rate}%
             </div>
           )}
           {vatDisplay.kind === 'exempt' && (
             <div className="text-sm text-sf-muted">
-              {t('vatExempt')}{vatDisplay.note && ` (${vatDisplay.note})`}
+              {trialDays && `${t('trial.after')}: `}{t('vatExempt')}{vatDisplay.note && ` (${vatDisplay.note})`}
             </div>
           )}
 

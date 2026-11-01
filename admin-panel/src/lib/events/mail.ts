@@ -3,15 +3,20 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { formatPrice } from '@/lib/constants';
 import { fromMinorUnits } from '@/lib/currency/minor-units';
 import { eventMailData } from '@/lib/events/presentation';
+import { trialMailAmount } from '@/lib/checkout/trial-display';
 async function readPurchaseEventMail(email: string, productId: string, sessionId?: string, paymentIntentId?: string, locale = 'en'): Promise<Record<string, string>> {
   const db = createAdminClient();
-  let q = db.from('payment_transactions').select('id,amount,currency').eq('product_id', productId).eq('customer_email', email).eq('status', 'completed');
+  let q = db.from('payment_transactions').select('id,amount,currency,subscription_id').eq('product_id', productId).eq('customer_email', email).eq('status', 'completed');
   if (sessionId) q = q.eq('session_id', sessionId);
   else if (paymentIntentId) q = q.eq('stripe_payment_intent_id', paymentIntentId);
   q = q.order('created_at', { ascending: false }).limit(1);
   const { data: tx, error } = await q.maybeSingle(); if (error || !tx) return {};
   const { data: product } = await db.from('products').select('name').eq('id', productId).maybeSingle();
   const receipt: Record<string, string> = product ? { purchase_product: product.name, purchase_amount: formatPrice(fromMinorUnits(tx.amount, tx.currency), tx.currency, locale) } : {};
+  if (product && tx.amount === 0 && tx.subscription_id) {
+    const { data: subscription } = await db.from('subscriptions').select('status,current_period_start,trial_end').eq('id', tx.subscription_id).eq('product_id', productId).maybeSingle();
+    if (subscription?.status === 'trialing') receipt.purchase_amount = trialMailAmount(receipt.purchase_amount, subscription.current_period_start, subscription.trial_end, locale);
+  }
   // Confirmation can precede content access, including a new subscription buyer.
   const access = await db.rpc('event_mail_access', { p_email: email, p_product_id: productId, p_transaction_id: tx.id });
   if (access.error || access.data !== true) return receipt;

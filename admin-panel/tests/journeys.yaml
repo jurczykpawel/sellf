@@ -3302,6 +3302,28 @@
         "seller": "Order remains awaiting_payment; early-access setting is enabled.",
         "integrator": "Not exercised; this journey checks buyer mail and access."
       }
+    },
+    {
+      "id": "J148",
+      "title": "Buyer understands a trial before checkout in Polish and English",
+      "values": {
+        "persona": "new",
+        "entry": "checkout",
+        "product": "subscription_trial",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "purchase"
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser"
+      ],
+      "end_state": {
+        "buyer": "Sees zero today, seven free days, actual full recurring price, first billing date in buyer timezone and a free-trial CTA; reads first Mailpit message and confirms access. Unsupported coupon is disclosed without promising a discount.",
+        "seller": "Real Stripe subscription has a seven-day trial, zero first invoice and the advertised recurring price.",
+        "integrator": "Not exercised; this journey checks buyer-facing trial disclosure and email."
+      }
     }
   ],
   "escapes": [

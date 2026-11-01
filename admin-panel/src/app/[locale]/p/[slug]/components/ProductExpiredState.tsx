@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
 import FloatingToolbar from '@/components/FloatingToolbar';
 import { formatPrice } from '@/lib/constants';
-import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
+import { formatRecurringProductPrice, formatBillingIntervalLabel } from '@/lib/product-pricing-display';
+import { getTrialDays } from '@/lib/checkout/trial-display';
+import TrialTerms from '@/components/checkout/TrialTerms';
 import type { Product } from '@/types';
 import type { SecureProductResponse } from './ProductAccessView';
 
@@ -17,6 +19,8 @@ interface ProductExpiredStateProps {
 export default function ProductExpiredState({ product, existingLicense }: ProductExpiredStateProps) {
   const t = useTranslations('productView');
   const locale = useLocale();
+  const trialDays = getTrialDays(product);
+  const tCheckout = useTranslations('checkout');
   const [licenseCopied, setLicenseCopied] = useState(false);
   const isSubscription = product.product_type === 'subscription';
   const priceLabel = isSubscription
@@ -43,7 +47,7 @@ export default function ProductExpiredState({ product, existingLicense }: Produc
           <p className="text-sf-body mb-6 max-w-2xl mx-auto">{product.description}</p>
         )}
         <div className="text-xl font-semibold text-sf-accent mb-8">
-          {priceLabel}
+          {trialDays ? <TrialTerms days={trialDays} amount={product.recurring_price ?? 0} currency={product.currency} intervalLabel={formatBillingIntervalLabel(product.billing_interval, product.billing_interval_count, locale)} showToday previewDate={false} /> : priceLabel}
         </div>
 
         <div className="text-4xl mb-4">⏰</div>
@@ -88,7 +92,7 @@ export default function ProductExpiredState({ product, existingLicense }: Produc
           href={`/${locale}/checkout/${product.slug}`}
           className="inline-block bg-sf-accent hover:bg-sf-accent/90 text-white font-semibold px-8 py-3 rounded-xl transition-colors"
         >
-          {t('purchaseAgain')} — {priceLabel}
+          {trialDays ? tCheckout('trial.start', { days: trialDays }) : <>{t('purchaseAgain')} — {priceLabel}</>}
         </Link>
       </div>
     </div>

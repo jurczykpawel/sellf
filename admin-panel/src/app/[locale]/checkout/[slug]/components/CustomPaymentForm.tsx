@@ -16,6 +16,8 @@ import InvoiceFields from '@/components/checkout/InvoiceFields';
 import PaymentFormSkeleton from '@/components/checkout/PaymentFormSkeleton';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
 import { getCheckoutRequestError } from '@/lib/checkout/request-error';
+import { getTrialDays } from '@/lib/checkout/trial-display';
+import TrialTerms from '@/components/checkout/TrialTerms';
 import type { useInvoiceData } from '@/hooks/useInvoiceData';
 import type { useCheckoutProfileValues } from '@/components/checkout/CheckoutProfileFields';
 import type { StripePaymentElementOptions } from '@stripe/stripe-js';
@@ -94,6 +96,7 @@ export default function CustomPaymentForm({
   const { track } = useTracking();
 
   const isSubscription = product.product_type === 'subscription';
+  const trialDays = getTrialDays(product);
   const intervalLabel = isSubscription
     ? formatBillingIntervalLabel(product.billing_interval, product.billing_interval_count, locale)
     : '';
@@ -468,6 +471,7 @@ export default function CustomPaymentForm({
       )}
 
       {/* Submit Button */}
+      {trialDays && <TrialTerms days={trialDays} amount={totalPayable} currency={product.currency} intervalLabel={intervalLabel} />}
       <button
         type="submit"
         disabled={quantityInvalid || checkoutResult.type !== 'success' || !paymentElementReady || isProcessing || !!customAmountError || (emailMismatch && !emailConfirmed)}
@@ -490,7 +494,7 @@ export default function CustomPaymentForm({
           </span>
         ) : customAmountError ? (
           t('fixAmountFirst', { defaultValue: 'Fix the amount above to continue' })
-        ) : isSubscription && intervalLabel ? (
+        ) : trialDays ? t('trial.start', { days: trialDays }) : isSubscription && intervalLabel ? (
           t('subscribeButton', {
             amount: `${formatPrice(totalPayable, product.currency, locale)} / ${intervalLabel}`,
             defaultValue: `Subskrybuj ${formatPrice(totalPayable, product.currency, locale)} / ${intervalLabel}`,

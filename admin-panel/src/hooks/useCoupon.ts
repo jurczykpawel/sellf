@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import type { AppliedCoupon } from '@/types/coupon';
 
 interface UseCouponOptions {
+  enabled?: boolean;
   productId: string;
   email?: string;
   /** When true, OTO hook handles coupon from URL — skip URL coupon logic here */
@@ -27,7 +28,7 @@ interface UseCouponReturn {
   applyOtoCoupon: (coupon: AppliedCoupon, code: string) => void;
 }
 
-export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): UseCouponReturn {
+export function useCoupon({ productId, email, isOtoMode, enabled = true }: UseCouponOptions): UseCouponReturn {
   const t = useTranslations('checkout');
   const searchParams = useSearchParams();
 
@@ -46,7 +47,7 @@ export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): Us
   }
 
   const verifyCouponRequest = useCallback(async (code: string, currentEmail?: string) => {
-    if (!code) return;
+    if (!enabled || !code) return;
     try {
       const res = await fetch('/api/coupons/verify', {
         method: 'POST',
@@ -75,20 +76,20 @@ export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): Us
     } finally {
       setIsVerifyingCoupon(false);
     }
-  }, [productId, email, t]);
+  }, [enabled, productId, email, t]);
 
   const handleVerifyCoupon = useCallback((code: string, currentEmail?: string) => {
-    if (!code) return Promise.resolve();
+    if (!enabled || !code) return Promise.resolve();
     setIsVerifyingCoupon(true);
     setCouponError(null);
     setCouponManuallyRemoved(false);
     return verifyCouponRequest(code, currentEmail);
-  }, [verifyCouponRequest]);
+  }, [enabled, verifyCouponRequest]);
 
   // Auto-apply coupon for email change
   useEffect(() => {
     const checkAutoApply = async () => {
-      if (!email || appliedCoupon || couponManuallyRemoved) return;
+      if (!enabled || !email || appliedCoupon || couponManuallyRemoved) return;
       try {
         const res = await fetch('/api/coupons/auto-apply', {
           method: 'POST',
@@ -108,9 +109,9 @@ export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): Us
 
     const timer = setTimeout(checkAutoApply, 500);
     return () => clearTimeout(timer);
-  }, [email, productId, appliedCoupon, couponManuallyRemoved, t]);
+  }, [enabled, email, productId, appliedCoupon, couponManuallyRemoved, t]);
 
-  const urlCoupon = !isOtoMode && searchParams.get('oto') !== '1' ? searchParams.get('coupon') : null;
+  const urlCoupon = enabled && !isOtoMode && searchParams.get('oto') !== '1' ? searchParams.get('coupon') : null;
   const requestedURLCoupon = useRef<string | null>(null);
   if (urlCoupon && urlCoupon !== lastCheckedUrlCoupon) {
     setLastCheckedUrlCoupon(urlCoupon);
@@ -134,18 +135,19 @@ export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): Us
   }, []);
 
   const applyOtoCoupon = useCallback((coupon: AppliedCoupon, code: string) => {
+    if (!enabled) return;
     setAppliedCoupon(coupon);
     setCouponCode(code);
     setShowCouponInput(true);
     setLastCheckedUrlCoupon(code);
-  }, []);
+  }, [enabled]);
 
   return {
     couponCode,
     setCouponCode,
-    appliedCoupon,
-    isVerifyingCoupon,
-    showCouponInput,
+    appliedCoupon: enabled ? appliedCoupon : null,
+    isVerifyingCoupon: enabled && isVerifyingCoupon,
+    showCouponInput: enabled && showCouponInput,
     couponError,
     handleVerifyCoupon,
     removeCoupon,

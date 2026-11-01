@@ -51,3 +51,12 @@ it('uses the actual code in the link to expose and prefill entry', () => {
   expect(result.current.showCouponInput).toBe(true);
   expect(result.current.couponCode).toBe('LINK10');
 });
+
+it('does not quote a discount when the selected checkout does not accept coupons', async () => {
+  query.value = 'coupon=HALF'; fetchMock.mockImplementation(() => new Promise(() => {}));
+  const { result } = renderHook(() => useCoupon({ productId: 'subscription', enabled: false }));
+  await act(async () => { void result.current.handleVerifyCoupon('HALF'); });
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(result.current.appliedCoupon).toBeNull();
+  expect(result.current.isVerifyingCoupon).toBe(false);
+});

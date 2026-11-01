@@ -30,6 +30,7 @@ import { useTheme } from '@/components/providers/theme-provider';
 import { useOrderBumps } from '@/hooks/useOrderBumps';
 import { useTracking } from '@/hooks/useTracking';
 import { useCoupon } from '@/hooks/useCoupon';
+import { getTrialDays } from '@/lib/checkout/trial-display';
 import { useOto } from '@/hooks/useOto';
 import { useFreeAccess } from '@/hooks/useFreeAccess';
 import { useCheckoutRedirect } from '@/hooks/useCheckoutRedirect';
@@ -91,6 +92,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     if (parsed !== null) setQuantity(parsed);
   };
   const isSubscription = product.product_type === 'subscription';
+  const trialDays = getTrialDays(product);
   // PWYW subscriptions allow buyers to choose their recurring amount. The
   // existing PwywSection works regardless of one-shot vs recurring — only
   // copy needs to switch to "Monthly amount" via the section's own i18n.
@@ -296,6 +298,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   // Coupon logic — URL coupon handling is absorbed inside the hook
   const coupon = useCoupon({
+    enabled: !isSubscription,
     productId: product.id,
     email,
     isOtoMode: searchParams.get('oto') === '1',
@@ -706,8 +709,10 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
               bumpProducts={availableBumps}
               selectedBumpIds={selectedBumpIds}
               intervalLabel={isSubscription ? formatBillingIntervalLabel(product.billing_interval, product.billing_interval_count, locale) : undefined}
+              trialDays={trialDays}
             />
           )}
+          {trialDays && searchParams.get('coupon') && <p role="status" className="my-3 text-sm text-sf-body">{t('trial.unsupportedCoupon')}</p>}
 
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && activeMethod === 'online' && transferProfile && !purchaseStarted && eventReady && (
             <form onSubmit={event => { event.preventDefault(); if (!quantityInvalid && !customAmountError && profileForm.validate()) setPurchaseStarted(true); }}>

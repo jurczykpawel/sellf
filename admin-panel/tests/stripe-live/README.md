@@ -102,3 +102,15 @@ scripts/run-stripe-live-e2e.sh tests/stripe-live/refund-invoice-contract.spec.ts
 
 Sanitized recordings in `tests/fixtures/stripe/` exercise missing optional fields,
 pending and failed refunds, paid periods and dispute outcomes in unit tests.
+
+Trial disclosure coverage (both locales, first mail and real zero invoice) is tagged
+`@J148`. After the local build, run the sequential trial/accessibility gate:
+
+```sh
+scripts/run-stripe-live-e2e.sh --config=playwright.trial.config.ts --project=accessibility --grep '@J148|accessibility' --workers=1
+```
+
+The `public-hydration` project in that config validates document response headers
+and must run against the production build (`PW_PRODUCTION=1`), using the normal
+local production test environment. Next's development server replaces document
+cache-control headers, so it cannot prove that response contract.

@@ -3,7 +3,9 @@ import { Product } from '@/types';
 import FloatingToolbar from '@/components/FloatingToolbar';
 import WaitlistForm from '@/components/WaitlistForm';
 import { formatPrice } from '@/lib/constants';
-import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
+import { formatRecurringProductPrice, formatBillingIntervalLabel } from '@/lib/product-pricing-display';
+import { getTrialDays } from '@/lib/checkout/trial-display';
+import TrialTerms from '@/components/checkout/TrialTerms';
 
 interface ProductInactiveStateProps {
   product: Product;
@@ -12,6 +14,7 @@ interface ProductInactiveStateProps {
 export default function ProductInactiveState({ product }: ProductInactiveStateProps) {
   const t = useTranslations('productView');
   const locale = useLocale();
+  const trialDays = getTrialDays(product);
   const isSubscription = product.product_type === 'subscription';
   const priceLabel = isSubscription
     ? (formatRecurringProductPrice(product, locale) ?? formatPrice(product.recurring_price ?? 0, product.currency, locale))
@@ -40,7 +43,7 @@ export default function ProductInactiveState({ product }: ProductInactiveStatePr
           <p className="text-sf-body mb-6 max-w-2xl mx-auto">{product.description}</p>
         )}
         <div className="text-xl font-semibold text-sf-accent mb-8">
-          {priceLabel}
+          {trialDays ? <TrialTerms days={trialDays} amount={product.recurring_price ?? 0} currency={product.currency} intervalLabel={formatBillingIntervalLabel(product.billing_interval, product.billing_interval_count, locale)} showToday previewDate={false} /> : priceLabel}
         </div>
 
         <div className="text-4xl mb-4">⚠️</div>
