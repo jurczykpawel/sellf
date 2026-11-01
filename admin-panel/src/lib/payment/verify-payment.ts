@@ -340,7 +340,8 @@ async function getProcessedPaymentFromDatabase(
         .maybeSingle()
     : { data: null };
 
-  const hasAccess = !!accessRecord;
+  const hasAccess = !!accessRecord && (!accessRecord.access_expires_at
+    || new Date(accessRecord.access_expires_at).getTime() > Date.now());
   const { isStructuralGuestPurchase, isClaimedByCurrentUser, currentVisitorNeedsLogin } =
     classifyCachedPaymentAuth({
       visitor: user ? { id: user.id, email: user.email || null } : null,

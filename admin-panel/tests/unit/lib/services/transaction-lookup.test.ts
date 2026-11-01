@@ -53,6 +53,11 @@ describe('findTransactionByOrderId', () => {
     ]);
   });
 
+  it('reports database failures instead of treating a local payment as unknown', async () => {
+    const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: null, error: { message: 'unavailable' } }) };
+    await expect(findTransactionByOrderId({ from: () => q } as never, 'pi_fixture', 'id')).rejects.toThrow('Transaction lookup unavailable');
+  });
+
   it('returns null when neither lookup matches', async () => {
     const { from } = createMockSupabase({ byIntent: null, bySession: null });
     const result = await findTransactionByOrderId({ from } as never, 'unknown', 'id');

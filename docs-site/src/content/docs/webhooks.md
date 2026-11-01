@@ -237,12 +237,20 @@ units, uppercase `currency`, and `createdAt` (ISO 8601 UTC). `data.payment` iden
 `data.customer.userId` / `email` bind it to the buyer. Subscription purchases also
 include `data.subscription.id` and `stripeSubscriptionId` when available.
 
-`accessRevoked` and `accessRestored` describe actions taken during this handling.
-Created and lost disputes revoke access; `accessRevoked: true` is sent only after
-successful cleanup. A won dispute reports `status: "won"` without automatically
-restoring Sellf access or revoked licenses (`accessRestored: false`). Receivers must
-correlate the dispute and purchase before applying their own entitlement policy;
-the outcome alone does not prove a Sellf access restoration.
+`accessRevoked` and `accessRestored` describe the persisted dispute decision.
+Created and lost disputes suspend access. After `won`, the payment returns to its
+previous state (`completed` or `partially_refunded`) and access retains its original
+expiry. `accessRestored: true` means an entitlement actually returned; a full refund,
+a manually deleted grant, an elapsed term or an ended subscription prevents restoration.
+Guests recover their original unclaimed purchase. Its saved term also applies when it is
+claimed later, even if the product duration has changed. Repeated delivery never extends access.
+Revoked licenses remain revoked (`licenseRestored: false`), including after a win;
+the seller can issue a replacement separately. Receivers should use `accessRestored`
+and `payment.statusAfter`, rather than inferring access from `won` alone.
+`dispute.restoredAccess` lists each entitlement that actually returned, with
+`productId`, `userId` (null for a guest), `grantedAt` and `expiresAt` (null for
+permanent access). Guest entries also carry `guestPurchaseId`. Apply this list:
+a manually removed main grant may stay absent while a purchased add-on returns.
 
 ### Headers
 

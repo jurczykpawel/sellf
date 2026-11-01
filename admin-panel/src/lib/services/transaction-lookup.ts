@@ -21,17 +21,19 @@ export async function findTransactionByOrderId<T>(
   orderId: string,
   columns: string,
 ): Promise<T | null> {
-  const { data: byIntent } = await supabase
+  const { data: byIntent, error: intentError } = await supabase
     .from('payment_transactions')
     .select(columns)
     .eq('stripe_payment_intent_id', orderId)
     .maybeSingle();
+  if (intentError) throw new Error('Transaction lookup unavailable');
   if (byIntent) return byIntent as T;
 
-  const { data: bySession } = await supabase
+  const { data: bySession, error: sessionError } = await supabase
     .from('payment_transactions')
     .select(columns)
     .eq('session_id', orderId)
     .maybeSingle();
+  if (sessionError) throw new Error('Transaction lookup unavailable');
   return (bySession as T) ?? null;
 }

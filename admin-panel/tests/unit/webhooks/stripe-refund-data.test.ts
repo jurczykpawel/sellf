@@ -18,6 +18,7 @@ vi.mock('@/lib/license-keys/revoke', () => ({ revokeLicensesForOrder: async () =
 vi.mock('@/lib/services/license-revoke-webhook-payload', () => ({ emitLicenseRevokedWebhooks: async () => {} }));
 vi.mock('@/lib/services/subscription-refund-cancel', () => ({ scheduleSubscriptionCancelAfterFullRefund: async () => ({ ok: true }) }));
 
+import recordedPayment from '../../fixtures/stripe/dispute_payment_intent_refund.json';
 import recordedCharge from '../../fixtures/stripe/charge_refunded_full.json';
 import recordedFullCurrent from '../../fixtures/stripe/charge_full_current.json';
 import recordedPartialCurrent from '../../fixtures/stripe/charge_partial_current.json';
@@ -39,11 +40,6 @@ import event3 from '../../fixtures/stripe/async_refund_created_1.json';
 import event4 from '../../fixtures/stripe/async_refund_updated_0.json';
 import event5 from '../../fixtures/stripe/async_refund_updated_1.json';
 import event6 from '../../fixtures/stripe/async_refund_failed_0.json';
-import disputeCreated from '../../fixtures/stripe/charge_dispute_created_needs_response.json';
-import disputeWon from '../../fixtures/stripe/charge_dispute_closed_won.json';
-import disputeLost from '../../fixtures/stripe/charge_dispute_closed_lost.json';
-import disputeChargeWon from '../../fixtures/stripe/dispute_charge_won.json';
-import disputeChargeLost from '../../fixtures/stripe/dispute_charge_lost.json';
 import { WEBHOOK_EVENTS } from '@/types/webhooks';
 import { WEBHOOK_EVENT_TYPES } from '@/lib/validations/webhook';
 
@@ -62,7 +58,7 @@ let observations = new Map<string, Observation[]>();
 async function deliver(type = 'charge.refunded', object: unknown = charge) {
   const id = (object as { id?: string })?.id;
   const events = [recordedCharge, recordedPartial, recordedChargeUpdate, recordedRefundEvent,
-    disputeCreated, disputeWon, disputeLost, event0, event1, event2, event3, event4, event5, event6];
+    event0, event1, event2, event3, event4, event5, event6];
   const event = events.find(item => item.type === type && item.data.object.id === id)
     ?? events.find(item => item.data.object.id === id);
   if (!event) throw new Error('A recorded event envelope is required');
@@ -83,7 +79,7 @@ beforeEach(() => {
     return value;
   });
   mocks.refundRetrieve.mockResolvedValue(refund);
-  mocks.getStripeServer.mockResolvedValue({ refunds: { list: mocks.list, retrieve: mocks.refundRetrieve }, charges: { retrieve: mocks.retrieve } });
+  mocks.getStripeServer.mockResolvedValue({ refunds: { list: mocks.list, retrieve: mocks.refundRetrieve }, charges: { retrieve: mocks.retrieve }, paymentIntents: { retrieve: async () => recordedPayment }, checkout: { sessions: { list: async () => ({ data: [] }) } } });
   mocks.trigger.mockResolvedValue(undefined);
   mocks.update.mockImplementation((values) => {
     const commit = () => { Object.assign(transaction, values); return { data: [{ id: transaction.id }], error: null }; };
@@ -240,49 +236,27 @@ describe('recorded refund variants', () => {
     expect((await deliver('charge.refunded', missingIntent)).status).toBe(200);
     expect(confirmsFullRefund(mocks.trigger.mock.calls[0][1])).toBe(true);
   });
-  it('does not change access when the authoritative charge also has no payment intent @J34', async () => {
+  it('waits for a pending payment before recording its refund @J34', async () => {
+    transaction.status='pending';
+    expect((await deliver()).status).toBe(500);expect(mocks.trigger).not.toHaveBeenCalled();
+  });
+  it('resolves a refund whose optional charge is absent through its payment intent @J34', async () => {
+    mocks.refundRetrieve.mockResolvedValue({ ...refund, charge: undefined });
+    mocks.retrieve.mockResolvedValue(recordedFullCurrent);
+    expect((await deliver('refund.updated',recordedRefundEvent.data.object)).status).toBe(200);
+    expect(confirmsFullRefund(mocks.trigger.mock.calls[0][1])).toBe(true);
+  });
+  it('resolves the refund payment binding when the charge intent is absent @J34', async () => {
     mocks.retrieve.mockResolvedValue({ ...recordedFullCurrent, payment_intent: null });
     expect((await deliver()).status).toBe(200);
-    expect(mocks.update).not.toHaveBeenCalled();
-    expect(mocks.trigger).not.toHaveBeenCalled();
+    expect(confirmsFullRefund(mocks.trigger.mock.calls[0][1])).toBe(true);
   });
 });
 
 
-describe('dispute receiver without issued licenses', () => {
-  it.each([disputeCreated, disputeWon, disputeLost])('correlates a real dispute outcome for $type @J34', async (event) => {
-    const dispute = event.data.object;
-    const matchingCharge = disputeChargeWon.id === dispute.charge ? disputeChargeWon : disputeChargeLost;
-    mocks.retrieve.mockResolvedValue(matchingCharge);
-    transaction.subscription_id = 'subscription-binding';
-    transaction.stripe_invoice_id = 'invoice-binding';
-    transaction.session_id = 'session-binding';
-    transaction.metadata = { existing: 'preserved' };
-    await deliver(event.type, dispute);
-    const calls = mocks.trigger.mock.calls.filter(call => call[0].startsWith('dispute.'));
-    expect(calls).toHaveLength(1);
-    const [type, payload] = calls[0];
-    expect(type).toBe(event.type === 'charge.dispute.created' ? 'dispute.created' : 'dispute.closed');
-    expect(payload.dispute).toMatchObject({ stripeDisputeId: dispute.id, status: dispute.status,
-      reason: dispute.reason, amount: dispute.amount, currency: dispute.currency.toUpperCase(), accessRestored: false });
-    expect(payload.payment).toMatchObject({ id: 'tx', sessionId: 'session-binding', paymentIntentId: matchingCharge.payment_intent,
-      stripeInvoiceId: 'invoice-binding', subscriptionId: 'subscription-binding' });
-    expect(payload.product.id).toBe('prod');
-    expect(payload.customer).toMatchObject({ userId: null, email: 'test@example.com' });
-    expect(transaction.metadata).toMatchObject({ existing: 'preserved' });
-    // A receiver may revoke on created/lost; won reports the outcome without claiming a restoration.
-    expect(payload.dispute.accessRevoked).toBe(dispute.status !== 'won');
-    await deliver(event.type, dispute);
-    expect(mocks.trigger.mock.calls.filter(call => call[0].startsWith('dispute.'))).toHaveLength(1);
-  });
+describe('dispute event subscriptions', () => {
   it.each(['dispute.created', 'dispute.closed'])('is selectable and API-valid: %s @J34', (event) => {
     expect(WEBHOOK_EVENTS.some(item => item.value === event)).toBe(true);
     expect(WEBHOOK_EVENT_TYPES).toContain(event);
-  });
-  it('does not publish a revocation when its payment update fails @J34', async () => {
-    mocks.retrieve.mockResolvedValue(disputeChargeWon);
-    mocks.update.mockReturnValue({ eq: async () => ({ error: { message: 'unavailable' } }) });
-    expect((await deliver(disputeCreated.type, disputeCreated.data.object)).status).toBe(500);
-    expect(mocks.trigger).not.toHaveBeenCalled();
   });
 });

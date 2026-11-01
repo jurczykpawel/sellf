@@ -161,6 +161,20 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
 - Triggers: `handle_new_user_registration()` (first user → admin, claim guest purchases)
 - Scheduled jobs: Rate limit cleanup (hourly via pg_cron)
 
+### Payment disputes
+
+`payment_disputes` stores service-only entitlement snapshots and the persisted
+consumer outcome. `apply_payment_dispute` locks the payment, suspends account grants
+without deleting their IDs, and removes unclaimed guest purchases until resolution.
+A win restores original access dates only while the grant still exists unchanged;
+full refunds, manual deletion and ended subscription rights take precedence.
+Restored guest purchases carry their original product terms into the normal claim
+function; the access trigger applies those dates before capturing its business event.
+Offline licenses stay revoked. The signed delivery queue deduplicates each
+provider dispute/status. Unmatched events check local product/subscription bindings
+through Stripe before requesting redelivery; a confirmed local binding stays
+retriable until storage succeeds, while an unrelated product is acknowledged.
+
 ### Refund notifications
 
 `payment_refunds` stores each Stripe refund identity and current status;

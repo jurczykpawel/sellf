@@ -1475,3 +1475,18 @@ FROM public.products WHERE slug='premium-course';
 INSERT INTO public.guest_purchases(product_id,customer_email,session_id,transaction_amount)
 SELECT product_id,customer_email,session_id,amount FROM public.payment_transactions
 WHERE id='e7000000-0000-4000-a000-000000000010';
+
+
+-- An unclaimed purchase suspended while the payment dispute awaits a decision.
+DO $seed$
+DECLARE sample public.payment_transactions; prior_claims text := current_setting('request.jwt.claims',true);
+BEGIN
+  INSERT INTO public.payment_transactions(product_id,customer_email,session_id,stripe_payment_intent_id,amount,currency,status)
+    SELECT id,'dispute-example@example.com','pi_seed_dispute_example','pi_seed_dispute_example',round(price*100),currency,'completed'
+    FROM public.products WHERE slug='premium-course' RETURNING * INTO sample;
+  INSERT INTO public.guest_purchases(product_id,customer_email,session_id,transaction_amount,transaction_id)
+    VALUES(sample.product_id,sample.customer_email,sample.session_id,sample.amount,sample.id);
+  PERFORM set_config('request.jwt.claims','{"role":"service_role"}',true);
+  PERFORM public.apply_payment_dispute(sample.id,'du_seed_example','needs_response',false,'fraudulent',sample.amount::integer,sample.currency,now());
+  PERFORM set_config('request.jwt.claims',coalesce(prior_claims,''),true);
+END $seed$;

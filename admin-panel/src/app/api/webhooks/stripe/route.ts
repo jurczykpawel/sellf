@@ -16,7 +16,7 @@
  *
  * NOTE: the one-time payment handlers (checkout.session.completed,
  * payment_intent.succeeded) live in ./onetime-handlers.ts; POST dispatches to them.
- * Refund, dispute and subscription handling stay in this file.
+ * Dispute and subscription handlers live in sibling modules. Refund reconciliation stays here.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -27,8 +27,8 @@ import { verifyWebhookSignature, getStripeServer } from '@/lib/stripe/server';
 import { revokeLicensesForOrder } from '@/lib/license-keys/revoke';
 import { emitLicenseRevokedWebhooks } from '@/lib/services/license-revoke-webhook-payload';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
+import { pendingPaymentResult } from '@/lib/stripe/pending-payment';
 import { getPaymentRefundStatus } from '@/lib/refunds/payment-status';
-import { WebhookService } from '@/lib/services/webhook-service';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { scheduleSubscriptionCancelAfterFullRefund } from '@/lib/services/subscription-refund-cancel';
@@ -44,6 +44,7 @@ import {
   handleInvoicePaymentFailed,
 } from './subscription-handlers';
 import { RETRIABLE_EVENTS, TERMINAL_FAILURE_REASONS } from './retriable-events';
+import { handleChargeDispute } from './dispute-handlers';
 import { handleCheckoutSessionCompleted, handlePaymentIntentSucceeded } from './onetime-handlers';
 import { readBodyWithByteLimit, ApiPayloadTooLargeError, DEFAULT_MAX_BODY_BYTES } from '@/lib/api/body-limit';
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
@@ -70,8 +71,12 @@ async function handleChargeRefunded(
     return { processed: true, message: 'No refund activity in charge, skipping' };
   }
   const currentCharge = eventRefund ? charge : await stripe.charges.retrieve(charge.id);
-  const paymentIntentId = typeof currentCharge.payment_intent === 'string'
-    ? currentCharge.payment_intent : currentCharge.payment_intent?.id;
+  let intent = currentCharge.payment_intent ?? eventRefund?.payment_intent;
+  if (!intent) {
+    const refunds = await stripe.refunds.list({ charge: currentCharge.id, limit: 1 });
+    intent = refunds.data[0]?.payment_intent ?? null;
+  }
+  const paymentIntentId = typeof intent === 'string' ? intent : intent?.id;
   if (!paymentIntentId) {
     return { processed: true, message: 'No payment_intent in charge, skipping' };
   }
@@ -84,9 +89,10 @@ async function handleChargeRefunded(
   );
 
   if (!transaction) {
-    // Charge is not from this account — acknowledge so Stripe stops retrying.
-    return { processed: true, message: 'Transaction not found for refund, skipping' };
+    return pendingPaymentResult(supabase, stripe, paymentIntentId);
   }
+
+  if (transaction.status === 'pending') return { processed: false, message: 'Payment awaiting completion' };
 
   return await processRefundForTransaction(transaction, currentCharge, stripe, supabase, eventCreated, eventRefund, initialRefundStatus);
 }
@@ -103,10 +109,17 @@ async function handleRefundEvent(
   created = false,
 ): Promise<{ processed: boolean; message: string }> {
   const currentRefund = await stripe.refunds.retrieve(refund.id);
-  const chargeId = typeof currentRefund.charge === 'string'
+  let chargeId = typeof currentRefund.charge === 'string'
     ? currentRefund.charge
     : currentRefund.charge?.id;
 
+  if (!chargeId && currentRefund.payment_intent) {
+    const intentId = typeof currentRefund.payment_intent === 'string'
+      ? currentRefund.payment_intent : currentRefund.payment_intent.id;
+    const intent = await stripe.paymentIntents.retrieve(intentId);
+    chargeId = typeof intent.latest_charge === 'string' ? intent.latest_charge : intent.latest_charge?.id;
+    if (!chargeId) return { processed: false, message: 'Refund charge unavailable' };
+  }
   if (!chargeId) {
     return { processed: true, message: 'No charge in refund event, skipping' };
   }
@@ -244,157 +257,6 @@ async function processRefundForTransaction(
 }
 
 /**
- * Handle dispute/chargeback - revoke product access immediately
- */
-async function handleChargeDisputeCreated(
-  dispute: Stripe.Dispute,
-  supabase: ReturnType<typeof createAdminClient>,
-  closed = false,
-): Promise<{ processed: boolean; message: string }> {
-  const chargeId = typeof dispute.charge === 'string'
-    ? dispute.charge
-    : dispute.charge?.id;
-
-  if (!chargeId) {
-    return { processed: true, message: 'No charge in dispute, skipping' };
-  }
-
-  // Get charge details to find payment intent
-  const stripe = await getStripeServer();
-  if (!stripe) {
-    return { processed: false, message: 'Stripe not configured' };
-  }
-
-  let charge: Stripe.Charge;
-  try {
-    charge = await stripe.charges.retrieve(chargeId);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    console.error(`[Stripe Webhook] Failed to retrieve charge ${chargeId}:`, msg);
-    // Stripe raises StripeInvalidRequestError when the charge id is unknown
-    // — that is a permanent state, retrying is pointless. Other error kinds
-    // (network, rate limit, 5xx) are transient and should escalate to retry.
-    const isUnknownResource =
-      err instanceof Error &&
-      (err as { type?: string }).type === 'StripeInvalidRequestError';
-    if (isUnknownResource) {
-      return { processed: true, message: `Charge ${chargeId} not found, skipping` };
-    }
-    return { processed: false, message: `Failed to retrieve charge: ${msg}` };
-  }
-
-  const paymentIntentId = typeof charge.payment_intent === 'string'
-    ? charge.payment_intent
-    : charge.payment_intent?.id;
-
-  if (!paymentIntentId) {
-    return { processed: true, message: 'No payment_intent in disputed charge, skipping' };
-  }
-
-  // Find transaction by payment intent id or session id (include session_id for guest cleanup)
-  const transaction = await findTransactionByOrderId<{
-    id: string;
-    user_id: string | null;
-    product_id: string;
-    status: string;
-    session_id: string | null;
-    customer_email: string;
-    amount: number;
-    currency: string;
-    subscription_id: string | null;
-    stripe_invoice_id: string | null;
-    metadata: Record<string, unknown> | null;
-  }>(supabase, paymentIntentId, 'id, user_id, product_id, status, session_id, customer_email, amount, currency, subscription_id, stripe_invoice_id, metadata');
-
-  if (!transaction) {
-    // Charge is not from this account — acknowledge so Stripe stops retrying.
-    return { processed: true, message: 'Transaction not found for dispute, skipping' };
-  }
-
-  const metadata = transaction.metadata ?? {};
-  if (!closed && metadata.dispute_id === dispute.id && ['won', 'lost'].includes(String(metadata.dispute_status))) {
-    return { processed: true, message: 'Dispute already closed' };
-  }
-  const eventType = closed ? 'dispute.closed' : 'dispute.created';
-  const notification = `${eventType}:${dispute.id}:${dispute.status}`;
-  const shouldRevoke = dispute.status !== 'won';
-
-  // Update transaction status to disputed
-  const { error: updateError } = await supabase
-    .from('payment_transactions')
-    .update({
-      status: shouldRevoke ? 'disputed' : transaction.status,
-      updated_at: new Date().toISOString(),
-      metadata: {
-        ...metadata,
-        dispute_id: dispute.id,
-        dispute_reason: dispute.reason,
-        dispute_status: dispute.status,
-        dispute_created: new Date(dispute.created * 1000).toISOString(),
-      },
-    })
-    .eq('id', transaction.id);
-
-  if (updateError) {
-    console.error('[Stripe Webhook] Failed to update dispute status:', updateError);
-    return { processed: false, message: 'Failed to update dispute status' };
-  }
-
-  if (shouldRevoke) {
-    // SECURITY: Immediately revoke all product access (main + bumps, user + guest)
-    const revocation = await revokeTransactionAccess(supabase, {
-      transactionId: transaction.id,
-      userId: transaction.user_id,
-      productId: transaction.product_id,
-      sessionId: transaction.session_id,
-    });
-
-    if (revocation.warnings.length > 0) {
-      console.error('[Stripe Webhook] Revocation warnings after dispute:', revocation.warnings);
-      return { processed: false, message: 'Dispute access revocation incomplete' };
-    }
-
-    // Revoke any offline license issued for this order (chargeback = lost payment).
-    const disputeRevoked = await revokeLicensesForOrder(supabase, {
-      productId: transaction.product_id,
-      orderIds: [paymentIntentId, transaction.session_id],
-    });
-    // Notify integrations (Pro, fire-and-forget — never throws, so it can't redeliver this event).
-    await emitLicenseRevokedWebhooks(
-      supabase,
-      disputeRevoked.rows,
-      getCanonicalOriginOrNull() ?? '',
-    );
-
-  }
-  if (metadata.dispute_notification !== notification) {
-    const { data: subscription } = transaction.subscription_id
-      ? await supabase.from('subscriptions').select('stripe_subscription_id').eq('id', transaction.subscription_id).maybeSingle()
-      : { data: null };
-    await WebhookService.trigger(eventType, {
-      customer: { email: transaction.customer_email, userId: transaction.user_id },
-      product: { id: transaction.product_id },
-      payment: { id: transaction.id, amount: transaction.amount, currency: transaction.currency,
-        sessionId: transaction.session_id, paymentIntentId, stripeInvoiceId: transaction.stripe_invoice_id,
-        subscriptionId: transaction.subscription_id },
-      ...(transaction.subscription_id && { subscription: { id: transaction.subscription_id,
-        stripeSubscriptionId: subscription?.stripe_subscription_id ?? null } }),
-      dispute: { stripeDisputeId: dispute.id, stripeChargeId: chargeId, status: dispute.status,
-        reason: dispute.reason, amount: dispute.amount, currency: dispute.currency.toUpperCase(),
-        createdAt: new Date(dispute.created * 1000).toISOString(),
-        accessRevoked: shouldRevoke, accessRestored: false },
-    }, supabase, transaction.product_id);
-    const { error } = await supabase.from('payment_transactions').update({ metadata: {
-      ...metadata, dispute_id: dispute.id, dispute_reason: dispute.reason, dispute_status: dispute.status,
-      dispute_created: new Date(dispute.created * 1000).toISOString(), dispute_notification: notification,
-    } }).eq('id', transaction.id);
-    if (error) return { processed: false, message: 'Failed to record dispute notification' };
-  }
-
-  return { processed: true, message: 'Dispute outcome recorded and integrations notified' };
-}
-
-/**
  * Main webhook handler
  */
 export async function POST(request: NextRequest) {
@@ -519,7 +381,8 @@ export async function POST(request: NextRequest) {
       case 'charge.dispute.closed':
       case 'charge.dispute.created': {
         const dispute = event.data.object as Stripe.Dispute;
-        result = await handleChargeDisputeCreated(dispute, supabase, event.type === 'charge.dispute.closed');
+        const stripe = await getStripeServer();
+        result = await handleChargeDispute(dispute, supabase, stripe, event.type === 'charge.dispute.closed');
         break;
       }
 

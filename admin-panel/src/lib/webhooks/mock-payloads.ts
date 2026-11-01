@@ -196,7 +196,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       sessionId: 'cs_example', paymentIntentId: 'pi_example', stripeInvoiceId: null, subscriptionId: null },
     dispute: { stripeDisputeId: 'dp_example', stripeChargeId: 'ch_example',
       status: event === 'dispute.created' ? 'needs_response' : 'lost', reason: 'fraudulent',
-      amount: 1100, currency: 'PLN', createdAt: '2026-10-01T00:00:00Z', accessRevoked: true, accessRestored: false },
+      amount: 1100, currency: 'PLN', createdAt: '2026-10-01T00:00:00Z', accessRevoked: true, accessRestored: false, licenseRestored: false, restoredAccess: [] },
   }])),
   'refund.updated': {
     customer: { email: 'customer@example.com', userId: null }, product: { id: 'product_example' },

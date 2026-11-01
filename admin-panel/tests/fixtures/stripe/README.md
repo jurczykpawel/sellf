@@ -47,3 +47,9 @@ with an explicit test price and local product binding. Refunds follow real
 refunds. IDs/emails are anonymized and personal fields/client secrets removed.
 The integration tests consume fresh provider events, not reconstructed event
 objects; `RECORD_STRIPE_FIXTURES=1` records their sanitized reference copies.
+
+`dispute_payment_intent_{won,refund}` were recorded on 2026-11-01 in the
+API retest of ordinary, unlicensed products. They preserve the provider's
+product/user metadata for installation ownership checks. Client secrets, receipt
+fields and personal payment details are removed; customer email aliases are
+anonymized. No new remote environment is required to exercise these recordings.
