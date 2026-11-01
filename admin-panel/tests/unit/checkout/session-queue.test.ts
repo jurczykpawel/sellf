@@ -106,3 +106,52 @@ it('keeps failed cleanup quiet after page exit while preserving active errors', 
     }
   } finally { log.mockRestore(); }
 });
+
+it('retains a quote across method choice and expires it only when checkout is left', async () => {
+  const apply = vi.fn(), expire = vi.fn();
+  const quote = { clientSecret: 'quote-a', checkoutSessionId: 'quote-a' };
+  const run = vi.fn(async () => quote);
+  const queue = createCheckoutSessionQueue(expire);
+  queue.update({ key: 'cart-a', run, apply, fail: vi.fn() });
+  await vi.waitFor(() => expect(apply).toHaveBeenCalledOnce());
+  queue.pause();
+  expect(expire).not.toHaveBeenCalled();
+  queue.update({ key: 'cart-a', run, apply, fail: vi.fn() });
+  await vi.waitFor(() => expect(apply).toHaveBeenCalledTimes(2));
+  queue.update({ key: 'cart-a', run, apply, fail: vi.fn() });
+  expect(run).toHaveBeenCalledOnce(); expect(apply).toHaveBeenCalledTimes(2);
+  queue.update(null);
+  await vi.waitFor(() => expect(expire).toHaveBeenCalledWith(quote));
+});
+it('retains an in-flight quote during a method choice and applies it once on return', async () => {
+  const pending = deferred<{ clientSecret: string }>();
+  const run = vi.fn(() => pending.promise), apply = vi.fn(), expire = vi.fn();
+  const queue = createCheckoutSessionQueue(expire);
+  queue.update({ key: 'cart-a', run, apply, fail: vi.fn() }); queue.pause();
+  pending.resolve({ clientSecret: 'quote-a' });
+  await vi.waitFor(() => expect(run).toHaveResolved());
+  expect(apply).not.toHaveBeenCalled(); expect(expire).not.toHaveBeenCalled();
+  queue.update({ key: 'cart-a', run, apply, fail: vi.fn() });
+  await vi.waitFor(() => expect(apply).toHaveBeenCalledExactlyOnceWith({ clientSecret: 'quote-a' }));
+  expect(run).toHaveBeenCalledOnce();
+});
+it('replaces a retained quote only when the priced cart changed', async () => {
+  const expire = vi.fn(), apply = vi.fn(); const quote = { clientSecret: 'quote-a' };
+  const queue = createCheckoutSessionQueue(expire);
+  queue.update({ key: 'quantity-1', run: async () => quote, apply, fail: vi.fn() });
+  await vi.waitFor(() => expect(apply).toHaveBeenCalledOnce()); queue.pause();
+  const changed = vi.fn(async () => ({ clientSecret: 'quote-b' }));
+  queue.update({ key: 'quantity-2', run: changed, apply, fail: vi.fn() });
+  await vi.waitFor(() => expect(changed).toHaveBeenCalledWith(quote));
+  await vi.waitFor(() => expect(apply).toHaveBeenLastCalledWith({ clientSecret: 'quote-b' }));
+  queue.update(null); await vi.waitFor(() => expect(expire).toHaveBeenCalledWith({ clientSecret: 'quote-b' }));
+});
+
+it('expires a quote returned after a paused checkout was left', async () => {
+  const pending = deferred<{ clientSecret: string }>();
+  const expire = vi.fn(), apply = vi.fn(); const queue = createCheckoutSessionQueue(expire);
+  queue.update({ key: 'cart', run: () => pending.promise, apply, fail: vi.fn() });
+  queue.pause(); queue.update(null, true); pending.resolve({ clientSecret: 'quote-a' });
+  await vi.waitFor(() => expect(expire).toHaveBeenCalledExactlyOnceWith({ clientSecret: 'quote-a' }));
+  expect(apply).not.toHaveBeenCalled();
+});

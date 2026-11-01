@@ -206,7 +206,15 @@ it.each([true, false])('resolves transfer availability before deciding how to in
   })));
   expect(mocks.fetch).not.toHaveBeenCalled(); expect(mocks.stripe).not.toHaveBeenCalled();
   await act(async () => resolve({ enabled, dueDays: 14 }));
-  if (enabled) { expect(mocks.fetch).not.toHaveBeenCalled(); expect(screen.getByRole('button', { name: 'Continue to payment', exact: true })).toBeTruthy(); }
+  if (enabled) {
+    expect(mocks.fetch).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Continue to payment', exact: true })).toBeNull();
+    const online = screen.getByRole('radio', { name: 'Pay online', exact: true }) as HTMLInputElement;
+    expect(online.checked).toBe(false);
+    expect((screen.getByRole('radio', { name: /bank transfer/i }) as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(online);
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce());
+  }
   else await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce());
 });
 it('waits for a linked coupon before creating the first online session', async () => {

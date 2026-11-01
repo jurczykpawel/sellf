@@ -48,11 +48,11 @@ test.beforeAll(async ({ baseURL }) => {
   expect((await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_transfer_grant_access_on_placement: false, bank_account_holder: 'Example workshops', bank_account_number: 'PL61109010140000071219812874' }).eq('id', true)).error).toBeNull();
   admin = await createTestAdmin('cart-admin'); buyer = await createTestUser('cart-buyer');
   sellerId = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users.find(u => u.email === admin.email)!.id;
-  for (const template of ['default', 'tip-jar', 'oto', 'bank']) {
+  for (const template of ['default', 'tip-jar', 'oto', 'bank', 'mixed']) {
     const row = await insert('products', { name: `Cart ${run} ${template}`, slug: `cart-${run}-${template}`, price: 49, currency: 'PLN', is_active: true, is_listed: true,
-      seller_id: sellerId, embed_enabled: true, allow_custom_price: template === 'tip-jar', vat_exempt: true, checkout_template: template === 'bank' ? 'default' : template,
-      ...(template === 'bank' ? { checkout_profile: { v: 1, modules: [
-        { id: 'buyer', types: ['organization'], gus: false, bank_transfer_for: ['organization'] },
+      seller_id: sellerId, embed_enabled: true, allow_custom_price: template === 'tip-jar', vat_exempt: true, checkout_template: ['bank', 'mixed'].includes(template) ? 'default' : template,
+      ...(['bank', 'mixed'].includes(template) ? { checkout_profile: { v: 1, modules: [
+        { id: 'buyer', types: template === 'mixed' ? ['person', 'organization'] : ['organization'], gus: false, bank_transfer_for: ['organization'] },
         { id: 'quantity', min: 1, max: 3, mode: 'checkout' },
       ] } } : {}) });
     products.push({ ...row, template });
@@ -135,7 +135,7 @@ for (const locale of ['en', 'pl']) test(`${locale}: external embed only exposes 
   }
 });
 
-test('online-only loads immediately; method choice does not create unused sessions', async ({ page }) => {
+test('online-only loads immediately; an eligible buyer chooses online once without an extra step', async ({ page }) => {
   test.setTimeout(120000); await acceptAllCookies(page);
   const requests: unknown[] = [];
   page.on('request', r => { if (r.url().includes('/api/create-payment-intent') && r.method() === 'POST' && !r.postDataJSON().expireOnly) requests.push(r.postDataJSON()); });
@@ -145,10 +145,11 @@ test('online-only loads immediately; method choice does not create unused sessio
   const bank = products.find(p => p.template === 'bank')!;
   await page.goto(`/en/checkout/${bank.slug}?email=prefilled@example.com`);
   await expect(page.locator('input[name=payment-method][value=transfer]')).toBeVisible();
+  await expect(page.locator('input[name=payment-method][value=online]')).not.toBeChecked();
+  await expect(page.getByRole('button', { name: 'Continue to payment', exact: true })).toHaveCount(0);
   expect(requests).toHaveLength(1);
   await page.locator('input[name=payment-method][value=transfer]').check();
   await page.locator('input[name=payment-method][value=online]').check();
-  expect(requests).toHaveLength(1);
   await fillBuyer(page); remember(await (await startNativeCheckout(page)).json());
   expect(requests).toHaveLength(2);
 });
@@ -197,4 +198,78 @@ test('panel has a visible persistent expansion control on wide screens', async (
   }).toBeGreaterThanOrEqual(0);
   await page.screenshot({ path: test.info().outputPath('sidebar-expanded.png'), fullPage: true, animations: 'disabled' });
   await page.goto('/pl/dashboard'); await expect(page.getByRole('button', { name: 'Zwiń menu', exact: true })).toBeVisible();
+});
+
+
+test('person autostarts online and keeps one priced session while choosing buyer type and payment method @J149', async ({ page }) => {
+  test.setTimeout(180000);
+  await setTerms(page, true);
+  const product = products.find(p => p.template === 'mixed')!;
+  const created: Array<{ id: string; body: Record<string, unknown> }> = [];
+  const creationRequests: Record<string, unknown>[] = [];
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => {
+    if (request.url().endsWith('/api/create-payment-intent') && request.method() === 'POST') {
+      const body = request.postDataJSON();
+      if (body.productId === product.id && !body.expireOnly) creationRequests.push(body);
+    }
+  });
+  page.on('response', async response => {
+    if (response.url().endsWith('/api/create-payment-intent') && response.ok() && !response.request().postDataJSON().expireOnly && response.request().postDataJSON().productId === product.id) {
+      const body = await response.json(); remember(body); created.push({ id: body.checkoutSessionId, body });
+    }
+  });
+  await page.goto(`/en/checkout/${product.slug}?email=method-choice@example.com&coupon=${coupon.code}`);
+  const type = page.getByLabel('Buyer type');
+  await type.selectOption('organization');
+  await expect(page.locator('input[name=payment-method][value=transfer]')).toBeVisible();
+  await type.selectOption('person');
+  await expect(page.getByRole('button', { name: 'Continue to payment', exact: true })).toHaveCount(0);
+  await expect(page.frameLocator('iframe[src*="elements-inner-payment"]').locator('input[name=number]')).toBeVisible({ timeout: 60000 });
+  await expect.poll(() => created.length).toBe(1);
+  expect(creationRequests).toHaveLength(1);
+  const first = created[0].id;
+  expect((await stripe.checkout.sessions.retrieve(first)).amount_total).toBe(4410);
+  await page.locator('[id="buyer.first_name"]').fill('Checkout');
+  await page.locator('[id="buyer.last_name"]').fill('Buyer');
+  const legal = page.getByRole('checkbox', { name: /I agree/ });
+  await legal.check();
+  const card = page.frameLocator('iframe[src*="elements-inner-payment"]').locator('input[name=number]');
+  await card.fill('4242424242424242');
+  const iframe = await page.locator('iframe[src*="elements-inner-payment"]').elementHandle();
+  await type.selectOption('organization'); await fillBuyer(page);
+  await page.locator('input[name=payment-method][value=transfer]').check();
+  await expect(page.getByRole('checkbox', { name: /I agree/ })).toBeChecked();
+  expect((await stripe.checkout.sessions.retrieve(first)).status).toBe('open');
+  await type.selectOption('person');
+  await expect(card).toHaveValue('4242 4242 4242 4242');
+  expect(await iframe!.evaluate(node => node === document.querySelector('iframe[src*="elements-inner-payment"]'))).toBe(true);
+  await expect(legal).toBeChecked();
+  for (let i = 0; i < 3; i++) { await type.selectOption('organization'); await type.selectOption('person'); }
+  expect(creationRequests).toHaveLength(1);
+  await type.selectOption('organization');
+  await expect(page.locator('[id="buyer.company_name"]')).toHaveValue(company.company_name);
+  await expect(page.locator('[id="buyer.first_name"]')).toHaveValue('Checkout');
+  await page.locator('input[name=payment-method][value=transfer]').check();
+  await page.getByLabel('Quantity', { exact: true }).fill('2');
+  await expect(page.getByTestId('order-summary-total')).toContainText('88.20');
+  expect(creationRequests).toHaveLength(1);
+  await page.locator('input[name=payment-method][value=online]').check();
+  await expect.poll(() => created.length).toBe(2);
+  expect(creationRequests).toHaveLength(2);
+  expect(creationRequests[1]).toMatchObject({ quantity: 2, couponCode: coupon.code });
+  expect((await stripe.checkout.sessions.retrieve(created[1].id)).amount_total).toBe(8820);
+  await expect.poll(async () => (await stripe.checkout.sessions.retrieve(first)).status).toBe('expired');
+  await expect.poll(async () => (await db.from('payment_transactions').select('status').eq('session_id', first).single()).data?.status).toBe('abandoned');
+  await expect(legal).toBeChecked();
+  await expect(page.getByRole('textbox', { name: 'Discount code', exact: true })).toHaveValue(coupon.code);
+  await expect(page.getByLabel('Quantity', { exact: true })).toHaveValue('2');
+  await expect(card).toBeVisible({ timeout: 60000 });
+  await page.screenshot({ path: test.info().outputPath('method-choice-preserved.png'), fullPage: true });
+  await page.goto('/en/store');
+  await expect.poll(async () => (await stripe.checkout.sessions.retrieve(created[1].id)).status).toBe('expired');
+  await expect.poll(async () => (await db.from('payment_transactions').select('status').eq('session_id', created[1].id).single()).data?.status).toBe('abandoned');
+  expect(creationRequests).toHaveLength(2);
+  expect(errors).toEqual([]);
 });

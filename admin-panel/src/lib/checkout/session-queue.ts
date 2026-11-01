@@ -17,36 +17,48 @@ export interface CheckoutSessionTask<T extends CheckoutSessionIdentity> {
 
 export function createCheckoutSessionQueue<T extends CheckoutSessionIdentity>(
   expire: (identity: CheckoutSessionIdentity) => Promise<void>,
-): { update: (task: CheckoutSessionTask<T> | null, quiet?: boolean) => void } {
+): { update: (task: CheckoutSessionTask<T> | null, quiet?: boolean) => void; pause: () => void } {
   let desired: CheckoutSessionTask<T> | null = null;
   let identity: CheckoutSessionIdentity | null = null;
   let signature: string | null = null;
   let running = false;
   let quietExpiration = false;
+  let paused = false;
+  let applyOnReturn = false;
+  let result: T | null = null;
 
   async function drain(): Promise<void> {
     if (running) return;
     running = true;
     try {
       while (true) {
+        if (paused) return;
         const task = desired;
         if (!task) {
           if (identity) {
             await expire(identity);
             identity = null;
             signature = null;
+            result = null;
             // The buyer may have returned to paid checkout during expiration.
             if (desired) continue;
           }
+          result = null;
+          signature = null;
+          applyOnReturn = false;
           return;
         }
-        if (signature === task.key) return;
+        if (signature === task.key) {
+          if (applyOnReturn && result) { applyOnReturn = false; task.apply(result); }
+          return;
+        }
         try {
-          const result = await task.run(identity);
-          identity = result.clientSecret ? result : null;
+          const received = await task.run(identity);
+          result = received;
+          identity = received.clientSecret ? received : null;
           signature = task.key;
           const latest = desired as CheckoutSessionTask<T> | null;
-          if (latest?.key === task.key) latest.apply(result);
+          if (latest?.key === task.key) { applyOnReturn = false; latest.apply(received); }
         } catch (error) {
           // The previous session may already have expired before creation failed.
           signature = null;
@@ -59,6 +71,8 @@ export function createCheckoutSessionQueue<T extends CheckoutSessionIdentity>(
         }
       }
     } catch (error) {
+      signature = null;
+      result = null;
       if (quietExpiration || (error instanceof Error && error.name === 'AbortError')) return;
       console.error('[checkoutSessionQueue] Expiration failed:', error instanceof Error ? error.message : 'Unknown error');
     } finally {
@@ -68,9 +82,15 @@ export function createCheckoutSessionQueue<T extends CheckoutSessionIdentity>(
 
   return {
     update(task, quiet = false) {
+      paused = false;
       quietExpiration = quiet;
       desired = task;
       void drain();
+    },
+    pause() {
+      paused = true;
+      applyOnReturn = true;
+      desired = null;
     },
   };
 }

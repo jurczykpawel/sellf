@@ -272,7 +272,6 @@
     "vatExempt": "Sprzedaż zwolniona z VAT",
     "includingVat": "w tym VAT",
     "payButton": "Zapłać {amount}",
-    "continueToPayment": "Przejdź do płatności",
     "subscribeButton": "Subskrybuj {amount}",
     "fixAmountFirst": "Popraw kwotę powyżej, aby kontynuować",
     "invalidAmount": "nieprawidłowa kwota",

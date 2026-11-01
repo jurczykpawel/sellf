@@ -1,7 +1,7 @@
 'use client';
 /** Offline submission shares the checkout module and custom-field contracts. @see api/orders/bank-transfer */
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import AltchaWidget from '@/components/captcha/AltchaWidget';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
@@ -12,8 +12,9 @@ import { validateCustomFieldValues } from '@/lib/validations/custom-checkout-fie
 import type { FieldError } from '@/lib/checkout-modules/registry';
 import type { Product } from '@/types';
 import type { CustomFieldDefinition, CustomFieldValues } from '@/lib/validations/custom-checkout-fields';
-export default function BankTransferForm({ collectTermsOfService, isGuest = true, disabled, onModuleErrors, product, email, lockedEmail, onEmailChange, moduleValues, sessionId, bumpIds, couponCode, fields, values, onValuesChange }: {
+export default function BankTransferForm({ collectTermsOfService, termsAccepted: accepted, onTermsAcceptedChange: setAccepted, onProcessingChange, isGuest = true, disabled, onModuleErrors, product, email, lockedEmail, onEmailChange, moduleValues, sessionId, bumpIds, couponCode, fields, values, onValuesChange }: {
   collectTermsOfService: boolean; isGuest?: boolean;
+  termsAccepted: boolean; onTermsAcceptedChange(value: boolean): void; onProcessingChange?(value: boolean): void;
   disabled: boolean; onModuleErrors(errors: FieldError[]): void;
   product: Product; email: string; lockedEmail?: boolean; onEmailChange(value: string): void; moduleValues: Record<string, unknown>; sessionId: string | null;
   bumpIds: string[]; couponCode?: string; fields: CustomFieldDefinition[]; values: CustomFieldValues; onValuesChange(value: CustomFieldValues): void;
@@ -21,7 +22,9 @@ export default function BankTransferForm({ collectTermsOfService, isGuest = true
   const t = useTranslations('bankTransfer'), ct = useTranslations('checkout'), locale = useLocale(), captcha = useCaptcha();
   const router = useRouter();
   const showTos = shouldShowTosCheckbox(collectTermsOfService, isGuest);
-  const [busy, setBusy] = useState(false), [accepted, setAccepted] = useState(false), [error, setError] = useState('');
+  const [busy, setBusy] = useState(false), [error, setError] = useState('');
+  useEffect(() => { onProcessingChange?.(busy); }, [busy, onProcessingChange]);
+  useEffect(() => () => onProcessingChange?.(false), [onProcessingChange]);
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (disabled || !captcha.token || busy || (showTos && !accepted)) return;

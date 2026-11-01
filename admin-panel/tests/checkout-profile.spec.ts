@@ -34,7 +34,8 @@ async function open(page: Page, quantity = 1) {
   await page.goto(`/pl/checkout/${product.slug}`);
   if (quantity !== 1) await page.getByLabel('Ilość', { exact: true }).fill(String(quantity));
   await expect.poll(async () => await page.getByRole('button', { name: 'Przejdź do płatności', exact: true }).isVisible()
-    || await page.locator('[data-test-email]').isVisible(), { timeout: 30000 }).toBe(true);
+    || await page.locator('[data-test-email]').isVisible()
+    || await page.locator('input[name=payment-method][value=online]').isVisible(), { timeout: 30000 }).toBe(true);
   const buyerEmail = page.locator('[id="buyer.email"]');
   if (await buyerEmail.count()) await buyerEmail.fill('buyer@example.com');
   const fields = page.locator('input[id^="buyer."], input[id^="participants."], #phone');
@@ -213,11 +214,16 @@ test('shared profile displays online and transfer validation errors', async ({ p
     await acceptAllCookies(page);
     await page.goto(`/pl/checkout/${product.slug}`);
     await expect(page.getByRole('radio', { name: /Przelew tradycyjny/ })).toBeVisible();
-    await page.locator('[id="buyer.email"]').fill('buyer@example.com');
-    await page.getByRole('button', { name: 'Przejdź do płatności' }).click();
+    await expect(page.getByRole('button', { name: 'Przejdź do płatności', exact: true })).toHaveCount(0);
+    expect(requests).toEqual([]);
+    await page.locator('input[name=payment-method][value=online]').check();
+    await startNativeCheckout(page);
+    await page.locator('#checkoutEmail').fill('buyer@example.com');
+    await submit(page);
     await expect(page.locator('[id="buyer.first_name"]')).toBeFocused();
     await expect(page.locator('#phone-error')).toBeVisible();
-    expect(requests).toEqual([]);
+    expect(requests).toHaveLength(1);
+    expect(new URL(requests[0]).pathname).toBe('/api/create-payment-intent');
     await open(page);
     requests.length = 0;
     await page.locator('[id="buyer.first_name"]').fill('');

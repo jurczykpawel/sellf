@@ -24,12 +24,13 @@ vi.mock('@/components/checkout/InvoiceFields', () => ({ default: () => null }));
 vi.mock('@/components/checkout/OrderSummary', () => ({ default: () => null }));
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); stripe.result.type = 'success'; });
 
-function FormFixture({ paymentMethodOrder, collectTermsOfService = false, isGuest = true }: { paymentMethodOrder?: string[]; collectTermsOfService?: boolean; isGuest?: boolean }) {
-  const invoice = useInvoiceData('buyer@example.com');
-  const profileForm = useCheckoutProfileValues(null, invoice, 'buyer@example.com', 1);
+function FormFixture({ paymentMethodOrder, collectTermsOfService = false, isGuest = true, email = 'buyer@example.com' }: { paymentMethodOrder?: string[]; collectTermsOfService?: boolean; isGuest?: boolean; email?: string }) {
+  const [termsAccepted, setTermsAccepted] = React.useState(false);
+  const invoice = useInvoiceData(email);
+  const profileForm = useCheckoutProfileValues(null, invoice, email, 1);
   return React.createElement(CustomPaymentForm, {
     product: { id: 'test-product', name: 'Course', currency: 'PLN' } as Product,
-    email: 'buyer@example.com', collectTermsOfService, isGuest, paymentMethodOrder,
+    email, collectTermsOfService, isGuest, paymentMethodOrder, termsAccepted, onTermsAcceptedChange: setTermsAccepted,
     invoice, profileForm, onEmailChange: vi.fn(),
     pricing: { basePrice: 100, discountAmount: 0, totalGross: 100, totalNet: 100, vatRate: 0 } as PricingResult,
   });
@@ -102,3 +103,11 @@ it.each([[true, true, true], [true, false, false], [false, true, false], [false,
       React.createElement(FormFixture, { collectTermsOfService, isGuest })));
     expect(!!view.queryByRole('checkbox')).toBe(visible);
   });
+
+it('keeps the email supplied by the parent after a different payment method edits it', () => {
+  const form = (email: string) => React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(FormFixture, { email }));
+  const view = render(form('first@example.com'));
+  expect((view.container.querySelector('#checkoutEmail') as HTMLInputElement).value).toBe('first@example.com');
+  view.rerender(form('second@example.com'));
+  expect((view.container.querySelector('#checkoutEmail') as HTMLInputElement).value).toBe('second@example.com');
+});

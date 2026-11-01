@@ -272,7 +272,6 @@
     "vatExempt": "VAT-exempt sale",
     "includingVat": "including VAT",
     "payButton": "Pay {amount}",
-    "continueToPayment": "Continue to payment",
     "subscribeButton": "Subscribe {amount}",
     "fixAmountFirst": "Fix the amount above to continue",
     "invalidAmount": "invalid amount",
