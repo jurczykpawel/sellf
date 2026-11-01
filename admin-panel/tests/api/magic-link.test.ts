@@ -51,6 +51,31 @@ function extractHref(html: string): string | null {
 }
 
 describe('Magic-link gateway', () => {
+  it('delivers the first post-checkout link even when receipt context is unavailable', async () => {
+    const email = `gw-post-${crypto.randomUUID()}@example.com`;
+    const response = await fetch(`${API_URL}/api/auth/magic-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, captchaToken: await getAltchaPayload(), flow: 'post_checkout', productSlug: 'premium-course' }),
+    });
+    createdEmails.push(email);
+    expect(response.status).toBe(200);
+    const message = await waitForEmail(email);
+    const href = extractHref(message.HTML || '');
+    expect(href).toContain('token_hash=');
+    const callback = await fetch(href!, { redirect: 'manual' });
+    expect(callback.status).toBe(307);
+    const destination = new URL(callback.headers.get('location')!);
+    expect(destination.pathname).toBe('/auth/product-access');
+    expect(destination.searchParams.get('product')).toBe('premium-course');
+    expect(callback.headers.get('set-cookie')).toBeTruthy();
+    const user = await supabaseAdmin().rpc('find_user_id_by_email', { p_email: email });
+    expect(user.data).toBeTruthy();
+    const access = await supabaseAdmin().from('user_product_access').select('id').eq('user_id', user.data as string);
+    expect(access.error).toBeNull();
+    expect(access.data).toHaveLength(0);
+  });
+
   it('sends a login magic link with a token_hash callback link', async () => {
     const email = `gw-${Date.now()}@example.com`;
     const captchaToken = await getAltchaPayload();

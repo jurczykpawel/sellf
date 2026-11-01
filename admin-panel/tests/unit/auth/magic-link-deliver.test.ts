@@ -87,12 +87,12 @@ describe('deliverMagicLink', () => {
   });
 });
 
-it('waits for purchase context before requesting a purchase email', async () => {
+it('delivers a generic sign-in email when purchase details are unavailable', async () => {
   signInWithOtp.mockReset();
   signInWithOtp.mockResolvedValue({ error: null });
   expect(await deliverMagicLink({
     email: 'buyer@example.com', redirectTo: 'https://shop.example.com/auth/callback?flow=login',
-    shouldCreateUser: true, requirePurchase: true, data: { locale: 'pl' },
-  })).toEqual({ ok: false, code: 'send_failed' });
-  expect(signInWithOtp).not.toHaveBeenCalled();
+    shouldCreateUser: true, data: { locale: 'pl' },
+  })).toEqual({ ok: true });
+  expect(signInWithOtp).toHaveBeenCalledOnce();
 });

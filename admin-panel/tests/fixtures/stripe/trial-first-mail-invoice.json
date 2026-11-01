@@ -1,0 +1,22 @@
+{
+  "id": "evt_recordedTrial",
+  "object": "event",
+  "type": "invoice.paid",
+  "livemode": false,
+  "created": 1793507185,
+  "api_version": "2025-09-30.clover",
+  "data": {
+    "object": {
+      "id": "in_recordedTrial",
+      "object": "invoice",
+      "amount_paid": 0,
+      "amount_due": 0,
+      "currency": "pln",
+      "status": "paid",
+      "billing_reason": "subscription_create",
+      "livemode": false,
+      "period_start": 1793507184,
+      "period_end": 1793507184
+    }
+  }
+}

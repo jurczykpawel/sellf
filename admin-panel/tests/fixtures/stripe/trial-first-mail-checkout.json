@@ -1,0 +1,16 @@
+{
+  "id": "cs_test_recordedTrial",
+  "object": "checkout.session",
+  "livemode": false,
+  "mode": "subscription",
+  "status": "complete",
+  "payment_status": "paid",
+  "amount_total": 0,
+  "currency": "pln",
+  "created": 1793506163,
+  "expires_at": 1793592563,
+  "customer_details": {
+    "email": "trial-recording@example.com"
+  },
+  "metadata": {}
+}

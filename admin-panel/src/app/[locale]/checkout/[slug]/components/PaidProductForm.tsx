@@ -379,6 +379,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const pwyw = useFreeAccess({
     user,
     product,
+    collectTermsOfService,
     onAccessGranted: grantAccess,
     onError: setError,
     couponCode: isFullDiscountCoupon ? coupon.appliedCoupon?.code ?? null : null,

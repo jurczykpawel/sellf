@@ -31,7 +31,7 @@ describe('event administration persistence', () => {
     expect(await purchaseEventMail('admin-event@example.com',id,undefined,undefined,'pl')).toMatchObject({ purchase_product: 'Updated event', purchase_amount: '94,00 zł', event_date: expect.stringContaining('lut') });
     expect(await purchaseEventMail('other@example.com',id)).toEqual({});
     await db.from('guest_purchases').delete().eq('transaction_id',tx);
-    expect(await purchaseEventMail('admin-event@example.com',id)).toEqual({});
+    expect(await purchaseEventMail('admin-event@example.com',id)).toEqual({ purchase_product: 'Updated event', purchase_amount: 'PLN\u00a094.00' });
   });
   it('refuses removal of sold sessions and tiers without partial mutation', async () => {
     expect((await mutate({sessions:[]})).error?.code).toBe('23503');

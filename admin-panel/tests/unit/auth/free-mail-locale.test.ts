@@ -13,7 +13,7 @@ vi.mock('@/hooks/useTracking', () => ({ useTracking: () => ({ track: vi.fn() }) 
 vi.mock('@/lib/auth/magic-link/submit', () => ({ submitMagicLink: submit }));
 afterEach(cleanup);
 it('passes the page locale for a PWYW free request', async () => {
-  const { result } = renderHook(() => useFreeAccess({ user: null, product: { slug: 'course' } as Product, onAccessGranted: vi.fn(), onError: vi.fn() }));
+  const { result } = renderHook(() => useFreeAccess({ user: null, collectTermsOfService: true, product: { slug: 'course' } as Product, onAccessGranted: vi.fn(), onError: vi.fn() }));
   act(() => { result.current.setPwywFreeEmail('buyer@example.com'); result.current.setPwywFreeTermsAccepted(true); });
   await act(async () => { await result.current.handlePwywFreeMagicLink(); });
   expect(submit).toHaveBeenCalledWith(expect.objectContaining({ locale: 'pl', flow: 'free_product' }));

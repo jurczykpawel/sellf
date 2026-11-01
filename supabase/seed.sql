@@ -1490,3 +1490,15 @@ BEGIN
   PERFORM public.apply_payment_dispute(sample.id,'du_seed_example','needs_response',false,'fraudulent',sample.amount::integer,sample.currency,now());
   PERFORM set_config('request.jwt.claims',coalesce(prior_claims,''),true);
 END $seed$;
+-- Local trial invoice example: a recorded zero-total PLN invoice shape.
+INSERT INTO public.products(name,slug,price,currency,is_active,is_listed,product_type,recurring_price,billing_interval,billing_interval_count,trial_days)
+VALUES ('Trial subscription example','trial-invoice-example',17,'PLN',true,false,'subscription',17,'month',1,7)
+ON CONFLICT (slug) DO NOTHING;
+INSERT INTO public.subscriptions(user_id,product_id,stripe_customer_id,stripe_subscription_id,status,trial_end)
+SELECT 'bbbbbbbb-0000-4000-a000-000000000000',id,'cus_seedTrial','sub_seedTrial','trialing',now()+interval '7 days'
+FROM public.products WHERE slug='trial-invoice-example'
+ON CONFLICT (stripe_subscription_id) DO NOTHING;
+INSERT INTO public.payment_transactions(product_id,user_id,subscription_id,stripe_invoice_id,session_id,customer_email,amount,currency,status)
+SELECT product_id,user_id,id,'in_seedTrial','in_seedTrial','buyer@demo.sellf.app',0,'PLN','completed'
+FROM public.subscriptions WHERE stripe_subscription_id='sub_seedTrial'
+ON CONFLICT (stripe_invoice_id) WHERE stripe_invoice_id IS NOT NULL DO NOTHING;

@@ -67,6 +67,21 @@ failure, disables payment-test retries, and cleans up its listener, tunnel and s
 groups on success, failure or interruption. Additional Playwright arguments can
 be passed to the runner, for example `--grep 'guest license'`.
 
+`tests/api/subscription-first-mail-live.test.ts` provides an opt-in HTTP companion.
+Against the same disposable local stack and a running app on port 3777, run:
+
+```sh
+STRIPE_LIVE_API=1 bun --env-file=.env.local x vitest run --config vitest.config.api.ts tests/api/subscription-first-mail-live.test.ts
+```
+
+It completes genuine test-mode sessions using Stripe's CLI fixture protocol,
+fetches real provider events, sends those events to the local webhook with its
+configured test signing secret, reads the first Mailpit message and follows its
+unaltered callback. It covers subscriptions, trials, variants, bundles, events,
+full-discount invitations and transfer instructions. It does not launch a browser.
+Recurring billing is canceled and its customers/prices/products cleaned up;
+Stripe's immutable automatic one-time product records remain in test history.
+
 If a scenario reveals an application bug, preserve the failure evidence and
 report it. Do not change application behavior or relax assertions to obtain a
 green run.

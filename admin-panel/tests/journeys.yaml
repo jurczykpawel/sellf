@@ -43,7 +43,8 @@
       "bump",
       "unpublished",
       "coupon",
-      "content_delivery"
+      "content_delivery",
+      "subscription_trial"
     ],
     "payment": [
       "card",
@@ -3117,6 +3118,190 @@
         "consumer"
       ],
       "limits": "Recorded provider fixture with local API substitution; no fresh scheduled cancellation performed in this change."
+    },
+    {
+      "id": "J140",
+      "title": "New guest receives the first subscription receipt",
+      "values": {
+        "persona": "new",
+        "entry": "email_link",
+        "product": "subscription",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "authenticate"
+      },
+      "end_state": {
+        "buyer": "First Mailpit message contains a working confirmation link; receipt identifies the product and actual charge where a completed payment exists. The coupon invitation has no payment claim. Own access is verified after confirmation.",
+        "seller": "Subscription/payment/access records are verified for the selected product; bundle includes its component and variant excludes its sibling.",
+        "integrator": "Not exercised; this journey checks buyer email and access."
+      },
+      "status": "automated",
+      "layers": [
+        "api",
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J141",
+      "title": "Signed-in subscriber requests the first access email",
+      "values": {
+        "persona": "signed_in",
+        "entry": "email_link",
+        "product": "subscription",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "authenticate"
+      },
+      "end_state": {
+        "buyer": "First Mailpit message contains a working confirmation link; receipt identifies the product and actual charge where a completed payment exists. The coupon invitation has no payment claim. Own access is verified after confirmation.",
+        "seller": "Subscription/payment/access records are verified for the selected product; bundle includes its component and variant excludes its sibling.",
+        "integrator": "Not exercised; this journey checks buyer email and access."
+      },
+      "status": "automated",
+      "layers": [
+        "api",
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J142",
+      "title": "New trial subscriber confirms the first invitation",
+      "values": {
+        "persona": "new",
+        "entry": "email_link",
+        "product": "subscription_trial",
+        "payment": "none",
+        "moment": "after_payment",
+        "operation": "authenticate"
+      },
+      "end_state": {
+        "buyer": "First Mailpit message contains a working confirmation link; receipt identifies the product and actual charge where a completed payment exists. The coupon invitation has no payment claim. Own access is verified after confirmation.",
+        "seller": "Subscription/payment/access records are verified for the selected product; bundle includes its component and variant excludes its sibling.",
+        "integrator": "Not exercised; this journey checks buyer email and access."
+      },
+      "status": "automated",
+      "layers": [
+        "api",
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J143",
+      "title": "Full coupon invitation grants access after confirmation",
+      "values": {
+        "persona": "new",
+        "entry": "email_link",
+        "product": "coupon",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "authenticate"
+      },
+      "end_state": {
+        "buyer": "First Mailpit message contains a working confirmation link; receipt identifies the product and actual charge where a completed payment exists. The coupon invitation has no payment claim. Own access is verified after confirmation.",
+        "seller": "Subscription/payment/access records are verified for the selected product; bundle includes its component and variant excludes its sibling.",
+        "integrator": "Not exercised; this journey checks buyer email and access."
+      },
+      "status": "automated",
+      "layers": [
+        "api",
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J144",
+      "title": "Selected variant receipt identifies the purchased plan",
+      "values": {
+        "persona": "new",
+        "entry": "email_link",
+        "product": "variant",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "authenticate"
+      },
+      "end_state": {
+        "buyer": "First Mailpit message contains a working confirmation link; receipt identifies the product and actual charge where a completed payment exists. The coupon invitation has no payment claim. Own access is verified after confirmation.",
+        "seller": "Subscription/payment/access records are verified for the selected product; bundle includes its component and variant excludes its sibling.",
+        "integrator": "Not exercised; this journey checks buyer email and access."
+      },
+      "status": "automated",
+      "layers": [
+        "api",
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J145",
+      "title": "Bundle receipt opens included access",
+      "values": {
+        "persona": "new",
+        "entry": "email_link",
+        "product": "bundle",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "authenticate"
+      },
+      "end_state": {
+        "buyer": "First Mailpit message contains a working confirmation link; receipt identifies the product and actual charge where a completed payment exists. The coupon invitation has no payment claim. Own access is verified after confirmation.",
+        "seller": "Subscription/payment/access records are verified for the selected product; bundle includes its component and variant excludes its sibling.",
+        "integrator": "Not exercised; this journey checks buyer email and access."
+      },
+      "status": "automated",
+      "layers": [
+        "api",
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J146",
+      "title": "Event receipt includes the purchased session",
+      "values": {
+        "persona": "new",
+        "entry": "email_link",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "authenticate"
+      },
+      "end_state": {
+        "buyer": "First Mailpit message contains a working confirmation link; receipt identifies the product and actual charge where a completed payment exists. The coupon invitation has no payment claim. Own access is verified after confirmation.",
+        "seller": "Subscription/payment/access records are verified for the selected product; bundle includes its component and variant excludes its sibling.",
+        "integrator": "Not exercised; this journey checks buyer email and access."
+      },
+      "status": "automated",
+      "layers": [
+        "api",
+        "sandbox",
+        "browser"
+      ]
+    },
+    {
+      "id": "J147",
+      "title": "Placed transfer first message opens permitted early access",
+      "values": {
+        "persona": "new",
+        "entry": "email_link",
+        "product": "paid",
+        "payment": "bank_transfer",
+        "moment": "immediate",
+        "operation": "authenticate"
+      },
+      "status": "automated",
+      "layers": [
+        "api",
+        "sandbox",
+        "browser"
+      ],
+      "end_state": {
+        "buyer": "First message identifies the product, amount due and account; its delivered link confirms the buyer and opens early access.",
+        "seller": "Order remains awaiting_payment; early-access setting is enabled.",
+        "integrator": "Not exercised; this journey checks buyer mail and access."
+      }
     }
   ],
   "escapes": [
