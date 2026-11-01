@@ -9,6 +9,8 @@ import { computeNextRetry } from '@/lib/services/webhook-queue/retry-policy';
 import { fetchEligibleEndpoints } from '@/lib/webhooks/endpoint-selection';
 import { buildEndpointBody } from '@/lib/webhooks/payload-customization';
 import { checkFeature } from '@/lib/license/resolve';
+import { EVENT_FEATURE_REQUIREMENTS } from '@/lib/license/features';
+import type { Feature } from '@/lib/license/features';
 
 interface EnvelopePayload {
   event: string;
@@ -34,6 +36,8 @@ export class WebhookService {
     deduplicationKey?: string,
   ): Promise<void> {
     const supabase = client || createAdminClient();
+    const requiredFeature = (EVENT_FEATURE_REQUIREMENTS as Record<string, Feature>)[event];
+    if (requiredFeature && !(await checkFeature(requiredFeature, { dataClient: supabase }))) return;
     if (event === 'order.placed' && data && typeof data === 'object' && 'order' in data) {
       const order = data.order as { orderId?: string } | null;
       if (order?.orderId) {

@@ -2151,6 +2151,7 @@
         "refund_updated": "Status zwrotu zmieniony",
         "refund_issued": "Zwrot wykonany",
         "license_revoked": "Licencja odwołana (Pro)",
+        "license_restored": "Licencja przywrócona (Pro)",
         "payment_completed": "Płatność zakończona",
         "payment_refunded": "Płatność zwrócona",
         "payment_failed": "Płatność nieudana",
@@ -2193,7 +2194,8 @@
         "access_updated": "Zmieniono lub przedłużono dostęp. Zawiera poprzedni i nowy stan, zapisane daty, powód i aktora.",
         "access_revoked": "Odebrano dostęp. Zawiera ID grantu, czas odebrania, powód i aktora.",
         "access_expired": "Wygasł czasowy dostęp kupującego do produktu (wysyłane przez zadanie cron, raz na wygasły rekord).",
-        "license_revoked": "Odwołano podpisaną licencję produktu. Zawiera zamówienie, klienta, tier, domenę i URL listy CRL, by integracja mogła natychmiast odebrać dostęp. Tylko Pro."
+        "license_revoked": "Odwołano podpisaną licencję produktu. Zawiera zamówienie, klienta, tier, domenę i URL listy CRL, by integracja mogła natychmiast odebrać dostęp. Tylko Pro.",
+        "license_restored": "Przywrócono wcześniej cofniętą licencję produktu. Token i termin pozostają bez zmian; odśwież CRL przed przyznaniem dostępu. Tylko Pro."
       },
       "logs": {
         "title": "Logi Dostarczeń",
@@ -3366,6 +3368,9 @@
       "copy": "Kopiuj token",
       "revoke": "Cofnij licencję",
       "confirmRevoke": "Cofnąć tę licencję? Klienci offline odrzucą ją po odświeżeniu CRL.",
+      "keepRevoked": "Pozostaw licencję cofniętą",
+      "confirmKeepRevoked": "Pozostawić tę licencję cofniętą również po wygraniu sporu?",
+      "disputeRevokedStatus": "Cofnięta z powodu sporu",
       "revokeError": "Nie udało się cofnąć licencji",
       "revoked": "Licencja cofnięta",
       "empty": "Brak licencji",

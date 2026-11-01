@@ -129,6 +129,12 @@ describe('Security headers', () => {
       expect(resolved.get('Cache-Control')).toBe('public, max-age=300, s-maxage=300');
     });
 
+    it('keeps revocations current while caching public signing keys', async () => {
+      const rules = await nextConfig.headers!();
+      expect(resolveHeaders(rules as never, '/api/licenses/revoked').get('Cache-Control')).toBe('no-store');
+      expect(resolveHeaders(rules as never, '/api/licenses/jwks').get('Cache-Control')).toBe('public, max-age=300, s-maxage=300');
+    });
+
     it('leaves unrelated API routes on the strict no-store default and same-site CORP', async () => {
       const rules = await nextConfig.headers!();
       const resolved = resolveHeaders(rules as never, '/api/v1/products');

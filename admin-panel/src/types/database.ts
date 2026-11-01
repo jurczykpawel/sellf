@@ -1645,6 +1645,7 @@ export type Database = {
           original_seller_id: string
           product_id: string
           revoked_at: string | null
+          revoked_by_dispute_id: string | null
           seller_id: string | null
           user_id: string | null
         }
@@ -1661,6 +1662,7 @@ export type Database = {
           original_seller_id: string
           product_id: string
           revoked_at?: string | null
+          revoked_by_dispute_id?: string | null
           seller_id?: string | null
           user_id?: string | null
         }
@@ -1677,6 +1679,7 @@ export type Database = {
           original_seller_id?: string
           product_id?: string
           revoked_at?: string | null
+          revoked_by_dispute_id?: string | null
           seller_id?: string | null
           user_id?: string | null
         }
@@ -1687,6 +1690,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issued_licenses_revoked_by_dispute_id_fkey"
+            columns: ["revoked_by_dispute_id"]
+            isOneToOne: false
+            referencedRelation: "payment_disputes"
+            referencedColumns: ["stripe_dispute_id"]
           },
           {
             foreignKeyName: "issued_licenses_seller_id_fkey"
@@ -1858,6 +1868,7 @@ export type Database = {
           guest_access: Json
           payload: Json
           previous_payment_status: string
+          revoked_license_ids: string[]
           status: string
           stripe_dispute_id: string
           suspended_at: string
@@ -1869,6 +1880,7 @@ export type Database = {
           guest_access?: Json
           payload?: Json
           previous_payment_status: string
+          revoked_license_ids?: string[]
           status: string
           stripe_dispute_id: string
           suspended_at: string
@@ -1880,6 +1892,7 @@ export type Database = {
           guest_access?: Json
           payload?: Json
           previous_payment_status?: string
+          revoked_license_ids?: string[]
           status?: string
           stripe_dispute_id?: string
           suspended_at?: string
@@ -5345,6 +5358,12 @@ export type Database = {
           slug: string
         }[]
       }
+      license_event_snapshot: {
+        Args: {
+          p_license: Database["public"]["Tables"]["issued_licenses"]["Row"]
+        }
+        Returns: Json
+      }
       log_admin_action: {
         Args: {
           action_details?: Json
@@ -5600,6 +5619,13 @@ export type Database = {
           verification_state: string
         }
         Returns: boolean
+      }
+      revoke_issued_licenses: {
+        Args: { p_actor?: string; p_license_ids: string[] }
+        Returns: {
+          changed: boolean
+          id: string
+        }[]
       }
       rotate_webhook_secret: {
         Args: {

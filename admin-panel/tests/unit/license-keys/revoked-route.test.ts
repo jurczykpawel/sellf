@@ -26,6 +26,11 @@ beforeEach(() => {
 });
 
 describe('GET /api/licenses/revoked', () => {
+  it('serves current revocations without retaining a stale bucket after restoration', async () => {
+    const response = await GET(req(`seller=${SELLER}&prefix=${PREFIX}`));
+    expect(response.headers.get('cache-control')).toContain('no-store');
+  });
+
   it('returns only SHA-256 order hashes in the prefix bucket', async () => {
     const response = await GET(req(`seller=${SELLER}&prefix=${PREFIX}`));
     expect(response.status).toBe(200);

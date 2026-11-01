@@ -8,6 +8,7 @@ const row: RevokedLicenseRow = {
   email: 'buyer@example.com',
   order_id: 'cs_test_123',
   seller_id: 'seller-1',
+  original_seller_id: 'seller-1',
   license_domain: 'buyer.example.com',
   issuance_source: 'purchase',
   issued_at: '2026-01-01T00:00:00.000Z',
@@ -36,7 +37,7 @@ describe('buildLicenseRevokeWebhookData', () => {
     });
   });
 
-  it('never leaks the signed token even if a row carries it', () => {
+  it('omits the signed token from notification metadata', () => {
     const dirty = { ...row, license_key: 'payload.signature' } as RevokedLicenseRow;
     const data = buildLicenseRevokeWebhookData(dirty, 'https://sellf.example');
     expect(JSON.stringify(data)).not.toContain('payload.signature');

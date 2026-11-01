@@ -1,22 +1,8 @@
 /**
- * Payload for the `license.revoked` outbound webhook.
- *
- * Fires when a seller revokes an issued product license (DELETE
- * /api/admin/licenses/:id). Consumers verify licenses OFFLINE, so this lets a
- * seller's integration react immediately (e.g. refresh its CRL, disable a
- * customer) instead of waiting for the cached revocation list to expire.
- *
- * SECURITY: the signed token (`license_key`) is NEVER projected here — the
- * builder reads only the explicit, safe columns. The CRL stays the source of
- * truth for verification; this event is a notification.
- *
- * @see ../../app/api/admin/licenses/[id]/route.ts (manual-revoke dispatch site)
- * @see ../../app/api/webhooks/stripe/route.ts (refund/chargeback dispatch site)
- * @see ../../app/api/licenses/revoked/route.ts (the CRL the consumer reads)
+ * Safe metadata for committed license status notifications.
+ * @see src/lib/services/business-events.ts
+ * @see supabase/migrations/20261101141003_license_dispute_restoration.sql
  */
-
-import { checkFeature } from '@/lib/license/resolve';
-import { WebhookService } from '@/lib/services/webhook-service';
 
 export interface RevokedLicenseRow {
   id: string;
@@ -25,6 +11,7 @@ export interface RevokedLicenseRow {
   order_id: string;
   /** Null once the issuing seller's own account has since been deleted (the license record is kept; the account reference is not). */
   seller_id: string | null;
+  original_seller_id: string;
   license_domain: string | null;
   issuance_source: string;
   issued_at: string | null;
@@ -67,41 +54,20 @@ export function buildLicenseRevokeWebhookData(
       revokedAt: row.revoked_at,
     },
     product: { id: row.product_id, name: row.products?.name ?? null, slug: row.products?.slug ?? null },
-    crlUrl: `${origin}/api/licenses/revoked?seller=${row.seller_id}`,
+    crlUrl: `${origin}/api/licenses/revoked?seller=${row.original_seller_id}`,
   };
 }
 
-type AdminClientLike = { from: (table: string) => unknown };
+export interface LicenseRestoreWebhookData extends Omit<LicenseRevokeWebhookData, 'license'> {
+  license: LicenseRevokeWebhookData['license'] & { restoredAt: string };
+}
 
-/**
- * Fire the `license.revoked` webhook for each just-revoked license. Single source
- * of truth for both revocation paths (manual admin revoke + refund/chargeback).
- *
- * Pro-gated (the whole license feature is Pro; the event is gated explicitly too),
- * checked once for the whole batch. FIRE-AND-FORGET: never throws — a webhook
- * failure must never undo a revocation, and in the Stripe path it must never cause
- * a refund/dispute event to be redelivered. The queue worker retries failed
- * deliveries on its own.
- */
-export async function emitLicenseRevokedWebhooks(
-  admin: AdminClientLike,
-  rows: RevokedLicenseRow[],
+/** Restoration retains the signed license identity and original expiration. */
+export function buildLicenseRestoreWebhookData(
+  row: RevokedLicenseRow,
   origin: string,
-): Promise<void> {
-  try {
-    // A row with no seller_id means the issuing seller's account has since
-    // been deleted: there is no seller-scoped CRL left to point the webhook
-    // at (its signing keys are gone with the account), so it is skipped
-    // rather than firing with a meaningless crlUrl.
-    const notifiable = rows.filter((row): row is RevokedLicenseRow & { seller_id: string } => row.seller_id !== null);
-    if (notifiable.length === 0) return;
-    if (!(await checkFeature('license-revoked-webhook', { dataClient: admin }))) return;
-    await Promise.all(
-      notifiable.map((row) =>
-        WebhookService.trigger('license.revoked', buildLicenseRevokeWebhookData(row, origin), admin, row.product_id),
-      ),
-    );
-  } catch (err) {
-    console.error('[emitLicenseRevokedWebhooks] Error:', err instanceof Error ? err.message : 'Unknown error');
-  }
+  restoredAt: string,
+): LicenseRestoreWebhookData {
+  const data = buildLicenseRevokeWebhookData(row, origin);
+  return { ...data, license: { ...data.license, restoredAt } };
 }

@@ -196,7 +196,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       sessionId: 'cs_example', paymentIntentId: 'pi_example', stripeInvoiceId: null, subscriptionId: null },
     dispute: { stripeDisputeId: 'dp_example', stripeChargeId: 'ch_example',
       status: event === 'dispute.created' ? 'needs_response' : 'lost', reason: 'fraudulent',
-      amount: 1100, currency: 'PLN', createdAt: '2026-10-01T00:00:00Z', accessRevoked: true, accessRestored: false, licenseRestored: false, restoredAccess: [] },
+      amount: 1100, currency: 'PLN', createdAt: '2026-10-01T00:00:00Z', accessRevoked: true, accessRestored: false, licenseRestored: false, restoredLicenses: [], restoredAccess: [] },
   }])),
   'refund.updated': {
     customer: { email: 'customer@example.com', userId: null }, product: { id: 'product_example' },
@@ -254,6 +254,16 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     },
     product: { id: 'prod_12345678', name: 'Premium Plugin', slug: 'premium-plugin' },
     crlUrl: 'https://example.com/api/licenses/revoked?seller=seller-id'
+  },
+  'license.restored': {
+    license: {
+      id: 'lic_12345678', order: 'cs_test_a1b2c3d4e5f6g7h8i9j0', email: 'customer@example.com',
+      tier: 'pro', domain: 'customer.example.com', issuanceSource: 'purchase',
+      issuedAt: '2026-01-01T00:00:00.000Z', expiresAt: '2027-01-01T00:00:00.000Z',
+      revokedAt: null, restoredAt: '2026-02-01T00:00:00.000Z',
+    },
+    product: { id: 'prod_12345678', name: 'Premium Plugin', slug: 'premium-plugin' },
+    crlUrl: 'https://example.com/api/licenses/revoked?seller=seller-id',
   },
   'test.event': {
     message: 'This is a test event from Sellf',

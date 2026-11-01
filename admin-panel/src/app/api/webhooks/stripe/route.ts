@@ -25,7 +25,6 @@ import Stripe from 'stripe';
 import { abandonPendingCheckoutSession } from '@/lib/stripe/checkout-expiration';
 import { verifyWebhookSignature, getStripeServer } from '@/lib/stripe/server';
 import { revokeLicensesForOrder } from '@/lib/license-keys/revoke';
-import { emitLicenseRevokedWebhooks } from '@/lib/services/license-revoke-webhook-payload';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { pendingPaymentResult } from '@/lib/stripe/pending-payment';
 import { getPaymentRefundStatus } from '@/lib/refunds/payment-status';
@@ -47,7 +46,6 @@ import { RETRIABLE_EVENTS, TERMINAL_FAILURE_REASONS } from './retriable-events';
 import { handleChargeDispute } from './dispute-handlers';
 import { handleCheckoutSessionCompleted, handlePaymentIntentSucceeded } from './onetime-handlers';
 import { readBodyWithByteLimit, ApiPayloadTooLargeError, DEFAULT_MAX_BODY_BYTES } from '@/lib/api/body-limit';
-import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
 // Stripe events — particularly ones with many expanded line items, invoices,
 // or subscription phases — can run larger than a typical API JSON body.
@@ -232,17 +230,10 @@ async function processRefundForTransaction(
   }
 
   // Revoke any offline license issued for this order so a refunded token stops working.
-  const refundRevoked = await revokeLicensesForOrder(supabase, {
+  await revokeLicensesForOrder(supabase, {
     productId: transaction.product_id,
     orderIds: [transaction.stripe_payment_intent_id, transaction.session_id],
   });
-  // Notify integrations (Pro, fire-and-forget — never throws, so it can't redeliver this event).
-  await emitLicenseRevokedWebhooks(
-    supabase,
-    refundRevoked.rows,
-    getCanonicalOriginOrNull() ?? '',
-  );
-
   const cancelResult = await scheduleSubscriptionCancelAfterFullRefund({
     supabase: supabase as never,
     stripe,

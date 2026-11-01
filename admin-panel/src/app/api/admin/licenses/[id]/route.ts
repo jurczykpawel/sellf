@@ -3,9 +3,7 @@ import { z } from 'zod';
 
 import { requireAdminApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit } from '@/lib/rate-limiting';
-import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
-import { emitLicenseRevokedWebhooks, type RevokedLicenseRow } from '@/lib/services/license-revoke-webhook-payload';
-import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const idSchema = z.string().uuid();
 const noStore = { 'Cache-Control': 'no-store' };
@@ -58,26 +56,11 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if (!(await checkRateLimit('admin_license_revoke', 20, 60, access.auth!.user.id))) {
     return NextResponse.json({ error: 'Rate limited' }, { status: 429, headers: noStore });
   }
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from('issued_licenses')
-    .update({ revoked_at: new Date().toISOString() })
-    .eq('id', id.data)
-    .is('revoked_at', null)
-    .select('id, product_id, email, order_id, seller_id, license_domain, issuance_source, issued_at, expires_at, revoked_at, products(name, slug, license_tier)')
-    .maybeSingle();
-  if (error) return NextResponse.json({ error: 'License revocation failed' }, { status: 500, headers: noStore });
-  if (!data) return NextResponse.json({ error: 'Not found or already revoked' }, { status: 404, headers: noStore });
-  const row = data as unknown as RevokedLicenseRow;
-  await createPlatformClient().from('audit_log').insert({
-    table_name: 'issued_licenses',
-    operation: 'LICENSE_REVOKED',
-    performed_by: access.auth!.user.id,
-    old_values: { license_id: row.id, product_id: row.product_id, email: row.email, order_id: row.order_id },
+  const { data, error } = await createAdminClient().rpc('revoke_issued_licenses', {
+    p_license_ids: [id.data], p_actor: access.auth!.user.id,
   });
-
-  // Notify the seller's integrations (Pro, fire-and-forget — see helper).
-  await emitLicenseRevokedWebhooks(admin, [row], getCanonicalOrigin(request));
+  if (error) return NextResponse.json({ error: 'License revocation failed' }, { status: 500, headers: noStore });
+  if (!data?.length) return NextResponse.json({ error: 'Not found' }, { status: 404, headers: noStore });
 
   return NextResponse.json({ revoked: true }, { headers: noStore });
 }

@@ -170,7 +170,7 @@ A win restores original access dates only while the grant still exists unchanged
 full refunds, manual deletion and ended subscription rights take precedence.
 Restored guest purchases carry their original product terms into the normal claim
 function; the access trigger applies those dates before capturing its business event.
-Offline licenses stay revoked. The signed delivery queue deduplicates each
+Licenses whose revocation is still owned by that dispute return after a win; manual/refund decisions take precedence and the signed token and expiry remain unchanged. The signed delivery queue deduplicates each
 provider dispute/status. Unmatched events check local product/subscription bindings
 through Stripe before requesting redelivery; a confirmed local binding stays
 retriable until storage succeeds, while an unrelated product is acknowledged.
@@ -1042,14 +1042,19 @@ calls `revokeLicensesForOrder`, keyed on `paymentIntentId || sessionId`) and **m
   widen the bucket). No full-dump mode, so the revocation count can't be scraped and the server
   never sees the full hash. Never exposes tokens/PII. Consumer side lives in the unified
   ReplyStack/PostStack repo (`src/lib/license/revocation.ts` + `gate.ts`).
-- **`license.revoked` webhook** — both revocation paths call `emitLicenseRevokedWebhooks`
-  (`lib/services/license-revoke-webhook-payload.ts`) so a seller's integration reacts immediately.
-  **Pro-gated** twice: subscribing to the event (`findDeniedEventFeature` on the `/api/v1/webhooks`
-  write path) and dispatch (`checkFeature('license-revoked-webhook')`) — feature key in
-  `lib/license/features.ts`, event→feature map in `EVENT_FEATURE_REQUIREMENTS`. Payload carries the
-  order, customer, tier, domain, issuance source and the CRL URL — **never the signed token**.
-  Fire-and-forget: it never throws, so a webhook failure neither undoes a revocation nor causes a
-  Stripe refund/dispute event to be redelivered; the queue worker retries failed deliveries.
+- **`license.revoked` / `license.restored` webhooks** — a license status trigger records both
+  events in `business_events` with the same transaction as the license update. The worker
+  projects metadata through `license-revoke-webhook-payload.ts`; signed tokens never enter
+  the event payload. Subscription and dispatch both require the existing Pro
+  `license-revoked-webhook` feature through `EVENT_FEATURE_REQUIREMENTS`.
+- **Dispute restoration** — `payment_disputes.revoked_license_ids` records the licenses changed
+  by the dispute. `issued_licenses.revoked_by_dispute_id` identifies the current revocation
+  owner. `apply_payment_dispute` clears only its own revocations after won, atomically with
+  access; manual and refund decisions clear ownership even when already revoked. The manual
+  revoke RPC records the seller's intent and audit in the same transaction. Older untracked
+  revocations remain revoked. The CRL is uncached; consumers refresh their bucket on a status
+  notification and verify the original token signature and expiry. CRL order-level manual
+  revocations also prevent a dispute from unblocking another license on the same order.
 
 ### Generated legal documents (Terms of Service, Privacy Policy)
 

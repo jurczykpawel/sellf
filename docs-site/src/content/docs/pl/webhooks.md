@@ -136,13 +136,33 @@ stanu (`completed` lub `partially_refunded`), a uprawnienie wraca z zachowanym t
 ręczne usunięcie grantu, upływ terminu lub zakończenie subskrypcji blokują odtworzenie.
 Gość odzyskuje oryginalny nieodebrany zakup. Zapisany termin obowiązuje również przy
 późniejszym odebraniu, także po zmianie czasu dostępu w produkcie. Ponowienie zdarzenia nie przedłuża terminu.
-Odwołana licencja pozostaje odwołana (`licenseRestored: false`), także po wygranej;
-sprzedawca może wydać nową licencję osobno. Odbiorca powinien używać flagi
+Wygrana usuwa również odwołanie licencji zapisanych jako cofnięte przez ten spór.
+`licenseRestored` i `restoredLicenses` opisują faktycznie zmienione licencje, z tym samym
+tokenem i terminem. Ręczne cofnięcie lub zwrot blokują przywrócenie. Licencje cofnięte
+przed wprowadzeniem zapisu pochodzenia nie są przywracane automatycznie. Odbiorca powinien używać flagi
 `accessRestored` oraz `payment.statusAfter`, a nie samego wyniku `won`.
 `dispute.restoredAccess` wymienia faktycznie przywrócone uprawnienia: `productId`,
 `userId` (null dla gościa), `grantedAt` i `expiresAt` (null dla dostępu bezterminowego).
 Dla gościa dochodzi `guestPurchaseId`. Odbiorca powinien zastosować tę listę:
 ręcznie usunięty grant głównego produktu może pozostać nieobecny, gdy dostęp do dodatku wróci.
+
+## `license.revoked` / `license.restored` — Pro
+
+Każda rzeczywista zmiana stanu odwołania tworzy trwałe powiadomienie. Powtórzenie
+niezmienionego statusu nie dodaje zdarzenia. Subskrypcja i wysyłka obu typów wymagają
+funkcji Pro; sam stan licencji zmienia się niezależnie od bieżącego planu sklepu.
+
+Dane obejmują `license.id`, `order`, `email`, `tier`, `domain`, `issuanceSource`,
+`issuedAt`, `expiresAt`, `revokedAt`, produkt i `crlUrl`. Przywrócenie dodaje
+`license.restoredAt`, a powiązany spór — `dispute.stripeDisputeId`. Token nie jest
+wysyłany. Po usunięciu odwołania można używać tego samego tokenu; wygasły pozostaje wygasły.
+
+Po każdym zdarzeniu usuń lokalny cache odpowiedniego zakresu CRL, pobierz aktualną
+listę i sprawdź podpis oraz pierwotny termin tokenu. Endpoint CRL zwraca
+`Cache-Control: no-store`. Przywrócenie nie przedłuża terminu. Aby licencja pozostała
+cofnięta także po wygraniu sporu, wybierz **Pozostaw licencję cofniętą** w ustawieniach
+wydanych licencji. Cofnięcia ze starszych wersji nie mają zapisanego powiązania ze
+sporem i wymagają osobnej decyzji sprzedawcy.
 
 ## Automatyczne ponowienia
 
