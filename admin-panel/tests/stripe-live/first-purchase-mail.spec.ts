@@ -113,7 +113,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
       if (kind === 'trial') {
         await expect(page.getByTestId('order-summary-total')).toContainText(locale === 'pl' ? '0,00' : '0.00');
         await expect(page.getByTestId('trial-later-total')).toContainText(locale === 'pl' ? '11,00' : '11.00');
-        await expect(page.getByRole('button', { name: locale === 'pl' ? 'Rozpocznij 7 dni za darmo' : 'Start 7 days free' })).toBeVisible();
+        await expect(page.getByRole('button', { name: locale === 'pl' ? 'Rozpocznij 7 dni za darmo' : 'Start 7 days free' })).toBeEnabled({ timeout: 30000 });
         await expect(page.getByTestId('trial-first-payment').first()).toBeVisible();
         if (trialCoupon) await expect(page.getByText(locale === 'pl' ? 'Kod rabatowy nie ma zastosowania' : 'Discount codes do not apply', { exact: false })).toBeVisible();
         await checkAccessibility(page, { excludeSelectors: ['iframe', 'altcha-widget', '#sf-cc-root'] });
