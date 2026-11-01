@@ -2,8 +2,8 @@
  * Apply the stored dispute decision before delivering its durable consumer notification.
  * @see supabase/migrations/20261101035039_payment_dispute_state.sql
  */
-import { revokeLicensesForOrder } from '@/lib/license-keys/revoke';
-import { emitLicenseRevokedWebhooks } from '@/lib/services/license-revoke-webhook-payload';
+import { buildLicenseRevokeWebhookData } from '@/lib/services/license-revoke-webhook-payload';
+import type { RevokedLicenseRow } from '@/lib/services/license-revoke-webhook-payload';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { findTransactionByOrderId } from '@/lib/services/transaction-lookup';
 import { pendingPaymentResult } from '@/lib/stripe/pending-payment';
@@ -48,17 +48,15 @@ export async function handleChargeDispute(
   });
   if (error) return { processed: false, message: 'Dispute state unavailable' };
   if (!data) return { processed: true, message: 'Dispute outcome already final' };
-  if (dispute.status !== 'won') {
-    const revoked = await revokeLicensesForOrder(db, {
-      productId: transaction.product_id, orderIds: [paymentIntentId,transaction.session_id],
-    });
-    await emitLicenseRevokedWebhooks(db,revoked.rows,getCanonicalOriginOrNull() ?? '');
-  }
   const payload = data as Record<string, unknown>;
   const details = payload.dispute as Record<string, unknown>;
   const payment = payload.payment as Record<string, unknown>;
+  const restoredLicenses = Array.isArray(details.restoredLicenses) ? details.restoredLicenses.map(raw => {
+    const data = buildLicenseRevokeWebhookData(raw as RevokedLicenseRow, getCanonicalOriginOrNull() ?? '');
+    return { ...data.license, productId: data.product.id, crlUrl: data.crlUrl };
+  }) : [];
   await WebhookService.trigger(outcomeClosed ? 'dispute.closed' : 'dispute.created', {
-    ...payload, payment: { ...payment, paymentIntentId }, dispute: { ...details, stripeChargeId: chargeId },
+    ...payload, payment: { ...payment, paymentIntentId }, dispute: { ...details, restoredLicenses, stripeChargeId: chargeId },
   },db,transaction.product_id);
   return { processed: true, message: 'Dispute outcome recorded and integrations notified' };
 }

@@ -2151,6 +2151,7 @@
         "refund_updated": "Refund Status Updated",
         "refund_issued": "Refund Issued",
         "license_revoked": "License Revoked (Pro)",
+        "license_restored": "License Restored (Pro)",
         "payment_completed": "Payment Completed",
         "payment_refunded": "Payment Refunded",
         "payment_failed": "Payment Failed",
@@ -2193,7 +2194,8 @@
         "access_updated": "Existing access was modified or extended. Includes previous/new status, the saved dates, reason and actor.",
         "access_revoked": "An access record was revoked. Includes grant ID, revocation time, reason and actor.",
         "access_expired": "A buyer's time-limited access to a product expired (dispatched by a scheduled job, once per expired record).",
-        "license_revoked": "A signed product license was revoked. Includes the order, customer, tier, domain and the CRL URL so your integration can disable access immediately. Pro only."
+        "license_revoked": "A signed product license was revoked. Includes the order, customer, tier, domain and the CRL URL so your integration can disable access immediately. Pro only.",
+        "license_restored": "A previously revoked product license was restored. The original token and expiry stay unchanged; refresh the CRL before granting access. Pro only."
       },
       "logs": {
         "title": "Delivery Logs",
@@ -3366,6 +3368,9 @@
       "copy": "Copy token",
       "revoke": "Revoke license",
       "confirmRevoke": "Revoke this license? Offline clients will reject it after refreshing the CRL.",
+      "keepRevoked": "Keep license revoked",
+      "confirmKeepRevoked": "Keep this license revoked even if the dispute is won?",
+      "disputeRevokedStatus": "Revoked during dispute",
       "revokeError": "Failed to revoke license",
       "revoked": "License revoked",
       "empty": "No licenses found",

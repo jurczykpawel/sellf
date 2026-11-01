@@ -201,6 +201,7 @@ export const WEBHOOK_EVENT_TYPES = [
   'dispute.closed',
   // License (Pro — gated by EVENT_FEATURE_REQUIREMENTS / 'license-revoked-webhook')
   'license.revoked',
+  'license.restored',
   // Legacy/future events
   'payment.completed',
   'payment.refunded',

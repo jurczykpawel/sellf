@@ -446,7 +446,7 @@ Supported fields: `gtm_container_id`, `gtm_server_container_url`, `gtm_ss_enable
 
 `facebook_capi_token` is write-only: it is stored encrypted and never returned. Omit the field to keep the stored token; send `null` to remove it.
 
-Supported outgoing event types include purchases, leads, waitlist signups, `refund.issued`, `refund.updated`, `dispute.created`, `dispute.closed`, subscription lifecycle events, and invoice payment events.
+Supported outgoing event types include purchases, leads, waitlist signups, `refund.issued`, `refund.updated`, `dispute.created`, `dispute.closed`, `license.revoked`, `license.restored` (both Pro), subscription lifecycle events, and invoice payment events.
 
 ### Analytics
 

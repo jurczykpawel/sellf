@@ -3,6 +3,9 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { minorOrderLines } from '@/lib/orders/event-money';
 import { WebhookService } from '@/lib/services/webhook-service';
+import { buildLicenseRevokeWebhookData, buildLicenseRestoreWebhookData } from '@/lib/services/license-revoke-webhook-payload';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
+import type { RevokedLicenseRow } from '@/lib/services/license-revoke-webhook-payload';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import type { AuthResult } from '@/lib/api';
@@ -22,7 +25,15 @@ export async function runBusinessEvents(db = createAdminClient()): Promise<{ pro
   for (const event of claimed.data ?? []) {
     try {
       const data = event.payload as Record<string, any>;
-      const payload = event.event_type === 'order.abandoned' ? { ...data, lines: minorOrderLines(data.lines ?? []) } : data;
+      let payload: unknown = event.event_type === 'order.abandoned' ? { ...data, lines: minorOrderLines(data.lines ?? []) } : data;
+      if (event.event_type === 'license.revoked' || event.event_type === 'license.restored') {
+        const row = data.licenseRow as RevokedLicenseRow;
+        const origin = getCanonicalOriginOrNull() ?? '';
+        const licensePayload = event.event_type === 'license.restored'
+          ? buildLicenseRestoreWebhookData(row, origin, event.created_at)
+          : buildLicenseRevokeWebhookData(row, origin);
+        payload = { ...licensePayload, ...(data.disputeId && { dispute: { stripeDisputeId: data.disputeId } }) };
+      }
       const productIds = event.event_type === 'order.abandoned'
         ? [...new Set([event.product_id, ...(data.lines ?? []).map((line: { product_id: string | null }) => line.product_id).filter(Boolean)])] : event.product_id;
       await WebhookService.trigger(event.event_type, payload, db, productIds, `business_${event.id}`);

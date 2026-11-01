@@ -30,7 +30,7 @@ const FEATURE_TIERS = {
   'webhook-product-scoping': 'pro',    // POST/PATCH /api/v1/webhooks → product_filter_mode='selected'
   'webhook-payload-customization': 'pro', // webhook custom headers/fields/selection
   'license-key-issuance': 'pro',          // generate/upload signing keys + issue tokens on purchase
-  'license-revoked-webhook': 'pro',       // outbound license.revoked webhook (subscription + dispatch)
+  'license-revoked-webhook': 'pro',       // outbound license status webhooks (subscription + dispatch)
 } as const satisfies Record<string, LicenseTier>;
 
 // Planned features — NOT yet enforced. Add to FEATURE_TIERS when implemented.
@@ -48,6 +48,7 @@ export type Feature = keyof typeof FEATURE_TIERS;
  */
 export const EVENT_FEATURE_REQUIREMENTS = {
   'license.revoked': 'license-revoked-webhook',
+  'license.restored': 'license-revoked-webhook',
 } as const satisfies Record<string, Feature>;
 
 // ===== TIER ORDERING =====

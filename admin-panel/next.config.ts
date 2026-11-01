@@ -174,12 +174,9 @@ const nextConfig: NextConfig = {
           { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
         ],
       })),
-      // Public license verification material is safe and intentionally cached.
-      // These exact routes come after the generic API rule so this value wins.
-      ...['/api/licenses/jwks', '/api/licenses/revoked'].map((source) => ({
-        source,
-        headers: buildPublicCacheHeaders(),
-      })),
+      // Signing keys are cacheable; revocations reflect each current status change.
+      { source: '/api/licenses/jwks', headers: buildPublicCacheHeaders() },
+      { source: '/api/licenses/revoked', headers: [{ key: 'Cache-Control', value: 'no-store' }] },
       // Embeddable cross-domain endpoints — relax CORP only.
       // Listed AFTER /api/:path* so CORP override wins.
       ...EMBEDDABLE_RESOURCE_PATHS.map((source) => ({

@@ -149,7 +149,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const now = new Date().toISOString();
   let query = admin
     .from('issued_licenses')
-    .select('id, product_id, email, order_id, kid, issued_at, expires_at, revoked_at, issuance_source, license_domain, products(name, slug, license_tier)', { count: 'exact' })
+    .select('id, product_id, email, order_id, kid, issued_at, expires_at, revoked_at, revoked_by_dispute_id, issuance_source, license_domain, products(name, slug, license_tier)', { count: 'exact' })
     .order('issued_at', { ascending: false })
     .range(from, from + limit - 1);
   if (productId) query = query.eq('product_id', productId);

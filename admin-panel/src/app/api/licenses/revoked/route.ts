@@ -24,7 +24,7 @@ const SHA256_HEX = /^[a-f0-9]{64}$/;
  * License revocation list (CRL). Licensed products verify offline, so this is how a
  * refunded/abused token is turned off: the consumer computes SHA-256 of its `order` claim,
  * queries this endpoint with a prefix of that hash, and refuses the token if the full hash
- * is in the returned bucket. Seller-scoped, public, cached — mirrors JWKS.
+ * is in the returned bucket. Seller-scoped and public; responses reflect current revocation status.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const parsed = querySchema.safeParse({
@@ -56,6 +56,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json(
     { order_hashes: orderHashes },
-    { status: 200, headers: { 'Cache-Control': 'public, max-age=300, s-maxage=300' } },
+    { status: 200, headers: { 'Cache-Control': 'no-store' } },
   );
 }

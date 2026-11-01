@@ -15,7 +15,6 @@ vi.mock('@/lib/services/transaction-lookup', () => ({ findTransactionByOrderId: 
 vi.mock('@/lib/services/webhook-service', () => ({ WebhookService: { trigger: mocks.trigger } }));
 vi.mock('@/lib/services/access-revocation', () => ({ revokeTransactionAccess: async () => ({ warnings: [] }) }));
 vi.mock('@/lib/license-keys/revoke', () => ({ revokeLicensesForOrder: async () => ({ rows: [] }) }));
-vi.mock('@/lib/services/license-revoke-webhook-payload', () => ({ emitLicenseRevokedWebhooks: async () => {} }));
 vi.mock('@/lib/services/subscription-refund-cancel', () => ({ scheduleSubscriptionCancelAfterFullRefund: async () => ({ ok: true }) }));
 
 import recordedPayment from '../../fixtures/stripe/dispute_payment_intent_refund.json';

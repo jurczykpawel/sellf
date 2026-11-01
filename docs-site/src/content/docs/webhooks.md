@@ -244,13 +244,35 @@ expiry. `accessRestored: true` means an entitlement actually returned; a full re
 a manually deleted grant, an elapsed term or an ended subscription prevents restoration.
 Guests recover their original unclaimed purchase. Its saved term also applies when it is
 claimed later, even if the product duration has changed. Repeated delivery never extends access.
-Revoked licenses remain revoked (`licenseRestored: false`), including after a win;
-the seller can issue a replacement separately. Receivers should use `accessRestored`
+A win also removes revocation from licenses recorded as revoked by that dispute.
+`licenseRestored` and `restoredLicenses` report the actual changed licenses, retaining
+their original expiry and token. A manual revocation or refund prevents restoration.
+Licenses already revoked before this tracking was introduced are not restored automatically. Receivers should use `accessRestored`
 and `payment.statusAfter`, rather than inferring access from `won` alone.
 `dispute.restoredAccess` lists each entitlement that actually returned, with
 `productId`, `userId` (null for a guest), `grantedAt` and `expiresAt` (null for
 permanent access). Guest entries also carry `guestPurchaseId`. Apply this list:
 a manually removed main grant may stay absent while a purchased add-on returns.
+
+### `license.revoked` / `license.restored` — Pro
+
+Each actual revocation-status change creates a committed notification. Repeating
+an unchanged status creates no extra event. Both subscriptions and dispatch require
+the Pro license-notification feature; the license state itself is updated regardless
+of the shop's current plan.
+
+Both payloads identify `license.id`, `order`, `email`, `tier`, `domain`,
+`issuanceSource`, `issuedAt`, `expiresAt`, `revokedAt`, the product and `crlUrl`.
+Restoration adds `license.restoredAt`; an associated dispute appears as
+`dispute.stripeDisputeId`. The signed token is never included. The original token
+can be used again after its revocation is removed; an expired token stays expired.
+
+On either event, invalidate any cached CRL bucket and fetch the current bucket,
+then check the token signature and original expiry. The CRL endpoint returns
+`Cache-Control: no-store`. Clearing revocation does not extend an expiry date.
+To keep a dispute-revoked license revoked even after a win, choose **Keep license
+revoked** in issued-license settings. Revocations from earlier versions have no
+recorded dispute owner and require a separate seller decision.
 
 ### Headers
 
