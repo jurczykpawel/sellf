@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server';
 
 const mocks = vi.hoisted(() => ({
   verifyWebhookSignature: vi.fn(), getStripeServer: vi.fn(), createAdminClient: vi.fn(),
-  list: vi.fn(), refundRetrieve: vi.fn(), retrieve: vi.fn(), trigger: vi.fn(), lookup: vi.fn(), update: vi.fn(),
+  revoke: vi.fn(), list: vi.fn(), refundRetrieve: vi.fn(), retrieve: vi.fn(), trigger: vi.fn(), lookup: vi.fn(), update: vi.fn(),
 }));
 vi.mock('@/lib/stripe/server', () => mocks);
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: mocks.createAdminClient, createPlatformClient: vi.fn() }));
@@ -13,7 +13,7 @@ vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: async () => true,
 vi.mock('next/headers', () => ({ headers: async () => new Headers({ 'stripe-signature': 'test' }) }));
 vi.mock('@/lib/services/transaction-lookup', () => ({ findTransactionByOrderId: mocks.lookup }));
 vi.mock('@/lib/services/webhook-service', () => ({ WebhookService: { trigger: mocks.trigger } }));
-vi.mock('@/lib/services/access-revocation', () => ({ revokeTransactionAccess: async () => ({ warnings: [] }) }));
+vi.mock('@/lib/services/access-revocation', () => ({ revokeTransactionAccess: mocks.revoke }));
 vi.mock('@/lib/license-keys/revoke', () => ({ revokeLicensesForOrder: async () => ({ rows: [] }) }));
 vi.mock('@/lib/services/subscription-refund-cancel', () => ({ scheduleSubscriptionCancelAfterFullRefund: async () => ({ ok: true }) }));
 
@@ -80,6 +80,7 @@ beforeEach(() => {
   mocks.refundRetrieve.mockResolvedValue(refund);
   mocks.getStripeServer.mockResolvedValue({ refunds: { list: mocks.list, retrieve: mocks.refundRetrieve }, charges: { retrieve: mocks.retrieve }, paymentIntents: { retrieve: async () => recordedPayment }, checkout: { sessions: { list: async () => ({ data: [] }) } } });
   mocks.trigger.mockResolvedValue(undefined);
+  mocks.revoke.mockResolvedValue({ warnings: [] });
   mocks.update.mockImplementation((values) => {
     const commit = () => { Object.assign(transaction, values); return { data: [{ id: transaction.id }], error: null }; };
     const chain = { eq: () => chain, is: () => chain, select: async () => commit(),
@@ -215,6 +216,14 @@ describe('Stripe refund authoritative data', () => {
 });
 
 describe('recorded refund variants', () => {
+  it('revokes access before telling receivers a full refund is confirmed @J34', async () => {
+    const order: string[] = [];
+    mocks.revoke.mockImplementation(async () => { order.push('revoke'); return { warnings: [] }; });
+    mocks.trigger.mockImplementation(async (event: string) => { order.push(event); });
+    expect((await deliver()).status).toBe(200);
+    expect(confirmsFullRefund(mocks.trigger.mock.calls[0][1])).toBe(true);
+    expect(order).toEqual(['revoke', 'refund.issued']);
+  });
   it('keeps a partial refund from turning off full paid access @J34', async () => {
     mocks.list.mockResolvedValue(recordedPartialRefunds);
     await deliver(recordedPartial.type, recordedPartial.data.object);

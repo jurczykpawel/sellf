@@ -121,8 +121,8 @@ export default function PaymentFilters({
 
   return (
     <div className="bg-sf-base border-2 border-sf-border-medium p-6">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-        <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between">
+        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap">
           {/* Status Filter */}
           <div>
             <label htmlFor="payment-status-filter" className="block text-sm font-medium text-sf-body mb-1">
@@ -175,7 +175,7 @@ export default function PaymentFilters({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
           <button
             onClick={handleReset}
             className="px-4 py-2 border-2 border-sf-border-medium text-sf-body hover:bg-sf-hover transition-colors"
