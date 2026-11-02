@@ -6,6 +6,7 @@ import { saveGUSAPIKey, getGUSConfig, deleteGUSAPIKey } from '@/lib/actions/gus-
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '@/components/ui/Modal';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 export default function GUSSettings() {
  const t = useTranslations('settings.gus');
@@ -18,10 +19,13 @@ export default function GUSSettings() {
  const [deleting, setDeleting] = useState(false);
  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
- const fetchConfig = useCallback(async () => {
+ const beginLoad = useLatestRequest();
 
+ const fetchConfig = useCallback(async () => {
+ const isCurrent = beginLoad();
  try {
  const result = await getGUSConfig();
+ if (!isCurrent()) return;
  if (result.success && result.data) {
  setEnabled(result.data.enabled);
  setHasKey(result.data.hasKey);
@@ -29,9 +33,9 @@ export default function GUSSettings() {
  } catch (error) {
  console.error('Failed to load GUS config:', error);
  } finally {
- setLoading(false);
+ if (isCurrent()) setLoading(false);
  }
- }, []);
+ }, [beginLoad]);
 
  const loadConfig = () => {
    setLoading(true);
