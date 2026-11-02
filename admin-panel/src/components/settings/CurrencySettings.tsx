@@ -10,6 +10,7 @@ import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '@/compon
 import { toast } from 'sonner';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatAdminDate } from '@/lib/timezone';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 export default function CurrencySettings() {
  const t = useTranslations('settings.currency');
@@ -29,10 +30,13 @@ export default function CurrencySettings() {
  const [baseCurrency, setBaseCurrency] = useState<string>('USD');
  const [ratesFetchedAt, setRatesFetchedAt] = useState<number>(0);
 
- const fetchConfig = useCallback(async () => {
+ const beginLoad = useLatestRequest();
 
+ const fetchConfig = useCallback(async () => {
+ const isCurrent = beginLoad();
  try {
  const result = await getCurrencyConfig();
+ if (!isCurrent()) return;
  if (result.success && result.data) {
  setConfig(result.data);
  setProvider(result.data.provider as 'exchangerate-api' | 'fixer' | 'ecb');
@@ -40,9 +44,9 @@ export default function CurrencySettings() {
  } catch (error) {
  console.error('Failed to load Currency config:', error);
  } finally {
- setLoading(false);
+ if (isCurrent()) setLoading(false);
  }
- }, []);
+ }, [beginLoad]);
 
  const loadConfig = () => {
    setLoading(true);

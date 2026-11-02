@@ -25,6 +25,7 @@ import { formatPrice } from '@/lib/constants';
 import { api, ApiError, isExpectedApiError } from '@/lib/api/client';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
 import { fetchCouponsPage } from '@/lib/coupons/fetch-coupons-page';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { formatAdminDate } from '@/lib/timezone';
 
 // Wait for the seller to stop typing before hitting the server — avoids
@@ -97,6 +98,8 @@ const CouponsPageContent: React.FC = () => {
   // page(s) of the main list.
   const [expiredCoupons, setExpiredCoupons] = useState<Coupon[]>([]);
 
+  const beginLoad = useLatestRequest();
+
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -118,6 +121,7 @@ const CouponsPageContent: React.FC = () => {
   // Fetch the first page of coupons (type/search filtered), the full expired
   // list (for "Delete expired"), and the active products picker list.
   const loadData = useCallback(async () => {
+    const isCurrent = beginLoad();
     try {
       const [couponsPage, expiredResult, activeProducts] = await Promise.all([
         fetchCouponsPage(undefined, { type: typeFilter, search: searchTerm }),
@@ -129,6 +133,7 @@ const CouponsPageContent: React.FC = () => {
         console.warn('[CouponsPageContent] Expired coupon list truncated at the safety ceiling; "Delete expired" may not catch every expired coupon.');
       }
 
+      if (!isCurrent()) return;
       setCoupons(couponsPage.coupons);
       setCursor(couponsPage.nextCursor);
       setHasMore(couponsPage.hasMore);
@@ -136,7 +141,7 @@ const CouponsPageContent: React.FC = () => {
       setProducts(activeProducts);
       setError(null);
     } catch (err) {
-      if (isExpectedApiError(err)) return;
+      if (!isCurrent() || isExpectedApiError(err)) return;
       console.error('Error fetching data:', err);
       if (err instanceof ApiError) {
         setError(err.message);
@@ -144,9 +149,9 @@ const CouponsPageContent: React.FC = () => {
         setError(t('loadError'));
       }
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [typeFilter, searchTerm, t]);
+  }, [typeFilter, searchTerm, t, beginLoad]);
 
   const requestKey = JSON.stringify([typeFilter, searchTerm]);
   const [previousKey, setPreviousKey] = useState(requestKey);
@@ -169,8 +174,10 @@ const CouponsPageContent: React.FC = () => {
     if (!hasMore || loading || loadingMore || searchPending) return;
 
     setLoadingMore(true);
+    const isCurrent = beginLoad();
     try {
       const nextPage = await fetchCouponsPage(cursor ?? undefined, { type: typeFilter, search: searchTerm });
+      if (!isCurrent()) return;
       setCoupons(prev => [...prev, ...nextPage.coupons]);
       setCursor(nextPage.nextCursor);
       setHasMore(nextPage.hasMore);
@@ -184,7 +191,7 @@ const CouponsPageContent: React.FC = () => {
     } finally {
       setLoadingMore(false);
     }
-  }, [hasMore, loading, loadingMore, searchPending, cursor, typeFilter, searchTerm, t]);
+  }, [hasMore, loading, loadingMore, searchPending, cursor, typeFilter, searchTerm, t, beginLoad]);
 
   const deletableCoupons = coupons.filter(canDeleteCoupon);
   const deletableExpiredCoupons = expiredCoupons.filter(canDeleteCoupon);
