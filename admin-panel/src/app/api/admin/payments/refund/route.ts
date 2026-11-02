@@ -153,6 +153,23 @@ export async function POST(request: NextRequest) {
       .select('id');
 
     const dbUpdateFailed = updateError || !updated || updated.length === 0;
+
+    // Revoke all product access on full refund (main + bumps, user + guest) before
+    // receivers hear about it. Always attempt even if DB update failed — Stripe refund already issued.
+    let accessRevocationFailed = false;
+    if (isFullRefund) {
+      const revocation = await revokeTransactionAccess(supabase, {
+        transactionId: transaction.id,
+        userId: transaction.user_id,
+        productId: transaction.product_id,
+        sessionId: transaction.session_id,
+      });
+      if (!revocation.success) {
+        accessRevocationFailed = true;
+        console.error('[admin-refund] Revocation warnings:', revocation.warnings);
+      }
+    }
+
     if (dbUpdateFailed) {
       console.error('Error updating transaction (concurrent refund?):', updateError);
     } else {
@@ -175,24 +192,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Revoke all product access on full refund (main + bumps, user + guest).
-    // Always attempt even if DB update failed — Stripe refund already issued.
-    let accessRevocationFailed = false;
     let subscriptionCancelFailed = false;
 
     if (isFullRefund) {
-      const revocation = await revokeTransactionAccess(supabase, {
-        transactionId: transaction.id,
-        userId: transaction.user_id,
-        productId: transaction.product_id,
-        sessionId: transaction.session_id,
-      });
-
-      if (!revocation.success) {
-        accessRevocationFailed = true;
-        console.error('[admin-refund] Revocation warnings:', revocation.warnings);
-      }
-
       const cancelResult = await scheduleSubscriptionCancelAfterFullRefund({
         supabase,
         stripe,

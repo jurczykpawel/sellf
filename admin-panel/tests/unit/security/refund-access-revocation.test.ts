@@ -73,6 +73,14 @@ describe('Refund Access Revocation Security', () => {
       expect(betweenDbCheckAndRevocation).not.toContain('if(!dbUpdateFailed)');
     });
 
+    it('revokes access before telling receivers the refund is issued', () => {
+      const revocationIndex = refundRouteSource.indexOf('revokeTransactionAccess(supabase');
+      const notifyIndex = refundRouteSource.indexOf('await emitRefundIssuedWebhook(');
+      expect(revocationIndex).toBeGreaterThan(-1);
+      expect(notifyIndex).toBeGreaterThan(-1);
+      expect(revocationIndex).toBeLessThan(notifyIndex);
+    });
+
     it('revocation runs unconditionally within isFullRefund block', () => {
       // The revocation should be inside "if (isFullRefund)" but NOT inside
       // any further condition related to dbUpdateFailed
