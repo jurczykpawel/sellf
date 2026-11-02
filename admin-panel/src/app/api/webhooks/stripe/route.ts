@@ -193,6 +193,23 @@ async function processRefundForTransaction(
 
   if (!updatedRows?.length) return { processed: false, message: 'Refund state changed; retry required' };
 
+  // Only revoke access on full refund. Revoke BEFORE notifying receivers, so a receiver that
+  // reacts to a confirmed full refund never observes access that is still granted.
+  if (isFullRefund) {
+    // SECURITY: Revoke all product access (main + bumps, user + guest)
+    // session_id already fetched in initial query — no re-fetch needed
+    const revocation = await revokeTransactionAccess(supabase, {
+      transactionId: transaction.id,
+      userId: transaction.user_id,
+      productId: transaction.product_id,
+      sessionId: transaction.session_id,
+    });
+
+    if (revocation.warnings.length > 0) {
+      console.error('[Stripe Webhook] Revocation warnings after refund:', revocation.warnings);
+    }
+  }
+
   await emitRefundIssuedWebhook({
     supabaseClient: supabase,
     transaction,
@@ -211,22 +228,8 @@ async function processRefundForTransaction(
     source: 'stripe_webhook',
   });
 
-  // Only revoke access on full refund
   if (!isFullRefund) {
     return { processed: true, message: `Partial refund recorded (${charge.amount_refunded}/${charge.amount} cents)` };
-  }
-
-  // SECURITY: Revoke all product access (main + bumps, user + guest)
-  // session_id already fetched in initial query — no re-fetch needed
-  const revocation = await revokeTransactionAccess(supabase, {
-    transactionId: transaction.id,
-    userId: transaction.user_id,
-    productId: transaction.product_id,
-    sessionId: transaction.session_id,
-  });
-
-  if (revocation.warnings.length > 0) {
-    console.error('[Stripe Webhook] Revocation warnings after refund:', revocation.warnings);
   }
 
   // Revoke any offline license issued for this order so a refunded token stops working.
