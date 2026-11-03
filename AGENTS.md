@@ -1183,7 +1183,7 @@ embed loader and `gate.js` via `browser-script.ts`, used directly by React check
 (`normalize.ts`: untrusted labels, field-by-field validation, device from User-Agent, country from
 `cf-ipcountry`) and stores it in `checkout_attribution` under every checkout reference
 (`store.ts`: Stripe session / intent / subscription id and `sf_attr_ref` in Stripe + order
-metadata; guest free signups under `free:<slug>:<sha256(email)>`) → the AFTER trigger
+metadata; guest free signups under `free:<slug>:<HMAC-SHA256(APP_ENCRYPTION_KEY, email)>`) → the AFTER trigger
 `snapshot_purchase_attribution` on `payment_transactions` copies it once when the order becomes a
 purchase (completed / awaiting_payment / …), classifies the channel with
 `classify_attribution_channel` (seller rules in `attribution_channel_rules`) and the row can then

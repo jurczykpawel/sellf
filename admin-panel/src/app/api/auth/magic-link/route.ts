@@ -6,7 +6,7 @@ import { MAGIC_LINK_FLOWS } from '@/lib/auth/magic-link/types';
 import type { MagicLinkErrorCode, MagicLinkFlow } from '@/lib/auth/magic-link/types';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
-import { attributionRequestContext, freeAttributionRef, storeCheckoutAttribution } from '@/lib/attribution/store';
+import { attributionRequestContext, storeFreeCheckoutAttribution } from '@/lib/attribution/store';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 const ALLOWED_KEYS = new Set([
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
   if (result.ok) {
     // Guest free signup: the grant happens after the link is used; keep the source until then.
     if (parsed.attribution && parsed.productSlug) {
-      await storeCheckoutAttribution(createAdminClient(), [freeAttributionRef(parsed.productSlug, parsed.email)],
+      await storeFreeCheckoutAttribution(createAdminClient(), parsed.productSlug, parsed.email,
         parsed.attribution, attributionRequestContext(request.headers));
     }
     return NextResponse.json({ ok: true });

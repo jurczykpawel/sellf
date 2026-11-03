@@ -12,7 +12,7 @@ import { DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { requestMagicLink } from '@/lib/auth/magic-link/request';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { attributionRequestContext, freeAttributionRef, storeCheckoutAttribution } from '@/lib/attribution/store';
+import { attributionRequestContext, storeFreeCheckoutAttribution } from '@/lib/attribution/store';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 const PRODUCT_SELECT =
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
     status: result.ok ? 'magic_link_sent' : 'failed',
   });
   if (result.ok && parsed.value.attribution) {
-    await storeCheckoutAttribution(adminClient, [freeAttributionRef(product.slug, parsed.value.email)],
+    await storeFreeCheckoutAttribution(adminClient, product.slug, parsed.value.email,
       parsed.value.attribution, attributionRequestContext(request.headers));
   }
 

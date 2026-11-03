@@ -10,7 +10,7 @@
  * @see supabase/migrations/20261103120000_purchase_attribution.sql
  */
 
-import { createHash } from 'node:crypto';
+import { createHmac } from 'node:crypto';
 import { normalizeAttribution } from '@/lib/attribution/normalize';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AttributionRequestContext } from '@/lib/attribution/normalize';
@@ -65,10 +65,30 @@ export async function recordFreeAttribution(
 
 /**
  * Reference for a guest free signup: the grant happens later, after the magic link, so the
- * pending payload is keyed by product + a hash of the e-mail (the e-mail itself is not stored).
+ * pending payload is keyed by product + HMAC-SHA256(server secret, e-mail). Keyed so a dictionary
+ * of e-mail addresses cannot reverse it; throws without the secret (no fallback).
  */
 export function freeAttributionRef(productSlug: string, email: string): string {
-  return `free:${productSlug}:${createHash('sha256').update(email.trim().toLowerCase()).digest('hex')}`;
+  const secret = process.env.APP_ENCRYPTION_KEY;
+  if (!secret) throw new Error('Missing APP_ENCRYPTION_KEY');
+  const digest = createHmac('sha256', secret).update(`attribution-free:${email.trim().toLowerCase()}`).digest('hex');
+  return `free:${productSlug}:${digest}`;
+}
+
+/** Stores a guest free-signup source until the magic-link grant claims it. Never throws. */
+export async function storeFreeCheckoutAttribution(
+  db: Db,
+  productSlug: string,
+  email: string,
+  raw: unknown,
+  ctx: AttributionRequestContext,
+): Promise<void> {
+  let ref: string;
+  try { ref = freeAttributionRef(productSlug, email); } catch (error) {
+    console.error('[storeFreeCheckoutAttribution] Error:', error instanceof Error ? error.message : 'Unknown error');
+    return;
+  }
+  await storeCheckoutAttribution(db, [ref], raw, ctx);
 }
 
 /** Turns a pending guest free-signup source into the free-access snapshot once access is granted. */
@@ -80,8 +100,9 @@ export async function claimFreeAttribution(
   email: string,
 ): Promise<void> {
   try {
+    const ref = freeAttributionRef(productSlug, email);
     const { error } = await db.rpc('record_free_attribution_from_ref', {
-      p_product: productId, p_user: userId, p_ref: freeAttributionRef(productSlug, email),
+      p_product: productId, p_user: userId, p_ref: ref,
     });
     if (error) console.error('[claimFreeAttribution] Error:', error.message);
   } catch (error) {

@@ -1,4 +1,5 @@
 /** Checkout endpoints hand the validated payload to the database without ever failing the checkout. */
+import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { storeCheckoutAttribution, recordFreeAttribution, attributionRequestContext, freeAttributionRef, claimFreeAttribution } from '@/lib/attribution/store';
 
@@ -35,12 +36,30 @@ describe('storeCheckoutAttribution', () => {
   });
 
   it('links a guest free signup (magic link) to the later grant without storing the email', async () => {
+    vi.stubEnv('APP_ENCRYPTION_KEY', 'a'.repeat(64));
     const ref = freeAttributionRef('free-guide', ' Buyer@Example.com ');
     expect(ref).toBe(freeAttributionRef('free-guide', 'buyer@example.com'));
     expect(ref).toMatch(/^free:free-guide:[0-9a-f]{64}$/);
     expect(ref).not.toContain('buyer');
+    // Keyed with a server secret: a dictionary of plain SHA-256 e-mail hashes cannot reverse it.
+    expect(ref).not.toContain(createHash('sha256').update('buyer@example.com').digest('hex'));
+    vi.stubEnv('APP_ENCRYPTION_KEY', 'b'.repeat(64));
+    expect(freeAttributionRef('free-guide', 'buyer@example.com')).not.toBe(ref);
+    vi.stubEnv('APP_ENCRYPTION_KEY', 'a'.repeat(64));
     const db = fakeDb();
     await claimFreeAttribution(db, 'product-1', 'user-1', 'free-guide', 'buyer@example.com');
     expect(db.rpc).toHaveBeenCalledWith('record_free_attribution_from_ref', { p_product: 'product-1', p_user: 'user-1', p_ref: ref });
+    vi.unstubAllEnvs();
+  });
+
+  it('refuses to build the free-signup reference without the server secret (no fallback)', async () => {
+    vi.stubEnv('APP_ENCRYPTION_KEY', '');
+    expect(() => freeAttributionRef('free-guide', 'buyer@example.com')).toThrow(/APP_ENCRYPTION_KEY/);
+    const db = fakeDb();
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(claimFreeAttribution(db, 'p', 'u', 'free-guide', 'buyer@example.com')).resolves.toBeUndefined();
+    expect(db.rpc).not.toHaveBeenCalled();
+    err.mockRestore();
+    vi.unstubAllEnvs();
   });
 });
