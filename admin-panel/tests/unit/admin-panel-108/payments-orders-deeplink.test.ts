@@ -18,7 +18,8 @@ vi.mock('next/navigation', () => ({ useSearchParams: () => params.value, usePath
 vi.mock('@/lib/payments/fetch-transactions-page', () => ({ fetchPaymentTransactionsPage: page, dateRangeToDateFrom: () => null }));
 vi.mock('@/lib/api/client', () => ({ api: { getCustom: vi.fn().mockResolvedValue({ total_transactions: 0 }) }, isExpectedApiError: () => false }));
 const stableT = (key: string) => key;
-vi.mock('next-intl', () => ({ useTranslations: () => stableT, useLocale: () => 'pl' }));
+vi.mock('next-intl', () => ({ useTranslations: () => stableT, useLocale: () => 'pl', useFormatter: () => ({ dateTime: () => '' }) }));
+vi.mock('@/lib/actions/orders-missing-participants', () => ({ getOrdersMissingParticipants: vi.fn().mockResolvedValue({ success: true, data: [] }) }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 vi.mock('@/components/dashboard/CurrencySelector', () => ({ default: () => null }));
 vi.mock('@/components/admin/PaymentStatsCards', () => ({ default: () => null }));

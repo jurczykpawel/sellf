@@ -18,6 +18,7 @@ import type { PaymentTransaction, PaymentSession } from '@/types/payment';
 import { api, isExpectedApiError } from '@/lib/api/client';
 import { fetchPaymentTransactionsPage, dateRangeToDateFrom } from '@/lib/payments/fetch-transactions-page';
 import CurrencySelector from '@/components/dashboard/CurrencySelector';
+import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 import type { CurrencyAmount } from '@/lib/actions/analytics';
 
 interface PaymentStats {
@@ -232,6 +233,7 @@ export default function PaymentsDashboard() {
 
   return (
     <div className="space-y-6">
+      <TutorialTrigger id="payments-orders" />
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -248,18 +250,20 @@ export default function PaymentsDashboard() {
       <MissingParticipantsPanel />
 
       {/* Payment Statistics */}
-      {stats && <PaymentStatsCards stats={stats} />}
+      {stats && <div data-tour="payments-stats"><PaymentStatsCards stats={stats} /></div>}
 
       {/* Filters */}
-      <PaymentFilters
-        filters={filters}
-        onFiltersChange={setFilters}
-        onRefresh={fetchPaymentData}
-        onSearchPendingChange={setSearchPending}
-      />
+      <div data-tour="payments-filters">
+        <PaymentFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          onRefresh={fetchPaymentData}
+          onSearchPendingChange={setSearchPending}
+        />
+      </div>
 
       {/* Tabs */}
-      <div className="bg-sf-base shadow">
+      <div data-tour="payments-table" className="bg-sf-base shadow">
         <div className="border-b border-sf-border">
           <div role="tablist" aria-label={t('tabsLabel')} className="flex flex-wrap gap-x-8 gap-y-2 px-6 py-4">
             {([
@@ -271,6 +275,7 @@ export default function PaymentsDashboard() {
                 key={id}
                 type="button"
                 role="tab"
+                data-tour={id === 'orders' ? 'payments-orders-tab' : undefined}
                 aria-selected={activeTab === id}
                 onClick={() => setActiveTab(id)}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${

@@ -88,7 +88,7 @@ export default function OrdersTable({ searchTerm, onOpenTransaction }: OrdersTab
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-3">
+      <div data-tour="orders-filters" className="flex flex-wrap gap-3">
         <label className="flex flex-col gap-1 text-xs font-medium text-sf-muted">
           {t('typeFilter')}
           <select aria-label={t('typeFilter')} value={type} onChange={e => setType(e.target.value)} className={selectClass}>

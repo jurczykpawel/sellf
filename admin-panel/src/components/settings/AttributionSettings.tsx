@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 import { getAttributionConfig, saveAttributionConfig } from '@/lib/actions/attribution';
 import type { AttributionConfig, AttributionRuleInput } from '@/lib/actions/attribution';
 
@@ -41,10 +42,11 @@ export default function AttributionSettings() {
 
   return (
     <div className="bg-sf-base border-2 border-sf-border-medium p-6">
+      <TutorialTrigger id="attribution" />
       <h2 className="text-xl font-semibold text-sf-heading mb-2">{t('title')}</h2>
       <p className="text-sm text-sf-body mb-4">{t('description')}</p>
 
-      <label className="flex items-center gap-3 text-sm text-sf-heading mb-6">
+      <label data-tour="attribution-retention" className="flex items-center gap-3 text-sm text-sf-heading mb-6">
         {t('retention')}
         <input type="number" min={1} max={365} className={`${input} w-24`} value={config.click_id_retention_days}
           onChange={e => setConfig({ ...config, click_id_retention_days: Number(e.target.value) })} />
@@ -53,7 +55,7 @@ export default function AttributionSettings() {
 
       <h3 className="text-sm font-medium text-sf-heading mb-2">{t('rules')}</h3>
       <p className="text-xs text-sf-muted mb-3">{t('rulesHelp')}</p>
-      <div className="overflow-x-auto">
+      <div data-tour="attribution-rules" className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="text-left text-xs uppercase text-sf-muted">
@@ -104,11 +106,11 @@ export default function AttributionSettings() {
         </table>
       </div>
       <div className="mt-4 flex gap-3">
-        <button type="button" className="border border-sf-border-medium px-3 py-1.5 text-sm text-sf-heading"
+        <button type="button" data-tour="attribution-add-rule" className="border border-sf-border-medium px-3 py-1.5 text-sm text-sf-heading"
           onClick={() => setConfig({ ...config, rules: [...config.rules, { priority: 10, channel: '', field: 'source', operator: 'in', value: '', is_active: true }] })}>
           {t('addRule')}
         </button>
-        <button type="button" disabled={saving} className="bg-sf-accent-bg px-4 py-1.5 text-sm text-white disabled:opacity-50" onClick={save}>
+        <button type="button" data-tour="attribution-save" disabled={saving} className="bg-sf-accent-bg px-4 py-1.5 text-sm text-white disabled:opacity-50" onClick={save}>
           {saving ? t('saving') : t('save')}
         </button>
       </div>

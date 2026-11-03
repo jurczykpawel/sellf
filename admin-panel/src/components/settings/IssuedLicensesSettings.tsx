@@ -5,6 +5,7 @@ import { Check, Copy, Eye, KeyRound, RefreshCw, ShieldX } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatAdminDate } from '@/lib/timezone';
+import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 
 interface FieldDefinition {
   id: string;
@@ -175,12 +176,13 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
 
   return (
     <div className="bg-sf-base border-2 border-sf-border-medium overflow-hidden">
+      <TutorialTrigger id="licenses" />
       <div className="bg-sf-accent-soft px-6 py-4 border-b border-sf-border-accent flex items-center gap-3">
         <div className="w-10 h-10 bg-sf-accent-bg flex items-center justify-center"><KeyRound className="w-5 h-5 text-white" /></div>
         <div><h2 className="text-lg font-semibold text-sf-heading">{t('title')}</h2><p className="text-sm text-sf-accent">{t('subtitle')}</p></div>
       </div>
 
-      <form onSubmit={issue} className="p-6 border-b-2 border-sf-border-medium space-y-4">
+      <form data-tour="licenses-issue" onSubmit={issue} className="p-6 border-b-2 border-sf-border-medium space-y-4">
         <h3 className="font-semibold text-sf-heading">{t('manualTitle')}</h3>
         <div className="grid md:grid-cols-3 gap-4">
           <Field label={t('product')}><select required value={productId} onChange={(e) => { setProductId(e.target.value); setValues({}); setDomain(''); }} className="input"><option value="">{t('selectProduct')}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
@@ -194,13 +196,13 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
       </form>
 
       <div className="p-6 space-y-4">
-        <div className="flex flex-wrap gap-3 items-end">
+        <div data-tour="licenses-filters" className="flex flex-wrap gap-3 items-end">
           <Field label={t('search')}><input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="input" /></Field>
           <Field label={t('source')}><select value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }} className="input"><option value="">{t('all')}</option><option value="purchase">{t('purchase')}</option><option value="manual">{t('manual')}</option><option value="api">{t('api')}</option></select></Field>
           <Field label={t('status')}><select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="input"><option value="">{t('all')}</option><option value="active">{t('active')}</option><option value="expired">{t('expired')}</option><option value="revoked">{t('revokedStatus')}</option></select></Field>
           <button type="button" onClick={() => void load()} aria-label={t('refresh')} title={t('refresh')} className="p-2 border-2 border-sf-border-medium"><RefreshCw className="w-5 h-5" aria-hidden="true" /></button>
         </div>
-        <div className="overflow-x-auto">
+        <div data-tour="licenses-table" className="overflow-x-auto">
           <table className="w-full text-sm"><thead><tr className="border-b border-sf-border text-left text-sf-muted">{['product','email','domain','tier','source','issued','expires','status','actions'].map((key) => <th key={key} className="p-2">{t(key)}</th>)}</tr></thead>
             <tbody>{licenses.map((license) => <tr key={license.id} className="border-b border-sf-border align-top">
               <td className="p-2 text-sf-heading">{license.products?.name ?? '—'}</td><td className="p-2">{license.email ?? '—'}</td><td className="p-2 font-mono text-xs">{license.license_domain ?? '—'}</td><td className="p-2">{license.products?.license_tier ?? '—'}</td><td className="p-2">{t(license.issuance_source)}</td><td className="p-2 whitespace-nowrap">{formatAdminDate(license.issued_at, locale, false)}</td><td className="p-2 whitespace-nowrap">{license.expires_at ? formatAdminDate(license.expires_at, locale, false) : t('unlimited')}</td><td className="p-2">{license.revoked_at ? t(license.revoked_by_dispute_id ? 'disputeRevokedStatus' : 'revokedStatus') : license.expires_at && new Date(license.expires_at) < new Date() ? t('expired') : t('active')}</td>

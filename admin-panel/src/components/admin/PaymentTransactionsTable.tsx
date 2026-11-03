@@ -247,6 +247,7 @@ export default function PaymentTransactionsTable({
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-3">
                       <button
+                        data-tour="payments-details"
                         onClick={() => setDetailsTransactionId(transaction.id)}
                         className="text-sf-accent hover:text-sf-accent-hover"
                       >

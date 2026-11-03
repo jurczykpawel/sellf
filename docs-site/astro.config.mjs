@@ -65,6 +65,7 @@ export default defineConfig({
 						{ slug: 'bank-transfers' },
 						{ slug: 'events' },
 						{ slug: 'purchase-attribution' },
+						{ slug: 'guided-tutorials' },
 					],
 				},
 				{
