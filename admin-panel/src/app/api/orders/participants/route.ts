@@ -1,4 +1,4 @@
-/** Buyer adds the participant list after payment. @see lib/orders/participants-service.ts, migration 20261103170000_participants_later.sql */
+/** Buyer adds the participant list after payment. @see lib/orders/participants-service.ts, migration 20261103191000_participants_later.sql */
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';

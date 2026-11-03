@@ -5,17 +5,17 @@ import { expect, test } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
 import { solveChallenge } from 'altcha-lib/v1';
 import { extractMagicLink, waitForEmail } from '../helpers/mailpit';
+import { assertLocalLeadsStack, leadsAppUrl, leadsOrigin } from './stack';
 
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-const origin = 'http://localhost:3894';
+const origin = leadsOrigin;
 const secret = 'whsec_local_lead_fixture';
 const ids: string[] = [];
 const testEmails: string[] = [];
 let endpointId: string;
 
 test.beforeAll(async () => {
-  expect(['127.0.0.1', 'localhost']).toContain(new URL(process.env.SUPABASE_URL!).hostname);
-  expect(new URL(process.env.SUPABASE_URL!).port).toBe('55591');
+  assertLocalLeadsStack((actual, expected) => expect(actual).toBe(expected));
   await db.from('application_rate_limits').delete().eq('action_type', 'leads_submit');
   const ep = await db.from('webhook_endpoints').insert({ url: 'https://w103-receiver.example/hook', secret, events: ['lead.captured'], is_active: true }).select('id').single();
   expect(ep.error).toBeNull(); endpointId = ep.data!.id;
@@ -84,7 +84,7 @@ for (const required of [false, true]) {
     const signature = hook.headers['x-sellf-signature']; const timestamp = signature.match(/t=(\d+)/)[1];
     expect(signature).toContain(`v1=${createHmac('sha256', secret).update(`${timestamp}.${hook.body}`).digest('hex')}`);
     const leadDestination = new URL(link!).searchParams.get('redirect_to')!;
-    await page.goto(`http://localhost:3893${leadDestination}`); await page.waitForURL(`**/p/${p.slug}`);
+    await page.goto(`${leadsAppUrl}${leadDestination}`); await page.waitForURL(`**/p/${p.slug}`);
     const deliveries = await db.from('webhook_logs').select('id,status').eq('endpoint_id', endpointId).contains('payload', { data: { leadId: pending.data!.id } });
     expect(deliveries.data).toHaveLength(1); expect(deliveries.data![0].status).toBe('success');
   });

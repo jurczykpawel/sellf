@@ -2,7 +2,7 @@
 
 /**
  * Paid orders whose buyer chose "add participants later" and has not yet done so.
- * @see supabase/migrations/20261103170000_participants_later.sql
+ * @see supabase/migrations/20261103191000_participants_later.sql
  */
 import { withAdminClient } from '@/lib/actions/admin-auth';
 import type { ActionResponse } from '@/lib/actions/admin-auth';

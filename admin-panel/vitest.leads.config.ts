@@ -1,4 +1,4 @@
-/** Dedicated HTTP acceptance; run against the local lead fixture app on :3893. */
+/** PlayerStack lead HTTP contract; scripts/run-leads-tests.sh starts the fixture and app (ports: tests/leads/stack.ts). */
 import { defineConfig } from 'vitest/config';
 import dotenv from 'dotenv';
 import { resolve } from 'node:path';

@@ -4,6 +4,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import PaymentStatsCards from './PaymentStatsCards';
@@ -11,6 +12,8 @@ import MissingParticipantsPanel from './MissingParticipantsPanel';
 import PaymentTransactionsTable from './PaymentTransactionsTable';
 import PaymentSessionsTable from './PaymentSessionsTable';
 import PaymentFilters from './PaymentFilters';
+import OrdersTable from './OrdersTable';
+import type { OrderRow } from '@/lib/orders/merge';
 import type { PaymentTransaction, PaymentSession } from '@/types/payment';
 import { api, isExpectedApiError } from '@/lib/api/client';
 import { fetchPaymentTransactionsPage, dateRangeToDateFrom } from '@/lib/payments/fetch-transactions-page';
@@ -45,7 +48,11 @@ function fieldMatchesSearch(value: unknown, searchLower: string): boolean {
 
 export default function PaymentsDashboard() {
   const t = useTranslations('admin.payments');
-  const [activeTab, setActiveTab] = useState<'transactions' | 'sessions'>('transactions');
+  const searchParams = useSearchParams();
+  // `?order=1300` (or `#1300`) deep-links to one order: it seeds the search and opens its details.
+  const orderParam = searchParams?.get('order')?.trim().slice(0, 32) ?? '';
+  const [activeTab, setActiveTab] = useState<'transactions' | 'orders' | 'sessions'>('transactions');
+  const [deepLinkOrder, setDeepLinkOrder] = useState(orderParam);
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
   const [sessions, setSessions] = useState<PaymentSession[]>([]);
   const [stats, setStats] = useState<PaymentStats | null>(null);
@@ -64,7 +71,7 @@ export default function PaymentsDashboard() {
   const [filters, setFilters] = useState({
     status: 'all',
     dateRange: 'all',
-    searchTerm: '',
+    searchTerm: orderParam,
   });
 
   // Fetch payment data (all from v1 API). Transactions are paged (see
@@ -192,6 +199,29 @@ export default function PaymentsDashboard() {
     return true;
   });
 
+  const deepLinkNumber = Number(deepLinkOrder.replace(/^#/, ''));
+  const deepLinkTransactionId = deepLinkOrder && !loading
+    ? transactions.find(transaction => transaction.order_number === deepLinkNumber || transaction.id === deepLinkOrder)?.id ?? null
+    : null;
+
+  // Mirror the open order in the URL so the seller can copy a link straight to it.
+  const handleDetailsChange = useCallback((transaction: PaymentTransaction | null) => {
+    const params = new URLSearchParams(window.location.search);
+    if (transaction?.order_number) params.set('order', String(transaction.order_number));
+    else params.delete('order');
+    if (!transaction) setDeepLinkOrder('');
+    const query = params.toString();
+    // Next.js syncs history.replaceState with its router without re-rendering the page.
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
+  }, []);
+
+  const handleOpenOrder = useCallback((order: OrderRow) => {
+    const key = order.orderNumber ? String(order.orderNumber) : order.transactionId ?? '';
+    setDeepLinkOrder(key);
+    setFilters(current => ({ ...current, status: 'all', searchTerm: order.orderNumber ? key : current.searchTerm }));
+    setActiveTab('transactions');
+  }, []);
+
   if (loading && !stats) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -231,28 +261,28 @@ export default function PaymentsDashboard() {
       {/* Tabs */}
       <div className="bg-sf-base shadow">
         <div className="border-b border-sf-border">
-          <nav className="flex space-x-8 px-6 py-4">
-            <button
-              onClick={() => setActiveTab('transactions')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'transactions'
-                  ? 'border-sf-accent text-sf-accent'
-                  : 'border-transparent text-sf-muted hover:text-sf-heading'
-              }`}
-            >
-              {t('transactions.titleSentence')}{!loading && ` (${transactions.length})`}
-            </button>
-            <button
-              onClick={() => setActiveTab('sessions')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'sessions'
-                  ? 'border-sf-accent text-sf-accent'
-                  : 'border-transparent text-sf-muted hover:text-sf-heading'
-              }`}
-            >
-              {t('sessions.titleSentence')}{!loading && ` (${filteredSessions.length})`}
-            </button>
-          </nav>
+          <div role="tablist" aria-label={t('tabsLabel')} className="flex flex-wrap gap-x-8 gap-y-2 px-6 py-4">
+            {([
+              ['transactions', `${t('transactions.titleSentence')}${!loading ? ` (${transactions.length})` : ''}`],
+              ['orders', t('orders.title')],
+              ['sessions', `${t('sessions.titleSentence')}${!loading ? ` (${filteredSessions.length})` : ''}`],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === id}
+                onClick={() => setActiveTab(id)}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === id
+                    ? 'border-sf-accent text-sf-accent'
+                    : 'border-transparent text-sf-muted hover:text-sf-heading'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className={`p-6 transition-opacity ${loading ? 'opacity-50' : ''}`} aria-busy={loading}>
@@ -260,8 +290,11 @@ export default function PaymentsDashboard() {
           {activeTab === 'transactions' ? (
             <>
               <PaymentTransactionsTable
+                key={deepLinkTransactionId ?? 'list'}
                 transactions={transactions}
                 onRefreshData={fetchPaymentData}
+                initialDetailsId={deepLinkTransactionId}
+                onDetailsChange={handleDetailsChange}
               />
               {hasMoreTransactions && (
                 <div className="flex justify-center pt-4">
@@ -276,6 +309,8 @@ export default function PaymentsDashboard() {
                 </div>
               )}
             </>
+          ) : activeTab === 'orders' ? (
+            <OrdersTable searchTerm={filters.searchTerm} onOpenTransaction={handleOpenOrder} />
           ) : (
             <PaymentSessionsTable
               sessions={filteredSessions}

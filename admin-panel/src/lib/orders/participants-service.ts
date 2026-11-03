@@ -1,6 +1,6 @@
 /**
  * Participants added after payment: validation, atomic storage, buyer mail.
- * @see supabase/migrations/20261103170000_participants_later.sql
+ * @see supabase/migrations/20261103191000_participants_later.sql
  * @see ./transfer-mail.ts
  */
 import { sendTrustedMagicLink } from '@/lib/auth/magic-link/request';
