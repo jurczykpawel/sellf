@@ -38,7 +38,7 @@ it.each(['pl', 'en'])('renders confirmation and magic link purchase details in %
 });
 
 it('delivers labeled transfer instructions with a Polish due date and purchase amount', async () => {
-  const { sendTransferAccessMail } = await import('@/lib/orders/transfer-mail');
+  const { sendOrderNotice } = await import('@/lib/orders/transfer-mail');
   const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const email = `transfer-mail-${crypto.randomUUID()}@example.com`;
   const { data: product, error } = await db.from('products').insert({ name: 'Transfer workshop', slug: `transfer-${crypto.randomUUID()}`, price: 123, currency: 'PLN' }).select('id').single();
@@ -51,10 +51,39 @@ it('delivers labeled transfer instructions with a Polish due date and purchase a
       transfer_details: { holder: 'Workshop Shop', account: 'PL61109010140000071219812874', bank: 'Test bank', title: 'Zamówienie 97' },
     }).select('id').single();
     expect(txError).toBeNull();
-    await sendTransferAccessMail(db, tx!.id);
+    await sendOrderNotice(db, tx!.id, 'placed');
     const mail = await waitForEmail(email);
     for (const text of ['Transfer workshop', 'Numer konta: PL61109010140000071219812874', 'Tytuł: Zamówienie 97', 'Kwota: 123', 'Termin: 10 grudnia 2026']) expect(mail.HTML).toContain(text);
     expect(mail.HTML).not.toContain('2026-12-10');
+  } finally {
+    const user = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users.find(u => u.email === email);
+    if (user) await db.auth.admin.deleteUser(user.id);
+    await db.from('payment_transactions').delete().eq('product_id', pid);
+    await db.from('products').delete().eq('id', pid);
+  }
+});
+
+it.each([['reminder', 'Przypomnienie o płatności', 'opłać zamówienie i kliknij'], ['cancelled', 'Zamówienie anulowane', 'nie otrzymaliśmy wpłaty w terminie']] as const)(
+  'delivers the %s notice with the signed order link to a new address', async (notice, heading, text) => {
+  const { sendOrderNotice } = await import('@/lib/orders/transfer-mail');
+  const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  const email = `notice-${notice}-${crypto.randomUUID()}@example.com`;
+  const { data: product } = await db.from('products').insert({ name: 'Reminder workshop', slug: `notice-${crypto.randomUUID()}`, price: 123, currency: 'PLN' }).select('id').single();
+  const pid = product!.id;
+  try {
+    const { data: tx, error } = await db.from('payment_transactions').insert({ product_id: pid, customer_email: email, amount: 12300, currency: 'PLN',
+      status: notice === 'reminder' ? 'awaiting_payment' : 'cancelled', cancel_reason: notice === 'cancelled' ? 'payment_window_expired' : null,
+      payment_provider: 'bank_transfer', pricing_snapshot_version: 1, payment_due_at: '2026-12-10T11:00:00Z', release_at: '2026-12-10T11:00:00Z', reminder_at: '2026-12-09T11:00:00Z',
+      metadata: { access_on_placement: false, locale: 'pl' }, transfer_details: { holder: 'Workshop Shop', account: 'PL61109010140000071219812874', title: 'Zamówienie 98' },
+    }).select('id').single();
+    expect(error).toBeNull();
+    await sendOrderNotice(db, tx!.id, notice);
+    const mail = await waitForEmail(email);
+    expect(mail.HTML).toContain(heading); expect(mail.HTML).toContain(text);
+    const link = mail.HTML.match(/href="([^"]*\/order\/[^"]*)"/)?.[1]?.replaceAll('&amp;', '&');
+    expect(link).toContain(`/pl/order/${tx!.id}/transfer?token=`);
+    const { data: saved } = await db.from('payment_transactions').select('reminder_mail_sent_at,cancelled_mail_sent_at').eq('id', tx!.id).single();
+    expect(notice === 'reminder' ? saved?.reminder_mail_sent_at : saved?.cancelled_mail_sent_at).toBeTruthy();
   } finally {
     const user = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users.find(u => u.email === email);
     if (user) await db.auth.admin.deleteUser(user.id);

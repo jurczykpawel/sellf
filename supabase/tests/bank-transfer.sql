@@ -96,7 +96,7 @@ BEGIN
   BEGIN
     PERFORM public.bank_transfer_order(input,lines); RAISE EXCEPTION 'Disabled transfer accepted';
   EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
-  ASSERT NOT has_function_privilege('authenticated','public.admin_bank_transfer_order(uuid,text,numeric,timestamptz,text,uuid)','execute');
+  ASSERT NOT has_function_privilege('authenticated','public.admin_bank_transfer_order(uuid,text,numeric,timestamptz,text,uuid,boolean)','execute');
   ASSERT NOT has_table_privilege('anon','public.bank_transfer_config','select');
   RAISE NOTICE 'PASS transfer price, holds, expiry, limit, early/deferred access, participants, prior rights, coupon reversal and roles';
 END $$;

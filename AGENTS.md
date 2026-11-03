@@ -241,8 +241,8 @@ without expiry. `transfer_transaction_id` tracks early grants, including guest c
 cancellation releases claims and seats while retaining prior or other purchase rights.
 Admin actions and API v1 `mark-paid`/`cancel` share `operateTransfer`; API keys require
 `payments:write`. Payment completion reuses offline fulfillment and leaves early access
-in place. Schedule `/api/cron?job=bank-transfer-overdue` daily and `fulfillment-resume`
-every minute with `CRON_SECRET`; notifications use stable order delivery keys and saved
+in place. Schedule `/api/cron?job=bank-transfer-overdue` daily, `transfer-reservations` every 5 minutes and
+`fulfillment-resume` every minute with `CRON_SECRET`; notifications use stable order delivery keys and saved
 notification timestamps. Transfer placement schedules automatic invoice issuance with
 Next.js `after`; `invoices-retry` recovers missed placement callbacks and synchronizes
 receipt dates from `paid_at`. The settings payment tab and product buyer profile
@@ -250,6 +250,24 @@ control availability. Checkout shares buyer state across payment methods.
 `/order/[orderId]/transfer?token=...` reads one order through an HMAC link valid for
 61 days, with no login and no indexing. Auth access mails carry `transfer_text` via
 `prepare_event_mail`; each preparation clears older instructions.
+
+**Unpaid transfer lifecycle** (migration `20261103150000_unpaid_order_reservations.sql`, owner decisions
+2026-11-03): event transfer orders get a seller-configured timed reservation (`reminder_at`/`release_at`,
+`bank_transfer_config.reservation_*`, default 24 h / 48 h); `payment_due_at` stays the due-days term. Cron
+`transfer-reservations` (every 5 min) sends `order.payment_reminder` + reminder mail, then
+`release_unpaid_transfer(id, now)` cancels with `cancel_reason='payment_window_expired'` (seat, coupon and
+placement access return) and sends `order.cancelled` + mail. The buyer's one-time "I have sent the transfer"
+(`POST /api/orders/bank-transfer/declare`, signed link only) calls `declare_transfer` (+72 h) and emits
+`order.transfer_declared`. An issued invoice (trigger `invoice_holds_transfer`, or `invoice-issued` via
+`operateTransfer` / `POST /api/v1/payments/:id/invoice-issued`) sets `invoice_hold_at` and clears the timer:
+"invoice issued, awaiting payment", no expiry, only cancellation releases it (`order.invoice_issued`).
+A transfer received after cancellation is never auto-completed: the admin accepts it with
+`admin_bank_transfer_order(..., p_accept_cancelled => true)` and a reason (order price, coupon re-used even
+past its limit, seat re-taken or `oversold`), which emits `order.reopened` then `purchase.completed`.
+Every `order.*` payload carries `payUrl` (`buildOrderPayLink`), `reservation`, the lifecycle timestamps and
+`customer.locale`. Mails go through `sendOrderNotice` (`transfer_placed | payment_reminder | order_cancelled`,
+once per order via `*_mail_sent_at`, failed deliveries retried by the cron); subjects switch on `mail_kind`
+in `supabase/config.toml`. Online quick payment of an unpaid order (plan W2) is not implemented.
 `transfer_mail_sent_at` records successful delivery for `fulfillment-resume`. Sellf does not send its own transactional emails: Auth magic
 links remain the email channel, and sellers may send messages from `order.placed`.
 
