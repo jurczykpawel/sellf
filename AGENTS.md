@@ -148,6 +148,7 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
   - Public: `/`, `/p/[slug]` (product pages), `/login`, `/terms`, `/privacy`
   - Protected: `/dashboard`, `/my-products`
   - Admin: `/admin/products`, `/admin/users`, `/admin/payments`, `/admin/analytics`
+  - Admin sidebar groups (`lib/navigation/admin-nav.ts`): Sales & reports (`/dashboard/payments` with Transactions / Orders / Sessions tabs and `?order=<number>` deep links, `/dashboard/licenses` for issued product licenses), Products, System
 - API endpoints: `/api/runtime-config`, `/api/create-embedded-checkout`, `/api/verify-payment`, `/api/webhooks/stripe`, `/api/embed/checkout-session`, `/api/embed/free-access`, `/embed/v1/checkout.js`, `/api/auth/magic-link`
 - Public v1 API (API key auth, `PRODUCTS_READ`/`PRODUCTS_WRITE` scopes):
   - `GET /api/v1/products` — cursor pagination, accepts `?search=`, `?status=`, `?sort_by=`, `?embed=categories,tags` (opt-in), `?category=<uuid-or-slug>` and `?tag=<uuid-or-slug>` (CSV, AND-intersection; auto-detect UUID vs slug)

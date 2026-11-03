@@ -514,6 +514,11 @@ Regular products never expire. Schedule `/api/cron?job=transfer-reservations` ev
 
 Access events carry `customer`, `product`, `access.id`, `grantedAt`, `expiresAt`,
 `statusBefore/statusAfter`, `reason` and `actor` (`user`, `api_key`, or `system`; system ID is null).
+`access.granted` and `access.updated` also carry `grantSource`: how the access was obtained, recorded
+once when it was granted (`purchase`, `bundle`, `bank_transfer`, `subscription`, `free`, `manual`, or
+`unknown` for grants older than this field). Prefer `grantSource` over `reason`: `reason` is kept unchanged
+for existing integrations, but can be inferred (for example `free_product` from the price), so a paid
+product claimed with a 100% coupon has `grantSource: "free"`.
 The root `accessGrantedAt/accessExpiresAt` aliases contain the same saved dates.
 `sourceOrders` contains related saved orders; `sourceOrder` is populated only when there is one
 unambiguous order. Manual or unlinked grants may have no order. `occurredAt` records the change,

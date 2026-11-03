@@ -271,6 +271,11 @@ tradycyjny). Zwykłe produkty nie wygasają. Zaplanuj `/api/cron?job=transfer-re
 
 Zdarzenie dostępu podaje `customer`, `product`, `access.id`, `grantedAt`, `expiresAt`,
 `statusBefore/statusAfter`, `reason` i `actor` (`user`, `api_key` albo `system`; dla systemu ID jest null).
+`access.granted` i `access.updated` podają też `grantSource`: skąd pochodzi dostęp, zapisane raz przy
+nadaniu (`purchase`, `bundle`, `bank_transfer`, `subscription`, `free`, `manual` albo `unknown` dla nadań
+starszych niż to pole). Używaj `grantSource` zamiast `reason`: `reason` zostaje bez zmian dla istniejących
+integracji, ale bywa wywnioskowane (np. `free_product` z ceny), więc płatny produkt odebrany z kuponem
+100% ma `grantSource: "free"`.
 Pola główne `accessGrantedAt/accessExpiresAt` zawierają te same zapisane daty.
 `sourceOrders` zawiera powiązane zapisane zamówienia; `sourceOrder` jest wypełnione tylko przy jednym
 jednoznacznym zamówieniu. Ręczne lub niepowiązane granty mogą nie mieć zamówienia. `occurredAt`

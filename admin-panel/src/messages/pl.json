@@ -470,7 +470,12 @@
     "userMenu": "Menu użytkownika",
     "affiliates": "Program partnerski",
     "myAffiliate": "Moje prowizje",
-    "affiliateApply": "Zostań partnerem"
+    "affiliateApply": "Zostań partnerem",
+    "navGroupSales": "Sprzedaż i raporty",
+    "navGroupProducts": "Produkty",
+    "navGroupSystem": "System",
+    "licenses": "Licencje",
+    "templates": "Szablony sklepu"
   },
   "about": {
     "title": "O Sellf",
@@ -2696,7 +2701,7 @@
         "partiallyRefunded": "Częściowo zwrócona",
         "disputed": "Sporna",
         "abandoned": "Porzucona",
-        "searchPlaceholder": "Szukaj po emailu, ID transakcji...",
+        "searchPlaceholder": "Szukaj po nr zamówienia (np. 1300), emailu, produkcie...",
         "last7Days": "Ostatnie 7 dni",
         "last30Days": "Ostatnie 30 dni",
         "last90Days": "Ostatnie 90 dni",
@@ -2712,6 +2717,52 @@
         "searchFilter": "Szukaj: {term}",
         "rangeFilter": "Zakres: {range}",
         "days": "dni"
+      },
+      "tabsLabel": "Widoki płatności",
+      "orders": {
+        "title": "Zamówienia",
+        "typeFilter": "Typ",
+        "statusFilter": "Status",
+        "allTypes": "Wszystkie typy",
+        "allStatuses": "Wszystkie statusy",
+        "types": {
+          "paid": "Płatne",
+          "transfer": "Przelew",
+          "free": "Darmowe",
+          "manual": "Nadane ręcznie",
+          "lead": "Lead",
+          "subscription": "Subskrypcja",
+          "other": "Źródło nieznane"
+        },
+        "statuses": {
+          "completed": "Opłacone",
+          "awaiting_payment": "Czeka na wpłatę",
+          "pending": "W toku",
+          "refunded": "Zwrócone",
+          "partially_refunded": "Częściowo zwrócone",
+          "disputed": "Spór",
+          "cancelled": "Anulowane",
+          "abandoned": "Porzucone",
+          "active": "Aktywny dostęp",
+          "expired": "Dostęp wygasł",
+          "confirmed": "Potwierdzony"
+        },
+        "columns": {
+          "order": "Nr",
+          "customer": "Klient",
+          "product": "Produkt",
+          "type": "Typ",
+          "status": "Status",
+          "amount": "Kwota",
+          "date": "Data"
+        },
+        "noCharge": "bez opłaty",
+        "openTransaction": "Otwórz",
+        "unknownCustomer": "Nieznany klient",
+        "empty": "Brak zamówień dla wybranych filtrów.",
+        "loadError": "Nie udało się wczytać zamówień.",
+        "loadMore": "Pokaż więcej",
+        "loadingMore": "Wczytywanie..."
       },
       "attribution": {
         "title": "Źródło",
@@ -2764,6 +2815,8 @@
         "refund": "Zwrot",
         "details": "Szczegóły",
         "transactionDetails": "Szczegóły transakcji",
+        "issueLicense": "Wystaw licencję dla tego klienta",
+        "orderLink": "Link do zamówienia",
         "customer": "Klient",
         "payment": "Płatność",
         "userId": "ID użytkownika",
@@ -2819,6 +2872,11 @@
       "refund": {
         "titleSentence": "Przetwórz zwrot",
         "fullRefundSentence": "Pełny zwrot",
+        "amountLabel": "Kwota zwrotu ({currency})",
+        "amountHint": "Puste pole = zwrot całej pozostałej kwoty ({amount}).",
+        "amountExceedsRemaining": "Kwota przekracza pozostałą do zwrotu ({amount}).",
+        "amountInvalid": "Podaj kwotę większą od zera, najwyżej z groszami.",
+        "partialRefundSentence": "Zwróć {amount}",
         "title": "Przetwórz zwrot",
         "reason": "Powód zwrotu",
         "selectReason": "Wybierz powód",
@@ -3442,6 +3500,8 @@
       "keyPlaceholder": "payload.podpis"
     },
     "issuedLicenses": {
+      "refresh": "Odśwież listę licencji",
+      "unavailable": "Wystawianie licencji jest dostępne dla administratora platformy.",
       "title": "Wystawione licencje produktowe",
       "subtitle": "Wystawiaj, przeglądaj i cofaj podpisane licencje klientów",
       "manualTitle": "Wystaw licencję ręcznie",
