@@ -29,8 +29,8 @@ vi.mock('@/components/admin/PaymentTransactionsTable', () => ({
 }));
 afterEach(() => { cleanup(); page.mockReset(); replace.mockReset(); vi.unstubAllGlobals(); params.value = new URLSearchParams(); });
 
-const fetchMock = (orders: unknown[]) => vi.fn(async (url: string) => ({
-  ok: true, json: async () => (String(url).startsWith('/api/admin/orders') ? { orders, limit: 200 } : []),
+const fetchMock = (orders: unknown[], nextCursor: string | null = null) => vi.fn(async (url: string) => ({
+  ok: true, json: async () => (String(url).startsWith('/api/admin/orders') ? { orders, nextCursor } : []),
 }));
 
 it('opens the order number from the URL @J191', async () => {
@@ -55,4 +55,15 @@ it('lists all orders with a type filter on the Orders tab @J190', async () => {
   expect(screen.getByText('#1300')).toBeTruthy();
   await act(async () => { fireEvent.change(screen.getByLabelText('typeFilter'), { target: { value: 'lead' } }); });
   expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/orders?type=lead'), expect.anything());
+});
+
+it('loads the next page of orders with the cursor @J190', async () => {
+  const row = { id: 'access:a2', type: 'manual', status: 'active', createdAt: '2026-11-01T10:00:00Z', orderNumber: null, email: 'm@x.pl', productName: 'Kurs', productId: 'p', productSlug: 'p', amount: null, currency: null, transactionId: null };
+  const fetch = fetchMock([row], 'CURSOR1');
+  vi.stubGlobal('fetch', fetch);
+  page.mockResolvedValue({ transactions: [], nextCursor: null, hasMore: false });
+  await act(async () => { render(createElement(PaymentsDashboard)); });
+  await act(async () => { fireEvent.click(screen.getByRole('tab', { name: /orders.title/ })); });
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'loadMore' })); });
+  expect(fetch).toHaveBeenCalledWith(expect.stringContaining('cursor=CURSOR1'), expect.anything());
 });

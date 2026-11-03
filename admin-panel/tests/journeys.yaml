@@ -3600,7 +3600,7 @@
       },
       "end_state": {
         "buyer": "Free claims, manual grants and lead sign-ups appear to the seller as orders.",
-        "seller": "Orders tab lists paid, transfer, free, manual and lead entries with type and status filters.",
+        "seller": "Orders tab lists paid, transfer, free, manual, subscription and lead entries by recorded grant source, with type/status filters and cursor paging.",
         "integrator": "GET /api/admin/orders returns the same classified list (admin session)."
       },
       "status": "automated",
@@ -3643,13 +3643,15 @@
         "operation": "refund"
       },
       "end_state": {
-        "buyer": "Receives the entered partial amount back.",
+        "buyer": "Stripe test mode records the entered partial refund and then the remainder.",
         "seller": "Refund dialog accepts an amount up to what remains and blocks more.",
         "integrator": "Not exercised (existing refund webhook path unchanged)."
       },
       "status": "automated",
       "layers": [
-        "unit"
+        "unit",
+        "browser",
+        "sandbox"
       ]
     },
     {

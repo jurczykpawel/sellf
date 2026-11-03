@@ -74,10 +74,14 @@ describe('GET /api/admin/orders', () => {
     if (transferError) throw transferError;
     created.tx.push(transfer.id);
 
+    // Sources as recorded by the granting paths (see supabase/tests/grant-source.sql). The coupon
+    // user claimed a PAID product for free: the list must say "free", not guess "manual" by price.
+    const couponUserId = await user('coupon');
     const { error: accessError } = await supabase.from('user_product_access').insert([
-      { user_id: buyerId, product_id: paidId },
-      { user_id: freeUserId, product_id: freeId },
-      { user_id: manualUserId, product_id: paidId },
+      { user_id: buyerId, product_id: paidId, grant_source: 'purchase' },
+      { user_id: freeUserId, product_id: freeId, grant_source: 'free' },
+      { user_id: manualUserId, product_id: paidId, grant_source: 'manual' },
+      { user_id: couponUserId, product_id: paidId, grant_source: 'free' },
     ]);
     if (accessError) throw accessError;
 
@@ -103,6 +107,7 @@ describe('GET /api/admin/orders', () => {
     const summary = body.orders!.map(o => [o.email, o.type, o.status]).sort();
     expect(summary).toEqual([
       [`${tag}-buyer@example.com`, 'paid', 'completed'],
+      [`${tag}-coupon@example.com`, 'free', 'active'],
       [`${tag}-free@example.com`, 'free', 'active'],
       [`${tag}-lead@example.com`, 'lead', 'pending'],
       [`${tag}-manual@example.com`, 'manual', 'active'],
@@ -117,8 +122,30 @@ describe('GET /api/admin/orders', () => {
     expect(byNumber.body.orders!.map(o => o.orderNumber)).toEqual([paidOrderNumber]);
   });
 
+  it('pages through the same list with a cursor, without gaps or repeats @J190', async () => {
+    const seen: string[] = [];
+    let cursor: string | null = '';
+    for (let i = 0; i < 10 && cursor !== null; i++) {
+      const { status, body } = await list(`limit=2&search=${encodeURIComponent(tag)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
+      expect(status).toBe(200);
+      const page = body as { orders: OrderRow[]; nextCursor: string | null };
+      expect(page.orders.length).toBeLessThanOrEqual(2);
+      seen.push(...page.orders.map(o => o.id));
+      cursor = page.nextCursor;
+    }
+    const { body: whole } = await list(`search=${encodeURIComponent(tag)}`);
+    expect(seen).toEqual(whole.orders!.map(o => o.id));
+    expect(seen).toHaveLength(6);
+  });
+
+  it('filters by status on the server @J190', async () => {
+    const { body } = await list(`status=awaiting_payment&search=${encodeURIComponent(tag)}`);
+    expect(body.orders!.map(o => o.type)).toEqual(['transfer']);
+  });
+
   it('rejects anonymous callers and invalid filters @J190', async () => {
     expect((await list('', '')).status).toBe(401);
     expect((await list('type=everything')).status).toBe(400);
+    expect((await list('cursor=garbage')).status).toBe(400);
   });
 });

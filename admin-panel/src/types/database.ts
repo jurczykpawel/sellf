@@ -4322,6 +4322,7 @@ export type Database = {
           created_at: string
           custom_field_values: Json
           expiry_notified_at: string | null
+          grant_source: string
           id: string
           product_id: string
           subscription_id: string | null
@@ -4336,6 +4337,7 @@ export type Database = {
           created_at?: string
           custom_field_values?: Json
           expiry_notified_at?: string | null
+          grant_source: string
           id?: string
           product_id: string
           subscription_id?: string | null
@@ -4350,6 +4352,7 @@ export type Database = {
           created_at?: string
           custom_field_values?: Json
           expiry_notified_at?: string | null
+          grant_source?: string
           id?: string
           product_id?: string
           subscription_id?: string | null
@@ -5768,7 +5771,23 @@ export type Database = {
         }
         Returns: Json
       }
+      grant_bundle_component_access_impl: {
+        Args: {
+          max_retries?: number
+          product_id_param: string
+          user_id_param: string
+        }
+        Returns: Json
+      }
       grant_free_product_access: {
+        Args: {
+          access_duration_days_param?: number
+          coupon_code_param?: string
+          product_slug_param: string
+        }
+        Returns: boolean
+      }
+      grant_free_product_access_impl: {
         Args: {
           access_duration_days_param?: number
           coupon_code_param?: string
@@ -5785,6 +5804,15 @@ export type Database = {
         Returns: boolean
       }
       grant_product_access_service_role: {
+        Args: {
+          max_retries?: number
+          override_duration_days_param?: number
+          product_id_param: string
+          user_id_param: string
+        }
+        Returns: Json
+      }
+      grant_product_access_service_role_impl: {
         Args: {
           max_retries?: number
           override_duration_days_param?: number
@@ -5935,6 +5963,38 @@ export type Database = {
           created_at: string
           custom_field_values: Json
           expiry_notified_at: string | null
+          grant_source: string
+          id: string
+          product_id: string
+          subscription_id: string | null
+          transfer_transaction_id: string | null
+          user_id: string
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "user_product_access"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      mutate_access_impl: {
+        Args: {
+          p_access_id?: string
+          p_action: string
+          p_actor?: Json
+          p_product_id?: string
+          p_user_id: string
+          p_values?: Json
+        }
+        Returns: {
+          access_duration_days: number | null
+          access_expires_at: string | null
+          access_granted_at: string
+          created_at: string
+          custom_field_values: Json
+          expiry_notified_at: string | null
+          grant_source: string
           id: string
           product_id: string
           subscription_id: string | null

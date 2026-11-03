@@ -26,7 +26,8 @@ export default function OrdersTable({ searchTerm, onOpenTransaction }: OrdersTab
   const [type, setType] = useState('all');
   const [status, setStatus] = useState('all');
   const [orders, setOrders] = useState<OrderRow[]>([]);
-  const [limit, setLimit] = useState(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const latest = useRef(0);
@@ -38,22 +39,46 @@ export default function OrdersTable({ searchTerm, onOpenTransaction }: OrdersTab
     setLoading(true);
   }
 
-  useEffect(() => {
-    const request = ++latest.current;
+  const fetchPage = async (cursor: string | null) => {
     const query = new URLSearchParams({ type, status });
     if (searchTerm.trim()) query.set('search', searchTerm.trim());
-    fetch(`/api/admin/orders?${query}`, { cache: 'no-store' })
-      .then(async response => {
-        if (!response.ok) throw new Error('load');
-        const body = await response.json() as { orders: OrderRow[]; limit: number };
+    if (cursor) query.set('cursor', cursor);
+    const response = await fetch(`/api/admin/orders?${query}`, { cache: 'no-store' });
+    if (!response.ok) throw new Error('load');
+    return await response.json() as { orders: OrderRow[]; nextCursor: string | null };
+  };
+
+  // A filter change restarts from the first page; only the newest request may write state.
+  useEffect(() => {
+    const request = ++latest.current;
+    fetchPage(null)
+      .then(body => {
         if (request !== latest.current) return;
         setOrders(body.orders);
-        setLimit(body.limit);
+        setNextCursor(body.nextCursor);
         setFailed(false);
       })
       .catch(() => { if (request === latest.current) setFailed(true); })
       .finally(() => { if (request === latest.current) setLoading(false); });
+    // fetchPage reads the same three filters listed here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type, status, searchTerm]);
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    const request = latest.current;
+    setLoadingMore(true);
+    try {
+      const body = await fetchPage(nextCursor);
+      if (request !== latest.current) return;
+      setOrders(current => [...current, ...body.orders]);
+      setNextCursor(body.nextCursor);
+    } catch {
+      if (request === latest.current) setFailed(true);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const formatAmount = (order: OrderRow) => order.amount !== null && order.currency
     ? new Intl.NumberFormat(locale, { style: 'currency', currency: order.currency.toUpperCase() }).format(fromMinorUnits(order.amount, order.currency))
@@ -117,8 +142,17 @@ export default function OrdersTable({ searchTerm, onOpenTransaction }: OrdersTab
             </table>
           </div>
         )}
-        {!failed && limit > 0 && orders.length >= limit && (
-          <p className="pt-2 text-xs text-sf-muted">{t('limitNote', { limit })}</p>
+        {!failed && nextCursor && (
+          <div className="flex justify-center pt-4">
+            <button
+              type="button"
+              onClick={loadMore}
+              disabled={loading || loadingMore}
+              className="px-4 py-2 text-sm font-medium text-sf-accent border border-sf-border rounded-md hover:bg-sf-hover disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loadingMore ? t('loadingMore') : t('loadMore')}
+            </button>
+          </div>
         )}
       </div>
     </div>
