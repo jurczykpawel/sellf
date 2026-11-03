@@ -47,6 +47,15 @@ BEGIN
   ASSERT (SELECT grant_source FROM public.user_product_access WHERE user_id=buyer AND product_id=coupon_p) = 'free', 'coupon claim on a paid product is free, not manual';
   ASSERT (SELECT grant_source FROM public.user_product_access WHERE user_id=buyer AND product_id=sub_p) = 'subscription', 'subscription';
   RAISE NOTICE 'PASS grant sources';
+  -- What the integrator receives: every access.granted payload carries the exact grantSource,
+  -- while the legacy reason stays as before (coupon claim on a paid product: reason is not 'free').
+  ASSERT (SELECT count(*) FROM public.business_events e JOIN public.user_product_access a ON a.id::text = e.payload->'access'->>'id'
+    WHERE e.event_type = 'access.granted' AND a.user_id = buyer AND e.payload->>'grantSource' = a.grant_source) = 7, 'grantSource on every access.granted';
+  ASSERT (SELECT e.payload->>'grantSource' FROM public.business_events e WHERE e.event_type = 'access.granted'
+    AND e.payload->'product'->>'id' = coupon_p::text) = 'free', 'coupon claim delivered as free';
+  ASSERT (SELECT e.payload ? 'reason' FROM public.business_events e WHERE e.event_type = 'access.granted'
+    AND e.payload->'product'->>'id' = manual_p::text), 'legacy reason kept';
+  RAISE NOTICE 'PASS webhook grantSource';
 END;
 $$;
 -- Column contract: constrained vocabulary, not writable by buyers.

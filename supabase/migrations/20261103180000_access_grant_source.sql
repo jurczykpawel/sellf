@@ -139,3 +139,27 @@ REVOKE EXECUTE ON FUNCTION public.grant_bundle_component_access_impl(uuid, uuid,
 REVOKE EXECUTE ON FUNCTION public.mutate_access_impl(text, uuid, uuid, uuid, jsonb, jsonb) FROM anon, authenticated, PUBLIC;
 -- Free claims run as the signed-in buyer through the invoker wrapper, so authenticated keeps EXECUTE.
 REVOKE EXECUTE ON FUNCTION public.grant_free_product_access_impl(text, integer, text) FROM anon, PUBLIC;
+
+-- ===== Webhook payload: access.granted / access.updated carry grantSource =====
+-- Additive field next to the legacy `reason` (kept unchanged for existing integrations);
+-- grantSource is the recorded source, `reason` may still be inferred for older rules.
+CREATE OR REPLACE FUNCTION public.add_access_grant_source_to_event()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE source text;
+BEGIN
+  IF NEW.event_type IN ('access.granted', 'access.updated') AND NEW.payload->'access' ? 'id' THEN
+    SELECT a.grant_source INTO source FROM public.user_product_access a WHERE a.id::text = NEW.payload->'access'->>'id';
+    IF source IS NOT NULL THEN NEW.payload := NEW.payload || jsonb_build_object('grantSource', source); END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.add_access_grant_source_to_event() FROM anon, authenticated, PUBLIC;
+
+CREATE TRIGGER add_access_grant_source
+  BEFORE INSERT ON public.business_events
+  FOR EACH ROW EXECUTE FUNCTION public.add_access_grant_source_to_event();
