@@ -259,6 +259,10 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
           custom_price_presets: Array.isArray(product.custom_price_presets) ? product.custom_price_presets : [5, 10, 25],
           // Embed checkout
           embed_enabled: product.embed_enabled ?? false,
+          lead_consent_required: product.lead_consent_required ?? initialFormData.lead_consent_required,
+          lead_consent_version: product.lead_consent_version ?? initialFormData.lead_consent_version,
+          lead_consent_text_pl: product.lead_consent_text_pl ?? initialFormData.lead_consent_text_pl,
+          lead_consent_text_en: product.lead_consent_text_en ?? initialFormData.lead_consent_text_en,
           // License keys
           issue_license_on_purchase: product.issue_license_on_purchase ?? false,
           license_tier: product.license_tier ?? null,

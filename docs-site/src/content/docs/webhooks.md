@@ -509,3 +509,7 @@ claimed contexts are cleaned after one day, while the grant snapshot remains ava
 Manual issuance uses the product's domain definition too: a required domain field must be
 filled, an optional one can be omitted, and a product without that field issues a token
 without `claims.domain`. Missing required values return HTTP 400 before signing.
+
+## PlayerStack leads
+
+[Email-confirmed lead forms and marketing consent](/playerstack-leads/).

@@ -279,3 +279,7 @@ po jednym dniu, lecz snapshot w grancie pozostaje.
 Ręczne wystawianie również respektuje definicję produktu: pole domeny wymagane musi być
 wypełnione, opcjonalne może zostać pominięte, a produkt bez takiego pola otrzymuje token bez
 `claims.domain`. Brak wymaganych wartości zwraca HTTP 400 przed podpisaniem.
+
+## Zgłoszenia PlayerStack
+
+[Formularze potwierdzane mailem i zgoda marketingowa](/pl/playerstack-leads/).
