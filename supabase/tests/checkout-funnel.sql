@@ -4,6 +4,10 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '60s';
 
+-- The 100k-row fixture measures the funnel, not purchase attribution. The per-row attribution
+-- snapshot (20261103120000, one subtransaction per row) made this INSERT 4-30x slower and hit the
+-- statement timeout in the release gate. Rolled back with the rest of the fixture.
+ALTER TABLE public.payment_transactions DISABLE TRIGGER snapshot_purchase_attribution;
 CREATE TEMP TABLE funnel_products AS
 SELECT gen_random_uuid() AS id, n FROM generate_series(1, 120) n;
 INSERT INTO public.products(id, name, slug, price, currency)

@@ -65,7 +65,9 @@ for (const locale of ['en', 'pl'] as const) {
     await page.goto(`/${locale}/dashboard/payments`);
     const search = page.getByPlaceholder(labels.admin.payments.filters.searchPlaceholder);
     await search.fill(email);
-    const row = page.getByRole('row').filter({ hasText: transactionId.slice(0, 8) });
+    // Payments rows show the order number since cf62fe26 (orders list, W135).
+    const { data: tx } = await supabaseAdmin.from('payment_transactions').select('order_number').eq('id', transactionId).single();
+    const row = page.getByRole('row').filter({ hasText: new RegExp(`#${tx!.order_number}\\b`) });
     await expect(row).toContainText(email);
     await row.getByRole('button', { name: labels.admin.payments.transactions.details }).click();
     await expect(page.getByText(`${labels.checkout.couponDiscount} (UX${productId.replaceAll('-', '').slice(0, 12)})`, { exact: true })).toBeVisible();

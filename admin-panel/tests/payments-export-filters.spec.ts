@@ -51,7 +51,7 @@ test.describe('Payments CSV active filters', () => {
     await page.goto('/en/dashboard/payments');
     await page.locator('#payment-date-range-filter').selectOption('all');
     await page.locator('#payment-search-filter').fill(needleEmail);
-    await expect(page.getByRole('button', { name: /Payment transactions \(1\)/i })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Payment transactions \(1\)/i })).toBeVisible();
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: /Export CSV/ }).click();
     const download = await downloadPromise;

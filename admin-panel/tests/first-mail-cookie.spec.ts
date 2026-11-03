@@ -44,7 +44,7 @@ test('first new-buyer email from payment status contains the paid product and am
     await page.goto(`/pl/p/${product!.slug}/payment-status?session_id=${session}`);
     await expect(page.getByRole('heading', { name: 'Magiczny link wysłany!' })).toBeVisible();
     const mail = await waitForEmail(email);
-    expect(mail.Subject).toBe('Potwierdź swój email');
+    expect(mail.Subject).toBe('Potwierdź swój email: First email workshop');
     expect(mail.HTML).toContain('First email workshop');
     expect(mail.HTML).toContain('11,00\u00a0zł');
     expect(mail.HTML).toContain('type=signup');

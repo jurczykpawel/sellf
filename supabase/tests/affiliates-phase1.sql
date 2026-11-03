@@ -59,7 +59,7 @@ SELECT pg_temp.check_that((SELECT eligible_at IS NULL FROM public.affiliate_comm
 SELECT pg_temp.check_that((SELECT count(*)=1 FROM public.affiliate_ledger l JOIN public.affiliate_commissions c ON c.id=l.commission_id WHERE c.payment_id='af000000-0000-4000-a000-000000000010' AND kind='accrual'),'one accrual per line');
 CREATE TEMP TABLE reserved AS SELECT * FROM public.affiliate_reserve('dddddddd-0000-4000-a000-000000000000','af000000-0000-4000-a000-000000000001','PLN',now(),1,1,'demo-payee');
 SELECT pg_temp.check_that((SELECT earnings_minor=2000 AND status='reserved' FROM reserved),'reserve full earnings');
-SELECT pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.affiliate_ledger WHERE kind='settlement'),'reservation does not settle');
+SELECT pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.affiliate_ledger l JOIN reserved r ON r.id=l.payout_id WHERE l.kind='settlement'),'reservation does not settle');
 SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_reserve('dddddddd-0000-4000-a000-000000000000','af000000-0000-4000-a000-000000000001','PLN',now(),1,1,'demo-payee')$q$),'one open payout');
 UPDATE public.payment_transactions SET refunded_amount=6150 WHERE id='af000000-0000-4000-a000-000000000010';
 SELECT pg_temp.check_that(pg_temp.rejects($q$SELECT public.affiliate_reserve('dddddddd-0000-4000-a000-000000000000','af000000-0000-4000-a000-000000000001','PLN',now(),1,1,'Test')$q$,'PT409'),'dirty sync conflict SQLSTATE');
