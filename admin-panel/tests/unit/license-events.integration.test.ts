@@ -92,5 +92,8 @@ describe('business event type constraint keeps every family', () => {
     const types = [...new Set([...listed.matchAll(/'([a-z_]+\.[a-z_]+)'/g)].map(m => m[1]).concat(['license.issued', 'license.expired']))];
     expect(types.length).toBeGreaterThan(25);
     expect(() => run(types.map(type => `INSERT INTO public.business_events(event_type,product_id,payload) VALUES('${type}','${product}','{}');`).join('\n'))).not.toThrow();
+    const def = execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql', '-U', 'postgres', '-tAc',
+      "SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname='business_events_event_type_check'"], { encoding: 'utf8' });
+    for (const type of types) expect(def).toContain(`'${type}'`);
   });
 });

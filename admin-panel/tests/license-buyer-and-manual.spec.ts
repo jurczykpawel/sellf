@@ -2,7 +2,6 @@
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { createTestAdmin, createTestUser, setAuthSession, supabaseAdmin as db } from './helpers/admin-auth';
-import { openSettingsTab } from './helpers/settings-tabs';
 import { waitForEmail } from './helpers/mailpit';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
 
@@ -71,7 +70,8 @@ test('seller issues a license manually and the buyer receives the key by mail @J
   const email = `w133-e2e-recipient-${Date.now()}@example.com`;
   await setAuthSession(page, admin.email, admin.password);
   const heading = page.getByRole('heading', { name: 'Issue a license manually' });
-  await openSettingsTab(page, /^License$|^Licencja$/i, heading, '/en/dashboard/settings');
+  await page.goto('/en/dashboard/licenses');
+  await expect(heading).toBeVisible({ timeout: 30000 });
   const form = page.locator('form').filter({ has: heading });
   await form.locator('select').first().selectOption(product);
   await form.locator('input[type="email"]').fill(email);

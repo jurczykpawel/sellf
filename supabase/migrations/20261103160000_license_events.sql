@@ -20,16 +20,21 @@ ALTER TABLE public.issued_licenses ADD COLUMN expiry_notified_at timestamptz;
 CREATE INDEX issued_licenses_expiry_pending_idx ON public.issued_licenses(expires_at)
   WHERE expires_at IS NOT NULL AND revoked_at IS NULL AND expiry_notified_at IS NULL;
 
-ALTER TABLE public.business_events DROP CONSTRAINT business_events_event_type_check;
-ALTER TABLE public.business_events ADD CONSTRAINT business_events_event_type_check CHECK (event_type IN (
-  'access.granted','access.updated','access.revoked','access.expired','order.abandoned',
-  'seats.held','seats.confirmed','seats.released','license.issued','license.revoked',
-  'license.restored','license.expired',
-  -- W134 (20261103130000_webhook_event_families.sql): keep every family it added.
-  'invoicing.issued','invoicing.failed','invoicing.corrected',
-  'commission.accrued','commission.reversed','payout.reserved','payout.paid','payout.cancelled',
-  'refund.requested','refund.request_approved','refund.request_rejected','refund.request_cancelled',
-  'product.published','product.unpublished','product.price_changed','product.sold_out'));
+-- Append license types to whatever the constraint lists now (same pattern as W136), so
+-- migrations that add event families do not overwrite each other.
+DO $$
+DECLARE def text; added text;
+BEGIN
+  SELECT pg_get_constraintdef(oid) INTO def FROM pg_constraint
+    WHERE conname = 'business_events_event_type_check' AND conrelid = 'public.business_events'::regclass;
+  IF def IS NULL OR def NOT LIKE '%])))' THEN RAISE EXCEPTION 'Unexpected business_events constraint: %', def; END IF;
+  SELECT string_agg(format(', %L::text', t), '') INTO added
+    FROM unnest(ARRAY['license.issued','license.expired']) t WHERE position(quote_literal(t) IN def) = 0;
+  IF added IS NULL THEN RETURN; END IF;
+  ALTER TABLE public.business_events DROP CONSTRAINT business_events_event_type_check;
+  EXECUTE 'ALTER TABLE public.business_events ADD CONSTRAINT business_events_event_type_check '
+    || left(def, length(def) - 4) || added || '])))';
+END $$;
 
 -- ===== B1: ISSUANCE DURING A DISPUTE =====
 -- Locks the payment row first, like apply_payment_dispute, so issuance and dispute
