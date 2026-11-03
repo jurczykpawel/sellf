@@ -89,3 +89,9 @@ it('retains hidden amounts in the header, single-currency axis and tooltip', asy
   expect(state.tooltip.formatter(3308.4, 'PLN')).toEqual(['****', 'PLN']);
   expect(screen.getByText('****')).toBeTruthy();
 });
+
+it('asks for daily buckets in the viewer timezone (W78)', async () => {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  await renderChart();
+  expect(state.read).toHaveBeenCalledWith('chart', expect.objectContaining({ timezone }), expect.anything());
+});

@@ -39,7 +39,7 @@ export async function getRevenueStats(productId?: string, goalStartDate?: Date):
   return result.data ?? null
 }
 
-export async function getSalesChartData(days: number = 30, customStart?: Date, customEnd?: Date, productId?: string): Promise<ChartDataPoint[]> {
+export async function getSalesChartData(days: number = 30, customStart?: Date, customEnd?: Date, productId?: string, timezone?: string): Promise<ChartDataPoint[]> {
   const result = await withAdminClient(async ({ dataClient }) => {
     let startDate: Date
     let endDate: Date
@@ -56,7 +56,8 @@ export async function getSalesChartData(days: number = 30, customStart?: Date, c
     const { data, error } = await (dataClient as any).rpc('get_sales_chart_data', {
       p_start_date: startDate.toISOString(),
       p_end_date: endDate.toISOString(),
-      p_product_id: productId || null
+      p_product_id: productId || null,
+      p_timezone: timezone || 'UTC'
     })
 
     if (error) {

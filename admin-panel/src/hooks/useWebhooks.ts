@@ -102,6 +102,18 @@ export function useWebhooks() {
     }
   };
 
+  /** Activate/deactivate; an expired session is handled by the API client's shared notice. */
+  const setEndpointActive = async (id: string, isActive: boolean): Promise<boolean> => {
+    try {
+      await api.update('webhooks', id, { is_active: isActive });
+      toast.success(t(isActive ? 'statusActivated' : 'statusDeactivated'));
+      return true;
+    } catch (err) {
+      if (!isExpectedApiError(err)) toast.error(t('statusToggleError'));
+      return false;
+    }
+  };
+
   const testEndpoint = async (id: string, eventType: string) => {
     try {
       // Use v1 test endpoint
@@ -136,6 +148,7 @@ export function useWebhooks() {
     createEndpoint,
     updateEndpoint,
     deleteEndpoint,
+    setEndpointActive,
     testEndpoint
   };
 }

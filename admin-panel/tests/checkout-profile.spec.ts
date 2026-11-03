@@ -390,6 +390,8 @@ test('EU tax number error explains the format of the selected country', async ({
   await submit(page);
   await expect(page.locator('[id="buyer.nip-error"]')).toContainText('w formacie wybranego kraju');
   await expect(page.locator('[id="buyer.nip"]')).toBeFocused();
+  // U52-2: the first invalid field is scrolled into view, not just focused off-screen.
+  await expect(page.locator('[id="buyer.nip"]')).toBeInViewport();
 });
 
 test('phone has one visible label and an accessible input in both languages', async ({ page }) => {
