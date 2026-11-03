@@ -4767,7 +4767,7 @@
   "legalPages": {
     "privacy": {
       "title": "Polityka Prywatności",
-      "configRequired": "Wymagana Konfiguracja",
+      "configRequired": "Wymagana konfiguracja",
       "configDescription": "Aby wyświetlić Politykę Prywatności, skonfiguruj URL w jeden z tych sposobów:",
       "option1Title": "Opcja 1: Panel Admina (Zalecane)",
       "option1Description": "Przejdź do Ustawień → Dokumenty Prawne i wprowadź URL Polityki Prywatności.",
@@ -4777,7 +4777,7 @@
     },
     "terms": {
       "title": "Regulamin",
-      "configRequired": "Wymagana Konfiguracja",
+      "configRequired": "Wymagana konfiguracja",
       "configDescription": "Aby wyświetlić Regulamin, skonfiguruj URL w jeden z tych sposobów:",
       "option1Title": "Opcja 1: Panel Admina (Zalecane)",
       "option1Description": "Przejdź do Ustawień → Dokumenty Prawne i wprowadź URL Regulaminu.",

@@ -6,6 +6,7 @@ import { decryptSecret } from '@/lib/services/secret-encryption';
 import { verifyTemplateSession } from '@/lib/storefront-templates/mutations';
 import { saveTemplateCredential, readTemplateLicenseStatuses } from '@/lib/storefront-templates/template-credentials';
 import { createPlatformClient } from '@/lib/supabase/admin';
+import { getTestDatabaseContainer } from '../../helpers/database-container';
 vi.mock('@/components/storefront/sections/HeroProduct.module.css', () => ({ default: {} }));
 vi.mock('next/cache', () => ({ revalidateTag: vi.fn(), revalidatePath: vi.fn() }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: async () => true }));
@@ -15,8 +16,7 @@ vi.mock('@/lib/auth-server', () => ({ requireAdminApi: async () => ({ user: { id
 it('persists ciphertext across clients and keeps presentation exports and audit separate @J129', async () => {
   const url = new URL(process.env.SUPABASE_URL ?? '');
   expect(['127.0.0.1', 'localhost']).toContain(url.hostname);
-  const container = process.env.SUPABASE_DB_CONTAINER;
-  if (!container) throw Error('Set SUPABASE_DB_CONTAINER for the owned test stack');
+  const container = getTestDatabaseContainer();
   const port = execFileSync('docker', ['port', container, '5432/tcp'], { encoding: 'utf8' });
   const apiPort = execFileSync('docker', ['port', container.replace('supabase_db_', 'supabase_kong_'), '8000/tcp'], { encoding: 'utf8' });
   expect(port).not.toBe(''); expect(apiPort).toContain(`:${url.port}`);

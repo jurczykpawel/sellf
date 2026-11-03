@@ -21,3 +21,12 @@ export function getTestDatabaseContainer(): string {
   if (configured && configured !== expected) throw new Error('Test database container does not match the configured API');
   return expected;
 }
+
+/** Host URL of another service (e.g. Mailpit `inbucket`:8025) of the stack behind SUPABASE_URL. */
+export function getTestStackServiceUrl(service: string, containerPort: number): string {
+  const container = getTestDatabaseContainer().replace('supabase_db_', `supabase_${service}_`);
+  const mapping = execFileSync('docker', ['port', container, `${containerPort}/tcp`], { encoding: 'utf8', timeout: 10000 }).trim().split('\n')[0];
+  const port = mapping.match(/:(\d+)$/)?.[1];
+  if (!port) throw new Error(`No published port for ${container}`);
+  return `http://127.0.0.1:${port}`;
+}

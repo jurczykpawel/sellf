@@ -3,8 +3,18 @@
  * Mailpit is the email testing service used by Supabase local development
  */
 
-/** Set MAILPIT_URL when the local Supabase stack uses non-default ports. */
-export const MAILPIT_URL = process.env.MAILPIT_URL ?? 'http://127.0.0.1:54324';
+import { getTestStackServiceUrl } from './database-container';
+
+/** MAILPIT_URL wins; otherwise the Mailpit of the stack behind SUPABASE_URL, then the default port. */
+function resolveMailpitUrl(): string {
+  if (process.env.MAILPIT_URL) return process.env.MAILPIT_URL;
+  try {
+    return getTestStackServiceUrl('inbucket', 8025);
+  } catch {
+    return 'http://127.0.0.1:54324';
+  }
+}
+export const MAILPIT_URL = resolveMailpitUrl();
 
 export interface MailpitMessage {
   ID: string;
