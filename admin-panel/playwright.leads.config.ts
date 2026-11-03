@@ -17,7 +17,7 @@ export default defineConfig({
     { command: 'bun tests/fixtures/playerstack-leads/server.mjs', port: LEADS_HOST_PORT, reuseExistingServer: reuse,
       env: { PLAYERSTACK_TEST_DIST: playerstackDist, ...(process.env.PLAYERSTACK_ADAPTER_REPO && { PLAYERSTACK_ADAPTER_REPO: process.env.PLAYERSTACK_ADAPTER_REPO }), LEADS_E2E_CA_FILE: certFile } },
     { command: `bun run dev --port ${LEADS_APP_PORT} --hostname 127.0.0.1`, url: `${leadsAppUrl}/api/health`, timeout: 120_000, reuseExistingServer: reuse,
-      env: { LEADS_E2E_CA_FILE: certFile, RATE_LIMIT_TEST_MODE: 'true', LEADS_E2E_TRANSPORT: '1', SELLF_EMBED_ALLOWED_ORIGINS: leadsOrigin,
+      env: { LEADS_E2E_CA_FILE: certFile, RATE_LIMIT_TEST_MODE: 'true', LEADS_E2E_TRANSPORT: '1', SELLF_EMBED_ALLOWED_ORIGINS: leadsOrigin, NEXT_PUBLIC_SITE_URL: leadsAppUrl, NEXT_PUBLIC_BASE_URL: leadsAppUrl,
         NODE_OPTIONS: `--import ${resolve(__dirname, 'tests/fixtures/playerstack-leads/webhook-transport.mjs')}`, SELLF_TELEMETRY_DISABLED: 'true' } },
   ],
 });
