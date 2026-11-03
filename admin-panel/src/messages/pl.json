@@ -750,7 +750,7 @@
     "emailNotConfirmedMessage": "Potwierdź swój adres e-mail, klikając link w otrzymanej wiadomości.",
     "demoLoginHint": "Użyj konta demonstracyjnego podanego poniżej. W trybie demo tworzenie kont i wysyłanie linków do logowania jest niedostępne.",
     "buyerPasswordLoginHint": "Zaloguj się, aby uzyskać dostęp do swoich zakupów.",
-    "passwordLoginHint": "Zaloguj się swoim adresem e-mail i hasłem. Nie masz konta lub nie pamiętasz hasła? Poproś właściciela sklepu o dostęp; ta strona nie oferuje rejestracji ani resetowania hasła.",
+    "passwordLoginHint": "Zaloguj się hasłem lub wyślij link na maila. Link pozwala też utworzyć konto bez hasła.",
     "magicLinkLoginHint": "Podaj e-mail, aby otrzymać link do logowania. Dla nowego adresu konto powstanie automatycznie; nie potrzebujesz hasła. Jeśli wiadomość nie dotrze, sprawdź spam lub skontaktuj się z właścicielem sklepu.",
     "oauthLoginHint": "Podaj e-mail, aby otrzymać link do logowania, lub użyj przycisku logowania poniżej. Konto powstanie przy pierwszym logowaniu; osobna rejestracja nie jest potrzebna. Jeśli wiadomość nie dotrze, sprawdź spam, wybierz logowanie przez dostawcę lub skontaktuj się z właścicielem sklepu.",
     "passwordLoginFailed": "Nie udało się zalogować. Sprawdź e-mail i hasło, a następnie spróbuj ponownie.",
@@ -766,6 +766,7 @@
     "welcomeBack": "Witaj ponownie",
     "paymentCompletedLoginRequired": "Twoja płatność została zakończona sukcesem! Zaloguj się aby uzyskać dostęp do zakupionej treści.",
     "paymentCompletedLoginTitle": "Wymagane logowanie aby uzyskać dostęp do zakupu",
+    "emailSignInLink": "Wyślij link na maila",
     "sendMagicLink": "Wyślij magiczny link",
     "checkEmailAt": "Sprawdź swój email na {email} w poszukiwaniu magicznego linku.",
     "clickLinkToSignIn": "Kliknij link, aby zalogować się automatycznie.",
@@ -1744,6 +1745,12 @@
         "autoGrantDurationTitle": "Czas automatycznego przyznawania",
         "autoGrantDurationDescription": "To ustawienie dotyczy automatycznego przyznawania dostępu (np. darmowe produkty, zakupy). Ręczne przyznawanie dostępu przez panel administracyjny może zastąpić to ustawienie.",
         "embedSection": {
+          "leadTitle": "Formularz zgłoszeń PlayerStack",
+          "leadRequired": "Zapis na listę wymagany",
+          "leadRisk": "Checkbox pozostaje niezaznaczony. Uzależnienie odbioru materiału od zgody na newsletter może wpływać na dobrowolność zgody (art. 7 ust. 4 RODO). To decyzja sprzedawcy. Sprawdź treść zgody i zmieniaj wersję przy każdej zmianie treści.",
+          "leadVersion": "Wersja zgody",
+          "leadTextPl": "Treść zgody (polski)",
+          "leadTextEn": "Treść zgody (angielski)",
           "title": "Osadzanie koszyka (embed)",
           "toggleLabel": "Pozwól osadzić koszyk tego produktu na cudzej stronie",
           "toggleHelp": "Po włączeniu wygenerujesz 2-linijkowy snippet w menu produktu (akcja „Generuj kod osadzania koszyka”).",
@@ -2677,6 +2684,45 @@
         "rangeFilter": "Zakres: {range}",
         "days": "dni"
       },
+      "attribution": {
+        "title": "Źródło",
+        "none": "Brak zapisanego źródła dla tego zamówienia",
+        "error": "Nie udało się wczytać źródła",
+        "channel": "Kanał",
+        "lastTouch": "Ostatni kontakt",
+        "firstTouch": "Pierwszy kontakt",
+        "direct": "Wejście bezpośrednie (bez oznaczeń kampanii)",
+        "journey": "Droga do zakupu",
+        "journeyValue": "{sessions, plural, one {# wizyta} few {# wizyty} many {# wizyt} other {# wizyty}}, {days} dni od pierwszej wizyty",
+        "device": "Urządzenie",
+        "click": "Kliknięcie reklamy",
+        "clickExpired": "identyfikator usunięty po okresie przechowywania",
+        "mode": "Dane",
+        "channels": {
+          "email": "E-mail",
+          "paid_social": "Reklama w social media",
+          "paid_search": "Reklama w wyszukiwarce",
+          "organic_social": "Social media (bez reklamy)",
+          "organic_search": "Wyszukiwarka (bez reklamy)",
+          "referral": "Odesłanie z innej strony",
+          "affiliate": "Partner",
+          "direct": "Bezpośrednio",
+          "other": "Inna kampania",
+          "unknown": "Nieznane"
+        },
+        "devices": {
+          "desktop": "Komputer",
+          "mobile": "Telefon",
+          "tablet": "Tablet",
+          "bot": "Bot",
+          "unknown": "Nieznane urządzenie"
+        },
+        "modes": {
+          "url": "Tylko z linku do koszyka (bez zgody na ciasteczka)",
+          "stored": "Pierwszy i ostatni kontakt (za zgodą)",
+          "none": "Nie zebrano"
+        }
+      },
       "transactions": {
         "titleSentence": "Transakcje płatnicze",
         "title": "Transakcje Płatnicze",
@@ -2997,6 +3043,27 @@
       "country": "Kraj sklepu",
       "countryPlaceholder": "Wybierz kraj",
       "countryHelp": "Służy wyłącznie do dokumentów prawnych (np. które szablony Regulaminu/Polityki generować) — NIE wpływa na podatek. Podatek wynika z ustawień VAT produktu (tryb Stała stawka) lub z konta Stripe (tryb Stripe Tax). Niektóre funkcje (generowanie dokumentów prawnych) są dostępne tylko dla Polski."
+    },
+    "attribution": {
+      "title": "Źródła zakupów",
+      "description": "Każdy zakup zapisuje, skąd przyszedł (oznaczenia UTM, strona odsyłająca, strona wejścia). Bez zgody na ciasteczka używany jest tylko link do koszyka; za zgodą zapisujemy też pierwszą i ostatnią wizytę. Identyfikatory kliknięć reklam (gclid, fbclid) zapisujemy tylko za zgodą marketingową.",
+      "retention": "Przechowuj identyfikatory kliknięć reklam przez",
+      "days": "dni",
+      "rules": "Reguły kanałów",
+      "rulesHelp": "Kanał zakupu ustala pierwsza pasująca aktywna reguła (najniższy numer priorytetu). Wartości oddzielaj przecinkami. Zakup z kuponem partnera zawsze trafia do kanału 'affiliate'. Zmiany dotyczą nowych zakupów; zapisane zakupy zachowują swój kanał.",
+      "active": "Aktywna",
+      "priority": "Priorytet",
+      "channel": "Kanał",
+      "field": "Pole",
+      "operator": "Warunek",
+      "value": "Wartości",
+      "default": "domyślna",
+      "remove": "Usuń",
+      "addRule": "Dodaj regułę",
+      "save": "Zapisz",
+      "saving": "Zapisywanie…",
+      "saved": "Zapisano ustawienia",
+      "saveError": "Nie udało się zapisać ustawień"
     },
     "omnibus": {
       "title": "Dyrektywa Omnibus EU",

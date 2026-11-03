@@ -78,7 +78,7 @@ it.each(['stripe', 'offline'] as const)('passes stored profile details to the %s
   expect(mocks.trigger.mock.calls[0][1].invoice.companyName).toBe('Gmina Przykładowa');
 });
 
-it('applies a dispute Stripe opened before the payment was stored, before issuing licenses @J153', async () => {
+it('applies a dispute Stripe opened before the payment was stored, before issuing licenses @J177', async () => {
   mocks.dispute.mockImplementation(async () => { mocks.order.push('dispute'); return { processed: true, message: 'ok' }; });
   mocks.licenses.mockImplementation(async () => { mocks.order.push('licenses'); return []; });
   const dispute = { id: 'dp_early', status: 'needs_response' };

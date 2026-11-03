@@ -78,3 +78,8 @@ Skrypt `admin-panel/scripts/issue-license.ts` wydaje licencję przez to API (`SE
 `SELLF_API_KEY`). Tryb `--offline` podpisuje lokalnie kluczem prywatnym sprzedawcy w tym samym
 formacie, ale takiej licencji nie ma w Sellfie: nie da się jej odwołać, nie idzie webhook ani mail.
 Licencje samego Sellfa wydaje w ten sam sposób instancja TSA, osobny generator nie istnieje.
+
+
+## Zgłoszenia PlayerStack
+
+[Formularze potwierdzane mailem i zgoda marketingowa](/pl/playerstack-leads/).

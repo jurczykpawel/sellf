@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { buildAttributionRuntime } from '@/lib/attribution/browser-script';
 import { getStripePublishableKey } from '@/lib/stripe/publishable-key';
 
 export async function GET() {
@@ -13,6 +14,10 @@ export async function GET() {
   //   data-button-label   (modal mode only; text on the trigger button)
   //   data-show-price     (modal mode only; append " · 19,99 USD" to label)
   //
+  // Purchase attribution: the loader records the visit (UTM / referrer / landing path; first and
+  // last touch only when window.sellfAttributionConsent allows) and attaches it to checkout
+  // requests; links to the Sellf checkout domain carry it across (sf_a). @see lib/attribution
+  //
   // Backend dispatches on product type:
   //   { kind: 'paid', clientSecret, ... } → Stripe Embedded mount
   //   { kind: 'free', captchaSiteKey, product } → email-gate form
@@ -23,8 +28,14 @@ export async function GET() {
 
   var sellfOrigin = new URL(script.src).origin;
   var publishableKey = ${JSON.stringify(publishableKey)};
+${buildAttributionRuntime()}
+  sellfAttribution();
+  sellfDecorateLinks(sellfOrigin);
 
   function postJson(path, productSlug, payload) {
+    if (payload && !payload.attribution && (path === '/api/embed/checkout-session' || path === '/api/embed/free-access')) {
+      payload.attribution = sellfAttribution();
+    }
     var url = sellfOrigin + path + '?productSlug=' + encodeURIComponent(productSlug);
     return fetch(url, {
       method: 'POST',

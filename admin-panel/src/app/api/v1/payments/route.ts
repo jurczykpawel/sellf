@@ -19,7 +19,9 @@ import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCurso
 import { escapeIlikePattern, validateUUID } from '@/lib/validations/product';
 import { buildPaymentSearchFilter, VALID_PAYMENT_STATUSES } from '@/lib/payments/search';
 import { firstRelated } from '@/lib/supabase/relations';
+import { PURCHASE_ATTRIBUTION_COLUMNS, toPurchaseAttributionView } from '@/lib/attribution/report';
 import type { PaymentTransactionLineItem } from '@/types/payment';
+import type { PurchaseAttributionView } from '@/lib/attribution/report';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -41,6 +43,7 @@ export async function OPTIONS(request: NextRequest) {
  * - date_from: string ISO date (filter from date)
  * - date_to: string ISO date (filter to date)
  * - sort: string (default '-created_at')
+ * - embed: 'attribution' — adds `attribution` (frozen purchase source, @see lib/attribution/report.ts)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -244,6 +247,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Optional per-order purchase source (immutable snapshot; null for orders without one).
+    const embedAttribution = (searchParams.get('embed') ?? '').split(',').map(v => v.trim()).includes('attribution');
+    const attributionByTransactionId = new Map<string, PurchaseAttributionView>();
+    if (embedAttribution && transactionIds.length > 0) {
+      const { data: attributionRows, error: attributionError } = await adminClient
+        .from('purchase_attribution')
+        .select(PURCHASE_ATTRIBUTION_COLUMNS)
+        .in('transaction_id', transactionIds);
+      if (attributionError) {
+        console.error('Error fetching purchase attribution:', attributionError);
+        return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch purchase attribution');
+      }
+      for (const row of (attributionRows ?? []) as unknown as Array<Parameters<typeof toPurchaseAttributionView>[0] & { transaction_id: string | null }>) {
+        if (row.transaction_id) attributionByTransactionId.set(row.transaction_id, toPurchaseAttributionView(row));
+      }
+    }
+
     // Derive bundle components for bundle transactions (light: one batch query,
     // name/slug only). Non-bundle transactions get no bundle_components field.
     const bundleProductIds = Array.from(
@@ -327,6 +347,7 @@ export async function GET(request: NextRequest) {
         } : null,
         created_at: p.created_at,
         updated_at: p.updated_at,
+        ...(embedAttribution ? { attribution: attributionByTransactionId.get(p.id) ?? null } : {}),
       };
     });
 

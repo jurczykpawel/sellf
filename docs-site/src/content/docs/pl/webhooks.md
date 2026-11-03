@@ -75,6 +75,10 @@ Błąd wystawiania licencji lub przerwana realizacja mogą zostać uzupełnione 
 kolejne zdarzenie lub weryfikację zakupu. Zapis zakończonej transakcji nie oznacza,
 że wszystkie dostawy już się zakończyły.
 
+`purchase.completed` zawiera `attribution`, gdy zamówienie ma zapisane źródło
+([Źródła zakupów](/pl/purchase-attribution/)): kanał, ostatni i pierwszy kontakt, urządzenie,
+kraj i typ identyfikatora kliknięcia — nigdy sam identyfikator.
+
 Pełny katalog zdarzeń, przykłady danych VAT i licencji oraz konfiguracja ponowień
 znajdują się w [dokumentacji webhooków po angielsku](/webhooks/).
 
@@ -153,8 +157,14 @@ ręcznie usunięty grant głównego produktu może pozostać nieobecny, gdy dost
 (`license.issuanceSource`: `purchase`, `manual` lub `api`). `license.expired` przychodzi raz,
 gdy aktywna licencja minie `expiresAt` (sprawdzane co 30 sekund w cyklu zdarzeń);
 licencja odwołana nie wygasa drugi raz. Dane są takie jak w `license.revoked` poniżej
-i nigdy nie zawierają podpisanego tokenu; integracja, która go potrzebuje, pobiera go
-przez `GET /api/v1/licenses/{id}` (`licenses:read`). Ręczne i API wydanie wysyła kupującemu
+i nigdy nie zawierają podpisanego tokenu.
+
+> **Jak dostać token.** `license.issued` celowo nie zawiera tokenu, żeby log webhooków ani źle
+> skonfigurowany odbiorca nie ujawnił działającego klucza. Jeśli sam dostarczasz klucz, wywołaj
+> `GET /api/v1/licenses/{license.id}` kluczem API z uprawnieniem `licenses:read`; odpowiedź
+> zawiera `token`, `jwksUrl` i `crlUrl`. Ręczne i API wydanie i tak wysyła kupującemu mail z kluczem
+> (w jego języku, gdy jest znany), więc większość integracji tego nie potrzebuje.
+ Ręczne i API wydanie wysyła kupującemu
 mail z kluczem i linkiem do produktu, chyba że `sendEmail` ma wartość `false`.
 
 Licencja wydana dla zamówienia z otwartym albo przegranym sporem zapisuje się jako
@@ -299,3 +309,7 @@ po jednym dniu, lecz snapshot w grancie pozostaje.
 Ręczne wystawianie również respektuje definicję produktu: pole domeny wymagane musi być
 wypełnione, opcjonalne może zostać pominięte, a produkt bez takiego pola otrzymuje token bez
 `claims.domain`. Brak wymaganych wartości zwraca HTTP 400 przed podpisaniem.
+
+## Zgłoszenia PlayerStack
+
+[Formularze potwierdzane mailem i zgoda marketingowa](/pl/playerstack-leads/).

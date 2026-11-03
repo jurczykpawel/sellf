@@ -35,7 +35,7 @@ const events = (type: string) => `(SELECT count(*) FROM public.business_events W
 const revokedByDispute = (id: string) => `EXISTS(SELECT 1 FROM public.issued_licenses WHERE id='${license}' AND revoked_at IS NOT NULL AND revoked_by_dispute_id='${id}')`;
 
 describe('license after dispute (B1)', () => {
-  it('a license issued during an open dispute is revoked by it and returns after won @J150', () => {
+  it('a license issued during an open dispute is revoked by it and returns after won @J174', () => {
     expect(() => run(`${apply(created)}${issue()}
       ${assert(revokedByDispute(created.data.object.id), 'License issued during a dispute must be revoked by it')}
       ${assert(`(SELECT revoked_license_ids='{${license}}'::uuid[] FROM public.payment_disputes WHERE stripe_dispute_id='${created.data.object.id}')`, 'Dispute must own the license')}
@@ -61,7 +61,7 @@ describe('license after dispute (B1)', () => {
 });
 
 describe('license expiry events', () => {
-  it('notifies one expiry per lapsed active license @J151', () => {
+  it('notifies one expiry per lapsed active license @J175', () => {
     expect(() => run(`${issue("now()-interval '1 minute'")}
       ${issue("now()-interval '1 minute'", 'e1330000-0000-4000-a000-000000000005', 'revoked_order')}
       SELECT public.revoke_issued_licenses(ARRAY['e1330000-0000-4000-a000-000000000005'::uuid]);
@@ -69,5 +69,16 @@ describe('license expiry events', () => {
       SELECT public.capture_expired_licenses();SELECT public.capture_expired_licenses();
       ${assert(`${events('license.expired')}=1`, 'Exactly one expiry for the active lapsed license')}
       ${assert(`(SELECT payload->'licenseRow'->>'id'='${license}' FROM public.business_events WHERE product_id='${product}' AND event_type='license.expired')`, 'Expiry identifies the license')}`)).not.toThrow();
+  });
+});
+
+describe('buyer mail language', () => {
+  it('prefers the latest order locale, then the account locale, else unknown', () => {
+    expect(() => run(`
+      ${assert(`public.buyer_mail_locale('buyer-w133@example.com') IS NULL`, 'Unknown buyer has no language')}
+      UPDATE auth.users SET raw_user_meta_data='{"locale":"en"}' WHERE id='${seller}';
+      ${assert(`public.buyer_mail_locale('SELLER-w133@example.com')='en'`, 'Account language is used')}
+      UPDATE public.payment_transactions SET metadata='{"locale":"pl"}' WHERE id='${tx}';
+      ${assert(`public.buyer_mail_locale('buyer-w133@example.com')='pl'`, 'Order language is used')}`)).not.toThrow();
   });
 });

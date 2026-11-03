@@ -290,6 +290,28 @@ Supabase Auth's own captcha setting (`security_captcha_enabled` in the dashboard
 
 A solved ALTCHA payload is consumed exactly once: `verifyCaptchaToken()` records it in `public.captcha_nonces` (keyed by a hash of the payload's signature) and rejects a second use, so the payload can't be replayed for the rest of its validity window.
 
+### PlayerStack lead forms
+
+`GET /api/leads/challenge`, `POST /api/leads/submit`, and
+`GET /api/products/[id]/playerstack` implement the email-gate integration through the Sellf adapter (PlayerStack 8baee66+).
+Product identifiers accept slugs or UUIDs; seller embed origins apply throughout.
+The product editor stores `lead_consent_required` (false by default), wording PL/EN
+and its version. For HTTPS instances, the config includes absolute lead endpoint URLs for the
+`trustedOrigins` integration (PlayerStack 90b5f28+); explicit integrator endpoints
+keep priority. The language-qualified wire version is described in
+`docs-site/src/content/docs/playerstack-leads.md`.
+
+`src/lib/leads/server.ts` records pending `lead_submissions`, delivers the shared
+magic link, and completes the submission through `/auth/lead` after sign-in.
+Confirmation grants free access and emits `lead.captured` through the existing
+webhook queue with a stable lead delivery key. Mailing lists and unsubscribe
+handling remain in the receiving integration. Tables and the hourly cleanup are
+in migration `20261028141621_playerstack_leads.sql`. Dedicated local acceptance
+uses `vitest.leads.config.ts` and `playwright.leads.config.ts`; set
+`PLAYERSTACK_TEST_DIST` to a built PlayerStack distribution and
+`PLAYERSTACK_ADAPTER_REPO` to a read-only repository containing commit `8baee66`. The dedicated fixture
+uses the owned local stack on API :55591, app :3893, plugin host :3894, HTTPS receiver :3895 and Mailpit :55594.
+
 ## Critical Security Patterns
 
 **SECURITY IS THE TOP PRIORITY.** Every change must consider security implications.
@@ -1167,6 +1189,45 @@ Python (Flask + Django), and cURL.
 - Routes: `src/app/[locale]/loginwall/gate/route.ts`, `src/app/api/loginwall/gate.js/route.ts`, `src/app/api/loginwall/verify/route.ts`.
 - Admin UI: `GateSnippetModal` + the "Generate gating snippet" product action.
 - Examples: `public/gate-examples/index.html` (self-contained interactive demo of all states/features) and `public/gate-examples/live-integration.html` (deploy-ready snippet + markup reference).
+
+### Purchase attribution (where purchases came from)
+
+Every order stores an **immutable source snapshot** (`public.purchase_attribution`, one row per
+transaction, plus `kind='free'` rows for free grants). Owner decisions 2026-11-03:
+no cookie consent → source only from the URL that opened the checkout; analytics consent → first
+and last touch kept by the collector in the seller's own `localStorage`; ad click ids only with
+marketing consent, erased after `attribution_settings.click_id_retention_days` (default 30);
+partner coupons are the `affiliate` channel; small groups are never merged.
+
+**Flow:** the collector (`src/lib/attribution/collect.ts`, one implementation serialized into the
+embed loader and `gate.js` via `browser-script.ts`, used directly by React checkout forms via
+`browser.ts`) sends `attribution` with every checkout request → the route normalizes it
+(`normalize.ts`: untrusted labels, field-by-field validation, device from User-Agent, country from
+`cf-ipcountry`) and stores it in `checkout_attribution` under every checkout reference
+(`store.ts`: Stripe session / intent / subscription id and `sf_attr_ref` in Stripe + order
+metadata; guest free signups under `free:<slug>:<HMAC-SHA256(APP_ENCRYPTION_KEY, email)>`) → the AFTER trigger
+`snapshot_purchase_attribution` on `payment_transactions` copies it once when the order becomes a
+purchase (completed / awaiting_payment / …), classifies the channel with
+`classify_attribution_channel` (seller rules in `attribution_channel_rules`) and the row can then
+only lose its click id (retention) or FK references (deletions). Attribution never blocks a payment
+(fail-safe in TS and an EXCEPTION block in the trigger). Renewals copy the first checkout's source.
+
+**Read paths (agents):** `GET /api/v1/analytics/attribution` (`analytics:read`, aggregates only,
+major units, net of refunds; `days|from,to`, `touch`, `group_by`, `product_id`) backed by the RPC
+`get_attribution_report`; `GET /api/v1/payments?embed=attribution` (`payments:read`, per order);
+MCP `get_purchase_attribution` (default last 3 days) and `list_payments` `embed: "attribution"`;
+`purchase.completed.attribution` webhook field (never the click id); admin "Source" box in payment
+details (`AttributionSection`) and **Settings → Purchase sources** (`AttributionSettings`,
+RPC `save_attribution_config`, audited).
+
+Example — "where did the purchases of the last 3 days come from?":
+
+```bash
+curl -H "X-API-Key: $KEY" "$SELLF/api/v1/analytics/attribution?days=3"
+# → rows: channel / source / medium / campaign / content / currency / orders / net …
+```
+
+Docs: `docs-site/src/content/docs/purchase-attribution.md` (+ `pl/`).
 
 ### Telemetry (anonymous usage stats)
 

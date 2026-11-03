@@ -46,6 +46,12 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       couponId: null,
       isGuest: false
     },
+    attribution: {
+      channel: 'email', firstChannel: 'paid_social', kind: 'payment', mode: 'stored',
+      last: { source: 'newsletter', medium: 'email', campaign: 'autumn-launch', content: 'cta-1', term: null, utm_id: null, referrer_host: null, landing_path: '/offer', at: '2026-11-03T10:00:00.000Z' },
+      first: { source: 'facebook', medium: 'paid_social', campaign: 'autumn', content: null, term: null, utm_id: null, referrer_host: null, landing_path: '/', at: '2026-10-30T10:00:00.000Z' },
+      sessionsCount: 3, daysToPurchase: 4, clickIdType: null, deviceClass: 'mobile', country: 'PL', affiliateMemberId: null
+    },
     invoice: {
       needsInvoice: true,
       nip: '1234567890',
@@ -57,6 +63,11 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     }
   },
   'lead.captured': {
+    leadId: 'lead_example',
+    source: 'https://example.com/video.mp4',
+    marketingConsent: true,
+    consentVersion: '1:en',
+    consentConfirmedAt: '2026-10-28T12:00:00.000Z',
     customer: {
       email: 'lead@example.com',
       userId: 'user_123abc'

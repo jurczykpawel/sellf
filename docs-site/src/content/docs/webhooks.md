@@ -128,6 +128,23 @@ products), `purchase.completed` also carries the granted components and any issu
 - **Per-product webhook scoping:** a bundle purchase fires for the bundle **and** every component
   product id, so an endpoint scoped to a component still receives the event.
 
+#### Purchase source
+
+`purchase.completed` carries `attribution` when the order has a recorded source
+([Purchase sources](/purchase-attribution/)). It is frozen at purchase and never contains the ad
+click id itself:
+
+```json
+"attribution": {
+  "channel": "email", "firstChannel": "paid_social", "kind": "payment", "mode": "stored",
+  "last": { "source": "listmonk", "medium": "email", "campaign": "mail-05", "content": "cta-1", "term": null,
+            "utm_id": null, "referrer_host": null, "landing_path": "/offer", "at": "2026-11-03T10:00:00.000Z" },
+  "first": { "source": "facebook", "medium": "paid_social", "campaign": "autumn", "…": "…" },
+  "sessionsCount": 3, "daysToPurchase": 4, "clickIdType": null, "deviceClass": "mobile", "country": "PL",
+  "affiliateMemberId": null
+}
+```
+
 ### `invoice.paid` — subscription VAT snapshot
 
 Recurring subscription charges emit `invoice.paid` (not `purchase.completed`). It carries
@@ -261,8 +278,14 @@ purchase, free product, manual issuance in the panel, or `POST /api/v1/licenses`
 (`license.issuanceSource` is `purchase`, `manual` or `api`). `license.expired` is sent
 once when an active license passes `expiresAt` (checked every 30 seconds by the
 business-event cycle); revoked licenses do not expire again. Payloads match
-`license.revoked` below and never contain the signed token: fetch it with
-`GET /api/v1/licenses/{id}` (`licenses:read`) if your integration needs it. Manual and
+`license.revoked` below and never contain the signed token.
+
+> **Getting the token.** `license.issued` deliberately carries no token, so a webhook log or
+> a misconfigured receiver can never leak a working key. To deliver the key yourself, call
+> `GET /api/v1/licenses/{license.id}` with an API key that has `licenses:read`; the response
+> includes `token`, `jwksUrl` and `crlUrl`. Manual and API issuance already mail the key to
+> the buyer (in the buyer's language when known), so most integrations do not need it.
+ Manual and
 API issuance mail the key and a product link to the buyer unless `sendEmail` is `false`.
 
 A license issued for an order with an open or lost dispute is recorded as revoked by
@@ -528,3 +551,7 @@ claimed contexts are cleaned after one day, while the grant snapshot remains ava
 Manual issuance uses the product's domain definition too: a required domain field must be
 filled, an optional one can be omitted, and a product without that field issues a token
 without `claims.domain`. Missing required values return HTTP 400 before signing.
+
+## PlayerStack leads
+
+[Email-confirmed lead forms and marketing consent](/playerstack-leads/).

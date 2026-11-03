@@ -130,3 +130,20 @@ describe('gate client runtime — SellfGate.verify()', () => {
     await expect(gate.verify(SLUG)).resolves.toBe(false);
   });
 });
+
+describe('gate client runtime — purchase attribution', () => {
+  it('records the visit source and hands it to Sellf checkout links', () => {
+    const store = new Map<string, string>();
+    Object.defineProperty(window, 'localStorage', { configurable: true, value: {
+      getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => { store.set(k, v); }, removeItem: (k: string) => { store.delete(k); },
+    } });
+    (window as unknown as Record<string, unknown>).sellfAttributionConsent = 'analytics';
+    window.history.replaceState(null, '', '/lesson?utm_source=listmonk&utm_medium=email&utm_campaign=mail-05');
+    run({ authenticated: true, owned: [] });
+    document.body.insertAdjacentHTML('beforeend', `<a id="buy" href="${ORIGIN}/checkout/${SLUG}">Buy</a>`);
+    document.getElementById('buy')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    expect(JSON.parse(store.get('sf_attr_v1')!)).toMatchObject({ first: { campaign: 'mail-05' } });
+    expect(new URL((document.getElementById('buy') as HTMLAnchorElement).href).searchParams.get('sf_a')).toBeTruthy();
+    delete (window as unknown as Record<string, unknown>).sellfAttributionConsent;
+  });
+});

@@ -12,6 +12,7 @@ import { DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { requestMagicLink } from '@/lib/auth/magic-link/request';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { attributionRequestContext, storeFreeCheckoutAttribution } from '@/lib/attribution/store';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 const PRODUCT_SELECT =
@@ -120,6 +121,10 @@ export async function POST(request: Request) {
     email: parsed.value.email,
     status: result.ok ? 'magic_link_sent' : 'failed',
   });
+  if (result.ok && parsed.value.attribution) {
+    await storeFreeCheckoutAttribution(adminClient, product.slug, parsed.value.email,
+      parsed.value.attribution, attributionRequestContext(request.headers));
+  }
 
   if (!result.ok) {
     if (result.code === 'demo_mode') {

@@ -142,3 +142,15 @@ describe('buyer mail on manual issuance', () => {
     expect(mocks.mail).not.toHaveBeenCalled();
   });
 });
+
+describe('buyer mail language', () => {
+  it('uses the buyer language over the seller panel language, falling back to the panel', async () => {
+    mocks.rpc.mockImplementation(async (name: string) => name === 'buyer_mail_locale' ? { data: 'pl', error: null } : { error: null });
+    await POST(request({ productId: PRODUCT, email: 'kupujacy@example.com', domain: 'shop.example.com', locale: 'en' }));
+    expect(mocks.mail).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ locale: 'pl' }) }));
+    mocks.mail.mockClear();
+    mocks.rpc.mockImplementation(async (name: string) => name === 'buyer_mail_locale' ? { data: null, error: null } : { error: null });
+    await POST(request({ productId: PRODUCT, email: 'unknown@example.com', domain: 'shop.example.com', locale: 'pl' }));
+    expect(mocks.mail).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ locale: 'pl' }) }));
+  });
+});

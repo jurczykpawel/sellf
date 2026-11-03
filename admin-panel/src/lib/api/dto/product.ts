@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { leadSettingsSchema } from '@/lib/leads/config';
 import { eventSessionsSchema, isEventCompatible } from '@/lib/events/schema';
 import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
 
@@ -79,6 +80,7 @@ const baseShape = {
   tip_icon: z.string().max(8).optional(),
   suggested_amounts: z.array(z.number().nonnegative()).max(20).optional(),
   min_amount: z.number().nonnegative().nullable().optional(),
+  ...leadSettingsSchema.shape,
   embed_enabled: z.boolean().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   // Refund settings

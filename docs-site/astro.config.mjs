@@ -58,11 +58,13 @@ export default defineConfig({
 						{ slug: 'upstash-redis' },
 						{ slug: 'cookie-consent' },
 						{ slug: 'webhooks' },
+						{ slug: 'playerstack-leads' },
 						{ slug: 'custom-checkout' },
 						{ slug: 'invoicing' },
 						{ slug: 'taxes' },
 						{ slug: 'bank-transfers' },
 						{ slug: 'events' },
+						{ slug: 'purchase-attribution' },
 					],
 				},
 				{

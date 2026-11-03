@@ -14,6 +14,7 @@ import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
 import { getPaymentDiscount } from '@/lib/payments/discount';
 import { fromMinorUnits } from '@/lib/currency/minor-units';
 import BankTransferSection from '@/components/admin/BankTransferSection';
+import AttributionSection from '@/components/admin/AttributionSection';
 import InvoiceSection from '@/components/admin/InvoiceSection';
 import OrderDetailsSection from '@/components/admin/OrderDetailsSection';
 import type { PaymentTransaction, PaymentTransactionLineItem } from '@/types/payment';
@@ -346,6 +347,7 @@ export default function PaymentTransactionsTable({
               </div>
             </div>
 
+<AttributionSection transactionId={detailsTransaction.id} />
 <BankTransferSection transaction={detailsTransaction} onRefresh={async () => { await onRefreshData?.(); setDetailsTransactionId(null); }} />
 <InvoiceSection transactionId={detailsTransaction.id} status={detailsTransaction.status} invoice={detailsTransaction.invoice} onRefresh={() => { setDetailsTransactionId(null); onRefreshData?.(); }} />
             <OrderDetailsSection

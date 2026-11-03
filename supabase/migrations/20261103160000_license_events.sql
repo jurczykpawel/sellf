@@ -109,3 +109,18 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.prepare_event_mail(text,jsonb) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.prepare_event_mail(text,jsonb) TO service_role;
+
+-- ===== BUYER MAIL LANGUAGE =====
+-- Latest order locale for the address, else the account's last mail locale; NULL when unknown
+-- (the caller then falls back to the seller panel language).
+CREATE FUNCTION public.buyer_mail_locale(p_email text) RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT coalesce(
+    (SELECT t.metadata->>'locale' FROM public.payment_transactions t
+      WHERE lower(t.customer_email)=lower(p_email) AND t.metadata->>'locale' IN ('pl','en')
+      ORDER BY t.created_at DESC LIMIT 1),
+    (SELECT u.raw_user_meta_data->>'locale' FROM auth.users u
+      WHERE lower(u.email)=lower(p_email) AND u.raw_user_meta_data->>'locale' IN ('pl','en') LIMIT 1));
+$$;
+REVOKE ALL ON FUNCTION public.buyer_mail_locale(text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.buyer_mail_locale(text) TO service_role;

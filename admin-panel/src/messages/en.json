@@ -750,7 +750,7 @@
     "emailNotConfirmedMessage": "Confirm your email address using the link in your email.",
     "demoLoginHint": "Use the demo account shown below. Creating accounts and sending sign-in emails are unavailable in demo mode.",
     "buyerPasswordLoginHint": "Sign in to access your purchases.",
-    "passwordLoginHint": "Sign in with your existing email and password. No account or forgotten your password? Ask the store owner to arrange access; this page does not offer registration or password reset.",
+    "passwordLoginHint": "Sign in with a password or email yourself a sign-in link. You can also use the link to create an account without a password.",
     "magicLinkLoginHint": "Enter your email to receive a sign-in link. A new account is created automatically for a new email address; no password is needed. If the email does not arrive, check spam or contact the store owner.",
     "oauthLoginHint": "Enter your email for a sign-in link, or use a provider button below. A new account is created on your first sign-in; no separate registration is needed. If the email does not arrive, check spam, use a provider or contact the store owner.",
     "passwordLoginFailed": "Unable to sign in. Check your email and password, then try again.",
@@ -766,6 +766,7 @@
     "welcomeBack": "Welcome Back",
     "paymentCompletedLoginRequired": "Your payment was successful! Please log in to access your purchased content.",
     "paymentCompletedLoginTitle": "Login Required to Access Your Purchase",
+    "emailSignInLink": "Email me a sign-in link",
     "sendMagicLink": "Send Magic Link",
     "checkEmailAt": "Please check your email at {email} for the magic link.",
     "clickLinkToSignIn": "Click the link to sign in automatically.",
@@ -1744,6 +1745,12 @@
         "autoGrantDurationTitle": "Auto-Grant Duration",
         "autoGrantDurationDescription": "This setting applies to automatic access grants (e.g., free products, purchases). Manual access grants through the admin panel can override this setting.",
         "embedSection": {
+          "leadTitle": "PlayerStack lead form",
+          "leadRequired": "List signup required",
+          "leadRisk": "The checkbox stays unchecked. Requiring newsletter consent to receive material may affect whether consent is freely given (GDPR Article 7(4)). This is the seller’s decision. Review your wording and change the version whenever you change it.",
+          "leadVersion": "Consent version",
+          "leadTextPl": "Consent wording (Polish)",
+          "leadTextEn": "Consent wording (English)",
           "title": "Embed checkout",
           "toggleLabel": "Allow embedding this product's checkout on a third-party page",
           "toggleHelp": "When ON you can generate a 2-line snippet from the product menu (action “Generate embed checkout snippet”).",
@@ -2677,6 +2684,45 @@
         "rangeFilter": "Range: {range}",
         "days": "days"
       },
+      "attribution": {
+        "title": "Source",
+        "none": "No source recorded for this order",
+        "error": "Could not load the source",
+        "channel": "Channel",
+        "lastTouch": "Last touch",
+        "firstTouch": "First touch",
+        "direct": "Direct entry (no campaign tags)",
+        "journey": "Path to purchase",
+        "journeyValue": "{sessions, plural, one {# visit} other {# visits}}, {days} days from first visit",
+        "device": "Device",
+        "click": "Ad click",
+        "clickExpired": "identifier erased after retention",
+        "mode": "Data",
+        "channels": {
+          "email": "E-mail",
+          "paid_social": "Paid social",
+          "paid_search": "Paid search",
+          "organic_social": "Organic social",
+          "organic_search": "Organic search",
+          "referral": "Referral",
+          "affiliate": "Partner",
+          "direct": "Direct",
+          "other": "Other campaign",
+          "unknown": "Unknown"
+        },
+        "devices": {
+          "desktop": "Desktop",
+          "mobile": "Mobile",
+          "tablet": "Tablet",
+          "bot": "Bot",
+          "unknown": "Unknown device"
+        },
+        "modes": {
+          "url": "From the checkout link only (no cookie consent)",
+          "stored": "First and last touch (with consent)",
+          "none": "Not collected"
+        }
+      },
       "transactions": {
         "titleSentence": "Payment transactions",
         "title": "Payment Transactions",
@@ -2997,6 +3043,27 @@
       "country": "Shop Country",
       "countryPlaceholder": "Select country",
       "countryHelp": "Used only for legal documents (e.g. which Terms/Privacy templates to generate) — it does NOT affect tax. Tax comes from your product VAT settings (Fixed Rate mode) or your Stripe account (Stripe Tax mode). Some features (legal document generation) are Poland-only."
+    },
+    "attribution": {
+      "title": "Purchase sources",
+      "description": "Every purchase records where it came from (UTM tags, referring site, landing page). Without cookie consent only the checkout link is used; with consent the first and last visit are kept too. Ad click identifiers (gclid, fbclid) are stored only with marketing consent.",
+      "retention": "Keep ad click identifiers for",
+      "days": "days",
+      "rules": "Channel rules",
+      "rulesHelp": "The first matching active rule (lowest priority number) sets the channel of a purchase. Values are comma-separated. A purchase with a partner coupon is always 'affiliate'. Changes apply to new purchases; recorded purchases keep their channel.",
+      "active": "Active",
+      "priority": "Priority",
+      "channel": "Channel",
+      "field": "Field",
+      "operator": "Operator",
+      "value": "Values",
+      "default": "default",
+      "remove": "Remove",
+      "addRule": "Add rule",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Settings saved",
+      "saveError": "Could not save settings"
     },
     "omnibus": {
       "title": "EU Omnibus Directive",

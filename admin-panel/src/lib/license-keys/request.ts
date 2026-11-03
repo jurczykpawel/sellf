@@ -78,7 +78,7 @@ export async function issueRequestedLicense(
   });
 
   const emailSent = input.sendEmail === false ? false
-    : await mailLicenseToBuyer({ email: input.email, token: result.token, productSlug: product.data.slug, productName: product.data.name, locale: input.locale ?? 'en' });
+    : await mailLicenseToBuyer({ email: input.email, token: result.token, productSlug: product.data.slug, productName: product.data.name, locale: await resolveBuyerLocale(admin, input.email, input.locale) });
 
   return {
     ok: true,
@@ -106,4 +106,11 @@ async function mailLicenseToBuyer(input: { email: string; token: string; product
     const cleared = await admin.rpc('prepare_event_mail', { p_email: input.email, p_data: { locale: input.locale } });
     if (cleared.error) console.error('[license-request] License key cleanup failed');
   }
+}
+
+/** Buyer's own language (latest order, then account) wins; the seller panel language is only a fallback. */
+export async function resolveBuyerLocale(admin: ReturnType<typeof createAdminClient>, email: string, fallback?: 'pl' | 'en'): Promise<'pl' | 'en'> {
+  const { data, error } = await admin.rpc('buyer_mail_locale', { p_email: email });
+  if (!error && (data === 'pl' || data === 'en')) return data;
+  return fallback ?? 'en';
 }

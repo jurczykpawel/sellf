@@ -10,8 +10,8 @@ const PRODUCT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,120}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const COUPON_CODE_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/;
 
-const PAID_CHECKOUT_KEYS = new Set(['productSlug', 'email', 'couponCode', 'turnstileToken', 'locale']);
-const FREE_ACCESS_KEYS = new Set(['productSlug', 'email', 'website', 'turnstileToken']);
+const PAID_CHECKOUT_KEYS = new Set(['productSlug', 'email', 'couponCode', 'turnstileToken', 'locale', 'attribution']);
+const FREE_ACCESS_KEYS = new Set(['productSlug', 'email', 'website', 'turnstileToken', 'attribution']);
 
 export interface EmbedCheckoutBody {
   locale?: 'pl' | 'en' | 'auto';
@@ -19,6 +19,8 @@ export interface EmbedCheckoutBody {
   email?: string;
   couponCode?: string;
   turnstileToken?: string;
+  /** Purchase source collected by the loader; untrusted, normalized by lib/attribution/normalize.ts. */
+  attribution?: unknown;
 }
 
 export interface EmbedFreeAccessBody {
@@ -26,6 +28,7 @@ export interface EmbedFreeAccessBody {
   email: string;
   honeypot: string;
   turnstileToken?: string;
+  attribution?: unknown;
 }
 
 type ParseResult<T> =
@@ -217,6 +220,7 @@ export function parseEmbedCheckoutBody(body: unknown): ParseResult<EmbedCheckout
       ...(email ? { email } : {}),
       ...(couponCode ? { couponCode } : {}),
       ...(turnstileToken ? { turnstileToken } : {}),
+      ...(isRecord(body.attribution) ? { attribution: body.attribution } : {}),
     },
   };
 }
@@ -241,6 +245,7 @@ export function parseEmbedFreeAccessBody(body: unknown): ParseResult<EmbedFreeAc
       email,
       honeypot,
       ...(turnstileToken ? { turnstileToken } : {}),
+      ...(isRecord(body.attribution) ? { attribution: body.attribution } : {}),
     },
   };
 }
