@@ -32,6 +32,8 @@ export interface SubscriptionSessionInput {
   checkoutConfig: CheckoutConfig;
   taxRateId?: string;
   uiMode?: 'embedded_page' | 'elements';
+  /** Purchase attribution reference (@see lib/attribution/store.ts); pinned on the subscription. */
+  attributionRef?: string;
 }
 
 export function buildSubscriptionSessionConfig(
@@ -77,6 +79,7 @@ export function buildSubscriptionSessionConfig(
         product_id: product.id,
         product_slug: product.slug,
         user_id: userId || null,
+        ...(input.attributionRef ? { sf_attr_ref: input.attributionRef } : {}),
       },
       ...(product.trial_days && product.trial_days > 0
         ? { trial_period_days: product.trial_days }

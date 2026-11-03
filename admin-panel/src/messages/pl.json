@@ -2664,6 +2664,45 @@
         "rangeFilter": "Zakres: {range}",
         "days": "dni"
       },
+      "attribution": {
+        "title": "Źródło",
+        "none": "Brak zapisanego źródła dla tego zamówienia",
+        "error": "Nie udało się wczytać źródła",
+        "channel": "Kanał",
+        "lastTouch": "Ostatni kontakt",
+        "firstTouch": "Pierwszy kontakt",
+        "direct": "Wejście bezpośrednie (bez oznaczeń kampanii)",
+        "journey": "Droga do zakupu",
+        "journeyValue": "{sessions, plural, one {# wizyta} few {# wizyty} many {# wizyt} other {# wizyty}}, {days} dni od pierwszej wizyty",
+        "device": "Urządzenie",
+        "click": "Kliknięcie reklamy",
+        "clickExpired": "identyfikator usunięty po okresie przechowywania",
+        "mode": "Dane",
+        "channels": {
+          "email": "E-mail",
+          "paid_social": "Reklama w social media",
+          "paid_search": "Reklama w wyszukiwarce",
+          "organic_social": "Social media (bez reklamy)",
+          "organic_search": "Wyszukiwarka (bez reklamy)",
+          "referral": "Odesłanie z innej strony",
+          "affiliate": "Partner",
+          "direct": "Bezpośrednio",
+          "other": "Inna kampania",
+          "unknown": "Nieznane"
+        },
+        "devices": {
+          "desktop": "Komputer",
+          "mobile": "Telefon",
+          "tablet": "Tablet",
+          "bot": "Bot",
+          "unknown": "Nieznane urządzenie"
+        },
+        "modes": {
+          "url": "Tylko z linku do koszyka (bez zgody na ciasteczka)",
+          "stored": "Pierwszy i ostatni kontakt (za zgodą)",
+          "none": "Nie zebrano"
+        }
+      },
       "transactions": {
         "titleSentence": "Transakcje płatnicze",
         "title": "Transakcje Płatnicze",
@@ -2984,6 +3023,27 @@
       "country": "Kraj sklepu",
       "countryPlaceholder": "Wybierz kraj",
       "countryHelp": "Służy wyłącznie do dokumentów prawnych (np. które szablony Regulaminu/Polityki generować) — NIE wpływa na podatek. Podatek wynika z ustawień VAT produktu (tryb Stała stawka) lub z konta Stripe (tryb Stripe Tax). Niektóre funkcje (generowanie dokumentów prawnych) są dostępne tylko dla Polski."
+    },
+    "attribution": {
+      "title": "Źródła zakupów",
+      "description": "Każdy zakup zapisuje, skąd przyszedł (oznaczenia UTM, strona odsyłająca, strona wejścia). Bez zgody na ciasteczka używany jest tylko link do koszyka; za zgodą zapisujemy też pierwszą i ostatnią wizytę. Identyfikatory kliknięć reklam (gclid, fbclid) zapisujemy tylko za zgodą marketingową.",
+      "retention": "Przechowuj identyfikatory kliknięć reklam przez",
+      "days": "dni",
+      "rules": "Reguły kanałów",
+      "rulesHelp": "Kanał zakupu ustala pierwsza pasująca aktywna reguła (najniższy numer priorytetu). Wartości oddzielaj przecinkami. Zakup z kuponem partnera zawsze trafia do kanału 'affiliate'. Zmiany dotyczą nowych zakupów; zapisane zakupy zachowują swój kanał.",
+      "active": "Aktywna",
+      "priority": "Priorytet",
+      "channel": "Kanał",
+      "field": "Pole",
+      "operator": "Warunek",
+      "value": "Wartości",
+      "default": "domyślna",
+      "remove": "Usuń",
+      "addRule": "Dodaj regułę",
+      "save": "Zapisz",
+      "saving": "Zapisywanie…",
+      "saved": "Zapisano ustawienia",
+      "saveError": "Nie udało się zapisać ustawień"
     },
     "omnibus": {
       "title": "Dyrektywa Omnibus EU",

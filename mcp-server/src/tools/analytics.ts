@@ -70,6 +70,31 @@ interface PaymentStats {
 }
 
 export function registerAnalyticsTools(server: McpServer): void {
+  // Purchase attribution — where purchases came from (aggregates, no personal data)
+  server.tool(
+    'get_purchase_attribution',
+    'Where did purchases come from? Aggregated by channel (email, paid_social, paid_search, organic_social, organic_search, referral, affiliate, direct, other, unknown) and UTM source/medium/campaign/content, frozen at purchase time. Default: last 3 days, last touch. Amounts are in MAJOR units (49.99 means 49.99), per currency, net of refunds (disputes count as refunded). No personal data; per-order detail is list_payments with embed=attribution. Example question: "Skąd pochodzą zakupy z ostatnich 3 dni?" → call with no arguments.',
+    {
+      days: z.number().int().min(1).max(3660).optional().describe('Look-back window in days (default 3). Ignored when from is set.'),
+      from: z.string().optional().describe('ISO start date (inclusive)'),
+      to: z.string().optional().describe('ISO end date (exclusive, default now)'),
+      touch: z.enum(['last', 'first']).optional().describe('last = touch that led to the purchase (default); first = first known visit (needs visitor consent, falls back to last)'),
+      group_by: z.array(z.enum(['channel', 'source', 'medium', 'campaign', 'content', 'term', 'referrer_host', 'landing_path', 'product', 'country', 'device_class', 'affiliate', 'kind', 'day'])).max(8).optional()
+        .describe('Dimensions (default channel, source, medium, campaign, content)'),
+      product_id: z.string().uuid().optional().describe('Only this product'),
+    },
+    async ({ days, from, to, touch, group_by, product_id }) => {
+      const api = getApiClient();
+      const result = await api.get<{ data: unknown }>('/api/v1/analytics/attribution', {
+        days: from ? undefined : String(days ?? 3),
+        from, to, touch,
+        group_by: group_by?.join(','),
+        product_id,
+      });
+      return { content: [{ type: 'text', text: JSON.stringify(result.data, null, 2) }] };
+    }
+  );
+
   // Get dashboard overview
   server.tool(
     'get_dashboard',

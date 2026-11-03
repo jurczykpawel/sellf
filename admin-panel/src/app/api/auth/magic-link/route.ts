@@ -6,6 +6,8 @@ import { MAGIC_LINK_FLOWS } from '@/lib/auth/magic-link/types';
 import type { MagicLinkErrorCode, MagicLinkFlow } from '@/lib/auth/magic-link/types';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
+import { attributionRequestContext, freeAttributionRef, storeCheckoutAttribution } from '@/lib/attribution/store';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const ALLOWED_KEYS = new Set([
   'redirectTo',
@@ -17,6 +19,7 @@ const ALLOWED_KEYS = new Set([
   'couponCode',
   'successUrl',
   'customFieldValues',
+  'attribution',
 ]);
 
 const PRODUCT_SLUG_REGEX = /^[a-zA-Z0-9_-]{1,100}$/;
@@ -31,6 +34,7 @@ interface ParsedRequest {
   couponCode?: string;
   successUrl?: string;
   customFieldValues?: Record<string, string>;
+  attribution?: unknown;
 }
 
 function badRequest(): NextResponse {
@@ -49,7 +53,7 @@ function parseBody(body: unknown): ParsedRequest | null {
     if (!ALLOWED_KEYS.has(key)) return null;
   }
 
-  const { email, captchaToken, flow, productSlug, couponCode, successUrl, redirectTo, locale, customFieldValues } = record;
+  const { email, captchaToken, flow, productSlug, couponCode, successUrl, redirectTo, locale, customFieldValues, attribution } = record;
   if (redirectTo !== undefined && (typeof redirectTo !== 'string' || !getLoginReturnPath(redirectTo))) return null;
 
   if (typeof email !== 'string' || email.length === 0 || email.length > 254) return null;
@@ -86,6 +90,7 @@ function parseBody(body: unknown): ParsedRequest | null {
     couponCode: parsedCouponCode,
     successUrl: parsedSuccessUrl,
     ...(customFieldValues !== undefined ? { customFieldValues: customFieldValues as Record<string, string> } : {}),
+    ...(flow === 'free_product' && attribution && typeof attribution === 'object' && !Array.isArray(attribution) ? { attribution } : {}),
   };
 }
 
@@ -132,6 +137,13 @@ export async function POST(request: Request) {
     customFieldValues: parsed.customFieldValues,
   });
 
-  if (result.ok) return NextResponse.json({ ok: true });
+  if (result.ok) {
+    // Guest free signup: the grant happens after the link is used; keep the source until then.
+    if (parsed.attribution && parsed.productSlug) {
+      await storeCheckoutAttribution(createAdminClient(), [freeAttributionRef(parsed.productSlug, parsed.email)],
+        parsed.attribution, attributionRequestContext(request.headers));
+    }
+    return NextResponse.json({ ok: true });
+  }
   return NextResponse.json(result, { status: STATUS_BY_CODE[result.code] });
 }

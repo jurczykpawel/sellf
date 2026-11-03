@@ -1168,6 +1168,45 @@ Python (Flask + Django), and cURL.
 - Admin UI: `GateSnippetModal` + the "Generate gating snippet" product action.
 - Examples: `public/gate-examples/index.html` (self-contained interactive demo of all states/features) and `public/gate-examples/live-integration.html` (deploy-ready snippet + markup reference).
 
+### Purchase attribution (where purchases came from)
+
+Every order stores an **immutable source snapshot** (`public.purchase_attribution`, one row per
+transaction, plus `kind='free'` rows for free grants). Owner decisions 2026-11-03:
+no cookie consent → source only from the URL that opened the checkout; analytics consent → first
+and last touch kept by the collector in the seller's own `localStorage`; ad click ids only with
+marketing consent, erased after `attribution_settings.click_id_retention_days` (default 30);
+partner coupons are the `affiliate` channel; small groups are never merged.
+
+**Flow:** the collector (`src/lib/attribution/collect.ts`, one implementation serialized into the
+embed loader and `gate.js` via `browser-script.ts`, used directly by React checkout forms via
+`browser.ts`) sends `attribution` with every checkout request → the route normalizes it
+(`normalize.ts`: untrusted labels, field-by-field validation, device from User-Agent, country from
+`cf-ipcountry`) and stores it in `checkout_attribution` under every checkout reference
+(`store.ts`: Stripe session / intent / subscription id and `sf_attr_ref` in Stripe + order
+metadata; guest free signups under `free:<slug>:<sha256(email)>`) → the AFTER trigger
+`snapshot_purchase_attribution` on `payment_transactions` copies it once when the order becomes a
+purchase (completed / awaiting_payment / …), classifies the channel with
+`classify_attribution_channel` (seller rules in `attribution_channel_rules`) and the row can then
+only lose its click id (retention) or FK references (deletions). Attribution never blocks a payment
+(fail-safe in TS and an EXCEPTION block in the trigger). Renewals copy the first checkout's source.
+
+**Read paths (agents):** `GET /api/v1/analytics/attribution` (`analytics:read`, aggregates only,
+major units, net of refunds; `days|from,to`, `touch`, `group_by`, `product_id`) backed by the RPC
+`get_attribution_report`; `GET /api/v1/payments?embed=attribution` (`payments:read`, per order);
+MCP `get_purchase_attribution` (default last 3 days) and `list_payments` `embed: "attribution"`;
+`purchase.completed.attribution` webhook field (never the click id); admin "Source" box in payment
+details (`AttributionSection`) and **Settings → Purchase sources** (`AttributionSettings`,
+RPC `save_attribution_config`, audited).
+
+Example — "where did the purchases of the last 3 days come from?":
+
+```bash
+curl -H "X-API-Key: $KEY" "$SELLF/api/v1/analytics/attribution?days=3"
+# → rows: channel / source / medium / campaign / content / currency / orders / net …
+```
+
+Docs: `docs-site/src/content/docs/purchase-attribution.md` (+ `pl/`).
+
 ### Telemetry (anonymous usage stats)
 
 Sellf phones home with **anonymous, opt-out** usage telemetry (model: n8n's

@@ -1521,3 +1521,23 @@ BEGIN
   UPDATE public.business_events SET dispatched_at=now() WHERE payload->'licenseRow'->>'id'='e1210000-0000-4000-a000-000000000011';
   PERFORM set_config('request.jwt.claims',coalesce(prior_claims,''),true);
 END $seed$;
+
+-- ===== PURCHASE ATTRIBUTION (sample sources for seeded orders) =====
+-- Seeded orders were inserted without checkout data (channel 'unknown'); give a few of them
+-- realistic sources so the "Source" box, API and MCP report show something locally.
+DO $seed$
+DECLARE tx record; i integer := 0;
+  payloads jsonb[] := ARRAY[
+    '{"v":1,"consent":"analytics","mode":"stored","sessions_count":3,"first":{"source":"facebook","medium":"paid_social","campaign":"autumn","landing_path":"/"},"last":{"source":"listmonk","medium":"email","campaign":"mail-05","content":"cta-1","landing_path":"/p/premium-course"},"device_class":"mobile","country":"PL"}',
+    '{"v":1,"consent":"none","mode":"url","last":{"source":"facebook","medium":"paid_social","campaign":"autumn","content":"ad-2","landing_path":"/p/premium-course"},"device_class":"mobile","country":"PL"}',
+    '{"v":1,"consent":"none","mode":"url","last":{"referrer_host":"google.com","landing_path":"/p/premium-course"},"device_class":"desktop","country":"DE"}',
+    '{"v":1,"consent":"none","mode":"url","last":{"landing_path":"/p/premium-course"},"device_class":"desktop","country":"PL"}'
+  ]::jsonb[];
+BEGIN
+  FOR tx IN SELECT id, product_id, user_id FROM public.payment_transactions
+    WHERE status = 'completed' AND subscription_id IS NULL AND payment_provider = 'stripe' ORDER BY created_at LIMIT 8 LOOP
+    DELETE FROM public.purchase_attribution WHERE transaction_id = tx.id;
+    PERFORM public.insert_purchase_attribution(tx.id, tx.product_id, tx.user_id, 'payment', payloads[(i % 4) + 1], NULL);
+    i := i + 1;
+  END LOOP;
+END $seed$;

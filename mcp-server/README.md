@@ -100,9 +100,10 @@ The Sellf tools should now be available in Claude.
 - `get_coupon_stats` - Get usage statistics
 - `deactivate_coupon` - Quickly deactivate
 
-### Analytics (8 tools)
+### Analytics (9 tools)
 - `get_dashboard` - Get dashboard overview
 - `get_revenue_stats` - Get revenue statistics
+- `get_purchase_attribution` - Where purchases came from (channel / UTM, net of refunds; default last 3 days)
 - `get_revenue_by_product` - Revenue breakdown by product
 - `get_sales_trends` - Daily sales trends
 - `get_top_products` - Best performing products

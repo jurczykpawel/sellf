@@ -405,10 +405,11 @@ change Omnibus lowest-price history. This type is available to all sellers.
 
 | Method | Path | Scope | Description |
 |--------|------|-------|-------------|
-| GET | `/payments` | `payments:read` | List payments |
+| GET | `/payments` | `payments:read` | List payments (`?embed=attribution` adds the frozen purchase source) |
 | GET | `/payments/{id}` | `payments:read` | Get payment details |
 | PATCH | `/payments/{id}` | `payments:write` | Update payment metadata |
 | GET | `/payments/stats` | `analytics:read` | Payment statistics (aggregates only) |
+| GET | `/analytics/attribution` | `analytics:read` | Where purchases came from — aggregates by channel / UTM, net of refunds, major units ([Purchase sources](/purchase-attribution/)) |
 | POST | `/payments/export` | `payments:read` | Export payments (CSV) |
 | POST | `/payments/{id}/refund` | `payments:refund` | Refund a payment, including partial refunds |
 
