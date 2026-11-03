@@ -26,6 +26,7 @@ export interface InvoiceInfo {
 }
 
 export interface PaymentTransaction {
+  order_number?: number | null;
   coupon_code?: string | null;
   payment_provider?: string;
   payment_due_at?: string | null;

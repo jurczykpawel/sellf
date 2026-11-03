@@ -28,7 +28,7 @@ const paymentsDashboardSource = readFileSync(
 );
 
 const sidebarSource = readFileSync(
-  resolve(__dirname, '../../src/components/DashboardLayout.tsx'),
+  resolve(__dirname, '../../src/lib/navigation/admin-nav.ts'),
   'utf-8'
 );
 
@@ -55,7 +55,7 @@ const paymentFiltersSource = readFileSync(
 describe('admin payments dashboard', () => {
   it('exposes the payments dashboard from the admin sidebar', () => {
     expect(sidebarSource).toContain("href: '/dashboard/payments'");
-    expect(sidebarSource).toContain("label: t('payments')");
+    expect(sidebarSource).toContain("labelKey: 'payments'");
   });
 
   it('returns payment stats grouped by currency for conversion-aware totals', () => {

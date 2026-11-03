@@ -40,7 +40,15 @@ interface LicenseRow {
 
 const DOMAIN_FIELD = '_sellf_license_domain';
 
-export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }) {
+interface IssuedLicensesSettingsProps {
+  enabled: boolean;
+  /** Prefill from `/dashboard/licenses?email=&product=&q=` (order details link). */
+  initialEmail?: string;
+  initialProductId?: string;
+  initialSearch?: string;
+}
+
+export default function IssuedLicensesSettings({ enabled, initialEmail = '', initialProductId = '', initialSearch = '' }: IssuedLicensesSettingsProps) {
   const t = useTranslations('settings.issuedLicenses');
   const locale = useLocale();
   const [licenses, setLicenses] = useState<LicenseRow[]>([]);
@@ -49,11 +57,11 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
-  const [productId, setProductId] = useState('');
-  const [email, setEmail] = useState('');
+  const [productId, setProductId] = useState(initialProductId);
+  const [email, setEmail] = useState(initialEmail);
   const [domain, setDomain] = useState('');
   const [values, setValues] = useState<Record<string, string>>({});
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const [source, setSource] = useState('');
   const [status, setStatus] = useState('');
   const [revealed, setRevealed] = useState<Record<string, string>>({});
@@ -80,7 +88,8 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
       setLicenses(body.licenses);
       setProducts(body.products);
       setTotal(body.total);
-      if (!productId && body.products[0]) setProductId(body.products[0].id);
+      // A prefilled product that cannot issue licenses falls back to the first one that can.
+      if (!body.products.some((p: ProductOption) => p.id === productId)) setProductId(body.products[0]?.id ?? '');
     } catch {
       toast.error(t('loadError'));
     } finally {
@@ -187,7 +196,7 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
           <Field label={t('search')}><input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="input" /></Field>
           <Field label={t('source')}><select value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }} className="input"><option value="">{t('all')}</option><option value="purchase">{t('purchase')}</option><option value="manual">{t('manual')}</option></select></Field>
           <Field label={t('status')}><select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="input"><option value="">{t('all')}</option><option value="active">{t('active')}</option><option value="expired">{t('expired')}</option><option value="revoked">{t('revokedStatus')}</option></select></Field>
-          <button type="button" onClick={() => void load()} className="p-2 border-2 border-sf-border-medium"><RefreshCw className="w-5 h-5" /></button>
+          <button type="button" onClick={() => void load()} aria-label={t('refresh')} title={t('refresh')} className="p-2 border-2 border-sf-border-medium"><RefreshCw className="w-5 h-5" aria-hidden="true" /></button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm"><thead><tr className="border-b border-sf-border text-left text-sf-muted">{['product','email','domain','tier','source','issued','expires','status','actions'].map((key) => <th key={key} className="p-2">{t(key)}</th>)}</tr></thead>

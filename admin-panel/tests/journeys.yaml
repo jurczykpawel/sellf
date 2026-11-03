@@ -3346,6 +3346,113 @@
         "seller": "Exactly one real Stripe quote for unchanged cart, one replacement after quantity changes; both superseded and abandoned pending sessions expire and become abandoned.",
         "integrator": "Not exercised; this journey measures checkout quotes before payment confirmation."
       }
+    },
+    {
+      "id": "J160",
+      "title": "Seller sees every kind of order on the Payments page",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "free",
+        "payment": "none",
+        "moment": "after_grant",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Free claims, manual grants and lead sign-ups appear to the seller as orders.",
+        "seller": "Orders tab lists paid, transfer, free, manual and lead entries with type and status filters.",
+        "integrator": "GET /api/admin/orders returns the same classified list (admin session)."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "browser"
+      ]
+    },
+    {
+      "id": "J161",
+      "title": "Seller opens an order by its number or a direct link",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_navigation",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "The order can be found by the number from the buyer's confirmation.",
+        "seller": "Searching 1300 or opening /dashboard/payments?order=1300 opens that order's details.",
+        "integrator": "GET /api/v1/payments?search=1300 matches the order number."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "browser"
+      ]
+    },
+    {
+      "id": "J162",
+      "title": "Seller refunds part of a card payment",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "refund",
+        "moment": "after_payment",
+        "operation": "refund"
+      },
+      "end_state": {
+        "buyer": "Receives the entered partial amount back.",
+        "seller": "Refund dialog accepts an amount up to what remains and blocks more.",
+        "integrator": "Not exercised (existing refund webhook path unchanged)."
+      },
+      "status": "automated",
+      "layers": [
+        "unit"
+      ]
+    },
+    {
+      "id": "J163",
+      "title": "Seller issues a license from the sales area",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "license",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "issue_license"
+      },
+      "end_state": {
+        "buyer": "Not exercised (issuance logic unchanged).",
+        "seller": "Order details link to Sales > Licenses prefilled with buyer and product; Settings no longer hosts issuance.",
+        "integrator": "Not exercised (license webhooks unchanged)."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J164",
+      "title": "Seller navigates a grouped admin menu",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_navigation",
+        "operation": "browse"
+      },
+      "end_state": {
+        "buyer": "Not exercised.",
+        "seller": "Sidebar groups links into Sales & reports, Products and System.",
+        "integrator": "Not exercised."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
     }
   ],
   "escapes": [

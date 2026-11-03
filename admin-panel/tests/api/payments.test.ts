@@ -304,6 +304,7 @@ describe('Payments API v1', () => {
     const needleSessionId = `cs_needle_${r}`;
     const needlePaymentIntentId = `pi_needle_${r}`;
     const searchProductName = `Search Needle Product ${r}`;
+    let needleOrderNumber: number;
 
     beforeAll(async () => {
       const { data: product, error: productError } = await supabase
@@ -332,10 +333,11 @@ describe('Payments API v1', () => {
           product_id: searchProductId,
           session_id: needleSessionId,
         })
-        .select('id')
+        .select('id, order_number')
         .single();
       if (txError) throw txError;
       searchTxIds.push(tx.id);
+      needleOrderNumber = tx.order_number;
     });
 
     afterAll(async () => {
@@ -344,6 +346,14 @@ describe('Payments API v1', () => {
       }
       if (searchProductId) {
         await supabase.from('products').delete().eq('id', searchProductId);
+      }
+    });
+
+    it('finds a payment by its order number, with or without # @J161', async () => {
+      for (const query of [String(needleOrderNumber), `#${needleOrderNumber}`]) {
+        const { status, data } = await get<ApiResponse<Payment[]>>(`/api/v1/payments?search=${encodeURIComponent(query)}`);
+        expect(status).toBe(200);
+        expect(data.data!.map((p) => p.id)).toEqual([searchTxIds[0]]);
       }
     });
 

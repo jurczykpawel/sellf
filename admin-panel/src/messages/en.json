@@ -470,7 +470,12 @@
     "userMenu": "User menu",
     "affiliates": "Affiliate program",
     "myAffiliate": "Partner earnings",
-    "affiliateApply": "Become a partner"
+    "affiliateApply": "Become a partner",
+    "navGroupSales": "Sales & reports",
+    "navGroupProducts": "Products",
+    "navGroupSystem": "System",
+    "licenses": "Licenses",
+    "templates": "Storefront templates"
   },
   "about": {
     "title": "About Sellf",
@@ -2654,7 +2659,7 @@
         "partiallyRefunded": "Partially refunded",
         "disputed": "Disputed",
         "abandoned": "Abandoned",
-        "searchPlaceholder": "Search by email, transaction ID...",
+        "searchPlaceholder": "Search by order no. (e.g. 1300), email, product...",
         "last7Days": "Last 7 days",
         "last30Days": "Last 30 days",
         "last90Days": "Last 90 days",
@@ -2671,6 +2676,49 @@
         "rangeFilter": "Range: {range}",
         "days": "days"
       },
+      "tabsLabel": "Payment views",
+      "orders": {
+          "title": "Orders",
+          "typeFilter": "Type",
+          "statusFilter": "Status",
+          "allTypes": "All types",
+          "allStatuses": "All statuses",
+          "types": {
+            "paid": "Paid",
+            "transfer": "Bank transfer",
+            "free": "Free",
+            "manual": "Granted manually",
+            "lead": "Lead"
+          },
+          "statuses": {
+            "completed": "Paid",
+            "awaiting_payment": "Awaiting payment",
+            "pending": "In progress",
+            "refunded": "Refunded",
+            "partially_refunded": "Partially refunded",
+            "disputed": "Disputed",
+            "cancelled": "Cancelled",
+            "abandoned": "Abandoned",
+            "active": "Access active",
+            "expired": "Access expired",
+            "confirmed": "Confirmed"
+          },
+          "columns": {
+            "order": "No.",
+            "customer": "Customer",
+            "product": "Product",
+            "type": "Type",
+            "status": "Status",
+            "amount": "Amount",
+            "date": "Date"
+          },
+          "noCharge": "no charge",
+          "openTransaction": "Open",
+          "unknownCustomer": "Unknown customer",
+          "empty": "No orders match these filters.",
+          "loadError": "Could not load orders.",
+          "limitNote": "Showing the {limit} newest entries. Narrow the filters to see older ones."
+        },
       "transactions": {
         "titleSentence": "Payment transactions",
         "title": "Payment Transactions",
@@ -2683,6 +2731,8 @@
         "refund": "Refund",
         "details": "Details",
         "transactionDetails": "Transaction details",
+        "issueLicense": "Issue a license for this customer",
+        "orderLink": "Order link",
         "customer": "Customer",
         "payment": "Payment",
         "userId": "User ID",
@@ -2738,6 +2788,11 @@
       "refund": {
         "titleSentence": "Process refund",
         "fullRefundSentence": "Full refund",
+        "amountLabel": "Refund amount ({currency})",
+        "amountHint": "Leave empty to refund the full remaining amount ({amount}).",
+        "amountExceedsRemaining": "Amount exceeds what is left to refund ({amount}).",
+        "amountInvalid": "Enter an amount greater than zero, with at most two decimals.",
+        "partialRefundSentence": "Refund {amount}",
         "title": "Process Refund",
         "reason": "Refund Reason",
         "selectReason": "Select reason",
@@ -3340,6 +3395,8 @@
       "keyPlaceholder": "payload.signature"
     },
     "issuedLicenses": {
+      "refresh": "Refresh license list",
+      "unavailable": "License issuance is available to the platform administrator.",
       "title": "Issued product licenses",
       "subtitle": "Issue, inspect and revoke signed customer licenses",
       "manualTitle": "Issue a license manually",
