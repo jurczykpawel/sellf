@@ -36,7 +36,7 @@ test('a revoked license is marked revoked and its key is neither shown nor copya
   expect((await db.from('issued_licenses').update({ revoked_at: new Date().toISOString() }).eq('id', ids.license!)).error).toBeNull();
   await page.goto(`/pl/p/${slug}`);
   await expect(page.locator('[data-license-status="revoked"]')).toHaveText('Odwołana');
-  await expect(page.getByText('i już nie działa')).toBeVisible();
+  await expect(page.getByText(/i nie działa/)).toBeVisible();
   await expect(page.getByText(TOKEN)).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Kopiuj' })).toHaveCount(0);
   expect(await page.content()).not.toContain(TOKEN);

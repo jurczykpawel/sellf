@@ -1184,11 +1184,6 @@
     }
   },
   "productView": {
-    "licenseStatusActive": "Ważna",
-    "licenseStatusExpired": "Wygasła",
-    "licenseStatusRevoked": "Odwołana",
-    "licenseRevokedDispute": "Ta licencja została odwołana, bo płatność jest sporna. Nie działa. Jeśli spór rozstrzygnie się na korzyść sprzedawcy, znów będzie ważna.",
-    "licenseRevokedOther": "Ta licencja została odwołana (zwrot lub decyzja sprzedawcy) i już nie działa.",
     "loading": "Ładowanie...",
     "checkingAccess": "Sprawdzanie Twojego dostępu do tego produktu...",
     "checkingAccessButton": "Sprawdzanie dostępu...",

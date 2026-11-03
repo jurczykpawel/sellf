@@ -1184,11 +1184,6 @@
     }
   },
   "productView": {
-    "licenseStatusActive": "Valid",
-    "licenseStatusExpired": "Expired",
-    "licenseStatusRevoked": "Revoked",
-    "licenseRevokedDispute": "This license was revoked because the payment is disputed. It no longer works. If the dispute is resolved in the seller’s favour, it becomes valid again.",
-    "licenseRevokedOther": "This license was revoked (refund or seller decision) and no longer works.",
     "loading": "Loading...",
     "checkingAccess": "Checking your access to this product...",
     "checkingAccessButton": "Checking access...",
