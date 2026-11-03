@@ -4,10 +4,17 @@ ALTER TABLE public.payment_transactions
   ADD COLUMN participants_mail_sent_at timestamptz,
   ADD COLUMN participants_completed_at timestamptz;
 
-ALTER TABLE public.business_events DROP CONSTRAINT business_events_event_type_check;
-ALTER TABLE public.business_events ADD CONSTRAINT business_events_event_type_check CHECK (event_type IN (
-  'access.granted','access.updated','access.revoked','access.expired','order.abandoned',
-  'seats.held','seats.confirmed','seats.released','license.revoked','license.restored','order.participants_updated'));
+-- Extend the allowed event types in place, so event types added by other migrations stay valid.
+DO $$
+DECLARE def text;
+BEGIN
+  SELECT pg_get_constraintdef(oid) INTO def FROM pg_constraint
+    WHERE conname = 'business_events_event_type_check' AND conrelid = 'public.business_events'::regclass;
+  IF def IS NULL OR def NOT LIKE '%])))' THEN RAISE EXCEPTION 'Unexpected business_events constraint: %', def; END IF;
+  ALTER TABLE public.business_events DROP CONSTRAINT business_events_event_type_check;
+  EXECUTE 'ALTER TABLE public.business_events ADD CONSTRAINT business_events_event_type_check '
+    || left(def, length(def) - 4) || ', ''order.participants_updated''::text])))';
+END $$;
 
 -- A paid order whose product lets the buyer add participants later and which has none yet.
 CREATE FUNCTION public.order_awaits_participants(p_order_details jsonb, p_profile jsonb, p_status text) RETURNS boolean
