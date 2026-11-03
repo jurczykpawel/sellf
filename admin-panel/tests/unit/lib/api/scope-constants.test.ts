@@ -9,7 +9,7 @@ import { ALL_SCOPES } from '@/lib/api/scope-constants';
 
 const MIGRATION_PATH = path.resolve(
   __dirname,
-  '../../../../../supabase/migrations/20261016000000_release_2026_10_6.sql',
+  '../../../../../supabase/migrations/20261103160000_license_events.sql',
 );
 
 function extractScopesFromMigration(sql: string): string[] {

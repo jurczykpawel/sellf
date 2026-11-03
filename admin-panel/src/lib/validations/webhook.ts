@@ -205,8 +205,10 @@ export const WEBHOOK_EVENT_TYPES = [
   'dispute.created',
   'dispute.closed',
   // License (Pro — gated by EVENT_FEATURE_REQUIREMENTS / 'license-revoked-webhook')
+  'license.issued',
   'license.revoked',
   'license.restored',
+  'license.expired',
   'invoicing.issued',
   'invoicing.failed',
   'invoicing.corrected',
@@ -224,6 +226,8 @@ export const WEBHOOK_EVENT_TYPES = [
   'product.price_changed',
   'product.sold_out',
   // Legacy/future events
+  // Reserved: sent once an operation that changes a license (tier, extension, holder) exists.
+  'license.updated',
   'payment.completed',
   'payment.refunded',
   'payment.failed',

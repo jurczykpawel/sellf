@@ -19,14 +19,15 @@ export function mutateAccess(db: SupabaseClient<Database>, action: 'grant' | 'up
 }
 export async function runBusinessEvents(db = createAdminClient()): Promise<{ processed: number; errors: number }> {
   const swept = await db.rpc('capture_expired_access');
+  const lapsed = await db.rpc('capture_expired_licenses');
   const claimed = await db.rpc('claim_business_events');
-  if (swept.error || claimed.error) { console.error('[business-events] Queue unavailable'); return { processed: 0, errors: 1 }; }
+  if (swept.error || lapsed.error || claimed.error) { console.error('[business-events] Queue unavailable'); return { processed: 0, errors: 1 }; }
   let processed = 0, errors = 0;
   for (const event of claimed.data ?? []) {
     try {
       const data = event.payload as Record<string, any>;
       let payload: unknown = event.event_type === 'order.abandoned' ? { ...data, lines: minorOrderLines(data.lines ?? []) } : data;
-      if (event.event_type === 'license.revoked' || event.event_type === 'license.restored') {
+      if (event.event_type.startsWith('license.')) {
         const row = data.licenseRow as RevokedLicenseRow;
         const origin = getCanonicalOriginOrNull() ?? '';
         const licensePayload = event.event_type === 'license.restored'
