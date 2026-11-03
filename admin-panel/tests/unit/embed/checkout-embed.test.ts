@@ -5,6 +5,7 @@ import {
   isAllowedEmbedOrigin,
   loadAllowedOriginsForProduct,
   parseEmbedCheckoutBody,
+  parseEmbedFreeAccessBody,
   sanitizeAllowedEmbedOrigins,
 } from '@/lib/embed/checkout-embed';
 import type { createAdminClient } from '@/lib/supabase/admin';
@@ -60,6 +61,18 @@ describe('checkout embed security helpers', () => {
     expect(parseEmbedCheckoutBody({ productId: 'product-id' })).toEqual({
       ok: false,
       error: 'Invalid request',
+    });
+  });
+
+  it('carries the purchase source collected on the seller page (embed loader attribution)', () => {
+    const attribution = { v: 1, consent: 'none', mode: 'url', last: { source: 'listmonk', medium: 'email' } };
+    expect(parseEmbedCheckoutBody({ productSlug: 'kurs-ai', attribution })).toEqual({
+      ok: true,
+      value: { locale: 'auto', productSlug: 'kurs-ai', attribution },
+    });
+    expect(parseEmbedFreeAccessBody({ productSlug: 'kurs-ai', email: 'buyer@example.com', attribution })).toMatchObject({
+      ok: true,
+      value: { attribution },
     });
   });
 });

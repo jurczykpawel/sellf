@@ -17,6 +17,7 @@ import { CheckoutError, CheckoutErrorType } from '@/types/checkout';
 import { CheckoutService } from '@/lib/services/checkout';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
+import { attributionRequestContext, storeCheckoutAttribution } from '@/lib/attribution/store';
 
 const PRODUCT_SELECT =
   'id, slug, name, price, currency, is_active, available_from, available_until, product_type, embed_enabled, seller_id' as const;
@@ -197,8 +198,10 @@ export async function POST(request: Request) {
       },
       buildEmbedReturnUrl(product.slug),
       undefined,
-      { embedSessionId, locale: parsed.value.locale },
+      { embedSessionId, attributionRef: embedSessionId, locale: parsed.value.locale },
     );
+    await storeCheckoutAttribution(adminClient, [embedSessionId, session.sessionId], parsed.value.attribution,
+      attributionRequestContext(request.headers));
 
     await logEmbedCheckoutEvent(adminClient, {
       productId: product.id,

@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveSafeRedirectPath } from '@/lib/validations/redirect';
 import { isInternalHostname } from '@/lib/security/internal-hostname';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
+import { claimFreeAttribution } from '@/lib/attribution/store';
 import { loadProductContentConfig } from '@/lib/services/product-content-config';
 
 /**
@@ -101,6 +102,7 @@ export async function GET(request: Request) {
         safeRedirect(prodUrl, returnUrl);
         return;
       }
+      if (!result.alreadyHadAccess) await claimFreeAttribution(adminClient, product.id, user.id, slug, user.email ?? '');
 
       const propagatedSuccessUrl = successUrl ? resolveSafeRedirectPath(successUrl) : null;
       const qs = propagatedSuccessUrl

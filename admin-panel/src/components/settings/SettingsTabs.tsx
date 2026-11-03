@@ -14,6 +14,7 @@ import StripeTaxSettings from './StripeTaxSettings'
 import PaymentMethodSettingsWrapper from './PaymentMethodSettingsWrapper'
 import LegalDocumentsSettings from './LegalDocumentsSettings'
 import OmnibusSettings from './OmnibusSettings'
+import AttributionSettings from './AttributionSettings'
 import LicenseSettings from './LicenseSettings'
 import LicenseKeysSettings from './LicenseKeysSettings'
 import SystemUpdateSettings from './SystemUpdateSettings'
@@ -93,6 +94,7 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicense
           <>
             <LegalDocumentsSettings />
             <OmnibusSettings />
+            <AttributionSettings />
           </>
         )}
 

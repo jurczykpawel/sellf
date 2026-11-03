@@ -205,7 +205,7 @@ it.each([true, false])('resolves transfer availability before deciding how to in
     collectTermsOfService: false,
   })));
   expect(mocks.fetch).not.toHaveBeenCalled(); expect(mocks.stripe).not.toHaveBeenCalled();
-  await act(async () => resolve({ enabled, dueDays: 14 }));
+  await act(async () => resolve({ enabled, dueDays: 14, reservationHours: null }));
   if (enabled) {
     expect(mocks.fetch).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'Continue to payment', exact: true })).toBeNull();

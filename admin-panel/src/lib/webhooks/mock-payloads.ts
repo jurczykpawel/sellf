@@ -8,10 +8,12 @@ const ACCESS_SAMPLE = {
   accessGrantedAt: '2099-01-01T00:00:00Z', accessExpiresAt: '2099-01-08T00:00:00Z',
 };
 export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
-  ...Object.fromEntries(['order.placed', 'order.cancelled', 'order.overdue'].map(event => [event, {
+  ...Object.fromEntries(['order.placed', 'order.cancelled', 'order.overdue', 'order.payment_reminder', 'order.transfer_declared', 'order.invoice_issued', 'order.reopened'].map(event => [event, {
     amountUnit: 'minor', access: { policy: 'after_payment', grants: [{ productId: '00000000-0000-4000-8000-000000000003', status: 'pending_payment', grantedAt: null, expiresAt: null }] },
     order: { orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001, amount: 9400, grossTotal: 9400, netTotal: null, taxTotal: null, taxSnapshotStatus: 'unavailable', currency: 'PLN', dueAt: '2099-06-15T12:00:00Z',
-      transfer: { holder: 'Example Workshops', account: 'PL61109010140000071219812874', bank: 'Example Bank', title: 'Zamówienie 1001' } },
+      transfer: { holder: 'Example Workshops', account: 'PL61109010140000071219812874', bank: 'Example Bank', title: 'Zamówienie 1001' },
+      status: 'awaiting_payment', payUrl: 'https://shop.example/pl/order/00000000-0000-4000-8000-000000000001/transfer?token=4102444800.sample', payUrlExpiresAt: '2099-08-01T12:00:00.000Z',
+      reservation: 'timed', reminderAt: '2099-06-14T12:00:00Z', releaseAt: '2099-06-15T12:00:00Z', invoiceHoldAt: null, transferDeclaredAt: null, transferDeclaredNote: null, cancelReason: null, reopenedAt: null },
     orderDetails: { buyer: { type: 'organization', company_name: 'Example' } }, lines: [],
   }])),
   'order.abandoned': {
@@ -45,6 +47,12 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       paymentIntentId: 'pi_test_123',
       couponId: null,
       isGuest: false
+    },
+    attribution: {
+      channel: 'email', firstChannel: 'paid_social', kind: 'payment', mode: 'stored',
+      last: { source: 'newsletter', medium: 'email', campaign: 'autumn-launch', content: 'cta-1', term: null, utm_id: null, referrer_host: null, landing_path: '/offer', at: '2026-11-03T10:00:00.000Z' },
+      first: { source: 'facebook', medium: 'paid_social', campaign: 'autumn', content: null, term: null, utm_id: null, referrer_host: null, landing_path: '/', at: '2026-10-30T10:00:00.000Z' },
+      sessionsCount: 3, daysToPurchase: 4, clickIdType: null, deviceClass: 'mobile', country: 'PL', affiliateMemberId: null
     },
     invoice: {
       needsInvoice: true,

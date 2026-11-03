@@ -75,6 +75,10 @@ Błąd wystawiania licencji lub przerwana realizacja mogą zostać uzupełnione 
 kolejne zdarzenie lub weryfikację zakupu. Zapis zakończonej transakcji nie oznacza,
 że wszystkie dostawy już się zakończyły.
 
+`purchase.completed` zawiera `attribution`, gdy zamówienie ma zapisane źródło
+([Źródła zakupów](/pl/purchase-attribution/)): kanał, ostatni i pierwszy kontakt, urządzenie,
+kraj i typ identyfikatora kliknięcia — nigdy sam identyfikator.
+
 Pełny katalog zdarzeń, przykłady danych VAT i licencji oraz konfiguracja ponowień
 znajdują się w [dokumentacji webhooków po angielsku](/webhooks/).
 
@@ -242,6 +246,28 @@ dla oczekującego grantu nie zostały jeszcze nadane. `null` końca nadanego dos
 | `access.updated` | Zmiana zapisanych dat lub źródła dostępu, również ręczne przedłużenie. |
 | `access.revoked` | Usunięcie grantu wraz z faktycznym czasem odebrania. |
 | `access.expired` | Upłynięcie zapisanego końca dostępu: jeden komunikat na grant/datę końca, także po odnowieniu. |
+
+### Nieopłacone zamówienia przelewem: cykl życia
+
+Każde zdarzenie przelewu `order.*` ma w `data.order` dodatkowo: `status`, `payUrl` (podpisany link do strony
+zamówienia: stan, dane przelewu, przycisk „Wysłałem przelew”, ważny do `payUrlExpiresAt`), `reservation`
+(`timed` — rezerwacja czasowa, `invoice` — faktura wystawiona, czeka na płatność bez wygasania, `none`),
+`reminderAt`, `releaseAt`, `invoiceHoldAt`, `transferDeclaredAt`, `transferDeclaredNote`, `cancelReason`,
+`reopenedAt`, a `data.customer.locale` podaje język kupującego (`pl`/`en`). Z tych pól integrator wystawia
+u siebie proformę, fakturę lub własny mail (n8n, Listmonk). Każde zdarzenie jest dostarczane raz na zamówienie.
+
+| Zdarzenie | Kiedy | Co odbiorca może zrobić |
+|---|---|---|
+| `order.placed` | Złożenie zamówienia na przelew. | Potwierdzenie z `payUrl`; `releaseAt` to termin rezerwacji wydarzenia. |
+| `order.payment_reminder` | Minął `reminderAt` (domyślnie 24 h) bez wpłaty i bez faktury. | Przypomnienie „zapłać do `releaseAt`” z linkiem. |
+| `order.transfer_declared` | Kupujący kliknął „Wysłałem przelew” (raz). | Sprawdzenie wyciągu; `releaseAt` jest już przedłużone (domyślnie o 72 h). |
+| `order.invoice_issued` | Dla nieopłaconego zamówienia wystawiono fakturę (w Sellf albo `POST /api/v1/payments/:id/invoice-issued`). | Status „faktura wystawiona, czeka na płatność”: `reservation = invoice`, `releaseAt = null`, brak wygasania. |
+| `order.cancelled` | Anulowanie: `cancelReason = payment_window_expired` (automatycznie po `releaseAt`) albo `admin`. | Informacja dla kupującego, korekta faktury; `lateTransferPolicy = admin_decision`. |
+| `order.overdue` | Minął termin płatności zamówienia bez rezerwacji czasowej. | Ponaglenie. |
+| `order.reopened` | Administrator przyjął przelew, który doszedł po anulowaniu (po cenie z zamówienia, także ponad limit miejsc). | Powiązanie wpłaty: `previousStatus = cancelled`; zaraz po nim `purchase.completed`. |
+
+Rezerwacja czasowa dotyczy wydarzeń i jest ustawiana przez sprzedawcę (Ustawienia → Płatności → Przelew
+tradycyjny). Zwykłe produkty nie wygasają. Zaplanuj `/api/cron?job=transfer-reservations` co 5 minut.
 
 Zdarzenie dostępu podaje `customer`, `product`, `access.id`, `grantedAt`, `expiresAt`,
 `statusBefore/statusAfter`, `reason` i `actor` (`user`, `api_key` albo `system`; dla systemu ID jest null).

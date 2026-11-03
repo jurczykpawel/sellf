@@ -64,6 +64,7 @@ export default defineConfig({
 						{ slug: 'taxes' },
 						{ slug: 'bank-transfers' },
 						{ slug: 'events' },
+						{ slug: 'purchase-attribution' },
 					],
 				},
 				{

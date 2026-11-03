@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({ captcha: vi.fn(), rpc: vi.fn(), from: vi.fn(),
 vi.mock('next/server', async original => ({ ...await original<typeof import('next/server')>(), after: mocks.after }));
 vi.mock('@/lib/invoicing/service', () => ({ issueInvoiceForTransaction: mocks.invoice }));
 vi.mock('@/lib/orders/transfer-token', () => ({ signTransferToken: mocks.token, createTransferTokenSigner: mocks.signer }));
-vi.mock('@/lib/orders/transfer-mail', () => ({ sendTransferAccessMail: vi.fn() }));
+vi.mock('@/lib/orders/transfer-mail', () => ({ sendOrderNotice: vi.fn() }));
 vi.mock('@/lib/captcha/verify', () => ({ verifyCaptchaToken: mocks.captcha }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => ({ from: mocks.from, rpc: mocks.rpc }) }));
 vi.mock('@/lib/stripe/checkout-config', () => ({ getCheckoutConfig: async () => ({ collect_terms_of_service: mocks.collect }) }));

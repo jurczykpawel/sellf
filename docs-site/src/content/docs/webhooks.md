@@ -128,6 +128,23 @@ products), `purchase.completed` also carries the granted components and any issu
 - **Per-product webhook scoping:** a bundle purchase fires for the bundle **and** every component
   product id, so an endpoint scoped to a component still receives the event.
 
+#### Purchase source
+
+`purchase.completed` carries `attribution` when the order has a recorded source
+([Purchase sources](/purchase-attribution/)). It is frozen at purchase and never contains the ad
+click id itself:
+
+```json
+"attribution": {
+  "channel": "email", "firstChannel": "paid_social", "kind": "payment", "mode": "stored",
+  "last": { "source": "listmonk", "medium": "email", "campaign": "mail-05", "content": "cta-1", "term": null,
+            "utm_id": null, "referrer_host": null, "landing_path": "/offer", "at": "2026-11-03T10:00:00.000Z" },
+  "first": { "source": "facebook", "medium": "paid_social", "campaign": "autumn", "…": "…" },
+  "sessionsCount": 3, "daysToPurchase": 4, "clickIdType": null, "deviceClass": "mobile", "country": "PL",
+  "affiliateMemberId": null
+}
+```
+
 ### `invoice.paid` — subscription VAT snapshot
 
 Recurring subscription charges emit `invoice.paid` (not `purchase.completed`). It carries
@@ -472,6 +489,28 @@ for a pending grant they are not assigned yet. A `null` expiry on a granted enti
 | `access.updated` | Saved entitlement dates or source changed, including administrative extensions. |
 | `access.revoked` | Entitlement record removed; includes the effective revocation time. |
 | `access.expired` | Saved expiry passed; one notification per grant/expiry, including after renewal. |
+
+### Unpaid transfer orders: lifecycle
+
+Every transfer `order.*` event additionally carries in `data.order`: `status`, `payUrl` (signed link to the order
+page: status, transfer details and an "I have sent the transfer" button, valid until `payUrlExpiresAt`),
+`reservation` (`timed` — time-limited hold, `invoice` — invoice issued, awaiting payment without expiry, `none`),
+`reminderAt`, `releaseAt`, `invoiceHoldAt`, `transferDeclaredAt`, `transferDeclaredNote`, `cancelReason`,
+`reopenedAt`; `data.customer.locale` is the buyer language (`pl`/`en`). Integrators use these fields to issue
+their own proforma, invoice or mail (n8n, Listmonk). Each event is delivered once per order.
+
+| Event | When | What the receiver can do |
+|---|---|---|
+| `order.placed` | A transfer order is placed. | Confirmation with `payUrl`; `releaseAt` is the event reservation deadline. |
+| `order.payment_reminder` | `reminderAt` (default 24 h) passed without payment or invoice. | Reminder "pay by `releaseAt`" with the link. |
+| `order.transfer_declared` | The buyer clicked "I have sent the transfer" (once). | Check the bank statement; `releaseAt` is already extended (default 72 h). |
+| `order.invoice_issued` | An invoice was issued for the unpaid order (in Sellf or via `POST /api/v1/payments/:id/invoice-issued`). | Status "invoice issued, awaiting payment": `reservation = invoice`, `releaseAt = null`, no expiry. |
+| `order.cancelled` | Cancellation: `cancelReason = payment_window_expired` (automatic after `releaseAt`) or `admin`. | Tell the buyer, correct the invoice; `lateTransferPolicy = admin_decision`. |
+| `order.overdue` | The due date of an order without a timed hold passed. | Dunning. |
+| `order.reopened` | An administrator accepted a transfer that arrived after cancellation (order price, even over the seat limit). | Match the payment: `previousStatus = cancelled`; `purchase.completed` follows. |
+
+The timed reservation applies to events and is configured by the seller (Settings → Payments → Bank transfer).
+Regular products never expire. Schedule `/api/cron?job=transfer-reservations` every 5 minutes.
 
 Access events carry `customer`, `product`, `access.id`, `grantedAt`, `expiresAt`,
 `statusBefore/statusAfter`, `reason` and `actor` (`user`, `api_key`, or `system`; system ID is null).

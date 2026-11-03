@@ -242,8 +242,8 @@ without expiry. `transfer_transaction_id` tracks early grants, including guest c
 cancellation releases claims and seats while retaining prior or other purchase rights.
 Admin actions and API v1 `mark-paid`/`cancel` share `operateTransfer`; API keys require
 `payments:write`. Payment completion reuses offline fulfillment and leaves early access
-in place. Schedule `/api/cron?job=bank-transfer-overdue` daily and `fulfillment-resume`
-every minute with `CRON_SECRET`; notifications use stable order delivery keys and saved
+in place. Schedule `/api/cron?job=bank-transfer-overdue` daily, `transfer-reservations` every 5 minutes and
+`fulfillment-resume` every minute with `CRON_SECRET`; notifications use stable order delivery keys and saved
 notification timestamps. Transfer placement schedules automatic invoice issuance with
 Next.js `after`; `invoices-retry` recovers missed placement callbacks and synchronizes
 receipt dates from `paid_at`. The settings payment tab and product buyer profile
@@ -251,6 +251,31 @@ control availability. Checkout shares buyer state across payment methods.
 `/order/[orderId]/transfer?token=...` reads one order through an HMAC link valid for
 61 days, with no login and no indexing. Auth access mails carry `transfer_text` via
 `prepare_event_mail`; each preparation clears older instructions.
+
+**Unpaid transfer lifecycle** (migration `20261103150000_unpaid_order_reservations.sql`, owner decisions
+2026-11-03): event transfer orders get a seller-configured timed reservation (`reminder_at`/`release_at`,
+`bank_transfer_config.reservation_*`, default 24 h / 48 h); `payment_due_at` stays the due-days term. Cron
+`transfer-reservations` (every 5 min) sends `order.payment_reminder` + reminder mail, then
+`release_unpaid_transfer(id, now)` cancels with `cancel_reason='payment_window_expired'` (seat, coupon and
+placement access return) and sends `order.cancelled` + mail. The buyer's one-time "I have sent the transfer"
+(`POST /api/orders/bank-transfer/declare`, signed link only) calls `declare_transfer` (+72 h) and emits
+`order.transfer_declared`. An issued invoice (trigger `invoice_holds_transfer`, or `invoice-issued` via
+`operateTransfer` / `POST /api/v1/payments/:id/invoice-issued`) sets `invoice_hold_at` and clears the timer:
+"invoice issued, awaiting payment", no expiry, only cancellation releases it (`order.invoice_issued`).
+A transfer received after cancellation is never auto-completed: the admin accepts it with
+`admin_bank_transfer_order(..., p_accept_cancelled => true)` and a reason (order price, coupon re-used even
+past its limit, seat re-taken or `oversold`), which emits `order.reopened` then `purchase.completed`.
+Every `order.*` payload carries `payUrl` (`buildOrderPayLink`), `reservation`, the lifecycle timestamps and
+`customer.locale`. Mails go through `sendOrderNotice` (`transfer_placed | payment_reminder | order_cancelled`,
+once per order via `*_mail_sent_at`, failed deliveries retried by the cron); subjects switch on `mail_kind`
+in `supabase/config.toml`. **Online payment from the pay link** (`lib/orders/quick-pay.ts`,
+`POST /api/orders/[orderId]/pay`): unpaid → Stripe hosted Checkout for the saved amount (`settle`); cancelled →
+the same order only if its saved line price is still current, seats remain and the coupon is valid (`reopen`),
+otherwise the page links to a new checkout. One open attempt per order (`order_payment_attempts`, 30 min,
+idempotency `sellf-quickpay-<attempt>`); an open attempt blocks release. The Stripe webhook routes objects with
+`metadata.sellf_payment_attempt` to `handleQuickPayEvent`; completion keeps `payment_provider='bank_transfer'`,
+sets `settled_via='stripe'` and the PaymentIntent (refunds reconcile as for card orders). A payment arriving after
+an admin mark-paid becomes `duplicate` and is refunded automatically (`sellf-dup-refund-<attempt>`).
 `transfer_mail_sent_at` records successful delivery for `fulfillment-resume`. Sellf does not send its own transactional emails: Auth magic
 links remain the email channel, and sellers may send messages from `order.placed`.
 
@@ -1190,6 +1215,45 @@ Python (Flask + Django), and cURL.
 - Routes: `src/app/[locale]/loginwall/gate/route.ts`, `src/app/api/loginwall/gate.js/route.ts`, `src/app/api/loginwall/verify/route.ts`.
 - Admin UI: `GateSnippetModal` + the "Generate gating snippet" product action.
 - Examples: `public/gate-examples/index.html` (self-contained interactive demo of all states/features) and `public/gate-examples/live-integration.html` (deploy-ready snippet + markup reference).
+
+### Purchase attribution (where purchases came from)
+
+Every order stores an **immutable source snapshot** (`public.purchase_attribution`, one row per
+transaction, plus `kind='free'` rows for free grants). Owner decisions 2026-11-03:
+no cookie consent → source only from the URL that opened the checkout; analytics consent → first
+and last touch kept by the collector in the seller's own `localStorage`; ad click ids only with
+marketing consent, erased after `attribution_settings.click_id_retention_days` (default 30);
+partner coupons are the `affiliate` channel; small groups are never merged.
+
+**Flow:** the collector (`src/lib/attribution/collect.ts`, one implementation serialized into the
+embed loader and `gate.js` via `browser-script.ts`, used directly by React checkout forms via
+`browser.ts`) sends `attribution` with every checkout request → the route normalizes it
+(`normalize.ts`: untrusted labels, field-by-field validation, device from User-Agent, country from
+`cf-ipcountry`) and stores it in `checkout_attribution` under every checkout reference
+(`store.ts`: Stripe session / intent / subscription id and `sf_attr_ref` in Stripe + order
+metadata; guest free signups under `free:<slug>:<HMAC-SHA256(APP_ENCRYPTION_KEY, email)>`) → the AFTER trigger
+`snapshot_purchase_attribution` on `payment_transactions` copies it once when the order becomes a
+purchase (completed / awaiting_payment / …), classifies the channel with
+`classify_attribution_channel` (seller rules in `attribution_channel_rules`) and the row can then
+only lose its click id (retention) or FK references (deletions). Attribution never blocks a payment
+(fail-safe in TS and an EXCEPTION block in the trigger). Renewals copy the first checkout's source.
+
+**Read paths (agents):** `GET /api/v1/analytics/attribution` (`analytics:read`, aggregates only,
+major units, net of refunds; `days|from,to`, `touch`, `group_by`, `product_id`) backed by the RPC
+`get_attribution_report`; `GET /api/v1/payments?embed=attribution` (`payments:read`, per order);
+MCP `get_purchase_attribution` (default last 3 days) and `list_payments` `embed: "attribution"`;
+`purchase.completed.attribution` webhook field (never the click id); admin "Source" box in payment
+details (`AttributionSection`) and **Settings → Purchase sources** (`AttributionSettings`,
+RPC `save_attribution_config`, audited).
+
+Example — "where did the purchases of the last 3 days come from?":
+
+```bash
+curl -H "X-API-Key: $KEY" "$SELLF/api/v1/analytics/attribution?days=3"
+# → rows: channel / source / medium / campaign / content / currency / orders / net …
+```
+
+Docs: `docs-site/src/content/docs/purchase-attribution.md` (+ `pl/`).
 
 ### Telemetry (anonymous usage stats)
 
