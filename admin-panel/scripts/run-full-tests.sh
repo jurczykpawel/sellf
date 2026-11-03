@@ -46,6 +46,9 @@ fi
 echo "=== API integration tests ==="
 scripts/run-api-tests.sh
 
+echo "=== PlayerStack lead contract ==="
+scripts/run-leads-tests.sh
+
 echo "=== Sharded Chromium E2E tests ==="
 scripts/run-pw-sharded.sh
 

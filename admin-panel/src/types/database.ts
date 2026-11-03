@@ -948,7 +948,7 @@ export type Database = {
           id: string
           leased_until: string | null
           payload: Json
-          product_id: string
+          product_id: string | null
         }
         Insert: {
           created_at?: string
@@ -958,7 +958,7 @@ export type Database = {
           id?: string
           leased_until?: string | null
           payload: Json
-          product_id: string
+          product_id?: string | null
         }
         Update: {
           created_at?: string
@@ -968,7 +968,7 @@ export type Database = {
           id?: string
           leased_until?: string | null
           payload?: Json
-          product_id?: string
+          product_id?: string | null
         }
         Relationships: []
       }
@@ -4955,6 +4955,9 @@ export type Database = {
         Args: { product_slugs_param: string[] }
         Returns: Json
       }
+      business_event_actor: { Args: never; Returns: Json }
+      business_event_order: { Args: { p_transaction: string }; Returns: Json }
+      business_event_partner: { Args: { p_member: string }; Returns: Json }
       cancel_unpaid_order: {
         Args: { p_reason: string; p_transaction_id: string }
         Returns: Json
@@ -4997,7 +5000,7 @@ export type Database = {
           id: string
           leased_until: string | null
           payload: Json
-          product_id: string
+          product_id: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -5729,6 +5732,10 @@ export type Database = {
       product_marketing_valid: { Args: { instance: Json }; Returns: boolean }
       product_offer_config_schema: { Args: never; Returns: Json }
       product_offer_config_valid: { Args: { config: Json }; Returns: boolean }
+      product_price_snapshot: {
+        Args: { p: Database["public"]["Tables"]["products"]["Row"] }
+        Returns: Json
+      }
       public_event_availability: {
         Args: { p_product_id: string }
         Returns: Json
@@ -5736,6 +5743,15 @@ export type Database = {
       queue_pending_free_grant: {
         Args: { p_email: string; p_product_slug: string }
         Returns: boolean
+      }
+      record_business_event: {
+        Args: {
+          p_event: string
+          p_key: string
+          p_payload: Json
+          p_product: string
+        }
+        Returns: undefined
       }
       record_template_credential_status: {
         Args: {

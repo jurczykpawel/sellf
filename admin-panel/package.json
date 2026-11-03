@@ -23,6 +23,7 @@
     "test:api": "vitest run --config vitest.config.api.ts",
     "test:api:watch": "vitest --config vitest.config.api.ts",
     "test:api:auto": "scripts/run-api-tests.sh",
+    "test:leads": "scripts/run-leads-tests.sh",
     "test:sharded": "scripts/run-pw-sharded.sh",
     "test:config": "vitest run --config vitest.config.config.ts",
     "sync:playerstack": "scripts/sync-playerstack.sh",

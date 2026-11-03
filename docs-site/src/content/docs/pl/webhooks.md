@@ -280,6 +280,33 @@ Ręczne wystawianie również respektuje definicję produktu: pole domeny wymaga
 wypełnione, opcjonalne może zostać pominięte, a produkt bez takiego pola otrzymuje token bez
 `claims.domain`. Brak wymaganych wartości zwraca HTTP 400 przed podpisaniem.
 
+## Faktury, partnerzy, prośby o zwrot i katalog
+
+Te zdarzenia zapisują się w tej samej transakcji co zmiana (jak zdarzenia dostępu) i idą tą samą
+podpisaną kolejką. Każde ma `actor`, `occurredAt` i (poza wypłatami) `product`. Kwoty są w
+jednostkach mniejszych (`amountUnit = "minor"`, czyli grosze dla PLN). Ponowione z kolejki zdarzenie
+ma ten sam klucz dostawy, więc odbiorca dostaje je raz; mimo to deduplikuj po `id` koperty.
+
+| Zdarzenie | Kiedy | Pola do decyzji odbiorcy |
+|---|---|---|
+| `invoicing.issued` | Dostawca (Fakturownia) wystawił fakturę sprzedaży. | `invoice.id/number/providerInvoiceId/viewUrl/attempt/paymentSynced`, `order` (ID, numer, kwota, waluta), `customer`. |
+| `invoicing.failed` | Próba wystawienia się nie udała. Raz na próbę. | `invoice.attempt`, `invoice.error` (komunikat dostawcy), `invoice.willRetry` (`false` po 5. próbie). |
+| `invoicing.corrected` | Wystawioną fakturę oznaczono jako skorygowaną. | `invoice.number`, `statusBefore/statusAfter`, `order`. |
+| `commission.accrued` | Partner zarobił prowizję od opłaconego zamówienia. | `partner` (memberId, code, displayName, status), `commission.amount/currency/baseAmount/eligibleAt/paidAt/livemode`, `order`. |
+| `commission.reversed` | Zwrot cofnął (część) prowizji. | `commission.amount` jest ujemne; te same identyfikatory. |
+| `payout.reserved` | Właściciel zatwierdził prowizje do wypłaty (rezerwacja). | `payout.id/amount/currency/cutoff/payeeReference/commissionIds`, `partner`. `product` = `null`. |
+| `payout.paid` | Wypłatę oznaczono jako zapłaconą. | `payout.bankReference/invoiceReference/bankAmount/paidAt`. |
+| `payout.cancelled` | Zarezerwowaną wypłatę anulowano; prowizje wracają do salda. | `payout.statusBefore = "reserved"`. |
+| `refund.requested` | Kupujący złożył prośbę o zwrot. | `refundRequest.id/requestedAmount/currency/reason`, `order`, `customer`. |
+| `refund.request_approved` / `refund.request_rejected` / `refund.request_cancelled` | Prośbę rozpatrzono albo wycofano. | `refundRequest.statusBefore/statusAfter/adminResponse/processedAt`. Sam zwrot pieniędzy to `refund.issued`. |
+| `product.published` / `product.unpublished` | Zmienił się `is_active` albo utworzono/usunięto aktywny produkt. | `product` (id, slug, isActive, availableFrom/Until, productType), `availability.before/after`, `deleted`. |
+| `product.price_changed` | Zmieniła się cena, cena promocyjna, koniec promocji, cena cykliczna albo waluta. | `price.before/after`: `price`, `salePrice`, `salePriceUntil`, `recurringPrice`, `currency` w jednostkach mniejszych. |
+| `product.sold_out` | Miejsca wstrzymane (niewygasłe) i potwierdzone osiągnęły pojemność terminu wydarzenia. | `session.id/label/startsAt/capacity/taken/remaining`, `reservation`, która go wypełniła. Zwolnione później miejsca zgłasza `seats.released`. |
+
+Prowizja partnera staje się wypłacalna, gdy minie `eligibleAt`; Sellf nie wysyła osobnego zdarzenia
+na ten moment, punktem zatwierdzenia jest `payout.reserved`. Okna publikacji (`availableFrom/Until`)
+są w treści, ale sam upływ czasu nie generuje zdarzenia.
+
 ## Zgłoszenia PlayerStack
 
 [Formularze potwierdzane mailem i zgoda marketingowa](/pl/playerstack-leads/).
