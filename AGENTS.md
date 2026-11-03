@@ -992,7 +992,9 @@ Resolution is DB-first (`license_keys` table) with env fallback (`SELLF_LICENSE_
 
 A product whose checkout profile has `participants` with `required: true` and `allow_later: true` lets the buyer
 pay with an empty list. The paid order then awaits participants (`order_awaits_participants`). Cron
-`participants-reminders` (every 15 min) mails the buyer once (`mail_kind=participants_needed`, `participants_mail_sent_at`)
+`participants-reminders` (every 15 min) mails the buyer at most twice (`mail_kind=participants_needed`): 24 h after purchase
+(`participants_mail_sent_at`) and, for products with an event session, 2 days before it (`participants_reminder2_sent_at`;
+it supersedes a pending first reminder; dateless products get only the first), via `list_participants_reminders_due`,
 with a signed link `/{locale}/order/:id/participants?token=` (`lib/orders/participants-token.ts`, 180 days; the
 signed-in owner needs no token). `POST /api/orders/participants` validates like checkout and calls
 `submit_order_participants`, which stores the list once and commits `order.participants_updated` to `business_events`

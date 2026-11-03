@@ -2698,7 +2698,7 @@
     "payments": {
       "missingParticipants": {
         "title": "{count, plural, one {# zamówienie bez uczestników} few {# zamówienia bez uczestników} many {# zamówień bez uczestników} other {# zamówienia bez uczestników}}",
-        "help": "Kupujący wybrał uzupełnienie uczestników po zapłacie. Jedno przypomnienie z osobistym linkiem wysyła się automatycznie; lista pojawi się w zamówieniu, gdy kupujący ją zapisze.",
+        "help": "Kupujący wybrał uzupełnienie uczestników po zapłacie. Maksymalnie dwa przypomnienia z osobistym linkiem wysyłają się automatycznie (po 24 godzinach od zakupu i, dla wydarzeń, na 2 dni przed wydarzeniem); lista pojawi się w zamówieniu, gdy kupujący ją zapisze.",
         "order": "Zamówienie", "email": "Kupujący", "product": "Produkt", "quantity": "Ilość", "paid": "Zapłacono", "mail": "Przypomnienie",
         "mailSent": "Wysłano {date}", "mailPending": "Jeszcze nie wysłano"
       },

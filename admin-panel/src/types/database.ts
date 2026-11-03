@@ -2429,6 +2429,7 @@ export type Database = {
           paid_at: string | null
           participants_completed_at: string | null
           participants_mail_sent_at: string | null
+          participants_reminder2_sent_at: string | null
           payment_due_at: string | null
           payment_provider: string
           pricing_snapshot_version: number | null
@@ -2487,6 +2488,7 @@ export type Database = {
           paid_at?: string | null
           participants_completed_at?: string | null
           participants_mail_sent_at?: string | null
+          participants_reminder2_sent_at?: string | null
           payment_due_at?: string | null
           payment_provider?: string
           pricing_snapshot_version?: number | null
@@ -2545,6 +2547,7 @@ export type Database = {
           paid_at?: string | null
           participants_completed_at?: string | null
           participants_mail_sent_at?: string | null
+          participants_reminder2_sent_at?: string | null
           payment_due_at?: string | null
           payment_provider?: string
           pricing_snapshot_version?: number | null
@@ -5954,6 +5957,10 @@ export type Database = {
           p_license: Database["public"]["Tables"]["issued_licenses"]["Row"]
         }
         Returns: Json
+      }
+      list_participants_reminders_due: {
+        Args: { p_limit?: number; p_now?: string }
+        Returns: { id: string; stage: number }[]
       }
       list_orders_missing_participants: {
         Args: { p_limit?: number; p_unsent_only?: boolean }

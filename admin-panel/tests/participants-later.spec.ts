@@ -22,7 +22,7 @@ async function mails(request: APIRequestContext, to: string): Promise<Array<{ Su
 test.beforeAll(async () => {
   product = await checked(await db.from('products').insert({ name: 'Warsztat na cztery osoby', slug: `later-${randomUUID()}`, price: 100, currency: 'PLN', is_active: true, vat_exempt: true, checkout_profile: profile }).select('id').single());
   orderId = (await checked(await db.from('payment_transactions').insert({
-    session_id: `cs_later_${randomUUID().replace(/-/g, '')}`, product_id: product.id, customer_email: buyer, amount: 40000, currency: 'PLN', status: 'completed',
+    session_id: `cs_later_${randomUUID().replace(/-/g, '')}`, product_id: product.id, customer_email: buyer, amount: 40000, currency: 'PLN', status: 'completed', paid_at: new Date(Date.now() - 25 * 3600_000).toISOString(),
     metadata: { locale: 'pl' }, order_details: { v: 1, quantity: { v: 1, value: 4 }, participants: { v: 1, people: [] } },
   }).select('id').single())).id;
   endpointId = (await checked(await db.from('webhook_endpoints').insert({ url: 'https://127.0.0.1/later-fixture', events: ['order.participants_updated'], secret: 'test-only-secret', product_filter_mode: 'selected', is_active: true }).select('id').single())).id;
@@ -33,7 +33,7 @@ test.afterAll(async () => {
   if (product) { await db.from('business_events').delete().eq('product_id', product.id); await db.from('payment_transactions').delete().eq('product_id', product.id); await db.from('products').delete().eq('id', product.id); }
 });
 
-test('the buyer gets one reminder mail with a personal link @J204', async ({ request }) => {
+test('the buyer gets the first reminder mail after 24 hours, with a personal link @J204', async ({ request }) => {
   await expect.poll(async () => { await cron(request, 'participants-reminders'); return (await mails(request, buyer)).map(m => m.Subject); },
     { timeout: 100000, intervals: [5000] }).toContain('Uzupełnij uczestników zamówienia');
   const mail = (await mails(request, buyer)).find(m => m.Subject === 'Uzupełnij uczestników zamówienia')!;
@@ -108,4 +108,29 @@ test('a forged link, another order or a product without the option are refused @
     expect(result.status()).toBe(409);
     expect(await result.json()).toMatchObject({ code: 'not_allowed' });
   } finally { await db.from('payment_transactions').delete().eq('product_id', strict.id); await db.from('products').delete().eq('id', strict.id); }
+});
+
+test('an event order gets a second reminder 2 days before the event, and never a third @J208', async ({ request }) => {
+  const dated = await checked(await db.from('products').insert({ name: 'Warsztat z terminem', slug: `later-ev-${randomUUID()}`, price: 100, currency: 'PLN', is_active: true, vat_exempt: true, event_mode: true, checkout_profile: profile }).select('id').single());
+  const email = `later-ev-${randomUUID()}@example.com`;
+  try {
+    const session = await checked(await db.from('product_sessions').insert({ product_id: dated.id, title: 'Jutro', starts_at: new Date(Date.now() + 30 * 3600_000).toISOString(), timezone: 'Europe/Warsaw', capacity: 10 }).select('id').single());
+    const tx = await checked(await db.from('payment_transactions').insert({
+      session_id: `cs_later_${randomUUID().replace(/-/g, '')}`, product_id: dated.id, customer_email: email, amount: 20000, currency: 'PLN', status: 'completed',
+      paid_at: new Date(Date.now() - 30 * 3600_000).toISOString(), participants_mail_sent_at: new Date(Date.now() - 6 * 3600_000).toISOString(),
+      metadata: { locale: 'pl' }, order_details: { v: 1, quantity: { v: 1, value: 2 }, participants: { v: 1, people: [] } },
+    }).select('id').single());
+    await checked(await db.from('payment_line_items').insert({ transaction_id: tx.id, product_id: dated.id, item_type: 'main_product', quantity: 2, unit_price: 100, total_price: 200, currency: 'PLN', session_id: session.id }).select('id'));
+    await expect.poll(async () => { await cron(request, 'participants-reminders'); return (await mails(request, email)).map(m => m.Subject); },
+      { timeout: 100000, intervals: [5000] }).toContain('Uzupełnij uczestników zamówienia');
+    const mail = (await mails(request, email))[0];
+    expect(mail.HTML).toContain('Wydarzenie zbliża się');
+    await cron(request, 'participants-reminders');
+    expect(await mails(request, email)).toHaveLength(1);
+    const row = await checked(await db.from('payment_transactions').select('participants_reminder2_sent_at,participants_mail_sent_at').eq('id', tx.id).single());
+    expect(row.participants_reminder2_sent_at).toBeTruthy();
+  } finally {
+    await db.from('payment_transactions').delete().eq('product_id', dated.id);
+    await db.from('products').delete().eq('id', dated.id);
+  }
 });

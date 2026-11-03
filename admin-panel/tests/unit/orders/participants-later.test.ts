@@ -73,13 +73,23 @@ describe('participants mail', () => {
     await sendParticipantsNotice(db, id);
     expect(updates).toEqual([]);
   });
-  it('the reminder job mails every order the database lists as missing participants', async () => {
-    const rpc = vi.fn(async () => ({ data: [{ id }], error: null }));
-    const { db } = client(paid);
-    const result = await runParticipantsReminders(Object.assign(db, { rpc }) as unknown as SupabaseClient<Database>);
-    expect(rpc).toHaveBeenCalledWith('list_orders_missing_participants', { p_unsent_only: true, p_limit: 50 });
-    expect(result).toEqual({ processed: 1, errors: 0 });
-    expect(magic).toHaveBeenCalledOnce();
+  it('the reminder job mails each due order at its stage', async () => {
+    const rpc = vi.fn(async () => ({ data: [{ id, stage: 1 }, { id, stage: 2 }], error: null }));
+    const { db, updates } = client(paid);
+    const now = new Date('2026-11-05T10:00:00Z');
+    const result = await runParticipantsReminders(Object.assign(db, { rpc }) as unknown as SupabaseClient<Database>, now);
+    expect(rpc).toHaveBeenCalledWith('list_participants_reminders_due', { p_now: now.toISOString(), p_limit: 50 });
+    expect(result).toEqual({ processed: 2, errors: 0 });
+    expect(magic).toHaveBeenCalledTimes(2);
+    expect(magic.mock.calls[0][0].data.release_text).toBeUndefined();
+    expect(magic.mock.calls[1][0].data.release_text).toMatch(/Wydarzenie zbliża się/);
+    expect(updates[0]).toEqual({ participants_mail_sent_at: expect.any(String) });
+    expect(Object.keys(updates[1] as object).sort()).toEqual(['participants_mail_sent_at', 'participants_reminder2_sent_at']);
+  });
+  it('sends the second reminder once, only while participants are still missing', async () => {
+    await sendParticipantsNotice(client({ ...paid, participants_reminder2_sent_at: '2026-01-01T00:00:00Z' }).db, id, 2);
+    await sendParticipantsNotice(client({ ...paid, order_details: { participants: { v: 1, people: [{ first_name: 'A', last_name: 'B', email: 'a@x.pl' }] } } }).db, id, 2);
+    expect(magic).not.toHaveBeenCalled();
   });
 });
 

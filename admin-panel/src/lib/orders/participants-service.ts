@@ -30,29 +30,35 @@ export async function submitParticipants(db: Db, orderId: string, quantity: numb
   return result.ok ? { ok: true } : { ok: false, code: result.code ?? 'unavailable' };
 }
 
-/** One mail per order; a failed delivery stays pending for the next run. */
-export async function sendParticipantsNotice(db: Db, id: string): Promise<void> {
+/** Stage 1: 24 h after purchase; stage 2: 2 days before the event. Each stage mails at most once; a failed delivery stays pending. */
+export async function sendParticipantsNotice(db: Db, id: string, stage: 1 | 2 = 1): Promise<void> {
   try {
     const { data: tx } = await db.from('payment_transactions').select('*').eq('id', id).single();
-    if (!tx || tx.participants_mail_sent_at || tx.status !== 'completed' || !tx.customer_email) return;
+    const sent = stage === 1 ? tx?.participants_mail_sent_at : tx?.participants_reminder2_sent_at;
+    const people = (tx?.order_details as { participants?: { people?: unknown[] } } | null)?.participants?.people ?? [];
+    if (!tx || sent || people.length > 0 || tx.status !== 'completed' || !tx.customer_email) return;
     const { data: product } = await db.from('products').select('slug,name').eq('id', tx.product_id).single();
     if (!product) return;
     const locale = (tx.metadata as Record<string, unknown> | null)?.locale === 'pl' ? 'pl' : 'en', base = getSellfBaseUrl();
+    const soon = locale === 'pl' ? 'Wydarzenie zbliża się, a lista uczestników nadal jest pusta.' : 'The event is coming up and the participant list is still empty.';
     const result = await sendTrustedMagicLink({ email: tx.customer_email,
       redirectTo: buildPostCheckoutMagicLinkRedirect({ origin: base, productSlug: product.slug, locale, sessionId: undefined, paymentIntentId: undefined }),
       data: { locale, mail_kind: 'participants_needed', purchase_product: product.name,
         purchase_amount: formatPrice(fromMinorUnits(tx.amount, tx.currency), tx.currency, locale),
-        participants_url: buildParticipantsLink(tx.id, locale, base).url } });
-    if (result.ok) await db.from('payment_transactions').update({ participants_mail_sent_at: new Date().toISOString() }).eq('id', id);
+        participants_url: buildParticipantsLink(tx.id, locale, base).url, ...(stage === 2 ? { release_text: soon } : {}) } });
+    if (!result.ok) return;
+    const now = new Date().toISOString();
+    await db.from('payment_transactions').update(stage === 1 ? { participants_mail_sent_at: now }
+      : { participants_reminder2_sent_at: now, participants_mail_sent_at: tx.participants_mail_sent_at ?? now }).eq('id', id);
   } catch { console.error('[participants-mail] Delivery awaiting recovery:', id); }
 }
 
-export async function runParticipantsReminders(db: Db): Promise<{ processed: number; errors: number }> {
-  const { data, error } = await db.rpc('list_orders_missing_participants', { p_unsent_only: true, p_limit: BATCH });
+export async function runParticipantsReminders(db: Db, now = new Date()): Promise<{ processed: number; errors: number }> {
+  const { data, error } = await db.rpc('list_participants_reminders_due', { p_now: now.toISOString(), p_limit: BATCH });
   if (error) throw new Error('Participants query unavailable');
   let processed = 0, errors = 0;
-  for (const row of (data ?? []) as Array<{ id: string }>) {
-    try { await sendParticipantsNotice(db, row.id); processed++; } catch { errors++; }
+  for (const row of (data ?? []) as Array<{ id: string; stage: number }>) {
+    try { await sendParticipantsNotice(db, row.id, row.stage === 2 ? 2 : 1); processed++; } catch { errors++; }
   }
   return { processed, errors };
 }

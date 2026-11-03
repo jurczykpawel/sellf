@@ -2698,7 +2698,7 @@
     "payments": {
       "missingParticipants": {
         "title": "{count, plural, one {# order is missing participants} other {# orders are missing participants}}",
-        "help": "The buyer chose to add participants after payment. One reminder e-mail with a personal link is sent automatically; the list appears in the order once the buyer saves it.",
+        "help": "The buyer chose to add participants after payment. Up to two reminder e-mails with a personal link are sent automatically (24 hours after purchase and, for events, 2 days before the event); the list appears in the order once the buyer saves it.",
         "order": "Order", "email": "Buyer", "product": "Product", "quantity": "Quantity", "paid": "Paid", "mail": "Reminder",
         "mailSent": "Sent {date}", "mailPending": "Not sent yet"
       },

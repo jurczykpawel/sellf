@@ -3964,6 +3964,29 @@
         "seller": "No order data is changed.",
         "integrator": "No webhook is emitted."
       }
+    },
+    {
+      "id": "J208",
+      "title": "Event order gets a second participants reminder 2 days before the event",
+      "values": {
+        "persona": "signed_in",
+        "entry": "cron",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_expiry",
+        "operation": "deliver"
+      },
+      "status": "automated",
+      "layers": [
+        "database",
+        "unit",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "Receives a second mail stating the event is close; never a third; dateless products get only the first reminder.",
+        "seller": "The payments panel keeps listing the order until the list is saved and shows the latest reminder date.",
+        "integrator": "Not exercised; mail only."
+      }
     }
   ],
   "escapes": [

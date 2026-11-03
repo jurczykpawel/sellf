@@ -8,7 +8,7 @@
  * Jobs:
  *   seat-reservations-expire  — release expired event holds (run every minute)
  *   transfer-reservations     — unpaid transfer reminder, release and their notifications (run every 5 minutes)
- *   participants-reminders     — mail buyers who chose "add participants later" once, with a signed link (every 15 minutes)
+ *   participants-reminders     — mail buyers who chose "add participants later": 24 h after purchase and 2 days before the event (every 15 minutes)
  *   access-expired             — dispatch access.expired webhooks for newly expired access records
  *   cleanup-webhook-logs       — delete webhook_logs older than WEBHOOK_LOG_RETENTION_DAYS
  *   webhook-deliveries-retry   — process due retries (status=pending_retry) with exp backoff;

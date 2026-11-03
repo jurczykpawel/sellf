@@ -57,4 +57,40 @@ BEGIN
     RAISE EXCEPTION 'Bad link accepted';
   EXCEPTION WHEN SQLSTATE '22023' THEN NULL; END;
 END $$;
+-- Reminder stages: 24 h after purchase, then 2 days before the event; never more than two; dateless products only the first.
+DO $$
+DECLARE p uuid; dated uuid; plain uuid; sid uuid; base timestamptz := '2030-01-01 10:00+00'; ev timestamptz := '2030-01-20 18:00+00';
+  profile jsonb := '{"v":1,"modules":[{"id":"quantity","min":1,"max":5,"mode":"checkout"},{"id":"participants","required":true,"prefill_from_buyer":false,"allow_later":true}]}';
+  det jsonb := '{"quantity":{"v":1,"value":2},"participants":{"v":1,"people":[]}}';
+  stage integer;
+BEGIN
+  INSERT INTO public.products(name,slug,price,currency,checkout_profile,event_mode) VALUES ('Dated','stage-dated',100,'PLN',profile,true) RETURNING id INTO p;
+  INSERT INTO public.product_sessions(product_id,starts_at,capacity) VALUES (p,ev,50) RETURNING id INTO sid;
+  INSERT INTO public.products(name,slug,price,currency,checkout_profile) VALUES ('Dateless','stage-dateless',100,'PLN',profile) RETURNING id INTO plain;
+  INSERT INTO public.payment_transactions(session_id,product_id,customer_email,amount,currency,status,order_details,paid_at)
+    VALUES ('cs_stage_'||replace(gen_random_uuid()::text,'-',''),p,'a@example.com',100,'PLN','completed',det,base) RETURNING id INTO dated;
+  INSERT INTO public.payment_line_items(transaction_id,product_id,item_type,quantity,unit_price,total_price,currency,session_id)
+    VALUES (dated,p,'main_product',2,50,100,'PLN',sid);
+  INSERT INTO public.payment_transactions(session_id,product_id,customer_email,amount,currency,status,order_details,paid_at)
+    VALUES ('cs_stage2_'||replace(gen_random_uuid()::text,'-',''),plain,'b@example.com',100,'PLN','completed',det,base) RETURNING id INTO plain;
+
+  IF EXISTS (SELECT 1 FROM public.list_participants_reminders_due(base + interval '23 hours', 500) WHERE id IN (dated, plain)) THEN RAISE EXCEPTION 'due before 24 h'; END IF;
+  SELECT r.stage INTO stage FROM public.list_participants_reminders_due(base + interval '25 hours', 500) r WHERE r.id = dated;
+  IF stage IS DISTINCT FROM 1 OR NOT EXISTS (SELECT 1 FROM public.list_participants_reminders_due(base + interval '25 hours', 500) r WHERE r.id = plain AND r.stage = 1) THEN
+    RAISE EXCEPTION 'stage 1 missing'; END IF;
+  UPDATE public.payment_transactions SET participants_mail_sent_at = base + interval '25 hours' WHERE id IN (dated, plain);
+  IF EXISTS (SELECT 1 FROM public.list_participants_reminders_due(ev - interval '3 days', 500) WHERE id IN (dated, plain)) THEN RAISE EXCEPTION 'repeat of stage 1'; END IF;
+  SELECT r.stage INTO stage FROM public.list_participants_reminders_due(ev - interval '47 hours', 500) r WHERE r.id = dated;
+  IF stage IS DISTINCT FROM 2 THEN RAISE EXCEPTION 'stage 2 missing'; END IF;
+  IF EXISTS (SELECT 1 FROM public.list_participants_reminders_due(ev - interval '47 hours', 500) WHERE id = plain) THEN RAISE EXCEPTION 'dateless got stage 2'; END IF;
+  UPDATE public.payment_transactions SET participants_reminder2_sent_at = ev - interval '47 hours' WHERE id = dated;
+  IF EXISTS (SELECT 1 FROM public.list_participants_reminders_due(ev - interval '1 hour', 500) WHERE id IN (dated, plain)) THEN RAISE EXCEPTION 'third mail'; END IF;
+  IF EXISTS (SELECT 1 FROM public.list_participants_reminders_due(ev + interval '1 hour', 500) WHERE id IN (dated, plain)) THEN RAISE EXCEPTION 'mail after the event'; END IF;
+  -- Bought late: stage 2 supersedes stage 1, and a saved list stops everything.
+  UPDATE public.payment_transactions SET participants_mail_sent_at = NULL, participants_reminder2_sent_at = NULL, paid_at = ev - interval '10 hours' WHERE id = dated;
+  SELECT r.stage INTO stage FROM public.list_participants_reminders_due(ev - interval '1 hour', 500) r WHERE r.id = dated;
+  IF stage IS DISTINCT FROM 2 THEN RAISE EXCEPTION 'late purchase not stage 2'; END IF;
+  UPDATE public.payment_transactions SET order_details = '{"quantity":{"v":1,"value":2},"participants":{"v":1,"people":[{"first_name":"A","last_name":"B","email":"a@x.pl"},{"first_name":"C","last_name":"D","email":"c@x.pl"}]}}' WHERE id = dated;
+  IF EXISTS (SELECT 1 FROM public.list_participants_reminders_due(ev - interval '1 hour', 500) WHERE id = dated) THEN RAISE EXCEPTION 'mail after list saved'; END IF;
+END $$;
 ROLLBACK;
