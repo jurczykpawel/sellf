@@ -265,6 +265,7 @@ u siebie proformę, fakturę lub własny mail (n8n, Listmonk). Każde zdarzenie 
 | `order.cancelled` | Anulowanie: `cancelReason = payment_window_expired` (automatycznie po `releaseAt`) albo `admin`. | Informacja dla kupującego, korekta faktury; `lateTransferPolicy = admin_decision`. |
 | `order.overdue` | Minął termin płatności zamówienia bez rezerwacji czasowej. | Ponaglenie. |
 | `order.reopened` | Administrator przyjął przelew, który doszedł po anulowaniu (po cenie z zamówienia, także ponad limit miejsc). | Powiązanie wpłaty: `previousStatus = cancelled`; zaraz po nim `purchase.completed`. |
+| `order.participants_updated` | Kupujący uzupełnił listę uczestników po zapłacie (opcja produktu „uzupełnię później”). Wysyłane raz na zamówienie. | `orderDetails.participants.people` zawiera pełną listę (`first_name`, `last_name`, `email`), `orderDetails.quantity.value` liczbę; `purchase.completed` miało pustą listę. |
 
 Rezerwacja czasowa dotyczy wydarzeń i jest ustawiana przez sprzedawcę (Ustawienia → Płatności → Przelew
 tradycyjny). Zwykłe produkty nie wygasają. Zaplanuj `/api/cron?job=transfer-reservations` co 5 minut.

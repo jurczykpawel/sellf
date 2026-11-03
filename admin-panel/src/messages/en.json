@@ -32,6 +32,18 @@
     "correct": "Mark as corrected",
     "correctionHelp": "Create the correction in Fakturownia using the invoice link, then record it here."
   },
+  "participantsLater": {
+    "title": "Participants of order {number}",
+    "quantity": "{count, plural, one {# item} other {# items}}",
+    "intro": "Enter one person per item. You can paste a list or import a CSV file. You can only do this once.",
+    "submit": "Save participants",
+    "saved": "Thank you, the participants were saved.",
+    "failed": "The participants could not be saved. Try again.",
+    "alreadyComplete": "The participants of this order are already saved.",
+    "notPaid": "You can add participants after the payment is confirmed.",
+    "addLink": "Add participants",
+    "missing": "Participants missing"
+  },
   "checkoutProfile": {
     "title": "Checkout",
     "enabled": "Custom checkout for this product",
@@ -199,7 +211,7 @@
       "includeParticipants": "Add participants",
       "participant": "Participant {number}",
       "later": "I'll add participants later",
-      "laterHelp": "You can complete the participant list after payment; the seller will see the order without participants until then.",
+      "laterHelp": "After payment you will get an e-mail with a personal link to add the participants. The seller sees the order without participants until you do.",
       "pasteLabel": "Paste a list",
       "pasteHelp": "One person per line: first name, last name, email (separated by comma, semicolon or tab).",
       "pasteApply": "Fill from list",
@@ -2155,6 +2167,7 @@
         "order_transfer_declared": "Order Transfer Declared",
         "order_invoice_issued": "Order Invoice Issued, Awaiting Payment",
         "order_reopened": "Order Reopened",
+        "order_participants_updated": "Order Participants Added",
         "purchase_completed": "Purchase Completed",
         "lead_captured": "Lead Captured (Free Product)",
         "waitlist_signup": "Waitlist Signup",
@@ -2205,6 +2218,7 @@
         "order_transfer_declared": "The buyer declared the bank transfer was sent; the reservation was extended. Check the bank statement.",
         "order_invoice_issued": "An invoice was issued for an unpaid transfer order; the order is held without expiry until payment or cancellation.",
         "order_reopened": "An administrator accepted a transfer received after cancellation; the order is completed at its original price.",
+        "order_participants_updated": "The buyer added the participant list after payment (products with \"add later\"). Includes the order, quantity and the full list; sent once per order.",
         "purchase_completed": "A one-time purchase was completed (Stripe payment succeeded, or confirmed on the buyer's return). Includes buyer, product, order and custom fields.",
         "dispute_created": "A payment was disputed; reports the purchase and access revocation.",
         "dispute_closed": "A dispute ended; reports won/lost and whether access changed.",
@@ -2643,6 +2657,12 @@
       "statusError": "Failed to toggle bump status"
     },
     "payments": {
+      "missingParticipants": {
+        "title": "{count, plural, one {# order is missing participants} other {# orders are missing participants}}",
+        "help": "The buyer chose to add participants after payment. One reminder e-mail with a personal link is sent automatically; the list appears in the order once the buyer saves it.",
+        "order": "Order", "email": "Buyer", "product": "Product", "quantity": "Quantity", "paid": "Paid", "mail": "Reminder",
+        "mailSent": "Sent {date}", "mailPending": "Not sent yet"
+      },
       "orderDetails": {
         "title": "Checkout data",
         "missing": "Checkout details are incomplete.",

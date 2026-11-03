@@ -2427,6 +2427,8 @@ export type Database = {
           order_reopened_notified_at: string | null
           order_transfer_declared_notified_at: string | null
           paid_at: string | null
+          participants_completed_at: string | null
+          participants_mail_sent_at: string | null
           payment_due_at: string | null
           payment_provider: string
           pricing_snapshot_version: number | null
@@ -2483,6 +2485,8 @@ export type Database = {
           order_reopened_notified_at?: string | null
           order_transfer_declared_notified_at?: string | null
           paid_at?: string | null
+          participants_completed_at?: string | null
+          participants_mail_sent_at?: string | null
           payment_due_at?: string | null
           payment_provider?: string
           pricing_snapshot_version?: number | null
@@ -2539,6 +2543,8 @@ export type Database = {
           order_reopened_notified_at?: string | null
           order_transfer_declared_notified_at?: string | null
           paid_at?: string | null
+          participants_completed_at?: string | null
+          participants_mail_sent_at?: string | null
           payment_due_at?: string | null
           payment_provider?: string
           pricing_snapshot_version?: number | null
@@ -5887,6 +5893,19 @@ export type Database = {
         }
         Returns: Json
       }
+      list_orders_missing_participants: {
+        Args: { p_limit?: number; p_unsent_only?: boolean }
+        Returns: {
+          created_at: string
+          customer_email: string
+          id: string
+          mail_sent_at: string
+          order_number: number
+          product_id: string
+          product_name: string
+          quantity: number
+        }[]
+      }
       log_admin_action: {
         Args: {
           action_details?: Json
@@ -6083,6 +6102,10 @@ export type Database = {
           p_now: string
         }
         Returns: Json
+      }
+      order_awaits_participants: {
+        Args: { p_order_details: Json; p_profile: Json; p_status: string }
+        Returns: boolean
       }
       pending_free_grant_products: {
         Args: never
@@ -6287,6 +6310,10 @@ export type Database = {
         Returns: number
       }
       storefront_config_valid: { Args: { config: Json }; Returns: boolean }
+      submit_order_participants: {
+        Args: { p_order_id: string; p_people: Json }
+        Returns: Json
+      }
       telemetry_claim_send: {
         Args: { p_lease_ms: number; p_window_ms: number }
         Returns: {

@@ -3675,6 +3675,98 @@
         "seller": "The product checkout profile controls the phone module per product.",
         "integrator": "purchase.completed carries the phone only when given."
       }
+    },
+    {
+      "id": "J204",
+      "title": "Buyer who chose to add participants later gets one reminder mail with a personal link",
+      "values": {
+        "persona": "signed_in",
+        "entry": "cron",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "deliver"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "Receives one mail 'Add the participants of your order' with a signed link; no second mail follows.",
+        "seller": "The order records when the reminder was sent.",
+        "integrator": "Not exercised; mail only."
+      }
+    },
+    {
+      "id": "J205",
+      "title": "Seller sees paid orders that are still missing participants",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "read"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "Not exercised; seller view.",
+        "seller": "Payments page lists order, buyer, product, quantity, payment date and reminder state until the list is saved.",
+        "integrator": "Not exercised; no webhook involved."
+      }
+    },
+    {
+      "id": "J206",
+      "title": "Buyer saves the participant list after payment from the personal link",
+      "values": {
+        "persona": "signed_in",
+        "entry": "email_link",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_navigation",
+        "operation": "consent"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "Page accepts paste or CSV, shows field errors, saves once and then shows the saved list.",
+        "seller": "order_details carries the list and a completion time; the order leaves the missing list.",
+        "integrator": "order.participants_updated is delivered once with the full list and quantity."
+      }
+    },
+    {
+      "id": "J207",
+      "title": "Forged, foreign or unsupported participant submissions are refused",
+      "values": {
+        "persona": "guest",
+        "entry": "api",
+        "product": "event",
+        "payment": "none",
+        "moment": "after_navigation",
+        "operation": "authenticate"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "A forged link or order id gets 404; a product without the option gets 409.",
+        "seller": "No order data is changed.",
+        "integrator": "No webhook is emitted."
+      }
     }
   ],
   "escapes": [

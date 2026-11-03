@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import PaymentStatsCards from './PaymentStatsCards';
+import MissingParticipantsPanel from './MissingParticipantsPanel';
 import PaymentTransactionsTable from './PaymentTransactionsTable';
 import PaymentSessionsTable from './PaymentSessionsTable';
 import PaymentFilters from './PaymentFilters';
@@ -213,6 +214,8 @@ export default function PaymentsDashboard() {
         </div>
         <CurrencySelector />
       </div>
+
+      <MissingParticipantsPanel />
 
       {/* Payment Statistics */}
       {stats && <PaymentStatsCards stats={stats} />}

@@ -16,6 +16,13 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       reservation: 'timed', reminderAt: '2099-06-14T12:00:00Z', releaseAt: '2099-06-15T12:00:00Z', invoiceHoldAt: null, transferDeclaredAt: null, transferDeclaredNote: null, cancelReason: null, reopenedAt: null },
     orderDetails: { buyer: { type: 'organization', company_name: 'Example' } }, lines: [],
   }])),
+  'order.participants_updated': {
+    customer: ACCESS_SAMPLE.customer, product: ACCESS_SAMPLE.product, actor: { type: 'customer', id: null },
+    reason: 'participants_added_after_payment', occurredAt: '2099-01-01T00:30:00Z',
+    order: { orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001, status: 'completed' },
+    orderDetails: { quantity: { v: 1, value: 2 }, participants: { v: 1, people: [
+      { first_name: 'Jan', last_name: 'Nowak', email: 'jan@example.com' }, { first_name: 'Anna', last_name: 'Kowalska', email: 'anna@example.com' }] } },
+  },
   'order.abandoned': {
     amountUnit: 'minor', customer: ACCESS_SAMPLE.customer, product: ACCESS_SAMPLE.product, actor: ACCESS_SAMPLE.actor,
     reason: 'checkout_expired', occurredAt: '2099-01-01T00:30:00Z', lines: [],

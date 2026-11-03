@@ -32,6 +32,18 @@
     "correct": "Oznacz jako skorygowaną",
     "correctionHelp": "Wystaw korektę w Fakturowni przez link do faktury, a następnie odnotuj ją tutaj."
   },
+  "participantsLater": {
+    "title": "Uczestnicy zamówienia {number}",
+    "quantity": "{count, plural, one {# sztuka} few {# sztuki} many {# sztuk} other {# sztuki}}",
+    "intro": "Wpisz po jednej osobie na sztukę. Możesz wkleić listę albo zaimportować plik CSV. Listę można zapisać tylko raz.",
+    "submit": "Zapisz uczestników",
+    "saved": "Dziękujemy, uczestnicy zostali zapisani.",
+    "failed": "Nie udało się zapisać uczestników. Spróbuj ponownie.",
+    "alreadyComplete": "Uczestnicy tego zamówienia są już zapisani.",
+    "notPaid": "Uczestników można dodać po potwierdzeniu płatności.",
+    "addLink": "Uzupełnij uczestników",
+    "missing": "Brak uczestników"
+  },
   "checkoutProfile": {
     "title": "Koszyk",
     "enabled": "Własny koszyk dla tego produktu",
@@ -199,7 +211,7 @@
       "includeParticipants": "Dodaj uczestników",
       "participant": "Uczestnik {number}",
       "later": "Uzupełnię uczestników później",
-      "laterHelp": "Listę uczestników możesz uzupełnić po zapłacie; do tego czasu sprzedawca zobaczy zamówienie bez uczestników.",
+      "laterHelp": "Po zapłacie dostaniesz e-mail z osobistym linkiem do uzupełnienia uczestników. Do tego czasu sprzedawca widzi zamówienie bez uczestników.",
       "pasteLabel": "Wklej listę",
       "pasteHelp": "Jedna osoba w wierszu: imię, nazwisko, e-mail (rozdzielone przecinkiem, średnikiem lub tabulatorem).",
       "pasteApply": "Wypełnij z listy",
@@ -2155,6 +2167,7 @@
         "order_transfer_declared": "Kupujący zgłosił wysłanie przelewu",
         "order_invoice_issued": "Faktura wystawiona, czeka na płatność",
         "order_reopened": "Zamówienie przywrócone",
+        "order_participants_updated": "Uzupełnieni uczestnicy zamówienia",
         "purchase_completed": "Zakup zakończony",
         "lead_captured": "Lead pozyskany (Darmowy produkt)",
         "waitlist_signup": "Zapis na listę oczekujących",
@@ -2205,6 +2218,7 @@
         "order_transfer_declared": "Kupujący zgłosił wysłanie przelewu; rezerwacja została przedłużona. Sprawdź wyciąg.",
         "order_invoice_issued": "Dla nieopłaconego zamówienia przelewem wystawiono fakturę; zamówienie czeka na płatność bez terminu wygaśnięcia, do zapłaty lub anulowania.",
         "order_reopened": "Administrator przyjął przelew, który doszedł po anulowaniu; zamówienie zrealizowano po cenie z zamówienia.",
+        "order_participants_updated": "Kupujący uzupełnił listę uczestników po zapłacie (produkty z opcją „uzupełnię później”). Zawiera zamówienie, ilość i pełną listę; wysyłane raz na zamówienie.",
         "purchase_completed": "Jednorazowy zakup zakończony (płatność Stripe powiodła się lub potwierdzona po powrocie kupującego). Zawiera kupującego, produkt, zamówienie i custom fields.",
         "dispute_created": "Otwarto spór płatniczy; zawiera zakup i informację o odebraniu dostępu.",
         "dispute_closed": "Zakończono spór; zawiera wynik won/lost i informację o zmianie dostępu.",
@@ -2643,6 +2657,12 @@
       "statusError": "Nie udało się zmienić statusu bumpa"
     },
     "payments": {
+      "missingParticipants": {
+        "title": "{count, plural, one {# zamówienie bez uczestników} few {# zamówienia bez uczestników} many {# zamówień bez uczestników} other {# zamówienia bez uczestników}}",
+        "help": "Kupujący wybrał uzupełnienie uczestników po zapłacie. Jedno przypomnienie z osobistym linkiem wysyła się automatycznie; lista pojawi się w zamówieniu, gdy kupujący ją zapisze.",
+        "order": "Zamówienie", "email": "Kupujący", "product": "Produkt", "quantity": "Ilość", "paid": "Zapłacono", "mail": "Przypomnienie",
+        "mailSent": "Wysłano {date}", "mailPending": "Jeszcze nie wysłano"
+      },
       "orderDetails": {
         "title": "Dane z koszyka",
         "missing": "Dane z koszyka są niekompletne.",

@@ -508,6 +508,7 @@ their own proforma, invoice or mail (n8n, Listmonk). Each event is delivered onc
 | `order.cancelled` | Cancellation: `cancelReason = payment_window_expired` (automatic after `releaseAt`) or `admin`. | Tell the buyer, correct the invoice; `lateTransferPolicy = admin_decision`. |
 | `order.overdue` | The due date of an order without a timed hold passed. | Dunning. |
 | `order.reopened` | An administrator accepted a transfer that arrived after cancellation (order price, even over the seat limit). | Match the payment: `previousStatus = cancelled`; `purchase.completed` follows. |
+| `order.participants_updated` | The buyer added the participant list after payment (product option "add participants later"). Sent once per order. | `orderDetails.participants.people` holds the full list (`first_name`, `last_name`, `email`), `orderDetails.quantity.value` the count; `purchase.completed` carried an empty list. |
 
 The timed reservation applies to events and is configured by the seller (Settings → Payments → Bank transfer).
 Regular products never expire. Schedule `/api/cron?job=transfer-reservations` every 5 minutes.

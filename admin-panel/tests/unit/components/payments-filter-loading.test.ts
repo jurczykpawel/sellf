@@ -18,6 +18,7 @@ vi.mock('@/lib/api/client', () => ({
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 vi.mock('@/components/dashboard/CurrencySelector', () => ({ default: () => null }));
+vi.mock('@/components/admin/MissingParticipantsPanel', () => ({ default: () => null }));
 vi.mock('@/components/admin/PaymentStatsCards', () => ({ default: () => null }));
 vi.mock('@/components/admin/PaymentSessionsTable', () => ({ default: () => null }));
 vi.mock('@/components/admin/PaymentFilters', () => ({

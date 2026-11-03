@@ -101,6 +101,7 @@ const PUBLIC_ROUTES = new Set([
   'order-bumps/route.ts',
   'orders/bank-transfer/route.ts',
   'orders/bank-transfer/declare/route.ts', // signed HMAC order link is the credential; rate limited
+  'orders/participants/route.ts',            // signed HMAC participants link or the owner's session; rate limited, server re-validates
   'orders/[orderId]/pay/route.ts',           // signed HMAC order link is the credential; rate limited, server re-quotes
   'oto/info/route.ts',
   'tracking/fb-capi/route.ts',                 // CORS-protected server-side CAPI proxy

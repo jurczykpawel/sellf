@@ -74,6 +74,7 @@ export const WEBHOOK_EVENTS: WebhookEventDefinition[] = [
   { value: 'order.transfer_declared', label: 'Order Transfer Declared', category: 'purchases' },
   { value: 'order.invoice_issued', label: 'Order Invoice Issued (held)', category: 'purchases' },
   { value: 'order.reopened', label: 'Order Reopened', category: 'purchases' },
+  { value: 'order.participants_updated', label: 'Order Participants Added', category: 'purchases' },
   { value: 'purchase.completed', label: 'Purchase Completed', category: 'purchases' },
   { value: 'lead.captured', label: 'Lead Captured (Free Product)', category: 'leads' },
   { value: 'waitlist.signup', label: 'Waitlist Signup', category: 'leads' },
