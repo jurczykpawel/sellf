@@ -602,6 +602,7 @@ export async function upsertUserProductAccess(
     product_id: productId,
     subscription_id: subscriptionRowId,
     access_granted_at: new Date().toISOString(),
+    grant_source: 'subscription',
   });
   if (insertErr) {
     console.error('[upsertUserProductAccess] insert error:', insertErr);

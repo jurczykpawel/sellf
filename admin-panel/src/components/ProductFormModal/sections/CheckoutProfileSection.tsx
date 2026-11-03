@@ -41,6 +41,8 @@ export function CheckoutProfileSection({ formData, setFormData }: { formData: Pr
         </>}
         {entry?.id === 'recipient' && <p className="text-sm text-sf-muted">{t('recipientHelp')}</p>}
         {(entry?.id === 'phone' || entry?.id === 'participants') && checkbox(`${t(entry.id)}: ${t('required')}`, entry.required, enabled => change(entry, { required: enabled }))}
+        {entry?.id === 'phone' && <p className="text-sm text-sf-muted">{t('phoneHelp')}</p>}
+        {entry?.id === 'participants' && entry.required && checkbox(t('allowLater'), !!entry.allow_later, enabled => change(entry, { allow_later: enabled }))}
         {entry?.id === 'participants' && checkbox(t('prefill'), entry.prefill_from_buyer, enabled => change(entry, { prefill_from_buyer: enabled }))}
         {entry?.id === 'quantity' && <div className="flex flex-wrap gap-3">
           {(['min', 'max'] as const).map(key => <label key={key}>{t(key)}<input className="block border border-sf-border rounded p-2 w-24" type="number" min={1} max={100} value={entry[key]} onChange={e => change(entry, { [key]: Number(e.target.value) })} /></label>)}

@@ -236,6 +236,12 @@ describe('checkout profile contracts', () => {
     await update.handler(z.object(update.schema).parse({ id, checkout_profile }));
     expect(api.patch).toHaveBeenCalledWith(`/api/v1/products/${id}`, { checkout_profile });
   });
+  it('accepts the add-participants-later flag on the participants module', () => {
+    const update = tools.get('update_product')!;
+    const withLater = { v: 1, modules: [{ id: 'quantity', min: 1, max: 10, mode: 'checkout' }, { id: 'participants', required: true, prefill_from_buyer: false, allow_later: true }] };
+    expect(update.schema.checkout_profile.safeParse(withLater).success).toBe(true);
+    expect(update.schema.checkout_profile.safeParse({ v: 1, modules: [{ id: 'participants', required: true, prefill_from_buyer: false, allow_later: 'yes' }] }).success).toBe(false);
+  });
   it('allows clearing the profile and rejects unknown keys or versions', async () => {
     const update = tools.get('update_product')!;
     api.patch.mockResolvedValue({ data: {} });

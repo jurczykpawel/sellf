@@ -18,6 +18,7 @@ vi.mock('@/lib/api/client', () => ({
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 vi.mock('@/components/dashboard/CurrencySelector', () => ({ default: () => null }));
+vi.mock('@/components/admin/MissingParticipantsPanel', () => ({ default: () => null }));
 vi.mock('@/components/admin/PaymentStatsCards', () => ({ default: () => null }));
 vi.mock('@/components/admin/PaymentSessionsTable', () => ({ default: () => null }));
 vi.mock('@/components/admin/PaymentFilters', () => ({
@@ -70,7 +71,7 @@ it('ignores a slower answer to an earlier filter', async () => {
 
 it('does not show the previous count in the tab labels while rows are loading', async () => {
   await mount();
-  const tab = () => screen.getByRole('button', { name: /transactions\.titleSentence/ }).textContent;
+  const tab = () => screen.getByRole('tab', { name: /transactions\.titleSentence/ }).textContent;
   expect(tab()).toBe('transactions.titleSentence (1)');
   const next = deferred<ReturnType<typeof rows>>();
   page.mockReturnValueOnce(next.promise);

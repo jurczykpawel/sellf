@@ -15,7 +15,7 @@ dns.resolve6 = async (name, ...args) => name === host ? [] : resolve6(name, ...a
 const connect = tls.connect.bind(tls);
 tls.connect = function (options, ...args) {
   if (options && typeof options === 'object' && (options.servername === host || options.host === host)) {
-    const local = { ...options, host: '127.0.0.1', port: 3895, servername: host, ca: readFileSync(certFile) };
+    const local = { ...options, host: '127.0.0.1', port: Number(process.env.LEADS_RECEIVER_PORT ?? 3895), servername: host, ca: readFileSync(certFile) };
     delete local.lookup;
     return connect(local, ...args);
   }

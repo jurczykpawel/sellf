@@ -3349,6 +3349,94 @@
       }
     },
     {
+      "id": "J160",
+      "title": "Sales invoice lifecycle reaches the integrator",
+      "values": {
+        "persona": "integrator",
+        "entry": "cron",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_retry",
+        "operation": "issue_invoice"
+      },
+      "end_state": {
+        "buyer": "Receives the invoice the provider actually issued; a failed attempt does not produce a number.",
+        "seller": "Sees issued, failed (with attempt and retry flag) and corrected invoice states.",
+        "integrator": "Signed invoicing.issued/failed/corrected with number, provider ID, order and minor-unit amount, once per transition."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ]
+    },
+    {
+      "id": "J161",
+      "title": "Refund request decisions reach the integrator",
+      "values": {
+        "persona": "signed_in",
+        "entry": "api",
+        "product": "paid",
+        "payment": "refund",
+        "moment": "after_payment",
+        "operation": "refund"
+      },
+      "end_state": {
+        "buyer": "Their refund request is recorded and decided with the seller response.",
+        "seller": "Approves or rejects through the API; each status is announced.",
+        "integrator": "Signed refund.requested/approved/rejected with order, buyer, requested minor amount, reason and response."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ]
+    },
+    {
+      "id": "J162",
+      "title": "Partner commission and payout lifecycle reaches the integrator",
+      "values": {
+        "persona": "partner",
+        "entry": "dashboard",
+        "product": "coupon",
+        "payment": "refund",
+        "moment": "after_payment",
+        "operation": "payout"
+      },
+      "end_state": {
+        "buyer": "Not exercised.",
+        "seller": "Reserves, cancels and pays partner payouts; refunds reverse commission.",
+        "integrator": "Signed commission.accrued/reversed and payout.reserved/paid/cancelled with partner, minor amounts, references and commission IDs, once each."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ]
+    },
+    {
+      "id": "J163",
+      "title": "Catalogue availability and price changes reach the integrator",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "event",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "publish"
+      },
+      "end_state": {
+        "buyer": "Sees the product only while published and cannot reserve beyond capacity.",
+        "seller": "Publishes, withdraws and reprices through the API.",
+        "integrator": "Signed product.published/unpublished/price_changed (before/after minor prices) and product.sold_out per session, not duplicated on redelivery."
+      },
+      "status": "automated",
+      "layers": [
+        "integration",
+        "consumer"
+      ]
+    },
+    {
       "id": "J171",
       "title": "Buyer from a tagged e-mail link pays by card; the seller's API reports the purchase source",
       "values": {
@@ -3587,6 +3675,319 @@
         "browser",
         "integration"
       ]
+    },
+    {
+      "id": "J190",
+      "title": "Seller sees every kind of order on the Payments page",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "free",
+        "payment": "none",
+        "moment": "after_grant",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Free claims, manual grants and lead sign-ups appear to the seller as orders.",
+        "seller": "Orders tab lists paid, transfer, free, manual, subscription and lead entries by recorded grant source, with type/status filters and cursor paging.",
+        "integrator": "GET /api/admin/orders returns the same classified list (admin session)."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "browser"
+      ]
+    },
+    {
+      "id": "J191",
+      "title": "Seller opens an order by its number or a direct link",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_navigation",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "The order can be found by the number from the buyer's confirmation.",
+        "seller": "Searching 1300 or opening /dashboard/payments?order=1300 opens that order's details.",
+        "integrator": "GET /api/v1/payments?search=1300 matches the order number."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "browser"
+      ]
+    },
+    {
+      "id": "J192",
+      "title": "Seller refunds part of a card payment",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "refund",
+        "moment": "after_payment",
+        "operation": "refund"
+      },
+      "end_state": {
+        "buyer": "Stripe test mode records the entered partial refund and then the remainder.",
+        "seller": "Refund dialog accepts an amount up to what remains and blocks more.",
+        "integrator": "Not exercised (existing refund webhook path unchanged)."
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "browser",
+        "sandbox"
+      ]
+    },
+    {
+      "id": "J193",
+      "title": "Seller issues a license from the sales area",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "license",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "issue_license"
+      },
+      "end_state": {
+        "buyer": "Not exercised (issuance logic unchanged).",
+        "seller": "Order details link to Sales > Licenses prefilled with buyer and product; Settings no longer hosts issuance.",
+        "integrator": "Not exercised (license webhooks unchanged)."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J194",
+      "title": "Seller navigates a grouped admin menu",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_navigation",
+        "operation": "browse"
+      },
+      "end_state": {
+        "buyer": "Not exercised.",
+        "seller": "Sidebar groups links into Sales & reports, Products and System.",
+        "integrator": "Not exercised."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J200",
+      "title": "Admin reads the abandoned-checkout funnel on a phone and the numbers add up",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "abandoned",
+        "moment": "after_navigation",
+        "operation": "read"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "Not exercised; the seller-side report is the subject.",
+        "seller": "Cards show paid, pending, abandoned and other statuses; the sum line equals the recorded attempts; definitions and the product table sit in collapsed sections without horizontal scroll at 390 px.",
+        "integrator": "Not exercised; no webhook is involved."
+      }
+    },
+    {
+      "id": "J201",
+      "title": "Buyer fills ten participants from a pasted list or CSV on a phone",
+      "values": {
+        "persona": "new",
+        "entry": "checkout",
+        "product": "b2b_quantity",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "purchase"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "A compact list with paste and CSV import fills every row; no horizontal scroll at 390 px; inputs are labelled.",
+        "seller": "The order stores one participant per unit with the pasted names and emails.",
+        "integrator": "purchase.completed carries the participants list from the order details."
+      }
+    },
+    {
+      "id": "J202",
+      "title": "Buyer orders several seats and adds participants later",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "b2b_quantity",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "purchase"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "Ticks 'I'll add participants later' and pays without a participant list.",
+        "seller": "The order records the quantity and an empty participant list; no reminder e-mail is sent (not implemented).",
+        "integrator": "purchase.completed carries an empty participants list."
+      }
+    },
+    {
+      "id": "J203",
+      "title": "Seller chooses whether the checkout asks for a phone number",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "paid",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "configure"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "Required: cannot continue without a valid number; optional: can skip; hidden: no field.",
+        "seller": "The product checkout profile controls the phone module per product.",
+        "integrator": "purchase.completed carries the phone only when given."
+      }
+    },
+    {
+      "id": "J204",
+      "title": "Buyer who chose to add participants later gets one reminder mail with a personal link",
+      "values": {
+        "persona": "signed_in",
+        "entry": "cron",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "deliver"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "Receives one mail 'Add the participants of your order' with a signed link; no second mail follows.",
+        "seller": "The order records when the reminder was sent.",
+        "integrator": "Not exercised; mail only."
+      }
+    },
+    {
+      "id": "J205",
+      "title": "Seller sees paid orders that are still missing participants",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "read"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "Not exercised; seller view.",
+        "seller": "Payments page lists order, buyer, product, quantity, payment date and reminder state until the list is saved.",
+        "integrator": "Not exercised; no webhook involved."
+      }
+    },
+    {
+      "id": "J206",
+      "title": "Buyer saves the participant list after payment from the personal link",
+      "values": {
+        "persona": "signed_in",
+        "entry": "email_link",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_navigation",
+        "operation": "consent"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "Page accepts paste or CSV, shows field errors, saves once and then shows the saved list.",
+        "seller": "order_details carries the list and a completion time; the order leaves the missing list.",
+        "integrator": "order.participants_updated is delivered once with the full list and quantity."
+      }
+    },
+    {
+      "id": "J207",
+      "title": "Forged, foreign or unsupported participant submissions are refused",
+      "values": {
+        "persona": "guest",
+        "entry": "api",
+        "product": "event",
+        "payment": "none",
+        "moment": "after_navigation",
+        "operation": "authenticate"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "A forged link or order id gets 404; a product without the option gets 409.",
+        "seller": "No order data is changed.",
+        "integrator": "No webhook is emitted."
+      }
+    },
+    {
+      "id": "J208",
+      "title": "Event order gets a second participants reminder 2 days before the event",
+      "values": {
+        "persona": "signed_in",
+        "entry": "cron",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_expiry",
+        "operation": "deliver"
+      },
+      "status": "automated",
+      "layers": [
+        "database",
+        "unit",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "Receives a second mail stating the event is close; never a third; dateless products get only the first reminder.",
+        "seller": "The payments panel keeps listing the order until the list is saved and shows the latest reminder date.",
+        "integrator": "Not exercised; mail only."
+      }
     },
     {
       "id": "J210",

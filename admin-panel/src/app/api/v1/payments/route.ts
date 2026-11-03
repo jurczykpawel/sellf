@@ -38,7 +38,7 @@ export async function OPTIONS(request: NextRequest) {
  * - status: 'all' | 'pending' | 'completed' | 'refunded' | 'partially_refunded' | 'disputed' | 'abandoned' (default 'all')
  * - product_id: string (filter by product)
  * - email: string (filter by customer email substring)
- * - search: string, max 200 chars (free-text match across customer email,
+ * - search: string, max 200 chars (exact order number such as `1300` or `#1300`, or free-text match across customer email,
  *   Stripe session id, Stripe payment intent id, and product name/slug)
  * - date_from: string ISO date (filter from date)
  * - date_to: string ISO date (filter to date)

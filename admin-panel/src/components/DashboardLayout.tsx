@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, startTransition } from 'react'
 import { useTranslations } from 'next-intl'
+import { ADMIN_NAV_GROUPS, type AdminNavIcon } from '@/lib/navigation/admin-nav'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { PanelLeftOpen, PanelLeftClose } from 'lucide-react'
@@ -119,6 +120,11 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
+  licenses: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+    </svg>
+  ),
   refunds: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
@@ -158,7 +164,6 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
   const [mounted, setMounted] = useState(false)
   const { signOut, role: authRole, user: authUser, loading: authLoading } = useAuth()
   const t = useTranslations('navigation')
-  const templateEditorTitle = useTranslations('storefrontEditor')
   const pathname = usePathname()
   const router = useRouter()
 
@@ -241,34 +246,24 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
     }
   }, [user, isAdmin])
 
-  // Navigation Items Config — all admin links visible for both platform and seller admins
-  const adminLinks = [
-    { href: '/dashboard', label: t('dashboard'), icon: Icons.dashboard, exact: true },
-    { href: '/dashboard/products', label: t('products'), icon: Icons.products },
-    { href: '/dashboard/variants', label: t('variants', { defaultValue: 'Variants' }), icon: Icons.variants },
-    { href: '/dashboard/categories', label: t('categories'), icon: Icons.categories },
-    { href: '/dashboard/templates', label: templateEditorTitle('title'), icon: Icons.variants },
-    { href: '/dashboard/order-bumps', label: t('orderBumps'), icon: Icons.orderBumps },
-    { href: '/dashboard/coupons', label: t('coupons'), icon: Icons.coupons },
-    { href: '/dashboard/payments', label: t('payments'), icon: Icons.payments },
-    {
-      href: '/dashboard/refund-requests',
-      label: t('refundRequests', { defaultValue: 'Refund Requests' }),
-      icon: Icons.refunds,
-      badge: formatSidebarBadgeCount(sidebarBadges.pendingRefunds),
-    },
-    {
-      href: '/dashboard/webhooks',
-      label: t('webhooks'),
-      icon: Icons.webhooks,
-      badge: formatSidebarBadgeCount(sidebarBadges.failedWebhooks),
-    },
-    { href: '/dashboard/integrations', label: t('integrations'), icon: Icons.integrations },
-    { href: '/dashboard/api-keys', label: t('apiKeys', { defaultValue: 'API Keys' }), icon: Icons.apiKeys },
-    { href: '/dashboard/affiliates', label: t('affiliates'), icon: Icons.users },
-    { href: '/dashboard/users', label: t('users'), icon: Icons.users },
-    { href: '/dashboard/settings', label: t('settings'), icon: Icons.settings },
-  ];
+  // Navigation config — grouped admin links (see lib/navigation/admin-nav.ts).
+  const adminIcons: Record<AdminNavIcon, React.ReactNode> = {
+    dashboard: Icons.dashboard, payments: Icons.payments, refunds: Icons.refunds, licenses: Icons.licenses,
+    users: Icons.users, affiliates: Icons.users, products: Icons.products, variants: Icons.variants,
+    categories: Icons.categories, templates: Icons.variants, orderBumps: Icons.orderBumps, coupons: Icons.coupons,
+    webhooks: Icons.webhooks, integrations: Icons.integrations, apiKeys: Icons.apiKeys, settings: Icons.settings,
+  };
+  const adminGroups = ADMIN_NAV_GROUPS.map(group => ({
+    id: group.id,
+    label: t(group.labelKey),
+    links: group.items.map(item => ({
+      href: item.href,
+      label: t(item.labelKey),
+      icon: adminIcons[item.icon],
+      exact: item.exact,
+      badge: item.badge ? formatSidebarBadgeCount(sidebarBadges[item.badge]) : null,
+    })),
+  }));
 
   const userLinks = [
     { href: '/my-affiliate', label: t('myAffiliate'), icon: Icons.users },
@@ -331,9 +326,10 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
   // component would do.
   const renderSidebarNav = (expanded: boolean) => (
     <>
-      {user && isAdmin && (
-        <div className="pt-5 pb-2">
+      {user && isAdmin && adminGroups.map(group => (
+        <div key={group.id} className="pt-5 pb-2" role="group" aria-labelledby={`sf-nav-group-${group.id}`}>
           <div
+            id={`sf-nav-group-${group.id}`}
             className="px-6 pb-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-sf-sidebar-text whitespace-nowrap transition-opacity"
             style={{
               opacity: expanded ? 1 : 0,
@@ -341,15 +337,15 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
               transitionTimingFunction: 'var(--sf-ease-out, ease-out)',
             }}
           >
-            {t('adminSection')}
+            {group.label}
           </div>
-          <nav className="flex flex-col gap-0.5 px-2">
-            {adminLinks.map(link => (
+          <nav className="flex flex-col gap-0.5 px-2" aria-label={group.label}>
+            {group.links.map(link => (
               <React.Fragment key={link.href}>{renderSidebarNavItem({ ...link, expanded })}</React.Fragment>
             ))}
           </nav>
         </div>
-      )}
+      ))}
       <div className="pt-5 pb-2">
         <div
           className="px-6 pb-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-sf-sidebar-text whitespace-nowrap transition-opacity"

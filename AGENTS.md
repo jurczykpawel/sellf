@@ -148,6 +148,7 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
   - Public: `/`, `/p/[slug]` (product pages), `/login`, `/terms`, `/privacy`
   - Protected: `/dashboard`, `/my-products`
   - Admin: `/admin/products`, `/admin/users`, `/admin/payments`, `/admin/analytics`
+  - Admin sidebar groups (`lib/navigation/admin-nav.ts`): Sales & reports (`/dashboard/payments` with Transactions / Orders / Sessions tabs and `?order=<number>` deep links, `/dashboard/licenses` for issued product licenses), Products, System
 - API endpoints: `/api/runtime-config`, `/api/create-embedded-checkout`, `/api/verify-payment`, `/api/webhooks/stripe`, `/api/embed/checkout-session`, `/api/embed/free-access`, `/embed/v1/checkout.js`, `/api/auth/magic-link`
 - Public v1 API (API key auth, `PRODUCTS_READ`/`PRODUCTS_WRITE` scopes):
   - `GET /api/v1/products` — cursor pagination, accepts `?search=`, `?status=`, `?sort_by=`, `?embed=categories,tags` (opt-in), `?category=<uuid-or-slug>` and `?tag=<uuid-or-slug>` (CSV, AND-intersection; auto-detect UUID vs slug)
@@ -986,6 +987,18 @@ A small set of admin-panel features are gated by a license tier (`free`, `regist
 - `license-key-issuance` / `license-revoked-webhook` — sell licensed products (`pro+`)
 
 Resolution is DB-first (`license_keys` table) with env fallback (`SELLF_LICENSE_KEY`).
+
+### Participants added after payment ("add later")
+
+A product whose checkout profile has `participants` with `required: true` and `allow_later: true` lets the buyer
+pay with an empty list. The paid order then awaits participants (`order_awaits_participants`). Cron
+`participants-reminders` (every 15 min) mails the buyer at most twice (`mail_kind=participants_needed`): 24 h after purchase
+(`participants_mail_sent_at`) and, for products with an event session, 2 days before it (`participants_reminder2_sent_at`;
+it supersedes a pending first reminder; dateless products get only the first), via `list_participants_reminders_due`,
+with a signed link `/{locale}/order/:id/participants?token=` (`lib/orders/participants-token.ts`, 180 days; the
+signed-in owner needs no token). `POST /api/orders/participants` validates like checkout and calls
+`submit_order_participants`, which stores the list once and commits `order.participants_updated` to `business_events`
+in the same transaction. Sellers see waiting orders in the payments page panel (`list_orders_missing_participants`).
 
 ### Temporal Access Control
 

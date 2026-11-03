@@ -20,7 +20,7 @@ test('automatically records an online-only checkout attempt', async ({ page }) =
     await expect(page.getByRole('button', { name: 'Przejdź do płatności', exact: true })).toHaveCount(0);
     const funnel = await db.rpc('get_checkout_funnel', { p_days: 30, p_product_id: row.data!.id });
     expect(funnel.error).toBeNull();
-    expect(funnel.data.totals).toEqual({ started: 1, paid: 0, pending: 1, abandoned: 0 });
+    expect(funnel.data.totals).toEqual({ started: 1, paid: 0, pending: 1, abandoned: 0, other: 0 });
   } finally {
     await page.goto('about:blank');
     if (sessionId) { const session = await stripe.checkout.sessions.retrieve(sessionId); if (session.status === 'open') await stripe.checkout.sessions.expire(sessionId).catch(async error => { if ((await stripe.checkout.sessions.retrieve(sessionId!)).status !== 'expired') throw error; }); }

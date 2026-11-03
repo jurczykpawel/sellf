@@ -218,7 +218,7 @@ ceną 67 PLN, `issue_license_on_purchase: false` i takim `checkout_profile`:
 Następnie `create_coupon` z `{"code":"WIR30","discount_type":"set_price","discount_value":30,"currency":"PLN","allowed_product_ids":["UUID_ZWROCONEGO_PRODUKTU"]}`.
 Agent odczytuje oba rekordy i pokazuje je do sprawdzenia przed aktywacją produktu.
 Nabywca jest organizacją; odbiorca może być inny, telefon jest wymagany, a liczba
-uczestników odpowiada ilości. Przelew wymaga włączenia i konfiguracji konta sklepu
+uczestników odpowiada ilości (ustaw `allow_later: true` w module `participants`, aby kupujący mógł zapłacić najpierw i uzupełnić uczestników później; przypomnienie e-mail nie jest wysyłane). Przelew wymaga włączenia i konfiguracji konta sklepu
 w ustawieniach płatności. Przepis nie zmienia tych ustawień i nie składa zamówienia.
 Po publikacji udostępnij `/pl/checkout/SLUG?coupon=WIR30`. Kupon daje 30 zł za sztukę
 zarówno w progu 47, jak i 67 zł; bumpy zachowują cenę. Progi i terminy wydarzenia

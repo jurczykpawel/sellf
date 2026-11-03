@@ -56,7 +56,7 @@ async function drain(job = 'business-events') {
   return cron(new NextRequest(`http://localhost/api/cron?job=${job}`, { headers: { Authorization: `Bearer ${cronSecret}` } }));
 }
 const context = (id: string, accessId: string) => ({ params: Promise.resolve({ id, accessId }) });
-it('delivers admin grant, extension and deletion with actor and before/after state exactly once @J22', async () => {
+it('delivers admin grant, extension and deletion with actor and before/after state exactly once @J22 @J190', async () => {
   const p = await product(), u = await user();
   const result = await grant(new NextRequest('http://localhost/api/v1/users/access', { method: 'POST', body: JSON.stringify({ product_id: p.id, access_duration_days: 7 }) }), { params: Promise.resolve({ id: u.id }) });
   expect(result.status).toBe(201); const access = (await result.json()).data;
@@ -67,6 +67,10 @@ it('delivers admin grant, extension and deletion with actor and before/after sta
   expect(changes.map(e => e.event)).toEqual(['access.granted', 'access.updated', 'access.revoked']);
   expect(changes.every(e => e.data.actor.type === 'api_key' && e.data.actor.id === actor.id)).toBe(true);
   expect(changes[0].data.access).toMatchObject({ id: access.id, statusAfter: 'active', grantedAt: expect.any(String), expiresAt: expect.any(String) });
+  // Exact grant source next to the unchanged legacy reason (W135).
+  expect(changes[0].data).toMatchObject({ grantSource: 'manual', reason: 'admin_grant' });
+  expect(changes[1].data.grantSource).toBe('manual');
+  expect(changes[2].data.grantSource).toBeUndefined();
   expect(changes[1].data.access).toMatchObject({ statusBefore: 'active', statusAfter: 'active' });
   expect(changes[2].data.access).toMatchObject({ statusAfter: 'revoked', revokedAt: expect.any(String) });
   // Requeue the committed changes as after an interrupted acknowledgement.
@@ -82,7 +86,7 @@ it('records the paid guest claim and its source order during registration @J23',
   expect((await db.from('user_product_access').select('id').eq('user_id', u.id).eq('product_id', p.id).single()).error).toBeNull();
   await drain();
   const event = receiver.received.find(e => e.event === 'access.granted' && e.data.customer.userId === u.id);
-  expect(event?.data).toMatchObject({ reason: 'guest_purchase_claimed', sourceOrder: { id: tx.data!.id }, customer: { email, userId: u.id }, product: { id: p.id } });
+  expect(event?.data).toMatchObject({ reason: 'guest_purchase_claimed', grantSource: 'purchase', sourceOrder: { id: tx.data!.id }, customer: { email, userId: u.id }, product: { id: p.id } });
 });
 it('actually dispatches a natural expiry through the cron, without a second notification @J24', async () => {
   const p = await product(), u = await user();
@@ -133,7 +137,7 @@ it('identifies the purchase source for a bundle component claimed during registr
   expect((await db.from('guest_purchases').insert({ product_id: bundle.id, customer_email: email, transaction_id: tx.data!.id, transaction_amount: 1900 })).error).toBeNull();
   const u = await user(email); await drain();
   const event = receiver.received.find(e => e.event === 'access.granted' && e.data.customer.userId === u.id && e.data.product.id === component.id);
-  expect(event?.data).toMatchObject({ reason: 'guest_purchase_claimed', sourceOrder: { id: tx.data!.id } });
+  expect(event?.data).toMatchObject({ reason: 'guest_purchase_claimed', grantSource: 'bundle', sourceOrder: { id: tx.data!.id } });
 });
 
 it('delivers abandonment to an endpoint scoped to an included order line', async () => {
