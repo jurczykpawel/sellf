@@ -27,7 +27,9 @@ BEGIN
   EXCEPTION WHEN SQLSTATE '22023' THEN NULL; END;
   BEGIN PERFORM public.prepare_event_mail('mail-context@example.com','{"locale":"en","payment_received":"no"}'); RAISE EXCEPTION 'bad flag accepted';
   EXCEPTION WHEN SQLSTATE '22023' THEN NULL; END;
-  BEGIN PERFORM public.prepare_event_mail('mail-context@example.com', jsonb_build_object('locale','en','license_key',repeat('k',4001))); RAISE EXCEPTION 'oversized key accepted';
+  BEGIN PERFORM public.prepare_event_mail('mail-context@example.com', jsonb_build_object('locale','en','license_key','a.'||repeat('k',4100))); RAISE EXCEPTION 'oversized key accepted';
+  EXCEPTION WHEN SQLSTATE '22023' THEN NULL; END;
+  BEGIN PERFORM public.prepare_event_mail('mail-context@example.com','{"locale":"en","license_key":"not a key"}'); RAISE EXCEPTION 'malformed key accepted';
   EXCEPTION WHEN SQLSTATE '22023' THEN NULL; END;
   IF has_function_privilege('anon','public.prepare_event_mail(text,jsonb)','execute') OR has_function_privilege('authenticated','public.prepare_event_mail(text,jsonb)','execute') THEN RAISE EXCEPTION 'public mail context'; END IF;
 END $$;

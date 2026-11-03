@@ -14,7 +14,7 @@ BEGIN
     OR length(p_data->>'participants_url')>2048
     OR (p_data->>'participants_url') !~ '^https?://[^/[:space:]]+/(pl|en)/order/[0-9a-f-]{36}/participants\?token=[0-9]{1,12}\.[A-Za-z0-9_-]{43}$'
     OR length(p_data->>'release_text')>500
-    OR length(p_data->>'license_key')>4000
+    OR length(p_data->>'license_key')>4096 OR (p_data->>'license_key') !~ '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$'
     OR (p_data ? 'payment_received' AND (p_data->>'payment_received') <> 'true')
     OR (p_data ? 'transfer' AND (jsonb_typeof(p_data->'transfer') <> 'object'
       OR octet_length((p_data->'transfer')::text)>2000
