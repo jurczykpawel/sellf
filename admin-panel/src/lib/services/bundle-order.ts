@@ -53,6 +53,7 @@ export async function issueLicensesForOrder(
 ): Promise<NonNullable<PurchaseWebhookData['licenses']>> {
   const siteUrl = getCanonicalOriginOrNull() ?? '';
   const licenses: NonNullable<PurchaseWebhookData['licenses']> = [];
+  const issuedIds: (string | undefined)[] = [];
   for (const pid of args.productIds) {
     const res = await issueLicense(supabase, {
       productId: pid,
@@ -62,6 +63,7 @@ export async function issueLicensesForOrder(
       customFieldValues: args.customFieldValues,
     });
     if (res) {
+      issuedIds.push(res.id);
       licenses.push({
         productId: pid,
         token: res.token,
@@ -70,5 +72,10 @@ export async function issueLicensesForOrder(
       });
     }
   }
-  return licenses;
+  if (!licenses.length) return licenses;
+  // A license issued during an open or lost dispute is born revoked (20261103160000_license_events.sql).
+  const revoked = await supabase.from('issued_licenses').select('id').eq('order_id', args.orderId).not('revoked_at', 'is', null);
+  if (revoked.error) throw new Error('License state unavailable');
+  const revokedIds = new Set((revoked.data ?? []).map((row: { id: string }) => row.id));
+  return licenses.filter((_, i) => !revokedIds.has(issuedIds[i] ?? ''));
 }

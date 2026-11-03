@@ -93,30 +93,21 @@ END $$;
 REVOKE ALL ON FUNCTION public.submit_order_participants(uuid,jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.submit_order_participants(uuid,jsonb) TO service_role;
 
--- Buyer mail data: new notice kind and its signed participants link.
-CREATE OR REPLACE FUNCTION public.prepare_event_mail(p_email text, p_data jsonb) RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+-- Buyer mail data: new notice kind and its signed participants link. The current definition is patched in
+-- place (not replaced), so fields added by other migrations (mail_kind/pay_url/release_text, license_key, ...) survive.
+DO $$
+DECLARE def text := pg_get_functiondef('public.prepare_event_mail(text,jsonb)'::regprocedure); patched text := def;
 BEGIN
-  IF length(p_data->>'event_date')>500 OR length(p_data->>'event_online_url')>2048
-    OR (p_data->>'event_online_url') !~ '^https://[^[:space:]]+$'
-    OR length(p_data->>'transfer_text')>2000 OR length(p_data->>'purchase_product')>500
-    OR length(p_data->>'purchase_amount')>100 OR (p_data->>'locale') NOT IN ('pl','en')
-    OR (p_data->>'mail_kind') NOT IN ('transfer_placed','payment_reminder','order_cancelled','participants_needed')
-    OR length(p_data->>'pay_url')>2048
-    OR (p_data->>'pay_url') !~ '^https?://[^/[:space:]]+/(pl|en)/order/[0-9a-f-]{36}/transfer\?token=[0-9]{1,12}\.[A-Za-z0-9_-]{43}$'
-    OR length(p_data->>'participants_url')>2048
+  patched := replace(patched, $a$'order_cancelled'$a$, $b$'order_cancelled','participants_needed'$b$);
+  patched := replace(patched, $a$    OR length(p_data->>'release_text')>500$a$,
+    $b$    OR length(p_data->>'participants_url')>2048
     OR (p_data->>'participants_url') !~ '^https?://[^/[:space:]]+/(pl|en)/order/[0-9a-f-]{36}/participants\?token=[0-9]{1,12}\.[A-Za-z0-9_-]{43}$'
-    OR length(p_data->>'release_text')>500
-    THEN RAISE EXCEPTION 'Invalid mail data' USING ERRCODE='22023'; END IF;
-  UPDATE auth.users SET raw_user_meta_data=(coalesce(raw_user_meta_data,'{}')
-    -'event_date'-'event_online_url'-'transfer_text'-'purchase_product'-'purchase_amount'-'locale'-'mail_kind'-'pay_url'-'release_text'-'participants_url')
-    ||jsonb_strip_nulls(jsonb_build_object('event_date',p_data->>'event_date',
-      'event_online_url',p_data->>'event_online_url','transfer_text',p_data->>'transfer_text',
-      'purchase_product',p_data->>'purchase_product','purchase_amount',p_data->>'purchase_amount',
-      'mail_kind',p_data->>'mail_kind','pay_url',p_data->>'pay_url','release_text',p_data->>'release_text',
-      'participants_url',p_data->>'participants_url',
-      'locale',coalesce(p_data->>'locale','en')))
-    WHERE lower(email)=lower(p_email);
+    OR length(p_data->>'release_text')>500$b$);
+  patched := replace(patched, $a$-'release_text'$a$, $b$-'release_text'-'participants_url'$b$);
+  patched := replace(patched, $a$'release_text',p_data->>'release_text',$a$, $b$'release_text',p_data->>'release_text','participants_url',p_data->>'participants_url',$b$);
+  IF patched NOT LIKE '%''participants_needed''%' OR patched NOT LIKE '%OR length(p_data->>''participants_url'')>2048%'
+     OR patched NOT LIKE '%-''participants_url''%' OR patched NOT LIKE '%''participants_url'',p_data->>''participants_url''%' THEN
+    RAISE EXCEPTION 'prepare_event_mail has an unexpected shape';
+  END IF;
+  EXECUTE patched;
 END $$;
-REVOKE ALL ON FUNCTION public.prepare_event_mail(text,jsonb) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.prepare_event_mail(text,jsonb) TO service_role;
