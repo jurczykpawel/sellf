@@ -67,7 +67,7 @@ afterAll(async () => {
 });
 
 describe('licenses API v1', () => {
-  it('issues a verifiable license, mails the buyer the key and announces license.issued @J190', async () => {
+  it('issues a verifiable license, mails the buyer the key and announces license.issued @J197', async () => {
     const email = `w133-buyer-${randomUUID()}@example.com`;
     const created = await call(keys.write, '', { method: 'POST', body: JSON.stringify({ productId: product, email }) });
     expect(created.status).toBe(201);

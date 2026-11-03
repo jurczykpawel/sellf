@@ -94,6 +94,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
   },
   ...Object.fromEntries(['granted', 'updated', 'revoked', 'expired'].map(status => [`access.${status}`, {
     ...ACCESS_SAMPLE, occurredAt: status === 'expired' ? ACCESS_SAMPLE.accessExpiresAt : '2099-01-01T00:00:00Z', reason: status === 'expired' ? 'expired' : 'access_change',
+    ...(status === 'granted' || status === 'updated' ? { grantSource: 'purchase' } : {}),
     access: { id: '00000000-0000-4000-8000-000000000004', grantedAt: ACCESS_SAMPLE.accessGrantedAt, expiresAt: ACCESS_SAMPLE.accessExpiresAt,
       expiredAt: status === 'expired' ? ACCESS_SAMPLE.accessExpiresAt : null, revokedAt: status === 'revoked' ? '2099-01-04T00:00:00Z' : null,
       statusBefore: status === 'granted' ? 'none' : 'active', statusAfter: status === 'expired' || status === 'revoked' ? status : 'active' },

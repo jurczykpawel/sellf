@@ -3676,7 +3676,116 @@
       ]
     },
     {
-      "id": "J188",
+      "id": "J190",
+      "title": "Seller sees every kind of order on the Payments page",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "free",
+        "payment": "none",
+        "moment": "after_grant",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Free claims, manual grants and lead sign-ups appear to the seller as orders.",
+        "seller": "Orders tab lists paid, transfer, free, manual, subscription and lead entries by recorded grant source, with type/status filters and cursor paging.",
+        "integrator": "GET /api/admin/orders returns the same classified list (admin session)."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "browser"
+      ]
+    },
+    {
+      "id": "J191",
+      "title": "Seller opens an order by its number or a direct link",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_navigation",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "The order can be found by the number from the buyer's confirmation.",
+        "seller": "Searching 1300 or opening /dashboard/payments?order=1300 opens that order's details.",
+        "integrator": "GET /api/v1/payments?search=1300 matches the order number."
+      },
+      "status": "automated",
+      "layers": [
+        "http",
+        "browser"
+      ]
+    },
+    {
+      "id": "J192",
+      "title": "Seller refunds part of a card payment",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "refund",
+        "moment": "after_payment",
+        "operation": "refund"
+      },
+      "end_state": {
+        "buyer": "Stripe test mode records the entered partial refund and then the remainder.",
+        "seller": "Refund dialog accepts an amount up to what remains and blocks more.",
+        "integrator": "Not exercised (existing refund webhook path unchanged)."
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "browser",
+        "sandbox"
+      ]
+    },
+    {
+      "id": "J193",
+      "title": "Seller issues a license from the sales area",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "license",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "issue_license"
+      },
+      "end_state": {
+        "buyer": "Not exercised (issuance logic unchanged).",
+        "seller": "Order details link to Sales > Licenses prefilled with buyer and product; Settings no longer hosts issuance.",
+        "integrator": "Not exercised (license webhooks unchanged)."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J194",
+      "title": "Seller navigates a grouped admin menu",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_navigation",
+        "operation": "browse"
+      },
+      "end_state": {
+        "buyer": "Not exercised.",
+        "seller": "Sidebar groups links into Sales & reports, Products and System.",
+        "integrator": "Not exercised."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J195",
       "title": "License issued during an open dispute is born revoked",
       "values": {
         "persona": "integrator",
@@ -3697,7 +3806,7 @@
       }
     },
     {
-      "id": "J189",
+      "id": "J196",
       "title": "Lapsed license notifies the integrator once",
       "values": {
         "persona": "integrator",
@@ -3718,7 +3827,7 @@
       }
     },
     {
-      "id": "J190",
+      "id": "J197",
       "title": "Integrator issues a license through API v1 and the buyer gets it by mail",
       "values": {
         "persona": "integrator",
@@ -3739,7 +3848,7 @@
       }
     },
     {
-      "id": "J191",
+      "id": "J198",
       "title": "Dispute opened before the payment was stored is applied at fulfillment",
       "values": {
         "persona": "integrator",
@@ -3760,7 +3869,7 @@
       }
     },
     {
-      "id": "J192",
+      "id": "J199",
       "title": "Buyer sees a revoked or expired license as not working",
       "values": {
         "persona": "signed_in",
@@ -3983,13 +4092,13 @@
     {
       "id": "E34",
       "source": "W123 B1 / W133: license issued after dispute handling",
-      "journey": "J188",
+      "journey": "J195",
       "why_missed": "Dispute tests created licenses before the dispute; the reverse order (payment, dispute, then issuance) was never exercised."
     },
     {
       "id": "E35",
       "source": "W129 on TEST 0d292a45: revoked key shown as working",
-      "journey": "J192",
+      "journey": "J199",
       "why_missed": "Buyer page tests only covered active and expired licenses; revocation was verified via CRL, never in the buyer view."
     }
   ]

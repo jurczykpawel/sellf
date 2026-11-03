@@ -37,7 +37,7 @@ const events = (type: string) => `(SELECT count(*) FROM public.business_events W
 const revokedByDispute = (id: string) => `EXISTS(SELECT 1 FROM public.issued_licenses WHERE id='${license}' AND revoked_at IS NOT NULL AND revoked_by_dispute_id='${id}')`;
 
 describe('license after dispute (B1)', () => {
-  it('a license issued during an open dispute is revoked by it and returns after won @J188', () => {
+  it('a license issued during an open dispute is revoked by it and returns after won @J195', () => {
     expect(() => run(`${apply(created)}${issue()}
       ${assert(revokedByDispute(created.data.object.id), 'License issued during a dispute must be revoked by it')}
       ${assert(`(SELECT revoked_license_ids='{${license}}'::uuid[] FROM public.payment_disputes WHERE stripe_dispute_id='${created.data.object.id}')`, 'Dispute must own the license')}
@@ -63,7 +63,7 @@ describe('license after dispute (B1)', () => {
 });
 
 describe('license expiry events', () => {
-  it('notifies one expiry per lapsed active license @J189', () => {
+  it('notifies one expiry per lapsed active license @J196', () => {
     expect(() => run(`${issue("now()-interval '1 minute'")}
       ${issue("now()-interval '1 minute'", 'e1330000-0000-4000-a000-000000000005', 'revoked_order')}
       SELECT public.revoke_issued_licenses(ARRAY['e1330000-0000-4000-a000-000000000005'::uuid]);

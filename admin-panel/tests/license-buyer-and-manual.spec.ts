@@ -36,7 +36,7 @@ test.afterAll(async () => {
   cleanups = [];
 });
 
-test('buyer sees a valid, expired and revoked license for what it is @J192', async ({ page }) => {
+test('buyer sees a valid, expired and revoked license for what it is @J199', async ({ page }) => {
   const buyer = await createTestUser('w133-e2e-buyer');
   cleanups.push(buyer.cleanup);
   expect((await db.from('user_product_access').insert({ user_id: buyer.userId, product_id: product })).error).toBeNull();
