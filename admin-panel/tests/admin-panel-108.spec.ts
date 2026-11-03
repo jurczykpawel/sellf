@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { createTestAdmin, setAuthSession, supabaseAdmin as db } from './helpers/admin-auth';
 
-test('seller opens an order straight from its link and sees the Orders tab without horizontal scroll @J161 @J160', async ({ page }) => {
+test('seller opens an order straight from its link and sees the Orders tab without horizontal scroll @J191 @J190', async ({ page }) => {
   const admin = await createTestAdmin('w135-orders');
   const run = randomUUID().replaceAll('-', '');
   const product = await db.from('products').insert({ name: `W135 ${run}`, slug: `w135-${run}`, price: 49, currency: 'PLN', is_active: true }).select('id').single();
@@ -44,7 +44,7 @@ test('seller opens an order straight from its link and sees the Orders tab witho
   }
 });
 
-test('grouped menu leads to Sales > Licenses and keeps the pinned state @J164 @J163', async ({ page }) => {
+test('grouped menu leads to Sales > Licenses and keeps the pinned state @J194 @J193', async ({ page }) => {
   const admin = await createTestAdmin('w135-nav');
   try {
     await setAuthSession(page, admin.email, admin.password);

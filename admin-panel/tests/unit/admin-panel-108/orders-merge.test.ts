@@ -7,7 +7,7 @@ const products = new Map([
   ['p-free', { name: 'Poradnik', slug: 'poradnik', price: 0 }],
 ]);
 
-describe('mergeOrders @J160', () => {
+describe('mergeOrders @J190', () => {
   const rows = mergeOrders({
     transactions: [
       { id: 't1', order_number: 1300, customer_email: 'a@x.pl', user_id: 'u1', product_id: 'p-paid', amount: 9900, currency: 'pln', status: 'completed', payment_provider: 'stripe', created_at: '2026-11-01T10:00:00Z' },

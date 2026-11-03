@@ -2,8 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { ADMIN_NAV_GROUPS } from '@/lib/navigation/admin-nav';
 
-describe('admin navigation groups @J164', () => {
-  it('has three groups in the owner-proposed order @J164', () => {
+describe('admin navigation groups @J194', () => {
+  it('has three groups in the owner-proposed order @J194', () => {
     expect(ADMIN_NAV_GROUPS.map(g => g.id)).toEqual(['sales', 'products', 'system']);
   });
   it('places sales handling, catalogue and system links in their groups', () => {

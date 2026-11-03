@@ -33,7 +33,7 @@ const fetchMock = (orders: unknown[]) => vi.fn(async (url: string) => ({
   ok: true, json: async () => (String(url).startsWith('/api/admin/orders') ? { orders, limit: 200 } : []),
 }));
 
-it('opens the order number from the URL @J161', async () => {
+it('opens the order number from the URL @J191', async () => {
   params.value = new URLSearchParams('order=1300');
   vi.stubGlobal('fetch', fetchMock([]));
   page.mockResolvedValue({ transactions: [{ id: 'tx-a', order_number: 1300 }], nextCursor: null, hasMore: false });
@@ -42,7 +42,7 @@ it('opens the order number from the URL @J161', async () => {
   expect(screen.getByTestId('tx').textContent).toBe('tx-a');
 });
 
-it('lists all orders with a type filter on the Orders tab @J160', async () => {
+it('lists all orders with a type filter on the Orders tab @J190', async () => {
   const fetch = fetchMock([
     { id: 'access:a2', type: 'free', status: 'active', createdAt: '2026-11-01T10:00:00Z', orderNumber: null, email: 'free@x.pl', productName: 'Poradnik', productId: 'p', productSlug: 'p', amount: null, currency: null, transactionId: null },
     { id: 'tx:t1', type: 'paid', status: 'completed', createdAt: '2026-11-02T10:00:00Z', orderNumber: 1300, email: 'a@x.pl', productName: 'Kurs', productId: 'p2', productSlug: 'k', amount: 9900, currency: 'pln', transactionId: 't1' },

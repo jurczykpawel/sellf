@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseRefundAmountInput } from '@/lib/refunds/refund-amount';
 
-describe('parseRefundAmountInput @J162', () => {
+describe('parseRefundAmountInput @J192', () => {
   it('empty input means a full refund of the remaining amount', () => {
     expect(parseRefundAmountInput('', 7000, 'PLN')).toEqual({ ok: true, amountMinor: 7000, partial: false });
   });
@@ -12,7 +12,7 @@ describe('parseRefundAmountInput @J162', () => {
   it('treats the exact remaining amount as full', () => {
     expect(parseRefundAmountInput('70.00', 7000, 'PLN')).toEqual({ ok: true, amountMinor: 7000, partial: false });
   });
-  it('rejects more than the remaining amount @J162', () => {
+  it('rejects more than the remaining amount @J192', () => {
     expect(parseRefundAmountInput('70.01', 7000, 'PLN')).toEqual({ ok: false, error: 'exceedsRemaining' });
   });
   it('rejects zero, negatives, garbage and sub-minor precision', () => {

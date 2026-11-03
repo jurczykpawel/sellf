@@ -97,7 +97,7 @@ describe('GET /api/admin/orders', () => {
     for (const id of created.users) await supabase.auth.admin.deleteUser(id);
   });
 
-  it('lists paid, transfer, free, manual and lead entries for the seller @J160', async () => {
+  it('lists paid, transfer, free, manual and lead entries for the seller @J190', async () => {
     const { status, body } = await list(`search=${encodeURIComponent(tag)}`);
     expect(status).toBe(200);
     const summary = body.orders!.map(o => [o.email, o.type, o.status]).sort();
@@ -110,14 +110,14 @@ describe('GET /api/admin/orders', () => {
     ].sort());
   });
 
-  it('filters by type and finds an order by number @J160', async () => {
+  it('filters by type and finds an order by number @J190', async () => {
     const leads = await list(`type=lead&search=${encodeURIComponent(tag)}`);
     expect(leads.body.orders!.map(o => o.type)).toEqual(['lead']);
     const byNumber = await list(`search=${paidOrderNumber}`);
     expect(byNumber.body.orders!.map(o => o.orderNumber)).toEqual([paidOrderNumber]);
   });
 
-  it('rejects anonymous callers and invalid filters @J160', async () => {
+  it('rejects anonymous callers and invalid filters @J190', async () => {
     expect((await list('', '')).status).toBe(401);
     expect((await list('type=everything')).status).toBe(400);
   });

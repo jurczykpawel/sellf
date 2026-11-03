@@ -5,8 +5,8 @@ import { buildPaymentSearchFilter, parseOrderNumberQuery } from '@/lib/payments/
 
 const supabase = { from: () => ({ select: () => ({ or: () => ({ limit: async () => ({ data: [], error: null }) }) }) }) } as unknown as SupabaseClient;
 
-describe('order number search @J161', () => {
-  it('parses plain and hash-prefixed numbers only @J161', () => {
+describe('order number search @J191', () => {
+  it('parses plain and hash-prefixed numbers only @J191', () => {
     expect(parseOrderNumberQuery('1300')).toBe(1300);
     expect(parseOrderNumberQuery(' #1300 ')).toBe(1300);
     expect(parseOrderNumberQuery('1300abc')).toBeNull();

@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest';
 
 const src = (p: string) => resolve(__dirname, '../../../src', p);
 
-describe('license issuance placement @J163', () => {
-  it('settings no longer render issued product licenses @J163', () => {
+describe('license issuance placement @J193', () => {
+  it('settings no longer render issued product licenses @J193', () => {
     expect(readFileSync(src('components/settings/SettingsTabs.tsx'), 'utf-8')).not.toContain('IssuedLicensesSettings');
   });
   it('a sales-section licenses page renders them for platform admins, prefilled from the URL', () => {

@@ -29,7 +29,7 @@ const tx = {
   created_at: '2026-11-01T10:00:00Z', line_items: [], metadata: {},
 } as unknown as PaymentTransaction;
 
-it('shows the order number and opens the order given in the URL @J161 @J163', () => {
+it('shows the order number and opens the order given in the URL @J191 @J193', () => {
   render(createElement(PaymentTransactionsTable, { transactions: [tx], initialDetailsId: tx.id }));
   expect(screen.getAllByText('#1300').length).toBeGreaterThan(0);
   expect(screen.getByText('transactionDetails')).toBeTruthy();
@@ -37,7 +37,7 @@ it('shows the order number and opens the order given in the URL @J161 @J163', ()
   expect(link.getAttribute('href')).toBe('/dashboard/licenses?email=jan%40example.com&product=prod-1');
 });
 
-it('refunds a partial amount and blocks more than what remains @J162', async () => {
+it('refunds a partial amount and blocks more than what remains @J192', async () => {
   processRefund.mockResolvedValue({ success: true, message: 'ok' });
   render(createElement(PaymentTransactionsTable, { transactions: [tx] }));
   fireEvent.click(screen.getByText('refund'));

@@ -349,7 +349,7 @@ describe('Payments API v1', () => {
       }
     });
 
-    it('finds a payment by its order number, with or without # @J161', async () => {
+    it('finds a payment by its order number, with or without # @J191', async () => {
       for (const query of [String(needleOrderNumber), `#${needleOrderNumber}`]) {
         const { status, data } = await get<ApiResponse<Payment[]>>(`/api/v1/payments?search=${encodeURIComponent(query)}`);
         expect(status).toBe(200);
