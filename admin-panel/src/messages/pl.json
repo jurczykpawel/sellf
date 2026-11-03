@@ -6201,11 +6201,20 @@
         },
         "table": {
           "title": "Lista płatności",
-          "body": "Zakładka Transakcje pokazuje płatności ze statusem: zakończona, oczekuje na przelew, zwrócona, częściowo zwrócona lub sporna. Zakładka Sesje to rozpoczęte, nieukończone koszyki."
+          "body": "Trzy zakładki: Transakcje płatnicze ze statusem (zakończona, oczekuje na przelew, zwrócona, częściowo zwrócona, sporna), Zamówienia ze wszystkimi rodzajami zakupów oraz Sesje checkout, czyli rozpoczęte i nieukończone koszyki."
         },
         "details": {
-          "title": "Szczegóły zamówienia",
+          "title": "Szczegóły transakcji",
           "body": "Przycisk Szczegóły otwiera okno z pozycjami, źródłem zakupu, fakturą i akcjami, takimi jak rozliczenie przelewu. Zwrot ma osobny przycisk w wierszu."
+        },
+        "ordersTab": {
+          "title": "Zakładka Zamówienia",
+          "body": "Zamówienia zbierają w jednym miejscu wszystkie rodzaje zakupów: płatne, przelewy, darmowe, nadane ręcznie i subskrypcje.",
+          "bodyAct": "Kliknij zakładkę Zamówienia, aby zobaczyć listę wszystkich zamówień."
+        },
+        "ordersFilters": {
+          "title": "Filtry zamówień",
+          "body": "Zawęź listę do typu zamówienia i statusu, a numer zamówienia otwiera jego szczegóły, z których rozliczysz przelew albo wystawisz zwrot."
         }
       }
     }

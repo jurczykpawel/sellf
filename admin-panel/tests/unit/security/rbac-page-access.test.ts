@@ -438,6 +438,8 @@ describe('All server action files have auth wrappers', () => {
     'profile.ts',
     // User preferences — session-based auth (getUser), not admin
     'preferences.ts',
+    // Tutorial progress — session-based (getUser), rows are scoped to the caller by RLS
+    'tutorial-progress.ts',
     // Analytics — uses withAdminClient with schema-scoped dataClient
     // Stripe tax status — read-only Stripe API check, no mutations
     'stripe-tax.ts',
@@ -540,6 +542,7 @@ describe('All server action files have auth wrappers', () => {
       'stripe-tax.ts',
       'tags.ts',
       'theme.ts',
+      'tutorial-progress.ts',
       'storefront-legacy-theme.ts',
       'storefront-templates.ts',
       'validate-email.ts',

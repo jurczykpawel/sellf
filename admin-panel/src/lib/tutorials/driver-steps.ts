@@ -22,7 +22,7 @@ export function buildTourSteps(def: TutorialDef, text: (key: string) => string, 
     return {
       ...('target' in step && step.target ? { element: tourSelector(step.target) } : {}),
       ...(revealedByClick ? { waitForElement: REVEAL_WAIT_MS } : {}),
-      ...(prompt ? { advanceOnClick: true, disableActiveInteraction: false } : {}),
+      ...(prompt ? { disableActiveInteraction: false } : {}),
       popover: {
         title: escapeHtml(text(`steps.${step.key}.title`)),
         description: escapeHtml(text(`steps.${step.key}.${prompt ? 'bodyAct' : 'body'}`)),

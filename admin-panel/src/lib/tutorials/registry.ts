@@ -88,7 +88,7 @@ export const TUTORIALS = {
       { key: 'member', target: 'affiliates-member' }],
   },
   licenses: {
-    href: '/dashboard/settings?tab=license',
+    href: '/dashboard/licenses',
     steps: [intro,
       { key: 'issue', target: 'licenses-issue' },
       { key: 'filters', target: 'licenses-filters' },
@@ -108,7 +108,9 @@ export const TUTORIALS = {
       { key: 'stats', target: 'payments-stats' },
       { key: 'filters', target: 'payments-filters' },
       { key: 'table', target: 'payments-table' },
-      { key: 'details', target: 'payments-details' }],
+      { key: 'details', target: 'payments-details' },
+      { key: 'ordersTab', target: 'payments-orders-tab', requires: 'orders-filters' },
+      { key: 'ordersFilters', target: 'orders-filters' }],
   },
 } as const satisfies Record<string, TutorialDef>;
 

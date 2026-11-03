@@ -275,6 +275,7 @@ export default function PaymentsDashboard() {
                 key={id}
                 type="button"
                 role="tab"
+                data-tour={id === 'orders' ? 'payments-orders-tab' : undefined}
                 aria-selected={activeTab === id}
                 onClick={() => setActiveTab(id)}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${

@@ -6201,11 +6201,20 @@
         },
         "table": {
           "title": "Payment list",
-          "body": "The Transactions tab lists payments with their status: completed, awaiting transfer, refunded, partially refunded or disputed. The Sessions tab shows carts that were started and not completed."
+          "body": "Three tabs: payment transactions with their status (completed, awaiting transfer, refunded, partially refunded, disputed), Orders with every kind of purchase, and checkout sessions, meaning carts that were started and not completed."
         },
         "details": {
-          "title": "Order details",
+          "title": "Transaction details",
           "body": "The Details button opens items, the purchase source, the invoice and actions such as settling a transfer. A refund has its own button in the row."
+        },
+        "ordersTab": {
+          "title": "The Orders tab",
+          "body": "Orders gather every kind of purchase in one place: paid, bank transfer, free, granted by hand and subscriptions.",
+          "bodyAct": "Click the Orders tab to see the list of all orders."
+        },
+        "ordersFilters": {
+          "title": "Order filters",
+          "body": "Narrow the list by order type and status, and an order number opens its details, from which you settle a transfer or issue a refund."
         }
       }
     }

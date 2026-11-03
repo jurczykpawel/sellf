@@ -28,7 +28,6 @@ describe('tour steps', () => {
   it('turns a step into a click prompt while the element it reveals is missing', () => {
     const steps = buildTourSteps(def, text, target => target === 'x-fields');
     expect(steps[1].popover?.description).toBe('T[steps.toggle.bodyAct]');
-    expect(steps[1].advanceOnClick).toBe(true);
     expect(steps[1].disableActiveInteraction).toBe(false);
   });
 
@@ -39,7 +38,6 @@ describe('tour steps', () => {
 
   it('keeps the highlighted control inert once it only informs', () => {
     const steps = buildTourSteps(def, text, () => false);
-    expect(steps[1].advanceOnClick).toBeFalsy();
     expect(steps[1].disableActiveInteraction).toBeUndefined();
   });
 });

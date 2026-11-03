@@ -92,7 +92,6 @@ test('business cart tutorial starts when the custom cart is switched on and its 
 });
 
 test('event tutorial leads from switching on event mode to adding a date and a price tier @J213', async ({ page }) => {
-  page.on('console', m => { if (m.text().includes('tutorials-debug')) console.log('BROWSER', m.text()); });
   const session = await admin(page, 'tour-events');
   const product = await productFixture('Wydarzenie samouczek');
   await openSalesSettings(page, product.name);
@@ -153,7 +152,7 @@ test('affiliate programme tutorial introduces the programme screens @J216', asyn
 
 test('license tutorial covers issuing and managing product licenses @J217', async ({ page }) => {
   const session = await admin(page, 'tour-licenses');
-  await page.goto('/pl/dashboard/settings?tab=license');
+  await page.goto('/pl/dashboard/licenses');
   await walk(page, 'licenses', ['intro', 'issue', 'filters', 'table']);
   await expect.poll(() => seenTutorials(session.userId)).toEqual(['licenses']);
 });
@@ -171,7 +170,7 @@ test('payments tutorial walks the list and points at the order details @J219', a
   const row = await checked(await db.from('payment_transactions').insert({ session_id: `cs_test_tour_${Date.now()}`, product_id: product.id, customer_email: `tour-pay-${randomUUID()}@example.com`, amount: 5000, currency: 'PLN', status: 'completed', stripe_payment_intent_id: `pi_test_tour_${Date.now()}` }).select('id').single());
   cleanups.push(() => db.from('payment_transactions').delete().eq('id', row.id));
   await page.goto('/pl/dashboard/payments');
-  await walk(page, 'payments-orders', ['intro', 'stats', 'filters', 'table', 'details']);
+  await walk(page, 'payments-orders', ['intro', 'stats', 'filters', 'table', 'details', 'ordersTab', 'ordersFilters'], { ordersTab: () => page.getByRole('tab', { name: 'Zamówienia' }).click() });
   await expect.poll(() => seenTutorials(session.userId)).toEqual(['payments-orders']);
 });
 

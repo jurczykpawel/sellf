@@ -5,6 +5,7 @@ import 'driver.js/dist/driver.css';
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import type { Driver } from 'driver.js';
 import { markTutorialSeen } from '@/lib/actions/tutorial-progress';
 import { buildTourSteps, tourSelector } from '@/lib/tutorials/driver-steps';
 import { TUTORIALS } from '@/lib/tutorials/registry';
@@ -13,6 +14,10 @@ import type { TutorialId } from '@/lib/tutorials/registry';
 const AUTO_START_DELAY_MS = 600;
 /** A click that reveals the next element re-renders after the click handler returns. */
 const REVEAL_GRACE_MS = 600;
+
+function requestedTutorial(): string | null {
+  return new URLSearchParams(window.location.search).get('tutorial');
+}
 
 function appears(target: string, timeoutMs: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -28,8 +33,10 @@ function appears(target: string, timeoutMs: number): Promise<boolean> {
 interface TutorialContextValue {
   /** Tutorials whose screen is currently open. */
   available: readonly TutorialId[];
-  /** `auto`: start the tutorial on its own when the user has not seen it yet. */
-  register(id: TutorialId, auto: boolean): () => void;
+  /** Lists the tutorial as available while its screen is open; `?tutorial=<id>` starts it on request. */
+  register(id: TutorialId): () => void;
+  /** Starts the tutorial on its own once the user has not seen it yet. */
+  autoStart(id: TutorialId): () => void;
   start(id: TutorialId): void;
 }
 
@@ -56,6 +63,16 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
     const text = (key: string) => translate.current(`${id}.${key}`);
     const isMissing = (target: string) => !document.querySelector(tourSelector(target));
     const definition = TUTORIALS[id];
+    const advance = async (instance: Driver, state: ReturnType<Driver['getState']>) => {
+      const current = definition.steps[state.activeIndex ?? -1];
+      const required = current && 'requires' in current ? current.requires : undefined;
+      if (required && !(await appears(required, REVEAL_GRACE_MS))) {
+        const description = state.popover?.description;
+        if (description) description.textContent = translate.current('mustAct');
+        return;
+      }
+      instance.moveNext();
+    };
     const tour = driver({
       steps: buildTourSteps(definition, text, isMissing),
       showProgress: true,
@@ -73,16 +90,12 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
       skipMissingElement: true,
       animate: false,
       smoothScroll: false,
-      onNextClick: async (_element, _step, { driver: instance, state }) => {
-        console.debug('[tutorials-debug] next', state.activeIndex);
+      onNextClick: (_element, _step, { driver: instance, state }) => advance(instance, state),
+      onHighlighted: (element, _step, { driver: instance, state }) => {
         const current = definition.steps[state.activeIndex ?? -1];
-        const required = current && 'requires' in current ? current.requires : undefined;
-        if (required && !(await appears(required, REVEAL_GRACE_MS))) {
-          const description = state.popover?.description;
-          if (description) description.textContent = translate.current('mustAct');
-          return;
-        }
-        instance.moveNext();
+        if (!element || !current || !('requires' in current) || !current.requires || !isMissing(current.requires)) return;
+        const proceed = () => { element.removeEventListener('click', proceed, true); if (instance.getActiveElement() === element) void advance(instance, instance.getState()); };
+        element.addEventListener('click', proceed, true);
       },
       onDestroyed: () => { layoutWatch.disconnect(); active.current = null; },
     });
@@ -105,18 +118,15 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
   const runRef = useRef(run);
   runRef.current = run;
 
-  const register = useCallback((id: TutorialId, auto: boolean) => {
+  const register = useCallback((id: TutorialId) => {
     setAvailable(current => [...current, id]);
-    const requested = new URLSearchParams(window.location.search).get('tutorial') === id;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    if (requested || (auto && autoStart && !seen.current.has(id))) {
+    if (requestedTutorial() === id) {
       timer = setTimeout(() => {
-        if (requested) {
-          const url = new URL(window.location.href);
-          url.searchParams.delete('tutorial');
-          window.history.replaceState(window.history.state, '', url);
-        }
-        void runRef.current(id, !requested && !seen.current.has(id));
+        const url = new URL(window.location.href);
+        url.searchParams.delete('tutorial');
+        window.history.replaceState(window.history.state, '', url);
+        void runRef.current(id, false);
       }, AUTO_START_DELAY_MS);
     }
     return () => {
@@ -124,10 +134,16 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
       setAvailable(current => { const next = [...current]; const index = next.indexOf(id); if (index >= 0) next.splice(index, 1); return next; });
       if (active.current?.id === id) active.current.destroy();
     };
+  }, []);
+
+  const autoStartTutorial = useCallback((id: TutorialId) => {
+    if (!autoStart || seen.current.has(id) || requestedTutorial() === id) return () => {};
+    const timer = setTimeout(() => { if (!seen.current.has(id)) void runRef.current(id, true); }, AUTO_START_DELAY_MS);
+    return () => clearTimeout(timer);
   }, [autoStart]);
 
   const start = useCallback((id: TutorialId) => { void runRef.current(id, false); }, []);
-  const value = useMemo(() => ({ available, register, start }), [available, register, start]);
+  const value = useMemo(() => ({ available, register, autoStart: autoStartTutorial, start }), [available, register, autoStartTutorial, start]);
 
   return <TutorialContext.Provider value={value}>{children}</TutorialContext.Provider>;
 }

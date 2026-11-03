@@ -31,13 +31,15 @@ export async function seenTutorials(userId: string): Promise<string[]> {
   return (data ?? []).map(row => row.tutorial_id).sort();
 }
 
-/** Clicks Next through the given steps in order; the highlighted element of every step except the first must be on screen. */
-export async function walk(page: Page, tutorial: string, keys: string[]): Promise<void> {
+/** Clicks Next through the given steps in order; the highlighted element of every step except the first must be on screen. A step listed in `acts` is a click prompt: the act replaces Next. */
+export async function walk(page: Page, tutorial: string, keys: string[], acts: Record<string, () => Promise<void>> = {}): Promise<void> {
   for (const [index, key] of keys.entries()) {
-    await expect(popoverTitle(page)).toHaveText(stepText(tutorial, key).title);
-    await expect(popover(page).locator('.driver-popover-description')).toHaveText(stepText(tutorial, key).body);
+    const text = stepText(tutorial, key);
+    await expect(popoverTitle(page)).toHaveText(text.title);
+    await expect(popover(page).locator('.driver-popover-description')).toHaveText(acts[key] ? text.bodyAct! : text.body);
     if (index > 0) await expect(page.locator('.driver-active-element').first()).toBeInViewport();
-    await popover(page).locator('.driver-popover-next-btn').click();
+    if (acts[key]) await acts[key]();
+    else await popover(page).locator('.driver-popover-next-btn').click();
   }
   await expect(popover(page)).toHaveCount(0);
 }

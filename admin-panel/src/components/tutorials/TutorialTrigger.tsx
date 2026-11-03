@@ -8,6 +8,8 @@ import type { TutorialId } from '@/lib/tutorials/registry';
 export default function TutorialTrigger({ id, auto = true }: { id: TutorialId; auto?: boolean }) {
   const tutorials = useTutorials();
   const register = tutorials?.register;
-  useEffect(() => register?.(id, auto), [register, id, auto]);
+  const autoStart = tutorials?.autoStart;
+  useEffect(() => register?.(id), [register, id]);
+  useEffect(() => (auto ? autoStart?.(id) : undefined), [autoStart, id, auto]);
   return null;
 }
