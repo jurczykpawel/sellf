@@ -107,7 +107,7 @@ Ustaw w dashboardzie Supabase lub przez API:
 | Pole | Wartość |
 |------|---------|
 | `mailer_subjects_magic_link` | `{{ if eq .Data.locale "en" }}Your sign-in link{{ else }}Twój link do logowania{{ end }}` |
-| `mailer_subjects_confirmation` | `{{ if eq .Data.locale "en" }}Confirm your email{{ else }}Potwierdź swój email{{ end }}` |
+| `mailer_subjects_confirmation` | `{{ if eq .Data.locale "en" }}Confirm your email{{ else }}Potwierdź swój email{{ end }}{{ if .Data.purchase_product }}: {{ .Data.purchase_product }}{{ end }}` (full value with the other mail kinds: see above) |
 | `mailer_subjects_recovery` | `Zresetuj hasło - Sellf` |
 | `mailer_subjects_email_change` | `Potwierdź zmianę email - Sellf` |
 | `mailer_subjects_invite` | `Zaproszenie do Sellf` |

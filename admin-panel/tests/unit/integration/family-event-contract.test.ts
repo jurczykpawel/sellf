@@ -29,7 +29,7 @@ const FAMILY = ['invoicing.issued', 'invoicing.failed', 'invoicing.corrected', '
   'payout.reserved', 'payout.paid', 'payout.cancelled', 'refund.requested', 'refund.request_approved', 'refund.request_rejected',
   'refund.request_cancelled', 'product.published', 'product.unpublished', 'product.price_changed', 'product.sold_out'];
 const cronSecret = crypto.randomUUID();
-const users: string[] = [], products: string[] = [];
+const users: string[] = [], products: string[] = [], orders: string[] = [];
 let endpointId: string, receiver: Awaited<ReturnType<typeof webhookReceiver>>;
 function sql(query: string): string {
   return execFileSync('docker', ['exec', getTestDatabaseContainer(), 'psql', '-U', 'postgres', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', query], { encoding: 'utf8' }).trim();
@@ -47,6 +47,11 @@ beforeAll(async () => {
 afterAll(async () => {
   await db.from('webhook_logs').delete().eq('endpoint_id', endpointId);
   await db.from('webhook_endpoints').delete().eq('id', endpointId);
+  // Orders and products tied to affiliate accounting (ledger, commissions, rules) are immutable by
+  // design and stay; everything else is removed so later suites start from a clean database.
+  if (orders.length) sql(`DELETE FROM public.invoices WHERE transaction_id IN (${orders.map(id => `'${id}'`).join(',')})`);
+  for (const id of orders) await db.from('payment_transactions').delete().eq('id', id);
+  for (const id of products) await db.from('products').delete().eq('id', id);
   for (const id of users) await db.auth.admin.deleteUser(id);
   await receiver.close(); vi.unstubAllEnvs();
 });
@@ -61,7 +66,7 @@ async function buyer() {
 }
 async function order(productId: string, userId: string | null, email: string, amount = 4900) {
   const r = await db.from('payment_transactions').insert({ product_id: productId, user_id: userId, customer_email: email, amount, currency: 'PLN', status: 'completed', session_id: `cs_family_${crypto.randomUUID().replaceAll("-", "")}` }).select('id,order_number').single();
-  expect(r.error).toBeNull(); return r.data!;
+  expect(r.error).toBeNull(); orders.push(r.data!.id); return r.data!;
 }
 
 it('tells the receiver when a sales invoice is issued, fails per attempt and is corrected, once per transition @J160', async () => {
