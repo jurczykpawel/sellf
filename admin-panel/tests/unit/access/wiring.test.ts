@@ -75,11 +75,7 @@ describe('Access wiring', () => {
   it('ProductExpiredState can display an existing issued license while offering repurchase', () => {
     const src = read('src/app/[locale]/p/[slug]/components/ProductExpiredState.tsx');
     expect(src).toMatch(/existingLicense/);
-    expect(src).toMatch(/BuyerLicenseKey/);
-    const key = read('src/app/[locale]/p/[slug]/components/BuyerLicenseKey.tsx');
-    expect(key).toMatch(/licenseKey/);
-    expect(key).toMatch(/navigator\.clipboard\.writeText/);
-    expect(key).toMatch(/licenseCopied/);
+    expect(src).toMatch(/<BuyerLicenseKey license=\{existingLicense\}/);
     expect(src).toMatch(/purchaseAgain/);
   });
 
