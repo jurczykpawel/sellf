@@ -22,7 +22,7 @@ export default function BankTransferForm({ collectTermsOfService, termsAccepted:
   const t = useTranslations('bankTransfer'), ct = useTranslations('checkout'), locale = useLocale(), captcha = useCaptcha();
   const router = useRouter();
   const showTos = shouldShowTosCheckbox(collectTermsOfService, isGuest);
-  const [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   useEffect(() => { onProcessingChange?.(busy); }, [busy, onProcessingChange]);
   useEffect(() => () => onProcessingChange?.(false), [onProcessingChange]);
   async function submit(event: React.FormEvent) {
@@ -30,7 +30,9 @@ export default function BankTransferForm({ collectTermsOfService, termsAccepted:
     if (disabled || !captcha.token || busy || (showTos && !accepted)) return;
     const modules = validateCheckoutModules(product.checkout_profile, moduleValues, { locale, currency: product.currency, termsAccepted: accepted });
     onModuleErrors(modules.success ? [] : modules.errors);
-    if (!modules.success || !validateCustomFieldValues(fields, values, { requireAll: true }).ok) { setError(ct('profile.fixFields')); return; }
+    const answers = validateCustomFieldValues(fields, values, { requireAll: true });
+    setFieldErrors(answers.ok ? {} : answers.errors);
+    if (!modules.success || !answers.ok) { setError(ct('profile.fixFields')); return; }
     setBusy(true); setError('');
     try {
       const response = await fetch('/api/orders/bank-transfer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
@@ -38,13 +40,14 @@ export default function BankTransferForm({ collectTermsOfService, termsAccepted:
         customFieldValues: values, termsAccepted: accepted, captchaToken: captcha.token, locale,
       }) });
       const result = await response.json();
+      if (!response.ok && result.fieldErrors) { setFieldErrors(result.fieldErrors); setError(ct('profile.fixFields')); captcha.reset(); setBusy(false); return; }
       if (!response.ok) { setError(t(response.status === 429 ? 'limit' : 'orderError')); captcha.reset(); setBusy(false); return; }
       router.push(`${locale === 'pl' ? '/pl' : ''}/order/${encodeURIComponent(result.orderId)}/transfer?token=${encodeURIComponent(result.token)}`);
     } catch { setError(t('orderError')); captcha.reset(); setBusy(false); }
   }
   return <form onSubmit={submit} className="space-y-4 mt-4">
     <label className="block">Email<input type="email" required readOnly={lockedEmail} value={email} onChange={e => onEmailChange(e.target.value)} className="block w-full rounded-lg border border-sf-border bg-sf-input p-3" /></label>
-    <CustomCheckoutFieldsForm fields={fields} values={values} onChange={onValuesChange} disabled={busy} />
+    <CustomCheckoutFieldsForm fields={fields} values={values} onChange={next => { onValuesChange(next); if (Object.keys(fieldErrors).length) setFieldErrors({}); }} errors={fieldErrors} disabled={busy} />
     {showTos && <label className="flex gap-2"><input type="checkbox" required checked={accepted} onChange={e => setAccepted(e.target.checked)} /><span>{ct('iAgree')} <a className="underline" href={`${locale === 'pl' ? '/pl' : ''}/terms`} target="_blank" rel="noreferrer">{ct('termsOfService')}</a> {ct('and')} <a className="underline" href={`${locale === 'pl' ? '/pl' : ''}/privacy`} target="_blank" rel="noreferrer">{ct('privacyPolicy')}</a></span></label>}
     <AltchaWidget onVerify={captcha.onVerify} onError={captcha.onError} onTimeout={captcha.onTimeout} resetTrigger={captcha.resetTrigger} />
     {error && <p role="alert" className="text-sf-danger">{error}</p>}

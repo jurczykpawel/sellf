@@ -31,7 +31,7 @@ import { signLicense } from '@/lib/license-keys/format';
 import { verifySellfLicense } from '@/lib/license-keys/sdk';
 import { resolveCurrentTier } from '@/lib/license/resolve';
 import { verifyWebhookSignature } from '@/lib/services/webhook-queue/signature';
-import { waitForEmail, extractMagicLink } from '../../helpers/mailpit';
+import { waitForEmail, extractMagicLink, searchMessages } from '../../helpers/mailpit';
 
 interface LeadMessage {
   id: string;
@@ -77,7 +77,7 @@ afterAll(async () => {
   vi.unstubAllEnvs();
 });
 
-it.each((['magic-link', 'signed-in', 'pending'] as const).flatMap(flow => [false, true].map(requiredDomain => ({ flow, requiredDomain }))))('issues one registered license via $flow with requiredDomain=$requiredDomain @J13 @J14 @J15 @J16 @J17 @J18', async ({ flow, requiredDomain }) => {
+it.each((['magic-link', 'signed-in', 'pending'] as const).flatMap(flow => [false, true].map(requiredDomain => ({ flow, requiredDomain }))))('issues one registered license via $flow with requiredDomain=$requiredDomain @J13 @J14 @J15 @J16 @J17 @J18 @J193 @J194', async ({ flow, requiredDomain }) => {
   const email = `free-license-${crypto.randomUUID()}@example.com`, slug = `registered-${crypto.randomUUID()}`;
   const product = await db.from('products').insert({ name: 'Registered access', slug, price: 0, currency: 'PLN', is_active: true, seller_id: sellerId, auto_grant_duration_days: 3, issue_license_on_purchase: true, license_tier: 'registered', custom_checkout_fields: requiredDomain ? [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] : [] }).select('id').single(); expect(product.error).toBeNull(); const productId = product.data!.id; products.push(productId);
   expect((await db.from('webhook_endpoint_products').insert({ webhook_endpoint_id: endpointId, product_id: productId })).error).toBeNull();
@@ -93,6 +93,8 @@ it.each((['magic-link', 'signed-in', 'pending'] as const).flatMap(flow => [false
     expect(request.status).toBe(200);
     const mail = await waitForEmail(email), link = new URL(extractMagicLink(mail.HTML!)!);
     expect(mail.HTML?.includes('buyer-license.example.org')).toBe(false);
+    expect(mail.Subject).toBe('Potwierdź swój email: Registered access');
+    expect(mail.HTML).toContain('Registered access');
     productReturn = new URL(link.searchParams.get('redirect_to')!, process.env.SITE_URL).href;
     const verified = await state.client.auth.verifyOtp({ token_hash: link.searchParams.get('token_hash')!, type: 'signup' }); expect(verified.error).toBeNull(); users.push(verified.data.user!.id);
   }
@@ -110,6 +112,10 @@ it.each((['magic-link', 'signed-in', 'pending'] as const).flatMap(flow => [false
   expect(licenses.error).toBeNull(); expect(licenses.data?.length).toBe(1);
   const row = licenses.data![0], orderId = `free_${user.id}_${productId}`;
   expect({ orderId: row.order_id, userId: row.user_id, email: row.email, productId: row.product_id }).toEqual({ orderId, userId: user.id, email, productId });
+  await expect.poll(async () => (await waitForEmail(email)).HTML ?? '', { timeout: 15000 }).toContain(row.license_key);
+  const keyMail = await waitForEmail(email);
+  expect(keyMail.Subject).toContain('Registered access');
+  expect(decodeURIComponent(extractMagicLink(keyMail.HTML!)!)).toContain(`product=${slug}`);
   const jwks = await publicKeys(new NextRequest(`${process.env.SITE_URL}/api/licenses/jwks?seller=${sellerId}`)); expect(jwks.status).toBe(200);
   const verified = verifySellfLicense(row.license_key, { keys: (await jwks.json()).keys });
   expect(verified.valid).toBe(true);
@@ -125,7 +131,9 @@ it.each((['magic-link', 'signed-in', 'pending'] as const).flatMap(flow => [false
   const event = await db.from('business_events').select('payload').eq('event_type', 'access.granted').eq('product_id', productId);
   expect(event.error).toBeNull();
   expect((event.data![0].payload as { customFieldValues: unknown }).customFieldValues).toEqual(access.data!.custom_field_values);
+  const mailCount = (await searchMessages(email)).length;
   await submit();
+  expect((await searchMessages(email)).length).toBe(mailCount);
   await Promise.all([0, 1].map(() => issueLicense(db, { productId, userId: user.id, email, orderId, customFieldValues: requiredDomain ? { _sellf_license_domain: 'buyer-license.example.org' } : {} })));
   const repeated = await db.from('issued_licenses').select('id').eq('product_id', productId);
   expect(repeated.data).toEqual([{ id: row.id }]); expect(messages.filter(entry => entry.data.customer.email === email).length).toBe(1);
@@ -155,4 +163,17 @@ it('manual issuance accepts the required domain when it is supplied @J21', async
   const p = await db.from('products').insert({ name: 'Manual bound license', slug: `manual-domain-${crypto.randomUUID()}`, price: 0, currency: 'PLN', seller_id: sellerId, issue_license_on_purchase: true, license_tier: 'registered', custom_checkout_fields: [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] }).select('id').single(); expect(p.error).toBeNull(); products.push(p.data!.id);
   const result = await manualIssue(new NextRequest(`${process.env.SITE_URL}/api/admin/licenses`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId: p.data!.id, email: 'manual-buyer@example.com', domain: 'https://www.manual.example.org/path' }) }));
   expect(result.status).toBe(201); expect((await result.json()).license.claims.domain).toBe('manual.example.org');
+});
+
+it('answers a rejected checkout domain with the field to fix, never a generic failure @J190', async () => {
+  const slug = `bad-domain-${crypto.randomUUID()}`;
+  const product = await db.from('products').insert({ name: 'Domain answer', slug, price: 0, currency: 'PLN', is_active: true, seller_id: sellerId, issue_license_on_purchase: true, license_tier: 'registered', custom_checkout_fields: [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] }).select('id').single();
+  expect(product.error).toBeNull(); products.push(product.data!.id);
+  const email = `bad-domain-${crypto.randomUUID()}@example.com`;
+  const send = (value: string) => magicRequest(new Request(`${process.env.SITE_URL}/api/auth/magic-link`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, flow: 'free_product', productSlug: slug, locale: 'pl', captchaToken: 'owned-fixture', customFieldValues: { _sellf_license_domain: value } }) }));
+  for (const [value, code] of [['wsparcieirozwoj.orgcasdcvsfdv3r23tgervv', 'invalid_domain'], ['', 'required'], ['x'.repeat(254), 'too_long:253']] as const) {
+    const response = await send(value);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ ok: false, code: 'invalid_request', fieldErrors: { _sellf_license_domain: code } });
+  }
 });

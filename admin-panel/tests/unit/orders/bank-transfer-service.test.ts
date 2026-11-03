@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const trigger = vi.hoisted(() => vi.fn());
 const fulfill = vi.hoisted(() => vi.fn());
-vi.mock('@/lib/orders/transfer-mail', () => ({ sendTransferAccessMail: vi.fn() }));
+const paidMail = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/orders/transfer-mail', () => ({ sendTransferAccessMail: vi.fn(), sendTransferPaidMail: paidMail }));
 vi.mock('@/lib/services/webhook-service', () => ({ WebhookService: { trigger } }));
 vi.mock('@/lib/services/fulfill-paid-order', () => ({ fulfillPaidOrder: fulfill }));
 import { dispatchTransferEvent, fulfillTransfer, runTransferJob } from '@/lib/orders/bank-transfer-service';
@@ -51,6 +52,22 @@ describe('transfer recovery', () => {
     const { db } = client([{ data: { ...row, status: 'completed', product_id: 'p', customer_email: 'buyer@example.com' } }]);
     await fulfillTransfer(db, id);
     expect(fulfill).toHaveBeenCalledWith(expect.objectContaining({ provider: { kind: 'offline' }, transactionId: id, amount: 12300 }));
+  });
+  it('tells the buyer the payment arrived only after fulfillment succeeded', async () => {
+    const { db } = client([{ data: { ...row, status: 'completed' } }]);
+    await fulfillTransfer(db, id);
+    expect(paidMail).toHaveBeenCalledWith(db, id);
+    expect(fulfill.mock.invocationCallOrder[0]).toBeLessThan(paidMail.mock.invocationCallOrder[0]);
+  });
+  it('sends no payment mail when fulfillment fails', async () => {
+    const { db } = client([{ data: { ...row, status: 'completed' } }]); fulfill.mockRejectedValueOnce(new Error('unavailable'));
+    await expect(fulfillTransfer(db, id)).rejects.toThrow();
+    expect(paidMail).not.toHaveBeenCalled();
+  });
+  it('resumes a payment mail that was not delivered', async () => {
+    const { db } = client([{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [{ id }] }]);
+    expect(await runTransferJob(db, 'fulfillment-resume')).toEqual({ processed: 1, errors: 0 });
+    expect(paidMail).toHaveBeenCalledWith(db, id);
   });
   it('bounds pending recovery and includes a two minute age threshold', async () => {
     vi.useFakeTimers(); vi.setSystemTime(new Date('2026-02-02T12:00:00Z'));

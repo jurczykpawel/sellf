@@ -130,13 +130,27 @@ export default function CheckoutProfileFields({ profile, state, invoice, errors,
   })}</div>;
 }
 
+/** Quantity stepper: big labelled buttons, typed value still allowed, range stated under the control. */
 export function CheckoutQuantityField({ config, value, onChange, invalid }: { config: Extract<CheckoutProfile['modules'][number], { id: 'quantity' }>; value: string; onChange: (value: string) => void; invalid: boolean }) {
   const interactive = useProfileInteractive();
   const t = useTranslations('checkout.profile');
-  return <div className="mb-4">
-    <label htmlFor="checkoutQuantity" className="mb-1 block text-sm font-medium text-sf-body">{t('quantity')}</label>
-    <input id="checkoutQuantity" className={`w-full rounded-lg border ${invalid ? 'border-sf-danger' : 'border-sf-border'} bg-sf-input px-3 py-2.5 text-sf-heading`}
-      type="text" inputMode="numeric" value={value} disabled={!interactive} required aria-invalid={invalid} aria-describedby={invalid ? 'checkoutQuantity-error' : undefined} onChange={event => onChange(event.target.value)} />
-    {invalid && <p id="checkoutQuantity-error" role="alert" className="mt-1 text-sm text-sf-danger">{t('errors.invalid')} ({config.min}–{config.max})</p>}
+  const parsed = /^\d+$/.test(value.trim()) ? Number(value) : NaN;
+  const current = Number.isFinite(parsed) && parsed >= config.min && parsed <= config.max ? parsed : null;
+  const step = (delta: number) => onChange(String(Math.min(config.max, Math.max(config.min, (current ?? (delta > 0 ? config.min - 1 : config.max + 1)) + delta))));
+  const stepButton = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-sf-border bg-sf-input text-xl font-semibold leading-none text-sf-heading transition-colors hover:bg-sf-raised focus:outline-none focus-visible:ring-2 focus-visible:ring-sf-accent disabled:cursor-not-allowed disabled:opacity-40';
+  return <div className="mb-4 rounded-2xl border border-sf-border bg-sf-raised p-4">
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <label htmlFor="checkoutQuantity" className="block text-base font-semibold text-sf-heading">{t('quantity')}</label>
+        <p id="checkoutQuantity-range" className="text-sm text-sf-muted">{t('quantityRange', { min: config.min, max: config.max })}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <button type="button" className={stepButton} aria-label={t('quantityDecrease')} aria-controls="checkoutQuantity" disabled={!interactive || (current !== null && current <= config.min)} onClick={() => step(-1)}>−</button>
+        <input id="checkoutQuantity" className={`h-11 w-16 rounded-lg border ${invalid ? 'border-sf-danger' : 'border-sf-border'} bg-sf-input px-2 text-center text-lg font-semibold tabular-nums text-sf-heading focus:outline-none focus:ring-2 focus:ring-sf-accent`}
+          type="text" inputMode="numeric" autoComplete="off" value={value} disabled={!interactive} aria-required="true" aria-invalid={invalid} aria-describedby={invalid ? 'checkoutQuantity-error checkoutQuantity-range' : 'checkoutQuantity-range'} onChange={event => onChange(event.target.value)} />
+        <button type="button" className={stepButton} aria-label={t('quantityIncrease')} aria-controls="checkoutQuantity" disabled={!interactive || (current !== null && current >= config.max)} onClick={() => step(1)}>+</button>
+      </div>
+    </div>
+    {invalid && <p id="checkoutQuantity-error" role="alert" className="mt-2 text-sm text-sf-danger">{t('errors.invalid')} ({config.min}–{config.max})</p>}
   </div>;
 }

@@ -286,3 +286,29 @@ describe('validateCustomFieldValues', () => {
     expect(r.ok).toBe(false);
   });
 });
+
+describe('validateCustomFieldValues buyer-facing error codes', () => {
+  const field = (over: Partial<CustomFieldDefinition>): CustomFieldDefinition => ({ id: 'f', type: 'text', label: 'F', required: true, max_length: 20, ...over });
+  const errorFor = (def: CustomFieldDefinition, value: unknown) => {
+    const result = validateCustomFieldValues([def], { f: value });
+    return result.ok ? null : result.errors.f;
+  };
+
+  it.each([
+    ['empty required value', field({}), '   ', 'required'],
+    ['missing required value', field({}), undefined, 'required'],
+    ['value over the limit', field({}), 'x'.repeat(21), 'too_long:20'],
+    ['malformed e-mail', field({ type: 'email' }), 'nie-email', 'invalid_email'],
+    ['domain with a non-existent top level', field({ type: 'domain', max_length: 253 }), 'wsparcieirozwoj.orgcasdcvsfdv3r23tgervv', 'invalid_domain'],
+    ['domain with a path', field({ type: 'domain', max_length: 253 }), 'example.com/app', 'invalid_domain'],
+    ['control characters', field({}), 'a\u0000b', 'invalid_value'],
+    ['non-string value', field({}), 42, 'invalid_value'],
+  ])('reports a stable code for %s', (_name, def, value, code) => {
+    expect(errorFor(def, value)).toBe(code);
+  });
+
+  it('reports a code for an unknown field instead of free text', () => {
+    const result = validateCustomFieldValues([field({})], { f: 'ok', extra: 'x' });
+    expect(result.ok ? null : result.errors.extra).toBe('unknown_field');
+  });
+});

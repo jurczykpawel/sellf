@@ -112,3 +112,29 @@ it('enables hydrated profile controls and honors payment processing for all modu
   rerender(React.createElement(HydrationHarness, { disabled: true }));
   expect([...container.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input,select')].every(control => control.disabled || control.closest('fieldset[disabled]'))).toBe(true);
 });
+const quantityConfig = { id: 'quantity', min: 2, max: 5, mode: 'product_page' } as const;
+const renderQuantity = (value: string, onChange = vi.fn(), invalid = false) => {
+  render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en },
+    React.createElement(CheckoutQuantityField, { config: quantityConfig, value, onChange, invalid })));
+  return onChange;
+};
+it('lets the buyer change the quantity with large labelled step buttons that stop at the limits @J198', () => {
+  const onChange = renderQuantity('3');
+  expect(screen.getByLabelText('Quantity', { exact: true })).toHaveProperty('value', '3');
+  fireEvent.click(screen.getByRole('button', { name: 'Increase quantity' }));
+  expect(onChange).toHaveBeenLastCalledWith('4');
+  fireEvent.click(screen.getByRole('button', { name: 'Decrease quantity' }));
+  expect(onChange).toHaveBeenLastCalledWith('2');
+  cleanup();
+  renderQuantity('2');
+  expect(screen.getByRole('button', { name: 'Decrease quantity' })).toHaveProperty('disabled', true);
+  cleanup();
+  renderQuantity('5');
+  expect(screen.getByRole('button', { name: 'Increase quantity' })).toHaveProperty('disabled', true);
+});
+it('steps from the nearest valid quantity when the typed value is invalid and states the allowed range', () => {
+  const onChange = renderQuantity('abc', vi.fn(), true);
+  fireEvent.click(screen.getByRole('button', { name: 'Increase quantity' }));
+  expect(onChange).toHaveBeenLastCalledWith('2');
+  expect(screen.getByText('From 2 to 5')).toBeTruthy();
+});

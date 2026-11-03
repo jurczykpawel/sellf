@@ -1,4 +1,6 @@
 const DOMAIN_LABEL_PATTERN = /^(?!-)[a-z0-9-]{1,63}(?<!-)$/;
+// A real top-level domain is alphabetic (or punycode); "orgcasdcvsfdv3r23tgervv" is not one.
+const TLD_PATTERN = /^(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$/;
 const IPV4_PATTERN = /^\d{1,3}(?:\.\d{1,3}){3}$/;
 
 function isIpLiteral(host: string): boolean {
@@ -8,7 +10,8 @@ function isIpLiteral(host: string): boolean {
 
 function isValidDomainHost(host: string): boolean {
   if (host.length > 253 || !host.includes('.') || isIpLiteral(host)) return false;
-  return host.split('.').every((label) => DOMAIN_LABEL_PATTERN.test(label));
+  const labels = host.split('.');
+  return labels.every((label) => DOMAIN_LABEL_PATTERN.test(label)) && TLD_PATTERN.test(labels[labels.length - 1]);
 }
 
 /** Normalize a buyer-supplied domain to the bare host used in license claims. */

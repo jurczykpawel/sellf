@@ -1,6 +1,7 @@
 /** Free-product lead delivery shared by authenticated and magic-link grants. @see free-product-access.ts */
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { issueLicense } from '@/lib/license-keys/issue';
+import { sendLicenseMail } from '@/lib/license-keys/license-mail';
 import { WebhookService } from '@/lib/services/webhook-service';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { FreeProductInput } from '@/lib/services/free-product-access';
@@ -23,6 +24,7 @@ export async function emitFreeAccessLead(adminClient: SupabaseClient, { product,
       productId: product.id, email: user.email, userId: user.id, orderId,
       ...(savedValues !== undefined ? { customFieldValues: savedValues } : {}),
     }).catch(() => { console.error('[free-access] License issuance failed'); return null; });
+    if (license) await sendLicenseMail(adminClient, { userId: user.id, email: user.email, productSlug: details.slug, productName: details.name, token: license.token });
     const payload = {
       ...(savedValues !== undefined ? { customFieldValues: savedValues } : {}),
       customer: { email: user.email, userId: user.id }, product: details,

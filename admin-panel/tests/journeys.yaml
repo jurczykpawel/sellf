@@ -3346,6 +3346,201 @@
         "seller": "Exactly one real Stripe quote for unchanged cart, one replacement after quantity changes; both superseded and abandoned pending sessions expire and become abandoned.",
         "integrator": "Not exercised; this journey measures checkout quotes before payment confirmation."
       }
+    },
+    {
+      "id": "J190",
+      "title": "Free access form names every wrong answer beside its field",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "free_license_domain",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Sees which field to fix, in their language, with focus on it; an invented domain never ends in a generic error.",
+        "seller": "No malformed answer reaches the grant or the license.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ]
+    },
+    {
+      "id": "J191",
+      "title": "Transfer instructions mail lists recipient, grouped account, bank, reference, amount and due date",
+      "values": {
+        "persona": "guest",
+        "entry": "email_link",
+        "product": "b2b_quantity",
+        "payment": "bank_transfer",
+        "moment": "immediate",
+        "operation": "deliver"
+      },
+      "end_state": {
+        "buyer": "Reads the transfer details as a labelled table with the account in groups of four.",
+        "seller": "Placement mail is retained as sent once.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ]
+    },
+    {
+      "id": "J192",
+      "title": "Booked transfer sends a payment-received mail",
+      "values": {
+        "persona": "guest",
+        "entry": "email_link",
+        "product": "b2b_quantity",
+        "payment": "bank_transfer",
+        "moment": "after_payment",
+        "operation": "deliver"
+      },
+      "end_state": {
+        "buyer": "Gets one mail naming the product and amount once the administrator books the payment.",
+        "seller": "Mail state is stored on the order; recovery resends only undelivered ones.",
+        "integrator": "purchase.completed is emitted once for the booked order."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ]
+    },
+    {
+      "id": "J193",
+      "title": "Free product confirmation mail names the product",
+      "values": {
+        "persona": "new",
+        "entry": "email_link",
+        "product": "free_license",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "authenticate"
+      },
+      "end_state": {
+        "buyer": "First mail subject and body carry the product name.",
+        "seller": "Not exercised: no seller-side state asserted.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "integration"
+      ]
+    },
+    {
+      "id": "J194",
+      "title": "Confirmed free-product buyer receives the license key and product link",
+      "values": {
+        "persona": "new",
+        "entry": "email_link",
+        "product": "free_license",
+        "payment": "none",
+        "moment": "after_grant",
+        "operation": "deliver"
+      },
+      "end_state": {
+        "buyer": "Gets a second mail with the key and a link to the product; the key is not kept in account data.",
+        "seller": "License is issued once; repeated claims send no further mail.",
+        "integrator": "lead.captured still carries the token."
+      },
+      "status": "automated",
+      "layers": [
+        "integration"
+      ]
+    },
+    {
+      "id": "J195",
+      "title": "Buyer sees a working license as valid with a copy button",
+      "values": {
+        "persona": "signed_in",
+        "entry": "dashboard",
+        "product": "license",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Product page shows the key, a valid badge and a copy button.",
+        "seller": "Not exercised: no seller-side state asserted.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "unit"
+      ]
+    },
+    {
+      "id": "J196",
+      "title": "Buyer sees a revoked license as revoked, key hidden",
+      "values": {
+        "persona": "signed_in",
+        "entry": "dashboard",
+        "product": "license",
+        "payment": "refund",
+        "moment": "after_hold",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Product page shows a revoked badge and the reason; the key is neither displayed nor in the page source.",
+        "seller": "Revocation state is read from the issued license.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "unit"
+      ]
+    },
+    {
+      "id": "J197",
+      "title": "Buyer sees an expired license as expired",
+      "values": {
+        "persona": "signed_in",
+        "entry": "dashboard",
+        "product": "license",
+        "payment": "none",
+        "moment": "after_expiry",
+        "operation": "read"
+      },
+      "end_state": {
+        "buyer": "Product page shows an expired badge.",
+        "seller": "Not exercised: no seller-side state asserted.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
+    },
+    {
+      "id": "J198",
+      "title": "Quantity stepper drives the order summary on desktop and phone",
+      "values": {
+        "persona": "signed_in",
+        "entry": "checkout",
+        "product": "b2b_quantity",
+        "payment": "card",
+        "moment": "after_edit",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Sees a labelled stepper with range above the coupon; the summary shows the chosen quantity; out-of-range input is explained.",
+        "seller": "Not exercised: no seller-side state asserted.",
+        "integrator": "Not exercised: no outgoing integration contract asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "unit"
+      ]
     }
   ],
   "escapes": [

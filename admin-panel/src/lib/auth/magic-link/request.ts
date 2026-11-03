@@ -34,7 +34,7 @@ export interface SendTrustedMagicLinkInput {
   freeGrant?: { productSlug: string; locale?: string; couponCode?: string; successUrl?: string; customFieldValues?: Record<string, string> };
   email: string;
   redirectTo: string;
-  data?: Record<string, string>;
+  data?: Record<string, string | Record<string, string>>;
 }
 
 /**
@@ -72,16 +72,18 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
   if (!emailAllowed) return { ok: false, code: 'rate_limited' };
 
   let redirectTo = input.redirectTo;
+  let data = input.data;
   if (input.freeGrant) {
     const prepared = await prepareFreeGrantRequest(createAdminClient(), normalizedEmail, input.freeGrant.productSlug, input.freeGrant.customFieldValues);
-    if (!prepared.ok) return { ok: false, code: prepared.code };
+    if (!prepared.ok) return { ok: false, code: prepared.code, ...(prepared.fieldErrors ? { fieldErrors: prepared.fieldErrors } : {}) };
     redirectTo = buildFreeProductMagicLinkRedirect({ origin: getSellfBaseUrl(), ...input.freeGrant, grantRequestId: prepared.requestId });
+    data = { ...data, purchase_product: prepared.productName };
   }
   return deliverMagicLink({
     email: normalizedEmail,
     redirectTo,
     shouldCreateUser: true,
-    data: input.data,
+    data,
   });
 }
 

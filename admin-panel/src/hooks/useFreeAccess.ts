@@ -35,6 +35,8 @@ interface UseFreeAccessOptions {
    *  from the form. Retained through guest sign-in or sent to grant-access so the license
    *  carries the same claims as a paid purchase. */
   customFieldValues?: Record<string, string>;
+  /** Receives per-field error codes (client or server) so the form can show them next to each field. */
+  onFieldErrors?: (errors: Record<string, string>) => void;
 }
 
 interface UseFreeAccessReturn {
@@ -57,6 +59,7 @@ export function useFreeAccess({
   onError,
   couponCode,
   customFieldValues,
+  onFieldErrors,
 }: UseFreeAccessOptions): UseFreeAccessReturn {
   const locale = useLocale();
   const tDemo = useTranslations('demo');
@@ -87,6 +90,7 @@ export function useFreeAccess({
       });
       const data = await response.json();
       if (!response.ok) {
+        if (data.fieldErrors && onFieldErrors) { onFieldErrors(data.fieldErrors); return; }
         if (data.error === 'You already have access to this product' || data.alreadyHadAccess) {
           onAccessGranted();
           return;
@@ -107,7 +111,7 @@ export function useFreeAccess({
     } finally {
       setPwywFreeLoading(false);
     }
-  }, [user, product, couponCode, customFieldValues, track, onAccessGranted, onError, t]);
+  }, [user, product, couponCode, customFieldValues, track, onAccessGranted, onError, onFieldErrors, t]);
 
   const handlePwywFreeMagicLink = useCallback(async () => {
     if (!pwywFreeEmail) {
@@ -123,8 +127,10 @@ export function useFreeAccess({
     }
 
     const definitions = validateCustomFieldDefinitions(product.custom_checkout_fields ?? []);
-    if (!definitions.ok || !validateCustomFieldValues(definitions.value, customFieldValues ?? {}).ok) {
-      setPwywFreeMessage({ type: 'error', text: t('profile.fixFields') }); return;
+    const answers = definitions.ok ? validateCustomFieldValues(definitions.value, customFieldValues ?? {}) : null;
+    if (!definitions.ok || !answers?.ok) {
+      if (answers && !answers.ok) onFieldErrors?.(answers.errors);
+      setPwywFreeMessage({ type: 'error', text: t('profile.fixFields') }); captcha.reset(); return;
     }
 
     setPwywFreeLoading(true);
@@ -142,8 +148,11 @@ export function useFreeAccess({
         customFieldValues,
       });
       if (!result.ok) {
+        if (result.fieldErrors) onFieldErrors?.(result.fieldErrors);
         const text =
-          result.reason === 'demo_mode'
+          result.fieldErrors
+            ? t('profile.fixFields')
+            : result.reason === 'demo_mode'
             ? tDemo('authBlocked')
             : result.reason === 'captcha_missing'
               ? tCompliance('securityVerificationRequired')
@@ -165,7 +174,7 @@ export function useFreeAccess({
     } finally {
       setPwywFreeLoading(false);
     }
-  }, [customFieldValues, pwywFreeEmail, pwywFreeTermsAccepted, showTos, captcha, product, couponCode, searchParams, t, tCompliance, tDemo, track, locale]);
+  }, [customFieldValues, onFieldErrors, pwywFreeEmail, pwywFreeTermsAccepted, showTos, captcha, product, couponCode, searchParams, t, tCompliance, tDemo, track, locale]);
 
   return {
     pwywFreeEmail,

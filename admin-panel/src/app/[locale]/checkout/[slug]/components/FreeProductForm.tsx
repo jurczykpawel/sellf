@@ -14,6 +14,7 @@ import TermsCheckbox from '@/components/TermsCheckbox';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
 import {
   validateCustomFieldValues,
+  isValidEmailFormat,
   type CustomFieldDefinition,
   type CustomFieldValues,
 } from '@/lib/validations/custom-checkout-fields';
@@ -89,6 +90,8 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
   );
   const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({});
   const [customFieldErrors, setCustomFieldErrors] = useState<Record<string, string>>({});
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [termsError, setTermsError] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info' | null; text: string }>({
     type: null,
     text: '',
@@ -135,6 +138,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
 
         if (!response.ok) {
           const errorData = await response.json();
+          if (errorData.fieldErrors) { setCustomFieldErrors(errorData.fieldErrors); return; }
           toast.error(getCheckoutRequestError(response.status, errorData.error, t('failedToRequestAccess'), t('requestRateLimit')));
           return;
         }
@@ -186,22 +190,21 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
   };
 
   const handleMagicLinkSubmit = async () => {
-    if (!email) {
-      setMessage({ type: 'error', text: t('enterEmailAddress') });
-      captcha.reset();
-      return;
-    }
-
-    // Check if terms are accepted for non-logged in users
-    if (showTos && !termsAccepted) {
-      setMessage({ type: 'error', text: tCompliance('pleaseAcceptTerms') });
-      captcha.reset();
-      return;
-    }
-
+    setEmailError(null);
+    setTermsError(null);
+    setMessage({ type: null, text: '' });
+    // Every problem is shown next to its own field in one pass, not one per attempt.
     const validation = validateCustomFieldValues(customFieldDefs, customFieldValues, { requireAll: true });
-    if (!validation.ok) { setCustomFieldErrors(validation.errors); return; }
-    setCustomFieldErrors({});
+    const emailProblem = !email.trim() ? t('enterEmailAddress') : !isValidEmailFormat(email) ? tCheckout('invalidEmail') : null;
+    const termsProblem = showTos && !termsAccepted ? tCompliance('pleaseAcceptTerms') : null;
+    setEmailError(emailProblem);
+    setTermsError(termsProblem);
+    setCustomFieldErrors(validation.ok ? {} : validation.errors);
+    if (emailProblem || termsProblem || !validation.ok) {
+      captcha.reset();
+      if (emailProblem) document.getElementById('email')?.focus();
+      return;
+    }
 
     setLoading(true);
     setMessage({ type: 'info', text: t('sendingMagicLink') });
@@ -218,14 +221,14 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
       });
 
       if (!result.ok) {
+        if (result.fieldErrors) { setCustomFieldErrors(result.fieldErrors); return; }
+        if (result.reason === 'invalid_email') { setEmailError(t('invalidEmailDisposable')); document.getElementById('email')?.focus(); return; }
         const text =
           result.reason === 'demo_mode'
             ? tDemo('authBlocked')
             : result.reason === 'captcha_missing'
               ? tCompliance('securityVerificationRequired')
-              : result.reason === 'invalid_email'
-                ? t('invalidEmailDisposable')
-                : result.reason === 'rate_limited'
+              : result.reason === 'rate_limited'
                   ? t('rateLimitError')
                   : t('unexpectedError');
         setMessage({ type: 'error', text });
@@ -313,7 +316,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
           </div>
         )}
 
-        <form onSubmit={(e) => { e.preventDefault(); handleFreeAccess(); }} className="space-y-4">
+        <form noValidate onSubmit={(e) => { e.preventDefault(); handleFreeAccess(); }} className="space-y-4">
           {!user && (
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-sf-body mb-2">
@@ -323,12 +326,15 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
                 type="email"
                 id="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-3 border border-sf-border rounded-lg bg-sf-input text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent"
+                onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(null); }}
+                className={`w-full p-3 border rounded-lg bg-sf-input text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent ${emailError ? 'border-sf-danger' : 'border-sf-border'}`}
                 placeholder={t('enterEmailAddress')}
-                required
+                aria-required="true"
+                aria-invalid={!!emailError}
+                aria-describedby={emailError ? 'email-error' : undefined}
                 disabled={loading}
               />
+              {emailError && <p id="email-error" role="alert" className="mt-1 text-xs text-sf-danger">{emailError}</p>}
             </div>
           )}
 
@@ -354,19 +360,19 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
           {showTos && (
             <TermsCheckbox
               checked={termsAccepted}
-              onChange={setTermsAccepted}
+              onChange={(accepted) => { setTermsAccepted(accepted); if (accepted) setTermsError(null); }}
               termsUrl="/terms"
               privacyUrl="/privacy"
             />
           )}
+          {termsError && <p role="alert" className="text-xs text-sf-danger">{termsError}</p>}
 
           <button
             type="submit"
             disabled={
               loading ||
               (!user && captcha.isLoading) ||
-              (showTos && !termsAccepted) ||
-              (!user && (!email || (process.env.NODE_ENV === 'production' && !captcha.token)))
+              (!user && process.env.NODE_ENV === 'production' && !captcha.token)
             }
             className="w-full bg-sf-success hover:bg-sf-success/90 disabled:bg-sf-muted/30 disabled:cursor-not-allowed text-sf-inverse font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sf-success focus:ring-offset-2 active:scale-[0.98]"
           >

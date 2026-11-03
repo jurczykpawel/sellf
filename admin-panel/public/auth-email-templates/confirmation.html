@@ -32,11 +32,14 @@
           <tr>
             <td style="padding: 40px; background-color: #111B2E;">
               <h2 style="margin: 0 0 16px 0; color: #ffffff; font-size: 20px; font-weight: 600;">
-                {{ if eq .Data.locale "en" }}Welcome to Sellf!{{ else }}Witaj w Sellf!{{ end }}
+                {{ if .Data.payment_received }}{{ if eq .Data.locale "en" }}Payment received{{ else }}Płatność otrzymana{{ end }}{{ else if .Data.license_key }}{{ if eq .Data.locale "en" }}Your license is ready{{ else }}Twoja licencja jest gotowa{{ end }}{{ else }}{{ if eq .Data.locale "en" }}Welcome to Sellf!{{ else }}Witaj w Sellf!{{ end }}{{ end }}
               </h2>
-              <p style="margin: 0 0 24px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">
+              {{ if .Data.payment_received }}<p style="margin: 0 0 24px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">{{ if eq .Data.locale "en" }}We have received your bank transfer. Confirm your email address to open your product.{{ else }}Otrzymaliśmy Twój przelew. Potwierdź adres email, aby otworzyć produkt.{{ end }}</p>
+              {{ else if .Data.license_key }}<p style="margin: 0 0 24px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">{{ if eq .Data.locale "en" }}Thank you! Keep the license key below in a safe place.{{ else }}Dziękujemy! Zachowaj poniższy klucz licencyjny w bezpiecznym miejscu.{{ end }}</p>
+              {{ else }}<p style="margin: 0 0 24px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">
                 {{ if eq .Data.locale "en" }}Thank you for signing up. Confirm your email address to activate your account and access your purchased products.{{ else }}Dziękujemy za rejestrację. Aby aktywować swoje konto i uzyskać dostęp do zakupionych produktów, potwierdź swój adres email.{{ end }}
               </p>
+              {{ end }}
               <p style="margin: 0 0 8px 0; color: #94a3b8; font-size: 14px;">
                 {{ if eq .Data.locale "en" }}Email address:{{ else }}Adres email:{{ end }}
               </p>
@@ -45,8 +48,22 @@
               </p>
 
               {{ if .Data.purchase_product }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}Product{{ else }}Produkt{{ end }}: {{ .Data.purchase_product }}</p>{{ end }}
-              {{ if .Data.purchase_amount }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}Amount{{ else }}Kwota{{ end }}: {{ .Data.purchase_amount }}</p>{{ end }}
-              {{ if .Data.transfer_text }}<p style="white-space: pre-line; color: #ffffff;">{{ .Data.transfer_text }}</p>{{ end }}
+              {{ if and .Data.purchase_amount (not .Data.transfer) }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}Amount{{ else }}Kwota{{ end }}: {{ .Data.purchase_amount }}</p>{{ end }}
+              {{ if .Data.transfer }}
+              <table role="presentation" style="width: 100%; margin: 0 0 24px 0; border-collapse: collapse; background-color: #0B1424; border-radius: 8px;">
+                <tr><td colspan="2" style="padding: 12px 16px; color: #ffffff; font-size: 16px; font-weight: 600;">{{ if eq .Data.locale "en" }}Bank transfer instructions{{ else }}Dane do przelewu{{ end }}</td></tr>
+                {{ if .Data.transfer.holder }}<tr><td style="padding: 8px 16px; color: #94a3b8; font-size: 14px; vertical-align: top;">{{ if eq .Data.locale "en" }}Recipient{{ else }}Odbiorca{{ end }}</td><td style="padding: 8px 16px; color: #ffffff; font-size: 15px; font-weight: 600;">{{ .Data.transfer.holder }}</td></tr>{{ end }}
+                {{ if .Data.transfer.account }}<tr><td style="padding: 8px 16px; color: #94a3b8; font-size: 14px; vertical-align: top;">{{ if eq .Data.locale "en" }}Account number{{ else }}Numer konta{{ end }}</td><td style="padding: 8px 16px; color: #ffffff; font-size: 15px; font-weight: 600; font-family: Menlo, Consolas, monospace; white-space: nowrap;">{{ .Data.transfer.account }}</td></tr>{{ end }}
+                {{ if .Data.transfer.bank }}<tr><td style="padding: 8px 16px; color: #94a3b8; font-size: 14px; vertical-align: top;">Bank</td><td style="padding: 8px 16px; color: #ffffff; font-size: 15px;">{{ .Data.transfer.bank }}</td></tr>{{ end }}
+                {{ if .Data.transfer.title }}<tr><td style="padding: 8px 16px; color: #94a3b8; font-size: 14px; vertical-align: top;">{{ if eq .Data.locale "en" }}Reference{{ else }}Tytuł{{ end }}</td><td style="padding: 8px 16px; color: #ffffff; font-size: 15px; font-weight: 600;">{{ .Data.transfer.title }}</td></tr>{{ end }}
+                {{ if .Data.transfer.amount }}<tr><td style="padding: 8px 16px; color: #94a3b8; font-size: 14px; vertical-align: top;">{{ if eq .Data.locale "en" }}Amount{{ else }}Kwota{{ end }}</td><td style="padding: 8px 16px; color: #ffffff; font-size: 15px; font-weight: 600;">{{ .Data.transfer.amount }}</td></tr>{{ end }}
+                {{ if .Data.transfer.due }}<tr><td style="padding: 8px 16px 12px 16px; color: #94a3b8; font-size: 14px; vertical-align: top;">{{ if eq .Data.locale "en" }}Due date{{ else }}Termin{{ end }}</td><td style="padding: 8px 16px 12px 16px; color: #ffffff; font-size: 15px;">{{ .Data.transfer.due }}</td></tr>{{ end }}
+              </table>
+              {{ end }}
+              {{ if .Data.license_key }}
+              <p style="margin: 0 0 8px 0; color: #94a3b8; font-size: 14px;">{{ if eq .Data.locale "en" }}Your license key{{ else }}Twój klucz licencyjny{{ end }}</p>
+              <p style="margin: 0 0 24px 0; padding: 12px 16px; background-color: #0B1424; border-radius: 8px; color: #ffffff; font-family: Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5; word-break: break-all;">{{ .Data.license_key }}</p>
+              {{ end }}
               {{ if .Data.event_date }}<p style="color: #ffffff;">{{ .Data.event_date }}</p>{{ end }}
               {{ if .Data.event_online_url }}<p><a style="color: #2090D0;" href="{{ .Data.event_online_url }}">{{ if eq .Data.locale "en" }}Join online{{ else }}Dołącz online{{ end }}</a></p>{{ end }}
               <!-- Button -->

@@ -103,11 +103,11 @@ enable_confirmations = true
 # content_path = "./supabase/templates/invite.html"
 
 [auth.email.template.magic_link]
-subject = '{{ if eq .Data.locale "en" }}Your sign-in link{{ else }}Twój link do logowania{{ end }}'
+subject = '{{ if .Data.payment_received }}{{ if eq .Data.locale "en" }}Payment received{{ else }}Płatność otrzymana{{ end }}{{ else if .Data.license_key }}{{ if eq .Data.locale "en" }}Your license key{{ else }}Twój klucz licencyjny{{ end }}{{ else }}{{ if eq .Data.locale "en" }}Your sign-in link{{ else }}Twój link do logowania{{ end }}{{ end }}{{ if .Data.purchase_product }}: {{ .Data.purchase_product }}{{ end }}'
 content_path = "./supabase/templates/magic-link.html"
 
 [auth.email.template.confirmation]
-subject = '{{ if eq .Data.locale "en" }}Confirm your email{{ else }}Potwierdź swój email{{ end }}'
+subject = '{{ if .Data.payment_received }}{{ if eq .Data.locale "en" }}Payment received{{ else }}Płatność otrzymana{{ end }}{{ else if .Data.license_key }}{{ if eq .Data.locale "en" }}Your license key{{ else }}Twój klucz licencyjny{{ end }}{{ else }}{{ if eq .Data.locale "en" }}Confirm your email{{ else }}Potwierdź swój email{{ end }}{{ end }}{{ if .Data.purchase_product }}: {{ .Data.purchase_product }}{{ end }}'
 content_path = "./supabase/templates/confirmation.html"
 
 [auth.sms]

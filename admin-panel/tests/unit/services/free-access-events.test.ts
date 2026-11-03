@@ -1,7 +1,8 @@
 /** Shared free-access event keeps the existing license delivery contract. */
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-const mocks = vi.hoisted(() => ({ issueLicense: vi.fn(), trigger: vi.fn() }));
+const mocks = vi.hoisted(() => ({ issueLicense: vi.fn(), trigger: vi.fn(), licenseMail: vi.fn() }));
+vi.mock('@/lib/license-keys/license-mail', () => ({ sendLicenseMail: mocks.licenseMail }));
 vi.mock('@/lib/license-keys/issue', () => ({ issueLicense: mocks.issueLicense }));
 vi.mock('@/lib/services/webhook-service', () => ({ WebhookService: { trigger: mocks.trigger } }));
 vi.mock('@/lib/utils/canonical-url', () => ({ getCanonicalOriginOrNull: () => 'https://shop.example.com' }));
@@ -19,6 +20,7 @@ it('uses a stable free purchase key and includes the issued license and public v
   const db = client();
   const customFieldValues = { _sellf_license_domain: 'client.example' };
   await emitFreeAccessLead(db, { product, user, customFieldValues });
+  expect(mocks.licenseMail).toHaveBeenCalledWith(db, { userId: user.id, email: user.email, productSlug: product.slug, productName: product.name, token: 'test-license' });
   expect(mocks.issueLicense).toHaveBeenCalledWith(db, { productId: product.id, userId: user.id, email: user.email, orderId: `free_${user.id}_${product.id}`, customFieldValues });
   expect(mocks.trigger).toHaveBeenCalledWith('lead.captured', { customer: { email: user.email, userId: user.id }, product, customFieldValues, accessGrantedAt: access.access_granted_at, accessExpiresAt: access.access_expires_at, license: { token: 'test-license', kid: 'key-1', jwksUrl: 'https://shop.example.com/api/licenses/jwks?seller=seller-1' } }, db, product.id, `free_${user.id}_${product.id}`);
 });
@@ -27,6 +29,7 @@ it.each(['disabled', 'failed'])('still sends the lead when licensing is %s', asy
   await emitFreeAccessLead(client(), { product, user });
   expect(mocks.trigger).toHaveBeenCalledTimes(1);
   expect(mocks.trigger.mock.calls[0][1]).not.toHaveProperty('license');
+  expect(mocks.licenseMail).not.toHaveBeenCalled();
 });
 it('does not send a partial product when the product read failed', async () => {
   await emitFreeAccessLead(client(null), { product, user });

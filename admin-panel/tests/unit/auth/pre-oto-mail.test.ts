@@ -44,7 +44,7 @@ it('includes the paid invoice product and amount in the first pre-offer subscrip
     expect((await db.from('guest_purchases').insert({ product_id: state.productId, customer_email: state.email, transaction_id: tx.data!.id, transaction_amount: recorded.invoice.amount_paid })).error).toBeNull();
     await expect(PaymentStatusPage({ params: Promise.resolve({ locale: 'pl', slug: state.slug }), searchParams: Promise.resolve({ session_id: state.sessionId }) })).rejects.toThrow('redirect:');
     const mail = await waitForEmail(state.email, { timeout: 1500 });
-    expect(mail.Subject).toBe('Potwierdź swój email');
+    expect(mail.Subject).toBe('Potwierdź swój email: Subscription workshop');
     expect(mail.HTML).toContain('Subscription workshop');
     expect(mail.HTML).toContain('11,00\u00a0zł');
   } finally {

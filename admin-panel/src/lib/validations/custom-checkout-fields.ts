@@ -72,6 +72,13 @@ export function customFieldClaimName(fieldId: string): string | null {
 
 export type CustomFieldValues = Record<string, string>;
 
+/**
+ * Buyer-facing error of one answer: a stable code the checkout localizes next to
+ * the field. `too_long:<max>` carries the limit. `_` keys are form-wide, not per field.
+ */
+export type CustomFieldErrorCode =
+  | 'required' | 'invalid_email' | 'invalid_domain' | 'invalid_value' | 'unknown_field' | `too_long:${number}`;
+
 export type DefinitionsResult =
   | { ok: true; value: CustomFieldDefinition[] }
   | { ok: false; errors: Record<string, string> };
@@ -86,6 +93,13 @@ const ALLOWED_TYPES: ReadonlySet<CustomFieldType> = new Set(['text', 'textarea',
 // TLDs. Server is not the final gate (no SMTP probe here) — Stripe / outbound mail
 // will catch the rest.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Tab and line breaks stay legal for textareas; every other control character is garbage.
+const CONTROL_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+
+export function isValidEmailFormat(value: string): boolean {
+  return EMAIL_PATTERN.test(value.trim());
+}
 
 function isValidLabel(label: unknown): label is CustomFieldLabel {
   if (typeof label === 'string') return label.trim().length > 0 && label.length <= FIELD_LABEL_MAX;
@@ -217,7 +231,7 @@ export function validateCustomFieldValues(
 ): ValuesResult {
   const requireAll = options.requireAll !== false;
   if (!values || typeof values !== 'object' || Array.isArray(values)) {
-    return { ok: false, errors: { _: 'Values must be an object' } };
+    return { ok: false, errors: { _: 'invalid_value' } };
   }
   const input = values as Record<string, unknown>;
   const errors: Record<string, string> = {};
@@ -225,7 +239,7 @@ export function validateCustomFieldValues(
 
   for (const key of Object.keys(input)) {
     if (!known.has(key)) {
-      errors[key] = `Unknown field "${key}"`;
+      errors[key] = 'unknown_field' satisfies CustomFieldErrorCode;
     }
   }
 
@@ -234,30 +248,34 @@ export function validateCustomFieldValues(
   for (const field of fields) {
     const raw = input[field.id];
     if (raw === undefined || raw === null || raw === '') {
-      if (field.required && requireAll) errors[field.id] = 'Required';
+      if (field.required && requireAll) errors[field.id] = 'required';
       continue;
     }
     if (typeof raw !== 'string') {
-      errors[field.id] = 'Must be a string';
+      errors[field.id] = 'invalid_value';
       continue;
     }
     const trimmed = raw.trim();
     if (trimmed.length === 0) {
-      if (field.required && requireAll) errors[field.id] = 'Required';
+      if (field.required && requireAll) errors[field.id] = 'required';
       continue;
     }
     if (trimmed.length > field.max_length) {
-      errors[field.id] = `Too long (max ${field.max_length})`;
+      errors[field.id] = `too_long:${field.max_length}`;
+      continue;
+    }
+    if (CONTROL_CHARACTERS.test(trimmed)) {
+      errors[field.id] = 'invalid_value';
       continue;
     }
     if (field.type === 'email' && !EMAIL_PATTERN.test(trimmed)) {
-      errors[field.id] = 'Invalid email';
+      errors[field.id] = 'invalid_email';
       continue;
     }
     if (field.type === 'domain') {
       const domain = normalizeLicenseDomain(trimmed);
       if (!domain) {
-        errors[field.id] = 'Invalid domain';
+        errors[field.id] = 'invalid_domain';
         continue;
       }
       out[field.id] = domain;
@@ -270,7 +288,7 @@ export function validateCustomFieldValues(
 
   const serialized = JSON.stringify(out);
   if (new TextEncoder().encode(serialized).byteLength > CUSTOM_FIELDS_VALUES_MAX_BYTES) {
-    return { ok: false, errors: { _: `Total values exceed ${CUSTOM_FIELDS_VALUES_MAX_BYTES} bytes` } };
+    return { ok: false, errors: { _: 'invalid_value' } };
   }
 
   return { ok: true, values: out };

@@ -20,11 +20,13 @@ describe('license format', () => {
     ['https://www.Example.com:443/path?q=1', 'example.com'],
     ['*.Example.com', 'example.com'],
     ['app.example.com.', 'app.example.com'],
+    ['bücher.example.de', 'xn--bcher-kva.example.de'],
+    ['example.xn--p1ai', 'example.xn--p1ai'],
   ])('normalizes license domain %s', (input, expected) => {
     expect(normalizeLicenseDomain(input)).toBe(expected);
   });
 
-  it.each(['', 'localhost', '127.0.0.1', '999.999.999.999', '[::1]', 'https://user@example.com', 'example.com/path'])('rejects invalid license domain %s', (input) => {
+  it.each(['', 'localhost', '127.0.0.1', '999.999.999.999', '[::1]', 'https://user@example.com', 'example.com/path', 'wsparcieirozwoj.orgcasdcvsfdv3r23tgervv', 'example.c', 'example.123', 'example.co-m'])('rejects invalid license domain %s', (input) => {
     expect(normalizeLicenseDomain(input)).toBeUndefined();
   });
 

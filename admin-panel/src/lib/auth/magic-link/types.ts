@@ -14,4 +14,5 @@ export type MagicLinkErrorCode =
   | 'rate_limited'
   | 'send_failed';
 
-export type MagicLinkResult = { ok: true } | { ok: false; code: MagicLinkErrorCode };
+/** `fieldErrors` maps a rejected custom checkout field to its error code (@see lib/validations/custom-checkout-fields.ts). */
+export type MagicLinkResult = { ok: true } | { ok: false; code: MagicLinkErrorCode; fieldErrors?: Record<string, string> };

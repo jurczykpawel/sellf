@@ -83,6 +83,21 @@ describe('sendMagicLinkRequest', () => {
     const result = await sendMagicLinkRequest({ email: 'a@b.com', captchaToken: 'tok', flow: 'login' });
     expect(result).toEqual({ ok: false, code: 'send_failed' });
   });
+
+  it('hands per-field answers back to the form when the server rejects a custom field', async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ ok: false, code: 'invalid_request', fieldErrors: { _sellf_license_domain: 'invalid_domain' } }),
+    });
+    const result = await sendMagicLinkRequest({ email: 'a@b.com', captchaToken: 'tok', flow: 'free_product', productSlug: 'p' });
+    expect(result).toEqual({ ok: false, code: 'invalid_request', fieldErrors: { _sellf_license_domain: 'invalid_domain' } });
+  });
+
+  it('ignores a malformed fieldErrors payload', async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: false, status: 400, json: async () => ({ ok: false, code: 'invalid_request', fieldErrors: 'boom' }) });
+    expect(await sendMagicLinkRequest({ email: 'a@b.com', captchaToken: 'tok', flow: 'login' })).toEqual({ ok: false, code: 'invalid_request' });
+  });
 });
 
 it('forwards free checkout answers in the request body', async () => {

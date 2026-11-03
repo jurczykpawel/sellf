@@ -6,8 +6,8 @@ import { expect, it } from 'vitest';
 it.each(['confirmation', 'magic-link'])('%s includes conditional purchase details in both languages', name => {
   const html = readFileSync(path.resolve(__dirname, `../../../../supabase/templates/${name}.html`), 'utf8');
   expect(html).toContain('{{ if eq .Data.locale "en" }}');
-  for (const field of ['event_date', 'event_online_url', 'transfer_text', 'purchase_product', 'purchase_amount']) {
-    expect(html).toContain(`{{ if .Data.${field} }}`);
+  for (const field of ['event_date', 'event_online_url', 'transfer', 'license_key', 'payment_received', 'purchase_product', 'purchase_amount']) {
+    expect(html).toMatch(new RegExp(`\\{\\{ if (?:and )?\\.Data\\.${field}[ )}]`));
   }
   expect(html).toBe(readFileSync(path.resolve(__dirname, `../../../public/auth-email-templates/${name}.html`), 'utf8'));
 });

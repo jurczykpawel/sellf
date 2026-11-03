@@ -7,7 +7,7 @@ export interface DeliverMagicLinkInput {
   email: string;
   redirectTo: string;
   shouldCreateUser: boolean;
-  data?: Record<string, string>;
+  data?: Record<string, string | Record<string, string>>;
 }
 
 // Service-role client: Supabase Auth skips its own captcha for admin credentials,

@@ -72,7 +72,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const defs = validateCustomFieldDefinitions(product.custom_checkout_fields ?? []);
     if (!defs.ok) return fail('Invalid checkout configuration', 500);
     const custom = validateCustomFieldValues(defs.value, body.customFieldValues ?? {}, { requireAll: true });
-    if (!custom.ok) return fail('Invalid custom fields');
+    if (!custom.ok) return NextResponse.json({ error: 'Invalid custom fields', fieldErrors: custom.errors }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
     let price = getEffectiveUnitPrice(product);
     const ip = getClientIp(request);
     if (product.event_mode) {

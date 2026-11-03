@@ -34,8 +34,16 @@ Pełny poradnik SMTP, DNS, szablonów i przekierowań: [po polsku](https://docs.
 Confirmation i magic link wybierają język z `.Data.locale` (`en` albo `pl`).
 Przy aktualizacji wgraj **oba** pliki HTML i ustaw tematy:
 
-- `mailer_subjects_confirmation`: `{{ if eq .Data.locale "en" }}Confirm your email{{ else }}Potwierdź swój email{{ end }}`
-- `mailer_subjects_magic_link`: `{{ if eq .Data.locale "en" }}Your sign-in link{{ else }}Twój link do logowania{{ end }}`
+- `mailer_subjects_confirmation`: `{{ if .Data.payment_received }}{{ if eq .Data.locale "en" }}Payment received{{ else }}Płatność otrzymana{{ end }}{{ else if .Data.license_key }}{{ if eq .Data.locale "en" }}Your license key{{ else }}Twój klucz licencyjny{{ end }}{{ else }}{{ if eq .Data.locale "en" }}Confirm your email{{ else }}Potwierdź swój email{{ end }}{{ end }}{{ if .Data.purchase_product }}: {{ .Data.purchase_product }}{{ end }}`
+- `mailer_subjects_magic_link`: `{{ if .Data.payment_received }}{{ if eq .Data.locale "en" }}Payment received{{ else }}Płatność otrzymana{{ end }}{{ else if .Data.license_key }}{{ if eq .Data.locale "en" }}Your license key{{ else }}Twój klucz licencyjny{{ end }}{{ else }}{{ if eq .Data.locale "en" }}Your sign-in link{{ else }}Twój link do logowania{{ end }}{{ end }}{{ if .Data.purchase_product }}: {{ .Data.purchase_product }}{{ end }}`
+
+Temat dopisuje nazwę produktu, gdy mail go dotyczy (zakup, darmowy produkt, przelew, klucz licencyjny).
+Dane do przelewu przychodzą jako obiekt `.Data.transfer` (`holder`, `account` w grupach po cztery cyfry, `bank`, `title`, `amount`, `due`) i są
+rysowane jako tabela; klucz licencyjny jako `.Data.license_key`; potwierdzenie wpłaty jako `.Data.payment_received`.
+
+**Wdrożenie (krok obowiązkowy po aktualizacji 2026.10.7+):** wgraj do projektu Supabase oba pliki HTML
+(`confirmation.html`, `magic-link.html`) oraz oba tematy powyżej (Dashboard → Authentication → Email Templates, albo API
+`mailer_templates_*_content` i `mailer_subjects_*`). Bez tego mail pokaże stary, jednolinijkowy tekst przelewu i ogólny temat.
 
 Supabase Auth renderuje temat jako Go Template, tak samo jak treść. Po zmianie
 sprawdź dostawę do nowego i istniejącego konta w obu językach. Migracja

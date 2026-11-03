@@ -2211,6 +2211,7 @@ export type Database = {
           tax_total: number | null
           transfer_details: Json | null
           transfer_mail_sent_at: string | null
+          transfer_paid_mail_sent_at: string | null
           updated_at: string
           user_id: string | null
         }
@@ -2253,6 +2254,7 @@ export type Database = {
           tax_total?: number | null
           transfer_details?: Json | null
           transfer_mail_sent_at?: string | null
+          transfer_paid_mail_sent_at?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -2295,6 +2297,7 @@ export type Database = {
           tax_total?: number | null
           transfer_details?: Json | null
           transfer_mail_sent_at?: string | null
+          transfer_paid_mail_sent_at?: string | null
           updated_at?: string
           user_id?: string | null
         }

@@ -35,7 +35,7 @@ it.each([false, true])('delivers the first paid subscription mail and confirms t
   expect(await requestMagicLink({ flow: 'post_checkout', email, productSlug: product.data!.slug, locale: 'pl', captchaToken: 'local-boundary' })).toEqual({ ok: true });
   const mail = await waitForEmail(email);
   expect(mail.HTML).toContain('Subscription workshop'); expect(mail.HTML).toContain('17,00\u00a0zł');
-  expect(mail.Subject).toBe(confirmed ? 'Twój link do logowania' : 'Potwierdź swój email'); expect(await searchMessages(email)).toHaveLength(1);
+  expect(mail.Subject).toBe(confirmed ? 'Twój link do logowania: Subscription workshop' : 'Potwierdź swój email: Subscription workshop'); expect(await searchMessages(email)).toHaveLength(1);
   const link = new URL(extractMagicLink(mail.HTML!)!); expect(link.pathname).toBe('/auth/callback');
   const buyer = createClient(process.env.SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
   const verified = await buyer.auth.verifyOtp({ token_hash: link.searchParams.get('token_hash')!, type: link.searchParams.get('type') as 'signup' | 'magiclink' }); expect(verified.error).toBeNull(); expect(verified.data.user?.id).toBe(uid);

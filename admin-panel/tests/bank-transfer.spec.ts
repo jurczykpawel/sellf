@@ -108,7 +108,7 @@ test('settings validate account and preview the title; person cannot select a tr
   await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toHaveCount(0);
   await expect(page.locator('[id="buyer.email"]')).toBeVisible();
 });
-test('(a) organization places transfer with immediate access, unpaid invoice, protected instructions and Auth mail @J52', async ({ page }) => {
+test('(a) organization places transfer with immediate access, unpaid invoice, protected instructions and Auth mail @J52 @J191', async ({ page }) => {
   test.setTimeout(120000); const order = await place(page, email); orderId = order.orderId;
   const instructionsUrl = page.url();
   const tx = await checked(await db.from('payment_transactions').select('created_at,payment_due_at,status').eq('id', orderId).single());
@@ -123,7 +123,8 @@ test('(a) organization places transfer with immediate access, unpaid invoice, pr
   const messages = await page.request.get(`${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`);
   expect(messages.ok()).toBe(true); const mailbox = await messages.json(); expect(mailbox.messages.length).toBeGreaterThan(0);
   const mail = await (await page.request.get(`${MAILPIT_URL}/api/v1/message/${mailbox.messages[0].ID}`)).json();
-  expect(mail.HTML).toContain('PL61109010140000071219812874'); expect(mail.HTML).toContain('Dane do przelewu');
+  expect(mail.HTML).toContain('PL61 1090 1014 0000 0712 1981 2874'); expect(mail.HTML).not.toContain('PL61109010140000071219812874'); expect(mail.HTML).toContain('Dane do przelewu');
+  expect(mail.HTML).toMatch(/<td[^>]*>Numer konta<\/td>\s*<td[^>]*>PL61 1090/);
   const placed = await checked(await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', 'order.placed').single());
   expect(placed.payload).toMatchObject({ data: { order: { transfer: { account: 'PL61109010140000071219812874' } } } });
   await checked(await db.from('payment_transactions').update({ payment_due_at: '2000-01-01T00:00:00Z' }).eq('id', orderId).select());
@@ -134,7 +135,7 @@ test('(a) organization places transfer with immediate access, unpaid invoice, pr
   const section = await adminDetails(page, email); await expect(section.getByText('Testowy sklep')).toBeVisible();
   await expect(page.getByRole('row').filter({ hasText: email })).toHaveClass(/bg-sf-warning-soft/);
 });
-test('(c) admin rejects amount mismatch and marks paid; invoice updates once using the receipt date @J53', async ({ page, request }) => {
+test('(c) admin rejects amount mismatch and marks paid; invoice updates once using the receipt date, and tells the buyer the payment arrived @J53 @J192', async ({ page, request }) => {
   test.setTimeout(120000); const section = await adminDetails(page, email);
   await section.getByLabel('Zaksięgowana kwota').fill('122'); await section.getByLabel('Data wpływu').fill('2026-01-01');
   await section.getByRole('button', { name: 'Oznacz jako opłacone' }).click(); await expect(section.getByRole('status')).toContainText('pełnej kwocie');
@@ -148,6 +149,12 @@ test('(c) admin rejects amount mismatch and marks paid; invoice updates once usi
   const issued = log.filter(l => l.action === 'issue' && l.oid.endsWith(`:${number}`)); expect(issued).toHaveLength(1); expect(issued[0].status).toBe('issued');
   expect(log.find(l => l.action === 'paid' && l.oid === issued[0].oid)?.paid_date).toBe('2026-01-01');
   expect((await db.from('webhook_logs').select('id').eq('endpoint_id', endpointId).eq('event_type', 'purchase.completed')).data).toHaveLength(1);
+  await expect.poll(async () => {
+    const found = await (await request.get(`${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)).json();
+    return found.messages.map((m: { Subject: string }) => m.Subject);
+  }, { timeout: 30000 }).toContain('Płatność otrzymana: Przelew warsztat');
+  const paidMail = await (await request.get(`${MAILPIT_URL}/api/v1/message/${(await (await request.get(`${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)).json()).messages[0].ID}`)).json();
+  expect(paidMail.HTML).toContain('Przelew warsztat'); expect(paidMail.HTML).toMatch(/123,00\s?zł/); expect(paidMail.HTML).not.toContain('Numer konta');
 });
 test('(d) cancel requires a reason, returns event seat and access, and offers manual invoice correction @J54', async ({ page }) => {
   test.setTimeout(120000); const order = await place(page, cancelledEmail); unpaidId = order.orderId;

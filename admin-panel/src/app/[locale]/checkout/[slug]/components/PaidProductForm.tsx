@@ -386,6 +386,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     onError: setError,
     couponCode: isFullDiscountCoupon ? coupon.appliedCoupon?.code ?? null : null,
     customFieldValues: customFieldDefs.length > 0 ? customFieldValues : undefined,
+    onFieldErrors: setCustomFieldErrors,
   });
 
   // Validate product-defined custom fields before claiming a free/coupon grant,
@@ -594,6 +595,11 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         />
       )}
 
+      {/* Quantity comes first: it sets the amount the coupon and payment below apply to. */}
+      {quantityConfig && !isPwywFree && (quantityConfig.mode === 'product_page' || (quantityConfig.mode === 'checkout' && !hasAccess && !isFunnelTest)) && (
+        <CheckoutQuantityField config={quantityConfig} value={quantityInput} onChange={changeQuantity} invalid={quantityInvalid} />
+      )}
+
       {/* Coupon Field — still shown for full-discount coupons so the user can
           review/remove the applied code before confirming free access. */}
       {!isSubscription && !hasAccess && !error && !isPwywFree && eventReady && (
@@ -611,10 +617,6 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           onApply={() => coupon.handleVerifyCoupon(coupon.couponCode)}
           onRemove={coupon.removeCoupon}
         />
-      )}
-
-      {quantityConfig && !isPwywFree && (quantityConfig.mode === 'product_page' || (quantityConfig.mode === 'checkout' && !hasAccess && !isFunnelTest)) && (
-        <CheckoutQuantityField config={quantityConfig} value={quantityInput} onChange={changeQuantity} invalid={quantityInvalid} />
       )}
 
       {/* Checkout Card */}
