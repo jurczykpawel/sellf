@@ -16,6 +16,7 @@ import type { ShopConfig } from '@/lib/actions/shop-config'
 import SiteMenu from './SiteMenu'
 import DemoBanner from './DemoBanner'
 import UpdateNotificationModal from './UpdateNotificationModal'
+import TutorialMenu from '@/components/tutorials/TutorialMenu'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -624,6 +625,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
               {t('getSellf', { defaultValue: 'Get Sellf' })}
             </Link>
           )}
+          <TutorialMenu />
           <div className="hidden lg:flex lg:items-center lg:gap-1">
             <SiteMenu mode="inline" />
           </div>

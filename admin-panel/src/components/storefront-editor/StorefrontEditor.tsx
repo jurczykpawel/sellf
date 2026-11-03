@@ -14,6 +14,7 @@ import AppearanceEditor from '@/components/storefront-editor/AppearanceEditor';
 import DraftActions from '@/components/storefront-editor/DraftActions';
 import BindingPicker from '@/components/storefront-editor/BindingPicker';
 import ReorderHandle from '@/components/ui/ReorderHandle';
+import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 import SlotEditor, { SLOT_IDS, SLOT_SECTIONS, editorButton, editorControl } from '@/components/storefront-editor/SlotEditor';
 import type { SectionIntent } from '@/lib/storefront-templates/section-descriptors';
 import type { ValidationResult } from '@/lib/storefront-templates/json';
@@ -170,8 +171,9 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
     setArrangement(`${sectionName(id)} · ${target + 1} / ${order.length}`);
   }
   return <div data-storefront-editor className="mx-auto max-w-6xl space-y-6 text-sf-heading">
+    <TutorialTrigger id="storefront-templates" />
     <header className="space-y-2"><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('title')}</h1><p className="max-w-2xl text-sm text-sf-muted">{t('intro')}</p></header>
-    <div className="sticky top-14 z-30 bg-sf-deep pb-3"><div data-editor-savebar className="flex items-center justify-between gap-3 rounded-xl border border-sf-border bg-sf-base p-3 shadow-sm">
+    <div className="sticky top-14 z-30 bg-sf-deep pb-3"><div data-editor-savebar data-tour="template-savebar" className="flex items-center justify-between gap-3 rounded-xl border border-sf-border bg-sf-base p-3 shadow-sm">
       <p role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2 text-sm text-sf-muted"><Check size={16} className={!saved || dirty ? 'hidden' : 'text-sf-success'} aria-hidden="true" /><span>{busy ? t('saving') : dirty ? t('unsaved') : saved ? t('savedState') : t('loadedState')}</span><span className="sr-only">{arrangement}</span></p>
       <div className="flex shrink-0 items-center gap-2"><button type="button" className={editorButton} aria-label={t('reload')} title={t('reload')} disabled={busy} onClick={reload}><RotateCcw size={17} aria-hidden="true" /></button>
       <button type="button" className="min-h-11 rounded-lg bg-sf-accent px-5 py-2 text-sm font-semibold text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:opacity-50" disabled={busy || !config || conflict || !dirty} onClick={save}>{t('save')}</button></div>
@@ -181,13 +183,13 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
     {(conflict || message || validation?.errors.length) ? <div role="alert" className="rounded-xl border border-sf-danger bg-sf-danger-soft p-4 text-sm">{conflict ? t('conflict') : message || t('invalidNotice')}</div> : null}
     <ValidationIssues issues={validation?.warnings.filter(issue => issue.code === 'BINDING') ?? []} onSelect={id => { window.location.hash = id; setSelected(id); revealSection(id); }} />
     {config && entry && <fieldset disabled={busy} className="min-w-0 space-y-5">
-      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-sf-border bg-sf-base p-4 sm:p-5"><Layers size={23} className="shrink-0 text-sf-accent" aria-hidden="true" /><label className="min-w-0 flex-1 space-y-1 text-sm font-semibold"><span>{t('template')}</span><select aria-label={t('template')} className={editorControl} value={config.templateId} onChange={event => { edit({ ...config, templateId: event.target.value as StorefrontConfig['templateId'] }); setSelected(event.target.value === 'default' ? 'catalogue' : 'hero'); }}>
+      <div data-tour="template-picker" className="flex flex-wrap items-center gap-4 rounded-2xl border border-sf-border bg-sf-base p-4 sm:p-5"><Layers size={23} className="shrink-0 text-sf-accent" aria-hidden="true" /><label className="min-w-0 flex-1 space-y-1 text-sm font-semibold"><span>{t('template')}</span><select aria-label={t('template')} className={editorControl} value={config.templateId} onChange={event => { edit({ ...config, templateId: event.target.value as StorefrontConfig['templateId'] }); setSelected(event.target.value === 'default' ? 'catalogue' : 'hero'); }}>
         {Object.values(STOREFRONT_TEMPLATES).map(template => <option key={template.id} value={template.id}>{templateName(template.id)}{template.entitlement.kind === 'pro' ? ' · Pro' : ''}</option>)}
       </select></label></div>
       {snapshot && config.templateId !== 'default' && !snapshot.rights.availableTemplateIds.includes(config.templateId) && <p className="flex items-start gap-2 rounded-xl bg-sf-warning-soft p-3 text-sm text-sf-warning"><Eye size={18} className="mt-0.5 shrink-0" aria-hidden="true" />{t(STOREFRONT_TEMPLATES[config.templateId].entitlement.kind === 'template-key' ? 'templateKeyNotice' : 'proNotice')}</p>}
       <TemplateLicenses />
       <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <nav aria-label={t('sections')} className="scroll-mt-36 min-w-0 space-y-3">
+        <nav data-tour="template-sections" aria-label={t('sections')} className="scroll-mt-36 min-w-0 space-y-3">
           <div><h2 className="scroll-mt-36 font-semibold">{t('sections')}</h2><p className="mt-1 text-xs text-sf-muted">{t(config.templateId === 'default' ? 'classicHint' : 'orderHint')}</p></div>
           <ol ref={sectionListRef} id={sectionListId} data-reorder-list className="relative flex min-w-0 gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-1 lg:overflow-visible">
             {order.map((id, index) => <li key={id} data-reorder-index={index} className={`flex w-64 shrink-0 items-center rounded-xl border p-2 lg:w-auto ${sectionId === id ? 'border-sf-accent bg-sf-accent-soft' : 'border-sf-border bg-sf-base'}`}
@@ -197,10 +199,10 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
               <label className="flex h-11 w-9 shrink-0 items-center justify-center" title={t('show', { id: sectionName(id) })}><input type="checkbox" aria-label={t('show', { id: sectionName(id) })} className="h-4 w-4 accent-sf-accent" checked={layout?.sections.find(section => section.id === id)?.visibility === 'visible'} disabled={!layout?.sections.find(section => section.id === id)?.descriptor.hideable} onChange={event => changeSection(id, { visibility: event.target.checked ? 'visible' : 'hidden' })} /></label>
             </li>)}
           </ol>
-          <button type="button" aria-pressed={sectionId === 'appearance'} className={`${editorButton} w-full text-left ${sectionId === 'appearance' ? 'border-sf-accent bg-sf-accent-soft' : ''}`} onClick={() => setSelected('appearance')}>{appearance('title')}</button>
+          <button type="button" data-tour="template-appearance" aria-pressed={sectionId === 'appearance'} className={`${editorButton} w-full text-left ${sectionId === 'appearance' ? 'border-sf-accent bg-sf-accent-soft' : ''}`} onClick={() => setSelected('appearance')}>{appearance('title')}</button>
         </nav>
         {sectionId === 'appearance' && <AppearanceEditor draftActions={<DraftActions revision={snapshot?.revision ?? null} enabled={!!snapshot?.draft && !dirty && !busy && !conflict} />} config={config} dirty={dirty} blocked={busy || conflict} onChange={edit} onReset={async field => { await savedOperation(field); }} onImport={async () => { const response = await savedOperation(); return { success: response.success, ...('code' in response ? { code: response.code } : {}), ...('unsupported' in response ? { unsupported: response.unsupported } : {}) }; }} />}
-        {section && <section id={sectionId} tabIndex={-1} data-editor-panel aria-label={sectionName(sectionId)} className="scroll-mt-36 min-w-0 space-y-6 rounded-2xl border border-sf-border bg-sf-base p-4 sm:p-6">
+        {section && <section id={sectionId} data-tour="template-section-panel" tabIndex={-1} data-editor-panel aria-label={sectionName(sectionId)} className="scroll-mt-36 min-w-0 space-y-6 rounded-2xl border border-sf-border bg-sf-base p-4 sm:p-6">
           <header className="space-y-1 border-b border-sf-border pb-5"><h2 className="text-xl font-semibold">{sectionName(sectionId)}</h2><p className="text-sm text-sf-muted">{sectionDescription(sectionId)}</p></header>
           {field && <div className="space-y-3"><BindingPicker key={`${config.templateId}:${field}`} label={t(bindingLabel)} kind={field === 'taskCategories' ? 'categories' : 'products'} selectedIds={bindingIds} maxItems={field === 'featuredProducts' ? 6 : field === 'comparisonProducts' ? 2 : field === 'starterProducts' ? 3 : field === 'taskCategories' ? 12 : 1} onChange={ids => {
             const settings: TemplateSettings = { ...activeSettings };

@@ -44,7 +44,8 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicense
   const searchParams = useSearchParams()
   // useSearchParams resolves identically on server and client, so the initial tab matches SSR (no hydration mismatch).
   const [active, setActive] = useState<TabId>(
-    searchParams.has('stripe_connected') || searchParams.has('connect_return') ? 'payments' : 'shop'
+    TABS.find(({ id }) => id === searchParams.get('tab'))?.id
+      ?? (searchParams.has('stripe_connected') || searchParams.has('connect_return') ? 'payments' : 'shop')
   )
   const { demoMode } = useConfig()
   const { role } = useAuth()

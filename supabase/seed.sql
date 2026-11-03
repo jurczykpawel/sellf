@@ -1571,3 +1571,8 @@ BEGIN
     i := i + 1;
   END LOOP;
 END $seed$;
+
+-- ===== GUIDED TUTORIALS (the demo admin has already seen the storefront templates tutorial) =====
+INSERT INTO public.tutorial_progress (user_id, tutorial_id)
+SELECT id, 'storefront-templates' FROM auth.users WHERE email = 'demo@sellf.app'
+ON CONFLICT DO NOTHING;

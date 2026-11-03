@@ -93,7 +93,8 @@
       "publish_legal",
       "publish_shop",
       "publish_storefront",
-      "configure_appearance"
+      "configure_appearance",
+      "guide"
     ]
   },
   "journeys": [
@@ -3585,6 +3586,226 @@
       "layers": [
         "browser",
         "integration"
+      ]
+    },
+    {
+      "id": "J210",
+      "title": "Store templates tutorial starts on first visit, is remembered per user and replays from the help menu",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "guide"
+      },
+      "end_state": {
+        "buyer": "Not exercised: the tutorial is guidance for the seller only.",
+        "seller": "Tutorial walks the template editor controls once; the seen state is stored for that administrator only and a second administrator still gets it.",
+        "integrator": "Not exercised: no event is emitted; the tutorial changes no business state."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "database"
+      ]
+    },
+    {
+      "id": "J211",
+      "title": "Product offer tutorial walks the offer editor",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "guide"
+      },
+      "end_state": {
+        "buyer": "Not exercised: the tutorial is guidance for the seller only.",
+        "seller": "Tutorial walks product, save bar, publication, sections and text editor; seen state stored.",
+        "integrator": "Not exercised: no event is emitted; the tutorial changes no business state."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "database"
+      ]
+    },
+    {
+      "id": "J212",
+      "title": "Business cart tutorial starts when the custom cart is switched on",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "b2b_quantity",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "guide"
+      },
+      "end_state": {
+        "buyer": "Not exercised: the tutorial is guidance for the seller only.",
+        "seller": "Tutorial walks buyer, recipient, quantity and participants; started by hand with the cart off it waits for the click that switches it on.",
+        "integrator": "Not exercised: no event is emitted; the tutorial changes no business state."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "database"
+      ]
+    },
+    {
+      "id": "J213",
+      "title": "Event tutorial leads from event mode to a date and a price tier",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "event",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "guide"
+      },
+      "end_state": {
+        "buyer": "Not exercised: the tutorial is guidance for the seller only.",
+        "seller": "Tutorial walks the event toggle, adding a date, the date fields, a price tier and adding more tiers.",
+        "integrator": "Not exercised: no event is emitted; the tutorial changes no business state."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "database"
+      ]
+    },
+    {
+      "id": "J214",
+      "title": "Bank transfer settings tutorial covers the payments tab",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "bank_transfer",
+        "moment": "immediate",
+        "operation": "guide"
+      },
+      "end_state": {
+        "buyer": "Not exercised: the tutorial is guidance for the seller only.",
+        "seller": "Tutorial walks enabling, account details, deadline, seat reservation and saving.",
+        "integrator": "Not exercised: no event is emitted; the tutorial changes no business state."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "database"
+      ]
+    },
+    {
+      "id": "J215",
+      "title": "Unpaid transfer order tutorial guides settling an order awaiting payment",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "bank_transfer",
+        "moment": "after_hold",
+        "operation": "guide"
+      },
+      "end_state": {
+        "buyer": "Not exercised: the tutorial is guidance for the seller only.",
+        "seller": "Tutorial opens in the details of an order awaiting a transfer and walks instructions, mark-paid, cancel, lifecycle and invoice hold.",
+        "integrator": "Not exercised: no event is emitted; the tutorial changes no business state."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "database"
+      ]
+    },
+    {
+      "id": "J216",
+      "title": "Affiliate programme tutorial introduces navigation, rules and applications",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "coupon",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "guide"
+      },
+      "end_state": {
+        "buyer": "Not exercised: the tutorial is guidance for the seller only.",
+        "seller": "Tutorial walks the programme navigation, rules and applications list.",
+        "integrator": "Not exercised: no event is emitted; the tutorial changes no business state."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "database"
+      ]
+    },
+    {
+      "id": "J217",
+      "title": "License tutorial covers issuing and managing licenses",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "license",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "guide"
+      },
+      "end_state": {
+        "buyer": "Not exercised: the tutorial is guidance for the seller only.",
+        "seller": "Tutorial walks manual issue, filters and the license list.",
+        "integrator": "Not exercised: no event is emitted; the tutorial changes no business state."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "database"
+      ]
+    },
+    {
+      "id": "J218",
+      "title": "Purchase source tutorial covers retention and channel rules",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_navigation",
+        "operation": "guide"
+      },
+      "end_state": {
+        "buyer": "Not exercised: the tutorial is guidance for the seller only.",
+        "seller": "Tutorial walks click-id retention, channel rules, adding a rule and saving.",
+        "integrator": "Not exercised: no event is emitted; the tutorial changes no business state."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "database"
+      ]
+    },
+    {
+      "id": "J219",
+      "title": "Payments tutorial walks summary, filters, list and order details",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "guide"
+      },
+      "end_state": {
+        "buyer": "Not exercised: the tutorial is guidance for the seller only.",
+        "seller": "Tutorial walks the payment summary, filters, list and the details button.",
+        "integrator": "Not exercised: no event is emitted; the tutorial changes no business state."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "database"
       ]
     }
   ],

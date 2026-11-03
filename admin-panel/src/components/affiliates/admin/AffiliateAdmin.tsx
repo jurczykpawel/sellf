@@ -8,6 +8,7 @@ import { applyToProgram, getAcceptedTerms, getAdminOverview, updateMember, updat
 import { applicationSchema, memberUpdateSchema, programUpdateSchema } from '@/lib/affiliates/admin/contracts';
 import { AFFILIATE_PROGRAM_DEFAULTS } from '@/lib/affiliates/program-defaults';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
+import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 import SyncWorkPanel from '@/components/affiliates/admin/SyncWorkPanel';
 import CaptchaWidget from '@/components/captcha/CaptchaWidget';
 import { affiliateAdminMessages } from '@/components/affiliates/admin/messages';
@@ -63,8 +64,9 @@ export function AffiliateAdmin({ initial, locale }: { initial: AdminOverview; lo
   }
   const p = overview.program;
   return <section aria-labelledby={`${id}-title`} className="grid min-w-0 grid-cols-1 gap-6 text-sf-heading [overflow-wrap:anywhere]">
+    <TutorialTrigger id="affiliates" />
     <header className="flex flex-wrap items-center justify-between gap-4"><div className="min-w-0"><h1 id={`${id}-title`} className="text-3xl font-semibold tracking-tight">{t.title}</h1><p className="mt-2 text-sm text-sf-body">{t.subtitle}</p></div><span className={`rounded-full px-3 py-1 text-xs font-semibold ${p?.enabled ? 'bg-sf-success-soft' : 'bg-sf-hover'}`}>{p?.enabled ? t.enabled : t.disabled}</span></header>
-    <details open={!p} className="min-w-0 rounded-xl border border-sf-border bg-sf-raised">
+    <details data-tour="affiliates-settings" open={!p} className="min-w-0 rounded-xl border border-sf-border bg-sf-raised">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 focus-visible:outline-2 focus-visible:outline-sf-accent"><div className="min-w-0"><span className="font-semibold">{t.settings}</span><p className="mt-1 text-sm text-sf-body">{t.settingsHint}</p></div><ChevronDown size={18} aria-hidden="true" /></summary>
       <form key={p?.version ?? '0'} action={save} className="grid min-w-0 gap-6 border-t border-sf-border p-4 lg:grid-cols-2">
         <div className="grid min-w-0 content-start gap-5"><label className="flex items-center gap-3 text-sm font-medium"><input name="enabled" type="checkbox" defaultChecked={p?.enabled ?? AFFILIATE_PROGRAM_DEFAULTS.enabled} />{t.enabled}</label>
@@ -79,7 +81,7 @@ export function AffiliateAdmin({ initial, locale }: { initial: AdminOverview; lo
     </details>
     <Notice value={notice} error={error} />
     <SyncWorkPanel locale={locale} />
-    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-lg font-semibold"><Users size={20} aria-hidden="true" />{t.applications}</h2><div className="flex min-w-0 max-w-full flex-wrap gap-2"><label className="sr-only" htmlFor={`${id}-status`}>{t.status}</label><select id={`${id}-status`} className={`${fieldClass} !w-auto max-w-full`} value={filter} disabled={busy} onChange={event => { setFilter(event.target.value); void load(undefined, event.target.value); }}><option value="">{t.all}</option>{['pending', 'approved', 'rejected', 'suspended', 'terminated'].map(status => <option key={status} value={status}>{statusLabel(status, t)}</option>)}</select><button type="button" className={buttonClass} disabled={busy} onClick={() => void load()}>{t.refresh}</button></div></div>
+    <div data-tour="affiliates-applications" className="flex flex-wrap items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-lg font-semibold"><Users size={20} aria-hidden="true" />{t.applications}</h2><div className="flex min-w-0 max-w-full flex-wrap gap-2"><label className="sr-only" htmlFor={`${id}-status`}>{t.status}</label><select id={`${id}-status`} className={`${fieldClass} !w-auto max-w-full`} value={filter} disabled={busy} onChange={event => { setFilter(event.target.value); void load(undefined, event.target.value); }}><option value="">{t.all}</option>{['pending', 'approved', 'rejected', 'suspended', 'terminated'].map(status => <option key={status} value={status}>{statusLabel(status, t)}</option>)}</select><button type="button" className={buttonClass} disabled={busy} onClick={() => void load()}>{t.refresh}</button></div></div>
     {!overview.members.length && <p className="rounded-xl border border-dashed border-sf-border p-8 text-center text-sm text-sf-body">{t.empty}</p>}
     {overview.members.map(member => <MemberDecision key={`${member.id}-${member.version}`} member={member} locale={locale} onSaved={data => setOverview(current => ({ ...current, members: current.members.map(row => row.id === data.id ? data : row) }))} />)}
     {overview.next_cursor && <button className={buttonClass} disabled={busy} onClick={() => void load(overview.next_cursor!)}>{t.next}</button>}
@@ -104,7 +106,7 @@ function MemberDecision({ member, locale, onSaved }: { member: MemberInfo; local
     try { const result = await getAcceptedTerms(member.id); if (result.success && result.data) setTerms(result.data); else { setNotice(message(result, t)); setError(true); } }
     catch { setNotice(t.error); setError(true); } finally { setBusy(false); }
   }
-  return <article aria-label={member.display_name} className="grid min-w-0 gap-4 rounded-xl border border-sf-border bg-sf-raised p-5">
+  return <article data-tour="affiliates-member" aria-label={member.display_name} className="grid min-w-0 gap-4 rounded-xl border border-sf-border bg-sf-raised p-5">
     <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h3 className="break-words text-lg font-semibold">{member.display_name}</h3><p className="mt-1 text-sm text-sf-body">{t.code}: <span className="font-medium">{member.code}</span></p></div><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${member.status === 'approved' ? 'bg-sf-success-soft' : 'bg-sf-hover'}`}>{statusLabel(member.status, t)}</span></div>
     {member.email && <p className="text-sm text-sf-body [overflow-wrap:anywhere]">{member.email}</p>}
     {member.channel && <p className="text-sm text-sf-body [overflow-wrap:anywhere]">{member.channel}</p>}

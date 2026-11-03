@@ -49,6 +49,7 @@
     "altcha-lib": "^2.6.0",
     "bir1": "^4.2.0",
     "clsx": "^2.1.1",
+    "driver.js": "^1.10.2",
     "fast-xml-parser": "^5.11.2",
     "geist": "^1.8.1",
     "hast-util-from-html": "^2.0.3",

@@ -2,6 +2,8 @@
 /** Transfer administration uses the same operation as API v1. @see lib/orders/bank-transfer-actions.ts */
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import TutorialHelpButton from '@/components/tutorials/TutorialHelpButton';
+import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 import TransferInstructions from '@/components/checkout/TransferInstructions';
 import { updateBankTransfer } from '@/lib/orders/bank-transfer-actions';
 import { fromMinorUnits, toMinorUnits, currencyExponent } from '@/lib/currency/minor-units';
@@ -30,26 +32,27 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
     <label>{t('paidAt')}<input className={input} type="date" required value={paidAt} onChange={e => setPaidAt(e.target.value)} /></label>
   </>;
   return <section aria-label={t('title')}>
-    <TransferInstructions transfer={tx.transfer_details ?? null} amount={tx.amount} currency={tx.currency} dueAt={tx.payment_due_at} />
+    {tx.status === 'awaiting_payment' && <><TutorialTrigger id="unpaid-orders" /><TutorialHelpButton id="unpaid-orders" /></>}
+    <div data-tour="unpaid-instructions"><TransferInstructions transfer={tx.transfer_details ?? null} amount={tx.amount} currency={tx.currency} dueAt={tx.payment_due_at} /></div>
     {tx.status === 'awaiting_payment' && <div className="space-y-3">
-      <form onSubmit={e => { e.preventDefault(); void run('mark-paid'); }} className="flex flex-wrap gap-3 items-end">
+      <form data-tour="unpaid-mark-paid" onSubmit={e => { e.preventDefault(); void run('mark-paid'); }} className="flex flex-wrap gap-3 items-end">
         {paidFields}
         <button disabled={busy} className="rounded bg-sf-accent-bg text-sf-inverse p-2">{t('markPaid')}</button>
       </form>
-      <form onSubmit={e => { e.preventDefault(); void run('cancel'); }} className="flex flex-wrap items-end gap-3">
+      <form data-tour="unpaid-cancel" onSubmit={e => { e.preventDefault(); void run('cancel'); }} className="flex flex-wrap items-end gap-3">
         <label>{t('reason')}<input className={input} required maxLength={1000} value={reason} onChange={e => setReason(e.target.value)} /></label>
         <button disabled={busy || !reason.trim()} className="rounded border border-sf-danger text-sf-danger p-2">{t('cancel')}</button>
       </form>
       <p role="status">{message}</p>
     </div>}
-    <ul className="my-3 space-y-1 text-sm" aria-label={t('lifecycle')}>
+    <ul data-tour="unpaid-lifecycle" className="my-3 space-y-1 text-sm" aria-label={t('lifecycle')}>
       {tx.status === 'awaiting_payment' && tx.invoice_hold_at && <li>{t('invoiceHoldAdmin')}</li>}
       {tx.status === 'awaiting_payment' && tx.release_at && <li>{t('releaseAt', { date: date(tx.release_at) })}{tx.reminder_at ? ` · ${t('reminderAt', { date: date(tx.reminder_at) })}` : ''}</li>}
       {tx.transfer_declared_at && <li className="font-semibold text-sf-warning">{t('declaredBadge', { date: date(tx.transfer_declared_at) })}{tx.transfer_declared_note ? `: ${tx.transfer_declared_note}` : ''}</li>}
       {tx.status === 'cancelled' && tx.cancel_reason && <li>{t(`cancelReason_${tx.cancel_reason === 'payment_window_expired' ? 'expired' : 'admin'}`)}</li>}
       {tx.reopened_at && <li>{t('reopened', { date: date(tx.reopened_at) })}</li>}
     </ul>
-    {tx.status === 'awaiting_payment' && !tx.invoice_hold_at && <button type="button" disabled={busy} onClick={() => void run('invoice-issued')} className="rounded border border-sf-border p-2">{t('markInvoiceIssued')}</button>}
+    {tx.status === 'awaiting_payment' && !tx.invoice_hold_at && <button type="button" data-tour="unpaid-invoice" disabled={busy} onClick={() => void run('invoice-issued')} className="rounded border border-sf-border p-2">{t('markInvoiceIssued')}</button>}
     {tx.status === 'cancelled' && tx.invoice?.status !== 'corrected' && <div className="space-y-3">
       <p className="text-sm text-sf-muted">{t('lateHelp')}</p>
       <form onSubmit={e => { e.preventDefault(); void run('accept-late'); }} className="flex flex-wrap gap-3 items-end" aria-label={t('acceptLate')}>

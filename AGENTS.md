@@ -1308,6 +1308,10 @@ days. Because it is anonymous with no personal data, **no DPA is required**.
 - Wired in `admin-panel/src/instrumentation.ts` (MUST live under `src/` — with a `src` directory Next.js only loads instrumentation from there, never from the project root; at the root it is silently never compiled/run); DB in `supabase/migrations/20260627120000_telemetry.sql`.
 - User-facing disclosure: `README.md` (Telemetry section), `admin-panel/.env.example` (§12), `docs-site/.../telemetry.md`.
 
+### Guided tutorials (driver.js)
+
+Admin screens carry clickable tutorials (store templates, offer page, business cart, events, bank transfer settings, unpaid orders, affiliates, licenses, purchase sources, payments). Registry: `src/lib/tutorials/registry.ts` (id, screen, ordered steps). A step highlights `[data-tour="<target>"]`; its texts are `tutorials.<id>.steps.<key>.{title,body[,bodyAct]}` in `messages/{en,pl}.json`. A screen opts in with `<TutorialTrigger id="…" />` (`auto={false}` or a condition keeps it menu-only until the feature is on); `TutorialProvider` (dashboard layout) starts it once on the user's first visit and stores it in `public.tutorial_progress` (RLS: own rows only, actions in `lib/actions/tutorial-progress.ts`). The "?" button in the header (`TutorialMenu`) replays the tutorials of the open screen and links to the others (`?tutorial=<id>` starts one on demand). A step with `requires` asks for a click until the element it reveals exists. Test servers (`E2E_MODE`) keep first-visit start off unless the `sellf_tutorial_autostart=on` cookie is set (`lib/tutorials/autostart.ts`); a new tutorial needs its registry entry, both locales, the `data-tour` markers (`tests/unit/tutorials/registry.test.ts` checks them) and a `@Jnn` journey.
+
 ### Stable Versions & Known Issues
 
 - **Supabase CLI**: 2.101.0 (run via `npx supabase`) — pin via `npx supabase@2.101.0` if needed

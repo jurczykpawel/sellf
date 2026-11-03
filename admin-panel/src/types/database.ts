@@ -4314,6 +4314,39 @@ export type Database = {
         }
         Relationships: []
       }
+      tutorial_progress: {
+        Row: {
+          seen_at: string
+          tutorial_id: string
+          user_id: string
+        }
+        Insert: {
+          seen_at?: string
+          tutorial_id: string
+          user_id: string
+        }
+        Update: {
+          seen_at?: string
+          tutorial_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tutorial_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tutorial_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       user_product_access: {
         Row: {
           access_duration_days: number | null

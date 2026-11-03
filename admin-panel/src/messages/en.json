@@ -5774,5 +5774,307 @@
       "amountMismatch": "The booked amount must equal the full order amount.",
       "operationError": "Operation failed. Check the amount, receipt date and current order status.",
       "overdueCount": "Overdue bank transfers: {count}"
+  },
+  "tutorials": {
+    "menu": {
+      "open": "Help: show how this works",
+      "title": "Show how this works",
+      "elsewhere": "Other tutorials",
+      "all": "Tutorials"
+    },
+    "progress": "{current} of {total}",
+    "next": "Next",
+    "previous": "Back",
+    "done": "Done",
+    "close": "Close tutorial",
+    "mustAct": "First click the highlighted element, then we will continue.",
+    "storefront-templates": {
+      "name": "Store templates",
+      "steps": {
+        "intro": {
+          "title": "Store templates",
+          "body": "Build your store's home page from ready sections. You work on a private draft: saving does not change your store until you publish it."
+        },
+        "workspace": {
+          "title": "Two workspaces",
+          "body": "This tab is the store page. Next to it are product offers: separate sales pages for single products."
+        },
+        "template": {
+          "title": "Choose a template",
+          "body": "The template sets the page layout. Changing it only changes the draft. Templates marked Pro need a Pro license."
+        },
+        "sections": {
+          "title": "Page sections",
+          "body": "Sections are listed from the top of the page. Click one to edit it, untick the box beside it to hide it, and use the handle to reorder."
+        },
+        "section": {
+          "title": "Section content",
+          "body": "Choose products and write the text of the selected section here. You see the result in the draft preview."
+        },
+        "appearance": {
+          "title": "Appearance",
+          "body": "Set colours, typeface and corner rounding once for the whole store."
+        },
+        "save": {
+          "title": "Save the draft",
+          "body": "Saving creates a private draft. The public store changes only after publishing. The indicator beside it shows unsaved changes."
+        },
+        "preview": {
+          "title": "Preview and publish",
+          "body": "After saving, open the draft in a new tab with your real products. In the history you publish it or restore an earlier version."
+        }
+      }
+    },
+    "offer-page": {
+      "name": "Product offer page",
+      "steps": {
+        "intro": {
+          "title": "Offer page",
+          "body": "An offer is a separate sales page for one product: text, benefits and questions, while price and the buy button come from the product. First pick a product from the Products list or in this workspace's chooser."
+        },
+        "product": {
+          "title": "Product being edited",
+          "body": "This shows which product the offer is for. You can pick another product without leaving the editor."
+        },
+        "save": {
+          "title": "Save the draft",
+          "body": "You save a private draft. The public product page changes only after publishing."
+        },
+        "publication": {
+          "title": "Publication",
+          "body": "Turn the offer page on and publish the saved draft in the history. Until then buyers still see the usual purchase page. Open the preview from here too."
+        },
+        "sections": {
+          "title": "Offer sections",
+          "body": "An offer has three sections: the heading, questions and answers, and the closing with the buy button."
+        },
+        "editor": {
+          "title": "Offer text",
+          "body": "Write what customers will read. Save the draft to see the preview."
+        }
+      }
+    },
+    "b2b-checkout-profile": {
+      "name": "Business cart: buyer, recipient, participants",
+      "where": "Products, edit a product, Sales and settings, Cart.",
+      "steps": {
+        "intro": {
+          "title": "A cart of its own",
+          "body": "The default cart is simple. A custom cart lets you sell to companies: buyer and recipient details, quantity, participants and bank transfer with an invoice."
+        },
+        "enable": {
+          "title": "Turn on the custom cart",
+          "body": "Tick this box and the cart modules appear. Unticked, the product uses the regular cart.",
+          "bodyAct": "Click this box to turn on the custom cart. Its modules appear next."
+        },
+        "buyer": {
+          "title": "Buyer",
+          "body": "Choose who may buy: a private person, an organisation or both. For each type you can turn on bank transfer separately, and for organisations fetch company data from the Polish registry (GUS) by tax number."
+        },
+        "recipient": {
+          "title": "Recipient",
+          "body": "When the invoice goes to one institution and the product to another, the buyer names the recipient. The module works only for an organisation buyer."
+        },
+        "quantity": {
+          "title": "Quantity",
+          "body": "Set the minimum and maximum and where the quantity is chosen: in the cart, on the product page, or hidden. Licensed products allow one unit only."
+        },
+        "participants": {
+          "title": "Participants",
+          "body": "For each unit the buyer enters the participant who gets access. The number of participants must match the quantity. With one participant the details can be filled in from the buyer."
+        }
+      }
+    },
+    "events": {
+      "name": "Events with dates and price tiers",
+      "where": "Products, edit a product, Sales and settings, Dates and prices.",
+      "steps": {
+        "intro": {
+          "title": "An event",
+          "body": "An event has one or more dates. Each date has its own seat pool and price tiers, for example cheaper first seats."
+        },
+        "enable": {
+          "title": "Event mode",
+          "body": "Tick it so the product sells seats for dates instead of plain access.",
+          "bodyAct": "Click this box to turn on event mode. We will add the first date next."
+        },
+        "addSession": {
+          "title": "Add a date",
+          "body": "Each date is a separate day and time in the event's time zone.",
+          "bodyAct": "Click this button to add the first date."
+        },
+        "session": {
+          "title": "A date",
+          "body": "Enter start and end, time zone, venue or online link and the seat pool. An empty pool means no limit. The sales-open box closes or opens registration."
+        },
+        "tier": {
+          "title": "Price tier",
+          "body": "A tier is the price that applies until the given number of seats is sold or until a chosen date. When it runs out, buyers pay the next tier's price."
+        },
+        "addTier": {
+          "title": "More tiers",
+          "body": "Add the next tier, for example a higher price after the first ten seats."
+        },
+        "preview": {
+          "title": "Preview and attendees",
+          "body": "For a saved date you see the sales state, the orders and attendees, and can download their list."
+        }
+      }
+    },
+    "bank-transfer-setup": {
+      "name": "Bank transfer settings",
+      "steps": {
+        "intro": {
+          "title": "Bank transfer",
+          "body": "A buyer places an order and pays by transfer to your account. You set the transfer details, the payment deadline and how long seats are reserved."
+        },
+        "enable": {
+          "title": "Turn on and access",
+          "body": "Turn transfers on, then decide whether access is granted as soon as the order is placed or only after payment. Transfer for a given product is also switched on in its cart."
+        },
+        "account": {
+          "title": "Transfer details",
+          "body": "Enter the payee, the account number and optionally the bank name. The buyer sees them in the order and in the email."
+        },
+        "due": {
+          "title": "Deadline and title",
+          "body": "The deadline counts in days from the order. The title template includes the order number so matching payments is easier. The limit guards against streams of unpaid orders from one address."
+        },
+        "reservation": {
+          "title": "Seat reservation",
+          "body": "For events an unpaid order holds its seat and price for a set time. After the reminder the seat goes back on sale. Once an invoice is issued the order waits without a deadline."
+        },
+        "save": {
+          "title": "Save settings",
+          "body": "Changes apply after saving. New orders use the new settings."
+        }
+      }
+    },
+    "unpaid-orders": {
+      "name": "Unpaid bank transfer orders",
+      "where": "Payments, details of an order awaiting a transfer.",
+      "steps": {
+        "intro": {
+          "title": "Order awaiting a transfer",
+          "body": "This order was placed with a bank transfer and has no payment yet. From here you settle, cancel or extend it."
+        },
+        "instructions": {
+          "title": "Transfer details",
+          "body": "The buyer sees the same: amount, account, title and deadline."
+        },
+        "markPaid": {
+          "title": "Mark as paid",
+          "body": "When the payment shows up in your account, enter the booked amount and date. The amount must match the order. The buyer gets access and a confirmation."
+        },
+        "cancel": {
+          "title": "Cancel the order",
+          "body": "Give a reason and cancel if the buyer does not pay. The released seat goes back on sale. If the payment arrives later, you can reopen a cancelled order."
+        },
+        "lifecycle": {
+          "title": "Order state",
+          "body": "Shows when the reminder goes out and when the reservation is released, plus the buyer's note that they sent the transfer, which extends the reservation."
+        },
+        "invoice": {
+          "title": "Invoice issued",
+          "body": "After an invoice is issued the order waits for payment without a deadline. Only cancelling releases it, and then you issue a correction."
+        }
+      }
+    },
+    "affiliates": {
+      "name": "Affiliate programme",
+      "steps": {
+        "intro": {
+          "title": "Affiliate programme",
+          "body": "Partners recommend your products with their own coupon and earn a commission. Here you set the rules, approve applications and settle payouts."
+        },
+        "navigation": {
+          "title": "Three views",
+          "body": "Partners are applications and programme members. Earnings show commissions from purchases, and payouts settle with partners."
+        },
+        "settings": {
+          "title": "Programme rules",
+          "body": "Expand to turn the programme on, set the commission hold time, payout thresholds and the terms in two languages together with their version number."
+        },
+        "applications": {
+          "title": "Applications and partners",
+          "body": "The list shows applications awaiting a decision and current partners. You can filter it by status."
+        },
+        "member": {
+          "title": "Decision about a partner",
+          "body": "Approve or reject an application, later suspend or end the cooperation. Each decision needs a reason that stays in the history."
+        }
+      }
+    },
+    "licenses": {
+      "name": "Product licenses",
+      "steps": {
+        "intro": {
+          "title": "Issued licenses",
+          "body": "A licensed product gives the buyer a signed key that works without contacting your server. Here you issue keys by hand and manage the issued ones."
+        },
+        "issue": {
+          "title": "Issue a license by hand",
+          "body": "Pick a product, enter the recipient's email and, if the product needs it, a domain. A manual license needs no purchase."
+        },
+        "filters": {
+          "title": "Filters",
+          "body": "Search by email or domain and narrow the list by source (purchase, manual) and status."
+        },
+        "table": {
+          "title": "License list",
+          "body": "For each license you see the product, recipient, domain, tier and expiry. Buttons reveal the key and revoke the license. A refund or a lost dispute revokes it automatically."
+        }
+      }
+    },
+    "attribution": {
+      "name": "Purchase sources",
+      "steps": {
+        "intro": {
+          "title": "Where purchases come from",
+          "body": "Every purchase records its source: UTM tags, the referring page and the landing page. In the payment details you find it in the Source box."
+        },
+        "retention": {
+          "title": "Ad click identifiers",
+          "body": "Ad click identifiers are stored only with marketing consent and erased after the number of days you set here."
+        },
+        "rules": {
+          "title": "Channel rules",
+          "body": "A purchase's channel is set by the first matching active rule, lowest priority number first. You can turn default rules off and add your own."
+        },
+        "addRule": {
+          "title": "Your own rule",
+          "body": "Add a rule, for example source newsletter assigned to the email channel. A purchase with a partner coupon always goes to the affiliate channel."
+        },
+        "save": {
+          "title": "Save",
+          "body": "Changes apply to new purchases. Recorded purchases keep their channel."
+        }
+      }
+    },
+    "payments-orders": {
+      "name": "Payments and orders",
+      "steps": {
+        "intro": {
+          "title": "Payments and orders",
+          "body": "All payments are here: card, bank transfer, refunds and disputes. From this screen you settle an order, issue a refund or check where a purchase came from."
+        },
+        "stats": {
+          "title": "Summary",
+          "body": "The cards show revenue, the number of transactions, revenue for today and this month, payments in progress and refunds."
+        },
+        "filters": {
+          "title": "Search and filters",
+          "body": "Narrow the list by status and period, search by the buyer's email and export the result to a CSV file."
+        },
+        "table": {
+          "title": "Payment list",
+          "body": "The Transactions tab lists payments with their status: completed, awaiting transfer, refunded, partially refunded or disputed. The Sessions tab shows carts that were started and not completed."
+        },
+        "details": {
+          "title": "Order details",
+          "body": "The Details button opens items, the purchase source, the invoice and actions such as settling a transfer. A refund has its own button in the row."
+        }
+      }
+    }
   }
 }

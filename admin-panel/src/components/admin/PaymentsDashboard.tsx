@@ -14,6 +14,7 @@ import type { PaymentTransaction, PaymentSession } from '@/types/payment';
 import { api, isExpectedApiError } from '@/lib/api/client';
 import { fetchPaymentTransactionsPage, dateRangeToDateFrom } from '@/lib/payments/fetch-transactions-page';
 import CurrencySelector from '@/components/dashboard/CurrencySelector';
+import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 import type { CurrencyAmount } from '@/lib/actions/analytics';
 
 interface PaymentStats {
@@ -201,6 +202,7 @@ export default function PaymentsDashboard() {
 
   return (
     <div className="space-y-6">
+      <TutorialTrigger id="payments-orders" />
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -215,18 +217,20 @@ export default function PaymentsDashboard() {
       </div>
 
       {/* Payment Statistics */}
-      {stats && <PaymentStatsCards stats={stats} />}
+      {stats && <div data-tour="payments-stats"><PaymentStatsCards stats={stats} /></div>}
 
       {/* Filters */}
-      <PaymentFilters
-        filters={filters}
-        onFiltersChange={setFilters}
-        onRefresh={fetchPaymentData}
-        onSearchPendingChange={setSearchPending}
-      />
+      <div data-tour="payments-filters">
+        <PaymentFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          onRefresh={fetchPaymentData}
+          onSearchPendingChange={setSearchPending}
+        />
+      </div>
 
       {/* Tabs */}
-      <div className="bg-sf-base shadow">
+      <div data-tour="payments-table" className="bg-sf-base shadow">
         <div className="border-b border-sf-border">
           <nav className="flex space-x-8 px-6 py-4">
             <button
