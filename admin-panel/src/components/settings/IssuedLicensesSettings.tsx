@@ -33,7 +33,7 @@ interface LicenseRow {
   expires_at: string | null;
   revoked_at: string | null;
   revoked_by_dispute_id: string | null;
-  issuance_source: 'purchase' | 'manual';
+  issuance_source: 'purchase' | 'manual' | 'api';
   license_domain: string | null;
   products: { name: string; slug: string; license_tier: string | null } | null;
 }
@@ -53,6 +53,7 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
   const [email, setEmail] = useState('');
   const [domain, setDomain] = useState('');
   const [values, setValues] = useState<Record<string, string>>({});
+  const [sendEmail, setSendEmail] = useState(true);
   const [search, setSearch] = useState('');
   const [source, setSource] = useState('');
   const [status, setStatus] = useState('');
@@ -113,7 +114,7 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
       const response = await fetch('/api/admin/licenses', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ productId, email, ...(domainField && domain.trim() ? { domain: domain.trim() } : {}), customFieldValues: values }),
+        body: JSON.stringify({ productId, email, ...(domainField && domain.trim() ? { domain: domain.trim() } : {}), customFieldValues: values, sendEmail, locale: locale === 'pl' ? 'pl' : 'en' }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || 'issue');
@@ -179,13 +180,14 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
         </div>
         {selectedProduct && <p className="text-xs text-sf-muted">{t('policy', { tier: selectedProduct.license_tier ?? '—', days: selectedProduct.license_duration_days ?? t('unlimited') })}</p>}
         {extraFields.length > 0 && <div className="grid md:grid-cols-2 gap-4">{extraFields.map((field) => <Field key={field.id} label={labelFor(field.label)}><input required={field.required} type={field.type === 'email' ? 'email' : 'text'} maxLength={field.max_length} value={values[field.id] ?? ''} onChange={(e) => setValues((v) => ({ ...v, [field.id]: e.target.value }))} className="input" /></Field>)}</div>}
+        <label className="flex items-center gap-2 text-sm text-sf-body"><input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} />{t('sendEmail')}</label>
         <div className="flex justify-end"><button disabled={working || !productId} className="px-5 py-2 bg-sf-accent-bg text-white font-medium disabled:opacity-50">{working ? t('issuing') : t('issue')}</button></div>
       </form>
 
       <div className="p-6 space-y-4">
         <div className="flex flex-wrap gap-3 items-end">
           <Field label={t('search')}><input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="input" /></Field>
-          <Field label={t('source')}><select value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }} className="input"><option value="">{t('all')}</option><option value="purchase">{t('purchase')}</option><option value="manual">{t('manual')}</option></select></Field>
+          <Field label={t('source')}><select value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }} className="input"><option value="">{t('all')}</option><option value="purchase">{t('purchase')}</option><option value="manual">{t('manual')}</option><option value="api">{t('api')}</option></select></Field>
           <Field label={t('status')}><select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="input"><option value="">{t('all')}</option><option value="active">{t('active')}</option><option value="expired">{t('expired')}</option><option value="revoked">{t('revokedStatus')}</option></select></Field>
           <button type="button" onClick={() => void load()} className="p-2 border-2 border-sf-border-medium"><RefreshCw className="w-5 h-5" /></button>
         </div>

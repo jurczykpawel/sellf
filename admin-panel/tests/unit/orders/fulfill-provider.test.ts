@@ -3,7 +3,8 @@ import { fulfillPaidOrder } from '@/lib/services/fulfill-paid-order';
 import { deriveOrderId } from '@/lib/services/webhook-service';
 import type Stripe from 'stripe';
 
-const mocks = vi.hoisted(() => ({ licenses: vi.fn(), trigger: vi.fn(), capture: vi.fn() }));
+const mocks = vi.hoisted(() => ({ licenses: vi.fn(), trigger: vi.fn(), capture: vi.fn(), dispute: vi.fn(), order: [] as string[] }));
+vi.mock('@/app/api/webhooks/stripe/dispute-handlers', () => ({ handleChargeDispute: mocks.dispute }));
 vi.mock('@/lib/services/bundle-order', () => ({
   resolveComponentProductIds: vi.fn(async () => []), issueLicensesForOrder: mocks.licenses,
 }));
@@ -75,4 +76,15 @@ it.each(['stripe', 'offline'] as const)('passes stored profile details to the %s
   await fulfillPaidOrder(kind === 'offline' ? { ...args, provider: { kind: 'offline' } } : { ...args, stripe: {} as Stripe, sessionId: tx.session_id, paymentIntentId: 'pi_order' });
   expect(mocks.trigger.mock.calls[0][1].orderDetails).toMatchObject(details);
   expect(mocks.trigger.mock.calls[0][1].invoice.companyName).toBe('Gmina Przykładowa');
+});
+
+it('applies a dispute Stripe opened before the payment was stored, before issuing licenses @J153', async () => {
+  mocks.dispute.mockImplementation(async () => { mocks.order.push('dispute'); return { processed: true, message: 'ok' }; });
+  mocks.licenses.mockImplementation(async () => { mocks.order.push('licenses'); return []; });
+  const dispute = { id: 'dp_early', status: 'needs_response' };
+  const list = vi.fn(async () => ({ data: [dispute] }));
+  await fulfillPaidOrder({ ...common(), stripe: { disputes: { list } } as unknown as Stripe, sessionId: 'cs_order', paymentIntentId: 'pi_order' });
+  expect(list).toHaveBeenCalledWith({ payment_intent: 'pi_order', limit: 10 });
+  expect(mocks.dispute).toHaveBeenCalledWith(dispute, expect.anything(), expect.anything(), false);
+  expect(mocks.order).toEqual(['dispute', 'licenses']);
 });

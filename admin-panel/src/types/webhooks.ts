@@ -86,6 +86,8 @@ export const WEBHOOK_EVENTS: WebhookEventDefinition[] = [
   { value: 'dispute.closed', label: 'Dispute Closed', category: 'purchases' },
   { value: 'refund.updated', label: 'Refund Status Updated', category: 'purchases' },
   { value: 'refund.issued', label: 'Refund Issued', category: 'purchases' },
+  { value: 'license.issued', label: 'License Issued (Pro)', category: 'system' },
   { value: 'license.revoked', label: 'License Revoked (Pro)', category: 'system' },
   { value: 'license.restored', label: 'License Restored (Pro)', category: 'system' },
+  { value: 'license.expired', label: 'License Expired (Pro)', category: 'system' },
 ];

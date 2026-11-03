@@ -1635,6 +1635,7 @@ export type Database = {
         Row: {
           email: string | null
           expires_at: string | null
+          expiry_notified_at: string | null
           id: string
           issuance_source: string
           issued_at: string
@@ -1652,6 +1653,7 @@ export type Database = {
         Insert: {
           email?: string | null
           expires_at?: string | null
+          expiry_notified_at?: string | null
           id?: string
           issuance_source?: string
           issued_at?: string
@@ -1669,6 +1671,7 @@ export type Database = {
         Update: {
           email?: string | null
           expires_at?: string | null
+          expiry_notified_at?: string | null
           id?: string
           issuance_source?: string
           issued_at?: string
@@ -4860,6 +4863,7 @@ export type Database = {
         Returns: Json
       }
       capture_expired_access: { Args: never; Returns: number }
+      capture_expired_licenses: { Args: never; Returns: number }
       check_application_rate_limit: {
         Args: {
           action_type_param: string

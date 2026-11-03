@@ -19,3 +19,10 @@ it('keeps a failed queue handoff pending rather than consuming the committed cha
  expect(await runBusinessEvents(db as never)).toEqual({processed:0,errors:1});expect(h.saved).toEqual([]);
  expect(await runBusinessEvents(db as never)).toEqual({processed:1,errors:0});
 });
+it.each(['license.issued','license.expired'] as const)('publishes %s with the license contract and without the token',async type=>{
+ const rpc=vi.fn(async(name:string)=>({data:name==='claim_business_events'&&h.pending?[{...event,event_type:type,payload:{licenseRow:row}}]:[],error:null}));
+ expect(await runBusinessEvents({...db,rpc} as never)).toEqual({processed:1,errors:0});
+ expect(rpc).toHaveBeenCalledWith('capture_expired_licenses');
+ expect(h.trigger).toHaveBeenCalledWith(type,expect.objectContaining({license:expect.objectContaining({id:'license-id',order:'order-id',expiresAt:row.expires_at}),product:expect.objectContaining({id:'product-id'}),crlUrl:'https://shop.example/api/licenses/revoked?seller=seller-id'}),expect.anything(),'product-id','business_event-id');
+ expect(JSON.stringify(h.trigger.mock.calls)).not.toContain('not-part-of-the-notification');
+});

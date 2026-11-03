@@ -47,6 +47,7 @@
               {{ if .Data.purchase_product }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}Product{{ else }}Produkt{{ end }}: {{ .Data.purchase_product }}</p>{{ end }}
               {{ if .Data.purchase_amount }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}Amount{{ else }}Kwota{{ end }}: {{ .Data.purchase_amount }}</p>{{ end }}
               {{ if .Data.transfer_text }}<p style="white-space: pre-line; color: #ffffff;">{{ .Data.transfer_text }}</p>{{ end }}
+              {{ if .Data.license_key }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}Your license key{{ else }}Twój klucz licencyjny{{ end }}:</p><p style="font-family: monospace; font-size: 12px; word-break: break-all; color: #ffffff; background-color: #0B1220; padding: 12px; border-radius: 8px;">{{ .Data.license_key }}</p>{{ end }}
               {{ if .Data.event_date }}<p style="color: #ffffff;">{{ .Data.event_date }}</p>{{ end }}
               {{ if .Data.event_online_url }}<p><a style="color: #2090D0;" href="{{ .Data.event_online_url }}">{{ if eq .Data.locale "en" }}Join online{{ else }}Dołącz online{{ end }}</a></p>{{ end }}
               <!-- Button -->

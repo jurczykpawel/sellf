@@ -213,6 +213,8 @@ Each API key has a `scopes` array that controls what it can access.
 | `refund-requests:read` | View refund requests |
 | `refund-requests:write` | Process refund requests |
 | `system:read` | View system status and update info |
+| `licenses:read` | List issued licenses and read one license with its token (Pro) |
+| `licenses:write` | Issue and revoke licenses (Pro) |
 | `*` | Full access to all resources |
 
 ### Write implies read
@@ -446,7 +448,7 @@ Supported fields: `gtm_container_id`, `gtm_server_container_url`, `gtm_ss_enable
 
 `facebook_capi_token` is write-only: it is stored encrypted and never returned. Omit the field to keep the stored token; send `null` to remove it.
 
-Supported outgoing event types include purchases, leads, waitlist signups, `refund.issued`, `refund.updated`, `dispute.created`, `dispute.closed`, `license.revoked`, `license.restored` (both Pro), subscription lifecycle events, and invoice payment events.
+Supported outgoing event types include purchases, leads, waitlist signups, `refund.issued`, `refund.updated`, `dispute.created`, `dispute.closed`, `license.issued`, `license.revoked`, `license.restored`, `license.expired` (all Pro; `license.updated` reserved), subscription lifecycle events, and invoice payment events.
 
 ### Analytics
 
@@ -463,6 +465,24 @@ Supported outgoing event types include purchases, leads, waitlist signups, `refu
 | GET | `/refund-requests` | `refund-requests:read` | List refund requests |
 | GET | `/refund-requests/{id}` | `refund-requests:read` | Get request details |
 | PATCH | `/refund-requests/{id}` | `refund-requests:write` | Process (approve/deny) |
+
+### Licenses (Pro)
+
+| Method | Path | Scope | Description |
+|--------|------|-------|-------------|
+| GET | `/licenses` | `licenses:read` | List; filters `product_id`, `email`, `status` (`active`/`expired`/`revoked`), `source` (`purchase`/`manual`/`api`); no tokens |
+| POST | `/licenses` | `licenses:write` | Issue `{ productId, email, domain?, customFieldValues?, sendEmail? = true, locale? }`; returns the license with `token`, `jwksUrl`, `crlUrl`, `emailSent` |
+| GET | `/licenses/{id}` | `licenses:read` | One license including its signed `token` |
+| DELETE | `/licenses/{id}` | `licenses:write` | Permanent revocation (same as the panel) |
+
+Issuance and revocation send `license.issued` / `license.revoked`. The product must have
+license issuance enabled and the seller an active signing key, otherwise `409 CONFLICT`.
+
+**CLI.** `admin-panel/scripts/issue-license.ts` issues through this endpoint
+(`SELLF_URL`, `SELLF_API_KEY`); `--offline` signs locally with the seller's private key
+using the same token format, but such a license is not recorded: it cannot be revoked in
+Sellf and sends no webhook or mail. Sellf's own Pro licenses are issued the same way by
+the TSA instance, so there is no separate generator.
 
 ### Variant Groups
 

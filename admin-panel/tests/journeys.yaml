@@ -3346,6 +3346,111 @@
         "seller": "Exactly one real Stripe quote for unchanged cart, one replacement after quantity changes; both superseded and abandoned pending sessions expire and become abandoned.",
         "integrator": "Not exercised; this journey measures checkout quotes before payment confirmation."
       }
+    },
+    {
+      "id": "J150",
+      "title": "License issued during an open dispute is born revoked",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "license",
+        "payment": "dispute",
+        "moment": "after_payment",
+        "operation": "issue_license"
+      },
+      "status": "automated",
+      "layers": [
+        "db"
+      ],
+      "end_state": {
+        "buyer": "The license issued for a disputed order does not work (CRL lists it) until the dispute is won; after a loss it stays revoked.",
+        "seller": "issued_licenses row revoked by the dispute and listed in payment_disputes.revoked_license_ids; retried dispute creates no duplicate.",
+        "integrator": "Receives license.issued then license.revoked with dispute.stripeDisputeId, without the token; license.restored after won."
+      }
+    },
+    {
+      "id": "J151",
+      "title": "Lapsed license notifies the integrator once",
+      "values": {
+        "persona": "integrator",
+        "entry": "cron",
+        "product": "license",
+        "payment": "none",
+        "moment": "after_expiry",
+        "operation": "change_access"
+      },
+      "status": "automated",
+      "layers": [
+        "db"
+      ],
+      "end_state": {
+        "buyer": "Token past its expiry is rejected by the offline verifier as before.",
+        "seller": "Lapsed active license marked with expiry_notified_at; revoked and future licenses untouched.",
+        "integrator": "Exactly one license.expired per lapsed active license, identifying the license, without the token."
+      }
+    },
+    {
+      "id": "J152",
+      "title": "Integrator issues a license through API v1 and the buyer gets it by mail",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "license",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "issue_license"
+      },
+      "status": "automated",
+      "layers": [
+        "api"
+      ],
+      "end_state": {
+        "buyer": "First Mailpit message contains the license key and a link to the product; the key verifies against public JWKS; the key is not left in account metadata.",
+        "seller": "License recorded with issuance_source=api and visible in the list; revocation through the API flips its status; read-only key cannot issue or revoke.",
+        "integrator": "license.issued committed for the new license without the token; license.revoked after DELETE."
+      }
+    },
+    {
+      "id": "J153",
+      "title": "Dispute opened before the payment was stored is applied at fulfillment",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "paid",
+        "payment": "dispute",
+        "moment": "immediate",
+        "operation": "reconcile"
+      },
+      "status": "automated",
+      "layers": [
+        "unit"
+      ],
+      "end_state": {
+        "buyer": "Access and licenses follow the dispute as soon as the payment is stored, without waiting for Stripe redelivery.",
+        "seller": "Dispute applied before licenses are issued for the order.",
+        "integrator": "dispute.created delivered from fulfillment; the redelivered Stripe event deduplicates on dispute id and status."
+      }
+    },
+    {
+      "id": "J154",
+      "title": "Buyer sees a revoked or expired license as not working",
+      "values": {
+        "persona": "signed_in",
+        "entry": "storefront",
+        "product": "license",
+        "payment": "dispute",
+        "moment": "after_payment",
+        "operation": "read"
+      },
+      "status": "automated",
+      "layers": [
+        "unit"
+      ],
+      "end_state": {
+        "buyer": "Product page shows license status (valid / expired / revoked) with the reason; a revoked key is neither displayed nor copyable.",
+        "seller": "Not changed; status derives from issued_licenses.revoked_at and revoked_by_dispute_id.",
+        "integrator": "Not exercised; this journey checks the buyer view."
+      }
     }
   ],
   "escapes": [
@@ -3546,6 +3651,18 @@
       "source": "W108 / owner-demo-feedback 15: manual domain policy",
       "journey": "J20",
       "why_missed": "A domain-required product was used as the only manual issuance fixture."
+    },
+    {
+      "id": "E34",
+      "source": "W123 B1 / W133: license issued after dispute handling",
+      "journey": "J150",
+      "why_missed": "Dispute tests created licenses before the dispute; the reverse order (payment, dispute, then issuance) was never exercised."
+    },
+    {
+      "id": "E35",
+      "source": "W129 on TEST 0d292a45: revoked key shown as working",
+      "journey": "J154",
+      "why_missed": "Buyer page tests only covered active and expired licenses; revocation was verified via CRL, never in the buyer view."
     }
   ]
 }

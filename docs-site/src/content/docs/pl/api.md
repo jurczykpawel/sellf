@@ -64,3 +64,17 @@ niezależnie od `exclude_order_bumps`. Wyższa cena ustalona nigdy nie podnosi b
 Cena zero korzysta z istniejącej ścieżki darmowego dostępu; embed odsyła wtedy do
 standardowego checkout. JPY wymaga liczb całkowitych. Kupony nie zmieniają historii
 najniższej ceny Omnibus. Typ dostępny dla wszystkich sprzedawców.
+
+## Licencje (Pro)
+
+Klucz API z uprawnieniem `licenses:write` wydaje licencję przez `POST /api/v1/licenses`
+(`{ productId, email, domain?, customFieldValues?, sendEmail? = true, locale? }`) i odwołuje ją
+przez `DELETE /api/v1/licenses/{id}`. `licenses:read` daje listę `GET /api/v1/licenses`
+(filtry `product_id`, `email`, `status`, `source`, bez tokenów) i pojedynczą licencję z tokenem
+`GET /api/v1/licenses/{id}`. Wydanie wysyła `license.issued` i, o ile nie podasz `sendEmail: false`,
+mail do kupującego z kluczem i linkiem do produktu.
+
+Skrypt `admin-panel/scripts/issue-license.ts` wydaje licencję przez to API (`SELLF_URL`,
+`SELLF_API_KEY`). Tryb `--offline` podpisuje lokalnie kluczem prywatnym sprzedawcy w tym samym
+formacie, ale takiej licencji nie ma w Sellfie: nie da się jej odwołać, nie idzie webhook ani mail.
+Licencje samego Sellfa wydaje w ten sam sposób instancja TSA, osobny generator nie istnieje.
