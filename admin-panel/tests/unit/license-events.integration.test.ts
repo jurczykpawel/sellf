@@ -1,5 +1,7 @@
 /** Licenses issued after a dispute stay revoked; every committed license change reaches integrators once. @see supabase/migrations/20261103160000_license_events.sql */
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import created from '../fixtures/stripe/charge_dispute_created_needs_response.json';
 import won from '../fixtures/stripe/charge_dispute_closed_won.json';
@@ -35,7 +37,7 @@ const events = (type: string) => `(SELECT count(*) FROM public.business_events W
 const revokedByDispute = (id: string) => `EXISTS(SELECT 1 FROM public.issued_licenses WHERE id='${license}' AND revoked_at IS NOT NULL AND revoked_by_dispute_id='${id}')`;
 
 describe('license after dispute (B1)', () => {
-  it('a license issued during an open dispute is revoked by it and returns after won @J174', () => {
+  it('a license issued during an open dispute is revoked by it and returns after won @J188', () => {
     expect(() => run(`${apply(created)}${issue()}
       ${assert(revokedByDispute(created.data.object.id), 'License issued during a dispute must be revoked by it')}
       ${assert(`(SELECT revoked_license_ids='{${license}}'::uuid[] FROM public.payment_disputes WHERE stripe_dispute_id='${created.data.object.id}')`, 'Dispute must own the license')}
@@ -61,7 +63,7 @@ describe('license after dispute (B1)', () => {
 });
 
 describe('license expiry events', () => {
-  it('notifies one expiry per lapsed active license @J175', () => {
+  it('notifies one expiry per lapsed active license @J189', () => {
     expect(() => run(`${issue("now()-interval '1 minute'")}
       ${issue("now()-interval '1 minute'", 'e1330000-0000-4000-a000-000000000005', 'revoked_order')}
       SELECT public.revoke_issued_licenses(ARRAY['e1330000-0000-4000-a000-000000000005'::uuid]);
@@ -80,5 +82,15 @@ describe('buyer mail language', () => {
       ${assert(`public.buyer_mail_locale('SELLER-w133@example.com')='en'`, 'Account language is used')}
       UPDATE public.payment_transactions SET metadata='{"locale":"pl"}' WHERE id='${tx}';
       ${assert(`public.buyer_mail_locale('buyer-w133@example.com')='pl'`, 'Order language is used')}`)).not.toThrow();
+  });
+});
+
+describe('business event type constraint keeps every family', () => {
+  it('accepts all W134 event families and all license events', () => {
+    const w134 = readFileSync(path.resolve(import.meta.dirname, '../../../supabase/migrations/20261103130000_webhook_event_families.sql'), 'utf8');
+    const listed = w134.slice(w134.indexOf('business_events_event_type_check CHECK'), w134.indexOf('));', w134.indexOf('business_events_event_type_check CHECK')));
+    const types = [...new Set([...listed.matchAll(/'([a-z_]+\.[a-z_]+)'/g)].map(m => m[1]).concat(['license.issued', 'license.expired']))];
+    expect(types.length).toBeGreaterThan(25);
+    expect(() => run(types.map(type => `INSERT INTO public.business_events(event_type,product_id,payload) VALUES('${type}','${product}','{}');`).join('\n'))).not.toThrow();
   });
 });

@@ -50,7 +50,7 @@ export interface WebhookLog {
   };
 }
 
-export const WEBHOOK_EVENT_CATEGORIES = ['purchases', 'subscriptions', 'leads', 'system'] as const;
+export const WEBHOOK_EVENT_CATEGORIES = ['purchases', 'subscriptions', 'leads', 'partners', 'catalog', 'system'] as const;
 export type WebhookEventCategory = (typeof WEBHOOK_EVENT_CATEGORIES)[number];
 
 export interface WebhookEventDefinition {
@@ -70,6 +70,10 @@ export const WEBHOOK_EVENTS: WebhookEventDefinition[] = [
   { value: 'order.placed', label: 'Order Placed', category: 'purchases' },
   { value: 'order.cancelled', label: 'Order Cancelled', category: 'purchases' },
   { value: 'order.overdue', label: 'Order Overdue', category: 'purchases' },
+  { value: 'order.payment_reminder', label: 'Order Payment Reminder', category: 'purchases' },
+  { value: 'order.transfer_declared', label: 'Order Transfer Declared', category: 'purchases' },
+  { value: 'order.invoice_issued', label: 'Order Invoice Issued (held)', category: 'purchases' },
+  { value: 'order.reopened', label: 'Order Reopened', category: 'purchases' },
   { value: 'purchase.completed', label: 'Purchase Completed', category: 'purchases' },
   { value: 'lead.captured', label: 'Lead Captured (Free Product)', category: 'leads' },
   { value: 'waitlist.signup', label: 'Waitlist Signup', category: 'leads' },
@@ -90,4 +94,20 @@ export const WEBHOOK_EVENTS: WebhookEventDefinition[] = [
   { value: 'license.revoked', label: 'License Revoked (Pro)', category: 'system' },
   { value: 'license.restored', label: 'License Restored (Pro)', category: 'system' },
   { value: 'license.expired', label: 'License Expired (Pro)', category: 'system' },
+  { value: 'invoicing.issued', label: 'Sales Invoice Issued', category: 'purchases' },
+  { value: 'invoicing.failed', label: 'Sales Invoice Failed', category: 'purchases' },
+  { value: 'invoicing.corrected', label: 'Sales Invoice Corrected', category: 'purchases' },
+  { value: 'commission.accrued', label: 'Partner Commission Accrued', category: 'partners' },
+  { value: 'commission.reversed', label: 'Partner Commission Reversed', category: 'partners' },
+  { value: 'payout.reserved', label: 'Partner Payout Reserved', category: 'partners' },
+  { value: 'payout.paid', label: 'Partner Payout Paid', category: 'partners' },
+  { value: 'payout.cancelled', label: 'Partner Payout Cancelled', category: 'partners' },
+  { value: 'refund.requested', label: 'Refund Request Submitted', category: 'purchases' },
+  { value: 'refund.request_approved', label: 'Refund Request Approved', category: 'purchases' },
+  { value: 'refund.request_rejected', label: 'Refund Request Rejected', category: 'purchases' },
+  { value: 'refund.request_cancelled', label: 'Refund Request Cancelled', category: 'purchases' },
+  { value: 'product.published', label: 'Product Published', category: 'catalog' },
+  { value: 'product.unpublished', label: 'Product Unpublished', category: 'catalog' },
+  { value: 'product.price_changed', label: 'Product Price Changed', category: 'catalog' },
+  { value: 'product.sold_out', label: 'Product Sold Out', category: 'catalog' },
 ];

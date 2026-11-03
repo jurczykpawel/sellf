@@ -20,7 +20,13 @@ export const bankTransferConfigSchema = z.object({
   bank_transfer_due_days: z.number().int().min(1).max(60).default(14),
   bank_transfer_grant_access_on_placement: z.boolean().default(true),
   bank_transfer_max_unpaid_per_email: z.number().int().min(1).max(100).default(3),
-}).strict().refine(v => !v.bank_transfer_enabled || (!!v.bank_account_holder && !!v.bank_account_number));
+  // Timed reservation of event seats for unpaid transfers (no effect once an invoice is issued).
+  reservation_enabled: z.boolean().default(true),
+  reservation_reminder_hours: z.number().int().min(1).max(168).default(24),
+  reservation_release_hours: z.number().int().min(2).max(336).default(48),
+  declared_hold_hours: z.number().int().min(0).max(336).default(72),
+}).strict().refine(v => !v.bank_transfer_enabled || (!!v.bank_account_holder && !!v.bank_account_number))
+  .refine(v => v.reservation_release_hours > v.reservation_reminder_hours);
 export function canUseBankTransfer(enabled: boolean, rawProfile: unknown, buyerType: unknown): boolean {
   const profile = checkoutProfileSchema.safeParse(rawProfile);
   return enabled && profile.success && profile.data.modules.some(m => m.id === 'buyer'
@@ -28,4 +34,8 @@ export function canUseBankTransfer(enabled: boolean, rawProfile: unknown, buyerT
 }
 export function availableTransferMethod(selected: 'online' | 'transfer' | null, enabled: boolean, profile: unknown, buyerType: unknown): 'online' | 'transfer' | null {
   return canUseBankTransfer(enabled, profile, buyerType) ? selected : 'online';
+}
+/** A timed reservation must end before the session starts; mirrors bank_transfer_order. */
+export function transferFitsSession(startsAt: string | undefined, reservationHours: number | null, now = Date.now()): boolean {
+  return !startsAt || reservationHours === null || Date.parse(startsAt) > now + reservationHours * 3600000;
 }

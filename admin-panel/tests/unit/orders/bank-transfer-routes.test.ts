@@ -6,6 +6,7 @@ vi.mock('@/lib/orders/bank-transfer-admin', () => ({ operateTransfer: operate })
 vi.mock('@/lib/api', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/api')>(), authenticate: auth }));
 import { POST as markPaid } from '@/app/api/v1/payments/[id]/mark-paid/route';
 import { POST as cancel } from '@/app/api/v1/payments/[id]/cancel/route';
+import { POST as invoiceIssued } from '@/app/api/v1/payments/[id]/invoice-issued/route';
 const id = '10000000-0000-4000-8000-000000000001';
 beforeEach(() => { vi.clearAllMocks(); auth.mockResolvedValue({ supabase: {}, admin: { userId: 'session-actor' } }); operate.mockResolvedValue({ success: true }); });
 describe('transfer administration API', () => {
@@ -15,6 +16,13 @@ describe('transfer administration API', () => {
     const response = await handler(request, { params: Promise.resolve({ id }) });
     expect(auth).toHaveBeenCalledWith(request, ['payments:write']);
     expect(operate).toHaveBeenCalledWith({}, 'session-actor', id, { ...body, action });
+    expect(response.status).toBe(200);
+  });
+  it('lets an integrator mark an externally issued invoice with payments:write', async () => {
+    const request = new NextRequest(`http://localhost/api/v1/payments/${id}/invoice-issued`, { method: 'POST' });
+    const response = await invoiceIssued(request, { params: Promise.resolve({ id }) });
+    expect(auth).toHaveBeenCalledWith(request, ['payments:write']);
+    expect(operate).toHaveBeenCalledWith({}, 'session-actor', id, { action: 'invoice-issued' });
     expect(response.status).toBe(200);
   });
   it('reports an amount rejection as validation error', async () => {

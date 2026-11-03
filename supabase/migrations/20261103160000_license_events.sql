@@ -24,7 +24,12 @@ ALTER TABLE public.business_events DROP CONSTRAINT business_events_event_type_ch
 ALTER TABLE public.business_events ADD CONSTRAINT business_events_event_type_check CHECK (event_type IN (
   'access.granted','access.updated','access.revoked','access.expired','order.abandoned',
   'seats.held','seats.confirmed','seats.released','license.issued','license.revoked',
-  'license.restored','license.expired'));
+  'license.restored','license.expired',
+  -- W134 (20261103130000_webhook_event_families.sql): keep every family it added.
+  'invoicing.issued','invoicing.failed','invoicing.corrected',
+  'commission.accrued','commission.reversed','payout.reserved','payout.paid','payout.cancelled',
+  'refund.requested','refund.request_approved','refund.request_rejected','refund.request_cancelled',
+  'product.published','product.unpublished','product.price_changed','product.sold_out'));
 
 -- ===== B1: ISSUANCE DURING A DISPUTE =====
 -- Locks the payment row first, like apply_payment_dispute, so issuance and dispute
@@ -93,17 +98,23 @@ GRANT EXECUTE ON FUNCTION public.capture_expired_licenses() TO service_role;
 CREATE OR REPLACE FUNCTION public.prepare_event_mail(p_email text, p_data jsonb) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 BEGIN
+  -- Superset of 20261103150000_unpaid_order_reservations.sql plus license_key.
   IF length(p_data->>'event_date')>500 OR length(p_data->>'event_online_url')>2048
     OR (p_data->>'event_online_url') !~ '^https://[^[:space:]]+$'
     OR length(p_data->>'transfer_text')>2000 OR length(p_data->>'purchase_product')>500
     OR length(p_data->>'purchase_amount')>100 OR (p_data->>'locale') NOT IN ('pl','en')
+    OR (p_data->>'mail_kind') NOT IN ('transfer_placed','payment_reminder','order_cancelled')
+    OR length(p_data->>'pay_url')>2048
+    OR (p_data->>'pay_url') !~ '^https?://[^/[:space:]]+/(pl|en)/order/[0-9a-f-]{36}/transfer\?token=[0-9]{1,12}\.[A-Za-z0-9_-]{43}$'
+    OR length(p_data->>'release_text')>500
     OR length(p_data->>'license_key')>4096 OR (p_data->>'license_key') !~ '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$'
     THEN RAISE EXCEPTION 'Invalid mail data' USING ERRCODE='22023'; END IF;
   UPDATE auth.users SET raw_user_meta_data=(coalesce(raw_user_meta_data,'{}')
-    -'event_date'-'event_online_url'-'transfer_text'-'purchase_product'-'purchase_amount'-'locale'-'license_key')
+    -'event_date'-'event_online_url'-'transfer_text'-'purchase_product'-'purchase_amount'-'locale'-'mail_kind'-'pay_url'-'release_text'-'license_key')
     ||jsonb_strip_nulls(jsonb_build_object('event_date',p_data->>'event_date',
       'event_online_url',p_data->>'event_online_url','transfer_text',p_data->>'transfer_text',
       'purchase_product',p_data->>'purchase_product','purchase_amount',p_data->>'purchase_amount',
+      'mail_kind',p_data->>'mail_kind','pay_url',p_data->>'pay_url','release_text',p_data->>'release_text',
       'license_key',p_data->>'license_key','locale',coalesce(p_data->>'locale','en')))
     WHERE lower(email)=lower(p_email);
 END $$;

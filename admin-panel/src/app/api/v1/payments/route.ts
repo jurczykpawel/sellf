@@ -94,6 +94,7 @@ export async function GET(request: NextRequest) {
         custom_field_values,
         order_details,
         payment_provider,payment_due_at,transfer_details,
+        reminder_at,release_at,invoice_hold_at,transfer_declared_at,transfer_declared_note,cancel_reason,reopened_at,
         invoices(status,number,view_url,error,attempts),
         refund_id,
         refunded_amount,
@@ -312,6 +313,7 @@ export async function GET(request: NextRequest) {
         currency: p.currency,
         status: p.status,
         payment_provider: p.payment_provider, payment_due_at: p.payment_due_at, transfer_details: p.transfer_details,
+        reminder_at: p.reminder_at, release_at: p.release_at, invoice_hold_at: p.invoice_hold_at, transfer_declared_at: p.transfer_declared_at, transfer_declared_note: p.transfer_declared_note, cancel_reason: p.cancel_reason, reopened_at: p.reopened_at,
         stripe_payment_intent_id: p.stripe_payment_intent_id,
         product: {
           id: p.product_id,

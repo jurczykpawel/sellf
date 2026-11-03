@@ -16,3 +16,16 @@ it.each(['order.abandoned', 'access.granted', 'access.updated', 'access.revoked'
   else expect(data).toMatchObject({ amountUnit: 'minor', order: { orderId: expect.any(String), orderNumber: expect.any(Number), statusBefore: 'pending', statusAfter: 'abandoned', taxSnapshotStatus: 'unavailable' } });
   for (const messages of [en, pl]) expect(JSON.stringify(messages).match(new RegExp(`"${event.replace('.', '_')}":`, 'g'))).toHaveLength(2);
 });
+
+it.each(['invoicing.issued', 'invoicing.failed', 'invoicing.corrected', 'commission.accrued', 'commission.reversed', 'payout.reserved', 'payout.paid', 'payout.cancelled',
+  'refund.requested', 'refund.request_approved', 'refund.request_rejected', 'refund.request_cancelled', 'product.published', 'product.unpublished', 'product.price_changed', 'product.sold_out'])('registers %s for subscription, preview and translation', event => {
+  expect(WEBHOOK_EVENTS.some(entry => entry.value === event)).toBe(true);
+  expect(validateEventTypes([event]).valid).toBe(true);
+  const data = WEBHOOK_MOCK_PAYLOADS[event];
+  expect(data).toMatchObject({ actor: { type: 'system' }, occurredAt: expect.any(String) });
+  const family = event.split('.')[0];
+  const subject = { invoicing: 'invoice', commission: 'commission', payout: 'payout', refund: 'refundRequest', product: 'product' }[family]!;
+  expect(data[subject]).toEqual(expect.any(Object));
+  if (family !== 'product') expect(data.amountUnit).toBe('minor');
+  for (const messages of [en, pl]) expect(JSON.stringify(messages).match(new RegExp(`"${event.replace('.', '_')}":`, 'g'))).toHaveLength(2);
+});

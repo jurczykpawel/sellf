@@ -273,6 +273,28 @@ dla oczekującego grantu nie zostały jeszcze nadane. `null` końca nadanego dos
 | `access.revoked` | Usunięcie grantu wraz z faktycznym czasem odebrania. |
 | `access.expired` | Upłynięcie zapisanego końca dostępu: jeden komunikat na grant/datę końca, także po odnowieniu. |
 
+### Nieopłacone zamówienia przelewem: cykl życia
+
+Każde zdarzenie przelewu `order.*` ma w `data.order` dodatkowo: `status`, `payUrl` (podpisany link do strony
+zamówienia: stan, dane przelewu, przycisk „Wysłałem przelew”, ważny do `payUrlExpiresAt`), `reservation`
+(`timed` — rezerwacja czasowa, `invoice` — faktura wystawiona, czeka na płatność bez wygasania, `none`),
+`reminderAt`, `releaseAt`, `invoiceHoldAt`, `transferDeclaredAt`, `transferDeclaredNote`, `cancelReason`,
+`reopenedAt`, a `data.customer.locale` podaje język kupującego (`pl`/`en`). Z tych pól integrator wystawia
+u siebie proformę, fakturę lub własny mail (n8n, Listmonk). Każde zdarzenie jest dostarczane raz na zamówienie.
+
+| Zdarzenie | Kiedy | Co odbiorca może zrobić |
+|---|---|---|
+| `order.placed` | Złożenie zamówienia na przelew. | Potwierdzenie z `payUrl`; `releaseAt` to termin rezerwacji wydarzenia. |
+| `order.payment_reminder` | Minął `reminderAt` (domyślnie 24 h) bez wpłaty i bez faktury. | Przypomnienie „zapłać do `releaseAt`” z linkiem. |
+| `order.transfer_declared` | Kupujący kliknął „Wysłałem przelew” (raz). | Sprawdzenie wyciągu; `releaseAt` jest już przedłużone (domyślnie o 72 h). |
+| `order.invoice_issued` | Dla nieopłaconego zamówienia wystawiono fakturę (w Sellf albo `POST /api/v1/payments/:id/invoice-issued`). | Status „faktura wystawiona, czeka na płatność”: `reservation = invoice`, `releaseAt = null`, brak wygasania. |
+| `order.cancelled` | Anulowanie: `cancelReason = payment_window_expired` (automatycznie po `releaseAt`) albo `admin`. | Informacja dla kupującego, korekta faktury; `lateTransferPolicy = admin_decision`. |
+| `order.overdue` | Minął termin płatności zamówienia bez rezerwacji czasowej. | Ponaglenie. |
+| `order.reopened` | Administrator przyjął przelew, który doszedł po anulowaniu (po cenie z zamówienia, także ponad limit miejsc). | Powiązanie wpłaty: `previousStatus = cancelled`; zaraz po nim `purchase.completed`. |
+
+Rezerwacja czasowa dotyczy wydarzeń i jest ustawiana przez sprzedawcę (Ustawienia → Płatności → Przelew
+tradycyjny). Zwykłe produkty nie wygasają. Zaplanuj `/api/cron?job=transfer-reservations` co 5 minut.
+
 Zdarzenie dostępu podaje `customer`, `product`, `access.id`, `grantedAt`, `expiresAt`,
 `statusBefore/statusAfter`, `reason` i `actor` (`user`, `api_key` albo `system`; dla systemu ID jest null).
 Pola główne `accessGrantedAt/accessExpiresAt` zawierają te same zapisane daty.
@@ -309,6 +331,35 @@ po jednym dniu, lecz snapshot w grancie pozostaje.
 Ręczne wystawianie również respektuje definicję produktu: pole domeny wymagane musi być
 wypełnione, opcjonalne może zostać pominięte, a produkt bez takiego pola otrzymuje token bez
 `claims.domain`. Brak wymaganych wartości zwraca HTTP 400 przed podpisaniem.
+
+## Faktury, partnerzy, prośby o zwrot i katalog
+
+Te zdarzenia zapisują się w tej samej transakcji co zmiana (jak zdarzenia dostępu) i idą tą samą
+podpisaną kolejką. Każde ma `actor`, `occurredAt` i (poza wypłatami) `product`. Kwoty są w
+jednostkach mniejszych (`amountUnit = "minor"`, czyli grosze dla PLN). Ponowione z kolejki zdarzenie
+ma ten sam klucz dostawy, więc odbiorca dostaje je raz; mimo to deduplikuj po `id` koperty.
+
+| Zdarzenie | Kiedy | Pola do decyzji odbiorcy |
+|---|---|---|
+| `invoicing.issued` | Dostawca (Fakturownia) wystawił fakturę sprzedaży. | `invoice.id/number/providerInvoiceId/viewUrl/attempt/paymentSynced`, `order` (ID, numer, kwota, waluta), `customer`. |
+| `invoicing.failed` | Próba wystawienia się nie udała. Raz na próbę. | `invoice.attempt`, `invoice.error` (komunikat dostawcy), `invoice.willRetry` (`false` po 5. próbie). |
+| `invoicing.corrected` | Wystawioną fakturę oznaczono jako skorygowaną. | `invoice.number`, `statusBefore/statusAfter`, `order`. |
+| `commission.accrued` | Partner zarobił prowizję od opłaconego zamówienia. | `partner` (memberId, code, displayName, status), `commission.amount/currency/baseAmount/eligibleAt/paidAt/livemode`, `order`. |
+| `commission.reversed` | Zwrot cofnął (część) prowizji. | `commission.amount` jest ujemne; te same identyfikatory. |
+| `payout.reserved` | Właściciel zatwierdził prowizje do wypłaty (rezerwacja). | `payout.id/amount/currency/cutoff/payeeReference/commissionIds`, `partner`. `product` = `null`. |
+| `payout.paid` | Wypłatę oznaczono jako zapłaconą. | `payout.bankReference/invoiceReference/bankAmount/paidAt`. |
+| `payout.cancelled` | Zarezerwowaną wypłatę anulowano; prowizje wracają do salda. | `payout.statusBefore = "reserved"`. |
+| `refund.requested` | Kupujący złożył prośbę o zwrot. | `refundRequest.id/requestedAmount/currency/reason`, `order`, `customer`. |
+| `refund.request_approved` / `refund.request_rejected` / `refund.request_cancelled` | Prośbę rozpatrzono albo wycofano. | `refundRequest.statusBefore/statusAfter/adminResponse/processedAt`. Sam zwrot pieniędzy to `refund.issued`. |
+| `product.published` / `product.unpublished` | Zmienił się `is_active` albo utworzono/usunięto aktywny produkt. | `product` (id, slug, isActive, availableFrom/Until, productType), `availability.before/after`, `deleted`. |
+| `product.price_changed` | Zmieniła się cena, cena promocyjna, koniec promocji, cena cykliczna albo waluta. | `price.before/after`: `price`, `salePrice`, `salePriceUntil`, `recurringPrice`, `currency` w jednostkach mniejszych. |
+| `product.sold_out` | Miejsca wstrzymane (niewygasłe) i potwierdzone osiągnęły pojemność terminu wydarzenia. | `session.id/label/startsAt/capacity/taken/remaining`, `reservation`, która go wypełniła. Zwolnione później miejsca zgłasza `seats.released`. |
+
+`actor` to zalogowany administrator (`user`) albo klucz API (`api_key`) przy zmianach z panelu lub API v1, a `system` przy zmianach automatycznych (synchronizacja, zadania cykliczne; działania kupującego zgłaszają `user`). Prośba o zwrot cofnięta do `pending` po nieudanym zwrocie w Stripe jest ogłaszana ponownie jako `refund.requested` ze `statusBefore = "approved"`.
+
+Prowizja partnera staje się wypłacalna, gdy minie `eligibleAt`; Sellf nie wysyła osobnego zdarzenia
+na ten moment, punktem zatwierdzenia jest `payout.reserved`. Okna publikacji (`availableFrom/Until`)
+są w treści, ale sam upływ czasu nie generuje zdarzenia.
 
 ## Zgłoszenia PlayerStack
 

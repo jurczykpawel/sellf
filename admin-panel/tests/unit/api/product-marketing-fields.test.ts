@@ -106,7 +106,7 @@ describe('product metadata routes', () => {
     expect(created.status).toBe(201);
     expect((await created.json()).data.marketing_fields).toEqual(translated);
     expect(writes[0].marketing_fields).toEqual(translated);
-    expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_with_audit', expect.objectContaining({ operation_param: 'INSERT', actor_id: id, product_data: expect.objectContaining({ marketing_fields: translated }) }));
+    expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_as', expect.objectContaining({ operation_param: 'INSERT', actor_id: id, product_data: expect.objectContaining({ marketing_fields: translated }) }));
     expect((await (await GET(request('GET'), params)).json()).data.marketing_fields).toEqual(translated);
     const listed = await LIST(new NextRequest('http://localhost/api/v1/products'));
     expect((await listed.json()).data[0].marketing_fields).toEqual(translated);
@@ -116,7 +116,7 @@ describe('product metadata routes', () => {
     expect((await PATCH(request('PATCH', { marketing_fields: empty }), params)).status).toBe(200);
     expect(row.marketing_fields).toEqual(empty);
     expect(writes[0]).toEqual({ marketing_fields: empty });
-    expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_with_audit', { operation_param: 'UPDATE', actor_id: id, product_id: id, product_data: { marketing_fields: empty } });
+    expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_as', { event_actor: { type: 'user', id }, operation_param: 'UPDATE', actor_id: id, product_id: id, product_data: { marketing_fields: empty } });
     expect((await PATCH(request('PATCH', { description: 'Updated' }), params)).status).toBe(200);
     expect(row.marketing_fields).toEqual(empty);
     expect(writes[1]).not.toHaveProperty('marketing_fields');

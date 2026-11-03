@@ -7,11 +7,17 @@ const ACCESS_SAMPLE = {
   actor: { type: 'system', id: null }, reason: 'access_change', sourceOrder: null, sourceOrders: [],
   accessGrantedAt: '2099-01-01T00:00:00Z', accessExpiresAt: '2099-01-08T00:00:00Z',
 };
+const SYSTEM_ACTOR = { type: 'system', id: null };
+const SAMPLE_TIME = '2099-01-01T00:00:00Z';
+const SAMPLE_PRODUCT = ACCESS_SAMPLE.product;
+const SAMPLE_PARTNER = { memberId: '00000000-0000-4000-8000-000000000031', code: 'demo-partner', displayName: 'Demo Partner', status: 'approved', userId: '00000000-0000-4000-8000-000000000032' };
 export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
-  ...Object.fromEntries(['order.placed', 'order.cancelled', 'order.overdue'].map(event => [event, {
+  ...Object.fromEntries(['order.placed', 'order.cancelled', 'order.overdue', 'order.payment_reminder', 'order.transfer_declared', 'order.invoice_issued', 'order.reopened'].map(event => [event, {
     amountUnit: 'minor', access: { policy: 'after_payment', grants: [{ productId: '00000000-0000-4000-8000-000000000003', status: 'pending_payment', grantedAt: null, expiresAt: null }] },
     order: { orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001, amount: 9400, grossTotal: 9400, netTotal: null, taxTotal: null, taxSnapshotStatus: 'unavailable', currency: 'PLN', dueAt: '2099-06-15T12:00:00Z',
-      transfer: { holder: 'Example Workshops', account: 'PL61109010140000071219812874', bank: 'Example Bank', title: 'Zamówienie 1001' } },
+      transfer: { holder: 'Example Workshops', account: 'PL61109010140000071219812874', bank: 'Example Bank', title: 'Zamówienie 1001' },
+      status: 'awaiting_payment', payUrl: 'https://shop.example/pl/order/00000000-0000-4000-8000-000000000001/transfer?token=4102444800.sample', payUrlExpiresAt: '2099-08-01T12:00:00.000Z',
+      reservation: 'timed', reminderAt: '2099-06-14T12:00:00Z', releaseAt: '2099-06-15T12:00:00Z', invoiceHoldAt: null, transferDeclaredAt: null, transferDeclaredNote: null, cancelReason: null, reopenedAt: null },
     orderDetails: { buyer: { type: 'organization', company_name: 'Example' } }, lines: [],
   }])),
   'order.abandoned': {
@@ -293,6 +299,52 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     },
     product: { id: 'prod_12345678', name: 'Premium Plugin', slug: 'premium-plugin' },
     crlUrl: 'https://example.com/api/licenses/revoked?seller=seller-id',
+  },
+  ...Object.fromEntries((['issued', 'failed', 'corrected'] as const).map(status => [`invoicing.${status}`, {
+    amountUnit: 'minor', actor: SYSTEM_ACTOR, occurredAt: SAMPLE_TIME,
+    invoice: { id: '00000000-0000-4000-8000-000000000041', provider: 'fakturownia', providerInvoiceId: status === 'failed' ? null : '998877',
+      number: status === 'failed' ? null : 'FV/1/2026', viewUrl: status === 'failed' ? null : 'https://example.fakturownia.pl/invoice/998877',
+      statusBefore: status === 'corrected' ? 'issued' : 'issuing', statusAfter: status, attempt: 1,
+      error: status === 'failed' ? 'Provider timeout' : null, willRetry: status === 'failed', paymentSynced: false },
+    order: { orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001, amount: 12300, currency: 'PLN', paymentProvider: 'stripe', status: 'completed' },
+    customer: { userId: null, email: 'customer@example.com' }, product: SAMPLE_PRODUCT,
+  }])),
+  ...Object.fromEntries((['accrued', 'reversed'] as const).map(kind => [`commission.${kind}`, {
+    amountUnit: 'minor', actor: SYSTEM_ACTOR, occurredAt: SAMPLE_TIME, partner: SAMPLE_PARTNER, product: SAMPLE_PRODUCT,
+    commission: { id: '00000000-0000-4000-8000-000000000051', ledgerEntryId: '00000000-0000-4000-8000-000000000052', amount: kind === 'accrued' ? 2460 : -2460,
+      currency: 'PLN', baseAmount: 12300, accruedAmount: 2460, paidAt: SAMPLE_TIME, eligibleAt: '2026-03-31T00:00:00Z', selfReferral: false, livemode: true },
+    order: { orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001, amount: 12300, currency: 'PLN', paymentProvider: 'stripe', status: kind === 'accrued' ? 'completed' : 'refunded' },
+  }])),
+  ...Object.fromEntries((['reserved', 'paid', 'cancelled'] as const).map(status => [`payout.${status}`, {
+    amountUnit: 'minor', actor: SYSTEM_ACTOR, occurredAt: SAMPLE_TIME, partner: SAMPLE_PARTNER, product: null,
+    payout: { id: '00000000-0000-4000-8000-000000000061', statusBefore: status === 'reserved' ? 'none' : 'reserved', statusAfter: status, amount: 2460, currency: 'PLN',
+      cutoff: SAMPLE_TIME, payeeReference: 'partner-iban-ref', bankReference: status === 'paid' ? 'bank-123' : null, invoiceReference: status === 'paid' ? 'invoice-123' : null,
+      bankAmount: status === 'paid' ? 2460 : null, paidAt: status === 'paid' ? SAMPLE_TIME : null, livemode: true, needsReview: false,
+      commissionIds: ['00000000-0000-4000-8000-000000000051'] },
+  }])),
+  ...Object.fromEntries((['submitted', 'approved', 'rejected', 'cancelled'] as const).map(event => [event === 'submitted' ? 'refund.requested' : `refund.request_${event}`, {
+    amountUnit: 'minor', actor: SYSTEM_ACTOR, occurredAt: SAMPLE_TIME, product: SAMPLE_PRODUCT,
+    refundRequest: { id: '00000000-0000-4000-8000-000000000071', statusBefore: event === 'submitted' ? 'none' : 'pending', statusAfter: event === 'submitted' ? 'pending' : event,
+      requestedAmount: 4900, currency: 'PLN', reason: 'Not what I expected', adminResponse: event === 'rejected' ? 'Course already consumed' : null,
+      createdAt: SAMPLE_TIME, processedAt: event === 'submitted' ? null : SAMPLE_TIME },
+    order: { orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001, amount: 4900, currency: 'PLN', paymentProvider: 'stripe', status: 'completed' },
+    customer: { userId: '00000000-0000-4000-8000-000000000081', email: 'customer@example.com' },
+  }])),
+  ...Object.fromEntries((['published', 'unpublished'] as const).map(state => [`product.${state}`, {
+    actor: SYSTEM_ACTOR, occurredAt: SAMPLE_TIME, deleted: false,
+    product: { ...SAMPLE_PRODUCT, isActive: state === 'published', availableFrom: null, availableUntil: null, productType: 'one_time' },
+    availability: { before: state === 'published' ? 'unpublished' : 'published', after: state },
+  }])),
+  'product.price_changed': {
+    amountUnit: 'minor', actor: SYSTEM_ACTOR, occurredAt: SAMPLE_TIME,
+    product: { ...SAMPLE_PRODUCT, isActive: true, availableFrom: null, availableUntil: null, productType: 'one_time' },
+    price: { before: { price: 10000, salePrice: null, salePriceUntil: null, recurringPrice: null, currency: 'PLN' },
+      after: { price: 12000, salePrice: null, salePriceUntil: null, recurringPrice: null, currency: 'PLN' } },
+  },
+  'product.sold_out': {
+    actor: SYSTEM_ACTOR, occurredAt: SAMPLE_TIME, product: SAMPLE_PRODUCT,
+    session: { id: '00000000-0000-4000-8000-000000000091', label: 'Workshop', startsAt: '2099-06-15T10:00:00Z', capacity: 20, taken: 20, remaining: 0, salesOpen: true },
+    reservation: { id: '00000000-0000-4000-8000-000000000092', status: 'held', quantity: 2 },
   },
   'test.event': {
     message: 'This is a test event from Sellf',
