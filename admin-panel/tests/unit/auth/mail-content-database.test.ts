@@ -63,7 +63,7 @@ it('delivers labeled transfer instructions with a Polish due date and purchase a
   }
 });
 
-it.each([['reminder', 'Przypomnienie o płatności', 'opłać zamówienie i kliknij'], ['cancelled', 'Zamówienie anulowane', 'nie otrzymaliśmy wpłaty w terminie']] as const)(
+it.each([['reminder', 'Przypomnienie o płatności', 'zapłać online na stronie zamówienia'], ['cancelled', 'Zamówienie anulowane', 'nie otrzymaliśmy wpłaty w terminie']] as const)(
   'delivers the %s notice with the signed order link to a new address', async (notice, heading, text) => {
   const { sendOrderNotice } = await import('@/lib/orders/transfer-mail');
   const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);

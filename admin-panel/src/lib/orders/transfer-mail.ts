@@ -35,8 +35,8 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
       transfer.bank && `Bank: ${transfer.bank}`, `${pl ? 'Tytuł' : 'Reference'}: ${transfer.title}`,
       `${pl ? 'Kwota' : 'Amount'}: ${amount}`, due && `${pl ? 'Termin' : 'Due date'}: ${due}`].filter(Boolean).join('\n');
     const releaseText = notice === 'reminder'
-      ? (pl ? `Nie widzimy jeszcze wpłaty. Jeśli chcesz zachować miejsce i cenę, opłać zamówienie i kliknij „Wysłałem przelew” na stronie zamówienia do ${due}. Po tym terminie miejsce i cena przepadają.`
-        : `We have not received your payment yet. To keep your seat and price, pay and click "I have sent the transfer" on the order page by ${due}. After that the seat and price are released.`)
+      ? (pl ? `Nie widzimy jeszcze wpłaty. Jeśli chcesz zachować miejsce i cenę, zapłać online na stronie zamówienia albo zrób przelew i kliknij tam „Wysłałem przelew” do ${due}. Po tym terminie miejsce i cena przepadają.`
+        : `We have not received your payment yet. To keep your seat and price, pay online on the order page, or send the transfer and click "I have sent the transfer" there, by ${due}. After that the seat and price are released.`)
       : notice === 'cancelled'
         ? `${tx.cancel_reason === 'payment_window_expired'
           ? (pl ? 'Zamówienie zostało anulowane, bo nie otrzymaliśmy wpłaty w terminie.' : 'The order was cancelled because we did not receive the payment in time.')

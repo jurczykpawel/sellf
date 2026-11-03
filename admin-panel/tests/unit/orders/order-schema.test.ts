@@ -36,6 +36,11 @@ describe('order schema', () => {
       expect((await insert({ payment_provider: 'bank_transfer', pricing_snapshot_version: 1, ...extra })).error?.code).toBe('23514');
     }
   });
+  it('keeps the PaymentIntent of a transfer order settled online, never of an unsettled one', async () => {
+    expect((await insert({ payment_provider: 'bank_transfer', pricing_snapshot_version: 1, stripe_payment_intent_id: 'pi_test', settled_via: 'bank_transfer' })).error?.code).toBe('23514');
+    const settled = await insert({ payment_provider: 'bank_transfer', pricing_snapshot_version: 1, stripe_payment_intent_id: `pi_${crypto.randomUUID().replaceAll('-', '')}`, settled_via: 'stripe' });
+    expect(settled.error).toBeNull();
+  });
   it('accepts legacy Stripe shapes including invoices, with increasing unique numbers', async () => {
     const a = await insert({ session_id: session() });
     const b = await insert({ session_id: `in_${crypto.randomUUID().replaceAll('-', '')}` });

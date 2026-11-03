@@ -154,4 +154,77 @@ BEGIN
   UPDATE public.payment_transactions SET status='cancelled' WHERE id=o;
   ASSERT (public.declare_transfer(o,NULL,t0)->>'success')::boolean=false, 'declare on cancelled';
 END $$;
+-- ===== W2: online payment of an unpaid order from the pay link =====
+DO $$
+DECLARE p uuid; sid uuid; tx jsonb; o uuid; o2 uuid; a jsonb; a2 jsonb; r jsonb; lines jsonb; input jsonb; admin_id uuid; t0 timestamptz:=now(); coupon uuid;
+BEGIN
+  ASSERT NOT has_function_privilege('anon','public.open_order_payment_attempt(uuid,text,numeric,text,timestamptz,timestamptz)','execute');
+  ASSERT NOT has_function_privilege('authenticated','public.complete_order_payment_attempt(uuid,text,text,numeric,timestamptz)','execute');
+  ASSERT NOT has_table_privilege('anon','public.order_payment_attempts','select');
+  SELECT user_id INTO admin_id FROM public.admin_users LIMIT 1;
+  UPDATE public.bank_transfer_config SET bank_transfer_enabled=true,bank_account_holder='Example',bank_account_number='PL61109010140000071219812874',
+    bank_transfer_max_unpaid_per_email=50,reservation_enabled=true,reservation_reminder_hours=24,reservation_release_hours=48;
+  INSERT INTO public.products(name,slug,price,currency,event_mode,checkout_profile) VALUES('Quick pay workshop','quick-pay-sql',50,'PLN',true,
+    '{"v":1,"modules":[{"id":"buyer","types":["organization"],"gus":false,"bank_transfer_for":["organization"]}]}') RETURNING id INTO p;
+  INSERT INTO public.product_sessions(product_id,starts_at,capacity) VALUES(p,'2099-03-01',5) RETURNING id INTO sid;
+  INSERT INTO public.product_price_tiers(session_id,price,seats,sort) VALUES(sid,50,1,0);
+  INSERT INTO public.product_price_tiers(session_id,price,sort) VALUES(sid,80,1);
+  input:=jsonb_build_object('product_id',p,'currency','PLN','customer_email','quick@example.com','order_details','{"v":1,"buyer":{"type":"organization","terms_accepted":true}}'::jsonb);
+  lines:=jsonb_build_array(jsonb_build_object('product_id',p,'item_type','main_product','quantity',1,'unit_price',50,'total_price',50,'discounted_total',50,'currency','PLN','session_id',sid));
+  tx:=public.bank_transfer_order(input,lines); o:=(tx->>'transaction_id')::uuid;
+  -- (1) settle: one open attempt per order, re-opening returns the same attempt; wrong amount refused
+  BEGIN PERFORM public.open_order_payment_attempt(o,'settle',4000,'PLN',t0+interval '30 minutes',t0); RAISE EXCEPTION 'amount accepted';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  a:=public.open_order_payment_attempt(o,'settle',5000,'PLN',t0+interval '30 minutes',t0);
+  a2:=public.open_order_payment_attempt(o,'settle',5000,'PLN',t0+interval '30 minutes',t0);
+  ASSERT a->>'id'=a2->>'id' AND (a2->>'reused')::boolean, 'single open attempt';
+  PERFORM public.attach_order_payment_session((a->>'id')::uuid,'cs_test_quick_1');
+  -- the reservation job does not release an order while its online payment is open
+  ASSERT (public.release_unpaid_transfer(o,t0+interval '48 hours'-interval '1 minute')->>'released')::boolean=false;
+  UPDATE public.order_payment_attempts SET expires_at=t0+interval '49 hours' WHERE id=(a->>'id')::uuid;
+  ASSERT (public.release_unpaid_transfer(o,t0+interval '48 hours')->>'released')::boolean=false, 'open attempt protects';
+  -- (2) completion settles the same order once, keeps provider bank_transfer and records the Stripe payment
+  r:=public.complete_order_payment_attempt((a->>'id')::uuid,'cs_test_quick_1','pi_test_quick_1',5000,t0);
+  ASSERT r->>'result'='completed', r::text;
+  ASSERT (SELECT status='completed' AND settled_via='stripe' AND payment_provider='bank_transfer' AND stripe_payment_intent_id='pi_test_quick_1' FROM public.payment_transactions WHERE id=o);
+  ASSERT (SELECT status FROM public.seat_reservations WHERE transaction_id=o)='confirmed';
+  ASSERT (public.complete_order_payment_attempt((a->>'id')::uuid,'cs_test_quick_1','pi_test_quick_1',5000,t0)->>'result')='already', 'idempotent';
+  BEGIN PERFORM public.complete_order_payment_attempt((a->>'id')::uuid,'cs_other','pi_x',5000,t0); RAISE EXCEPTION 'foreign session';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  -- (3) admin marks paid while an online payment is open: attempt superseded; a late online payment is a duplicate to refund
+  tx:=public.bank_transfer_order(input||'{"customer_email":"race@example.com"}',jsonb_set(jsonb_set(jsonb_set(jsonb_set(lines,'{0,unit_price}','80'),'{0,total_price}','80'),'{0,discounted_total}','80'),'{0,session_id}',to_jsonb(sid)));
+  o2:=(tx->>'transaction_id')::uuid;
+  a:=public.open_order_payment_attempt(o2,'settle',8000,'PLN',t0+interval '30 minutes',t0);
+  PERFORM public.attach_order_payment_session((a->>'id')::uuid,'cs_test_quick_2');
+  ASSERT (public.admin_bank_transfer_order(o2,'mark-paid',8000,t0,NULL,admin_id)->>'success')::boolean;
+  ASSERT (SELECT status FROM public.order_payment_attempts WHERE id=(a->>'id')::uuid)='superseded';
+  r:=public.complete_order_payment_attempt((a->>'id')::uuid,'cs_test_quick_2','pi_test_quick_2',8000,t0);
+  ASSERT r->>'result'='duplicate' AND (SELECT status FROM public.order_payment_attempts WHERE id=(a->>'id')::uuid)='duplicate', r::text;
+  ASSERT (SELECT stripe_payment_intent_id IS NULL FROM public.payment_transactions WHERE id=o2), 'duplicate does not overwrite';
+  PERFORM public.record_order_payment_refund((a->>'id')::uuid,'re_test_dup');
+  ASSERT (SELECT refund_id FROM public.order_payment_attempts WHERE id=(a->>'id')::uuid)='re_test_dup';
+  -- (4) reopen: a released order paid online comes back as the same order at its price
+  tx:=public.bank_transfer_order(input||'{"customer_email":"reopen@example.com"}',jsonb_set(jsonb_set(jsonb_set(lines,'{0,unit_price}','80'),'{0,total_price}','80'),'{0,discounted_total}','80'));
+  o2:=(tx->>'transaction_id')::uuid;
+  ASSERT (public.release_unpaid_transfer(o2,t0+interval '48 hours')->>'released')::boolean;
+  BEGIN PERFORM public.open_order_payment_attempt(o2,'settle',8000,'PLN',t0+interval '30 minutes',t0); RAISE EXCEPTION 'settle on cancelled';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  a:=public.open_order_payment_attempt(o2,'reopen',8000,'PLN',t0+interval '30 minutes',t0);
+  PERFORM public.attach_order_payment_session((a->>'id')::uuid,'cs_test_quick_3');
+  r:=public.complete_order_payment_attempt((a->>'id')::uuid,'cs_test_quick_3','pi_test_quick_3',8000,t0);
+  ASSERT r->>'result'='completed' AND (r->>'reopened')::boolean, r::text;
+  ASSERT (SELECT status='completed' AND reopened_at IS NOT NULL AND cancel_reason IS NULL FROM public.payment_transactions WHERE id=o2);
+  ASSERT EXISTS(SELECT 1 FROM public.guest_purchases WHERE transaction_id=o2);
+  -- (5) expiry frees the slot for a new attempt
+  tx:=public.bank_transfer_order(input||'{"customer_email":"expire@example.com"}',jsonb_set(jsonb_set(jsonb_set(lines,'{0,unit_price}','80'),'{0,total_price}','80'),'{0,discounted_total}','80'));
+  o2:=(tx->>'transaction_id')::uuid;
+  a:=public.open_order_payment_attempt(o2,'settle',8000,'PLN',t0+interval '30 minutes',t0);
+  PERFORM public.attach_order_payment_session((a->>'id')::uuid,'cs_test_quick_4');
+  PERFORM public.expire_order_payment_attempt('cs_test_quick_4');
+  a2:=public.open_order_payment_attempt(o2,'settle',8000,'PLN',t0+interval '30 minutes',t0);
+  ASSERT a2->>'id'<>a->>'id' AND NOT (a2->>'reused')::boolean, 'new attempt after expiry';
+  -- an attempt left past expiry without an event is also replaced
+  a:=public.open_order_payment_attempt(o2,'settle',8000,'PLN',t0+interval '2 hours',t0+interval '1 hour');
+  ASSERT a->>'id'<>a2->>'id', 'stale attempt replaced';
+END $$;
 ROLLBACK;

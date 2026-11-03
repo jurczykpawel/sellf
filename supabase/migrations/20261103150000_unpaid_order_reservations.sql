@@ -32,6 +32,40 @@ CREATE INDEX transfer_reminder_due_idx ON public.payment_transactions(reminder_a
 CREATE INDEX transfer_release_due_idx ON public.payment_transactions(release_at)
   WHERE status = 'awaiting_payment' AND release_at IS NOT NULL;
 
+-- Online payment of an unpaid transfer order from the pay link (Stripe Checkout). The order keeps
+-- payment_provider='bank_transfer'; settled_via records how it was paid.
+ALTER TABLE public.payment_transactions ADD COLUMN settled_via text CHECK (settled_via IN ('bank_transfer','stripe'));
+-- A transfer order paid online keeps its Stripe PaymentIntent so refunds and disputes reconcile as for card orders.
+ALTER TABLE public.payment_transactions DROP CONSTRAINT payment_transactions_provider_ref_chk,
+  ADD CONSTRAINT payment_transactions_provider_ref_chk CHECK (
+    (payment_provider = 'stripe' AND session_id IS NOT NULL
+      AND length(session_id) BETWEEN 1 AND 255 AND session_id ~* '^(cs_|pi_|in_)[a-zA-Z0-9_]+$')
+    OR (payment_provider = 'bank_transfer' AND session_id IS NULL AND pricing_snapshot_version IS NOT NULL
+      AND (stripe_payment_intent_id IS NULL OR (settled_via IS NOT DISTINCT FROM 'stripe' AND stripe_payment_intent_id ~ '^pi_[A-Za-z0-9_]+$')))
+  );
+CREATE TABLE public.order_payment_attempts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  transaction_id uuid NOT NULL REFERENCES public.payment_transactions(id) ON DELETE CASCADE,
+  kind text NOT NULL CHECK (kind IN ('settle','reopen')),
+  stripe_session_id text UNIQUE,
+  checkout_url text CHECK (length(checkout_url) <= 2048),
+  amount numeric NOT NULL CHECK (amount > 0),
+  currency text NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
+  status text NOT NULL DEFAULT 'opening' CHECK (status IN ('opening','open','completed','expired','superseded','duplicate')),
+  stripe_payment_intent_id text,
+  refund_id text,
+  expires_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  completed_at timestamptz
+);
+CREATE UNIQUE INDEX order_payment_attempt_open_idx ON public.order_payment_attempts(transaction_id) WHERE status IN ('opening','open');
+ALTER TABLE public.order_payment_attempts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Service role full access" ON public.order_payment_attempts FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Admin read" ON public.order_payment_attempts FOR SELECT TO authenticated USING ((select public.is_admin()));
+REVOKE ALL ON public.order_payment_attempts FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.order_payment_attempts TO authenticated;
+GRANT ALL ON public.order_payment_attempts TO service_role;
+
 -- ===== SETTINGS =====
 CREATE OR REPLACE FUNCTION public.save_bank_transfer_config(p_config jsonb,p_actor uuid) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
@@ -141,6 +175,7 @@ BEGIN
   SELECT * INTO tx FROM public.payment_transactions WHERE id=p_id FOR UPDATE;
   IF NOT FOUND OR tx.payment_provider<>'bank_transfer' OR tx.status<>'awaiting_payment' OR tx.release_at IS NULL
     OR tx.release_at>p_now OR tx.invoice_hold_at IS NOT NULL
+    OR EXISTS(SELECT 1 FROM public.order_payment_attempts a WHERE a.transaction_id=tx.id AND a.status IN ('opening','open') AND a.expires_at>p_now)
     OR EXISTS(SELECT 1 FROM public.invoices i WHERE i.transaction_id=tx.id AND i.status IN ('issuing','issued','corrected')) THEN
     RETURN jsonb_build_object('success',true,'released',false);
   END IF;
@@ -181,6 +216,24 @@ END $$;
 REVOKE ALL ON FUNCTION public.declare_transfer(uuid,text,timestamptz) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.declare_transfer(uuid,text,timestamptz) TO service_role;
 
+-- Back to awaiting payment so the normal completion runs: coupon use re-taken (even past its limit, the order
+-- price is honoured) and placement access re-granted by completion. Caller holds the row lock.
+CREATE FUNCTION public._reopen_cancelled_transfer(p_id uuid) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE tx public.payment_transactions%ROWTYPE;
+BEGIN
+  SELECT * INTO STRICT tx FROM public.payment_transactions WHERE id=p_id;
+  IF tx.coupon_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.coupon_redemptions WHERE transaction_id=tx.id) THEN
+    INSERT INTO public.coupon_redemptions(coupon_id,user_id,customer_email,transaction_id,discount_amount)
+      VALUES(tx.coupon_id,tx.user_id,tx.customer_email,tx.id,0);
+    UPDATE public.coupons SET current_usage_count=coalesce(current_usage_count,0)+1 WHERE id=tx.coupon_id;
+  END IF;
+  UPDATE public.payment_transactions SET status='awaiting_payment',cancel_reason=NULL,
+    metadata=coalesce(metadata,'{}')||'{"access_on_placement":false}'::jsonb WHERE id=tx.id;
+END $$;
+REVOKE ALL ON FUNCTION public._reopen_cancelled_transfer(uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public._reopen_cancelled_transfer(uuid) TO service_role;
+
 -- ===== ADMIN: late acceptance of a cancelled order, external invoice mark, cancel reason =====
 DROP FUNCTION public.admin_bank_transfer_order(uuid,text,numeric,timestamptz,text,uuid);
 CREATE FUNCTION public.admin_bank_transfer_order(p_id uuid,p_action text,p_amount numeric DEFAULT NULL,p_paid_at timestamptz DEFAULT NULL,
@@ -199,18 +252,13 @@ BEGIN
       IF p_reason IS NULL OR length(btrim(p_reason)) NOT BETWEEN 1 AND 1000 THEN RAISE EXCEPTION 'Acceptance reason required' USING ERRCODE='22023'; END IF;
       IF invoice_status='corrected' THEN RETURN jsonb_build_object('success',false,'error','invoice_corrected'); END IF;
       IF p_amount IS DISTINCT FROM tx.amount THEN RETURN jsonb_build_object('success',false,'error','amount_mismatch'); END IF;
-      -- Re-take the coupon use at the order price; the administrator accepts it even past the coupon limit.
-      IF tx.coupon_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.coupon_redemptions WHERE transaction_id=tx.id) THEN
-        INSERT INTO public.coupon_redemptions(coupon_id,user_id,customer_email,transaction_id,discount_amount)
-          VALUES(tx.coupon_id,tx.user_id,tx.customer_email,tx.id,0);
-        UPDATE public.coupons SET current_usage_count=coalesce(current_usage_count,0)+1 WHERE id=tx.coupon_id;
-      END IF;
-      -- Access granted at placement was withdrawn on cancellation, so completion grants it again.
-      UPDATE public.payment_transactions SET status='awaiting_payment',cancel_reason=NULL,
-        metadata=coalesce(metadata,'{}')||'{"access_on_placement":false}'::jsonb WHERE id=tx.id;
+      PERFORM public._reopen_cancelled_transfer(tx.id);
       reopen:=true;
     END IF;
     result:=public.complete_offline_order(p_id,p_amount);
+    IF (result->>'success')::boolean THEN
+      UPDATE public.order_payment_attempts SET status='superseded' WHERE transaction_id=p_id AND status IN ('opening','open');
+    END IF;
     IF (result->>'success')::boolean AND tx.status<>'completed' THEN
       UPDATE public.payment_transactions SET paid_at=p_paid_at,reopened_at=CASE WHEN reopen THEN now() ELSE reopened_at END WHERE id=p_id;
     END IF;
@@ -263,3 +311,90 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.prepare_event_mail(text,jsonb) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.prepare_event_mail(text,jsonb) TO service_role;
+
+-- ===== ONLINE PAYMENT OF AN UNPAID ORDER =====
+-- One open attempt per order; a stale or expired one is replaced. Amount is the quoted amount (minor units).
+CREATE FUNCTION public.open_order_payment_attempt(p_id uuid,p_kind text,p_amount numeric,p_currency text,p_expires_at timestamptz,p_now timestamptz)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE tx public.payment_transactions%ROWTYPE; a public.order_payment_attempts%ROWTYPE;
+BEGIN
+  IF p_now IS NULL OR p_expires_at IS NULL OR p_expires_at<=p_now OR p_kind NOT IN ('settle','reopen') THEN
+    RAISE EXCEPTION 'Invalid attempt' USING ERRCODE='22023'; END IF;
+  SELECT * INTO tx FROM public.payment_transactions WHERE id=p_id FOR UPDATE;
+  IF NOT FOUND OR tx.payment_provider<>'bank_transfer' OR p_amount IS DISTINCT FROM tx.amount OR upper(p_currency)<>upper(tx.currency)
+    OR (p_kind='settle' AND tx.status<>'awaiting_payment') OR (p_kind='reopen' AND (tx.status<>'cancelled'
+      OR EXISTS(SELECT 1 FROM public.invoices i WHERE i.transaction_id=tx.id AND i.status='corrected'))) THEN
+    RAISE EXCEPTION 'Order not payable' USING ERRCODE='22023'; END IF;
+  UPDATE public.order_payment_attempts SET status='expired' WHERE transaction_id=p_id AND status IN ('opening','open') AND expires_at<=p_now;
+  SELECT * INTO a FROM public.order_payment_attempts WHERE transaction_id=p_id AND status IN ('opening','open');
+  IF FOUND THEN RETURN to_jsonb(a)||'{"reused":true}'; END IF;
+  INSERT INTO public.order_payment_attempts(transaction_id,kind,amount,currency,expires_at) VALUES(p_id,p_kind,p_amount,upper(p_currency),p_expires_at) RETURNING * INTO a;
+  RETURN to_jsonb(a)||'{"reused":false}';
+END $$;
+REVOKE ALL ON FUNCTION public.open_order_payment_attempt(uuid,text,numeric,text,timestamptz,timestamptz) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.open_order_payment_attempt(uuid,text,numeric,text,timestamptz,timestamptz) TO service_role;
+
+CREATE FUNCTION public.attach_order_payment_session(p_attempt uuid,p_session_id text,p_url text DEFAULT NULL) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+BEGIN
+  UPDATE public.order_payment_attempts SET stripe_session_id=p_session_id,checkout_url=p_url,status='open'
+    WHERE id=p_attempt AND status='opening';
+  IF NOT FOUND THEN RAISE EXCEPTION 'Attempt not opening' USING ERRCODE='22023'; END IF;
+END $$;
+REVOKE ALL ON FUNCTION public.attach_order_payment_session(uuid,text,text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.attach_order_payment_session(uuid,text,text) TO service_role;
+
+-- Paid online. Completes the same order once; if it was already paid (admin) or is no longer payable the payment
+-- is a duplicate the caller refunds. result: completed | already | duplicate.
+CREATE FUNCTION public.complete_order_payment_attempt(p_attempt uuid,p_session_id text,p_payment_intent text,p_amount numeric,p_now timestamptz)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE a public.order_payment_attempts%ROWTYPE; tx public.payment_transactions%ROWTYPE; result jsonb; reopen boolean:=false;
+BEGIN
+  SELECT * INTO a FROM public.order_payment_attempts WHERE id=p_attempt;
+  IF NOT FOUND OR a.stripe_session_id IS DISTINCT FROM p_session_id OR p_amount IS DISTINCT FROM a.amount THEN
+    RAISE EXCEPTION 'Attempt mismatch' USING ERRCODE='22023'; END IF;
+  SELECT * INTO tx FROM public.payment_transactions WHERE id=a.transaction_id FOR UPDATE;
+  SELECT * INTO a FROM public.order_payment_attempts WHERE id=p_attempt FOR UPDATE;
+  IF a.status IN ('completed','duplicate') THEN
+    RETURN jsonb_build_object('result',CASE a.status WHEN 'completed' THEN 'already' ELSE 'duplicate' END,'transaction_id',tx.id,'attempt_status',a.status,'refund_id',a.refund_id);
+  END IF;
+  IF a.status='superseded' OR NOT ((a.kind='settle' AND tx.status='awaiting_payment') OR (a.kind='reopen' AND tx.status='cancelled'
+    AND NOT EXISTS(SELECT 1 FROM public.invoices i WHERE i.transaction_id=tx.id AND i.status='corrected'))) THEN
+    UPDATE public.order_payment_attempts SET status='duplicate',stripe_payment_intent_id=p_payment_intent,completed_at=p_now WHERE id=a.id;
+    INSERT INTO public.audit_log(table_name,operation,new_values) VALUES('order_payment_attempts','UPDATE',
+      jsonb_build_object('action','order.payment_duplicate','transaction_id',tx.id,'attempt_id',a.id,'payment_intent',p_payment_intent));
+    RETURN jsonb_build_object('result','duplicate','transaction_id',tx.id);
+  END IF;
+  IF a.kind='reopen' THEN PERFORM public._reopen_cancelled_transfer(tx.id); reopen:=true; END IF;
+  UPDATE public.payment_transactions SET stripe_payment_intent_id=p_payment_intent,settled_via='stripe' WHERE id=tx.id;
+  result:=public.complete_offline_order(tx.id,a.amount);
+  IF NOT coalesce((result->>'success')::boolean,false) THEN RAISE EXCEPTION 'Online completion failed' USING ERRCODE='P0001'; END IF;
+  UPDATE public.payment_transactions SET paid_at=p_now,reopened_at=CASE WHEN reopen THEN p_now ELSE reopened_at END WHERE id=tx.id;
+  UPDATE public.order_payment_attempts SET status='completed',stripe_payment_intent_id=p_payment_intent,completed_at=p_now WHERE id=a.id;
+  INSERT INTO public.audit_log(table_name,operation,new_values) VALUES('payment_transactions','UPDATE',
+    jsonb_build_object('action',CASE WHEN reopen THEN 'order.reopened' ELSE 'order.paid_online' END,'transaction_id',tx.id,'attempt_id',a.id,
+      'previous_status',tx.status,'amount',a.amount,'oversold',coalesce((SELECT (metadata->>'oversold')::boolean FROM public.payment_transactions WHERE id=tx.id),false)));
+  RETURN jsonb_build_object('result','completed','transaction_id',tx.id,'reopened',reopen);
+END $$;
+REVOKE ALL ON FUNCTION public.complete_order_payment_attempt(uuid,text,text,numeric,timestamptz) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.complete_order_payment_attempt(uuid,text,text,numeric,timestamptz) TO service_role;
+
+CREATE FUNCTION public.expire_order_payment_attempt(p_session_id text) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+BEGIN
+  UPDATE public.order_payment_attempts SET status='expired' WHERE stripe_session_id=p_session_id AND status IN ('opening','open');
+  RETURN FOUND;
+END $$;
+REVOKE ALL ON FUNCTION public.expire_order_payment_attempt(text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.expire_order_payment_attempt(text) TO service_role;
+
+CREATE FUNCTION public.record_order_payment_refund(p_attempt uuid,p_refund_id text) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+BEGIN
+  UPDATE public.order_payment_attempts SET refund_id=p_refund_id WHERE id=p_attempt AND status='duplicate';
+  IF NOT FOUND THEN RAISE EXCEPTION 'Duplicate attempt required' USING ERRCODE='22023'; END IF;
+  INSERT INTO public.audit_log(table_name,operation,new_values) VALUES('order_payment_attempts','UPDATE',
+    jsonb_build_object('action','order.payment_duplicate_refunded','attempt_id',p_attempt,'refund_id',p_refund_id));
+END $$;
+REVOKE ALL ON FUNCTION public.record_order_payment_refund(uuid,text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.record_order_payment_refund(uuid,text) TO service_role;

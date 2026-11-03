@@ -267,7 +267,14 @@ past its limit, seat re-taken or `oversold`), which emits `order.reopened` then 
 Every `order.*` payload carries `payUrl` (`buildOrderPayLink`), `reservation`, the lifecycle timestamps and
 `customer.locale`. Mails go through `sendOrderNotice` (`transfer_placed | payment_reminder | order_cancelled`,
 once per order via `*_mail_sent_at`, failed deliveries retried by the cron); subjects switch on `mail_kind`
-in `supabase/config.toml`. Online quick payment of an unpaid order (plan W2) is not implemented.
+in `supabase/config.toml`. **Online payment from the pay link** (`lib/orders/quick-pay.ts`,
+`POST /api/orders/[orderId]/pay`): unpaid → Stripe hosted Checkout for the saved amount (`settle`); cancelled →
+the same order only if its saved line price is still current, seats remain and the coupon is valid (`reopen`),
+otherwise the page links to a new checkout. One open attempt per order (`order_payment_attempts`, 30 min,
+idempotency `sellf-quickpay-<attempt>`); an open attempt blocks release. The Stripe webhook routes objects with
+`metadata.sellf_payment_attempt` to `handleQuickPayEvent`; completion keeps `payment_provider='bank_transfer'`,
+sets `settled_via='stripe'` and the PaymentIntent (refunds reconcile as for card orders). A payment arriving after
+an admin mark-paid becomes `duplicate` and is refunded automatically (`sellf-dup-refund-<attempt>`).
 `transfer_mail_sent_at` records successful delivery for `fulfillment-resume`. Sellf does not send its own transactional emails: Auth magic
 links remain the email channel, and sellers may send messages from `order.placed`.
 

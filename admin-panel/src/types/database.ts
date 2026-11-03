@@ -1960,6 +1960,62 @@ export type Database = {
           },
         ]
       }
+      order_payment_attempts: {
+        Row: {
+          amount: number
+          checkout_url: string | null
+          completed_at: string | null
+          created_at: string
+          currency: string
+          expires_at: string
+          id: string
+          kind: string
+          refund_id: string | null
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          transaction_id: string
+        }
+        Insert: {
+          amount: number
+          checkout_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency: string
+          expires_at: string
+          id?: string
+          kind: string
+          refund_id?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          transaction_id: string
+        }
+        Update: {
+          amount?: number
+          checkout_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency?: string
+          expires_at?: string
+          id?: string
+          kind?: string
+          refund_id?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_payment_attempts_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       oto_offers: {
         Row: {
           created_at: string
@@ -2386,6 +2442,7 @@ export type Database = {
           reminder_mail_sent_at: string | null
           reopened_at: string | null
           session_id: string | null
+          settled_via: string | null
           status: string
           stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
@@ -2441,6 +2498,7 @@ export type Database = {
           reminder_mail_sent_at?: string | null
           reopened_at?: string | null
           session_id?: string | null
+          settled_via?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
@@ -2496,6 +2554,7 @@ export type Database = {
           reminder_mail_sent_at?: string | null
           reopened_at?: string | null
           session_id?: string | null
+          settled_via?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
@@ -4762,6 +4821,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      _reopen_cancelled_transfer: { Args: { p_id: string }; Returns: undefined }
       _reserve_coupon: {
         Args: {
           coupon_id_param: string
@@ -5224,6 +5284,10 @@ export type Database = {
         }
         Returns: Json
       }
+      attach_order_payment_session: {
+        Args: { p_attempt: string; p_session_id: string; p_url?: string }
+        Returns: undefined
+      }
       attribution_text: {
         Args: { k: string; max_len: number; p: Json }
         Returns: string
@@ -5350,6 +5414,16 @@ export type Database = {
         Args: { p_paid_minor: number; p_transaction_id: string }
         Returns: Json
       }
+      complete_order_payment_attempt: {
+        Args: {
+          p_amount: number
+          p_attempt: string
+          p_now: string
+          p_payment_intent: string
+          p_session_id: string
+        }
+        Returns: Json
+      }
       confirm_event_order: {
         Args: { p_transaction_id: string }
         Returns: undefined
@@ -5446,6 +5520,10 @@ export type Database = {
       event_session_admin: {
         Args: { p_offset?: number; p_session_id: string }
         Returns: Json
+      }
+      expire_order_payment_attempt: {
+        Args: { p_session_id: string }
+        Returns: boolean
       }
       expire_seat_reservations: { Args: never; Returns: number }
       find_auto_apply_coupon: {
@@ -5995,6 +6073,17 @@ export type Database = {
           refund_version: number
         }[]
       }
+      open_order_payment_attempt: {
+        Args: {
+          p_amount: number
+          p_currency: string
+          p_expires_at: string
+          p_id: string
+          p_kind: string
+          p_now: string
+        }
+        Returns: Json
+      }
       pending_free_grant_products: {
         Args: never
         Returns: {
@@ -6065,6 +6154,10 @@ export type Database = {
       }
       record_free_attribution_from_ref: {
         Args: { p_product: string; p_ref: string; p_user: string }
+        Returns: undefined
+      }
+      record_order_payment_refund: {
+        Args: { p_attempt: string; p_refund_id: string }
         Returns: undefined
       }
       record_template_credential_status: {

@@ -3520,6 +3520,72 @@
         "browser",
         "integration"
       ]
+    },
+    {
+      "id": "J185",
+      "title": "Buyer pays an unpaid transfer order online from the pay link",
+      "values": {
+        "persona": "guest",
+        "entry": "email_link",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_hold",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Pays the saved amount on Stripe Checkout and sees the order as paid.",
+        "seller": "Order completed, settled via Stripe, still a transfer order with its PaymentIntent for refunds.",
+        "integrator": "Exactly one purchase.completed."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ]
+    },
+    {
+      "id": "J186",
+      "title": "Released order paid online is reopened only at a still-current price",
+      "values": {
+        "persona": "guest",
+        "entry": "email_link",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_expiry",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Pays and gets the same order back; after a price change sees only \"order again at the current price\".",
+        "seller": "Same order completed with reopened_at; no reopening at an outdated price.",
+        "integrator": "order.reopened then purchase.completed, once each."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ]
+    },
+    {
+      "id": "J187",
+      "title": "Online payment racing an admin mark-paid is refunded",
+      "values": {
+        "persona": "admin",
+        "entry": "webhook",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_hold",
+        "operation": "refund"
+      },
+      "end_state": {
+        "buyer": "Charged once net: the duplicate online payment is refunded automatically.",
+        "seller": "Order stays completed from the transfer; attempt marked duplicate with the refund id.",
+        "integrator": "Not exercised: no separate event for an internal duplicate refund."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ]
     }
   ],
   "escapes": [
