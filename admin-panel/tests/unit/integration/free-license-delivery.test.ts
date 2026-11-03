@@ -77,7 +77,7 @@ afterAll(async () => {
   vi.unstubAllEnvs();
 });
 
-it.each((['magic-link', 'signed-in', 'pending'] as const).flatMap(flow => [false, true].map(requiredDomain => ({ flow, requiredDomain }))))('issues one registered license via $flow with requiredDomain=$requiredDomain @J13 @J14 @J15 @J16 @J17 @J18 @J193 @J194', async ({ flow, requiredDomain }) => {
+it.each((['magic-link', 'signed-in', 'pending'] as const).flatMap(flow => [false, true].map(requiredDomain => ({ flow, requiredDomain }))))('issues one registered license via $flow with requiredDomain=$requiredDomain @J13 @J14 @J15 @J16 @J17 @J18 @J233 @J234', async ({ flow, requiredDomain }) => {
   const email = `free-license-${crypto.randomUUID()}@example.com`, slug = `registered-${crypto.randomUUID()}`;
   const product = await db.from('products').insert({ name: 'Registered access', slug, price: 0, currency: 'PLN', is_active: true, seller_id: sellerId, auto_grant_duration_days: 3, issue_license_on_purchase: true, license_tier: 'registered', custom_checkout_fields: requiredDomain ? [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] : [] }).select('id').single(); expect(product.error).toBeNull(); const productId = product.data!.id; products.push(productId);
   expect((await db.from('webhook_endpoint_products').insert({ webhook_endpoint_id: endpointId, product_id: productId })).error).toBeNull();
@@ -165,7 +165,7 @@ it('manual issuance accepts the required domain when it is supplied @J21', async
   expect(result.status).toBe(201); expect((await result.json()).license.claims.domain).toBe('manual.example.org');
 });
 
-it('answers a rejected checkout domain with the field to fix, never a generic failure @J190', async () => {
+it('answers a rejected checkout domain with the field to fix, never a generic failure @J230', async () => {
   const slug = `bad-domain-${crypto.randomUUID()}`;
   const product = await db.from('products').insert({ name: 'Domain answer', slug, price: 0, currency: 'PLN', is_active: true, seller_id: sellerId, issue_license_on_purchase: true, license_tier: 'registered', custom_checkout_fields: [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] }).select('id').single();
   expect(product.error).toBeNull(); products.push(product.data!.id);

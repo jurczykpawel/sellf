@@ -24,7 +24,7 @@ test.beforeEach(async ({ page }) => { await acceptAllCookies(page); });
 
 const GENERIC_FAILURE = /Wystąpił nieoczekiwany błąd|unexpected error/i;
 
-test('empty form names every missing answer beside its field @J190', async ({ page }) => {
+test('empty form names every missing answer beside its field @J230', async ({ page }) => {
   await page.goto(`/pl/checkout/${slug}`);
   await page.getByRole('button', { name: 'Wyślij magiczny link' }).click();
   await expect(page.locator('#email-error')).toHaveText('Podaj swój adres e-mail');
@@ -40,7 +40,7 @@ for (const [name, value, message] of [
   ['spaces inside', 'moja firma.pl', /Wpisz poprawną domenę/],
   ['no dot', 'localhost', /Wpisz poprawną domenę/],
 ] as const) {
-  test(`domain with ${name} is explained at the domain field @J190`, async ({ page }) => {
+  test(`domain with ${name} is explained at the domain field @J230`, async ({ page }) => {
     await page.goto(`/pl/checkout/${slug}`);
     await page.getByLabel(/Adres e-?mail/i).fill(`free-${crypto.randomUUID()}@example.com`);
     await page.getByLabel(/Domena aplikacji/).fill(value);
@@ -51,7 +51,7 @@ for (const [name, value, message] of [
   });
 }
 
-test('malformed buyer and contact e-mails are explained beside their fields @J190', async ({ page }) => {
+test('malformed buyer and contact e-mails are explained beside their fields @J230', async ({ page }) => {
   await page.goto(`/pl/checkout/${slug}`);
   await page.getByLabel(/Adres e-?mail/i).fill('nie-email');
   await page.getByLabel(/Domena aplikacji/).fill('mojafirma.pl');
@@ -62,7 +62,7 @@ test('malformed buyer and contact e-mails are explained beside their fields @J19
   await expect(page.getByText(GENERIC_FAILURE)).toHaveCount(0);
 });
 
-test('the same problems read in English on the English page @J190', async ({ page }) => {
+test('the same problems read in English on the English page @J230', async ({ page }) => {
   await page.goto(`/en/checkout/${slug}`);
   await page.getByRole('button', { name: 'Send Magic Link' }).click();
   await expect(page.getByText('This field is required.')).toBeVisible();
@@ -72,7 +72,7 @@ test('the same problems read in English on the English page @J190', async ({ pag
   await expect(page.getByText(/Enter a valid domain/)).toBeVisible();
 });
 
-test('a valid answer goes through and the first mail names the product @J190 @J193', async ({ page }) => {
+test('a valid answer goes through and the first mail names the product @J230 @J233', async ({ page }) => {
   const email = `free-ok-${crypto.randomUUID()}@example.com`;
   await page.goto(`/pl/checkout/${slug}`);
   await page.getByLabel(/Adres e-?mail/i).fill(email);

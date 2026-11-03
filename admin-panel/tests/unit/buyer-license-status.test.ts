@@ -14,7 +14,7 @@ const render = (row: Record<string, unknown>) => {
 };
 
 describe('buyer license status', () => {
-  it('shows a valid key with copy @J195', () => {
+  it('shows a valid key with copy @J235', () => {
     const { license, html } = render(base);
     expect(license.status).toBe('active');
     expect(html).toContain('payload.signature');

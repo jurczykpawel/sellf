@@ -3348,7 +3348,7 @@
       }
     },
     {
-      "id": "J190",
+      "id": "J230",
       "title": "Free access form names every wrong answer beside its field",
       "values": {
         "persona": "guest",
@@ -3370,7 +3370,7 @@
       ]
     },
     {
-      "id": "J191",
+      "id": "J231",
       "title": "Transfer instructions mail lists recipient, grouped account, bank, reference, amount and due date",
       "values": {
         "persona": "guest",
@@ -3392,7 +3392,7 @@
       ]
     },
     {
-      "id": "J192",
+      "id": "J232",
       "title": "Booked transfer sends a payment-received mail",
       "values": {
         "persona": "guest",
@@ -3414,7 +3414,7 @@
       ]
     },
     {
-      "id": "J193",
+      "id": "J233",
       "title": "Free product confirmation mail names the product",
       "values": {
         "persona": "new",
@@ -3435,7 +3435,7 @@
       ]
     },
     {
-      "id": "J194",
+      "id": "J234",
       "title": "Confirmed free-product buyer receives the license key and product link",
       "values": {
         "persona": "new",
@@ -3456,7 +3456,7 @@
       ]
     },
     {
-      "id": "J195",
+      "id": "J235",
       "title": "Buyer sees a working license as valid with a copy button",
       "values": {
         "persona": "signed_in",
@@ -3478,7 +3478,7 @@
       ]
     },
     {
-      "id": "J196",
+      "id": "J236",
       "title": "Buyer sees a revoked license as revoked, key hidden",
       "values": {
         "persona": "signed_in",
@@ -3500,7 +3500,7 @@
       ]
     },
     {
-      "id": "J197",
+      "id": "J237",
       "title": "Buyer sees an expired license as expired",
       "values": {
         "persona": "signed_in",
@@ -3521,7 +3521,7 @@
       ]
     },
     {
-      "id": "J198",
+      "id": "J238",
       "title": "Quantity stepper drives the order summary on desktop and phone",
       "values": {
         "persona": "signed_in",

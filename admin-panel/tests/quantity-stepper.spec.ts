@@ -13,7 +13,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => { await db.from('products').delete().eq('id', productId); });
 
 for (const [name, viewport] of [['desktop', { width: 1280, height: 900 }], ['390 px phone', { width: 390, height: 844 }]] as const) {
-  test(`${name}: stepper is visible above the coupon, tappable and drives the summary @J198`, async ({ page }) => {
+  test(`${name}: stepper is visible above the coupon, tappable and drives the summary @J238`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await acceptAllCookies(page);
     await page.goto(`/pl/checkout/${slug}`);

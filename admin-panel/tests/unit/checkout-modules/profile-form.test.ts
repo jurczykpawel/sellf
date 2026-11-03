@@ -118,7 +118,7 @@ const renderQuantity = (value: string, onChange = vi.fn(), invalid = false) => {
     React.createElement(CheckoutQuantityField, { config: quantityConfig, value, onChange, invalid })));
   return onChange;
 };
-it('lets the buyer change the quantity with large labelled step buttons that stop at the limits @J198', () => {
+it('lets the buyer change the quantity with large labelled step buttons that stop at the limits @J238', () => {
   const onChange = renderQuantity('3');
   expect(screen.getByLabelText('Quantity', { exact: true })).toHaveProperty('value', '3');
   fireEvent.click(screen.getByRole('button', { name: 'Increase quantity' }));

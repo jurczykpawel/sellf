@@ -26,13 +26,13 @@ test.afterAll(async () => {
 });
 test.beforeEach(async ({ page }) => { await acceptAllCookies(page); await setAuthSession(page, buyer.email, buyer.password); });
 
-test('a working license is shown valid with a copy button @J195', async ({ page }) => {
+test('a working license is shown valid with a copy button @J235', async ({ page }) => {
   await page.goto(`/pl/p/${slug}`);
   await expect(page.locator('[data-license-status="active"]')).toHaveText('Ważna');
   await expect(page.getByText(TOKEN)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Kopiuj' })).toBeVisible();
 });
-test('a revoked license is marked revoked and its key is neither shown nor copyable @J196', async ({ page }) => {
+test('a revoked license is marked revoked and its key is neither shown nor copyable @J236', async ({ page }) => {
   expect((await db.from('issued_licenses').update({ revoked_at: new Date().toISOString() }).eq('id', ids.license!)).error).toBeNull();
   await page.goto(`/pl/p/${slug}`);
   await expect(page.locator('[data-license-status="revoked"]')).toHaveText('Odwołana');
@@ -41,7 +41,7 @@ test('a revoked license is marked revoked and its key is neither shown nor copya
   await expect(page.getByRole('button', { name: 'Kopiuj' })).toHaveCount(0);
   expect(await page.content()).not.toContain(TOKEN);
 });
-test('an expired license is marked expired @J197', async ({ page }) => {
+test('an expired license is marked expired @J237', async ({ page }) => {
   expect((await db.from('issued_licenses').update({ revoked_at: null, expires_at: '2020-01-01T00:00:00Z' }).eq('id', ids.license!)).error).toBeNull();
   await page.goto(`/pl/p/${slug}`);
   await expect(page.locator('[data-license-status="expired"]')).toHaveText('Wygasła');

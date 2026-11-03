@@ -47,7 +47,7 @@ it.each(['pl', 'en'])('renders confirmation and magic link purchase details in %
   }
 });
 
-it('delivers labeled transfer instructions with a Polish due date and purchase amount @J191', async () => {
+it('delivers labeled transfer instructions with a Polish due date and purchase amount @J231', async () => {
   const { sendTransferAccessMail } = await import('@/lib/orders/transfer-mail');
   const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const email = `transfer-mail-${crypto.randomUUID()}@example.com`;
@@ -112,7 +112,7 @@ it('renders the first purchase email while transaction and guest access arrive a
   }
 });
 
-it('tells the buyer the payment was received once the transfer is booked, exactly once @J192', async () => {
+it('tells the buyer the payment was received once the transfer is booked, exactly once @J232', async () => {
   const { sendTransferPaidMail } = await import('@/lib/orders/transfer-mail');
   const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const email = `transfer-paid-${crypto.randomUUID()}@example.com`;

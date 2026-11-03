@@ -108,7 +108,7 @@ test('settings validate account and preview the title; person cannot select a tr
   await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toHaveCount(0);
   await expect(page.locator('[id="buyer.email"]')).toBeVisible();
 });
-test('(a) organization places transfer with immediate access, unpaid invoice, protected instructions and Auth mail @J52 @J191', async ({ page }) => {
+test('(a) organization places transfer with immediate access, unpaid invoice, protected instructions and Auth mail @J52 @J231', async ({ page }) => {
   test.setTimeout(120000); const order = await place(page, email); orderId = order.orderId;
   const instructionsUrl = page.url();
   const tx = await checked(await db.from('payment_transactions').select('created_at,payment_due_at,status').eq('id', orderId).single());
@@ -135,7 +135,7 @@ test('(a) organization places transfer with immediate access, unpaid invoice, pr
   const section = await adminDetails(page, email); await expect(section.getByText('Testowy sklep')).toBeVisible();
   await expect(page.getByRole('row').filter({ hasText: email })).toHaveClass(/bg-sf-warning-soft/);
 });
-test('(c) admin rejects amount mismatch and marks paid; invoice updates once using the receipt date, and tells the buyer the payment arrived @J53 @J192', async ({ page, request }) => {
+test('(c) admin rejects amount mismatch and marks paid; invoice updates once using the receipt date, and tells the buyer the payment arrived @J53 @J232', async ({ page, request }) => {
   test.setTimeout(120000); const section = await adminDetails(page, email);
   await section.getByLabel('Zaksięgowana kwota').fill('122'); await section.getByLabel('Data wpływu').fill('2026-01-01');
   await section.getByRole('button', { name: 'Oznacz jako opłacone' }).click(); await expect(section.getByRole('status')).toContainText('pełnej kwocie');
