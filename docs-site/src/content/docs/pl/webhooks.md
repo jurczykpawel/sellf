@@ -75,6 +75,10 @@ Błąd wystawiania licencji lub przerwana realizacja mogą zostać uzupełnione 
 kolejne zdarzenie lub weryfikację zakupu. Zapis zakończonej transakcji nie oznacza,
 że wszystkie dostawy już się zakończyły.
 
+`purchase.completed` zawiera `attribution`, gdy zamówienie ma zapisane źródło
+([Źródła zakupów](/pl/purchase-attribution/)): kanał, ostatni i pierwszy kontakt, urządzenie,
+kraj i typ identyfikatora kliknięcia — nigdy sam identyfikator.
+
 Pełny katalog zdarzeń, przykłady danych VAT i licencji oraz konfiguracja ponowień
 znajdują się w [dokumentacji webhooków po angielsku](/webhooks/).
 

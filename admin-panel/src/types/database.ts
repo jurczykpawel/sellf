@@ -796,6 +796,60 @@ export type Database = {
         }
         Relationships: []
       }
+      attribution_channel_rules: {
+        Row: {
+          channel: string
+          created_at: string
+          field: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          operator: string
+          priority: number
+          value: string | null
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          field: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          operator: string
+          priority: number
+          value?: string | null
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          field?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          operator?: string
+          priority?: number
+          value?: string | null
+        }
+        Relationships: []
+      }
+      attribution_settings: {
+        Row: {
+          click_id_retention_days: number
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          click_id_retention_days?: number
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          click_id_retention_days?: number
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           id: string
@@ -1027,6 +1081,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      checkout_attribution: {
+        Row: {
+          created_at: string
+          payload: Json
+          ref: string
+        }
+        Insert: {
+          created_at?: string
+          payload: Json
+          ref: string
+        }
+        Update: {
+          created_at?: string
+          payload?: Json
+          ref?: string
+        }
+        Relationships: []
       }
       consent_logs: {
         Row: {
@@ -3121,6 +3193,159 @@ export type Database = {
           },
         ]
       }
+      purchase_attribution: {
+        Row: {
+          affiliate_member_id: string | null
+          channel: string
+          click_id: string | null
+          click_id_expires_at: string | null
+          click_id_type: string | null
+          consent: string
+          country: string | null
+          created_at: string
+          device_class: string
+          first_at: string | null
+          first_campaign: string | null
+          first_channel: string | null
+          first_content: string | null
+          first_landing_path: string | null
+          first_medium: string | null
+          first_referrer_host: string | null
+          first_seen_at: string | null
+          first_source: string | null
+          first_term: string | null
+          first_utm_id: string | null
+          id: string
+          kind: string
+          last_at: string | null
+          last_campaign: string | null
+          last_content: string | null
+          last_landing_path: string | null
+          last_medium: string | null
+          last_referrer_host: string | null
+          last_source: string | null
+          last_term: string | null
+          last_utm_id: string | null
+          mode: string
+          product_id: string | null
+          sessions_count: number | null
+          transaction_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          affiliate_member_id?: string | null
+          channel: string
+          click_id?: string | null
+          click_id_expires_at?: string | null
+          click_id_type?: string | null
+          consent: string
+          country?: string | null
+          created_at?: string
+          device_class?: string
+          first_at?: string | null
+          first_campaign?: string | null
+          first_channel?: string | null
+          first_content?: string | null
+          first_landing_path?: string | null
+          first_medium?: string | null
+          first_referrer_host?: string | null
+          first_seen_at?: string | null
+          first_source?: string | null
+          first_term?: string | null
+          first_utm_id?: string | null
+          id?: string
+          kind: string
+          last_at?: string | null
+          last_campaign?: string | null
+          last_content?: string | null
+          last_landing_path?: string | null
+          last_medium?: string | null
+          last_referrer_host?: string | null
+          last_source?: string | null
+          last_term?: string | null
+          last_utm_id?: string | null
+          mode: string
+          product_id?: string | null
+          sessions_count?: number | null
+          transaction_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          affiliate_member_id?: string | null
+          channel?: string
+          click_id?: string | null
+          click_id_expires_at?: string | null
+          click_id_type?: string | null
+          consent?: string
+          country?: string | null
+          created_at?: string
+          device_class?: string
+          first_at?: string | null
+          first_campaign?: string | null
+          first_channel?: string | null
+          first_content?: string | null
+          first_landing_path?: string | null
+          first_medium?: string | null
+          first_referrer_host?: string | null
+          first_seen_at?: string | null
+          first_source?: string | null
+          first_term?: string | null
+          first_utm_id?: string | null
+          id?: string
+          kind?: string
+          last_at?: string | null
+          last_campaign?: string | null
+          last_content?: string | null
+          last_landing_path?: string | null
+          last_medium?: string | null
+          last_referrer_host?: string | null
+          last_source?: string | null
+          last_term?: string | null
+          last_utm_id?: string | null
+          mode?: string
+          product_id?: string | null
+          sessions_count?: number | null
+          transaction_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_attribution_affiliate_member_id_fkey"
+            columns: ["affiliate_member_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_attribution_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_attribution_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: true
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_attribution_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "purchase_attribution_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       rate_limits: {
         Row: {
           call_count: number
@@ -4947,6 +5172,11 @@ export type Database = {
         }
         Returns: Json
       }
+      attribution_text: {
+        Args: { k: string; max_len: number; p: Json }
+        Returns: string
+      }
+      attribution_time: { Args: { k: string; p: Json }; Returns: string }
       bank_transfer_order: {
         Args: { p_lines: Json; p_order: Json }
         Returns: Json
@@ -5038,6 +5268,16 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      classify_attribution_channel: {
+        Args: {
+          p_campaign: string
+          p_click_type: string
+          p_medium: string
+          p_referrer_host: string
+          p_source: string
+        }
+        Returns: string
       }
       cleanup_application_rate_limits: { Args: never; Returns: number }
       cleanup_audit_logs: { Args: { retention_days?: number }; Returns: number }
@@ -5215,6 +5455,16 @@ export type Database = {
           transaction_id: string
           user_id: string
         }[]
+      }
+      get_attribution_report: {
+        Args: {
+          p_from: string
+          p_group_by?: string[]
+          p_product?: string
+          p_to: string
+          p_touch?: string
+        }
+        Returns: Json
       }
       get_checkout_funnel: {
         Args: { p_days?: number; p_product_id?: string }
@@ -5440,6 +5690,17 @@ export type Database = {
           p_next_retry_at: string
           p_response_body: string
           p_status: string
+        }
+        Returns: undefined
+      }
+      insert_purchase_attribution: {
+        Args: {
+          p_coupon: string
+          p_kind: string
+          p_payload: Json
+          p_product: string
+          p_tx: string
+          p_user: string
         }
         Returns: undefined
       }
@@ -5740,6 +6001,7 @@ export type Database = {
         Args: { p_product_id: string }
         Returns: Json
       }
+      purge_attribution_click_ids: { Args: never; Returns: number }
       queue_pending_free_grant: {
         Args: { p_email: string; p_product_slug: string }
         Returns: boolean
@@ -5751,6 +6013,14 @@ export type Database = {
           p_payload: Json
           p_product: string
         }
+        Returns: undefined
+      }
+      record_free_attribution: {
+        Args: { p_payload: Json; p_product: string; p_user: string }
+        Returns: undefined
+      }
+      record_free_attribution_from_ref: {
+        Args: { p_product: string; p_ref: string; p_user: string }
         Returns: undefined
       }
       record_template_credential_status: {
@@ -5779,6 +6049,10 @@ export type Database = {
           p_secret: string
         }
         Returns: boolean
+      }
+      save_attribution_config: {
+        Args: { p_retention_days: number; p_rules: Json }
+        Returns: Json
       }
       save_bank_transfer_config: {
         Args: { p_actor: string; p_config: Json }
@@ -5843,6 +6117,10 @@ export type Database = {
       }
       set_webhook_endpoint_scoping: {
         Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
+        Returns: undefined
+      }
+      store_checkout_attribution: {
+        Args: { p_payload: Json; p_ref: string }
         Returns: undefined
       }
       storefront_catalogue_boundary: { Args: never; Returns: string }

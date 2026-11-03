@@ -3434,6 +3434,71 @@
         "integration",
         "consumer"
       ]
+    },
+    {
+      "id": "J171",
+      "title": "Buyer from a tagged e-mail link pays by card; the seller's API reports the purchase source",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "read"
+      },
+      "status": "automated",
+      "layers": [
+        "sandbox",
+        "browser",
+        "api"
+      ],
+      "end_state": {
+        "buyer": "Pays by card from a link with UTM tags; no cookie consent asked or stored for attribution.",
+        "seller": "Order carries an immutable source snapshot (channel email, listmonk / email / mail-05 / cta-1, landing path, mode url).",
+        "integrator": "GET /api/v1/analytics/attribution returns one email row with net revenue; /api/v1/payments?embed=attribution shows the frozen source; MCP get_purchase_attribution calls the same endpoint."
+      }
+    },
+    {
+      "id": "J172",
+      "title": "Embedded checkout on a seller page hands the visit source to the order",
+      "values": {
+        "persona": "guest",
+        "entry": "embed",
+        "product": "paid",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "consent"
+      },
+      "status": "automated",
+      "layers": [
+        "unit"
+      ],
+      "end_state": {
+        "buyer": "Sees the normal embedded checkout; without a declared consent nothing is stored in the browser, with consent first and last touch are kept on the seller domain.",
+        "seller": "The loader records UTM / referrer / landing path and decorates links to the Sellf checkout; the Stripe session gets the source stored under its id.",
+        "integrator": "Not exercised; the snapshot and its API are covered by J171."
+      }
+    },
+    {
+      "id": "J173",
+      "title": "Subscription renewals, refunds and partner coupons keep the original source in net revenue",
+      "values": {
+        "persona": "partner",
+        "entry": "webhook",
+        "product": "subscription",
+        "payment": "refund",
+        "moment": "after_renewal",
+        "operation": "reconcile"
+      },
+      "status": "automated",
+      "layers": [
+        "database"
+      ],
+      "end_state": {
+        "buyer": "Not exercised; database contract only.",
+        "seller": "Renewals inherit the first checkout source, refunds and disputes reduce net revenue per source, partner coupons classify as affiliate, own channel rules win over defaults, click ids are erased after the configured retention.",
+        "integrator": "Report rows contain only aggregates (no e-mail, no click id); purchase.completed carries the source without the click id."
+      }
     }
   ],
   "escapes": [

@@ -312,3 +312,10 @@ it('retains the buyer language in a subscription checkout session', () => {
   const config = buildSubscriptionSessionConfig({ product: baseProduct, stripePriceId: 'price_durable_locale', returnUrl: 'https://shop.example/return?locale=pl', checkoutConfig: baseConfig, locale: 'pl' });
   expect(config.locale).toBe('pl');
 });
+
+it('pins the checkout attribution reference on the subscription so renewals keep the purchase source', () => {
+  const config = buildSubscriptionSessionConfig({ product: baseProduct, stripePriceId: 'price_attr', returnUrl: 'https://x.test/r', checkoutConfig: baseConfig, attributionRef: 'f0f0f0f0-0000-4000-a000-000000000001' });
+  expect((config.subscription_data as { metadata: Record<string, unknown> }).metadata.sf_attr_ref).toBe('f0f0f0f0-0000-4000-a000-000000000001');
+  const without = buildSubscriptionSessionConfig({ product: baseProduct, stripePriceId: 'price_attr', returnUrl: 'https://x.test/r', checkoutConfig: baseConfig });
+  expect((without.subscription_data as { metadata: Record<string, unknown> }).metadata).not.toHaveProperty('sf_attr_ref');
+});

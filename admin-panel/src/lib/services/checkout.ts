@@ -281,6 +281,7 @@ export class CheckoutService {
           ...(options.embedSessionId && {
             embed_session_id: options.embedSessionId,
           }),
+          ...(options.attributionRef && { sf_attr_ref: options.attributionRef }),
         },
         expires_at: Math.floor(Date.now() / 1000) + (checkoutConfig.expires_hours * 60 * 60),
         automatic_tax: checkoutConfig.automatic_tax,
@@ -380,6 +381,7 @@ export class CheckoutService {
       userId,
       checkoutConfig,
       taxRateId,
+      attributionRef: options.attributionRef,
     });
 
     const session = await this.stripe.checkout.sessions.create({ ...sessionConfig, locale: options.locale ?? 'auto' });
@@ -404,7 +406,7 @@ export class CheckoutService {
     request: CreateCheckoutRequest,
     returnUrl: string,
     userId?: string,
-    options?: Pick<CheckoutSessionOptions, 'embedSessionId' | 'locale'>
+    options?: Pick<CheckoutSessionOptions, 'embedSessionId' | 'locale' | 'attributionRef'>
   ): Promise<{ clientSecret: string; sessionId: string }> {
     // Initialize service
     await this.initialize();
@@ -576,6 +578,7 @@ export class CheckoutService {
       userId,
       returnUrl,
       embedSessionId: options?.embedSessionId,
+      attributionRef: options?.attributionRef,
       locale: options?.locale,
       coupon: couponInfo,
       customAmount: request.customAmount,

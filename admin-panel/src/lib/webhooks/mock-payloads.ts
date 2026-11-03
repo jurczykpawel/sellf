@@ -50,6 +50,12 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       couponId: null,
       isGuest: false
     },
+    attribution: {
+      channel: 'email', firstChannel: 'paid_social', kind: 'payment', mode: 'stored',
+      last: { source: 'newsletter', medium: 'email', campaign: 'autumn-launch', content: 'cta-1', term: null, utm_id: null, referrer_host: null, landing_path: '/offer', at: '2026-11-03T10:00:00.000Z' },
+      first: { source: 'facebook', medium: 'paid_social', campaign: 'autumn', content: null, term: null, utm_id: null, referrer_host: null, landing_path: '/', at: '2026-10-30T10:00:00.000Z' },
+      sessionsCount: 3, daysToPurchase: 4, clickIdType: null, deviceClass: 'mobile', country: 'PL', affiliateMemberId: null
+    },
     invoice: {
       needsInvoice: true,
       nip: '1234567890',

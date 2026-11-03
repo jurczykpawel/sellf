@@ -41,6 +41,7 @@ import OrderSummary from '@/components/checkout/OrderSummary';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
 import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
 import { getCheckoutRequestError } from '@/lib/checkout/request-error';
+import { readBrowserAttribution } from '@/lib/attribution/browser';
 import type { StripeCheckoutElementsSdkOptions } from '@stripe/stripe-js';
 import type { Product } from '@/types';
 import type { ExpressCheckoutConfig } from '@/types/payment-config';
@@ -468,6 +469,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             customAmount: product.allow_custom_price ? customAmount : undefined,
             customFieldValues: customFieldDefs.length > 0 ? customFieldValues : undefined,
             repurchase: explicitRepurchase,
+            attribution: readBrowserAttribution(),
           }),
         });
         if (!response.ok) {

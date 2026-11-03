@@ -2705,6 +2705,45 @@
         "rangeFilter": "Range: {range}",
         "days": "days"
       },
+      "attribution": {
+        "title": "Source",
+        "none": "No source recorded for this order",
+        "error": "Could not load the source",
+        "channel": "Channel",
+        "lastTouch": "Last touch",
+        "firstTouch": "First touch",
+        "direct": "Direct entry (no campaign tags)",
+        "journey": "Path to purchase",
+        "journeyValue": "{sessions, plural, one {# visit} other {# visits}}, {days} days from first visit",
+        "device": "Device",
+        "click": "Ad click",
+        "clickExpired": "identifier erased after retention",
+        "mode": "Data",
+        "channels": {
+          "email": "E-mail",
+          "paid_social": "Paid social",
+          "paid_search": "Paid search",
+          "organic_social": "Organic social",
+          "organic_search": "Organic search",
+          "referral": "Referral",
+          "affiliate": "Partner",
+          "direct": "Direct",
+          "other": "Other campaign",
+          "unknown": "Unknown"
+        },
+        "devices": {
+          "desktop": "Desktop",
+          "mobile": "Mobile",
+          "tablet": "Tablet",
+          "bot": "Bot",
+          "unknown": "Unknown device"
+        },
+        "modes": {
+          "url": "From the checkout link only (no cookie consent)",
+          "stored": "First and last touch (with consent)",
+          "none": "Not collected"
+        }
+      },
       "transactions": {
         "titleSentence": "Payment transactions",
         "title": "Payment Transactions",
@@ -3025,6 +3064,27 @@
       "country": "Shop Country",
       "countryPlaceholder": "Select country",
       "countryHelp": "Used only for legal documents (e.g. which Terms/Privacy templates to generate) — it does NOT affect tax. Tax comes from your product VAT settings (Fixed Rate mode) or your Stripe account (Stripe Tax mode). Some features (legal document generation) are Poland-only."
+    },
+    "attribution": {
+      "title": "Purchase sources",
+      "description": "Every purchase records where it came from (UTM tags, referring site, landing page). Without cookie consent only the checkout link is used; with consent the first and last visit are kept too. Ad click identifiers (gclid, fbclid) are stored only with marketing consent.",
+      "retention": "Keep ad click identifiers for",
+      "days": "days",
+      "rules": "Channel rules",
+      "rulesHelp": "The first matching active rule (lowest priority number) sets the channel of a purchase. Values are comma-separated. A purchase with a partner coupon is always 'affiliate'. Changes apply to new purchases; recorded purchases keep their channel.",
+      "active": "Active",
+      "priority": "Priority",
+      "channel": "Channel",
+      "field": "Field",
+      "operator": "Operator",
+      "value": "Values",
+      "default": "default",
+      "remove": "Remove",
+      "addRule": "Add rule",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Settings saved",
+      "saveError": "Could not save settings"
     },
     "omnibus": {
       "title": "EU Omnibus Directive",

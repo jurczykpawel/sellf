@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { buildAttributionRuntime } from '@/lib/attribution/browser-script';
 
 const SLUG_RE = /^[a-z0-9-]{1,96}$/;
 
@@ -65,6 +66,10 @@ export function buildGateScript(input: GateSnippetInput): string {
   pairs.splice(tokenIdx, 1);
   var newHash = pairs.length ? "#" + pairs.join("&") : "";
   history.replaceState(null, document.title, location.pathname + location.search + newHash);
+${buildAttributionRuntime()}
+  // Purchase attribution: remember where this visit came from and pass it to checkout links.
+  sellfAttribution();
+  sellfDecorateLinks(${JSON.stringify(sellfOrigin)});
 
   function decodePayload(t) {
     try {

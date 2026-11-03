@@ -43,6 +43,7 @@ import { findIssuedLicense } from '@/lib/license-keys/lookup';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 import { placeOrder } from '@/lib/orders/place-order';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
+import { ATTRIBUTION_REF_KEY, attributionRequestContext, recordFreeAttribution, storeCheckoutAttribution } from '@/lib/attribution/store';
 
 function extractStripeObjectId(clientSecret: string): string | null {
   return clientSecret.split('_secret_')[0] || null;
@@ -105,7 +106,11 @@ export async function POST(request: NextRequest) {
       customAmount,  // Pay What You Want
       customFieldValues, // Phase 3a: buyer-typed values for product.custom_checkout_fields
       repurchase: rawRepurchase,
+      attribution, // Purchase source collected by the checkout page (untrusted labels; normalized server-side)
     } = body;
+    // One reference per checkout attempt links the order to its source (@see lib/attribution/store.ts).
+    const attributionRef = crypto.randomUUID();
+    const attributionCtx = attributionRequestContext(request.headers);
     const explicitRepurchase = rawRepurchase === true;
     const checkoutLocale = locale === 'pl' ? 'pl' : 'en';
 
@@ -399,6 +404,7 @@ export async function POST(request: NextRequest) {
           priceIncludesVat: subscriptionProduct.price_includes_vat,
         });
         const stripeObjectId = extractStripeObjectId(clientSecret);
+        await storeCheckoutAttribution(dataClient, [subscriptionId, stripeObjectId], attribution, attributionCtx);
         if (stripeObjectId?.startsWith('pi_')) {
           await stripe.paymentIntents.update(stripeObjectId, {
             metadata: {
@@ -430,9 +436,11 @@ export async function POST(request: NextRequest) {
         checkoutConfig,
         taxRateId,
         uiMode: 'elements',
+        attributionRef,
       }) as CheckoutSessionCreateParams;
 
       const checkoutSession = await stripe.checkout.sessions.create(subscriptionSessionParams);
+      await storeCheckoutAttribution(dataClient, [attributionRef, checkoutSession.id], attribution, attributionCtx);
       if (!checkoutSession.client_secret) {
         console.error('[create-payment-intent] Subscription Checkout Session missing client_secret', checkoutSession.id);
         return NextResponse.json(
@@ -597,6 +605,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+      await recordFreeAttribution(dataClient, product.id, user.id, attribution, attributionCtx);
 
       // Bumps are covered by the same coupon (the order total is zero).
       if (validatedBumps.length > 0) {
@@ -666,6 +675,7 @@ export async function POST(request: NextRequest) {
       custom_amount: pricing.isPwyw ? pricing.basePrice.toString() : '',
       is_pwyw: pricing.isPwyw ? 'true' : 'false',
       repurchase: explicitRepurchase ? 'true' : 'false',
+      [ATTRIBUTION_REF_KEY]: attributionRef,
     };
 
     const returnUrl = buildCheckoutReturnUrl({ origin: getCanonicalOrigin(request), productId: product.id, productSlug: product.slug, locale: checkoutLocale, successUrl });
@@ -824,6 +834,8 @@ export async function POST(request: NextRequest) {
 
     if (product.event_mode) checkoutSessionParams.expires_at = Math.floor(Date.now() / 1000) + 1800;
     const checkoutSession = await stripe.checkout.sessions.create(checkoutSessionParams);
+    // Stored before the pending order row: the snapshot trigger reads it when the order is paid.
+    await storeCheckoutAttribution(dataClient, [attributionRef, checkoutSession.id], attribution, attributionCtx);
 
     if (!checkoutSession.client_secret) {
       console.error('[create-payment-intent] Checkout Session missing client_secret', checkoutSession.id);

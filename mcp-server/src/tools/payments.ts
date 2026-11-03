@@ -55,6 +55,7 @@ export function registerPaymentsTools(server: McpServer): void {
       cursor: z.string().optional().describe('Pagination cursor'),
       limit: z.number().min(1).max(100).optional().describe('Items per page (max 100)'),
       sort: z.string().optional().describe('Sort field with optional - prefix for desc (e.g., -created_at)'),
+      embed: z.enum(['attribution']).optional().describe('attribution = add the frozen purchase source (channel, UTM first/last touch, device, country) to each payment'),
     },
     async (params) => {
       const api = getApiClient();

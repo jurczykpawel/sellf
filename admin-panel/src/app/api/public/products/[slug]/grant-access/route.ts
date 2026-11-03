@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { trackServerSideConversion } from '@/lib/tracking';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
+import { attributionRequestContext, recordFreeAttribution } from '@/lib/attribution/store';
 import {
   validateCustomFieldDefinitions,
   validateCustomFieldValues,
@@ -42,6 +43,7 @@ export async function POST(
     // checkout form collected product-defined fields (e.g. the license domain).
     let couponCode: string | null = null;
     let customFieldValues: Record<string, string> | undefined;
+    let attribution: unknown;
     try {
       const contentType = request.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
@@ -54,6 +56,7 @@ export async function POST(
           if (typeof rawCoupon === 'string' && rawCoupon.trim().length > 0) {
             couponCode = normalizeCouponCode(rawCoupon);
           }
+          attribution = (body as { attribution?: unknown }).attribution;
           const rawFields = (body as { customFieldValues?: unknown }).customFieldValues;
           if (rawFields && typeof rawFields === 'object' && !Array.isArray(rawFields)) {
             customFieldValues = rawFields as Record<string, string>;
@@ -120,6 +123,7 @@ export async function POST(
 
     // Track only new grants; the shared grant service handles lead delivery.
     if (!accessResult.alreadyHadAccess) {
+      await recordFreeAttribution(adminClient, product.id, user.id, attribution, attributionRequestContext(request.headers));
       trackServerSideConversion({
         eventName: 'Lead',
         eventSourceUrl: request.headers.get('referer') || '',

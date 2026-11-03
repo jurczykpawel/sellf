@@ -50,6 +50,7 @@ function makeDbMock(overrides: {
   const selectedProduct = overrides.product === undefined ? product : overrides.product;
 
   return {
+    rpc: vi.fn().mockResolvedValue({ error: null }),
     from: vi.fn((table: string) => {
       if (table === 'seller_embed_settings') {
         return {
@@ -127,7 +128,7 @@ describe('POST /api/embed/checkout-session', () => {
     expect(response.status).toBe(200);
     expect(mocks.createCheckoutSession).toHaveBeenCalledWith(
       expect.any(Object), expect.any(String), undefined,
-      { embedSessionId: expect.any(String), locale: locale === 'pl' || locale === 'en' ? locale : 'auto' },
+      { embedSessionId: expect.any(String), attributionRef: expect.any(String), locale: locale === 'pl' || locale === 'en' ? locale : 'auto' },
     );
   });
 
@@ -166,8 +167,20 @@ describe('POST /api/embed/checkout-session', () => {
       { productId: 'product-1', email: 'buyer@example.com' },
       'https://sellf.example.com/p/kurs-ai/payment-status?session_id={CHECKOUT_SESSION_ID}',
       undefined,
-      { embedSessionId: expect.any(String), locale: 'auto' },
+      { embedSessionId: expect.any(String), attributionRef: expect.any(String), locale: 'auto' },
     );
+  });
+
+  it('hands the seller-page purchase source to the order snapshot under the Stripe session @J172', async () => {
+    const db = makeDbMock();
+    mocks.createAdminClient.mockReturnValue(db);
+    const attribution = { v: 1, consent: 'none', mode: 'url', last: { source: 'listmonk', medium: 'email', campaign: 'mail-05' } };
+    const response = await POST(makeRequest({ productSlug: 'kurs-ai', attribution }, 'https://landing.example.com'));
+    expect(response.status).toBe(200);
+    expect(db.rpc).toHaveBeenCalledWith('store_checkout_attribution', expect.objectContaining({
+      p_ref: 'cs_test_session',
+      p_payload: expect.objectContaining({ last: expect.objectContaining({ source: 'listmonk', campaign: 'mail-05' }) }),
+    }));
   });
 
   describe('coupon codes', () => {
@@ -183,7 +196,7 @@ describe('POST /api/embed/checkout-session', () => {
         { productId: 'product-1', couponCode: 'SAVE20' },
         'https://sellf.example.com/p/kurs-ai/payment-status?session_id={CHECKOUT_SESSION_ID}',
         undefined,
-        { embedSessionId: expect.any(String), locale: 'auto' },
+        { embedSessionId: expect.any(String), attributionRef: expect.any(String), locale: 'auto' },
       );
     });
 
