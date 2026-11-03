@@ -3411,6 +3411,95 @@
         "seller": "Renewals inherit the first checkout source, refunds and disputes reduce net revenue per source, partner coupons classify as affiliate, own channel rules win over defaults, click ids are erased after the configured retention.",
         "integrator": "Report rows contain only aggregates (no e-mail, no click id); purchase.completed carries the source without the click id."
       }
+    },
+    {
+      "id": "J190",
+      "title": "Admin reads the abandoned-checkout funnel on a phone and the numbers add up",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "abandoned",
+        "moment": "after_navigation",
+        "operation": "read"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "Not exercised; the seller-side report is the subject.",
+        "seller": "Cards show paid, pending, abandoned and other statuses; the sum line equals the recorded attempts; definitions and the product table sit in collapsed sections without horizontal scroll at 390 px.",
+        "integrator": "Not exercised; no webhook is involved."
+      }
+    },
+    {
+      "id": "J191",
+      "title": "Buyer fills ten participants from a pasted list or CSV on a phone",
+      "values": {
+        "persona": "new",
+        "entry": "checkout",
+        "product": "b2b_quantity",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "purchase"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "A compact list with paste and CSV import fills every row; no horizontal scroll at 390 px; inputs are labelled.",
+        "seller": "The order stores one participant per unit with the pasted names and emails.",
+        "integrator": "purchase.completed carries the participants list from the order details."
+      }
+    },
+    {
+      "id": "J192",
+      "title": "Buyer orders several seats and adds participants later",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "b2b_quantity",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "purchase"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "Ticks 'I'll add participants later' and pays without a participant list.",
+        "seller": "The order records the quantity and an empty participant list; no reminder e-mail is sent (not implemented).",
+        "integrator": "purchase.completed carries an empty participants list."
+      }
+    },
+    {
+      "id": "J193",
+      "title": "Seller chooses whether the checkout asks for a phone number",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "paid",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "configure"
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "e2e"
+      ],
+      "end_state": {
+        "buyer": "Required: cannot continue without a valid number; optional: can skip; hidden: no field.",
+        "seller": "The product checkout profile controls the phone module per product.",
+        "integrator": "purchase.completed carries the phone only when given."
+      }
     }
   ],
   "escapes": [

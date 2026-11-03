@@ -11,7 +11,7 @@ SELECT id, 'Funnel test ' || n, 'funnel-test-' || id, 10, 'USD' FROM funnel_prod
 INSERT INTO public.payment_transactions(session_id, product_id, customer_email, amount, currency, status, created_at)
 SELECT 'cs_funnel_' || replace(gen_random_uuid()::text, '-', ''), p.id, 'pending@sellf.app', 1000,
   (ARRAY['USD','PLN','EUR'])[1 + (g.n / 120) % 3],
-  (ARRAY['completed','refunded','partially_refunded','disputed','pending','abandoned'])[1 + (g.n / 360) % 6],
+  (ARRAY['completed','refunded','partially_refunded','disputed','pending','abandoned','awaiting_payment','cancelled'])[1 + (g.n / 360) % 8],
   now() - ((g.n % 90) * interval '1 day')
 FROM generate_series(0, 99999) g(n) JOIN funnel_products p ON p.n = 1 + g.n % 120;
 ANALYZE public.payment_transactions;
@@ -46,7 +46,8 @@ BEGIN
   SELECT jsonb_build_object('started',count(*),
     'paid',count(*) FILTER (WHERE status IN ('completed','refunded','partially_refunded','disputed')),
     'pending',count(*) FILTER (WHERE status='pending'),
-    'abandoned',count(*) FILTER (WHERE status='abandoned')) INTO expected
+    'abandoned',count(*) FILTER (WHERE status='abandoned'),
+    'other',count(*) FILTER (WHERE status NOT IN ('completed','refunded','partially_refunded','disputed','pending','abandoned'))) INTO expected
   FROM public.payment_transactions WHERE created_at BETWEEN now()-interval '90 days' AND now();
   IF actual->'totals' <> expected OR jsonb_array_length(actual->'products') <> 100 THEN
     RAISE EXCEPTION 'Totals or output bound mismatch';
@@ -56,7 +57,8 @@ BEGIN
     SELECT jsonb_build_object('started',count(*),
       'paid',count(*) FILTER (WHERE status IN ('completed','refunded','partially_refunded','disputed')),
       'pending',count(*) FILTER (WHERE status='pending'),
-      'abandoned',count(*) FILTER (WHERE status='abandoned')) INTO expected
+      'abandoned',count(*) FILTER (WHERE status='abandoned'),
+    'other',count(*) FILTER (WHERE status NOT IN ('completed','refunded','partially_refunded','disputed','pending','abandoned'))) INTO expected
     FROM public.payment_transactions WHERE product_id=pid
       AND created_at BETWEEN now()-interval '90 days' AND now();
     IF expected <> item - 'productId' - 'name'
@@ -68,7 +70,8 @@ BEGIN
     SELECT jsonb_build_object('started',count(*),
       'paid',count(*) FILTER (WHERE status IN ('completed','refunded','partially_refunded','disputed')),
       'pending',count(*) FILTER (WHERE status='pending'),
-      'abandoned',count(*) FILTER (WHERE status='abandoned')) INTO expected
+      'abandoned',count(*) FILTER (WHERE status='abandoned'),
+    'other',count(*) FILTER (WHERE status NOT IN ('completed','refunded','partially_refunded','disputed','pending','abandoned'))) INTO expected
     FROM public.payment_transactions
     WHERE created_at BETWEEN now()-make_interval(days => days) AND now();
     IF public.get_checkout_funnel(days)->'totals' <> expected THEN
@@ -77,6 +80,12 @@ BEGIN
   END LOOP;
   IF public.get_checkout_funnel(90, gen_random_uuid())->'totals'->>'started' <> '0' THEN
     RAISE EXCEPTION 'Expected empty filtered result';
+  END IF;
+  -- The cards must add up: every recorded attempt lands in exactly one bucket.
+  IF (actual->'totals'->>'started')::bigint <> (actual->'totals'->>'paid')::bigint + (actual->'totals'->>'pending')::bigint
+     + (actual->'totals'->>'abandoned')::bigint + (actual->'totals'->>'other')::bigint
+     OR (actual->'totals'->>'other')::bigint = 0 THEN
+    RAISE EXCEPTION 'Funnel buckets do not add up to recorded attempts';
   END IF;
   RAISE NOTICE 'Totals %, top products %', actual->'totals', jsonb_array_length(actual->'products');
 END $$;

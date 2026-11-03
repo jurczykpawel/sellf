@@ -127,6 +127,9 @@ describe('module values', () => {
       expect(validate(modules, { quantity: 2, participants: list }).success).toBe(false);
     }
     expect(validate([quantity, { ...participants, required: false }], { quantity: 2, participants: [] }).success).toBe(true);
+    expect(validate(modules, { quantity: 2, participants: [] }).success).toBe(false);
+    expect(validate([quantity, { ...participants, allow_later: true }], { quantity: 2, participants: [] }).success).toBe(true);
+    expect(validate([quantity, { ...participants, allow_later: true }], { quantity: 2, participants: people.slice(0, 1) }).success).toBe(false);
   });
 });
 

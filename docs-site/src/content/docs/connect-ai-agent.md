@@ -218,7 +218,7 @@ a 67 PLN price, `issue_license_on_purchase: false` and this `checkout_profile`:
 Then call `create_coupon` with `{"code":"WIR30","discount_type":"set_price","discount_value":30,"currency":"PLN","allowed_product_ids":["RETURNED_PRODUCT_UUID"]}`.
 Have the agent read both records back for review before activating the product.
 The buyer is an organization; the recipient may differ, phone is required, and
-participant count follows quantity. Transfers require shop bank details and the
+participant count follows quantity (set `allow_later: true` on `participants` to let buyers pay first and add participants later; no reminder e-mail is sent). Transfers require shop bank details and the
 payment setting to be enabled. This recipe does not change those settings or place an order.
 After publication, share `/checkout/SLUG?coupon=WIR30`. Each unit costs 30 PLN at
 either the 47 or 67 PLN event tier; bumps keep their price. The agent can add event
