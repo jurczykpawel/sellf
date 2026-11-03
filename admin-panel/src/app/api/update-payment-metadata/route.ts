@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { validateCheckoutModules } from '@/lib/checkout-modules/validate';
 import { annotateViesStatus } from '@/lib/validation/vies';
+import { classifyTaxId } from '@/lib/validation/tax-id';
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
@@ -155,9 +156,17 @@ export async function POST(request: NextRequest) {
     if (shouldShowTosCheckbox(checkoutConfig.collect_terms_of_service, !sessionUser) && termsAccepted !== true) {
       return NextResponse.json({ success: false, error: 'Terms acceptance required' }, { status: 400 });
     }
+    // Legacy invoice form: the tax id follows the company country, as in the profile checkout.
+    const taxCountry = typeof country === 'string' && /^[A-Z]{2}$/.test(country) ? country : 'PL';
+    let taxId: unknown = nip;
+    if (typeof nip === 'string' && nip.trim()) {
+      const classified = classifyTaxId(nip, taxCountry);
+      if (!classified.valid) return NextResponse.json({ success: false, error: 'invalid_tax_id' }, { status: 400 });
+      taxId = classified.normalized;
+    }
     const stripe = await getStripeServer();
     const buyer = buildBuyerDetails(
-      { firstName, lastName, fullName, termsAccepted, needsInvoice, nip, companyName, address, city, postalCode, country },
+      { firstName, lastName, fullName, termsAccepted, needsInvoice, nip: taxId, companyName, address, city, postalCode, country },
       'checkout',
     );
     const metadata = {
@@ -399,7 +408,7 @@ export async function POST(request: NextRequest) {
         await applyBuyerTaxIdentityToCustomer({
           stripe,
           customerId: stripeTaxCustomerId,
-          identity: { country, taxId: nip, address, city, postalCode },
+          identity: { country, taxId: buyer.nip || undefined, address, city, postalCode },
         });
       }
     }

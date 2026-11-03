@@ -1,6 +1,6 @@
 /** Buyer module; shares the existing order buyer fields. @see ../payment/buyer-details.ts */
 import { z } from 'zod';
-import { EU_COUNTRY_CODES } from '@/lib/checkout/eu-countries';
+import { taxIdErrorCode } from '@/lib/checkout/invoice-form-logic';
 import { buildBuyerDetails } from '@/lib/payment/buyer-details';
 import { validateTaxId } from '@/lib/validation/nip';
 import { classifyTaxId } from '@/lib/validation/tax-id';
@@ -19,7 +19,7 @@ export const partyShape = {
   country: z.string().regex(/^[A-Z]{2}$/).default('PL'),
 };
 export function validatePartyTaxId(party: { nip: string; country: string }, ctx: z.RefinementCtx): void {
-  if (!validateTaxId(party.nip, true, party.country).isValid) ctx.addIssue({ code: 'custom', path: ['nip'], message: party.country === 'PL' ? 'invalid_nip' : EU_COUNTRY_CODES.has(party.country) ? 'invalid_eu_vat' : 'invalid_tax_id' });
+  if (!validateTaxId(party.nip, true, party.country).isValid) ctx.addIssue({ code: 'custom', path: ['nip'], message: taxIdErrorCode(party.country) });
 }
 export function normalizePartyTaxId<T extends { nip: string; country: string }>(party: T): T & { tax_id_type?: TaxIdType; tax_id_country?: string } {
   if (!party.nip) return party;

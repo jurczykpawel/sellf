@@ -338,3 +338,19 @@ describe('optional VIES check of an EU buyer', () => {
     }
   });
 });
+
+describe('legacy invoice form: tax id validated by the company country on the server', () => {
+  it.each([['PL', '1234567890'], ['DE', 'DE12345'], ['US', '<script>']])('rejects %s %s', async (country, nip) => {
+    mocks.sessionsRetrieve.mockResolvedValue({ id: SESSION_ID, status: 'open', metadata: { product_id: PRODUCT_ID } });
+    const res = await POST(makeRequest(SESSION_ID, { nip, country, needsInvoice: true, companyName: 'Firma' }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ success: false, error: 'invalid_tax_id' });
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+  });
+  it('accepts a German VAT number entered without its prefix and stores it normalized', async () => {
+    mocks.sessionsRetrieve.mockResolvedValue({ id: SESSION_ID, status: 'open', metadata: { product_id: PRODUCT_ID } });
+    const res = await POST(makeRequest(SESSION_ID, { nip: '123456789', country: 'DE', needsInvoice: true, companyName: 'GmbH' }));
+    expect(res.status).toBe(200);
+    expect(mocks.sessionsUpdate).toHaveBeenCalledWith(SESSION_ID, { metadata: expect.objectContaining({ nip: 'DE123456789', country: 'DE' }) });
+  });
+});
