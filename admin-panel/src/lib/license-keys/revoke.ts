@@ -3,6 +3,7 @@
  */
 import type { createAdminClient } from '@/lib/supabase/admin';
 
+// license.updated: emit here for any future non-revocation change (tests/unit/license/license-updated-guard.test.ts).
 export async function revokeLicensesForOrder(
   admin: ReturnType<typeof createAdminClient>,
   params: { productId: string; orderIds: (string | null | undefined)[] },

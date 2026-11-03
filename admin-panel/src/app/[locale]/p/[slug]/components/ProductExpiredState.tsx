@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
+import BuyerLicenseKey from './BuyerLicenseKey';
 import FloatingToolbar from '@/components/FloatingToolbar';
 import { formatPrice } from '@/lib/constants';
 import { formatRecurringProductPrice, formatBillingIntervalLabel } from '@/lib/product-pricing-display';
@@ -21,20 +21,12 @@ export default function ProductExpiredState({ product, existingLicense }: Produc
   const locale = useLocale();
   const trialDays = getTrialDays(product);
   const tCheckout = useTranslations('checkout');
-  const [licenseCopied, setLicenseCopied] = useState(false);
   const isSubscription = product.product_type === 'subscription';
   const priceLabel = isSubscription
     ? (formatRecurringProductPrice(product, locale) ?? formatPrice(product.recurring_price ?? 0, product.currency, locale))
     : product.price === 0
       ? t('free', { defaultValue: 'FREE' })
       : formatPrice(product.price, product.currency, locale);
-  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString(locale, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-sf-deep">
@@ -57,36 +49,7 @@ export default function ProductExpiredState({ product, existingLicense }: Produc
           <p className="text-sm">{t('canPurchaseAgain')}</p>
         </div>
 
-        {existingLicense && (
-          <div className="mb-6 p-4 rounded-xl border border-sf-accent/30 bg-sf-accent-soft text-left">
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-widest text-sf-accent">
-                {t('licenseKey')}
-              </span>
-              {existingLicense.expiresAt && (
-                <span className="text-xs text-sf-muted">
-                  {t('licenseExpires', { date: formatDate(existingLicense.expiresAt) })}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs font-mono break-all text-sf-body bg-sf-base rounded-lg px-3 py-2 select-all">
-                {existingLicense.token}
-              </code>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(existingLicense.token);
-                  setLicenseCopied(true);
-                  setTimeout(() => setLicenseCopied(false), 2000);
-                }}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-sf-accent-bg hover:bg-sf-accent-hover text-white transition-colors active:scale-[0.98]"
-              >
-                {licenseCopied ? t('licenseCopied') : t('licenseCopy')}
-              </button>
-            </div>
-          </div>
-        )}
+        {existingLicense && <div className="mb-6"><BuyerLicenseKey license={existingLicense} /></div>}
 
         <Link
           href={`/${locale}/checkout/${product.slug}`}

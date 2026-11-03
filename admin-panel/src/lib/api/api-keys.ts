@@ -283,6 +283,8 @@ export function getScopeDescription(scope: ApiScope): string {
     [API_SCOPES.TEMPLATES_ACTIVATE]: 'Publish and restore templates',
     [API_SCOPES.SYSTEM_READ]: 'View system configuration',
     [API_SCOPES.SYSTEM_WRITE]: 'Trigger system operations (upgrade)',
+    [API_SCOPES.LICENSES_READ]: 'View issued licenses',
+    [API_SCOPES.LICENSES_WRITE]: 'Issue and revoke licenses',
   };
 
   return descriptions[scope] || scope;

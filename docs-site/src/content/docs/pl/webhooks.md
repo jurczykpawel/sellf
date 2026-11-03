@@ -150,6 +150,32 @@ przed wprowadzeniem zapisu pochodzenia nie są przywracane automatycznie. Odbior
 Dla gościa dochodzi `guestPurchaseId`. Odbiorca powinien zastosować tę listę:
 ręcznie usunięty grant głównego produktu może pozostać nieobecny, gdy dostęp do dodatku wróci.
 
+## `license.issued` / `license.expired` / `license.updated` — Pro
+
+`license.issued` przychodzi raz dla każdej licencji zapisanej w Sellfie, niezależnie od
+ścieżki: zakup, darmowy produkt, ręczne wydanie w panelu albo `POST /api/v1/licenses`
+(`license.issuanceSource`: `purchase`, `manual` lub `api`). `license.expired` przychodzi raz,
+gdy aktywna licencja minie `expiresAt` (sprawdzane co 30 sekund w cyklu zdarzeń);
+licencja odwołana nie wygasa drugi raz. Dane są takie jak w `license.revoked` poniżej
+i nigdy nie zawierają podpisanego tokenu.
+
+> **Jak dostać token.** `license.issued` celowo nie zawiera tokenu, żeby log webhooków ani źle
+> skonfigurowany odbiorca nie ujawnił działającego klucza. Jeśli sam dostarczasz klucz, wywołaj
+> `GET /api/v1/licenses/{license.id}` kluczem API z uprawnieniem `licenses:read`; odpowiedź
+> zawiera `token`, `jwksUrl` i `crlUrl`. Ręczne i API wydanie i tak wysyła kupującemu mail z kluczem
+> (w jego języku, gdy jest znany), więc większość integracji tego nie potrzebuje.
+ Ręczne i API wydanie wysyła kupującemu
+mail z kluczem i linkiem do produktu, chyba że `sendEmail` ma wartość `false`.
+
+Licencja wydana dla zamówienia z otwartym albo przegranym sporem zapisuje się jako
+odwołana przez ten spór: dostajesz `license.issued`, a po nim `license.revoked`
+z `dispute.stripeDisputeId`; `purchase.completed.licenses[]` jej nie zawiera. Wygrany
+spór ją przywraca (`license.restored`).
+
+`license.updated` jest **zarezerwowane**: dziś żadna operacja nie zmienia wydanej licencji.
+Zdarzenie zacznie przychodzić, gdy taka operacja powstanie (zmiana planu, przedłużenie,
+zmiana posiadacza); subskrypcja jest już możliwa.
+
 ## `license.revoked` / `license.restored` — Pro
 
 Każda rzeczywista zmiana stanu odwołania tworzy trwałe powiadomienie. Powtórzenie

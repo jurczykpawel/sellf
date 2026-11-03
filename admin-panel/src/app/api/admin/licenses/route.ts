@@ -1,29 +1,19 @@
-import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { requireAdminApiWithRequest } from '@/lib/auth-server';
-import { issueLicense } from '@/lib/license-keys/issue';
-import { parseLicenseClaims } from '@/lib/license-keys/format';
-import { normalizeLicenseDomain } from '@/lib/license-keys/domain';
-import { validateCustomFieldDefinitions, validateCustomFieldValues, PREDEFINED_CUSTOM_FIELDS } from '@/lib/validations/custom-checkout-fields';
+import { issueRequestedLicense, licenseRequestSchema } from '@/lib/license-keys/request';
 import { checkRateLimit } from '@/lib/rate-limiting';
-import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
 
-const issueSchema = z.object({
-  productId: z.string().uuid(),
-  email: z.string().trim().email().max(254),
-  domain: z.string().trim().max(253).refine((value) => !value || Boolean(normalizeLicenseDomain(value)), 'Invalid domain').optional(),
-  customFieldValues: z.record(z.string(), z.string().max(500)).optional(),
-}).strict();
 
 const listSchema = z.object({
   page: z.coerce.number().int().min(1).max(10_000).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   productId: z.string().uuid().optional(),
-  source: z.enum(['purchase', 'manual']).optional(),
+  source: z.enum(['purchase', 'manual', 'api']).optional(),
   status: z.enum(['active', 'expired', 'revoked']).optional(),
   search: z.string().trim().max(254).optional(),
 });
@@ -66,69 +56,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Request body too large' }, { status: 413, headers: noStore });
     }
   }
-  const parsed = issueSchema.safeParse(rawBody);
+  const parsed = licenseRequestSchema.safeParse(rawBody);
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid request', details: parsed.error.flatten() }, { status: 400, headers: noStore });
   }
 
-  const admin = createAdminClient();
-  const product = await admin.from('products').select('custom_checkout_fields').eq('id', parsed.data.productId).single();
-  if (product.error || !product.data) return NextResponse.json({ error: 'Product is not configured for license issuance' }, { status: 409, headers: noStore });
-  const definitions = validateCustomFieldDefinitions(product.data.custom_checkout_fields ?? []);
-  if (!definitions.ok) return NextResponse.json({ error: 'Invalid product configuration' }, { status: 400, headers: noStore });
-  const domainField = definitions.value.find(field => field.id === PREDEFINED_CUSTOM_FIELDS.license_domain.id && field.type === 'domain');
-  const inputValues = { ...parsed.data.customFieldValues, ...(domainField && parsed.data.domain ? { [domainField.id]: parsed.data.domain } : {}) };
-  const values = validateCustomFieldValues(definitions.value, inputValues);
-  if (!values.ok) return NextResponse.json({ error: 'Invalid form values', fieldErrors: values.errors }, { status: 400, headers: noStore });
-  const orderId = `manual_${randomUUID()}`;
-
-  try {
-    const result = await issueLicense(admin, {
-      productId: parsed.data.productId,
-      email: parsed.data.email,
-      userId: null,
-      orderId,
-      customFieldValues: values.values,
-      source: 'manual',
-    });
-    if (!result || !result.id) {
-      return NextResponse.json(
-        { error: 'Product is not configured for license issuance or no active signing key exists' },
-        { status: 409, headers: noStore },
-      );
-    }
-
-    const claims = parseLicenseClaims(result.token);
-    const platform = createPlatformClient();
-    await platform.from('audit_log').insert({
-      table_name: 'issued_licenses',
-      operation: 'MANUAL_LICENSE_ISSUED',
-      performed_by: auth.user.id,
-      new_values: {
-        license_id: result.id,
-        product_id: parsed.data.productId,
-        email: parsed.data.email,
-        domain: claims?.domain ?? null,
-        kid: result.kid,
-      },
-    });
-
-    const origin = getCanonicalOrigin(request);
-    return NextResponse.json({
-      license: {
-        id: result.id,
-        token: result.token,
-        kid: result.kid,
-        sellerId: result.sellerId,
-        claims,
-        jwksUrl: `${origin}/api/licenses/jwks?seller=${result.sellerId}`,
-        crlUrl: `${origin}/api/licenses/revoked?seller=${result.sellerId}`,
-      },
-    }, { status: 201, headers: noStore });
-  } catch (error) {
-    console.error('[admin/licenses] Manual issuance failed:', error instanceof Error ? error.message : 'Unknown error');
-    return NextResponse.json({ error: 'License issuance failed' }, { status: 500, headers: noStore });
+  const issued = await issueRequestedLicense(parsed.data, { actorUserId: auth.user.id, source: 'manual', origin: getCanonicalOrigin(request) });
+  if (!issued.ok) {
+    return NextResponse.json({ error: issued.error, ...(issued.fieldErrors && { fieldErrors: issued.fieldErrors }) }, { status: issued.status, headers: noStore });
   }
+  return NextResponse.json({ license: issued.license }, { status: 201, headers: noStore });
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {

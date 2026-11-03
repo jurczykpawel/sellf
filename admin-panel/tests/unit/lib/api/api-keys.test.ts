@@ -536,6 +536,8 @@ describe('API Keys', () => {
         'templates:activate',
         'system:read',
         'system:write',
+        'licenses:read',
+        'licenses:write',
       ];
       expect([...ALL_SCOPES].sort()).toEqual([...migrationSnapshot].sort());
     });

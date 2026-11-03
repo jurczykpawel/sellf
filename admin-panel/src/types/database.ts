@@ -1719,6 +1719,7 @@ export type Database = {
         Row: {
           email: string | null
           expires_at: string | null
+          expiry_notified_at: string | null
           id: string
           issuance_source: string
           issued_at: string
@@ -1736,6 +1737,7 @@ export type Database = {
         Insert: {
           email?: string | null
           expires_at?: string | null
+          expiry_notified_at?: string | null
           id?: string
           issuance_source?: string
           issued_at?: string
@@ -1753,6 +1755,7 @@ export type Database = {
         Update: {
           email?: string | null
           expires_at?: string | null
+          expiry_notified_at?: string | null
           id?: string
           issuance_source?: string
           issued_at?: string
@@ -5316,11 +5319,13 @@ export type Database = {
       business_event_actor: { Args: never; Returns: Json }
       business_event_order: { Args: { p_transaction: string }; Returns: Json }
       business_event_partner: { Args: { p_member: string }; Returns: Json }
+      buyer_mail_locale: { Args: { p_email: string }; Returns: string }
       cancel_unpaid_order: {
         Args: { p_reason: string; p_transaction_id: string }
         Returns: Json
       }
       capture_expired_access: { Args: never; Returns: number }
+      capture_expired_licenses: { Args: never; Returns: number }
       check_application_rate_limit: {
         Args: {
           action_type_param: string
