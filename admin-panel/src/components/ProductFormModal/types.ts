@@ -1,6 +1,7 @@
-import { Product, ContentItem } from '@/types';
-import { Category } from '@/lib/actions/categories';
-import { Tag } from '@/lib/actions/tags';
+import { DEFAULT_LEAD_CONSENT } from '@/lib/leads/config';
+import type { Product, ContentItem } from '@/types';
+import type { Category } from '@/lib/actions/categories';
+import type { Tag } from '@/lib/actions/tags';
 import type { ProductMarketingFields } from '@/lib/validations/product-marketing';
 
 export interface ProductFormModalProps {
@@ -76,6 +77,10 @@ export interface ProductFormData {
   custom_price_presets: number[];
   // Embed checkout (per-product toggle)
   embed_enabled: boolean;
+  lead_consent_required: boolean;
+  lead_consent_version: string;
+  lead_consent_text_pl: string;
+  lead_consent_text_en: string;
   // License keys (signed JWT issued on purchase)
   issue_license_on_purchase: boolean;
   license_tier?: string | null;
@@ -271,6 +276,7 @@ export const initialFormData: ProductFormData = {
   custom_price_presets: [5, 10, 25],
   // Embed checkout
   embed_enabled: false,
+  ...DEFAULT_LEAD_CONSENT,
   // License keys
   issue_license_on_purchase: false,
   license_tier: null,

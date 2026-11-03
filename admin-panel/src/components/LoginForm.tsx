@@ -1,21 +1,23 @@
 'use client'
 
-import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { submitMagicLink } from '@/lib/auth/magic-link/submit'
 import CaptchaWidget from '@/components/captcha/CaptchaWidget'
 import { useCaptcha } from '@/hooks/useCaptcha'
-import TermsCheckbox from './TermsCheckbox'
+import TermsCheckbox from '@/components/TermsCheckbox'
 import { useConfig } from '@/components/providers/config-provider'
-import { OAuthIconButtons, signInWithOAuth, type OAuthProvider } from './OAuthIconButtons'
+import { createClient } from '@/lib/supabase/client'
+import { OAuthIconButtons, signInWithOAuth } from '@/components/OAuthIconButtons'
+import type { OAuthProvider } from '@/components/OAuthIconButtons'
 
 /**
  * Login form component that handles magic link authentication
- * In demo mode, switches to email+password login
+ * Demo uses passwords; test mode also offers the standard magic-link flow.
  */
 export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const { demoMode, passwordLoginEnabled, oauthProviders } = useConfig()
+  const magicLinkEnabled = !demoMode
   const [email, setEmail] = useState(demoMode ? 'demo@sellf.app' : '')
   const [password, setPassword] = useState(demoMode ? 'demo123' : '')
   const [isLoading, setIsLoading] = useState(false)
@@ -39,14 +41,19 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
     await signInWithOAuth(provider, `${window.location.origin}/auth/callback`)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent, useMagicLink = !passwordLoginEnabled) => {
     e.preventDefault()
+    if (useMagicLink) {
+      if (!magicLinkEnabled) return
+      const emailInput = e.currentTarget.closest('form')?.querySelector<HTMLInputElement>('#email')
+      if (!emailInput?.reportValidity()) return
+    }
     setIsLoading(true)
     setMessage('')
 
     try {
       // Password login mode (demo or E2E): skip captcha & terms
-      if (passwordLoginEnabled) {
+      if (passwordLoginEnabled && !useMagicLink) {
         const supabase = await createClient()
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -99,7 +106,7 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
 
   // Form display before email is sent
   const renderLoginForm = () => (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={(e) => handleSubmit(e)} className="space-y-5">
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-sf-heading mb-2">
           {t('auth.email')}
@@ -136,8 +143,8 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
       )}
 
       {/* Terms checkbox */}
-      {!passwordLoginEnabled && (
-        <TermsCheckbox checked={termsAccepted} onChange={setTermsAccepted} />
+      {magicLinkEnabled && (
+        <TermsCheckbox checked={termsAccepted} onChange={setTermsAccepted} required={!passwordLoginEnabled} />
       )}
 
       {/* Magic link button */}
@@ -159,6 +166,17 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
         )}
       </button>
 
+      {passwordLoginEnabled && magicLinkEnabled && (
+        <button
+          type="button"
+          onClick={(e) => handleSubmit(e, true)}
+          disabled={isLoading || captcha.isLoading}
+          className="w-full py-3 px-4 text-sf-heading font-semibold rounded-full border border-sf-border hover:border-sf-border-accent focus-visible:ring-2 focus-visible:ring-sf-accent disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {t('auth.emailSignInLink')}
+        </button>
+      )}
+
       {/* OAuth divider + icons */}
       {hasOAuth && (
         <div>
@@ -176,8 +194,8 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
         </div>
       )}
 
-      {/* Captcha — auto-detects Turnstile vs ALTCHA; not needed in password login mode */}
-      {!passwordLoginEnabled && (
+      {/* Captcha for the magic-link flow */}
+      {magicLinkEnabled && (
         <CaptchaWidget
           onVerify={captcha.onVerify}
           onError={captcha.onError}

@@ -20,3 +20,8 @@ export function verifyTransferToken(token: string | undefined, id: string, now =
   if (!Number.isSafeInteger(expires) || expires <= now || expires > now + LIFETIME) return false;
   try { return timingSafeEqual(Buffer.from(mac), Buffer.from(signature(id, expires, process.env.CHECKOUT_BINDING_SECRET || ''))); } catch { return false; }
 }
+/** Signed buyer link to the order page (status, instructions, "I have sent the transfer"); sent in mails and order.* webhooks. */
+export function buildOrderPayLink(id: string, locale: string, baseUrl: string, now = Math.floor(Date.now() / 1000)): { url: string; expiresAt: string } {
+  const lang = locale === 'pl' ? 'pl' : 'en';
+  return { url: `${baseUrl}/${lang}/order/${id}/transfer?token=${signTransferToken(id, now)}`, expiresAt: new Date((now + LIFETIME) * 1000).toISOString() };
+}

@@ -1,9 +1,10 @@
 /**
  * Product validation utilities with strict security checks
  * SECURITY: All input data MUST be validated before database operations
- * No external dependencies - pure TypeScript validation
+ * @see leads/config.ts — shared consent settings validation
  */
 
+import { validateLeadSettings } from '@/lib/leads/config';
 import { parseCheckoutProfile } from '@/lib/checkout-modules/profile';
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
@@ -21,7 +22,7 @@ import { isRelativeOrHttpUrl } from '@/lib/validations/redirect';
  *
  * @see supabase/migrations/20250101000000_core_schema.sql (products table)
  */
-export const PRODUCT_API_FIELDS = `id, event_mode, allow_repeat_purchase, sessions:product_sessions(id,starts_at,ends_at,timezone,title,venue,online_url,extra_days,capacity,sales_open,sort,tiers:product_price_tiers(id,label,price,seats,sale_ends_at,sort)), name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, preview_video_config, price, currency, features, marketing_fields, layout_template, checkout_template, checkout_profile, custom_checkout_fields, is_active, is_featured, is_listed, is_bundle, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, vat_exempt, vat_exempt_note, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, embed_enabled, issue_license_on_purchase, license_tier, license_duration_days, created_at, updated_at`;
+export const PRODUCT_API_FIELDS = `id, event_mode, allow_repeat_purchase, sessions:product_sessions(id,starts_at,ends_at,timezone,title,venue,online_url,extra_days,capacity,sales_open,sort,tiers:product_price_tiers(id,label,price,seats,sale_ends_at,sort)), name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, preview_video_config, price, currency, features, marketing_fields, layout_template, checkout_template, checkout_profile, custom_checkout_fields, is_active, is_featured, is_listed, is_bundle, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, vat_exempt, vat_exempt_note, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, lead_consent_required, lead_consent_version, lead_consent_text_pl, lead_consent_text_en, embed_enabled, issue_license_on_purchase, license_tier, license_duration_days, created_at, updated_at`;
 
 /**
  * SECURITY FIX (V13): Escape ILIKE special characters to prevent SQL pattern injection
@@ -97,6 +98,10 @@ export interface CreateProductInput {
   available_from?: string | null;
   available_until?: string | null;
   auto_grant_duration_days?: number | null;
+  lead_consent_required?: boolean;
+  lead_consent_version?: string;
+  lead_consent_text_pl?: string;
+  lead_consent_text_en?: string;
   embed_enabled?: boolean;
   vat_exempt?: boolean;
   vat_exempt_note?: string | null;
@@ -125,6 +130,10 @@ export interface UpdateProductInput {
   available_from?: string | null;
   available_until?: string | null;
   auto_grant_duration_days?: number | null;
+  lead_consent_required?: boolean;
+  lead_consent_version?: string;
+  lead_consent_text_pl?: string;
+  lead_consent_text_en?: string;
   embed_enabled?: boolean;
   vat_exempt?: boolean;
   vat_exempt_note?: string | null;
@@ -622,6 +631,8 @@ export function validateCreateProduct(data: unknown): ValidationResult {
     errors.push(...validateCheckoutTemplateDependencies(input.checkout_template, input.allow_custom_price).errors);
   }
 
+  errors.push(...validateLeadSettings(input));
+
   if (input.embed_enabled !== undefined && typeof input.embed_enabled !== 'boolean') {
     errors.push('embed_enabled must be a boolean');
   }
@@ -807,6 +818,8 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
   if (input.checkout_template !== undefined || input.allow_custom_price !== undefined) {
     errors.push(...validateCheckoutTemplateDependencies(input.checkout_template, input.allow_custom_price, 'update').errors);
   }
+
+  errors.push(...validateLeadSettings(input));
 
   if (input.embed_enabled !== undefined && typeof input.embed_enabled !== 'boolean') {
     errors.push('embed_enabled must be a boolean');

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const trigger = vi.hoisted(() => vi.fn());
 const fulfill = vi.hoisted(() => vi.fn());
 const paidMail = vi.hoisted(() => vi.fn());
-vi.mock('@/lib/orders/transfer-mail', () => ({ sendTransferAccessMail: vi.fn(), sendTransferPaidMail: paidMail }));
+vi.mock('@/lib/orders/transfer-mail', () => ({ sendOrderNotice: paidMail }));
 vi.mock('@/lib/services/webhook-service', () => ({ WebhookService: { trigger } }));
 vi.mock('@/lib/services/fulfill-paid-order', () => ({ fulfillPaidOrder: fulfill }));
 import { dispatchTransferEvent, fulfillTransfer, runTransferJob } from '@/lib/orders/bank-transfer-service';
@@ -18,7 +18,7 @@ function client(results: Array<{ data?: unknown; error?: unknown }> = []) {
   const from = vi.fn(() => {
     const q = Promise.resolve({ data: null, error: null, ...results.shift() });
     const methods: Record<string, ReturnType<typeof vi.fn>> = {};
-    for (const name of ['select', 'update', 'eq', 'single', 'is', 'lt', 'limit', 'not', 'in', 'contains']) {
+    for (const name of ['select', 'update', 'eq', 'single', 'is', 'lt', 'gte', 'limit', 'not', 'in', 'contains']) {
       methods[name] = vi.fn(() => q); Object.assign(q, { [name]: methods[name] });
     }
     queries.push(methods); return q;
@@ -56,7 +56,7 @@ describe('transfer recovery', () => {
   it('tells the buyer the payment arrived only after fulfillment succeeded', async () => {
     const { db } = client([{ data: { ...row, status: 'completed' } }]);
     await fulfillTransfer(db, id);
-    expect(paidMail).toHaveBeenCalledWith(db, id);
+    expect(paidMail).toHaveBeenCalledWith(db, id, 'paid');
     expect(fulfill.mock.invocationCallOrder[0]).toBeLessThan(paidMail.mock.invocationCallOrder[0]);
   });
   it('sends no payment mail when fulfillment fails', async () => {
@@ -67,7 +67,7 @@ describe('transfer recovery', () => {
   it('resumes a payment mail that was not delivered', async () => {
     const { db } = client([{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [{ id }] }]);
     expect(await runTransferJob(db, 'fulfillment-resume')).toEqual({ processed: 1, errors: 0 });
-    expect(paidMail).toHaveBeenCalledWith(db, id);
+    expect(paidMail).toHaveBeenCalledWith(db, id, 'paid');
   });
   it('bounds pending recovery and includes a two minute age threshold', async () => {
     vi.useFakeTimers(); vi.setSystemTime(new Date('2026-02-02T12:00:00Z'));

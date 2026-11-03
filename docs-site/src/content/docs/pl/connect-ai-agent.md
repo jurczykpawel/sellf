@@ -152,6 +152,24 @@ porównania z poprzednim tygodniem. Niczego nie zmieniaj.
 
 Korzystaj z `filters.start_date`, `generated_at` i `by_currency` każdego produktu. Dla PLN/USD `4999` drobnych jednostek to `49,99`. Obecna cena produktu jest w głównych jednostkach i może różnić się od historycznych cen sprzedaży. To ostatnie siedem dni w strefie czasowej serwera API, a nie poprzedni tydzień kalendarzowy. Raport liczy zakończone transakcje; nie mierzy zysku ani sprzedaży netto po zwrotach. Sumy obejmują wyłącznie zwrócone produkty; sumy różnych walut nie wolno podpisywać jedną walutą.
 
+## Przepis 3b: Skąd przyszły zakupy?
+
+Ten sam klucz **tylko `analytics:read`**:
+
+```text
+Użyj Sellf MCP. Skąd pochodzą zakupy z ostatnich 3 dni? Pokaż tabelę:
+kanał / source / medium / campaign / content / liczba / kwota netto.
+Kwoty są w jednostkach głównych, osobno dla każdej waluty; nie sumuj walut.
+```
+
+```json
+{"name":"get_purchase_attribution","arguments":{}}
+```
+
+Bez argumentów: ostatnie 3 dni, ostatni kontakt. `touch: "first"` pokazuje pierwszą znaną wizytę,
+`group_by` zmienia wymiary. Kwota netto uwzględnia zwroty. Szczegóły:
+[Źródła zakupów](/pl/purchase-attribution/).
+
 ## Przepis 4: Koszyk B2B
 
 Użyj klucza z `products:read`, `products:write`, `coupons:read`, `coupons:write`.
@@ -200,7 +218,7 @@ ceną 67 PLN, `issue_license_on_purchase: false` i takim `checkout_profile`:
 Następnie `create_coupon` z `{"code":"WIR30","discount_type":"set_price","discount_value":30,"currency":"PLN","allowed_product_ids":["UUID_ZWROCONEGO_PRODUKTU"]}`.
 Agent odczytuje oba rekordy i pokazuje je do sprawdzenia przed aktywacją produktu.
 Nabywca jest organizacją; odbiorca może być inny, telefon jest wymagany, a liczba
-uczestników odpowiada ilości. Przelew wymaga włączenia i konfiguracji konta sklepu
+uczestników odpowiada ilości (ustaw `allow_later: true` w module `participants`, aby kupujący mógł zapłacić najpierw i uzupełnić uczestników później; przypomnienie e-mail nie jest wysyłane). Przelew wymaga włączenia i konfiguracji konta sklepu
 w ustawieniach płatności. Przepis nie zmienia tych ustawień i nie składa zamówienia.
 Po publikacji udostępnij `/pl/checkout/SLUG?coupon=WIR30`. Kupon daje 30 zł za sztukę
 zarówno w progu 47, jak i 67 zł; bumpy zachowują cenę. Progi i terminy wydarzenia

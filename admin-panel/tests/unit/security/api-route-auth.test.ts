@@ -100,8 +100,14 @@ const PUBLIC_ROUTES = new Set([
   'public/products/[slug]/recent-supporters/route.ts',
   'order-bumps/route.ts',
   'orders/bank-transfer/route.ts',
+  'orders/bank-transfer/declare/route.ts', // signed HMAC order link is the credential; rate limited
+  'orders/participants/route.ts',            // signed HMAC participants link or the owner's session; rate limited, server re-validates
+  'orders/[orderId]/pay/route.ts',           // signed HMAC order link is the credential; rate limited, server re-quotes
   'oto/info/route.ts',
   'tracking/fb-capi/route.ts',                 // CORS-protected server-side CAPI proxy
+  'leads/challenge/route.ts',
+  'leads/submit/route.ts',
+  'products/[id]/playerstack/route.ts',
   'captcha/challenge/route.ts',                // ALTCHA challenge generation — public, stateless
   'auth/magic-link/route.ts',                  // Magic-link request — public, captcha-gated + IP/email rate-limited
   'gus/fetch-company-data/route.ts',          // NIP autofill for checkout — public, rate-limited

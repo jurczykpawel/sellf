@@ -517,9 +517,11 @@ describe('All server action files have auth wrappers', () => {
     const KNOWN_FILES = new Set([
       'admin-auth.ts',
       'analytics.ts',
+      'attribution.ts',
       'categories.ts',
       'checkout.ts',
       'checkout-funnel.ts', // Admin-only analytics via withAdminClient
+      'orders-missing-participants.ts', // Admin-only list via withAdminClient
       'currency-config.ts',
       'currency.ts',
       'dashboard.ts',

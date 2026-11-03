@@ -78,6 +78,10 @@ export interface Product {
   checkout_template: string
   custom_checkout_fields: import('@/lib/validations/custom-checkout-fields').CustomFieldDefinition[]
   // Embed checkout (per-product toggle; complements env-level origin allowlist)
+  lead_consent_required?: boolean
+  lead_consent_version?: string
+  lead_consent_text_pl?: string
+  lead_consent_text_en?: string
   embed_enabled?: boolean
   // License keys (signed JWT issued on purchase)
   issue_license_on_purchase?: boolean

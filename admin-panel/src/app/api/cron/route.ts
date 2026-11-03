@@ -7,6 +7,8 @@
  *
  * Jobs:
  *   seat-reservations-expire  — release expired event holds (run every minute)
+ *   transfer-reservations     — unpaid transfer reminder, release and their notifications (run every 5 minutes)
+ *   participants-reminders     — mail buyers who chose "add participants later": 24 h after purchase and 2 days before the event (every 15 minutes)
  *   access-expired             — dispatch access.expired webhooks for newly expired access records
  *   cleanup-webhook-logs       — delete webhook_logs older than WEBHOOK_LOG_RETENTION_DAYS
  *   webhook-deliveries-retry   — process due retries (status=pending_retry) with exp backoff;
@@ -20,6 +22,7 @@ import { drainAffiliateWork } from '@/lib/affiliates/sync/worker';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { runTransferJob } from '@/lib/orders/bank-transfer-service';
+import { runParticipantsReminders } from '@/lib/orders/participants-service';
 import { runBusinessEvents } from '@/lib/services/business-events';
 import { getWebhookQueue } from '@/lib/services/webhook-queue';
 import { WebhookDispatcher } from '@/lib/services/webhook-queue/dispatcher';
@@ -177,6 +180,8 @@ const JOB_REGISTRY: Record<string, () => Promise<CronJobResult>> = {
   },
   'bank-transfer-overdue': () => runTransferJob(createAdminClient(), 'bank-transfer-overdue'),
   'fulfillment-resume': () => runTransferJob(createAdminClient(), 'fulfillment-resume'),
+  'transfer-reservations': () => runTransferJob(createAdminClient(), 'transfer-reservations'),
+  'participants-reminders': () => runParticipantsReminders(createAdminClient()),
   'seat-reservations-expire': handleSeatReservationsExpire,
   'access-expired': handleAccessExpired,
   'business-events': () => runBusinessEvents(),

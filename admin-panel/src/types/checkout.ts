@@ -93,6 +93,8 @@ export interface CheckoutSessionOptions {
   userId?: string;
   returnUrl: string;
   embedSessionId?: string;
+  /** Purchase attribution reference pinned in Stripe metadata (@see lib/attribution/store.ts). */
+  attributionRef?: string;
   locale?: 'pl' | 'en' | 'auto';
   coupon?: {
     id: string;

@@ -61,6 +61,11 @@ describe('WebhookService.trigger → queue.enqueue wiring', () => {
     expect(dispatchMock.mock.calls[0][2].id).toBe(input.deliveryId);
   });
 
+  it('uses the confirmed lead key for delivery identity', async () => {
+    await WebhookService.trigger('lead.captured', { leadId: 'lead-1' }, undefined, undefined, 'lead:lead-1');
+    expect(enqueueMock.mock.calls[0][0].deliveryKey).toBe('ep_1:lead.captured:lead:lead-1');
+  });
+
   it('does nothing when no active endpoint matches the event', async () => {
     fetchEndpointsMock.mockResolvedValue({ data: [], error: null });
     await WebhookService.trigger('purchase.completed', {});

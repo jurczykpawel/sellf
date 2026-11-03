@@ -71,7 +71,7 @@ describe('money contracts', () => {
     get_product_stats: ['major units', 'minor units'],
     list_coupons: ['major units'], get_coupon: ['major units'], create_coupon: ['major units'], update_coupon: ['major units'], get_coupon_stats: ['major units'],
     list_payments: ['minor units'], get_payment: ['major units', 'minor units'], search_payments: ['minor units'], process_refund: ['minor units'], export_payments: ['minor units'], list_failed_payments: ['minor units'], get_payment_stats: ['minor units'],
-    get_dashboard: ['minor units'], get_revenue_stats: ['minor units'], get_revenue_by_product: ['major units', 'minor units'], get_sales_trends: ['minor units'], get_top_products: ['major units', 'minor units'], get_refund_stats: ['minor units'], compare_periods: ['minor units'],
+    get_dashboard: ['minor units'], get_revenue_stats: ['minor units'], get_revenue_by_product: ['major units', 'minor units'], get_sales_trends: ['minor units'], get_top_products: ['major units', 'minor units'], get_refund_stats: ['minor units'], compare_periods: ['minor units'], get_purchase_attribution: ['MAJOR units'],
     list_users: ['major units'], get_user: ['major units'], search_users: ['major units'], extend_access: ['major units'], get_user_purchases: ['minor units'],
   };
   for (const [name, units] of Object.entries(outputUnits)) {
@@ -236,6 +236,12 @@ describe('checkout profile contracts', () => {
     await update.handler(z.object(update.schema).parse({ id, checkout_profile }));
     expect(api.patch).toHaveBeenCalledWith(`/api/v1/products/${id}`, { checkout_profile });
   });
+  it('accepts the add-participants-later flag on the participants module', () => {
+    const update = tools.get('update_product')!;
+    const withLater = { v: 1, modules: [{ id: 'quantity', min: 1, max: 10, mode: 'checkout' }, { id: 'participants', required: true, prefill_from_buyer: false, allow_later: true }] };
+    expect(update.schema.checkout_profile.safeParse(withLater).success).toBe(true);
+    expect(update.schema.checkout_profile.safeParse({ v: 1, modules: [{ id: 'participants', required: true, prefill_from_buyer: false, allow_later: 'yes' }] }).success).toBe(false);
+  });
   it('allows clearing the profile and rejects unknown keys or versions', async () => {
     const update = tools.get('update_product')!;
     api.patch.mockResolvedValue({ data: {} });
@@ -255,5 +261,16 @@ describe('event session contracts', () => {
     expect(schema.safeParse([{...session,tiers:[]}]).success).toBe(false);
     expect(schema.safeParse([{...session,online_url:'http://example.com'}]).success).toBe(false);
     expect(schema.parse([])).toEqual([]); expect(schema.parse(undefined)).toBeUndefined();
+  });
+});
+
+describe('purchase attribution contract', () => {
+  it('answers "last 3 days" with no arguments and exposes per-order source on list_payments', async () => {
+    api.get.mockResolvedValue({ data: { rows: [] } });
+    await tools.get('get_purchase_attribution')!.handler({});
+    expect(api.get).toHaveBeenCalledWith('/api/v1/analytics/attribution', expect.objectContaining({ days: '3' }));
+    await tools.get('get_purchase_attribution')!.handler({ touch: 'first', group_by: ['channel', 'campaign'], from: '2026-11-01' });
+    expect(api.get).toHaveBeenLastCalledWith('/api/v1/analytics/attribution', expect.objectContaining({ days: undefined, from: '2026-11-01', touch: 'first', group_by: 'channel,campaign' }));
+    expect(z.object(tools.get('list_payments')!.schema).parse({ embed: 'attribution' })).toEqual({ embed: 'attribution' });
   });
 });

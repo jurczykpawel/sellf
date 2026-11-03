@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { getCountryOptions } from '@/lib/checkout/countries';
 import { validateModuleValues } from '@/lib/checkout-modules/registry';
+import ParticipantsEditor from '@/components/checkout/ParticipantsEditor';
 import type { ReactNode } from 'react';
 import type { CheckoutProfile } from '@/lib/checkout-modules/profile';
 import type { FieldError } from '@/lib/checkout-modules/registry';
@@ -28,6 +29,7 @@ export function useCheckoutProfileValues(profile: CheckoutProfile | null, invoic
   const [phone, setPhone] = useState('');
   const [participants, setParticipants] = useState<Record<number, Partial<Person>>>({});
   const [includeParticipants, setIncludeParticipants] = useState(false);
+  const [later, setLater] = useState(false);
   const words = invoice.fullName.trim().split(/\s+/);
   const person = { first_name: names.first_name ?? words[0] ?? '', last_name: names.last_name ?? words.slice(1).join(' '), email };
   const party: Party = { company_name: invoice.companyName, nip: invoice.nip, address: invoice.address, city: invoice.city, postal_code: invoice.postalCode, country: invoice.country };
@@ -43,7 +45,7 @@ export function useCheckoutProfileValues(profile: CheckoutProfile | null, invoic
       case 'recipient': values.recipient = buyerType === 'organization' && differs ? { differs: true, ...recipient } : { differs: false }; break;
       case 'phone': values.phone = phone; break;
       case 'quantity': values.quantity = quantity; break;
-      case 'participants': values.participants = config.required || includeParticipants ? people : []; break;
+      case 'participants': values.participants = !(config.allow_later && later) && (config.required || includeParticipants) ? people : []; break;
     }
   }
   const validate = () => {
@@ -52,7 +54,7 @@ export function useCheckoutProfileValues(profile: CheckoutProfile | null, invoic
     setErrors(result.success ? [] : result.errors);
     return result.success;
   };
-  return { validate, errors, setErrors, values, buyerType, setBuyerType, person, setNames, party, differs, setDiffers, recipient, setRecipient, phone, setPhone, people, setParticipants, includeParticipants, setIncludeParticipants };
+  return { validate, errors, setErrors, values, buyerType, setBuyerType, person, setNames, party, differs, setDiffers, recipient, setRecipient, phone, setPhone, people, setParticipants, includeParticipants, setIncludeParticipants, later, setLater };
 }
 
 type ModuleConfig = CheckoutProfile['modules'][number];
@@ -111,13 +113,10 @@ export default function CheckoutProfileFields({ profile, state, invoice, errors,
         {state.differs && partyFields('recipient', state.recipient, (key, value) => state.setRecipient(previous => ({ ...previous, [key]: value })))}
       </>,
     phone: () => field('phone', t('phone'), state.phone, state.setPhone, 'tel'),
-    participants: config => config.id === 'participants' && <>
-        {!config.required && <label className="flex items-center gap-2 text-sf-body"><input type="checkbox" checked={state.includeParticipants} onChange={event => state.setIncludeParticipants(event.target.checked)} />{t('includeParticipants')}</label>}
-        {(config.required || state.includeParticipants) && state.people.map((person, index) => <div key={index} className="space-y-3 border-t border-sf-border pt-3">
-          <p className="text-sm font-medium text-sf-body">{t('participant', { number: index + 1 })}</p>
-          {personFields(`participants.${index}`, person, (key, value) => state.setParticipants(previous => ({ ...previous, [index]: { ...previous[index], [key]: value } })), true)}
-        </div>)}
-      </>,
+    participants: config => config.id === 'participants' && <ParticipantsEditor people={state.people as Person[]} required={config.required} allowLater={!!config.allow_later} later={state.later} setLater={state.setLater}
+        includeParticipants={state.includeParticipants} setIncludeParticipants={state.setIncludeParticipants} errorText={errorText} inputClass={inputClass}
+        update={(index, key, value) => state.setParticipants(previous => ({ ...previous, [index]: { ...previous[index], [key]: value } }))}
+        fill={rows => state.setParticipants(Object.fromEntries(rows.map((row, index) => [index, row])))} />,
   };
   return <div ref={fieldsRef} className="space-y-6">{profile.modules.map(config => {
     if (config.id === 'quantity' || (config.id === 'recipient' && state.buyerType !== 'organization')) return null;

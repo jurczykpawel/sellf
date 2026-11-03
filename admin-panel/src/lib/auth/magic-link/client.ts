@@ -1,3 +1,4 @@
+import { readBrowserAttribution } from '@/lib/attribution/browser';
 import type { MagicLinkErrorCode, MagicLinkFlow, MagicLinkResult } from './types';
 
 export interface MagicLinkClientRequest {
@@ -41,6 +42,11 @@ export async function sendMagicLinkRequest(req: MagicLinkClientRequest): Promise
   if (req.couponCode != null) body.couponCode = req.couponCode;
   if (req.successUrl != null) body.successUrl = req.successUrl;
   if (req.customFieldValues !== undefined) body.customFieldValues = req.customFieldValues;
+  // Free signup: the purchase source travels with the magic link request (@see lib/attribution).
+  if (req.flow === 'free_product') {
+    const attribution = readBrowserAttribution();
+    if (attribution) body.attribution = attribution;
+  }
 
   try {
     const response = await fetch('/api/auth/magic-link', {

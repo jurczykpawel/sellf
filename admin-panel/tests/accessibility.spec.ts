@@ -241,6 +241,7 @@ const adminPages = [
   { name: 'categories', path: '/dashboard/categories' },
   { name: 'order-bumps', path: '/dashboard/order-bumps' },
   { name: 'refund-requests', path: '/dashboard/refund-requests' },
+  { name: 'licenses', path: '/dashboard/licenses' },
 ];
 
 for (const theme of ['light', 'dark'] as const) {

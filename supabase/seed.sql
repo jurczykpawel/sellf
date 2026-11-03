@@ -702,14 +702,15 @@ BEGIN
   );
 
   -- Grant product access to users (excluding john.doe for OTO testing)
-  INSERT INTO user_product_access (user_id, product_id, access_granted_at)
+  -- grant_source: how each access was obtained (shown in the admin Orders list).
+  INSERT INTO user_product_access (user_id, product_id, access_granted_at, grant_source)
   VALUES
-  (user2_id, premium_product_id, NOW() - INTERVAL '6 days'),
-  (user2_id, pro_toolkit_id, NOW() - INTERVAL '4 days'),
-  (user2_id, vip_masterclass_id, NOW() - INTERVAL '1 day'),
-  (user3_id, premium_product_id, NOW() - INTERVAL '8 days'),
-  (user3_id, pro_toolkit_id, NOW() - INTERVAL '3 days'),
-  (user3_id, vip_masterclass_id, NOW());
+  (user2_id, premium_product_id, NOW() - INTERVAL '6 days', 'purchase'),
+  (user2_id, pro_toolkit_id, NOW() - INTERVAL '4 days', 'purchase'),
+  (user2_id, vip_masterclass_id, NOW() - INTERVAL '1 day', 'manual'),
+  (user3_id, premium_product_id, NOW() - INTERVAL '8 days', 'purchase'),
+  (user3_id, pro_toolkit_id, NOW() - INTERVAL '3 days', 'purchase'),
+  (user3_id, vip_masterclass_id, NOW(), 'manual');
 
   -- Note: demo@sellf.app is the admin (inserted first in seed, trigger assigns admin role).
   -- john.doe@example.com, maria.schmidt@example.com, anna.kowalska@example.com are regular users.
@@ -1046,11 +1047,12 @@ VALUES
   );
 
 -- Give john.doe access to test-oto-target (so OTO will be skipped for test-oto-owned)
-INSERT INTO user_product_access (user_id, product_id, access_granted_at)
+INSERT INTO user_product_access (user_id, product_id, access_granted_at, grant_source)
 VALUES (
   'aaaaaaaa-1111-4111-a111-111111111111', -- john.doe's UUID
   (SELECT id FROM products WHERE slug = 'test-oto-target'),
-  NOW() - INTERVAL '7 days'
+  NOW() - INTERVAL '7 days',
+  'manual'
 );
 -- ========================================================
 -- Subscription products (subscriptions MVP)
@@ -1416,6 +1418,28 @@ VALUES ('e4000000-0000-4000-a000-000000000010','e1000000-0000-4000-8000-00000000
 INSERT INTO public.payment_line_items(transaction_id,product_id,item_type,quantity,unit_price,total_price,discounted_total,currency,product_name)
 VALUES ('e4000000-0000-4000-a000-000000000010','e1000000-0000-4000-8000-000000000001','main_product',1,149,149,149,'PLN','Warsztat dla zespołu');
 
+-- Unpaid transfers: timed reservation before the reminder, declared by the buyer, released after its window.
+INSERT INTO public.payment_transactions(id,product_id,customer_email,amount,currency,status,payment_provider,payment_due_at,reminder_at,release_at,
+  transfer_declared_at,transfer_declared_note,cancel_reason,transfer_details,metadata,transfer_mail_sent_at,order_placed_notified_at,order_reminder_notified_at,
+  order_transfer_declared_notified_at,order_cancelled_notified_at,reminder_mail_sent_at,cancelled_mail_sent_at,created_at,updated_at,pricing_snapshot_version)
+VALUES
+ ('e4000000-0000-4000-a000-000000000020','e1000000-0000-4000-8000-000000000001','transfer-reserved@example.com',14900,'PLN','awaiting_payment','bank_transfer',
+  now()+interval '40 hours',now()+interval '16 hours',now()+interval '40 hours',NULL,NULL,NULL,
+  '{"holder":"Example Workshops","account":"PL61109010140000071219812874","bank":"Example Bank","title":"Zamówienie rezerwacja"}','{"locale":"pl","access_on_placement":false}',
+  now(),now(),NULL,NULL,NULL,NULL,NULL,now()-interval '8 hours',now(),1),
+ ('e4000000-0000-4000-a000-000000000021','e1000000-0000-4000-8000-000000000001','transfer-declared@example.com',14900,'PLN','awaiting_payment','bank_transfer',
+  now()+interval '60 hours',now()-interval '6 hours',now()+interval '60 hours',now()-interval '12 hours','Przelew z konta firmowego',NULL,
+  '{"holder":"Example Workshops","account":"PL61109010140000071219812874","bank":"Example Bank","title":"Zamówienie zgłoszone"}','{"locale":"pl","access_on_placement":false}',
+  now(),now(),now(),now(),NULL,now(),NULL,now()-interval '30 hours',now(),1),
+ ('e4000000-0000-4000-a000-000000000022','e1000000-0000-4000-8000-000000000001','transfer-released@example.com',14900,'PLN','cancelled','bank_transfer',
+  now()-interval '2 days',now()-interval '3 days',now()-interval '2 days',NULL,NULL,'payment_window_expired',
+  '{"holder":"Example Workshops","account":"PL61109010140000071219812874","bank":"Example Bank","title":"Zamówienie zwolnione"}','{"locale":"en","access_on_placement":false}',
+  now(),now(),now(),NULL,now(),now(),now(),now()-interval '4 days',now(),1)
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.payment_line_items(transaction_id,product_id,item_type,quantity,unit_price,total_price,discounted_total,currency,product_name)
+SELECT id,'e1000000-0000-4000-8000-000000000001','main_product',1,149,149,149,'PLN','Warsztat dla zespołu' FROM public.payment_transactions
+WHERE id IN ('e4000000-0000-4000-a000-000000000020','e4000000-0000-4000-a000-000000000021','e4000000-0000-4000-a000-000000000022');
+
 -- A transfer placed without collecting a new agreement records no new consent.
 UPDATE public.payment_transactions SET order_details='{"v":1,"buyer":{"type":"organization","terms_accepted":false}}'
 WHERE id='e4000000-0000-4000-a000-000000000010';
@@ -1520,4 +1544,32 @@ BEGIN
   PERFORM public.apply_payment_dispute(sample.id,'du_seed_license_dispute','needs_response',false,'fraudulent',sample.amount::integer,sample.currency,now());
   UPDATE public.business_events SET dispatched_at=now() WHERE payload->'licenseRow'->>'id'='e1210000-0000-4000-a000-000000000011';
   PERFORM set_config('request.jwt.claims',coalesce(prior_claims,''),true);
+END $seed$;
+-- Example PlayerStack lead magnet: optional newsletter signup, editable wording.
+UPDATE public.products SET embed_enabled = true, lead_consent_version = '1',
+  lead_consent_required = false WHERE slug = 'free-tutorial';
+INSERT INTO public.lead_submissions (token_hash, email, product_id, product_slug, source, marketing_consent,
+  consent_version, consent_text, confirmed_at)
+SELECT repeat('0', 64), 'lead-example@example.com', id, slug, 'https://example.com/tutorial.mp4', true,
+  lead_consent_version || ':en', lead_consent_text_en, now()
+FROM public.products WHERE slug = 'free-tutorial';
+
+-- ===== PURCHASE ATTRIBUTION (sample sources for seeded orders) =====
+-- Seeded orders were inserted without checkout data (channel 'unknown'); give a few of them
+-- realistic sources so the "Source" box, API and MCP report show something locally.
+DO $seed$
+DECLARE tx record; i integer := 0;
+  payloads jsonb[] := ARRAY[
+    '{"v":1,"consent":"analytics","mode":"stored","sessions_count":3,"first":{"source":"facebook","medium":"paid_social","campaign":"autumn","landing_path":"/"},"last":{"source":"listmonk","medium":"email","campaign":"mail-05","content":"cta-1","landing_path":"/p/premium-course"},"device_class":"mobile","country":"PL"}',
+    '{"v":1,"consent":"none","mode":"url","last":{"source":"facebook","medium":"paid_social","campaign":"autumn","content":"ad-2","landing_path":"/p/premium-course"},"device_class":"mobile","country":"PL"}',
+    '{"v":1,"consent":"none","mode":"url","last":{"referrer_host":"google.com","landing_path":"/p/premium-course"},"device_class":"desktop","country":"DE"}',
+    '{"v":1,"consent":"none","mode":"url","last":{"landing_path":"/p/premium-course"},"device_class":"desktop","country":"PL"}'
+  ]::jsonb[];
+BEGIN
+  FOR tx IN SELECT id, product_id, user_id FROM public.payment_transactions
+    WHERE status = 'completed' AND subscription_id IS NULL AND payment_provider = 'stripe' ORDER BY created_at LIMIT 8 LOOP
+    DELETE FROM public.purchase_attribution WHERE transaction_id = tx.id;
+    PERFORM public.insert_purchase_attribution(tx.id, tx.product_id, tx.user_id, 'payment', payloads[(i % 4) + 1], NULL);
+    i := i + 1;
+  END LOOP;
 END $seed$;

@@ -19,7 +19,9 @@ import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCurso
 import { escapeIlikePattern, validateUUID } from '@/lib/validations/product';
 import { buildPaymentSearchFilter, VALID_PAYMENT_STATUSES } from '@/lib/payments/search';
 import { firstRelated } from '@/lib/supabase/relations';
+import { PURCHASE_ATTRIBUTION_COLUMNS, toPurchaseAttributionView } from '@/lib/attribution/report';
 import type { PaymentTransactionLineItem } from '@/types/payment';
+import type { PurchaseAttributionView } from '@/lib/attribution/report';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -36,11 +38,12 @@ export async function OPTIONS(request: NextRequest) {
  * - status: 'all' | 'pending' | 'completed' | 'refunded' | 'partially_refunded' | 'disputed' | 'abandoned' (default 'all')
  * - product_id: string (filter by product)
  * - email: string (filter by customer email substring)
- * - search: string, max 200 chars (free-text match across customer email,
+ * - search: string, max 200 chars (exact order number such as `1300` or `#1300`, or free-text match across customer email,
  *   Stripe session id, Stripe payment intent id, and product name/slug)
  * - date_from: string ISO date (filter from date)
  * - date_to: string ISO date (filter to date)
  * - sort: string (default '-created_at')
+ * - embed: 'attribution' — adds `attribution` (frozen purchase source, @see lib/attribution/report.ts)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -91,6 +94,7 @@ export async function GET(request: NextRequest) {
         custom_field_values,
         order_details,
         payment_provider,payment_due_at,transfer_details,
+        reminder_at,release_at,invoice_hold_at,transfer_declared_at,transfer_declared_note,cancel_reason,reopened_at,
         invoices(status,number,view_url,error,attempts),
         refund_id,
         refunded_amount,
@@ -244,6 +248,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Optional per-order purchase source (immutable snapshot; null for orders without one).
+    const embedAttribution = (searchParams.get('embed') ?? '').split(',').map(v => v.trim()).includes('attribution');
+    const attributionByTransactionId = new Map<string, PurchaseAttributionView>();
+    if (embedAttribution && transactionIds.length > 0) {
+      const { data: attributionRows, error: attributionError } = await adminClient
+        .from('purchase_attribution')
+        .select(PURCHASE_ATTRIBUTION_COLUMNS)
+        .in('transaction_id', transactionIds);
+      if (attributionError) {
+        console.error('Error fetching purchase attribution:', attributionError);
+        return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch purchase attribution');
+      }
+      for (const row of (attributionRows ?? []) as unknown as Array<Parameters<typeof toPurchaseAttributionView>[0] & { transaction_id: string | null }>) {
+        if (row.transaction_id) attributionByTransactionId.set(row.transaction_id, toPurchaseAttributionView(row));
+      }
+    }
+
     // Derive bundle components for bundle transactions (light: one batch query,
     // name/slug only). Non-bundle transactions get no bundle_components field.
     const bundleProductIds = Array.from(
@@ -292,6 +313,7 @@ export async function GET(request: NextRequest) {
         currency: p.currency,
         status: p.status,
         payment_provider: p.payment_provider, payment_due_at: p.payment_due_at, transfer_details: p.transfer_details,
+        reminder_at: p.reminder_at, release_at: p.release_at, invoice_hold_at: p.invoice_hold_at, transfer_declared_at: p.transfer_declared_at, transfer_declared_note: p.transfer_declared_note, cancel_reason: p.cancel_reason, reopened_at: p.reopened_at,
         stripe_payment_intent_id: p.stripe_payment_intent_id,
         product: {
           id: p.product_id,
@@ -327,6 +349,7 @@ export async function GET(request: NextRequest) {
         } : null,
         created_at: p.created_at,
         updated_at: p.updated_at,
+        ...(embedAttribution ? { attribution: attributionByTransactionId.get(p.id) ?? null } : {}),
       };
     });
 

@@ -14,6 +14,8 @@ export interface FunnelCounts {
   paid: number;
   pending: number;
   abandoned: number;
+  /** Other statuses, e.g. awaiting_payment bank transfers and cancelled orders. */
+  other: number;
 }
 
 export interface ProductFunnel extends FunnelCounts {

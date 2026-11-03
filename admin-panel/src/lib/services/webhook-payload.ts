@@ -12,6 +12,7 @@
 import { toMinorUnits } from '@/lib/currency/minor-units';
 import { readOrderDetails } from '@/lib/checkout-modules/order-details';
 import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
+import type { WebhookAttribution } from '@/lib/attribution/report';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { WebhookOrderDetails } from '@/lib/checkout-modules/order-details';
 import type { DisplayCustomField } from '@/lib/format-custom-fields';
@@ -96,6 +97,8 @@ export interface PurchaseWebhookData {
    * Replaces the former singular `license` field (breaking).
    */
   licenses?: Array<{ productId: string; token: string; kid: string; jwksUrl: string }>;
+  /** Where the purchase came from, frozen at purchase (@see lib/attribution/report.ts). Absent when none was recorded. */
+  attribution?: WebhookAttribution;
 }
 
 export interface EventWebhookLine { product_id: string; session_id: string | null; session_starts_at: string | null; session_label: string | null; tier_id: string | null; tier_label: string | null }

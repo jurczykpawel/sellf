@@ -34,9 +34,10 @@ beforeEach(() => {
   });
 });
 
+const apiKeyId = 'a1340000-0000-4000-a000-0000000000aa';
 describe.each(['session', 'api_key'])('%s product mutations', (method) => {
   beforeEach(() => {
-    mocks.authenticate.mockResolvedValue({ method, admin: { userId: actor }, supabase: { from: mocks.from, rpc: mocks.rpc } });
+    mocks.authenticate.mockResolvedValue({ method, apiKey: { id: apiKeyId }, admin: { userId: actor }, supabase: { from: mocks.from, rpc: mocks.rpc } });
   });
 
   it.each(['INSERT', 'UPDATE', 'DELETE'])('uses the authenticated actor and atomic RPC for %s', async (operation) => {
@@ -47,8 +48,9 @@ describe.each(['session', 'api_key'])('%s product mutations', (method) => {
     const response = operation === 'INSERT' ? await POST(request)
       : operation === 'UPDATE' ? await PATCH(request, context) : await DELETE(request, context);
     expect(response.status).toBe(operation === 'INSERT' ? 201 : operation === 'DELETE' ? 204 : 200);
-    expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_with_audit', expect.objectContaining({
+    expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_as', expect.objectContaining({
       operation_param: operation, actor_id: actor, product_id: operation === 'INSERT' ? null : product.id,
+      event_actor: method === 'api_key' ? { type: 'api_key', id: apiKeyId } : { type: 'user', id: actor },
     }));
     for (const result of mocks.from.mock.results) {
       expect(result.value.insert).not.toHaveBeenCalled();
@@ -69,7 +71,7 @@ describe.each(['session', 'api_key'])('%s product mutations', (method) => {
     const response = method === 'POST' ? await POST(request)
       : method === 'PATCH' ? await PATCH(request, context) : await DELETE(request, context);
     expect(response.status).toBe(500);
-    expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_with_audit', expect.objectContaining({ actor_id: actor }));
+    expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_as', expect.objectContaining({ actor_id: actor }));
     expect(await response.text()).not.toContain('private database detail');
   });
 
@@ -96,5 +98,5 @@ it('replaces nested event sessions in the same audited product transaction', asy
   const sessions = [{ starts_at: '2099-01-01T00:00:00Z', tiers: [{ price: 47, seats: 30, sort: 0 }] }];
   const response = await PATCH(new NextRequest('http://localhost/api/v1/products/'+product.id, { method: 'PATCH', body: JSON.stringify({ sessions }) }), context);
   expect(response.status).toBe(200);
-  expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_with_audit', expect.objectContaining({ product_data: { sessions: [expect.objectContaining({ tiers: sessions[0].tiers })] } }));
+  expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_as', expect.objectContaining({ product_data: { sessions: [expect.objectContaining({ tiers: sessions[0].tiers })] } }));
 });

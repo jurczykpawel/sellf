@@ -14,9 +14,9 @@ import StripeTaxSettings from './StripeTaxSettings'
 import PaymentMethodSettingsWrapper from './PaymentMethodSettingsWrapper'
 import LegalDocumentsSettings from './LegalDocumentsSettings'
 import OmnibusSettings from './OmnibusSettings'
+import AttributionSettings from './AttributionSettings'
 import LicenseSettings from './LicenseSettings'
 import LicenseKeysSettings from './LicenseKeysSettings'
-import IssuedLicensesSettings from './IssuedLicensesSettings'
 import SystemUpdateSettings from './SystemUpdateSettings'
 import SecurityAuditSettings from './SecurityAuditSettings'
 import { useConfig } from '@/components/providers/config-provider'
@@ -94,6 +94,7 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicense
           <>
             <LegalDocumentsSettings />
             <OmnibusSettings />
+            <AttributionSettings />
           </>
         )}
 
@@ -101,7 +102,6 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicense
           <>
             <LicenseSettings />
             <LicenseKeysSettings hasLicenseIssuance={hasLicenseIssuance} />
-            {role === 'platform_admin' && !demoMode && <IssuedLicensesSettings enabled={Boolean(hasLicenseIssuance)} />}
           </>
         )}
 

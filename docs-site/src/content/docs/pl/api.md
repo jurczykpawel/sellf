@@ -64,3 +64,8 @@ niezależnie od `exclude_order_bumps`. Wyższa cena ustalona nigdy nie podnosi b
 Cena zero korzysta z istniejącej ścieżki darmowego dostępu; embed odsyła wtedy do
 standardowego checkout. JPY wymaga liczb całkowitych. Kupony nie zmieniają historii
 najniższej ceny Omnibus. Typ dostępny dla wszystkich sprzedawców.
+
+
+## Zgłoszenia PlayerStack
+
+[Formularze potwierdzane mailem i zgoda marketingowa](/pl/playerstack-leads/).

@@ -9,6 +9,7 @@ export interface PurchaseLineItemProduct {
   icon?: string | null;
   is_refundable?: boolean | null;
   refund_period_days?: number | null;
+  checkout_profile?: unknown;
 }
 
 export interface PurchaseLineItem {

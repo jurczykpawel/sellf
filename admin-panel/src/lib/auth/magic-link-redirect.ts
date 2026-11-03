@@ -95,6 +95,7 @@ export function getLoginReturnPath(value: string | null | undefined): string | u
   const [path, query, ...rest] = value.split('?');
   if (rest.length) return undefined;
   if (/^\/(?:en\/|pl\/)?affiliates\/apply$/.test(path)) return query === undefined ? value : undefined;
+  if (/^\/(?:en\/|pl\/)?auth\/lead$/.test(path)) return /^token=[a-f0-9]{64}$/.test(query ?? '') ? value : undefined;
   const isLoginwall = /^\/(?:en\/|pl\/)?loginwall\/protect$/.test(path);
   if ((!isLoginwall && !/^\/(?:en\/|pl\/)?auth\/product-access$/.test(path)) || !query) return undefined;
 

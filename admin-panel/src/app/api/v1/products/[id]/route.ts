@@ -34,6 +34,7 @@ import {
 } from '@/lib/validations/product';
 import { mapApiInputToProductRow, ProductCategoriesSchema, ProductTagsSchema, BundleItemIdsSchema } from '@/lib/api/dto/product';
 import { upsertBundleItems } from '@/lib/services/bundle-items';
+import { accessActor } from '@/lib/services/business-events';
 import { hasProductBeenSold } from '@/lib/validations/product-type-guard';
 
 interface RouteParams {
@@ -108,7 +109,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const { supabase, admin } = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
+    const auth = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
+    const { supabase, admin } = auth;
     const { id } = await params;
 
     // Validate ID format
@@ -271,7 +273,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     let product = existingCheck;
     if (Object.keys(sanitizedData).length > 0) {
       const { data: updatedProduct, error: updateError } = await supabase
-        .rpc('mutate_product_with_audit', {
+        .rpc('mutate_product_as', {
+          event_actor: { ...accessActor(auth) },
           operation_param: 'UPDATE',
           product_data: sanitizedData,
           product_id: id,
@@ -405,7 +408,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { supabase, admin } = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
+    const auth = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
+    const { supabase, admin } = auth;
     const { id } = await params;
 
     // Validate ID format
@@ -441,7 +445,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Foreign-key cascades are part of the product transaction.
-    const { error: deleteError } = await supabase.rpc('mutate_product_with_audit', {
+    const { error: deleteError } = await supabase.rpc('mutate_product_as', {
+          event_actor: { ...accessActor(auth) },
       operation_param: 'DELETE',
       product_data: {},
       product_id: id,

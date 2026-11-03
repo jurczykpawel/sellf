@@ -16,6 +16,7 @@ import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { fromMinorUnits } from '@/lib/currency/minor-units';
+import { PURCHASE_ATTRIBUTION_COLUMNS, toPurchaseAttributionView, toWebhookAttribution } from '@/lib/attribution/report';
 type OrderClient = SupabaseClient<any, any, any>;
 
 type PaymentProvider = { kind: 'stripe'; stripe: Stripe; sessionId: string; paymentIntentId?: string | null }
@@ -80,6 +81,14 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
   payload.order.orderId = tx.id;
   payload.order.orderNumber = tx.order_number;
   if (licenses.length) payload.licenses = licenses;
+  try {
+    // Purchase source is informative: a lookup failure never blocks fulfilment.
+    const { data: attributionRow } = await args.supabase.from('purchase_attribution')
+      .select(PURCHASE_ATTRIBUTION_COLUMNS).eq('transaction_id', tx.id).maybeSingle();
+    if (attributionRow) payload.attribution = toWebhookAttribution(toPurchaseAttributionView(attributionRow as unknown as Parameters<typeof toPurchaseAttributionView>[0]));
+  } catch (error) {
+    console.error('[fulfillPaidOrder] Attribution unavailable:', error instanceof Error ? error.message : 'Unknown error');
+  }
   const invoice = await issuedInvoice(tx.id, args.supabase).catch(() => null);
   if (invoice) payload.invoice = { ...payload.invoice, ...invoice };
   await WebhookService.trigger('purchase.completed', payload, args.supabase, [...productIds]);

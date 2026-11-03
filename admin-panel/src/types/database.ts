@@ -796,6 +796,60 @@ export type Database = {
         }
         Relationships: []
       }
+      attribution_channel_rules: {
+        Row: {
+          channel: string
+          created_at: string
+          field: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          operator: string
+          priority: number
+          value: string | null
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          field: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          operator: string
+          priority: number
+          value?: string | null
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          field?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          operator?: string
+          priority?: number
+          value?: string | null
+        }
+        Relationships: []
+      }
+      attribution_settings: {
+        Row: {
+          click_id_retention_days: number
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          click_id_retention_days?: number
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          click_id_retention_days?: number
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           id: string
@@ -874,7 +928,11 @@ export type Database = {
           bank_transfer_grant_access_on_placement: boolean
           bank_transfer_max_unpaid_per_email: number
           bank_transfer_title_template: string
+          declared_hold_hours: number
           id: boolean
+          reservation_enabled: boolean
+          reservation_release_hours: number
+          reservation_reminder_hours: number
         }
         Insert: {
           bank_account_holder?: string
@@ -885,7 +943,11 @@ export type Database = {
           bank_transfer_grant_access_on_placement?: boolean
           bank_transfer_max_unpaid_per_email?: number
           bank_transfer_title_template?: string
+          declared_hold_hours?: number
           id?: boolean
+          reservation_enabled?: boolean
+          reservation_release_hours?: number
+          reservation_reminder_hours?: number
         }
         Update: {
           bank_account_holder?: string
@@ -896,7 +958,11 @@ export type Database = {
           bank_transfer_grant_access_on_placement?: boolean
           bank_transfer_max_unpaid_per_email?: number
           bank_transfer_title_template?: string
+          declared_hold_hours?: number
           id?: boolean
+          reservation_enabled?: boolean
+          reservation_release_hours?: number
+          reservation_reminder_hours?: number
         }
         Relationships: []
       }
@@ -948,7 +1014,7 @@ export type Database = {
           id: string
           leased_until: string | null
           payload: Json
-          product_id: string
+          product_id: string | null
         }
         Insert: {
           created_at?: string
@@ -958,7 +1024,7 @@ export type Database = {
           id?: string
           leased_until?: string | null
           payload: Json
-          product_id: string
+          product_id?: string | null
         }
         Update: {
           created_at?: string
@@ -968,7 +1034,7 @@ export type Database = {
           id?: string
           leased_until?: string | null
           payload?: Json
-          product_id?: string
+          product_id?: string | null
         }
         Relationships: []
       }
@@ -1027,6 +1093,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      checkout_attribution: {
+        Row: {
+          created_at: string
+          payload: Json
+          ref: string
+        }
+        Insert: {
+          created_at?: string
+          payload: Json
+          ref: string
+        }
+        Update: {
+          created_at?: string
+          payload?: Json
+          ref?: string
+        }
+        Relationships: []
       }
       consent_logs: {
         Row: {
@@ -1728,6 +1812,94 @@ export type Database = {
           },
         ]
       }
+      lead_nonces: {
+        Row: {
+          expires_at: string
+          nonce_hash: string
+          origin: string
+          product_id: string | null
+          signature: string
+        }
+        Insert: {
+          expires_at?: string
+          nonce_hash: string
+          origin: string
+          product_id?: string | null
+          signature: string
+        }
+        Update: {
+          expires_at?: string
+          nonce_hash?: string
+          origin?: string
+          product_id?: string | null
+          signature?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_nonces_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_submissions: {
+        Row: {
+          client_consent_text: string | null
+          confirmed_at: string | null
+          consent_text: string | null
+          consent_version: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          marketing_consent: boolean
+          product_id: string | null
+          product_slug: string | null
+          source: string
+          token_hash: string
+        }
+        Insert: {
+          client_consent_text?: string | null
+          confirmed_at?: string | null
+          consent_text?: string | null
+          consent_version?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          marketing_consent?: boolean
+          product_id?: string | null
+          product_slug?: string | null
+          source: string
+          token_hash: string
+        }
+        Update: {
+          client_consent_text?: string | null
+          confirmed_at?: string | null
+          consent_text?: string | null
+          consent_version?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          marketing_consent?: boolean
+          product_id?: string | null
+          product_slug?: string | null
+          source?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_submissions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_bumps: {
         Row: {
           access_duration_days: number | null
@@ -1784,6 +1956,62 @@ export type Database = {
             columns: ["main_product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_payment_attempts: {
+        Row: {
+          amount: number
+          checkout_url: string | null
+          completed_at: string | null
+          created_at: string
+          currency: string
+          expires_at: string
+          id: string
+          kind: string
+          refund_id: string | null
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          transaction_id: string
+        }
+        Insert: {
+          amount: number
+          checkout_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency: string
+          expires_at: string
+          id?: string
+          kind: string
+          refund_id?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          transaction_id: string
+        }
+        Update: {
+          amount?: number
+          checkout_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency?: string
+          expires_at?: string
+          id?: string
+          kind?: string
+          refund_id?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_payment_attempts_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -2175,6 +2403,8 @@ export type Database = {
         Row: {
           abandoned_at: string | null
           amount: number
+          cancel_reason: string | null
+          cancelled_mail_sent_at: string | null
           coupon_id: string | null
           created_at: string
           currency: string
@@ -2183,15 +2413,23 @@ export type Database = {
           expires_at: string | null
           fulfillment_pending: boolean
           id: string
+          invoice_hold_at: string | null
           livemode: boolean
           metadata: Json
           net_total: number | null
           order_cancelled_notified_at: string | null
           order_details: Json | null
+          order_invoice_issued_notified_at: string | null
           order_number: number
           order_overdue_notified_at: string | null
           order_placed_notified_at: string | null
+          order_reminder_notified_at: string | null
+          order_reopened_notified_at: string | null
+          order_transfer_declared_notified_at: string | null
           paid_at: string | null
+          participants_completed_at: string | null
+          participants_mail_sent_at: string | null
+          participants_reminder2_sent_at: string | null
           payment_due_at: string | null
           payment_provider: string
           pricing_snapshot_version: number | null
@@ -2202,13 +2440,20 @@ export type Database = {
           refunded_amount: number | null
           refunded_at: string | null
           refunded_by: string | null
+          release_at: string | null
+          reminder_at: string | null
+          reminder_mail_sent_at: string | null
+          reopened_at: string | null
           session_id: string | null
+          settled_via: string | null
           status: string
           stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
           subscription_id: string | null
           tax_snapshot_status: string
           tax_total: number | null
+          transfer_declared_at: string | null
+          transfer_declared_note: string | null
           transfer_details: Json | null
           transfer_mail_sent_at: string | null
           transfer_paid_mail_sent_at: string | null
@@ -2218,6 +2463,8 @@ export type Database = {
         Insert: {
           abandoned_at?: string | null
           amount: number
+          cancel_reason?: string | null
+          cancelled_mail_sent_at?: string | null
           coupon_id?: string | null
           created_at?: string
           currency: string
@@ -2226,15 +2473,23 @@ export type Database = {
           expires_at?: string | null
           fulfillment_pending?: boolean
           id?: string
+          invoice_hold_at?: string | null
           livemode?: boolean
           metadata?: Json
           net_total?: number | null
           order_cancelled_notified_at?: string | null
           order_details?: Json | null
+          order_invoice_issued_notified_at?: string | null
           order_number?: number
           order_overdue_notified_at?: string | null
           order_placed_notified_at?: string | null
+          order_reminder_notified_at?: string | null
+          order_reopened_notified_at?: string | null
+          order_transfer_declared_notified_at?: string | null
           paid_at?: string | null
+          participants_completed_at?: string | null
+          participants_mail_sent_at?: string | null
+          participants_reminder2_sent_at?: string | null
           payment_due_at?: string | null
           payment_provider?: string
           pricing_snapshot_version?: number | null
@@ -2245,13 +2500,20 @@ export type Database = {
           refunded_amount?: number | null
           refunded_at?: string | null
           refunded_by?: string | null
+          release_at?: string | null
+          reminder_at?: string | null
+          reminder_mail_sent_at?: string | null
+          reopened_at?: string | null
           session_id?: string | null
+          settled_via?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
           subscription_id?: string | null
           tax_snapshot_status?: string
           tax_total?: number | null
+          transfer_declared_at?: string | null
+          transfer_declared_note?: string | null
           transfer_details?: Json | null
           transfer_mail_sent_at?: string | null
           transfer_paid_mail_sent_at?: string | null
@@ -2261,6 +2523,8 @@ export type Database = {
         Update: {
           abandoned_at?: string | null
           amount?: number
+          cancel_reason?: string | null
+          cancelled_mail_sent_at?: string | null
           coupon_id?: string | null
           created_at?: string
           currency?: string
@@ -2269,15 +2533,23 @@ export type Database = {
           expires_at?: string | null
           fulfillment_pending?: boolean
           id?: string
+          invoice_hold_at?: string | null
           livemode?: boolean
           metadata?: Json
           net_total?: number | null
           order_cancelled_notified_at?: string | null
           order_details?: Json | null
+          order_invoice_issued_notified_at?: string | null
           order_number?: number
           order_overdue_notified_at?: string | null
           order_placed_notified_at?: string | null
+          order_reminder_notified_at?: string | null
+          order_reopened_notified_at?: string | null
+          order_transfer_declared_notified_at?: string | null
           paid_at?: string | null
+          participants_completed_at?: string | null
+          participants_mail_sent_at?: string | null
+          participants_reminder2_sent_at?: string | null
           payment_due_at?: string | null
           payment_provider?: string
           pricing_snapshot_version?: number | null
@@ -2288,13 +2560,20 @@ export type Database = {
           refunded_amount?: number | null
           refunded_at?: string | null
           refunded_by?: string | null
+          release_at?: string | null
+          reminder_at?: string | null
+          reminder_mail_sent_at?: string | null
+          reopened_at?: string | null
           session_id?: string | null
+          settled_via?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
           subscription_id?: string | null
           tax_snapshot_status?: string
           tax_total?: number | null
+          transfer_declared_at?: string | null
+          transfer_declared_note?: string | null
           transfer_details?: Json | null
           transfer_mail_sent_at?: string | null
           transfer_paid_mail_sent_at?: string | null
@@ -2772,6 +3051,10 @@ export type Database = {
           is_refundable: boolean
           issue_license_on_purchase: boolean
           layout_template: string
+          lead_consent_required: boolean
+          lead_consent_text_en: string
+          lead_consent_text_pl: string
+          lead_consent_version: string
           license_duration_days: number | null
           license_tier: string | null
           long_description: string | null
@@ -2835,6 +3118,10 @@ export type Database = {
           is_refundable?: boolean
           issue_license_on_purchase?: boolean
           layout_template?: string
+          lead_consent_required?: boolean
+          lead_consent_text_en?: string
+          lead_consent_text_pl?: string
+          lead_consent_version?: string
           license_duration_days?: number | null
           license_tier?: string | null
           long_description?: string | null
@@ -2898,6 +3185,10 @@ export type Database = {
           is_refundable?: boolean
           issue_license_on_purchase?: boolean
           layout_template?: string
+          lead_consent_required?: boolean
+          lead_consent_text_en?: string
+          lead_consent_text_pl?: string
+          lead_consent_version?: string
           license_duration_days?: number | null
           license_tier?: string | null
           long_description?: string | null
@@ -3019,6 +3310,159 @@ export type Database = {
             foreignKeyName: "profiles_id_fkey"
             columns: ["id"]
             isOneToOne: true
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      purchase_attribution: {
+        Row: {
+          affiliate_member_id: string | null
+          channel: string
+          click_id: string | null
+          click_id_expires_at: string | null
+          click_id_type: string | null
+          consent: string
+          country: string | null
+          created_at: string
+          device_class: string
+          first_at: string | null
+          first_campaign: string | null
+          first_channel: string | null
+          first_content: string | null
+          first_landing_path: string | null
+          first_medium: string | null
+          first_referrer_host: string | null
+          first_seen_at: string | null
+          first_source: string | null
+          first_term: string | null
+          first_utm_id: string | null
+          id: string
+          kind: string
+          last_at: string | null
+          last_campaign: string | null
+          last_content: string | null
+          last_landing_path: string | null
+          last_medium: string | null
+          last_referrer_host: string | null
+          last_source: string | null
+          last_term: string | null
+          last_utm_id: string | null
+          mode: string
+          product_id: string | null
+          sessions_count: number | null
+          transaction_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          affiliate_member_id?: string | null
+          channel: string
+          click_id?: string | null
+          click_id_expires_at?: string | null
+          click_id_type?: string | null
+          consent: string
+          country?: string | null
+          created_at?: string
+          device_class?: string
+          first_at?: string | null
+          first_campaign?: string | null
+          first_channel?: string | null
+          first_content?: string | null
+          first_landing_path?: string | null
+          first_medium?: string | null
+          first_referrer_host?: string | null
+          first_seen_at?: string | null
+          first_source?: string | null
+          first_term?: string | null
+          first_utm_id?: string | null
+          id?: string
+          kind: string
+          last_at?: string | null
+          last_campaign?: string | null
+          last_content?: string | null
+          last_landing_path?: string | null
+          last_medium?: string | null
+          last_referrer_host?: string | null
+          last_source?: string | null
+          last_term?: string | null
+          last_utm_id?: string | null
+          mode: string
+          product_id?: string | null
+          sessions_count?: number | null
+          transaction_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          affiliate_member_id?: string | null
+          channel?: string
+          click_id?: string | null
+          click_id_expires_at?: string | null
+          click_id_type?: string | null
+          consent?: string
+          country?: string | null
+          created_at?: string
+          device_class?: string
+          first_at?: string | null
+          first_campaign?: string | null
+          first_channel?: string | null
+          first_content?: string | null
+          first_landing_path?: string | null
+          first_medium?: string | null
+          first_referrer_host?: string | null
+          first_seen_at?: string | null
+          first_source?: string | null
+          first_term?: string | null
+          first_utm_id?: string | null
+          id?: string
+          kind?: string
+          last_at?: string | null
+          last_campaign?: string | null
+          last_content?: string | null
+          last_landing_path?: string | null
+          last_medium?: string | null
+          last_referrer_host?: string | null
+          last_source?: string | null
+          last_term?: string | null
+          last_utm_id?: string | null
+          mode?: string
+          product_id?: string | null
+          sessions_count?: number | null
+          transaction_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_attribution_affiliate_member_id_fkey"
+            columns: ["affiliate_member_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_attribution_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_attribution_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: true
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_attribution_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "purchase_attribution_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "user_access_stats"
             referencedColumns: ["user_id"]
           },
@@ -3890,6 +4334,7 @@ export type Database = {
           created_at: string
           custom_field_values: Json
           expiry_notified_at: string | null
+          grant_source: string
           id: string
           product_id: string
           subscription_id: string | null
@@ -3904,6 +4349,7 @@ export type Database = {
           created_at?: string
           custom_field_values?: Json
           expiry_notified_at?: string | null
+          grant_source: string
           id?: string
           product_id: string
           subscription_id?: string | null
@@ -3918,6 +4364,7 @@ export type Database = {
           created_at?: string
           custom_field_values?: Json
           expiry_notified_at?: string | null
+          grant_source?: string
           id?: string
           product_id?: string
           subscription_id?: string | null
@@ -4389,6 +4836,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      _reopen_cancelled_transfer: { Args: { p_id: string }; Returns: undefined }
       _reserve_coupon: {
         Args: {
           coupon_id_param: string
@@ -4400,6 +4848,7 @@ export type Database = {
       }
       admin_bank_transfer_order: {
         Args: {
+          p_accept_cancelled?: boolean
           p_action: string
           p_actor?: string
           p_amount?: number
@@ -4850,6 +5299,15 @@ export type Database = {
         }
         Returns: Json
       }
+      attach_order_payment_session: {
+        Args: { p_attempt: string; p_session_id: string; p_url?: string }
+        Returns: undefined
+      }
+      attribution_text: {
+        Args: { k: string; max_len: number; p: Json }
+        Returns: string
+      }
+      attribution_time: { Args: { k: string; p: Json }; Returns: string }
       bank_transfer_order: {
         Args: { p_lines: Json; p_order: Json }
         Returns: Json
@@ -4858,6 +5316,9 @@ export type Database = {
         Args: { product_slugs_param: string[] }
         Returns: Json
       }
+      business_event_actor: { Args: never; Returns: Json }
+      business_event_order: { Args: { p_transaction: string }; Returns: Json }
+      business_event_partner: { Args: { p_member: string }; Returns: Json }
       cancel_unpaid_order: {
         Args: { p_reason: string; p_transaction_id: string }
         Returns: Json
@@ -4900,7 +5361,7 @@ export type Database = {
           id: string
           leased_until: string | null
           payload: Json
-          product_id: string
+          product_id: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -4939,6 +5400,16 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      classify_attribution_channel: {
+        Args: {
+          p_campaign: string
+          p_click_type: string
+          p_medium: string
+          p_referrer_host: string
+          p_source: string
+        }
+        Returns: string
+      }
       cleanup_application_rate_limits: { Args: never; Returns: number }
       cleanup_audit_logs: { Args: { retention_days?: number }; Returns: number }
       cleanup_captcha_nonces: { Args: never; Returns: number }
@@ -4961,9 +5432,43 @@ export type Database = {
         Args: { p_paid_minor: number; p_transaction_id: string }
         Returns: Json
       }
+      complete_order_payment_attempt: {
+        Args: {
+          p_amount: number
+          p_attempt: string
+          p_now: string
+          p_payment_intent: string
+          p_session_id: string
+        }
+        Returns: Json
+      }
       confirm_event_order: {
         Args: { p_transaction_id: string }
         Returns: undefined
+      }
+      confirm_lead_submission: {
+        Args: { p_email: string; p_token_hash: string }
+        Returns: {
+          client_consent_text: string | null
+          confirmed_at: string | null
+          consent_text: string | null
+          consent_version: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          marketing_consent: boolean
+          product_id: string | null
+          product_slug: string | null
+          source: string
+          token_hash: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "lead_submissions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       confirm_refund_notification: {
         Args: { p_refund_id: string; p_version: number }
@@ -4976,6 +5481,41 @@ export type Database = {
       currency_minor_factor: {
         Args: { currency_code: string }
         Returns: number
+      }
+      decide_refund_request: {
+        Args: {
+          p_actor: Json
+          p_admin_id: string
+          p_admin_response: string
+          p_request_id: string
+          p_status: string
+        }
+        Returns: {
+          admin_id: string | null
+          admin_response: string | null
+          created_at: string
+          currency: string
+          customer_email: string
+          id: string
+          processed_at: string | null
+          product_id: string
+          reason: string | null
+          requested_amount: number
+          status: string
+          transaction_id: string
+          updated_at: string
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "refund_requests"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      declare_transfer: {
+        Args: { p_id: string; p_note: string; p_now: string }
+        Returns: Json
       }
       enqueue_webhook_delivery: {
         Args: {
@@ -5029,6 +5569,10 @@ export type Database = {
       event_session_admin: {
         Args: { p_offset?: number; p_session_id: string }
         Returns: Json
+      }
+      expire_order_payment_attempt: {
+        Args: { p_session_id: string }
+        Returns: boolean
       }
       expire_seat_reservations: { Args: never; Returns: number }
       find_auto_apply_coupon: {
@@ -5091,6 +5635,16 @@ export type Database = {
           transaction_id: string
           user_id: string
         }[]
+      }
+      get_attribution_report: {
+        Args: {
+          p_from: string
+          p_group_by?: string[]
+          p_product?: string
+          p_to: string
+          p_touch?: string
+        }
+        Returns: Json
       }
       get_checkout_funnel: {
         Args: { p_days?: number; p_product_id?: string }
@@ -5263,7 +5817,23 @@ export type Database = {
         }
         Returns: Json
       }
+      grant_bundle_component_access_impl: {
+        Args: {
+          max_retries?: number
+          product_id_param: string
+          user_id_param: string
+        }
+        Returns: Json
+      }
       grant_free_product_access: {
+        Args: {
+          access_duration_days_param?: number
+          coupon_code_param?: string
+          product_slug_param: string
+        }
+        Returns: boolean
+      }
+      grant_free_product_access_impl: {
         Args: {
           access_duration_days_param?: number
           coupon_code_param?: string
@@ -5288,12 +5858,25 @@ export type Database = {
         }
         Returns: Json
       }
+      grant_product_access_service_role_impl: {
+        Args: {
+          max_retries?: number
+          override_duration_days_param?: number
+          product_id_param: string
+          user_id_param: string
+        }
+        Returns: Json
+      }
       grant_product_and_bundle_components: {
         Args: {
           override_duration_days_param?: number
           product_id_param: string
           user_id_param: string
         }
+        Returns: Json
+      }
+      hold_transfer_for_invoice: {
+        Args: { p_id: string; p_now: string }
         Returns: Json
       }
       increment_coupon_usage: {
@@ -5316,6 +5899,17 @@ export type Database = {
           p_next_retry_at: string
           p_response_body: string
           p_status: string
+        }
+        Returns: undefined
+      }
+      insert_purchase_attribution: {
+        Args: {
+          p_coupon: string
+          p_kind: string
+          p_payload: Json
+          p_product: string
+          p_tx: string
+          p_user: string
         }
         Returns: undefined
       }
@@ -5367,6 +5961,26 @@ export type Database = {
         }
         Returns: Json
       }
+      list_orders_missing_participants: {
+        Args: { p_limit?: number; p_unsent_only?: boolean }
+        Returns: {
+          created_at: string
+          customer_email: string
+          id: string
+          mail_sent_at: string
+          order_number: number
+          product_id: string
+          product_name: string
+          quantity: number
+        }[]
+      }
+      list_participants_reminders_due: {
+        Args: { p_limit?: number; p_now?: string }
+        Returns: {
+          id: string
+          stage: number
+        }[]
+      }
       log_admin_action: {
         Args: {
           action_details?: Json
@@ -5415,6 +6029,7 @@ export type Database = {
           created_at: string
           custom_field_values: Json
           expiry_notified_at: string | null
+          grant_source: string
           id: string
           product_id: string
           subscription_id: string | null
@@ -5425,6 +6040,119 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "user_product_access"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      mutate_access_impl: {
+        Args: {
+          p_access_id?: string
+          p_action: string
+          p_actor?: Json
+          p_product_id?: string
+          p_user_id: string
+          p_values?: Json
+        }
+        Returns: {
+          access_duration_days: number | null
+          access_expires_at: string | null
+          access_granted_at: string
+          created_at: string
+          custom_field_values: Json
+          expiry_notified_at: string | null
+          grant_source: string
+          id: string
+          product_id: string
+          subscription_id: string | null
+          transfer_transaction_id: string | null
+          user_id: string
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "user_product_access"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      mutate_product_as: {
+        Args: {
+          actor_id: string
+          event_actor: Json
+          operation_param: string
+          product_data: Json
+          product_id: string
+        }
+        Returns: {
+          allow_custom_price: boolean
+          allow_repeat_purchase: boolean
+          auto_grant_duration_days: number | null
+          available_from: string | null
+          available_until: string | null
+          billing_interval: string | null
+          billing_interval_count: number | null
+          checkout_profile: Json | null
+          checkout_template: string
+          content_config: Json
+          content_delivery_type: string
+          created_at: string
+          currency: string
+          custom_checkout_fields: Json
+          custom_price_min: number | null
+          custom_price_presets: Json | null
+          description: string | null
+          embed_enabled: boolean
+          enable_waitlist: boolean
+          event_mode: boolean
+          features: Json | null
+          icon: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          is_bundle: boolean
+          is_featured: boolean
+          is_listed: boolean
+          is_refundable: boolean
+          issue_license_on_purchase: boolean
+          layout_template: string
+          lead_consent_required: boolean
+          lead_consent_text_en: string
+          lead_consent_text_pl: string
+          lead_consent_version: string
+          license_duration_days: number | null
+          license_tier: string | null
+          long_description: string | null
+          marketing_fields: Json
+          name: string
+          omnibus_exempt: boolean
+          pass_params_to_redirect: boolean
+          preview_video_config: Json
+          preview_video_url: string | null
+          price: number
+          price_includes_vat: boolean
+          product_type: string
+          recurring_price: number | null
+          refund_period_days: number | null
+          sale_price: number | null
+          sale_price_until: string | null
+          sale_quantity_limit: number | null
+          sale_quantity_sold: number
+          seller_id: string | null
+          show_price_presets: boolean
+          slug: string
+          stripe_price_id: string | null
+          stripe_product_id: string | null
+          success_redirect_url: string | null
+          thumbnail_url: string | null
+          trial_days: number | null
+          updated_at: string
+          vat_exempt: boolean
+          vat_exempt_note: string | null
+          vat_rate: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "products"
           isOneToOne: false
           isSetofReturn: true
         }
@@ -5481,6 +6209,10 @@ export type Database = {
           is_refundable: boolean
           issue_license_on_purchase: boolean
           layout_template: string
+          lead_consent_required: boolean
+          lead_consent_text_en: string
+          lead_consent_text_pl: string
+          lead_consent_version: string
           license_duration_days: number | null
           license_tier: string | null
           long_description: string | null
@@ -5549,6 +6281,21 @@ export type Database = {
           refund_version: number
         }[]
       }
+      open_order_payment_attempt: {
+        Args: {
+          p_amount: number
+          p_currency: string
+          p_expires_at: string
+          p_id: string
+          p_kind: string
+          p_now: string
+        }
+        Returns: Json
+      }
+      order_awaits_participants: {
+        Args: { p_order_details: Json; p_profile: Json; p_status: string }
+        Returns: boolean
+      }
       pending_free_grant_products: {
         Args: never
         Returns: {
@@ -5604,13 +6351,39 @@ export type Database = {
       product_marketing_valid: { Args: { instance: Json }; Returns: boolean }
       product_offer_config_schema: { Args: never; Returns: Json }
       product_offer_config_valid: { Args: { config: Json }; Returns: boolean }
+      product_price_snapshot: {
+        Args: { p: Database["public"]["Tables"]["products"]["Row"] }
+        Returns: Json
+      }
       public_event_availability: {
         Args: { p_product_id: string }
         Returns: Json
       }
+      purge_attribution_click_ids: { Args: never; Returns: number }
       queue_pending_free_grant: {
         Args: { p_email: string; p_product_slug: string }
         Returns: boolean
+      }
+      record_business_event: {
+        Args: {
+          p_event: string
+          p_key: string
+          p_payload: Json
+          p_product: string
+        }
+        Returns: undefined
+      }
+      record_free_attribution: {
+        Args: { p_payload: Json; p_product: string; p_user: string }
+        Returns: undefined
+      }
+      record_free_attribution_from_ref: {
+        Args: { p_product: string; p_ref: string; p_user: string }
+        Returns: undefined
+      }
+      record_order_payment_refund: {
+        Args: { p_attempt: string; p_refund_id: string }
+        Returns: undefined
       }
       record_template_credential_status: {
         Args: {
@@ -5622,6 +6395,10 @@ export type Database = {
           verification_state: string
         }
         Returns: boolean
+      }
+      release_unpaid_transfer: {
+        Args: { p_id: string; p_now: string }
+        Returns: Json
       }
       revoke_issued_licenses: {
         Args: { p_actor?: string; p_license_ids: string[] }
@@ -5638,6 +6415,10 @@ export type Database = {
           p_secret: string
         }
         Returns: boolean
+      }
+      save_attribution_config: {
+        Args: { p_retention_days: number; p_rules: Json }
+        Returns: Json
       }
       save_bank_transfer_config: {
         Args: { p_actor: string; p_config: Json }
@@ -5673,6 +6454,7 @@ export type Database = {
         Args: { alert_details: Json; alert_type: string }
         Returns: undefined
       }
+      set_business_event_actor: { Args: { p_actor: Json }; Returns: undefined }
       set_payment_order_buyer: {
         Args: {
           p_buyer: Json
@@ -5704,6 +6486,10 @@ export type Database = {
         Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
         Returns: undefined
       }
+      store_checkout_attribution: {
+        Args: { p_payload: Json; p_ref: string }
+        Returns: undefined
+      }
       storefront_catalogue_boundary: { Args: never; Returns: string }
       storefront_catalogue_categories: {
         Args: { category_ids: string[] }
@@ -5727,6 +6513,10 @@ export type Database = {
         Returns: number
       }
       storefront_config_valid: { Args: { config: Json }; Returns: boolean }
+      submit_order_participants: {
+        Args: { p_order_id: string; p_people: Json }
+        Returns: Json
+      }
       telemetry_claim_send: {
         Args: { p_lease_ms: number; p_window_ms: number }
         Returns: {
