@@ -307,6 +307,8 @@ ma ten sam klucz dostawy, więc odbiorca dostaje je raz; mimo to deduplikuj po `
 | `product.price_changed` | Zmieniła się cena, cena promocyjna, koniec promocji, cena cykliczna albo waluta. | `price.before/after`: `price`, `salePrice`, `salePriceUntil`, `recurringPrice`, `currency` w jednostkach mniejszych. |
 | `product.sold_out` | Miejsca wstrzymane (niewygasłe) i potwierdzone osiągnęły pojemność terminu wydarzenia. | `session.id/label/startsAt/capacity/taken/remaining`, `reservation`, która go wypełniła. Zwolnione później miejsca zgłasza `seats.released`. |
 
+`actor` to zalogowany administrator (`user`) albo klucz API (`api_key`) przy zmianach z panelu lub API v1, a `system` przy zmianach automatycznych (synchronizacja, zadania cykliczne; działania kupującego zgłaszają `user`). Prośba o zwrot cofnięta do `pending` po nieudanym zwrocie w Stripe jest ogłaszana ponownie jako `refund.requested` ze `statusBefore = "approved"`.
+
 Prowizja partnera staje się wypłacalna, gdy minie `eligibleAt`; Sellf nie wysyła osobnego zdarzenia
 na ten moment, punktem zatwierdzenia jest `payout.reserved`. Okna publikacji (`availableFrom/Until`)
 są w treści, ale sam upływ czasu nie generuje zdarzenia.

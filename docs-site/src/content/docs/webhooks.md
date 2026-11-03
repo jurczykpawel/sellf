@@ -550,6 +550,8 @@ the receiver gets it once; still deduplicate by envelope `id`.
 | `product.price_changed` | Price, sale price, sale end, recurring price or currency changed. | `price.before/after` with `price`, `salePrice`, `salePriceUntil`, `recurringPrice`, `currency` in minor units. |
 | `product.sold_out` | Held (unexpired) plus confirmed seats reached an event session's capacity. | `session.id/label/startsAt/capacity/taken/remaining`, the `reservation` that filled it. Seats freed later are reported by `seats.released`. |
 
+`actor` is the authenticated admin (`user`) or API key (`api_key`) for changes made through the admin panel or the v1 API, and `system` for automatic changes (sync, scheduled jobs, buyer actions report `user`). A refund request returned to `pending` after a failed Stripe refund is announced again as `refund.requested` with `statusBefore = "approved"`.
+
 A partner commission becomes payable when `eligibleAt` passes; Sellf does not send a separate event
 for that moment, the approval point is `payout.reserved`. Publication windows (`availableFrom/Until`)
 are reported in the payload but their passage in time does not produce an event.

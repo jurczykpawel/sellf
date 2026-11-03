@@ -38,6 +38,7 @@ import {
 } from '@/lib/validations/product';
 import { mapApiInputToProductRow, ProductCategoriesSchema, ProductTagsSchema, BundleItemIdsSchema } from '@/lib/api/dto/product';
 import { upsertBundleItems } from '@/lib/services/bundle-items';
+import { accessActor } from '@/lib/services/business-events';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -220,7 +221,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { supabase, admin } = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
+    const auth = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
+    const { supabase, admin } = auth;
 
     // Parse request body
     const body = await parseJsonBody<Record<string, unknown>>(request);
@@ -294,7 +296,8 @@ export async function POST(request: NextRequest) {
 
     // Create product
     const { data: product, error: createError } = await supabase
-      .rpc('mutate_product_with_audit', {
+      .rpc('mutate_product_as', {
+          event_actor: { ...accessActor(auth) },
         operation_param: 'INSERT',
         product_data: { ...sanitizedData, seller_id: admin.userId },
         product_id: null,

@@ -98,7 +98,7 @@ it('tells the receiver about a submitted, rejected and approved refund request w
   const mine = (id: string) => (e: Record<string, any>) => e.refundRequest?.id === id;
   const [submitted] = events('refund.requested', mine(requestId)), [decided] = events('refund.request_rejected', mine(requestId));
   expect(submitted.data).toMatchObject({ amountUnit: 'minor', refundRequest: { statusBefore: 'none', statusAfter: 'pending', requestedAmount: 4900, currency: 'PLN', reason: 'Not what I expected' }, order: { orderId: tx.id, orderNumber: tx.order_number }, customer: { userId: u.id, email: u.email }, product: { id: p.id, slug: p.slug } });
-  expect(decided.data).toMatchObject({ refundRequest: { statusBefore: 'pending', statusAfter: 'rejected', adminResponse: 'Course already consumed', processedAt: expect.any(String) }, actor: { type: expect.any(String) } });
+  expect(decided.data).toMatchObject({ refundRequest: { statusBefore: 'pending', statusAfter: 'rejected', adminResponse: 'Course already consumed', processedAt: expect.any(String) }, actor: { type: 'api_key', id: ctx.actor } });
   expect(events('refund.request_approved', mine(second.data.request_id))[0].data.refundRequest).toMatchObject({ statusAfter: 'approved', requestedAmount: 2500 });
   expect(events('refund.requested', mine(requestId))).toHaveLength(1);
 });
@@ -165,9 +165,11 @@ it('tells the receiver when a product is published, withdrawn, repriced and sold
   await drain();
   const mine = (id: string) => (e: Record<string, any>) => e.product?.id === id;
   expect(events('product.published', mine(p.id))).toHaveLength(1);
-  expect(events('product.published', mine(p.id))[0].data).toMatchObject({ product: { id: p.id, slug: p.slug, isActive: true }, availability: { before: 'unpublished', after: 'published' }, actor: { type: expect.any(String) } });
+  expect(events('product.published', mine(p.id))[0].data).toMatchObject({ product: { id: p.id, slug: p.slug, isActive: true }, availability: { before: 'unpublished', after: 'published' }, actor: { type: 'api_key', id: ctx.actor } });
   const priced = events('product.price_changed', mine(p.id));
   expect(priced).toHaveLength(1);
+  expect(priced[0].data.actor).toEqual({ type: 'api_key', id: ctx.actor });
+  expect(events('product.unpublished', mine(p.id))[0].data.actor).toEqual({ type: 'api_key', id: ctx.actor });
   expect(priced[0].data).toMatchObject({ amountUnit: 'minor', price: { before: { price: 10000, salePrice: null, currency: 'PLN' }, after: { price: 12000, currency: 'PLN' } } });
   expect(events('product.unpublished', mine(p.id))[0].data.availability).toEqual({ before: 'published', after: 'unpublished' });
   const sold = events('product.sold_out', mine(ev.id));
