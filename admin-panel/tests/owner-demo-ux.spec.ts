@@ -55,7 +55,7 @@ async function submit(page: Page) {
 }
 const base = [{ id: 'buyer', types: ['person'], gus: false }, { id: 'quantity', min: 1, max: 20, mode: 'checkout' }];
 
-test('dashboard funnel adds up and keeps details collapsed on a phone @J190', async ({ page }) => {
+test('dashboard funnel adds up and keeps details collapsed on a phone @J200', async ({ page }) => {
   const product = await makeProduct('Funnel UX', []);
   const rows = ['completed', 'pending', 'abandoned', 'cancelled'].map(status => ({
     session_id: `cs_ux_${randomUUID().replace(/-/g, '')}`, product_id: product.id, customer_email: 'pending@sellf.app',
@@ -80,7 +80,7 @@ test('dashboard funnel adds up and keeps details collapsed on a phone @J190', as
   } finally { await admin.cleanup(); }
 });
 
-test('ten participants fit a compact list: paste fills rows, no horizontal scroll, accessible on 390 px @J191', async ({ page }) => {
+test('ten participants fit a compact list: paste fills rows, no horizontal scroll, accessible on 390 px @J201', async ({ page }) => {
   const product = await makeProduct('Ten seats', [...base, { id: 'participants', required: true, prefill_from_buyer: false }]);
   await page.setViewportSize({ width: 390, height: 844 });
   await openCheckout(page, product.slug, 10);
@@ -101,7 +101,7 @@ test('ten participants fit a compact list: paste fills rows, no horizontal scrol
   expect(tx!.order_details.participants.people[9]).toEqual({ first_name: 'Osoba9', last_name: 'Nazwisko9', email: 'osoba9@example.com' });
 });
 
-test('participants can be imported from a CSV file @J191', async ({ page }) => {
+test('participants can be imported from a CSV file @J201', async ({ page }) => {
   const product = await makeProduct('CSV seats', [...base, { id: 'participants', required: true, prefill_from_buyer: false }]);
   await openCheckout(page, product.slug, 3);
   await page.getByLabel('Importuj CSV').setInputFiles({ name: 'people.csv', mimeType: 'text/csv', buffer: Buffer.from('imię,nazwisko,email\nJan,Nowak,jan@example.com\nAnna,Kowalska,anna@example.com\n') });
@@ -110,7 +110,7 @@ test('participants can be imported from a CSV file @J191', async ({ page }) => {
   await expect(page.locator('[id="participants.2.email"]')).toHaveValue('');
 });
 
-test('the buyer can add participants later when the product allows it @J192', async ({ page }) => {
+test('the buyer can add participants later when the product allows it @J202', async ({ page }) => {
   const product = await makeProduct('Later seats', [...base, { id: 'participants', required: true, prefill_from_buyer: false, allow_later: true }]);
   await openCheckout(page, product.slug, 4);
   await page.locator('[id="buyer.first_name"]').fill('Anna');
@@ -123,7 +123,7 @@ test('the buyer can add participants later when the product allows it @J192', as
   expect(tx!.order_details.quantity.value).toBe(4);
 });
 
-test('phone is required, optional or hidden per product @J193', async ({ page }) => {
+test('phone is required, optional or hidden per product @J203', async ({ page }) => {
   const required = await makeProduct('Phone required', [{ id: 'buyer', types: ['person'], gus: false }, { id: 'phone', required: true }]);
   const optional = await makeProduct('Phone optional', [{ id: 'buyer', types: ['person'], gus: false }, { id: 'phone', required: false }]);
   const hidden = await makeProduct('Phone hidden', [{ id: 'buyer', types: ['person'], gus: false }]);

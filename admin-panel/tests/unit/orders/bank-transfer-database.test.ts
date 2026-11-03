@@ -10,4 +10,10 @@ describe('transfer SQL acceptance', () => {
     });
     expect(output).toContain('ROLLBACK');
   });
+  it('times, extends, holds on invoice, releases and reopens unpaid transfer orders', () => {
+    const output = execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1'], {
+      input: readFileSync('../supabase/tests/unpaid-orders.sql'), encoding: 'utf8',
+    });
+    expect(output).toContain('ROLLBACK');
+  });
 });

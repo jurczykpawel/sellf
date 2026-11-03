@@ -12,7 +12,7 @@ afterEach(cleanup);
 describe('cancelled bank transfer page', () => {
   it('shows a prominent notice and hides payment details and print', () => {
     render(createElement(NextIntlClientProvider, { locale: 'pl', messages: pl }, createElement(TransferInstructions, { transfer: { account: 'PL61109010140000071219812874' }, amount: 12300, currency: 'PLN', cancelled: true, print: true })));
-    expect(screen.getByRole('alert').textContent).toContain('Anulowane — nie opłacaj tego zamówienia');
+    expect(screen.getByRole('alert').textContent).toContain('Anulowane — nie wysyłaj przelewu');
     expect(screen.queryByText('Dane do przelewu')).toBeNull();
     expect(screen.queryByText('PL61 1090 1014 0000 0712 1981 2874')).toBeNull();
     expect(screen.queryByText('Drukuj / zapisz PDF')).toBeNull();

@@ -62,6 +62,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .from('payment_transactions')
       .select(`
         id,order_number,payment_provider,payment_due_at,transfer_details,order_details,
+        reminder_at,release_at,invoice_hold_at,transfer_declared_at,transfer_declared_note,cancel_reason,reopened_at,
         customer_email,
         amount,
         currency,
@@ -135,6 +136,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         coupon_code: firstRelated<{ code: string }>(payment.coupons)?.code ?? firstRelated<{ code: string }>(firstRelated<{ coupons: unknown }>(payment.coupon_redemptions)?.coupons)?.code ?? null,
         invoice: firstRelated(payment.invoices) ?? null, payment_provider: payment.payment_provider, payment_due_at: payment.payment_due_at,
         transfer_details: payment.transfer_details, order_details: payment.order_details, line_items: lineItems ?? [],
+        reminder_at: payment.reminder_at, release_at: payment.release_at, invoice_hold_at: payment.invoice_hold_at, transfer_declared_at: payment.transfer_declared_at, transfer_declared_note: payment.transfer_declared_note, cancel_reason: payment.cancel_reason, reopened_at: payment.reopened_at,
         customer_email: payment.customer_email,
         amount: payment.amount,
         currency: payment.currency,

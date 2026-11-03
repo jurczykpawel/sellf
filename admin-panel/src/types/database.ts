@@ -928,7 +928,11 @@ export type Database = {
           bank_transfer_grant_access_on_placement: boolean
           bank_transfer_max_unpaid_per_email: number
           bank_transfer_title_template: string
+          declared_hold_hours: number
           id: boolean
+          reservation_enabled: boolean
+          reservation_release_hours: number
+          reservation_reminder_hours: number
         }
         Insert: {
           bank_account_holder?: string
@@ -939,7 +943,11 @@ export type Database = {
           bank_transfer_grant_access_on_placement?: boolean
           bank_transfer_max_unpaid_per_email?: number
           bank_transfer_title_template?: string
+          declared_hold_hours?: number
           id?: boolean
+          reservation_enabled?: boolean
+          reservation_release_hours?: number
+          reservation_reminder_hours?: number
         }
         Update: {
           bank_account_holder?: string
@@ -950,7 +958,11 @@ export type Database = {
           bank_transfer_grant_access_on_placement?: boolean
           bank_transfer_max_unpaid_per_email?: number
           bank_transfer_title_template?: string
+          declared_hold_hours?: number
           id?: boolean
+          reservation_enabled?: boolean
+          reservation_release_hours?: number
+          reservation_reminder_hours?: number
         }
         Relationships: []
       }
@@ -1948,6 +1960,62 @@ export type Database = {
           },
         ]
       }
+      order_payment_attempts: {
+        Row: {
+          amount: number
+          checkout_url: string | null
+          completed_at: string | null
+          created_at: string
+          currency: string
+          expires_at: string
+          id: string
+          kind: string
+          refund_id: string | null
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          transaction_id: string
+        }
+        Insert: {
+          amount: number
+          checkout_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency: string
+          expires_at: string
+          id?: string
+          kind: string
+          refund_id?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          transaction_id: string
+        }
+        Update: {
+          amount?: number
+          checkout_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency?: string
+          expires_at?: string
+          id?: string
+          kind?: string
+          refund_id?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_payment_attempts_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       oto_offers: {
         Row: {
           created_at: string
@@ -2335,6 +2403,8 @@ export type Database = {
         Row: {
           abandoned_at: string | null
           amount: number
+          cancel_reason: string | null
+          cancelled_mail_sent_at: string | null
           coupon_id: string | null
           created_at: string
           currency: string
@@ -2343,14 +2413,19 @@ export type Database = {
           expires_at: string | null
           fulfillment_pending: boolean
           id: string
+          invoice_hold_at: string | null
           livemode: boolean
           metadata: Json
           net_total: number | null
           order_cancelled_notified_at: string | null
           order_details: Json | null
+          order_invoice_issued_notified_at: string | null
           order_number: number
           order_overdue_notified_at: string | null
           order_placed_notified_at: string | null
+          order_reminder_notified_at: string | null
+          order_reopened_notified_at: string | null
+          order_transfer_declared_notified_at: string | null
           paid_at: string | null
           payment_due_at: string | null
           payment_provider: string
@@ -2362,13 +2437,20 @@ export type Database = {
           refunded_amount: number | null
           refunded_at: string | null
           refunded_by: string | null
+          release_at: string | null
+          reminder_at: string | null
+          reminder_mail_sent_at: string | null
+          reopened_at: string | null
           session_id: string | null
+          settled_via: string | null
           status: string
           stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
           subscription_id: string | null
           tax_snapshot_status: string
           tax_total: number | null
+          transfer_declared_at: string | null
+          transfer_declared_note: string | null
           transfer_details: Json | null
           transfer_mail_sent_at: string | null
           updated_at: string
@@ -2377,6 +2459,8 @@ export type Database = {
         Insert: {
           abandoned_at?: string | null
           amount: number
+          cancel_reason?: string | null
+          cancelled_mail_sent_at?: string | null
           coupon_id?: string | null
           created_at?: string
           currency: string
@@ -2385,14 +2469,19 @@ export type Database = {
           expires_at?: string | null
           fulfillment_pending?: boolean
           id?: string
+          invoice_hold_at?: string | null
           livemode?: boolean
           metadata?: Json
           net_total?: number | null
           order_cancelled_notified_at?: string | null
           order_details?: Json | null
+          order_invoice_issued_notified_at?: string | null
           order_number?: number
           order_overdue_notified_at?: string | null
           order_placed_notified_at?: string | null
+          order_reminder_notified_at?: string | null
+          order_reopened_notified_at?: string | null
+          order_transfer_declared_notified_at?: string | null
           paid_at?: string | null
           payment_due_at?: string | null
           payment_provider?: string
@@ -2404,13 +2493,20 @@ export type Database = {
           refunded_amount?: number | null
           refunded_at?: string | null
           refunded_by?: string | null
+          release_at?: string | null
+          reminder_at?: string | null
+          reminder_mail_sent_at?: string | null
+          reopened_at?: string | null
           session_id?: string | null
+          settled_via?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
           subscription_id?: string | null
           tax_snapshot_status?: string
           tax_total?: number | null
+          transfer_declared_at?: string | null
+          transfer_declared_note?: string | null
           transfer_details?: Json | null
           transfer_mail_sent_at?: string | null
           updated_at?: string
@@ -2419,6 +2515,8 @@ export type Database = {
         Update: {
           abandoned_at?: string | null
           amount?: number
+          cancel_reason?: string | null
+          cancelled_mail_sent_at?: string | null
           coupon_id?: string | null
           created_at?: string
           currency?: string
@@ -2427,14 +2525,19 @@ export type Database = {
           expires_at?: string | null
           fulfillment_pending?: boolean
           id?: string
+          invoice_hold_at?: string | null
           livemode?: boolean
           metadata?: Json
           net_total?: number | null
           order_cancelled_notified_at?: string | null
           order_details?: Json | null
+          order_invoice_issued_notified_at?: string | null
           order_number?: number
           order_overdue_notified_at?: string | null
           order_placed_notified_at?: string | null
+          order_reminder_notified_at?: string | null
+          order_reopened_notified_at?: string | null
+          order_transfer_declared_notified_at?: string | null
           paid_at?: string | null
           payment_due_at?: string | null
           payment_provider?: string
@@ -2446,13 +2549,20 @@ export type Database = {
           refunded_amount?: number | null
           refunded_at?: string | null
           refunded_by?: string | null
+          release_at?: string | null
+          reminder_at?: string | null
+          reminder_mail_sent_at?: string | null
+          reopened_at?: string | null
           session_id?: string | null
+          settled_via?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
           subscription_id?: string | null
           tax_snapshot_status?: string
           tax_total?: number | null
+          transfer_declared_at?: string | null
+          transfer_declared_note?: string | null
           transfer_details?: Json | null
           transfer_mail_sent_at?: string | null
           updated_at?: string
@@ -4711,6 +4821,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      _reopen_cancelled_transfer: { Args: { p_id: string }; Returns: undefined }
       _reserve_coupon: {
         Args: {
           coupon_id_param: string
@@ -4722,6 +4833,7 @@ export type Database = {
       }
       admin_bank_transfer_order: {
         Args: {
+          p_accept_cancelled?: boolean
           p_action: string
           p_actor?: string
           p_amount?: number
@@ -5172,6 +5284,10 @@ export type Database = {
         }
         Returns: Json
       }
+      attach_order_payment_session: {
+        Args: { p_attempt: string; p_session_id: string; p_url?: string }
+        Returns: undefined
+      }
       attribution_text: {
         Args: { k: string; max_len: number; p: Json }
         Returns: string
@@ -5298,6 +5414,16 @@ export type Database = {
         Args: { p_paid_minor: number; p_transaction_id: string }
         Returns: Json
       }
+      complete_order_payment_attempt: {
+        Args: {
+          p_amount: number
+          p_attempt: string
+          p_now: string
+          p_payment_intent: string
+          p_session_id: string
+        }
+        Returns: Json
+      }
       confirm_event_order: {
         Args: { p_transaction_id: string }
         Returns: undefined
@@ -5337,6 +5463,10 @@ export type Database = {
       currency_minor_factor: {
         Args: { currency_code: string }
         Returns: number
+      }
+      declare_transfer: {
+        Args: { p_id: string; p_note: string; p_now: string }
+        Returns: Json
       }
       enqueue_webhook_delivery: {
         Args: {
@@ -5390,6 +5520,10 @@ export type Database = {
       event_session_admin: {
         Args: { p_offset?: number; p_session_id: string }
         Returns: Json
+      }
+      expire_order_payment_attempt: {
+        Args: { p_session_id: string }
+        Returns: boolean
       }
       expire_seat_reservations: { Args: never; Returns: number }
       find_auto_apply_coupon: {
@@ -5667,6 +5801,10 @@ export type Database = {
         }
         Returns: Json
       }
+      hold_transfer_for_invoice: {
+        Args: { p_id: string; p_now: string }
+        Returns: Json
+      }
       increment_coupon_usage: {
         Args: { coupon_id_param: string }
         Returns: undefined
@@ -5935,6 +6073,17 @@ export type Database = {
           refund_version: number
         }[]
       }
+      open_order_payment_attempt: {
+        Args: {
+          p_amount: number
+          p_currency: string
+          p_expires_at: string
+          p_id: string
+          p_kind: string
+          p_now: string
+        }
+        Returns: Json
+      }
       pending_free_grant_products: {
         Args: never
         Returns: {
@@ -6007,6 +6156,10 @@ export type Database = {
         Args: { p_product: string; p_ref: string; p_user: string }
         Returns: undefined
       }
+      record_order_payment_refund: {
+        Args: { p_attempt: string; p_refund_id: string }
+        Returns: undefined
+      }
       record_template_credential_status: {
         Args: {
           checked_at: string
@@ -6017,6 +6170,10 @@ export type Database = {
           verification_state: string
         }
         Returns: boolean
+      }
+      release_unpaid_transfer: {
+        Args: { p_id: string; p_now: string }
+        Returns: Json
       }
       revoke_issued_licenses: {
         Args: { p_actor?: string; p_license_ids: string[] }
