@@ -73,7 +73,7 @@ export async function issueLicensesForOrder(
     }
   }
   if (!licenses.length) return licenses;
-  // A license issued during an open or lost dispute is born revoked (20261103120000_license_events.sql).
+  // A license issued during an open or lost dispute is born revoked (20261103160000_license_events.sql).
   const revoked = await supabase.from('issued_licenses').select('id').eq('order_id', args.orderId).not('revoked_at', 'is', null);
   if (revoked.error) throw new Error('License state unavailable');
   const revokedIds = new Set((revoked.data ?? []).map((row: { id: string }) => row.id));

@@ -1,4 +1,4 @@
-/** Licenses issued after a dispute stay revoked; every committed license change reaches integrators once. @see supabase/migrations/20261103120000_license_events.sql */
+/** Licenses issued after a dispute stay revoked; every committed license change reaches integrators once. @see supabase/migrations/20261103160000_license_events.sql */
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import created from '../fixtures/stripe/charge_dispute_created_needs_response.json';
