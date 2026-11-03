@@ -5,6 +5,7 @@ const dispatch = vi.hoisted(() => vi.fn());
 const fulfill = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/orders/bank-transfer-service', () => ({ dispatchTransferEvent: dispatch, fulfillTransfer: fulfill }));
 import recorded from '../../fixtures/stripe/checkout_completed_receiver.json';
+import quickPay from '../../fixtures/stripe/quick_pay_checkout_completed.json';
 import { quoteOrderPayment, createQuickPaySession, handleQuickPayEvent, isQuickPayObject } from '@/lib/orders/quick-pay';
 import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -86,8 +87,8 @@ describe('session', () => {
 });
 
 describe('webhook completion', () => {
-  const event = (status = 'paid') => ({ ...recorded.data.object, id: 'cs_quick', payment_status: status, amount_total: 8000, currency: 'pln', payment_intent: 'pi_quick',
-    metadata: { sellf_payment_attempt: attemptId, sellf_order: id } }) as unknown as Stripe.Checkout.Session;
+  // Real quick-pay checkout.session.completed (test mode, 170 PLN); only payment_status varies per case.
+  const event = (status = 'paid') => ({ ...quickPay.data.object, payment_status: status }) as unknown as Stripe.Checkout.Session;
   it('only Sellf quick-pay objects are routed here', () => {
     expect(isQuickPayObject(recorded.data.object as unknown as Stripe.Checkout.Session)).toBe(false);
     expect(isQuickPayObject(event())).toBe(true);
@@ -95,7 +96,7 @@ describe('webhook completion', () => {
   it('a paid session completes the order and runs the normal purchase delivery', async () => {
     const { client, rpc } = db({}, { complete_order_payment_attempt: { result: 'completed', transaction_id: id, reopened: false } });
     expect(await handleQuickPayEvent(client, {} as Stripe, 'checkout.session.completed', event(), NOW)).toMatchObject({ processed: true });
-    expect(rpc).toHaveBeenCalledWith('complete_order_payment_attempt', { p_attempt: attemptId, p_session_id: 'cs_quick', p_payment_intent: 'pi_quick', p_amount: 8000, p_now: NOW.toISOString() });
+    expect(rpc).toHaveBeenCalledWith('complete_order_payment_attempt', { p_attempt: attemptId, p_session_id: quickPay.data.object.id, p_payment_intent: quickPay.data.object.payment_intent, p_amount: 17000, p_now: NOW.toISOString() });
     expect(fulfill).toHaveBeenCalledWith(client, id); expect(dispatch).not.toHaveBeenCalled();
   });
   it('reopening announces order.reopened before the purchase', async () => {
@@ -108,7 +109,7 @@ describe('webhook completion', () => {
     const { client, rpc } = db({}, { complete_order_payment_attempt: { result: 'duplicate', transaction_id: id } });
     const create = vi.fn(async () => ({ id: 're_dup' }));
     await handleQuickPayEvent(client, { refunds: { create } } as unknown as Stripe, 'checkout.session.completed', event(), NOW);
-    expect(create).toHaveBeenCalledWith({ payment_intent: 'pi_quick', reason: 'duplicate', metadata: { sellf_payment_attempt: attemptId } }, { idempotencyKey: `sellf-dup-refund-${attemptId}` });
+    expect(create).toHaveBeenCalledWith({ payment_intent: quickPay.data.object.payment_intent, reason: 'duplicate', metadata: { sellf_payment_attempt: attemptId } }, { idempotencyKey: `sellf-dup-refund-${attemptId}` });
     expect(rpc).toHaveBeenCalledWith('record_order_payment_refund', { p_attempt: attemptId, p_refund_id: 're_dup' });
     expect(fulfill).not.toHaveBeenCalled();
   });
@@ -117,7 +118,7 @@ describe('webhook completion', () => {
     expect(await handleQuickPayEvent(client, {} as Stripe, 'checkout.session.completed', event('unpaid'), NOW)).toMatchObject({ processed: true });
     expect(rpc).not.toHaveBeenCalled();
     await handleQuickPayEvent(client, {} as Stripe, 'checkout.session.expired', event('unpaid'), NOW);
-    expect(rpc).toHaveBeenCalledWith('expire_order_payment_attempt', { p_session_id: 'cs_quick' });
+    expect(rpc).toHaveBeenCalledWith('expire_order_payment_attempt', { p_session_id: quickPay.data.object.id });
   });
   it('payment_intent.succeeded for a quick-pay session is acknowledged without a second completion', async () => {
     const { client, rpc } = db({});

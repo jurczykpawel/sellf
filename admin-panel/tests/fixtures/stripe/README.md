@@ -81,3 +81,9 @@ anonymized. No new remote environment is required to exercise these recordings.
 are retained; identifiers, personal data and optional expandable fields are absent.
 The elapsed interval is 604800 seconds. Subscription canceled, customer deleted,
 price and product archived after recording.
+
+`quick_pay_checkout_completed.json` is the real `checkout.session.completed` of a pay-link payment of an unpaid
+transfer order (hosted Checkout, 170 PLN, `pm` card 4242), recorded 2026-11-03 from `/v1/events` during the
+`tests/stripe-live/quick-pay.spec.ts` run. Kept fields only; Stripe IDs replaced consistently, metadata UUIDs replaced
+by test constants, email set to an example address. Amount, currency, status and payment status are unchanged.
+Original event SHA-256: `f0a3eb64acb97836fae80498abec41865f680ca3589077c985a4101dc26a7d83`.

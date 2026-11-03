@@ -20,7 +20,10 @@ async function place(email: string, price: number): Promise<string> {
 const orderPage = (id: string) => `/pl/order/${id}/transfer?token=${signTransferToken(id)}`;
 async function payOnHostedCheckout(page: Page) {
   await page.waitForURL(/checkout\.stripe\.com/, { timeout: 60000 });
-  const card = page.getByTestId('card-accordion-item'); if (await card.isVisible({ timeout: 15000 }).catch(() => false)) await card.click();
+  // Hosted Checkout lists PLN methods (card, BLIK, P24); the card form opens from its accordion item when several are offered.
+  const number = page.locator('input[name="cardNumber"]'), card = page.getByTestId('card-accordion-item');
+  await expect(number.or(card).first()).toBeVisible({ timeout: 60000 });
+  if (!await number.isVisible()) await card.click();
   await page.locator('input[name="cardNumber"]').fill('4242424242424242');
   await page.locator('input[name="cardExpiry"]').fill('1234');
   await page.locator('input[name="cardCvc"]').fill('123');
