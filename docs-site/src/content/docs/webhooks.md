@@ -159,7 +159,7 @@ each invoice at purchase (so they don't change if the buyer later edits their pr
     "net": 100.00, "tax": 23.00, "vatRate": 23,
     "taxBehavior": "exclusive", "taxabilityReason": "standard_rated",
     "taxSnapshotStatus": "captured",
-    "nip": "PL1181697228", "companyName": "Firma Sp. z o.o.",
+    "nip": "PL1181697228", "taxIdType": "pl_nip", "taxIdCountry": "PL", "companyName": "Firma Sp. z o.o.",
     "address": "ul. Przykładowa 123", "city": "Warszawa", "postalCode": "00-000", "country": "PL"
   }
 }
@@ -171,6 +171,10 @@ each invoice at purchase (so they don't change if the buyer later edits their pr
   scale accordingly.
 - `nip` / address fields appear only for B2B (a tax id on the invoice); `net`/`tax`/`vatRate`
   only when tax was captured (`taxSnapshotStatus: captured`).
+- `taxIdType` (`pl_nip`, `eu_vat`, `other`) and `taxIdCountry` follow the company country and
+  appear next to `nip` in both `invoice.paid` and `purchase.completed` (`invoice` object); both are
+  `null` when there is no tax id. Profile checkouts also store `tax_id_type`, `tax_id_country`
+  and, with the optional VIES check, `tax_id_vies` on `orderDetails.buyer`.
 
 For an `invoice.paid` receiver to extend access, use `data.subscription.stripeSubscriptionId`,
 `data.invoice.stripeInvoiceId`, `data.product.id`, `data.customer.userId`, `amountPaid`,

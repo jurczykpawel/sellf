@@ -7,9 +7,17 @@ description: Stałe stawki, Stripe Tax i sprzedaż B2B za granicę.
 
 Sellf zapisuje kraj i NIP / numer VAT nabywcy w zamówieniu. Inny odbiorca nie
 wyznacza podatku. Dane są dostępne w panelu płatności i webhookach zakupu.
-Profil wymaga poprawnego polskiego NIP dla Polski, a dla pozostałych krajów UE
-numeru VAT z prefiksem zgodnym z krajem (Grecja: EL). Poza UE numer jest opcjonalny:
-litery, cyfry i myślniki, maksymalnie 40 znaków. Sellf sprawdza format, bez VIES.
+Reguła zależy od kraju z adresu firmy: Polska wymaga poprawnego NIP (suma kontrolna);
+pozostałe kraje UE wymagają numeru VAT w formacie danego kraju (prefiks kraju dodamy,
+jeśli kupujący go pominie; Grecja: EL); poza UE przyjmujemy dowolny identyfikator bez
+sprawdzania formatu (opcjonalny, do 40 znaków, bez `<` i `>`). Zamówienie, faktura,
+`purchase.completed` (`invoice.taxIdType`, `invoice.taxIdCountry`) i API płatności
+dostają typ (`pl_nip`, `eu_vat`, `other`) i kraj. Pobieranie danych z GUS tylko dla Polski.
+
+**Opcjonalne sprawdzenie w VIES.** Ustaw `SELLF_VIES_CHECK_ENABLED=true`, a Sellf przy
+składaniu zamówienia zapyta unijny VIES o numer VAT UE. Nigdy nie blokuje zamówienia:
+po 3 sekundach albo przy awarii wynik to `unavailable`. Wynik trafia do `order_details`
+jako `tax_id_vies` (`valid`, `invalid`, `unavailable`) przy nabywcy.
 
 W trybie **Stripe Tax** Sellf przekazuje adres i numer VAT UE nabywcy do Customer
 w Stripe. Stripe oblicza podatek i może zastosować odwrotne obciążenie dla

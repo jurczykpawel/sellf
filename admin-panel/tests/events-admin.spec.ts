@@ -43,12 +43,19 @@ test('creates an event with two tiers and previews thirty seats at the early pri
   await expect(page.getByText('Zostało 30 miejsc w tej cenie',{exact:true})).toBeVisible();
   await expect(page.getByText('Potem: 67 PLN',{exact:true})).toBeVisible();
 });
-test('shows seeded sold seats and named participants',async({page})=>{
+test('shows seeded sold seats and named participants in a preview drawn with real buttons',async({page})=>{
   await edit(page,'Warsztat automatyzacji');
   await page.getByRole('button',{name:'Co zobaczy kupujący / zamówienia',exact:true}).click();
   await expect(page.getByText('Sprzedane: 2 · Zarezerwowane: 0 · Wolne: 58',{exact:true})).toBeVisible();
   await expect(page.getByRole('cell',{name:'anna.events@example.com',exact:true})).toBeVisible();
   await expect(page.getByRole('cell',{name:'piotr.events@example.com',exact:true})).toBeVisible();
+  // U52-3: every action in the buyer/orders preview is drawn as a button (border + padding), not plain text.
+  const looks = await page.getByRole('region',{name:'Co zobaczy kupujący / zamówienia'}).getByRole('button').evaluateAll(buttons => buttons.map(b => { const s = getComputedStyle(b); return { text: b.textContent, border: parseFloat(s.borderTopWidth), padding: parseFloat(s.paddingLeft) }; }));
+  expect(looks.length).toBeGreaterThanOrEqual(3);
+  for (const look of looks) {
+    expect(look.border, `${look.text} border`).toBeGreaterThan(0);
+    expect(look.padding, `${look.text} padding`).toBeGreaterThanOrEqual(8);
+  }
   const response = await page.request.patch('/api/v1/products/e3000000-0000-4000-a000-000000000001', { headers: { Origin: new URL(page.url()).origin }, data: { sessions: [] } });
   expect(response.status()).toBe(409);
 });

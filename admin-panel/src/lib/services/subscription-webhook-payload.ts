@@ -19,6 +19,7 @@
 
 import type Stripe from 'stripe';
 import { fromMinorUnits } from '@/lib/currency/minor-units';
+import { describeTaxId } from '@/lib/validation/tax-id';
 import type { OrderTaxSnapshot } from '@/lib/services/tax-snapshot';
 
 export interface SubProductSummary {
@@ -226,6 +227,8 @@ export function buildInvoicePaidPayload(input: BaseInput & {
         city: invAddr?.city ?? null,
         postalCode: invAddr?.postal_code ?? null,
         country: invAddr?.country ?? null,
+        taxIdType: describeTaxId(invTaxId, invAddr?.country)?.type ?? null,
+        taxIdCountry: invAddr?.country ?? null,
       }),
     },
   };

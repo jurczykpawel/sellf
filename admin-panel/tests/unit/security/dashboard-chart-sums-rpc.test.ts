@@ -97,11 +97,12 @@ afterAll(async () => {
   }
 });
 
-async function chart(args: { start: string; end: string; product?: string }) {
+async function chart(args: { start: string; end: string; product?: string; timezone?: string }) {
   const { data, error } = await supabaseAdmin.rpc('get_sales_chart_data', {
     p_start_date: args.start,
     p_end_date: args.end,
     p_product_id: args.product ?? null,
+    ...(args.timezone ? { p_timezone: args.timezone } : {}),
   });
   expect(error).toBeNull();
   return data as { date: string; amount_by_currency: Record<string, number>; orders: number }[];
@@ -134,6 +135,24 @@ describe('get_sales_chart_data sums every payment of the day', () => {
     expect(rows).toHaveLength(1);
     expect(Number(rows[0].amount_by_currency.PLN)).toBe(7300);
     expect(rows[0].orders).toBe(6);
+  });
+});
+
+describe('get_sales_chart_data groups days in the seller timezone (W78)', () => {
+  it('puts a purchase after local midnight on the local day, not the UTC day', async () => {
+    const rows = await chart({ start: `${DAY}T00:00:00Z`, end: `${NEXT_DAY}T23:59:59Z`, product: productId, timezone: 'Europe/Warsaw' });
+
+    expect(rows.map((r) => r.date)).toEqual([DAY, NEXT_DAY]);
+    expect(Number(rows[0].amount_by_currency.PLN)).toBe(6000);
+    expect(rows[0].orders).toBe(4);
+    expect(Number(rows[1].amount_by_currency.PLN)).toBe(1100);
+    expect(rows[1].orders).toBe(2);
+  });
+
+  it('falls back to UTC days for an unknown timezone', async () => {
+    const rows = await chart({ start: `${DAY}T00:00:00Z`, end: `${NEXT_DAY}T23:59:59Z`, product: productId, timezone: 'Not/AZone' });
+
+    expect(Number(rows[0].amount_by_currency.PLN)).toBe(6400);
   });
 });
 

@@ -84,6 +84,11 @@ znajdują się w [dokumentacji webhooków po angielsku](/webhooks/).
 
 ## Potwierdzenie zwrotu i opłaconego okresu
 
+Obiekt `invoice` w `purchase.completed` i `invoice.paid` zawiera obok `nip` pola
+`taxIdType` (`pl_nip`, `eu_vat`, `other`) i `taxIdCountry`, wyznaczane z kraju firmy;
+bez identyfikatora oba mają wartość `null`. Koszyk z profilem zapisuje też w
+`orderDetails.buyer` pola `tax_id_type`, `tax_id_country` i, przy włączonym VIES, `tax_id_vies`.
+
 `invoice.paid` wiąże `data.invoice.stripeInvoiceId` z
 `data.subscription.stripeSubscriptionId`, `data.product.id` i `data.customer.userId`.
 Faktura zawiera `amountPaid` (główna jednostka waluty), `currency` i `paidAt`.

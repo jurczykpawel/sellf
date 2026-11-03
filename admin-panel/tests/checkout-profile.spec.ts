@@ -356,8 +356,8 @@ test('product without profile retains the original form', async ({ page }) => {
 });
 
 
-for (const [country, nip] of [['DE', 'DE123456789'], ['US', '']] as const) {
-  test(`organization in ${country} saves its tax number and country`, async ({ page }) => {
+for (const [country, nip, stored, type] of [['DE', 'DE123456789', 'DE123456789', 'eu_vat'], ['DE', '123 456 789', 'DE123456789', 'eu_vat'], ['US', 'EIN 12-3456789', 'EIN 12-3456789', 'other'], ['US', '', '', undefined]] as const) {
+  test(`organization in ${country} saves its tax number "${nip}" with country and type @J220`, async ({ page }) => {
     expect((await db.from('products').update({ checkout_profile: profile }).eq('id', product.id)).error).toBeNull();
     const session = await open(page);
     await page.getByLabel('Typ nabywcy').selectOption('organization');
@@ -374,11 +374,13 @@ for (const [country, nip] of [['DE', 'DE123456789'], ['US', '']] as const) {
     expect((await updated).status()).toBe(200);
     const { data: tx, error } = await db.from('payment_transactions').select('order_details').eq('session_id', session).single();
     expect(error).toBeNull();
-    expect(tx!.order_details).toMatchObject({ buyer: { country, nip }, recipient: { country, nip } });
+    const taxId = type ? { tax_id_type: type, tax_id_country: country } : {};
+    expect(tx!.order_details).toMatchObject({ buyer: { country, nip: stored, ...taxId }, recipient: { country, nip: stored, ...taxId } });
+    if (!type) expect(tx!.order_details).not.toHaveProperty('buyer.tax_id_type');
   });
 }
 
-test('EU tax number error explains that its prefix must match the selected country', async ({ page }) => {
+test('EU tax number error explains the format of the selected country', async ({ page }) => {
   expect((await db.from('products').update({ checkout_profile: profile }).eq('id', product.id)).error).toBeNull();
   await open(page);
   await page.getByLabel('Typ nabywcy').selectOption('organization');
@@ -386,8 +388,10 @@ test('EU tax number error explains that its prefix must match the selected count
   await page.locator('[id="buyer.country"]').selectOption('DE');
   await page.locator('[id="buyer.nip"]').fill('FRAB123456789');
   await submit(page);
-  await expect(page.locator('[id="buyer.nip-error"]')).toContainText('prefiksem zgodnym z wybranym krajem');
+  await expect(page.locator('[id="buyer.nip-error"]')).toContainText('w formacie wybranego kraju');
   await expect(page.locator('[id="buyer.nip"]')).toBeFocused();
+  // U52-2: the first invalid field is scrolled into view, not just focused off-screen.
+  await expect(page.locator('[id="buyer.nip"]')).toBeInViewport();
 });
 
 test('phone has one visible label and an accessible input in both languages', async ({ page }) => {

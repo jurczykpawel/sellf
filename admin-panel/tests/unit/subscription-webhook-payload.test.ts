@@ -170,6 +170,7 @@ describe('subscription-webhook-payload', () => {
       expect(payload.invoice).toMatchObject({
         nip: 'PL1181697228', companyName: 'Firma Sp. z o.o.',
         address: 'ul. Przykładowa 123', city: 'Warszawa', postalCode: '00-000', country: 'PL',
+        taxIdType: 'pl_nip', taxIdCountry: 'PL',
       });
     });
 

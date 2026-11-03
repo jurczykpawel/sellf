@@ -248,8 +248,8 @@
         "invalid": "Wpisz poprawną wartość.",
         "required": "To pole jest wymagane.",
         "invalid_nip": "Wpisz poprawny polski NIP (10 cyfr i prawidłowa suma kontrolna).",
-        "invalid_eu_vat": "Wpisz numer VAT UE z prefiksem zgodnym z wybranym krajem (np. DE123456789; Grecja: EL).",
-        "invalid_tax_id": "Użyj liter, cyfr lub myślników (maks. 40 znaków); numer jest opcjonalny.",
+        "invalid_eu_vat": "Wpisz numer VAT UE w formacie wybranego kraju (np. DE123456789; Grecja: EL). Prefiks kraju dodamy, jeśli go pominiesz.",
+        "invalid_tax_id": "Maksymalnie 40 znaków, bez < i >; numer jest opcjonalny.",
         "phone_country_code": "Zacznij numer od kierunkowego kraju, np. +48 500 600 700.",
         "phone_too_short": "Numer jest za krótki lub nieprawidłowy — po kierunkowym kraju podaj pełny numer.",
         "duplicate_email": "Każdy uczestnik musi mieć inny e-mail.",
@@ -4892,7 +4892,7 @@
   "legalPages": {
     "privacy": {
       "title": "Polityka Prywatności",
-      "configRequired": "Wymagana Konfiguracja",
+      "configRequired": "Wymagana konfiguracja",
       "configDescription": "Aby wyświetlić Politykę Prywatności, skonfiguruj URL w jeden z tych sposobów:",
       "option1Title": "Opcja 1: Panel Admina (Zalecane)",
       "option1Description": "Przejdź do Ustawień → Dokumenty Prawne i wprowadź URL Polityki Prywatności.",
@@ -4902,7 +4902,7 @@
     },
     "terms": {
       "title": "Regulamin",
-      "configRequired": "Wymagana Konfiguracja",
+      "configRequired": "Wymagana konfiguracja",
       "configDescription": "Aby wyświetlić Regulamin, skonfiguruj URL w jeden z tych sposobów:",
       "option1Title": "Opcja 1: Panel Admina (Zalecane)",
       "option1Description": "Przejdź do Ustawień → Dokumenty Prawne i wprowadź URL Regulaminu.",

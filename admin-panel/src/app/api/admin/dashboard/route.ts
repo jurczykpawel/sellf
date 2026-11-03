@@ -22,7 +22,7 @@ const timezone = z.string().max(64).refine(isValidTimezone).optional();
 const date = (value?: string) => (value ? new Date(value) : undefined);
 
 const reads = {
-  chart: z.object({ days: z.coerce.number().int().min(0).max(3650).default(30), start: isoDate, end: isoDate, productId }),
+  chart: z.object({ days: z.coerce.number().int().min(0).max(3650).default(30), start: isoDate, end: isoDate, productId, timezone }),
   hourly: z.object({ productId, timezone }),
   goal: z.object({ productId }),
   stats: z.object({ productId, goalStart: isoDate }),
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     const q = parsed.data as Record<string, string | number | undefined>;
 
     const data = await {
-      chart: () => getSalesChartData(q.days as number, date(q.start as string), date(q.end as string), q.productId as string),
+      chart: () => getSalesChartData(q.days as number, date(q.start as string), date(q.end as string), q.productId as string, q.timezone as string),
       hourly: () => getHourlyRevenueStats(q.timezone as string, q.productId as string),
       goal: () => getRevenueGoal(q.productId as string),
       stats: () => getRevenueStats(q.productId as string, date(q.goalStart as string)),

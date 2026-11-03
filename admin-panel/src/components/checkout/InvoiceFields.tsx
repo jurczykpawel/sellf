@@ -1,27 +1,39 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { InvoiceFieldsData } from '@/hooks/useInvoiceData';
 import { shouldShowCompanyFields } from '@/lib/checkout/invoice-form-logic';
-import { EU_COUNTRIES } from '@/lib/checkout/eu-countries';
+import { getCountryOptions } from '@/lib/checkout/countries';
 
 interface InvoiceFieldsProps {
   invoice: InvoiceFieldsData;
-  /**
-   * Show the buyer-country selector. Only meaningful in Stripe Tax mode, where the buyer's
-   * country drives the jurisdiction + EU B2B reverse charge. In Fixed-Rate (local) mode the
-   * tax is a flat rate independent of the buyer's country, so the selector is hidden to keep
-   * the form minimal.
-   */
-  showCountry?: boolean;
 }
 
-
-export default function InvoiceFields({ invoice, showCountry = false }: InvoiceFieldsProps) {
+export default function InvoiceFields({ invoice }: InvoiceFieldsProps) {
   const t = useTranslations('checkout');
+  const locale = useLocale();
 
   return (
     <div className="space-y-3">
+      {/* Company country first: it decides how the tax id is checked (PL NIP / EU VAT / other)
+          and drives Stripe Tax in stripe_tax mode. */}
+      <div>
+        <label htmlFor="country" className="block text-sm font-medium text-sf-body mb-2">
+          {t('countryLabel', { defaultValue: 'Country' })}
+        </label>
+        <select
+          id="country"
+          value={invoice.country}
+          onChange={(e) => invoice.setCountry(e.target.value)}
+          disabled={invoice.isLoadingGUS}
+          className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:cursor-not-allowed"
+        >
+          {getCountryOptions(locale, invoice.country).map((c) => (
+            <option key={c.code} value={c.code}>{c.name}</option>
+          ))}
+        </select>
+      </div>
+
       {/* NIP / Tax ID */}
       <div>
         <label htmlFor="nip" className="block text-sm font-medium text-sf-body mb-2">
@@ -71,7 +83,7 @@ export default function InvoiceFields({ invoice, showCountry = false }: InvoiceF
       </div>
 
       {/* Company fields — shown when NIP is long enough or GUS data loaded */}
-      {shouldShowCompanyFields({ nip: invoice.nip, hasGusData: !!invoice.gusData, companyName: invoice.companyName }) && (
+      {shouldShowCompanyFields({ nip: invoice.nip, country: invoice.country, hasGusData: !!invoice.gusData, companyName: invoice.companyName }) && (
         <div className={`space-y-3 animate-in slide-in-from-top-2 duration-300 ${invoice.isLoadingGUS ? 'opacity-60 pointer-events-none' : ''}`}>
           <div>
             <label htmlFor="companyName" className="block text-sm font-medium text-sf-body mb-2">
@@ -131,26 +143,6 @@ export default function InvoiceFields({ invoice, showCountry = false }: InvoiceF
               />
             </div>
           </div>
-          {/* Buyer's country — drives Stripe Tax jurisdiction + EU B2B reverse charge. Shown
-              only in Stripe Tax mode; in Fixed-Rate mode the rate is flat (country irrelevant). */}
-          {showCountry && (
-            <div>
-              <label htmlFor="country" className="block text-sm font-medium text-sf-body mb-2">
-                {t('countryLabel', { defaultValue: 'Country' })}
-              </label>
-              <select
-                id="country"
-                value={invoice.country}
-                onChange={(e) => invoice.setCountry(e.target.value)}
-                disabled={invoice.isLoadingGUS}
-                className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:cursor-not-allowed"
-              >
-                {EU_COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.code}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
       )}
     </div>

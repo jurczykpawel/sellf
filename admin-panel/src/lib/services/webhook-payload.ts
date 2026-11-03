@@ -18,6 +18,8 @@ import type { WebhookOrderDetails } from '@/lib/checkout-modules/order-details';
 import type { DisplayCustomField } from '@/lib/format-custom-fields';
 import type { CustomFieldDefinition } from '@/lib/validations/custom-checkout-fields';
 import type { OrderTaxSnapshot } from '@/lib/services/tax-snapshot';
+import { describeTaxId } from '@/lib/validation/tax-id';
+import type { TaxIdType } from '@/lib/validation/tax-id';
 
 type AnySupabaseClient = SupabaseClient<any, any, any>;
 
@@ -78,6 +80,9 @@ export interface PurchaseWebhookData {
     recipient?: WebhookOrderDetails['recipient'];
     needsInvoice?: boolean;
     nip?: string | null;
+    /** pl_nip | eu_vat | other, from the company country; null without a tax id. */
+    taxIdType?: TaxIdType | null;
+    taxIdCountry?: string | null;
     companyName?: string | null;
     address?: string | null;
     city?: string | null;
@@ -99,6 +104,11 @@ export interface PurchaseWebhookData {
   licenses?: Array<{ productId: string; token: string; kid: string; jwksUrl: string }>;
   /** Where the purchase came from, frozen at purchase (@see lib/attribution/report.ts). Absent when none was recorded. */
   attribution?: WebhookAttribution;
+}
+
+function taxIdWebhookFields(nip: string | null | undefined, country: string | null | undefined): { taxIdType: TaxIdType | null; taxIdCountry: string | null } {
+  const taxId = describeTaxId(nip, country);
+  return { taxIdType: taxId?.type ?? null, taxIdCountry: taxId?.country ?? null };
 }
 
 export interface EventWebhookLine { product_id: string; session_id: string | null; session_starts_at: string | null; session_label: string | null; tier_id: string | null; tier_label: string | null }
@@ -299,6 +309,7 @@ export async function buildPurchaseWebhookPayload(
         needsInvoice: true, nip: d.buyer.nip || null, companyName: d.buyer.company_name || null,
         address: d.buyer.address || null, city: d.buyer.city || null,
         postalCode: d.buyer.postal_code || null, country: d.buyer.country || null,
+        ...taxIdWebhookFields(d.buyer.nip, d.buyer.country),
         ...(d.recipient?.differs && { recipient: d.recipient }),
       };
     }
@@ -311,6 +322,7 @@ export async function buildPurchaseWebhookPayload(
       city: metadata.city || null,
       postalCode: metadata.postal_code || null,
       country: metadata.country || null,
+      ...taxIdWebhookFields(metadata.nip, metadata.country),
     };
   } else {
     const taxId = stripeCustomerDetails?.tax_ids?.find((t) => t.value)?.value ?? null;
@@ -324,6 +336,7 @@ export async function buildPurchaseWebhookPayload(
         city: a?.city || null,
         postalCode: a?.postal_code || null,
         country: a?.country || null,
+        ...taxIdWebhookFields(taxId, a?.country),
       };
     }
   }

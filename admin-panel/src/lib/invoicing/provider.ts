@@ -1,7 +1,10 @@
 /** Provider-neutral invoice contract. @see ./service.ts */
+import type { TaxIdType } from '@/lib/validation/tax-id';
 export interface InvoiceParty {
   name: string; nip?: string; street?: string; city?: string; postalCode?: string;
   country?: string; email?: string; company?: boolean;
+  /** pl_nip | eu_vat | other — derived from the company country. @see ../validation/tax-id.ts */
+  taxIdType?: TaxIdType;
 }
 export interface InvoiceInput {
   externalKey: string; currency: string; issuedAt: string; paidAt?: string; dueAt?: string;

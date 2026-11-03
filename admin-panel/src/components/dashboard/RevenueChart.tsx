@@ -75,10 +75,10 @@ export default function RevenueChart() {
         setData(await readDashboard<any[]>('hourly', { productId, timezone: getUserTimezone() }, signal));
       } else if (dateRange.start && dateRange.end) {
         setData(await readDashboard<ChartDataPoint[]>('chart', {
-          days: 0, start: dateRange.start.toISOString(), end: dateRange.end.toISOString(), productId,
+          days: 0, start: dateRange.start.toISOString(), end: dateRange.end.toISOString(), productId, timezone: getUserTimezone(),
         }, signal));
       } else {
-        setData(await readDashboard<ChartDataPoint[]>('chart', { days: 30, productId }, signal));
+        setData(await readDashboard<ChartDataPoint[]>('chart', { days: 30, productId, timezone: getUserTimezone() }, signal));
       }
     } catch (err) {
       if (signal?.aborted) return;

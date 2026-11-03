@@ -7,9 +7,8 @@ import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
 import CheckoutProfileFields from '@/components/checkout/CheckoutProfileFields';
 import { formatPrice } from '@/lib/constants';
 import { formatBillingIntervalLabel } from '@/lib/product-pricing-display';
-import { validateTaxId } from '@/lib/validation/nip';
 import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
-import { shouldRequestInvoice, shouldCollectBuyerCountry } from '@/lib/checkout/invoice-form-logic';
+import { hasValidTaxId, shouldRequestInvoice, taxIdErrorCode } from '@/lib/checkout/invoice-form-logic';
 import { useTracking } from '@/hooks/useTracking';
 import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
 import InvoiceFields from '@/components/checkout/InvoiceFields';
@@ -84,7 +83,6 @@ export default function CustomPaymentForm({
   pricing,
   paymentMethodOrder,
   expressCheckoutConfig,
-  taxMode,
   collectTermsOfService,
   termsAccepted,
   onTermsAcceptedChange: setTermsAccepted,
@@ -183,12 +181,9 @@ export default function CustomPaymentForm({
       return;
     }
 
-    if (!profile && invoice.nip && invoice.nip.trim().length > 0) {
-      const validation = validateTaxId(invoice.nip, true);
-      if (!validation.isValid) {
-        setErrorMessage(validation.error || t('invalidTaxIdFormat'));
-        return;
-      }
+    if (!profile && invoice.nip && invoice.nip.trim().length > 0 && !hasValidTaxId(invoice.nip, invoice.country)) {
+      setErrorMessage(t(`profile.errors.${taxIdErrorCode(invoice.country)}`));
+      return;
     }
 
     setIsProcessing(true);
@@ -225,7 +220,7 @@ export default function CustomPaymentForm({
             moduleValues: profile ? profileForm.values : undefined,
             fullName: invoice.fullName,
             termsAccepted: showTos ? termsAccepted : undefined,
-            needsInvoice: shouldRequestInvoice(invoice.nip),
+            needsInvoice: shouldRequestInvoice(invoice.nip, invoice.country),
             nip: invoice.nip || undefined,
             companyName: invoice.companyName || undefined,
             address: invoice.address || undefined,
@@ -448,7 +443,7 @@ export default function CustomPaymentForm({
 
       {/* Invoice Fields (NIP + company). Country selector only in Stripe Tax mode (drives
           jurisdiction + reverse charge); in Fixed-Rate mode the rate is flat. */}
-      {!profile && <InvoiceFields invoice={invoice} showCountry={shouldCollectBuyerCountry(taxMode)} />}
+      {!profile && <InvoiceFields invoice={invoice} />}
 
       {/* Product-defined custom checkout fields (e.g. message, domain). */}
       {customFieldDefs.length > 0 && onCustomFieldValuesChange && (

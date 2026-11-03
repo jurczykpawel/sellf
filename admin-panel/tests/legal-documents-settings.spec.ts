@@ -453,8 +453,9 @@ test.describe('Legal Documents Settings', () => {
       const heading = page.locator('h1', { hasText: 'Terms of Service' });
       await expect(heading).toBeVisible();
 
-      // Check for Configuration Required heading (h2)
-      const configRequired = page.locator('h2', { hasText: 'Configuration Required' });
+      // "Configuration Required" appears exactly once (U77-6)
+      const configRequired = page.getByText('Configuration Required', { exact: true });
+      await expect(configRequired).toHaveCount(1);
       await expect(configRequired).toBeVisible();
 
       // Should mention Admin Panel option
@@ -487,7 +488,8 @@ test.describe('Legal Documents Settings', () => {
       const heading = page.locator('h1', { hasText: 'Privacy Policy' });
       await expect(heading).toBeVisible();
 
-      const configRequired = page.locator('h2', { hasText: 'Configuration Required' });
+      const configRequired = page.getByText('Configuration Required', { exact: true });
+      await expect(configRequired).toHaveCount(1);
       await expect(configRequired).toBeVisible();
     } else {
       // If redirected, .env had a URL - verify we actually went somewhere valid
@@ -537,7 +539,8 @@ test.describe('Legal Documents Settings', () => {
 
     // If we're still on /terms, empty string was treated as no URL
     if (currentUrl.includes('/terms')) {
-      const configRequired = page.locator('h2', { hasText: 'Configuration Required' });
+      const configRequired = page.getByText('Configuration Required', { exact: true });
+      await expect(configRequired).toHaveCount(1);
       await expect(configRequired).toBeVisible();
     } else {
       // If redirected, .env had a URL - verify we actually went somewhere valid

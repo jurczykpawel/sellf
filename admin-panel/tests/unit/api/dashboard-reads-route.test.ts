@@ -38,7 +38,7 @@ it('reports an unexpected failure as 500 without its details', async () => {
   expect(JSON.stringify(await response.json())).not.toContain('hunter2');
 });
 
-it.each(['read=nope', 'read=constructor', 'read=chart&productId=not-a-uuid', 'read=chart&start=yesterday', 'read=rates&base=EURO', 'read=rates', 'read=hourly&timezone=Not/AZone'])('rejects %s', async query => {
+it.each(['read=nope', 'read=constructor', 'read=chart&productId=not-a-uuid', 'read=chart&start=yesterday', 'read=rates&base=EURO', 'read=rates', 'read=hourly&timezone=Not/AZone', 'read=chart&timezone=Not/AZone'])('rejects %s', async query => {
   m.admin.mockResolvedValue({});
   expect((await call(query)).status).toBe(400);
   expect(m.chart).not.toHaveBeenCalled();
@@ -48,10 +48,10 @@ it.each(['read=nope', 'read=constructor', 'read=chart&productId=not-a-uuid', 're
 it('passes parsed chart arguments to the action', async () => {
   m.admin.mockResolvedValue({});
   m.chart.mockResolvedValue([{ date: '2026-10-01', amount: { PLN: 100 }, orders: 1 }]);
-  const response = await call(`read=chart&days=0&start=2026-10-01T00:00:00.000Z&end=2026-10-25T00:00:00.000Z&productId=${PRODUCT}`);
+  const response = await call(`read=chart&days=0&start=2026-10-01T00:00:00.000Z&end=2026-10-25T00:00:00.000Z&productId=${PRODUCT}&timezone=Europe/Warsaw`);
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({ data: [{ date: '2026-10-01', amount: { PLN: 100 }, orders: 1 }] });
-  expect(m.chart).toHaveBeenCalledWith(0, new Date('2026-10-01T00:00:00.000Z'), new Date('2026-10-25T00:00:00.000Z'), PRODUCT);
+  expect(m.chart).toHaveBeenCalledWith(0, new Date('2026-10-01T00:00:00.000Z'), new Date('2026-10-25T00:00:00.000Z'), PRODUCT, 'Europe/Warsaw');
 });
 
 it('upper-cases the exchange rate base and defaults the chart to 30 days', async () => {
@@ -61,7 +61,7 @@ it('upper-cases the exchange rate base and defaults the chart to 30 days', async
   await call('read=rates&base=eur');
   await call('read=chart');
   expect(m.rates).toHaveBeenCalledWith('EUR');
-  expect(m.chart).toHaveBeenCalledWith(30, undefined, undefined, undefined);
+  expect(m.chart).toHaveBeenCalledWith(30, undefined, undefined, undefined, undefined);
 });
 
 it('passes the viewer timezone to the hourly read', async () => {

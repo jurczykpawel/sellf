@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { validateTaxId } from '@/lib/validation/nip';
+import { classifyTaxId } from '@/lib/validation/tax-id';
+import { taxIdErrorCode } from '@/lib/checkout/invoice-form-logic';
 import { lookupCompanyByNip } from '@/lib/gus/lookup';
 import type { GusCompanyData } from '@/lib/gus/lookup';
 
@@ -123,10 +125,11 @@ export function useInvoiceData(
   const handleNIPBlur = useCallback(async () => {
     if (!nip || nip.trim().length === 0) return;
 
-    const validation = validateTaxId(nip, true);
+    // Same rule as the profile checkout: the company country decides (PL NIP / EU VAT / other).
+    const validation = classifyTaxId(nip, country);
 
-    if (!validation.isValid) {
-      setNipError(translateNipError(validation.error));
+    if (!validation.valid) {
+      setNipError(country === 'PL' ? translateNipError(validateTaxId(nip, true).error) : t(`profile.errors.${taxIdErrorCode(country)}`));
       setGusError(null);
       setGusSuccess(false);
       return;
@@ -134,7 +137,7 @@ export function useInvoiceData(
 
     setNipError(null);
 
-    if (validation.isPolish && validation.normalized) {
+    if (validation.type === 'pl_nip') {
       setIsLoadingGUS(true);
       setGusError(null);
       setGusSuccess(false);
@@ -159,11 +162,11 @@ export function useInvoiceData(
       else setGusError(t('gusFetchError'));
 
       setIsLoadingGUS(false);
-    } else if (!validation.isPolish) {
+    } else {
       setGusError(null);
       setGusSuccess(false);
     }
-  }, [nip, t, setCompanyName, setAddress, setCity, setPostalCode, setCountry]);
+  }, [nip, country, t, setCompanyName, setAddress, setCity, setPostalCode, setCountry]);
 
   return {
     isLoadingProfile,

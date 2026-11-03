@@ -7,10 +7,18 @@ description: Fixed rates, Stripe Tax and international B2B sales.
 
 Sellf stores the buyer's country and NIP / VAT number with the order. A separate
 recipient does not determine tax. Order details remain available in payments and
-purchase webhooks. Profiles require a valid Polish NIP for Poland and a VAT number
-with a matching country prefix for other EU countries (Greece uses EL). Outside
-the EU, the number is optional: letters, digits and hyphens, up to 40 characters.
-Sellf checks format; it does not verify registration in VIES.
+purchase webhooks. The company country decides the rule: Poland requires a valid
+NIP (checksum); other EU countries require a VAT number in that country's format
+(the country prefix is added if the buyer leaves it out; Greece uses EL); outside
+the EU any identifier is accepted without a format check (optional, up to 40
+characters, no `<` or `>`). The order, the invoice, `purchase.completed`
+(`invoice.taxIdType`, `invoice.taxIdCountry`) and the payments API carry the type
+(`pl_nip`, `eu_vat`, `other`) and country. GUS lookup is offered only for Poland.
+
+**Optional VIES check.** Set `SELLF_VIES_CHECK_ENABLED=true` to ask the EU VIES
+service about EU VAT numbers when the order is placed. It never blocks the order:
+after 3 seconds or on an outage the result is `unavailable`. The result is stored as
+`tax_id_vies` (`valid`, `invalid`, `unavailable`) on the buyer in `order_details`.
 
 With **Stripe Tax**, Sellf sends the buyer's address and EU VAT number to the Stripe
 Customer. Stripe calculates tax and can apply reverse charge for eligible sales

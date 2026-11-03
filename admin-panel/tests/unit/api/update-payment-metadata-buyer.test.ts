@@ -321,3 +321,36 @@ it.each([[true, false, 400], [false, false, 200], [true, true, 200], [false, tru
     vi.mocked(getCheckoutConfig).mockResolvedValue({ tax_mode: 'local', collect_terms_of_service: collect } as Awaited<ReturnType<typeof getCheckoutConfig>>);
     expect((await POST(makeRequest(SESSION_ID, { termsAccepted: undefined }))).status).toBe(expected);
   });
+
+describe('optional VIES check of an EU buyer', () => {
+  it('stores the VIES result next to the number when the seller enabled it, without blocking', async () => {
+    vi.stubEnv('SELLF_VIES_CHECK_ENABLED', 'true');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ isValid: false, userError: 'MS_UNAVAILABLE' }), { status: 200 }));
+    try {
+      mocks.sessionsRetrieve.mockResolvedValue({ id: SESSION_ID, status: 'open', metadata: { product_id: PRODUCT_ID }, customer: 'cus_profile' });
+      mocks.productRead.mockResolvedValue({ data: { currency: 'EUR', checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false }] } }, error: null });
+      const res = await POST(makeRequest(SESSION_ID, { moduleValues: { buyer: { type: 'organization', company_name: 'GmbH', address: 'Str 1', city: 'Berlin', postal_code: '10115', country: 'DE', nip: '123456789' } } }));
+      expect(res.status).toBe(200);
+      expect(mocks.adminRpc).toHaveBeenCalledWith('set_payment_order_details', expect.objectContaining({ p_details: expect.objectContaining({ buyer: expect.objectContaining({ nip: 'DE123456789', tax_id_type: 'eu_vat', tax_id_country: 'DE', tax_id_vies: 'unavailable' }) }) }));
+    } finally {
+      fetchSpy.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
+describe('legacy invoice form: tax id validated by the company country on the server', () => {
+  it.each([['PL', '1234567890'], ['DE', 'DE12345'], ['US', '<script>']])('rejects %s %s', async (country, nip) => {
+    mocks.sessionsRetrieve.mockResolvedValue({ id: SESSION_ID, status: 'open', metadata: { product_id: PRODUCT_ID } });
+    const res = await POST(makeRequest(SESSION_ID, { nip, country, needsInvoice: true, companyName: 'Firma' }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ success: false, error: 'invalid_tax_id' });
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+  });
+  it('accepts a German VAT number entered without its prefix and stores it normalized', async () => {
+    mocks.sessionsRetrieve.mockResolvedValue({ id: SESSION_ID, status: 'open', metadata: { product_id: PRODUCT_ID } });
+    const res = await POST(makeRequest(SESSION_ID, { nip: '123456789', country: 'DE', needsInvoice: true, companyName: 'GmbH' }));
+    expect(res.status).toBe(200);
+    expect(mocks.sessionsUpdate).toHaveBeenCalledWith(SESSION_ID, { metadata: expect.objectContaining({ nip: 'DE123456789', country: 'DE' }) });
+  });
+});

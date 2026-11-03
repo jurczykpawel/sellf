@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { WebhookEndpoint } from '@/types/webhooks';
 import { useTranslations } from 'next-intl';
 import { useWebhooks } from '@/hooks/useWebhooks';
-import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from './ui/Modal';
 
@@ -27,6 +26,7 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
     createEndpoint,
     updateEndpoint,
     deleteEndpoint,
+    setEndpointActive,
     testEndpoint
   } = useWebhooks();
 
@@ -192,22 +192,7 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
   };
 
   const handleToggleStatus = async (endpointId: string, currentStatus: boolean) => {
-    const newStatus = !currentStatus;
-
-    try {
-      const res = await fetch(`/api/v1/webhooks/${endpointId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: newStatus })
-      });
-
-      if (!res.ok) throw new Error('Failed');
-
-      toast.success(newStatus ? t('statusActivated') : t('statusDeactivated'));
-      triggerGlobalRefresh();
-    } catch {
-      toast.error(t('statusToggleError'));
-    }
+    if (await setEndpointActive(endpointId, !currentStatus)) triggerGlobalRefresh();
   };
 
   return (

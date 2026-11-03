@@ -1,4 +1,4 @@
-import { validateTaxId } from '@/lib/validation/nip';
+import { classifyTaxId, taxIdTypeForCountry } from '@/lib/validation/tax-id';
 import type { TaxMode } from '@/lib/actions/shop-config';
 
 /**
@@ -17,36 +17,39 @@ import type { TaxMode } from '@/lib/actions/shop-config';
  * structurally valid tax id was entered; the company/address fields are optional supporting data.
  */
 
-/** True when the buyer entered a structurally valid tax id → treat the order as a faktura request. */
-export function hasValidTaxId(nip: string | null | undefined): boolean {
-  return !!nip && nip.trim().length > 0 && validateTaxId(nip, false).isValid;
+/**
+ * True when the buyer entered a tax id valid for the company country (PL NIP checksum, EU VAT
+ * country format, any identifier elsewhere) → treat the order as a faktura request.
+ * Same rule as the profile checkout (@see ../validation/tax-id.ts).
+ */
+export function hasValidTaxId(nip: string | null | undefined, country: string): boolean {
+  return !!nip && nip.trim().length > 0 && classifyTaxId(nip, country).valid;
 }
 
 /** `needs_invoice` flag sent to the backend. Identical to {@link hasValidTaxId} — named for intent. */
-export function shouldRequestInvoice(nip: string | null | undefined): boolean {
-  return hasValidTaxId(nip);
+export function shouldRequestInvoice(nip: string | null | undefined, country: string): boolean {
+  return hasValidTaxId(nip, country);
+}
+
+/** Error code (checkout.profile.errors.*) for an invalid tax id in the given country. */
+export function taxIdErrorCode(country: string): 'invalid_nip' | 'invalid_eu_vat' | 'invalid_tax_id' {
+  const type = taxIdTypeForCountry(country);
+  return type === 'pl_nip' ? 'invalid_nip' : type === 'eu_vat' ? 'invalid_eu_vat' : 'invalid_tax_id';
 }
 
 /**
- * Show the company/address group. Appears once a full PL NIP (10 chars) is typed, GUS data has
- * been fetched, or a company name is already present (e.g. restored from profile pre-fill).
+ * Show the company/address group. Appears once a full PL NIP (10 chars) or any foreign number is
+ * typed, GUS data has been fetched, or a company name is already present (e.g. restored from profile pre-fill).
  */
 export function shouldShowCompanyFields(opts: {
   nip?: string | null;
+  country?: string;
   hasGusData?: boolean;
   companyName?: string | null;
 }): boolean {
   const nip = opts.nip ?? '';
-  return nip.length === 10 || !!opts.hasGusData || !!opts.companyName;
-}
-
-/**
- * Show the buyer-country selector. Only meaningful under Stripe Tax, where the buyer's country
- * drives the jurisdiction + EU B2B reverse charge. In Fixed-Rate (local) mode the rate is flat,
- * so the selector is hidden to keep the form minimal.
- */
-export function shouldCollectBuyerCountry(taxMode: TaxMode | null | undefined): boolean {
-  return taxMode === 'stripe_tax';
+  const typed = (opts.country ?? 'PL') === 'PL' ? nip.length === 10 : nip.trim().length > 0;
+  return typed || !!opts.hasGusData || !!opts.companyName;
 }
 
 /**

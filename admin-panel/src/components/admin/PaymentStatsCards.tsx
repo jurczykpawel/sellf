@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { CreditCard, DollarSign, Receipt, RotateCcw, TrendingUp, WalletCards } from 'lucide-react';
 import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
@@ -84,7 +84,8 @@ export default function PaymentStatsCards({ stats }: PaymentStatsCardsProps) {
     if (currencies.length === 0) return <span className="inline-block whitespace-nowrap">{formatCurrency(0, displayCurrency || 'USD')}</span>;
     return currencies
       .sort()
-      .map((currency, index) => <span key={currency} className="inline-block whitespace-nowrap">{index > 0 ? ' + ' : ''}{formatCurrency(amounts[currency], currency)}</span>);
+      // The separator stays outside the inline-block: a leading space inside one is dropped (U81-1).
+      .map((currency, index) => <Fragment key={currency}>{index > 0 && ' + '}<span className="inline-block whitespace-nowrap">{formatCurrency(amounts[currency], currency)}</span></Fragment>);
   };
 
   const formatNumber = (num: number) => {

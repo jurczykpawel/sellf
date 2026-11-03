@@ -90,3 +90,25 @@ test('keeps payment editable when buyer details cannot be saved', async ({ page 
   expect(confirmations).toEqual([]);
   expect(readBuyer(sessionId)).toBeNull();
 });
+
+test('a German company in the form without a profile gets its VAT number checked by country and saved @J220', async ({ page }) => {
+  await page.route('https://api.stripe.com/**/confirm', route => route.abort());
+  await acceptAllCookies(page);
+  await page.goto(`/pl/checkout/${product.slug}`);
+  const { checkoutSessionId } = await (await startNativeCheckout(page)).json();
+  await page.locator('#checkoutEmail').fill('buyer@example.com');
+  await page.locator('#fullName').fill('Hans Müller');
+  await page.locator('#country').selectOption('DE');
+  await page.locator('#nip').fill('DE12345');
+  await page.locator('#nip').blur();
+  await expect(page.getByText('w formacie wybranego kraju')).toBeVisible();
+  await page.locator('#nip').fill('123456789');
+  await page.locator('#nip').blur();
+  await expect(page.getByText('w formacie wybranego kraju')).toHaveCount(0);
+  await page.locator('#companyName').fill('Muster GmbH');
+  for (const checkbox of await page.locator('input[type="checkbox"]').all()) if (await checkbox.isVisible()) await checkbox.check();
+  const saved = page.waitForResponse('**/api/update-payment-metadata');
+  await page.getByRole('button', { name: /^Zapłać/ }).click();
+  expect((await saved).status()).toBe(200);
+  await expect.poll(() => readBuyer(checkoutSessionId)).toMatchObject({ nip: 'DE123456789', country: 'DE', needs_invoice: true });
+});

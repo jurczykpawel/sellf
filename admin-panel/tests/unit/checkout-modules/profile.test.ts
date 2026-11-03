@@ -149,3 +149,22 @@ describe('country-specific organization tax numbers', () => {
     expect(result.success).toBe(valid);
   });
 });
+
+describe('stored tax identifier carries its type and country', () => {
+  it.each([
+    ['PL', 'PL 525-224-84-81', '5252248481', 'pl_nip'],
+    ['DE', '123456789', 'DE123456789', 'eu_vat'],
+    ['US', 'EIN 12-3456789', 'EIN 12-3456789', 'other'],
+  ])('%s organization stores %s as %s (%s)', (country, nip, stored, type) => {
+    const party = { ...company, country, nip };
+    const result = validateModuleValues(checkoutProfileSchema.parse({ v: 1, modules: [buyer, { id: 'recipient', for: ['organization'] }] }),
+      { buyer: party, recipient: { company_name: party.company_name, country, nip, address: party.address, city: party.city, postal_code: party.postal_code, differs: true } }, { ...ctx, buyerType: 'organization' });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    for (const key of ['buyer', 'recipient'] as const) expect(result.details[key]).toMatchObject({ nip: stored, tax_id_type: type, tax_id_country: country });
+  });
+  it('omits the type when an organization outside the EU leaves the number empty', () => {
+    const result = validateModuleValues(checkoutProfileSchema.parse({ v: 1, modules: [buyer] }), { buyer: { ...company, country: 'US', nip: '' } }, { ...ctx, buyerType: 'organization' });
+    expect(result.success && result.details.buyer).not.toHaveProperty('tax_id_type');
+  });
+});

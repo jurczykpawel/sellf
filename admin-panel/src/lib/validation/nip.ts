@@ -9,7 +9,7 @@
  * Polish NIP checksum is validated only for Polish numbers.
  */
 
-import { EU_COUNTRY_CODES } from '@/lib/checkout/eu-countries';
+import { classifyTaxId } from '@/lib/validation/tax-id';
 
 /**
  * Detects if a tax ID is a Polish NIP (with or without "PL" prefix)
@@ -136,15 +136,14 @@ export function validateTaxId(
   country?: string
 ): TaxIdValidationResult {
   if (country) {
-    const cleaned = normalizeNIP(taxId, country === 'PL');
-    if (!EU_COUNTRY_CODES.has(country)) {
-      const value = taxId.trim();
-      return { isValid: /^[a-zA-Z0-9-]{0,40}$/.test(value), isPolish: false, normalized: value, formatted: value };
-    }
-    const result = validateTaxId(taxId, strictPolishValidation);
-    const prefix = country === 'GR' ? 'EL' : country;
-    const matches = country === 'PL' ? result.isPolish : cleaned.startsWith(prefix) && /^[A-Z]{2}[A-Z0-9]+$/.test(cleaned);
-    return { ...result, isValid: taxId.length <= 40 && result.isValid && matches };
+    // Country known (from the company address): per-country rules live in ./tax-id.ts.
+    const c = classifyTaxId(taxId, country);
+    const isPolish = c.type === 'pl_nip';
+    return {
+      isValid: c.valid, isPolish, countryCode: c.country, normalized: c.normalized,
+      formatted: isPolish ? formatNIP(c.normalized) : c.normalized,
+      withPrefix: isPolish ? `PL${c.normalized}` : c.normalized,
+    };
   }
   if (!taxId || taxId.trim().length === 0) {
     return {
