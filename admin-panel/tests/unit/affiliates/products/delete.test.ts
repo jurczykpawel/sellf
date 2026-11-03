@@ -36,7 +36,7 @@ it('retains normal deletion for products without affiliate history', async () =>
   expect((await DELETE(request(), params)).status).toBe(204);
   expect(state.reads).toContain('affiliate_rules');
   expect(state.removed).toEqual([]);
-  expect(state.rpc).toHaveBeenCalledExactlyOnceWith('mutate_product_with_audit', { operation_param: 'DELETE', product_data: {}, product_id: 'aaaaaaaa-0000-4000-a000-000000000001', actor_id: 'dddddddd-0000-4000-a000-000000000000' });
+  expect(state.rpc).toHaveBeenCalledExactlyOnceWith('mutate_product_as', { event_actor: { type: 'user', id: 'dddddddd-0000-4000-a000-000000000000' }, operation_param: 'DELETE', product_data: {}, product_id: 'aaaaaaaa-0000-4000-a000-000000000001', actor_id: 'dddddddd-0000-4000-a000-000000000000' });
 });
 
 it('returns archive guidance for a primary product whose bump earned commission', async () => {

@@ -6,11 +6,17 @@ import { createServer } from 'node:http';
 import { createServer as createHttpsServer } from 'node:https';
 import { readFile } from 'node:fs/promises';
 import { resolve, basename, dirname } from 'node:path';
-const dist = process.env.PLAYERSTACK_TEST_DIST;
-if (!dist) throw new Error('PLAYERSTACK_TEST_DIST must point to a built PlayerStack distribution');
-const adapterRepo = process.env.PLAYERSTACK_ADAPTER_REPO;
-if (!adapterRepo) throw new Error('PLAYERSTACK_ADAPTER_REPO is required');
+// The built plugin distribution is needed only by the browser journey; the HTTP contract runs without it.
+const dist = process.env.PLAYERSTACK_TEST_DIST ?? '';
+const appUrl = process.env.LEADS_API_BASE_URL ?? `http://localhost:${process.env.LEADS_APP_PORT ?? 3893}`;
+const hostPort = Number(process.env.LEADS_HOST_PORT ?? 3894);
+const receiverPort = Number(process.env.LEADS_RECEIVER_PORT ?? 3895);
+// Pinned adapter source lives in the PlayerStack repo (origin/main contains it); defaults to the sibling checkout.
+const sellfRoot = dirname(execFileSync('git', ['-C', import.meta.dirname, 'rev-parse', '--path-format=absolute', '--git-common-dir'], { encoding: 'utf8' }).trim());
+const adapterRepo = process.env.PLAYERSTACK_ADAPTER_REPO ?? resolve(sellfRoot, '../playerstack');
 const adapterCommit = '8baee66c50a95e21aee91fca66a2edc53bc08538';
+try { execFileSync('git', ['-C', adapterRepo, 'cat-file', '-e', adapterCommit + '^{commit}'], { stdio: 'ignore' }); }
+catch { throw new Error(`PlayerStack adapter commit ${adapterCommit} not found in ${adapterRepo}; set PLAYERSTACK_ADAPTER_REPO or run git fetch there`); }
 const adapterScratch = await mkdtemp(resolve(tmpdir(), 'sellf-lead-adapter-'));
 for (const name of ['index.ts', 'normalize.ts']) {
   const source = execFileSync('git', ['-C', adapterRepo, 'show', adapterCommit + ':packages/plugin-sellf-adapter/src/' + name]);
@@ -32,9 +38,9 @@ const receiver = createHttpsServer({key: await readFile(keyPath), cert: await re
   let body = ''; for await (const chunk of request) body += chunk;
   hooks.push({headers:request.headers,body}); response.end('ok');
 });
-receiver.listen(3895, '127.0.0.1');
+receiver.listen(receiverPort, '127.0.0.1');
 const server = createServer(async (request, response) => {
-  const url = new URL(request.url, 'http://localhost:3894');
+  const url = new URL(request.url, `http://localhost:${hostPort}`);
   if (url.pathname === '/adapter.js') { response.setHeader('Content-Type', 'text/javascript'); response.end(adapterJs); return; }
   if (url.pathname === '/hooks') {
     response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify(hooks)); return;
@@ -44,6 +50,7 @@ const server = createServer(async (request, response) => {
     hooks.push({ headers: request.headers, body }); response.end('ok'); return;
   }
   if (url.pathname.startsWith('/vendor/')) {
+    if (!dist) { response.writeHead(404).end(); return; }
     try { response.setHeader('Content-Type', 'text/javascript'); response.end(await readFile(resolve(dist, basename(url.pathname)))); }
     catch { response.writeHead(404).end(); } return;
   }
@@ -55,7 +62,7 @@ const server = createServer(async (request, response) => {
 import {createSellfConfigProvider} from "/adapter.js";
 (async () => {
   const product = new URL(location.href).searchParams.get('product');
-  const base = 'http://localhost:3893';
+  const base = ${JSON.stringify(appUrl)};
   const container = document.getElementById('player');
   container.setAttribute('data-sellf-product', product);
   container.setAttribute('src', 'https://files.example.com/lead-video.mp4');
@@ -69,7 +76,7 @@ import {createSellfConfigProvider} from "/adapter.js";
 })().catch(error=>{document.body.append('Fixture error: '+error.message); console.error(error);});
 </script></body></html>`);
 });
-server.listen(3894, '127.0.0.1');
+server.listen(hostPort, '127.0.0.1');
 async function close() { server.close(); receiver.close(); await rm(adapterScratch, {recursive:true,force:true}); await rm(certFile, {force:true}); }
 process.on('SIGTERM', close);
 process.on('SIGINT', close);

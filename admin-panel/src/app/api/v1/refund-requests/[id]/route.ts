@@ -22,6 +22,7 @@ import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { getPaymentRefundStatus } from '@/lib/refunds/payment-status';
 import { buildRefundApprovalLog, canProcessRefundRequest, remainingRefundableAmount } from '@/lib/refunds/flow';
+import { accessActor } from '@/lib/services/business-events';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -232,16 +233,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Update refund request status
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
-    const { error: updateError } = await adminClient
-      .from('refund_requests')
-      .update({
-        status: newStatus,
-        admin_id: adminUserId,
-        admin_response: admin_response || null,
-        processed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id);
+    const eventActor = { ...accessActor(authResult) };
+    const { error: updateError } = await adminClient.rpc('decide_refund_request', {
+      p_request_id: id, p_status: newStatus, p_admin_id: adminUserId, p_admin_response: admin_response || null, p_actor: eventActor,
+    });
 
     if (updateError) {
       console.error('Error updating refund request:', updateError);
@@ -376,16 +371,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         console.error('Stripe refund error:', stripeError);
 
         // Revert the request status since Stripe failed
-        await adminClient
-          .from('refund_requests')
-          .update({
-            status: 'pending',
-            admin_id: null,
-            admin_response: null,
-            processed_at: null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', id);
+        await adminClient.rpc('decide_refund_request', {
+          p_request_id: id, p_status: 'pending', p_admin_id: adminUserId, p_admin_response: null, p_actor: eventActor,
+        });
 
         return apiError(
           request,

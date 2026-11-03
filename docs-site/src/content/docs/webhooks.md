@@ -549,6 +549,35 @@ Manual issuance uses the product's domain definition too: a required domain fiel
 filled, an optional one can be omitted, and a product without that field issues a token
 without `claims.domain`. Missing required values return HTTP 400 before signing.
 
+## Invoice, partner, refund-request and catalogue events
+
+These events are captured transactionally with the change, like access events, and delivered through
+the same signed queue. Each carries `actor`, `occurredAt` and (except payouts) `product`. Monetary
+fields are minor units (`amountUnit = "minor"`). A redelivered queue entry keeps its delivery key, so
+the receiver gets it once; still deduplicate by envelope `id`.
+
+| Event | When | Fields for the receiver's decision |
+|---|---|---|
+| `invoicing.issued` | The invoicing provider (Fakturownia) issued the sales invoice. | `invoice.id/number/providerInvoiceId/viewUrl/attempt/paymentSynced`, `order` (ID, number, amount, currency), `customer`. |
+| `invoicing.failed` | An issue attempt failed. Sent once per attempt. | `invoice.attempt`, `invoice.error` (provider message), `invoice.willRetry` (`false` after the 5th attempt). |
+| `invoicing.corrected` | An issued invoice was marked as corrected. | `invoice.number`, `statusBefore/statusAfter`, `order`. |
+| `commission.accrued` | A partner earned a commission on a paid order. | `partner` (memberId, code, displayName, status), `commission.amount/currency/baseAmount/eligibleAt/paidAt/livemode`, `order`. |
+| `commission.reversed` | A refund reversed (part of) a commission. | `commission.amount` is negative; same identifiers. |
+| `payout.reserved` | The owner approved commissions into a payout (reservation). | `payout.id/amount/currency/cutoff/payeeReference/commissionIds`, `partner`. `product` is `null`. |
+| `payout.paid` | The payout was marked as paid. | `payout.bankReference/invoiceReference/bankAmount/paidAt`. |
+| `payout.cancelled` | A reserved payout was cancelled; commissions return to the balance. | `payout.statusBefore = "reserved"`. |
+| `refund.requested` | A buyer filed a refund request. | `refundRequest.id/requestedAmount/currency/reason`, `order`, `customer`. |
+| `refund.request_approved` / `refund.request_rejected` / `refund.request_cancelled` | The request was decided or withdrawn. | `refundRequest.statusBefore/statusAfter/adminResponse/processedAt`. The money movement itself is `refund.issued`. |
+| `product.published` / `product.unpublished` | `is_active` changed, or an active product was created/deleted. | `product` (id, slug, isActive, availableFrom/Until, productType), `availability.before/after`, `deleted`. |
+| `product.price_changed` | Price, sale price, sale end, recurring price or currency changed. | `price.before/after` with `price`, `salePrice`, `salePriceUntil`, `recurringPrice`, `currency` in minor units. |
+| `product.sold_out` | Held (unexpired) plus confirmed seats reached an event session's capacity. | `session.id/label/startsAt/capacity/taken/remaining`, the `reservation` that filled it. Seats freed later are reported by `seats.released`. |
+
+`actor` is the authenticated admin (`user`) or API key (`api_key`) for changes made through the admin panel or the v1 API, and `system` for automatic changes (sync, scheduled jobs, buyer actions report `user`). A refund request returned to `pending` after a failed Stripe refund is announced again as `refund.requested` with `statusBefore = "approved"`.
+
+A partner commission becomes payable when `eligibleAt` passes; Sellf does not send a separate event
+for that moment, the approval point is `payout.reserved`. Publication windows (`availableFrom/Until`)
+are reported in the payload but their passage in time does not produce an event.
+
 ## PlayerStack leads
 
 [Email-confirmed lead forms and marketing consent](/playerstack-leads/).

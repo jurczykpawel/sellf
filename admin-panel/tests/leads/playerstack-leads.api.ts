@@ -3,9 +3,10 @@ import { createHash, randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { solveChallenge } from 'altcha-lib/v1';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { assertLocalLeadsStack, leadsAppUrl, leadsOrigin } from './stack';
 
-const base = process.env.LEADS_API_BASE_URL ?? 'http://localhost:3893';
-const origin = 'http://localhost:3894';
+const base = leadsAppUrl;
+const origin = leadsOrigin;
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 const productIds: string[] = [];
 const emails: string[] = [];
@@ -29,8 +30,7 @@ async function challenge(id?: string) {
 const post = (body: unknown, requestOrigin = origin) => call('/api/leads/submit', body, requestOrigin);
 const body = (c: unknown) => ({ ...c as object, product: product.id, email: 'api-invalid@example.com', src: 'https://files.example.com/video.mp4' });
 beforeAll(async () => {
-  expect(['127.0.0.1', 'localhost']).toContain(new URL(process.env.SUPABASE_URL!).hostname);
-  expect(new URL(process.env.SUPABASE_URL!).port).toBe('55591');
+  assertLocalLeadsStack((actual, expected) => expect(actual).toBe(expected));
   product = await makeProduct(); other = await makeProduct(); paid = await makeProduct(10);
   await db.from('application_rate_limits').delete().in('action_type', ['leads_submit', 'leads_challenge', 'leads_config']);
 });

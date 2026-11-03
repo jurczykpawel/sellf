@@ -1014,7 +1014,7 @@ export type Database = {
           id: string
           leased_until: string | null
           payload: Json
-          product_id: string
+          product_id: string | null
         }
         Insert: {
           created_at?: string
@@ -1024,7 +1024,7 @@ export type Database = {
           id?: string
           leased_until?: string | null
           payload: Json
-          product_id: string
+          product_id?: string | null
         }
         Update: {
           created_at?: string
@@ -1034,7 +1034,7 @@ export type Database = {
           id?: string
           leased_until?: string | null
           payload?: Json
-          product_id?: string
+          product_id?: string | null
         }
         Relationships: []
       }
@@ -5301,6 +5301,9 @@ export type Database = {
         Args: { product_slugs_param: string[] }
         Returns: Json
       }
+      business_event_actor: { Args: never; Returns: Json }
+      business_event_order: { Args: { p_transaction: string }; Returns: Json }
+      business_event_partner: { Args: { p_member: string }; Returns: Json }
       cancel_unpaid_order: {
         Args: { p_reason: string; p_transaction_id: string }
         Returns: Json
@@ -5343,7 +5346,7 @@ export type Database = {
           id: string
           leased_until: string | null
           payload: Json
-          product_id: string
+          product_id: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -5463,6 +5466,37 @@ export type Database = {
       currency_minor_factor: {
         Args: { currency_code: string }
         Returns: number
+      }
+      decide_refund_request: {
+        Args: {
+          p_actor: Json
+          p_admin_id: string
+          p_admin_response: string
+          p_request_id: string
+          p_status: string
+        }
+        Returns: {
+          admin_id: string | null
+          admin_response: string | null
+          created_at: string
+          currency: string
+          customer_email: string
+          id: string
+          processed_at: string | null
+          product_id: string
+          reason: string | null
+          requested_amount: number
+          status: string
+          transaction_id: string
+          updated_at: string
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "refund_requests"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       declare_transfer: {
         Args: { p_id: string; p_note: string; p_now: string }
@@ -5949,6 +5983,88 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      mutate_product_as: {
+        Args: {
+          actor_id: string
+          event_actor: Json
+          operation_param: string
+          product_data: Json
+          product_id: string
+        }
+        Returns: {
+          allow_custom_price: boolean
+          allow_repeat_purchase: boolean
+          auto_grant_duration_days: number | null
+          available_from: string | null
+          available_until: string | null
+          billing_interval: string | null
+          billing_interval_count: number | null
+          checkout_profile: Json | null
+          checkout_template: string
+          content_config: Json
+          content_delivery_type: string
+          created_at: string
+          currency: string
+          custom_checkout_fields: Json
+          custom_price_min: number | null
+          custom_price_presets: Json | null
+          description: string | null
+          embed_enabled: boolean
+          enable_waitlist: boolean
+          event_mode: boolean
+          features: Json | null
+          icon: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          is_bundle: boolean
+          is_featured: boolean
+          is_listed: boolean
+          is_refundable: boolean
+          issue_license_on_purchase: boolean
+          layout_template: string
+          lead_consent_required: boolean
+          lead_consent_text_en: string
+          lead_consent_text_pl: string
+          lead_consent_version: string
+          license_duration_days: number | null
+          license_tier: string | null
+          long_description: string | null
+          marketing_fields: Json
+          name: string
+          omnibus_exempt: boolean
+          pass_params_to_redirect: boolean
+          preview_video_config: Json
+          preview_video_url: string | null
+          price: number
+          price_includes_vat: boolean
+          product_type: string
+          recurring_price: number | null
+          refund_period_days: number | null
+          sale_price: number | null
+          sale_price_until: string | null
+          sale_quantity_limit: number | null
+          sale_quantity_sold: number
+          seller_id: string | null
+          show_price_presets: boolean
+          slug: string
+          stripe_price_id: string | null
+          stripe_product_id: string | null
+          success_redirect_url: string | null
+          thumbnail_url: string | null
+          trial_days: number | null
+          updated_at: string
+          vat_exempt: boolean
+          vat_exempt_note: string | null
+          vat_rate: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "products"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       mutate_product_offer: {
         Args: {
           actor_api_key_id?: string
@@ -6139,6 +6255,10 @@ export type Database = {
       product_marketing_valid: { Args: { instance: Json }; Returns: boolean }
       product_offer_config_schema: { Args: never; Returns: Json }
       product_offer_config_valid: { Args: { config: Json }; Returns: boolean }
+      product_price_snapshot: {
+        Args: { p: Database["public"]["Tables"]["products"]["Row"] }
+        Returns: Json
+      }
       public_event_availability: {
         Args: { p_product_id: string }
         Returns: Json
@@ -6147,6 +6267,15 @@ export type Database = {
       queue_pending_free_grant: {
         Args: { p_email: string; p_product_slug: string }
         Returns: boolean
+      }
+      record_business_event: {
+        Args: {
+          p_event: string
+          p_key: string
+          p_payload: Json
+          p_product: string
+        }
+        Returns: undefined
       }
       record_free_attribution: {
         Args: { p_payload: Json; p_product: string; p_user: string }
@@ -6229,6 +6358,7 @@ export type Database = {
         Args: { alert_details: Json; alert_type: string }
         Returns: undefined
       }
+      set_business_event_actor: { Args: { p_actor: Json }; Returns: undefined }
       set_payment_order_buyer: {
         Args: {
           p_buyer: Json
