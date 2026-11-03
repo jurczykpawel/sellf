@@ -45,6 +45,7 @@ import {
 import { RETRIABLE_EVENTS, TERMINAL_FAILURE_REASONS } from './retriable-events';
 import { handleChargeDispute } from './dispute-handlers';
 import { handleCheckoutSessionCompleted, handlePaymentIntentSucceeded } from './onetime-handlers';
+import { handleQuickPayEvent, isQuickPayObject } from '@/lib/orders/quick-pay';
 import { readBodyWithByteLimit, ApiPayloadTooLargeError, DEFAULT_MAX_BODY_BYTES } from '@/lib/api/body-limit';
 
 // Stripe events — particularly ones with many expanded line items, invoices,
@@ -322,7 +323,12 @@ export async function POST(request: NextRequest) {
   let result: { processed: boolean; message: string };
 
   try {
-    switch (event.type) {
+    // Online payment of an unpaid transfer order (pay link) has its own attempt ledger. @see lib/orders/quick-pay.ts
+    const quickPayObject = ['checkout.session.completed', 'checkout.session.async_payment_succeeded', 'checkout.session.expired', 'payment_intent.succeeded'].includes(event.type)
+      ? event.data.object as Stripe.Checkout.Session | Stripe.PaymentIntent : null;
+    if (quickPayObject && isQuickPayObject(quickPayObject)) {
+      result = await handleQuickPayEvent(supabase, await getStripeServer(), event.type, quickPayObject, new Date());
+    } else switch (event.type) {
       case 'checkout.session.expired': {
         const session = event.data.object as Stripe.Checkout.Session;
         const expiration = await abandonPendingCheckoutSession(supabase, session.id);

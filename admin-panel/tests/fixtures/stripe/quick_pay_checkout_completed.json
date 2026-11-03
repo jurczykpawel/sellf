@@ -1,0 +1,29 @@
+{
+  "id": "evt_recorded_quickpay_3",
+  "object": "event",
+  "api_version": "2025-09-30.clover",
+  "created": 1793712661,
+  "type": "checkout.session.completed",
+  "livemode": false,
+  "data": {
+    "object": {
+      "id": "cs_recorded_quickpay_1",
+      "object": "checkout.session",
+      "mode": "payment",
+      "status": "complete",
+      "payment_status": "paid",
+      "amount_total": 17000,
+      "amount_subtotal": 17000,
+      "currency": "pln",
+      "payment_intent": "pi_recorded_quickpay_2",
+      "expires_at": 1793714457,
+      "created": 1793712657,
+      "livemode": false,
+      "metadata": {
+        "sellf_payment_attempt": "20000000-0000-4000-8000-000000000002",
+        "sellf_order": "10000000-0000-4000-8000-000000000001"
+      },
+      "customer_email": "buyer@example.com"
+    }
+  }
+}

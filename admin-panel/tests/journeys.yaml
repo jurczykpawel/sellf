@@ -3411,6 +3411,181 @@
         "seller": "Renewals inherit the first checkout source, refunds and disputes reduce net revenue per source, partner coupons classify as affiliate, own channel rules win over defaults, click ids are erased after the configured retention.",
         "integrator": "Report rows contain only aggregates (no e-mail, no click id); purchase.completed carries the source without the click id."
       }
+    },
+    {
+      "id": "J180",
+      "title": "Event transfer reserves the seat for a limited time and the reminder carries a pay link",
+      "values": {
+        "persona": "guest",
+        "entry": "cron",
+        "product": "event",
+        "payment": "bank_transfer",
+        "moment": "after_hold",
+        "operation": "deliver"
+      },
+      "end_state": {
+        "buyer": "Gets the placed mail and, after 24 h, a reminder mail with the release time and a signed order link that opens with 200.",
+        "seller": "Order holds the seat with reminder at 24 h and release at 48 h; due date equals release.",
+        "integrator": "order.placed and exactly one order.payment_reminder carry reservation, releaseAt, payUrl and buyer locale."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ]
+    },
+    {
+      "id": "J181",
+      "title": "Buyer declares the transfer from the pay link",
+      "values": {
+        "persona": "guest",
+        "entry": "email_link",
+        "product": "event",
+        "payment": "bank_transfer",
+        "moment": "after_hold",
+        "operation": "reconcile"
+      },
+      "end_state": {
+        "buyer": "Clicks \"Wysłałem przelew\" once; the page confirms and the button disappears.",
+        "seller": "Reservation is extended by 72 h; payments detail shows the declaration badge with the note.",
+        "integrator": "Exactly one order.transfer_declared with the note and new releaseAt."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ]
+    },
+    {
+      "id": "J182",
+      "title": "Unpaid event transfer is released after its window",
+      "values": {
+        "persona": "guest",
+        "entry": "cron",
+        "product": "event",
+        "payment": "bank_transfer",
+        "moment": "after_expiry",
+        "operation": "cancel"
+      },
+      "end_state": {
+        "buyer": "Gets the cancellation mail; the order link shows the order as cancelled without the declare button.",
+        "seller": "Order is cancelled with reason payment_window_expired; seat and promo price are back on sale; placement access is withdrawn.",
+        "integrator": "Exactly one order.cancelled with cancelReason payment_window_expired and lateTransferPolicy admin_decision."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ]
+    },
+    {
+      "id": "J183",
+      "title": "Issued invoice holds the transfer order without expiry; regular product never expires",
+      "values": {
+        "persona": "integrator",
+        "entry": "cron",
+        "product": "event",
+        "payment": "bank_transfer",
+        "moment": "after_hold",
+        "operation": "issue_invoice"
+      },
+      "end_state": {
+        "buyer": "Order stays payable past its due date.",
+        "seller": "Order with an issued invoice and a regular product order stay awaiting payment after the due date.",
+        "integrator": "Exactly one order.invoice_issued with reservation invoice and releaseAt null; no reminder for the regular product."
+      },
+      "status": "automated",
+      "layers": [
+        "integration"
+      ]
+    },
+    {
+      "id": "J184",
+      "title": "Admin accepts a late transfer after automatic cancellation",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "event",
+        "payment": "bank_transfer",
+        "moment": "after_expiry",
+        "operation": "reconcile"
+      },
+      "end_state": {
+        "buyer": "Order is completed again at the original order price.",
+        "seller": "Order is completed and marked oversold because the promo seat was resold; the other buyer keeps the seat.",
+        "integrator": "order.reopened (previousStatus cancelled) then purchase.completed, each exactly once."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ]
+    },
+    {
+      "id": "J185",
+      "title": "Buyer pays an unpaid transfer order online from the pay link",
+      "values": {
+        "persona": "guest",
+        "entry": "email_link",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_hold",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Pays the saved amount on Stripe Checkout and sees the order as paid.",
+        "seller": "Order completed, settled via Stripe, still a transfer order with its PaymentIntent for refunds.",
+        "integrator": "Exactly one purchase.completed."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ]
+    },
+    {
+      "id": "J186",
+      "title": "Released order paid online is reopened only at a still-current price",
+      "values": {
+        "persona": "guest",
+        "entry": "email_link",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_expiry",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Pays and gets the same order back; after a price change sees only \"order again at the current price\".",
+        "seller": "Same order completed with reopened_at; no reopening at an outdated price.",
+        "integrator": "order.reopened then purchase.completed, once each."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ]
+    },
+    {
+      "id": "J187",
+      "title": "Online payment racing an admin mark-paid is refunded",
+      "values": {
+        "persona": "admin",
+        "entry": "webhook",
+        "product": "event",
+        "payment": "card",
+        "moment": "after_hold",
+        "operation": "refund"
+      },
+      "end_state": {
+        "buyer": "Charged once net: the duplicate online payment is refunded automatically.",
+        "seller": "Order stays completed from the transfer; attempt marked duplicate with the refund id.",
+        "integrator": "Not exercised: no separate event for an internal duplicate refund."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "integration"
+      ]
     }
   ],
   "escapes": [

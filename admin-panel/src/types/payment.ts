@@ -30,6 +30,14 @@ export interface PaymentTransaction {
   payment_provider?: string;
   payment_due_at?: string | null;
   transfer_details?: Json | null;
+  /** Unpaid transfer lifecycle (null outside a timed reservation). */
+  reminder_at?: string | null;
+  release_at?: string | null;
+  invoice_hold_at?: string | null;
+  transfer_declared_at?: string | null;
+  transfer_declared_note?: string | null;
+  cancel_reason?: 'admin' | 'payment_window_expired' | string | null;
+  reopened_at?: string | null;
   invoice?: InvoiceInfo | null;
   id: string;
   session_id: string;

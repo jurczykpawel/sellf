@@ -12,7 +12,7 @@ import { resolveEventCheckout } from '@/lib/events/checkout';
 import { bankTransferConfigSchema, canUseBankTransfer } from '@/lib/orders/bank-transfer-config';
 import { issueInvoiceForTransaction } from '@/lib/invoicing/service';
 import { createTransferTokenSigner } from '@/lib/orders/transfer-token';
-import { sendTransferAccessMail } from '@/lib/orders/transfer-mail';
+import { sendOrderNotice } from '@/lib/orders/transfer-mail';
 import { dispatchTransferEvent } from '@/lib/orders/bank-transfer-service';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { getClientIp } from '@/lib/security/client-ip';
@@ -120,15 +120,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       metadata: { event_ip: ip, locale: body.locale, [ATTRIBUTION_REF_KEY]: attributionRef },
     }, p_lines: lines as unknown as Json });
     if (placed.error) return fail(placed.error.code === 'P0429' ? 'Unpaid order limit reached' : 'Order placement failed', placed.error.code === 'P0429' ? 429 : placed.error.code === 'P0409' ? 409 : 400);
-    const result = placed.data as { transaction_id: string; order_number: number; amount: number; currency: string; dueAt: string; transfer: Json };
+    const result = placed.data as { transaction_id: string; order_number: number; amount: number; currency: string; dueAt: string; releaseAt: string | null; transfer: Json };
     after(async () => {
       await issueInvoiceForTransaction(result.transaction_id, { client: db });
-      await sendTransferAccessMail(db, result.transaction_id);
+      await sendOrderNotice(db, result.transaction_id, 'placed');
+      // An issued invoice holds the order without expiry (DB trigger); announce it, the reservation job recovers failures.
+      try { await dispatchTransferEvent(db, result.transaction_id, 'order.invoice_issued'); } catch { console.error('[bank-transfer] Invoice event awaiting recovery:', result.transaction_id); }
     });
     try { await dispatchTransferEvent(db, result.transaction_id, 'order.placed'); }
     catch { console.error('[bank-transfer] Event awaiting recovery:', result.transaction_id); }
     return NextResponse.json({ orderId: result.transaction_id, orderNumber: result.order_number, amount: result.amount,
-      currency: result.currency, dueAt: result.dueAt, transfer: result.transfer, token: signToken(result.transaction_id) }, { headers: { 'Cache-Control': 'no-store' } });
+      currency: result.currency, dueAt: result.dueAt, releaseAt: result.releaseAt ?? null, transfer: result.transfer, token: signToken(result.transaction_id) }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     return fail(error instanceof ApiPayloadTooLargeError ? 'Request too large' : 'Order unavailable', error instanceof ApiPayloadTooLargeError ? 413 : 500);
   }

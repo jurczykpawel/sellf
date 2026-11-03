@@ -7,6 +7,7 @@
  *
  * Jobs:
  *   seat-reservations-expire  — release expired event holds (run every minute)
+ *   transfer-reservations     — unpaid transfer reminder, release and their notifications (run every 5 minutes)
  *   access-expired             — dispatch access.expired webhooks for newly expired access records
  *   cleanup-webhook-logs       — delete webhook_logs older than WEBHOOK_LOG_RETENTION_DAYS
  *   webhook-deliveries-retry   — process due retries (status=pending_retry) with exp backoff;
@@ -177,6 +178,7 @@ const JOB_REGISTRY: Record<string, () => Promise<CronJobResult>> = {
   },
   'bank-transfer-overdue': () => runTransferJob(createAdminClient(), 'bank-transfer-overdue'),
   'fulfillment-resume': () => runTransferJob(createAdminClient(), 'fulfillment-resume'),
+  'transfer-reservations': () => runTransferJob(createAdminClient(), 'transfer-reservations'),
   'seat-reservations-expire': handleSeatReservationsExpire,
   'access-expired': handleAccessExpired,
   'business-events': () => runBusinessEvents(),
