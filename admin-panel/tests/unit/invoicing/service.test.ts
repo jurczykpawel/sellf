@@ -87,3 +87,19 @@ describe('immutable order mapping', () => {
     expect(mapped.paidAt).toBeUndefined();
   });
 });
+
+describe('invoice buyer tax identifier', () => {
+  const base = { order_number: 1, status: 'completed', customer_email: 'a@example.com', currency: 'EUR', created_at: '2026-11-03T10:00:00Z', updated_at: '2026-11-03T10:00:00Z', metadata: {} };
+  it.each([
+    [{ v: 1, type: 'organization', company_name: 'GmbH', nip: 'DE123456789', country: 'DE', tax_id_type: 'eu_vat', tax_id_country: 'DE' }, 'eu_vat'],
+    [{ v: 1, type: 'organization', company_name: 'Inc', nip: 'EIN 12-3456789', country: 'US' }, 'other'],
+    [{ v: 1, type: 'organization', company_name: 'Sp', nip: '5252248481', country: 'PL' }, 'pl_nip'],
+  ])('passes country and tax id type to the invoice (%#)', (buyer, type) => {
+    const mapped = buildInvoiceInput({ ...base, order_details: { buyer } } as InvoiceTransaction, [], { shop_name: 'Sklep' }, 'k', '', '{product}');
+    expect(mapped.buyer).toMatchObject({ nip: buyer.nip, country: buyer.country, taxIdType: type });
+  });
+  it('leaves the type out for a private buyer without a number', () => {
+    const mapped = buildInvoiceInput({ ...base, order_details: { buyer: { v: 1, type: 'person', first_name: 'Jan', country: 'PL' } } } as InvoiceTransaction, [], { shop_name: 'Sklep' }, 'k', '', '{product}');
+    expect(mapped.buyer.taxIdType).toBeUndefined();
+  });
+});

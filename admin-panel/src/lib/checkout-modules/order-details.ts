@@ -5,6 +5,8 @@ const party = z.object({
   v: z.literal(1), company_name: z.string().optional(), nip: z.string().optional(),
   address: z.string().optional(), postal_code: z.string().optional(),
   city: z.string().optional(), country: z.string().optional(),
+  tax_id_type: z.enum(['pl_nip', 'eu_vat', 'other']).optional(), tax_id_country: z.string().optional(),
+  tax_id_vies: z.enum(['valid', 'invalid', 'unavailable']).optional(),
 });
 const buyer = party.extend({
   type: z.enum(['person', 'organization']).optional(), needs_invoice: z.boolean().optional(),

@@ -8,6 +8,7 @@ import { normalizeCouponCode } from '@/lib/coupons/normalize-code';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
 import { validateCheckoutModules } from '@/lib/checkout-modules/validate';
+import { annotateViesStatus } from '@/lib/validation/vies';
 import { resolveEventCheckout } from '@/lib/events/checkout';
 import { bankTransferConfigSchema, canUseBankTransfer } from '@/lib/orders/bank-transfer-config';
 import { issueInvoiceForTransaction } from '@/lib/invoicing/service';
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       locale: body.locale, currency: product.currency, termsAccepted: body.termsAccepted,
     });
     if (!validation.success) return NextResponse.json({ errors: validation.errors }, { status: validation.status });
+    await annotateViesStatus(validation.details);
     const buyer = validation.details.buyer;
     if (!buyer || typeof buyer !== 'object' || Array.isArray(buyer)) return fail('Transfer unavailable');
     buyer.email = email;

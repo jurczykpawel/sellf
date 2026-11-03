@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { validateCheckoutModules } from '@/lib/checkout-modules/validate';
+import { annotateViesStatus } from '@/lib/validation/vies';
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
@@ -340,6 +341,7 @@ export async function POST(request: NextRequest) {
           locale, currency: product.currency, termsAccepted,
         });
         if (!result.success) return NextResponse.json({ success: false, errors: result.errors }, { status: result.status });
+        await annotateViesStatus(result.details);
         const rawQuantity = result.quantity;
         const customError = await persistCustomFields();
         if (customError) return customError;

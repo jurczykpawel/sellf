@@ -3674,6 +3674,28 @@
         "browser",
         "integration"
       ]
+    },
+    {
+      "id": "J220",
+      "title": "Foreign company enters its own tax identifier in the B2B checkout",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "b2b_quantity",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "issue_invoice"
+      },
+      "end_state": {
+        "buyer": "Company outside Poland can pay: EU VAT number checked against its country format (prefix added if omitted), any identifier accepted outside the EU.",
+        "seller": "Order stores the number with tax_id_type (pl_nip / eu_vat / other), tax_id_country and, when enabled, the VIES result; the invoice gets the same type and country.",
+        "integrator": "purchase.completed invoice carries taxIdType and taxIdCountry (unit layer: webhook payload builder)."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "unit"
+      ]
     }
   ],
   "escapes": [
