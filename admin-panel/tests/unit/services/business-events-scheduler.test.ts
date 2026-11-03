@@ -8,8 +8,8 @@ it('periodically captures expiries and drains committed changes in the productio
   vi.useFakeTimers(); vi.stubEnv('NODE_ENV', 'production'); vi.stubEnv('NEXT_PHASE', 'phase-production-server'); vi.stubEnv('E2E_MODE', 'false');
   startBusinessEvents(); startBusinessEvents();
   await vi.advanceTimersByTimeAsync(30000);
-  expect(rpc.mock.calls.map(call => call[0])).toEqual(['capture_expired_access', 'claim_business_events']);
-  stopBusinessEvents(); await vi.advanceTimersByTimeAsync(60000); expect(rpc).toHaveBeenCalledTimes(2);
+  expect(rpc.mock.calls.map(call => call[0])).toEqual(['capture_expired_access', 'capture_expired_licenses', 'claim_business_events']);
+  stopBusinessEvents(); await vi.advanceTimersByTimeAsync(60000); expect(rpc).toHaveBeenCalledTimes(3);
 });
 it('does not process data while producing a build', async () => {
   vi.useFakeTimers(); vi.stubEnv('NODE_ENV', 'production'); vi.stubEnv('NEXT_PHASE', 'phase-production-build'); vi.stubEnv('E2E_MODE', 'false');

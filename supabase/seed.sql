@@ -702,14 +702,15 @@ BEGIN
   );
 
   -- Grant product access to users (excluding john.doe for OTO testing)
-  INSERT INTO user_product_access (user_id, product_id, access_granted_at)
+  -- grant_source: how each access was obtained (shown in the admin Orders list).
+  INSERT INTO user_product_access (user_id, product_id, access_granted_at, grant_source)
   VALUES
-  (user2_id, premium_product_id, NOW() - INTERVAL '6 days'),
-  (user2_id, pro_toolkit_id, NOW() - INTERVAL '4 days'),
-  (user2_id, vip_masterclass_id, NOW() - INTERVAL '1 day'),
-  (user3_id, premium_product_id, NOW() - INTERVAL '8 days'),
-  (user3_id, pro_toolkit_id, NOW() - INTERVAL '3 days'),
-  (user3_id, vip_masterclass_id, NOW());
+  (user2_id, premium_product_id, NOW() - INTERVAL '6 days', 'purchase'),
+  (user2_id, pro_toolkit_id, NOW() - INTERVAL '4 days', 'purchase'),
+  (user2_id, vip_masterclass_id, NOW() - INTERVAL '1 day', 'manual'),
+  (user3_id, premium_product_id, NOW() - INTERVAL '8 days', 'purchase'),
+  (user3_id, pro_toolkit_id, NOW() - INTERVAL '3 days', 'purchase'),
+  (user3_id, vip_masterclass_id, NOW(), 'manual');
 
   -- Note: demo@sellf.app is the admin (inserted first in seed, trigger assigns admin role).
   -- john.doe@example.com, maria.schmidt@example.com, anna.kowalska@example.com are regular users.
@@ -1046,11 +1047,12 @@ VALUES
   );
 
 -- Give john.doe access to test-oto-target (so OTO will be skipped for test-oto-owned)
-INSERT INTO user_product_access (user_id, product_id, access_granted_at)
+INSERT INTO user_product_access (user_id, product_id, access_granted_at, grant_source)
 VALUES (
   'aaaaaaaa-1111-4111-a111-111111111111', -- john.doe's UUID
   (SELECT id FROM products WHERE slug = 'test-oto-target'),
-  NOW() - INTERVAL '7 days'
+  NOW() - INTERVAL '7 days',
+  'manual'
 );
 -- ========================================================
 -- Subscription products (subscriptions MVP)
@@ -1571,3 +1573,8 @@ BEGIN
     i := i + 1;
   END LOOP;
 END $seed$;
+
+-- ===== GUIDED TUTORIALS (the demo admin has already seen the storefront templates tutorial) =====
+INSERT INTO public.tutorial_progress (user_id, tutorial_id)
+SELECT id, 'storefront-templates' FROM auth.users WHERE email = 'demo@sellf.app'
+ON CONFLICT DO NOTHING;

@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { isRefundablePaymentStatus } from '@/lib/refunds/payment-status';
 import { processRefund } from '@/lib/actions/payment';
 import { getTransactionRefundProgress } from '@/lib/refunds/transaction-refund-progress';
+import { parseRefundAmountInput } from '@/lib/refunds/refund-amount';
 import { formatAdminDate } from '@/lib/timezone';
 import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
 import { getPaymentDiscount } from '@/lib/payments/discount';
@@ -22,11 +23,22 @@ import type { PaymentTransaction, PaymentTransactionLineItem } from '@/types/pay
 interface PaymentTransactionsTableProps {
   transactions: PaymentTransaction[];
   onRefreshData?: () => void | Promise<void>;
+  /** Transaction to open on mount (deep link `?order=` resolved by the dashboard). */
+  initialDetailsId?: string | null;
+  /** Called when the details dialog opens/closes so the dashboard can mirror it in the URL. */
+  onDetailsChange?: (transaction: PaymentTransaction | null) => void;
+}
+
+/** `#1300` when the order has a number, otherwise the short id. */
+function orderLabel(transaction: PaymentTransaction): string {
+  return transaction.order_number ? `#${transaction.order_number}` : `${transaction.id.slice(0, 8)}...`;
 }
 
 export default function PaymentTransactionsTable({ 
-  transactions, 
-  onRefreshData 
+  transactions,
+  onRefreshData,
+  initialDetailsId = null,
+  onDetailsChange,
 }: PaymentTransactionsTableProps) {
   const bt = useTranslations('bankTransfer');
   const t = useTranslations('admin.payments.transactions');
@@ -37,7 +49,20 @@ export default function PaymentTransactionsTable({
   const [refundingId, setRefundingId] = useState<string | null>(null);
   const [refundReason, setRefundReason] = useState('');
   const [showRefundModal, setShowRefundModal] = useState<string | null>(null);
-  const [detailsTransactionId, setDetailsTransactionId] = useState<string | null>(null);
+  const [refundAmountInput, setRefundAmountInput] = useState('');
+  const [detailsTransactionId, setDetailsTransactionIdState] = useState<string | null>(initialDetailsId);
+  const setDetailsTransactionId = (id: string | null) => {
+    setDetailsTransactionIdState(id);
+    onDetailsChange?.(id ? transactions.find(transaction => transaction.id === id) ?? null : null);
+  };
+  const closeRefundModal = () => {
+    setShowRefundModal(null);
+    setRefundReason('');
+    setRefundAmountInput('');
+  };
+  const refundTransaction = showRefundModal ? transactions.find(transaction => transaction.id === showRefundModal) ?? null : null;
+  const refundRemaining = refundTransaction ? Math.max(refundTransaction.amount - (refundTransaction.refunded_amount || 0), 0) : 0;
+  const refundAmount = refundTransaction ? parseRefundAmountInput(refundAmountInput, refundRemaining, refundTransaction.currency) : null;
   const detailsTransaction = transactions.find(transaction => transaction.id === detailsTransactionId) ?? null;
 
   const handleRefund = async (transactionId: string, amount?: number) => {
@@ -54,8 +79,7 @@ export default function PaymentTransactionsTable({
       
       if (result.success) {
         toast.success(tRefund('success'));
-        setShowRefundModal(null);
-        setRefundReason('');
+        closeRefundModal();
         onRefreshData?.();
       } else {
         toast.error(result.message);
@@ -147,8 +171,8 @@ export default function PaymentTransactionsTable({
               return (
                 <tr key={transaction.id} className={transaction.status === 'awaiting_payment' && transaction.payment_due_at && Date.parse(transaction.payment_due_at) < Date.now() ? 'bg-sf-warning-soft' : index % 2 === 1 ? 'bg-sf-row-alt' : ''}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-sf-heading">
-                      {transaction.id.slice(0, 8)}...
+                    <div className="text-sm font-medium text-sf-heading" title={transaction.id}>
+                      {orderLabel(transaction)}
                     </div>
                     <div className="text-sm text-sf-muted">
                       {transaction.stripe_payment_intent_id?.slice(0, 20)}...
@@ -223,6 +247,7 @@ export default function PaymentTransactionsTable({
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-3">
                       <button
+                        data-tour="payments-details"
                         onClick={() => setDetailsTransactionId(transaction.id)}
                         className="text-sf-accent hover:text-sf-accent-hover"
                       >
@@ -263,7 +288,8 @@ export default function PaymentTransactionsTable({
                   {t('transactionDetails')}
                 </h3>
                 <p className="text-sm text-sf-muted">
-                  {detailsTransaction.id}
+                  {detailsTransaction.order_number && <span className="font-semibold text-sf-heading mr-2">#{detailsTransaction.order_number}</span>}
+                  <span className="break-all">{detailsTransaction.id}</span>
                 </p>
               </div>
               <button
@@ -392,7 +418,15 @@ export default function PaymentTransactionsTable({
               )}
             </div>
 
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
+              {detailsTransaction.customer_email && (detailsTransaction.product?.id ?? detailsTransaction.product_id) && (
+                <a
+                  href={`/dashboard/licenses?${new URLSearchParams({ email: detailsTransaction.customer_email, product: detailsTransaction.product?.id ?? detailsTransaction.product_id })}`}
+                  className="text-sm font-medium text-sf-accent hover:text-sf-accent-hover underline"
+                >
+                  {t('issueLicense')}
+                </a>
+              )}
               <button
                 onClick={() => setDetailsTransactionId(null)}
                 className="bg-sf-accent-bg hover:bg-sf-accent-hover text-white font-semibold py-2 px-4 rounded-lg transition-colors"
@@ -428,19 +462,47 @@ export default function PaymentTransactionsTable({
                   <option value="fraudulent">{tRefund('reasons.fraudulent')}</option>
                 </select>
               </div>
+              {refundTransaction && (
+                <div>
+                  <label htmlFor="sf-refund-amount" className="block text-sm font-medium text-sf-body mb-2">
+                    {tRefund('amountLabel', { currency: refundTransaction.currency.toUpperCase() })}
+                  </label>
+                  <input
+                    id="sf-refund-amount"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    value={refundAmountInput}
+                    onChange={(e) => setRefundAmountInput(e.target.value)}
+                    placeholder={String(fromMinorUnits(refundRemaining, refundTransaction.currency))}
+                    aria-describedby="sf-refund-amount-hint"
+                    aria-invalid={refundAmount?.ok === false}
+                    className="w-full px-3 py-2 border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent bg-sf-raised text-sf-heading"
+                  />
+                  <p id="sf-refund-amount-hint" className="mt-1 text-xs text-sf-muted">
+                    {tRefund('amountHint', { amount: formatCurrency(refundRemaining, refundTransaction.currency) })}
+                  </p>
+                  {refundAmount?.ok === false && (
+                    <p role="alert" className="mt-1 text-xs text-sf-danger">
+                      {tRefund(refundAmount.error === 'exceedsRemaining' ? 'amountExceedsRemaining' : 'amountInvalid', { amount: formatCurrency(refundRemaining, refundTransaction.currency) })}
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="flex space-x-3">
                 <button
-                  onClick={() => handleRefund(showRefundModal)}
-                  disabled={!refundReason || refundingId === showRefundModal}
+                  onClick={() => refundAmount?.ok && handleRefund(showRefundModal, refundAmount.amountMinor)}
+                  disabled={!refundReason || !refundAmount?.ok || refundingId === showRefundModal}
                   className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
                 >
-                  {refundingId === showRefundModal ? tRefund('processing') : tRefund('fullRefundSentence')}
+                  {refundingId === showRefundModal
+                    ? tRefund('processing')
+                    : refundAmount?.ok && refundAmount.partial && refundTransaction
+                    ? tRefund('partialRefundSentence', { amount: formatCurrency(refundAmount.amountMinor, refundTransaction.currency) })
+                    : tRefund('fullRefundSentence')}
                 </button>
                 <button
-                  onClick={() => {
-                    setShowRefundModal(null);
-                    setRefundReason('');
-                  }}
+                  onClick={closeRefundModal}
                   className="flex-1 bg-sf-base hover:bg-sf-hover border border-sf-border text-sf-heading font-semibold py-2 px-4 rounded-lg transition-colors"
                 >
                   {tRefund('cancel')}

@@ -14,7 +14,7 @@ export default function DraftActions({ revision, enabled }: DraftActionsProps) {
     { label: t('preview'), href: `/template-preview/${revision}?locale=${locale}&fixture=published-products`, icon: Eye, external: true },
     { label: t('historyPublishing'), href: `${prefix}/admin/templates/history`, icon: History, external: false },
   ];
-  return <div data-draft-actions className="space-y-3 rounded-xl border border-sf-border bg-sf-base p-4">
+  return <div data-draft-actions data-tour="template-draft-actions" className="space-y-3 rounded-xl border border-sf-border bg-sf-base p-4">
     <p className="text-sm leading-relaxed text-sf-muted">{t(enabled ? 'draftActionsHelp' : 'saveBeforePreview')}</p>
     <div className="flex flex-wrap gap-2">{actions.map(({ label, href, icon: Icon, external }) => enabled
       ? <a key={label} aria-label={label} title={external ? `${label}${t('newTab')}` : label} className={`${editorButton} inline-flex items-center gap-2`} href={href} {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}><Icon size={17} aria-hidden="true" />{label}{external && <span className="sr-only">{t('newTab')}</span>}</a>

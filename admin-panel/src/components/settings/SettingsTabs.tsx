@@ -17,7 +17,6 @@ import OmnibusSettings from './OmnibusSettings'
 import AttributionSettings from './AttributionSettings'
 import LicenseSettings from './LicenseSettings'
 import LicenseKeysSettings from './LicenseKeysSettings'
-import IssuedLicensesSettings from './IssuedLicensesSettings'
 import SystemUpdateSettings from './SystemUpdateSettings'
 import SecurityAuditSettings from './SecurityAuditSettings'
 import { useConfig } from '@/components/providers/config-provider'
@@ -44,7 +43,8 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicense
   const searchParams = useSearchParams()
   // useSearchParams resolves identically on server and client, so the initial tab matches SSR (no hydration mismatch).
   const [active, setActive] = useState<TabId>(
-    searchParams.has('stripe_connected') || searchParams.has('connect_return') ? 'payments' : 'shop'
+    TABS.find(({ id }) => id === searchParams.get('tab'))?.id
+      ?? (searchParams.has('stripe_connected') || searchParams.has('connect_return') ? 'payments' : 'shop')
   )
   const { demoMode } = useConfig()
   const { role } = useAuth()
@@ -103,7 +103,6 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicense
           <>
             <LicenseSettings />
             <LicenseKeysSettings hasLicenseIssuance={hasLicenseIssuance} />
-            {role === 'platform_admin' && !demoMode && <IssuedLicensesSettings enabled={Boolean(hasLicenseIssuance)} />}
           </>
         )}
 

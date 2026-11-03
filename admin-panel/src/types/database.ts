@@ -1719,6 +1719,7 @@ export type Database = {
         Row: {
           email: string | null
           expires_at: string | null
+          expiry_notified_at: string | null
           id: string
           issuance_source: string
           issued_at: string
@@ -1736,6 +1737,7 @@ export type Database = {
         Insert: {
           email?: string | null
           expires_at?: string | null
+          expiry_notified_at?: string | null
           id?: string
           issuance_source?: string
           issued_at?: string
@@ -1753,6 +1755,7 @@ export type Database = {
         Update: {
           email?: string | null
           expires_at?: string | null
+          expiry_notified_at?: string | null
           id?: string
           issuance_source?: string
           issued_at?: string
@@ -2427,6 +2430,9 @@ export type Database = {
           order_reopened_notified_at: string | null
           order_transfer_declared_notified_at: string | null
           paid_at: string | null
+          participants_completed_at: string | null
+          participants_mail_sent_at: string | null
+          participants_reminder2_sent_at: string | null
           payment_due_at: string | null
           payment_provider: string
           pricing_snapshot_version: number | null
@@ -2483,6 +2489,9 @@ export type Database = {
           order_reopened_notified_at?: string | null
           order_transfer_declared_notified_at?: string | null
           paid_at?: string | null
+          participants_completed_at?: string | null
+          participants_mail_sent_at?: string | null
+          participants_reminder2_sent_at?: string | null
           payment_due_at?: string | null
           payment_provider?: string
           pricing_snapshot_version?: number | null
@@ -2539,6 +2548,9 @@ export type Database = {
           order_reopened_notified_at?: string | null
           order_transfer_declared_notified_at?: string | null
           paid_at?: string | null
+          participants_completed_at?: string | null
+          participants_mail_sent_at?: string | null
+          participants_reminder2_sent_at?: string | null
           payment_due_at?: string | null
           payment_provider?: string
           pricing_snapshot_version?: number | null
@@ -4314,6 +4326,39 @@ export type Database = {
         }
         Relationships: []
       }
+      tutorial_progress: {
+        Row: {
+          seen_at: string
+          tutorial_id: string
+          user_id: string
+        }
+        Insert: {
+          seen_at?: string
+          tutorial_id: string
+          user_id: string
+        }
+        Update: {
+          seen_at?: string
+          tutorial_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tutorial_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tutorial_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       user_product_access: {
         Row: {
           access_duration_days: number | null
@@ -4322,6 +4367,7 @@ export type Database = {
           created_at: string
           custom_field_values: Json
           expiry_notified_at: string | null
+          grant_source: string
           id: string
           product_id: string
           subscription_id: string | null
@@ -4336,6 +4382,7 @@ export type Database = {
           created_at?: string
           custom_field_values?: Json
           expiry_notified_at?: string | null
+          grant_source: string
           id?: string
           product_id: string
           subscription_id?: string | null
@@ -4350,6 +4397,7 @@ export type Database = {
           created_at?: string
           custom_field_values?: Json
           expiry_notified_at?: string | null
+          grant_source?: string
           id?: string
           product_id?: string
           subscription_id?: string | null
@@ -5304,11 +5352,13 @@ export type Database = {
       business_event_actor: { Args: never; Returns: Json }
       business_event_order: { Args: { p_transaction: string }; Returns: Json }
       business_event_partner: { Args: { p_member: string }; Returns: Json }
+      buyer_mail_locale: { Args: { p_email: string }; Returns: string }
       cancel_unpaid_order: {
         Args: { p_reason: string; p_transaction_id: string }
         Returns: Json
       }
       capture_expired_access: { Args: never; Returns: number }
+      capture_expired_licenses: { Args: never; Returns: number }
       check_application_rate_limit: {
         Args: {
           action_type_param: string
@@ -5803,7 +5853,23 @@ export type Database = {
         }
         Returns: Json
       }
+      grant_bundle_component_access_impl: {
+        Args: {
+          max_retries?: number
+          product_id_param: string
+          user_id_param: string
+        }
+        Returns: Json
+      }
       grant_free_product_access: {
+        Args: {
+          access_duration_days_param?: number
+          coupon_code_param?: string
+          product_slug_param: string
+        }
+        Returns: boolean
+      }
+      grant_free_product_access_impl: {
         Args: {
           access_duration_days_param?: number
           coupon_code_param?: string
@@ -5820,6 +5886,15 @@ export type Database = {
         Returns: boolean
       }
       grant_product_access_service_role: {
+        Args: {
+          max_retries?: number
+          override_duration_days_param?: number
+          product_id_param: string
+          user_id_param: string
+        }
+        Returns: Json
+      }
+      grant_product_access_service_role_impl: {
         Args: {
           max_retries?: number
           override_duration_days_param?: number
@@ -5922,6 +5997,23 @@ export type Database = {
         }
         Returns: Json
       }
+      list_participants_reminders_due: {
+        Args: { p_limit?: number; p_now?: string }
+        Returns: { id: string; stage: number }[]
+      }
+      list_orders_missing_participants: {
+        Args: { p_limit?: number; p_unsent_only?: boolean }
+        Returns: {
+          created_at: string
+          customer_email: string
+          id: string
+          mail_sent_at: string
+          order_number: number
+          product_id: string
+          product_name: string
+          quantity: number
+        }[]
+      }
       log_admin_action: {
         Args: {
           action_details?: Json
@@ -5970,6 +6062,38 @@ export type Database = {
           created_at: string
           custom_field_values: Json
           expiry_notified_at: string | null
+          grant_source: string
+          id: string
+          product_id: string
+          subscription_id: string | null
+          transfer_transaction_id: string | null
+          user_id: string
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "user_product_access"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      mutate_access_impl: {
+        Args: {
+          p_access_id?: string
+          p_action: string
+          p_actor?: Json
+          p_product_id?: string
+          p_user_id: string
+          p_values?: Json
+        }
+        Returns: {
+          access_duration_days: number | null
+          access_expires_at: string | null
+          access_granted_at: string
+          created_at: string
+          custom_field_values: Json
+          expiry_notified_at: string | null
+          grant_source: string
           id: string
           product_id: string
           subscription_id: string | null
@@ -6201,6 +6325,10 @@ export type Database = {
         }
         Returns: Json
       }
+      order_awaits_participants: {
+        Args: { p_order_details: Json; p_profile: Json; p_status: string }
+        Returns: boolean
+      }
       pending_free_grant_products: {
         Args: never
         Returns: {
@@ -6418,6 +6546,10 @@ export type Database = {
         Returns: number
       }
       storefront_config_valid: { Args: { config: Json }; Returns: boolean }
+      submit_order_participants: {
+        Args: { p_order_id: string; p_people: Json }
+        Returns: Json
+      }
       telemetry_claim_send: {
         Args: { p_lease_ms: number; p_window_ms: number }
         Returns: {

@@ -19,7 +19,7 @@ export interface IssueLicenseInput {
   orderId: string;
   customFieldValues?: Record<string, string>;
   domain?: string;
-  source?: 'purchase' | 'manual';
+  source?: 'purchase' | 'manual' | 'api';
 }
 
 interface ProductLicenseRow {
@@ -118,6 +118,8 @@ export async function issueLicense(
   }
   const token = signLicense(claims, key.privateKeyPem);
 
+  // license.issued is captured by the insert trigger (20261103160000_license_events.sql).
+  // license.updated: emit here when an operation starts changing an issued license.
   const licenseId = randomUUID();
   const { error } = await admin.from('issued_licenses').insert({
     id: licenseId,

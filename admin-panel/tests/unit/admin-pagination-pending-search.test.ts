@@ -29,6 +29,7 @@ vi.mock('@/lib/payments/fetch-transactions-page', () => ({
   fetchPaymentTransactionsPage: mocks.fetchPaymentsPage,
   dateRangeToDateFrom: () => undefined,
 }));
+vi.mock('@/components/admin/MissingParticipantsPanel', () => ({ default: () => null }));
 vi.mock('@/components/admin/PaymentStatsCards', () => ({ default: () => null }));
 vi.mock('@/components/admin/PaymentTransactionsTable', () => ({ default: () => null }));
 vi.mock('@/components/admin/PaymentSessionsTable', () => ({ default: () => null }));

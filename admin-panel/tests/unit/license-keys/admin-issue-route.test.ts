@@ -7,7 +7,10 @@ const mocks = vi.hoisted(() => ({
   rate: vi.fn(),
   admin: vi.fn(),
   platform: vi.fn(),
+  mail: vi.fn(),
+  rpc: vi.fn(),
 }));
+vi.mock('@/lib/auth/magic-link/request', () => ({ sendTrustedMagicLink: mocks.mail }));
 
 vi.mock('@/lib/auth-server', () => ({ requireAdminApiWithRequest: mocks.auth }));
 vi.mock('@/lib/license-keys/issue', () => ({ issueLicense: mocks.issue }));
@@ -39,7 +42,9 @@ beforeEach(() => {
   mocks.auth.mockResolvedValue({ user: { id: 'admin-1' }, role: 'platform_admin' });
   mocks.rate.mockResolvedValue(true);
   const query = { select: () => query, eq: () => query, single: async () => ({ data: { custom_checkout_fields: [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] }, error: null }) };
-  mocks.admin.mockReturnValue({ from: () => query });
+  mocks.admin.mockReturnValue({ from: () => query, rpc: mocks.rpc });
+  mocks.rpc.mockResolvedValue({ error: null });
+  mocks.mail.mockResolvedValue({ ok: true });
   mocks.platform.mockReturnValue({ from: () => ({ insert: vi.fn().mockResolvedValue({ error: null }) }) });
   mocks.issue.mockResolvedValue({ id: LICENSE, token: 'payload.signature', kid: 'kid-1', sellerId: SELLER });
 });
@@ -121,5 +126,31 @@ describe('POST /api/admin/licenses', () => {
     const response = await POST(request({ productId: PRODUCT, email: 'buyer@example.com', domain: 'example.com' }));
     expect(response.status).toBe(409);
     expect(JSON.stringify(await response.json())).not.toContain('payload.signature');
+  });
+});
+
+describe('buyer mail on manual issuance', () => {
+  it('mails the key by default and clears it from account data, or skips on request', async () => {
+    const res = await POST(request({ productId: PRODUCT, email: 'buyer@example.com', domain: 'shop.example.com' }));
+    expect(res.status).toBe(201);
+    expect((await res.json()).license.emailSent).toBe(true);
+    expect(mocks.mail).toHaveBeenCalledWith(expect.objectContaining({ email: 'buyer@example.com', data: expect.objectContaining({ license_key: 'payload.signature' }) }));
+    expect(mocks.rpc).toHaveBeenCalledWith('prepare_event_mail', { p_email: 'buyer@example.com', p_data: { locale: 'en' } });
+    mocks.mail.mockClear();
+    const quiet = await POST(request({ productId: PRODUCT, email: 'buyer@example.com', domain: 'shop.example.com', sendEmail: false }));
+    expect((await quiet.json()).license.emailSent).toBe(false);
+    expect(mocks.mail).not.toHaveBeenCalled();
+  });
+});
+
+describe('buyer mail language', () => {
+  it('uses the buyer language over the seller panel language, falling back to the panel', async () => {
+    mocks.rpc.mockImplementation(async (name: string) => name === 'buyer_mail_locale' ? { data: 'pl', error: null } : { error: null });
+    await POST(request({ productId: PRODUCT, email: 'kupujacy@example.com', domain: 'shop.example.com', locale: 'en' }));
+    expect(mocks.mail).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ locale: 'pl' }) }));
+    mocks.mail.mockClear();
+    mocks.rpc.mockImplementation(async (name: string) => name === 'buyer_mail_locale' ? { data: null, error: null } : { error: null });
+    await POST(request({ productId: PRODUCT, email: 'unknown@example.com', domain: 'shop.example.com', locale: 'pl' }));
+    expect(mocks.mail).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ locale: 'pl' }) }));
   });
 });

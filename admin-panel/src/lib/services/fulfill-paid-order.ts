@@ -4,6 +4,7 @@
  * @see supabase/migrations/20261002000000_payment_order_reconciliation.sql
  */
 import { revalidateTag } from 'next/cache';
+import { handleChargeDispute } from '@/app/api/webhooks/stripe/dispute-handlers';
 import { issuedInvoice, issueInvoiceForTransaction } from '@/lib/invoicing/service';
 import { snapshotFromRows } from '@/lib/orders/local-tax';
 import { issueLicensesForOrder, resolveComponentProductIds } from '@/lib/services/bundle-order';
@@ -62,6 +63,9 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
   const customFieldValues = (tx.custom_field_values ?? {}) as Record<string, string>;
   const metadata = { ...(tx.metadata ?? {}), ...(args.metadata ?? {}) };
   const orderKey = provider.kind === 'offline' ? tx.id : provider.paymentIntentId || tx.session_id;
+  if (provider.kind === 'stripe' && provider.paymentIntentId) {
+    await reconcileEarlyDisputes(provider.stripe, args.supabase, provider.paymentIntentId);
+  }
   const licenses = await issueLicensesForOrder(args.supabase, {
     productIds: [...productIds], email: tx.customer_email || args.customerEmail,
     userId: tx.user_id, orderId: orderKey, customFieldValues,
@@ -111,5 +115,21 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
       items: [{ item_id: args.productId, item_name: 'name' in payload.product ? payload.product.name : 'Unknown Product', price: fromMinorUnits(args.amount, args.currency), quantity: 1 }],
       orderId: tx.session_id, userEmail: tx.customer_email || args.customerEmail,
     }).catch(error => console.error('[fulfillPaidOrder] Purchase tracking error:', error));
+  }
+}
+
+/**
+ * A dispute opened before the payment row existed was answered "awaiting storage" and waits
+ * for Stripe's redelivery. Apply it now so access, licenses and dispute.created follow the
+ * stored payment immediately. Fail-safe: the redelivered event remains the fallback.
+ */
+async function reconcileEarlyDisputes(stripe: Stripe, supabase: OrderClient, paymentIntentId: string): Promise<void> {
+  try {
+    const disputes = await stripe.disputes.list({ payment_intent: paymentIntentId, limit: 10 });
+    for (const dispute of disputes.data) {
+      await handleChargeDispute(dispute, supabase as never, stripe, false);
+    }
+  } catch (error) {
+    console.error('[fulfillPaidOrder] Early dispute reconciliation deferred:', error instanceof Error ? error.message : 'Unknown error');
   }
 }

@@ -39,8 +39,10 @@ export default function MyPurchasesPage() {
   const { user, loading: authLoading } = useAuth();
   const t = useTranslations('myPurchases');
   const locale = useLocale();
+  const tp = useTranslations('participantsLater');
   const [purchases, setPurchases] = useState<UserPurchase[]>([]);
   const [lineItemsByTransaction, setLineItemsByTransaction] = useState<Record<string, NormalizedPurchaseLineItem[]>>({});
+  const [awaitingParticipants, setAwaitingParticipants] = useState<Record<string, boolean>>({});
   const [transactionMetadataById, setTransactionMetadataById] = useState<Record<string, PurchaseTransactionMetadata | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +85,7 @@ export default function MyPurchasesPage() {
           .in('transaction_id', transactionIds),
         supabase
           .from('payment_transactions')
-          .select('id, metadata, refunded_at')
+          .select('id, metadata, refunded_at, order_details')
           .in('id', transactionIds),
       ]);
 
@@ -91,9 +93,11 @@ export default function MyPurchasesPage() {
 
       const lineItems = (rawLineItems || []) as PurchaseLineItem[];
       const metadataMap: Record<string, PurchaseTransactionMetadata | null> = {};
+      const detailsById: Record<string, unknown> = {};
 
       if (!transactionMetadataError) {
         for (const transaction of transactionMetadata || []) {
+          detailsById[transaction.id] = transaction.order_details;
           metadataMap[transaction.id] = { ...(transaction.metadata as PurchaseTransactionMetadata | null), refunded_at: transaction.refunded_at };
         }
       } else {
@@ -106,7 +110,7 @@ export default function MyPurchasesPage() {
       if (productIds.length > 0) {
         const { data: productsData, error: productsError } = await supabase
           .from('products')
-          .select('id, name, slug, icon, is_refundable, refund_period_days')
+          .select('id, name, slug, icon, is_refundable, refund_period_days, checkout_profile')
           .in('id', productIds);
 
         if (productsError) throw productsError;
@@ -129,6 +133,15 @@ export default function MyPurchasesPage() {
         );
       }
 
+      const awaiting: Record<string, boolean> = {};
+      for (const purchase of visiblePurchases) {
+        const profile = lineItems.filter(item => item.transaction_id === purchase.transaction_id)
+          .map(item => productsById.get(item.product_id)?.checkout_profile as { modules?: Array<{ id: string; allow_later?: boolean }> } | null | undefined);
+        const people = (detailsById[purchase.transaction_id] as { participants?: { people?: unknown[] } } | null)?.participants?.people ?? [];
+        awaiting[purchase.transaction_id] = purchase.status === 'completed' && people.length === 0
+          && profile.some(item => item?.modules?.some(module => module.id === 'participants' && module.allow_later));
+      }
+      setAwaitingParticipants(awaiting);
       setLineItemsByTransaction(grouped);
       setTransactionMetadataById(metadataMap);
     } catch (err) {
@@ -456,6 +469,12 @@ export default function MyPurchasesPage() {
                       )}
                     </div>
                   </div>
+
+                  {awaitingParticipants[purchase.transaction_id] && (
+                    <p className="mt-4 rounded-xl border border-sf-border p-3 text-sm text-sf-heading">
+                      {tp('missing')}: <a className="font-semibold underline" href={`/${locale}/order/${purchase.transaction_id}/participants`}>{tp('addLink')}</a>
+                    </p>
+                  )}
 
                   {lineItems.length > 0 && (
                     <div className="mt-5 rounded-xl border border-sf-border bg-sf-float/50 p-4">

@@ -42,6 +42,9 @@ export const API_SCOPES = {
 
   SYSTEM_READ: 'system:read',
   SYSTEM_WRITE: 'system:write',
+
+  LICENSES_READ: 'licenses:read',
+  LICENSES_WRITE: 'licenses:write',
 } as const;
 
 export type ApiScope = typeof API_SCOPES[keyof typeof API_SCOPES];

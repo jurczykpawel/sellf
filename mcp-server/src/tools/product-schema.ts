@@ -105,7 +105,7 @@ const productShape = {
     z.object({ id: z.literal('recipient'), for: z.array(z.literal('organization')).length(1) }).strict(),
     z.object({ id: z.literal('phone'), required: z.boolean() }).strict(),
     z.object({ id: z.literal('quantity'), min: z.number().int().min(1).max(100), max: z.number().int().min(1).max(100), mode: z.enum(['hidden', 'checkout', 'product_page']) }).strict(),
-    z.object({ id: z.literal('participants'), required: z.boolean(), prefill_from_buyer: z.boolean() }).strict(),
+    z.object({ id: z.literal('participants'), required: z.boolean(), prefill_from_buyer: z.boolean(), allow_later: z.boolean().optional() }).strict(),
   ])).max(5) }).strict().nullable().optional(),
   checkout_template: z.string().max(40).optional(),
   custom_checkout_fields: z.array(z.record(z.string(), z.unknown())).max(20).optional(),

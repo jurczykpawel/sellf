@@ -275,6 +275,31 @@ and `payment.statusAfter`, rather than inferring access from `won` alone.
 permanent access). Guest entries also carry `guestPurchaseId`. Apply this list:
 a manually removed main grant may stay absent while a purchased add-on returns.
 
+### `license.issued` / `license.expired` / `license.updated` — Pro
+
+`license.issued` is sent once for every license Sellf records, whatever the path:
+purchase, free product, manual issuance in the panel, or `POST /api/v1/licenses`
+(`license.issuanceSource` is `purchase`, `manual` or `api`). `license.expired` is sent
+once when an active license passes `expiresAt` (checked every 30 seconds by the
+business-event cycle); revoked licenses do not expire again. Payloads match
+`license.revoked` below and never contain the signed token.
+
+> **Getting the token.** `license.issued` deliberately carries no token, so a webhook log or
+> a misconfigured receiver can never leak a working key. To deliver the key yourself, call
+> `GET /api/v1/licenses/{license.id}` with an API key that has `licenses:read`; the response
+> includes `token`, `jwksUrl` and `crlUrl`. Manual and API issuance already mail the key to
+> the buyer (in the buyer's language when known), so most integrations do not need it.
+ Manual and
+API issuance mail the key and a product link to the buyer unless `sendEmail` is `false`.
+
+A license issued for an order with an open or lost dispute is recorded as revoked by
+that dispute: you receive `license.issued` followed by `license.revoked` with
+`dispute.stripeDisputeId`, and `purchase.completed.licenses[]` omits it. A win restores
+it (`license.restored`).
+
+`license.updated` is **reserved**: no operation changes an issued license yet. It will be
+sent when one exists (tier change, extension, holder change); subscribing now is allowed.
+
 ### `license.revoked` / `license.restored` — Pro
 
 Each actual revocation-status change creates a committed notification. Repeating
@@ -512,12 +537,18 @@ their own proforma, invoice or mail (n8n, Listmonk). Each event is delivered onc
 | `order.cancelled` | Cancellation: `cancelReason = payment_window_expired` (automatic after `releaseAt`) or `admin`. | Tell the buyer, correct the invoice; `lateTransferPolicy = admin_decision`. |
 | `order.overdue` | The due date of an order without a timed hold passed. | Dunning. |
 | `order.reopened` | An administrator accepted a transfer that arrived after cancellation (order price, even over the seat limit). | Match the payment: `previousStatus = cancelled`; `purchase.completed` follows. |
+| `order.participants_updated` | The buyer added the participant list after payment (product option "add participants later"). Sent once per order. | `orderDetails.participants.people` holds the full list (`first_name`, `last_name`, `email`), `orderDetails.quantity.value` the count; `purchase.completed` carried an empty list. |
 
 The timed reservation applies to events and is configured by the seller (Settings → Payments → Bank transfer).
 Regular products never expire. Schedule `/api/cron?job=transfer-reservations` every 5 minutes.
 
 Access events carry `customer`, `product`, `access.id`, `grantedAt`, `expiresAt`,
 `statusBefore/statusAfter`, `reason` and `actor` (`user`, `api_key`, or `system`; system ID is null).
+`access.granted` and `access.updated` also carry `grantSource`: how the access was obtained, recorded
+once when it was granted (`purchase`, `bundle`, `bank_transfer`, `subscription`, `free`, `manual`, or
+`unknown` for grants older than this field). Prefer `grantSource` over `reason`: `reason` is kept unchanged
+for existing integrations, but can be inferred (for example `free_product` from the price), so a paid
+product claimed with a 100% coupon has `grantSource: "free"`.
 The root `accessGrantedAt/accessExpiresAt` aliases contain the same saved dates.
 `sourceOrders` contains related saved orders; `sourceOrder` is populated only when there is one
 unambiguous order. Manual or unlinked grants may have no order. `occurredAt` records the change,

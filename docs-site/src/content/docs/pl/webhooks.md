@@ -155,6 +155,32 @@ przed wprowadzeniem zapisu pochodzenia nie są przywracane automatycznie. Odbior
 Dla gościa dochodzi `guestPurchaseId`. Odbiorca powinien zastosować tę listę:
 ręcznie usunięty grant głównego produktu może pozostać nieobecny, gdy dostęp do dodatku wróci.
 
+## `license.issued` / `license.expired` / `license.updated` — Pro
+
+`license.issued` przychodzi raz dla każdej licencji zapisanej w Sellfie, niezależnie od
+ścieżki: zakup, darmowy produkt, ręczne wydanie w panelu albo `POST /api/v1/licenses`
+(`license.issuanceSource`: `purchase`, `manual` lub `api`). `license.expired` przychodzi raz,
+gdy aktywna licencja minie `expiresAt` (sprawdzane co 30 sekund w cyklu zdarzeń);
+licencja odwołana nie wygasa drugi raz. Dane są takie jak w `license.revoked` poniżej
+i nigdy nie zawierają podpisanego tokenu.
+
+> **Jak dostać token.** `license.issued` celowo nie zawiera tokenu, żeby log webhooków ani źle
+> skonfigurowany odbiorca nie ujawnił działającego klucza. Jeśli sam dostarczasz klucz, wywołaj
+> `GET /api/v1/licenses/{license.id}` kluczem API z uprawnieniem `licenses:read`; odpowiedź
+> zawiera `token`, `jwksUrl` i `crlUrl`. Ręczne i API wydanie i tak wysyła kupującemu mail z kluczem
+> (w jego języku, gdy jest znany), więc większość integracji tego nie potrzebuje.
+ Ręczne i API wydanie wysyła kupującemu
+mail z kluczem i linkiem do produktu, chyba że `sendEmail` ma wartość `false`.
+
+Licencja wydana dla zamówienia z otwartym albo przegranym sporem zapisuje się jako
+odwołana przez ten spór: dostajesz `license.issued`, a po nim `license.revoked`
+z `dispute.stripeDisputeId`; `purchase.completed.licenses[]` jej nie zawiera. Wygrany
+spór ją przywraca (`license.restored`).
+
+`license.updated` jest **zarezerwowane**: dziś żadna operacja nie zmienia wydanej licencji.
+Zdarzenie zacznie przychodzić, gdy taka operacja powstanie (zmiana planu, przedłużenie,
+zmiana posiadacza); subskrypcja jest już możliwa.
+
 ## `license.revoked` / `license.restored` — Pro
 
 Każda rzeczywista zmiana stanu odwołania tworzy trwałe powiadomienie. Powtórzenie
@@ -270,12 +296,18 @@ u siebie proformę, fakturę lub własny mail (n8n, Listmonk). Każde zdarzenie 
 | `order.cancelled` | Anulowanie: `cancelReason = payment_window_expired` (automatycznie po `releaseAt`) albo `admin`. | Informacja dla kupującego, korekta faktury; `lateTransferPolicy = admin_decision`. |
 | `order.overdue` | Minął termin płatności zamówienia bez rezerwacji czasowej. | Ponaglenie. |
 | `order.reopened` | Administrator przyjął przelew, który doszedł po anulowaniu (po cenie z zamówienia, także ponad limit miejsc). | Powiązanie wpłaty: `previousStatus = cancelled`; zaraz po nim `purchase.completed`. |
+| `order.participants_updated` | Kupujący uzupełnił listę uczestników po zapłacie (opcja produktu „uzupełnię później”). Wysyłane raz na zamówienie. | `orderDetails.participants.people` zawiera pełną listę (`first_name`, `last_name`, `email`), `orderDetails.quantity.value` liczbę; `purchase.completed` miało pustą listę. |
 
 Rezerwacja czasowa dotyczy wydarzeń i jest ustawiana przez sprzedawcę (Ustawienia → Płatności → Przelew
 tradycyjny). Zwykłe produkty nie wygasają. Zaplanuj `/api/cron?job=transfer-reservations` co 5 minut.
 
 Zdarzenie dostępu podaje `customer`, `product`, `access.id`, `grantedAt`, `expiresAt`,
 `statusBefore/statusAfter`, `reason` i `actor` (`user`, `api_key` albo `system`; dla systemu ID jest null).
+`access.granted` i `access.updated` podają też `grantSource`: skąd pochodzi dostęp, zapisane raz przy
+nadaniu (`purchase`, `bundle`, `bank_transfer`, `subscription`, `free`, `manual` albo `unknown` dla nadań
+starszych niż to pole). Używaj `grantSource` zamiast `reason`: `reason` zostaje bez zmian dla istniejących
+integracji, ale bywa wywnioskowane (np. `free_product` z ceny), więc płatny produkt odebrany z kuponem
+100% ma `grantSource: "free"`.
 Pola główne `accessGrantedAt/accessExpiresAt` zawierają te same zapisane daty.
 `sourceOrders` zawiera powiązane zapisane zamówienia; `sourceOrder` jest wypełnione tylko przy jednym
 jednoznacznym zamówieniu. Ręczne lub niepowiązane granty mogą nie mieć zamówienia. `occurredAt`

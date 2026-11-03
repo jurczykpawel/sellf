@@ -5,6 +5,7 @@ import { Check, Copy, Eye, KeyRound, RefreshCw, ShieldX } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatAdminDate } from '@/lib/timezone';
+import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 
 interface FieldDefinition {
   id: string;
@@ -33,14 +34,22 @@ interface LicenseRow {
   expires_at: string | null;
   revoked_at: string | null;
   revoked_by_dispute_id: string | null;
-  issuance_source: 'purchase' | 'manual';
+  issuance_source: 'purchase' | 'manual' | 'api';
   license_domain: string | null;
   products: { name: string; slug: string; license_tier: string | null } | null;
 }
 
 const DOMAIN_FIELD = '_sellf_license_domain';
 
-export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }) {
+interface IssuedLicensesSettingsProps {
+  enabled: boolean;
+  /** Prefill from `/dashboard/licenses?email=&product=&q=` (order details link). */
+  initialEmail?: string;
+  initialProductId?: string;
+  initialSearch?: string;
+}
+
+export default function IssuedLicensesSettings({ enabled, initialEmail = '', initialProductId = '', initialSearch = '' }: IssuedLicensesSettingsProps) {
   const t = useTranslations('settings.issuedLicenses');
   const locale = useLocale();
   const [licenses, setLicenses] = useState<LicenseRow[]>([]);
@@ -49,11 +58,12 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
-  const [productId, setProductId] = useState('');
-  const [email, setEmail] = useState('');
+  const [productId, setProductId] = useState(initialProductId);
+  const [email, setEmail] = useState(initialEmail);
   const [domain, setDomain] = useState('');
   const [values, setValues] = useState<Record<string, string>>({});
-  const [search, setSearch] = useState('');
+  const [sendEmail, setSendEmail] = useState(true);
+  const [search, setSearch] = useState(initialSearch);
   const [source, setSource] = useState('');
   const [status, setStatus] = useState('');
   const [revealed, setRevealed] = useState<Record<string, string>>({});
@@ -80,7 +90,8 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
       setLicenses(body.licenses);
       setProducts(body.products);
       setTotal(body.total);
-      if (!productId && body.products[0]) setProductId(body.products[0].id);
+      // A prefilled product that cannot issue licenses falls back to the first one that can.
+      if (!body.products.some((p: ProductOption) => p.id === productId)) setProductId(body.products[0]?.id ?? '');
     } catch {
       toast.error(t('loadError'));
     } finally {
@@ -113,7 +124,7 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
       const response = await fetch('/api/admin/licenses', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ productId, email, ...(domainField && domain.trim() ? { domain: domain.trim() } : {}), customFieldValues: values }),
+        body: JSON.stringify({ productId, email, ...(domainField && domain.trim() ? { domain: domain.trim() } : {}), customFieldValues: values, sendEmail, locale: locale === 'pl' ? 'pl' : 'en' }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || 'issue');
@@ -165,12 +176,13 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
 
   return (
     <div className="bg-sf-base border-2 border-sf-border-medium overflow-hidden">
+      <TutorialTrigger id="licenses" />
       <div className="bg-sf-accent-soft px-6 py-4 border-b border-sf-border-accent flex items-center gap-3">
         <div className="w-10 h-10 bg-sf-accent-bg flex items-center justify-center"><KeyRound className="w-5 h-5 text-white" /></div>
         <div><h2 className="text-lg font-semibold text-sf-heading">{t('title')}</h2><p className="text-sm text-sf-accent">{t('subtitle')}</p></div>
       </div>
 
-      <form onSubmit={issue} className="p-6 border-b-2 border-sf-border-medium space-y-4">
+      <form data-tour="licenses-issue" onSubmit={issue} className="p-6 border-b-2 border-sf-border-medium space-y-4">
         <h3 className="font-semibold text-sf-heading">{t('manualTitle')}</h3>
         <div className="grid md:grid-cols-3 gap-4">
           <Field label={t('product')}><select required value={productId} onChange={(e) => { setProductId(e.target.value); setValues({}); setDomain(''); }} className="input"><option value="">{t('selectProduct')}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
@@ -179,17 +191,18 @@ export default function IssuedLicensesSettings({ enabled }: { enabled: boolean }
         </div>
         {selectedProduct && <p className="text-xs text-sf-muted">{t('policy', { tier: selectedProduct.license_tier ?? '—', days: selectedProduct.license_duration_days ?? t('unlimited') })}</p>}
         {extraFields.length > 0 && <div className="grid md:grid-cols-2 gap-4">{extraFields.map((field) => <Field key={field.id} label={labelFor(field.label)}><input required={field.required} type={field.type === 'email' ? 'email' : 'text'} maxLength={field.max_length} value={values[field.id] ?? ''} onChange={(e) => setValues((v) => ({ ...v, [field.id]: e.target.value }))} className="input" /></Field>)}</div>}
+        <label className="flex items-center gap-2 text-sm text-sf-body"><input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} />{t('sendEmail')}</label>
         <div className="flex justify-end"><button disabled={working || !productId} className="px-5 py-2 bg-sf-accent-bg text-white font-medium disabled:opacity-50">{working ? t('issuing') : t('issue')}</button></div>
       </form>
 
       <div className="p-6 space-y-4">
-        <div className="flex flex-wrap gap-3 items-end">
+        <div data-tour="licenses-filters" className="flex flex-wrap gap-3 items-end">
           <Field label={t('search')}><input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="input" /></Field>
-          <Field label={t('source')}><select value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }} className="input"><option value="">{t('all')}</option><option value="purchase">{t('purchase')}</option><option value="manual">{t('manual')}</option></select></Field>
+          <Field label={t('source')}><select value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }} className="input"><option value="">{t('all')}</option><option value="purchase">{t('purchase')}</option><option value="manual">{t('manual')}</option><option value="api">{t('api')}</option></select></Field>
           <Field label={t('status')}><select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="input"><option value="">{t('all')}</option><option value="active">{t('active')}</option><option value="expired">{t('expired')}</option><option value="revoked">{t('revokedStatus')}</option></select></Field>
-          <button type="button" onClick={() => void load()} className="p-2 border-2 border-sf-border-medium"><RefreshCw className="w-5 h-5" /></button>
+          <button type="button" onClick={() => void load()} aria-label={t('refresh')} title={t('refresh')} className="p-2 border-2 border-sf-border-medium"><RefreshCw className="w-5 h-5" aria-hidden="true" /></button>
         </div>
-        <div className="overflow-x-auto">
+        <div data-tour="licenses-table" className="overflow-x-auto">
           <table className="w-full text-sm"><thead><tr className="border-b border-sf-border text-left text-sf-muted">{['product','email','domain','tier','source','issued','expires','status','actions'].map((key) => <th key={key} className="p-2">{t(key)}</th>)}</tr></thead>
             <tbody>{licenses.map((license) => <tr key={license.id} className="border-b border-sf-border align-top">
               <td className="p-2 text-sf-heading">{license.products?.name ?? '—'}</td><td className="p-2">{license.email ?? '—'}</td><td className="p-2 font-mono text-xs">{license.license_domain ?? '—'}</td><td className="p-2">{license.products?.license_tier ?? '—'}</td><td className="p-2">{t(license.issuance_source)}</td><td className="p-2 whitespace-nowrap">{formatAdminDate(license.issued_at, locale, false)}</td><td className="p-2 whitespace-nowrap">{license.expires_at ? formatAdminDate(license.expires_at, locale, false) : t('unlimited')}</td><td className="p-2">{license.revoked_at ? t(license.revoked_by_dispute_id ? 'disputeRevokedStatus' : 'revokedStatus') : license.expires_at && new Date(license.expires_at) < new Date() ? t('expired') : t('active')}</td>

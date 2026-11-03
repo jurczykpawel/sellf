@@ -148,6 +148,7 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
   - Public: `/`, `/p/[slug]` (product pages), `/login`, `/terms`, `/privacy`
   - Protected: `/dashboard`, `/my-products`
   - Admin: `/admin/products`, `/admin/users`, `/admin/payments`, `/admin/analytics`
+  - Admin sidebar groups (`lib/navigation/admin-nav.ts`): Sales & reports (`/dashboard/payments` with Transactions / Orders / Sessions tabs and `?order=<number>` deep links, `/dashboard/licenses` for issued product licenses), Products, System
 - API endpoints: `/api/runtime-config`, `/api/create-embedded-checkout`, `/api/verify-payment`, `/api/webhooks/stripe`, `/api/embed/checkout-session`, `/api/embed/free-access`, `/embed/v1/checkout.js`, `/api/auth/magic-link`
 - Public v1 API (API key auth, `PRODUCTS_READ`/`PRODUCTS_WRITE` scopes):
   - `GET /api/v1/products` — cursor pagination, accepts `?search=`, `?status=`, `?sort_by=`, `?embed=categories,tags` (opt-in), `?category=<uuid-or-slug>` and `?tag=<uuid-or-slug>` (CSV, AND-intersection; auto-detect UUID vs slug)
@@ -987,6 +988,18 @@ A small set of admin-panel features are gated by a license tier (`free`, `regist
 
 Resolution is DB-first (`license_keys` table) with env fallback (`SELLF_LICENSE_KEY`).
 
+### Participants added after payment ("add later")
+
+A product whose checkout profile has `participants` with `required: true` and `allow_later: true` lets the buyer
+pay with an empty list. The paid order then awaits participants (`order_awaits_participants`). Cron
+`participants-reminders` (every 15 min) mails the buyer at most twice (`mail_kind=participants_needed`): 24 h after purchase
+(`participants_mail_sent_at`) and, for products with an event session, 2 days before it (`participants_reminder2_sent_at`;
+it supersedes a pending first reminder; dateless products get only the first), via `list_participants_reminders_due`,
+with a signed link `/{locale}/order/:id/participants?token=` (`lib/orders/participants-token.ts`, 180 days; the
+signed-in owner needs no token). `POST /api/orders/participants` validates like checkout and calls
+`submit_order_participants`, which stores the list once and commits `order.participants_updated` to `business_events`
+in the same transaction. Sellers see waiting orders in the payments page panel (`list_orders_missing_participants`).
+
 ### Temporal Access Control
 
 Products can have:
@@ -1307,6 +1320,10 @@ days. Because it is anonymous with no personal data, **no DPA is required**.
 - `scheduler.ts` — idempotent `startTelemetry`/`stopTelemetry` timers.
 - Wired in `admin-panel/src/instrumentation.ts` (MUST live under `src/` — with a `src` directory Next.js only loads instrumentation from there, never from the project root; at the root it is silently never compiled/run); DB in `supabase/migrations/20260627120000_telemetry.sql`.
 - User-facing disclosure: `README.md` (Telemetry section), `admin-panel/.env.example` (§12), `docs-site/.../telemetry.md`.
+
+### Guided tutorials (driver.js)
+
+Admin screens carry clickable tutorials (store templates, offer page, business cart, events, bank transfer settings, unpaid orders, affiliates, licenses, purchase sources, payments). Registry: `src/lib/tutorials/registry.ts` (id, screen, ordered steps). A step highlights `[data-tour="<target>"]`; its texts are `tutorials.<id>.steps.<key>.{title,body[,bodyAct]}` in `messages/{en,pl}.json`. A screen opts in with `<TutorialTrigger id="…" />` (`auto={false}` or a condition keeps it menu-only until the feature is on); `TutorialProvider` (dashboard layout) starts it once on the user's first visit and stores it in `public.tutorial_progress` (RLS: own rows only, actions in `lib/actions/tutorial-progress.ts`). The "?" button in the header (`TutorialMenu`) replays the tutorials of the open screen and links to the others (`?tutorial=<id>` starts one on demand). A step with `requires` asks for a click until the element it reveals exists. Test servers (`E2E_MODE`) keep first-visit start off unless the `sellf_tutorial_autostart=on` cookie is set (`lib/tutorials/autostart.ts`); a new tutorial needs its registry entry, both locales, the `data-tour` markers (`tests/unit/tutorials/registry.test.ts` checks them) and a `@Jnn` journey.
 
 ### Stable Versions & Known Issues
 

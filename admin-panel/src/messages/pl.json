@@ -32,6 +32,18 @@
     "correct": "Oznacz jako skorygowaną",
     "correctionHelp": "Wystaw korektę w Fakturowni przez link do faktury, a następnie odnotuj ją tutaj."
   },
+  "participantsLater": {
+    "title": "Uczestnicy zamówienia {number}",
+    "quantity": "{count, plural, one {# sztuka} few {# sztuki} many {# sztuk} other {# sztuki}}",
+    "intro": "Wpisz po jednej osobie na sztukę. Możesz wkleić listę albo zaimportować plik CSV. Listę można zapisać tylko raz.",
+    "submit": "Zapisz uczestników",
+    "saved": "Dziękujemy, uczestnicy zostali zapisani.",
+    "failed": "Nie udało się zapisać uczestników. Spróbuj ponownie.",
+    "alreadyComplete": "Uczestnicy tego zamówienia są już zapisani.",
+    "notPaid": "Uczestników można dodać po potwierdzeniu płatności.",
+    "addLink": "Uzupełnij uczestników",
+    "missing": "Brak uczestników"
+  },
   "checkoutProfile": {
     "title": "Koszyk",
     "enabled": "Własny koszyk dla tego produktu",
@@ -46,6 +58,8 @@
     "recipientHelp": "Odbiorca jest dostępny wyłącznie dla nabywcy będącego organizacją.",
     "required": "wymagane",
     "prefill": "Uzupełnij z nabywcy przy jednym uczestniku",
+    "allowLater": "Pozwól kupującemu uzupełnić uczestników po zapłacie",
+    "phoneHelp": "Telefon: odznaczone = ukryty, zaznaczone = opcjonalny, wymagany = kupujący musi podać numer.",
     "min": "Minimum",
     "max": "Maksimum",
     "mode": "Wybór ilości",
@@ -196,6 +210,16 @@
       "differs": "Inny odbiorca",
       "includeParticipants": "Dodaj uczestników",
       "participant": "Uczestnik {number}",
+      "later": "Uzupełnię uczestników później",
+      "laterHelp": "Po zapłacie dostaniesz e-mail z osobistym linkiem do uzupełnienia uczestników. Do tego czasu sprzedawca widzi zamówienie bez uczestników.",
+      "pasteLabel": "Wklej listę",
+      "pasteHelp": "Jedna osoba w wierszu: imię, nazwisko, e-mail (rozdzielone przecinkiem, średnikiem lub tabulatorem).",
+      "pasteApply": "Wypełnij z listy",
+      "importCsv": "Importuj CSV",
+      "importDone": "Wypełniono {count} z {total} uczestników.",
+      "importSkipped": "{count, plural, one {Nie rozpoznano # wiersza.} few {Nie rozpoznano # wierszy.} many {Nie rozpoznano # wierszy.} other {Nie rozpoznano # wiersza.}}",
+      "importOverflow": "{count, plural, one {Pominięto # nadmiarową osobę (więcej niż ilość).} few {Pominięto # nadmiarowe osoby (więcej niż ilość).} many {Pominięto # nadmiarowych osób (więcej niż ilość).} other {Pominięto # nadmiarowej osoby (więcej niż ilość).}}",
+      "importNone": "Nie znaleziono uczestników. Użyj formatu: imię, nazwisko, e-mail.",
       "first_name": "Imię",
       "last_name": "Nazwisko",
       "email": "E-mail",
@@ -470,7 +494,12 @@
     "userMenu": "Menu użytkownika",
     "affiliates": "Program partnerski",
     "myAffiliate": "Moje prowizje",
-    "affiliateApply": "Zostań partnerem"
+    "affiliateApply": "Zostań partnerem",
+    "navGroupSales": "Sprzedaż i raporty",
+    "navGroupProducts": "Produkty",
+    "navGroupSystem": "System",
+    "licenses": "Licencje",
+    "templates": "Szablony sklepu"
   },
   "about": {
     "title": "O Sellf",
@@ -1262,6 +1291,11 @@
     "supportAgainTitle": "Wesprzyj ponownie",
     "supportAgainMessage": "Masz już dostęp do tej strony. Nadal możesz przekazać kolejne wsparcie, kiedy chcesz.",
     "supportAgain": "Wesprzyj ponownie",
+    "licenseStatusActive": "Ważna",
+    "licenseStatusExpired": "Wygasła",
+    "licenseStatusRevoked": "Odwołana",
+    "licenseRevokedDispute": "Licencja została odwołana, bo płatność jest kwestionowana (spór). Nie działa. Jeśli spór rozstrzygnie się na korzyść sprzedawcy, znów będzie ważna.",
+    "licenseRevokedOther": "Licencja została odwołana (zwrot albo decyzja sprzedawcy) i nie działa.",
     "licenseCopy": "Kopiuj",
     "licenseCopied": "Skopiowano!",
     "bundle": {
@@ -1423,6 +1457,7 @@
         "paid": "Opłacone",
         "pending": "Oczekujące",
         "abandoned": "Porzucone",
+        "other": "Inne",
         "paidShare": "Udział opłaconych",
         "byProduct": "Podział na produkty",
         "product": "Produkt",
@@ -1432,7 +1467,13 @@
         "retry": "Spróbuj ponownie",
         "empty": "Brak zapisanych płatności w tym okresie.",
         "definition": "Okres obejmuje rekordy płatności według daty utworzenia (ostatnie dni do teraz). Liczby pokazują ich obecny status, a nie datę zapłaty lub porzucenia. Filtr produktu w dashboardzie obowiązuje także tutaj. Tabela pokazuje do 100 produktów z największą liczbą zapisanych prób; sumy obejmują wszystkie produkty.",
-        "statuses": "Porzucone to rekordy ze statusem abandoned po wygaśnięciu lub zamknięciu sesji; nie dowodzi to opuszczenia strony przez odwiedzającego. Oczekujące to nadal status pending, nawet po terminie wygaśnięcia. Opłacone obejmują completed, refunded, partially_refunded i disputed. Udział opłaconych = opłacone / wszystkie zapisane próby.",
+        "sum": "Zapisane próby: {started} = {paid} opłaconych + {pending} oczekujących + {abandoned} porzuconych + {other} innych",
+        "helpTitle": "Jak czytać te liczby",
+        "defPaid": "Opłacone: płatności zakończone, zwrócone, częściowo zwrócone i objęte sporem.",
+        "defPending": "Oczekujące: checkout rozpoczęty, a rekord nadal ma status pending, także po upływie terminu ważności (np. kupujący jeszcze płaci albo wygaśnięcie nie zostało jeszcze przetworzone).",
+        "defAbandoned": "Porzucone: sesja checkoutu wygasła lub została zamknięta bez płatności. Nie dowodzi to opuszczenia strony przez odwiedzającego.",
+        "defOther": "Inne: próby w pozostałych statusach, głównie przelewy czekające na wpłatę i anulowane zamówienia. Nie są porzucone ani opłacone.",
+        "paidShareHelp": "Udział opłaconych = opłacone / wszystkie zapisane próby.",
         "limitations": "To rekordy płatności, a nie unikalni kupujący, wizyty ani pełny lejek sesji. Mogą obejmować powtórne próby, dodatkowe pozycje zamówień i płatności subskrypcyjne; niezapisanych checkoutów tu nie ma. Oczekujące nie są liczone jako porzucone. E-mail gościa może być nieznany (pending@sellf.app). Przypomnienia nie są wysyłane."
       },
       "title": "Panel administracyjny",
@@ -2136,6 +2177,7 @@
         "order_transfer_declared": "Kupujący zgłosił wysłanie przelewu",
         "order_invoice_issued": "Faktura wystawiona, czeka na płatność",
         "order_reopened": "Zamówienie przywrócone",
+        "order_participants_updated": "Uzupełnieni uczestnicy zamówienia",
         "purchase_completed": "Zakup zakończony",
         "lead_captured": "Lead pozyskany (Darmowy produkt)",
         "waitlist_signup": "Zapis na listę oczekujących",
@@ -2161,6 +2203,8 @@
         "refund_updated": "Status zwrotu zmieniony",
         "refund_issued": "Zwrot wykonany",
         "license_revoked": "Licencja odwołana (Pro)",
+        "license_issued": "Licencja wydana (Pro)",
+        "license_expired": "Licencja wygasła (Pro)",
         "license_restored": "Licencja przywrócona (Pro)",
         "invoicing_issued": "Faktura wystawiona",
         "invoicing_failed": "Błąd wystawienia faktury",
@@ -2204,6 +2248,7 @@
         "order_transfer_declared": "Kupujący zgłosił wysłanie przelewu; rezerwacja została przedłużona. Sprawdź wyciąg.",
         "order_invoice_issued": "Dla nieopłaconego zamówienia przelewem wystawiono fakturę; zamówienie czeka na płatność bez terminu wygaśnięcia, do zapłaty lub anulowania.",
         "order_reopened": "Administrator przyjął przelew, który doszedł po anulowaniu; zamówienie zrealizowano po cenie z zamówienia.",
+        "order_participants_updated": "Kupujący uzupełnił listę uczestników po zapłacie (produkty z opcją „uzupełnię później”). Zawiera zamówienie, ilość i pełną listę; wysyłane raz na zamówienie.",
         "purchase_completed": "Jednorazowy zakup zakończony (płatność Stripe powiodła się lub potwierdzona po powrocie kupującego). Zawiera kupującego, produkt, zamówienie i custom fields.",
         "dispute_created": "Otwarto spór płatniczy; zawiera zakup i informację o odebraniu dostępu.",
         "dispute_closed": "Zakończono spór; zawiera wynik won/lost i informację o zmianie dostępu.",
@@ -2227,6 +2272,8 @@
         "access_revoked": "Odebrano dostęp. Zawiera ID grantu, czas odebrania, powód i aktora.",
         "access_expired": "Wygasł czasowy dostęp kupującego do produktu (wysyłane przez zadanie cron, raz na wygasły rekord).",
         "license_revoked": "Odwołano podpisaną licencję produktu. Zawiera zamówienie, klienta, tier, domenę i URL listy CRL, by integracja mogła natychmiast odebrać dostęp. Tylko Pro.",
+        "license_issued": "Zapisano licencję produktu (zakup, darmowy, ręcznie lub API). Zawiera licencję, zamówienie, klienta, plan, domenę i URL CRL; nigdy token. Tylko Pro.",
+        "license_expired": "Aktywna licencja produktu minęła termin ważności. Wysyłane raz na licencję; nigdy token. Tylko Pro.",
         "license_restored": "Przywrócono wcześniej cofniętą licencję produktu. Token i termin pozostają bez zmian; odśwież CRL przed przyznaniem dostępu. Tylko Pro.",
         "invoicing_issued": "Wystawiono fakturę sprzedaży (np. w Fakturowni) do zamówienia. Zawiera numer, ID u dostawcy, link, zamówienie i kwotę w groszach.",
         "invoicing_failed": "Nie udało się wystawić faktury sprzedaży. Zawiera numer próby, błąd dostawcy i informację, czy Sellf ponowi próbę.",
@@ -2452,6 +2499,8 @@
         "refundRequestsWrite": "Wnioski o zwrot (obsługa)",
         "systemRead": "System (odczyt)",
         "systemWrite": "System (operacje)",
+        "licensesRead": "Licencje (odczyt)",
+        "licensesWrite": "Licencje (zapis)",
         "templatesRead": "Szablony (odczyt)",
         "templatesWrite": "Szablony (zapis)",
         "templatesActivate": "Szablony (aktywacja)"
@@ -2475,6 +2524,8 @@
         "refundRequestsWrite": "Obsługa wniosków o zwrot",
         "systemRead": "Przeglądanie konfiguracji systemu",
         "systemWrite": "Uruchamianie operacji systemowych (aktualizacja)",
+        "licensesRead": "Przeglądanie wydanych licencji",
+        "licensesWrite": "Wydawanie i odwoływanie licencji",
         "templatesRead": "Wyświetlanie konfiguracji szablonów",
         "templatesWrite": "Edycja szkiców szablonów",
         "templatesActivate": "Publikowanie i przywracanie szablonów"
@@ -2658,6 +2709,12 @@
       "statusError": "Nie udało się zmienić statusu bumpa"
     },
     "payments": {
+      "missingParticipants": {
+        "title": "{count, plural, one {# zamówienie bez uczestników} few {# zamówienia bez uczestników} many {# zamówień bez uczestników} other {# zamówienia bez uczestników}}",
+        "help": "Kupujący wybrał uzupełnienie uczestników po zapłacie. Maksymalnie dwa przypomnienia z osobistym linkiem wysyłają się automatycznie (po 24 godzinach od zakupu i, dla wydarzeń, na 2 dni przed wydarzeniem); lista pojawi się w zamówieniu, gdy kupujący ją zapisze.",
+        "order": "Zamówienie", "email": "Kupujący", "product": "Produkt", "quantity": "Ilość", "paid": "Zapłacono", "mail": "Przypomnienie",
+        "mailSent": "Wysłano {date}", "mailPending": "Jeszcze nie wysłano"
+      },
       "orderDetails": {
         "title": "Dane z koszyka",
         "missing": "Dane z koszyka są niekompletne.",
@@ -2696,7 +2753,7 @@
         "partiallyRefunded": "Częściowo zwrócona",
         "disputed": "Sporna",
         "abandoned": "Porzucona",
-        "searchPlaceholder": "Szukaj po emailu, ID transakcji...",
+        "searchPlaceholder": "Szukaj po nr zamówienia (np. 1300), emailu, produkcie...",
         "last7Days": "Ostatnie 7 dni",
         "last30Days": "Ostatnie 30 dni",
         "last90Days": "Ostatnie 90 dni",
@@ -2712,6 +2769,52 @@
         "searchFilter": "Szukaj: {term}",
         "rangeFilter": "Zakres: {range}",
         "days": "dni"
+      },
+      "tabsLabel": "Widoki płatności",
+      "orders": {
+        "title": "Zamówienia",
+        "typeFilter": "Typ",
+        "statusFilter": "Status",
+        "allTypes": "Wszystkie typy",
+        "allStatuses": "Wszystkie statusy",
+        "types": {
+          "paid": "Płatne",
+          "transfer": "Przelew",
+          "free": "Darmowe",
+          "manual": "Nadane ręcznie",
+          "lead": "Lead",
+          "subscription": "Subskrypcja",
+          "other": "Źródło nieznane"
+        },
+        "statuses": {
+          "completed": "Opłacone",
+          "awaiting_payment": "Czeka na wpłatę",
+          "pending": "W toku",
+          "refunded": "Zwrócone",
+          "partially_refunded": "Częściowo zwrócone",
+          "disputed": "Spór",
+          "cancelled": "Anulowane",
+          "abandoned": "Porzucone",
+          "active": "Aktywny dostęp",
+          "expired": "Dostęp wygasł",
+          "confirmed": "Potwierdzony"
+        },
+        "columns": {
+          "order": "Nr",
+          "customer": "Klient",
+          "product": "Produkt",
+          "type": "Typ",
+          "status": "Status",
+          "amount": "Kwota",
+          "date": "Data"
+        },
+        "noCharge": "bez opłaty",
+        "openTransaction": "Otwórz",
+        "unknownCustomer": "Nieznany klient",
+        "empty": "Brak zamówień dla wybranych filtrów.",
+        "loadError": "Nie udało się wczytać zamówień.",
+        "loadMore": "Pokaż więcej",
+        "loadingMore": "Wczytywanie..."
       },
       "attribution": {
         "title": "Źródło",
@@ -2764,6 +2867,8 @@
         "refund": "Zwrot",
         "details": "Szczegóły",
         "transactionDetails": "Szczegóły transakcji",
+        "issueLicense": "Wystaw licencję dla tego klienta",
+        "orderLink": "Link do zamówienia",
         "customer": "Klient",
         "payment": "Płatność",
         "userId": "ID użytkownika",
@@ -2819,6 +2924,11 @@
       "refund": {
         "titleSentence": "Przetwórz zwrot",
         "fullRefundSentence": "Pełny zwrot",
+        "amountLabel": "Kwota zwrotu ({currency})",
+        "amountHint": "Puste pole = zwrot całej pozostałej kwoty ({amount}).",
+        "amountExceedsRemaining": "Kwota przekracza pozostałą do zwrotu ({amount}).",
+        "amountInvalid": "Podaj kwotę większą od zera, najwyżej z groszami.",
+        "partialRefundSentence": "Zwróć {amount}",
         "title": "Przetwórz zwrot",
         "reason": "Powód zwrotu",
         "selectReason": "Wybierz powód",
@@ -3442,6 +3552,8 @@
       "keyPlaceholder": "payload.podpis"
     },
     "issuedLicenses": {
+      "refresh": "Odśwież listę licencji",
+      "unavailable": "Wystawianie licencji jest dostępne dla administratora platformy.",
       "title": "Wystawione licencje produktowe",
       "subtitle": "Wystawiaj, przeglądaj i cofaj podpisane licencje klientów",
       "manualTitle": "Wystaw licencję ręcznie",
@@ -3461,6 +3573,8 @@
       "manual": "Ręczna",
       "active": "Aktywna",
       "expired": "Wygasła",
+      "api": "API",
+      "sendEmail": "Wyślij kupującemu klucz i link do produktu mailem",
       "revokedStatus": "Cofnięta",
       "unlimited": "Bezterminowa",
       "policy": "Polityka tokenu: plan {tier}, ważność: {days}",
@@ -5808,5 +5922,316 @@
       "amountMismatch": "Zaksięgowana kwota musi równać się pełnej kwocie zamówienia.",
       "operationError": "Operacja nie powiodła się. Sprawdź kwotę, datę wpływu i aktualny stan zamówienia.",
       "overdueCount": "Przelewy po terminie: {count}"
+  },
+  "tutorials": {
+    "menu": {
+      "open": "Pomoc: pokaż, jak to działa",
+      "title": "Pokaż, jak to działa",
+      "elsewhere": "Inne samouczki",
+      "all": "Samouczki"
+    },
+    "progress": "{current} z {total}",
+    "next": "Dalej",
+    "previous": "Wstecz",
+    "done": "Gotowe",
+    "close": "Zamknij samouczek",
+    "mustAct": "Najpierw kliknij podświetlony element, potem przejdziemy dalej.",
+    "storefront-templates": {
+      "name": "Szablony sklepu",
+      "steps": {
+        "intro": {
+          "title": "Szablony sklepu",
+          "body": "Tu układasz stronę główną swojego sklepu z gotowych sekcji. Pracujesz na prywatnym szkicu: zapis nie zmienia sklepu, dopóki go nie opublikujesz."
+        },
+        "workspace": {
+          "title": "Dwa miejsca pracy",
+          "body": "Ta zakładka to strona sklepu. Obok są oferty produktów, czyli osobne strony sprzedażowe pojedynczych produktów."
+        },
+        "template": {
+          "title": "Wybierz szablon",
+          "body": "Szablon decyduje o układzie strony. Wybór zmienia tylko szkic. Szablony oznaczone Pro wymagają licencji Pro."
+        },
+        "sections": {
+          "title": "Sekcje strony",
+          "body": "To lista sekcji w kolejności od góry. Kliknij sekcję, aby ją edytować, odznacz pole przy niej, aby ją ukryć, a uchwytem zmienisz kolejność."
+        },
+        "section": {
+          "title": "Treść sekcji",
+          "body": "Tutaj wybierasz produkty i wpisujesz teksty wybranej sekcji. Zmiany widać dopiero w podglądzie szkicu."
+        },
+        "appearance": {
+          "title": "Wygląd",
+          "body": "Kolory, krój pisma i zaokrąglenia ustawiasz osobno dla całego sklepu."
+        },
+        "save": {
+          "title": "Zapisz szkic",
+          "body": "Zapis tworzy prywatny szkic. Publiczny sklep zmienia się dopiero po publikacji. Wskaźnik obok pokazuje, czy masz niezapisane zmiany."
+        },
+        "preview": {
+          "title": "Podgląd i publikacja",
+          "body": "Po zapisie obejrzysz szkic w nowej karcie z prawdziwymi produktami. W historii opublikujesz go albo przywrócisz wcześniejszą wersję."
+        }
+      }
+    },
+    "offer-page": {
+      "name": "Strona oferty produktu",
+      "steps": {
+        "intro": {
+          "title": "Strona oferty",
+          "body": "Oferta to osobna strona sprzedażowa jednego produktu: tekst, korzyści i pytania, a cena i przycisk zakupu pochodzą z produktu. Najpierw wybierz produkt na liście Produkty albo w polu wyboru tego obszaru."
+        },
+        "product": {
+          "title": "Edytowany produkt",
+          "body": "Tu widzisz, dla którego produktu piszesz ofertę. Możesz wybrać inny produkt bez opuszczania edytora."
+        },
+        "save": {
+          "title": "Zapis szkicu",
+          "body": "Zapisujesz prywatny szkic. Publiczna strona produktu zmienia się dopiero po publikacji."
+        },
+        "publication": {
+          "title": "Publikacja",
+          "body": "Włącz stronę ofertową i opublikuj zapisany szkic w historii. Bez publikacji kupujący nadal widzą dotychczasową stronę zakupu. Stąd otworzysz też podgląd."
+        },
+        "sections": {
+          "title": "Sekcje oferty",
+          "body": "Oferta ma trzy sekcje: nagłówek, pytania i odpowiedzi oraz zakończenie z przyciskiem zakupu."
+        },
+        "editor": {
+          "title": "Teksty oferty",
+          "body": "Wpisz tekst, który zobaczą klienci. Zapisz szkic, aby obejrzeć podgląd."
+        }
+      }
+    },
+    "b2b-checkout-profile": {
+      "name": "Koszyk dla firm: nabywca, odbiorca, uczestnicy",
+      "where": "Produkty, edycja produktu, Sprzedaż i ustawienia, Koszyk.",
+      "steps": {
+        "intro": {
+          "title": "Własny koszyk produktu",
+          "body": "Domyślny koszyk jest prosty. Własny koszyk pozwala sprzedawać firmom: dane nabywcy i odbiorcy, ilość sztuk, uczestników i przelew z fakturą."
+        },
+        "enable": {
+          "title": "Włącz własny koszyk",
+          "body": "Zaznacz to pole, a pojawią się moduły koszyka. Bez zaznaczenia produkt używa zwykłego koszyka.",
+          "bodyAct": "Kliknij to pole, aby włączyć własny koszyk. Zaraz pokażę jego moduły."
+        },
+        "buyer": {
+          "title": "Nabywca",
+          "body": "Wybierz, kto może kupować: osoba prywatna, organizacja albo obie. Dla każdego typu osobno włączysz przelew tradycyjny, a dla organizacji pobieranie danych z GUS po numerze NIP."
+        },
+        "recipient": {
+          "title": "Odbiorca",
+          "body": "Gdy faktura idzie do jednej instytucji, a produkt dla innej, kupujący podaje odbiorcę. Moduł działa tylko dla nabywcy będącego organizacją."
+        },
+        "quantity": {
+          "title": "Ilość",
+          "body": "Ustaw minimum i maksimum oraz miejsce wyboru ilości: w koszyku, na stronie produktu albo ukryte. Produkty z licencją pozwalają kupić tylko jedną sztukę."
+        },
+        "participants": {
+          "title": "Uczestnicy",
+          "body": "Dla każdej sztuki kupujący wpisuje uczestnika, który dostanie dostęp. Liczba uczestników musi się zgadzać z ilością. Przy jednym uczestniku dane mogą uzupełnić się z nabywcy."
+        }
+      }
+    },
+    "events": {
+      "name": "Wydarzenia z terminami i progami cenowymi",
+      "where": "Produkty, edycja produktu, Sprzedaż i ustawienia, Terminy i ceny.",
+      "steps": {
+        "intro": {
+          "title": "Wydarzenie",
+          "body": "Wydarzenie ma jeden lub więcej terminów. Każdy termin ma własną pulę miejsc i progi cenowe, na przykład tańsze pierwsze miejsca."
+        },
+        "enable": {
+          "title": "Tryb wydarzenia",
+          "body": "Zaznacz, aby produkt sprzedawał miejsca na terminy zamiast zwykłego dostępu.",
+          "bodyAct": "Kliknij to pole, aby włączyć tryb wydarzenia. Zaraz dodamy pierwszy termin."
+        },
+        "addSession": {
+          "title": "Dodaj termin",
+          "body": "Każdy termin to osobna data z godziną i strefą czasową wydarzenia.",
+          "bodyAct": "Kliknij ten przycisk, aby dodać pierwszy termin."
+        },
+        "session": {
+          "title": "Termin",
+          "body": "Wpisz początek i koniec, strefę czasową, miejsce lub link online oraz pulę miejsc. Puste pole puli oznacza brak limitu. Pole sprzedaży otwartej zamyka lub otwiera zapisy."
+        },
+        "tier": {
+          "title": "Próg cenowy",
+          "body": "Próg to cena obowiązująca do wyczerpania podanej liczby miejsc albo do wybranej daty. Gdy próg się wyczerpie, kupujący płaci cenę kolejnego."
+        },
+        "addTier": {
+          "title": "Kolejne progi",
+          "body": "Dodaj następny próg, na przykład wyższą cenę po pierwszych dziesięciu miejscach."
+        },
+        "preview": {
+          "title": "Podgląd i uczestnicy",
+          "body": "Dla zapisanego terminu zobaczysz stan sprzedaży, zamówienia i uczestników oraz pobierzesz ich listę."
+        }
+      }
+    },
+    "bank-transfer-setup": {
+      "name": "Przelew tradycyjny: ustawienia",
+      "steps": {
+        "intro": {
+          "title": "Przelew tradycyjny",
+          "body": "Kupujący składa zamówienie i płaci przelewem na Twój rachunek. Ustawiasz dane do przelewu, termin płatności i czas rezerwacji miejsc."
+        },
+        "enable": {
+          "title": "Włączenie i dostęp",
+          "body": "Włącz przelew, a potem zdecyduj, czy dostęp ma być przyznany od razu przy złożeniu zamówienia, czy dopiero po wpłacie. Przelew dla konkretnego produktu włączasz jeszcze w jego koszyku."
+        },
+        "account": {
+          "title": "Dane do przelewu",
+          "body": "Wpisz odbiorcę, numer rachunku i opcjonalnie nazwę banku. Te dane zobaczy kupujący w zamówieniu i w mailu."
+        },
+        "due": {
+          "title": "Termin i tytuł",
+          "body": "Termin płatności liczy się w dniach od zamówienia. Szablon tytułu zawiera numer zamówienia, więc łatwiej dopasujesz wpłatę. Limit chroni przed seriami nieopłaconych zamówień z jednego adresu."
+        },
+        "reservation": {
+          "title": "Rezerwacja miejsc",
+          "body": "Dla wydarzeń nieopłacone zamówienie trzyma miejsce i cenę przez ustalony czas. Po przypomnieniu miejsce wraca do sprzedaży. Po wystawieniu faktury zamówienie czeka bez terminu."
+        },
+        "save": {
+          "title": "Zapisz ustawienia",
+          "body": "Zmiany działają po zapisie. Nowe zamówienia korzystają z nowych ustawień."
+        }
+      }
+    },
+    "unpaid-orders": {
+      "name": "Nieopłacone zamówienia przelewem",
+      "where": "Płatności, szczegóły zamówienia oczekującego na przelew.",
+      "steps": {
+        "intro": {
+          "title": "Zamówienie czeka na przelew",
+          "body": "To zamówienie złożono z przelewem tradycyjnym i nie ma jeszcze wpłaty. Stąd je rozliczysz, anulujesz albo przedłużysz."
+        },
+        "instructions": {
+          "title": "Dane przelewu",
+          "body": "To samo widzi kupujący: kwota, rachunek, tytuł i termin płatności."
+        },
+        "markPaid": {
+          "title": "Oznacz jako opłacone",
+          "body": "Gdy wpłata pojawi się na rachunku, wpisz zaksięgowaną kwotę i datę. Kwota musi zgadzać się z zamówieniem. Kupujący dostaje dostęp i potwierdzenie."
+        },
+        "cancel": {
+          "title": "Anuluj zamówienie",
+          "body": "Podaj powód i anuluj, gdy kupujący nie zapłaci. Zwolnione miejsce wraca do sprzedaży. Jeśli wpłata przyjdzie później, w anulowanym zamówieniu możesz je przywrócić."
+        },
+        "lifecycle": {
+          "title": "Stan zamówienia",
+          "body": "Tu widać, kiedy wyśle się przypomnienie i kiedy zwolni się rezerwacja, a także zgłoszenie kupującego, że wysłał przelew, które przedłuża rezerwację."
+        },
+        "invoice": {
+          "title": "Faktura wystawiona",
+          "body": "Po wystawieniu faktury zamówienie czeka na płatność bez terminu. Zwolni je dopiero anulowanie, po którym wystawiasz korektę."
+        }
+      }
+    },
+    "affiliates": {
+      "name": "Program partnerski",
+      "steps": {
+        "intro": {
+          "title": "Program partnerski",
+          "body": "Partnerzy polecają Twoje produkty ze swoim kuponem i dostają prowizję. Tu ustawiasz zasady, akceptujesz zgłoszenia i rozliczasz wypłaty."
+        },
+        "navigation": {
+          "title": "Trzy widoki",
+          "body": "Partnerzy to zgłoszenia i członkowie programu. Zarobki pokazują prowizje z zakupów, a wypłaty służą do rozliczania z partnerami."
+        },
+        "settings": {
+          "title": "Zasady programu",
+          "body": "Rozwiń, aby włączyć program, ustawić czas wstrzymania prowizji, progi wypłat i regulamin w dwóch językach razem z numerem jego wersji."
+        },
+        "applications": {
+          "title": "Zgłoszenia i partnerzy",
+          "body": "Lista pokazuje zgłoszenia oczekujące na decyzję i aktualnych partnerów. Możesz ją filtrować po statusie."
+        },
+        "member": {
+          "title": "Decyzja o partnerze",
+          "body": "Zatwierdź lub odrzuć zgłoszenie, a później zawieś albo zakończ współpracę. Każda decyzja wymaga powodu, który zostaje w historii."
+        }
+      }
+    },
+    "licenses": {
+      "name": "Licencje produktów",
+      "steps": {
+        "intro": {
+          "title": "Wydane licencje",
+          "body": "Produkt z licencją wydaje kupującemu podpisany klucz, który działa bez kontaktu z Twoim serwerem. Tu wydajesz klucze ręcznie i zarządzasz wydanymi."
+        },
+        "issue": {
+          "title": "Wydaj licencję ręcznie",
+          "body": "Wybierz produkt, wpisz e-mail odbiorcy i, jeśli produkt tego wymaga, domenę. Ręczna licencja nie wymaga zakupu."
+        },
+        "filters": {
+          "title": "Filtry",
+          "body": "Szukaj po e-mailu albo domenie, a listę zawężaj do źródła (zakup, ręczna) i statusu."
+        },
+        "table": {
+          "title": "Lista licencji",
+          "body": "Dla każdej licencji widzisz produkt, odbiorcę, domenę, poziom i ważność. Przyciski pozwalają pokazać klucz i unieważnić licencję. Zwrot lub przegrany spór unieważnia licencję automatycznie."
+        }
+      }
+    },
+    "attribution": {
+      "name": "Źródła zakupów",
+      "steps": {
+        "intro": {
+          "title": "Skąd przychodzą zakupy",
+          "body": "Każdy zakup zapisuje swoje źródło: oznaczenia UTM, stronę odsyłającą i stronę wejścia. W szczegółach płatności znajdziesz je w polu Źródło."
+        },
+        "retention": {
+          "title": "Identyfikatory reklam",
+          "body": "Identyfikatory kliknięć reklam zapisujemy tylko za zgodą marketingową i kasujemy po tylu dniach, ile tu ustawisz."
+        },
+        "rules": {
+          "title": "Reguły kanałów",
+          "body": "Kanał zakupu ustala pierwsza pasująca aktywna reguła, od najniższego priorytetu. Reguły domyślne możesz wyłączyć, a własne dodać."
+        },
+        "addRule": {
+          "title": "Własna reguła",
+          "body": "Dodaj regułę, na przykład źródło newsletter przypisane do kanału email. Zakup z kuponem partnera zawsze trafia do kanału partnerskiego."
+        },
+        "save": {
+          "title": "Zapisz",
+          "body": "Zmiany dotyczą nowych zakupów. Zapisane zakupy zachowują swój kanał."
+        }
+      }
+    },
+    "payments-orders": {
+      "name": "Płatności i zamówienia",
+      "steps": {
+        "intro": {
+          "title": "Płatności i zamówienia",
+          "body": "Tu widzisz wszystkie płatności: kartą, przelewem, zwroty i spory. Z tego miejsca rozliczysz zamówienie, wystawisz zwrot albo sprawdzisz źródło zakupu."
+        },
+        "stats": {
+          "title": "Podsumowanie",
+          "body": "Karty pokazują przychód, liczbę transakcji, przychód z dziś i z tego miesiąca, płatności w toku oraz zwroty."
+        },
+        "filters": {
+          "title": "Szukanie i filtry",
+          "body": "Zawęź listę po statusie i okresie, szukaj po e-mailu kupującego i wyeksportuj wynik do pliku CSV."
+        },
+        "table": {
+          "title": "Lista płatności",
+          "body": "Trzy zakładki: Transakcje płatnicze ze statusem (zakończona, oczekuje na przelew, zwrócona, częściowo zwrócona, sporna), Zamówienia ze wszystkimi rodzajami zakupów oraz Sesje checkout, czyli rozpoczęte i nieukończone koszyki."
+        },
+        "details": {
+          "title": "Szczegóły transakcji",
+          "body": "Przycisk Szczegóły otwiera okno z pozycjami, źródłem zakupu, fakturą i akcjami, takimi jak rozliczenie przelewu. Zwrot ma osobny przycisk w wierszu."
+        },
+        "ordersTab": {
+          "title": "Zakładka Zamówienia",
+          "body": "Zamówienia zbierają w jednym miejscu wszystkie rodzaje zakupów: płatne, przelewy, darmowe, nadane ręcznie i subskrypcje.",
+          "bodyAct": "Kliknij zakładkę Zamówienia, aby zobaczyć listę wszystkich zamówień."
+        },
+        "ordersFilters": {
+          "title": "Filtry zamówień",
+          "body": "Zawęź listę do typu zamówienia i statusu, a numer zamówienia otwiera jego szczegóły, z których rozliczysz przelew albo wystawisz zwrot."
+        }
+      }
+    }
   }
 }
