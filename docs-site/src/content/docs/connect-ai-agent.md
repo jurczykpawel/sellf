@@ -152,6 +152,24 @@ previous-week comparison. Do not mutate anything.
 
 Use `filters.start_date`, `generated_at` and each product's `by_currency` values. For PLN/USD, `4999` minor units is `49.99`. The current product price is in major units and may differ from historical sales. This is a trailing seven-day window in the API server's timezone, not the previous calendar week. The report counts completed transactions; it does not measure profit or refund-adjusted net sales. Totals cover only returned products; mixed-currency totals must not be labelled as one currency.
 
+## Recipe 3b: Where did purchases come from?
+
+Same **`analytics:read` only** key:
+
+```text
+Use Sellf MCP. Where did purchases from the last 3 days come from?
+Show a table: channel / source / medium / campaign / content / orders / net.
+Amounts are in major units per currency; never add currencies together.
+```
+
+```json
+{"name":"get_purchase_attribution","arguments":{}}
+```
+
+No arguments means the last 3 days and the last touch. `touch: "first"` reports the first known
+visit, `group_by` changes the dimensions. Net revenue already subtracts refunds. Details:
+[Purchase sources](/purchase-attribution/).
+
 ## Recipe 4: B2B cart
 
 Use a key with `products:read`, `products:write`, `coupons:read`, `coupons:write`.

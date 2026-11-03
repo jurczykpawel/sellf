@@ -9,6 +9,7 @@ import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
 import { useCaptcha } from '@/hooks/useCaptcha';
 import { validateCheckoutModules } from '@/lib/checkout-modules/validate';
 import { validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
+import { readBrowserAttribution } from '@/lib/attribution/browser';
 import type { FieldError } from '@/lib/checkout-modules/registry';
 import type { Product } from '@/types';
 import type { CustomFieldDefinition, CustomFieldValues } from '@/lib/validations/custom-checkout-fields';
@@ -35,7 +36,7 @@ export default function BankTransferForm({ collectTermsOfService, termsAccepted:
     try {
       const response = await fetch('/api/orders/bank-transfer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
         productId: product.id, email, moduleValues, sessionId: sessionId ?? undefined, bumpProductIds: bumpIds, couponCode,
-        customFieldValues: values, termsAccepted: accepted, captchaToken: captcha.token, locale,
+        customFieldValues: values, termsAccepted: accepted, captchaToken: captcha.token, locale, attribution: readBrowserAttribution(),
       }) });
       const result = await response.json();
       if (!response.ok) { setError(t(response.status === 429 ? 'limit' : 'orderError')); captcha.reset(); setBusy(false); return; }

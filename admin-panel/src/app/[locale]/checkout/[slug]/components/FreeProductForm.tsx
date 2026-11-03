@@ -27,6 +27,7 @@ import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
 import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
 import { getCheckoutRequestError } from '@/lib/checkout/request-error';
 import ProductShowcase from './ProductShowcase';
+import { readBrowserAttribution } from '@/lib/attribution/browser';
 import type { BundleComponentSummary } from './BundleContentsPreview';
 import FunnelTestBanner from './FunnelTestBanner';
 import AccessGrantedCard from './AccessGrantedCard';
@@ -130,7 +131,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
         const response = await fetch(`/api/public/products/${product.slug}/grant-access`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(hasCustomFields ? { customFieldValues } : {}),
+          body: JSON.stringify({ ...(hasCustomFields ? { customFieldValues } : {}), attribution: readBrowserAttribution() }),
         });
 
         if (!response.ok) {

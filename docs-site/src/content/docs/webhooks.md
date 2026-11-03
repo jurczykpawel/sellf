@@ -128,6 +128,23 @@ products), `purchase.completed` also carries the granted components and any issu
 - **Per-product webhook scoping:** a bundle purchase fires for the bundle **and** every component
   product id, so an endpoint scoped to a component still receives the event.
 
+#### Purchase source
+
+`purchase.completed` carries `attribution` when the order has a recorded source
+([Purchase sources](/purchase-attribution/)). It is frozen at purchase and never contains the ad
+click id itself:
+
+```json
+"attribution": {
+  "channel": "email", "firstChannel": "paid_social", "kind": "payment", "mode": "stored",
+  "last": { "source": "listmonk", "medium": "email", "campaign": "mail-05", "content": "cta-1", "term": null,
+            "utm_id": null, "referrer_host": null, "landing_path": "/offer", "at": "2026-11-03T10:00:00.000Z" },
+  "first": { "source": "facebook", "medium": "paid_social", "campaign": "autumn", "…": "…" },
+  "sessionsCount": 3, "daysToPurchase": 4, "clickIdType": null, "deviceClass": "mobile", "country": "PL",
+  "affiliateMemberId": null
+}
+```
+
 ### `invoice.paid` — subscription VAT snapshot
 
 Recurring subscription charges emit `invoice.paid` (not `purchase.completed`). It carries
