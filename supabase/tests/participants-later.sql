@@ -93,4 +93,22 @@ BEGIN
   UPDATE public.payment_transactions SET order_details = '{"quantity":{"v":1,"value":2},"participants":{"v":1,"people":[{"first_name":"A","last_name":"B","email":"a@x.pl"},{"first_name":"C","last_name":"D","email":"c@x.pl"}]}}' WHERE id = dated;
   IF EXISTS (SELECT 1 FROM public.list_participants_reminders_due(ev - interval '1 hour', 500) WHERE id = dated) THEN RAISE EXCEPTION 'mail after list saved'; END IF;
 END $$;
+-- prepare_event_mail stays a superset of every branch: transfer notice fields, participants link and (when present) license_key.
+DO $$
+DECLARE def text := pg_get_functiondef('public.prepare_event_mail(text,jsonb)'::regprocedure); meta jsonb; tok text := '1893456000.' || repeat('a', 43);
+BEGIN
+  INSERT INTO auth.users(id,email,instance_id,aud,role) VALUES (gen_random_uuid(),'superset@example.com','00000000-0000-0000-0000-000000000000','authenticated','authenticated');
+  PERFORM public.prepare_event_mail('superset@example.com', jsonb_build_object('locale','pl','mail_kind','payment_reminder','release_text','Do piatku',
+    'purchase_product','Kurs','transfer_text','Dane','pay_url','https://shop.example/pl/order/10000000-0000-4000-8000-000000000001/transfer?token='||tok));
+  SELECT raw_user_meta_data INTO meta FROM auth.users WHERE email='superset@example.com';
+  IF meta->>'pay_url' IS NULL OR meta->>'release_text' <> 'Do piatku' OR meta->>'mail_kind' <> 'payment_reminder' THEN RAISE EXCEPTION 'transfer fields lost: %', meta; END IF;
+  PERFORM public.prepare_event_mail('superset@example.com', jsonb_build_object('locale','en','mail_kind','participants_needed',
+    'participants_url','https://shop.example/en/order/10000000-0000-4000-8000-000000000001/participants?token='||tok));
+  SELECT raw_user_meta_data INTO meta FROM auth.users WHERE email='superset@example.com';
+  IF meta->>'participants_url' IS NULL OR meta->>'mail_kind' <> 'participants_needed' OR meta ? 'pay_url' THEN RAISE EXCEPTION 'participants fields wrong: %', meta; END IF;
+  IF position('license_key' IN def) > 0 THEN
+    PERFORM public.prepare_event_mail('superset@example.com', '{"locale":"en","license_key":"abc.def"}');
+    IF (SELECT raw_user_meta_data->>'license_key' FROM auth.users WHERE email='superset@example.com') <> 'abc.def' THEN RAISE EXCEPTION 'license_key lost'; END IF;
+  END IF;
+END $$;
 ROLLBACK;
