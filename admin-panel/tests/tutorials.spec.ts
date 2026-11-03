@@ -185,8 +185,11 @@ test('tutorial popover is a labelled dialog operated from the keyboard without a
   await expect.poll(() => page.evaluate(() => document.activeElement?.closest('.driver-popover') !== null)).toBe(true);
   const results = await checkAccessibility(page, { excludeSelectors: ['body > :not(.driver-popover)'] });
   expect(results.violations).toEqual([]);
+  const settled = () => page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await settled();
   await page.keyboard.press('ArrowRight');
   await expect(popoverTitle(page)).toHaveText(stepText('storefront-templates', 'workspace').title);
+  await settled();
   await page.keyboard.press('ArrowLeft');
   await expect(popoverTitle(page)).toHaveText(stepText('storefront-templates', 'intro').title);
   await page.keyboard.press('Escape');
