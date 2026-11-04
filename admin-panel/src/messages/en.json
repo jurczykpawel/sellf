@@ -3569,6 +3569,7 @@
       "keyPlaceholder": "payload.signature"
     },
     "issuedLicenses": {
+      "invalidEmail": "Enter a valid email address, e.g. jan@example.com.",
       "refresh": "Refresh license list",
       "unavailable": "License issuance is available to the platform administrator.",
       "title": "Issued product licenses",
@@ -5942,6 +5943,8 @@
       "reason": "Cancellation reason",
       "cancel": "Cancel order",
       "amountMismatch": "The booked amount must equal the full order amount.",
+      "paidAtBeforeOrder": "The receipt date cannot be earlier than the order date.",
+      "paidAtFuture": "The receipt date cannot be in the future.",
       "operationError": "Operation failed. Check the amount, receipt date and current order status.",
       "overdueCount": "Overdue bank transfers: {count}"
   },

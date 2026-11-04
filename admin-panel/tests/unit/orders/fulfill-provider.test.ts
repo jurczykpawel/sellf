@@ -3,7 +3,8 @@ import { fulfillPaidOrder } from '@/lib/services/fulfill-paid-order';
 import { deriveOrderId } from '@/lib/services/webhook-service';
 import type Stripe from 'stripe';
 
-const mocks = vi.hoisted(() => ({ licenses: vi.fn(), trigger: vi.fn(), capture: vi.fn(), dispute: vi.fn(), order: [] as string[] }));
+const mocks = vi.hoisted(() => ({ licenses: vi.fn(), trigger: vi.fn(), capture: vi.fn(), dispute: vi.fn(), licenseMail: vi.fn(), order: [] as string[] }));
+vi.mock('@/lib/license-keys/license-mail', () => ({ mailOrderLicenses: mocks.licenseMail }));
 vi.mock('@/app/api/webhooks/stripe/dispute-handlers', () => ({ handleChargeDispute: mocks.dispute }));
 vi.mock('@/lib/services/bundle-order', () => ({
   resolveComponentProductIds: vi.fn(async () => []), issueLicensesForOrder: mocks.licenses,
@@ -87,4 +88,18 @@ it('applies a dispute Stripe opened before the payment was stored, before issuin
   expect(list).toHaveBeenCalledWith({ payment_intent: 'pi_order', limit: 10 });
   expect(mocks.dispute).toHaveBeenCalledWith(dispute, expect.anything(), expect.anything(), false);
   expect(mocks.order).toEqual(['dispute', 'licenses']);
+});
+
+it.each(['stripe', 'offline'] as const)('mails the buyer the license key of a paid %s order, like a free claim (W146) @J01', async kind => {
+  const license = { productId: 'product', token: 'paid-license-token', kid: 'key-1', jwksUrl: 'https://shop.example/api/licenses/jwks?seller=s' };
+  mocks.licenses.mockResolvedValue([license]);
+  if (kind === 'stripe') await fulfillPaidOrder({ ...common(), stripe: {} as Stripe, sessionId: 'cs_order', paymentIntentId: 'pi_order' });
+  else await fulfillPaidOrder({ ...common(), provider: { kind: 'offline' } });
+  expect(mocks.licenseMail).toHaveBeenCalledTimes(1);
+  expect(mocks.licenseMail.mock.calls[0][1]).toMatchObject({ email: tx.customer_email, userId: null, licenses: [license] });
+});
+
+it('sends no license mail when the order carries no license', async () => {
+  await fulfillPaidOrder({ ...common(), provider: { kind: 'offline' } });
+  expect(mocks.licenseMail).not.toHaveBeenCalled();
 });

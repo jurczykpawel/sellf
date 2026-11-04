@@ -31,14 +31,14 @@ beforeEach(() => {
 describe('payment export filters', () => {
   it('applies dashboard email search using the list search fields', async () => {
     expect((await POST(request({ searchTerm: 'buyer@example.com' }))).status).toBe(200);
-    expect(payments.or).toHaveBeenCalledWith(expect.stringContaining('customer_email.ilike."%buyer@example.com%"'));
-    expect(payments.or).toHaveBeenCalledWith(expect.stringContaining('session_id.ilike.'));
-    expect(payments.or).toHaveBeenCalledWith(expect.stringContaining('stripe_payment_intent_id.ilike.'));
+    expect(payments.or).toHaveBeenCalledWith(expect.stringContaining('customer_email.imatch."buyer@example\\\\.com"'));
+    expect(payments.or).toHaveBeenCalledWith(expect.stringContaining('session_id.imatch.'));
+    expect(payments.or).toHaveBeenCalledWith(expect.stringContaining('stripe_payment_intent_id.imatch.'));
     expect(payments.or).toHaveBeenCalledWith(expect.stringContaining('product_id.in.'));
   });
   it('accepts API search and preserves literal punctuation', async () => {
     expect((await POST(request({ search: 'a%,(b)' }))).status).toBe(200);
-    expect(products.or).toHaveBeenCalledWith('name.ilike."%a\\\\%,(b)%",slug.ilike."%a\\\\%,(b)%"');
+    expect(products.or).toHaveBeenCalledWith('name.imatch."a%,\\\\(b\\\\)",slug.imatch."a%,\\\\(b\\\\)"');
   });
   it.each(['completed', 'refunded', 'partially_refunded', 'disputed', 'abandoned', 'awaiting_payment', 'cancelled', 'pending'])('filters status %s', async status => {
     expect((await POST(request({ status }))).status).toBe(200);

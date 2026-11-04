@@ -7,6 +7,7 @@ import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 import TransferInstructions from '@/components/checkout/TransferInstructions';
 import { updateBankTransfer } from '@/lib/orders/bank-transfer-actions';
 import { fromMinorUnits, toMinorUnits, currencyExponent } from '@/lib/currency/minor-units';
+import { transferDeadline } from '@/lib/orders/transfer-format';
 import type { PaymentTransaction } from '@/types/payment';
 const input = 'block rounded border border-sf-border bg-sf-input p-2';
 export default function BankTransferSection({ transaction: tx, onRefresh }: { transaction: PaymentTransaction; onRefresh(): void | Promise<void> }) {
@@ -15,25 +16,31 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
   const [lateReason, setLateReason] = useState('');
   const [busy, setBusy] = useState(false), [message, setMessage] = useState('');
   const date = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
+  // Receipt date window (UTC days, as sent to the server): order day … today. @see supabase/tests/transfer-paid-at-window.sql
+  const orderDay = tx.created_at ? tx.created_at.slice(0, 10) : undefined, today = new Date().toISOString().slice(0, 10);
+  const failure = (code?: string) => t(code === 'paid_at_before_order' ? 'paidAtBeforeOrder' : code === 'paid_at_future' ? 'paidAtFuture' : 'operationError');
   async function run(action: 'mark-paid' | 'cancel' | 'invoice-issued' | 'accept-late') {
+    setMessage('');
     if ((action === 'mark-paid' || action === 'accept-late') && toMinorUnits(Number(amount), tx.currency) !== tx.amount) { setMessage(t('amountMismatch')); return; }
+    if ((action === 'mark-paid' || action === 'accept-late') && orderDay && paidAt && paidAt < orderDay) { setMessage(failure('paid_at_before_order')); return; }
+    if ((action === 'mark-paid' || action === 'accept-late') && paidAt > today) { setMessage(failure('paid_at_future')); return; }
     setBusy(true);
     try {
       // The receipt date is only parsed for payment actions; an empty date field must not break cancellation.
       const paid = () => ({ amount: toMinorUnits(Number(amount), tx.currency), paidAt: new Date(`${paidAt}T00:00:00Z`).toISOString() });
       const body = action === 'cancel' ? { action, reason } : action === 'invoice-issued' ? { action }
         : action === 'accept-late' ? { action: 'mark-paid', ...paid(), acceptCancelled: true, reason: lateReason } : { action, ...paid() };
-      const r = await updateBankTransfer(tx.id, body); if (r.success) await onRefresh(); else setMessage(t('operationError'));
+      const r = await updateBankTransfer(tx.id, body); if (r.success) await onRefresh(); else setMessage(failure('code' in r && typeof r.code === 'string' ? r.code : undefined));
     } catch { setMessage(t('operationError')); } finally { setBusy(false); }
   }
   if (tx.payment_provider !== 'bank_transfer') return null;
   const paidFields = <>
     <label>{t('bookedAmount')} ({tx.currency})<input className={input} type="number" min="0" step={currencyExponent(tx.currency) === 0 ? '1' : '0.01'} required value={amount} onChange={e => setAmount(e.target.value)} /></label>
-    <label>{t('paidAt')}<input className={input} type="date" required value={paidAt} onChange={e => setPaidAt(e.target.value)} /></label>
+    <label>{t('paidAt')}<input className={input} type="date" required min={orderDay} max={today} value={paidAt} onChange={e => setPaidAt(e.target.value)} /></label>
   </>;
   return <section aria-label={t('title')}>
     {tx.status === 'awaiting_payment' && <><TutorialTrigger id="unpaid-orders" /><TutorialHelpButton id="unpaid-orders" /></>}
-    <div data-tour="unpaid-instructions"><TransferInstructions transfer={tx.transfer_details ?? null} amount={tx.amount} currency={tx.currency} dueAt={tx.payment_due_at} /></div>
+    <div data-tour="unpaid-instructions"><TransferInstructions transfer={tx.transfer_details ?? null} amount={tx.amount} currency={tx.currency} dueAt={transferDeadline(tx)} /></div>
     {tx.status === 'awaiting_payment' && <div className="space-y-3">
       <form data-tour="unpaid-mark-paid" onSubmit={e => { e.preventDefault(); void run('mark-paid'); }} className="flex flex-wrap gap-3 items-end">
         {paidFields}

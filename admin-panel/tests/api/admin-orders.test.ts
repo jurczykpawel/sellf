@@ -143,6 +143,25 @@ describe('GET /api/admin/orders', () => {
     expect(body.orders!.map(o => o.type)).toEqual(['transfer']);
   });
 
+  it('finds orders by product name, as the search placeholder promises @J190', async () => {
+    const { status, body } = await list(`search=${encodeURIComponent(`Orders 49 ${r}`)}`);
+    expect(status).toBe(200);
+    expect(body.orders!.map(o => [o.email, o.type]).sort()).toEqual([
+      [`${tag}-buyer@example.com`, 'paid'],
+      [`${tag}-coupon@example.com`, 'free'],
+      [`${tag}-manual@example.com`, 'manual'],
+      [`${tag}-transfer@example.com`, 'transfer'],
+    ].sort());
+  });
+
+  it('answers hostile search phrases without an error or extra rows (W146 B4) @J190', async () => {
+    for (const phrase of ["' OR 1=1 --", `${tag} OR 1=1 --`, '*', '%', 'a,b', '(a)', '"q"', 'x),id.neq.(0']) {
+      const { status, body } = await list(`search=${encodeURIComponent(phrase)}&limit=100`);
+      expect(status, phrase).toBe(200);
+      expect(body.orders!.filter(o => o.email?.startsWith(tag)), phrase).toEqual([]);
+    }
+  });
+
   it('rejects anonymous callers and invalid filters @J190', async () => {
     expect((await list('', '')).status).toBe(401);
     expect((await list('type=everything')).status).toBe(400);

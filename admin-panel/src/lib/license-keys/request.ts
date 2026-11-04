@@ -14,13 +14,14 @@ import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { parseLicenseClaims, type LicenseClaims } from '@/lib/license-keys/format';
 import { normalizeLicenseDomain } from '@/lib/license-keys/domain';
+import { licenseEmailSchema } from '@/lib/license-keys/email';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { PREDEFINED_CUSTOM_FIELDS, validateCustomFieldDefinitions, validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
 import { licenseDurationError } from '@/lib/validations/product';
 
 export const licenseRequestSchema = z.object({
   productId: z.string().uuid(),
-  email: z.string().trim().email().max(254),
+  email: licenseEmailSchema,
   domain: z.string().trim().max(253).refine((value) => !value || Boolean(normalizeLicenseDomain(value)), 'Invalid domain').optional(),
   customFieldValues: z.record(z.string(), z.string().max(500)).optional(),
   sendEmail: z.boolean().optional(),

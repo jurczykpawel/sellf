@@ -7,6 +7,7 @@ import { revalidateTag } from 'next/cache';
 import { handleChargeDispute } from '@/app/api/webhooks/stripe/dispute-handlers';
 import { issuedInvoice, issueInvoiceForTransaction } from '@/lib/invoicing/service';
 import { snapshotFromRows } from '@/lib/orders/local-tax';
+import { mailOrderLicenses } from '@/lib/license-keys/license-mail';
 import { issueLicensesForOrder, resolveComponentProductIds } from '@/lib/services/bundle-order';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 import { captureAndPersistOrderTax } from '@/lib/services/tax-snapshot';
@@ -96,6 +97,10 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
   const invoice = await issuedInvoice(tx.id, args.supabase).catch(() => null);
   if (invoice) payload.invoice = { ...payload.invoice, ...invoice };
   await WebhookService.trigger('purchase.completed', payload, args.supabase, [...productIds]);
+  if (licenses.length) {
+    const locale = metadata.locale === 'pl' || metadata.locale === 'en' ? metadata.locale : undefined;
+    await mailOrderLicenses(args.supabase, { email: tx.customer_email || args.customerEmail, userId: tx.user_id, licenses, ...(locale ? { locale } : {}) });
+  }
   await issueInvoiceForTransaction(tx.id, { client: args.supabase });
   const { error: savedError } = await args.supabase.from('payment_transactions').update({
     metadata, fulfillment_pending: false,

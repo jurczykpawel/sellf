@@ -6,6 +6,7 @@ import TransferDeclaration from '@/components/checkout/TransferDeclaration';
 import TransferInstructions from '@/components/checkout/TransferInstructions';
 import QuickPayButton from '@/components/checkout/QuickPayButton';
 import { quoteOrderPayment } from '@/lib/orders/quick-pay';
+import { transferDeadline } from '@/lib/orders/transfer-format';
 import { verifyTransferToken } from '@/lib/orders/transfer-token';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -26,7 +27,7 @@ export default async function TransferPage({ params, searchParams }: { params: P
     {tx.status !== 'cancelled' && <p className="mt-3">{t(`status_${tx.status}`)}</p>}
     {unpaid && tx.invoice_hold_at && <p className="mt-3">{t('invoiceHold')}</p>}
     {unpaid && tx.release_at && <p className="mt-3 font-semibold">{t('reservedUntil', { date: date(tx.release_at) })}</p>}
-    <TransferInstructions paid={tx.status === 'completed'} cancelled={tx.status === 'cancelled'} transfer={tx.transfer_details} amount={tx.amount} currency={tx.currency} dueAt={tx.payment_due_at} print />
+    <TransferInstructions paid={tx.status === 'completed'} cancelled={tx.status === 'cancelled'} transfer={tx.transfer_details} amount={tx.amount} currency={tx.currency} dueAt={transferDeadline(tx)} print />
     {(quote.mode === 'settle' || quote.mode === 'reopen') && <QuickPayButton orderId={orderId} token={token!} amount={quote.amount} currency={quote.currency} />}
     {tx.status === 'cancelled' && quote.mode === 'unavailable' && product && <p className="my-4 print:hidden">{t('quickPayNewOrder')} <a className="underline" href={`/${locale}/checkout/${product.slug}`}>{t('quickPayNewOrderLink')}</a></p>}
     {unpaid && <TransferDeclaration orderId={orderId} token={token!} declaredAt={tx.transfer_declared_at} />}

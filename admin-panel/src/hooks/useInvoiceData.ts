@@ -142,17 +142,21 @@ export function useInvoiceData(
       setGusError(null);
       setGusSuccess(false);
 
+      // The fields stay editable during the lookup; anything the buyer types meanwhile
+      // wins over the GUS answer, and a failed lookup never touches them (W146 B9).
+      const before = { companyName, address, city, postalCode };
       const result = await lookupCompanyByNip(validation.normalized);
 
       if (result.ok) {
         const data = result.data;
+        const fill = (start: string, value: string) => (current: string) => (current === start || !current.trim() ? value : current);
         setGusData(data);
-        setCompanyName(data.nazwa);
+        setCompanyName(fill(before.companyName, data.nazwa));
         let addressStr = `${data.ulica} ${data.nrNieruchomosci}`;
         if (data.nrLokalu) addressStr += `/${data.nrLokalu}`;
-        setAddress(addressStr.trim());
-        setCity(data.miejscowosc);
-        setPostalCode(data.kodPocztowy);
+        setAddress(fill(before.address, addressStr.trim()));
+        setCity(fill(before.city, data.miejscowosc));
+        setPostalCode(fill(before.postalCode, data.kodPocztowy));
         setCountry('PL');
         setGusSuccess(true);
       } else if (result.code === 'rate_limit') setGusError(t('gusRateLimitExceeded'));
@@ -166,7 +170,7 @@ export function useInvoiceData(
       setGusError(null);
       setGusSuccess(false);
     }
-  }, [nip, country, t, setCompanyName, setAddress, setCity, setPostalCode, setCountry]);
+  }, [nip, country, companyName, address, city, postalCode, t, setCompanyName, setAddress, setCity, setPostalCode, setCountry]);
 
   return {
     isLoadingProfile,

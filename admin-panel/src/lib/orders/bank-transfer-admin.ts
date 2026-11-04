@@ -25,6 +25,8 @@ export async function operateTransfer(db: SupabaseClient<Database>, actor: strin
     const code = data && typeof data === 'object' && !Array.isArray(data) && typeof data.error === 'string' ? data.error : undefined;
     return { success: false, error: code === 'invoice_corrected' ? 'The invoice was corrected; issue a new order instead'
       : code === 'order_cancelled' ? 'The order is cancelled; accept the late transfer explicitly with a reason'
+      : code === 'paid_at_before_order' ? 'The receipt date cannot be earlier than the order date'
+      : code === 'paid_at_future' ? 'The receipt date cannot be in the future'
       : 'The order must be awaiting payment and the booked amount must equal its full amount in minor units', ...(code ? { code } : {}) };
   }
   try {

@@ -5,6 +5,7 @@ import { Check, Copy, Eye, KeyRound, RefreshCw, ShieldX } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatAdminDate } from '@/lib/timezone';
+import { licenseEmailSchema } from '@/lib/license-keys/email';
 import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 
 interface FieldDefinition {
@@ -60,6 +61,7 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
   const [working, setWorking] = useState(false);
   const [productId, setProductId] = useState(initialProductId);
   const [email, setEmail] = useState(initialEmail);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [domain, setDomain] = useState('');
   const [values, setValues] = useState<Record<string, string>>({});
   const [sendEmail, setSendEmail] = useState(true);
@@ -118,6 +120,8 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
 
   const issue = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!licenseEmailSchema.safeParse(email).success) { setEmailError(t('invalidEmail')); document.getElementById('license-email')?.focus(); return; }
+    setEmailError(null);
     if (!window.confirm(t('confirmIssue'))) return;
     setWorking(true);
     try {
@@ -127,6 +131,7 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
         body: JSON.stringify({ productId, email, ...(domainField && domain.trim() ? { domain: domain.trim() } : {}), customFieldValues: values, sendEmail, locale: locale === 'pl' ? 'pl' : 'en' }),
       });
       const body = await response.json();
+      if (!response.ok && (body.fieldErrors?.email || body.details?.fieldErrors?.email)) { setEmailError(t('invalidEmail')); return; }
       if (!response.ok) throw new Error(body.error || 'issue');
       setRevealed((current) => ({ ...current, [body.license.id]: body.license.token }));
       await navigator.clipboard.writeText(body.license.token);
@@ -186,7 +191,7 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
         <h3 className="font-semibold text-sf-heading">{t('manualTitle')}</h3>
         <div className="grid md:grid-cols-3 gap-4">
           <Field label={t('product')}><select required value={productId} onChange={(e) => { setProductId(e.target.value); setValues({}); setDomain(''); }} className="input"><option value="">{t('selectProduct')}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
-          <Field label={t('email')}><input required type="email" maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} className="input" /></Field>
+          <Field label={t('email')} error={emailError} errorId="license-email-error"><input id="license-email" required type="email" maxLength={254} value={email} onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(null); }} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? 'license-email-error' : undefined} className="input" /></Field>
           {domainField && <Field label={t('domain')}><input required={domainField.required} maxLength={253} placeholder="example.com" value={domain} onChange={(e) => setDomain(e.target.value)} className="input" /></Field>}
         </div>
         {selectedProduct && <p className="text-xs text-sf-muted">{t('policy', { tier: selectedProduct.license_tier ?? '—', days: selectedProduct.license_duration_days ?? t('unlimited') })}</p>}
@@ -217,5 +222,5 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block text-sm text-sf-body min-w-44"><span className="block mb-1 font-medium">{label}</span>{children}</label>; }
+function Field({ label, children, error, errorId }: { label: string; children: React.ReactNode; error?: string | null; errorId?: string }) { return <label className="block text-sm text-sf-body min-w-44"><span className="block mb-1 font-medium">{label}</span>{children}{error && <span id={errorId} role="alert" className="block mt-1 text-xs text-sf-danger">{error}</span>}</label>; }
 function labelFor(label: FieldDefinition['label']) { return typeof label === 'string' ? label : label.en || label.pl || 'Field'; }
