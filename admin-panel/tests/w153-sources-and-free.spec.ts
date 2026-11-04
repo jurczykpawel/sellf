@@ -31,7 +31,7 @@ test('seller sees sales sources by last and first touch, partners included, with
     await expect(table.getByRole('row').filter({ hasText: `last-${run}` })).toContainText('email');
     await expect(table.getByRole('row').filter({ hasText: `last-${run}` })).toContainText('listmonk');
     await page.getByLabel('Przypisanie').selectOption('first');
-    await page.getByRole('button', { name: 'Pokaż' }).click();
+    await page.getByRole('button', { name: 'Pokaż', exact: true }).click();
     const firstRow = table.getByRole('row').filter({ hasText: `first-${run}` });
     await expect(firstRow).toContainText('paid_search');
     await expect(firstRow).toContainText('google');
