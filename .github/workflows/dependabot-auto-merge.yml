@@ -1,0 +1,51 @@
+name: Dependabot Auto-Merge
+
+# Non-major Dependabot updates (patch, minor, Docker digest) merge themselves once every
+# other check on the PR is green; majors stay open. Red CI = no merge + one @owner comment.
+#
+# Release window: set the repository variable DEPENDABOT_AUTOMERGE_PAUSED=true before
+# cutting a release (Settings > Secrets and variables > Actions > Variables) and delete
+# it afterwards. While it is "true" the merge step is skipped; PRs stay open.
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.actor == 'dependabot[bot]' && vars.DEPENDABOT_AUTOMERGE_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        id: metadata
+
+      - name: Auto-merge non-major updates
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        # `gh pr merge --auto` needs branch protection with required checks, which this
+        # repo does not use. Wait for the other checks ourselves and merge only when all
+        # are green. PR CI (pr-ci.yml) always runs, so "no checks" never means "green".
+        run: |
+          sleep 90  # let the other workflows register their checks
+          for _ in $(seq 1 90); do
+            rollup=$(gh pr view "$PR_URL" --json statusCheckRollup -q \
+              '[.statusCheckRollup[] | select(.name != "auto-merge")]')
+            total=$(jq length <<<"$rollup")
+            pending=$(jq '[.[] | select(.status != "COMPLETED")] | length' <<<"$rollup")
+            bad=$(jq '[.[] | select(.conclusion | IN("FAILURE","CANCELLED","TIMED_OUT","ACTION_REQUIRED"))] | length' <<<"$rollup")
+            if [ "$bad" != 0 ]; then
+              gh pr comment "$PR_URL" --body "@${OWNER} CI failed on this dependency update, so it was not merged. Fix it or close it with \`@dependabot ignore this dependency\`."
+              exit 0
+            fi
+            if [ "$total" != 0 ] && [ "$pending" = 0 ]; then
+              gh pr merge "$PR_URL" --squash
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "Checks did not finish in time; not merging."
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}

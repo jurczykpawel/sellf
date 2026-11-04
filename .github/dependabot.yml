@@ -1,44 +1,83 @@
 version: 2
-
+# Noise control: one PR per ecosystem and update kind. Everything except majors (patch,
+# minor, Docker digests) is auto-merged once PR CI is green (dependabot-auto-merge.yml);
+# red CI leaves one @owner comment on the PR; majors stay individual PRs for review.
+# Docker base-image majors are ignored (the Node/Bun lines are pinned deliberately).
 updates:
-  # admin-panel is built with Bun (CI: `bun install --frozen-lockfile`), so
-  # Dependabot must track bun.lock — the lockfile that actually ships. Tracking
-  # the npm ecosystem here updated a package-lock.json the build never used, so
-  # fixes never reached the artifact and alerts lingered. NOTE: Dependabot does
-  # not raise *security* PRs for Bun, only version PRs; the weekly minor+patch
-  # group carries most security patches, the rest via manual `bun update`.
+  # admin-panel is built with Bun (CI: `bun install --frozen-lockfile`), so Dependabot
+  # must track bun.lock - the lockfile that actually ships. NOTE: Dependabot does not
+  # raise *security* PRs for Bun, only version PRs.
   - package-ecosystem: "bun"
     directory: "/admin-panel"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-    groups:
-      minor-and-patch:
-        update-types:
-          - "minor"
-          - "patch"
-
-  - package-ecosystem: "npm"
-    directory: "/mcp-server"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    groups:
+      compatible-patches:
+        update-types: ["patch"]
+      compatible-minors:
+        update-types: ["minor"]
     ignore:
-      - dependency-name: "*"
+      # Blocked since b3001ee5: eslint-config-next's typescript-eslint v8 relied on the
+      # FlatESLint API removed in eslint 10. That reason dates from 2026-04; re-check
+      # (and drop this entry) once eslint-config-next documents eslint 10 support.
+      - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "npm"
+    directory: "/mcp-server"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+    groups:
+      compatible-patches:
+        update-types: ["patch"]
+      compatible-minors:
+        update-types: ["minor"]
+
+  - package-ecosystem: "npm"
+    directory: "/docs-site"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+    groups:
+      compatible-patches:
+        update-types: ["patch"]
+      compatible-minors:
+        update-types: ["minor"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 3
     labels:
       - "ci"
+    groups:
+      compatible-patches:
+        update-types: ["patch"]
+      compatible-minors:
+        update-types: ["minor"]
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+    groups:
+      base-images:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
