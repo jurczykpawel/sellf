@@ -84,4 +84,13 @@ describe('loader messages for a price under the Stripe minimum (W146 B6)', () =>
     expect(errorMessage({ status: 422, code: 'AMOUNT_BELOW_MINIMUM' }, 'en')).toBe('This product cannot be purchased right now. The seller needs to correct its price.');
     expect(script).toMatch(/failure\.code = body && body\.code/);
   });
+
+  it('says at the coupon that the discount stops at the minimum payment', async () => {
+    const script = await getEmbedScript();
+    const source = script.match(/function couponAppliedText\([\s\S]*?\n  \}/)?.[0];
+    expect(source).toBeTruthy();
+    const text = new Function(`${source}; return couponAppliedText;`)() as (c: string, b: object, l: string) => string;
+    expect(text('w150p80', { minimumApplied: true, minimumAmount: 2, product: { currency: 'PLN' } }, 'pl')).toMatch(/^Zastosowano kupon W150P80\. Rabat ograniczony do minimalnej płatności: 2,00\s?zł\.$/);
+    expect(text('w150p80', { minimumApplied: false, product: { currency: 'PLN' } }, 'en')).toBe('Coupon W150P80 applied.');
+  });
 });

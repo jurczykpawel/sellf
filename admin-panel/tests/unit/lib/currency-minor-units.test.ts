@@ -51,7 +51,8 @@ describe('currency minor units', () => {
   it('uses Stripe minimum charges', () => {
     expect(minimumChargeAmount('JPY')).toBe(50);
     expect(minimumChargeAmount('KRW')).toBe(50);
-    expect(minimumChargeAmount('PLN')).toBe(0.5);
+    // PLN minimum measured against Stripe test mode: amount_too_small "at least 2.00 zł PLN" (W150).
+    expect(minimumChargeAmount('PLN')).toBe(2);
   });
 });
 
@@ -113,11 +114,11 @@ describe('coupons and the minimum floor', () => {
     expect(result.total).toBe(7501);
   });
 
-  it('floors a tiny JPY total at the Stripe minimum of 50 yen, PLN at 0.50', () => {
+  it('floors a tiny JPY total at the Stripe minimum of 50 yen, PLN at 2.00', () => {
     const jpy = specsFor('JPY', 100, { code: 'C', discount_type: 'fixed', discount_value: 90 });
     expect(jpy.specs[0].unitAmountMinor).toBe(50);
     const pln = specsFor('PLN', 10, { code: 'C', discount_type: 'fixed', discount_value: 9.9 });
-    expect(pln.specs[0].unitAmountMinor).toBe(50);
+    expect(pln.specs[0].unitAmountMinor).toBe(200);
   });
 
   it('a full coupon still reports free', () => {

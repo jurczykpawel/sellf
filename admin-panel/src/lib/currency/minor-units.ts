@@ -13,8 +13,10 @@ const ZERO_DECIMAL_CURRENCIES: ReadonlySet<string> = new Set([
   'BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW', 'MGA', 'PYG', 'RWF', 'VND', 'VUV', 'XAF', 'XOF', 'XPF',
 ]);
 
-/** Stripe minimum charge for currencies where it is not the generic 0.50 (docs.stripe.com/currencies). */
-const MINIMUM_CHARGE: Readonly<Record<string, number>> = { JPY: 50, KRW: 50 };
+/** Stripe minimum charge where it is not the generic 0.50 (docs.stripe.com/currencies, read 2026-11-04; PLN measured against Stripe test mode). */
+const MINIMUM_CHARGE: Readonly<Record<string, number>> = {
+  AED: 2, CZK: 15, DKK: 2.5, GBP: 0.3, HKD: 4, HUF: 175, JPY: 50, KRW: 50, MXN: 10, MYR: 2, NOK: 3, PLN: 2, RON: 2, SEK: 3, THB: 10,
+};
 const DEFAULT_MINIMUM_CHARGE = 0.5;
 
 export function currencyExponent(currency: string): 0 | 2 {

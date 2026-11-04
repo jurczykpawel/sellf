@@ -12,7 +12,7 @@ const scenarios: Array<[string, Partial<BuildLineSpecsParams>, number]> = [
   ['percentage on all line totals', { coupon: { code: 'PCT', discount_type: 'percentage', discount_value: 20 } }, 2800],
   ['fixed discount once per order', { coupon: { code: 'FIX', discount_type: 'fixed', discount_value: 7 } }, 2800],
   ['excluded bumps', { coupon: { code: 'EXC', discount_type: 'percentage', discount_value: 20, exclude_order_bumps: true } }, 2900],
-  ['minimum on the main line', { mainPrice: 0.1, quantity: 1, bumps: [], coupon: { code: 'MIN', discount_type: 'percentage', discount_value: 50 } }, 50],
+  ['minimum on the main line', { mainPrice: 0.1, quantity: 1, bumps: [], coupon: { code: 'MIN', discount_type: 'percentage', discount_value: 50 } }, 200],
   ['JPY whole units', { main: { ...main, currency: 'JPY' }, bumps: [], mainPrice: 101, coupon: { code: 'JPY', discount_type: 'fixed', discount_value: 50 } }, 253],
   ['resolved PWYW unit', { mainPrice: 17.33 }, 5699],
   ['resolved sale price', { mainPrice: 7.99 }, 2897],
@@ -35,7 +35,7 @@ describe('order snapshot lines', () => {
   });
   it('applies the minimum adjustment only to the main line', () => {
     const { specs } = buildCheckoutLineSpecs({ ...base, mainPrice: 0.1, quantity: 1, bumps: [{ product: bump, price: 0.1 }], coupon: { code: 'MIN', discount_type: 'percentage', discount_value: 50 } });
-    expect(specs.map(s => s.unitAmountMinor)).toEqual([45, 5]);
+    expect(specs.map(s => s.unitAmountMinor)).toEqual([195, 5]);
   });
   it.each([0, -1, 1.5, 101, NaN])('rejects invalid quantity %s', quantity => {
     expect(() => buildCheckoutLineSpecs({ ...base, quantity })).toThrow();

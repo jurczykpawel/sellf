@@ -3,7 +3,7 @@
 import { useCallback, useId } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
-import { fromMinorUnits, toMinorUnits } from '@/lib/currency/minor-units';
+import { fromMinorUnits, minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
 import { computeLinePayableMinor } from '@/lib/services/checkout-line-items';
 import type { VatDisplay } from '@/lib/product-pricing-display';
 import type { AppliedCoupon } from '@/types/coupon';
@@ -15,6 +15,8 @@ interface CouponFieldProps {
   couponError: string | null;
   currency: string;
   noPriceReduction?: boolean;
+  /** Discount capped at the Stripe minimum payment (W146 B6). */
+  minimumApplied?: boolean;
   priceIncludesVat?: boolean;
   vatDisplay?: VatDisplay;
   showCouponInput: boolean;
@@ -30,6 +32,7 @@ export default function CouponField({
   couponError,
   currency,
   noPriceReduction,
+  minimumApplied,
   priceIncludesVat = true,
   vatDisplay,
   showCouponInput,
@@ -112,7 +115,7 @@ export default function CouponField({
         )}
         {appliedCoupon && (
           <p className="text-[10px] text-sf-success mt-1 ml-1 font-medium uppercase tracking-wider">
-            {noPriceReduction ? t('couponNoReduction') : appliedCoupon.discount_type === 'set_price' ? t('couponSetPrice', { price: unitPrice }) : t('discountApplied', { discount: appliedCoupon.discount_type === 'percentage' ? `${appliedCoupon.discount_value}%` : formatPrice(appliedCoupon.discount_value, currency, locale) })}
+            {minimumApplied ? t('couponMinimumApplied', { min: formatPrice(minimumChargeAmount(currency), currency, locale) }) : noPriceReduction ? t('couponNoReduction') : appliedCoupon.discount_type === 'set_price' ? t('couponSetPrice', { price: unitPrice }) : t('discountApplied', { discount: appliedCoupon.discount_type === 'percentage' ? `${appliedCoupon.discount_value}%` : formatPrice(appliedCoupon.discount_value, currency, locale) })}
           </p>
         )}
       </div>

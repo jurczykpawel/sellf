@@ -20,6 +20,7 @@ import { getMyShopConfig } from '@/lib/actions/shop-config';
 import { CURRENCIES } from '@/lib/constants';
 import { useLocale, useTranslations } from 'next-intl';
 import { moneyAmountError } from '@/lib/currency/parse-money-input';
+import { productsBelowMinimumWithCoupon } from '@/lib/payment/minimum-charge';
 import { MoneyInputError } from '@/components/MoneyInputError';
 
 interface CouponFormModalProps {
@@ -73,6 +74,12 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
       };
 
   const [formData, setFormData] = useState<Partial<CouponFormData>>(() => buildFormData(editingCoupon));
+  // Warn the seller when the coupon would leave a paid price under the Stripe minimum (W146 B6);
+  // checkout then charges the minimum instead of the discounted price.
+  const belowMinimum = productsBelowMinimumWithCoupon(products.filter(p => p.product_type !== 'subscription'), {
+    discount_type: formData.discount_type ?? 'percentage', discount_value: Number.isFinite(formData.discount_value) ? formData.discount_value ?? 0 : 0,
+    currency: formData.currency, allowed_product_ids: formData.allowed_product_ids,
+  });
   const [emailInput, setEmailInput] = useState('');
   useEffect(() => {
     let active = true;
@@ -242,6 +249,11 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                 </div>
                 {formData.discount_type !== 'percentage' && (
                   <MoneyInputError error={moneyAmountError(formData.discount_value, formData.currency || defaultCurrency)} currency={formData.currency || defaultCurrency} />
+                )}
+                {belowMinimum.length > 0 && (
+                  <p role="status" className="mt-1 text-xs text-sf-warning">
+                    {t('minimumWarning', { count: belowMinimum.length, products: belowMinimum.slice(0, 5).join(', ') })}
+                  </p>
                 )}
               </div>
 

@@ -141,6 +141,14 @@ describe('POST /api/embed/checkout-session', () => {
     expect(mocks.createCheckoutSession).not.toHaveBeenCalled();
   });
 
+  it('tells the loader when a coupon discount stopped at the minimum payment (W146 B6)', async () => {
+    mocks.createCheckoutSession.mockResolvedValueOnce({ clientSecret: 'cs_test_secret', sessionId: 'cs_test_session', minimumApplied: true });
+    mocks.createAdminClient.mockReturnValue(makeDbMock({ product: { ...product, price: 2, currency: 'PLN' } }));
+    const response = await POST(makeRequest({ productSlug: 'kurs-ai', couponCode: 'W150P80' }, 'https://landing.example.com'));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ kind: 'paid', minimumApplied: true, minimumAmount: 2, product: { currency: 'PLN' } });
+  });
+
   it('requires an explicitly allowed request origin', async () => {
     const response = await POST(makeRequest({ productSlug: 'kurs-ai' }));
 

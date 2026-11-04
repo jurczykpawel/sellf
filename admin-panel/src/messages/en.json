@@ -282,6 +282,7 @@
     "verifyError": "Failed to verify coupon",
     "couponRateLimited": "Too many attempts. Try again in up to {minutes} minutes.",
     "couponNoReduction": "Coupon does not lower the price",
+    "couponMinimumApplied": "Discount limited to the minimum payment: {min}.",
     "couponPriceNet": "{price} net",
     "couponPriceGross": "{price} gross",
     "couponSetPrice": "Unit price set to {price}",
@@ -2557,6 +2558,7 @@
       "editError": "Failed to update API key"
     },
     "coupons": {
+      "minimumWarning": "For {count, plural, one {product} other {products}} {products} the discounted amount falls below the Stripe minimum payment. Buyers will then pay the minimum, not the discounted price. A 100% coupon gives free access.",
       "title": "Coupons",
       "description": "Manage discount codes and promotions",
       "create": "Create Coupon",

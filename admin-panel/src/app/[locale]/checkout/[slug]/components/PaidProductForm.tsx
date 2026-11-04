@@ -616,6 +616,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           couponCode={coupon.couponCode}
           appliedCoupon={coupon.appliedCoupon}
           noPriceReduction={coupon.appliedCoupon?.discount_type === 'set_price' && pricing.discountAmount === 0}
+          minimumApplied={!!coupon.appliedCoupon && pricing.minimumApplied}
           isVerifying={coupon.isVerifyingCoupon}
           couponError={coupon.couponError}
           currency={product.currency}

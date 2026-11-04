@@ -13,7 +13,9 @@ export class CheckoutError extends Error {
   constructor(
     public type: CheckoutErrorType,
     message: string,
-    public statusCode: number = 500
+    public statusCode: number = 500,
+    /** Machine-readable code a client translates (e.g. AMOUNT_BELOW_MINIMUM). */
+    public code?: string
   ) {
     super(message);
     this.name = 'CheckoutError';

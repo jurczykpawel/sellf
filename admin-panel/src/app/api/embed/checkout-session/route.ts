@@ -18,7 +18,7 @@ import { CheckoutService } from '@/lib/services/checkout';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { attributionRequestContext, storeCheckoutAttribution } from '@/lib/attribution/store';
-import { isBelowMinimumCharge, toMinorUnits } from '@/lib/currency/minor-units';
+import { isBelowMinimumCharge, minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
 
 const PRODUCT_SELECT =
   'id, slug, name, price, currency, is_active, available_from, available_until, product_type, embed_enabled, seller_id' as const;
@@ -234,6 +234,8 @@ export async function POST(request: Request) {
         kind: 'paid' as const,
         clientSecret: session.clientSecret,
         sessionId: session.sessionId,
+        // The coupon discount stopped at Stripe's minimum payment; the loader says so at the coupon.
+        ...(session.minimumApplied ? { minimumApplied: true, minimumAmount: minimumChargeAmount(product.currency) } : {}),
         product: {
           slug: product.slug,
           name: product.name,
@@ -259,6 +261,7 @@ export async function POST(request: Request) {
         {
           error: error.message,
           type: error.type,
+          ...(error.code ? { code: error.code } : {}),
         },
         error.statusCode,
         origin,

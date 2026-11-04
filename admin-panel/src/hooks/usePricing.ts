@@ -48,6 +48,8 @@ export interface PricingInput {
 }
 
 export interface PricingResult {
+  /** The coupon discount was capped so the total meets the Stripe minimum charge. */
+  minimumApplied: boolean;
   basePrice: number;
   bumpAmount: number;
   discountAmount: number;
@@ -164,6 +166,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
     hasBump: bumpAmount > 0,
     hasDiscount: discountAmount > 0,
     isFreeWithCoupon,
+    minimumApplied: allocation.minimumApplied,
   };
 }
 

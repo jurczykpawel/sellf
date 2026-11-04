@@ -30,6 +30,8 @@ export interface CouponAllocationResult {
   discountAmount: number;
   total: number;
   isFree: boolean;
+  /** The discounted total was raised to the Stripe minimum charge (buyer should be told). */
+  minimumApplied: boolean;
 }
 
 export function allocateCouponDiscount(params: {
@@ -72,6 +74,7 @@ export function allocateCouponDiscount(params: {
       discountAmount: 0,
       total: fromMinorUnits(subtotalMinor, currency),
       isFree: false,
+      minimumApplied: false,
     };
   }
 
@@ -133,7 +136,9 @@ export function allocateCouponDiscount(params: {
   const minimumMinor = toMinorUnits(minimumAmount, currency);
   const isFree = coupon !== null && totalMinor <= 0;
 
+  let minimumApplied = false;
   if (applyMinimumFloor && totalMinor > 0 && totalMinor < minimumMinor) {
+    minimumApplied = true;
     const baseItem = workingItems.find((item) => item.kind === 'base') ?? workingItems[0];
     if (baseItem) {
       baseItem.finalMinor += minimumMinor - totalMinor;
@@ -154,5 +159,6 @@ export function allocateCouponDiscount(params: {
     discountAmount: fromMinorUnits(subtotalMinor - totalMinor, currency),
     total: isFree ? 0 : fromMinorUnits(totalMinor, currency),
     isFree,
+    minimumApplied,
   };
 }

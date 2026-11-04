@@ -45,6 +45,7 @@ import { placeOrder } from '@/lib/orders/place-order';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { ATTRIBUTION_REF_KEY, attributionRequestContext, recordFreeAttribution, storeCheckoutAttribution } from '@/lib/attribution/store';
 import { isBelowMinimumCharge } from '@/lib/currency/minor-units';
+import { isStripeAmountTooSmall } from '@/lib/payment/minimum-charge';
 
 function extractStripeObjectId(clientSecret: string): string | null {
   return clientSecret.split('_secret_')[0] || null;
@@ -918,6 +919,11 @@ export async function POST(request: NextRequest) {
         { error: 'Checkout is temporarily unavailable due to a tax configuration issue. Please try again later.', code: 'STRIPE_TAX_NOT_CONFIGURED' },
         { status: 503 }
       );
+    }
+    // Defense in depth for minimums the local table does not know (W146 B6, measured for PLN).
+    if (isStripeAmountTooSmall(error)) {
+      console.error('[create-payment-intent] Stripe amount_too_small:', error instanceof Error ? error.message : error);
+      return NextResponse.json({ error: 'Product price is below the minimum charge', code: 'AMOUNT_BELOW_MINIMUM' }, { status: 422 });
     }
     console.error('Error creating payment intent:', error);
     return NextResponse.json(

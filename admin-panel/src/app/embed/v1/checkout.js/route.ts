@@ -83,6 +83,14 @@ ${buildAttributionRuntime()}
     return polish ? 'Nie udało się otworzyć koszyka. Spróbuj ponownie.' : 'Could not open checkout. Please try again.';
   }
 
+  function couponAppliedText(coupon, body, language) {
+    var polish = language === 'pl';
+    var text = polish ? 'Zastosowano kupon ' + coupon.toUpperCase() + '.' : 'Coupon ' + coupon.toUpperCase() + ' applied.';
+    if (!body || !body.minimumApplied) return text;
+    var amount = new Intl.NumberFormat(polish ? 'pl-PL' : 'en-US', { style: 'currency', currency: body.product.currency }).format(body.minimumAmount);
+    return text + (polish ? ' Rabat ograniczony do minimalnej płatności: ' : ' Discount limited to the minimum payment: ') + amount + '.';
+  }
+
   function showMessage(root, message) {
     root.textContent = message;
   }
@@ -476,12 +484,14 @@ ${buildAttributionRuntime()}
         applyButton.disabled = true;
         setStatus(rejection || '', !!rejection);
       }
+      var sessionBody = null;
       return requestSession(coupon).then(function (body) {
+        sessionBody = body;
         return body ? mountSession(body) : false;
       }).then(function (mounted) {
         if (!stripeSlot) return;
         if (applyButton) applyButton.disabled = false;
-        if (mounted && coupon) setStatus(polish ? 'Zastosowano kupon ' + coupon.toUpperCase() + '.' : 'Coupon ' + coupon.toUpperCase() + ' applied.', false);
+        if (mounted && coupon) setStatus(couponAppliedText(coupon, sessionBody, language), false);
       }, function (error) {
         var couponProblem = coupon && error.status !== 403 && error.status !== 404;
         if (!couponProblem) {

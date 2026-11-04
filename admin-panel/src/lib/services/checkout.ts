@@ -21,6 +21,7 @@ import { getOrCreateStripeCustomer } from '@/lib/stripe/customer';
 import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checkout';
 import { getOrCreateStripePriceForProduct } from '@/lib/stripe/product-price';
 import { applyTosConsent } from '@/lib/stripe/tos-consent';
+import { isStripeAmountTooSmall } from '@/lib/payment/minimum-charge';
 
 
 // Remove the local ProductForCheckout interface since we now use ValidatedProduct
@@ -156,7 +157,7 @@ export class CheckoutService {
   /**
    * Create Stripe checkout session
    */
-  async createStripeSession(options: CheckoutSessionOptions): Promise<{ clientSecret: string; sessionId: string }> {
+  async createStripeSession(options: CheckoutSessionOptions): Promise<{ clientSecret: string; sessionId: string; minimumApplied?: boolean }> {
     try {
       // Subscription products bypass bumps / coupons / PWYW (MVP scope).
       if (options.product.product_type === 'subscription') {
@@ -193,7 +194,7 @@ export class CheckoutService {
       // Same allocateCouponDiscount math as before, now centralized so embedded and
       // Elements emit identical per-line items (DRY). Main line now carries
       // metadata.product_id so the tax snapshot can match it back to its row.
-      const { specs, isFree } = buildCheckoutLineSpecs({
+      const { specs, isFree, minimumApplied } = buildCheckoutLineSpecs({
         main: {
           id: options.product.id,
           name: pricedMainProduct.name,
@@ -321,10 +322,14 @@ export class CheckoutService {
       return {
         clientSecret: session.client_secret,
         sessionId: session.id,
+        minimumApplied,
       };
     } catch (error) {
       if (error instanceof CheckoutError) {
         throw error;
+      }
+      if (isStripeAmountTooSmall(error)) {
+        throw new CheckoutError(CheckoutErrorType.VALIDATION_ERROR, 'Product price is below the minimum charge', 422, 'AMOUNT_BELOW_MINIMUM');
       }
       
       // Log the actual Stripe error for debugging
@@ -407,7 +412,7 @@ export class CheckoutService {
     returnUrl: string,
     userId?: string,
     options?: Pick<CheckoutSessionOptions, 'embedSessionId' | 'locale' | 'attributionRef'>
-  ): Promise<{ clientSecret: string; sessionId: string }> {
+  ): Promise<{ clientSecret: string; sessionId: string; minimumApplied?: boolean }> {
     // Initialize service
     await this.initialize();
 

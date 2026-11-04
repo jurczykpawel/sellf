@@ -75,6 +75,8 @@ export interface BuildLineSpecsResult {
   isFree: boolean;
   /** Sum of post-coupon line amounts after the minimum floor, before exclusive VAT. */
   totalMinor: number;
+  /** The total was raised to the Stripe minimum charge (discount capped). */
+  minimumApplied: boolean;
 }
 
 /**
@@ -137,7 +139,7 @@ export function buildCheckoutLineSpecs(params: BuildLineSpecsParams): BuildLineS
     specs.push(toSpec(b.product, true, allocation.items[i + 1].finalPrice, toMinorUnits(b.price, b.product.currency), 1));
   });
   const totalMinor = specs.reduce((sum, s) => sum + s.unitAmountMinor, 0);
-  return { specs, isFree: allocation.isFree, totalMinor };
+  return { specs, isFree: allocation.isFree, totalMinor, minimumApplied: allocation.minimumApplied };
 }
 
 /** Resolves a (percentage, inclusive) pair to a Stripe TaxRate id. Injected for testability. */

@@ -62,3 +62,11 @@ describe('checkout guard', () => {
     expect(isBelowMinimumCharge(49, 'JPY')).toBe(true);
   });
 });
+
+describe('Stripe per-currency minimums (docs.stripe.com/currencies; PLN measured: amount_too_small "at least 2.00 zł")', () => {
+  it.each([['PLN', 2], ['USD', 0.5], ['GBP', 0.3], ['CZK', 15], ['HUF', 175], ['DKK', 2.5], ['SEK', 3], ['NOK', 3], ['MXN', 10], ['THB', 10], ['HKD', 4], ['RON', 2], ['MYR', 2], ['JPY', 50], ['KRW', 50], ['EUR', 0.5]])('%s → %s', async (c, min) => {
+    const { minimumChargeAmount, isBelowMinimumCharge } = await import('@/lib/currency/minor-units');
+    expect(minimumChargeAmount(c)).toBe(min);
+    expect(isBelowMinimumCharge(40, 'PLN')).toBe(true);
+  });
+});
