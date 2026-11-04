@@ -15,8 +15,9 @@ export async function sendLicenseMail(db: SupabaseClient, input: LicenseMailInpu
       email: input.email,
       redirectTo: buildPostCheckoutMagicLinkRedirect({ origin: getSellfBaseUrl(), productSlug: input.productSlug, locale, sessionId: undefined, paymentIntentId: undefined }),
       data: { locale, purchase_product: input.productName, license_key: input.token },
+      retry: 'license',
     });
-    if (!result.ok) console.error('[license-mail] Delivery failed:', result.code);
+    if (!result.ok) console.error('[license-mail] Delivery failed:', result.code, result.queued ? '(queued for retry)' : '');
   } catch {
     console.error('[license-mail] Delivery failed');
   } finally {

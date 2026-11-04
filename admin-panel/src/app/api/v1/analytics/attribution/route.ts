@@ -27,7 +27,7 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { parseAttributionQuery } from '@/lib/attribution/report';
+import { parseAttributionQuery, runAttributionReport } from '@/lib/attribution/report';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -40,20 +40,11 @@ export async function GET(request: NextRequest) {
     if (!parsed.ok) return apiError(request, 'INVALID_INPUT', parsed.error);
     const q = parsed.value;
 
-    const { data, error } = await auth.supabase.rpc('get_attribution_report', {
-      p_from: q.from.toISOString(),
-      p_to: q.to.toISOString(),
-      p_touch: q.touch,
-      p_group_by: q.groupBy,
-      ...(q.productId ? { p_product: q.productId } : {}),
-    });
-    if (error) {
-      console.error('[GET /api/v1/analytics/attribution] Error:', error.message);
-      return apiError(request, 'INTERNAL_ERROR', 'Failed to build attribution report');
-    }
+    const report = await runAttributionReport(auth.supabase, q);
+    if (!report.ok) return apiError(request, 'INTERNAL_ERROR', 'Failed to build attribution report');
 
     return jsonResponse(successResponse({
-      rows: Array.isArray(data) ? data : [],
+      rows: report.rows,
       filters: {
         from: q.from.toISOString(),
         to: q.to.toISOString(),

@@ -24,7 +24,7 @@ export interface SubmitMagicLinkInput {
 
 export type MagicLinkSubmitResult =
   | { ok: true }
-  | { ok: false; reason: 'captcha_missing' | MagicLinkErrorCode; fieldErrors?: Record<string, string> };
+  | { ok: false; reason: 'captcha_missing' | MagicLinkErrorCode; fieldErrors?: Record<string, string>; queued?: true };
 
 /**
  * Shared client-side submit step for the four magic-link forms: checks the
@@ -51,7 +51,7 @@ export async function submitMagicLink(input: SubmitMagicLinkInput): Promise<Magi
 
   if (!result.ok) {
     input.captcha.reset();
-    return { ok: false, reason: result.code, ...(result.fieldErrors ? { fieldErrors: result.fieldErrors } : {}) };
+    return { ok: false, reason: result.code, ...(result.fieldErrors ? { fieldErrors: result.fieldErrors } : {}), ...(result.queued ? { queued: true as const } : {}) };
   }
 
   return { ok: true };

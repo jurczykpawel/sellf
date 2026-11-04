@@ -11,6 +11,7 @@
  *   participants-reminders     — mail buyers who chose "add participants later": 24 h after purchase and 2 days before the event (every 15 minutes)
  *   access-expired             — dispatch access.expired webhooks for newly expired access records
  *   cleanup-webhook-logs       — delete webhook_logs older than WEBHOOK_LOG_RETENTION_DAYS
+ *   auth-mail-retry            — deliver purchase mails the auth mailer refused (send limit); every minute
  *   webhook-deliveries-retry   — process due retries (status=pending_retry) with exp backoff;
  *                                push to DLQ (permanently_failed) after max_attempts
  */
@@ -24,6 +25,7 @@ import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { runTransferJob } from '@/lib/orders/bank-transfer-service';
 import { runParticipantsReminders } from '@/lib/orders/participants-service';
 import { runBusinessEvents } from '@/lib/services/business-events';
+import { runAuthMailRetries } from '@/lib/auth/magic-link/retry';
 import { getWebhookQueue } from '@/lib/services/webhook-queue';
 import { WebhookDispatcher } from '@/lib/services/webhook-queue/dispatcher';
 import { computeNextRetry, hasMoreAttempts } from '@/lib/services/webhook-queue/retry-policy';
@@ -185,6 +187,7 @@ const JOB_REGISTRY: Record<string, () => Promise<CronJobResult>> = {
   'seat-reservations-expire': handleSeatReservationsExpire,
   'access-expired': handleAccessExpired,
   'business-events': () => runBusinessEvents(),
+  'auth-mail-retry': () => runAuthMailRetries(),
   'cleanup-webhook-logs': handleCleanupWebhookLogs,
   'webhook-deliveries-retry': handleWebhookDeliveriesRetry,
 };

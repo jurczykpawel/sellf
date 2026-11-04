@@ -36,6 +36,11 @@ export async function register() {
       startBusinessEvents();
     } catch { console.warn('[business-events] Scheduler unavailable'); }
 
+    try {
+      const { startAuthMailRetries } = await import('@/lib/auth/magic-link/retry');
+      startAuthMailRetries();
+    } catch { console.warn('[auth-mail-retry] Scheduler unavailable'); }
+
     // One-time conversion of a Meta CAPI token saved before encryption at rest.
     // Runs in the background; on any failure the stored value stays as it is
     // and is converted on the next server read instead.

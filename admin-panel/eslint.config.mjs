@@ -51,12 +51,12 @@ const eslintConfig = defineConfig([
   },
   {
     files: ["src/**/*.ts", "src/**/*.tsx"],
-    ignores: ["src/lib/auth/magic-link/deliver.ts", "src/lib/auth/magic-link/request.ts"],
+    ignores: ["src/lib/auth/magic-link/deliver.ts", "src/lib/auth/magic-link/request.ts", "src/lib/auth/magic-link/retry.ts"],
     rules: {
       "no-restricted-imports": ["error", {
         patterns: [{
           group: ["**/magic-link/deliver", "@/lib/auth/magic-link/deliver"],
-          message: "deliverMagicLink() may only be called from src/lib/auth/magic-link/request.ts. Use requestMagicLink() or sendTrustedMagicLink() instead.",
+          message: "deliverMagicLink() may only be called from src/lib/auth/magic-link/request.ts (and its retry worker, retry.ts). Use requestMagicLink() or sendTrustedMagicLink() instead.",
         }],
       }],
     },

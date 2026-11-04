@@ -5,7 +5,7 @@
  * @see src/components/DashboardLayout.tsx
  */
 export type AdminNavIcon =
-  | 'dashboard' | 'payments' | 'refunds' | 'licenses' | 'users' | 'affiliates'
+  | 'dashboard' | 'payments' | 'refunds' | 'licenses' | 'users' | 'affiliates' | 'attribution'
   | 'products' | 'variants' | 'categories' | 'templates' | 'orderBumps' | 'coupons'
   | 'webhooks' | 'integrations' | 'apiKeys' | 'settings';
 
@@ -34,6 +34,7 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
       { href: '/dashboard/licenses', labelKey: 'licenses', icon: 'licenses' },
       { href: '/dashboard/users', labelKey: 'users', icon: 'users' },
       { href: '/dashboard/affiliates', labelKey: 'affiliates', icon: 'affiliates' },
+      { href: '/dashboard/attribution', labelKey: 'attribution', icon: 'attribution' },
     ],
   },
   {

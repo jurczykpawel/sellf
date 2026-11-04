@@ -66,4 +66,10 @@ describe('submitMagicLink', () => {
     expect(result).toEqual({ ok: false, reason: 'rate_limited' });
     expect(captcha.reset).toHaveBeenCalledTimes(1);
   });
+
+  it('passes the queued flag through (W147-9)', async () => {
+    sendMagicLinkRequest.mockResolvedValue({ ok: false, code: 'rate_limited', queued: true });
+    expect(await submitMagicLink({ email: 'a@b.com', captcha: makeCaptcha('t'), flow: 'post_checkout', productSlug: 'p' }))
+      .toEqual({ ok: false, reason: 'rate_limited', queued: true });
+  });
 });

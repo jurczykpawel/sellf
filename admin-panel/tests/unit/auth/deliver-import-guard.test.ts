@@ -7,6 +7,8 @@ const SRC_DIR = path.resolve(__dirname, '../../../src');
 const ALLOWED_FILES = [
   path.join('src', 'lib', 'auth', 'magic-link', 'deliver.ts'),
   path.join('src', 'lib', 'auth', 'magic-link', 'request.ts'),
+  // Retry worker for mails request.ts already accepted and parked (trust proven at parking time).
+  path.join('src', 'lib', 'auth', 'magic-link', 'retry.ts'),
 ];
 
 function collectFiles(dir: string, out: string[] = []): string[] {

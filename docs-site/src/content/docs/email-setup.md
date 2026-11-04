@@ -33,6 +33,8 @@ Enter secrets directly in the dashboard, never in an AI chat. These labels are c
 
 Custom SMTP initially sets a **30 messages/hour** limit. Review **Authentication → Rate Limits** and adjust it for expected traffic within your provider's limits. The SMTP form also has **Minimum interval per user**; Supabase's default magic-link cooldown is 60 seconds. Sellf applies its own request limits too, so avoid repeatedly requesting test links. See [Auth rate limits](https://supabase.com/docs/guides/auth/rate-limits).
 
+When a limit refuses the post-payment login link or a free-license key mail, Sellf keeps the mail and retries it automatically (after about 2, 5, 15, 30, 60 and 120 minutes) from the app's background worker; `/api/cron?job=auth-mail-retry` with your `CRON_SECRET` runs the same retry from an external scheduler. The payment page tells the buyer the link is on its way.
+
 ### Self-hosted Supabase / GoTrue
 
 Configure these variables on the **Supabase Auth service**, not the Sellf container:

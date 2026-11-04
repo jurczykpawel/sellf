@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
 export const ATTRIBUTION_DIMENSIONS = [
@@ -56,6 +57,45 @@ export function parseAttributionQuery(params: URLSearchParams, now = new Date())
     return { ok: false, error: `group_by accepts up to 8 of: ${ATTRIBUTION_DIMENSIONS.join(', ')}` };
   }
   return { ok: true, value: { from, to, touch: q.touch, groupBy: groupBy as AttributionDimension[], productId: q.product_id ?? null } };
+}
+
+/** Grouping of the seller panel report: channel, source, campaign and partner (owner, 3.11.2026). */
+export const ATTRIBUTION_PANEL_GROUP_BY: AttributionDimension[] = ['channel', 'source', 'campaign', 'affiliate'];
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Panel form (`touch`, `from`, `to` as YYYY-MM-DD, end day inclusive) → the same query the API parses. */
+export function panelAttributionQuery(
+  input: { touch?: string; from?: string; to?: string }, now = new Date(),
+): ParseResult<AttributionReportQuery> {
+  const params = new URLSearchParams({ group_by: ATTRIBUTION_PANEL_GROUP_BY.join(',') });
+  if (input.touch) params.set('touch', input.touch);
+  if (input.from) params.set('from', input.from);
+  if (input.to) {
+    if (!DATE_ONLY.test(input.to) || Number.isNaN(Date.parse(input.to))) return { ok: false, error: 'Invalid date' };
+    params.set('to', new Date(Date.parse(`${input.to}T00:00:00Z`) + DAY_MS).toISOString());
+  }
+  return parseAttributionQuery(params, now);
+}
+
+export type AttributionReportRow = Record<string, string | number | null>;
+
+/** Runs get_attribution_report (admin or service role); shared by the API v1 endpoint and the panel page. */
+export async function runAttributionReport(
+  supabase: Pick<SupabaseClient<Database>, 'rpc'>, q: AttributionReportQuery,
+): Promise<{ ok: true; rows: AttributionReportRow[] } | { ok: false }> {
+  const { data, error } = await supabase.rpc('get_attribution_report', {
+    p_from: q.from.toISOString(),
+    p_to: q.to.toISOString(),
+    p_touch: q.touch,
+    p_group_by: q.groupBy,
+    ...(q.productId ? { p_product: q.productId } : {}),
+  });
+  if (error) {
+    console.error('[runAttributionReport] Error:', error.message);
+    return { ok: false };
+  }
+  return { ok: true, rows: Array.isArray(data) ? data as AttributionReportRow[] : [] };
 }
 
 type AttributionRow = Database['public']['Tables']['purchase_attribution']['Row'];

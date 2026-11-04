@@ -4530,6 +4530,92 @@
         "browser",
         "unit"
       ]
+    },
+    {
+      "id": "J290",
+      "title": "Seller reads sales sources in the panel by last or first touch, partners included",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_navigation",
+        "operation": "reconcile"
+      },
+      "end_state": {
+        "buyer": "Not exercised.",
+        "seller": "Sales sources page lists channel, source, campaign, partner, orders, gross and net revenue; last touch shows the e-mail visit, first touch the paid-search visit; PL/EN; no horizontal scroll at 390 px.",
+        "integrator": "Same RPC and query parsing as GET /api/v1/analytics/attribution; every dimension of a row comes from one touch (database layer: snapshot.integration test)."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "database",
+        "unit"
+      ]
+    },
+    {
+      "id": "J291",
+      "title": "Signed-in buyer of a free licensed product receives the key by mail, retried when the auth mailer refuses",
+      "values": {
+        "persona": "signed_in",
+        "entry": "checkout",
+        "product": "free_license",
+        "payment": "none",
+        "moment": "after_grant",
+        "operation": "issue_license"
+      },
+      "end_state": {
+        "buyer": "Key mail arrives right after a fresh magic-link login; a refused send is parked and delivered by cron, and the key is cleared from account data afterwards.",
+        "seller": "Not exercised.",
+        "integrator": "Not exercised."
+      },
+      "status": "automated",
+      "layers": [
+        "integration"
+      ]
+    },
+    {
+      "id": "J292",
+      "title": "Paid guest gets the post-payment login link even when the auth mailer hits its send limit",
+      "values": {
+        "persona": "guest",
+        "entry": "cron",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_retry",
+        "operation": "deliver"
+      },
+      "end_state": {
+        "buyer": "Payment page says the link will arrive automatically; cron delivers it with backoff (one pending mail per address and destination, gives up after 6 attempts).",
+        "seller": "Not exercised.",
+        "integrator": "Not exercised."
+      },
+      "status": "automated",
+      "layers": [
+        "integration"
+      ]
+    },
+    {
+      "id": "J293",
+      "title": "Signed-in Polish buyer of a free product sees the confirmation in Polish",
+      "values": {
+        "persona": "signed_in",
+        "entry": "checkout",
+        "product": "free",
+        "payment": "none",
+        "moment": "after_grant",
+        "operation": "claim"
+      },
+      "end_state": {
+        "buyer": "Toast 'Dostęp przyznany pomyślnie!' and no English line.",
+        "seller": "Not exercised.",
+        "integrator": "Not exercised."
+      },
+      "status": "automated",
+      "layers": [
+        "browser"
+      ]
     }
   ],
   "escapes": [

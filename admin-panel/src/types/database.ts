@@ -918,6 +918,45 @@ export type Database = {
           },
         ]
       }
+      auth_mail_retries: {
+        Row: {
+          attempts: number
+          created_at: string
+          data: Json
+          email: string
+          given_up_at: string | null
+          id: string
+          kind: string
+          last_error: string | null
+          next_attempt_at: string
+          redirect_to: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          data?: Json
+          email: string
+          given_up_at?: string | null
+          id?: string
+          kind: string
+          last_error?: string | null
+          next_attempt_at?: string
+          redirect_to: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          data?: Json
+          email?: string
+          given_up_at?: string | null
+          id?: string
+          kind?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          redirect_to?: string
+        }
+        Relationships: []
+      }
       bank_transfer_config: {
         Row: {
           bank_account_holder: string
@@ -5389,6 +5428,27 @@ export type Database = {
         Returns: boolean
       }
       check_waitlist_config: { Args: never; Returns: Json }
+      claim_auth_mail_retries: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          created_at: string
+          data: Json
+          email: string
+          given_up_at: string | null
+          id: string
+          kind: string
+          last_error: string | null
+          next_attempt_at: string
+          redirect_to: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "auth_mail_retries"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_business_events: {
         Args: { p_limit?: number }
         Returns: {
@@ -6399,6 +6459,16 @@ export type Database = {
         Returns: Json
       }
       purge_attribution_click_ids: { Args: never; Returns: number }
+      queue_auth_mail_retry: {
+        Args: {
+          p_data: Json
+          p_email: string
+          p_error: string
+          p_kind: string
+          p_redirect_to: string
+        }
+        Returns: undefined
+      }
       queue_pending_free_grant: {
         Args: { p_email: string; p_product_slug: string }
         Returns: boolean

@@ -77,6 +77,10 @@ export function useMagicLink({
           setError(t('emailInvalidError'));
         } else if (result.reason === 'captcha_failed' || result.reason === 'captcha_missing') {
           setError(t('captchaFailedError'));
+        } else if (result.queued) {
+          // The server parked the link and cron delivers it, even if the buyer closes this page.
+          setError(t('paidLinkQueued'));
+          setRetryCountdown(60);
         } else if (result.reason === 'rate_limited') {
           setError(t('paidLinkRateLimitError'));
           setRetryCountdown(60);

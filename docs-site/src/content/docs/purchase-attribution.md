@@ -58,6 +58,13 @@ purchases; recorded purchases keep their channel.
 
 ## Reading it
 
+### Panel
+
+**Sales → Sales sources**: last or first touch, a date range, and a table of channel, source,
+campaign and partner with orders, gross and net revenue (net of refunds). Every column of a row
+comes from the same touch. An ad click id belongs to the visit it arrived with: a later campaign
+visit without one replaces it, so the last-touch channel is never taken from an older ad click.
+
 ### API (aggregates, no personal data) — scope `analytics:read`
 
 ```bash
