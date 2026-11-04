@@ -5,6 +5,8 @@ import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
 
 import { marketingFieldsSchema } from '@/lib/validations/product-marketing';
 import { isRelativeOrHttpUrl } from '@/lib/validations/redirect';
+import { MAX_LICENSE_DURATION_DAYS } from '@/lib/validations/product';
+import { minimumChargeAmount } from '@/lib/currency/minor-units';
 
 const SLUG_RE = /^[a-z0-9-]+$/;
 
@@ -108,11 +110,18 @@ const baseShape = {
   // License keys (signed JWT issued on purchase)
   issue_license_on_purchase: z.boolean().optional(),
   license_tier: z.string().max(80).nullable().optional(),
-  license_duration_days: z.number().int().positive().nullable().optional(),
+  license_duration_days: z.number().int().positive().max(MAX_LICENSE_DURATION_DAYS).nullable().optional(),
 };
 
-export const ProductCreateDTO = z.object(baseShape).strip().refine(isEventCompatible, 'Invalid event product type');
-export const ProductUpdateDTO = z.object(baseShape).partial().strip().refine(isEventCompatible, 'Invalid event product type');
+/** W146 B6: a paid price Stripe cannot charge must never be stored (buyers got a 500). 0 = free. */
+function refineChargeablePrice(p: { price?: number; currency?: string }, ctx: z.RefinementCtx): void {
+  if (p.price != null && p.price > 0 && p.price < minimumChargeAmount(p.currency ?? '')) {
+    ctx.addIssue({ code: 'custom', path: ['price'], message: `price must be 0 or at least ${minimumChargeAmount(p.currency ?? '')}` });
+  }
+}
+
+export const ProductCreateDTO = z.object(baseShape).strip().refine(isEventCompatible, 'Invalid event product type').superRefine(refineChargeablePrice);
+export const ProductUpdateDTO = z.object(baseShape).partial().strip().refine(isEventCompatible, 'Invalid event product type').superRefine(refineChargeablePrice);
 
 export type ProductCreateInput = z.infer<typeof ProductCreateDTO>;
 export type ProductUpdateInput = z.infer<typeof ProductUpdateDTO>;

@@ -172,3 +172,20 @@ it('tells the buyer the payment was received once the transfer is booked, exactl
     await db.from('products').delete().eq('id', pid);
   }
 });
+
+it('escapes markup stored in transfer details in the real mail (W146 B3)', async () => {
+  const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  const email = `transfer-xss-${crypto.randomUUID()}@example.com`;
+  try {
+    const result = await deliverMagicLink({ email, shouldCreateUser: true, redirectTo: `${process.env.SITE_URL}/auth/callback?flow=login`,
+      data: { locale: 'pl', mail_kind: 'transfer_placed', purchase_product: 'P', purchase_amount: '1 PLN', transfer: { holder: '<script>x</script>', bank: '<b>B</b>', title: 'T', account: 'PL61 1090', amount: '1 PLN', due: 'd' } } });
+    expect(result).toEqual({ ok: true });
+    const html = (await waitForEmail(email)).HTML!;
+    expect(html).not.toContain('<script>x</script>');
+    expect(html).not.toContain('<b>B</b>');
+    expect(html).toContain('&lt;script&gt;x&lt;/script&gt;');
+  } finally {
+    const user = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users.find(u => u.email === email);
+    if (user) await db.auth.admin.deleteUser(user.id);
+  }
+});

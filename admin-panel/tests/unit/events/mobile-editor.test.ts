@@ -55,3 +55,12 @@ it('reserves mobile space for the profile toolbar and hides unavailable event co
   expect(readFileSync('src/app/[locale]/checkout/[slug]/components/ProductPurchaseView.tsx', 'utf8')).toContain('pt-20 sm:pt-0');
   expect(readFileSync('src/app/[locale]/checkout/[slug]/components/PaidProductForm.tsx', 'utf8')).toMatch(/!isSubscription && !hasAccess && !error && !isPwywFree && eventReady/);
 });
+it('renders with a partly typed online link and points at the field only after blur (W146 B8)', () => {
+  const formData = { event_mode: true, currency: 'PLN', price: 30, sessions: [{ starts_at: '2036-01-10T10:00:00Z', timezone: 'Europe/Warsaw', online_url: 'h', sales_open: true, sort: 0, tiers: [{ label: '', price: 30, sort: 0 }] }] } as ProductFormData;
+  render(wrap(React.createElement(EventSection, { formData, setFormData: vi.fn() })));
+  const link = screen.getByLabelText(/Link online/);
+  expect(screen.queryByText(pl.events.errors.online_url)).toBeNull();
+  fireEvent.blur(link);
+  expect(screen.getByText(pl.events.errors.online_url)).toBeTruthy();
+  expect(link.getAttribute('aria-invalid')).toBe('true');
+});

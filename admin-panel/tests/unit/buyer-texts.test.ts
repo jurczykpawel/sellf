@@ -31,3 +31,10 @@ it('hides transfer instructions for a completed order', () => {
   expect(screen.getByText('Zamówienie opłacone')).toBeTruthy();
   expect(screen.queryByText('Dane do przelewu')).toBeNull();
 });
+it('free product CTA does not repeat a word (W146 B11)', async () => {
+  const en = (await import('@/messages/en.json')).default as Record<string, Record<string, unknown>>;
+  const repeated: string[] = [];
+  const walk = (o: unknown, path: string): void => { if (typeof o === 'string') { if (/\b([a-z]{3,}) \1\b/i.test(o)) repeated.push(path); } else if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)) walk(v, `${path}.${k}`); };
+  walk(en, 'en');
+  expect(repeated).toEqual([]);
+});

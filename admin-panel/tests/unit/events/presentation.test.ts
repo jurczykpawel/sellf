@@ -83,3 +83,14 @@ it('formats Polish mail dates in Polish using the event timezone', () => {
   expect(eventMailData([event], 'pl').event_date).toContain('10 gru 2026');
   expect(eventMailData([event], 'pl').event_date).toContain('18:00');
 });
+
+describe('tier seats never exceed the session pool (W146 U11)', () => {
+  it('caps the advertised seats to what the pool still holds', async () => {
+    const { projectEventSessions } = await import('@/lib/events/presentation');
+    const raw = { id: 's', starts_at: '2036-01-01T10:00:00Z', ends_at: null, timezone: 'Europe/Warsaw', title: null, venue: null, extra_days: null,
+      remaining: 20, sold_out: false, cheaper_sold_out: false, next_tier_price: null, current_tier: { id: 't', label: null, price: 10, seats_left: 25, ends_at: null } };
+    expect(projectEventSessions([raw], 0)[0].currentTier?.seatsLeft).toBe(20);
+    expect(projectEventSessions([{ ...raw, current_tier: { ...raw.current_tier, seats_left: 5 } }], 0)[0].currentTier?.seatsLeft).toBe(5);
+    expect(projectEventSessions([{ ...raw, remaining: null }], 0)[0].currentTier?.seatsLeft).toBe(25);
+  });
+});

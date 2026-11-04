@@ -302,6 +302,7 @@
     },
     "loadError": "Nie udało się załadować płatności. Spróbuj ponownie później.",
     "createSessionError": "Nie udało się utworzyć sesji płatności",
+    "amountBelowMinimum": "Tego produktu nie można teraz kupić. Sprzedawca musi poprawić cenę.",
     "netPrice": "Cena netto",
     "vat": "VAT",
     "vatExempt": "Sprzedaż zwolniona z VAT",
@@ -1561,6 +1562,7 @@
       "deleteConfirmMessage": "Czy na pewno chcesz usunąć produkt \"{name}\"? Tej operacji nie można cofnąć.",
       "createSuccess": "Produkt \"{name}\" został pomyślnie utworzony",
       "createError": "Nie udało się utworzyć produktu",
+      "validationFailed": "Popraw zaznaczone pola formularza.",
       "updateSuccess": "Produkt \"{name}\" został pomyślnie zaktualizowany",
       "updateError": "Nie udało się zaktualizować produktu",
       "deleteSuccess": "Produkt \"{name}\" został pomyślnie usunięty",
@@ -1760,7 +1762,8 @@
         "previewVideoUrlPlaceholder": "https://youtube.com/watch?v=... lub https://vimeo.com/...",
         "previewVideoUrlHelp": "Wideo wyświetlane na stronie koszyka. Ma priorytet nad zdjęciem. Obsługuje YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4 i Twitch.",
         "previewVideoUrlUnsupported": "Nieobsługiwana platforma. Użyj YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4 lub Twitch.",
-        "priceHint": "Użyj przecinka lub kropki jako separatora dziesiętnego. Darmowy produkt utwórz jako typ „Lead magnet”.",
+        "priceHint": "Separator dziesiętny: przecinek (np. 10,99). Kropka z 1–2 cyframi też jest częścią dziesiętną (10.99), ale kropka przed trzema cyframi oddziela tysiące: 10.999 = 10 999. Darmowy produkt utwórz jako typ „Lead magnet”.",
+        "priceBelowMinimum": "Minimalna cena płatności w {currency} to {min}. Ustaw co najmniej tyle albo utwórz darmowy produkt jako „Lead magnet”.",
         "priceRequired": "Podaj cenę.",
         "priceFreeUseLeadMagnet": "Produkt standardowy musi mieć cenę powyżej 0. Darmowy produkt utwórz jako typ „Lead magnet”.",
         "temporalAvailability": "Dostępność czasowa",
@@ -2010,6 +2013,7 @@
           "durationLabel": "Ważność (dni)",
           "durationPlaceholder": "Puste = bezterminowo",
           "durationHint": "Jak długo licencja jest ważna. Puste oznacza brak wygaśnięcia.",
+          "durationInvalid": "Podaj liczbę całych dni od 1 do {max} albo zostaw puste (bezterminowo).",
           "proRequired": "Wystawianie licencji wymaga licencji Pro.",
           "proRequiredHint": "Przejdź na Pro, żeby wystawiać podpisane tokeny licencji kupującym."
         },
@@ -5791,6 +5795,7 @@
     "payoutsLabel": "Wypłaty"
   },
   "events": {
+    "errors": {"starts_at": "Podaj datę i godzinę początku.", "ends_at": "Koniec musi być po początku.", "timezone": "Nieznana strefa czasowa (np. Europe/Warsaw).", "online_url": "Podaj pełny link zaczynający się od https://.", "capacity": "Pula miejsc musi być liczbą całkowitą większą od zera.", "sort": "Kolejność: liczba całkowita 0–10000.", "tiers": "Dodaj przynajmniej jeden próg cenowy.", "tier_price": "Cena nie może być ujemna.", "tier_seats": "Miejsca w progu: liczba całkowita większa od zera.", "tier_seats_capacity": "Próg nie może mieć więcej miejsc niż pula terminu.", "tier_sort": "Kolejność progów musi być unikalna (0–10000).", "tier_sale_ends_at": "Nieprawidłowa data końca sprzedaży.", "invalid": "Nieprawidłowa wartość."},
     "csvFilename": "uczestnicy",
     "csvPhone": "Telefon",
     "repeat": "Pozwól na ponowny zakup",
@@ -5852,6 +5857,10 @@
     "fromPrice": "od {price}"
   },
   "bankTransfer": {
+    "transferTooLate": "Przelew tradycyjny jest niedostępny dla tego terminu: wydarzenie zaczyna się wcześniej niż za {hours} godz., a tyle trwa rezerwacja miejsca do zaksięgowania przelewu. Zapłać online.",
+    "sessionRuleHelp": "Przelew nie jest oferowany na termin wydarzenia, który zaczyna się wcześniej niż koniec rezerwacji (czas zwolnienia w godzinach). Kupujący widzi wtedy wyjaśnienie i może zapłacić online.",
+    "errors": {"iban": "Podaj polski numer rachunku (26 cyfr, z PL lub bez) z poprawną sumą kontrolną.", "holder_required": "Podaj odbiorcę przelewu, gdy przelew jest włączony.", "markup": "Usuń znaki < i > (znaczniki HTML nie są dozwolone).", "control_chars": "Usuń niewidoczne znaki sterujące.", "too_long": "Maksymalnie 200 znaków.", "template": "Szablon musi zawierać '{order_number}'.", "range": "Podaj liczbę całkowitą od {min} do {max}.", "release_after_reminder": "Zwolnienie rezerwacji musi być później niż przypomnienie."},
+    "invalidFields": "Popraw zaznaczone pola.",
     "paid": "Zamówienie opłacone",
 
       "title": "Przelew tradycyjny",

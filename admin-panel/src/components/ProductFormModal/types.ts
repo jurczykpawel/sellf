@@ -224,6 +224,8 @@ export interface AvailabilitySectionProps extends SectionProps {
 
 export interface AccessSectionProps extends SectionProps {
   hasLicenseIssuance?: boolean;
+  fieldErrors?: Record<string, string>;
+  setFieldErrors?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }
 
 // Initial form data

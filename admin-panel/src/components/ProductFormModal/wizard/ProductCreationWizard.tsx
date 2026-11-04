@@ -139,7 +139,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     const step1Keys = ['name', 'slug', 'price', 'recurring_price', 'custom_price_min', 'vat_rate'];
     if (keys.some(key => step1Keys.includes(key))) setCurrentStep(1);
     else if (keys.includes('description') || keys.includes('marketing_fields') || keys.includes('content_url')) setCurrentStep(2);
-    else if (keys.includes('sale_price')) setCurrentStep(3);
+    else if (keys.includes('sale_price') || keys.includes('license_duration_days')) setCurrentStep(3);
   }
 
   // Trigger the form submit via the hook's handleSubmit
@@ -273,6 +273,8 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                 oto={oto}
                 setOto={setOto}
                 hasLicenseIssuance={hasLicenseIssuance}
+                fieldErrors={fieldErrors}
+                setFieldErrors={setFieldErrors}
               />
             )}
           </form>

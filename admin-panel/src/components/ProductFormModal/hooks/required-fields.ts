@@ -13,6 +13,8 @@
  */
 
 import { moneyAmountError } from '@/lib/currency/parse-money-input';
+import { minimumChargeAmount } from '@/lib/currency/minor-units';
+import { licenseDurationError } from '@/lib/validations/product';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import type { UxProductType } from '@/lib/product-defaults';
 
@@ -30,6 +32,8 @@ interface FormDataForValidation {
   currency?: string;
   custom_price_min?: number | null;
   ux_product_type?: UxProductType;
+  issue_license_on_purchase?: boolean;
+  license_duration_days?: number | null;
 }
 
 function collectPriceErrors(
@@ -59,6 +63,8 @@ function collectPriceErrors(
   // standard (or unspecified ux_product_type — preserves legacy behavior)
   if (priceDisplayValue === '' || formData.price <= 0) {
     errors.price = 'required';
+  } else if (formData.price < minimumChargeAmount(formData.currency ?? '')) {
+    errors.price = 'below_minimum';
   }
   return errors;
 }
@@ -95,5 +101,15 @@ export function collectRequiredFieldErrors(
   priceDisplayValue: string,
   taxMode: TaxMode | undefined,
 ): Record<string, string> {
-  return collectStep1FieldErrors(formData, priceDisplayValue, taxMode);
+  const errors = collectStep1FieldErrors(formData, priceDisplayValue, taxMode);
+  if (formData.issue_license_on_purchase && licenseDurationError(formData.license_duration_days)) errors.license_duration_days = 'license_duration';
+  return errors;
+}
+
+/** Field codes for API validation details (`{ field: string[] }`), so a server rejection shows at the field. */
+const SERVER_FIELD_CODES: Readonly<Record<string, string>> = { price: 'below_minimum', license_duration_days: 'license_duration' };
+export function serverFieldErrors(details: Record<string, string[]> | undefined): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const key of Object.keys(details ?? {})) if (SERVER_FIELD_CODES[key]) errors[key] = SERVER_FIELD_CODES[key];
+  return errors;
 }

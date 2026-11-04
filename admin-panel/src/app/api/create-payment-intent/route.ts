@@ -44,6 +44,7 @@ import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 import { placeOrder } from '@/lib/orders/place-order';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { ATTRIBUTION_REF_KEY, attributionRequestContext, recordFreeAttribution, storeCheckoutAttribution } from '@/lib/attribution/store';
+import { isBelowMinimumCharge } from '@/lib/currency/minor-units';
 
 function extractStripeObjectId(clientSecret: string): string | null {
   return clientSecret.split('_secret_')[0] || null;
@@ -587,6 +588,11 @@ export async function POST(request: NextRequest) {
     });
 
     const totalAmount = toStripeCents(pricing.totalGross, product.currency);
+    // W146 B6: a legacy product priced under Stripe's minimum must not end in a generic 500.
+    if (isBelowMinimumCharge(totalAmount, product.currency)) {
+      console.error(`[create-payment-intent] Total below Stripe minimum charge: product=${product.id} amount=${totalAmount} ${product.currency}`);
+      return NextResponse.json({ error: 'Product price is below the minimum charge', code: 'AMOUNT_BELOW_MINIMUM' }, { status: 422 });
+    }
 
     // 7a. Handle 100% coupon — skip Stripe, grant access directly.
     // The grant RPC runs as the buyer (auth.uid()), re-validates the coupon and

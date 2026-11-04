@@ -39,3 +39,8 @@ export function fromMinorUnits(minor: number, currency: string): number {
 export function minimumChargeAmount(currency: string): number {
   return MINIMUM_CHARGE[currency.toUpperCase()] ?? DEFAULT_MINIMUM_CHARGE;
 }
+
+/** True for a paid total (minor units) that Stripe would refuse; 0 (free) is never "below". */
+export function isBelowMinimumCharge(minor: number, currency: string): boolean {
+  return minor > 0 && minor < toMinorUnits(minimumChargeAmount(currency), currency);
+}

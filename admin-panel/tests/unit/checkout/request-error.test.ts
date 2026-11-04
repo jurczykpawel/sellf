@@ -12,3 +12,8 @@ it.each([['en', en], ['pl', pl]] as const)('maps checkout request limits using %
   expect(getCheckoutRequestError(400, 'Invalid request', t('loadError'), t('requestRateLimit'))).toBe('Invalid request');
   expect(getCheckoutRequestError(500, undefined, t('loadError'), t('requestRateLimit'))).toBe(t('loadError'));
 });
+
+it('never shows an English server text for server errors or known codes (W146 B6)', () => {
+  expect(getCheckoutRequestError(500, 'Failed to create payment intent', 'Nie udało się', 'limit')).toBe('Nie udało się');
+  expect(getCheckoutRequestError(409, 'Product price is below the minimum charge', 'Nie udało się', 'limit', { code: 'AMOUNT_BELOW_MINIMUM', messages: { AMOUNT_BELOW_MINIMUM: 'Produkt chwilowo niedostępny' } })).toBe('Produkt chwilowo niedostępny');
+});

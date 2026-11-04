@@ -302,6 +302,7 @@
     },
     "loadError": "Failed to load checkout. Please try again later.",
     "createSessionError": "Failed to create checkout session",
+    "amountBelowMinimum": "This product cannot be purchased right now. The seller needs to correct its price.",
     "netPrice": "Net price",
     "vat": "VAT",
     "vatExempt": "VAT-exempt sale",
@@ -1226,7 +1227,7 @@
     "getYourFreeProduct": "Get your free product",
     "clickForInstantAccess": "Click below to get instant access to this free product.",
     "gettingAccess": "Getting Access...",
-    "getInstantAccess": "Get Instant Instant Access",
+    "getInstantAccess": "Get Instant Access",
     "enterEmailForDownload": "Enter your email below to receive a secure download link.",
     "emailAddressLabel": "Email address",
     "emailPlaceholder": "name@example.com",
@@ -1561,6 +1562,7 @@
       "deleteConfirmMessage": "Are you sure you want to delete the product \"{name}\"? This action cannot be undone.",
       "createSuccess": "Product \"{name}\" was successfully created",
       "createError": "Failed to create product",
+      "validationFailed": "Fix the highlighted form fields.",
       "updateSuccess": "Product \"{name}\" was successfully updated",
       "updateError": "Failed to update product",
       "deleteSuccess": "Product \"{name}\" was successfully deleted",
@@ -1760,7 +1762,8 @@
         "previewVideoUrlPlaceholder": "https://youtube.com/watch?v=... or https://vimeo.com/...",
         "previewVideoUrlHelp": "Video shown on checkout page. Takes priority over image. Supports YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, and Twitch.",
         "previewVideoUrlUnsupported": "Unsupported platform. Use YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, or Twitch.",
-        "priceHint": "Use a comma or dot as the decimal separator. For a free product choose the \"Lead magnet\" type.",
+        "priceHint": "Decimal separator: dot (e.g. 10.99). A comma with 1–2 digits is also decimal (10,99), but a comma before three digits separates thousands: 10,999 = 10,999.00. For a free product choose the \"Lead magnet\" type.",
+        "priceBelowMinimum": "The minimum charge in {currency} is {min}. Set at least that much, or create a free product with the \"Lead magnet\" type.",
         "priceRequired": "Enter a price.",
         "priceFreeUseLeadMagnet": "A standard product needs a price above 0. Create a free product with the \"Lead magnet\" type.",
         "temporalAvailability": "Temporal Availability",
@@ -2010,6 +2013,7 @@
           "durationLabel": "Validity (days)",
           "durationPlaceholder": "Leave empty for perpetual",
           "durationHint": "How long the license stays valid. Empty means it never expires.",
+          "durationInvalid": "Enter whole days from 1 to {max}, or leave empty for no expiry.",
           "proRequired": "License key issuance requires a Pro license.",
           "proRequiredHint": "Upgrade to Pro to issue signed license tokens to buyers on purchase."
         },
@@ -5791,6 +5795,7 @@
     "payoutsLabel": "Payouts"
   },
   "events": {
+    "errors": {"starts_at": "Enter the start date and time.", "ends_at": "End must be after the start.", "timezone": "Unknown time zone (e.g. Europe/Warsaw).", "online_url": "Enter a full link starting with https://.", "capacity": "Seat pool must be a whole number above zero.", "sort": "Order: a whole number 0–10000.", "tiers": "Add at least one price tier.", "tier_price": "Price cannot be negative.", "tier_seats": "Tier seats: a whole number above zero.", "tier_seats_capacity": "A tier cannot have more seats than the session pool.", "tier_sort": "Tier order must be unique (0–10000).", "tier_sale_ends_at": "Invalid sale end date.", "invalid": "Invalid value."},
     "csvFilename": "participants",
     "csvPhone": "Phone",
     "repeat": "Allow repeat purchase",
@@ -5852,6 +5857,10 @@
     "fromPrice": "from {price}"
   },
   "bankTransfer": {
+    "transferTooLate": "Bank transfer is not available for this date: the event starts in less than {hours} hours, which is how long a seat is held until the transfer is booked. Please pay online.",
+    "sessionRuleHelp": "Transfer is not offered for an event date that starts before the reservation would end (release time in hours). Buyers see an explanation and can pay online.",
+    "errors": {"iban": "Enter a Polish account number (26 digits, with or without PL) with a valid checksum.", "holder_required": "Enter the transfer recipient when transfers are enabled.", "markup": "Remove the < and > characters (HTML tags are not allowed).", "control_chars": "Remove invisible control characters.", "too_long": "At most 200 characters.", "template": "The template must contain '{order_number}'.", "range": "Enter a whole number from {min} to {max}.", "release_after_reminder": "The reservation release must come after the reminder."},
+    "invalidFields": "Fix the highlighted fields.",
     "paid": "Order paid",
 
       "title": "Traditional bank transfer",

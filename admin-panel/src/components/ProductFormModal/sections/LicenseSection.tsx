@@ -2,9 +2,11 @@
 
 import React from 'react';
 import { Lock } from 'lucide-react';
-import { AccessSectionProps } from '../types';
+import { licenseDurationError, MAX_LICENSE_DURATION_DAYS } from '@/lib/validations/product';
+import type { AccessSectionProps } from '@/components/ProductFormModal/types';
 
-export function LicenseSection({ formData, setFormData, t, hasLicenseIssuance = true }: AccessSectionProps) {
+export function LicenseSection({ formData, setFormData, t, hasLicenseIssuance = true, fieldErrors = {}, setFieldErrors }: AccessSectionProps) {
+  const durationError = fieldErrors.license_duration_days;
   if (!hasLicenseIssuance) {
     return (
       <div className="flex items-start gap-3 p-4 bg-sf-raised border border-sf-border rounded opacity-75">
@@ -69,17 +71,27 @@ export function LicenseSection({ formData, setFormData, t, hasLicenseIssuance = 
               id="license-duration"
               name="license_duration_days"
               value={formData.license_duration_days ?? ''}
-              onChange={(e) =>
+              onChange={(e) => {
+                if (durationError) setFieldErrors?.(prev => { const next = { ...prev }; delete next.license_duration_days; return next; });
                 setFormData(prev => ({
                   ...prev,
                   license_duration_days: e.target.value ? Number(e.target.value) : null,
-                }))
-              }
+                }));
+              }}
+              onBlur={() => {
+                if (licenseDurationError(formData.license_duration_days)) setFieldErrors?.(prev => ({ ...prev, license_duration_days: 'license_duration' }));
+              }}
+              aria-invalid={durationError ? true : undefined}
+              aria-describedby={durationError ? 'license-duration-error' : undefined}
               min="1"
+              max={MAX_LICENSE_DURATION_DAYS}
+              step="1"
               className="w-full px-3 py-2.5 border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent bg-sf-input text-sf-heading"
               placeholder={t('license.durationPlaceholder')}
             />
-            <p className="mt-1 text-xs text-sf-muted">{t('license.durationHint')}</p>
+            {durationError
+              ? <p id="license-duration-error" role="alert" className="mt-1 text-xs text-sf-danger">{t('license.durationInvalid', { max: MAX_LICENSE_DURATION_DAYS })}</p>
+              : <p className="mt-1 text-xs text-sf-muted">{t('license.durationHint')}</p>}
           </div>
         </div>
       )}

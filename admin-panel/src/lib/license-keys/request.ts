@@ -16,6 +16,7 @@ import { parseLicenseClaims, type LicenseClaims } from '@/lib/license-keys/forma
 import { normalizeLicenseDomain } from '@/lib/license-keys/domain';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { PREDEFINED_CUSTOM_FIELDS, validateCustomFieldDefinitions, validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
+import { licenseDurationError } from '@/lib/validations/product';
 
 export const licenseRequestSchema = z.object({
   productId: z.string().uuid(),
@@ -48,8 +49,10 @@ export async function issueRequestedLicense(
   ctx: { actorUserId: string; source: 'manual' | 'api'; origin: string },
 ): Promise<LicenseRequestResult> {
   const admin = createAdminClient();
-  const product = await admin.from('products').select('slug, name, custom_checkout_fields').eq('id', input.productId).single();
+  const product = await admin.from('products').select('slug, name, custom_checkout_fields, license_duration_days').eq('id', input.productId).single();
   if (product.error || !product.data) return { ok: false, status: 409, error: 'Product is not configured for license issuance' };
+  // A legacy duration beyond the supported range cannot produce a valid expiry date (W146 B7).
+  if (licenseDurationError(product.data.license_duration_days)) return { ok: false, status: 409, error: 'Invalid license duration on the product', fieldErrors: { license_duration_days: 'license_duration' } };
   const definitions = validateCustomFieldDefinitions(product.data.custom_checkout_fields ?? []);
   if (!definitions.ok) return { ok: false, status: 400, error: 'Invalid product configuration' };
   const domainField = definitions.value.find(field => field.id === PREDEFINED_CUSTOM_FIELDS.license_domain.id && field.type === 'domain');

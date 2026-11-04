@@ -34,6 +34,8 @@ interface StepSalesSettingsProps {
   oto: OtoState;
   setOto: React.Dispatch<React.SetStateAction<OtoState>>;
   hasLicenseIssuance?: boolean;
+  fieldErrors?: Record<string, string>;
+  setFieldErrors?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }
 
 type GroupLetter = 'A' | 'B' | 'C' | 'D' | 'E';
@@ -97,6 +99,8 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
   oto,
   setOto,
   hasLicenseIssuance,
+  fieldErrors,
+  setFieldErrors,
 }) => {
   const isTipJar = formData.checkout_template === 'tip-jar';
 
@@ -165,7 +169,7 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
         <EmbedSection formData={formData} setFormData={setFormData} t={t} />
         <div>
           <h4 className="text-sm font-medium text-sf-heading mb-2">{t('license.sectionTitle')}</h4>
-          <LicenseSection formData={formData} setFormData={setFormData} t={t} hasLicenseIssuance={hasLicenseIssuance} />
+          <LicenseSection formData={formData} setFormData={setFormData} t={t} hasLicenseIssuance={hasLicenseIssuance} fieldErrors={fieldErrors} setFieldErrors={setFieldErrors} />
         </div>
       </StepGroup>
       {currentProductId && <AffiliateRuleEditor key={currentProductId} productId={currentProductId} productType={formData.product_type}

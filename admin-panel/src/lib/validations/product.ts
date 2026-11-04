@@ -219,6 +219,13 @@ function validatePrice(price: unknown): ValidationResult {
 }
 
 /** Zero-decimal currencies (JPY, KRW, VND...) cannot carry fractional prices: Stripe would charge a different amount than stored. */
+/** Longest license validity a product may declare (100 years); `null` = no expiry. W146 B7. */
+export const MAX_LICENSE_DURATION_DAYS = 36500;
+export function licenseDurationError(days: number | null | undefined): 'license_duration' | null {
+  if (days == null) return null;
+  return Number.isInteger(days) && days >= 1 && days <= MAX_LICENSE_DURATION_DAYS ? null : 'license_duration';
+}
+
 export const WHOLE_AMOUNT_FIELDS = ['price', 'recurring_price', 'sale_price', 'custom_price_min'] as const;
 export function validateWholeAmounts(input: Record<string, unknown>, currency: unknown): string[] {
   if (typeof currency !== 'string' || currencyExponent(currency) !== 0) return [];

@@ -20,6 +20,8 @@ import { ApiError } from '@/lib/api/client';
 
 // Server-side failures carry English text; show the localized fallback instead.
 const isServerError = (err: unknown): boolean => err instanceof ApiError && err.status >= 500;
+// API validation messages are English and generic; the form shows the exact field instead.
+const isValidationError = (err: unknown): boolean => err instanceof ApiError && err.status === 400;
 
 interface ProductsPageContentProps {
   hasLicenseIssuance?: boolean;
@@ -132,7 +134,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
         addButtonRef.current?.focus();
       }, 0);
     } catch (err) {
-      toast.error(err instanceof Error && !isServerError(err) ? err.message : t('createError'));
+      toast.error(isValidationError(err) ? t('validationFailed') : err instanceof Error && !isServerError(err) ? err.message : t('createError'));
       return Promise.reject(err);
     } finally {
       setSubmitting(false);
@@ -151,7 +153,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
       await fetchProducts();
       toast.success(t('updateSuccess', { name: formData.name }));
     } catch (err) {
-      toast.error(err instanceof Error && !isServerError(err) ? err.message : t('updateError'));
+      toast.error(isValidationError(err) ? t('validationFailed') : err instanceof Error && !isServerError(err) ? err.message : t('updateError'));
       return Promise.reject(err);
     } finally {
       setSubmitting(false);

@@ -20,7 +20,7 @@ import { getVideoValidationMessage } from '@/lib/playerstack';
 import { isTrustedDownloadUrl } from '@/lib/trustedDownloadProviders';
 import { useConfig } from '@/components/providers/config-provider';
 import { createClient } from '@/lib/supabase/client';
-import { api } from '@/lib/api/client';
+import { api, ApiError } from '@/lib/api/client';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
 import {
   ProductFormData,
@@ -29,7 +29,7 @@ import {
   initialFormData,
   initialOtoState,
 } from '../types';
-import { collectRequiredFieldErrors, collectStep1FieldErrors } from './required-fields';
+import { collectRequiredFieldErrors, collectStep1FieldErrors, serverFieldErrors } from '@/components/ProductFormModal/hooks/required-fields';
 import { inferProductTypeFromForm } from '@/lib/product-defaults';
 import { resolveSubmitVatFields } from '../submit-vat';
 
@@ -603,14 +603,23 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     return data as { has_webhook: boolean; products_count: number };
   }, []);
 
+  // The page shows the toast; here a rejected save is caught (no unhandled ApiError)
+  // and server field errors are put next to their fields (W146 B6/B7).
+  const submitAndShowFieldErrors = useCallback((data: Parameters<typeof onSubmit>[0]) => {
+    void Promise.resolve(onSubmit(data)).catch((err: unknown) => {
+      const errors = serverFieldErrors(err instanceof ApiError ? err.details : undefined);
+      if (Object.keys(errors).length) setFieldErrors(errors);
+    });
+  }, [onSubmit]);
+
   // Proceed with submit after user confirms waitlist warning
   const proceedWithSubmit = useCallback(() => {
     if (pendingSubmitData) {
-      onSubmit(pendingSubmitData);
+      submitAndShowFieldErrors(pendingSubmitData);
       setPendingSubmitData(null);
       setWaitlistWarning({ show: false, productsCount: 0 });
     }
-  }, [pendingSubmitData, onSubmit]);
+  }, [pendingSubmitData, submitAndShowFieldErrors]);
 
   // Dismiss waitlist warning
   const dismissWaitlistWarning = useCallback(() => {
@@ -735,8 +744,8 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
       }
     }
 
-    onSubmit(submitData);
-  }, [formData, oto, onSubmit, validateContentItemUrl, checkWaitlistConfig, shopConfigLoaded]);
+    submitAndShowFieldErrors(submitData);
+  }, [formData, oto, submitAndShowFieldErrors, validateContentItemUrl, checkWaitlistConfig, shopConfigLoaded]);
 
   return {
     // Form data

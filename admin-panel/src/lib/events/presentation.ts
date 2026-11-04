@@ -19,7 +19,7 @@ export function projectEventSessions(data: unknown, at = Date.now()): EventSessi
   return z.array(rawSession).parse(data).filter(s => Date.parse(s.starts_at) > at).map(s => ({
     id: s.id, startsAt: s.starts_at, endsAt: s.ends_at, timezone: s.timezone, title: s.title, venue: s.venue,
     extraDays: s.extra_days, remaining: s.remaining, soldOut: s.sold_out, nextTierPrice: s.next_tier_price, cheaperSoldOut: s.cheaper_sold_out,
-    currentTier: s.current_tier && { id: s.current_tier.id, label: s.current_tier.label, price: s.current_tier.price, seatsLeft: s.current_tier.seats_left, endsAt: s.current_tier.ends_at },
+    currentTier: s.current_tier && { id: s.current_tier.id, label: s.current_tier.label, price: s.current_tier.price, seatsLeft: s.current_tier.seats_left !== null && s.remaining !== null ? Math.min(s.current_tier.seats_left, s.remaining) : s.current_tier.seats_left, endsAt: s.current_tier.ends_at },
   }));
 }
 export function formatEventDate(date: string, timezone: string, locale: string, dateStyle: Intl.DateTimeFormatOptions['dateStyle'] = 'medium'): string {

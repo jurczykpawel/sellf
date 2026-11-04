@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useLocale } from 'next-intl';
-import { CURRENCIES, getCurrencySymbol } from '@/lib/constants';
+import { CURRENCIES, formatPrice, getCurrencySymbol } from '@/lib/constants';
 import { currencyExponent, minimumChargeAmount } from '@/lib/currency/minor-units';
 import { moneyAmountError, parseMoneyInput } from '@/lib/currency/parse-money-input';
 import { MoneyInputError } from '@/components/MoneyInputError';
@@ -165,9 +165,11 @@ export function PriceVatInline({
   };
 
   const priceParseError = parseMoneyInput(priceDisplayValue, formData.currency, locale).error;
-  const priceErrorMessage = fieldErrors.price
-    ? t(priceDisplayValue !== '' ? 'priceFreeUseLeadMagnet' : 'priceRequired')
-    : null;
+  const priceErrorMessage = fieldErrors.price === 'below_minimum'
+    ? t('priceBelowMinimum', { currency: formData.currency, min: formatPrice(minimumChargeAmount(formData.currency), formData.currency, locale) })
+    : fieldErrors.price
+      ? t(priceDisplayValue !== '' ? 'priceFreeUseLeadMagnet' : 'priceRequired')
+      : null;
   const showCurrencyPrefix = formData.currency !== 'PLN' && formData.currency !== 'CHF';
 
   const pwywConfig = (

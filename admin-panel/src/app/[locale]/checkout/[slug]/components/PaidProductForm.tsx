@@ -9,7 +9,7 @@ import { selectEventSession } from '@/lib/events/presentation';
 import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
 import BankTransferForm from '@/components/checkout/BankTransferForm';
 import { getTransferAvailability } from '@/lib/orders/transfer-public';
-import { availableTransferMethod, canUseBankTransfer, transferFitsSession } from '@/lib/orders/bank-transfer-config';
+import { availableTransferMethod, canUseBankTransfer, transferBlockedBySession, transferFitsSession } from '@/lib/orders/bank-transfer-config';
 import { useInvoiceData } from '@/hooks/useInvoiceData';
 import { parseQuantityInput } from '@/lib/checkout-modules/quantity';
 import CheckoutProfileFields, { CheckoutQuantityField, useCheckoutProfileValues } from '@/components/checkout/CheckoutProfileFields';
@@ -216,6 +216,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const transferProfile = !!transfer?.enabled && !!profile && profileHasTransfer
     && transferFitsSession(product.event_mode ? eventSession?.startsAt : undefined, reservationHours);
   const transferAllowed = transferProfile && canUseBankTransfer(true, profile, profileForm.buyerType);
+  const transferTooLate = transferBlockedBySession(!!transfer?.enabled && !!profile && profileHasTransfer && canUseBankTransfer(true, profile, profileForm.buyerType),
+    product.event_mode ? eventSession?.startsAt : undefined, reservationHours);
   const activeMethod = transferResolved ? availableTransferMethod(method, transferProfile, profile, profileForm.buyerType) : null;
   if (transferResolved && method !== activeMethod) setMethod(activeMethod);
 
@@ -482,7 +484,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             if (response.status === 409) await refreshEvents();
             throw new Error(eventText(response.status === 429 ? 'holdLimit' : data.error === 'sold_out' ? 'soldOut' : 'priceChanged'));
           }
-          throw Object.assign(new Error(getCheckoutRequestError(response.status, data.error, t('createSessionError'), t('requestRateLimit'))), { details: data.details });
+          throw Object.assign(new Error(getCheckoutRequestError(response.status, data.error, t('createSessionError'), t('requestRateLimit'), { code: data.code, messages: { AMOUNT_BELOW_MINIMUM: t('amountBelowMinimum') } })), { details: data.details });
         }
         return await response.json() as CheckoutSessionResponse;
       },
@@ -646,6 +648,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
           {profile && !hasAccess && !isFunnelTest && !isFreeAccess && <>
             <CheckoutProfileFields profile={profile} state={profileForm} invoice={invoice} errors={profileForm.errors} disabled={paymentProcessing} />
+            {transferTooLate && <p role="note" className="my-4 text-sm text-sf-muted">{bt('transferTooLate', { hours: reservationHours ?? 0 })}</p>}
             {transferAllowed && <fieldset className="my-4 space-y-3"><legend className="font-semibold">{bt('method')}</legend>
               {(['online', 'transfer'] as const).map(value => <label key={value} className="flex items-center gap-2 rounded-lg border border-sf-border p-3"><input type="radio" name="payment-method" value={value} checked={activeMethod === value} disabled={!interactive || paymentProcessing} onChange={() => { setMethod(value); setError(null); }} />{bt(value, { days: transfer?.dueDays ?? 14 })}</label>)}
               {activeMethod === 'transfer' && reservationHours !== null && <p className="text-sm text-sf-muted">{bt('reservationNotice', { hours: reservationHours })}</p>}
