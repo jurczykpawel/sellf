@@ -73,3 +73,15 @@ describe('GET /embed/v1/checkout.js — provider-aware captcha loader', () => {
     expect(script).toMatch(/data-sellf-coupon-error/);
   });
 });
+
+describe('loader messages for a price under the Stripe minimum (W146 B6)', () => {
+  it('translates AMOUNT_BELOW_MINIMUM for the buyer in PL and EN', async () => {
+    const script = await getEmbedScript();
+    const source = script.match(/function errorMessage\([\s\S]*?\n  \}/)?.[0];
+    expect(source).toBeTruthy();
+    const errorMessage = new Function(`${source}; return errorMessage;`)() as (e: object, l: string) => string;
+    expect(errorMessage({ status: 422, code: 'AMOUNT_BELOW_MINIMUM' }, 'pl')).toBe('Tego produktu nie można teraz kupić. Sprzedawca musi poprawić cenę.');
+    expect(errorMessage({ status: 422, code: 'AMOUNT_BELOW_MINIMUM' }, 'en')).toBe('This product cannot be purchased right now. The seller needs to correct its price.');
+    expect(script).toMatch(/failure\.code = body && body\.code/);
+  });
+});

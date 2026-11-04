@@ -49,6 +49,7 @@ ${buildAttributionRuntime()}
         if (!response.ok) {
           var failure = new Error(body && body.error ? body.error : 'Request failed');
           failure.status = response.status;
+          failure.code = body && body.code;
           throw failure;
         }
         return body;
@@ -75,6 +76,7 @@ ${buildAttributionRuntime()}
   function errorMessage(error, language, coupon) {
     var polish = language === 'pl';
     if (!error.status) return polish ? 'Nie udało się połączyć. Spróbuj ponownie.' : 'Could not connect. Please try again.';
+    if (error.code === 'AMOUNT_BELOW_MINIMUM') return polish ? 'Tego produktu nie można teraz kupić. Sprzedawca musi poprawić cenę.' : 'This product cannot be purchased right now. The seller needs to correct its price.';
     if (error.status === 429) return polish ? 'Zbyt wiele prób. Spróbuj ponownie później.' : 'Too many attempts. Please try again later.';
     if (error.status === 404 || error.status === 403) return polish ? 'Ten produkt jest niedostępny.' : 'This product is unavailable.';
     if (error.status === 400 && coupon) return polish ? 'Nieprawidłowy kod kuponu' : 'Invalid coupon code';

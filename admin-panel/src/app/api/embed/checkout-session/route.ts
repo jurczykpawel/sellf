@@ -18,6 +18,7 @@ import { CheckoutService } from '@/lib/services/checkout';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { attributionRequestContext, storeCheckoutAttribution } from '@/lib/attribution/store';
+import { isBelowMinimumCharge, toMinorUnits } from '@/lib/currency/minor-units';
 
 const PRODUCT_SELECT =
   'id, slug, name, price, currency, is_active, available_from, available_until, product_type, embed_enabled, seller_id' as const;
@@ -106,6 +107,20 @@ export async function POST(request: Request) {
       status: 'denied',
     });
     return embedJson({ error: 'Product is not available' }, 404, origin, allowedOrigins);
+  }
+
+  // W146 B6: legacy products priced under Stripe's minimum exist in seller databases;
+  // answer with a code the loader translates instead of a Stripe 500.
+  if (isBelowMinimumCharge(toMinorUnits(product.price, product.currency), product.currency)) {
+    await logEmbedCheckoutEvent(adminClient, {
+      productId: product.id,
+      productSlug: product.slug,
+      origin,
+      email: parsed.value.email,
+      action: 'paid_checkout',
+      status: 'failed',
+    });
+    return embedJson({ error: 'Product price is below the minimum charge', code: 'AMOUNT_BELOW_MINIMUM' }, 422, origin, allowedOrigins);
   }
 
   if (product.price !== 0) {

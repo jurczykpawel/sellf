@@ -132,6 +132,15 @@ describe('POST /api/embed/checkout-session', () => {
     );
   });
 
+  it('answers 422 AMOUNT_BELOW_MINIMUM for a legacy price under the Stripe minimum, before captcha or Stripe (W146 B6)', async () => {
+    mocks.createAdminClient.mockReturnValue(makeDbMock({ product: { ...product, price: 0.49, currency: 'USD' } }));
+    const response = await POST(makeRequest({ productSlug: 'kurs-ai' }, 'https://landing.example.com'));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ code: 'AMOUNT_BELOW_MINIMUM' });
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://landing.example.com');
+    expect(mocks.createCheckoutSession).not.toHaveBeenCalled();
+  });
+
   it('requires an explicitly allowed request origin', async () => {
     const response = await POST(makeRequest({ productSlug: 'kurs-ai' }));
 
