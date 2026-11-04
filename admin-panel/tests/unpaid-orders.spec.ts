@@ -154,7 +154,7 @@ test('admin accepts the late transfer at the order price although the promo seat
   const section = page.getByRole('region', { name: 'Przelew tradycyjny', exact: true });
   await expect(section.getByText('Anulowane automatycznie: minął termin rezerwacji')).toBeVisible();
   const form = section.getByRole('form', { name: 'Przyjmij spóźniony przelew po cenie z zamówienia' });
-  await form.getByLabel('Data wpływu').fill('2026-11-02'); await form.getByLabel('Powód przyjęcia').fill('Przelew doszedł po terminie');
+  await form.getByLabel('Data wpływu').fill(new Date().toISOString().slice(0, 10)); await form.getByLabel('Powód przyjęcia').fill('Przelew doszedł po terminie');
   await form.getByRole('button', { name: 'Przyjmij spóźniony przelew po cenie z zamówienia' }).click();
   await expect.poll(async () => (await db.from('payment_transactions').select('status').eq('id', orderId).single()).data?.status).toBe('completed');
   const tx = await checked(await db.from('payment_transactions').select('amount,metadata,reopened_at').eq('id', orderId).single());

@@ -91,7 +91,9 @@ test('settings validate account and preview the title; person cannot select a tr
   const settings = page.getByRole('region', { name: 'Przelew tradycyjny', exact: true }); await expect(settings.getByRole('button', { name: 'Zapisz', exact: true })).toBeEnabled();
   await settings.getByLabel('Włącz przelew tradycyjny').check(); await settings.getByLabel('Odbiorca przelewu').fill('Testowy sklep');
   await settings.getByLabel('Numer rachunku').fill('123'); await settings.getByRole('button', { name: 'Zapisz', exact: true }).click();
-  await expect(settings.getByRole('status')).toContainText('Sprawdź IBAN');
+  await expect(settings.getByRole('status')).toContainText('Popraw zaznaczone pola.');
+  await expect(settings.getByRole('alert')).toContainText('Podaj polski numer rachunku');
+  await expect(settings.getByLabel('Numer rachunku')).toHaveAttribute('aria-invalid', 'true');
   await settings.getByLabel('Numer rachunku').fill('PL61109010140000071219812874'); await settings.getByLabel('Szablon tytułu przelewu').fill('Zamówienie {order_number}');
   await expect(settings.getByText('Podgląd tytułu: Zamówienie 12345')).toBeVisible();
   await settings.getByLabel('Termin płatności (dni)').fill('14'); await settings.getByLabel('Przyznaj dostęp').check();
@@ -137,7 +139,8 @@ test('(a) organization places transfer with immediate access, unpaid invoice, pr
 });
 test('(c) admin rejects amount mismatch and marks paid; invoice updates once using the receipt date, and tells the buyer the payment arrived @J53 @J232', async ({ page, request }) => {
   test.setTimeout(120000); const section = await adminDetails(page, email);
-  await section.getByLabel('Zaksięgowana kwota').fill('122'); await section.getByLabel('Data wpływu').fill('2026-01-01');
+  const receiptDay = new Date().toISOString().slice(0, 10); // not before the order day, not in the future
+  await section.getByLabel('Zaksięgowana kwota').fill('122'); await section.getByLabel('Data wpływu').fill(receiptDay);
   await section.getByRole('button', { name: 'Oznacz jako opłacone' }).click(); await expect(section.getByRole('status')).toContainText('pełnej kwocie');
   await section.getByLabel('Zaksięgowana kwota').fill('123'); await section.getByRole('button', { name: 'Oznacz jako opłacone' }).click();
   await expect.poll(async () => (await db.from('payment_transactions').select('status').eq('id', orderId).single()).data?.status).toBe('completed');
@@ -147,7 +150,7 @@ test('(c) admin rejects amount mismatch and marks paid; invoice updates once usi
   const log = readFileSync(process.env.INVOICE_FIXTURE_LOG!, 'utf8').trim().split('\n').map(line => JSON.parse(line));
   const number = (await checked(await db.from('payment_transactions').select('order_number').eq('id', orderId).single())).order_number;
   const issued = log.filter(l => l.action === 'issue' && l.oid.endsWith(`:${number}`)); expect(issued).toHaveLength(1); expect(issued[0].status).toBe('issued');
-  expect(log.find(l => l.action === 'paid' && l.oid === issued[0].oid)?.paid_date).toBe('2026-01-01');
+  expect(log.find(l => l.action === 'paid' && l.oid === issued[0].oid)?.paid_date).toBe(receiptDay);
   expect((await db.from('webhook_logs').select('id').eq('endpoint_id', endpointId).eq('event_type', 'purchase.completed')).data).toHaveLength(1);
   await expect.poll(async () => {
     const found = await (await request.get(`${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)).json();
