@@ -26,6 +26,11 @@ interface UseCouponReturn {
   removeCoupon: () => void;
   /** Apply a coupon from OTO flow (called by useOto) */
   applyOtoCoupon: (coupon: AppliedCoupon, code: string) => void;
+  /**
+   * Drop a coupon the server no longer honours (e.g. used up in another tab) and
+   * tell the buyer; the checkout re-prices without it before any payment.
+   */
+  invalidateCoupon: () => void;
 }
 
 export function useCoupon({ productId, email, isOtoMode, enabled = true }: UseCouponOptions): UseCouponReturn {
@@ -134,6 +139,15 @@ export function useCoupon({ productId, email, isOtoMode, enabled = true }: UseCo
     setCouponManuallyRemoved(true);
   }, []);
 
+  const invalidateCoupon = useCallback(() => {
+    const message = t('couponNoLongerAvailable');
+    setAppliedCoupon(null);
+    setCouponManuallyRemoved(true);
+    setShowCouponInput(true);
+    setCouponError(message);
+    toast.error(message);
+  }, [t]);
+
   const applyOtoCoupon = useCallback((coupon: AppliedCoupon, code: string) => {
     if (!enabled) return;
     setAppliedCoupon(coupon);
@@ -152,5 +166,6 @@ export function useCoupon({ productId, email, isOtoMode, enabled = true }: UseCo
     handleVerifyCoupon,
     removeCoupon,
     applyOtoCoupon,
+    invalidateCoupon,
   };
 }

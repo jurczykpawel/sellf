@@ -85,4 +85,25 @@ describe('POST /api/coupons/verify', () => {
     expect(res.status).toBe(429);
     expect(serviceClient.rpc).not.toHaveBeenCalled();
   });
+
+  // W148-11/W148-9: refreshing a checkout link re-verifies the same valid code; that must not
+  // lock the buyer out (a 429 made the second tab load at full price). Only rejected answers
+  // count toward the per-code budget; the per-client budget still caps every attempt.
+  it('keeps answering a valid code when the per-code budget of rejected attempts is spent @J311', async () => {
+    rateLimiting.checkRateLimitForIdentifier.mockResolvedValue(false);
+    serviceClient.rpc.mockResolvedValue({ data: { valid: true, id: 'c1', code: 'SPRING' }, error: null });
+    const res = await POST(request({ code: 'spring', productId: PRODUCT_ID }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ valid: true, code: 'SPRING' });
+    expect(rateLimiting.checkRateLimitForIdentifier).not.toHaveBeenCalled();
+  });
+
+  it('counts a rejected answer per code and client and returns 429 once that budget is spent @J311', async () => {
+    rateLimiting.checkRateLimitForIdentifier.mockResolvedValue(false);
+    const res = await POST(request({ code: 'spring', productId: PRODUCT_ID }));
+    expect(res.status).toBe(429);
+    expect(rateLimiting.checkRateLimitForIdentifier).toHaveBeenCalledWith(
+      'coupon_verify_code', 5, 60, 'code:SPRING:ip:203.0.113.7',
+    );
+  });
 });
