@@ -55,6 +55,8 @@ interface CustomPaymentFormProps {
   customFieldValues?: CustomFieldValues;
   onCustomFieldValuesChange?: (next: CustomFieldValues) => void;
   customFieldErrors?: Record<string, string>;
+  /** The applied discount code was used up before payment; the parent drops it and re-prices. */
+  onCouponUnavailable?: () => void;
 }
 
 type EmailValidationResponse = {
@@ -91,6 +93,7 @@ export default function CustomPaymentForm({
   customFieldValues = {},
   onCustomFieldValuesChange,
   customFieldErrors,
+  onCouponUnavailable,
 }: CustomPaymentFormProps) {
   const t = useTranslations('checkout');
   const locale = useLocale();
@@ -248,6 +251,12 @@ export default function CustomPaymentForm({
               }),
             );
             setIsProcessing(false);
+            return;
+          }
+          if (updateResponse.status === 409 && errorBody?.code === 'coupon_unavailable' && onCouponUnavailable) {
+            // The checkout re-prices without the code; the buyer confirms the new total.
+            setIsProcessing(false);
+            onCouponUnavailable();
             return;
           }
           console.error('[CustomPaymentForm] Failed to update payment metadata');

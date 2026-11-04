@@ -4794,6 +4794,49 @@
         "browser",
         "database"
       ]
+    },
+    {
+      "id": "J310",
+      "title": "Second tab with a coupon already used in the first tab is re-priced before payment",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "coupon",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Pay in the second tab stops with 'discount code no longer available', the total changes to the full price and the new Stripe session charges exactly the shown amount; no second discounted payment.",
+        "seller": "One completed order with the coupon; the coupon is redeemed once.",
+        "integrator": "Not exercised: no webhook delivery asserted."
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "browser"
+      ]
+    },
+    {
+      "id": "J311",
+      "title": "Refreshing a checkout link keeps a valid coupon applied",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "coupon",
+        "payment": "none",
+        "moment": "after_navigation",
+        "operation": "browse"
+      },
+      "end_state": {
+        "buyer": "A valid code from the link keeps verifying on every refresh; only rejected codes count toward the per-code limit.",
+        "seller": "Guessing stays limited per code (rejected answers) and per client (all answers).",
+        "integrator": "Not exercised: no integrator-facing state."
+      },
+      "status": "automated",
+      "layers": [
+        "unit"
+      ]
     }
   ],
   "escapes": [
@@ -5006,6 +5049,12 @@
       "source": "W129 on TEST 0d292a45: revoked key shown as working",
       "journey": "J199",
       "why_missed": "Buyer page tests only covered active and expired licenses; revocation was verified via CRL, never in the buyer view."
+    },
+    {
+      "id": "E36",
+      "source": "W148-8 / W148-9 on TEST: second tab with a used coupon",
+      "journey": "J310",
+      "why_missed": "Coupon tests used one tab per buyer; the per-code verify limit (5/h, also spent by valid refreshes) and the submit-time reservation check were never exercised with two tabs of one cart."
     }
   ]
 }

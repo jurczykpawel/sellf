@@ -781,6 +781,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 customFieldErrors={customFieldErrors}
                 isGuest={!user}
                 collectTermsOfService={collectTermsOfService}
+                onCouponUnavailable={coupon.invalidateCoupon}
               />
             </CheckoutElementsProvider></div>
           )}

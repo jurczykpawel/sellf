@@ -281,6 +281,7 @@
     "verifying": "...",
     "invalidCoupon": "Nieprawidłowy kod kuponu",
     "verifyError": "Nie udało się zweryfikować kuponu",
+    "couponNoLongerAvailable": "Ten kod rabatowy nie jest już dostępny (został już wykorzystany). Cena została zaktualizowana — sprawdź nową kwotę przed zapłatą.",
     "couponRateLimited": "Zbyt wiele prób. Spróbuj ponownie najpóźniej za {minutes} min.",
     "couponNoReduction": "Kupon nie obniża ceny",
     "couponMinimumApplied": "Rabat ograniczony do minimalnej płatności: {min}.",

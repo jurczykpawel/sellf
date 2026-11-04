@@ -281,6 +281,7 @@
     "verifying": "...",
     "invalidCoupon": "Invalid coupon code",
     "verifyError": "Failed to verify coupon",
+    "couponNoLongerAvailable": "This discount code is no longer available (it has already been used). The price has been updated — check the new total before paying.",
     "couponRateLimited": "Too many attempts. Try again in up to {minutes} minutes.",
     "couponNoReduction": "Coupon does not lower the price",
     "couponMinimumApplied": "Discount limited to the minimum payment: {min}.",

@@ -280,13 +280,24 @@ describe('coupon reservation at submit', () => {
       code_param: 'NET30', product_id_param: PRODUCT_ID, customer_email_param: 'buyer@example.com', currency_param: 'PLN',
     });
   });
+  // W148-8: the second tab learns the code is gone (used in the first tab) by a stable code,
+  // so it can show a specific message and re-price instead of "could not save your details".
   it.each([
+    { data: { valid: false, error: 'You have already used this code' }, error: null },
     { data: { valid: false, error: 'Code usage limit reached' }, error: null },
     { data: { valid: true, id: 'another-coupon' }, error: null },
-    { data: null, error: { message: 'unavailable' } },
-  ])('stops confirmation when reservation is unavailable', async (result) => {
+  ])('stops confirmation with coupon_unavailable when the code is no longer available @J310', async (result) => {
     mocks.adminRpc.mockResolvedValue(result);
-    expect((await POST(makeRequest(SESSION_ID, { email: 'buyer@example.com' }))).status).toBe(409);
+    const res = await POST(makeRequest(SESSION_ID, { email: 'buyer@example.com' }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ success: false, code: 'coupon_unavailable' });
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+  });
+  it('stops confirmation without blaming the code when the check itself fails', async () => {
+    mocks.adminRpc.mockResolvedValue({ data: null, error: { message: 'unavailable' } });
+    const res = await POST(makeRequest(SESSION_ID, { email: 'buyer@example.com' }));
+    expect(res.status).toBe(503);
+    expect(await res.json()).not.toHaveProperty('code');
     expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
   });
   it('requires a valid buyer email for coupon reservation', async () => {

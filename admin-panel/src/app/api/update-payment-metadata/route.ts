@@ -267,9 +267,18 @@ export async function POST(request: NextRequest) {
         customer_email_param: buyerEmail.data,
         currency_param: profileProduct!.currency,
       });
-      if (error || !reservation || typeof reservation !== 'object' || Array.isArray(reservation)
+      if (error) {
+        console.error('[update-payment-metadata] Coupon reservation check failed:', error.message);
+        return NextResponse.json({ success: false, error: 'Could not verify the discount code' }, { status: 503 });
+      }
+      // The code was used up meanwhile (e.g. paid in another tab). The client drops it and
+      // re-prices the checkout, so the buyer sees the new total before paying.
+      if (!reservation || typeof reservation !== 'object' || Array.isArray(reservation)
         || reservation.valid !== true || reservation.id !== stripeMetadata.coupon_id) {
-        return NextResponse.json({ success: false, error: 'Discount code is no longer available' }, { status: 409 });
+        return NextResponse.json(
+          { success: false, error: 'Discount code is no longer available', code: 'coupon_unavailable' },
+          { status: 409 },
+        );
       }
     }
     let persistCustomFields: () => Promise<Response | null> = async () => null;
