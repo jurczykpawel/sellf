@@ -64,6 +64,8 @@ export interface PurchaseWebhookData {
     currency: string | null;
     orderId?: string;
     orderNumber?: number;
+    /** How a bank-transfer order was paid: `bank_transfer` or `stripe` (paid online); null otherwise. */
+    settledVia?: string | null;
     sessionId?: string;
     paymentIntentId: string | null | undefined;
     couponId: string | null;
@@ -249,8 +251,8 @@ export async function buildPurchaseWebhookPayload(
     amountUnit: 'minor',
     customer: {
       email: customerEmail,
-      firstName: metadata?.first_name || null,
-      lastName: metadata?.last_name || null,
+      firstName: metadata?.first_name || readOrderDetails(params.orderDetails).buyer?.first_name || null,
+      lastName: metadata?.last_name || readOrderDetails(params.orderDetails).buyer?.last_name || null,
       userId,
     },
     product: productDetails

@@ -94,6 +94,43 @@ export function buildSubscriptionCreatedPayload(input: BaseInput & {
   };
 }
 
+/** Previous values of the contract fields a subscription change touched (camelCase, ISO dates). */
+export interface SubscriptionPreviousValues {
+  status?: string;
+  cancelAtPeriodEnd?: boolean;
+  cancelAt?: string | null;
+  canceledAt?: string | null;
+  endedAt?: string | null;
+  trialEnd?: string | null;
+  currentPeriodStart?: string | null;
+  currentPeriodEnd?: string | null;
+  quantity?: number | null;
+  stripePriceId?: string | null;
+}
+
+/**
+ * Maps Stripe's raw `previous_attributes` to the normalized fields integrators receive.
+ * Raw Stripe objects (items, plan, invoices) never leave Sellf (W147-4).
+ */
+export function normalizePreviousAttributes(raw?: Partial<Stripe.Subscription>): SubscriptionPreviousValues {
+  if (!raw) return {};
+  const out: SubscriptionPreviousValues = {};
+  if (typeof raw.status === 'string') out.status = raw.status;
+  if (typeof raw.cancel_at_period_end === 'boolean') out.cancelAtPeriodEnd = raw.cancel_at_period_end;
+  if ('cancel_at' in raw) out.cancelAt = toIso(raw.cancel_at);
+  if ('canceled_at' in raw) out.canceledAt = toIso(raw.canceled_at);
+  if ('ended_at' in raw) out.endedAt = toIso(raw.ended_at);
+  if ('trial_end' in raw) out.trialEnd = toIso(raw.trial_end);
+  const item = raw.items?.data?.[0];
+  if (item) {
+    if ('current_period_start' in item) out.currentPeriodStart = toIso(item.current_period_start);
+    if ('current_period_end' in item) out.currentPeriodEnd = toIso(item.current_period_end);
+    if ('quantity' in item) out.quantity = item.quantity ?? null;
+    if (item.price && 'id' in item.price) out.stripePriceId = item.price.id ?? null;
+  }
+  return out;
+}
+
 export function buildSubscriptionUpdatedPayload(input: BaseInput & {
   subscription: Stripe.Subscription;
   previousAttributes?: Partial<Stripe.Subscription>;
@@ -101,6 +138,7 @@ export function buildSubscriptionUpdatedPayload(input: BaseInput & {
 }) {
   const sub = input.subscription;
   const endsAt = subscriptionAccessEnd(sub, input.paidPeriodEnd);
+  const previousAttributes = normalizePreviousAttributes(input.previousAttributes);
   return {
     customer: input.customer,
     product: input.product,
@@ -113,7 +151,8 @@ export function buildSubscriptionUpdatedPayload(input: BaseInput & {
       endsAt,
       endedAt: toIso(sub.ended_at),
       canceledAt: toIso(sub.canceled_at),
-      previousAttributes: input.previousAttributes ?? {},
+      previousAttributes,
+      changedFields: Object.keys(previousAttributes),
     },
   };
 }

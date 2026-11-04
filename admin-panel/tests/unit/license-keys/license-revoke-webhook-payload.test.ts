@@ -31,7 +31,11 @@ describe('buildLicenseRevokeWebhookData', () => {
         issuedAt: '2026-01-01T00:00:00.000Z',
         expiresAt: '2027-01-01T00:00:00.000Z',
         revokedAt: '2026-06-16T10:00:00.000Z',
+        orderId: null,
+        orderNumber: null,
+        revocationReason: null,
       },
+      revocationReason: null,
       product: { id: 'prod-1', name: 'Premium Plugin', slug: 'premium-plugin' },
       crlUrl: 'https://sellf.example/api/licenses/revoked?seller=seller-1',
     });
@@ -52,5 +56,21 @@ describe('buildLicenseRevokeWebhookData', () => {
     expect(data.license.expiresAt).toBeNull();
     expect(data.license.tier).toBeNull();
     expect(data.product).toEqual({ id: 'prod-1', name: null, slug: null });
+  });
+});
+
+describe('W152 contract additions', () => {
+  it('carries the Sellf order identity next to the raw order claim and the revocation reason', () => {
+    const data = buildLicenseRevokeWebhookData(
+      { ...row, order_id: 'pi_abc', sellf_order_id: 'tx-1', order_number: 1515, revocation_reason: 'refund' },
+      'https://sellf.example',
+    );
+    expect(data.license).toMatchObject({ order: 'pi_abc', orderId: 'tx-1', orderNumber: 1515, revocationReason: 'refund' });
+    expect(data.revocationReason).toBe('refund');
+  });
+  it('reports null identity and reason for rows captured before the fields existed', () => {
+    const data = buildLicenseRevokeWebhookData({ ...row, revoked_at: null }, 'https://sellf.example');
+    expect(data.license).toMatchObject({ orderId: null, orderNumber: null, revocationReason: null });
+    expect(data.revocationReason).toBeNull();
   });
 });

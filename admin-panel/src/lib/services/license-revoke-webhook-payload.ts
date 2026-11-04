@@ -18,6 +18,11 @@ export interface RevokedLicenseRow {
   expires_at: string | null;
   revoked_at: string | null;
   products: { name: string | null; slug: string | null; license_tier: string | null } | null;
+  /** Sellf order behind `order_id` (absent on rows captured before W152). */
+  sellf_order_id?: string | null;
+  order_number?: number | null;
+  /** refund | dispute | manual | subscription_cancelled; null while active. */
+  revocation_reason?: string | null;
 }
 
 export interface LicenseRevokeWebhookData {
@@ -31,7 +36,13 @@ export interface LicenseRevokeWebhookData {
     issuedAt: string | null;
     expiresAt: string | null;
     revokedAt: string | null;
+    /** Sellf order id and number; `order` stays the raw claim (payment intent, session, invoice or API id). */
+    orderId: string | null;
+    orderNumber: number | null;
+    revocationReason: string | null;
   };
+  /** Why the license stopped working (refund, dispute, manual, subscription_cancelled); null while active. */
+  revocationReason: string | null;
   product: { id: string; name: string | null; slug: string | null };
   /** Seller-scoped revocation list the consumer hashes its `order` claim against. */
   crlUrl: string;
@@ -52,7 +63,11 @@ export function buildLicenseRevokeWebhookData(
       issuedAt: row.issued_at,
       expiresAt: row.expires_at,
       revokedAt: row.revoked_at,
+      orderId: row.sellf_order_id ?? null,
+      orderNumber: row.order_number ?? null,
+      revocationReason: row.revocation_reason ?? null,
     },
+    revocationReason: row.revocation_reason ?? null,
     product: { id: row.product_id, name: row.products?.name ?? null, slug: row.products?.slug ?? null },
     crlUrl: `${origin}/api/licenses/revoked?seller=${row.original_seller_id}`,
   };

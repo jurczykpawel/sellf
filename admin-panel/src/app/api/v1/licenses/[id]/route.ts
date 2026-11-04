@@ -45,7 +45,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     if (!(await checkFeature('license-key-issuance', { dataClient: admin }))) return apiError(request, 'FORBIDDEN', FEATURE_DENIED);
     const { id } = await params;
     if (!validateUUID(id).isValid) return apiError(request, 'INVALID_INPUT', 'Invalid license ID format');
-    const { data, error } = await admin.rpc('revoke_issued_licenses', { p_license_ids: [id], p_actor: auth.admin.userId });
+    const { data, error } = await admin.rpc('revoke_issued_licenses', { p_license_ids: [id], p_actor: auth.admin.userId, p_reason: 'manual' });
     if (error) return apiError(request, 'INTERNAL_ERROR', 'License revocation failed');
     if (!data?.length) return apiError(request, 'NOT_FOUND', 'License not found');
     return jsonResponse(successResponse({ id, revoked: true }), request);

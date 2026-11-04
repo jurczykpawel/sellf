@@ -602,9 +602,10 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
       subscriptions: { ...stripe!.subscriptions, retrieve: async () => sub },
       customers: stripe!.customers,
     } as unknown as Stripe;
+    // Inside the notice window (renewal in 2 days) the warning goes out immediately.
     const invoice = makeFakeInvoice(sub.id, customer.id, email, {
       billing_reason: 'subscription_cycle',
-      next_payment_attempt: sub.items.data[0]?.current_period_end ?? null,
+      next_payment_attempt: Math.floor(Date.now() / 1000) + 2 * 24 * 3600,
     });
 
     const triggerSpy = vi.spyOn(WebhookService, 'trigger').mockImplementation(async () => {});
@@ -645,6 +646,75 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
       p_email: email.toLowerCase(),
     });
     if (typeof userId === 'string') createdAuthUserIds.push(userId);
+  });
+
+  it('defers renewal_upcoming sent right after a 7-day trial starts until the notice window @J284', async () => {
+    // ZMIERZONE 2026-11-04 (Stripe test account events): invoice.upcoming arrives ~1 min after the
+    // subscription is created, for a 7-day trial and even 30 days ahead for a monthly plan.
+    const email = `upcoming-trial-${crypto.randomUUID()}@sellf-test.local`;
+    const product = await createSubscriptionProduct();
+    const customer = await createConfirmedCustomer(email);
+    createdStripeCustomerIds.push(customer.id);
+    const trialEnd = Math.floor(Date.now() / 1000) + 7 * 24 * 3600;
+    const sub = makeFakeSubscription(customer.id, product.id, { status: 'trialing', trial_end: trialEnd });
+    const stripeShim = { ...stripe!, subscriptions: { ...stripe!.subscriptions, retrieve: async () => sub }, customers: stripe!.customers } as unknown as Stripe;
+    const invoice = makeFakeInvoice(sub.id, customer.id, email, { billing_reason: 'upcoming', next_payment_attempt: trialEnd });
+    const triggerSpy = vi.spyOn(WebhookService, 'trigger').mockImplementation(async () => {});
+    const result = await handleInvoiceUpcoming(invoice, supabaseSeller as never, platformClient as never, stripeShim);
+    expect(result.processed).toBe(true);
+    expect(triggerSpy.mock.calls.filter(([event]) => event === 'subscription.renewal_upcoming')).toHaveLength(0);
+    const { data: row } = await supabaseSeller!.from('subscriptions')
+      .select('renewal_notice_at, renewal_notice_payload').eq('stripe_subscription_id', sub.id).single();
+    expect(Date.parse(row!.renewal_notice_at!)).toBe((trialEnd - 3 * 24 * 3600) * 1000);
+    expect(row!.renewal_notice_payload).toMatchObject({ customer: { email }, product: { id: product.id }, invoice: { nextPaymentAttempt: new Date(trialEnd * 1000).toISOString() } });
+  });
+
+  it('immediate cancellation revokes the subscription licenses with a reason (W147-5) @J285', async () => {
+    const email = `cancel-license-${crypto.randomUUID()}@sellf-test.local`;
+    const product = await createSubscriptionProduct();
+    const customer = await createConfirmedCustomer(email);
+    createdStripeCustomerIds.push(customer.id);
+    const sub = makeFakeSubscription(customer.id, product.id, { status: 'active' });
+    const stripeShim = { ...stripe!, subscriptions: { ...stripe!.subscriptions, retrieve: async () => sub }, customers: stripe!.customers,
+      checkout: { sessions: { list: async () => ({ data: [] }) } } } as unknown as Stripe;
+    vi.spyOn(WebhookService, 'trigger').mockImplementation(async () => {});
+    await handleSubscriptionCreated(sub, supabaseSeller as never, platformClient as never, stripeShim);
+    const invoice = makeFakeInvoice(sub.id, customer.id, email);
+    await handleInvoicePaid(invoice, supabaseSeller as never, platformClient as never, stripeShim);
+    const { data: userId } = await platformClient!.rpc('find_user_id_by_email', { p_email: email });
+    const { data: seller } = await supabaseSeller!.from('admin_users').select('user_id').limit(1).single();
+    const license = await supabaseSeller!.from('issued_licenses').insert({ seller_id: seller!.user_id, original_seller_id: seller!.user_id,
+      product_id: product.id, email, order_id: invoice.id!, kid: 'kid-w152', license_key: 'e30.sig' }).select('id').single();
+    expect(license.error).toBeNull();
+    const now = Math.floor(Date.now() / 1000);
+    const result = await handleSubscriptionDeleted({ ...sub, status: 'canceled', canceled_at: now, ended_at: now },
+      supabaseSeller as never, platformClient as never, stripeShim);
+    expect(result.processed).toBe(true);
+    const { data: after } = await supabaseSeller!.from('issued_licenses').select('revoked_at, revocation_reason').eq('id', license.data!.id).single();
+    expect(after).toMatchObject({ revoked_at: expect.any(String), revocation_reason: 'subscription_cancelled' });
+    await supabaseSeller!.from('issued_licenses').delete().eq('id', license.data!.id);
+    if (typeof userId === 'string') createdAuthUserIds.push(userId);
+  });
+
+  it('repeated subscription events do not touch the access row again (W147-3)', async () => {
+    const email = `access-once-${crypto.randomUUID()}@sellf-test.local`;
+    const product = await createSubscriptionProduct();
+    const customer = await createConfirmedCustomer(email);
+    createdStripeCustomerIds.push(customer.id);
+    const sub = makeFakeSubscription(customer.id, product.id, { status: 'active' });
+    const stripeShim = { ...stripe!, subscriptions: { ...stripe!.subscriptions, retrieve: async () => sub }, customers: stripe!.customers,
+      checkout: { sessions: { list: async () => ({ data: [] }) } } } as unknown as Stripe;
+    vi.spyOn(WebhookService, 'trigger').mockImplementation(async () => {});
+    await handleSubscriptionCreated(sub, supabaseSeller as never, platformClient as never, stripeShim);
+    const { data: first } = await supabaseSeller!.from('user_product_access').select('id, access_granted_at').eq('product_id', product.id).single();
+    await handleInvoicePaid(makeFakeInvoice(sub.id, customer.id, email), supabaseSeller as never, platformClient as never, stripeShim);
+    await handleSubscriptionUpdated(sub, supabaseSeller as never, platformClient as never, stripeShim);
+    await handleSubscriptionUpdated(sub, supabaseSeller as never, platformClient as never, stripeShim);
+    const { data: last } = await supabaseSeller!.from('user_product_access').select('id, access_granted_at').eq('product_id', product.id).single();
+    expect(last).toEqual(first);
+    const { count } = await supabaseSeller!.from('business_events').select('id', { count: 'exact', head: true })
+      .eq('product_id', product.id).eq('event_type', 'access.updated');
+    expect(count).toBe(0);
   });
 
   it('handleInvoicePaymentFailed mirrors past_due status without revoking access', async () => {

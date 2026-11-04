@@ -237,6 +237,7 @@ async function processRefundForTransaction(
   await revokeLicensesForOrder(supabase, {
     productId: transaction.product_id,
     orderIds: [transaction.stripe_payment_intent_id, transaction.session_id],
+    reason: 'refund',
   });
   const cancelResult = await scheduleSubscriptionCancelAfterFullRefund({
     supabase: supabase as never,

@@ -75,6 +75,11 @@ Błąd wystawiania licencji lub przerwana realizacja mogą zostać uzupełnione 
 kolejne zdarzenie lub weryfikację zakupu. Zapis zakończonej transakcji nie oznacza,
 że wszystkie dostawy już się zakończyły.
 
+Zamówienie przelewem opłacone kartą ze strony zamówienia wysyła `purchase.completed` z
+`order.settledVia: "stripe"` i `order.paymentIntentId` Stripe (do uzgodnienia płatności i zwrotu);
+przelew zaksięgowany przez sprzedawcę ma `settledVia: "bank_transfer"` i `paymentIntentId: null`.
+`customer.firstName` / `lastName` są uzupełniane z kupującego zapisanego w `orderDetails.buyer`.
+
 `purchase.completed` zawiera `attribution`, gdy zamówienie ma zapisane źródło
 ([Źródła zakupów](/pl/purchase-attribution/)): kanał, ostatni i pierwszy kontakt, urządzenie,
 kraj i typ identyfikatora kliknięcia — nigdy sam identyfikator.
@@ -123,6 +128,23 @@ pochodzi z pozycji **opłaconej faktury**, a nie z bieżącego nieopłaconego od
 Bez potwierdzonego okresu `endsAt` ma wartość null. Zdarzenia aktualizacji zakończonej
 subskrypcji lub zaplanowanego anulowania przekazują ten sam koniec dostępu w
 `currentPeriodEnd`.
+
+`subscription.updated.previousAttributes` zawiera wyłącznie **poprzednie wartości znormalizowanych
+pól, które się zmieniły**: `status`, `cancelAtPeriodEnd`, `cancelAt`, `canceledAt`, `endedAt`,
+`trialEnd`, `currentPeriodStart`, `currentPeriodEnd`, `quantity`, `stripePriceId` (camelCase, daty
+ISO 8601 UTC), a `changedFields` wymienia ich nazwy. Surowe obiekty Stripe (`items`, `plan`, faktury)
+nie są przekazywane. Zmiana pól spoza tej listy daje puste `changedFields`.
+
+`subscription.renewal_upcoming` przychodzi **3 dni przed odnowieniem** (`invoice.nextPaymentAttempt`
+albo koniec okresu). Stripe zapowiada nadchodzącą fakturę, gdy tylko odnowienie wejdzie w okno konta,
+na wielu kontach zaraz po zakupie, również przy 7-dniowej próbie, dlatego Sellf zapisuje zapowiedź
+i wysyła ją w terminie. Subskrypcja anulowana, ustawiona na anulowanie z końcem okresu albo już
+nieaktywna nie dostaje zapowiedzi. Gdy do odnowienia zostały najwyżej 3 dni, zapowiedź idzie od razu.
+
+Gdy subskrypcja **faktycznie się kończy** (`customer.subscription.deleted`: natychmiastowe anulowanie
+albo koniec okresu, z którym kupujący ją anulował), Sellf odwołuje licencje wydane dla jej faktur:
+przychodzi `license.revoked` z `revocationReason: "subscription_cancelled"` i `access.revoked` z tym
+samym powodem. Anulowanie z końcem okresu zostawia licencję ważną do tej chwili.
 
 ## Spory płatnicze
 
@@ -188,7 +210,13 @@ niezmienionego statusu nie dodaje zdarzenia. Subskrypcja i wysyłka obu typów w
 funkcji Pro; sam stan licencji zmienia się niezależnie od bieżącego planu sklepu.
 
 Dane obejmują `license.id`, `order`, `email`, `tier`, `domain`, `issuanceSource`,
-`issuedAt`, `expiresAt`, `revokedAt`, produkt i `crlUrl`. Przywrócenie dodaje
+`issuedAt`, `expiresAt`, `revokedAt`, produkt i `crlUrl`. `license.order` to surowy identyfikator
+podpisany w tokenie (płatność `pi_…`, sesja checkoutu, faktura odnowienia `in_…`, ID zamówienia
+offline albo `api_…`); `license.orderId` i `license.orderNumber` wskazują zamówienie Sellf (null przy
+ręcznym lub API wydaniu bez zamówienia). Pola te mają wszystkie zdarzenia `license.*`.
+`revocationReason` (na górze danych i w `license.revocationReason`) mówi, dlaczego licencja przestała
+działać: `refund` (pełny zwrot), `dispute`, `manual` (panel albo `DELETE /api/v1/licenses/{id}`) lub
+`subscription_cancelled`; dla aktywnej licencji ma wartość null. Wygaśnięcie to osobne `license.expired`. Przywrócenie dodaje
 `license.restoredAt`, a powiązany spór — `dispute.stripeDisputeId`. Token nie jest
 wysyłany. Po usunięciu odwołania można używać tego samego tokenu; wygasły pozostaje wygasły.
 
@@ -275,7 +303,7 @@ dla oczekującego grantu nie zostały jeszcze nadane. `null` końca nadanego dos
 | `seats.released` | Zwolnienie miejsc: te same dane i powód (`order_abandoned`, `order_cancelled`, `payment_refunded`, `hold_expired`, `reservation_released`). |
 | `access.granted` | Nadanie dostępu, również darmowego, po zakupie oraz po przejęciu zakupów gościa. |
 | `access.updated` | Zmiana zapisanych dat lub źródła dostępu, również ręczne przedłużenie. |
-| `access.revoked` | Usunięcie grantu wraz z faktycznym czasem odebrania. |
+| `access.revoked` | Usunięcie grantu wraz z faktycznym czasem odebrania i `revocationReason`. |
 | `access.expired` | Upłynięcie zapisanego końca dostępu: jeden komunikat na grant/datę końca, także po odnowieniu. |
 
 ### Nieopłacone zamówienia przelewem: cykl życia
@@ -284,7 +312,7 @@ Każde zdarzenie przelewu `order.*` ma w `data.order` dodatkowo: `status`, `payU
 zamówienia: stan, dane przelewu, przycisk „Wysłałem przelew”, ważny do `payUrlExpiresAt`), `reservation`
 (`timed` — rezerwacja czasowa, `invoice` — faktura wystawiona, czeka na płatność bez wygasania, `none`),
 `reminderAt`, `releaseAt`, `invoiceHoldAt`, `transferDeclaredAt`, `transferDeclaredNote`, `cancelReason`,
-`reopenedAt`, a `data.customer.locale` podaje język kupującego (`pl`/`en`). Z tych pól integrator wystawia
+`cancelReasonText`, `reopenedAt`, a `data.customer.locale` podaje język kupującego (`pl`/`en`). Z tych pól integrator wystawia
 u siebie proformę, fakturę lub własny mail (n8n, Listmonk). Każde zdarzenie jest dostarczane raz na zamówienie.
 
 | Zdarzenie | Kiedy | Co odbiorca może zrobić |
@@ -293,7 +321,7 @@ u siebie proformę, fakturę lub własny mail (n8n, Listmonk). Każde zdarzenie 
 | `order.payment_reminder` | Minął `reminderAt` (domyślnie 24 h) bez wpłaty i bez faktury. | Przypomnienie „zapłać do `releaseAt`” z linkiem. |
 | `order.transfer_declared` | Kupujący kliknął „Wysłałem przelew” (raz). | Sprawdzenie wyciągu; `releaseAt` jest już przedłużone (domyślnie o 72 h). |
 | `order.invoice_issued` | Dla nieopłaconego zamówienia wystawiono fakturę (w Sellf albo `POST /api/v1/payments/:id/invoice-issued`). | Status „faktura wystawiona, czeka na płatność”: `reservation = invoice`, `releaseAt = null`, brak wygasania. |
-| `order.cancelled` | Anulowanie: `cancelReason = payment_window_expired` (automatycznie po `releaseAt`) albo `admin`. | Informacja dla kupującego, korekta faktury; `lateTransferPolicy = admin_decision`. |
+| `order.cancelled` | Anulowanie: `cancelReason = payment_window_expired` (automatycznie po `releaseAt`) albo `admin` z tekstem administratora w `cancelReasonText`. `reservation = none`, `reminderAt`/`releaseAt` mają wartość `null`. `customer.userId` jest taki sam jak w `seats.released`. | Informacja dla kupującego, korekta faktury; `lateTransferPolicy = admin_decision`. |
 | `order.overdue` | Minął termin płatności zamówienia bez rezerwacji czasowej. | Ponaglenie. |
 | `order.reopened` | Administrator przyjął przelew, który doszedł po anulowaniu (po cenie z zamówienia, także ponad limit miejsc). | Powiązanie wpłaty: `previousStatus = cancelled`; zaraz po nim `purchase.completed`. |
 | `order.participants_updated` | Kupujący uzupełnił listę uczestników po zapłacie (opcja produktu „uzupełnię później”). Wysyłane raz na zamówienie. | `orderDetails.participants.people` zawiera pełną listę (`first_name`, `last_name`, `email`), `orderDetails.quantity.value` liczbę; `purchase.completed` miało pustą listę. |
@@ -309,6 +337,13 @@ starszych niż to pole). Używaj `grantSource` zamiast `reason`: `reason` zostaj
 integracji, ale bywa wywnioskowane (np. `free_product` z ceny), więc płatny produkt odebrany z kuponem
 100% ma `grantSource: "free"`.
 Pola główne `accessGrantedAt/accessExpiresAt` zawierają te same zapisane daty.
+`access.granted` i `access.updated` podają też `accessEndsAt`: zapisany koniec dostępu, a dla
+subskrypcji koniec bieżącego opłaconego okresu (null przy dostępie bezterminowym). Subskrypcja wysyła
+`access.updated` (`reason: "subscription_renewed"`) **raz na odnowiony okres**; powtórzone zdarzenia
+Stripe dla tego samego okresu nie dają kolejnych aktualizacji.
+`access.revoked` i `access.expired` podają `revocationReason`: `refund`, `dispute`, `manual`,
+`subscription_cancelled` albo `expired` (subskrypcja zakończona bez zapłaty lub naturalny koniec).
+`reason` zachowuje dotychczasowe znaczenie (skąd był dostęp: `purchase`, `subscription`…).
 `sourceOrders` zawiera powiązane zapisane zamówienia; `sourceOrder` jest wypełnione tylko przy jednym
 jednoznacznym zamówieniu. Ręczne lub niepowiązane granty mogą nie mieć zamówienia. `occurredAt`
 opisuje zmianę, a timestamp koperty przygotowanie dostawy. Nie należy wyliczać dostępu ze stanu

@@ -40,12 +40,14 @@ function lifecycle(tx: Tx) {
   let link: { url: string | null; expiresAt: string | null } = { url: null, expiresAt: null };
   // A missing signing secret must not block the event itself; the link is then simply absent.
   try { link = buildOrderPayLink(tx.id, orderLocale(tx), getSellfBaseUrl()); } catch { console.error('[transfer-event] Pay link unavailable:', tx.id); }
+  // A cancelled order has no live reservation: its reminder and release times are void (W147-11).
+  const cancelled = tx.status === 'cancelled';
   return {
     payUrl: link.url, payUrlExpiresAt: link.expiresAt,
-    reservation: tx.invoice_hold_at ? 'invoice' : tx.release_at ? 'timed' : 'none',
-    reminderAt: tx.reminder_at, releaseAt: tx.release_at, invoiceHoldAt: tx.invoice_hold_at,
+    reservation: cancelled ? 'none' : tx.invoice_hold_at ? 'invoice' : tx.release_at ? 'timed' : 'none',
+    reminderAt: cancelled ? null : tx.reminder_at, releaseAt: cancelled ? null : tx.release_at, invoiceHoldAt: tx.invoice_hold_at,
     transferDeclaredAt: tx.transfer_declared_at, transferDeclaredNote: tx.transfer_declared_note,
-    cancelReason: tx.cancel_reason, reopenedAt: tx.reopened_at,
+    cancelReason: tx.cancel_reason, cancelReasonText: cancelled ? tx.cancel_note ?? null : null, reopenedAt: tx.reopened_at,
     ...(tx.status === 'cancelled' ? { lateTransferPolicy: 'admin_decision' } : {}),
     ...(tx.reopened_at ? { previousStatus: 'cancelled' } : {}),
   };

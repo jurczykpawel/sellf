@@ -59,7 +59,7 @@ describe('/api/admin/licenses/:id', () => {
     const rpc=vi.fn().mockResolvedValue({data:[{id:ID,changed:true}],error:null});
     mocks.admin.mockReturnValue({rpc});
     const response=await DELETE(request(),context);expect(response.status).toBe(200);
-    expect(rpc).toHaveBeenCalledWith('revoke_issued_licenses',{p_license_ids:[ID],p_actor:'admin-1'});
+    expect(rpc).toHaveBeenCalledWith('revoke_issued_licenses',{p_license_ids:[ID],p_actor:'admin-1',p_reason:'manual'});
     expect(mocks.trigger).not.toHaveBeenCalled();
   });
   it('reports a failed state write without sending a notification', async () => {

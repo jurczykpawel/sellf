@@ -88,3 +88,16 @@ it('applies a dispute Stripe opened before the payment was stored, before issuin
   expect(mocks.dispute).toHaveBeenCalledWith(dispute, expect.anything(), expect.anything(), false);
   expect(mocks.order).toEqual(['dispute', 'licenses']);
 });
+
+it('a transfer order paid online reports its payment intent and buyer name (W147-10) @J286', async () => {
+  const saved = { ...tx };
+  try {
+    Object.assign(tx, { stripe_payment_intent_id: 'pi_paid_online', settled_via: 'stripe',
+      order_details: { buyer: { v: 1, type: 'person', first_name: 'Anna', last_name: 'Kowalska', email: tx.customer_email } } });
+    await fulfillPaidOrder({ ...common(), provider: { kind: 'offline' } });
+    const payload = mocks.trigger.mock.calls[0][1];
+    expect(payload.order).toMatchObject({ orderId: 'tx-order', paymentIntentId: 'pi_paid_online', settledVia: 'stripe' });
+    expect(payload.customer).toMatchObject({ firstName: 'Anna', lastName: 'Kowalska' });
+    expect(mocks.licenses.mock.calls[0][1].orderId).toBe('tx-order');
+  } finally { Object.keys(tx).forEach(k => delete (tx as Record<string, unknown>)[k]); Object.assign(tx, saved); }
+});

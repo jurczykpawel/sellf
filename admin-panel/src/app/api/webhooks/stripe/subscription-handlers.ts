@@ -16,6 +16,7 @@ import type { createAdminClient, createPlatformClient } from '@/lib/supabase/adm
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { issueLicense } from '@/lib/license-keys/issue';
+import { revokeLicensesForOrder } from '@/lib/license-keys/revoke';
 import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
 import { captureAndPersistInvoiceTax } from '@/lib/services/tax-snapshot';
 import { minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
@@ -575,7 +576,7 @@ export async function upsertUserProductAccess(
 ): Promise<AccessMutationResult> {
   const { data: existingAccess, error: lookupErr } = await supabase
     .from('user_product_access')
-    .select('id')
+    .select('id, subscription_id')
     .eq('user_id', userId)
     .eq('product_id', productId)
     .maybeSingle();
@@ -583,6 +584,9 @@ export async function upsertUserProductAccess(
     console.error('[upsertUserProductAccess] lookup error:', lookupErr);
     return { ok: false, reason: 'access lookup failed' };
   }
+  // Already linked: repeated subscription/invoice events change nothing, so no access.updated.
+  // A renewed period is announced once by the subscriptions period trigger (W147-3).
+  if (existingAccess?.subscription_id === subscriptionRowId) return { ok: true };
   if (existingAccess) {
     const { error: updateErr } = await supabase
       .from('user_product_access')
@@ -792,6 +796,23 @@ export async function handleSubscriptionDeleted(
     }
   }
 
+  // The subscription has really ended (immediately, or at the end of a period the buyer
+  // cancelled): its offline licenses stop working now (W147-5, owner decision 2026-11-04).
+  if (subscriptionRowId) {
+    const { data: invoices, error: invoiceError } = await supabase.from('payment_transactions')
+      .select('stripe_invoice_id').eq('subscription_id', subscriptionRowId).not('stripe_invoice_id', 'is', null);
+    if (invoiceError) return { processed: false, message: 'Subscription invoices unavailable' };
+    try {
+      await revokeLicensesForOrder(supabase, {
+        productId: ctx.productId,
+        orderIds: (invoices ?? []).map(row => row.stripe_invoice_id),
+        reason: 'subscription_cancelled',
+      });
+    } catch {
+      return { processed: false, message: 'Subscription license revocation failed' };
+    }
+  }
+
   const payload = buildSubscriptionCanceledPayload({
     customer: customerSummary(ctx.userId, ctx.email),
     product: ctx.product,
@@ -841,6 +862,14 @@ export async function handleSubscriptionTrialWillEnd(
 // invoice.upcoming
 // ---------------------------------------------------------------------------
 
+/** Days before a renewal when subscription.renewal_upcoming reaches integrators. */
+export const RENEWAL_NOTICE_DAYS = 3;
+
+function renewalNoticeAt(invoice: Stripe.Invoice, sub: Stripe.Subscription): Date | null {
+  const renewal = invoice.next_payment_attempt ?? sub.items.data[0]?.current_period_end ?? null;
+  return renewal ? new Date((renewal - RENEWAL_NOTICE_DAYS * 24 * 3600) * 1000) : null;
+}
+
 export async function handleInvoiceUpcoming(
   invoice: Stripe.Invoice,
   supabase: AdminClient,
@@ -868,7 +897,7 @@ export async function handleInvoiceUpcoming(
   if (!ctxResult.ok) return { processed: false, message: ctxResult.reason };
   const ctx = ctxResult.ctx;
 
-  await upsertSubscriptionRow(supabase, ctx, sub);
+  const subscriptionRowId = await upsertSubscriptionRow(supabase, ctx, sub);
 
   const payload = buildSubscriptionRenewalUpcomingPayload({
     customer: customerSummary(ctx.userId, ctx.email),
@@ -876,6 +905,17 @@ export async function handleInvoiceUpcoming(
     subscription: sub,
     invoice,
   });
+  // Stripe sends invoice.upcoming as soon as the renewal falls inside the account's window,
+  // which on our account means right after checkout (ZMIERZONE: 7-day trial and 30 days ahead).
+  // Outside the notice window the warning is stored and emitted when due (W147-12).
+  const noticeAt = renewalNoticeAt(invoice, sub);
+  if (subscriptionRowId && noticeAt && noticeAt.getTime() > Date.now()) {
+    const { error } = await supabase.from('subscriptions')
+      .update({ renewal_notice_at: noticeAt.toISOString(), renewal_notice_payload: JSON.parse(JSON.stringify(payload)) })
+      .eq('id', subscriptionRowId);
+    if (error) return { processed: false, message: 'Renewal notice unavailable' };
+    return { processed: true, message: `Subscription renewal notice scheduled: ${subscriptionId}` };
+  }
   await WebhookService.trigger('subscription.renewal_upcoming', payload, supabase, payload.product.id);
 
   return { processed: true, message: `Subscription renewal upcoming: ${subscriptionId}` };
