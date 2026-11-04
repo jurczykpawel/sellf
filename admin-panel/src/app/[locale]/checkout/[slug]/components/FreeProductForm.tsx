@@ -202,7 +202,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
     setTermsError(termsProblem);
     setCustomFieldErrors(validation.ok ? {} : validation.errors);
     if (emailProblem || termsProblem || !validation.ok) {
-      captcha.reset();
+      // The captcha token was not sent anywhere, so it stays valid; no reset needed.
       if (emailProblem) document.getElementById('email')?.focus();
       return;
     }

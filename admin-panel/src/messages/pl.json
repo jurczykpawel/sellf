@@ -3563,6 +3563,7 @@
       "keyPlaceholder": "payload.podpis"
     },
     "issuedLicenses": {
+      "invalidEmail": "Podaj poprawny adres e-mail, np. jan@example.com.",
       "refresh": "Odśwież listę licencji",
       "unavailable": "Wystawianie licencji jest dostępne dla administratora platformy.",
       "title": "Wystawione licencje produktowe",
@@ -5931,6 +5932,8 @@
       "reason": "Powód anulowania",
       "cancel": "Anuluj zamówienie",
       "amountMismatch": "Zaksięgowana kwota musi równać się pełnej kwocie zamówienia.",
+      "paidAtBeforeOrder": "Data wpływu nie może być wcześniejsza niż data złożenia zamówienia.",
+      "paidAtFuture": "Data wpływu nie może być z przyszłości.",
       "operationError": "Operacja nie powiodła się. Sprawdź kwotę, datę wpływu i aktualny stan zamówienia.",
       "overdueCount": "Przelewy po terminie: {count}"
   },

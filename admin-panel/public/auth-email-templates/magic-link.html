@@ -32,19 +32,22 @@
           <tr>
             <td style="padding: 40px; background-color: #111B2E;">
               <h2 style="margin: 0 0 16px 0; color: #ffffff; font-size: 20px; font-weight: 600;">
-                {{ if .Data.payment_received }}{{ if eq .Data.locale "en" }}Payment received{{ else }}Płatność otrzymana{{ end }}{{ else if .Data.license_key }}{{ if eq .Data.locale "en" }}Your license is ready{{ else }}Twoja licencja jest gotowa{{ end }}{{ else }}{{ if eq .Data.locale "en" }}Sign in with one click{{ else }}Zaloguj się jednym kliknięciem{{ end }}{{ end }}
+                {{ if eq .Data.mail_kind "transfer_placed" }}{{ if eq .Data.locale "en" }}Order received, awaiting your transfer{{ else }}Zamówienie przyjęte, czekamy na przelew{{ end }}{{ else if eq .Data.mail_kind "payment_reminder" }}{{ if eq .Data.locale "en" }}Payment reminder{{ else }}Przypomnienie o płatności{{ end }}{{ else if eq .Data.mail_kind "order_cancelled" }}{{ if eq .Data.locale "en" }}Order cancelled{{ else }}Zamówienie anulowane{{ end }}{{ else if eq .Data.mail_kind "participants_needed" }}{{ if eq .Data.locale "en" }}One more step: add the participants{{ else }}Jeszcze jeden krok: uzupełnij uczestników{{ end }}{{ else if .Data.payment_received }}{{ if eq .Data.locale "en" }}Payment received{{ else }}Płatność otrzymana{{ end }}{{ else if .Data.license_key }}{{ if eq .Data.locale "en" }}Your license is ready{{ else }}Twoja licencja jest gotowa{{ end }}{{ else }}{{ if eq .Data.locale "en" }}Sign in with one click{{ else }}Zaloguj się jednym kliknięciem{{ end }}{{ end }}
               </h2>
-              {{ if .Data.payment_received }}<p style="margin: 0 0 24px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">{{ if eq .Data.locale "en" }}We have received your bank transfer. Your order is paid.{{ else }}Otrzymaliśmy Twój przelew. Zamówienie jest opłacone.{{ end }}</p>
+              {{ if eq .Data.mail_kind "transfer_placed" }}<p style="margin: 0 0 24px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">{{ if eq .Data.locale "en" }}Thank you for your order. The bank transfer details are below; you get access once the payment is booked.{{ else }}Dziękujemy za zamówienie. Dane do przelewu znajdziesz poniżej; dostęp otrzymasz po zaksięgowaniu wpłaty.{{ end }}</p>
+              {{ else if eq .Data.mail_kind "payment_reminder" }}<p style="margin: 0 0 24px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">{{ if eq .Data.locale "en" }}Your order is still waiting for the payment.{{ else }}Twoje zamówienie wciąż czeka na wpłatę.{{ end }}</p>
+              {{ else if eq .Data.mail_kind "order_cancelled" }}<p style="margin: 0 0 24px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">{{ if eq .Data.locale "en" }}Your order has been cancelled. The details are below.{{ else }}Twoje zamówienie zostało anulowane. Szczegóły znajdziesz poniżej.{{ end }}</p>
+              {{ else if eq .Data.mail_kind "participants_needed" }}<p style="margin: 0 0 24px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">{{ if eq .Data.locale "en" }}Thank you for your purchase. Add the participants using the link below.{{ else }}Dziękujemy za zakup. Uzupełnij dane uczestników, korzystając z linku poniżej.{{ end }}</p>
+              {{ else if .Data.payment_received }}<p style="margin: 0 0 24px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">{{ if eq .Data.locale "en" }}We have received your bank transfer. Your order is paid.{{ else }}Otrzymaliśmy Twój przelew. Zamówienie jest opłacone.{{ end }}</p>
               {{ else if .Data.license_key }}<p style="margin: 0 0 24px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">{{ if eq .Data.locale "en" }}Thank you! Keep the license key below in a safe place.{{ else }}Dziękujemy! Zachowaj poniższy klucz licencyjny w bezpiecznym miejscu.{{ end }}</p>
               {{ else }}<p style="margin: 0 0 24px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">
                 {{ if eq .Data.locale "en" }}We received a request to sign in to the account associated with{{ else }}Otrzymaliśmy prośbę o zalogowanie na konto powiązane z adresem{{ end }} <strong style="color: #ffffff;">{{ .Email }}</strong>.
               </p>
               {{ end }}
-              {{ if not (or .Data.payment_received .Data.license_key) }}<p style="margin: 0 0 32px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">
+              {{ if not (or .Data.payment_received .Data.license_key .Data.mail_kind) }}<p style="margin: 0 0 32px 0; color: #94a3b8; font-size: 16px; line-height: 1.6;">
                 {{ if eq .Data.locale "en" }}Click the button below to sign in. The link is valid for 1 hour.{{ else }}Kliknij poniższy przycisk, aby się zalogować. Link jest ważny przez 1 godzinę.{{ end }}
               </p>{{ end }}
 
-              {{ if eq .Data.mail_kind "payment_reminder" }}<p style="margin: 0 0 16px 0; color: #fbbf24; font-size: 18px; font-weight: 600;">{{ if eq .Data.locale "en" }}Payment reminder{{ else }}Przypomnienie o płatności{{ end }}</p>{{ else if eq .Data.mail_kind "order_cancelled" }}<p style="margin: 0 0 16px 0; color: #f87171; font-size: 18px; font-weight: 600;">{{ if eq .Data.locale "en" }}Order cancelled{{ else }}Zamówienie anulowane{{ end }}</p>{{ else if eq .Data.mail_kind "participants_needed" }}<p style="margin: 0 0 16px 0; color: #ffffff; font-size: 18px; font-weight: 600;">{{ if eq .Data.locale "en" }}One more step: add the participants{{ else }}Jeszcze jeden krok: uzupełnij uczestników{{ end }}</p>{{ else if eq .Data.mail_kind "transfer_placed" }}<p style="margin: 0 0 16px 0; color: #ffffff; font-size: 18px; font-weight: 600;">{{ if eq .Data.locale "en" }}Order received, awaiting transfer{{ else }}Zamówienie przyjęte, czekamy na przelew{{ end }}</p>{{ end }}
               {{ if .Data.release_text }}<p style="color: #ffffff; font-weight: 600;">{{ .Data.release_text }}</p>{{ end }}
               {{ if .Data.pay_url }}<p><a style="color: #2090D0;" href="{{ .Data.pay_url }}">{{ if eq .Data.locale "en" }}View the order and payment details{{ else }}Zobacz zamówienie i dane do płatności{{ end }}</a></p>{{ end }}
               {{ if .Data.participants_url }}<p><a style="color: #2090D0;" href="{{ .Data.participants_url }}">{{ if eq .Data.locale "en" }}Add the participants of your order{{ else }}Uzupełnij uczestników zamówienia{{ end }}</a></p>{{ end }}
@@ -67,6 +70,7 @@
               {{ end }}
               {{ if .Data.event_date }}<p style="color: #ffffff;">{{ .Data.event_date }}</p>{{ end }}
               {{ if .Data.event_online_url }}<p><a style="color: #2090D0;" href="{{ .Data.event_online_url }}">{{ if eq .Data.locale "en" }}Join online{{ else }}Dołącz online{{ end }}</a></p>{{ end }}
+              {{ if not (eq .Data.mail_kind "order_cancelled") }}
               <!-- Button -->
               <table role="presentation" style="width: 100%; border-collapse: collapse;">
                 <tr>
@@ -78,12 +82,15 @@
                   </td>
                 </tr>
               </table>
+              {{ end }}
 
               <!-- Security note -->
               <div style="margin-top: 32px; padding: 16px; background-color: rgba(0,120,187,0.08); border-radius: 8px; border-left: 4px solid #0078BB;">
                 <p style="margin: 0; color: #94a3b8; font-size: 14px; line-height: 1.5;">
+                  {{ if .Data.mail_kind }}{{ if eq .Data.locale "en" }}Didn’t place this order? You can ignore this email.{{ else }}Nie składałeś tego zamówienia? Możesz zignorować tę wiadomość.{{ end }}{{ else }}
                   <strong style="color: #ffffff;">{{ if eq .Data.locale "en" }}Didn’t request this link?{{ else }}Nie prosiłeś o ten link?{{ end }}</strong><br>
                   {{ if eq .Data.locale "en" }}You can ignore this email. Your account is safe.{{ else }}Możesz zignorować tę wiadomość. Twoje konto jest bezpieczne.{{ end }}
+                  {{ end }}
                 </p>
               </div>
             </td>

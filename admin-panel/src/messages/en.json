@@ -1226,7 +1226,7 @@
     "getYourFreeProduct": "Get your free product",
     "clickForInstantAccess": "Click below to get instant access to this free product.",
     "gettingAccess": "Getting Access...",
-    "getInstantAccess": "Get Instant Instant Access",
+    "getInstantAccess": "Get Instant Access",
     "enterEmailForDownload": "Enter your email below to receive a secure download link.",
     "emailAddressLabel": "Email address",
     "emailPlaceholder": "name@example.com",
@@ -3563,6 +3563,7 @@
       "keyPlaceholder": "payload.signature"
     },
     "issuedLicenses": {
+      "invalidEmail": "Enter a valid email address, e.g. jan@example.com.",
       "refresh": "Refresh license list",
       "unavailable": "License issuance is available to the platform administrator.",
       "title": "Issued product licenses",
@@ -5931,6 +5932,8 @@
       "reason": "Cancellation reason",
       "cancel": "Cancel order",
       "amountMismatch": "The booked amount must equal the full order amount.",
+      "paidAtBeforeOrder": "The receipt date cannot be earlier than the order date.",
+      "paidAtFuture": "The receipt date cannot be in the future.",
       "operationError": "Operation failed. Check the amount, receipt date and current order status.",
       "overdueCount": "Overdue bank transfers: {count}"
   },

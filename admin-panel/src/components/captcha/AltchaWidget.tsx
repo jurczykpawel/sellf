@@ -37,6 +37,8 @@ export default function AltchaWidget({
   const widgetRef = useRef<HTMLElement>(null)
   const t = useTranslations('security')
   const importedRef = useRef(false)
+  const onErrorRef = useRef(onError)
+  useEffect(() => { onErrorRef.current = onError }, [onError])
 
   // Dynamically import altcha (registers the web component)
   useEffect(() => {
@@ -73,16 +75,17 @@ export default function AltchaWidget({
     }
   }, [handleStateChange])
 
-  // Handle external reset trigger
+  // Handle external reset trigger. The widget is invisible and auto-verifies only on
+  // load, so a reset must start a new verification itself; otherwise the form waits
+  // on "Verifying…" forever (W146 B2).
   useEffect(() => {
     if (resetTrigger > 0) {
-      const el = widgetRef.current as any
-      if (el?.reset) {
-        try {
-          el.reset()
-        } catch {
-          // Ignore reset errors
-        }
+      const el = widgetRef.current as (HTMLElement & { reset?: () => void; verify?: () => Promise<unknown> }) | null
+      try {
+        el?.reset?.()
+        el?.verify?.()?.catch(() => onErrorRef.current?.())
+      } catch {
+        onErrorRef.current?.()
       }
     }
   }, [resetTrigger])

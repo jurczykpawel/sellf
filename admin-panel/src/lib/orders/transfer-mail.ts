@@ -4,7 +4,7 @@ import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redire
 import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
 import { formatPrice } from '@/lib/constants';
 import { fromMinorUnits } from '@/lib/currency/minor-units';
-import { formatTransferAccount } from '@/lib/orders/transfer-format';
+import { formatTransferAccount, formatTransferDeadline, transferDeadline } from '@/lib/orders/transfer-format';
 import { buildOrderPayLink } from '@/lib/orders/transfer-token';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
@@ -30,8 +30,7 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
     const transfer = (tx.transfer_details ?? {}) as Record<string, string>, locale = meta?.locale === 'pl' ? 'pl' : 'en';
     const pl = locale === 'pl', base = getSellfBaseUrl();
     const amount = formatPrice(fromMinorUnits(tx.amount, tx.currency), tx.currency, locale);
-    const date = (iso: string | null) => iso ? new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Warsaw' }).format(new Date(iso)) : '';
-    const due = date(tx.release_at ?? tx.payment_due_at);
+    const due = formatTransferDeadline(transferDeadline(tx), locale);
     const transferDetails = notice === 'cancelled' || notice === 'paid' ? undefined : Object.fromEntries(Object.entries({
       holder: transfer.holder, account: formatTransferAccount(transfer.account), bank: transfer.bank, title: transfer.title, amount, due,
     }).filter(([, value]) => value));

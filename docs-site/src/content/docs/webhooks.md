@@ -287,8 +287,9 @@ business-event cycle); revoked licenses do not expire again. Payloads match
 > **Getting the token.** `license.issued` deliberately carries no token, so a webhook log or
 > a misconfigured receiver can never leak a working key. To deliver the key yourself, call
 > `GET /api/v1/licenses/{license.id}` with an API key that has `licenses:read`; the response
-> includes `token`, `jwksUrl` and `crlUrl`. Manual and API issuance already mail the key to
-> the buyer (in the buyer's language when known), so most integrations do not need it.
+> includes `token`, `jwksUrl` and `crlUrl`. Manual and API issuance, free claims and paid orders
+> already mail the key to the buyer (in the buyer's language when known), so most integrations do
+> not need it.
  Manual and
 API issuance mail the key and a product link to the buyer unless `sendEmail` is `false`.
 

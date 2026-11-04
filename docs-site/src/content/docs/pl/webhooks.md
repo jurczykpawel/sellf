@@ -167,8 +167,9 @@ i nigdy nie zawierają podpisanego tokenu.
 > **Jak dostać token.** `license.issued` celowo nie zawiera tokenu, żeby log webhooków ani źle
 > skonfigurowany odbiorca nie ujawnił działającego klucza. Jeśli sam dostarczasz klucz, wywołaj
 > `GET /api/v1/licenses/{license.id}` kluczem API z uprawnieniem `licenses:read`; odpowiedź
-> zawiera `token`, `jwksUrl` i `crlUrl`. Ręczne i API wydanie i tak wysyła kupującemu mail z kluczem
-> (w jego języku, gdy jest znany), więc większość integracji tego nie potrzebuje.
+> zawiera `token`, `jwksUrl` i `crlUrl`. Ręczne i API wydanie, darmowy produkt i opłacone zamówienie
+> i tak wysyłają kupującemu mail z kluczem (w jego języku, gdy jest znany), więc większość integracji
+> tego nie potrzebuje.
  Ręczne i API wydanie wysyła kupującemu
 mail z kluczem i linkiem do produktu, chyba że `sendEmail` ma wartość `false`.
 
