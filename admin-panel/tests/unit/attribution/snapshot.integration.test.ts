@@ -5,6 +5,7 @@
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { getTestDatabaseContainer } from '../../helpers/database-container';
+import { collectAttribution } from '@/lib/attribution/collect';
 
 const product = 'a1310000-0000-4000-a000-000000000001';
 const buyer = 'a1310000-0000-4000-a000-000000000002';
@@ -135,6 +136,21 @@ describe('purchase attribution snapshot', () => {
 });
 
 describe('attribution report', () => {
+  it('reports every dimension from one touch: last = the email visit, first = the paid search visit (W147-6)', () => {
+    const t0 = Date.now() - 3 * 86400_000;
+    const ad = collectAttribution({ href: 'https://shop.example/?utm_source=google&utm_medium=cpc&utm_campaign=w153first&gclid=CjwKCAiA',
+      referrer: '', now: t0, consent: 'marketing', stored: null });
+    const mail = collectAttribution({ href: 'https://shop.example/offer?utm_source=w153last&utm_medium=email&utm_campaign=emb-last',
+      referrer: '', now: t0 + 86400_000, consent: 'marketing', stored: ad.store });
+    const out = sql(`DELETE FROM public.purchase_attribution;
+      ${pending('cs_test_touch', JSON.stringify(mail.payload))} ${paid('a1310000-0000-4000-a000-0000000000f9', 'cs_test_touch', 4000)}
+      SELECT public.get_attribution_report(now()-interval '3 days', now()+interval '1 minute', 'last', ARRAY['channel','source','medium','campaign'])::text;
+      SELECT public.get_attribution_report(now()-interval '3 days', now()+interval '1 minute', 'first', ARRAY['channel','source','medium','campaign'])::text;`);
+    const [last, first] = out.trim().split('\n').filter(l => l.startsWith('[')).map(l => JSON.parse(l));
+    expect(last).toEqual([expect.objectContaining({ channel: 'email', source: 'w153last', medium: 'email', campaign: 'emb-last', orders: 1 })]);
+    expect(first).toEqual([expect.objectContaining({ channel: 'paid_search', source: 'google', medium: 'cpc', campaign: 'w153first', orders: 1 })]);
+  });
+
   it('answers "where did the last 3 days of purchases come from" with net revenue and no personal data @J173', () => {
     const out = sql(`DELETE FROM public.purchase_attribution;
       ${pending('cs_test_r1', email('mail-05'))} ${paid('a1310000-0000-4000-a000-0000000000e1', 'cs_test_r1', 10000)}

@@ -60,6 +60,12 @@ describe('sendMagicLinkRequest', () => {
     expect(result).toEqual({ ok: false, code: 'rate_limited' });
   });
 
+  it('keeps the queued flag when the server parked a refused purchase mail for retry (W147-9)', async () => {
+    vi.mocked(global.fetch).mockResolvedValue(new Response(JSON.stringify({ ok: false, code: 'rate_limited', queued: true }), { status: 429 }));
+    expect(await sendMagicLinkRequest({ email: 'a@b.com', captchaToken: 'tok', flow: 'post_checkout', productSlug: 'p' }))
+      .toEqual({ ok: false, code: 'rate_limited', queued: true });
+  });
+
   it('preserves the demo response code', async () => {
     vi.mocked(global.fetch).mockResolvedValue(new Response(JSON.stringify({ ok: false, code: 'demo_mode' }), { status: 403 }));
     expect(await sendMagicLinkRequest({ email: 'a@b.com', captchaToken: 'tok', flow: 'login' }))

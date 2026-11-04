@@ -33,6 +33,8 @@ Sekrety wpisuj bezpośrednio w dashboardzie, nigdy na czacie z AI. Nazwy pól sp
 
 Po włączeniu własnego SMTP początkowy limit wynosi **30 wiadomości na godzinę**. Sprawdź **Authentication → Rate Limits** i dopasuj go do ruchu sklepu oraz limitów dostawcy. Formularz SMTP ma też pole **Minimum interval per user**; domyślny odstęp między linkami Supabase dla tej samej osoby to 60 sekund. Sellf stosuje dodatkowe limity żądań, więc nie wysyłaj wielu próśb testowych pod rząd. Zobacz [limity Auth](https://supabase.com/docs/guides/auth/rate-limits).
 
+Gdy limit zablokuje link logowania po płatności albo mail z kluczem licencji darmowego produktu, Sellf zachowuje wiadomość i sam ponawia wysyłkę (po około 2, 5, 15, 30, 60 i 120 minutach) w procesie aplikacji; `/api/cron?job=auth-mail-retry` z Twoim `CRON_SECRET` uruchamia to samo z zewnętrznego harmonogramu. Strona płatności informuje kupującego, że link jest w drodze.
+
 ### Supabase / GoTrue na własnym serwerze
 
 Ustaw te zmienne w **usłudze Supabase Auth**, nie w kontenerze Sellfa:

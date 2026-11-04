@@ -50,6 +50,18 @@ describe('collectAttribution', () => {
     expect(collectAttribution({ href, referrer: '', now: T0, consent: 'marketing', stored: null }).payload.click).toEqual({ type: 'gclid', value: 'CjwKCAiA' });
   });
 
+  it('ties the ad click id to the touch it came with: a later campaign visit without a click drops it (W147-6)', () => {
+    const ad = collectAttribution({ href: 'https://shop.example/?gclid=CjwKCAiA', referrer: 'https://www.google.com/', now: T0, consent: 'marketing', stored: null });
+    expect(ad.payload.click).toEqual({ type: 'gclid', value: 'CjwKCAiA' });
+    const sameAdDirect = collectAttribution({ href: 'https://shop.example/offer', referrer: '', now: T0 + HOUR, consent: 'marketing', stored: ad.store });
+    expect(sameAdDirect.payload.click).toEqual({ type: 'gclid', value: 'CjwKCAiA' });
+    const mail = collectAttribution({
+      href: 'https://shop.example/offer?utm_source=listmonk&utm_medium=email&utm_campaign=mail-05', referrer: '', now: T0 + 48 * HOUR, consent: 'marketing', stored: sameAdDirect.store,
+    });
+    expect(mail.payload.last).toMatchObject({ source: 'listmonk', medium: 'email' });
+    expect(mail.payload.click).toBeNull();
+  });
+
   it('tolerates corrupted storage', () => {
     const r = collectAttribution({ href: 'https://shop.example/', referrer: '', now: T0, consent: 'analytics', stored: '{not json' });
     expect(r.payload.sessions_count).toBe(1);

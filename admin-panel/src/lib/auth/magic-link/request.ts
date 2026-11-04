@@ -16,6 +16,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { prepareFreeGrantRequest } from '@/lib/services/free-grant-context';
 
 import { deliverMagicLink } from './deliver';
+import { queueAuthMailRetry } from './retry';
+import type { AuthMailRetryKind } from './retry';
 import type { MagicLinkFlow, MagicLinkResult } from './types';
 
 export interface MagicLinkRequestInput {
@@ -35,6 +37,8 @@ export interface SendTrustedMagicLinkInput {
   email: string;
   redirectTo: string;
   data?: Record<string, string | Record<string, string>>;
+  /** Purchase mails the buyer must get even if the auth mailer refuses now: parked and retried by cron. */
+  retry?: AuthMailRetryKind;
 }
 
 /**
@@ -69,7 +73,9 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
     1440,
     `email:${normalizedEmail}`,
   );
-  if (!emailAllowed) return { ok: false, code: 'rate_limited' };
+  if (!emailAllowed) return input.retry
+    ? queueAuthMailRetry({ email: normalizedEmail, redirectTo: input.redirectTo, data: input.data, kind: input.retry, code: 'rate_limited' })
+    : { ok: false, code: 'rate_limited' };
 
   let redirectTo = input.redirectTo;
   let data = input.data;
@@ -79,12 +85,14 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
     redirectTo = buildFreeProductMagicLinkRedirect({ origin: getSellfBaseUrl(), ...input.freeGrant, grantRequestId: prepared.requestId });
     data = { ...data, purchase_product: prepared.productName };
   }
-  return deliverMagicLink({
+  const result = await deliverMagicLink({
     email: normalizedEmail,
     redirectTo,
     shouldCreateUser: true,
     data,
   });
+  if (result.ok || !input.retry || (result.code !== 'rate_limited' && result.code !== 'send_failed')) return result;
+  return queueAuthMailRetry({ email: normalizedEmail, redirectTo, data, kind: input.retry, code: result.code });
 }
 
 export async function requestMagicLink(input: MagicLinkRequestInput): Promise<MagicLinkResult> {
@@ -127,8 +135,9 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
 
   }
 
-  // flow === 'post_checkout'
+  // flow === 'post_checkout' — the only mail a paying guest gets, so a refusal is retried by cron.
   return sendTrustedMagicLink({
+    retry: 'post_checkout',
     data: { ...await eventMailForSlug(input.email, input.productSlug, input.locale), locale: input.locale === 'pl' ? 'pl' : 'en' },
     email: input.email,
     redirectTo: buildPostCheckoutMagicLinkRedirect({

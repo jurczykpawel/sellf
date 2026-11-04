@@ -145,7 +145,8 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
         }
 
         const data = await response.json();
-        toast.success(data.message || t('accessGrantedSuccessfully'));
+        // The API message is English-only; the buyer sees the localized text (W147-7).
+        toast.success(data.alreadyHadAccess ? tCheckout('alreadyHasAccess') : t('accessGrantedSuccessfully'));
 
         // Track generate_lead event for free product
         // Analytics must never delay or block access to the purchased content.

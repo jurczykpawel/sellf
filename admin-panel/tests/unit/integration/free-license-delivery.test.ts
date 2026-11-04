@@ -139,6 +139,24 @@ it.each((['magic-link', 'signed-in', 'pending'] as const).flatMap(flow => [false
   expect(repeated.data).toEqual([{ id: row.id }]); expect(messages.filter(entry => entry.data.customer.email === email).length).toBe(1);
 });
 
+it('mails the key to a buyer who signed in by magic link moments before claiming the free licensed product (W147-8) @J291', async () => {
+  const email = `free-license-fresh-${crypto.randomUUID()}@example.com`, slug = `registered-fresh-${crypto.randomUUID()}`;
+  const product = await db.from('products').insert({ name: 'Fresh login license', slug, price: 0, currency: 'PLN', is_active: true, seller_id: sellerId, issue_license_on_purchase: true, license_tier: 'registered' }).select('id').single();
+  expect(product.error).toBeNull(); products.push(product.data!.id);
+  state.client = createClient(process.env.SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false } });
+  const login = await magicRequest(new Request(`${process.env.SITE_URL}/api/auth/magic-link`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, flow: 'login', locale: 'pl', captchaToken: 'owned-fixture' }) }));
+  expect(login.status).toBe(200);
+  const link = new URL(extractMagicLink((await waitForEmail(email)).HTML!)!);
+  const verified = await state.client.auth.verifyOtp({ token_hash: link.searchParams.get('token_hash')!, type: 'signup' });
+  expect(verified.error).toBeNull(); users.push(verified.data.user!.id);
+  const before = (await searchMessages(email)).length;
+  const granted = await grantAccess(new NextRequest(`${process.env.SITE_URL}/api/public/products/${slug}/grant-access`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) }), { params: Promise.resolve({ slug }) });
+  expect(granted.status).toBe(200);
+  const row = (await db.from('issued_licenses').select('license_key').eq('product_id', product.data!.id).single()).data!;
+  await expect.poll(async () => (await searchMessages(email)).length, { timeout: 15000 }).toBeGreaterThan(before);
+  await expect.poll(async () => (await waitForEmail(email)).HTML ?? '', { timeout: 15000 }).toContain(row.license_key);
+});
+
 it.each([false, true])('manual issuance follows the product domain policy: required=%s @J20 @J21', async required => {
   const p = await db.from('products').insert({ name: 'Manual domain policy', slug: `manual-${crypto.randomUUID()}`, price: 0, currency: 'PLN', seller_id: sellerId, issue_license_on_purchase: true, license_tier: 'registered', custom_checkout_fields: required ? [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] : [] }).select('id').single();
   expect(p.error).toBeNull(); products.push(p.data!.id);

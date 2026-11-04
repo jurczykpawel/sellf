@@ -143,13 +143,15 @@ export function collectAttribution(input: CollectInput): CollectResult {
   if (handoff) {
     base = { first: stored?.first || handoff.state.first, last: handoff.state.last || stored?.last,
       sessions: Math.max(stored?.sessions || 0, handoff.state.sessions || 0),
-      first_seen: stored?.first_seen || handoff.state.first_seen, click: handoff.state.click || stored?.click };
+      first_seen: stored?.first_seen || handoff.state.first_seen, click: handoff.state.last ? handoff.state.click : stored?.click };
     newSession = !(base.sessions && base.sessions > 0);
   }
   const sessions = Math.min(10000, (base.sessions && base.sessions > 0 ? base.sessions : 0) + (newSession ? 1 : 0));
   const last = currentIsCampaign ? current : (base.last || current);
   const first = base.first || current;
-  const nextClick = consent === 'marketing' ? (click || base.click || null) : null;
+  // The click id belongs to the touch it arrived with; a newer campaign touch without one drops it,
+  // so the last-touch channel is never classified from an older ad click (W147-6).
+  const nextClick = consent === 'marketing' ? (currentIsCampaign ? click : (base.click || null)) : null;
   const firstSeen = base.first_seen || at;
   const next: Stored = { first, last, sessions, first_seen: firstSeen, seen_at: input.now, click: nextClick };
   return {

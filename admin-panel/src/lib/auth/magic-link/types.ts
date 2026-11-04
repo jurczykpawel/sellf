@@ -15,4 +15,5 @@ export type MagicLinkErrorCode =
   | 'send_failed';
 
 /** `fieldErrors` maps a rejected custom checkout field to its error code (@see lib/validations/custom-checkout-fields.ts). */
-export type MagicLinkResult = { ok: true } | { ok: false; code: MagicLinkErrorCode; fieldErrors?: Record<string, string> };
+/** `queued`: the auth mailer refused a purchase mail and cron will retry it (@see magic-link/retry.ts). */
+export type MagicLinkResult = { ok: true } | { ok: false; code: MagicLinkErrorCode; fieldErrors?: Record<string, string>; queued?: true };
