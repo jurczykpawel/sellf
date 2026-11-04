@@ -217,7 +217,8 @@ When a subscription **actually ends** (`customer.subscription.deleted`: immediat
 or the end of a period the buyer cancelled), Sellf revokes the licenses issued for its invoices:
 you receive `license.revoked` with `revocationReason: "subscription_cancelled"` next to
 `access.revoked` with the same reason. A cancellation at period end keeps the license valid until
-that moment.
+that moment. A subscription that ends **unpaid** (`unpaid` or `incomplete_expired`) loses its
+licenses the same way, with `revocationReason: "expired"` (matching `access.revoked`).
 
 ### `refund.issued` — refund + credit-note VAT
 
@@ -342,7 +343,7 @@ name the Sellf order behind it (null for manual/API issuance without an order). 
 events carry these fields.
 `revocationReason` (top level and `license.revocationReason`) says why the license stopped
 working: `refund` (full refund), `dispute`, `manual` (panel or `DELETE /api/v1/licenses/{id}`)
-or `subscription_cancelled`; it is null while the license is active. Expiry is a separate event
+`subscription_cancelled` or `expired` (subscription ended unpaid); it is null while the license is active. Expiry is a separate event
 (`license.expired`).
 Restoration adds `license.restoredAt`; an associated dispute appears as
 `dispute.stripeDisputeId`. The signed token is never included. The original token

@@ -3,8 +3,9 @@
  */
 import type { createAdminClient } from '@/lib/supabase/admin';
 
-/** Why a license stopped working; `dispute` is recorded by the dispute itself, `expired` is license.expired. */
-export type LicenseRevocationReason = 'refund' | 'manual' | 'subscription_cancelled';
+/** Why a license stopped working; `dispute` is recorded by the dispute itself.
+ * `expired` = its subscription ended unpaid (natural license expiry is license.expired). */
+export type LicenseRevocationReason = 'refund' | 'manual' | 'subscription_cancelled' | 'expired';
 
 // license.updated: emit here for any future non-revocation change (tests/unit/license/license-updated-guard.test.ts).
 export async function revokeLicensesForOrder(

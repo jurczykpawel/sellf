@@ -144,7 +144,9 @@ nieaktywna nie dostaje zapowiedzi. Gdy do odnowienia zostały najwyżej 3 dni, z
 Gdy subskrypcja **faktycznie się kończy** (`customer.subscription.deleted`: natychmiastowe anulowanie
 albo koniec okresu, z którym kupujący ją anulował), Sellf odwołuje licencje wydane dla jej faktur:
 przychodzi `license.revoked` z `revocationReason: "subscription_cancelled"` i `access.revoked` z tym
-samym powodem. Anulowanie z końcem okresu zostawia licencję ważną do tej chwili.
+samym powodem. Anulowanie z końcem okresu zostawia licencję ważną do tej chwili. Subskrypcja zakończona
+**bez zapłaty** (`unpaid` albo `incomplete_expired`) traci licencje tak samo, z
+`revocationReason: "expired"` (jak w `access.revoked`).
 
 ## Spory płatnicze
 
@@ -215,8 +217,8 @@ podpisany w tokenie (płatność `pi_…`, sesja checkoutu, faktura odnowienia `
 offline albo `api_…`); `license.orderId` i `license.orderNumber` wskazują zamówienie Sellf (null przy
 ręcznym lub API wydaniu bez zamówienia). Pola te mają wszystkie zdarzenia `license.*`.
 `revocationReason` (na górze danych i w `license.revocationReason`) mówi, dlaczego licencja przestała
-działać: `refund` (pełny zwrot), `dispute`, `manual` (panel albo `DELETE /api/v1/licenses/{id}`) lub
-`subscription_cancelled`; dla aktywnej licencji ma wartość null. Wygaśnięcie to osobne `license.expired`. Przywrócenie dodaje
+działać: `refund` (pełny zwrot), `dispute`, `manual` (panel albo `DELETE /api/v1/licenses/{id}`) ,
+`subscription_cancelled` lub `expired` (subskrypcja zakończona bez zapłaty); dla aktywnej licencji ma wartość null. Wygaśnięcie to osobne `license.expired`. Przywrócenie dodaje
 `license.restoredAt`, a powiązany spór — `dispute.stripeDisputeId`. Token nie jest
 wysyłany. Po usunięciu odwołania można używać tego samego tokenu; wygasły pozostaje wygasły.
 

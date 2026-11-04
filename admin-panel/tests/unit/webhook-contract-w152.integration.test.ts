@@ -60,7 +60,7 @@ describe('access.revoked says why access ended (W147-1)', () => {
 });
 
 describe('license.revoked says why (W147-2) and license events identify the Sellf order', () => {
-  it.each([['refund', 'NULL'], ['manual', `'${buyer}'`], ['subscription_cancelled', 'NULL']])('%s @J281', (reason, actor) => {
+  it.each([['refund', 'NULL'], ['manual', `'${buyer}'`], ['subscription_cancelled', 'NULL'], ['expired', 'NULL']])('%s @J281', (reason, actor) => {
     expect(() => run(`${issue()}
       SELECT public.revoke_issued_licenses(ARRAY['${license}'::uuid],${actor},'${reason}');
       ${assert(`${latest('license.revoked')}->'licenseRow'->>'revocation_reason'='${reason}'`, `license.revoked must carry ${reason}`)}`)).not.toThrow();

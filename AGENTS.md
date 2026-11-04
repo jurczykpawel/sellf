@@ -1094,9 +1094,9 @@ function. Issuance failures leave fulfillment unfinished and request another att
 expiry. Revocation happens **automatically** on full refund + chargeback (the Stripe webhook
 calls `revokeLicensesForOrder`, keyed on `paymentIntentId || sessionId`), on **subscription end**
 (`customer.subscription.deleted` revokes the licenses of the subscription's invoices; a cancellation
-at period end keeps them valid until then) and **manually** via `DELETE /api/admin/licenses/:id`.
+at period end keeps them valid until then; a subscription ending `unpaid`/`incomplete_expired` revokes them as `expired`) and **manually** via `DELETE /api/admin/licenses/:id`.
 All flip `revoked_at` and record `issued_licenses.revocation_reason` (`refund` / `manual` /
-`subscription_cancelled`; dispute ownership reports `dispute`), sent as `revocationReason` on
+`subscription_cancelled` / `expired`; dispute ownership reports `dispute`), sent as `revocationReason` on
 `license.revoked`; `license.*` also carry the Sellf `orderId`/`orderNumber`. Two surfaces then turn the token off:
 
 - **CRL (k-anonymity range query)** — `GET /api/licenses/revoked?seller=<id>&prefix=<hex>`.

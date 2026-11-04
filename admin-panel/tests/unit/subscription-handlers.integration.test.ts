@@ -696,6 +696,30 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     if (typeof userId === 'string') createdAuthUserIds.push(userId);
   });
 
+  it.each(['unpaid', 'incomplete_expired'] as const)('a subscription ending %s revokes its licenses as expired @J285', async status => {
+    const email = `unpaid-license-${crypto.randomUUID()}@sellf-test.local`;
+    const product = await createSubscriptionProduct();
+    const customer = await createConfirmedCustomer(email);
+    createdStripeCustomerIds.push(customer.id);
+    const sub = makeFakeSubscription(customer.id, product.id, { status: 'active' });
+    let current = sub;
+    const stripeShim = { ...stripe!, subscriptions: { ...stripe!.subscriptions, retrieve: async () => current }, customers: stripe!.customers,
+      checkout: { sessions: { list: async () => ({ data: [] }) } } } as unknown as Stripe;
+    vi.spyOn(WebhookService, 'trigger').mockImplementation(async () => {});
+    await handleSubscriptionCreated(sub, supabaseSeller as never, platformClient as never, stripeShim);
+    const invoice = makeFakeInvoice(sub.id, customer.id, email);
+    await handleInvoicePaid(invoice, supabaseSeller as never, platformClient as never, stripeShim);
+    const { data: seller } = await supabaseSeller!.from('admin_users').select('user_id').limit(1).single();
+    const license = await supabaseSeller!.from('issued_licenses').insert({ seller_id: seller!.user_id, original_seller_id: seller!.user_id,
+      product_id: product.id, email, order_id: invoice.id!, kid: 'kid-w152', license_key: 'e30.sig' }).select('id').single();
+    expect(license.error).toBeNull();
+    current = { ...sub, status };
+    expect((await handleSubscriptionUpdated(current, supabaseSeller as never, platformClient as never, stripeShim)).processed).toBe(true);
+    const { data: after } = await supabaseSeller!.from('issued_licenses').select('revoked_at, revocation_reason').eq('id', license.data!.id).single();
+    expect(after).toMatchObject({ revoked_at: expect.any(String), revocation_reason: 'expired' });
+    await supabaseSeller!.from('issued_licenses').delete().eq('id', license.data!.id);
+  });
+
   it('repeated subscription events do not touch the access row again (W147-3)', async () => {
     const email = `access-once-${crypto.randomUUID()}@sellf-test.local`;
     const product = await createSubscriptionProduct();

@@ -12,7 +12,7 @@
 
 -- ===== COLUMNS =====
 ALTER TABLE public.issued_licenses ADD COLUMN revocation_reason text
-  CHECK (revocation_reason IN ('refund','dispute','manual','subscription_cancelled'));
+  CHECK (revocation_reason IN ('refund','dispute','manual','subscription_cancelled','expired'));
 ALTER TABLE public.subscriptions ADD COLUMN renewal_notice_at timestamptz,
   ADD COLUMN renewal_notice_payload jsonb;
 CREATE INDEX subscriptions_renewal_notice_due_idx ON public.subscriptions(renewal_notice_at)
@@ -74,7 +74,7 @@ BEGIN
   IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN RAISE EXCEPTION 'Service role required' USING ERRCODE='42501'; END IF;
   IF cardinality(p_license_ids)>100 THEN RAISE EXCEPTION 'Too many license identifiers'; END IF;
   why:=coalesce(p_reason,CASE WHEN p_actor IS NOT NULL THEN 'manual' ELSE NULL END);
-  IF why IS NOT NULL AND why NOT IN ('refund','manual','subscription_cancelled') THEN
+  IF why IS NOT NULL AND why NOT IN ('refund','manual','subscription_cancelled','expired') THEN
     RAISE EXCEPTION 'Invalid revocation reason' USING ERRCODE='22023';
   END IF;
   FOR item IN SELECT l.id,l.product_id,l.email,l.order_id,l.revoked_at,l.revoked_by_dispute_id,l.revocation_reason

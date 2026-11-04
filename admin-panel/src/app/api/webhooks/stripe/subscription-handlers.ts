@@ -17,6 +17,7 @@ import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { revokeLicensesForOrder } from '@/lib/license-keys/revoke';
+import type { LicenseRevocationReason } from '@/lib/license-keys/revoke';
 import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
 import { captureAndPersistInvoiceTax } from '@/lib/services/tax-snapshot';
 import { minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
@@ -741,6 +742,10 @@ export async function handleSubscriptionUpdated(
       console.error('[handleSubscriptionUpdated] access revoke failed:', r.reason);
       return { processed: false, message: `Access revoke failed: ${r.reason}` };
     }
+    // Ended unpaid: end of access is end of license, reported like access.revoked (`expired`).
+    if (current.status !== 'canceled' && !await revokeSubscriptionLicenses(supabase, subscriptionRowId, ctx.productId, 'expired')) {
+      return { processed: false, message: 'Subscription license revocation failed' };
+    }
   }
 
   const payload = buildSubscriptionUpdatedPayload({
@@ -798,19 +803,8 @@ export async function handleSubscriptionDeleted(
 
   // The subscription has really ended (immediately, or at the end of a period the buyer
   // cancelled): its offline licenses stop working now (W147-5, owner decision 2026-11-04).
-  if (subscriptionRowId) {
-    const { data: invoices, error: invoiceError } = await supabase.from('payment_transactions')
-      .select('stripe_invoice_id').eq('subscription_id', subscriptionRowId).not('stripe_invoice_id', 'is', null);
-    if (invoiceError) return { processed: false, message: 'Subscription invoices unavailable' };
-    try {
-      await revokeLicensesForOrder(supabase, {
-        productId: ctx.productId,
-        orderIds: (invoices ?? []).map(row => row.stripe_invoice_id),
-        reason: 'subscription_cancelled',
-      });
-    } catch {
-      return { processed: false, message: 'Subscription license revocation failed' };
-    }
+  if (subscriptionRowId && !await revokeSubscriptionLicenses(supabase, subscriptionRowId, ctx.productId, 'subscription_cancelled')) {
+    return { processed: false, message: 'Subscription license revocation failed' };
   }
 
   const payload = buildSubscriptionCanceledPayload({
@@ -861,6 +855,24 @@ export async function handleSubscriptionTrialWillEnd(
 // ---------------------------------------------------------------------------
 // invoice.upcoming
 // ---------------------------------------------------------------------------
+
+/** Revokes the licenses issued for a subscription's invoices; false when it must be retried. */
+async function revokeSubscriptionLicenses(
+  supabase: AdminClient,
+  subscriptionRowId: string,
+  productId: string,
+  reason: LicenseRevocationReason,
+): Promise<boolean> {
+  const { data: invoices, error } = await supabase.from('payment_transactions')
+    .select('stripe_invoice_id').eq('subscription_id', subscriptionRowId).not('stripe_invoice_id', 'is', null);
+  if (error) return false;
+  try {
+    await revokeLicensesForOrder(supabase, { productId, orderIds: (invoices ?? []).map(row => row.stripe_invoice_id), reason });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Days before a renewal when subscription.renewal_upcoming reaches integrators. */
 export const RENEWAL_NOTICE_DAYS = 3;
