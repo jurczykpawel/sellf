@@ -156,3 +156,12 @@ it.each(PREMIUM_POLICY_FIXTURES)('$templateId keeps rights independent through i
   invalidateTemplateLicense(selected.templateId); vi.mocked(fetch).mockRejectedValue(new Error('offline'));
   await refreshTemplateLicenseSnapshot(); expect(getLocalTemplateIds()).toEqual([]);
 });
+it('reports a refused status write instead of failing silently (W148-5)', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  m.rpc.mockResolvedValue({ data: false, error: null });
+  await refreshTemplateLicenseSnapshot();
+  expect(getTemplateLicenseStatus(policy.templateId).state).toBe('unknown');
+  expect(warn).toHaveBeenCalledWith(expect.stringContaining('[templates]'), policy.templateId);
+  expect(JSON.stringify(warn.mock.calls)).not.toMatch(/private|encrypted|BEGIN/);
+  warn.mockRestore();
+});

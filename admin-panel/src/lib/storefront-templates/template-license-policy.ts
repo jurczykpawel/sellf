@@ -49,3 +49,21 @@ export function matchesTemplateLicensePolicy(
     (runtimeHost === policy.productionHost || policy.equivalentHosts.includes(runtimeHost)) &&
     c.iat <= nowSeconds && (c.exp == null || nowSeconds < c.exp);
 }
+
+function decodeBase64Url(part: string): string {
+  const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '='));
+  return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(binary, c => c.charCodeAt(0)));
+}
+
+/** Shape check of a pasted purchase key, shared by the panel and the save endpoint so a typo
+ * never replaces a stored key (W148-6). The signature is still verified only in the background. */
+export function templateKeyFormatError(token: string, templateId: string): 'format' | 'template' | null {
+  const parts = token.trim().split('.');
+  if (parts.length !== 2 || !parts.every(part => /^[A-Za-z0-9_-]+$/.test(part))) return 'format';
+  try {
+    const claims = templateClaims.safeParse(JSON.parse(decodeBase64Url(parts[0])));
+    if (!claims.success) return 'format';
+    return claims.data.templateId === templateId ? null : 'template';
+  } catch { return 'format'; }
+}

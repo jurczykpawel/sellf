@@ -4706,6 +4706,94 @@
         "unit",
         "database"
       ]
+    },
+    {
+      "id": "J300",
+      "title": "Offer tutorial starts from the help menu before a product is chosen and continues in its editor",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "none",
+        "moment": "after_navigation",
+        "operation": "guide"
+      },
+      "end_state": {
+        "buyer": "Not exercised: the tutorial is guidance for the seller only.",
+        "seller": "Tutorial asks for a product on the choice screen, then walks the chosen product's offer editor.",
+        "integrator": "Not exercised: no event is emitted; the tutorial changes no business state."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "database"
+      ]
+    },
+    {
+      "id": "J301",
+      "title": "An order opened from a link does not start the payments list tutorial over its window",
+      "values": {
+        "persona": "admin",
+        "entry": "email_link",
+        "product": "paid",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "guide"
+      },
+      "end_state": {
+        "buyer": "Not exercised: the tutorial is guidance for the seller only.",
+        "seller": "Order window opened from ?order= stays unobstructed; no list tutorial starts or is recorded as seen.",
+        "integrator": "Not exercised: no event is emitted; the tutorial changes no business state."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "database"
+      ]
+    },
+    {
+      "id": "J302",
+      "title": "Event mode explains why it is unavailable instead of offering a tutorial that cannot continue",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "pwyw",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "guide"
+      },
+      "end_state": {
+        "buyer": "Not exercised: the tutorial is guidance for the seller only.",
+        "seller": "Disabled event mode shows the reason; no event tutorial button is offered.",
+        "integrator": "Not exercised: no event is emitted; the tutorial changes no business state."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "database"
+      ]
+    },
+    {
+      "id": "J303",
+      "title": "Closing a tutorial returns focus to its starting control and steps are announced",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "guide"
+      },
+      "end_state": {
+        "buyer": "Not exercised: the tutorial is guidance for the seller only.",
+        "seller": "Focus returns to the help button after Escape; each step is announced in a polite live region; popover is aria-modal.",
+        "integrator": "Not exercised: no event is emitted; the tutorial changes no business state."
+      },
+      "status": "automated",
+      "layers": [
+        "browser",
+        "database"
+      ]
     }
   ],
   "escapes": [

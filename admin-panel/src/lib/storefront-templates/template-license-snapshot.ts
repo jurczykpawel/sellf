@@ -122,13 +122,20 @@ export function refreshTemplateLicenseSnapshot(): Promise<void> {
             template_id: id, expected_key: row.encrypted_key!, expected_iv: row.encryption_iv!, expected_tag: row.encryption_tag!,
             verification_state: status, checked_at: verifiedAt ?? new Date(readAt).toISOString(),
           });
-          if (saved.error || saved.data !== true) { state.entries.delete(id); return; }
+          if (saved.error || saved.data !== true) {
+            // Without this line a refused write (e.g. clock skew, W148-5) left the panel at "unknown" with no trace.
+            console.warn('[templates] Template key status not recorded:', id);
+            state.entries.delete(id); return;
+          }
         }
         if (generation !== state.generation) return;
         state.entries.set(id, { status: { templateId: id, state: status, verifiedAt }, fingerprint,
           until: readAt + 60000, expiry });
       }));
-    } catch { /* Existing confirmations retain their original absolute deadlines. */ }
+    } catch (error) {
+      // Existing confirmations retain their original absolute deadlines.
+      console.warn('[templates] Template key refresh failed:', error instanceof Error ? error.name : 'Unknown error');
+    }
   })().finally(() => { state.pending = undefined; });
   return state.pending;
 }

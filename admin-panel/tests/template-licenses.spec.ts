@@ -19,7 +19,9 @@ test('independent license scopes, bounded inputs and EN/PL key entry', async ({ 
   };
   const admin = await createTestAdmin('template-keys');
   const endpoint = '/api/v1/templates/licenses';
-  const token = 'synthetic-private-template-key';
+  // A well-formed but unsigned key: accepted for storage, verified only in the background.
+  const claims = (templateId: string) => Buffer.from(JSON.stringify({ v: 1, kid: 'k', product: 'p', email: 'buyer@example.test', order: 'synthetic-order', tier: 'standard', iat: 1, exp: null, templateId, domain: 'shop.example.test', edition: 'standard' })).toString('base64url');
+  const token = `${claims('storefront-a')}.c3ludGhldGlj`;
   const snapshot = await db.from('storefront_config').select('*').single();
   try {
     const read = await key(['templates:read']); const write = await key(['templates:write']);
@@ -32,6 +34,8 @@ test('independent license scopes, bounded inputs and EN/PL key entry', async ({ 
     expect(await response.json()).toEqual({ templateId: 'storefront-a', state: 'unknown', verifiedAt: null });
     expect(response.headers()['cache-control']).toContain('no-store');
     expect((await request.post(endpoint, { headers: { 'x-api-key': write }, data: { templateId: 'storefront-a', token: 'x'.repeat(16384) } })).status()).toBe(422);
+    // W148-6: a typo or another template's key never replaces the stored key.
+    for (const bad of ['synthetic-private-template-key', `${claims('storefront-b')}.c3ludGhldGlj`]) expect((await request.post(endpoint, { headers: { 'x-api-key': write }, data: { templateId: 'storefront-a', token: bad } })).status()).toBe(422);
     const statuses = await request.get(endpoint, { headers: { authorization: `Bearer ${read}` } });
     expect(statuses.status()).toBe(200); expect(await statuses.text()).not.toContain(token);
     expect((await db.from('storefront_config').select('*').single()).data).toEqual(snapshot.data);
@@ -53,9 +57,17 @@ test('independent license scopes, bounded inputs and EN/PL key entry', async ({ 
       }
     }
     const field = page.getByLabel('Klucz zakupu', { exact: true });
-    await field.fill(token);
-    const saved = page.waitForResponse(res => res.url().endsWith(endpoint) && res.request().method() === 'POST');
+    let posts = 0; page.on('request', req => { if (req.url().endsWith(endpoint) && req.method() === 'POST') posts++; });
+    await field.fill('abc');
     await page.getByRole('button', { name: 'Zapisz klucz', exact: true }).click();
+    await expect(page.getByText(/To nie wygląda na klucz zakupu szablonu/)).toBeVisible();
+    await expect(field).toHaveAttribute('aria-invalid', 'true');
+    await field.fill(token);
+    await page.getByRole('button', { name: 'Zapisz klucz', exact: true }).click();
+    await expect(page.getByText(/Dla tego szablonu jest już zapisany klucz/)).toBeVisible();
+    expect(posts).toBe(0);
+    const saved = page.waitForResponse(res => res.url().endsWith(endpoint) && res.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Zastąp klucz', exact: true }).click();
     expect((await saved).status()).toBe(200); await expect(field).toHaveValue('');
     await expect(page.getByRole('status').filter({ hasText: 'Klucz zapisany.' })).toBeVisible();
   } finally {

@@ -1,4 +1,5 @@
 /** Template credential repository contract. @see supabase/tests/template-credentials.sql */
+import { syntheticTemplateKey } from '@/../tests/unit/storefront-templates/fixtures/template-license-policy';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { decryptSecret } from '@/lib/services/secret-encryption';
@@ -15,7 +16,7 @@ vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: m.client, createPlat
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: m.rate }));
 const userId = 'dddddddd-0000-4000-a000-000000000000';
 const request = new NextRequest('http://localhost/private');
-const input = { templateId: 'storefront-a', token: 'credential.email@example.test.order-123' };
+const input = { templateId: 'storefront-a', token: syntheticTemplateKey('storefront-a', 0, 'order-123') };
 beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv('APP_ENCRYPTION_KEY', Buffer.alloc(32, 7).toString('base64'));
@@ -53,12 +54,13 @@ it('requires READ independently of WRITE', async () => {
   expect(await readTemplateLicenseStatuses(await verifyTemplateApiKey(request))).toMatchObject({ code: 'FORBIDDEN' });
   expect(m.client).not.toHaveBeenCalled();
 });
-it.each([{ token: '' }, { token: ' ' }, { token: 'a'.repeat(16385) }, { token: 'ą'.repeat(8193) }, { templateId: 'default' }, { actor: userId }, { state: 'valid' }])('validates input before client use %j', async change => {
+it.each([{ token: '' }, { token: ' ' }, { token: 'a'.repeat(16385) }, { token: 'ą'.repeat(8193) }, { token: 'credential.email@example.test.order-123' }, { token: syntheticTemplateKey('storefront-b') }, { templateId: 'default' }, { actor: userId }, { state: 'valid' }])('validates input before client use %j', async change => {
   expect(await saveTemplateCredential(await verifyTemplateSession(), { ...input, ...change })).toMatchObject({ code: 'INVALID' });
   expect(m.client).not.toHaveBeenCalled();
 });
-it('accepts the exact UTF-8 token boundary', async () => {
-  expect(await saveTemplateCredential(await verifyTemplateSession(), { ...input, token: 'ą'.repeat(8192) })).toMatchObject({ success: true });
+it('accepts the exact token byte boundary', async () => {
+  const key = syntheticTemplateKey('storefront-a');
+  expect(await saveTemplateCredential(await verifyTemplateSession(), { ...input, token: syntheticTemplateKey('storefront-a', 16384 - key.length) })).toMatchObject({ success: true });
 });
 it('keeps storage untouched when encryption is unavailable', async () => {
   vi.stubEnv('APP_ENCRYPTION_KEY', ''); vi.stubEnv('STRIPE_ENCRYPTION_KEY', '');

@@ -130,6 +130,7 @@
     "email": "Enter a valid email address."
   },
   "templatePreview": {
+    "staticNotice": "Static preview: links, search, filters and purchase buttons are inactive here. They work in the published storefront.",
       "confirmTitle": "Replace your current draft?",
       "confirmHelp": "Review the changes above, from your current version to the selected version. Continuing replaces your saved draft and publishes the selected version. If publication fails after saving, this version remains your draft.",
       "rollbackTitle": "Restore this store version?",
@@ -5314,6 +5315,8 @@
     "browseCatalogue": "Browse the catalogue"
   },
   "storefrontEditor": {
+    "tooLong": "Too long: up to {max} characters (remove {over}).",
+    "charCount": "{count} / {max} characters",
     "comparisonOffers": "Two separate offers",
     "offerNumber": "Offer {number}",
     "classicHint": "The classic store has one always-visible section: the product catalogue. Choose a card layout, or open Appearance to change colours, fonts and corners. Publishing custom layout and appearance settings requires Pro.",
@@ -5510,6 +5513,11 @@
     "protectedIntro": "These pages inherit selected colours and the font. Sellf keeps readable text sizes, corners and payment controls. These are the values after those rules apply."
   },
   "templateLicenses": {
+    "badFormat": "This does not look like a template purchase key. Paste the whole key from your order (two parts separated by a dot). Your saved key is unchanged.",
+    "wrongTemplate": "This key belongs to a different template. Choose the template it was bought for.",
+    "confirmReplace": "A key is already saved for this template. The new key will replace it; the previous key cannot be restored from the panel.",
+    "replace": "Replace key",
+    "keepCurrent": "Keep current key",
     "title": "Premium template keys",
     "description": "Add the key for your purchased template. Premium templates also require Sellf Pro or Business. Saving a key does not publish your storefront.",
     "statuses": "Template key status",
@@ -5798,6 +5806,7 @@
     "payoutsLabel": "Payouts"
   },
   "events": {
+    "modeUnavailable": "Event mode works only for a one-time product that is not a bundle and has no pay-what-you-want price. Change the product type or turn off the custom price to use it.",
     "errors": {"starts_at": "Enter the start date and time.", "ends_at": "End must be after the start.", "timezone": "Unknown time zone (e.g. Europe/Warsaw).", "online_url": "Enter a full link starting with https://.", "capacity": "Seat pool must be a whole number above zero.", "sort": "Order: a whole number 0–10000.", "tiers": "Add at least one price tier.", "tier_price": "Price cannot be negative.", "tier_seats": "Tier seats: a whole number above zero.", "tier_seats_capacity": "A tier cannot have more seats than the session pool.", "tier_sort": "Tier order must be unique (0–10000).", "tier_sale_ends_at": "Invalid sale end date.", "invalid": "Invalid value."},
     "csvFilename": "participants",
     "csvPhone": "Phone",
@@ -6007,7 +6016,8 @@
         },
         "product": {
           "title": "Product being edited",
-          "body": "This shows which product the offer is for. You can pick another product without leaving the editor."
+          "body": "This shows which product the offer is for. You can pick another product without leaving the editor.",
+          "bodyAct": "First choose the product whose offer page you want to prepare. Once you pick it, the tutorial continues in its editor."
         },
         "save": {
           "title": "Save the draft",

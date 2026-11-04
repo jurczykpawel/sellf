@@ -10,6 +10,7 @@ import { DEFAULT_OFFER } from '@/lib/storefront-templates/offer';
 import { validatePhase2 } from '@/lib/storefront-templates/phase2-contracts';
 import BindingPicker from '@/components/storefront-editor/BindingPicker';
 import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
+import { useTutorials } from '@/components/tutorials/TutorialProvider';
 import SlotEditor, { editorButton, editorControl } from '@/components/storefront-editor/SlotEditor';
 import type { OfferReadResult } from '@/lib/storefront-templates/offer-lifecycle';
 import type { OfferPageConfig } from '@/lib/storefront-templates/offer-repository';
@@ -18,6 +19,7 @@ export default function OfferEditor({ initialProductId }: { initialProductId?: s
   const t = useTranslations('offerEditor'); const shared = useTranslations('storefrontEditor');
   const locale = useLocale() === 'pl' ? 'pl' : 'en';
   const router = useRouter();
+  const tutorials = useTutorials();
   const productId = initialProductId ?? '';
   const [snapshot, setSnapshot] = useState<OfferReadResult | null>(null);
   const [config, setConfig] = useState<OfferPageConfig>(structuredClone(DEFAULT_OFFER));
@@ -46,7 +48,11 @@ export default function OfferEditor({ initialProductId }: { initialProductId?: s
   async function save() {
     if (!snapshot) return;
     const validation = validatePhase2(config, 'offer-config');
-    if (!validation.valid) { setError('INVALID'); return; }
+    if (!validation.valid) {
+      setError('INVALID');
+      setTimeout(() => { const field = document.querySelector<HTMLElement>('[data-offer-editor] [aria-invalid="true"]'); field?.scrollIntoView?.({ block: 'center' }); field?.focus(); }, 0);
+      return;
+    }
     setBusy(true); setError('');
     try {
       const response = await productOfferAction({ operation: 'draft', productId, expectedRevision: snapshot.revision, config });
@@ -57,7 +63,8 @@ export default function OfferEditor({ initialProductId }: { initialProductId?: s
   const prefix = locale === 'pl' ? '/pl' : '';
   return <div data-offer-editor className="mx-auto max-w-6xl space-y-6 text-sf-heading">
     <header className="space-y-2"><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('title')}</h1><p className="max-w-2xl text-sm text-sf-muted">{t('intro')}</p></header>
-    {!productId && <section className="rounded-2xl border border-sf-border bg-sf-base p-5"><BindingPicker label={t('chooseProduct')} kind="products" selectedIds={[]} maxItems={1} onChange={ids => { if (ids[0]) router.push(`?product=${ids[0]}`); }} /></section>}
+    {/* The tutorial starts on the product choice too and carries over to the chosen product's editor (W148-1). */}
+    {!productId && <><TutorialTrigger id="offer-page" /><section data-tour="offer-product" className="rounded-2xl border border-sf-border bg-sf-base p-5"><BindingPicker label={t('chooseProduct')} kind="products" selectedIds={[]} maxItems={1} onChange={ids => { if (ids[0]) router.push(`?product=${ids[0]}${tutorials?.isRunning('offer-page') ? '&tutorial=offer-page' : ''}`); }} /></section></>}
     {error && <div role="alert" className="rounded-xl border border-sf-danger bg-sf-danger-soft p-4 text-sm">{t(error === 'CONFLICT' ? 'conflict' : error === 'INVALID' ? 'invalid' : 'failure')}</div>}
     {productId && !snapshot && <button type="button" className={editorButton} disabled={busy} onClick={() => void reload()}>{busy ? t('loading') : shared('reload')}</button>}
     {snapshot && <>

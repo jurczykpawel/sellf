@@ -63,7 +63,7 @@ export default function TutorialMenu() {
             <ul>
               {onScreen.map(id => (
                 <li key={id}>
-                  <button type="button" className={itemClass} data-testid={`tutorial-start-${id}`} onClick={() => { setOpen(false); tutorials.start(id); }}>{t(`${id}.name`)}</button>
+                  <button type="button" className={itemClass} data-testid={`tutorial-start-${id}`} onClick={() => { setOpen(false); button.current?.focus(); tutorials.start(id); }}>{t(`${id}.name`)}</button>
                 </li>
               ))}
             </ul>

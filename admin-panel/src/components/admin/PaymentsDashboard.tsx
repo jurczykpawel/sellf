@@ -54,6 +54,7 @@ export default function PaymentsDashboard() {
   const orderParam = searchParams?.get('order')?.trim().slice(0, 32) ?? '';
   const [activeTab, setActiveTab] = useState<'transactions' | 'orders' | 'sessions'>('transactions');
   const [deepLinkOrder, setDeepLinkOrder] = useState(orderParam);
+  const [openedFromLink] = useState(Boolean(orderParam));
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
   const [sessions, setSessions] = useState<PaymentSession[]>([]);
   const [stats, setStats] = useState<PaymentStats | null>(null);
@@ -233,7 +234,8 @@ export default function PaymentsDashboard() {
 
   return (
     <div className="space-y-6">
-      <TutorialTrigger id="payments-orders" />
+      {/* An order opened from a link (`?order=`) keeps its own window; the list tutorial would point behind it (W148-2). */}
+      <TutorialTrigger id="payments-orders" auto={!openedFromLink} />
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>

@@ -1,4 +1,5 @@
 /** Template HTTP adapter contract. */
+import { syntheticTemplateKey } from './fixtures/template-license-policy';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { ApiAuthError } from '@/lib/api/errors';
@@ -121,7 +122,7 @@ it('keeps license READ and WRITE independent and returns status only', async () 
   m.saveCredential.mockResolvedValue({ success: true, data: status });
   m.statuses.mockResolvedValue({ success: true, data: [status] });
   m.auth.mockResolvedValue(identity(['templates:write']));
-  expect((await templateHttp(request(JSON.stringify({ templateId: 'storefront-a', token: 'private-token' })), 'license_save')).status).toBe(200);
+  expect((await templateHttp(request(JSON.stringify({ templateId: 'storefront-a', token: syntheticTemplateKey() })), 'license_save')).status).toBe(200);
   expect((await templateHttp(request(), 'license_status')).status).toBe(403);
   m.auth.mockResolvedValue(identity(['templates:read']));
   expect(await (await templateHttp(request(), 'license_status')).json()).toEqual({ statuses: [status] });
@@ -133,12 +134,12 @@ it('bounds the whole license envelope to 16KiB before persistence', async () => 
   expect(m.saveCredential).not.toHaveBeenCalled();
 });
 
-it('accepts an exactly 16KiB license envelope and preserves UTF-8 byte accounting', async () => {
+it('accepts an exactly 16KiB license envelope and preserves byte accounting', async () => {
   const status = { templateId: 'storefront-a', state: 'unknown', verifiedAt: null };
   m.saveCredential.mockResolvedValue({ success: true, data: status });
   const prefix = '{"templateId":"storefront-a","token":"'; const suffix = '"}';
   const remaining = 16384 - Buffer.byteLength(prefix + suffix);
-  const body = prefix + 'ą'.repeat(Math.floor(remaining / 2)) + 'x'.repeat(remaining % 2) + suffix;
+  const body = prefix + syntheticTemplateKey('storefront-a', remaining - syntheticTemplateKey('storefront-a').length) + suffix;
   expect(Buffer.byteLength(body)).toBe(16384);
   expect((await templateHttp(request(body), 'license_save')).status).toBe(200);
   expect((await templateHttp(request(body + ' '), 'license_save')).status).toBe(422);

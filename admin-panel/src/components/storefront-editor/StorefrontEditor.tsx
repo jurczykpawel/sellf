@@ -72,6 +72,12 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
       else if (path.includes('taskCategories')) setSelected('tasks');
       else if (path.includes('closingProduct')) setSelected('closing');
       else setSelected('hero');
+      // Point at the field itself, not only the notice at the top (W148-7).
+      setTimeout(() => {
+        const field = document.querySelector<HTMLElement>('[data-storefront-editor] [aria-invalid="true"]');
+        field?.scrollIntoView?.({ block: 'center' });
+        field?.focus();
+      }, 0);
       return;
     }
     setBusy(true); setMessage('');

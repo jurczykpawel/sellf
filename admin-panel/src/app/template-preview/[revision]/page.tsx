@@ -36,7 +36,12 @@ export default async function TemplatePreview({ params, searchParams }: {
   const { model, tokens } = response.data;
   // Same footer inputs as PublicStorefrontPage: real shop name, Sellf link only without the Pro license.
   const shopConfig = await getShopConfig().catch(() => null);
-  return <div inert data-preview-inert><PublicThemeShell tokens={tokens}>
-    <StorefrontComposition model={model} shopName={shopConfig?.shop_name || 'Sellf'} renderKey="preview" year={new Date().getFullYear()} showSellfBranding={!checkPublicFeature('watermark-removal')} />
-  </PublicThemeShell></div>;
+  // The CSP of this route forbids every script (see proxy.ts), so the page never hydrates; say so on the page.
+  const notice = (locale === 'pl' ? pl : en).templatePreview.staticNotice;
+  return <>
+    <p role="note" style={{ margin: 0, padding: '8px 16px', background: '#1f2937', color: '#f9fafb', font: '14px/1.4 system-ui, sans-serif', textAlign: 'center' }}>{notice}</p>
+    <div inert data-preview-inert><PublicThemeShell tokens={tokens}>
+      <StorefrontComposition model={model} shopName={shopConfig?.shop_name || 'Sellf'} renderKey="preview" year={new Date().getFullYear()} showSellfBranding={!checkPublicFeature('watermark-removal')} />
+    </PublicThemeShell></div>
+  </>;
 }

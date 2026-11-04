@@ -38,6 +38,8 @@ interface TutorialContextValue {
   /** Starts the tutorial on its own once the user has not seen it yet. */
   autoStart(id: TutorialId): () => void;
   start(id: TutorialId): void;
+  /** Whether this tutorial is on screen now, e.g. to carry it over a navigation. */
+  isRunning(id: TutorialId): boolean;
 }
 
 const TutorialContext = createContext<TutorialContextValue | null>(null);
@@ -53,12 +55,16 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
   const [available, setAvailable] = useState<TutorialId[]>([]);
   const seen = useRef(new Set<TutorialId>(initialSeen));
   const active = useRef<{ id: TutorialId; destroy(): void } | null>(null);
+  /** Screen readers hear each step through this region; driver.js rebuilds its popover per step. */
+  const announcer = useRef<HTMLDivElement>(null);
   const translate = useRef(t);
   translate.current = t;
 
   const run = useCallback(async (id: TutorialId, remember: boolean) => {
     if (active.current) return;
     active.current = { id, destroy() {} };
+    // Focus goes back to whatever started the tutorial once it closes (W148-4).
+    const opener = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
     const { driver } = await import('driver.js');
     const text = (key: string) => translate.current(`${id}.${key}`);
     const isMissing = (target: string) => !document.querySelector(tourSelector(target));
@@ -69,6 +75,7 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
       if (required && !(await appears(required, REVEAL_GRACE_MS))) {
         const description = state.popover?.description;
         if (description) description.textContent = translate.current('mustAct');
+        if (announcer.current) announcer.current.textContent = translate.current('mustAct');
         return;
       }
       instance.moveNext();
@@ -91,13 +98,21 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
       animate: false,
       smoothScroll: false,
       onNextClick: (_element, _step, { driver: instance, state }) => advance(instance, state),
+      onPopoverRender: popover => {
+        popover.wrapper.setAttribute('aria-modal', 'true');
+        if (announcer.current) announcer.current.textContent = `${popover.title.textContent ?? ''}. ${popover.description.textContent ?? ''} ${popover.progress.textContent ?? ''}`.trim();
+      },
       onHighlighted: (element, _step, { driver: instance, state }) => {
         const current = definition.steps[state.activeIndex ?? -1];
         if (!element || !current || !('requires' in current) || !current.requires || !isMissing(current.requires)) return;
         const proceed = () => { element.removeEventListener('click', proceed, true); if (instance.getActiveElement() === element) void advance(instance, instance.getState()); };
         element.addEventListener('click', proceed, true);
       },
-      onDestroyed: () => { layoutWatch.disconnect(); active.current = null; },
+      onDestroyed: () => {
+        layoutWatch.disconnect(); active.current = null;
+        if (announcer.current) announcer.current.textContent = '';
+        if (opener?.isConnected) opener.focus();
+      },
     });
     const layoutWatch = new ResizeObserver(() => {
       const element = tour.getActiveElement();
@@ -143,7 +158,11 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
   }, [autoStart]);
 
   const start = useCallback((id: TutorialId) => { void runRef.current(id, false); }, []);
-  const value = useMemo(() => ({ available, register, autoStart: autoStartTutorial, start }), [available, register, autoStartTutorial, start]);
+  const isRunning = useCallback((id: TutorialId) => active.current?.id === id, []);
+  const value = useMemo(() => ({ available, register, autoStart: autoStartTutorial, start, isRunning }), [available, register, autoStartTutorial, start, isRunning]);
 
-  return <TutorialContext.Provider value={value}>{children}</TutorialContext.Provider>;
+  return <TutorialContext.Provider value={value}>
+    {children}
+    <div ref={announcer} aria-live="polite" aria-atomic="true" className="sr-only" data-testid="tutorial-announcer" />
+  </TutorialContext.Provider>;
 }

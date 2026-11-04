@@ -1,4 +1,5 @@
 /** Local credential persistence acceptance. @see supabase/tests/template-credentials.sql */
+import { syntheticTemplateKey } from '@/../tests/unit/storefront-templates/fixtures/template-license-policy';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { expect, it, vi } from 'vitest';
@@ -28,7 +29,7 @@ it('persists ciphertext across clients and keeps presentation exports and audit 
   const exported = (): string => sql(`SELECT jsonb_build_array((SELECT to_jsonb(c) FROM public.storefront_config c),
     (SELECT jsonb_agg(h ORDER BY revision) FROM public.storefront_config_history h))`);
   const presentation = exported();
-  const token = `synthetic-credential.person@example.test.order-marker.${randomBytes(12).toString('hex')}`;
+  const token = syntheticTemplateKey('storefront-a', 0, `order-marker-${randomBytes(12).toString('hex')}`);
   const log = vi.spyOn(console, 'error');
   vi.stubEnv('APP_ENCRYPTION_KEY', randomBytes(32).toString('base64'));
   try {
@@ -45,7 +46,7 @@ it('persists ciphertext across clients and keeps presentation exports and audit 
     expect(sql("SELECT new_values FROM public.audit_log WHERE table_name='template_credentials'")).not.toMatch(/synthetic-credential|person@|order-marker|encrypted_key/);
     const saved = sql(snapshotQuery);
     vi.stubEnv('APP_ENCRYPTION_KEY', ''); vi.stubEnv('STRIPE_ENCRYPTION_KEY', '');
-    expect(await saveTemplateCredential(auth, { templateId: 'storefront-a', token: 'replacement' })).toMatchObject({ code: 'UNAVAILABLE' });
+    expect(await saveTemplateCredential(auth, { templateId: 'storefront-a', token: syntheticTemplateKey('storefront-a', 4) })).toMatchObject({ code: 'UNAVAILABLE' });
     expect(sql(snapshotQuery)).toBe(saved);
     expect(log).not.toHaveBeenCalled();
   } finally {

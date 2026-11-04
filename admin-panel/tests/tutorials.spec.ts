@@ -228,3 +228,58 @@ test('help menu lists the open screen first and opens other tutorials on their s
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('tutorial-menu-button')).toBeVisible();
 });
+
+test('offer tutorial starts from the help menu before a product is chosen and continues in the chosen product editor @J300', async ({ page }) => {
+  await admin(page, 'tour-offer-menu', false);
+  const product = await productFixture('Oferta z menu');
+  await page.goto('/pl/dashboard/templates?surface=offer&tutorial=offer-page');
+  await expect(popoverTitle(page)).toHaveText(stepText('offer-page', 'intro').title);
+  await popover(page).locator('.driver-popover-next-btn').click();
+  await expect(popoverTitle(page)).toHaveText(stepText('offer-page', 'product').title);
+  await expect(popover(page).locator('.driver-popover-description')).toHaveText(stepText('offer-page', 'product').bodyAct!);
+  await page.getByRole('searchbox', { name: /Wybierz produkt/ }).fill(product.name);
+  await page.getByRole('button', { name: `Dodaj ${product.name}` }).click();
+  await expect(page).toHaveURL(new RegExp(`product=${product.id}`));
+  await expect(page.locator('[data-tour="offer-savebar"]')).toBeVisible();
+  await walk(page, 'offer-page', ['intro', 'product', 'save', 'publication', 'sections', 'editor']);
+});
+
+test('an order opened from a link does not start the payments list tutorial over its window @J301', async ({ page }) => {
+  const session = await admin(page, 'tour-order-link');
+  const product = await productFixture('Link do zamowienia');
+  const row = await checked(await db.from('payment_transactions').insert({ session_id: `cs_test_link_${Date.now()}`, product_id: product.id, customer_email: `tour-link-${randomUUID()}@example.com`, amount: 5000, currency: 'PLN', status: 'completed', stripe_payment_intent_id: `pi_test_link_${Date.now()}` }).select('id, order_number').single());
+  cleanups.push(() => db.from('payment_transactions').delete().eq('id', row.id));
+  await page.goto(`/pl/dashboard/payments?order=${row.order_number}`);
+  await expect(page.getByRole('heading', { name: 'Szczegóły transakcji' })).toBeVisible();
+  await page.waitForFunction(() => performance.now() > 3000);
+  await expect(popover(page)).toHaveCount(0);
+  expect(await seenTutorials(session.userId)).toEqual([]);
+});
+
+test('event mode explains why it is unavailable instead of offering a tutorial that cannot continue @J302', async ({ page }) => {
+  await admin(page, 'tour-event-off', false);
+  const product = await productFixture('Wydarzenie dowolna cena', { allow_custom_price: true });
+  await openSalesSettings(page, product.name);
+  await expect(page.getByLabel('Tryb wydarzenia', { exact: true })).toBeDisabled();
+  await expect(page.locator('#event-mode-unavailable')).toHaveText(/tylko dla produktu jednorazowego/);
+  await expect(page.getByTestId('tutorial-help-events')).toHaveCount(0);
+});
+
+test('closing a tutorial returns focus to the control that started it and each step is announced @J303', async ({ page }) => {
+  await admin(page, 'tour-focus', false);
+  await page.goto('/pl/dashboard/templates');
+  await page.getByTestId('tutorial-menu-button').click();
+  const start = page.getByTestId('tutorial-start-storefront-templates');
+  await start.focus();
+  await page.keyboard.press('Enter');
+  await expect(popoverTitle(page)).toHaveText(stepText('storefront-templates', 'intro').title);
+  await expect(popover(page)).toHaveAttribute('aria-modal', 'true');
+  await expect(page.getByTestId('tutorial-announcer')).toHaveAttribute('aria-live', 'polite');
+  await expect(page.getByTestId('tutorial-announcer')).toContainText(stepText('storefront-templates', 'intro').title);
+  await popover(page).locator('.driver-popover-next-btn').click();
+  await expect(page.getByTestId('tutorial-announcer')).toContainText(stepText('storefront-templates', 'workspace').title);
+  await page.keyboard.press('Escape');
+  await expect(popover(page)).toHaveCount(0);
+  // The menu item that started it closed with the menu, so focus lands on the help button that opened the menu.
+  await expect(page.getByTestId('tutorial-menu-button')).toBeFocused();
+});

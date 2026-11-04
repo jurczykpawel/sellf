@@ -14,7 +14,12 @@ SELECT public.record_template_credential_status('storefront-a',key,'AAAAAAAAAAAA
 $$;
 SELECT pg_temp.assert_true(NOT pg_temp.record('valid','b3RoZXI='), 'replacement confirmation ignored');
 SELECT pg_temp.assert_true(NOT pg_temp.record('valid', checked=>clock_timestamp()-interval '61 seconds'), 'stale confirmation denied');
-SELECT pg_temp.assert_true(pg_temp.record('valid'), 'matching confirmation saved');
+SELECT pg_temp.assert_true(pg_temp.record('valid', checked=>clock_timestamp()-interval '2 seconds'), 'matching confirmation saved');
+SELECT pg_temp.assert_true(NOT pg_temp.record('valid', checked=>clock_timestamp()+interval '6 minutes'), 'far-future confirmation denied');
+-- W148-5: the app clock may run slightly ahead of the database clock; the confirmation is kept, never stored in the future.
+SELECT pg_temp.assert_true(pg_temp.record('valid', checked=>clock_timestamp()+interval '2 seconds'), 'confirmation from a clock ahead of the database saved');
+SELECT pg_temp.assert_true((SELECT verified_at<=clock_timestamp() FROM public.template_credentials WHERE template_id='storefront-a'), 'confirmation never stored in the future');
+SELECT pg_temp.assert_true(pg_temp.record('valid', checked=>clock_timestamp()+interval '3 seconds'), 'next confirmation from the same clock saved');
 SELECT pg_temp.assert_true((SELECT state='valid' AND verified_at IS NOT NULL FROM public.template_credentials WHERE template_id='storefront-a'), 'verified status stored');
 SELECT pg_temp.assert_true(pg_temp.record('revoked'), 'revocation stored');
 SELECT pg_temp.assert_true(NOT pg_temp.record('valid'), 'revocation retained');

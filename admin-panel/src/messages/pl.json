@@ -130,6 +130,7 @@
     "email": "Wpisz poprawny adres e-mail."
   },
   "templatePreview": {
+    "staticNotice": "Podgląd statyczny: linki, wyszukiwarka, filtry i przyciski zakupu są tu nieaktywne. Działają w opublikowanym sklepie.",
       "confirmTitle": "Zastąpić obecną wersję roboczą?",
       "confirmHelp": "Sprawdź powyższe zmiany: od obecnej wersji do wybranej. Kontynuacja zastąpi zapisaną wersję roboczą i opublikuje wybraną wersję. Jeśli publikacja po zapisie się nie powiedzie, ta wersja pozostanie robocza.",
       "rollbackTitle": "Przywrócić tę wersję sklepu?",
@@ -5314,6 +5315,8 @@
     "browseCatalogue": "Przeglądaj katalog"
   },
   "storefrontEditor": {
+    "tooLong": "Za długi tekst: maksymalnie {max} znaków (usuń {over}).",
+    "charCount": "{count} / {max} znaków",
     "comparisonOffers": "Dwie osobne oferty",
     "offerNumber": "Oferta {number}",
     "classicHint": "Sklep klasyczny ma jedną, zawsze widoczną sekcję: katalog produktów. Możesz wybrać układ kart, a w sekcji Wygląd zmienić kolory, krój pisma i zaokrąglenia. Publikacja własnych ustawień układu i wyglądu wymaga Pro.",
@@ -5510,6 +5513,11 @@
     "protectedIntro": "Te strony dziedziczą wybrane kolory i krój pisma. Sellf zachowuje czytelne rozmiary tekstu, zaokrąglenia i elementy płatności. Poniżej ustawienia po zastosowaniu tych zasad."
   },
   "templateLicenses": {
+    "badFormat": "To nie wygląda na klucz zakupu szablonu. Wklej cały klucz z zamówienia (dwa fragmenty oddzielone kropką). Zapisany klucz pozostaje bez zmian.",
+    "wrongTemplate": "Ten klucz należy do innego szablonu. Wybierz szablon, dla którego go kupiono.",
+    "confirmReplace": "Dla tego szablonu jest już zapisany klucz. Nowy klucz zastąpi obecny; poprzedniego nie da się przywrócić z panelu.",
+    "replace": "Zastąp klucz",
+    "keepCurrent": "Zostaw obecny",
     "title": "Klucze szablonów premium",
     "description": "Dodaj klucz zakupionego szablonu. Szablony premium wymagają również Sellf Pro lub Business. Zapisanie klucza nie publikuje sklepu.",
     "statuses": "Status kluczy szablonów",
@@ -5798,6 +5806,7 @@
     "payoutsLabel": "Wypłaty"
   },
   "events": {
+    "modeUnavailable": "Tryb wydarzenia działa tylko dla produktu jednorazowego bez dowolnej ceny, który nie jest zestawem. Zmień typ produktu lub wyłącz dowolną cenę, aby go włączyć.",
     "errors": {"starts_at": "Podaj datę i godzinę początku.", "ends_at": "Koniec musi być po początku.", "timezone": "Nieznana strefa czasowa (np. Europe/Warsaw).", "online_url": "Podaj pełny link zaczynający się od https://.", "capacity": "Pula miejsc musi być liczbą całkowitą większą od zera.", "sort": "Kolejność: liczba całkowita 0–10000.", "tiers": "Dodaj przynajmniej jeden próg cenowy.", "tier_price": "Cena nie może być ujemna.", "tier_seats": "Miejsca w progu: liczba całkowita większa od zera.", "tier_seats_capacity": "Próg nie może mieć więcej miejsc niż pula terminu.", "tier_sort": "Kolejność progów musi być unikalna (0–10000).", "tier_sale_ends_at": "Nieprawidłowa data końca sprzedaży.", "invalid": "Nieprawidłowa wartość."},
     "csvFilename": "uczestnicy",
     "csvPhone": "Telefon",
@@ -6007,7 +6016,8 @@
         },
         "product": {
           "title": "Edytowany produkt",
-          "body": "Tu widzisz, dla którego produktu piszesz ofertę. Możesz wybrać inny produkt bez opuszczania edytora."
+          "body": "Tu widzisz, dla którego produktu piszesz ofertę. Możesz wybrać inny produkt bez opuszczania edytora.",
+          "bodyAct": "Najpierw wybierz z listy produkt, którego stronę oferty chcesz przygotować. Po wyborze samouczek pokaże jego edytor."
         },
         "save": {
           "title": "Zapis szkicu",

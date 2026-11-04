@@ -33,7 +33,7 @@ export const TUTORIALS = {
   'offer-page': {
     href: '/dashboard/templates?surface=offer',
     steps: [intro,
-      { key: 'product', target: 'offer-product' },
+      { key: 'product', target: 'offer-product', requires: 'offer-savebar' },
       { key: 'save', target: 'offer-savebar' },
       { key: 'publication', target: 'offer-publication' },
       { key: 'sections', target: 'offer-sections' },

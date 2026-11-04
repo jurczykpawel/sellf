@@ -14,19 +14,33 @@ export const SLOT_IDS = Object.keys(KINDS).filter(id => id.startsWith('home.')) 
 export const SLOT_SECTIONS = { 'home.hero': 'hero', 'home.tasks': 'tasks', 'home.starts': 'start', 'home.faq': 'faq', 'home.closing': 'closing', 'home.comparison': 'comparison', 'home.catalogue': 'catalogue', 'home.search': 'hero', 'home.featured': 'featured', 'home.starter': 'starter', 'home.author': 'hero', 'home.story': 'story', 'home.paths': 'paths', 'home.projects': 'projects' } as const;
 export const editorControl = 'block w-full rounded-lg border border-sf-muted bg-sf-input px-3 py-2.5 text-sf-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent';
 export const editorButton = 'min-h-11 rounded-lg border border-sf-border-medium bg-sf-base px-4 py-2 text-sm font-medium hover:bg-sf-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:opacity-50';
-function useTextError(value: unknown) {
+/** Field-level problems: forbidden angle brackets and the field limit, shown as a live counter
+ * instead of the native maxlength that silently cut pasted text (W148-7). */
+function useTextError(value: unknown, max: number | string | undefined) {
   const id = useId();
   const t = useTranslations('storefrontEditor');
-  const invalid = typeof value === 'string' && /[<>]/.test(value);
-  return { invalid, id, message: invalid ? <span id={id} className="block text-sm text-sf-danger">{t('forbiddenAngles')}</span> : null };
+  const text = typeof value === 'string' ? value : '';
+  const limit = typeof max === 'number' ? max : max ? Number(max) : 0;
+  const angles = /[<>]/.test(text);
+  const tooLong = limit > 0 && text.length > limit;
+  const invalid = angles || tooLong;
+  const message = angles ? t('forbiddenAngles') : tooLong ? t('tooLong', { max: limit, over: text.length - limit }) : null;
+  return {
+    invalid,
+    describedBy: [message ? `${id}-error` : '', limit ? `${id}-count` : ''].filter(Boolean).join(' ') || undefined,
+    nodes: <>
+      {message && <span id={`${id}-error`} className="block text-sm text-sf-danger">{message}</span>}
+      {limit > 0 && <span id={`${id}-count`} className={`block text-xs font-normal ${tooLong ? 'text-sf-danger' : 'text-sf-muted'}`}>{t('charCount', { count: text.length, max: limit })}</span>}
+    </>,
+  };
 }
-function TextInput(props: ComponentProps<'input'>) {
-  const error = useTextError(props.value);
-  return <><input {...props} aria-invalid={error.invalid} aria-describedby={error.invalid ? error.id : undefined} className={`${props.className} ${error.invalid ? 'border-sf-danger' : ''}`} />{error.message}</>;
+function TextInput({ maxLength, ...props }: ComponentProps<'input'>) {
+  const error = useTextError(props.value, maxLength);
+  return <><input {...props} aria-invalid={error.invalid} aria-describedby={error.describedBy} className={`${props.className} ${error.invalid ? 'border-sf-danger' : ''}`} />{error.nodes}</>;
 }
-function TextArea(props: ComponentProps<'textarea'>) {
-  const error = useTextError(props.value);
-  return <><textarea {...props} aria-invalid={error.invalid} aria-describedby={error.invalid ? error.id : undefined} className={`${props.className} ${error.invalid ? 'border-sf-danger' : ''}`} />{error.message}</>;
+function TextArea({ maxLength, ...props }: ComponentProps<'textarea'>) {
+  const error = useTextError(props.value, maxLength);
+  return <><textarea {...props} aria-invalid={error.invalid} aria-describedby={error.describedBy} className={`${props.className} ${error.invalid ? 'border-sf-danger' : ''}`} />{error.nodes}</>;
 }
 function emptyContent(id: SlotId): SlotContent {
   const kind = KINDS[id];

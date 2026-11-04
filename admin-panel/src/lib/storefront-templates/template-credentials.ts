@@ -7,6 +7,7 @@ import { checkRateLimit } from '@/lib/rate-limiting';
 import { encryptSecret } from '@/lib/services/secret-encryption';
 import { getTemplatePrincipal } from '@/lib/storefront-templates/mutations';
 import { getTemplateLicenseStatus, invalidateTemplateLicense } from '@/lib/storefront-templates/template-license-snapshot';
+import { templateKeyFormatError } from '@/lib/storefront-templates/template-license-policy';
 import { createPlatformClient } from '@/lib/supabase/admin';
 
 const templateId = z.enum(['storefront-a', 'storefront-b', 'storefront-c']);
@@ -16,7 +17,8 @@ const statusSchema = z.object({
   verifiedAt: z.iso.datetime({ offset: true }).nullable(),
 });
 export const templateCredentialInputSchema = z.strictObject({ templateId, token: z.string().min(1).max(16384)
-  .refine(value => value.trim().length > 0 && Buffer.byteLength(value, 'utf8') <= 16384) });
+  .refine(value => value.trim().length > 0 && Buffer.byteLength(value, 'utf8') <= 16384).transform(value => value.trim()) })
+  .refine(input => templateKeyFormatError(input.token, input.templateId) === null);
 export type TemplateLicenseStatus = z.infer<typeof statusSchema>;
 type CredentialResult<T> = { success: true; data: T } | {
   success: false; code: 'FORBIDDEN' | 'INVALID' | 'UNAVAILABLE' | 'RATE_LIMITED';

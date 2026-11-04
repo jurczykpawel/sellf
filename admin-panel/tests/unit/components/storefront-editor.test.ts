@@ -323,3 +323,13 @@ it('opens and focuses appearance from a publication correction link', () => {
   expect(view.getByRole('region', { name: 'Appearance' })).toBe(document.activeElement);
   window.history.replaceState(null, '', '/');
 });
+it('moves to the first invalid field when a draft cannot be saved (W148-7)', async () => {
+  const view = setup();
+  const heading = view.getByLabelText('Hero · EN · Heading');
+  fireEvent.change(heading, { target: { value: 'x'.repeat(161) } });
+  fireEvent.click(view.getByRole('button', { name: 'Questions & answers', exact: true }));
+  fireEvent.click(view.getByRole('button', { name: 'Save draft' }));
+  await waitFor(() => expect(document.activeElement).toBe(view.getByLabelText('Hero · EN · Heading')));
+  expect(action).not.toHaveBeenCalled();
+  expect(view.getByText(en.storefrontEditor.tooLong.replace('{max}', '160').replace('{over}', '1'))).toBeTruthy();
+});

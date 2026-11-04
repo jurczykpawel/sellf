@@ -33,3 +33,14 @@ it('falls back to the public storefront default and mirrors its Sellf link rule'
   state.pro = true;
   expect((await render('pl'))?.showSellfBranding).toBe(false);
 });
+it('tells the seller the preview is static, because its CSP blocks every script by design (W148-10)', async () => {
+  const text = (node: unknown): string => {
+    if (typeof node === 'string') return node;
+    if (!isValidElement(node)) return '';
+    return ([] as unknown[]).concat((node as ReactElement<{ children?: unknown }>).props.children ?? []).map(text).join('');
+  };
+  const { default: pl } = await import('@/messages/pl.json');
+  const { default: en } = await import('@/messages/en.json');
+  expect(text(await Page({ params: Promise.resolve({ revision: '3' }), searchParams: Promise.resolve({ locale: 'pl' }) }))).toContain(pl.templatePreview.staticNotice);
+  expect(text(await Page({ params: Promise.resolve({ revision: '3' }), searchParams: Promise.resolve({ locale: 'en' }) }))).toContain(en.templatePreview.staticNotice);
+});

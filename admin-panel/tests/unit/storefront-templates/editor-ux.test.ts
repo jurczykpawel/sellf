@@ -14,7 +14,7 @@ it.each(['a < b', 'a > b'])('identifies the exact invalid content field: %s', he
   const { container } = render(createElement(SlotEditor, { id: 'home.hero', value: { sourceLocale: 'pl', pl: { kind: 'hero', heading, eyebrow: '', body: '', steps: [] } }, onChange: vi.fn() }));
   const input = screen.getByRole('textbox', { name: 'sectionNames.hero · PL · heading' });
   expect(input.getAttribute('aria-invalid')).toBe('true');
-  expect(container.querySelector(`[id="${input.getAttribute('aria-describedby')}"]`)?.textContent).toBe('forbiddenAngles');
+  expect(container.querySelector(`[id="${input.getAttribute('aria-describedby')?.split(' ')[0]}"]`)?.textContent).toBe('forbiddenAngles');
   expect(screen.getByRole('textbox', { name: 'sectionNames.hero · PL · body' }).getAttribute('aria-invalid')).not.toBe('true');
 });
 it('uses language-aware hyphenation for narrow hero headings', () => {
@@ -41,4 +41,17 @@ it('identifies invalid nested FAQ answers', () => {
   render(createElement(SlotEditor, { id: 'home.faq', value: { sourceLocale: 'pl', pl: { kind: 'faq', items: [{ id: 'question-1', question: 'Question', answer: 'a > b' }] } }, onChange: vi.fn() }));
   expect(screen.getByRole('textbox', { name: 'sectionNames.faq · PL · answer' }).getAttribute('aria-invalid')).toBe('true');
   expect(screen.getByRole('textbox', { name: 'sectionNames.faq · PL · question' }).getAttribute('aria-invalid')).toBe('false');
+});
+it('shows the field limit and flags overflow at the field instead of cutting text (W148-7)', () => {
+  const heading = 'x'.repeat(161);
+  const { container } = render(createElement(SlotEditor, { id: 'home.hero', value: { sourceLocale: 'pl', pl: { kind: 'hero', heading, eyebrow: 'abc', body: '', steps: [] } }, onChange: vi.fn() }));
+  const input = screen.getByRole('textbox', { name: 'sectionNames.hero · PL · heading' }) as HTMLInputElement;
+  expect(input.hasAttribute('maxlength')).toBe(false);
+  expect(input.value).toHaveLength(161);
+  expect(input.getAttribute('aria-invalid')).toBe('true');
+  const described = (input.getAttribute('aria-describedby') ?? '').split(' ').map(id => container.querySelector(`[id="${id}"]`)?.textContent).join('|');
+  expect(described).toContain('tooLong');
+  const eyebrow = screen.getByRole('textbox', { name: 'sectionNames.hero · PL · eyebrow' });
+  expect(eyebrow.getAttribute('aria-invalid')).not.toBe('true');
+  expect(container.querySelector(`[id="${eyebrow.getAttribute('aria-describedby')}"]`)?.textContent).toBe('charCount');
 });

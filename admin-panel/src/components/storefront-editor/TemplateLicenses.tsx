@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { ChevronDown, KeyRound } from 'lucide-react';
 import { editorButton, editorControl } from '@/components/storefront-editor/SlotEditor';
 import type { SubmitEvent } from 'react';
+import { templateKeyFormatError } from '@/lib/storefront-templates/template-license-policy';
 import type { TemplateLicenseStatus } from '@/lib/storefront-templates/template-credentials';
 
 const IDS = ['storefront-a', 'storefront-b', 'storefront-c'] as const;
@@ -17,6 +18,8 @@ export default function TemplateLicenses() {
   const [statuses, setStatuses] = useState<TemplateLicenseStatus[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [keyError, setKeyError] = useState('');
+  const [confirmReplace, setConfirmReplace] = useState(false);
   const refresh = useCallback((signal?: AbortSignal) => {
     return fetch('/api/v1/templates/licenses', { cache: 'no-store', signal }).then(async response => {
       if (!response.ok) { if (!signal?.aborted) setMessage(t('failure')); return; }
@@ -30,8 +33,18 @@ export default function TemplateLicenses() {
     return () => { controller.abort(); clearInterval(timer); };
   }, [refresh]);
   async function save(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setMessage('');
-    const body = JSON.stringify({ templateId, token });
+    event.preventDefault(); setMessage('');
+    const formatError = templateKeyFormatError(token, templateId);
+    if (formatError) { setKeyError(t(formatError === 'template' ? 'wrongTemplate' : 'badFormat')); setConfirmReplace(false); return; }
+    setKeyError('');
+    // A stored key is replaced only after an explicit confirmation (W148-6).
+    const stored = statuses.find(s => s.templateId === templateId)?.state;
+    if (stored && stored !== 'missing' && !confirmReplace) { setConfirmReplace(true); return; }
+    await submit();
+  }
+  async function submit() {
+    setBusy(true); setMessage(''); setConfirmReplace(false);
+    const body = JSON.stringify({ templateId, token: token.trim() });
     if (new TextEncoder().encode(body).byteLength > 16384) { setMessage(t('limit')); setBusy(false); return; }
     try {
       const response = await fetch('/api/v1/templates/licenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
@@ -52,10 +65,12 @@ export default function TemplateLicenses() {
         })}
       </ul>
       <form onSubmit={save} className="grid items-end gap-3 sm:grid-cols-[minmax(140px,1fr)_2fr_auto]">
-        <label htmlFor={`${id}-template`} className="space-y-2 text-sm font-medium"><span>{t('template')}</span><select id={`${id}-template`} className={editorControl} value={templateId} onChange={e => setTemplateId(e.target.value)}>{IDS.map(template => <option key={template} value={template}>{t(template)}</option>)}</select></label>
-        <label htmlFor={`${id}-key`} className="min-w-0 space-y-2 text-sm font-medium"><span>{t('key')}</span><input id={`${id}-key`} className={editorControl} type="password" autoComplete="off" spellCheck={false} maxLength={16384} required value={token} onChange={e => setToken(e.target.value)} /></label>
+        <label htmlFor={`${id}-template`} className="space-y-2 text-sm font-medium"><span>{t('template')}</span><select id={`${id}-template`} className={editorControl} value={templateId} onChange={e => { setTemplateId(e.target.value); setConfirmReplace(false); setKeyError(''); }}>{IDS.map(template => <option key={template} value={template}>{t(template)}</option>)}</select></label>
+        <label htmlFor={`${id}-key`} className="min-w-0 space-y-2 text-sm font-medium"><span>{t('key')}</span><input id={`${id}-key`} className={editorControl} type="password" autoComplete="off" spellCheck={false} maxLength={16384} required aria-invalid={keyError ? true : undefined} aria-describedby={keyError ? `${id}-key-error` : undefined} value={token} onChange={e => { setToken(e.target.value); setKeyError(''); setConfirmReplace(false); }} /></label>
         <button className={editorButton} disabled={busy || !token.trim()}>{busy ? t('saving') : t('save')}</button>
       </form>
+      {keyError && <p id={`${id}-key-error`} className="text-sm text-sf-danger">{keyError}</p>}
+      {confirmReplace && <div role="alert" className="space-y-3 rounded-lg border border-sf-warning bg-sf-warning-soft p-3 text-sm text-sf-heading"><p>{t('confirmReplace')}</p><div className="flex flex-wrap gap-2"><button type="button" className={editorButton} disabled={busy} onClick={() => void submit()}>{t('replace')}</button><button type="button" className={editorButton} onClick={() => setConfirmReplace(false)}>{t('keepCurrent')}</button></div></div>}
       <p role="status" className="text-sm text-sf-body">{message}</p>
       <p className="text-xs text-sf-muted">{t('freshness')}</p>
     </div>

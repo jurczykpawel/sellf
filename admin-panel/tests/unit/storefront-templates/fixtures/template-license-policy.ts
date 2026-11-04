@@ -22,3 +22,10 @@ export const PREMIUM_POLICY_FIXTURES: readonly TemplateLicensePolicy[] = [
   productionHost: 'shop.example.test',
   equivalentHosts: ['www.shop.example.test', 'staging.shop.example.test', 'localhost'],
 }));
+
+/** A well-formed, unsigned purchase key (payload.signature) for storage tests; `pad` lengthens the signature part. */
+export function syntheticTemplateKey(templateId = 'storefront-a', pad = 0, order = 'synthetic-order'): string {
+  const payload = Buffer.from(JSON.stringify({ v: 1, kid: 'k', product: 'p', email: 'buyer@example.test', order, tier: 'standard',
+    iat: 1, exp: null, templateId, domain: 'shop.example.test', edition: 'standard' })).toString('base64url');
+  return `${payload}.c2lnbmF0dXJl${'x'.repeat(pad)}`;
+}
