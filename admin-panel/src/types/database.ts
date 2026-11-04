@@ -6525,6 +6525,10 @@ export type Database = {
         Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
         Returns: undefined
       }
+      snapshot_purchase_attribution_row: {
+        Args: { n: Database["public"]["Tables"]["payment_transactions"]["Row"] }
+        Returns: undefined
+      }
       store_checkout_attribution: {
         Args: { p_payload: Json; p_ref: string }
         Returns: undefined
