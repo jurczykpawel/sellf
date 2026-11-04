@@ -64,7 +64,7 @@ for (const action of ['mark-paid', 'cancel'] as const) {
       await route.continue();
     });
     if (action === 'mark-paid') {
-      await transfer.getByLabel('Data wpływu').fill('2026-10-20');
+      await transfer.getByLabel('Data wpływu').fill(new Date().toISOString().slice(0, 10));
       await transfer.getByRole('button', { name: 'Oznacz jako opłacone' }).click();
     } else {
       await transfer.getByLabel('Powód anulowania').fill('Rezygnacja klienta');

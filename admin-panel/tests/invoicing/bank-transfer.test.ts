@@ -54,9 +54,11 @@ describe('transfer invoice lifecycle on PostgreSQL', () => {
     expect(Date.parse(order.dueAt) - Date.parse(tx.created_at)).toBe(14 * 86400000);
     const invoice = await checked(await db.from('invoices').select('*').eq('transaction_id', order.transaction_id).single());
     expect(invoice).toMatchObject({ status: 'issued', payment_synced: false });
-    expect((await operateTransfer(db, adminId, order.transaction_id, { action: 'mark-paid', amount: 10000, paidAt: '2026-01-01T00:00:00Z' })).success).toBe(true);
+    // The receipt date may not precede the order day (UTC), so it is taken from the order itself.
+    const receiptDay = tx.created_at.slice(0, 10);
+    expect((await operateTransfer(db, adminId, order.transaction_id, { action: 'mark-paid', amount: 10000, paidAt: `${receiptDay}T00:00:00Z` })).success).toBe(true);
     await retryInvoices();
-    expect(state.markPaid).toHaveBeenCalledWith(invoice.provider_invoice_id, '2026-01-01');
+    expect(state.markPaid).toHaveBeenCalledWith(invoice.provider_invoice_id, receiptDay);
     expect(await checked(await db.from('invoices').select('id,payment_synced').eq('transaction_id', order.transaction_id).single())).toEqual({ id: invoice.id, payment_synced: true });
     await issueInvoiceForTransaction(order.transaction_id, { client: db }); await retryInvoices();
     expect(state.issue.mock.calls.filter(([i]) => i.externalKey === input.externalKey)).toHaveLength(1);
