@@ -1,8 +1,8 @@
-/** Dedicated local stack, pinned adapter and plugin host, one browser worker. Ports/origin: tests/leads/stack.ts. */
+/** Dedicated local stack, pinned adapter and plugin host, one browser worker. Ports/origin: playwright.leads.stack.ts. */
 import { defineConfig } from '@playwright/test';
 import dotenv from 'dotenv';
 import { resolve } from 'node:path';
-import { LEADS_APP_PORT, LEADS_HOST_PORT, leadsAppUrl, leadsOrigin } from './tests/leads/stack';
+import { LEADS_APP_PORT, LEADS_HOST_PORT, leadsAppUrl, leadsOrigin } from './playwright.leads.stack';
 dotenv.config({ path: resolve(__dirname, '.env.local') });
 const playerstackDist = process.env.PLAYERSTACK_TEST_DIST;
 if (!playerstackDist) throw new Error('PLAYERSTACK_TEST_DIST must point to a built PlayerStack distribution');

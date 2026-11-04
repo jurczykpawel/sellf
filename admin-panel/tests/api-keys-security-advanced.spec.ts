@@ -162,9 +162,10 @@ test.describe('API Keys Security - IDOR Prevention', () => {
   let admin2AuthId: string;
   let admin2RowId: string;
 
-  const timestamp = Date.now();
-  const admin1Email = `idor-admin1-${timestamp}@test.com`;
-  const admin2Email = `idor-admin2-${timestamp}@test.com`;
+  // Fresh addresses per test: a user left behind by the previous test (its dashboard was still loading
+  // when afterEach deleted it) must not turn the next createUser into a silent "already registered".
+  let admin1Email: string;
+  let admin2Email: string;
   const password = 'TestPassword123!';
 
   // Helper to login via browser
@@ -175,12 +176,16 @@ test.describe('API Keys Security - IDOR Prevention', () => {
   }
 
   test.beforeEach(async () => {
+    const run = crypto.randomUUID();
+    admin1Email = `idor-admin1-${run}@test.com`;
+    admin2Email = `idor-admin2-${run}@test.com`;
     // Create Admin 1
-    const { data: auth1 } = await supabaseAdmin.auth.admin.createUser({
+    const { data: auth1, error: auth1Error } = await supabaseAdmin.auth.admin.createUser({
       email: admin1Email,
       password,
       email_confirm: true,
     });
+    expect(auth1Error).toBeNull();
     admin1AuthId = auth1.user!.id;
 
     const { data: adminRow1 } = await supabaseAdmin
@@ -201,11 +206,12 @@ test.describe('API Keys Security - IDOR Prevention', () => {
     admin1KeyId = keyData!.id;
 
     // Create Admin 2
-    const { data: auth2 } = await supabaseAdmin.auth.admin.createUser({
+    const { data: auth2, error: auth2Error } = await supabaseAdmin.auth.admin.createUser({
       email: admin2Email,
       password,
       email_confirm: true,
     });
+    expect(auth2Error).toBeNull();
     admin2AuthId = auth2.user!.id;
 
     const { data: adminRow2 } = await supabaseAdmin

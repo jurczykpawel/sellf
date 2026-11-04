@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # PlayerStack lead gate: starts the fixture host/receiver and a dedicated dev server, runs the HTTP
 # contract and, when PLAYERSTACK_TEST_DIST points to a built PlayerStack, the browser journey.
-# Ports/origin come from env (tests/leads/stack.ts): LEADS_APP_PORT, LEADS_HOST_PORT, LEADS_RECEIVER_PORT.
+# Ports/origin come from env (playwright.leads.stack.ts): LEADS_APP_PORT, LEADS_HOST_PORT, LEADS_RECEIVER_PORT.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export LEADS_APP_PORT="${LEADS_APP_PORT:-3893}" LEADS_HOST_PORT="${LEADS_HOST_PORT:-3894}" LEADS_RECEIVER_PORT="${LEADS_RECEIVER_PORT:-3895}"

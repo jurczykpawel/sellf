@@ -86,7 +86,7 @@ describe.runIf(process.env.STRIPE_LIVE_API === '1')('real subscription first ema
       else expect((await db.from('payment_transactions').select('id').eq('product_id', product.id)).data).toHaveLength(0);
       if (kind === 'variant') expect(mail.HTML).not.toContain('Other course');
       if (kind === 'event') { expect(mail.HTML).toContain('2099'); expect(mail.HTML).toContain('https://example.com/first-mail-room'); }
-      if (kind === 'transfer') { expect(mail.HTML).toContain('Dane do przelewu'); expect(mail.HTML).toContain('PL61109010140000071219812874'); }
+      if (kind === 'transfer') { expect(mail.HTML).toContain('Dane do przelewu'); expect(mail.HTML).toContain('PL61 1090 1014 0000 0712 1981 2874'); }
       const link = extractMagicLink(mail.HTML!); expect(link).toBeTruthy();
       const callback = await fetch(link!, { redirect: 'manual' }); expect(callback.status).toBe(307);
       const cookie = callback.headers.getSetCookie().map(value => value.split(';')[0]).join('; '); expect(cookie).toContain('auth-token');

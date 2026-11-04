@@ -134,9 +134,16 @@ for (const locale of ['pl', 'en'] as const) {
     const errors = collectHydrationErrors(page);
     await emulateEmailObfuscation(page);
     for (const path of [`/${locale}`, `/${locale}/store`, `/${locale}/p/${slug}`, `/${locale}/p/premium-course`, `/${locale}/p/free-tutorial`]) {
-      const response = await page.goto(path, { waitUntil: 'networkidle' });
+      // Not networkidle: paid product pages embed Stripe.js, whose beacons and iframes keep the network busy
+      // for as long as Stripe likes (big-r43 and locally: >60 s). React marks every node it hydrated; waiting
+      // for that on the server-rendered h1 is the hydration signal itself.
+      const response = await page.goto(path, { waitUntil: 'load' });
       expect(response?.status(), path).toBe(200);
       await expect(page.locator('h1').first()).toBeVisible();
+      await page.waitForFunction(() => {
+        const h1 = document.querySelector('h1');
+        return !!h1 && Object.keys(h1).some(key => key.startsWith('__reactFiber$'));
+      });
       expect(errors, path).toEqual([]);
       expect(response?.headers()['cache-control'], path).toMatch(/\bno-transform\b/);
       if (path.endsWith(slug)) {
