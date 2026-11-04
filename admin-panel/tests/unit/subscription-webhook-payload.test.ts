@@ -103,6 +103,29 @@ describe('subscription-webhook-payload', () => {
       expect(payload.subscription.previousAttributes).toEqual({ status: 'trialing' });
     });
 
+    it('normalizes raw Stripe previous_attributes to changed contract fields only (W147-4)', () => {
+      const raw = {
+        status: 'trialing',
+        cancel_at_period_end: true,
+        billing_cycle_anchor: 1717000000,
+        latest_invoice: 'in_old',
+        items: { object: 'list', data: [{ id: 'si_1', quantity: 1, current_period_start: 1717000000, current_period_end: 1719600000,
+          price: { id: 'price_old', unit_amount: 4900, currency: 'pln' }, plan: { id: 'price_old', amount: 4900 } }] },
+      } as unknown as Partial<Stripe.Subscription>;
+      const payload = buildSubscriptionUpdatedPayload({ customer, product, subscription: makeSubscription(), previousAttributes: raw });
+      expect(payload.subscription.previousAttributes).toEqual({
+        status: 'trialing',
+        cancelAtPeriodEnd: true,
+        currentPeriodStart: new Date(1717000000 * 1000).toISOString(),
+        currentPeriodEnd: new Date(1719600000 * 1000).toISOString(),
+        quantity: 1,
+        stripePriceId: 'price_old',
+      });
+      expect(payload.subscription.changedFields).toEqual(['status', 'cancelAtPeriodEnd', 'currentPeriodStart', 'currentPeriodEnd', 'quantity', 'stripePriceId']);
+      expect(JSON.stringify(payload)).not.toContain('plan');
+      expect(JSON.stringify(payload)).not.toContain('in_old');
+    });
+
     it('defaults previousAttributes to empty object', () => {
       const payload = buildSubscriptionUpdatedPayload({
         customer,
@@ -110,6 +133,7 @@ describe('subscription-webhook-payload', () => {
         subscription: makeSubscription(),
       });
       expect(payload.subscription.previousAttributes).toEqual({});
+      expect(payload.subscription.changedFields).toEqual([]);
     });
   });
 

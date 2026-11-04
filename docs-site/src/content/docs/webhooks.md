@@ -128,6 +128,13 @@ products), `purchase.completed` also carries the granted components and any issu
 - **Per-product webhook scoping:** a bundle purchase fires for the bundle **and** every component
   product id, so an endpoint scoped to a component still receives the event.
 
+#### Transfer order paid online
+
+A bank-transfer order the buyer paid by card from the order page sends `purchase.completed` with
+`order.settledVia: "stripe"` and the Stripe `order.paymentIntentId` (use it to reconcile or refund);
+a transfer booked by the seller has `settledVia: "bank_transfer"` and `paymentIntentId: null`.
+`customer.firstName` / `lastName` fall back to the buyer recorded in `orderDetails.buyer`.
+
 #### Purchase source
 
 `purchase.completed` carries `attribution` when the order has a recorded source
@@ -191,6 +198,27 @@ line from a **paid invoice**, not an unpaid renewal's current billing period. If
 paid period can be confirmed, `endsAt` is null. Updated terminal/scheduled events also
 use this access end in `currentPeriodEnd`, so receivers cannot mistake an unpaid
 billing end for continued access.
+
+`subscription.updated.previousAttributes` holds only the **previous values of normalized
+fields that changed** — `status`, `cancelAtPeriodEnd`, `cancelAt`, `canceledAt`, `endedAt`,
+`trialEnd`, `currentPeriodStart`, `currentPeriodEnd`, `quantity`, `stripePriceId` (camelCase,
+dates as ISO 8601 UTC) — and `changedFields` lists their names. Raw Stripe objects (`items`,
+`plan`, invoices) are never forwarded. Fields that changed outside this list produce an empty
+`changedFields`.
+
+`subscription.renewal_upcoming` arrives **3 days before the renewal** (`invoice.nextPaymentAttempt`,
+or the period end). Stripe announces the upcoming invoice as soon as the renewal enters the
+account's window — on many accounts right after checkout, including a 7-day trial — so Sellf
+stores the warning and emits it when due. A subscription cancelled, set to cancel at period end
+or no longer active by then gets no warning. When the renewal is already within 3 days the
+warning goes out immediately.
+
+When a subscription **actually ends** (`customer.subscription.deleted`: immediate cancellation,
+or the end of a period the buyer cancelled), Sellf revokes the licenses issued for its invoices:
+you receive `license.revoked` with `revocationReason: "subscription_cancelled"` next to
+`access.revoked` with the same reason. A cancellation at period end keeps the license valid until
+that moment. A subscription that ends **unpaid** (`unpaid` or `incomplete_expired`) loses its
+licenses the same way, with `revocationReason: "expired"` (matching `access.revoked`).
 
 ### `refund.issued` — refund + credit-note VAT
 
@@ -310,6 +338,14 @@ of the shop's current plan.
 
 Both payloads identify `license.id`, `order`, `email`, `tier`, `domain`,
 `issuanceSource`, `issuedAt`, `expiresAt`, `revokedAt`, the product and `crlUrl`.
+`license.order` is the raw claim signed into the token (payment intent `pi_…`, checkout session,
+renewal invoice `in_…`, offline order id or `api_…`); `license.orderId` and `license.orderNumber`
+name the Sellf order behind it (null for manual/API issuance without an order). All `license.*`
+events carry these fields.
+`revocationReason` (top level and `license.revocationReason`) says why the license stopped
+working: `refund` (full refund), `dispute`, `manual` (panel or `DELETE /api/v1/licenses/{id}`)
+`subscription_cancelled` or `expired` (subscription ended unpaid); it is null while the license is active. Expiry is a separate event
+(`license.expired`).
 Restoration adds `license.restoredAt`; an associated dispute appears as
 `dispute.stripeDisputeId`. The signed token is never included. The original token
 can be used again after its revocation is removed; an expired token stays expired.
@@ -517,7 +553,7 @@ for a pending grant they are not assigned yet. A `null` expiry on a granted enti
 | `seats.released` | Seats released: same identifiers and reason (`order_abandoned`, `order_cancelled`, `payment_refunded`, `hold_expired`, or `reservation_released`). |
 | `access.granted` | Entitlement created, including free grants, purchases and guest claims. |
 | `access.updated` | Saved entitlement dates or source changed, including administrative extensions. |
-| `access.revoked` | Entitlement record removed; includes the effective revocation time. |
+| `access.revoked` | Entitlement record removed; includes the effective revocation time and `revocationReason`. |
 | `access.expired` | Saved expiry passed; one notification per grant/expiry, including after renewal. |
 
 ### Unpaid transfer orders: lifecycle
@@ -526,7 +562,7 @@ Every transfer `order.*` event additionally carries in `data.order`: `status`, `
 page: status, transfer details and an "I have sent the transfer" button, valid until `payUrlExpiresAt`),
 `reservation` (`timed` — time-limited hold, `invoice` — invoice issued, awaiting payment without expiry, `none`),
 `reminderAt`, `releaseAt`, `invoiceHoldAt`, `transferDeclaredAt`, `transferDeclaredNote`, `cancelReason`,
-`reopenedAt`; `data.customer.locale` is the buyer language (`pl`/`en`). Integrators use these fields to issue
+`cancelReasonText`, `reopenedAt`; `data.customer.locale` is the buyer language (`pl`/`en`). Integrators use these fields to issue
 their own proforma, invoice or mail (n8n, Listmonk). Each event is delivered once per order.
 
 | Event | When | What the receiver can do |
@@ -535,7 +571,7 @@ their own proforma, invoice or mail (n8n, Listmonk). Each event is delivered onc
 | `order.payment_reminder` | `reminderAt` (default 24 h) passed without payment or invoice. | Reminder "pay by `releaseAt`" with the link. |
 | `order.transfer_declared` | The buyer clicked "I have sent the transfer" (once). | Check the bank statement; `releaseAt` is already extended (default 72 h). |
 | `order.invoice_issued` | An invoice was issued for the unpaid order (in Sellf or via `POST /api/v1/payments/:id/invoice-issued`). | Status "invoice issued, awaiting payment": `reservation = invoice`, `releaseAt = null`, no expiry. |
-| `order.cancelled` | Cancellation: `cancelReason = payment_window_expired` (automatic after `releaseAt`) or `admin`. | Tell the buyer, correct the invoice; `lateTransferPolicy = admin_decision`. |
+| `order.cancelled` | Cancellation: `cancelReason = payment_window_expired` (automatic after `releaseAt`) or `admin` with the administrator's text in `cancelReasonText`. `reservation = none`, `reminderAt`/`releaseAt` are `null`. `customer.userId` matches `seats.released`. | Tell the buyer, correct the invoice; `lateTransferPolicy = admin_decision`. |
 | `order.overdue` | The due date of an order without a timed hold passed. | Dunning. |
 | `order.reopened` | An administrator accepted a transfer that arrived after cancellation (order price, even over the seat limit). | Match the payment: `previousStatus = cancelled`; `purchase.completed` follows. |
 | `order.participants_updated` | The buyer added the participant list after payment (product option "add participants later"). Sent once per order. | `orderDetails.participants.people` holds the full list (`first_name`, `last_name`, `email`), `orderDetails.quantity.value` the count; `purchase.completed` carried an empty list. |
@@ -551,6 +587,13 @@ once when it was granted (`purchase`, `bundle`, `bank_transfer`, `subscription`,
 for existing integrations, but can be inferred (for example `free_product` from the price), so a paid
 product claimed with a 100% coupon has `grantSource: "free"`.
 The root `accessGrantedAt/accessExpiresAt` aliases contain the same saved dates.
+`access.granted` and `access.updated` also carry `accessEndsAt`: the saved expiry, or for a
+subscription the end of the current paid period (null for unlimited access). A subscription
+sends `access.updated` (`reason: "subscription_renewed"`) **once per renewed period**; repeated
+Stripe events for the same period do not produce further updates.
+`access.revoked` and `access.expired` carry `revocationReason`: `refund`, `dispute`, `manual`,
+`subscription_cancelled` or `expired` (a subscription that ended unpaid, or a natural expiry).
+`reason` keeps its original meaning (where the access came from: `purchase`, `subscription`, …).
 `sourceOrders` contains related saved orders; `sourceOrder` is populated only when there is one
 unambiguous order. Manual or unlinked grants may have no order. `occurredAt` records the change,
 while the envelope timestamp records delivery preparation. Consumers should use the explicit

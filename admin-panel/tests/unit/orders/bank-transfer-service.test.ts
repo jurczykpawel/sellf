@@ -39,6 +39,17 @@ describe('transfer recovery', () => {
     expect(trigger).toHaveBeenCalledWith(event, expect.objectContaining({ order: expect.objectContaining({ orderId: id, amount: 12300 }),
       orderDetails: row.order_details, lines: [expect.objectContaining({ session_label: 'Workshop' })] }), db, ['product']);
   });
+  it('order.cancelled drops dead timers and carries the administrator text (W147-11) @J287', async () => {
+    const { db } = client([{ data: { ...row, status: 'cancelled', cancel_reason: 'admin', cancel_note: 'Klient zrezygnował',
+      release_at: '2099-01-01T00:00:00Z', reminder_at: '2098-12-31T00:00:00Z' } }, { data: [] }, {}]);
+    await dispatchTransferEvent(db, id, 'order.cancelled');
+    expect(trigger.mock.calls[0][1].order).toMatchObject({ cancelReason: 'admin', cancelReasonText: 'Klient zrezygnował', releaseAt: null, reminderAt: null, reservation: 'none' });
+  });
+  it('keeps live timers and no cancel text on an awaiting order', async () => {
+    const { db } = client([{ data: { ...row, cancel_note: 'stale', release_at: '2099-01-01T00:00:00Z', reminder_at: '2098-12-31T00:00:00Z' } }, { data: [] }, {}]);
+    await dispatchTransferEvent(db, id, 'order.placed');
+    expect(trigger.mock.calls[0][1].order).toMatchObject({ releaseAt: '2099-01-01T00:00:00Z', reminderAt: '2098-12-31T00:00:00Z', reservation: 'timed', cancelReasonText: null });
+  });
   it('marks notification only after a durable enqueue succeeds', async () => {
     const { db, queries } = client([{ data: row }, { data: [] }]); trigger.mockRejectedValueOnce(new Error('queue unavailable'));
     await expect(dispatchTransferEvent(db, id, 'order.placed')).rejects.toThrow();

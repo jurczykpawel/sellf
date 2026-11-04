@@ -1729,6 +1729,7 @@ export type Database = {
           order_id: string
           original_seller_id: string
           product_id: string
+          revocation_reason: string | null
           revoked_at: string | null
           revoked_by_dispute_id: string | null
           seller_id: string | null
@@ -1747,6 +1748,7 @@ export type Database = {
           order_id: string
           original_seller_id: string
           product_id: string
+          revocation_reason?: string | null
           revoked_at?: string | null
           revoked_by_dispute_id?: string | null
           seller_id?: string | null
@@ -1765,6 +1767,7 @@ export type Database = {
           order_id?: string
           original_seller_id?: string
           product_id?: string
+          revocation_reason?: string | null
           revoked_at?: string | null
           revoked_by_dispute_id?: string | null
           seller_id?: string | null
@@ -2406,6 +2409,7 @@ export type Database = {
         Row: {
           abandoned_at: string | null
           amount: number
+          cancel_note: string | null
           cancel_reason: string | null
           cancelled_mail_sent_at: string | null
           coupon_id: string | null
@@ -2466,6 +2470,7 @@ export type Database = {
         Insert: {
           abandoned_at?: string | null
           amount: number
+          cancel_note?: string | null
           cancel_reason?: string | null
           cancelled_mail_sent_at?: string | null
           coupon_id?: string | null
@@ -2526,6 +2531,7 @@ export type Database = {
         Update: {
           abandoned_at?: string | null
           amount?: number
+          cancel_note?: string | null
           cancel_reason?: string | null
           cancelled_mail_sent_at?: string | null
           coupon_id?: string | null
@@ -4120,6 +4126,8 @@ export type Database = {
           latest_invoice_id: string | null
           metadata: Json
           product_id: string
+          renewal_notice_at: string | null
+          renewal_notice_payload: Json | null
           status: string
           stripe_customer_id: string
           stripe_price_id: string | null
@@ -4138,6 +4146,8 @@ export type Database = {
           latest_invoice_id?: string | null
           metadata?: Json
           product_id: string
+          renewal_notice_at?: string | null
+          renewal_notice_payload?: Json | null
           status: string
           stripe_customer_id: string
           stripe_price_id?: string | null
@@ -4156,6 +4166,8 @@ export type Database = {
           latest_invoice_id?: string | null
           metadata?: Json
           product_id?: string
+          renewal_notice_at?: string | null
+          renewal_notice_payload?: Json | null
           status?: string
           stripe_customer_id?: string
           stripe_price_id?: string | null
@@ -5360,6 +5372,7 @@ export type Database = {
         Args: { p_reason: string; p_transaction_id: string }
         Returns: Json
       }
+      capture_due_renewal_notices: { Args: never; Returns: number }
       capture_expired_access: { Args: never; Returns: number }
       capture_expired_licenses: { Args: never; Returns: number }
       check_application_rate_limit: {
@@ -6440,7 +6453,7 @@ export type Database = {
         Returns: Json
       }
       revoke_issued_licenses: {
-        Args: { p_actor?: string; p_license_ids: string[] }
+        Args: { p_actor?: string; p_license_ids: string[]; p_reason?: string }
         Returns: {
           changed: boolean
           id: string

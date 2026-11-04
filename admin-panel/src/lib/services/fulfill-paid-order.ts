@@ -48,7 +48,7 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
   const provider: PaymentProvider = 'provider' in args ? args.provider
     : { kind: 'stripe', stripe: args.stripe, sessionId: args.sessionId, paymentIntentId: args.paymentIntentId };
   if (provider.kind === 'offline' && !args.transactionId) throw new Error('Order transaction required');
-  let query = args.supabase.from('payment_transactions').select('id, session_id, user_id, customer_email, metadata, custom_field_values, order_details, fulfillment_pending, order_number');
+  let query = args.supabase.from('payment_transactions').select('id, session_id, user_id, customer_email, metadata, custom_field_values, order_details, fulfillment_pending, order_number, stripe_payment_intent_id, settled_via');
   query = args.transactionId ? query.eq('id', args.transactionId) : query.eq('session_id', provider.kind === 'stripe' ? provider.sessionId : null);
   const { data: tx, error } = await query.single();
   if (error || !tx) throw new Error('Order transaction unavailable');
@@ -80,11 +80,13 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
     userId: tx.user_id, productId: args.productId, bumpProductIds,
     componentProductIds, metadata, stripeCustomerDetails: args.customerDetails,
     amount: args.amount, currency: args.currency, sessionId: provider.kind === 'stripe' ? tx.session_id : undefined,
-    paymentIntentId: provider.kind === 'stripe' ? provider.paymentIntentId ?? null : null, taxSnapshot, couponId: args.couponId ?? null,
+    // A transfer order paid online carries the payment intent it was settled with (W147-10).
+    paymentIntentId: provider.kind === 'stripe' ? provider.paymentIntentId ?? null : tx.stripe_payment_intent_id ?? null, taxSnapshot, couponId: args.couponId ?? null,
     isGuest: args.isGuest, customFieldValues, orderDetails: tx.order_details, source: args.source,
   });
   payload.order.orderId = tx.id;
   payload.order.orderNumber = tx.order_number;
+  payload.order.settledVia = tx.settled_via ?? null;
   if (licenses.length) payload.licenses = licenses;
   try {
     // Purchase source is informative: a lookup failure never blocks fulfilment.

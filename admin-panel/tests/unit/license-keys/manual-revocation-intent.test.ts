@@ -16,7 +16,7 @@ beforeEach(()=>{
 it('accepts a known license already revoked during the dispute',async()=>{
  const result=await DELETE(new NextRequest('http://localhost/api/admin/licenses/'+id,{method:'DELETE'}),{params:Promise.resolve({id})});
  expect(result.status).toBe(200);expect(await result.json()).toEqual({revoked:true});
- expect(h.rpc).toHaveBeenCalledWith('revoke_issued_licenses',{p_license_ids:[id],p_actor:'e1210000-0000-4000-a000-000000000001'});
+ expect(h.rpc).toHaveBeenCalledWith('revoke_issued_licenses',{p_license_ids:[id],p_actor:'e1210000-0000-4000-a000-000000000001',p_reason:'manual'});
 });
 it('keeps unknown licenses distinct from repeated decisions',async()=>{
  h.rpc.mockResolvedValue({data:[],error:null});

@@ -146,7 +146,7 @@ describe('license restoration consumer contract',()=>{
   await apply(created);
   sql(`UPDATE public.payment_transactions SET status='refunded',refunded_amount=amount WHERE id='${transaction}';`);
   // Record the refund's permanent license decision through its shared operation.
-  const {revokeLicensesForOrder}=await import('@/lib/license-keys/revoke');await revokeLicensesForOrder(db,{productId:product,orderIds:[order]});
+  const {revokeLicensesForOrder}=await import('@/lib/license-keys/revoke');await revokeLicensesForOrder(db,{productId:product,orderIds:[order],reason:'refund'});
   const stripe={charges:{retrieve:async()=>({...refundedCharge,id:wonCharge.id,payment_intent:wonCharge.payment_intent})}} as unknown as Stripe;
   expect((await handleChargeDispute(won.data.object as unknown as Stripe.Dispute,db,stripe,true)).processed).toBe(true);
   expect((await state()).revoked).toBe(true);await drain();expect(received('license.restored')).toHaveLength(0);

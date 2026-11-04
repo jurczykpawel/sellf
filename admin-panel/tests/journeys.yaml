@@ -4530,6 +4530,182 @@
         "browser",
         "unit"
       ]
+    },
+    {
+      "id": "J280",
+      "title": "Integrator learns why product access was revoked",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "paid",
+        "payment": "refund",
+        "moment": "after_payment",
+        "operation": "change_access"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no buyer-facing state asserted.",
+        "seller": "Access row removed by refund, dispute, manual revoke or subscription end.",
+        "integrator": "access.revoked carries revocationReason (refund/dispute/manual/subscription_cancelled) and access.expired carries expired, next to the legacy origin reason."
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database"
+      ]
+    },
+    {
+      "id": "J281",
+      "title": "Integrator learns why a license was revoked",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "license",
+        "payment": "refund",
+        "moment": "after_payment",
+        "operation": "manage_key"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no buyer-facing state asserted.",
+        "seller": "License ledger records the permanent revocation reason; dispute ownership reports dispute.",
+        "integrator": "license.revoked carries revocationReason (refund/dispute/manual/subscription_cancelled)."
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database"
+      ]
+    },
+    {
+      "id": "J282",
+      "title": "License events name the Sellf order behind the license",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "license",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "issue_license"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no buyer-facing state asserted.",
+        "seller": "Order with its number exists for the license order claim.",
+        "integrator": "license.* carry license.orderId and license.orderNumber next to the raw order claim (pi_/cs_/in_)."
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database"
+      ]
+    },
+    {
+      "id": "J283",
+      "title": "Renewed subscription period reaches the integrator once with its end",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "subscription",
+        "payment": "card",
+        "moment": "after_renewal",
+        "operation": "change_access"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no buyer-facing state asserted.",
+        "seller": "Repeated subscription and invoice events leave the access row untouched.",
+        "integrator": "Exactly one access.updated per renewed period (deduplicated), access.granted/updated carry accessEndsAt."
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database"
+      ]
+    },
+    {
+      "id": "J284",
+      "title": "Renewal warning waits for the notice window before renewal",
+      "values": {
+        "persona": "integrator",
+        "entry": "cron",
+        "product": "subscription_trial",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "deliver"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no buyer-facing state asserted.",
+        "seller": "Early Stripe invoice.upcoming is stored on the subscription and emitted 3 days before renewal; cancelled subscriptions get none.",
+        "integrator": "subscription.renewal_upcoming arrives once, inside the notice window, not right after checkout."
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database"
+      ]
+    },
+    {
+      "id": "J285",
+      "title": "Ended subscription stops its offline licenses",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "subscription",
+        "payment": "card",
+        "moment": "after_grant",
+        "operation": "cancel"
+      },
+      "end_state": {
+        "buyer": "Subscriber's license key stops verifying once the subscription has ended.",
+        "seller": "Subscription licenses revoked with reason subscription_cancelled when Stripe ends the subscription (immediately or at period end).",
+        "integrator": "license.revoked with revocationReason subscription_cancelled; access.revoked with subscription_cancelled."
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database"
+      ]
+    },
+    {
+      "id": "J286",
+      "title": "Transfer order paid online reports its payment intent and buyer name",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "license",
+        "payment": "card_3ds",
+        "moment": "after_hold",
+        "operation": "purchase"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no buyer-facing state asserted.",
+        "seller": "Order settled via Stripe keeps its license order key.",
+        "integrator": "purchase.completed carries order.paymentIntentId, order.settledVia and customer first/last name from the order details."
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database"
+      ]
+    },
+    {
+      "id": "J287",
+      "title": "Cancelled transfer order reports void timers and the administrator's text",
+      "values": {
+        "persona": "admin",
+        "entry": "api",
+        "product": "event",
+        "payment": "bank_transfer",
+        "moment": "after_hold",
+        "operation": "cancel"
+      },
+      "end_state": {
+        "buyer": "Not exercised: no buyer-facing state asserted.",
+        "seller": "Order stores the cancellation text as cancel_note.",
+        "integrator": "order.cancelled carries releaseAt/reminderAt null, reservation none and cancelReasonText; seats.* carry the same customer.userId as order.*."
+      },
+      "status": "automated",
+      "layers": [
+        "unit",
+        "database"
+      ]
     }
   ],
   "escapes": [

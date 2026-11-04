@@ -57,7 +57,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     return NextResponse.json({ error: 'Rate limited' }, { status: 429, headers: noStore });
   }
   const { data, error } = await createAdminClient().rpc('revoke_issued_licenses', {
-    p_license_ids: [id.data], p_actor: access.auth!.user.id,
+    p_license_ids: [id.data], p_actor: access.auth!.user.id, p_reason: 'manual',
   });
   if (error) return NextResponse.json({ error: 'License revocation failed' }, { status: 500, headers: noStore });
   if (!data?.length) return NextResponse.json({ error: 'Not found' }, { status: 404, headers: noStore });
