@@ -1,12 +1,23 @@
 version: 2
-# Noise control: one PR per ecosystem and update kind. Everything except majors (patch,
-# minor, Docker digests) is auto-merged once PR CI is green (dependabot-auto-merge.yml);
-# red CI leaves one @owner comment on the PR; majors stay individual PRs for review.
-# Docker base-image majors are ignored (the Node/Bun lines are pinned deliberately).
+# Weekly cadence, three kinds of PR (the label/merge policy lives in
+# .github/workflows/dependabot-auto-merge.yml, which classifies every PR):
+#   - "safe"        docs-site, github-actions, mcp-server devDependencies: merged by the
+#                   workflow once PR CI (pr-ci.yml) is green.
+#   - "release-batch" everything that ships in the product (admin-panel, mcp-server and
+#                   Docker runtime deps, majors): never auto-merged; labelled `release-batch`
+#                   and folded into the release branch by the release process
+#                   (sellf-release step 0). build-release.yml refuses to build a release
+#                   while such a PR is older than 24 h.
+#   - "security"    security fixes get their own PR (never grouped with version bumps),
+#                   labelled `security`, never auto-merged, same release rule.
+# Majors always arrive as individual PRs (groups below only take patch + minor).
 updates:
   # admin-panel is built with Bun (CI: `bun install --frozen-lockfile`), so Dependabot
-  # must track bun.lock - the lockfile that actually ships. NOTE: Dependabot does not
+  # must track bun.lock, the lockfile that actually ships. NOTE: Dependabot does not
   # raise *security* PRs for Bun, only version PRs.
+  # Auto-merge is OFF for bun by design: Dependabot writes bun.lock as lockfileVersion 3,
+  # which the bun pinned in CI/Dockerfile (1.3.14) cannot read, so every bun PR fails
+  # `--frozen-lockfile` and must be re-locked by hand. Revisit once CI reads lockfile v3.
   - package-ecosystem: "bun"
     directory: "/admin-panel"
     schedule:
@@ -16,10 +27,10 @@ updates:
     labels:
       - "dependencies"
     groups:
-      compatible-patches:
-        update-types: ["patch"]
-      compatible-minors:
-        update-types: ["minor"]
+      runtime-and-dev:
+        # One PR for the whole admin-panel (runtime + dev, patch + minor).
+        patterns: ["*"]
+        update-types: ["patch", "minor"]
     ignore:
       # Blocked since b3001ee5: eslint-config-next's typescript-eslint v8 relied on the
       # FlatESLint API removed in eslint 10. That reason dates from 2026-04; re-check
@@ -36,10 +47,15 @@ updates:
     labels:
       - "dependencies"
     groups:
-      compatible-patches:
-        update-types: ["patch"]
-      compatible-minors:
-        update-types: ["minor"]
+      dev-dependencies:
+        dependency-type: "development"
+        update-types: ["patch", "minor"]
+      runtime-dependencies:
+        dependency-type: "production"
+        update-types: ["patch", "minor"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
 
   - package-ecosystem: "npm"
     directory: "/docs-site"
@@ -54,6 +70,9 @@ updates:
         update-types: ["patch"]
       compatible-minors:
         update-types: ["minor"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -67,6 +86,9 @@ updates:
         update-types: ["patch"]
       compatible-minors:
         update-types: ["minor"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
 
   - package-ecosystem: "docker"
     directory: "/"
@@ -78,6 +100,11 @@ updates:
     groups:
       base-images:
         patterns: ["*"]
+        update-types: ["patch", "minor"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
     ignore:
+      # The Node/Bun base-image lines are pinned deliberately and bumped by hand.
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
