@@ -1,4 +1,5 @@
 import { normalizeCouponCode } from '@/lib/coupons/normalize-code';
+import { COUPON_REJECTED_CODE } from '@/lib/coupons/rejection-limit';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { getStripeServer } from '@/lib/stripe/server';
@@ -547,7 +548,8 @@ export class CheckoutService {
           throw new CheckoutError(
             CheckoutErrorType.VALIDATION_ERROR,
             vResult?.error || 'Coupon code is no longer valid. Please remove it and try again.',
-            HTTP_STATUS.BAD_REQUEST
+            HTTP_STATUS.BAD_REQUEST,
+            COUPON_REJECTED_CODE,
           );
         }
       } catch (error) {

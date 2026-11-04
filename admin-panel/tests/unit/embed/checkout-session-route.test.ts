@@ -217,8 +217,25 @@ describe('POST /api/embed/checkout-session', () => {
       );
     });
 
-    it('throttles attempts per code and client before touching the checkout service', async () => {
+    // Same rule as /api/coupons/verify (W148-11): a valid code re-sent on every embed load
+    // never spends the per-code budget; only rejected codes do.
+    it('creates the session for a valid code even when the per-code budget is spent @J311', async () => {
       mocks.checkRateLimitForIdentifier.mockResolvedValue(false);
+
+      const response = await POST(
+        makeRequest({ productSlug: 'kurs-ai', couponCode: '\t save20 \n' }, origin),
+      );
+
+      expect(response.status).toBe(200);
+      expect(mocks.createCheckoutSession).toHaveBeenCalled();
+      expect(mocks.checkRateLimitForIdentifier).not.toHaveBeenCalled();
+    });
+
+    it('counts a rejected code per code and client and answers 429 once that budget is spent @J311', async () => {
+      mocks.checkRateLimitForIdentifier.mockResolvedValue(false);
+      mocks.createCheckoutSession.mockRejectedValue(
+        new CheckoutError(CheckoutErrorType.VALIDATION_ERROR, 'Invalid code', 400, 'COUPON_REJECTED'),
+      );
 
       const response = await POST(
         makeRequest({ productSlug: 'kurs-ai', couponCode: '\t save20 \n' }, origin),
@@ -231,7 +248,17 @@ describe('POST /api/embed/checkout-session', () => {
         60,
         'code:SAVE20:ip:203.0.113.9',
       );
-      expect(mocks.createCheckoutSession).not.toHaveBeenCalled();
+    });
+
+    it('returns the rejection while the per-code budget lasts', async () => {
+      mocks.createCheckoutSession.mockRejectedValue(
+        new CheckoutError(CheckoutErrorType.VALIDATION_ERROR, 'Invalid code', 400, 'COUPON_REJECTED'),
+      );
+
+      const response = await POST(makeRequest({ productSlug: 'kurs-ai', couponCode: 'NOPE' }, origin));
+
+      expect(response.status).toBe(400);
+      expect(mocks.checkRateLimitForIdentifier).toHaveBeenCalledTimes(1);
     });
 
     it('does not apply the per-code throttle when no coupon is sent', async () => {

@@ -11,7 +11,8 @@ import {
   parseEmbedCheckoutBody,
   requireEmbedCaptcha,
 } from '@/lib/embed/checkout-embed';
-import { checkRateLimit, checkRateLimitForIdentifier, getRateLimitIdentifier } from '@/lib/rate-limiting';
+import { checkRateLimit } from '@/lib/rate-limiting';
+import { COUPON_REJECTED_CODE, recordRejectedCouponAttempt } from '@/lib/coupons/rejection-limit';
 import { getCaptchaConfig } from '@/lib/captcha/config';
 import { CheckoutError, CheckoutErrorType } from '@/types/checkout';
 import { CheckoutService } from '@/lib/services/checkout';
@@ -185,23 +186,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // Same per-code throttle as the storefront coupon check: attempts on one code
-  // by one client. Applied after the captcha so it cannot be probed anonymously.
-  if (parsed.value.couponCode) {
-    const couponKey = `code:${parsed.value.couponCode.toUpperCase()}:${await getRateLimitIdentifier()}`;
-    if (!(await checkRateLimitForIdentifier('coupon_verify_code', 5, 60, couponKey))) {
-      await logEmbedCheckoutEvent(adminClient, {
-        productId: product.id,
-        productSlug: product.slug,
-        origin,
-        email: parsed.value.email,
-        action: 'paid_checkout',
-        status: 'rate_limited',
-      });
-      return embedJson({ error: 'Too many requests' }, 429, origin, allowedOrigins);
-    }
-  }
-
   try {
     const checkout = new CheckoutService();
     const embedSessionId = randomUUID();
@@ -249,6 +233,20 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     if (error instanceof CheckoutError) {
+      // Same per-code rule as the storefront check: only a rejected code spends the budget.
+      // Reached after the captcha, so it cannot be probed anonymously.
+      if (error.code === COUPON_REJECTED_CODE && parsed.value.couponCode
+        && !(await recordRejectedCouponAttempt(parsed.value.couponCode))) {
+        await logEmbedCheckoutEvent(adminClient, {
+          productId: product.id,
+          productSlug: product.slug,
+          origin,
+          email: parsed.value.email,
+          action: 'paid_checkout',
+          status: 'rate_limited',
+        });
+        return embedJson({ error: 'Too many requests' }, 429, origin, allowedOrigins);
+      }
       await logEmbedCheckoutEvent(adminClient, {
         productId: product.id,
         productSlug: product.slug,

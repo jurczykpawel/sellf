@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { normalizeCouponCode } from '@/lib/coupons/normalize-code';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { checkRateLimit, checkRateLimitForIdentifier, getRateLimitIdentifier } from '@/lib/rate-limiting';
+import { checkRateLimit } from '@/lib/rate-limiting';
+import { recordRejectedCouponAttempt } from '@/lib/coupons/rejection-limit';
 import { COUPON_RATE_WINDOW_SECONDS, rateLimitedResponse } from '@/lib/api/rate-limited-response';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
@@ -34,12 +35,9 @@ export async function POST(request: NextRequest) {
 
     const normalisedCode = normalizeCouponCode(code);
 
-    // Layered throttling per client. Every attempt counts toward the per-client
-    // budget; only rejected answers count toward the per-code budget (below), so
-    // re-verifying a valid code on page refreshes never locks a buyer out while
-    // probing one code (other e-mails, guesses) stays limited. The database
-    // function is called with the server client, so these are the limits that
-    // apply to storefront visitors.
+    // Every attempt counts per client; rejected answers also count per code
+    // (recordRejectedCouponAttempt, below). The database function is called with
+    // the server client, so these are the limits that apply to storefront visitors.
     const perSource = await checkRateLimit('coupon_verify', 30, 60);
     if (!perSource) return TOO_MANY();
 
@@ -68,13 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!data || typeof data !== 'object' || !(data as { valid?: boolean }).valid) {
-      const perCode = await checkRateLimitForIdentifier(
-        'coupon_verify_code',
-        5,
-        60,
-        `code:${normalisedCode}:${await getRateLimitIdentifier()}`,
-      );
-      if (!perCode) return TOO_MANY();
+      if (!(await recordRejectedCouponAttempt(normalisedCode))) return TOO_MANY();
       return NextResponse.json({ valid: false });
     }
 
