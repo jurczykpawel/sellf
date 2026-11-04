@@ -94,7 +94,7 @@ BEGIN
     id:=item.id;changed:=item.revoked_at IS NULL;RETURN NEXT;
   END LOOP;
 END $$;
-REVOKE ALL ON FUNCTION public.revoke_issued_licenses(uuid[],uuid,text) FROM PUBLIC,anon,authenticated;
+REVOKE EXECUTE ON FUNCTION public.revoke_issued_licenses(uuid[],uuid,text) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.revoke_issued_licenses(uuid[],uuid,text) TO service_role;
 
 -- Restoration clears the permanent reason with the revocation.
