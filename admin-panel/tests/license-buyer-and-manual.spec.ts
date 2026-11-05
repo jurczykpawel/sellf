@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
+useSupabaseBuyerEmails();
 /** Buyer sees the real license state; a seller's manual issuance reaches the buyer's inbox. */
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';

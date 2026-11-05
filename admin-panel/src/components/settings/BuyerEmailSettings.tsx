@@ -18,13 +18,15 @@ export default function BuyerEmailSettings() {
     return () => { live = false; };
   }, [t]);
   async function toggle() {
+    const previous = enabled;
+    const next = !previous;
+    setEnabled(next);
     setSaving(true);
     try {
-      if (await updateShopConfig({ supabase_buyer_emails: !enabled })) {
-        setEnabled(!enabled);
+      if (await updateShopConfig({ supabase_buyer_emails: next })) {
         toast.success(t('saved'));
-      } else toast.error(t('error'));
-    } catch { toast.error(t('error')); }
+      } else { setEnabled(previous); toast.error(t('error')); }
+    } catch { setEnabled(previous); toast.error(t('error')); }
     finally { setSaving(false); }
   }
   return <section className="bg-sf-base border-2 border-sf-border-medium p-6" aria-labelledby="buyer-emails-title">

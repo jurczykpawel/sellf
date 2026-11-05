@@ -24,7 +24,7 @@ it.each(['license.issued','order.participants_needed'])('retries %s as a signed 
   expect(ep.error).toBeNull();endpointId=ep.data!.id;
   const queue=new SupabaseWebhookQueue(db);
   await queue.enqueue({endpointId,eventType:event,payload,deliveryId:id,deliveryKey:null});
-  await queue.forceRetryNow(id);
+  expect((await db.from('webhook_logs').update({next_retry_at:'1970-01-01T00:00:00Z'}).eq('id',id)).error).toBeNull();
   expect((await handleWebhookDeliveriesRetry()).errors).toBe(0);
   expect(received).toEqual([{body:JSON.stringify(payload),valid:true}]);
   const log=await db.from('webhook_logs').select('payload,response_body,status').eq('id',id).single();

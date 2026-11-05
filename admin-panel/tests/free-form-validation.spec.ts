@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
+useSupabaseBuyerEmails();
 /** Free-access form: every invalid answer is explained next to its own field, never as a generic failure. */
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin } from './helpers/admin-auth';

@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from '../helpers/buyer-email-setting-playwright';
+useSupabaseBuyerEmails();
 /** Real embedded Stripe completion with email collected by Stripe. @see README.md */
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';

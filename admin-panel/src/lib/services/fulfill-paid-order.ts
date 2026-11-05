@@ -86,7 +86,7 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
   });
   payload.order.orderId = tx.id;
   payload.order.orderNumber = tx.order_number;
-  payload.order.settledVia = tx.settled_via ?? null;
+  payload.order.settledVia = tx.settled_via ?? (provider.kind === 'offline' ? 'bank_transfer' : null);
   if (licenses.length) payload.licenses = licenses;
   try {
     // Purchase source is informative: a lookup failure never blocks fulfilment.

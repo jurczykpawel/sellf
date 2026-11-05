@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
+useSupabaseBuyerEmails();
 /** Buyer-facing first-mail content and one consent control on each public route. */
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin } from './helpers/admin-auth';
