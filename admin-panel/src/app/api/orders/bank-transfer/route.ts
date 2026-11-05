@@ -45,7 +45,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!parsed.success) return fail('Invalid order');
     const body = parsed.data;
     const signToken = createTransferTokenSigner();
-    if (!(await verifyCaptchaToken(body.captchaToken, 'altcha')).success) return fail('Captcha required', 403);
+    if (!(await verifyCaptchaToken(body.captchaToken)).success) return fail('Captcha required', 403);
     const session = await createClient(); const { data: { user } } = await session.auth.getUser();
     const email = (user?.email ?? body.email).trim().toLowerCase();
     const checkoutConfig = await getCheckoutConfig();

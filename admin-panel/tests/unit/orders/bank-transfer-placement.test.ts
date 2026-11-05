@@ -46,10 +46,10 @@ describe('public bank transfer endpoint', () => {
     expect((await POST(request({ ...body, captchaToken: undefined }))).status).toBe(400);
     expect(mocks.from).not.toHaveBeenCalled();
   });
-  it('uses single-use ALTCHA verification and refuses a consumed token', async () => {
+  it('uses the configured verification provider and refuses an unsuccessful result', async () => {
     mocks.captcha.mockResolvedValue({ success: false });
     expect((await POST(request(body))).status).toBe(403);
-    expect(mocks.captcha).toHaveBeenCalledWith('solved', 'altcha');
+    expect(mocks.captcha).toHaveBeenCalledWith('solved');
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
   it('uses module quantity and locally computed VAT without creating a Stripe object', async () => {
