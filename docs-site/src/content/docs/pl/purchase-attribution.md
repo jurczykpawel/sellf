@@ -59,7 +59,7 @@ domyślne można wyłączyć; własne dodajesz na wierzchu. Zmiany dotyczą nowy
 kampania i partner z liczbą zamówień, przychodem brutto i netto (po zwrotach). Wszystkie kolumny
 wiersza pochodzą z tego samego kontaktu. Identyfikator kliknięcia reklamy należy do wizyty, z którą
 przyszedł: późniejsza wizyta z kampanii bez niego go zastępuje, więc kanał ostatniego kontaktu nigdy
-nie bierze się ze starszego kliknięcia.
+nie bierze się ze starszego kliknięcia. Domyślne reguły dają jawnym oznaczeniom kampanii płatnej lub mailowej pierwszeństwo przed zachowanym identyfikatorem kliknięcia.
 
 ### API (zbiorczo, bez danych osobowych) — uprawnienie `analytics:read`
 

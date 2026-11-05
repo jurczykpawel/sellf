@@ -3,6 +3,7 @@
  * @see supabase/migrations/20261103120000_purchase_attribution.sql
  */
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { getTestDatabaseContainer } from '../../helpers/database-container';
 import { collectAttribution } from '@/lib/attribution/collect';
@@ -136,6 +137,57 @@ describe('purchase attribution snapshot', () => {
 });
 
 describe('attribution report', () => {
+  it('preserves historical channels when the seller has since changed the matching rules', () => {
+    const migration = readFileSync('../supabase/migrations/20261105180000_attribution_touch_channels.sql', 'utf8');
+    const payload = JSON.stringify({ v: 1, consent: 'marketing', mode: 'stored',
+      last: { source: 'mailstack', medium: 'email' }, click: { type: 'gclid', value: 'old-click' } });
+    expect(() => sql(`UPDATE public.attribution_channel_rules SET priority=200 WHERE is_default AND field='click_id_type' AND channel='paid_search';
+      ${pending('cs_test_custom_touch', payload)} ${paid('a1310000-0000-4000-a000-0000000000f6', 'cs_test_custom_touch')}
+      INSERT INTO public.attribution_channel_rules(priority,channel,field,operator,value,is_default)
+        VALUES(1,'seller_channel','medium','equals','email',false);
+      ${migration}
+      ${assert(`(SELECT channel='paid_search' FROM public.purchase_attribution WHERE transaction_id='a1310000-0000-4000-a000-0000000000f6')`, 'preserve the snapshot from before the custom rule')}
+      ${assert(`(SELECT priority=1 FROM public.attribution_channel_rules WHERE channel='seller_channel')`, 'preserve the custom priority')}
+    `)).not.toThrow();
+  });
+
+  it.each([
+    ['last', 'email', 'gclid', 'email'],
+    ['mailstack', null, 'gclid', 'email'],
+    ['social', 'paid_social', 'gclid', 'paid_social'],
+    ['search', 'cpc', 'fbclid', 'paid_search'],
+  ])('corrects the existing %s/%s snapshot and restores immutability', (source, medium, click, expected) => {
+    const migration = readFileSync('../supabase/migrations/20261105180000_attribution_touch_channels.sql', 'utf8');
+    const payload = JSON.stringify({ v: 1, consent: 'marketing', mode: 'stored',
+      first: { source: 'first', medium: 'cpc' }, last: { source, medium },
+      click: { type: click, value: 'retained-click' } });
+    expect(() => sql(`UPDATE public.attribution_channel_rules SET priority=CASE WHEN channel='paid_search' THEN 200 ELSE 300 END WHERE is_default AND field='click_id_type';
+      ${pending('cs_test_legacy_touch', payload)} ${paid('a1310000-0000-4000-a000-0000000000f7', 'cs_test_legacy_touch')}
+      ${assert(`(SELECT channel='${click === 'gclid' ? 'paid_search' : 'paid_social'}' FROM public.purchase_attribution WHERE transaction_id='a1310000-0000-4000-a000-0000000000f7')`, 'old rule must reproduce the original snapshot')}
+      ${migration}
+      ${assert(`(SELECT channel='${expected}' AND first_channel='paid_search' AND last_source='${source}' AND click_id_type='${click}' FROM public.purchase_attribution WHERE transaction_id='a1310000-0000-4000-a000-0000000000f7')`, 'migration only corrects the channel')}
+      DO $t$ BEGIN
+        BEGIN
+          UPDATE public.purchase_attribution SET channel='other' WHERE transaction_id='a1310000-0000-4000-a000-0000000000f7';
+          RAISE EXCEPTION 'immutability was not restored';
+        EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+      END $t$;
+    `)).not.toThrow();
+  });
+
+  it('keeps the explicit email touch consistent when a prior ad click is still attached', () => {
+    const payload = JSON.stringify({ v: 1, consent: 'marketing', mode: 'stored',
+      first: { source: 'w160first', medium: 'cpc' }, last: { source: 'w160last2', medium: 'email' },
+      click: { type: 'gclid', value: 'recorded-click' } });
+    const out = sql(`DELETE FROM public.purchase_attribution;
+      ${pending('cs_test_touch_explicit', payload)} ${paid('a1310000-0000-4000-a000-0000000000f8', 'cs_test_touch_explicit')}
+      SELECT public.get_attribution_report(now()-interval '1 day', now()+interval '1 minute', 'last', ARRAY['channel','source','medium'])::text;
+      SELECT public.get_attribution_report(now()-interval '1 day', now()+interval '1 minute', 'first', ARRAY['channel','source','medium'])::text;`);
+    const [last, first] = out.trim().split('\n').filter(l => l.startsWith('[')).map(l => JSON.parse(l));
+    expect(last).toEqual([expect.objectContaining({ channel: 'email', source: 'w160last2', medium: 'email' })]);
+    expect(first).toEqual([expect.objectContaining({ channel: 'paid_search', source: 'w160first', medium: 'cpc' })]);
+  });
+
   it('reports every dimension from one touch: last = the email visit, first = the paid search visit (W147-6)', () => {
     const t0 = Date.now() - 3 * 86400_000;
     const ad = collectAttribution({ href: 'https://shop.example/?utm_source=google&utm_medium=cpc&utm_campaign=w153first&gclid=CjwKCAiA',
