@@ -21,6 +21,7 @@ import { CURRENCIES } from '@/lib/constants';
 import { useLocale, useTranslations } from 'next-intl';
 import { moneyAmountError } from '@/lib/currency/parse-money-input';
 import { productsBelowMinimumWithCoupon } from '@/lib/payment/minimum-charge';
+import { couponValueError } from '@/lib/coupons/validate-value';
 import { MoneyInputError } from '@/components/MoneyInputError';
 
 interface CouponFormModalProps {
@@ -81,6 +82,11 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
     currency: formData.currency, allowed_product_ids: formData.allowed_product_ids,
   });
   const [emailInput, setEmailInput] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const codeInvalid = !/^[A-Za-z0-9_-]{1,50}$/.test(formData.code || '');
+  const valueInvalid = couponValueError(formData.discount_type || '', formData.discount_value ?? NaN, formData.currency || defaultCurrency) !== null;
+  const codeError = (submitted || Boolean(formData.code)) && codeInvalid;
+  const valueError = (submitted || Boolean(formData.discount_value)) && valueInvalid;
   useEffect(() => {
     let active = true;
     void getMyShopConfig().then(config => {
@@ -100,9 +106,11 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
     setFormData(buildFormData(editingCoupon));
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!currencyLoaded) return;
+    setSubmitted(true);
+    if (!currencyLoaded || codeInvalid || valueInvalid) return;
+    if (!e.currentTarget.reportValidity()) return;
     
     // Ensure currency is null for percentage discounts to satisfy DB constraint
     const submitData = { ...formData };
@@ -153,7 +161,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
 
         <div className="px-6 pt-6"><AffiliateCouponEditor couponId={editingCoupon?.id} /></div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-8">
+        <form noValidate onSubmit={handleSubmit} className="p-6 space-y-8">
           {/* Section: Basic Info */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-sf-heading uppercase tracking-wider border-b border-sf-border pb-2">
@@ -166,8 +174,10 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                   <input
                     type="text"
                     value={formData.code}
-                    onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                    className="w-full pl-10 pr-4 py-2 border-2 border-sf-border-medium uppercase font-mono tracking-wide focus:ring-2 focus:ring-sf-accent bg-sf-input text-sf-heading"
+                    onChange={e => setFormData({ ...formData, code: e.target.value })}
+                    aria-invalid={codeError}
+                    aria-describedby={codeError ? 'coupon-code-error' : undefined}
+                    className="w-full pl-10 pr-4 py-2 border-2 border-sf-border-medium font-mono tracking-wide focus:ring-2 focus:ring-sf-accent bg-sf-input text-sf-heading"
                     placeholder={t('form.codePlaceholder')}
                     required
                   />
@@ -177,6 +187,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                     </svg>
                   </div>
                 </div>
+                {codeError && <p id="coupon-code-error" role="alert" className="mt-1 text-xs text-sf-danger">{t('form.codeInvalid')}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-sf-body mb-1">{t('form.nameLabel')}</label>
@@ -233,6 +244,8 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                   <input
                     type="number"
                     name="discount_value"
+                    aria-invalid={valueError}
+                    aria-describedby={valueError ? 'coupon-value-error' : undefined}
                     min="0"
                     step={formData.discount_type === 'percentage' || currencyExponent(formData.currency || defaultCurrency) === 0 ? "1" : "0.01"}
                     max={formData.discount_type === 'percentage' ? "100" : undefined}
@@ -247,6 +260,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                     </span>
                   </div>
                 </div>
+                {valueError && <p id="coupon-value-error" role="alert" className="mt-1 text-xs text-sf-danger">{t(formData.discount_type === 'percentage' ? 'form.percentageInvalid' : 'form.valueInvalid')}</p>}
                 {formData.discount_type !== 'percentage' && (
                   <MoneyInputError error={moneyAmountError(formData.discount_value, formData.currency || defaultCurrency)} currency={formData.currency || defaultCurrency} />
                 )}
