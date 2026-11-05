@@ -20,7 +20,7 @@ export async function deliverMagicLink(input: DeliverMagicLinkInput): Promise<Ma
     const redirect = new URL(input.redirectTo);
     const destination = redirect.searchParams.get('redirect_to') ?? redirect.pathname;
     const enabled = await readBuyerEmailPolicy(client);
-    if (enabled === null) return { ok: false, code: 'send_failed' };
+    if (enabled === null && input.transactionalOnly) return { ok: false, code: 'send_failed' };
     if (!enabled && input.transactionalOnly) return { ok: true, skipped: true };
     const data = { ...(enabled ? input.data : {}), locale: input.data?.locale === 'pl' || (!input.data?.locale && destination.startsWith('/pl/')) ? 'pl' : 'en' };
     const prepared = await client.rpc('prepare_event_mail', { p_email: input.email, p_data: data });
