@@ -90,14 +90,24 @@ export class SupabaseWebhookQueue implements IWebhookDeliveryQueue {
   async pickDue(limit: number): Promise<DueDelivery[]> {
     const { data, error } = await this.client.rpc('pick_due_webhook_deliveries', { p_limit: limit });
     if (error) throw new Error(`pickDue failed: ${error.message}`);
-    return Promise.all(((data ?? []) as PickDueRow[]).map(async (row) => ({
-      id: row.id,
-      endpointId: row.endpoint_id,
-      eventType: row.event_type,
-      payload: await readBuyerPayload(row.payload),
-      attemptCount: row.attempt_count,
-      maxAttempts: row.max_attempts,
-    })));
+    const deliveries: DueDelivery[] = [];
+    for (const row of (data ?? []) as PickDueRow[]) {
+      let payload: unknown;
+      try {
+        payload = await readBuyerPayload(row.payload);
+      } catch {
+        await this.markPermanentlyFailed(row.id, {
+          ok: false, httpStatus: null, responseBody: null,
+          errorMessage: 'Stored delivery payload is unavailable', durationMs: 0,
+        });
+        continue;
+      }
+      deliveries.push({
+        id: row.id, endpointId: row.endpoint_id, eventType: row.event_type,
+        payload, attemptCount: row.attempt_count, maxAttempts: row.max_attempts,
+      });
+    }
+    return deliveries;
   }
 
   async markDelivered(deliveryId: string, result: AttemptResult): Promise<void> {

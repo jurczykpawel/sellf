@@ -31,3 +31,23 @@ it.each([
   expect(await readBuyerPayload(stored)).toEqual(payload);
  } finally {vi.unstubAllEnvs();}
 });
+it('continues a due batch after an unreadable delivery and records its attempt', async () => {
+ vi.stubEnv('APP_ENCRYPTION_KEY', Buffer.alloc(32, 7).toString('base64'));
+ const {storeBuyerPayload}=await import('@/lib/webhooks/buyer-payload-storage');
+ try {
+  const broken=await storeBuyerPayload('license.issued',{data:{licenseKey:'private-value'}});
+  function changeTag(value: unknown): void {
+   if (!value || typeof value !== 'object') return;
+   if ('encryption_tag' in value) value.encryption_tag=Buffer.alloc(16).toString('base64');
+   else Object.values(value).forEach(changeTag);
+  }
+  changeTag(broken);
+  const rpc=vi.fn(async (name: string) => ({error:null,data:name==='pick_due_webhook_deliveries' ? [
+   {id:'broken',endpoint_id:'e',event_type:'license.issued',payload:broken,attempt_count:2,max_attempts:5},
+   {id:'healthy',endpoint_id:'e',event_type:'order.placed',payload:{data:{orderId:'order'}},attempt_count:1,max_attempts:5},
+  ] : null}));
+  const queue=new SupabaseWebhookQueue({rpc} as never);
+  expect(await queue.pickDue(50)).toEqual([{id:'healthy',endpointId:'e',eventType:'order.placed',payload:{data:{orderId:'order'}},attemptCount:1,maxAttempts:5}]);
+  expect(rpc).toHaveBeenCalledWith('increment_webhook_attempt',expect.objectContaining({p_log_id:'broken',p_status:'permanently_failed',p_error_message:'Stored delivery payload is unavailable',p_response_body:null,p_next_retry_at:null,p_failed_permanently_at:expect.any(String)}));
+ } finally {vi.unstubAllEnvs();}
+});
