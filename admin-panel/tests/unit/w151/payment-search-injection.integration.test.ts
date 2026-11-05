@@ -5,7 +5,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
-import { buildPaymentSearchFilter, buildSearchPattern } from '@/lib/payments/search';
+import { paymentSearchQuery } from '@/lib/payments/search';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -27,20 +27,14 @@ describe.skipIf(!db)('payment search with hostile input', () => {
 
   const hostile = ["' OR 1=1 --", 'a OR 1=1 --', '1=1 --', '%', '*', 'a,b', '(a)', 'a)', '"q"', "'", '\\', 'customer_email.neq.x', 'x),id.neq.(0'];
   it.each(hostile)('%s returns no error and none of the seeded rows', async (phrase) => {
-    const { filter, error } = await buildPaymentSearchFilter(db!, phrase);
-    expect(error).toBeNull();
-    const result = await db!.from('payment_transactions').select('id').in('id', ids).or(filter!);
+    const result = await paymentSearchQuery(db!, phrase).select('id').in('id', ids);
     expect(result.error).toBeNull();
     expect(result.data).toEqual([]);
   });
 
   it('still finds the exact row by a part of the e-mail', async () => {
-    const { filter } = await buildPaymentSearchFilter(db!, `${tag}-target`);
-    const result = await db!.from('payment_transactions').select('customer_email').in('id', ids).or(filter!);
+    const result = await paymentSearchQuery(db!, `${tag}-target`).select('customer_email').in('id', ids);
     expect(result.data).toEqual([{ customer_email: `${tag}-target@example.com` }]);
   });
 
-  it('treats "*" literally instead of as PostgREST match-all', () => {
-    expect(buildSearchPattern('a*b')).toBe('a\\*b');
-  });
 });

@@ -13,8 +13,7 @@ import { requireAdminApi } from '@/lib/auth-server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
-import { quoteForPostgrestOr } from '@/lib/api/filters';
-import { buildSearchPattern, parseOrderNumberQuery } from '@/lib/payments/search';
+import { parseOrderNumberQuery } from '@/lib/payments/search';
 import { ACCESS_SOURCES_BY_TYPE, ORDER_TYPES, PAYMENT_GRANT_SOURCES, decodeOrdersCursor, isAfterCursor, mergeOrders, pageOrders } from '@/lib/orders/merge';
 import type { OrderProductInfo, OrdersCursor } from '@/lib/orders/merge';
 
@@ -54,7 +53,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const fetchSize = limit + 1;
   const orderNumber = parseOrderNumberQuery(search);
-  const searchPattern = search && orderNumber === null ? buildSearchPattern(search) : null;
+  const searchText = search && orderNumber === null ? search : null;
   const isPaymentStatus = PAYMENT_STATUSES.includes(status);
   const wantsTransactions = (type === 'all' || type === 'paid' || type === 'transfer') && (status === 'all' || isPaymentStatus);
   const accessSources = type === 'all' ? Object.values(ACCESS_SOURCES_BY_TYPE).flat() : ACCESS_SOURCES_BY_TYPE[type] ?? [];
@@ -64,44 +63,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const db = createAdminClient();
 
-    // Search matches the buyer's e-mail or the product (same semantics as the transactions list).
-    // Access rows carry no e-mail, so matching users are resolved first.
-    let searchUserIds: string[] = [];
-    let searchProductIds: string[] = [];
-    if (searchPattern) {
-      const quoted = quoteForPostgrestOr(searchPattern);
-      const [usersRes, productsRes] = await Promise.all([
-        wantsAccesses ? db.from('user_access_stats').select('user_id').filter('email', 'imatch', searchPattern).limit(500) : Promise.resolve({ data: [], error: null }),
-        db.from('products').select('id').or(`name.imatch.${quoted},slug.imatch.${quoted}`).limit(500),
-      ]);
-      if (usersRes.error) throw usersRes.error;
-      if (productsRes.error) throw productsRes.error;
-      searchUserIds = (usersRes.data ?? []).map(row => row.user_id).filter((id): id is string => Boolean(id));
-      searchProductIds = (productsRes.data ?? []).map(row => row.id);
-    }
-    const searchFilter = (emailColumn: string | null, ids: { column: string; values: string[] }[]) => {
-      const clauses = emailColumn ? [`${emailColumn}.imatch.${quoteForPostgrestOr(searchPattern!)}`] : [];
-      for (const { column, values } of ids) if (values.length) clauses.push(`${column}.in.(${values.join(',')})`);
-      return clauses.join(',');
-    };
-
     const loadTransactions = async () => {
       if (!wantsTransactions) return [];
-      let query = db.from('payment_transactions')
+      let query = (searchText ? db.rpc('search_payment_transactions', { p_search: searchText, p_include_identifiers: false }) : db.from('payment_transactions'))
         .select('id,order_number,customer_email,user_id,product_id,amount,currency,status,payment_provider,created_at')
         .order('created_at', { ascending: false }).order('id', { ascending: false }).limit(fetchSize);
       if (type === 'transfer') query = query.eq('payment_provider', 'bank_transfer');
       if (type === 'paid') query = query.or('payment_provider.is.null,payment_provider.neq.bank_transfer');
       if (isPaymentStatus) query = query.eq('status', status);
       if (orderNumber !== null) query = query.eq('order_number', orderNumber);
-      if (searchPattern) query = query.or(searchFilter('customer_email', [{ column: 'product_id', values: searchProductIds }]));
       const { data, error } = await olderThan(query, 'created_at', cursor);
       if (error) throw error;
       return data ?? [];
     };
     const loadAccesses = async () => {
-      if (!wantsAccesses || (searchPattern && !searchUserIds.length && !searchProductIds.length)) return [];
-      let query = db.from('user_product_access')
+      if (!wantsAccesses) return [];
+      let query = (searchText ? db.rpc('search_order_accesses', { p_search: searchText }) : db.from('user_product_access'))
         .select('id,user_id,product_id,access_granted_at,access_expires_at,grant_source')
         .in('grant_source', accessSources)
         .not('grant_source', 'in', `(${PAYMENT_GRANT_SOURCES.join(',')})`)
@@ -109,18 +86,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const nowIso = new Date().toISOString();
       if (status === 'active') query = query.or(`access_expires_at.is.null,access_expires_at.gt.${nowIso}`);
       if (status === 'expired') query = query.lte('access_expires_at', nowIso);
-      if (searchPattern) query = query.or(searchFilter(null, [{ column: 'user_id', values: searchUserIds }, { column: 'product_id', values: searchProductIds }]));
       const { data, error } = await olderThan(query, 'access_granted_at', cursor);
       if (error) throw error;
       return data ?? [];
     };
     const loadLeads = async () => {
       if (!wantsLeads) return [];
-      let query = db.from('lead_submissions').select('id,email,product_id,confirmed_at,created_at')
+      let query = (searchText ? db.rpc('search_order_leads', { p_search: searchText }) : db.from('lead_submissions')).select('id,email,product_id,confirmed_at,created_at')
         .order('created_at', { ascending: false }).order('id', { ascending: false }).limit(fetchSize);
       if (status === 'confirmed') query = query.not('confirmed_at', 'is', null);
       if (status === 'pending') query = query.is('confirmed_at', null);
-      if (searchPattern) query = query.or(searchFilter('email', [{ column: 'product_id', values: searchProductIds }]));
       const { data, error } = await olderThan(query, 'created_at', cursor);
       if (error) throw error;
       return data ?? [];

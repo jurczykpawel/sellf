@@ -17,7 +17,7 @@ import {
   getApiCorsHeaders,
 } from '@/lib/api';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
-import { buildPaymentSearchFilter, VALID_PAYMENT_STATUSES } from '@/lib/payments/search';
+import { paymentSearchQuery, VALID_PAYMENT_STATUSES } from '@/lib/payments/search';
 import { currencyExponent, fromMinorUnits } from '@/lib/currency/minor-units';
 import { resolveCurrentTier } from '@/lib/license/resolve';
 import { hasFeature } from '@/lib/license/features';
@@ -84,9 +84,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const search = filters.search ?? filters.searchTerm ?? '';
+
     // Build query for transactions
-    let query = auth.supabase
-      .from('payment_transactions')
+    let query = paymentSearchQuery(auth.supabase, search)
       .select(`
         id,
         session_id,
@@ -139,12 +140,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const search = filters.search ?? filters.searchTerm;
-    if (search) {
-      const { filter, error } = await buildPaymentSearchFilter(auth.supabase, search);
-      if (error) return apiError(request, 'INTERNAL_ERROR', 'Failed to search payments');
-      query = query.or(filter!);
-    }
+
 
     const transactions: Record<string, unknown>[] = [];
     for (let offset = 0; ; offset += 1000) {
