@@ -26,7 +26,7 @@ Ustaw ten sam sekret podpisu po obu stronach. Wybierz potrzebne zdarzenia: `purc
 | Przypomnienie o płatności | `order.payment_reminder` |
 | Anulowanie z powodem | `order.cancelled` |
 | Brakujący uczestnicy (dwa etapy) | `order.participants_needed` |
-| Dostarczenie licencji | `license.issued` z `licenseKey` |
+| Dostarczenie licencji | `license.issued` z `licenseKey` — jedyne zdarzenie do maila z kluczem. Sellf wysyła dokładnie jedno na każdą wydaną licencję (zakup, darmowy dostęp, ręcznie, API). `purchase.completed.licenses[]` jest informacyjne dla integracji; nie wysyłaj z niego maila z kluczem. |
 | Zwrot | `refund.issued` |
 
 Odbiorca sprawdza podpis, zapobiega ponownej wysyłce na podstawie identyfikatora dostawy i wysyła mail na `customer.email`. Linki uczestników i klucze licencji są poufne — nie zapisuj ich w logach aplikacji. Mail transakcyjny nie jest zapisem do marketingowej bazy adresów.

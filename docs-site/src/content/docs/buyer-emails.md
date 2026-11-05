@@ -26,7 +26,7 @@ Configure the same signing secret at both ends. Subscribe to `purchase.completed
 | Payment reminder | `order.payment_reminder` |
 | Cancellation with reason | `order.cancelled` |
 | Missing participants (two stages) | `order.participants_needed` |
-| License delivery | `license.issued` with `licenseKey` |
+| License delivery | `license.issued` with `licenseKey` — the only event for the license-key email. Sellf emits exactly one per issued license (purchase, free grant, manual, API). `purchase.completed.licenses[]` is informational for integrations; do not send a key email from it. |
 | Refund | `refund.issued` |
 
 The receiver must deduplicate by delivery id, validate the signature and send to `customer.email`. Participant links and license keys are confidential delivery data: exclude them from application logs. Transactional messages must not be repurposed as marketing subscriptions.
