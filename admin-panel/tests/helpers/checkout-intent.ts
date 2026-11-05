@@ -1,10 +1,12 @@
 /** Observe automatic online checkout, or confirm an available method choice. */
 import { test as base, expect } from '@playwright/test';
 import type { Page, Request, Response } from '@playwright/test';
+import { assertStripeTransport } from './stripe-transport';
 
 const captured = new WeakMap<Page, Response[]>();
 function observeCheckout(page: Page): void {
   if (captured.has(page)) return;
+  if (process.env.STRIPE_LIVE_E2E === '1') assertStripeTransport(page);
   let visit = 0;
   const requests = new WeakMap<Request, number>();
   captured.set(page, []);
@@ -16,10 +18,10 @@ function observeCheckout(page: Page): void {
     if (requests.get(response.request()) === visit) captured.get(page)?.push(response);
   });
 }
-export const test = base.extend({ context: async ({ context }, use) => {
+export const test = base.extend({ context: async ({ context }, runWithContext) => {
   context.pages().forEach(observeCheckout);
   context.on('page', observeCheckout);
-  try { await use(context); } finally { context.off('page', observeCheckout); }
+  try { await runWithContext(context); } finally { context.off('page', observeCheckout); }
 } });
 
 export async function startNativeCheckout(page: Page): Promise<Response> {

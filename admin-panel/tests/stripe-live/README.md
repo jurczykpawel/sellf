@@ -19,6 +19,10 @@ The runner obtains the CLI signing secret with `stripe listen --print-secret`,
 passes it only in the app process environment, and starts `stripe listen` forwarding
 actual Stripe network events to `/api/webhooks/stripe`. It reuses the Playwright
 server commands, including the fixed exchange-rate stub and captcha test setting.
+The checkout specs report failed requests to Stripe.js and the payment API immediately,
+including the transport error, instead of waiting for a missing iframe or redirect.
+Cancelled requests and Stripe telemetry do not trigger this check. Payments are not retried.
+
 Stripe itself creates and confirms the payments through its real Elements UI;
 there are no Stripe script, API, or event mocks. Official test cards exercise
 normal approval, 3D Secure approval and decline. Test-mode payments move no funds
