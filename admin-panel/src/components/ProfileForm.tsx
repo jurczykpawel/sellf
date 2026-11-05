@@ -46,7 +46,7 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
       } else {
         setMessage({ type: 'success', text: t('messages.saveSuccess') })
       }
-    } catch (err) {
+    } catch {
       setMessage({ type: 'error', text: t('messages.saveError', { error: 'Unexpected error' }) })
     } finally {
       setLoading(false)

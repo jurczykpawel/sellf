@@ -84,7 +84,7 @@ export const Combobox = ({ options, placeholder, selectedValue, onSelect, classN
     setHighlightedIndex(-1); // Reset highlight on new search
   };
 
-  const handleOptionClick = (value: string, label: string) => {
+  const handleOptionClick = (value: string) => {
     onSelect(value);
     setSearchTerm('');
     setIsOpen(false);
@@ -142,7 +142,7 @@ export const Combobox = ({ options, placeholder, selectedValue, onSelect, classN
                   : 'hover:bg-sf-hover text-sf-heading'
               )}
               onMouseEnter={() => setHighlightedIndex(index)}
-              onClick={() => handleOptionClick(option.value, option.label)}
+              onClick={() => handleOptionClick(option.value)}
             >
               {option.label}
             </li>

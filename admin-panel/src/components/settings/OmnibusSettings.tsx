@@ -12,7 +12,6 @@ import { useTranslations } from 'next-intl';
 
 export default function OmnibusSettings() {
  const t = useTranslations('settings.omnibus');
- const [config, setConfig] = useState<ShopConfig | null>(null);
  const [loading, setLoading] = useState(true);
  const [saving, setSaving] = useState(false);
  const [omnibusEnabled, setOmnibusEnabled] = useState(true);
@@ -24,7 +23,6 @@ export default function OmnibusSettings() {
  const data = await getMyShopConfig();
  if (cancelled) return;
  if (data) {
- setConfig(data);
  setOmnibusEnabled(data.omnibus_enabled ?? true);
  }
  } catch (error) {
@@ -56,7 +54,6 @@ export default function OmnibusSettings() {
  // Reload config and sync state
  const newConfig = await getMyShopConfig();
  if (newConfig) {
- setConfig(newConfig);
  setOmnibusEnabled(newConfig.omnibus_enabled ?? true);
  }
  } else {

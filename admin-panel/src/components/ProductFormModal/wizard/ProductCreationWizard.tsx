@@ -79,7 +79,6 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     validateContentItemUrl,
     fieldErrors,
     setFieldErrors,
-    validateRequiredFields,
     validateStep1Fields,
     waitlistWarning,
     proceedWithSubmit,

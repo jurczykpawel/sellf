@@ -1,4 +1,4 @@
-import { getTranslations, getFormatter, getLocale } from 'next-intl/server';
+import { getTranslations, getLocale } from 'next-intl/server';
 import type { Product } from '@/types';
 import { formatPrice } from '@/lib/constants';
 import { getRecentSupporters } from '@/lib/checkout-templates/recent-supporters';
@@ -27,10 +27,9 @@ function relativeTimeKey(when: string): { key: 'justNow' | 'minutesAgo' | 'hours
 // Data is fetched server-side via the SAME loader as the public API
 // endpoint, so the cache layer (unstable_cache + revalidateTag) is shared.
 export default async function TipJarSidebar({ product }: TipJarSidebarProps) {
-  const [t, tActions, formatter, supporters, locale] = await Promise.all([
+  const [t, tActions, supporters, locale] = await Promise.all([
     getTranslations('tipJar'),
     getTranslations('supporterActions'),
-    getFormatter(),
     getRecentSupporters(product.slug),
     getLocale(),
   ]);

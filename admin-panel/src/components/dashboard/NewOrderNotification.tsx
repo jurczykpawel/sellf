@@ -35,7 +35,7 @@ interface NewOrderNotificationProps {
   onClose: () => void;
 }
 
-export default function NewOrderNotification({ amount, currency, onClose }: NewOrderNotificationProps) {
+export default function NewOrderNotification({ amount, onClose }: NewOrderNotificationProps) {
   const { width, height } = useWindowSizeCustom();
   const [isVisible, setIsVisible] = useState(true);
 

@@ -88,7 +88,7 @@ const VariantsPageContent: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const fetchGroups = useCallback(() => {
     setLoading(true);
@@ -98,7 +98,6 @@ const VariantsPageContent: React.FC = () => {
 
   // Initial data fetch
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
     loadGroups();
 
     loadProducts();

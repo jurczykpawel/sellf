@@ -58,7 +58,6 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
   let paymentStatus: PaymentStatus = 'processing'; // processing, completed, failed, expired, guest_purchase, magic_link_sent
   let customerEmail = '';
   let purchaseSessionId = session_id;
-  let userExistsInDatabase = false; // Track if user exists in database
   let otoInfo: OtoInfo | undefined = undefined;
 
   try {
@@ -73,9 +72,6 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       if (result.oto_info?.has_oto || result.oto_info?.reason) {
         otoInfo = result.oto_info;
       }
-
-      // Check if user exists in database based on scenario
-      userExistsInDatabase = result.scenario === 'existing_user_email';
 
       if (result.status === 'expired') {
         paymentStatus = 'expired';
@@ -101,9 +97,6 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
         otoInfo = result.oto_info;
       }
 
-      // Check if user exists in database based on scenario
-      userExistsInDatabase = result.scenario === 'existing_user_email';
-
       if (result.status === 'succeeded') {
         const mapped = mapVerifiedPaymentToStatus(result);
         paymentStatus = mapped.paymentStatus;
@@ -122,13 +115,6 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       }
 
       customerEmail = user.email || '';
-
-      const { data: existingAccess } = await supabase
-        .from('user_product_access')
-        .select('access_expires_at')
-        .eq('user_id', user.id)
-        .eq('product_id', product.id)
-        .single();
 
       const adminClient = createAdminClient();
       const freeAccessResult = await grantFreeProductAccess(supabase, adminClient, {

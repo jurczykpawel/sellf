@@ -15,19 +15,14 @@ import type {
   StripeMode,
   StripeKeyPrefix,
   KeyFormatValidationResult,
-  ConnectionTestResult,
-  PermissionVerificationResult,
   PermissionStatus,
-  ValidationResult,
   ActionResponse,
-  GetActiveConfigResponse,
   SaveConfigResponse,
   DeleteConfigResponse,
   ValidateKeyResponse,
   TestConnectionResponse,
   VerifyPermissionsResponse,
   CreateStripeConfigInput,
-  REQUIRED_PERMISSIONS,
   RegisterWebhookResponse,
   WebhookRegistrationInfo,
 } from '@/types/stripe-config'
@@ -432,7 +427,7 @@ export async function validateStripeKey(apiKey: string, expectedMode?: StripeMod
 export async function saveStripeConfig(input: CreateStripeConfigInput): Promise<SaveConfigResponse> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
   // Platform admin only — sellers use Stripe Connect, not raw API keys
-  return withAdminAuth(async ({ supabase: _supabase }) => {
+  return withAdminAuth(async () => {
     const dataClient = createAdminClient();
     // Validate the key first
     const validation = await validateStripeKey(input.apiKey, input.mode)

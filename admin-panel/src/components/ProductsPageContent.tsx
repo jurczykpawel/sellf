@@ -240,7 +240,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
       await fetchProducts();
 
       toast.success(!currentStatus ? t('statusActivated') : t('statusDeactivated'));
-    } catch (err) {
+    } catch {
       toast.error(t('statusToggleError'));
     }
   };
@@ -254,7 +254,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
       await fetchProducts();
 
       toast.success(!currentFeatured ? t('featuredEnabled') : t('featuredDisabled'));
-    } catch (err) {
+    } catch {
       toast.error(t('featuredToggleError'));
     }
   };
@@ -264,7 +264,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
       await toggleListed(productId, currentListed);
       await fetchProducts();
       toast.success(!currentListed ? t('listedEnabled') : t('listedDisabled'));
-    } catch (err) {
+    } catch {
       toast.error(t('listedToggleError'));
     }
   };

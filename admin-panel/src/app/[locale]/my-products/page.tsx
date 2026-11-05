@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
@@ -53,7 +54,7 @@ function ProductImage({ src, alt, icon }: { src: string; alt: string; icon: stri
   }
 
   return (
-    <img
+    <Image unoptimized loading="eager" width={400} height={160}
       src={src}
       alt={alt}
       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -184,7 +185,6 @@ export default function MyProductsPage() {
 
   useEffect(() => {
     if (!authLoading) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
       loadProductsData();
     }
   }, [authLoading, loadProductsData]);

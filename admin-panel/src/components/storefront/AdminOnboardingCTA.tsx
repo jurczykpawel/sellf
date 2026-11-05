@@ -8,7 +8,7 @@ interface AdminOnboardingCTAProps {
   shopEmail: string | null;
 }
 
-export default function AdminOnboardingCTA({ shopName, shopEmail }: AdminOnboardingCTAProps) {
+export default function AdminOnboardingCTA({ shopName }: AdminOnboardingCTAProps) {
   const t = useTranslations('storefront.onboarding');
 
   const checklist = [

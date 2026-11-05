@@ -63,7 +63,6 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
  };
 
  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
  fetchConfigs()
  }, [fetchConfigs])
 

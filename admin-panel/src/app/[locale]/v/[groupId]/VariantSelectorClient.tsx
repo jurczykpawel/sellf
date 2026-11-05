@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
@@ -116,7 +117,7 @@ export default function VariantSelectorClient({ groupId, licenseValid }: Variant
     if (groupId) {
       fetchVariants();
     }
-  }, [groupId, config.supabaseUrl, config.supabaseAnonKey]);
+  }, [groupId, config.supabaseUrl, config.supabaseAnonKey, t]);
 
   const handleSelectVariant = (slug: string) => {
     router.push(`/${locale}/checkout/${slug}`);
@@ -198,7 +199,7 @@ export default function VariantSelectorClient({ groupId, licenseValid }: Variant
                 {(variant.image_url || variant.icon) && (
                   <div className="flex-shrink-0">
                     {variant.image_url ? (
-                      <img
+                      <Image unoptimized loading="eager" width={64} height={64}
                         src={variant.image_url}
                         alt={variant.variant_name || variant.name}
                         className="w-16 h-16 object-cover rounded-xl"

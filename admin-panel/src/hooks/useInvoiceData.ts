@@ -107,13 +107,13 @@ export function useInvoiceData(
     return () => { controller.abort(); ignore = true; };
   }, [email]);
 
-  function translateNipError(error: string | undefined): string {
+  const translateNipError = useCallback((error: string | undefined): string => {
     if (!error) return t('nipValidation.invalidFormat');
     if (error.includes('Invalid Polish NIP checksum')) return t('nipValidation.invalidChecksum');
     if (error.includes('Polish NIP must be 10 digits')) return t('nipValidation.mustBe10Digits');
     if (error.includes('Tax ID is required')) return t('nipValidation.required');
     return t('nipValidation.invalidFormat');
-  }
+  }, [t]);
 
   const resetNipFeedback = useCallback(() => {
     setNipError(null);
@@ -170,7 +170,7 @@ export function useInvoiceData(
       setGusError(null);
       setGusSuccess(false);
     }
-  }, [nip, country, companyName, address, city, postalCode, t, setCompanyName, setAddress, setCity, setPostalCode, setCountry]);
+  }, [nip, country, companyName, address, city, postalCode, t, translateNipError, setCompanyName, setAddress, setCity, setPostalCode, setCountry]);
 
   return {
     isLoadingProfile,

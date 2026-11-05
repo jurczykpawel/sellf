@@ -174,7 +174,7 @@ export default function StripeTaxSettings() {
  }
  load()
  return () => { cancelled = true }
- }, [])
+ }, [t])
 
  const handleTaxModeChange = async (mode: TaxMode) => {
  setSaving(true)

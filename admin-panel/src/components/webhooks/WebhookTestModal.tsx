@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { WebhookEndpoint } from '@/types/webhooks';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '../ui/Modal';
 import { useTranslations } from 'next-intl';

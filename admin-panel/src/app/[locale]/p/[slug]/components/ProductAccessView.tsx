@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useSyncExternalStore } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import Confetti from 'react-confetti';
 import EventAccess from '@/components/EventAccess';
@@ -51,6 +52,7 @@ interface ProductAccessViewProps {
 type SecureProductData = SecureProductResponse;
 
 export default function ProductAccessView({ product, licenseValid, previewMode = false, initialSecureData }: ProductAccessViewProps) {
+  const router = useRouter();
   const t = useTranslations('productView');
   const tContent = useTranslations('digitalContent');
   const locale = useLocale();
@@ -120,7 +122,7 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
 
         if (!response.ok) {
           if (response.status === 401) {
-            window.location.href = '/login';
+            router.push('/login');
             return;
           }
           if (response.status === 403) {
@@ -161,7 +163,7 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
     return () => {
       controller.abort();
     };
-  }, [product, previewMode, showConfetti, t, initialSecureData]);
+  }, [product, previewMode, showConfetti, t, initialSecureData, router]);
 
   // Handle redirect type products.
   // Note: redirect_url is admin-configured and intentionally allows cross-origin URLs

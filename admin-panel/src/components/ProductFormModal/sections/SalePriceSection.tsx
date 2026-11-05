@@ -16,7 +16,6 @@ export function SalePriceSection({
   t,
   salePriceDisplayValue,
   setSalePriceDisplayValue,
-  omnibusEnabled,
 }: SalePriceSectionProps) {
   const locale = useLocale();
   const handleSalePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {

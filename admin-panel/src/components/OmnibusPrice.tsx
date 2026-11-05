@@ -26,7 +26,6 @@ interface LowestPriceData {
 
 export default function OmnibusPrice({
   productId,
-  currentPrice,
   currency,
   showAlways = false
 }: OmnibusPriceProps) {

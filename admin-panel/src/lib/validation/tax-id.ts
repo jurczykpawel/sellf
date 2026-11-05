@@ -64,7 +64,6 @@ export function classifyTaxId(value: string, countryInput: string): TaxIdClassif
   }
 
   const normalized = raw.trim();
-  // eslint-disable-next-line no-control-regex
   return { type, country, normalized, valid: normalized.length <= TAX_ID_MAX_LENGTH && !/[\u0000-\u001f\u007f<>]/.test(normalized) };
 }
 

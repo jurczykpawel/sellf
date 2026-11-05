@@ -27,7 +27,6 @@ export default function DateTimePicker({
   error,
   disabled = false,
   required = false,
-  showTimeSelect = true,
   minDate,
   maxDate
 }: DateTimePickerProps) {

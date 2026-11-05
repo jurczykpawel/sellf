@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image';
 import React, { useState, useEffect, useRef, startTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import { ADMIN_NAV_GROUPS, type AdminNavIcon } from '@/lib/navigation/admin-nav'
@@ -152,7 +153,7 @@ const Icons = {
   ),
 };
 
-export default function DashboardLayout({ children, user: userProp, isAdmin: isAdminProp, shopConfig, showSellfCTA, adminRole, storefrontTemplate }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, user: userProp, isAdmin: isAdminProp, shopConfig, showSellfCTA, storefrontTemplate }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [sidebarBadges, setSidebarBadges] = useState({
     pendingRefunds: 0,
@@ -437,56 +438,6 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
     </div>
   );
 
-  // Sidebar logo section
-  const SidebarLogo = ({ expanded, showPin }: { expanded: boolean, showPin?: boolean }) => (
-    <div className="relative flex items-center gap-3 px-6 h-[68px] flex-shrink-0 border-b border-sf-border-subtle">
-      <Link href="/" className="flex items-center gap-3">
-        {logoUrl ? (
-          <img src={logoUrl} alt={shopName} className="w-7 h-7 object-contain flex-shrink-0" />
-        ) : (
-          <div
-            className="w-7 h-7 flex items-center justify-center flex-shrink-0"
-            style={{ background: 'linear-gradient(to right, var(--sf-accent), var(--sf-accent-hover))' }}
-          >
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-            </svg>
-          </div>
-        )}
-        <span
-          className="text-[15px] font-bold text-sf-heading whitespace-nowrap tracking-tight transition-opacity"
-          style={{
-            opacity: expanded ? 1 : 0,
-            transitionDuration: 'var(--sf-duration-normal, 250ms)',
-            transitionTimingFunction: 'var(--sf-ease-out, ease-out)',
-          }}
-        >
-          {shopName}
-        </span>
-      </Link>
-      {showPin && (
-        <button
-          onClick={(e) => { e.stopPropagation(); togglePin(); }}
-          className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-sf-sidebar-text hover:text-sf-accent hover:bg-sf-hover transition-all"
-          style={{
-            opacity: expanded ? 1 : 0,
-            pointerEvents: expanded ? 'auto' : 'none',
-            transitionDuration: 'var(--sf-duration-normal, 250ms)',
-            transitionTimingFunction: 'var(--sf-ease-out, ease-out)',
-          }}
-          aria-label={isPinned ? 'Unpin sidebar' : 'Pin sidebar open'}
-        >
-          <span
-            className="transition-transform duration-250"
-            style={{ transform: isPinned ? 'rotate(45deg)' : 'none' }}
-          >
-            {Icons.pin}
-          </span>
-        </button>
-      )}
-    </div>
-  );
-
   // ---------------------------------------------------------------------------
   // PUBLIC LAYOUT (No Sidebar) - For guests / login page / storefront
   // ---------------------------------------------------------------------------
@@ -499,7 +450,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
             <div className="flex items-center">
               <Link href="/" className="flex items-center group">
                 {logoUrl ? (
-                  <img src={logoUrl} alt={shopName} className="w-9 h-9 object-contain mr-3 group-hover:scale-105 transition-transform" />
+                  <Image unoptimized loading="eager" width={36} height={36} src={logoUrl} alt={shopName} className="w-9 h-9 object-contain mr-3 group-hover:scale-105 transition-transform" />
                 ) : (
                   <div
                     className="w-9 h-9 flex items-center justify-center mr-3 group-hover:scale-105 transition-transform"
@@ -579,7 +530,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
         >
           <Link href="/" className="flex items-center gap-3 px-5 flex-1 min-w-0">
             {logoUrl ? (
-              <img src={logoUrl} alt={shopName} className="w-7 h-7 object-contain flex-shrink-0" />
+              <Image unoptimized loading="eager" width={28} height={28} src={logoUrl} alt={shopName} className="w-7 h-7 object-contain flex-shrink-0" />
             ) : (
               <div
                 className="w-7 h-7 flex items-center justify-center flex-shrink-0"
@@ -662,7 +613,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
             <div className="h-[68px] flex items-center justify-between px-6 border-b border-sf-border-subtle">
               <div className="flex items-center gap-3">
                 {logoUrl ? (
-                  <img src={logoUrl} alt={shopName} className="w-7 h-7 object-contain" />
+                  <Image unoptimized loading="eager" width={28} height={28} src={logoUrl} alt={shopName} className="w-7 h-7 object-contain" />
                 ) : (
                   <div
                     className="w-7 h-7 flex items-center justify-center"

@@ -17,7 +17,6 @@ const CURRENCIES = [
 
 export default function ShopSettings() {
  const t = useTranslations('settings.shop');
- const [config, setConfig] = useState<ShopConfig | null>(null);
  const [loading, setLoading] = useState(true);
  const [saving, setSaving] = useState(false);
 
@@ -35,7 +34,6 @@ export default function ShopSettings() {
  const data = await getMyShopConfig();
  if (cancelled) return;
  if (data) {
- setConfig(data);
  setFormData({
  default_currency: data.default_currency,
  shop_name: data.shop_name,
@@ -70,9 +68,6 @@ export default function ShopSettings() {
 
  if (success) {
  toast.success(t('saveSuccess'));
- // Reload config
- const newConfig = await getMyShopConfig();
- if (newConfig) setConfig(newConfig);
  } else {
  toast.error(t('saveError'));
  }

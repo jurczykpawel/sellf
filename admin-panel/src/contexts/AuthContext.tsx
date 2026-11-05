@@ -177,7 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json()
       window.location.href = data.redirectUrl ?? '/login'
     } catch {
-      window.location.href = '/login'
+      window.location.assign(new URL('/login', window.location.origin).href)
     }
   }
 

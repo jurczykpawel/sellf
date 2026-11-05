@@ -3,6 +3,8 @@ import { readDashboard } from '@/lib/api/dashboard-reads';
 import { convertCurrencyAmount, convertCurrencyArray, type ExchangeRates } from '@/lib/utils/currency-conversion';
 import { CurrencyAmount } from '@/lib/actions/analytics';
 
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
 /**
  * Hook to convert CurrencyAmount objects to a single target currency
  * SUPER OPTIMIZED: Fetches rates ONCE and caches them, converts locally
@@ -13,7 +15,6 @@ export function useCurrencyConversion() {
   // Cache rates in a ref to avoid re-fetching for same currency
   // Key: targetCurrency, Value: { rates, timestamp }
   const ratesCache = useRef<Map<string, { rates: ExchangeRates; timestamp: number }>>(new Map());
-  const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
   /**
    * Get cached rates or fetch new ones

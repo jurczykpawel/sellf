@@ -47,7 +47,7 @@ export async function GET() {
     const supabase = await createClient();
 
     // Get basic product count (public products only)
-    const { data: products, error: productsError } = await supabase
+    const { error: productsError } = await supabase
       .from('products')
       .select('id, name, is_active')
       .eq('is_active', true);

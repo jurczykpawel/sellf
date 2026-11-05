@@ -89,6 +89,7 @@ function loadStripeEnvConfig(): Record<string, string> {
 const nextConfig: NextConfig = {
   /* config options here */
   output: 'standalone',
+  turbopack: { root: join(__dirname, '..') },
   // Keep locale rewrites on the dev server's original loopback origin.
   skipProxyUrlNormalize: process.env.NODE_ENV === 'development',
   // outputFileTracingRoot intentionally unset — pinning it OOM-ed Turbopack dev (#81161).

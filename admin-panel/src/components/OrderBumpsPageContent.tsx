@@ -90,7 +90,7 @@ const OrderBumpsPageContent: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const fetchOrderBumps = useCallback(() => {
     setLoading(true);
@@ -100,7 +100,6 @@ const OrderBumpsPageContent: React.FC = () => {
 
   // Initial data fetch
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
     loadOrderBumps();
 
     loadProducts();

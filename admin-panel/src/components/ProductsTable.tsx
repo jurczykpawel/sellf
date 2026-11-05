@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Product } from '@/types';
 import { formatPrice } from '@/lib/constants';
@@ -246,7 +247,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                       <div className="flex items-center max-w-[300px]">
                         <div className="flex-shrink-0 h-8 w-8">
                           {product.image_url ? (
-                            <img
+                            <Image unoptimized loading="eager" width={32} height={32}
                               src={product.image_url}
                               alt={product.name}
                               className="h-8 w-8 rounded object-cover"
