@@ -2218,6 +2218,7 @@
         "order_transfer_declared": "Kupujący zgłosił wysłanie przelewu",
         "order_invoice_issued": "Faktura wystawiona, czeka na płatność",
         "order_reopened": "Zamówienie przywrócone",
+        "order_participants_needed": "Uzupełnienie uczestników",
         "order_participants_updated": "Uzupełnieni uczestnicy zamówienia",
         "purchase_completed": "Zakup zakończony",
         "lead_captured": "Lead pozyskany (Darmowy produkt)",
@@ -2289,6 +2290,7 @@
         "order_transfer_declared": "Kupujący zgłosił wysłanie przelewu; rezerwacja została przedłużona. Sprawdź wyciąg.",
         "order_invoice_issued": "Dla nieopłaconego zamówienia przelewem wystawiono fakturę; zamówienie czeka na płatność bez terminu wygaśnięcia, do zapłaty lub anulowania.",
         "order_reopened": "Administrator przyjął przelew, który doszedł po anulowaniu; zamówienie zrealizowano po cenie z zamówienia.",
+        "order_participants_needed": "Kupujący nie uzupełnił uczestników. Zawiera osobisty link i etap przypomnienia.",
         "order_participants_updated": "Kupujący uzupełnił listę uczestników po zapłacie (produkty z opcją „uzupełnię później”). Zawiera zamówienie, ilość i pełną listę; wysyłane raz na zamówienie.",
         "purchase_completed": "Jednorazowy zakup zakończony (płatność Stripe powiodła się lub potwierdzona po powrocie kupującego). Zawiera kupującego, produkt, zamówienie i custom fields.",
         "dispute_created": "Otwarto spór płatniczy; zawiera zakup i informację o odebraniu dostępu.",
@@ -2313,7 +2315,7 @@
         "access_revoked": "Odebrano dostęp. Zawiera ID grantu, czas odebrania, powód i aktora.",
         "access_expired": "Wygasł czasowy dostęp kupującego do produktu (wysyłane przez zadanie cron, raz na wygasły rekord).",
         "license_revoked": "Cofnięto podpisaną licencję produktu. Zawiera zamówienie, klienta, tier, domenę i URL listy CRL, by integracja mogła natychmiast odebrać dostęp. Tylko Pro.",
-        "license_issued": "Zapisano licencję produktu (zakup, darmowy, ręcznie lub API). Zawiera licencję, zamówienie, klienta, plan, domenę i URL CRL; nigdy token. Tylko Pro.",
+        "license_issued": "Zapisano licencję produktu (zakup, darmowy, ręcznie lub API). Zawiera licencję, zamówienie, klienta, plan, domenę i URL CRL i klucz do dostarczenia w licenseKey. Tylko Pro.",
         "license_expired": "Aktywna licencja produktu minęła termin ważności. Wysyłane raz na licencję; nigdy token. Tylko Pro.",
         "license_restored": "Przywrócono wcześniej cofniętą licencję produktu. Token i termin pozostają bez zmian; odśwież CRL przed przyznaniem dostępu. Tylko Pro.",
         "invoicing_issued": "Wystawiono fakturę sprzedaży (np. w Fakturowni) do zamówienia. Zawiera numer, ID u dostawcy, link, zamówienie i kwotę w groszach.",
@@ -3111,6 +3113,15 @@
     "errorLoadingConfiguration": "Nie można załadować konfiguracji aplikacji. Sprawdź połączenie i spróbuj ponownie."
   },
   "settings": {
+    "buyerEmails": {
+      "title": "Maile do kupujących",
+      "toggle": "Wysyłaj maile do kupujących przez Supabase",
+      "description": "Domyślnie Sellf wysyła podpisane webhooki, a Twoja integracja wysyła maile transakcyjne. Linki logowania zawsze obsługuje Supabase Auth.",
+      "warning": "Włączenie tej opcji szybciej zużywa darmowy limit maili Supabase i może wymagać płatnego planu.",
+      "mailstack": "Postaw Mailstack — darmowy do wysyłek",
+      "saved": "Zapisano ustawienie maili",
+      "error": "Nie udało się zapisać ustawienia maili"
+},
     "title": "Ustawienia",
     "subtitle": "Skonfiguruj ustawienia sklepu i integracje",
     "gus": {

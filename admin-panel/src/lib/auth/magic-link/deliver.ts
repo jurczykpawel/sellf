@@ -1,9 +1,11 @@
 import 'server-only';
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { readBuyerEmailPolicy } from './buyer-email-policy';
 import type { MagicLinkResult } from './types';
 
 export interface DeliverMagicLinkInput {
+  transactionalOnly?: boolean;
   email: string;
   redirectTo: string;
   shouldCreateUser: boolean;
@@ -17,7 +19,10 @@ export async function deliverMagicLink(input: DeliverMagicLinkInput): Promise<Ma
     const client = createAdminClient();
     const redirect = new URL(input.redirectTo);
     const destination = redirect.searchParams.get('redirect_to') ?? redirect.pathname;
-    const data = { ...input.data, locale: input.data?.locale === 'pl' || (!input.data?.locale && destination.startsWith('/pl/')) ? 'pl' : 'en' };
+    const enabled = await readBuyerEmailPolicy(client);
+    if (enabled === null) return { ok: false, code: 'send_failed' };
+    if (!enabled && input.transactionalOnly) return { ok: true, skipped: true };
+    const data = { ...(enabled ? input.data : {}), locale: input.data?.locale === 'pl' || (!input.data?.locale && destination.startsWith('/pl/')) ? 'pl' : 'en' };
     const prepared = await client.rpc('prepare_event_mail', { p_email: input.email, p_data: data });
     if (prepared.error) return { ok: false, code: 'send_failed' };
     const { error } = await client.auth.signInWithOtp({
@@ -31,8 +36,8 @@ export async function deliverMagicLink(input: DeliverMagicLinkInput): Promise<Ma
     if (!error) return { ok: true };
     console.error(`[magic-link] send failed: status=${error.status ?? 'n/a'} code=${error.code ?? 'n/a'}`);
     return { ok: false, code: error.status === 429 ? 'rate_limited' : 'send_failed' };
-  } catch (err) {
-    console.error('[magic-link] send threw:', err instanceof Error ? err.message : 'Unknown error');
+  } catch {
+    console.error('[magic-link] send unavailable');
     return { ok: false, code: 'send_failed' };
   }
 }

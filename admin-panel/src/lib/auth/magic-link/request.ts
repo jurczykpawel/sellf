@@ -15,6 +15,7 @@ import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting
 import { createAdminClient } from '@/lib/supabase/admin';
 import { prepareFreeGrantRequest } from '@/lib/services/free-grant-context';
 
+import { readBuyerEmailPolicy } from './buyer-email-policy';
 import { deliverMagicLink } from './deliver';
 import { queueAuthMailRetry } from './retry';
 import type { AuthMailRetryKind } from './retry';
@@ -33,6 +34,7 @@ export interface MagicLinkRequestInput {
 }
 
 export interface SendTrustedMagicLinkInput {
+  transactionalOnly?: boolean;
   freeGrant?: { productSlug: string; locale?: string; couponCode?: string; successUrl?: string; customFieldValues?: Record<string, string> };
   email: string;
   redirectTo: string;
@@ -65,6 +67,16 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
   } catch {
     return { ok: false, code: 'invalid_request' };
   }
+  if (input.transactionalOnly) {
+    try {
+      const enabled = await readBuyerEmailPolicy();
+      if (enabled === null) throw new Error('Buyer email policy unavailable');
+      if (!enabled) return { ok: true, skipped: true };
+    } catch {
+      return input.retry ? queueAuthMailRetry({ email: input.email.trim().toLowerCase(), redirectTo: input.redirectTo,
+        data: input.data, kind: input.retry, code: 'send_failed' }) : { ok: false, code: 'send_failed' };
+    }
+  }
   const normalizedEmail = input.email.trim().toLowerCase();
 
   const emailAllowed = await checkRateLimitForIdentifier(
@@ -89,6 +101,7 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
     email: normalizedEmail,
     redirectTo,
     shouldCreateUser: true,
+    transactionalOnly: input.transactionalOnly,
     data,
   });
   if (result.ok || !input.retry || (result.code !== 'rate_limited' && result.code !== 'send_failed')) return result;

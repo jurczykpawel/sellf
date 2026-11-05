@@ -11,7 +11,7 @@ export async function sendLicenseMail(db: SupabaseClient, input: LicenseMailInpu
   try {
     const account = input.locale || !input.userId ? null : (await db.auth.admin.getUserById(input.userId)).data;
     const locale = input.locale ?? (account?.user?.user_metadata?.locale === 'pl' ? 'pl' : 'en');
-    const result = await sendTrustedMagicLink({
+    const result = await sendTrustedMagicLink({ transactionalOnly: true,
       email: input.email,
       redirectTo: buildPostCheckoutMagicLinkRedirect({ origin: getSellfBaseUrl(), productSlug: input.productSlug, locale, sessionId: undefined, paymentIntentId: undefined }),
       data: { locale, purchase_product: input.productName, license_key: input.token },

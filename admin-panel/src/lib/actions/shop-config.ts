@@ -42,6 +42,7 @@ export interface ShopConfig {
   checkout_collect_terms?: boolean | null
 
   // EU Omnibus Directive (2019/2161)
+  supabase_buyer_emails?: boolean
   omnibus_enabled: boolean
 
   // Legal Documents

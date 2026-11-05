@@ -3864,6 +3864,7 @@ export type Database = {
           regon: string | null
           shop_name: string
           stripe_tax_rate_cache: Json | null
+          supabase_buyer_emails: boolean
           tax_id_collection_enabled: boolean | null
           tax_mode: string | null
           tax_rate: number | null
@@ -3905,6 +3906,7 @@ export type Database = {
           regon?: string | null
           shop_name?: string
           stripe_tax_rate_cache?: Json | null
+          supabase_buyer_emails?: boolean
           tax_id_collection_enabled?: boolean | null
           tax_mode?: string | null
           tax_rate?: number | null
@@ -3946,6 +3948,7 @@ export type Database = {
           regon?: string | null
           shop_name?: string
           stripe_tax_rate_cache?: Json | null
+          supabase_buyer_emails?: boolean
           tax_id_collection_enabled?: boolean | null
           tax_mode?: string | null
           tax_rate?: number | null

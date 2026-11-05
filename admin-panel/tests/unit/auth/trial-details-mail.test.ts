@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from '../../helpers/buyer-email-setting';
+useSupabaseBuyerEmails();
 /** First trial invitation carries the actual billing date in the existing Auth template. */
 import { createClient } from '@supabase/supabase-js';
 import { expect, it } from 'vitest';

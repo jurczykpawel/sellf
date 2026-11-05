@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const signInWithOtp = vi.fn();
 
 vi.mock('@/lib/supabase/admin', () => ({
-  createAdminClient: () => ({ rpc: async () => ({ error: null }), auth: { signInWithOtp } }),
+  createAdminClient: () => ({ from: () => ({ select: () => ({ maybeSingle: async () => ({ data: { supabase_buyer_emails: true }, error: null }) }) }), rpc: async () => ({ error: null }), auth: { signInWithOtp } }),
 }));
 
 import { deliverMagicLink } from '@/lib/auth/magic-link/deliver';

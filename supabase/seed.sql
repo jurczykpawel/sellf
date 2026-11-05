@@ -110,7 +110,8 @@ INSERT INTO shop_config (
   stripe_tax_rate_cache,
   logo_url,
   font_family,
-  custom_settings
+  custom_settings,
+  supabase_buyer_emails
 ) VALUES (
   'USD',
   'Sellf Demo Shop',
@@ -119,7 +120,8 @@ INSERT INTO shop_config (
   '{}'::jsonb, -- Empty cache, populated on first local-mode checkout
   NULL, -- Upload logo to imgbb.com
   'system',
-  '{}'::jsonb
+  '{}'::jsonb,
+  false -- Buyer transactional mail is handled by webhook integrations by default
 )
 ON CONFLICT DO NOTHING;
 

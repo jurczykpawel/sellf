@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from '../../helpers/buyer-email-setting';
+useSupabaseBuyerEmails();
 /** First subscription receipt and confirmation are separate from content access. */
 import { createClient } from '@supabase/supabase-js';
 import { afterEach, expect, it, vi } from 'vitest';

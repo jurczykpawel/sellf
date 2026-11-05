@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from '../../helpers/buyer-email-setting';
+useSupabaseBuyerEmails();
 import { createClient } from '@supabase/supabase-js';
 import { expect, it, vi } from 'vitest';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';

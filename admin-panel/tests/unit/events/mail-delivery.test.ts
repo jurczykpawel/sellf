@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from '../../helpers/buyer-email-setting';
+useSupabaseBuyerEmails();
 /** Local access-email template acceptance for new and existing accounts. */
 import { createClient } from '@supabase/supabase-js';
 import { expect, it } from 'vitest';

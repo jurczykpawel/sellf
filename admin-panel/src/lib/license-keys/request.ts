@@ -102,13 +102,13 @@ async function mailLicenseToBuyer(input: { email: string; token: string; product
   try {
     const exp = parseLicenseClaims(input.token)?.exp;
     const expiresAt = exp ? new Date(exp * 1000).toISOString() : null;
-    const sent = await sendTrustedMagicLink({
+    const sent = await sendTrustedMagicLink({ transactionalOnly: true,
       email: input.email,
       redirectTo: buildPostCheckoutMagicLinkRedirect({ origin: getSellfBaseUrl(), productSlug: input.productSlug, locale: input.locale, sessionId: undefined, paymentIntentId: undefined }),
       data: { locale: input.locale, license_key: input.token, ...(expiresAt && { license_expires_at: expiresAt, license_expires_text: formatTransferDeadline(expiresAt, input.locale) }), ...(input.productName && { purchase_product: input.productName.slice(0, 500) }) },
     });
     if (!sent.ok) console.error('[license-request] Buyer mail not sent:', sent.code);
-    return sent.ok;
+    return sent.ok && !sent.skipped;
   } finally {
     const cleared = await admin.rpc('prepare_event_mail', { p_email: input.email, p_data: { locale: input.locale } });
     if (cleared.error) console.error('[license-request] License key cleanup failed');
