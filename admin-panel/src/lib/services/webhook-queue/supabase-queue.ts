@@ -97,7 +97,7 @@ export class SupabaseWebhookQueue implements IWebhookDeliveryQueue {
         payload = await readBuyerPayload(row.payload);
       } catch {
         await this.markPermanentlyFailed(row.id, {
-          ok: false, httpStatus: null, responseBody: null,
+          ok: false, httpStatus: 0, responseBody: null,
           errorMessage: 'Stored delivery payload is unavailable', durationMs: 0,
         });
         continue;
