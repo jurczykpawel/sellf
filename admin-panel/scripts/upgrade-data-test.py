@@ -121,6 +121,7 @@ def main():
         assert before == after, (before, after)
         print('PASS preserved row counts and financial totals', json.dumps(after, sort_keys=True), flush=True)
         print(sql('''DO $$ BEGIN
+          ASSERT (SELECT bool_and(supabase_buyer_emails) FROM public.shop_config);
           ASSERT NOT EXISTS (SELECT 1 FROM public.payment_transactions WHERE payment_provider <> 'stripe' OR order_number IS NULL OR pricing_snapshot_version IS NOT NULL);
           ASSERT (SELECT count(*)=count(DISTINCT order_number) FROM public.payment_transactions);
           ASSERT NOT EXISTS (SELECT 1 FROM public.guest_purchases g JOIN public.payment_transactions t USING(session_id) WHERE g.transaction_id IS DISTINCT FROM t.id);

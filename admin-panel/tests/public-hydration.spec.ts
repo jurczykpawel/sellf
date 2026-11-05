@@ -48,6 +48,10 @@ test.afterAll(async () => {
   expect(error).toBeNull();
 });
 
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'wait' });
+});
+
 function collectHydrationErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
