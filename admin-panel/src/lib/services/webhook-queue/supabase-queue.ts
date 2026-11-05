@@ -46,7 +46,7 @@ export class SupabaseWebhookQueue implements IWebhookDeliveryQueue {
   async enqueue(input: { endpointId: string; eventType: string; payload: unknown; deliveryId: string; deliveryKey: string | null; maxAttempts?: number }): Promise<DueDelivery | null> {
     const { data, error } = await this.client.rpc('enqueue_webhook_delivery', {
       p_id: input.deliveryId, p_endpoint_id: input.endpointId, p_event_type: input.eventType,
-      p_payload: await storeBuyerPayload(input.eventType, input.payload), p_delivery_key: input.deliveryKey,
+      p_payload: await storeBuyerPayload(input.eventType, { ...(input.payload as Record<string, unknown>), id: input.deliveryId }), p_delivery_key: input.deliveryKey,
       p_max_attempts: input.maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
     });
     if (error) throw new Error(`enqueue failed: ${error.message}`);

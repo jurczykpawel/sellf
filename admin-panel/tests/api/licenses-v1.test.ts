@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from '../helpers/buyer-email-setting';
+useSupabaseBuyerEmails();
 /** Integrator issues, lists and revokes licenses with a scoped API key; the buyer gets the key by mail. */
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';

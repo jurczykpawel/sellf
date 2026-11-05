@@ -247,7 +247,8 @@ test.describe('Webhook Dispatch System', () => {
       email: email,
       firstName: 'Stripe',
       lastName: 'Tester',
-      userId: null
+      userId: null,
+      locale: 'en'
     });
 
     // Check Product (fetched from DB by our backend)
