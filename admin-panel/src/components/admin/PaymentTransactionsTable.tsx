@@ -14,6 +14,7 @@ import { formatAdminDate } from '@/lib/timezone';
 import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
 import { getPaymentDiscount } from '@/lib/payments/discount';
 import { fromMinorUnits } from '@/lib/currency/minor-units';
+import { transferDeadline, formatTransferDeadline } from '@/lib/orders/transfer-format';
 import BankTransferSection from '@/components/admin/BankTransferSection';
 import AttributionSection from '@/components/admin/AttributionSection';
 import InvoiceSection from '@/components/admin/InvoiceSection';
@@ -169,7 +170,7 @@ export default function PaymentTransactionsTable({
               });
 
               return (
-                <tr key={transaction.id} className={transaction.status === 'awaiting_payment' && transaction.payment_due_at && Date.parse(transaction.payment_due_at) < Date.now() ? 'bg-sf-warning-soft' : index % 2 === 1 ? 'bg-sf-row-alt' : ''}>
+                <tr key={transaction.id} className={transaction.status === 'awaiting_payment' && transferDeadline(transaction) && Date.parse(transferDeadline(transaction)!) < Date.now() ? 'bg-sf-warning-soft' : index % 2 === 1 ? 'bg-sf-row-alt' : ''}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-sf-heading" title={transaction.id}>
                       {orderLabel(transaction)}
@@ -242,7 +243,7 @@ export default function PaymentTransactionsTable({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-sf-muted">
                     {formatAdminDate(transaction.created_at, locale)}
                   </td>
-<td className="px-6 py-4 text-sm">{transaction.payment_due_at ? new Intl.DateTimeFormat(locale, { timeZone: 'UTC' }).format(new Date(transaction.payment_due_at)) : "—"}</td>
+<td className="px-6 py-4 text-sm">{formatTransferDeadline(transferDeadline(transaction), locale) || '—'}</td>
 <td className="px-6 py-4 text-sm">{transaction.invoice?.view_url ? <a href={transaction.invoice.view_url} target="_blank" rel="noreferrer" className="underline">{transaction.invoice.number}</a> : transaction.invoice ? ti(transaction.invoice.status) : "—"}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-3">

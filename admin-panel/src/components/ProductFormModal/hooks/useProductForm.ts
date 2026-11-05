@@ -77,6 +77,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
 
   // Default currency from shop config
   const [defaultCurrency, setDefaultCurrency] = useState<string>('USD');
+  const defaultCurrencyRef = useRef('USD');
 
   // Omnibus Directive global setting
   const [omnibusEnabled, setOmnibusEnabled] = useState<boolean>(true);
@@ -150,10 +151,12 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
         if (config) {
           // Default currency for new products
           if (!product) {
-            setDefaultCurrency(config.default_currency || 'USD');
+            const previousDefaultCurrency = defaultCurrencyRef.current;
+            defaultCurrencyRef.current = config.default_currency || 'USD';
+            setDefaultCurrency(defaultCurrencyRef.current);
             setFormData(prev => ({
               ...prev,
-              currency: prev.currency === initialFormData.currency ? config.default_currency || 'USD' : prev.currency,
+              currency: prev.currency === previousDefaultCurrency ? config.default_currency || 'USD' : prev.currency,
               vat_rate: prev.vat_rate ?? (config.tax_rate != null ? Math.round(config.tax_rate * 100) : null),
             }));
             // New products inherit the shop's VAT-exempt status (and its default
@@ -423,12 +426,11 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
 
   // Validate content item URL
   // Returns i18n message keys in `message` field — translated in ContentDeliverySection
-  const platformLabels: Record<string, string> = {
-    youtube: 'YouTube', vimeo: 'Vimeo', bunny: 'Bunny.net',
-    wistia: 'Wistia', twitch: 'Twitch',
-  };
-
   const validateContentItemUrl = useCallback((url: string, type: 'video_embed' | 'download_link'): UrlValidation => {
+    const platformLabels: Record<string, string> = {
+      youtube: 'YouTube', vimeo: 'Vimeo', bunny: 'Bunny.net',
+      wistia: 'Wistia', twitch: 'Twitch',
+    };
     if (!url || url.trim() === '') {
       return { isValid: false, message: 'urlRequired' };
     }
@@ -479,13 +481,12 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     const { name, value, type } = e.target;
 
     // Clear field error on change
-    if (fieldErrors[name]) {
-      setFieldErrors(prev => {
-        const next = { ...prev };
-        delete next[name];
-        return next;
-      });
-    }
+    setFieldErrors(prev => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
 
     if (name === 'name' && !slugModified) {
       setFormData(prev => ({
@@ -745,7 +746,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     }
 
     submitAndShowFieldErrors(submitData);
-  }, [formData, oto, submitAndShowFieldErrors, validateContentItemUrl, checkWaitlistConfig, shopConfigLoaded]);
+  }, [formData, oto, submitAndShowFieldErrors, validateContentItemUrl, checkWaitlistConfig, shopConfigLoaded, validateRequiredFields]);
 
   return {
     // Form data

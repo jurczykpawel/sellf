@@ -57,7 +57,6 @@ export default function WebhookLogsDrawer({ endpoint, onClose, isOpen, onRefresh
 
   useEffect(() => {
     if (isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- State is updated only after awaiting the request.
     loadLogs();
     }
   }, [loadLogs, isOpen]);

@@ -68,6 +68,7 @@ export async function issueLicensesForOrder(
         productId: pid,
         token: res.token,
         kid: res.kid,
+        expiresAt: res.expiresAt,
         jwksUrl: `${siteUrl}/api/licenses/jwks?seller=${res.sellerId}`,
       });
     }

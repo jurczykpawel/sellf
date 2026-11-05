@@ -254,8 +254,9 @@ export function getSellfBaseUrl(): string {
   return getPublicBaseUrl();
 }
 
-export function buildEmbedReturnUrl(productSlug: string): string {
-  return `${getSellfBaseUrl()}/p/${encodeURIComponent(productSlug)}/payment-status?session_id={CHECKOUT_SESSION_ID}`;
+export function buildEmbedReturnUrl(productSlug: string, locale?: string): string {
+  const prefix = locale === 'pl' || locale === 'en' ? `/${locale}` : '';
+  return `${getSellfBaseUrl()}${prefix}/p/${encodeURIComponent(productSlug)}/payment-status?session_id={CHECKOUT_SESSION_ID}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

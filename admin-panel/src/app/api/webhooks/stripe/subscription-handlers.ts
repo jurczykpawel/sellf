@@ -952,7 +952,7 @@ export async function handleInvoicePaid(
   // subscription context so a prior license-issuance failure can be retried.
   const { data: existingTx } = await supabase
     .from('payment_transactions')
-    .select('id, fulfillment_pending')
+    .select('id, order_number, fulfillment_pending')
     .eq('stripe_invoice_id', invoice.id!)
     .maybeSingle();
 
@@ -1020,12 +1020,12 @@ export async function handleInvoicePaid(
       status: 'completed',
       fulfillment_pending: true,
       customer_email: ctx.email,
-    }).select('id, fulfillment_pending').single();
+    }).select('id, order_number, fulfillment_pending').single();
     insertedTx = newTx;
     if (txError) {
       if (txError.code !== '23505') return { processed: false, message: 'Payment transaction unavailable' };
       const { data: winner, error: winnerError } = await supabase.from('payment_transactions')
-        .select('id, fulfillment_pending').eq('stripe_invoice_id', invoice.id!).single();
+        .select('id, order_number, fulfillment_pending').eq('stripe_invoice_id', invoice.id!).single();
       if (winnerError || !winner) return { processed: false, message: 'Invoice transaction unavailable' };
       insertedTx = winner;
     }
@@ -1092,6 +1092,7 @@ export async function handleInvoicePaid(
     product: ctx.product,
     subscriptionId: sub.id,
     invoice,
+    order: { id: insertedTx.id, orderNumber: insertedTx.order_number },
     taxSnapshot,
   });
   await WebhookService.trigger('invoice.paid', payload, supabase, payload.product.id);

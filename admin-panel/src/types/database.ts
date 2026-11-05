@@ -6558,6 +6558,124 @@ export type Database = {
         }
         Returns: Json
       }
+      search_order_accesses: {
+        Args: { p_search: string }
+        Returns: {
+          access_duration_days: number | null
+          access_expires_at: string | null
+          access_granted_at: string
+          created_at: string
+          custom_field_values: Json
+          expiry_notified_at: string | null
+          grant_source: string
+          id: string
+          product_id: string
+          subscription_id: string | null
+          transfer_transaction_id: string | null
+          user_id: string
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "user_product_access"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      search_order_leads: {
+        Args: { p_search: string }
+        Returns: {
+          client_consent_text: string | null
+          confirmed_at: string | null
+          consent_text: string | null
+          consent_version: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          marketing_consent: boolean
+          product_id: string | null
+          product_slug: string | null
+          source: string
+          token_hash: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "lead_submissions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      search_payment_transactions: {
+        Args: { p_include_identifiers?: boolean; p_search: string }
+        Returns: {
+          abandoned_at: string | null
+          amount: number
+          cancel_note: string | null
+          cancel_reason: string | null
+          cancelled_mail_sent_at: string | null
+          coupon_id: string | null
+          created_at: string
+          currency: string
+          custom_field_values: Json
+          customer_email: string
+          expires_at: string | null
+          fulfillment_pending: boolean
+          id: string
+          invoice_hold_at: string | null
+          livemode: boolean
+          metadata: Json
+          net_total: number | null
+          order_cancelled_notified_at: string | null
+          order_details: Json | null
+          order_invoice_issued_notified_at: string | null
+          order_number: number
+          order_overdue_notified_at: string | null
+          order_placed_notified_at: string | null
+          order_reminder_notified_at: string | null
+          order_reopened_notified_at: string | null
+          order_transfer_declared_notified_at: string | null
+          paid_at: string | null
+          participants_completed_at: string | null
+          participants_mail_sent_at: string | null
+          participants_reminder2_sent_at: string | null
+          payment_due_at: string | null
+          payment_provider: string
+          pricing_snapshot_version: number | null
+          product_id: string
+          refund_id: string | null
+          refund_reason: string | null
+          refund_status: string | null
+          refunded_amount: number | null
+          refunded_at: string | null
+          refunded_by: string | null
+          release_at: string | null
+          reminder_at: string | null
+          reminder_mail_sent_at: string | null
+          reopened_at: string | null
+          session_id: string | null
+          settled_via: string | null
+          status: string
+          stripe_invoice_id: string | null
+          stripe_payment_intent_id: string | null
+          subscription_id: string | null
+          tax_snapshot_status: string
+          tax_total: number | null
+          transfer_declared_at: string | null
+          transfer_declared_note: string | null
+          transfer_details: Json | null
+          transfer_mail_sent_at: string | null
+          transfer_paid_mail_sent_at: string | null
+          updated_at: string
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "payment_transactions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       seller_license_public_keys: {
         Args: { seller: string }
         Returns: {

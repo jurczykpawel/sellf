@@ -56,6 +56,9 @@ const baseConfig: CheckoutConfig = {
 };
 
 describe('buildSubscriptionSessionConfig', () => {
+  it.each(['pl', 'en'])('keeps %s for session and renewal fulfillment', locale => {
+    expect(buildSubscriptionSessionConfig({ product: baseProduct, stripePriceId: 'price_test', returnUrl: 'https://shop.example/return', checkoutConfig: baseConfig, locale })).toMatchObject({ locale, metadata: { locale }, subscription_data: { metadata: { locale } } });
+  });
   it('uses the durable Stripe Price id on the line item (no inline price_data)', () => {
     const config = buildSubscriptionSessionConfig({
       product: baseProduct,

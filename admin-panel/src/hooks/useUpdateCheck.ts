@@ -332,7 +332,6 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
   // Auto-check on mount
   useEffect(() => {
     if (isAdmin) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
       checkForUpdate();
     }
     return () => {

@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import AltchaWidget from '@/components/captcha/AltchaWidget';
+import CaptchaWidget from '@/components/captcha/CaptchaWidget';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
 import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
 import { useCaptcha } from '@/hooks/useCaptcha';
@@ -50,7 +50,7 @@ export default function BankTransferForm({ collectTermsOfService, termsAccepted:
     <label className="block">Email<input type="email" required readOnly={lockedEmail} value={email} onChange={e => onEmailChange(e.target.value)} className="block w-full rounded-lg border border-sf-border bg-sf-input p-3" /></label>
     <CustomCheckoutFieldsForm fields={fields} values={values} onChange={next => { onValuesChange(next); if (Object.keys(fieldErrors).length) setFieldErrors({}); }} errors={fieldErrors} disabled={busy} />
     {showTos && <label className="flex gap-2"><input type="checkbox" required checked={accepted} onChange={e => setAccepted(e.target.checked)} /><span>{ct('iAgree')} <a className="underline" href={`${locale === 'pl' ? '/pl' : ''}/terms`} target="_blank" rel="noreferrer">{ct('termsOfService')}</a> {ct('and')} <a className="underline" href={`${locale === 'pl' ? '/pl' : ''}/privacy`} target="_blank" rel="noreferrer">{ct('privacyPolicy')}</a></span></label>}
-    <AltchaWidget onVerify={captcha.onVerify} onError={captcha.onError} onTimeout={captcha.onTimeout} resetTrigger={captcha.resetTrigger} />
+    <CaptchaWidget onVerify={captcha.onVerify} onError={captcha.onError} onTimeout={captcha.onTimeout} resetTrigger={captcha.resetTrigger} />
     {error && <p role="alert" className="text-sf-danger">{error}</p>}
     <button disabled={disabled || busy || !captcha.token || (showTos && !accepted)} className="w-full rounded-xl bg-sf-accent-bg text-sf-inverse p-4 font-semibold disabled:opacity-50">{busy ? ct('processing') : t('placeOrder')}</button>
   </form>;

@@ -21,6 +21,8 @@ it('continues to submit percentage coupons without a currency', async () => {
   const submit = vi.fn();
   const view = render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(CouponFormModal, { products: [], editingCoupon: null, onSubmit: submit, onClose: vi.fn(), isSubmitting: false })));
   await screen.findByText(`${en.admin.coupons.fixed} (PLN)`);
+  fireEvent.change(view.container.querySelector('input[type=text]')!, { target: { value: 'SAVE' } });
+  fireEvent.change(view.container.querySelector('input[name=discount_value]')!, { target: { value: '10' } });
   fireEvent.submit(view.container.querySelector('form')!);
   await waitFor(() => expect(submit).toHaveBeenCalledWith(expect.objectContaining({ discount_type: 'percentage', currency: null })));
 });
@@ -37,6 +39,7 @@ it('submits a set-price coupon with zero and shop currency', async () => {
   await screen.findByText(`${en.admin.coupons.fixed} (PLN)`);
   fireEvent.click(screen.getByRole('button', { name: en.admin.coupons.setPrice }));
   expect((screen.getByRole('combobox', { name: en.admin.coupons.form.currency }) as HTMLSelectElement).value).toBe('PLN');
+  fireEvent.change(view.container.querySelector('input[type=text]')!, { target: { value: 'SAVE' } });
   fireEvent.submit(view.container.querySelector('form')!);
   await waitFor(() => expect(submit).toHaveBeenCalledWith(expect.objectContaining({ discount_type: 'set_price', discount_value: 0, currency: 'PLN' })));
 });

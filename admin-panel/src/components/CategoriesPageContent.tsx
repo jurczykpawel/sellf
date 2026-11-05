@@ -11,7 +11,6 @@ export default function CategoriesPageContent({ initialCategories }: { initialCa
   const t = useTranslations('admin.categories') // Assuming we add this namespace later
   const commonT = useTranslations('common')
   
-  const [categories, setCategories] = useState(initialCategories) // In real app, revalidatePath handles refresh, but optimistic update is nice
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
@@ -25,7 +24,7 @@ export default function CategoriesPageContent({ initialCategories }: { initialCa
       }
       toast.success(commonT('success', { defaultValue: 'Success' }))
       setCategoryToDelete(null)
-    } catch (error) {
+    } catch {
       toast.error(commonT('error', { defaultValue: 'Error' }))
     }
   }

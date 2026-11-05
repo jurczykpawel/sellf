@@ -254,6 +254,7 @@ export class CheckoutService {
         metadata: {
           product_id: options.product.id,
           product_slug: options.product.slug,
+          ...(options.locale === 'pl' || options.locale === 'en' ? { locale: options.locale } : {}),
           user_id: options.userId || null,
           // Add bump product metadata (multi-bump support)
           ...(bumpList.length > 0 && {
@@ -388,6 +389,7 @@ export class CheckoutService {
       checkoutConfig,
       taxRateId,
       attributionRef: options.attributionRef,
+      locale: options.locale,
     });
 
     const session = await this.stripe.checkout.sessions.create({ ...sessionConfig, locale: options.locale ?? 'auto' });

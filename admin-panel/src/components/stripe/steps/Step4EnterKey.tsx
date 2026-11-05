@@ -103,7 +103,7 @@ export function Step4EnterKey() {
 
       setValidationResult(result.data!)
       setValidationStatus(result.data!.isValid ? 'success' : 'error')
-    } catch (error) {
+    } catch {
       setValidationStatus('error')
       setValidationResult({
         isValid: false,
@@ -142,7 +142,7 @@ export function Step4EnterKey() {
 
       // Success - move to next step
       nextStep()
-    } catch (error) {
+    } catch {
       setValidationStatus('error')
       setValidationResult({
         isValid: false,

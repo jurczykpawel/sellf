@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, Copy, Eye, KeyRound, RefreshCw, ShieldX } from 'lucide-react';
+import { Check, Copy, Eye, RefreshCw, ShieldX } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatAdminDate } from '@/lib/timezone';
@@ -114,7 +114,6 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
   }, [fetchSettings]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
     if (enabled) void fetchSettings();
   }, [enabled, fetchSettings]);
 
@@ -182,10 +181,6 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
   return (
     <div className="bg-sf-base border-2 border-sf-border-medium overflow-hidden">
       <TutorialTrigger id="licenses" />
-      <div className="bg-sf-accent-soft px-6 py-4 border-b border-sf-border-accent flex items-center gap-3">
-        <div className="w-10 h-10 bg-sf-accent-bg flex items-center justify-center"><KeyRound className="w-5 h-5 text-white" /></div>
-        <div><h2 className="text-lg font-semibold text-sf-heading">{t('title')}</h2><p className="text-sm text-sf-accent">{t('subtitle')}</p></div>
-      </div>
 
       <form data-tour="licenses-issue" onSubmit={issue} className="p-6 border-b-2 border-sf-border-medium space-y-4">
         <h3 className="font-semibold text-sf-heading">{t('manualTitle')}</h3>

@@ -13,3 +13,10 @@ it('omits licenses revoked at issuance from the purchase payload', async () => {
   expect(result.map(l => l.token)).toEqual(['tok-a']);
   expect(db.from).toHaveBeenCalledWith('issued_licenses');
 });
+
+it.each([null, '2026-12-05T00:00:00.000Z'])('provides license expiry %s without requiring token decoding', async expiresAt => {
+  issue.mockResolvedValue({ id: 'lic-a', token: 'tok-a', kid: 'k', sellerId: 's', expiresAt });
+  const q = { select: () => q, eq: () => q, not: async () => ({ data: [], error: null }) };
+  const result = await issueLicensesForOrder({ from: () => q } as never, { productIds: ['a'], email: 'x@example.com', userId: null, orderId: 'pi_1' });
+  expect(result[0]).toMatchObject({ productId: 'a', expiresAt });
+});

@@ -283,3 +283,30 @@ test('closing a tutorial returns focus to the control that started it and each s
   // The menu item that started it closed with the menu, so focus lands on the help button that opened the menu.
   await expect(page.getByTestId('tutorial-menu-button')).toBeFocused();
 });
+
+test('Done closes the payments tutorial before opening the Orders tab @J219', async ({ page }) => {
+  await admin(page, 'tour-payments-done');
+  const product = await productFixture('Platnosc gotowe');
+  const row = await checked(await db.from('payment_transactions').insert({ session_id: `cs_test_${randomUUID().replaceAll('-', '')}`, product_id: product.id, customer_email: `tour-done-${randomUUID()}@example.com`, amount: 5000, currency: 'PLN', status: 'completed' }).select('id').single());
+  cleanups.push(() => db.from('payment_transactions').delete().eq('id', row.id));
+  await page.goto('/pl/dashboard/payments');
+  for (const key of ['intro', 'stats', 'filters', 'table', 'details']) {
+    await expect(popoverTitle(page)).toHaveText(stepText('payments-orders', key).title);
+    await popover(page).locator('.driver-popover-next-btn').click();
+  }
+  await expect(popoverTitle(page)).toHaveText(stepText('payments-orders', 'ordersTab').title);
+  await expect(popover(page).locator('.driver-popover-next-btn')).toHaveText('Gotowe');
+  await popover(page).locator('.driver-popover-next-btn').click();
+  await expect(popover(page)).toHaveCount(0);
+});
+
+test('Escape after launching a tutorial through menu navigation returns focus to help @J303', async ({ page }) => {
+  await admin(page, 'tour-navigation-focus', false);
+  await page.goto('/pl/dashboard/templates');
+  await page.getByTestId('tutorial-menu-button').click();
+  await page.getByTestId('tutorial-link-payments-orders').click();
+  await expect(popoverTitle(page)).toHaveText(stepText('payments-orders', 'intro').title);
+  await page.keyboard.press('Escape');
+  await expect(popover(page)).toHaveCount(0);
+  await expect(page.getByTestId('tutorial-menu-button')).toBeFocused();
+});

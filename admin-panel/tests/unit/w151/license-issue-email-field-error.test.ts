@@ -52,3 +52,13 @@ it('has the message in both languages', () => {
   expect((pl as unknown as { settings: { issuedLicenses: Record<string, string> } }).settings.issuedLicenses.invalidEmail).toMatch(/adres e-mail/i);
   expect((en as unknown as { settings: { issuedLicenses: Record<string, string> } }).settings.issuedLicenses.invalidEmail).toMatch(/email address/i);
 });
+
+it('keeps one license page title without repeating its heading inside the form', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ licenses: [], products: [product], total: 0 }), { status: 200 })));
+  render(createElement('main', null,
+    createElement('h1', null, 'title'),
+    createElement(IssuedLicensesSettings, { enabled: true }),
+  ));
+  await screen.findByRole('option', { name: 'Course' });
+  expect(screen.getAllByRole('heading', { name: 'title' })).toHaveLength(1);
+});

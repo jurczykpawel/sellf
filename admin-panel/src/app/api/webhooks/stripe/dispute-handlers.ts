@@ -33,8 +33,8 @@ export async function handleChargeDispute(
   const paymentIntentId = typeof intent === 'string' ? intent : intent?.id;
   if (!paymentIntentId) return { processed: true, message: 'Dispute has no payment intent' };
   const outcomeClosed = closed || ['won', 'lost', 'warning_closed'].includes(dispute.status);
-  const transaction = await findTransactionByOrderId<{ id: string; product_id: string; session_id: string | null; status: string; refunded_amount: number | null }>(
-    db,paymentIntentId,'id, product_id, session_id, status, refunded_amount',
+  const transaction = await findTransactionByOrderId<{ id: string; order_number: number; product_id: string; session_id: string | null; status: string; refunded_amount: number | null }>(
+    db,paymentIntentId,'id, order_number, product_id, session_id, status, refunded_amount',
   );
   if (!transaction) return pendingPaymentResult(db,stripe,paymentIntentId);
   if (transaction.status === 'pending') return { processed: false, message: 'Payment awaiting completion' };
@@ -55,8 +55,30 @@ export async function handleChargeDispute(
     const data = buildLicenseRevokeWebhookData(raw as RevokedLicenseRow, getCanonicalOriginOrNull() ?? '');
     return { ...data.license, productId: data.product.id, crlUrl: data.crlUrl };
   }) : [];
+  const { data: product, error: productError } = await db.from('products')
+    .select('id, name, slug').eq('id', transaction.product_id).single();
+  if (productError) return { processed: false, message: 'Dispute product unavailable' };
+  const restoredAccess = Array.isArray(details.restoredAccess) ? details.restoredAccess : [];
+  for (const access of restoredAccess as Array<Record<string, unknown>>) {
+    if (!access.guestPurchaseId || access.userId || details.status !== 'won') continue;
+    const productId = String(access.productId);
+    const { data: accessProduct, error: accessProductError } = productId === product?.id
+      ? { data: product, error: null }
+      : await db.from('products').select('id, name, slug').eq('id', productId).single();
+    if (accessProductError) return { processed: false, message: 'Restored product unavailable' };
+    await WebhookService.trigger('access.updated', {
+      customer: payload.customer, product: accessProduct, reason: 'dispute_won',
+      actor: { type: 'system', id: null }, occurredAt: new Date().toISOString(),
+      sourceOrder: { id: payment.id, orderId: payment.id, orderNumber: transaction.order_number },
+      sourceOrders: [{ id: payment.id, orderId: payment.id, orderNumber: transaction.order_number }],
+      accessGrantedAt: access.grantedAt, accessExpiresAt: access.expiresAt,
+      grantSource: 'purchase', accessEndsAt: access.expiresAt,
+      access: { id: access.guestPurchaseId, grantedAt: access.grantedAt, expiresAt: access.expiresAt,
+        statusBefore: 'revoked', statusAfter: 'active', expiredAt: null, revokedAt: null },
+    }, db, productId, `dispute:${dispute.id}:guest:${access.guestPurchaseId}:${productId}`);
+  }
   await WebhookService.trigger(outcomeClosed ? 'dispute.closed' : 'dispute.created', {
-    ...payload, payment: { ...payment, paymentIntentId }, dispute: { ...details, restoredLicenses, stripeChargeId: chargeId },
+    ...payload, product: { ...(payload.product as object), ...product }, payment: { ...payment, paymentIntentId }, dispute: { ...details, restoredLicenses, stripeChargeId: chargeId },
   },db,transaction.product_id);
   return { processed: true, message: 'Dispute outcome recorded and integrations notified' };
 }

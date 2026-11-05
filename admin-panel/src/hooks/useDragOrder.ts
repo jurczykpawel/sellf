@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-interface UseDragOrderReturn<T> {
+interface UseDragOrderReturn {
   draggedIndex: number | null;
   handleDragStart: (index: number) => void;
   handleDragOver: (e: React.DragEvent, index: number) => void;
@@ -16,7 +16,7 @@ interface UseDragOrderReturn<T> {
 export function useDragOrder<T>(
   items: T[],
   setItems: (items: T[]) => void
-): UseDragOrderReturn<T> {
+): UseDragOrderReturn {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   function handleDragStart(index: number) {

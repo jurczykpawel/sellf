@@ -22,7 +22,7 @@ import {
   validateCursor,
   API_SCOPES,
 } from '@/lib/api';
-import { validateProductId, validateUUID } from '@/lib/validations/product';
+import { validateUUID } from '@/lib/validations/product';
 import { validateGrantAccess, sanitizeGrantAccessData } from '@/lib/validations/access';
 
 interface RouteParams {

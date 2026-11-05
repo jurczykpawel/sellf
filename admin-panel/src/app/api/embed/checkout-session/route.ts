@@ -195,7 +195,7 @@ export async function POST(request: Request) {
         ...(parsed.value.email ? { email: parsed.value.email } : {}),
         ...(parsed.value.couponCode ? { couponCode: parsed.value.couponCode } : {}),
       },
-      buildEmbedReturnUrl(product.slug),
+      buildEmbedReturnUrl(product.slug, parsed.value.locale),
       undefined,
       { embedSessionId, attributionRef: embedSessionId, locale: parsed.value.locale },
     );

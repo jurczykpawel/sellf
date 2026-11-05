@@ -32,3 +32,9 @@ it('emits due renewal notices from the committed queue (W147-12)',async()=>{
  expect(rpc).toHaveBeenCalledWith('capture_due_renewal_notices');
  expect(h.trigger).toHaveBeenCalledWith('subscription.renewal_upcoming',{subscription:{stripeSubscriptionId:'sub_1'}},expect.anything(),'product-id','business_event-id');
 });
+
+it.each([null, 'buyer-id'])('identifies the issued license customer account %s and email', async userId => {
+ const rpc=vi.fn(async(name:string)=>({data:name==='claim_business_events'&&h.pending?[{...event,event_type:'license.issued',payload:{licenseRow:{...row,user_id:userId}}}]:[],error:null}));
+ expect(await runBusinessEvents({...db,rpc} as never)).toEqual({processed:1,errors:0});
+ expect(h.trigger).toHaveBeenCalledWith('license.issued',expect.objectContaining({customer:{userId,email:row.email}}),expect.anything(),'product-id','business_event-id');
+});

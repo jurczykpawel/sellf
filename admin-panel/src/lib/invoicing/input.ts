@@ -1,6 +1,7 @@
 /** Maps immutable order prices and checkout parties to an invoice. @see ./provider.ts */
 import { readOrderDetails } from '@/lib/checkout-modules/order-details';
 import { fromMinorUnits } from '@/lib/currency/minor-units';
+import { getDateInTimezone, isValidTimezone } from '@/lib/timezone';
 import { describeTaxId } from '@/lib/validation/tax-id';
 import type { InvoiceInput, InvoiceParty } from '@/lib/invoicing/provider';
 
@@ -18,7 +19,17 @@ export interface InvoiceLine {
 export interface InvoiceShop {
   shop_name: string; company_legal_name?: string | null; nip?: string | null; country?: string | null;
   company_street?: string | null; company_building_no?: string | null; company_flat_no?: string | null;
-  company_city?: string | null; company_postal?: string | null;
+  company_city?: string | null; company_postal?: string | null; custom_settings?: unknown;
+}
+/** Invoice dates follow shop_config.custom_settings.timezone, defaulting to the transfer calendar. */
+export function invoiceDate(instant: string, shop: Pick<InvoiceShop, 'custom_settings'>): string {
+  const settings = shop.custom_settings;
+  const timezone = settings && typeof settings === 'object' && !Array.isArray(settings)
+    ? Reflect.get(settings, 'timezone') : undefined;
+  if (timezone !== undefined && (typeof timezone !== 'string' || !isValidTimezone(timezone))) {
+    throw new Error('Invalid invoice timezone');
+  }
+  return getDateInTimezone(timezone ?? 'Europe/Warsaw', new Date(instant));
 }
 export function buildInvoiceInput(tx: InvoiceTransaction, rows: InvoiceLine[], shop: InvoiceShop, externalKey: string, exemption: string, template: string): InvoiceInput {
   const d = readOrderDetails(tx.order_details), b = d.buyer;
@@ -32,8 +43,8 @@ export function buildInvoiceInput(tx: InvoiceTransaction, rows: InvoiceLine[], s
   const buyerTaxId = describeTaxId(buyer.nip, buyer.country);
   if (buyerTaxId) buyer.taxIdType = buyerTaxId.type;
   return {
-    externalKey, currency: tx.currency.toUpperCase(), issuedAt: tx.created_at.slice(0, 10),
-    ...(tx.status === 'completed' || tx.status === 'partially_refunded' ? { paidAt: (tx.paid_at || tx.updated_at).slice(0, 10) } : { dueAt: tx.payment_due_at?.slice(0, 10) }),
+    externalKey, currency: tx.currency.toUpperCase(), issuedAt: invoiceDate(tx.created_at, shop),
+    ...(tx.status === 'completed' || tx.status === 'partially_refunded' ? { paidAt: invoiceDate(tx.paid_at || tx.updated_at, shop) } : { dueAt: tx.payment_due_at ? invoiceDate(tx.payment_due_at, shop) : undefined }),
     seller: { name: shop.company_legal_name || shop.shop_name, nip: shop.nip || undefined, street: [shop.company_street, shop.company_building_no, shop.company_flat_no].filter(Boolean).join(' '), city: shop.company_city || undefined, postalCode: shop.company_postal || undefined, country: shop.country || undefined },
     buyer, ...(d.recipient?.differs && { recipient: { name: d.recipient.company_name || '', nip: d.recipient.nip, taxIdType: describeTaxId(d.recipient.nip, d.recipient.country)?.type, street: d.recipient.address, city: d.recipient.city, postalCode: d.recipient.postal_code, country: d.recipient.country, company: true } }), exemption,
     reverseCharge: rows.some(l => l.taxability_reason === 'reverse_charge'),

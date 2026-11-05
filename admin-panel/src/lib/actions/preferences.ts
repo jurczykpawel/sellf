@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
+import { isDemoMode } from '@/lib/demo-guard';
 
 export async function updateUserPreferences(preferences: {
   hideValues?: boolean;

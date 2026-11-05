@@ -23,7 +23,7 @@ export async function checkProductAccess(
 
   if (!response.ok) {
     if (response.status === 401) {
-      window.location.href = '/login';
+      window.location.assign(new URL('/login', window.location.origin).href);
       throw new Error('Unauthorized');
     }
     throw new Error(`HTTP error! status: ${response.status}`);

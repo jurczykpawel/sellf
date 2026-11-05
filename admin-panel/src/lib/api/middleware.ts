@@ -179,7 +179,7 @@ export function apiError(
  * Authenticate via session (JWT/cookies).
  * Checks admin_users table for platform admin access.
  */
-async function authenticateViaSession(request: NextRequest): Promise<SessionAuthResult | null> {
+async function authenticateViaSession(): Promise<SessionAuthResult | null> {
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -403,7 +403,7 @@ export async function authenticate(
   requiredScopes?: ApiScope[]
 ): Promise<AuthResult> {
   // Try session auth first
-  const sessionAuth = await authenticateViaSession(request);
+  const sessionAuth = await authenticateViaSession();
   if (sessionAuth) {
     // Cookie auth relies on SameSite + CORS, which don't stop a same-site
     // sibling origin from riding the session on a state-changing request.

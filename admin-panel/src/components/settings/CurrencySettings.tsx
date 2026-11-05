@@ -54,7 +54,6 @@ export default function CurrencySettings() {
  };
 
  useEffect(() => {
- // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
  fetchConfig();
  // Load default currency from shop config
  getMyDefaultCurrency().then(currency => {
@@ -85,7 +84,7 @@ export default function CurrencySettings() {
  } else {
  toast.error(result.error || t('errors.saveFailed'));
  }
- } catch (error) {
+ } catch {
  toast.error(t('errors.saveFailed'));
  } finally {
  setSaving(false);
@@ -107,7 +106,7 @@ export default function CurrencySettings() {
  } else {
  toast.error(result.error || t('errors.deleteFailed'));
  }
- } catch (error) {
+ } catch {
  toast.error(t('errors.deleteFailed'));
  } finally {
  setDeleting(false);
@@ -132,7 +131,7 @@ export default function CurrencySettings() {
  } else {
  setRatesError(t('exchangeRates.error'));
  }
- } catch (error) {
+ } catch {
  setRatesError(t('exchangeRates.error'));
  } finally {
  setLoadingRates(false);

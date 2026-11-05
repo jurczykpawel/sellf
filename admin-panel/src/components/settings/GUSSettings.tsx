@@ -43,7 +43,6 @@ export default function GUSSettings() {
  };
 
  useEffect(() => {
- // eslint-disable-next-line react-hooks/set-state-in-effect -- State updates follow the awaited request.
  fetchConfig();
  }, [fetchConfig]);
 
@@ -68,7 +67,7 @@ export default function GUSSettings() {
  } else {
  toast.error(result.error || t('errors.saveFailed'));
  }
- } catch (error) {
+ } catch {
  toast.error(t('errors.saveFailed'));
  } finally {
  setSaving(false);
@@ -90,7 +89,7 @@ export default function GUSSettings() {
  } else {
  toast.error(result.error || t('errors.deleteFailed'));
  }
- } catch (error) {
+ } catch {
  toast.error(t('errors.deleteFailed'));
  } finally {
  setDeleting(false);

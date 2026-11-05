@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const rateLimitOk = await checkRateLimit('profile_get', 30, 1);
     if (!rateLimitOk) {

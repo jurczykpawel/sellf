@@ -71,6 +71,7 @@ export function buildSubscriptionSessionConfig(
     metadata: {
       product_id: product.id,
       product_slug: product.slug,
+      ...(input.locale === 'pl' || input.locale === 'en' ? { locale: input.locale } : {}),
       product_type: 'subscription',
       user_id: userId || null,
     },
@@ -78,6 +79,7 @@ export function buildSubscriptionSessionConfig(
       metadata: {
         product_id: product.id,
         product_slug: product.slug,
+        ...(input.locale === 'pl' || input.locale === 'en' ? { locale: input.locale } : {}),
         user_id: userId || null,
         ...(input.attributionRef ? { sf_attr_ref: input.attributionRef } : {}),
       },

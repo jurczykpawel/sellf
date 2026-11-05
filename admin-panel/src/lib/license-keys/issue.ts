@@ -36,6 +36,7 @@ export interface IssueLicenseResult {
   token: string;
   kid: string;
   sellerId: string;
+  expiresAt: string | null;
 }
 
 /**
@@ -54,12 +55,12 @@ export async function issueLicense(
 
   const existingResult = await admin
     .from('issued_licenses')
-    .select('id, license_key, kid, seller_id')
+    .select('id, license_key, kid, seller_id, expires_at')
     .eq('order_id', input.orderId)
     .eq('product_id', input.productId)
     .maybeSingle();
-  const existing = (existingResult.data ?? null) as { id?: string; license_key: string; kid: string; seller_id: string } | null;
-  if (existing) return { id: existing.id, token: existing.license_key, kid: existing.kid, sellerId: existing.seller_id };
+  const existing = (existingResult.data ?? null) as { id?: string; license_key: string; kid: string; seller_id: string; expires_at?: string | null } | null;
+  if (existing) return { id: existing.id, token: existing.license_key, kid: existing.kid, sellerId: existing.seller_id, expiresAt: existing.expires_at ?? null };
 
   const productResult = await admin
     .from('products')
@@ -144,15 +145,15 @@ export async function issueLicense(
     if (error.code === '23505') {
       const raceResult = await admin
         .from('issued_licenses')
-        .select('id, license_key, kid, seller_id')
+        .select('id, license_key, kid, seller_id, expires_at')
         .eq('order_id', input.orderId)
         .eq('product_id', input.productId)
         .maybeSingle();
-      const winner = (raceResult.data ?? null) as { id?: string; license_key: string; kid: string; seller_id: string } | null;
-      if (winner) return { id: winner.id, token: winner.license_key, kid: winner.kid, sellerId: winner.seller_id };
+      const winner = (raceResult.data ?? null) as { id?: string; license_key: string; kid: string; seller_id: string; expires_at?: string | null } | null;
+      if (winner) return { id: winner.id, token: winner.license_key, kid: winner.kid, sellerId: winner.seller_id, expiresAt: winner.expires_at ?? null };
     }
     throw new Error(`issueLicense: ${error.message}`);
   }
 
-  return { id: licenseId, token, kid: key.kid, sellerId: product.seller_id };
+  return { id: licenseId, token, kid: key.kid, sellerId: product.seller_id, expiresAt: exp ? new Date(exp * 1000).toISOString() : null };
 }

@@ -1,10 +1,12 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Shield, Home, LogOut } from 'lucide-react'
 import { EmailText } from '@/components/ui/EmailText'
 
 export default function AccessDenied() {
+  const router = useRouter()
   const { signOut, user } = useAuth()
 
   const handleSignOut = async () => {
@@ -44,7 +46,7 @@ export default function AccessDenied() {
           </button>
 
           <button
-            onClick={() => window.location.href = '/'}
+            onClick={() => router.push('/')}
             className="w-full flex items-center justify-center px-4 py-2 bg-sf-raised border border-sf-border text-sf-heading rounded-full hover:border-sf-border-accent transition-[border-color] duration-200"
           >
             <Home className="h-4 w-4 mr-2" />

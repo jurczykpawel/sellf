@@ -10,13 +10,9 @@ export default async function IntegrationsPage() {
 
   const configResult = await getIntegrationsConfig()
   const config = configResult.success ? configResult.data : null
-  const formConfig = config
-    ? (({
-        sellf_license_env_configured: _envLicenseConfigured,
-        sellf_license_env_status: _envLicenseStatus,
-        ...editableConfig
-      }) => editableConfig)(config as Record<string, unknown>) as IntegrationsFormInitialData
-    : null
+  const formConfig = config ? Object.fromEntries(Object.entries(config).filter(([key]) =>
+    key !== 'sellf_license_env_configured' && key !== 'sellf_license_env_status'
+  )) as IntegrationsFormInitialData : null
 
   return (
     <div className="space-y-6">

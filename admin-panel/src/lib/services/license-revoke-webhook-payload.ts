@@ -8,6 +8,7 @@ export interface RevokedLicenseRow {
   id: string;
   product_id: string;
   email: string | null;
+  user_id?: string | null;
   order_id: string;
   /** Null once the issuing seller's own account has since been deleted (the license record is kept; the account reference is not). */
   seller_id: string | null;
@@ -85,4 +86,12 @@ export function buildLicenseRestoreWebhookData(
 ): LicenseRestoreWebhookData {
   const data = buildLicenseRevokeWebhookData(row, origin);
   return { ...data, license: { ...data.license, restoredAt } };
+}
+
+export interface LicenseIssuedWebhookData extends LicenseRevokeWebhookData {
+  customer: { userId: string | null; email: string | null };
+}
+
+export function buildLicenseIssuedWebhookData(row: RevokedLicenseRow, origin: string): LicenseIssuedWebhookData {
+  return { ...buildLicenseRevokeWebhookData(row, origin), customer: { userId: row.user_id ?? null, email: row.email } };
 }

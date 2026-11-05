@@ -17,7 +17,7 @@ import {
 } from '@/lib/api';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { escapeIlikePattern, validateUUID } from '@/lib/validations/product';
-import { buildPaymentSearchFilter, VALID_PAYMENT_STATUSES } from '@/lib/payments/search';
+import { paymentSearchQuery, VALID_PAYMENT_STATUSES } from '@/lib/payments/search';
 import { firstRelated } from '@/lib/supabase/relations';
 import { PURCHASE_ATTRIBUTION_COLUMNS, toPurchaseAttributionView } from '@/lib/attribution/report';
 import type { PaymentTransactionLineItem } from '@/types/payment';
@@ -75,8 +75,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build query
-    let query = adminClient
-      .from('payment_transactions')
+    let query = paymentSearchQuery(adminClient, search)
       .select(`
         id,order_number,
         customer_email,
@@ -133,11 +132,7 @@ export async function GET(request: NextRequest) {
       query = query.ilike('customer_email', `%${escapedEmail}%`);
     }
 
-    if (search) {
-      const { filter, error } = await buildPaymentSearchFilter(adminClient, search);
-      if (error) return apiError(request, 'INTERNAL_ERROR', 'Failed to search payments');
-      query = query.or(filter!);
-    }
+
 
     // Filter by date range
     if (dateFrom) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { currencyExponent } from '@/lib/currency/minor-units';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Product } from '@/types';
 import { useTranslations, useLocale } from 'next-intl';
 import { moneyAmountError } from '@/lib/currency/parse-money-input';

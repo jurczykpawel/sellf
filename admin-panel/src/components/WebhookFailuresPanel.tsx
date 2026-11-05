@@ -49,7 +49,6 @@ export default function WebhookFailuresPanel({ refreshTrigger, onRefresh }: Webh
  };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- State is updated only after awaiting the request.
     loadFailures();
   }, [loadFailures, refreshTrigger]);
 

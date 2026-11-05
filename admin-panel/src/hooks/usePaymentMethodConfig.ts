@@ -139,7 +139,6 @@ export function usePaymentMethodConfig(): UsePaymentMethodConfigReturn {
   }, [fetchConfig]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
     fetchConfig();
   }, [fetchConfig]);
 

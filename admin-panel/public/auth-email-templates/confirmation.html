@@ -52,6 +52,7 @@
               </p>
 
               {{ if .Data.release_text }}<p style="color: #ffffff; font-weight: 600;">{{ .Data.release_text }}</p>{{ end }}
+              {{ if .Data.cancel_reason_text }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}Reason{{ else }}Powód{{ end }}: {{ .Data.cancel_reason_text }}</p>{{ end }}
               {{ if .Data.pay_url }}<p><a style="color: #2090D0;" href="{{ .Data.pay_url }}">{{ if eq .Data.locale "en" }}View the order and payment details{{ else }}Zobacz zamówienie i dane do płatności{{ end }}</a></p>{{ end }}
               {{ if .Data.participants_url }}<p><a style="color: #2090D0;" href="{{ .Data.participants_url }}">{{ if eq .Data.locale "en" }}Add the participants of your order{{ else }}Uzupełnij uczestników zamówienia{{ end }}</a></p>{{ end }}
               {{ if .Data.purchase_product }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}Product{{ else }}Produkt{{ end }}: {{ .Data.purchase_product }}</p>{{ end }}
@@ -71,6 +72,7 @@
               <p style="margin: 0 0 8px 0; color: #94a3b8; font-size: 14px;">{{ if eq .Data.locale "en" }}Your license key{{ else }}Twój klucz licencyjny{{ end }}</p>
               <p style="margin: 0 0 24px 0; padding: 12px 16px; background-color: #0B1424; border-radius: 8px; color: #ffffff; font-family: Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5; word-break: break-all;">{{ .Data.license_key }}</p>
               {{ end }}
+              {{ if and .Data.license_key .Data.license_expires_text }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}License valid until{{ else }}Licencja ważna do{{ end }}: {{ .Data.license_expires_text }}</p>{{ end }}
               {{ if .Data.event_date }}<p style="color: #ffffff;">{{ .Data.event_date }}</p>{{ end }}
               {{ if .Data.event_online_url }}<p><a style="color: #2090D0;" href="{{ .Data.event_online_url }}">{{ if eq .Data.locale "en" }}Join online{{ else }}Dołącz online{{ end }}</a></p>{{ end }}
               {{ if not (eq .Data.mail_kind "order_cancelled") }}

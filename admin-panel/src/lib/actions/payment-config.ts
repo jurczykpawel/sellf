@@ -25,7 +25,6 @@ import type {
   UpdatePaymentConfigInput,
   PaymentConfigActionResult,
   StripePaymentMethodConfigsResult,
-  PaymentMethodMetadata,
   StripePaymentMethodConfig,
 } from '@/types/payment-config';
 import { RECOMMENDED_CONFIG } from '@/lib/utils/payment-method-helpers';

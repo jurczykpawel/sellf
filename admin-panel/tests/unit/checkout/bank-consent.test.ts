@@ -9,7 +9,7 @@ import en from '@/messages/en.json';
 import type { Product } from '@/types';
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('@/hooks/useCaptcha', () => ({ useCaptcha: () => ({ token: 'solved', onVerify: vi.fn(), onError: vi.fn(), onTimeout: vi.fn() }) }));
-vi.mock('@/components/captcha/AltchaWidget', () => ({ default: () => null }));
+vi.mock('@/components/captcha/CaptchaWidget', () => ({ default: () => null }));
 afterEach(cleanup);
 it.each([[true, true, true], [true, false, false], [false, true, false], [false, false, false]])
   ('collects consent only when required (collect=%s guest=%s)', (collectTermsOfService, isGuest, visible) => {

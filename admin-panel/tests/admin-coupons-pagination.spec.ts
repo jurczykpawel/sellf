@@ -194,3 +194,26 @@ test.describe('Admin coupons page pagination', () => {
     await expect(table.getByText(needleCode, { exact: true })).toBeVisible({ timeout: 10000 });
   });
 });
+
+test('coupon editor explains invalid percentages and spaces beside the fields in Polish @J117', async ({ page }) => {
+  const admin = await createTestAdmin('coupon-validation');
+  try {
+    await loginAsAdmin(page, admin.email, admin.password);
+    await page.goto('/pl/dashboard/coupons');
+    await page.getByRole('button', { name: /Dodaj kupon|Utwórz kupon|Nowy kupon/ }).first().click();
+    const form = page.locator('form').filter({ has: page.locator('input[name="discount_value"]') });
+    const code = form.locator('input[type="text"]').first();
+    const value = form.locator('input[name="discount_value"]');
+    await code.fill('W161CODE');
+    await value.fill('101');
+    await form.locator('button[type="submit"]').click();
+    await expect(value).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByText('Podaj rabat większy od 0 i nie większy niż 100%.', { exact: true })).toBeVisible();
+    await value.fill('10');
+    await code.fill('summer sale');
+    await form.locator('button[type="submit"]').click();
+    await expect(code).toHaveValue('summer sale');
+    await expect(code).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByText('Użyj liter, cyfr, myślnika lub podkreślenia, bez spacji.', { exact: true })).toBeVisible();
+  } finally { await admin.cleanup(); }
+});

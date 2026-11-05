@@ -103,3 +103,25 @@ describe('invoice buyer tax identifier', () => {
     expect(mapped.buyer.taxIdType).toBeUndefined();
   });
 });
+
+
+describe('seller calendar dates', () => {
+  const tx: InvoiceTransaction = { order_number: 1, status: 'completed', customer_email: 'a@example.com', currency: 'PLN', created_at: '2026-11-04T23:15:00Z', updated_at: '2026-11-04T23:20:00Z', order_details: {}, metadata: {} };
+  it('uses the seller calendar day after midnight in Poland', () => {
+    expect(buildInvoiceInput(tx, [], { shop_name: 'Sklep' }, 'key', '', '{product}')).toMatchObject({ issuedAt: '2026-11-05', paidAt: '2026-11-05' });
+  });
+  it('uses the configured seller timezone for issue, payment and deadline', () => {
+    const shop = { shop_name: 'Store', custom_settings: { timezone: 'America/Los_Angeles' } };
+    const order = { ...tx, created_at: '2026-07-04T02:00:00Z', updated_at: '2026-07-04T03:00:00Z', paid_at: '2026-07-04T01:00:00Z' };
+    expect(buildInvoiceInput(order, [], shop, 'key', '', '{product}')).toMatchObject({ issuedAt: '2026-07-03', paidAt: '2026-07-03' });
+    expect(buildInvoiceInput({ ...order, status: 'awaiting_payment', payment_due_at: '2026-07-05T02:00:00Z' }, [], shop, 'key', '', '{product}').dueAt).toBe('2026-07-04');
+  });
+  it.each([
+    ['2026-03-28T23:30:00Z', '2026-03-29'],
+    ['2026-03-29T22:30:00Z', '2026-03-30'],
+    ['2026-10-24T22:30:00Z', '2026-10-25'],
+    ['2026-10-25T23:30:00Z', '2026-10-26'],
+  ])('uses the Warsaw calendar through DST for %s', (instant, expected) => {
+    expect(buildInvoiceInput({ ...tx, created_at: instant, updated_at: instant }, [], { shop_name: 'Sklep' }, 'key', '', '{product}')).toMatchObject({ issuedAt: expected, paidAt: expected });
+  });
+});

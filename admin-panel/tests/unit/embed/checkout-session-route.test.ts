@@ -127,7 +127,7 @@ describe('POST /api/embed/checkout-session', () => {
     const response = await POST(makeRequest({ productSlug: 'kurs-ai', locale }, 'https://landing.example.com'));
     expect(response.status).toBe(200);
     expect(mocks.createCheckoutSession).toHaveBeenCalledWith(
-      expect.any(Object), expect.any(String), undefined,
+      expect.any(Object), `https://sellf.example.com${locale === 'pl' || locale === 'en' ? `/${locale}` : ''}/p/kurs-ai/payment-status?session_id={CHECKOUT_SESSION_ID}`, undefined,
       { embedSessionId: expect.any(String), attributionRef: expect.any(String), locale: locale === 'pl' || locale === 'en' ? locale : 'auto' },
     );
   });

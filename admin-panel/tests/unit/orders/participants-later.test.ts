@@ -73,6 +73,13 @@ describe('participants mail', () => {
     await sendParticipantsNotice(db, id);
     expect(updates).toEqual([]);
   });
+  it('counts an Auth delivery refusal as an error without marking delivery', async () => {
+    magic.mockResolvedValue({ ok: false, status: 429 });
+    const { db, updates } = client(paid);
+    const rpc = vi.fn(async () => ({ data: [{ id, stage: 1 }], error: null }));
+    expect(await runParticipantsReminders(Object.assign(db, { rpc }) as unknown as SupabaseClient<Database>)).toEqual({ processed: 0, errors: 1 });
+    expect(updates).toEqual([]);
+  });
   it('the reminder job mails each due order at its stage', async () => {
     const rpc = vi.fn(async () => ({ data: [{ id, stage: 1 }, { id, stage: 2 }], error: null }));
     const { db, updates } = client(paid);

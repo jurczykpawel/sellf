@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
 import Link from 'next/link';
@@ -296,7 +297,7 @@ function FilterPill({ active, onClick, label }: { active: boolean; onClick: () =
   );
 }
 
-function SectionHeader({ dotColor, label, count, productCountLabel }: { dotColor: string; label: string; count: number; productCountLabel: string }) {
+function SectionHeader({ dotColor, label, productCountLabel }: { dotColor: string; label: string; count: number; productCountLabel: string }) {
   return (
     <div className="flex items-center gap-3 pt-6 pb-3">
       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dotColor }} />
@@ -352,7 +353,7 @@ function ProductRow({
         isHero ? 'w-[88px] min-h-[88px] text-[32px]' : 'w-[72px] min-h-[72px] text-[26px]'
       }`}>
         {product.image_url ? (
-          <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+          <Image unoptimized loading="eager" width={isHero ? 88 : 72} height={isHero ? 88 : 72} src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
         ) : (
           product.icon || (isFree ? '🎁' : '📦')
         )}

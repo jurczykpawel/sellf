@@ -99,7 +99,6 @@ export default function MySubscriptions() {
   }, [loadRows]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- This async request updates state only after awaiting its response.
     loadRows();
   }, [loadRows]);
 

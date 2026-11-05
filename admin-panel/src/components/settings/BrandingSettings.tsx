@@ -19,7 +19,6 @@ import {
  removeActiveTheme,
  getThemePresets,
  checkThemeLicense,
- exportActiveTheme,
 } from '@/lib/actions/theme';
 import { themeConfigSchema, THEME_PRESETS, themeToCSS } from '@/lib/themes';
 import { evaluateCssVarsContrast } from '@/lib/themes/contrast';

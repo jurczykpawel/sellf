@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Remove internal fields from response
-    const cleanItems = items.map(({ user_id, [sortBy]: _sortField, ...rest }) => rest);
+    const cleanItems = items.map(item => Object.fromEntries(Object.entries(item).filter(([key]) => key !== 'user_id' && key !== sortBy)));
 
     return jsonResponse(successResponse(cleanItems, { ...pagination, total: count ?? undefined }), request);
   } catch (error) {

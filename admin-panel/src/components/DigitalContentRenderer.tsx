@@ -35,14 +35,14 @@ const PLATFORM_LABELS: Record<string, string> = {
   twitch:      'Twitch',
 };
 
-export default function DigitalContentRenderer({ contentItems, productName }: DigitalContentRendererProps) {
+export default function DigitalContentRenderer({ contentItems }: DigitalContentRendererProps) {
   const t = useTranslations('digitalContent');
   const { trustedDownloadDomains } = useConfig();
   const sortedItems = contentItems
     .filter(item => item.is_active)
     .sort((a, b) => a.order - b.order);
 
-  const renderContentItem = (item: ContentItem, index: number) => {
+  const renderContentItem = (item: ContentItem) => {
     if (!item.config) return null;
 
     switch (item.type) {
@@ -217,7 +217,7 @@ export default function DigitalContentRenderer({ contentItems, productName }: Di
 
   return (
     <div className="flex flex-col gap-4">
-      {sortedItems.map((item, i) => renderContentItem(item, i))}
+      {sortedItems.map(renderContentItem)}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 /** @see src/app/api/v1/payments/export/route.ts */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-const mocks = vi.hoisted(() => ({ from: vi.fn(), auth: vi.fn(), rate: vi.fn(), tier: vi.fn() }));
+const mocks = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn(), auth: vi.fn(), rate: vi.fn(), tier: vi.fn() }));
 vi.mock('@/lib/api', async (original) => ({ ...await original<typeof import('@/lib/api')>(), authenticate: mocks.auth }));
 vi.mock('@/lib/rate-limiting', async (original) => ({ ...await original<typeof import('@/lib/rate-limiting')>(), checkRateLimit: mocks.rate }));
 vi.mock('@/lib/license/resolve', () => ({ resolveCurrentTier: mocks.tier }));
@@ -18,27 +18,23 @@ function request(body: unknown) {
   return new NextRequest('http://localhost/api/v1/payments/export', { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
 }
 let payments: ReturnType<typeof chain>;
-let products: ReturnType<typeof chain>;
 beforeEach(() => {
   vi.clearAllMocks();
   payments = chain([]);
-  products = chain([{ id: '12345678-1234-4234-8234-123456789012' }]);
-  mocks.from.mockImplementation(table => table === 'products' ? products : payments);
-  mocks.auth.mockResolvedValue({ method: 'session', scopes: ['payments:read'], admin: { userId: 'admin' }, supabase: { from: mocks.from } });
+  mocks.from.mockImplementation(() => payments);
+  mocks.rpc.mockImplementation(() => payments);
+  mocks.auth.mockResolvedValue({ method: 'session', scopes: ['payments:read'], admin: { userId: 'admin' }, supabase: { from: mocks.from, rpc: mocks.rpc } });
   mocks.rate.mockResolvedValue(true);
   mocks.tier.mockResolvedValue('registered');
 });
 describe('payment export filters', () => {
   it('applies dashboard email search using the list search fields', async () => {
     expect((await POST(request({ searchTerm: 'buyer@example.com' }))).status).toBe(200);
-    expect(payments.or).toHaveBeenCalledWith(expect.stringContaining('customer_email.imatch."buyer@example\\\\.com"'));
-    expect(payments.or).toHaveBeenCalledWith(expect.stringContaining('session_id.imatch.'));
-    expect(payments.or).toHaveBeenCalledWith(expect.stringContaining('stripe_payment_intent_id.imatch.'));
-    expect(payments.or).toHaveBeenCalledWith(expect.stringContaining('product_id.in.'));
+    expect(mocks.rpc).toHaveBeenCalledWith('search_payment_transactions', { p_search: 'buyer@example.com' });
   });
   it('accepts API search and preserves literal punctuation', async () => {
     expect((await POST(request({ search: 'a%,(b)' }))).status).toBe(200);
-    expect(products.or).toHaveBeenCalledWith('name.imatch."a%,\\\\(b\\\\)",slug.imatch."a%,\\\\(b\\\\)"');
+    expect(mocks.rpc).toHaveBeenCalledWith('search_payment_transactions', { p_search: 'a%,(b)' });
   });
   it.each(['completed', 'refunded', 'partially_refunded', 'disputed', 'abandoned', 'awaiting_payment', 'cancelled', 'pending'])('filters status %s', async status => {
     expect((await POST(request({ status }))).status).toBe(200);
@@ -84,10 +80,10 @@ describe('payment export filters', () => {
       expect(await response.text()).toContain('"246.00","PLN","",""');
     } finally { vi.useRealTimers(); vi.unstubAllEnvs(); }
   });
-  it('does not return unfiltered data when product search fails', async () => {
-    products.then = resolve => Promise.resolve({ data: null, error: { message: 'unavailable' } }).then(resolve);
+  it('does not return unfiltered data when search fails', async () => {
+    payments.then = resolve => Promise.resolve({ data: null, error: { message: 'unavailable' } }).then(resolve);
     expect((await POST(request({ search: 'product' }))).status).toBe(500);
-    expect(payments.range).not.toHaveBeenCalled();
+    expect(mocks.from).not.toHaveBeenCalled();
   });
   it('retains license and rate limits', async () => {
     mocks.tier.mockResolvedValueOnce('free');
