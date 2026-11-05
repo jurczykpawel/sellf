@@ -4932,8 +4932,8 @@
       "values": {
         "persona": "guest",
         "entry": "checkout",
-        "product": "licensed_bump",
-        "payment": "card",
+        "product": "paid",
+        "payment": "bank_transfer",
         "moment": "immediate",
         "operation": "buyer_mail_off"
       },
@@ -4950,8 +4950,8 @@
       "values": {
         "persona": "guest",
         "entry": "checkout",
-        "product": "licensed_bump",
-        "payment": "card",
+        "product": "paid",
+        "payment": "bank_transfer",
         "moment": "immediate",
         "operation": "buyer_mail_on"
       },
