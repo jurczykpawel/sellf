@@ -52,8 +52,7 @@ async function openAndFill(page: Page) {
   const card = page.frameLocator('iframe[src*="elements-inner-payment"]');
   await expect(card.locator('input[name=number]')).toBeVisible({ timeout: 90000 });
   await page.locator('input[type=email]').fill(email);
-  const name = page.getByPlaceholder('Jan Kowalski');
-  if (await name.count()) await name.fill('Two Tabs Buyer');
+  await page.getByRole('textbox', { name: 'Full Name', exact: true }).fill('Two Tabs Buyer');
   await card.locator('input[name=number]').fill('4242424242424242');
   await card.locator('input[name=expiry]').fill('1234');
   await card.locator('input[name=cvc]').fill('123');

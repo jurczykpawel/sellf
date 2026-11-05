@@ -8,4 +8,7 @@ it('uses English examples and tax terminology in English checkout', () => {
 });
 it('uses consistent Polish license terminology', () => {
   expect(pl.productView.licenseStatusRevoked).toBe('Cofnięta');
+  expect([pl.productView.licenseRevokedDispute, pl.productView.licenseRevokedOther,
+    pl.admin.webhooks.events_list.license_revoked, pl.admin.webhooks.events_desc.license_revoked,
+    pl.admin.apiKeys.scopeDescriptions.licensesWrite].join(' ')).not.toMatch(/odwoł/i);
 });

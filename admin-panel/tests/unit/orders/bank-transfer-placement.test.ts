@@ -104,3 +104,21 @@ it.each([[true, false, 400], [false, false, 200], [true, true, 200], [false, tru
       p_order: expect.objectContaining({ terms_required: false, order_details: expect.objectContaining({ buyer: expect.objectContaining({ terms_accepted: false }) }) }),
     }));
   });
+
+it('returns 403 for an invalid token with the configured ALTCHA provider', async () => {
+  vi.stubEnv('NEXT_PUBLIC_TURNSTILE_TEST_MODE', 'false');
+  vi.stubEnv('CLOUDFLARE_TURNSTILE_SITE_KEY', '');
+  vi.stubEnv('NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY', '');
+  vi.stubEnv('ALTCHA_HMAC_KEY', 'local-transfer-verification');
+  try {
+    const { getCaptchaProvider } = await import('@/lib/captcha/config');
+    const { verifyCaptchaToken } = await vi.importActual<typeof import('@/lib/captcha/verify')>('@/lib/captcha/verify');
+    expect(getCaptchaProvider()).toBe('altcha');
+    mocks.captcha.mockImplementation(verifyCaptchaToken);
+    const response = await POST(request({ ...body, captchaToken: 'invalid' }));
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: 'Captcha required' });
+    expect(mocks.from).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  } finally { vi.unstubAllEnvs(); }
+});
