@@ -188,6 +188,7 @@ export const WEBHOOK_EVENT_TYPES = [
   'order.transfer_declared',
   'order.invoice_issued',
   'order.reopened',
+  'order.participants_needed',
   'order.participants_updated',
   'lead.captured',
   'waitlist.signup',

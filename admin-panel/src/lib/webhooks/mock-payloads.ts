@@ -20,6 +20,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       reservation: 'timed', reminderAt: '2099-06-14T12:00:00Z', releaseAt: '2099-06-15T12:00:00Z', invoiceHoldAt: null, transferDeclaredAt: null, transferDeclaredNote: null, cancelReason: null, cancelReasonText: null, reopenedAt: null },
     orderDetails: { buyer: { type: 'organization', company_name: 'Example' } }, lines: [],
   }])),
+  'order.participants_needed': { amountUnit: 'minor', customer: { email: 'buyer@example.com', locale: 'en' }, product: { id: 'prod_1', name: 'Workshop', slug: 'workshop' }, order: { orderId: 'order_1', orderNumber: 42, amount: 20000, currency: 'PLN', status: 'completed' }, orderDetails: { quantity: { value: 2 } }, reminder: { stage: 1, participantsUrl: 'https://shop.example/en/order/order_1/participants?token=example' } },
   'order.participants_updated': {
     customer: ACCESS_SAMPLE.customer, product: ACCESS_SAMPLE.product, actor: { type: 'customer', id: null },
     reason: 'participants_added_after_payment', occurredAt: '2099-01-01T00:30:00Z',
@@ -302,6 +303,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     crlUrl: 'https://example.com/api/licenses/revoked?seller=seller-id',
   },
   'license.issued': {
+    licenseKey: 'example.signed-license',
     customer: { email: 'customer@example.com', userId: null },
     license: {
       id: 'lic_12345678', order: 'cs_test_a1b2c3d4e5f6g7h8i9j0', email: 'customer@example.com',

@@ -1,3 +1,5 @@
+import { storeBuyerPayload, readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
+import { enrichBuyerWebhook } from '@/lib/webhooks/buyer-notifications';
 import { randomUUID } from 'node:crypto';
 import { currencyExponent, fromMinorUnits } from '@/lib/currency/minor-units';
 import { issuedInvoice } from '@/lib/invoicing/service';
@@ -48,6 +50,8 @@ export class WebhookService {
     const queue = new SupabaseWebhookQueue(supabase);
 
     const endpoints = await fetchEligibleEndpoints(supabase, event, productIds);
+    if (!endpoints.length) return;
+    data = await enrichBuyerWebhook(event, data, supabase);
     const timestamp = new Date().toISOString();
     const envelope: EnvelopePayload = { event, timestamp, data };
     const isCustomized = (e: typeof endpoints[number]) =>
@@ -153,9 +157,9 @@ export class WebhookService {
       .single();
     if (endpointError || !endpoint) throw new Error('Endpoint not found');
 
-    const payload = { ...(log.payload ?? {}), id: logId };
+    const payload = { ...((await readBuyerPayload(log.payload) ?? {}) as Record<string, unknown>), id: logId };
     const { error: prepareError } = await supabase.from('webhook_logs')
-      .update({ payload, status: 'pending_retry', next_retry_at: 'now' })
+      .update({ payload: await storeBuyerPayload(log.event_type, payload), status: 'pending_retry', next_retry_at: 'now' })
       .eq('id', logId).eq('status', 'failed');
     if (prepareError) throw new Error('Could not prepare delivery');
     const { data: claims, error: claimError } = await supabase.rpc('claim_webhook_delivery', { p_id: logId });

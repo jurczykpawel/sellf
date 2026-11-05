@@ -95,3 +95,8 @@ export interface LicenseIssuedWebhookData extends LicenseRevokeWebhookData {
 export function buildLicenseIssuedWebhookData(row: RevokedLicenseRow, origin: string): LicenseIssuedWebhookData {
   return { ...buildLicenseRevokeWebhookData(row, origin), customer: { userId: row.user_id ?? null, email: row.email } };
 }
+
+/** license.issued after delivery enrichment; only the signed receiver gets this representation. */
+export interface LicenseIssuedDeliveryData extends LicenseIssuedWebhookData {
+  licenseKey: string;
+}

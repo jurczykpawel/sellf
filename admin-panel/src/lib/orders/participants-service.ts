@@ -3,6 +3,7 @@
  * @see supabase/migrations/20261103191000_participants_later.sql
  * @see ./transfer-mail.ts
  */
+import { WebhookService } from '@/lib/services/webhook-service';
 import { sendTrustedMagicLink } from '@/lib/auth/magic-link/request';
 import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
 import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
@@ -41,11 +42,18 @@ export async function sendParticipantsNotice(db: Db, id: string, stage: 1 | 2 = 
     if (!product) return 'failed';
     const locale = (tx.metadata as Record<string, unknown> | null)?.locale === 'pl' ? 'pl' : 'en', base = getSellfBaseUrl();
     const soon = locale === 'pl' ? 'Wydarzenie zbliża się, a lista uczestników nadal jest pusta.' : 'The event is coming up and the participant list is still empty.';
-    const result = await sendTrustedMagicLink({ email: tx.customer_email,
+    const participantsUrl = buildParticipantsLink(tx.id, locale, base).url;
+    await WebhookService.trigger('order.participants_needed', {
+      amountUnit: 'minor', customer: { email: tx.customer_email, locale },
+      product: { id: tx.product_id, name: product.name, slug: product.slug },
+      order: { orderId: tx.id, orderNumber: tx.order_number, amount: tx.amount, currency: tx.currency, status: tx.status },
+      orderDetails: tx.order_details, reminder: { stage, participantsUrl },
+    }, db, tx.product_id, `participants:${tx.id}:${stage}`);
+    const result = await sendTrustedMagicLink({ transactionalOnly: true, email: tx.customer_email,
       redirectTo: buildPostCheckoutMagicLinkRedirect({ origin: base, productSlug: product.slug, locale, sessionId: undefined, paymentIntentId: undefined }),
       data: { locale, mail_kind: 'participants_needed', purchase_product: product.name,
         purchase_amount: formatPrice(fromMinorUnits(tx.amount, tx.currency), tx.currency, locale),
-        participants_url: buildParticipantsLink(tx.id, locale, base).url, ...(stage === 2 ? { release_text: soon } : {}) } });
+        participants_url: participantsUrl, ...(stage === 2 ? { release_text: soon } : {}) } });
     if (!result.ok) return 'failed';
     const now = new Date().toISOString();
     const { error } = await db.from('payment_transactions').update(stage === 1 ? { participants_mail_sent_at: now }

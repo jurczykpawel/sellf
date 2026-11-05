@@ -74,6 +74,7 @@ export const WEBHOOK_EVENTS: WebhookEventDefinition[] = [
   { value: 'order.transfer_declared', label: 'Order Transfer Declared', category: 'purchases' },
   { value: 'order.invoice_issued', label: 'Order Invoice Issued (held)', category: 'purchases' },
   { value: 'order.reopened', label: 'Order Reopened', category: 'purchases' },
+  { value: 'order.participants_needed', label: 'Order Participants Needed', category: 'purchases' },
   { value: 'order.participants_updated', label: 'Order Participants Added', category: 'purchases' },
   { value: 'purchase.completed', label: 'Purchase Completed', category: 'purchases' },
   { value: 'lead.captured', label: 'Lead Captured (Free Product)', category: 'leads' },
@@ -112,3 +113,13 @@ export const WEBHOOK_EVENTS: WebhookEventDefinition[] = [
   { value: 'product.price_changed', label: 'Product Price Changed', category: 'catalog' },
   { value: 'product.sold_out', label: 'Product Sold Out', category: 'catalog' },
 ];
+
+/** Buyer notification contract. Monetary values use minor currency units. */
+export interface ParticipantsNeededWebhookData {
+  amountUnit: 'minor';
+  customer: { email: string; locale: 'pl' | 'en' };
+  product: { id: string; name: string; slug: string };
+  order: { orderId: string; orderNumber: number | null; amount: number; currency: string; status: string };
+  orderDetails: unknown;
+  reminder: { stage: 1 | 2; participantsUrl: string };
+}
