@@ -161,6 +161,7 @@ test('admin accepts the late transfer at the order price although the promo seat
   await expect.poll(async () => (await db.from('payment_transactions').select('status').eq('id', orderId).single()).data?.status).toBe('completed');
   const tx = await checked(await db.from('payment_transactions').select('amount,metadata,reopened_at').eq('id', orderId).single());
   expect(tx.amount).toBe(10000); expect(tx.reopened_at).toBeTruthy(); expect((tx.metadata as Record<string, unknown>).oversold).toBe(true);
+  await expect.poll(async () => (await webhook('order.reopened', orderId)).length).toBe(1);
   const reopened = await webhook('order.reopened', orderId);
   expect(reopened).toHaveLength(1); expect(reopened[0].data.order).toMatchObject({ status: 'completed', previousStatus: 'cancelled' });
   await expect.poll(async () => (await webhook('purchase.completed', orderId)).length).toBe(1);
