@@ -1,5 +1,7 @@
-import { useSupabaseBuyerEmails } from '../helpers/buyer-email-setting-playwright';
-useSupabaseBuyerEmails();
+import { assertStripeTransport } from '../helpers/stripe-transport';
+import { useSupabaseBuyerEmails as enableSupabaseBuyerEmails } from '../helpers/buyer-email-setting-playwright';
+enableSupabaseBuyerEmails();
+test.beforeEach(({ page }) => { assertStripeTransport(page); });
 /** Real embedded Stripe completion with email collected by Stripe. @see README.md */
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
