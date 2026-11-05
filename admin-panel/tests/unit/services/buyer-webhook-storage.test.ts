@@ -27,7 +27,7 @@ it.each([
  try {
   const stored=await storeBuyerPayload(event,payload);
   expect(JSON.stringify(stored)).not.toContain('.key');
-  expect(stored).toMatchObject({id:'d',event});
+  expect(stored).toMatchObject(['sellf:buyer-payload:v1',{id:'d',event},expect.any(Object)]);
   expect(await readBuyerPayload(stored)).toEqual(payload);
  } finally {vi.unstubAllEnvs();}
 });
@@ -49,5 +49,17 @@ it('continues a due batch after an unreadable delivery and records its attempt',
   const queue=new SupabaseWebhookQueue({rpc} as never);
   expect(await queue.pickDue(50)).toEqual([{id:'healthy',endpointId:'e',eventType:'order.placed',payload:{data:{orderId:'order'}},attemptCount:1,maxAttempts:5}]);
   expect(rpc).toHaveBeenCalledWith('increment_webhook_attempt',expect.objectContaining({p_log_id:'broken',p_status:'permanently_failed',p_error_message:'Stored delivery payload is unavailable',p_response_body:null,p_next_retry_at:null,p_failed_permanently_at:expect.any(String)}));
+ } finally {vi.unstubAllEnvs();}
+});
+it.each(['order.placed','purchase.completed','license.issued'])('preserves custom storage-like fields for %s and legacy logs', async event => {
+ vi.stubEnv('APP_ENCRYPTION_KEY', Buffer.alloc(32, 7).toString('base64'));
+ const {storeBuyerPayload,readBuyerPayload}=await import('@/lib/webhooks/buyer-payload-storage');
+ const payload={id:'d',event,buyerDelivery:{source:'crm'},data:{sealedBuyerValue:{source:'custom'},licenseKey:'signed.key',nested:[{sealedBuyerValue:'customer value',token:'another.key'}]}};
+ try {
+  expect(await readBuyerPayload(payload)).toEqual(payload);
+  const stored=await storeBuyerPayload(event,payload);
+  expect(JSON.stringify(stored)).not.toContain('signed.key');
+  expect(JSON.stringify(stored)).not.toContain('another.key');
+  expect(await readBuyerPayload(stored)).toEqual(payload);
  } finally {vi.unstubAllEnvs();}
 });
