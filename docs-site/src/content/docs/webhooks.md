@@ -111,7 +111,7 @@ products), `purchase.completed` also carries the granted components and any issu
     { "id": "…", "name": "Course …", "slug": "course-…", "price": 149, "currency": "PLN", "icon": "🤖" }
   ],
   "licenses": [
-    { "productId": "…", "token": "<signed-license>", "kid": "…", "jwksUrl": "https://…/api/licenses/jwks?seller=…" }
+    { "productId": "…", "token": "<signed-license>", "kid": "…", "jwksUrl": "https://…/api/licenses/jwks?seller=…", "expiresAt": null }
   ]
 }
 ```
@@ -120,6 +120,7 @@ products), `purchase.completed` also carries the granted components and any issu
   In tax mode 1a the bundle is a **single** line item carrying its own VAT — components are **not**
   separately taxed lines, so they carry basic product detail without a per-line tax snapshot. The
   field is `[]` for non-bundle purchases.
+- Each `licenses[]` entry includes `expiresAt` (ISO 8601 UTC or `null` for a perpetual license), so receivers do not need to decode the token to learn its expiry.
 - `licenses[]` carries one entry per product in the order that has license issuance enabled — the
   purchased product itself **and/or** any bundle components. It is omitted when no product in the
   order issues a license.
@@ -153,6 +154,9 @@ click id itself:
 ```
 
 ### `invoice.paid` — subscription VAT snapshot
+
+`invoice.orderId` and `invoice.orderNumber` identify the Sellf order recorded for this
+invoice; `invoice.stripeInvoiceId` retains the Stripe invoice identity.
 
 Recurring subscription charges emit `invoice.paid` (not `purchase.completed`). It carries
 an **order-level** VAT snapshot plus the buyer's faktura details, snapshotted by Stripe onto
@@ -221,6 +225,9 @@ that moment. A subscription that ends **unpaid** (`unpaid` or `incomplete_expire
 licenses the same way, with `revocationReason: "expired"` (matching `access.revoked`).
 
 ### `refund.issued` — refund + credit-note VAT
+
+`payment.orderNumber` is the Sellf order number for the refunded payment (`null` when
+unavailable); `payment.id` keeps the Sellf transaction ID.
 
 Fired exactly once per Stripe refund ID (full or partial, from any path). Carries the VAT breakdown of the
 refunded amount so you can issue a credit note (faktura korygująca):
@@ -309,7 +316,8 @@ a manually removed main grant may stay absent while a purchased add-on returns.
 purchase, free product, manual issuance in the panel, or `POST /api/v1/licenses`
 (`license.issuanceSource` is `purchase`, `manual` or `api`). `license.expired` is sent
 once when an active license passes `expiresAt` (checked every 30 seconds by the
-business-event cycle); revoked licenses do not expire again. Payloads match
+business-event cycle); revoked licenses do not expire again.
+`license.issued.customer` contains `email` and `userId` (`null` for a guest). Payloads match
 `license.revoked` below and never contain the signed token.
 
 > **Getting the token.** `license.issued` deliberately carries no token, so a webhook log or

@@ -68,6 +68,9 @@ payloadzie pozostaje stałe.
 
 ## Zakupy i subskrypcje
 
+Każda pozycja `purchase.completed.licenses[]` zawiera `expiresAt`: datę ISO 8601 UTC
+albo `null` dla licencji bezterminowej. Odbiorca nie musi dekodować tokenu.
+
 Dla zakupów `purchase.completed` istnieje jedna logiczna dostawa na
 zamówienie/zdarzenie/endpoint. Nowy zakup otrzymuje nowy identyfikator dostawy.
 Subskrypcje wysyłają `invoice.paid`; każda faktura stanowi osobne zamówienie.
@@ -96,12 +99,17 @@ bez identyfikatora oba mają wartość `null`. Koszyk z profilem zapisuje też w
 
 `invoice.paid` wiąże `data.invoice.stripeInvoiceId` z
 `data.subscription.stripeSubscriptionId`, `data.product.id` i `data.customer.userId`.
+`invoice.orderId` i `invoice.orderNumber` wskazują zamówienie Sellf przypisane do tej
+faktury; `invoice.stripeInvoiceId` pozostaje identyfikatorem Stripe.
 Faktura zawiera `amountPaid` (główna jednostka waluty), `currency` i `paidAt`.
 `subscription.currentPeriodStart` oraz `subscription.currentPeriodEnd` (ISO 8601 UTC)
 pochodzą z konkretnej opłaconej pozycji subskrypcyjnej tej faktury. Jeśli nie ma
 jednoznacznej pozycji bez proporcjonalnego rozliczenia z prawidłowym okresem,
 pola są pomijane. Odbiorca nie powinien wyliczać opłaconego dostępu z daty dostawy
 ani z późniejszej aktualizacji subskrypcji.
+
+`payment.orderNumber` to numer zamówienia Sellf zwracanej płatności (`null`, gdy nie
+jest dostępny); `payment.id` pozostaje identyfikatorem transakcji Sellf.
 
 `refund.issued` przekazuje `data.refund.stripeRefundId` i rzeczywisty `status`
 Stripe: `pending`, `requires_action`, `succeeded`, `failed` albo `canceled`.
@@ -180,6 +188,8 @@ Dla gościa dochodzi `guestPurchaseId`. Odbiorca powinien zastosować tę listę
 ręcznie usunięty grant głównego produktu może pozostać nieobecny, gdy dostęp do dodatku wróci.
 
 ## `license.issued` / `license.expired` / `license.updated` — Pro
+
+`license.issued.customer` zawiera `email` oraz `userId` (`null` dla gościa).
 
 `license.issued` przychodzi raz dla każdej licencji zapisanej w Sellfie, niezależnie od
 ścieżki: zakup, darmowy produkt, ręczne wydanie w panelu albo `POST /api/v1/licenses`

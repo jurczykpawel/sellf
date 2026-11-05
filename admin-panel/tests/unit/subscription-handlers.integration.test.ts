@@ -873,6 +873,9 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     const invoicePaidCalls = triggerSpy.mock.calls.filter(([event]) => event === 'invoice.paid');
     expect(invoicePaidCalls.length).toBeGreaterThanOrEqual(1);
     expect(invoicePaidCalls.length).toBeLessThanOrEqual(3);
+    const { data: invoiceOrder, error: invoiceOrderError } = await platformClient!.from('payment_transactions').select('id,order_number').eq('stripe_invoice_id', inv.id!).single();
+    expect(invoiceOrderError).toBeNull();
+    for (const [, payload] of invoicePaidCalls) expect(payload).toMatchObject({ invoice: { stripeInvoiceId: inv.id, orderId: invoiceOrder!.id, orderNumber: invoiceOrder!.order_number } });
 
     triggerSpy.mockRestore();
 

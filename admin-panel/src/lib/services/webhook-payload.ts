@@ -103,7 +103,7 @@ export interface PurchaseWebhookData {
    * `[productId, ...bundleComponentIds]`. Present only when at least one issued.
    * Replaces the former singular `license` field (breaking).
    */
-  licenses?: Array<{ productId: string; token: string; kid: string; jwksUrl: string }>;
+  licenses?: Array<{ productId: string; token: string; kid: string; jwksUrl: string; expiresAt: string | null }>;
   /** Where the purchase came from, frozen at purchase (@see lib/attribution/report.ts). Absent when none was recorded. */
   attribution?: WebhookAttribution;
 }

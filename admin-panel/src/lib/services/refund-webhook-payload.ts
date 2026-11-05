@@ -22,6 +22,7 @@ export interface RefundIssuedPayload {
   product: RefundProductSummary | { id: string };
   payment: {
     id: string;
+    orderNumber?: number | null;
     amount: number;
     currency: string;
     sessionId: string | null;
@@ -178,7 +179,7 @@ export async function buildRefundIssuedPayloadFromTransaction(input: {
   // (recorded at purchase). One fetch here keeps all 4 refund callers unchanged.
   const { data: txTax } = await input.supabaseClient
     .from('payment_transactions')
-    .select('net_total, tax_total')
+    .select('net_total, tax_total, order_number')
     .eq('id', input.transaction.id)
     .maybeSingle();
   const refundTax = input.refundStatus === 'failed' || input.refundStatus === 'canceled' ? null : computeRefundTax({
@@ -207,6 +208,7 @@ export async function buildRefundIssuedPayloadFromTransaction(input: {
     product,
     payment: {
       id: input.transaction.id,
+      orderNumber: txTax?.order_number ?? null,
       amount: input.transaction.amount,
       currency: input.transaction.currency,
       sessionId: input.transaction.session_id,

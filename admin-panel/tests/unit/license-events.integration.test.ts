@@ -97,3 +97,9 @@ describe('business event type constraint keeps every family', () => {
     for (const type of types) expect(def).toContain(`'${type}'`);
   });
 });
+
+it('captures the license customer account in the issued event for receivers', () => {
+  expect(() => run(`INSERT INTO public.issued_licenses(id,seller_id,original_seller_id,product_id,user_id,email,order_id,kid,license_key)
+    VALUES('${license}','${seller}','${seller}','${product}','${seller}','seller-w133@example.com','manual_consumer','kid','e30.sig');
+    ${assert(`EXISTS(SELECT 1 FROM public.business_events WHERE product_id='${product}' AND event_type='license.issued' AND payload->'licenseRow'->>'user_id'='${seller}')`, 'Issued license identifies customer account')}`)).not.toThrow();
+});

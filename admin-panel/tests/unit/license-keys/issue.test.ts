@@ -27,7 +27,7 @@ interface ProductRow {
   custom_checkout_fields: unknown[];
 }
 
-type LicenseRow = { id?: string; license_key: string; kid: string; seller_id: string };
+type LicenseRow = { id?: string; license_key: string; kid: string; seller_id: string; expires_at?: string | null };
 
 function adminMock(opts: {
   product?: ProductRow | null;
@@ -71,6 +71,11 @@ beforeEach(() => {
 });
 
 describe('issueLicense', () => {
+  it('retains the persisted expiry when fulfillment retries an existing license', async () => {
+    const expiresAt = '2026-12-05T00:00:00.000Z';
+    const result = await call(adminMock({ existing: { license_key: 'stored.token', kid: key.kid, seller_id: SELLER, expires_at: expiresAt } }));
+    expect(result).toMatchObject({ token: 'stored.token', expiresAt });
+  });
   it('returns null when the product does not have issuance enabled', async () => {
     expect(await call(adminMock({ product: product({ issue_license_on_purchase: false }) }))).toBeNull();
     expect(vi.mocked(loadActiveSellerKey)).not.toHaveBeenCalled();
@@ -101,7 +106,7 @@ describe('issueLicense', () => {
     const r = verifyLicense(result!.token, key.publicKeyPem, { now: NOW });
     expect(r).toMatchObject({ valid: true, claims: { product: 'pro-kit', email: 'a@b.co', order: 'ord_1', tier: 'pro', exp: null, kid: key.kid } });
     expect(insert).toHaveBeenCalledWith(expect.objectContaining({ seller_id: SELLER, order_id: 'ord_1', product_id: PRODUCT, kid: key.kid, license_key: result!.token, expires_at: null }));
-    expect(result).toMatchObject({ kid: key.kid, sellerId: SELLER });
+    expect(result).toMatchObject({ kid: key.kid, sellerId: SELLER, expiresAt: null });
   });
 
   it('loads the seller key for the product owner', async () => {
@@ -114,6 +119,7 @@ describe('issueLicense', () => {
     const r = verifyLicense(result!.token, key.publicKeyPem, { now: NOW });
     if (!r.valid) throw new Error('expected valid');
     expect(r.claims.exp).toBe(Math.floor(NOW.getTime() / 1000) + 30 * 86400);
+    expect(result!.expiresAt).toBe(new Date(NOW.getTime() + 30 * 86400000).toISOString());
   });
 
   it('emits normalized domain and namespaced custom claims without replacing system claims', async () => {

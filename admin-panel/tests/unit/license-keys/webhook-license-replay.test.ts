@@ -38,7 +38,7 @@ interface ProductRow {
 
 function adminMock(opts: {
   product?: ProductRow | null;
-  existing?: { license_key: string; kid: string; seller_id: string } | null;
+  existing?: { id?: string; license_key: string; kid: string; seller_id: string; expires_at?: string | null } | null;
   insert?: ReturnType<typeof vi.fn>;
 }) {
   const insert = opts.insert ?? vi.fn().mockResolvedValue({ error: null });
@@ -80,8 +80,24 @@ describe('issueLicense — replay safety (already_had_access / already_processed
     const insert = vi.fn();
     const existing = { license_key: 'EXISTING.SIGNED.TOKEN', kid: key.kid, seller_id: SELLER };
     const result = await issue(adminMock({ product: product(), existing, insert }));
-    expect(result).toEqual({ token: 'EXISTING.SIGNED.TOKEN', kid: key.kid, sellerId: SELLER });
+    expect(result).toEqual({ id: undefined, token: 'EXISTING.SIGNED.TOKEN', kid: key.kid, sellerId: SELLER, expiresAt: null });
     expect(insert).not.toHaveBeenCalled();
+  });
+
+  it.each([null, 30])('keeps the signed token and persisted expiry for duration %s when replayed later', async duration => {
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    const first = await issue(adminMock({ product: product({ license_duration_days: duration }), insert }));
+    const saved = insert.mock.calls[0][0];
+    const replayInsert = vi.fn();
+    const replay = await issueLicense(adminMock({ product: product(), existing: saved, insert: replayInsert }) as never,
+      { productId: PRODUCT, email: 'buyer@example.com', userId: 'user-uuid', orderId: 'pi_abc123' },
+      { now: new Date(NOW.getTime() + 86400000) });
+    expect(replay).toEqual(first);
+    expect(replay!.expiresAt).toBe(duration === null ? null : new Date(NOW.getTime() + duration * 86400000).toISOString());
+    const verified = verifyLicense(replay!.token, key.publicKeyPem, { now: NOW });
+    expect(verified).toMatchObject({ valid: true, claims: { exp: duration === null ? null : Math.floor(NOW.getTime() / 1000) + duration * 86400 } });
+    expect(replayInsert).not.toHaveBeenCalled();
+    expect(loadActiveSellerKey).toHaveBeenCalledOnce();
   });
 
   it('on replay with same order_id (already_had_access=true scenario), still returns the license', async () => {

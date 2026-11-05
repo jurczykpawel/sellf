@@ -50,6 +50,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       icon: '🎓'
     },
     bumpProduct: null,
+    licenses: [{ productId: 'prod_12345678', token: '<signed-license>', kid: 'kid-example', jwksUrl: 'https://example.com/api/licenses/jwks?seller=seller-id', expiresAt: null }],
     order: {
       orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001,
       amount: 4999, grossTotal: 4999, netTotal: null, taxTotal: null, taxSnapshotStatus: 'unavailable',
@@ -196,6 +197,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     subscription: { stripeSubscriptionId: 'sub_test_123' },
     invoice: {
       stripeInvoiceId: 'in_test_123',
+      orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001,
       amountPaid: 49.00,
       currency: 'PLN',
       hostedInvoiceUrl: 'https://invoice.stripe.com/i/...',
@@ -243,6 +245,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     },
     payment: {
       id: 'pay_12345678',
+      orderNumber: 1001,
       amount: 4999,
       currency: 'USD',
       sessionId: 'cs_test_a1b2c3d4e5f6g7h8i9j0',
@@ -299,6 +302,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     crlUrl: 'https://example.com/api/licenses/revoked?seller=seller-id',
   },
   'license.issued': {
+    customer: { email: 'customer@example.com', userId: null },
     license: {
       id: 'lic_12345678', order: 'cs_test_a1b2c3d4e5f6g7h8i9j0', email: 'customer@example.com',
       tier: 'pro', domain: 'customer.example.com', issuanceSource: 'purchase',

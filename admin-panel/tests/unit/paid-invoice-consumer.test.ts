@@ -56,3 +56,8 @@ it('retains the subscription binding from a recorded modern line when the option
   Reflect.deleteProperty(value, 'parent');
   expect(extractSubscriptionId(value as unknown as Stripe.Invoice)).toBe(subscriptionId);
 });
+
+it('lets a paid invoice receiver correlate the Sellf order without replacing the Stripe invoice id', () => {
+  const payload = buildInvoicePaidPayload({ invoice: invoice as unknown as Stripe.Invoice, subscriptionId, customer, product, order: { id: 'sellf-order', orderNumber: 1802 } });
+  expect(payload.invoice).toMatchObject({ stripeInvoiceId: invoice.id, orderId: 'sellf-order', orderNumber: 1802 });
+});

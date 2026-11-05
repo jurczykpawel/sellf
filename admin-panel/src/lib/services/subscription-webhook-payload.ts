@@ -215,6 +215,7 @@ export function buildSubscriptionRenewalUpcomingPayload(input: BaseInput & {
 }
 
 export function buildInvoicePaidPayload(input: BaseInput & {
+  order?: { id: string; orderNumber: number | null };
   invoice: Stripe.Invoice;
   subscriptionId: string;
   /** Order-level VAT snapshot for this invoice (net/tax in MAJOR units, matching amountPaid). */
@@ -242,6 +243,8 @@ export function buildInvoicePaidPayload(input: BaseInput & {
     },
     invoice: {
       stripeInvoiceId: inv.id,
+      orderId: input.order?.id ?? null,
+      orderNumber: input.order?.orderNumber ?? null,
       amountPaid: fromMinor(inv.amount_paid, inv.currency || 'usd'),
       currency: (inv.currency || 'usd').toUpperCase(),
       hostedInvoiceUrl: inv.hosted_invoice_url ?? null,

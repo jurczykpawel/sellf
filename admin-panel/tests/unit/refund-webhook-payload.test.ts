@@ -8,7 +8,7 @@ import {
 /** Mock supabase: products + payment_transactions(net_total,tax_total) + payment_line_items(main). */
 function mockSupabaseFor(opts: {
   product?: Record<string, unknown> | null;
-  tx?: { net_total: number | null; tax_total: number | null } | null;
+  tx?: { order_number?: number; net_total: number | null; tax_total: number | null } | null;
   mainLine?: { vat_exempt?: boolean | null; taxability_reason?: string | null } | null;
 }) {
   const dataFor = (table: string) =>
@@ -182,4 +182,9 @@ it('does not attach credit-note VAT to a failed refund with no money returned', 
   expect(payload.refund.amount).toBe(failedRefund.amount);
   expect(payload.refund).not.toHaveProperty('net');
   expect(payload.refund).not.toHaveProperty('tax');
+});
+
+it('lets a refund receiver correlate the Sellf order number', async () => {
+  const payload = await buildRefundIssuedPayloadFromTransaction({ supabaseClient: mockSupabaseFor({ product: productRow, tx: { net_total: 10000, tax_total: 2300, order_number: 1801 } }), transaction: txRow, stripeRefundId: null, refundAmount: 100, previousRefundedAmount: 0, totalRefunded: 100, isFullRefund: false, statusBefore: 'completed', statusAfter: 'partially_refunded', refundedAt: '2026-11-05T00:00:00Z', source: 'admin' });
+  expect(payload.payment).toMatchObject({ id: txRow.id, orderNumber: 1801 });
 });
