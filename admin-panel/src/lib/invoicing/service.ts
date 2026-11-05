@@ -3,7 +3,7 @@ import 'server-only';
 import { firstRelated } from '@/lib/supabase/relations';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { configuredProvider, readInvoiceConfig } from '@/lib/invoicing/config';
-import { buildInvoiceInput } from '@/lib/invoicing/input';
+import { buildInvoiceInput, invoiceDate } from '@/lib/invoicing/input';
 import type { InvoiceInput, InvoiceProvider, IssueResult } from '@/lib/invoicing/provider';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -88,13 +88,17 @@ export async function retryInvoices(): Promise<{ processed: number; errors: numb
     const result = await issueInvoiceForTransaction(row.transaction_id, { client, retry: true });
     if (result) { if (result.success) processed++; else errors++; }
   }
+  const { data: shop, error: shopError } = payments.data?.length
+    ? await client.from('shop_config').select('custom_settings').maybeSingle()
+    : { data: null, error: null };
   for (const row of payments.data ?? []) {
     try {
+      if (shopError || !shop) { errors++; continue; }
       const tx = firstRelated<{ updated_at: string; paid_at?: string | null }>(row.payment_transactions);
       const config = await readInvoiceConfig(client);
       if (!tx || !config || config.domain !== row.provider_domain) continue;
       const provider = await configuredProvider(config);
-      const result = await provider?.markPaid(row.provider_invoice_id!, (tx.paid_at || tx.updated_at).slice(0, 10));
+      const result = await provider?.markPaid(row.provider_invoice_id!, invoiceDate(tx.paid_at || tx.updated_at, shop));
       if (!result?.success) { errors++; continue; }
       const { error } = await client.from('invoices').update({ payment_synced: true, updated_at: new Date().toISOString() }).eq('transaction_id', row.transaction_id);
       if (error) errors++; else processed++;
