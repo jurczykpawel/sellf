@@ -173,6 +173,7 @@ test('(d) cancel requires a reason, returns event seat and access, and offers ma
   await page.screenshot({ path: test.info().outputPath('cancelled.png'), fullPage: true });
 });
 test('(e) missing and invalid captcha cannot place an order', async ({ request }) => {
+  expect((await (await request.get('/api/runtime-config')).json()).captcha.provider).toBe('altcha');
   const body = { productId: product.id, email: 'no-captcha@example.com', moduleValues: {}, termsAccepted: true };
   expect((await request.post('/api/orders/bank-transfer', { data: body })).status()).toBe(400);
   expect((await request.post('/api/orders/bank-transfer', { data: { ...body, captchaToken: 'invalid' } })).status()).toBe(403);
