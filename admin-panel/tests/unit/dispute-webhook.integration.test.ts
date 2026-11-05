@@ -10,6 +10,7 @@ import charge from '../fixtures/stripe/dispute_charge_won.json';
 import payment from '../fixtures/stripe/dispute_payment_intent_won.json';
 import refundedCharge from '../fixtures/stripe/charge_full_current.json';
 import { getTestDatabaseContainer } from '../helpers/database-container';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const mock = vi.hoisted(() => ({ stripe: {} as Record<string, unknown>, signature: '', deliveries: [] as Array<{ body: string; headers: Record<string,string> }> }));
 vi.mock('@/lib/stripe/server', () => ({ getStripeServer: async () => mock.stripe,
@@ -68,9 +69,47 @@ describe('dispute HTTP consumer contract',()=>{
    expect(parts.v1).toBe(createHmac('sha256','fixture-receiver-secret').update(parts.t+'.'+delivery.body).digest('hex'));
   }
   const closing=mock.deliveries.map(x=>JSON.parse(x.body)).find(x=>x.event==='dispute.closed');
-  expect(closing.data).toMatchObject({customer:{userId:buyer},product:{id:product},payment:{id:tx,paymentIntentId:charge.payment_intent,statusAfter:'completed'},
+  expect(closing.data).toMatchObject({customer:{userId:buyer},product:{id:product,name:'Dispute receiver',slug:'dispute-receiver'},payment:{id:tx,paymentIntentId:charge.payment_intent,statusAfter:'completed'},
    dispute:{stripeDisputeId:won.data.object.id,status:'won',amount:won.data.object.amount,currency:'PLN',accessRevoked:false,accessRestored:true,licenseRestored:false}});
   sql(`DO $test$ BEGIN IF NOT EXISTS(SELECT 1 FROM public.user_product_access WHERE user_id='${buyer}' AND access_expires_at>now()) THEN RAISE EXCEPTION 'Buyer has no access'; END IF; END $test$;`);
+ });
+ it('notifies the receiver once when a guest entitlement returns after won',async()=>{
+  storePayment();
+  sql(`DELETE FROM public.user_product_access WHERE user_id='${buyer}';
+   UPDATE public.payment_transactions SET user_id=NULL WHERE id='${tx}';
+   UPDATE public.products SET auto_grant_duration_days=30 WHERE id='${product}';
+   INSERT INTO public.guest_purchases(product_id,customer_email,session_id,transaction_amount,transaction_id,created_at)
+    VALUES('${product}','dispute-route@example.com','${charge.payment_intent}',${charge.amount},'${tx}',now()-interval '1 day');
+   UPDATE public.webhook_endpoints SET events=ARRAY['dispute.closed','access.updated'] WHERE id='${endpoint}';`);
+  expect((await deliver(created)).status).toBe(200);
+  expect((await deliver(won)).status).toBe(200);
+  expect((await deliver(won)).status).toBe(200);
+  const events=mock.deliveries.map(x=>JSON.parse(x.body));
+  const restored=events.find(x=>x.event==='dispute.closed').data.dispute.restoredAccess[0];
+  expect(events.filter(x=>x.event==='access.updated')).toHaveLength(1);
+  const savedOrder=await createAdminClient().from('payment_transactions').select('order_number').eq('id',tx).single();
+  expect(savedOrder.error).toBeNull();
+  expect(events.find(x=>x.event==='access.updated').data).toMatchObject({
+   customer:{userId:null,email:'dispute-route@example.com'},product:{id:product,name:'Dispute receiver',slug:'dispute-receiver'},
+   sourceOrder:{id:tx,orderNumber:savedOrder.data!.order_number},
+   actor:{type:'system',id:null},
+   reason:'dispute_won',accessGrantedAt:restored.grantedAt,accessExpiresAt:restored.expiresAt,
+   access:{id:restored.guestPurchaseId,grantedAt:restored.grantedAt,expiresAt:restored.expiresAt,statusAfter:'active'},
+  });
+ });
+ it('does not announce restoration for a guest whose original term elapsed',async()=>{
+  storePayment();
+  sql(`DELETE FROM public.user_product_access WHERE user_id='${buyer}';
+   UPDATE public.payment_transactions SET user_id=NULL WHERE id='${tx}';
+   UPDATE public.products SET auto_grant_duration_days=1 WHERE id='${product}';
+   INSERT INTO public.guest_purchases(product_id,customer_email,session_id,transaction_amount,transaction_id,created_at)
+    VALUES('${product}','dispute-route@example.com','${charge.payment_intent}',${charge.amount},'${tx}',now()-interval '2 days');
+   UPDATE public.webhook_endpoints SET events=ARRAY['dispute.closed','access.updated'] WHERE id='${endpoint}';`);
+  expect((await deliver(created)).status).toBe(200);
+  expect((await deliver(won)).status).toBe(200);
+  expect(mock.deliveries.map(x=>JSON.parse(x.body))).toMatchObject([
+   {event:'dispute.closed',data:{dispute:{accessRestored:false,restoredAccess:[]}}},
+  ]);
  });
  it('includes the resolved intent even for a legacy transaction stored by session only',async()=>{
   storePayment();sql(`UPDATE public.payment_transactions SET stripe_payment_intent_id=NULL WHERE id='${tx}';`);
