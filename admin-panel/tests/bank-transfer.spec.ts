@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
+useSupabaseBuyerEmails();
 /** Traditional transfer buyer and administrator acceptance. */
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';

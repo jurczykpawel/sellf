@@ -2218,6 +2218,7 @@
         "order_transfer_declared": "Order Transfer Declared",
         "order_invoice_issued": "Order Invoice Issued, Awaiting Payment",
         "order_reopened": "Order Reopened",
+        "order_participants_needed": "Participants needed",
         "order_participants_updated": "Order Participants Added",
         "purchase_completed": "Purchase Completed",
         "lead_captured": "Lead Captured (Free Product)",
@@ -2289,6 +2290,7 @@
         "order_transfer_declared": "The buyer declared the bank transfer was sent; the reservation was extended. Check the bank statement.",
         "order_invoice_issued": "An invoice was issued for an unpaid transfer order; the order is held without expiry until payment or cancellation.",
         "order_reopened": "An administrator accepted a transfer received after cancellation; the order is completed at its original price.",
+        "order_participants_needed": "The buyer has not provided participants. Includes the personal link and reminder stage.",
         "order_participants_updated": "The buyer added the participant list after payment (products with \"add later\"). Includes the order, quantity and the full list; sent once per order.",
         "purchase_completed": "A one-time purchase was completed (Stripe payment succeeded, or confirmed on the buyer's return). Includes buyer, product, order and custom fields.",
         "dispute_created": "A payment was disputed; reports the purchase and access revocation.",
@@ -2313,7 +2315,7 @@
         "access_revoked": "An access record was revoked. Includes grant ID, revocation time, reason and actor.",
         "access_expired": "A buyer's time-limited access to a product expired (dispatched by a scheduled job, once per expired record).",
         "license_revoked": "A signed product license was revoked. Includes the order, customer, tier, domain and the CRL URL so your integration can disable access immediately. Pro only.",
-        "license_issued": "A product license was recorded (purchase, free, manual or API). Identifies the license, order, customer, tier, domain and CRL URL; never the token. Pro only.",
+        "license_issued": "A product license was recorded (purchase, free, manual or API). Identifies the license, order, customer, tier, domain and CRL URL and the delivery licenseKey. Pro only.",
         "license_expired": "An active product license passed its expiry date. Sent once per license; never the token. Pro only.",
         "license_restored": "A previously revoked product license was restored. The original token and expiry stay unchanged; refresh the CRL before granting access. Pro only.",
         "invoicing_issued": "A sales invoice (e.g. Fakturownia) was issued for an order. Includes number, provider ID, link, order and amount in minor units.",
@@ -3111,6 +3113,15 @@
     "errorLoadingConfiguration": "Unable to load application configuration. Please check your connection and try again."
   },
   "settings": {
+    "buyerEmails": {
+      "title": "Buyer emails",
+      "toggle": "Send buyer emails through Supabase",
+      "description": "By default Sellf sends signed webhooks; your integration sends transactional emails. Sign-in links always use Supabase Auth.",
+      "warning": "Enabling this uses the free Supabase email allowance faster and may require a paid plan.",
+      "mailstack": "Set up Mailstack — free for sending emails",
+      "saved": "Email setting saved",
+      "error": "Could not save email setting"
+},
     "title": "Settings",
     "subtitle": "Configure your shop settings and integrations",
     "gus": {

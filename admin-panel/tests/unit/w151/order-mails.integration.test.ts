@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from '../../helpers/buyer-email-setting';
+useSupabaseBuyerEmails();
 /**
  * W146 mail findings, rendered by the real local Auth + Mailpit:
  * - transfer / payment-received / cancellation mails carry their own heading and intro, never the

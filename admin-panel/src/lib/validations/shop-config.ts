@@ -32,6 +32,7 @@ export const ShopConfigUpdateDTO = z
     checkout_expires_hours: z.number().nullable(),
     checkout_collect_terms: z.boolean().nullable(),
 
+    supabase_buyer_emails: z.boolean(),
     omnibus_enabled: z.boolean(),
 
     terms_of_service_url: z.string().trim().max(2000).nullable(),

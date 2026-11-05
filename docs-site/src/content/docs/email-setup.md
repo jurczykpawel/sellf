@@ -3,6 +3,9 @@ title: "E-mails: templates and sending from your own domain"
 description: "Configure Supabase SMTP, verify your sending domain, upload Sellf's authentication templates, and test a login link."
 ---
 
+Transactional emails use webhooks by default. Supabase Auth remains the sign-in channel. See [Buyer emails](/buyer-emails/).
+
+
 Supabase Auth sends Sellf's login emails. Configure delivery **in Supabase**, even if you cannot yet log in to your shop.
 
 ## 1. Why use your own SMTP?

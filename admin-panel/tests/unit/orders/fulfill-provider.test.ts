@@ -21,6 +21,7 @@ function client() {
   return { from: (table: string) => {
     const q = {
       select: () => q, eq: () => q, update: vi.fn(() => q),
+      maybeSingle: async () => ({ data: null, error: null }),
       single: async () => ({ data: table === 'products' ? product : tx, error: null }),
       then: (resolve: (value: unknown) => void) => resolve({ data: table === 'payment_line_items' ? [line] : null, error: null }),
     };
@@ -47,7 +48,7 @@ it('fulfills offline from saved rows using the transaction delivery and license 
   await fulfillPaidOrder({ ...common(), provider: { kind: 'offline' } });
   expect(mocks.capture).not.toHaveBeenCalled();
   const payload = mocks.trigger.mock.calls[0][1];
-  expect(payload.order).toMatchObject({ orderId: 'tx-order', orderNumber: 1001, netTotal: 10000, taxTotal: 2300 });
+  expect(payload.order).toMatchObject({ orderId: 'tx-order', orderNumber: 1001, settledVia: 'bank_transfer', netTotal: 10000, taxTotal: 2300 });
   expect(payload.order.sessionId).toBeUndefined();
   expect(deriveOrderId(payload)).toBe('tx-order');
   expect(mocks.licenses.mock.calls[0][1].orderId).toBe('tx-order');

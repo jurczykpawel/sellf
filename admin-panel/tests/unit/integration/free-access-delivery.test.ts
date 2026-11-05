@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from '../../helpers/buyer-email-setting';
+useSupabaseBuyerEmails();
 /** Free access reaches an HTTP consumer through every entry point, once per buyer/product. */
 import { createServer } from 'node:http';
 import { NextRequest } from 'next/server';

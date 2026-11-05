@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from '../helpers/buyer-email-setting-playwright';
+useSupabaseBuyerEmails();
 import { test, startNativeCheckout } from '../helpers/checkout-intent';
 /** Real Stripe test-mode checkout, fulfillment, and delivery checks. @see README.md */
 import { readFileSync, appendFileSync, writeFileSync, mkdirSync } from 'node:fs';

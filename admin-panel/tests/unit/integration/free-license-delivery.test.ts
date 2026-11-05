@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from '../../helpers/buyer-email-setting';
+useSupabaseBuyerEmails();
 /** Free registered-tier licenses reach new and existing buyers through the shared grant path. */
 import { createServer } from 'node:http';
 import { NextRequest } from 'next/server';

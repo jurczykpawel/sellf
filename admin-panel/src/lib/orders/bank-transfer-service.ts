@@ -1,5 +1,6 @@
 /** Recoverable transfer events, reservation timer and fulfillment. @see app/api/cron/route.ts, migration 20261103150000_unpaid_order_reservations.sql */
 import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
+import { transferDeadline } from '@/lib/orders/transfer-format';
 import { orderMoney, minorOrderLines } from '@/lib/orders/event-money';
 import { sendOrderNotice } from '@/lib/orders/transfer-mail';
 import { buildOrderPayLink } from '@/lib/orders/transfer-token';
@@ -43,7 +44,7 @@ function lifecycle(tx: Tx) {
   // A cancelled order has no live reservation: its reminder and release times are void (W147-11).
   const cancelled = tx.status === 'cancelled';
   return {
-    payUrl: link.url, payUrlExpiresAt: link.expiresAt,
+    payUrl: link.url, payUrlExpiresAt: link.expiresAt, paymentDeadline: transferDeadline(tx),
     reservation: cancelled ? 'none' : tx.invoice_hold_at ? 'invoice' : tx.release_at ? 'timed' : 'none',
     reminderAt: cancelled ? null : tx.reminder_at, releaseAt: cancelled ? null : tx.release_at, invoiceHoldAt: tx.invoice_hold_at,
     transferDeclaredAt: tx.transfer_declared_at, transferDeclaredNote: tx.transfer_declared_note,

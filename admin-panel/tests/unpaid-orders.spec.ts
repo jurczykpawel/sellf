@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
+useSupabaseBuyerEmails();
 /** Unpaid transfer orders end to end: timed reservation, reminder, "I have sent the transfer", release, invoice hold, late acceptance.
  * Each journey asserts the buyer (page + Mailpit), the seller (DB / dashboard) and the integrator (recorded order.* webhook). */
 import { randomUUID } from 'node:crypto';

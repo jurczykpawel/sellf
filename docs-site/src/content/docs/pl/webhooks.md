@@ -195,17 +195,11 @@ ręcznie usunięty grant głównego produktu może pozostać nieobecny, gdy dost
 ścieżki: zakup, darmowy produkt, ręczne wydanie w panelu albo `POST /api/v1/licenses`
 (`license.issuanceSource`: `purchase`, `manual` lub `api`). `license.expired` przychodzi raz,
 gdy aktywna licencja minie `expiresAt` (sprawdzane co 30 sekund w cyklu zdarzeń);
-licencja odwołana nie wygasa drugi raz. Dane są takie jak w `license.revoked` poniżej
-i nigdy nie zawierają podpisanego tokenu.
-
-> **Jak dostać token.** `license.issued` celowo nie zawiera tokenu, żeby log webhooków ani źle
-> skonfigurowany odbiorca nie ujawnił działającego klucza. Jeśli sam dostarczasz klucz, wywołaj
-> `GET /api/v1/licenses/{license.id}` kluczem API z uprawnieniem `licenses:read`; odpowiedź
-> zawiera `token`, `jwksUrl` i `crlUrl`. Ręczne i API wydanie, darmowy produkt i opłacone zamówienie
-> i tak wysyłają kupującemu mail z kluczem (w jego języku, gdy jest znany), więc większość integracji
-> tego nie potrzebuje.
- Ręczne i API wydanie wysyła kupującemu
-mail z kluczem i linkiem do produktu, chyba że `sendEmail` ma wartość `false`.
+licencja odwołana nie wygasa drugi raz. `license.issued` zawiera dodatkowo `licenseKey`,
+czyli podpisany klucz do przekazania kupującemu. Inne zdarzenia cyklu licencji nie zawierają tokenu.
+Nie zapisuj klucza w logach aplikacji. Subskrypcja i wysyłka zdarzeń licencji nadal wymagają Pro.
+Opcja `sendEmail` przy ręcznym wydaniu lub wydaniu przez API uwzględnia przełącznik sklepu.
+Zobacz [Maile do kupujących](/pl/buyer-emails/) dla zasad wysyłki.
 
 Licencja wydana dla zamówienia z otwartym albo przegranym sporem zapisuje się jako
 odwołana przez ten spór: dostajesz `license.issued`, a po nim `license.revoked`
@@ -423,3 +417,18 @@ są w treści, ale sam upływ czasu nie generuje zdarzenia.
 ## Zgłoszenia PlayerStack
 
 [Formularze potwierdzane mailem i zgoda marketingowa](/pl/playerstack-leads/).
+
+
+### Dane do maili kupujących
+
+Zobacz [Maile do kupujących](/pl/buyer-emails/). Kwoty są w najmniejszych jednostkach waluty.
+
+| Zdarzenie | Dane do zbudowania maila |
+| --- | --- |
+| `order.placed`, `order.payment_reminder` | `customer.email/locale`, `order.transfer` (odbiorca, konto, bank, tytuł), `order.amount/currency`, `order.paymentDeadline`, `order.payUrl`, terminy rezerwacji i pozycje zamówienia. |
+| `order.cancelled` | Identyfikator zamówienia, `order.cancelReason` i `order.cancelReasonText`. |
+| `purchase.completed` | Kupujący, produkty, kwota, zamówienie i `order.settledVia`; potwierdzenie płatności Stripe lub przelewu. `customer.locale` i `buyerMail.event_date/event_online_url` odpowiadają danym maila Supabase; adres wydarzenia tylko przy aktywnym dostępie. |
+| `order.participants_needed` | Email i język kupującego, produkt (id/nazwa/slug), zamówienie (id/numer/kwota/waluta/status), `orderDetails`, `reminder.stage` (1: po 24 h; 2: dwa dni przed wydarzeniem), `reminder.participantsUrl` (osobisty link). Stały identyfikator dostawy na zamówienie i etap. Standardowe zasady rejestracji webhooków, bez dodatkowej bramki Pro. |
+| `license.issued` | `licenseKey`, kupujący, produkt, wariant, ważność i zamówienie. Dotychczasowa bramka Pro pozostaje. |
+
+Link uczestników i klucz licencji przekazuj wyłącznie właściwemu kupującemu. Sprawdzaj podpis webhooka i nie zapisuj tych danych w logach aplikacji. Kolejka szyfruje treść wydania licencji i powiadomienia o uczestnikach kluczem APP_ENCRYPTION_KEY instancji; widok logów pokazuje zaszyfrowany zapis.

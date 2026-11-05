@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+const policyRetry = vi.hoisted(() => vi.fn(async () => ({ ok: false as const, code: 'send_failed' as const, queued: true as const })));
+vi.mock('@/lib/auth/magic-link/retry', () => ({ queueAuthMailRetry: policyRetry }));
+const buyerPolicy = vi.hoisted(() => vi.fn(async (): Promise<boolean | null> => false));
+vi.mock('@/lib/auth/magic-link/buyer-email-policy', () => ({ readBuyerEmailPolicy: buyerPolicy }));
 const eventMailForSlug = vi.hoisted(() => vi.fn(async () => ({} as Record<string,string>)));
 vi.mock('@/lib/events/mail', () => ({ eventMailForSlug }));
 const deliverMagicLink = vi.hoisted(() => vi.fn());
@@ -310,4 +314,21 @@ it.each(['pl', 'en'])('passes %s to login email data', async locale => {
   deliverMagicLink.mockResolvedValue({ ok: true });
   await requestMagicLink({ ...BASE_INPUT, locale });
   expect(deliverMagicLink).toHaveBeenLastCalledWith(expect.objectContaining({ data: { locale } }));
+});
+
+it('skips disabled buyer notifications before consuming the authentication mail allowance', async () => {
+  vi.stubEnv('DEMO_MODE', 'false');
+  checkRateLimitForIdentifier.mockClear(); deliverMagicLink.mockClear();
+  expect(await sendTrustedMagicLink({ email: 'buyer@example.com', redirectTo: buildLoginMagicLinkRedirect('https://shop.example.com'), transactionalOnly: true, data: { license_key: 'signed.key' } })).toEqual({ ok: true, skipped: true });
+  expect(checkRateLimitForIdentifier).not.toHaveBeenCalled();
+  expect(deliverMagicLink).not.toHaveBeenCalled();
+  vi.unstubAllEnvs();
+});
+
+it('queues a license notification when the buyer email policy is temporarily unavailable', async () => {
+  vi.stubEnv('DEMO_MODE', 'false');
+  buyerPolicy.mockResolvedValueOnce(null);
+  expect(await sendTrustedMagicLink({ email: 'buyer@example.com', redirectTo: buildLoginMagicLinkRedirect('https://shop.example.com'), transactionalOnly: true, retry: 'license', data: { license_key: 'signed.key' } })).toEqual({ ok: false, code: 'send_failed', queued: true });
+  expect(policyRetry).toHaveBeenCalledWith(expect.objectContaining({ kind: 'license', code: 'send_failed' }));
+  vi.unstubAllEnvs();
 });

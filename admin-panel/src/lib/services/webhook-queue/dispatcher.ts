@@ -1,3 +1,4 @@
+import { isBuyerDelivery } from '@/lib/webhooks/buyer-payload-storage';
 import { fetch as undiciFetch } from 'undici';
 import { getSsrfSafeAgent, readBoundedText } from '@/lib/security/safe-fetch';
 import { validateWebhookUrlAsync } from '@/lib/validations/webhook';
@@ -114,7 +115,7 @@ export class WebhookDispatcher {
         return {
           ok: response.ok,
           httpStatus: response.status,
-          responseBody: trimmed,
+          responseBody: isBuyerDelivery(event) ? null : trimmed,
           errorMessage: response.ok ? null : `HTTP ${response.status}`,
           durationMs: Date.now() - startTime,
         };
@@ -136,7 +137,7 @@ export class WebhookDispatcher {
         ok: false,
         httpStatus: 0,
         responseBody: null,
-        errorMessage: error.message,
+        errorMessage: isBuyerDelivery(event) ? 'Delivery unavailable' : error.message,
         durationMs: Date.now() - startTime,
       };
     }

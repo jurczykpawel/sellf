@@ -1,5 +1,6 @@
 /** Adding participants after payment: signed link, validation, mail and webhook outbox as seen by buyer and integrator. @J204 */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('@/lib/services/webhook-service', () => ({ WebhookService: { trigger: vi.fn(async () => {}) } }));
 const magic = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/auth/magic-link/request', () => ({ sendTrustedMagicLink: magic }));
 import { buildParticipantsLink, signParticipantsToken, verifyParticipantsToken } from '@/lib/orders/participants-token';

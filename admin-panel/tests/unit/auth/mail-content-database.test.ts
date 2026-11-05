@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from '../../helpers/buyer-email-setting';
+useSupabaseBuyerEmails();
 /** Render actual Supabase auth emails through the local Mailpit stack. */
 import { createClient } from '@supabase/supabase-js';
 import { expect, it } from 'vitest';

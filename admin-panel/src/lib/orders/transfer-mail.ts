@@ -47,7 +47,7 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
     const data: Record<string, string | Record<string, string>> = notice === 'paid' ? { locale, purchase_product: product.name, purchase_amount: amount, payment_received: 'true' }
       : { locale, mail_kind: spec.kind!, purchase_product: product.name, purchase_amount: amount,
         pay_url: buildOrderPayLink(tx.id, locale, base).url, ...(transferDetails ? { transfer: transferDetails } : {}), ...(releaseText ? { release_text: releaseText } : {}), ...(notice === 'cancelled' && tx.cancel_note ? { cancel_reason_text: tx.cancel_note } : {}) };
-    const result = await sendTrustedMagicLink({ email: tx.customer_email,
+    const result = await sendTrustedMagicLink({ transactionalOnly: !!tx.user_id || (notice !== 'paid' && !(notice === 'placed' && meta?.access_on_placement === true)), email: tx.customer_email,
       redirectTo: buildPostCheckoutMagicLinkRedirect({ origin: base, productSlug: product.slug, locale, sessionId: undefined, paymentIntentId: undefined }), data });
     if (result.ok) await db.from('payment_transactions').update({ [spec.column]: new Date().toISOString() } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id);
   } catch { console.error('[transfer-mail] Delivery awaiting recovery:', id); }

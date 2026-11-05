@@ -94,7 +94,9 @@
       "publish_shop",
       "publish_storefront",
       "configure_appearance",
-      "guide"
+      "guide",
+      "buyer_mail_off",
+      "buyer_mail_on"
     ]
   },
   "journeys": [
@@ -4923,6 +4925,42 @@
       "layers": [
         "browser"
       ]
+    },
+    {
+      "id": "J410",
+      "title": "Guest buyer mail channel False",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "paid",
+        "payment": "bank_transfer",
+        "moment": "immediate",
+        "operation": "buyer_mail_off"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Guest confirms email and receives product access",
+        "seller": "Email channel setting saved",
+        "integrator": "Receives purchase with order details and buyer language"
+      }
+    },
+    {
+      "id": "J411",
+      "title": "Guest buyer mail channel True",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "paid",
+        "payment": "bank_transfer",
+        "moment": "immediate",
+        "operation": "buyer_mail_on"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Guest confirms email and receives product access",
+        "seller": "Email channel setting saved",
+        "integrator": "Receives purchase with order details and buyer language"
+      }
     }
   ],
   "escapes": [

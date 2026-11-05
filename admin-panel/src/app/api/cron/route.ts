@@ -18,6 +18,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash, timingSafeEqual } from 'crypto';
+import { storeBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import { retryInvoices } from '@/lib/invoicing/service';
 import { drainAffiliateWork } from '@/lib/affiliates/sync/worker';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -134,7 +135,7 @@ export async function handleWebhookDeliveriesRetry(): Promise<CronJobResult> {
         }
 
         const payload = { ...((delivery.payload ?? {}) as Record<string, unknown>), id: delivery.id };
-        const { error: payloadError } = await adminClient.from('webhook_logs').update({ payload }).eq('id', delivery.id);
+        const { error: payloadError } = await adminClient.from('webhook_logs').update({ payload: await storeBuyerPayload(delivery.eventType, payload) }).eq('id', delivery.id);
         if (payloadError) throw new Error('Delivery payload unavailable');
         const nextAttempt = delivery.attemptCount + 1;
         const result = await WebhookDispatcher.dispatch(

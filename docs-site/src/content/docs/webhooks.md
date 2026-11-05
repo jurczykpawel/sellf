@@ -317,17 +317,12 @@ purchase, free product, manual issuance in the panel, or `POST /api/v1/licenses`
 (`license.issuanceSource` is `purchase`, `manual` or `api`). `license.expired` is sent
 once when an active license passes `expiresAt` (checked every 30 seconds by the
 business-event cycle); revoked licenses do not expire again.
-`license.issued.customer` contains `email` and `userId` (`null` for a guest). Payloads match
-`license.revoked` below and never contain the signed token.
-
-> **Getting the token.** `license.issued` deliberately carries no token, so a webhook log or
-> a misconfigured receiver can never leak a working key. To deliver the key yourself, call
-> `GET /api/v1/licenses/{license.id}` with an API key that has `licenses:read`; the response
-> includes `token`, `jwksUrl` and `crlUrl`. Manual and API issuance, free claims and paid orders
-> already mail the key to the buyer (in the buyer's language when known), so most integrations do
-> not need it.
- Manual and
-API issuance mail the key and a product link to the buyer unless `sendEmail` is `false`.
+`license.issued.customer` contains `email` and `userId` (`null` for a guest).
+`license.issued` additionally includes `licenseKey`, the signed token needed to deliver a key to the buyer.
+Other license lifecycle events never contain the token. Treat the signed webhook body as confidential;
+do not write keys to application logs. License subscriptions and dispatch remain Pro-gated.
+Supabase buyer emails are optional; manual/API `sendEmail: true` also respects the shop switch.
+See [Buyer emails](/buyer-emails/) for the channel policy.
 
 A license issued for an order with an open or lost dispute is recorded as revoked by
 that dispute: you receive `license.issued` followed by `license.revoked` with
@@ -668,3 +663,18 @@ are reported in the payload but their passage in time does not produce an event.
 ## PlayerStack leads
 
 [Email-confirmed lead forms and marketing consent](/playerstack-leads/).
+
+
+### Buyer notification data
+
+See [Buyer emails](/buyer-emails/). All amounts below use minor currency units.
+
+| Event | Data for the mail sender |
+| --- | --- |
+| `order.placed`, `order.payment_reminder` | `customer.email/locale`, `order.transfer` (holder, account, bank, title), `order.amount/currency`, `order.paymentDeadline`, `order.payUrl`, reservation and release dates, line items. |
+| `order.cancelled` | Same order identity, `order.cancelReason` and `order.cancelReasonText`. |
+| `purchase.completed` | Customer, products, amount, order identity, `order.settledVia`; confirms received payment for both Stripe and bank transfers. `customer.locale` and `buyerMail.event_date/event_online_url` carry the same entitled event details used by Supabase mail (online URL omitted without access). |
+| `order.participants_needed` | Customer email/locale, product id/name/slug, order id/number/amount/currency/status, `orderDetails`, `reminder.stage` (1: after 24h; 2: two days before event), `reminder.participantsUrl` (personal link). Stable delivery identity per order and stage. No extra paid-event gate; normal webhook registration rules apply. |
+| `license.issued` | `licenseKey` plus customer, product, tier, expiry and order identity. Pro-gated as before. |
+
+The participant link and license key are delivery credentials. Send them only to the intended buyer, validate the webhook signature, and exclude them from application logs. The persistent queue encrypts license-issuance and participant-notice bodies for retries with the instance APP_ENCRYPTION_KEY; webhook log views contain the encrypted representation.

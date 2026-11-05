@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from '../helpers/buyer-email-setting-playwright';
+useSupabaseBuyerEmails();
 /** Buyer reads the first delivered message after a real checkout. @see tests/journeys.yaml */
 import { randomUUID } from 'node:crypto';
 import { appendFileSync } from 'node:fs';

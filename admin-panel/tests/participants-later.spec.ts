@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
+useSupabaseBuyerEmails();
 /** "Add participants later": reminder mail, signed page, seller panel and webhook, as buyer, seller and integrator see them. */
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';

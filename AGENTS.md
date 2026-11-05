@@ -534,6 +534,10 @@ lead, license…), and each seller builds their integration on top (n8n, Make, o
 from the receiver's side: a receiver must be able to act on them alone (IDs, statuses, amounts, periods, links).
 The existing `InvoiceProvider`/Fakturownia stays for sellers who want it, but no new direct integrations.
 
+### Buyer email channel
+
+`shop_config.supabase_buyer_emails` is false on new shops, true for existing installations on upgrade. Settings → Shop exposes the validated admin-only toggle. `deliverMagicLink` strips transactional context when off and skips notification-only messages; authentication and guest access links remain. Retry workers apply the current policy. `order.participants_needed` carries the personal link for each reminder stage, `license.issued` adds `licenseKey` at signed delivery time, and `purchase.completed` includes entitled event details under `buyerMail`. See docs-site buyer-emails pages for Mailstack setup.
+
 ### Committed business events
 
 `public.business_events` records access, seat and abandoned-order transitions in the same transaction as the change.

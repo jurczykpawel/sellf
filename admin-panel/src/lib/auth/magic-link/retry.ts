@@ -47,8 +47,8 @@ export async function runAuthMailRetries(db: SupabaseClient = createAdminClient(
     return { processed: 0, errors: 1 };
   }
   let processed = 0, errors = 0;
-  for (const row of (claimed ?? []) as Array<{ id: string; email: string; redirect_to: string; data: Record<string, string>; attempts: number }>) {
-    const result = await deliverMagicLink({ email: row.email, redirectTo: row.redirect_to, shouldCreateUser: true, data: row.data });
+  for (const row of (claimed ?? []) as Array<{ id: string; email: string; redirect_to: string; data: Record<string, string>; attempts: number; kind: string }>) {
+    const result = await deliverMagicLink({ email: row.email, redirectTo: row.redirect_to, shouldCreateUser: true, transactionalOnly: row.kind === 'license', data: row.data });
     // Purchase data (e.g. a license key) must not linger in the account once the mail was rendered.
     const cleared = await db.rpc('prepare_event_mail', { p_email: row.email, p_data: { locale: row.data.locale === 'pl' ? 'pl' : 'en' } });
     if (cleared.error) console.error('[auth-mail-retry] Account data cleanup failed');

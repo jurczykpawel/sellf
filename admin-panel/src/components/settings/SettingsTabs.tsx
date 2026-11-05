@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import BankTransferSettings from '@/components/settings/BankTransferSettings'
 import InvoicingSettings from '@/components/settings/InvoicingSettings'
 import ShopSettings from './ShopSettings'
+import BuyerEmailSettings from './BuyerEmailSettings'
 import BrandingSettings from './BrandingSettings'
 import CheckoutThemeSettings from './CheckoutThemeSettings'
 import StripeSettings from './StripeSettings'
@@ -76,6 +77,7 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicense
         {active === 'shop' && (
           <>
             <ShopSettings />
+            <BuyerEmailSettings />
             <InvoicingSettings />
             {role === 'platform_admin' && <BrandingSettings />}
             <CheckoutThemeSettings initialTheme={initialCheckoutTheme} />

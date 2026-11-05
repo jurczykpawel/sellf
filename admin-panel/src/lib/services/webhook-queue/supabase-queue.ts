@@ -1,3 +1,4 @@
+import { storeBuyerPayload, readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { computeNextRetry, DEFAULT_MAX_ATTEMPTS, hasMoreAttempts } from './retry-policy';
@@ -45,12 +46,12 @@ export class SupabaseWebhookQueue implements IWebhookDeliveryQueue {
   async enqueue(input: { endpointId: string; eventType: string; payload: unknown; deliveryId: string; deliveryKey: string | null; maxAttempts?: number }): Promise<DueDelivery | null> {
     const { data, error } = await this.client.rpc('enqueue_webhook_delivery', {
       p_id: input.deliveryId, p_endpoint_id: input.endpointId, p_event_type: input.eventType,
-      p_payload: input.payload, p_delivery_key: input.deliveryKey,
+      p_payload: await storeBuyerPayload(input.eventType, input.payload), p_delivery_key: input.deliveryKey,
       p_max_attempts: input.maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
     });
     if (error) throw new Error(`enqueue failed: ${error.message}`);
     const row = data?.[0];
-    return row ? { id: row.id, endpointId: row.endpoint_id, eventType: row.event_type, payload: row.payload, attemptCount: row.attempt_count, maxAttempts: row.max_attempts } : null;
+    return row ? { id: row.id, endpointId: row.endpoint_id, eventType: row.event_type, payload: await readBuyerPayload(row.payload), attemptCount: row.attempt_count, maxAttempts: row.max_attempts } : null;
   }
 
   async recordFirstAttempt(input: FirstAttemptInput): Promise<RecordedDelivery> {
@@ -62,7 +63,7 @@ export class SupabaseWebhookQueue implements IWebhookDeliveryQueue {
       .insert({
         endpoint_id: input.endpointId,
         event_type: input.eventType,
-        payload: input.payload,
+        payload: await storeBuyerPayload(input.eventType, input.payload),
         status,
         http_status: input.result.httpStatus,
         response_body: trimBody(input.result.responseBody),
@@ -89,14 +90,24 @@ export class SupabaseWebhookQueue implements IWebhookDeliveryQueue {
   async pickDue(limit: number): Promise<DueDelivery[]> {
     const { data, error } = await this.client.rpc('pick_due_webhook_deliveries', { p_limit: limit });
     if (error) throw new Error(`pickDue failed: ${error.message}`);
-    return ((data ?? []) as PickDueRow[]).map((row) => ({
-      id: row.id,
-      endpointId: row.endpoint_id,
-      eventType: row.event_type,
-      payload: row.payload,
-      attemptCount: row.attempt_count,
-      maxAttempts: row.max_attempts,
-    }));
+    const deliveries: DueDelivery[] = [];
+    for (const row of (data ?? []) as PickDueRow[]) {
+      let payload: unknown;
+      try {
+        payload = await readBuyerPayload(row.payload);
+      } catch {
+        await this.markPermanentlyFailed(row.id, {
+          ok: false, httpStatus: 0, responseBody: null,
+          errorMessage: 'Stored delivery payload is unavailable', durationMs: 0,
+        });
+        continue;
+      }
+      deliveries.push({
+        id: row.id, endpointId: row.endpoint_id, eventType: row.event_type,
+        payload, attemptCount: row.attempt_count, maxAttempts: row.max_attempts,
+      });
+    }
+    return deliveries;
   }
 
   async markDelivered(deliveryId: string, result: AttemptResult): Promise<void> {

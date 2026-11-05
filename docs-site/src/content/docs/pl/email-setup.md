@@ -3,6 +3,9 @@ title: "E-maile: szablony i wysyłka z własnej domeny"
 description: "Skonfiguruj SMTP w Supabase, zweryfikuj domenę nadawcy, wgraj szablony Sellfa i przetestuj link logowania."
 ---
 
+Maile transakcyjne są domyślnie obsługiwane przez webhooki. Supabase Auth pozostaje kanałem logowania. Zobacz [Maile do kupujących](/pl/buyer-emails/).
+
+
 Maile logowania Sellfa wysyła Supabase Auth. Skonfiguruj wysyłkę **w Supabase**, również wtedy, gdy nie możesz jeszcze zalogować się do sklepu.
 
 ## 1. Dlaczego własne SMTP?

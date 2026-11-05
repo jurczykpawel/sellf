@@ -1,3 +1,5 @@
+import { useSupabaseBuyerEmails } from '../../helpers/buyer-email-setting';
+useSupabaseBuyerEmails();
 /** The first subscription receipt reaches the buyer before the offer redirect. */
 import { createClient } from '@supabase/supabase-js';
 import { expect, it, vi } from 'vitest';
