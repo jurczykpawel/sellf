@@ -103,7 +103,7 @@ test('a placed event transfer reserves the seat for 48 h and the 24 h reminder r
   const pay = await request.get(new URL(payUrl).pathname + new URL(payUrl).search); expect(pay.status()).toBe(200);
   const reminderMail = await untilMail(request, buyer, 'Przypomnienie o płatności za zamówienie');
   expect(reminderMail.HTML).toContain('Wysłałem przelew'); expect(reminderMail.HTML).toContain(`/pl/order/${orderId}/transfer?token=`);
-  expect((await mails(request, buyer)).map(m => m.Subject)).toContain('Dane do przelewu za zamówienie');
+  expect((await mails(request, buyer)).map(m => m.Subject)).toContain('Dane do przelewu za zamówienie: Warsztat z rezerwacją');
 });
 
 test('buyer declares the transfer once from the pay link; the reservation is extended and accounting is notified @J181', async ({ page, request }) => {

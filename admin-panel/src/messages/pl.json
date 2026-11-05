@@ -1330,7 +1330,7 @@
     "supportAgain": "Wesprzyj ponownie",
     "licenseStatusActive": "Ważna",
     "licenseStatusExpired": "Wygasła",
-    "licenseStatusRevoked": "Odwołana",
+    "licenseStatusRevoked": "Cofnięta",
     "licenseRevokedDispute": "Licencja została odwołana, bo płatność jest kwestionowana (spór). Nie działa. Jeśli spór rozstrzygnie się na korzyść sprzedawcy, znów będzie ważna.",
     "licenseRevokedOther": "Licencja została odwołana (zwrot albo decyzja sprzedawcy) i nie działa.",
     "licenseCopy": "Kopiuj",
@@ -6219,11 +6219,11 @@
       "name": "Licencje produktów",
       "steps": {
         "intro": {
-          "title": "Wydane licencje",
+          "title": "Wystawione licencje",
           "body": "Produkt z licencją wydaje kupującemu podpisany klucz, który działa bez kontaktu z Twoim serwerem. Tu wydajesz klucze ręcznie i zarządzasz wydanymi."
         },
         "issue": {
-          "title": "Wydaj licencję ręcznie",
+          "title": "Wystaw licencję ręcznie",
           "body": "Wybierz produkt, wpisz e-mail odbiorcy i, jeśli produkt tego wymaga, domenę. Ręczna licencja nie wymaga zakupu."
         },
         "filters": {

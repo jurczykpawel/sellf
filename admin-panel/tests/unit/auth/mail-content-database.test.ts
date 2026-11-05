@@ -4,7 +4,7 @@ import { expect, it } from 'vitest';
 import { purchaseEventMail } from '@/lib/events/mail';
 import { deliverMagicLink } from '@/lib/auth/magic-link/deliver';
 import recordedPurchase from '../../fixtures/stripe/initial-subscription-purchase.json';
-import { waitForEmail } from '../../helpers/mailpit';
+import { waitForEmail, searchMessages } from '../../helpers/mailpit';
 
 /** Text of every table row as the buyer reads it: cells joined by one space. */
 function visibleRows(html: string): string[] {
@@ -63,7 +63,7 @@ it('delivers labeled transfer instructions with a Polish due date and purchase a
     expect(txError).toBeNull();
     await sendOrderNotice(db, tx!.id, 'placed');
     const mail = await waitForEmail(email);
-    expect(mail.Subject).toBe('Dane do przelewu za zamówienie');
+    expect(mail.Subject).toBe('Dane do przelewu za zamówienie: Transfer workshop');
     expect(mail.HTML).toContain('Transfer workshop');
     const rows = visibleRows(mail.HTML!);
     expect(rows).toEqual(expect.arrayContaining(['Odbiorca Workshop Shop', 'Numer konta PL61 1090 1014 0000 0712 1981 2874', 'Bank Test bank', 'Tytuł Zamówienie 97', 'Termin 10 grudnia 2026 01:00']));
@@ -78,7 +78,7 @@ it('delivers labeled transfer instructions with a Polish due date and purchase a
   }
 });
 
-it.each([['reminder', 'Przypomnienie o płatności', 'zapłać online na stronie zamówienia'], ['cancelled', 'Zamówienie anulowane', 'nie otrzymaliśmy wpłaty w terminie']] as const)(
+it.each([['reminder', 'Przypomnienie o płatności', 'zapłać online na stronie zamówienia'], ['cancelled', 'Zamówienie anulowane', 'Zmiana terminu warsztatu']] as const)(
   'delivers the %s notice with the signed order link to a new address', async (notice, heading, text) => {
   const { sendOrderNotice } = await import('@/lib/orders/transfer-mail');
   const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -87,7 +87,7 @@ it.each([['reminder', 'Przypomnienie o płatności', 'zapłać online na stronie
   const pid = product!.id;
   try {
     const { data: tx, error } = await db.from('payment_transactions').insert({ product_id: pid, customer_email: email, amount: 12300, currency: 'PLN',
-      status: notice === 'reminder' ? 'awaiting_payment' : 'cancelled', cancel_reason: notice === 'cancelled' ? 'payment_window_expired' : null,
+      status: notice === 'reminder' ? 'awaiting_payment' : 'cancelled', cancel_reason: notice === 'cancelled' ? 'admin' : null, cancel_note: notice === 'cancelled' ? 'Zmiana terminu warsztatu' : null,
       payment_provider: 'bank_transfer', pricing_snapshot_version: 1, payment_due_at: '2026-12-10T11:00:00Z', release_at: '2026-12-10T11:00:00Z', reminder_at: '2026-12-09T11:00:00Z',
       metadata: { access_on_placement: false, locale: 'pl' }, transfer_details: { holder: 'Workshop Shop', account: 'PL61109010140000071219812874', title: 'Zamówienie 98' },
     }).select('id').single();
@@ -161,9 +161,9 @@ it('tells the buyer the payment was received once the transfer is booked, exactl
     expect(mail.HTML).toMatch(/123,00\s?zł/);
     expect(visibleRows(mail.HTML!).some(row => row.startsWith('Numer konta'))).toBe(false);
     expect((await db.from('payment_transactions').select('transfer_paid_mail_sent_at').eq('id', tx!.id).single()).data?.transfer_paid_mail_sent_at).not.toBeNull();
-    const before = (await fetch(`${process.env.MAILPIT_URL}/api/v1/search?query=to:${encodeURIComponent(email)}`).then(r => r.json())).messages.length;
+    const before = (await searchMessages(email)).length;
     await sendOrderNotice(db, tx!.id, 'paid');
-    const after = (await fetch(`${process.env.MAILPIT_URL}/api/v1/search?query=to:${encodeURIComponent(email)}`).then(r => r.json())).messages.length;
+    const after = (await searchMessages(email)).length;
     expect(after).toBe(before);
   } finally {
     const user = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users.find(u => u.email === email);
@@ -187,5 +187,34 @@ it('escapes markup stored in transfer details in the real mail (W146 B3)', async
   } finally {
     const user = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users.find(u => u.email === email);
     if (user) await db.auth.admin.deleteUser(user.id);
+  }
+});
+
+it.each(['pl', 'en'])('renders the license deadline in both Auth mail templates in %s', async locale => {
+  const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  for (const confirmed of [false, true]) {
+    const email = `license-expiry-${crypto.randomUUID()}@example.com`;
+    let id: string | undefined;
+    try {
+      if (confirmed) {
+        const created = await db.auth.admin.createUser({ email, email_confirm:true });
+        expect(created.error).toBeNull(); id=created.data.user!.id;
+      }
+      const expires = locale === 'pl' ? '10 grudnia 2026 12:00' : '10 December 2026 at 12:00';
+      expect(await deliverMagicLink({ email, shouldCreateUser:true, redirectTo:`${process.env.SITE_URL}/auth/callback?flow=login`,
+        data:{ locale, license_key:'payload.signature', license_expires_at:'2026-12-10T11:00:00.000Z', license_expires_text:expires } })).toEqual({ok:true});
+      const mail=await waitForEmail(email);
+      expect(mail.HTML).toContain(locale === 'pl' ? 'Licencja ważna do' : 'License valid until');
+      expect(mail.HTML).toContain(expires);
+      expect(mail.HTML).toContain('payload.signature');
+      id ??= (await db.auth.admin.listUsers({ perPage:1000 })).data.users.find(u=>u.email===email)?.id;
+      expect((await db.rpc('prepare_event_mail',{ p_email:email,p_data:{locale} })).error).toBeNull();
+      const user=await db.auth.admin.getUserById(id!);
+      expect(user.data.user!.user_metadata).not.toHaveProperty('license_expires_at');
+      expect(user.data.user!.user_metadata).not.toHaveProperty('license_expires_text');
+    } finally {
+      id ??= (await db.auth.admin.listUsers({ perPage:1000 })).data.users.find(u=>u.email===email)?.id;
+      if(id) await db.auth.admin.deleteUser(id);
+    }
   }
 });

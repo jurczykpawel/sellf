@@ -6,6 +6,8 @@ export interface TutorialStepDef {
   target?: string;
   /** `data-tour` value that must exist once this step has been acted on; while it is missing the step asks the user to click the highlighted control. */
   requires?: string;
+  /** The user may finish without opening this optional detail view. */
+  optionalAction?: boolean;
 }
 
 export interface TutorialDef {
@@ -109,7 +111,7 @@ export const TUTORIALS = {
       { key: 'filters', target: 'payments-filters' },
       { key: 'table', target: 'payments-table' },
       { key: 'details', target: 'payments-details' },
-      { key: 'ordersTab', target: 'payments-orders-tab', requires: 'orders-filters' },
+      { key: 'ordersTab', target: 'payments-orders-tab', requires: 'orders-filters', optionalAction: true },
       { key: 'ordersFilters', target: 'orders-filters' }],
   },
 } as const satisfies Record<string, TutorialDef>;

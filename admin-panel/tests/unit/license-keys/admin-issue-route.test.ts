@@ -130,6 +130,14 @@ describe('POST /api/admin/licenses', () => {
 });
 
 describe('buyer mail on manual issuance', () => {
+  it('includes the signed license deadline in the buyer mail', async () => {
+    const exp = 1796900400;
+    const token = Buffer.from(JSON.stringify({ v:1, kid:'kid-1', product:'product', email:'buyer@example.com', order:'manual', tier:null, iat:1794308400, exp })).toString('base64url') + '.signature';
+    mocks.issue.mockResolvedValue({ id: LICENSE, token, kid:'kid-1', sellerId:SELLER });
+    const res = await POST(request({ productId:PRODUCT, email:'buyer@example.com', domain:'shop.example.com', locale:'pl' }));
+    expect(res.status).toBe(201);
+    expect(mocks.mail).toHaveBeenCalledWith(expect.objectContaining({ data:expect.objectContaining({ license_expires_at:new Date(exp*1000).toISOString(), license_expires_text:expect.stringContaining('grudnia 2026') }) }));
+  });
   it('mails the key by default and clears it from account data, or skips on request', async () => {
     const res = await POST(request({ productId: PRODUCT, email: 'buyer@example.com', domain: 'shop.example.com' }));
     expect(res.status).toBe(201);

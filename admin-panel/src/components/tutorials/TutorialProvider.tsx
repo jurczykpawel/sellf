@@ -97,7 +97,12 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
       skipMissingElement: true,
       animate: false,
       smoothScroll: false,
-      onNextClick: (_element, _step, { driver: instance, state }) => advance(instance, state),
+      onNextClick: (_element, _step, { driver: instance, state }) => {
+        const current = definition.steps[state.activeIndex ?? -1];
+        const mustAct = current && 'requires' in current && current.requires && !('optionalAction' in current && current.optionalAction);
+        if (instance.isLastStep() && !mustAct) instance.destroy();
+        else void advance(instance, state);
+      },
       onPopoverRender: popover => {
         popover.wrapper.setAttribute('aria-modal', 'true');
         if (announcer.current) announcer.current.textContent = `${popover.title.textContent ?? ''}. ${popover.description.textContent ?? ''} ${popover.progress.textContent ?? ''}`.trim();
@@ -111,7 +116,11 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
       onDestroyed: () => {
         layoutWatch.disconnect(); active.current = null;
         if (announcer.current) announcer.current.textContent = '';
-        if (opener?.isConnected) opener.focus();
+        // driver.js restores its own captured focus after this callback.
+        queueMicrotask(() => {
+          const target = opener?.isConnected ? opener : document.querySelector<HTMLElement>('[data-testid="tutorial-menu-button"]');
+          target?.focus();
+        });
       },
     });
     const layoutWatch = new ResizeObserver(() => {

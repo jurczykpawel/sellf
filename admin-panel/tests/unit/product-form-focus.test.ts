@@ -159,3 +159,24 @@ it('keeps an existing product currency when an earlier new-product settings read
   await act(async () => { finish({ default_currency: 'PLN' } as Awaited<ReturnType<typeof getMyShopConfig>>); });
   expect(result.current.formData.currency).toBe('USD');
 });
+
+it('refreshes the default currency for a new form session after shop settings change', async () => {
+  vi.mocked(getMyShopConfig).mockResolvedValueOnce({ default_currency: 'PLN' } as Awaited<ReturnType<typeof getMyShopConfig>>)
+    .mockResolvedValueOnce({ default_currency: 'EUR' } as Awaited<ReturnType<typeof getMyShopConfig>>);
+  const { result, rerender } = renderHook(({ isOpen }) => useProductForm({ isOpen, onSubmit }), { initialProps: { isOpen: true } });
+  await act(async () => {});
+  expect(result.current.formData.currency).toBe('PLN');
+  rerender({ isOpen: false });
+  rerender({ isOpen: true });
+  await act(async () => {});
+  expect(result.current.formData.currency).toBe('EUR');
+});
+
+it('preserves a manually selected currency while shop defaults load', async () => {
+  let finish: (value: Awaited<ReturnType<typeof getMyShopConfig>>) => void = () => {};
+  vi.mocked(getMyShopConfig).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const { result } = renderHook(() => useProductForm({ isOpen: true, onSubmit }));
+  act(() => result.current.setFormData(previous => ({ ...previous, currency: 'EUR' })));
+  await act(async () => { finish({ default_currency: 'PLN' } as Awaited<ReturnType<typeof getMyShopConfig>>); });
+  expect(result.current.formData.currency).toBe('EUR');
+});
