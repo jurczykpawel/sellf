@@ -52,7 +52,8 @@ async function fetchRow(id: string) {
 }
 
 async function insertPending(payloadKey: string | number, nextRetryOffsetSec = -5): Promise<string> {
-  const next = new Date(Date.now() + nextRetryOffsetSec * 1000).toISOString();
+  // Keep due fixtures ahead of older queued deliveries.
+  const next = new Date(nextRetryOffsetSec < 0 ? 0 : Date.now() + nextRetryOffsetSec * 1000).toISOString();
   const { data, error } = await sellerClient
     .from('webhook_logs')
     .insert({
