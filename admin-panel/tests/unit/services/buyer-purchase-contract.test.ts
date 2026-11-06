@@ -8,3 +8,12 @@ it('includes the buyer language and entitled event details in the purchase notif
  const data = { customer: { email: 'buyer@example.com' }, product: { id: 'p' }, order: { orderId: 'o' } };
  expect(await enrichBuyerWebhook('purchase.completed', data, db as never)).toMatchObject({ customer: { email: 'buyer@example.com', locale: 'pl' }, buyerMail: { event_online_url: session.online_url, event_date: expect.stringContaining('Europe/Warsaw') } });
 });
+
+it.each([['pl', 'en'], ['en', 'pl']])('keeps checkout locale %s ahead of stored locale %s', async (locale, stored) => {
+ const single = vi.fn(async () => ({ data: { metadata: { locale: stored } }, error: null }));
+ const q = { select: () => q, eq: () => q, single };
+ const db = { from: vi.fn(() => q), rpc: vi.fn(async () => ({ data: false, error: null })) };
+ const input = { customer: { email: 'buyer@example.com', locale }, product: { id: 'p' }, order: { orderId: 'o' } };
+ expect(await enrichBuyerWebhook('purchase.completed', input, db as never)).toMatchObject({ customer: { locale } });
+ expect(single).not.toHaveBeenCalled();
+});

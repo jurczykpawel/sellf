@@ -169,7 +169,9 @@ export async function POST(request: NextRequest) {
       { firstName, lastName, fullName, termsAccepted, needsInvoice, nip: taxId, companyName, address, city, postalCode, country },
       'checkout',
     );
+    const localeMetadata: Record<string, string> = locale === 'pl' || locale === 'en' ? { locale } : {};
     const metadata = {
+      ...localeMetadata,
       first_name: buyer.first_name,
       last_name: buyer.last_name,
       full_name: buyer.full_name,
@@ -384,6 +386,7 @@ export async function POST(request: NextRequest) {
         const profileMetadata = Object.fromEntries(
           Object.entries(stripeMetadata).map(([key, value]) => [key, personalFields.has(key) ? '' : value]),
         );
+        Object.assign(profileMetadata, localeMetadata);
         if (isCheckoutSession) await stripe.checkout.sessions.update(stripeObjectId, { metadata: profileMetadata });
         else await stripe.paymentIntents.update(stripeObjectId, { metadata: profileMetadata });
         const party = result.details.buyer;
