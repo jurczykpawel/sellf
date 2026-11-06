@@ -47,6 +47,38 @@ describe('WebhookDispatcher', () => {
     (validateWebhookUrlAsync as any).mockResolvedValue({ valid: true });
   });
 
+  it.each([
+    ['license.issued', {}],
+    ['order.participants_needed', {}],
+    ['purchase.completed', {}],
+    ['lead.captured', {}],
+    ['order.placed', { order: { payUrl: 'https://shop.example/pay?token=personal' } }],
+    ['order.cancelled', { order: { payUrl: 'https://shop.example/pay?token=personal' } }],
+    ['custom.event', { nested: [{ token: 'personal' }] }],
+    ['custom.event', { licenseKey: 'personal' }],
+    ['custom.event', { participantsUrl: 'personal' }],
+  ])('retains only delivery metadata for %s responses', async (event, data) => {
+    const outgoing = { event, data };
+    for (const attemptCount of [1, 3]) {
+      for (const status of [200, 503]) {
+        vi.mocked(undiciFetch).mockResolvedValue(mockResponse(status, JSON.stringify(outgoing)) as never);
+        const result = await WebhookDispatcher.dispatch(endpoint, event, outgoing, { attemptCount });
+        expect(result.responseBody).toBeNull();
+        expect(result.httpStatus).toBe(status);
+        expect(result.ok).toBe(status === 200);
+        const [, init] = vi.mocked(undiciFetch).mock.lastCall!;
+        expect(JSON.parse(init?.body as string)).toEqual(outgoing);
+      }
+    }
+  });
+
+  it('uses the delivery result message for order transport errors', async () => {
+    const outgoing = { data: { order: { payUrl: 'https://shop.example/pay?token=personal' } } };
+    vi.mocked(undiciFetch).mockRejectedValue(new Error(JSON.stringify(outgoing)));
+    const result = await WebhookDispatcher.dispatch(endpoint, 'order.placed', outgoing, { attemptCount: 2 });
+    expect(result).toMatchObject({ ok: false, httpStatus: 0, responseBody: null, errorMessage: 'Delivery unavailable' });
+  });
+
   it('signs payload with the timestamped v1 scheme (t=<unix>,v1=<hmac>) and includes required headers', async () => {
     (undiciFetch as any).mockResolvedValue(mockResponse(200, 'ok'));
 

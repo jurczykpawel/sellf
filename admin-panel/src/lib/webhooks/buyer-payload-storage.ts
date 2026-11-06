@@ -4,9 +4,18 @@ import type { EncryptedConfig } from '@/lib/services/secret-encryption';
 
 const STORAGE_VERSION = 'sellf:buyer-payload:v1';
 type SealedValues = Record<string, EncryptedConfig>;
+const WHOLE_PAYLOAD_EVENTS = ['license.issued', 'order.participants_needed'];
 
-export function isBuyerDelivery(event: string): boolean {
-  return ['license.issued', 'order.participants_needed', 'purchase.completed', 'lead.captured'].includes(event);
+function isStoredBuyerValue(value: unknown, path: string[]): boolean {
+  return typeof value === 'string' && ['token', 'licenseKey', 'participantsUrl', 'payUrl'].includes(path.at(-1) ?? '');
+}
+export function hasBuyerPayload(event: string, payload: unknown): boolean {
+  function contains(value: unknown, path: string[]): boolean {
+    if (isStoredBuyerValue(value, path)) return true;
+    return !!value && typeof value === 'object'
+      && Object.entries(value).some(([key, item]) => contains(item, [...path, key]));
+  }
+  return WHOLE_PAYLOAD_EVENTS.includes(event) || ['purchase.completed', 'lead.captured'].includes(event) || contains(payload, []);
 }
 async function seal(value: unknown): Promise<EncryptedConfig> {
   const encrypted = await encryptSecret(JSON.stringify(value));
@@ -24,12 +33,12 @@ async function mapValues(
 export async function storeBuyerPayload(event: string, payload: unknown): Promise<Json> {
   const sealed: SealedValues = {};
   let visible: unknown;
-  if (event === 'license.issued' || event === 'order.participants_needed') {
+  if (WHOLE_PAYLOAD_EVENTS.includes(event)) {
     sealed['[]'] = await seal(payload);
     visible = null;
   } else {
     visible = await mapValues(payload, [], async (value, path) => {
-      if (typeof value !== 'string' || !['token', 'licenseKey', 'participantsUrl', 'payUrl'].includes(path.at(-1) ?? '')) return value;
+      if (!isStoredBuyerValue(value, path)) return value;
       sealed[JSON.stringify(path)] = await seal(value);
       return null;
     });

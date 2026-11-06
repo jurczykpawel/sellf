@@ -12,7 +12,7 @@ vi.mock('undici', () => ({
   fetch: vi.fn(async (_url: string, init: any) => {
     captured.headers = init.headers;
     captured.body = JSON.parse(init.body);
-    return { ok: true, status: 200, text: async () => 'ok' };
+    return new Response(init.body, { status: 200 });
   }),
 }));
 vi.mock('@/lib/security/safe-fetch', async (importOriginal) => ({
@@ -72,10 +72,40 @@ it('keeps order links in delivery and returns the stored payload from the logs A
   const payUrl = 'https://example.com/en/order/test/transfer?token=order-link-fixture';
   await WebhookService.trigger('order.placed', { customer: { email: 'a@b.com' }, order: { payUrl } }, admin);
   expect(captured.body.data.order.payUrl).toBe(payUrl);
-  const stored = await admin.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', 'order.placed').single();
+  const stored = await admin.from('webhook_logs').select('payload, response_body, status, http_status').eq('endpoint_id', endpointId).eq('event_type', 'order.placed').single();
   expect(stored.error).toBeNull();
+  expect(stored.data).toMatchObject({ response_body: null, status: 'success', http_status: 200 });
   expect(JSON.stringify(stored.data)).not.toContain('order-link-fixture');
   const response = await fetch(`${process.env.TEST_API_URL || 'http://localhost:3777'}/api/v1/webhooks/logs?endpoint_id=${endpointId}`, { headers: { Authorization: `Bearer ${process.env.TEST_API_KEY_PLAINTEXT}` } });
   expect(response.status).toBe(200);
   expect(await response.text()).not.toContain('order-link-fixture');
+});
+
+it.each(['manual', 'cron'])('retains order delivery metadata after %s retry @J72', async mode => {
+  const { storeBuyerPayload } = await import('@/lib/webhooks/buyer-payload-storage');
+  const outgoing = { event: 'order.placed', data: { order: { payUrl: 'https://example.com/pay?token=retry-order-fixture' } } };
+  const { data: row, error } = await admin.from('webhook_logs').insert({
+    endpoint_id: endpointId, event_type: 'order.placed',
+    payload: await storeBuyerPayload('order.placed', outgoing),
+    status: mode === 'manual' ? 'failed' : 'pending_retry',
+    attempt_count: 1, max_attempts: 5, next_retry_at: new Date(0).toISOString(),
+  }).select('id').single();
+  expect(error).toBeNull();
+  try {
+    if (mode === 'manual') expect(await WebhookService.retry(row!.id, admin)).toMatchObject({ success: true, status: 200 });
+    else {
+      const { handleWebhookDeliveriesRetry } = await import('@/app/api/cron/route');
+      expect((await handleWebhookDeliveriesRetry()).processed).toBeGreaterThan(0);
+    }
+    expect(captured.body.data.order.payUrl).toBe(outgoing.data.order.payUrl);
+    const stored = await admin.from('webhook_logs').select('*').eq('id', row!.id).single();
+    expect(stored.error).toBeNull();
+    expect(stored.data).toMatchObject({ status: 'success', http_status: 200, response_body: null, attempt_count: 2 });
+    expect(JSON.stringify(stored.data)).not.toContain('retry-order-fixture');
+    const response = await fetch(`${process.env.TEST_API_URL || 'http://localhost:3777'}/api/v1/webhooks/logs?endpoint_id=${endpointId}`, { headers: { Authorization: `Bearer ${process.env.TEST_API_KEY_PLAINTEXT}` } });
+    expect(response.status).toBe(200);
+    expect(await response.text()).not.toContain('retry-order-fixture');
+  } finally {
+    await admin.from('webhook_logs').delete().eq('id', row!.id);
+  }
 });

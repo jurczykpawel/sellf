@@ -1653,8 +1653,8 @@
       },
       "end_state": {
         "buyer": "Not exercised: no customer state change in this probe.",
-        "seller": "Failed delivery resets to a retryable state.",
-        "integrator": "Not exercised: no outgoing integration contract asserted."
+        "seller": "Failed delivery resets to a retryable state; manual order retry records HTTP status without retaining the echoed body.",
+        "integrator": "HTTP echo receiver accepts the order payload; stored logs and logs API retain no readable payment link."
       },
       "status": "automated",
       "layers": [
@@ -1674,7 +1674,7 @@
       },
       "end_state": {
         "buyer": "Not exercised: no customer state change in this probe.",
-        "seller": "Endpoint configuration controls dispatch.",
+        "seller": "Endpoint configuration controls dispatch; first send, manual retry and cron retry retain status and HTTP code without echoed order links.",
         "integrator": "Receiver gets selected data, rendered extras and custom header."
       },
       "status": "automated",
