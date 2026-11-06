@@ -1,4 +1,5 @@
 /** Owned-stack HTTP acceptance for the PlayerStack lead endpoints. */
+import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import { createHash, randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { solveChallenge } from 'altcha-lib/v1';
@@ -120,7 +121,7 @@ describe('PlayerStack lead HTTP contract', () => {
     const result = await fetch(url, { headers: { cookie }, redirect: 'manual' }); expect(result.status).toBe(307);
     const logs = await db.from('webhook_logs').select('status,error_message,payload').eq('endpoint_id', endpoint.data!.id);
     expect(logs.data).toHaveLength(1); expect(logs.data![0].error_message).toBeNull(); expect(logs.data![0].status).toBe('success');
-    expect((logs.data![0].payload as {data:{leadId:string}}).data.leadId).toBe(lead.data!.id);
+    expect((await readBuyerPayload(logs.data![0].payload) as {data:{leadId:string}}).data.leadId).toBe(lead.data!.id);
     await fetch(url, { headers: { cookie }, redirect: 'manual' });
     const repeated = await db.from('webhook_logs').select('id').eq('endpoint_id', endpoint.data!.id); expect(repeated.data).toHaveLength(1);
   });

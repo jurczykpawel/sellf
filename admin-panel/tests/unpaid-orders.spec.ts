@@ -1,5 +1,5 @@
-import { useSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
-useSupabaseBuyerEmails();
+import { useSupabaseBuyerEmails as registerSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
+registerSupabaseBuyerEmails();
 /** Unpaid transfer orders end to end: timed reservation, reminder, "I have sent the transfer", release, invoice hold, late acceptance.
  * Each journey asserts the buyer (page + Mailpit), the seller (DB / dashboard) and the integrator (recorded order.* webhook). */
 import { randomUUID } from 'node:crypto';
@@ -7,6 +7,7 @@ import { test, expect } from '@playwright/test';
 import { loginAsAdmin, supabaseAdmin as db } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
 import { MAILPIT_URL } from './helpers/mailpit';
+import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import type { APIRequestContext, Page } from '@playwright/test';
 
 if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(process.env.SUPABASE_URL ?? '')) throw new Error('Requires a local disposable Supabase stack');
@@ -20,8 +21,9 @@ const buyer = `unpaid-${randomUUID()}@example.com`;
 async function checked<T>({ data, error }: { data: T; error: unknown }): Promise<NonNullable<T>> { if (error) throw error; return data!; }
 const cron = (request: APIRequestContext) => request.get('/api/cron?job=transfer-reservations', { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } });
 async function webhook(type: string, id: string) {
-  const { data } = await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', type);
-  return (data ?? []).map(r => r.payload as { data: { order: Record<string, unknown>; customer: Record<string, unknown> } }).filter(p => p.data.order.orderId === id);
+  const rows = await checked(await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', type));
+  const payloads = await Promise.all(rows.map(async row => await readBuyerPayload(row.payload) as { data: { order: Record<string, unknown>; customer: Record<string, unknown> } }));
+  return payloads.filter(payload => payload.data.order.orderId === id);
 }
 async function mails(request: APIRequestContext, to: string): Promise<Array<{ Subject: string; HTML: string }>> {
   const box = await (await request.get(`${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${to}`)}`)).json();
