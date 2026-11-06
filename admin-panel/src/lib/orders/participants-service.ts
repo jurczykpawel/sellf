@@ -3,6 +3,7 @@
  * @see supabase/migrations/20261103191000_participants_later.sql
  * @see ./transfer-mail.ts
  */
+import { resolveCustomerLocale } from '@/lib/webhooks/customer-locale';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { sendTrustedMagicLink } from '@/lib/auth/magic-link/request';
 import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
@@ -40,7 +41,7 @@ export async function sendParticipantsNotice(db: Db, id: string, stage: 1 | 2 = 
     if (!tx || sent || people.length > 0 || tx.status !== 'completed' || !tx.customer_email) return 'skipped';
     const { data: product } = await db.from('products').select('slug,name').eq('id', tx.product_id).single();
     if (!product) return 'failed';
-    const locale = (tx.metadata as Record<string, unknown> | null)?.locale === 'pl' ? 'pl' : 'en', base = getSellfBaseUrl();
+    const locale = await resolveCustomerLocale(db, (tx.metadata as Record<string, unknown> | null)?.locale), base = getSellfBaseUrl();
     const soon = locale === 'pl' ? 'Wydarzenie zbliża się, a lista uczestników nadal jest pusta.' : 'The event is coming up and the participant list is still empty.';
     const participantsUrl = buildParticipantsLink(tx.id, locale, base).url;
     await WebhookService.trigger('order.participants_needed', {

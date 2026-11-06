@@ -1,4 +1,5 @@
 /** Free-product lead delivery shared by authenticated and magic-link grants. @see free-product-access.ts */
+import { resolveCustomerLocale } from '@/lib/webhooks/customer-locale';
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { sendLicenseMail } from '@/lib/license-keys/license-mail';
@@ -20,7 +21,7 @@ export async function emitFreeAccessLead(adminClient: SupabaseClient, { product,
     }
     if (!locale) {
       const account = await adminClient.auth.admin.getUserById(user.id).catch(() => ({ data: { user: null } }));
-      locale = account.data.user?.user_metadata?.locale === 'pl' ? 'pl' : 'en';
+      locale = await resolveCustomerLocale(adminClient, account.data.user?.user_metadata?.locale);
     }
     const savedValues = (access.custom_field_values ?? customFieldValues) as Record<string, string> | undefined;
     const orderId = `free_${user.id}_${product.id}`;

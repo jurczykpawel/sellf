@@ -51,3 +51,5 @@ Polish translations are UI labels for the same concepts.
 ## Buyer emails / Maile do kupujących
 
 Transactional messages are delivered by the seller's webhook integration by default. `shop_config.supabase_buyer_emails` enables the optional Supabase Auth mail channel; existing installations keep it enabled on upgrade, new shops default to false. Authentication links remain active independently. `order.participants_needed` requests the missing participant list (stage 1 or 2) and carries a personal `reminder.participantsUrl`. `license.issued.licenseKey` is the delivery token; other license lifecycle events omit it. `purchase.completed` confirms receipt of payment, including bank transfers, and includes entitled event mail details in `buyerMail`. `order.paymentDeadline` is the effective transfer deadline (reservation release or normal due date).
+
+Buyer event language (`customer.locale`): required `pl`/`en` on buyer webhook deliveries. Taken from the associated order, subscription or lead; legacy records fall back to `shop_config.custom_settings.default_locale`, then the application default. A retry retains the stored language.

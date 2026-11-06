@@ -14,7 +14,8 @@ function mockSupabase(opts: {
   bumpRows?: Record<string, unknown>[];
 }) {
   return {
-    from() {
+    from(table: string) {
+      if (table === 'shop_config') return { select: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) };
       return {
         select() {
           return {

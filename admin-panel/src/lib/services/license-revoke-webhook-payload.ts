@@ -1,3 +1,4 @@
+import type { BuyerWebhookCustomer } from '@/lib/webhooks/customer-locale';
 /**
  * Safe metadata for committed license status notifications.
  * @see src/lib/services/business-events.ts
@@ -98,5 +99,6 @@ export function buildLicenseIssuedWebhookData(row: RevokedLicenseRow, origin: st
 
 /** license.issued after delivery enrichment; only the signed receiver gets this representation. */
 export interface LicenseIssuedDeliveryData extends LicenseIssuedWebhookData {
+  customer: BuyerWebhookCustomer & { userId: string | null };
   licenseKey: string;
 }

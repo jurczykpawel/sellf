@@ -4,8 +4,8 @@
 
 set -uo pipefail
 
-LOG=/tmp/sellf-api-tests-dev.log
-PORT=3777
+PORT=${TEST_API_PORT:-3777}
+LOG=${TEST_API_LOG:-/tmp/sellf-api-tests-dev.log}
 SERVER_PID=''
 
 cleanup() {

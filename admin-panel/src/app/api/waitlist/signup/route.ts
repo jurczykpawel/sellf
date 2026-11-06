@@ -32,6 +32,7 @@ export async function POST(request: Request) {
       productId?: string;
       productSlug?: string;
       captchaToken?: string;
+      locale?: 'pl' | 'en';
     }>(request);
     const { email: bodyEmail, productId, productSlug, captchaToken } = body;
 
@@ -106,7 +107,8 @@ export async function POST(request: Request) {
     // Use admin client for webhook dispatch (anon client lacks access to webhook_endpoints)
     await WebhookService.trigger('waitlist.signup', {
       customer: {
-        email
+        email,
+        ...(body.locale === 'pl' || body.locale === 'en' ? { locale: body.locale } : {}),
       },
       product: {
         id: product.id,

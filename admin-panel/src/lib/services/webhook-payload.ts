@@ -9,6 +9,7 @@
  * @see /app/api/webhooks/stripe/route.ts
  */
 
+import { resolveCustomerLocale } from '@/lib/webhooks/customer-locale';
 import { toMinorUnits } from '@/lib/currency/minor-units';
 import { readOrderDetails } from '@/lib/checkout-modules/order-details';
 import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
@@ -45,7 +46,7 @@ export interface PurchaseWebhookData {
   amountUnit: 'minor';
   customer: {
     email: string;
-    locale?: 'pl' | 'en';
+    locale: 'pl' | 'en';
     firstName: string | null;
     lastName: string | null;
     userId: string | null;
@@ -252,7 +253,7 @@ export async function buildPurchaseWebhookPayload(
     amountUnit: 'minor',
     customer: {
       email: customerEmail,
-      ...(metadata?.locale === 'pl' || metadata?.locale === 'en' ? { locale: metadata.locale } : {}),
+      locale: await resolveCustomerLocale(supabaseClient, metadata?.locale),
       firstName: metadata?.first_name || readOrderDetails(params.orderDetails).buyer?.first_name || null,
       lastName: metadata?.last_name || readOrderDetails(params.orderDetails).buyer?.last_name || null,
       userId,

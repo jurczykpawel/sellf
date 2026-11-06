@@ -49,6 +49,7 @@ describe('refund webhook payload', () => {
   it('builds a refund.issued payload consistent with purchase/subscription payloads', () => {
     const payload = buildRefundIssuedPayload({
       customer: {
+        locale: 'en',
         email: 'customer@example.com',
         userId: 'user_123',
       },
@@ -79,6 +80,7 @@ describe('refund webhook payload', () => {
 
     expect(payload).toEqual({
       customer: {
+        locale: 'en',
         email: 'customer@example.com',
         userId: 'user_123',
       },

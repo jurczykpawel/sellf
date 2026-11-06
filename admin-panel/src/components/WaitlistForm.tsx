@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Product } from '@/types';
 import { validateEmailAction } from '@/lib/actions/validate-email';
 import CaptchaWidget from '@/components/captcha/CaptchaWidget';
@@ -16,6 +16,7 @@ interface WaitlistFormProps {
 }
 
 export default function WaitlistForm({ product, unavailableReason }: WaitlistFormProps) {
+  const locale = useLocale();
   const t = useTranslations('waitlist');
   const tSecurity = useTranslations('security');
   const tCompliance = useTranslations('compliance');
@@ -116,11 +117,13 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
         body: JSON.stringify(
           useSessionEmail
             ? {
+                locale,
                 productId: product.id,
                 productSlug: product.slug,
               }
             : {
                 email,
+                locale,
                 productId: product.id,
                 productSlug: product.slug,
                 captchaToken: captcha.token,

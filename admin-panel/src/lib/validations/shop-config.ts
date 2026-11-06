@@ -56,7 +56,7 @@ export const ShopConfigUpdateDTO = z
     has_dpo: z.boolean(),
     dpo_contact: z.string().trim().max(300).nullable(),
 
-    custom_settings: z.record(z.string(), z.unknown()),
+    custom_settings: z.object({ default_locale: z.enum(['pl', 'en']).optional() }).catchall(z.unknown()),
   })
   .strict()
   .partial();
