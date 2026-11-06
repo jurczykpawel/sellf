@@ -331,3 +331,51 @@ test.describe('Webhook DLQ batch — pending_retry → Force retry batch path', 
       .toBe(true);
   });
 });
+
+test('order delivery retry retains metadata in the logs panel @J71', async ({ page, request }) => {
+  const { storeBuyerPayload } = await import('@/lib/webhooks/buyer-payload-storage');
+  const admin = await createTestAdmin('order-delivery-retry');
+  const url = 'https://httpbingo.org/anything';
+  const marker = `order-link-${Date.now()}`;
+  const payload = { event: 'order.placed', data: { order: { payUrl: `https://shop.example/pay?token=${marker}` } } };
+  let endpointId: string | undefined;
+  try {
+    const echo = await request.post(url, { data: payload });
+    expect(echo.status()).toBe(200);
+    expect((await echo.json()).json).toEqual(payload);
+    const endpoint = await supabaseAdmin.from('webhook_endpoints').insert({
+      url, events: ['order.placed'], is_active: true, secret: 'whsec_fixture',
+      description: marker, product_filter_mode: 'all',
+    }).select('id').single();
+    expect(endpoint.error).toBeNull();
+    endpointId = endpoint.data!.id;
+    const inserted = await supabaseAdmin.from('webhook_logs').insert({
+      endpoint_id: endpointId, event_type: 'order.placed', payload: await storeBuyerPayload('order.placed', payload),
+      status: 'failed', attempt_count: 1, max_attempts: 5, http_status: 503,
+    }).select('id').single();
+    expect(inserted.error).toBeNull();
+    const logId = inserted.data!.id;
+    await loginAsAdmin(page, admin.email, admin.password);
+    await page.goto('/pl/dashboard/webhooks');
+    const row = page.locator('tr', { hasText: marker }).filter({ has: page.getByRole('button', { name: /^Ponów$|^Retry$/i }) });
+    await expect(row).toBeVisible();
+    const retryResponse = page.waitForResponse(r => r.url().includes(`/webhooks/logs/${logId}/retry`) && r.request().method() === 'POST');
+    await row.getByRole('button', { name: /^Ponów$|^Retry$/i }).click();
+    const response = await retryResponse;
+    expect(response.status()).toBe(200);
+    expect((await response.json()).data).toMatchObject({ success: true, http_status: 200 });
+    const stored = await supabaseAdmin.from('webhook_logs').select('*').eq('id', logId).single();
+    expect(stored.error).toBeNull();
+    expect(stored.data).toMatchObject({ status: 'success', http_status: 200, attempt_count: 2, response_body: null });
+    expect(JSON.stringify(stored.data)).not.toContain(`token=${marker}`);
+    const logs = await page.request.get(`/api/v1/webhooks/logs?endpoint_id=${endpointId}`);
+    expect(logs.status()).toBe(200);
+    expect(await logs.text()).not.toContain(`token=${marker}`);
+  } finally {
+    if (endpointId) {
+      await supabaseAdmin.from('webhook_logs').delete().eq('endpoint_id', endpointId);
+      await supabaseAdmin.from('webhook_endpoints').delete().eq('id', endpointId);
+    }
+    await admin.cleanup();
+  }
+});

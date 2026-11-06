@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin } from './helpers/admin-auth';
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3777';
 const CRON_SECRET = process.env.CRON_SECRET || 'dev-cron-secret-change-in-production';
 
 test.describe('Concurrent webhook-deliveries-retry worker invocations', () => {
@@ -58,7 +57,7 @@ test.describe('Concurrent webhook-deliveries-retry worker invocations', () => {
     );
     insertedLogIds.push(...rows);
 
-    const url = `${BASE_URL}/api/cron?job=webhook-deliveries-retry`;
+    const url = '/api/cron?job=webhook-deliveries-retry';
     const headers = { Authorization: `Bearer ${CRON_SECRET}` };
 
     // The retry cron is GLOBAL (pick_due_webhook_deliveries is not endpoint-scoped) and
