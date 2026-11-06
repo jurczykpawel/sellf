@@ -2,16 +2,18 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({
+  grant: vi.fn(),
   user: null as { id: string; email: string } | null,
   redirect: vi.fn((path: string) => { throw new Error(`NEXT_REDIRECT:${path}`); }),
 }));
+vi.mock('@/lib/services/free-product-access', () => ({ grantFreeProductAccess: state.grant }));
 vi.mock('next/navigation', () => ({ redirect: state.redirect }));
 vi.mock('next-intl/server', () => ({ getLocale: async () => 'en', getTranslations: async () => (key: string) => key }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({
   auth: { getUser: async () => ({ data: { user: state.user } }) },
   from: () => ({ select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), single: async () => ({ data: { id: 'product-1', slug: 'course', success_redirect_url: '/fallback', pass_params_to_redirect: false }, error: null }) }),
 }) }));
-vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn(() => ({})) }));
 vi.mock('@/lib/payment/verify-payment', () => ({
   verifyPaymentSession: async () => ({ status: 'complete', payment_status: 'paid', customer_email: 'buyer@example.com' }),
   verifyPaymentIntent: vi.fn(),
@@ -61,4 +63,11 @@ it('uses the resolved payment-status path and complete query', async () => {
   state.user = { id: 'buyer-1', email: 'buyer@example.com' };
   const page = await PaymentStatusPage({ params: Promise.resolve({ locale: 'pl', slug: 'course' }), searchParams: Promise.resolve({ session_id: 'cs_test_sample', success_url: 'https://shop.example/first/../thanks?a=1&b=2' }) });
   expect(page.props.redirectUrl).toBe('/thanks?a=1&b=2');
+});
+
+it.each(['pl', 'en'])('uses the page language %s for a free payment-status grant', async locale => {
+  state.user = { id: 'buyer-1', email: 'buyer@example.com' };
+  state.grant.mockResolvedValue({ accessGranted: true, otoInfo: null });
+  await PaymentStatusPage({ params: Promise.resolve({ locale, slug: 'course' }), searchParams: Promise.resolve({}) });
+  expect(state.grant).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ locale }));
 });

@@ -605,6 +605,7 @@ export async function POST(request: NextRequest) {
         product: { id: product.id, slug: product.slug },
         user: { id: user.id, email: user.email ?? '' },
         couponCode: appliedCoupon.code,
+        locale: checkoutLocale,
       });
 
       if (!grant.accessGranted) {

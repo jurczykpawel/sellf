@@ -120,6 +120,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       const freeAccessResult = await grantFreeProductAccess(supabase, adminClient, {
         product: { id: product.id, slug: resolvedParams.slug },
         user: { id: user.id, email: customerEmail },
+        locale: resolvedParams.locale === 'pl' ? 'pl' : 'en',
       });
 
       if (freeAccessResult.accessGranted) {

@@ -134,7 +134,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
         const response = await fetch(`/api/public/products/${product.slug}/grant-access`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...(hasCustomFields ? { customFieldValues } : {}), attribution: readBrowserAttribution() }),
+          body: JSON.stringify({ locale, ...(hasCustomFields ? { customFieldValues } : {}), attribution: readBrowserAttribution() }),
         });
 
         if (!response.ok) {

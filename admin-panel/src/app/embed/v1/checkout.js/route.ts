@@ -238,6 +238,7 @@ ${buildAttributionRuntime()}
         productSlug: productSlug,
         email: input.value,
         website: honeypot.value,
+        locale: language,
         turnstileToken: captchaToken || undefined,
       }).then(function (body) {
         status.textContent = language === 'pl' ? 'Sprawdź pocztę.' : 'Check your email.';

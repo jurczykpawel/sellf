@@ -44,6 +44,7 @@ export async function POST(
     let couponCode: string | null = null;
     let customFieldValues: Record<string, string> | undefined;
     let attribution: unknown;
+    let locale: 'pl' | 'en' | undefined;
     try {
       const contentType = request.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
@@ -56,6 +57,8 @@ export async function POST(
           if (typeof rawCoupon === 'string' && rawCoupon.trim().length > 0) {
             couponCode = normalizeCouponCode(rawCoupon);
           }
+          const requestedLocale = (body as { locale?: unknown }).locale;
+          if (requestedLocale === 'pl' || requestedLocale === 'en') locale = requestedLocale;
           attribution = (body as { attribution?: unknown }).attribution;
           const rawFields = (body as { customFieldValues?: unknown }).customFieldValues;
           if (rawFields && typeof rawFields === 'object' && !Array.isArray(rawFields)) {
@@ -114,6 +117,7 @@ export async function POST(
       product: { id: product.id, slug },
       user: { id: user.id, email: user.email ?? '' },
       couponCode: couponCode ?? undefined,
+      locale,
       ...(customFieldValues !== undefined ? { customFieldValues } : {}),
     });
 

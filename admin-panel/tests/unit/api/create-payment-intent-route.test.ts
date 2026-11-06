@@ -6,6 +6,8 @@ import { NextRequest } from 'next/server';
  * Supabase, Stripe and config lookups are mocked; pricing runs for real.
  */
 
+vi.mock('@/lib/services/free-access-events', () => ({ emitFreeAccessLead: mocks.emitFreeAccessLead }));
+
 const PRODUCT = {
   id: '11111111-1111-4111-8111-111111111111',
   slug: 'course',
@@ -27,6 +29,7 @@ const PRODUCT = {
 
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
+  emitFreeAccessLead: vi.fn(),
   userRpc: vi.fn(),
   adminRpc: vi.fn(),
   adminInserts: [] as Array<{ table: string; value: unknown }>,
@@ -237,10 +240,11 @@ describe('POST /api/create-payment-intent — full-discount coupon', () => {
   it('grants through the signed-in client with the coupon code', async () => {
     mocks.userRpc.mockResolvedValue({ data: true, error: null });
 
-    const res = await POST(makeRequest({ couponCode: 'free100' }));
+    const res = await POST(makeRequest({ couponCode: 'free100', locale: 'pl' }));
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ freeAccess: true });
+    expect(mocks.emitFreeAccessLead).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ locale: 'pl' }));
     expect(mocks.userRpc).toHaveBeenCalledWith('grant_free_product_access', {
       product_slug_param: PRODUCT.slug,
       coupon_code_param: 'FREE100',

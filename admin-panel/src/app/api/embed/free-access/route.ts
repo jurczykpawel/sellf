@@ -112,6 +112,7 @@ export async function POST(request: Request) {
     productSlug: product.slug,
     email: parsed.value.email,
     captchaToken: parsed.value.turnstileToken,
+    ...(parsed.value.locale ? { locale: parsed.value.locale } : {}),
   });
 
   await logEmbedFreeAccessEvent(adminClient, {

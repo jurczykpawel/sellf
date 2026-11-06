@@ -93,6 +93,7 @@ export async function GET(request: Request) {
         user: { id: user.id, email: user.email ?? '' },
         couponCode: couponCode ?? undefined,
         grantRequestId,
+        ...(requestedLocale === 'pl' || requestedLocale === 'en' ? { locale: requestedLocale } : {}),
       });
 
       if (!result.accessGranted) {
