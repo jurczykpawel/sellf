@@ -1,5 +1,6 @@
-import { useSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
-useSupabaseBuyerEmails();
+import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
+import { useSupabaseBuyerEmails as registerSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
+registerSupabaseBuyerEmails();
 /** "Add participants later": reminder mail, signed page, seller panel and webhook, as buyer, seller and integrator see them. */
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
@@ -82,7 +83,7 @@ test('the buyer saves the list from the personal link on a phone; webhook and se
 
   // The outbox drains oldest first in batches; repeat the job until this order's event has gone out.
   await expect.poll(async () => { await cron(request, 'business-events'); return (await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', 'order.participants_updated')).data?.length ?? 0; }, { timeout: 60000, intervals: [2000] }).toBe(1);
-  const log = (await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', 'order.participants_updated')).data![0].payload as { data: { order: { orderId: string }; orderDetails: { participants: { people: unknown[] } } } };
+  const log = await readBuyerPayload((await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', 'order.participants_updated')).data![0].payload) as { data: { order: { orderId: string }; orderDetails: { participants: { people: unknown[] } } } };
   expect(log.data.order.orderId).toBe(orderId);
   expect(log.data.orderDetails.participants.people).toHaveLength(4);
 

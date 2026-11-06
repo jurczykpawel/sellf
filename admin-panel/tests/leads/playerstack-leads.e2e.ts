@@ -1,4 +1,5 @@
 /** Real pinned Sellf adapter and email-gate, local Supabase Mailpit and signed webhook receiver. */
+import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { expect, test } from '@playwright/test';
@@ -29,6 +30,12 @@ test.afterAll(async () => {
     if (user) { await db.from('audit_log').delete().eq('user_id', user.id); await db.auth.admin.deleteUser(user.id); }
   }
 });
+async function leadDeliveries(leadId: string) {
+  const rows = await db.from('webhook_logs').select('id,status,payload').eq('endpoint_id', endpointId).eq('event_type', 'lead.captured');
+  expect(rows.error).toBeNull();
+  const decoded = await Promise.all(rows.data!.map(async row => ({ ...row, payload: await readBuyerPayload(row.payload) as { data: { leadId: string } } })));
+  return decoded.filter(row => row.payload.data.leadId === leadId);
+}
 async function product(required = false, price = 0) {
   const id = randomUUID(); ids.push(id);
   const { data, error } = await db.from('products').insert({ id, name: 'Local lead guide', slug: `lead-${id}`, price, currency: 'USD', is_active: true, embed_enabled: true, lead_consent_required: required }).select('*').single();
@@ -65,8 +72,8 @@ for (const { required, locale } of [{ required: false, locale: 'en' }, { require
     expect(pending.data!.locale).toBe(locale);
     const beforeAccess = await db.from('user_product_access').select('id').eq('product_id', p.id);
     expect(beforeAccess.data).toEqual([]);
-    const before = await db.from('webhook_logs').select('id').eq('endpoint_id', endpointId).contains('payload', { data: { leadId: pending.data!.id } });
-    expect(before.data).toEqual([]);
+    const before = await leadDeliveries(pending.data!.id);
+    expect(before).toEqual([]);
     const mail = await waitForEmail(email, { timeout: 20_000 });
     const link = extractMagicLink(mail.HTML || mail.Text || ''); expect(link).toBeTruthy();
     await page.goto(link!);
@@ -87,8 +94,8 @@ for (const { required, locale } of [{ required: false, locale: 'en' }, { require
     expect(signature).toContain(`v1=${createHmac('sha256', secret).update(`${timestamp}.${hook.body}`).digest('hex')}`);
     const leadDestination = new URL(link!).searchParams.get('redirect_to')!;
     await page.goto(`${leadsAppUrl}${leadDestination}`); await page.waitForURL(`**/p/${p.slug}`);
-    const deliveries = await db.from('webhook_logs').select('id,status').eq('endpoint_id', endpointId).contains('payload', { data: { leadId: pending.data!.id } });
-    expect(deliveries.data).toHaveLength(1); expect(deliveries.data![0].status).toBe('success');
+    const deliveries = await leadDeliveries(pending.data!.id);
+    expect(deliveries).toHaveLength(1); expect(deliveries[0].status).toBe('success');
   });
 }
 test('real API rejects reused, wrong-product and expired nonces and paid products', async ({ request }) => {

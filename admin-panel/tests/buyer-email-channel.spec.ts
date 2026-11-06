@@ -1,4 +1,5 @@
 /** Guest access and buyer notifications with the two seller email settings. */
+import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { loginAsAdmin, supabaseAdmin as db } from './helpers/admin-auth';
@@ -45,9 +46,13 @@ for (const enabled of [false, true]) {
     await expect.poll(async () => (await db.from('shop_config').select('supabase_buyer_emails').single()).data?.supabase_buyer_emails).toBe(enabled);
     const paid = await page.request.post(`/api/v1/payments/${order.orderId}/mark-paid`, { data: { amount: order.amount, paidAt: new Date().toISOString() } });
     expect(paid.status(), await paid.text()).toBe(200);
-    await expect.poll(async () => (await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type','purchase.completed').contains('payload',{ data:{ order:{ orderId:order.orderId } } })).data?.length).toBe(1);
-    const log = await checked(await db.from('webhook_logs').select('payload').eq('endpoint_id',endpointId).eq('event_type','purchase.completed').contains('payload',{data:{order:{orderId:order.orderId}}}).single());
-    expect(log.payload).toMatchObject({ event:'purchase.completed', data:{ customer:{email,locale:'pl'}, product:{id:product.id,name:'Buyer channel workshop'}, order:{orderId:order.orderId,amount:10000,currency:'PLN',settledVia:'bank_transfer'} } });
+    const completed = async () => {
+      const rows = await checked(await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', 'purchase.completed'));
+      const payloads = await Promise.all(rows.map(async row => await readBuyerPayload(row.payload) as { data: { order: { orderId: string } } }));
+      return payloads.filter(payload => payload.data.order.orderId === order.orderId);
+    };
+    await expect.poll(async () => (await completed()).length).toBe(1);
+    expect((await completed())[0]).toMatchObject({ event:'purchase.completed', data:{ customer:{email,locale:'pl'}, product:{id:product.id,name:'Buyer channel workshop'}, order:{orderId:order.orderId,amount:10000,currency:'PLN',settledVia:'bank_transfer'} } });
     const messages = async () => (await (await request.get(`${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)).json()).messages;
     await expect.poll(async () => (await messages()).length).toBe(1);
     const mail = await (await request.get(`${MAILPIT_URL}/api/v1/message/${(await messages())[0].ID}`)).json();

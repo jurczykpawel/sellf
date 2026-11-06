@@ -1,3 +1,4 @@
+import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import { test, expect } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
 import type Stripe from 'stripe';
@@ -124,7 +125,7 @@ test.describe('Webhook Dispatch System', () => {
       .limit(limit);
       
     if (error) throw error;
-    return data;
+    return Promise.all(data.map(async row => ({ ...row, payload: await readBuyerPayload(row.payload) })));
   }
 
   test('waitlist.signup: should send correct payload (free product)', async ({ request }) => {

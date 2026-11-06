@@ -5,6 +5,7 @@ import { expect, test } from '@playwright/test';
 import Stripe from 'stripe';
 import { loginAsAdmin, supabaseAdmin as db } from '../helpers/admin-auth';
 import { signTransferToken } from '@/lib/orders/transfer-token';
+import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import type { Page } from '@playwright/test';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -31,8 +32,11 @@ async function payOnHostedCheckout(page: Page) {
   await page.getByTestId('hosted-payment-submit-button').click();
   await page.waitForURL(/\/order\/.*\/transfer\?token=/, { timeout: 120000 });
 }
-const events = async (type: string, id: string) => ((await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', type)).data ?? [])
-  .filter(r => (r.payload as { data: { order: { orderId?: string; id?: string } } }).data.order?.orderId === id || JSON.stringify(r.payload).includes(id));
+async function events(type: string, id: string) {
+  const rows = await checked(await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', type));
+  const payloads = await Promise.all(rows.map(async row => await readBuyerPayload(row.payload) as { data: { order: { orderId: string } } }));
+  return payloads.filter(payload => payload.data.order.orderId === id);
+}
 
 test.beforeAll(async () => {
   bankConfig = await checked(await db.from('bank_transfer_config').select('*').single());
