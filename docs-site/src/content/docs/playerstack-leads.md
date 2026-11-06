@@ -93,7 +93,7 @@ const provider = createSellfConfigProvider({
   fetchOptions: { credentials: 'include', headers: { 'Accept-Language': 'en' } },
   endpoints: { emailGate: {
     challenge: `${base}/api/leads/challenge`,
-    webhook: `${base}/api/leads/submit?product=${encodeURIComponent(product)}`,
+    webhook: `${base}/api/leads/submit?product=${encodeURIComponent(product)}&locale=en`,
   } },
 });
 ```
@@ -106,6 +106,9 @@ English is the default. The API returns 14 localized form messages, `at: "after"
 `altchaFormat: "base64"`, and `remember: false`, plus consent and privacy wording
 within the adapter's text limits. A pre-roll host can choose `at: "before"` in its
 trusted configuration. Any 2xx means accepted; the viewer still confirms by email.
+
+
+An unchecked optional consent omits `consentVersion` in the pinned adapter. Set the form language on the trusted submit endpoint with `?locale=pl` or `?locale=en`; Sellf retains it for the confirmation mail and `customer.locale` regardless of consent. Without this query, the consent version language or Accept-Language supplies the language.
 
 ## Confirmed webhook
 

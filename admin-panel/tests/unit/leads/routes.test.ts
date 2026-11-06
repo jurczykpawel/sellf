@@ -113,7 +113,7 @@ describe('lead challenge and public product config', () => {
     request.headers.set('host', 'unrelated.example'); request.headers.set('x-forwarded-host', 'unrelated.example');
     const response = await config(request, { params: Promise.resolve({ id: 'guide' }) });
     const data = await response.json();
-    expect(data.emailGate.webhookUrl).toBe('https://configured.example:4443/api/leads/submit?product=guide');
+    expect(data.emailGate.webhookUrl).toBe('https://configured.example:4443/api/leads/submit?product=guide&locale=en');
     expect(data.emailGate.challengeUrl).toBe('https://configured.example:4443/api/leads/challenge?product=guide');
     expect(data.analytics).toBeUndefined();
   });
@@ -210,4 +210,19 @@ describe('lead confirmation', () => {
 it('persists the form language independently of optional marketing consent', async () => {
   expect((await submit(req({ ...payload(), marketingConsent: false, consentVersion: '1:pl' }))).status).toBe(200);
   expect(rows.lead_submissions[0]).toMatchObject({ locale: 'pl', consent_version: null, marketing_consent: false });
+});
+it.each([
+  ['/api/leads/submit', 'pl-PL,pl;q=0.9', 'pl'],
+  ['/api/leads/submit?locale=pl', 'en-US,en;q=0.9', 'pl'],
+  ['/api/leads/submit?locale=en', 'pl-PL,pl;q=0.9', 'en'],
+])('keeps the optional form language from %s and %s', async (path, language, locale) => {
+  const request = req({ ...payload(), marketingConsent: false }, origin, 'POST', path);
+  request.headers.set('accept-language', language);
+  expect((await submit(request)).status).toBe(200);
+  expect(rows.lead_submissions[0]).toMatchObject({ locale, marketing_consent: false, consent_version: null });
+  expect(m.send).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ locale }) }));
+});
+it('keeps a configured Polish confirmation endpoint in the form language', async () => {
+  const response = await config(req(undefined, origin, 'GET', '/api/products/guide/playerstack?locale=pl'), { params: Promise.resolve({ id: 'guide' }) });
+  expect((await response.json()).emailGate.webhookUrl).toBe('https://shop.example.com/api/leads/submit?product=guide&locale=pl');
 });

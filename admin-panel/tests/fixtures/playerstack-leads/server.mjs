@@ -55,18 +55,20 @@ const server = createServer(async (request, response) => {
     catch { response.writeHead(404).end(); } return;
   }
   if (url.pathname !== '/') { response.writeHead(404).end(); return; }
+  const locale = url.searchParams.get('locale') === 'pl' ? 'pl' : 'en';
   response.setHeader('Content-Type', 'text/html');
-  response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Sellf lead form integration</title></head>
+  response.end(`<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><title>Sellf lead form integration</title></head>
 <body><main><h1>Video and lead magnet</h1><div id="player" style="position:relative;width:640px;height:420px;background:#111"><video></video></div></main>
 <script src="/vendor/playerstack-plugin-email-gate.js"></script><script type="module">
 import {createSellfConfigProvider} from "/adapter.js";
 (async () => {
   const product = new URL(location.href).searchParams.get('product');
   const base = ${JSON.stringify(appUrl)};
+  const locale = ${JSON.stringify(locale)};
   const container = document.getElementById('player');
   container.setAttribute('data-sellf-product', product);
   container.setAttribute('src', 'https://files.example.com/lead-video.mp4');
-  const provider = createSellfConfigProvider({baseUrl:base,fetchOptions:{credentials:'include'},endpoints:{emailGate:{webhook:base+'/api/leads/submit?product='+encodeURIComponent(product),challenge:base+'/api/leads/challenge'}}});
+  const provider = createSellfConfigProvider({baseUrl:base,fetchOptions:{credentials:'include',headers:{'accept-language':locale}},endpoints:{emailGate:{webhook:base+'/api/leads/submit?product='+encodeURIComponent(product)+'&locale='+locale,challenge:base+'/api/leads/challenge'}}});
   const config = await provider.load(container);
   globalThis.adapterConfig = config; globalThis.adapterCommit = '${adapterCommit}';
   const plugin = globalThis[Symbol.for('playerstack.plugin-modules')].get(location.origin + '/vendor/playerstack-plugin-email-gate.js');

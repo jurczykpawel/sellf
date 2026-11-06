@@ -19,6 +19,13 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const secret = () => randomBytes(32).toString('hex');
+
+function leadLocale(request: Request, consentVersion?: string): 'pl' | 'en' {
+  const locale = new URL(request.url).searchParams.get('locale') ?? consentVersion?.split(':').at(-1)
+    ?? request.headers.get('accept-language')?.split(/[-,;]/)[0].trim().toLowerCase();
+  return locale === 'pl' ? 'pl' : 'en';
+}
+
 const PRODUCT_FIELDS = 'id,slug,name,price,product_type,is_active,available_from,available_until,embed_enabled,seller_id,preview_video_url,lead_consent_required,lead_consent_version,lead_consent_text_pl,lead_consent_text_en' as const;
 
 async function context(identifier?: unknown) {
@@ -88,7 +95,8 @@ export async function leadSubmit(request: Request): Promise<NextResponse> {
     const body = parsed.data;
     if (body.product && !available(ctx.product)) return reply(request, origins, 404, { error: 'Product is not available' });
     if (stored.product_id !== (ctx.product?.id ?? null)) return reply(request, origins, 400, { error: 'Invalid request' });
-    const consent = consentForLocale(ctx.product, body.consentVersion?.endsWith(':pl') ? 'pl' : 'en');
+    const locale = leadLocale(request, body.consentVersion);
+    const consent = consentForLocale(ctx.product, locale);
     if ((!body.product || consent.required) && body.marketingConsent !== true) return reply(request, origins, 400, { error: 'Marketing consent required' });
     if (body.marketingConsent && body.consentVersion !== consent.version) return reply(request, origins, 400, { error: 'Invalid consent version' });
     if (!await checkRateLimit('leads_submit', 5, 5) || !await checkRateLimitForIdentifier('leads_email', 5, 1440, `email:${body.email}`)) return reply(request, origins, 429, { error: 'Too many requests' });
@@ -107,11 +115,11 @@ export async function leadSubmit(request: Request): Promise<NextResponse> {
       product_slug: ctx.product?.slug ?? null, source: body.src, marketing_consent: body.marketingConsent === true,
       consent_version: body.marketingConsent ? consent.version : null, consent_text: body.marketingConsent ? consent.text : null,
       client_consent_text: body.consentText ?? null,
-      locale: consent.version.endsWith(':pl') ? 'pl' : 'en',
+      locale,
     });
     if (error) return reply(request, origins, 503, { error: 'Unavailable' });
     const redirectTo = `${getSellfBaseUrl()}/auth/callback?redirect_to=${encodeURIComponent(`/auth/lead?token=${confirmation}`)}`;
-    const sent = await sendTrustedMagicLink({ email: body.email, redirectTo, data: { locale: consent.version.endsWith(':pl') ? 'pl' : 'en', ...(ctx.product ? { product_slug: ctx.product.slug } : {}) } });
+    const sent = await sendTrustedMagicLink({ email: body.email, redirectTo, data: { locale, ...(ctx.product ? { product_slug: ctx.product.slug } : {}) } });
     if (!sent.ok) return reply(request, origins, sent.code === 'rate_limited' ? 429 : 503, { error: 'Unable to send email' });
     return reply(request, origins, 200, { status: 'check_email' });
   } catch (error) {
@@ -127,12 +135,12 @@ export async function playerstackConfig(request: Request, id: string): Promise<N
     if (!available(ctx.product)) return reply(request, origins, 404, { error: 'Product is not available' });
     const p = ctx.product!;
     const base = getSellfBaseUrl();
+    const locale = leadLocale(request);
+    const pl = locale === 'pl';
     const automaticEndpoints = new URL(base).protocol === 'https:' ? {
-      webhookUrl: `${base}/api/leads/submit?product=${encodeURIComponent(p.slug)}`,
+      webhookUrl: `${base}/api/leads/submit?product=${encodeURIComponent(p.slug)}&locale=${locale}`,
       challengeUrl: `${base}/api/leads/challenge?product=${encodeURIComponent(p.slug)}`,
     } : {};
-    const locale = new URL(request.url).searchParams.get('locale') ?? request.headers.get('accept-language')?.split(/[-,;]/)[0].trim().toLowerCase();
-    const pl = locale === 'pl';
     return reply(request, origins, 200, {
       src: p.preview_video_url ?? '', title: p.name,
       marketingConsent: { pl: consentForLocale(p, 'pl'), en: consentForLocale(p, 'en') },
