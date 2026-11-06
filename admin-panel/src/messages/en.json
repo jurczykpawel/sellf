@@ -5961,6 +5961,7 @@
       "saved": "Saved",
       "error": "Could not save settings",
       "invalid": "Check the IBAN, account holder, template and limits (deadline: 1–60 days; the reminder must come before the release).",
+      "chooseMethod": "Choose a payment method to continue.",
       "method": "Payment method",
       "online": "Pay online",
       "transfer": "Traditional bank transfer (invoice, due in {days} days)",

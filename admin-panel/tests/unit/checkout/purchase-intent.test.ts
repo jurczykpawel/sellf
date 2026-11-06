@@ -207,6 +207,7 @@ it.each([true, false])('resolves transfer availability before deciding how to in
   expect(mocks.fetch).not.toHaveBeenCalled(); expect(mocks.stripe).not.toHaveBeenCalled();
   await act(async () => resolve({ enabled, dueDays: 14, reservationHours: null }));
   if (enabled) {
+    expect(screen.getByText('Choose a payment method to continue.')).toBeTruthy();
     expect(mocks.fetch).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'Continue to payment', exact: true })).toBeNull();
     const online = screen.getByRole('radio', { name: 'Pay online', exact: true }) as HTMLInputElement;

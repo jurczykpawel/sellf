@@ -112,6 +112,17 @@ test('settings validate account and preview the title; person cannot select a tr
   await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toHaveCount(0);
   await expect(page.locator('[id="buyer.email"]')).toBeVisible();
 });
+test('organization checkout retains a visible payment action after a coupon reload @J52', async ({ page }) => {
+  await acceptAllCookies(page);
+  await page.goto(`/pl/checkout/${product.slug}?coupon=WELCOME10`);
+  await page.getByLabel('Typ nabywcy').selectOption('organization');
+  await page.reload();
+  await page.getByLabel('Typ nabywcy').selectOption('organization');
+  await expect(page.getByRole('radio', { name: /Przelew tradycyjny/ })).toBeVisible();
+  await expect(page.getByText('Wybierz metodę płatności, aby kontynuować.')).toBeVisible();
+  await page.getByRole('radio', { name: /online/i }).check();
+  await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+});
 test('(a) organization places transfer with immediate access, unpaid invoice, protected instructions and Auth mail @J52 @J231', async ({ page }) => {
   test.setTimeout(120000); const order = await place(page, email); orderId = order.orderId;
   const instructionsUrl = page.url();
