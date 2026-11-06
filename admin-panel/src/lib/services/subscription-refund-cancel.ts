@@ -14,7 +14,7 @@ interface SubscriptionQueryClient {
     select: (columns: string) => {
       eq: (column: string, value: string) => {
         maybeSingle: () => PromiseLike<{
-          data: { stripe_subscription_id: string | null; cancel_at_period_end: boolean | null } | null;
+          data: { stripe_subscription_id: string | null; cancel_at_period_end: boolean | null; status: string } | null;
           error: { message: string } | null;
         }>;
       };
@@ -23,7 +23,7 @@ interface SubscriptionQueryClient {
 }
 
 type CancelResult =
-  | { ok: true; canceled: false; reason: 'not_subscription_payment' | 'missing_subscription_row' | 'already_scheduled' }
+  | { ok: true; canceled: false; reason: 'not_subscription_payment' | 'missing_subscription_row' | 'already_scheduled' | 'already_ended' }
   | { ok: true; canceled: true; stripeSubscriptionId: string }
   | { ok: false; reason: string };
 
@@ -39,7 +39,7 @@ export async function scheduleSubscriptionCancelAfterFullRefund({
   const subscriptionClient = supabase as SubscriptionQueryClient;
   const { data: subscription, error } = await subscriptionClient
     .from('subscriptions')
-    .select('stripe_subscription_id, cancel_at_period_end')
+    .select('stripe_subscription_id, cancel_at_period_end, status')
     .eq('id', transaction.subscription_id)
     .maybeSingle();
 
@@ -49,6 +49,10 @@ export async function scheduleSubscriptionCancelAfterFullRefund({
 
   if (!subscription?.stripe_subscription_id) {
     return { ok: true, canceled: false, reason: 'missing_subscription_row' };
+  }
+
+  if (['canceled', 'unpaid', 'incomplete_expired'].includes(subscription.status)) {
+    return { ok: true, canceled: false, reason: 'already_ended' };
   }
 
   if (subscription.cancel_at_period_end) {

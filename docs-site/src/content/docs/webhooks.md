@@ -196,12 +196,12 @@ exists. Do not infer paid access from delivery time or a later subscription upda
 
 For `subscription.canceled` and `subscription.updated`, `subscription.endedAt` is
 Stripe's actual `ended_at`, while `canceledAt` is the cancellation/request timestamp.
-`endsAt` is the observed access end: actual `ended_at` takes precedence; an immediate
-cancellation can fall back to `canceled_at`. A scheduled cancellation uses a recurring
-line from a **paid invoice**, not an unpaid renewal's current billing period. If no
-paid period can be confirmed, `endsAt` is null. Updated terminal/scheduled events also
-use this access end in `currentPeriodEnd`, so receivers cannot mistake an unpaid
-billing end for continued access.
+`endsAt` is the access deadline, using the period confirmed by a **paid invoice** for
+cancellation without a refund, even when Stripe terminates immediately. An unpaid renewal
+never extends it. Without a confirmed paid period, immediate cancellation falls back to
+`ended_at` or `canceled_at`; scheduled cancellation reports null. Terminal/scheduled updates
+use the same deadline in `currentPeriodEnd`. Refunded access ends immediately; `endedAt`
+still describes Stripe's termination independently of the access deadline.
 
 `subscription.updated.previousAttributes` holds only the **previous values of normalized
 fields that changed** — `status`, `cancelAtPeriodEnd`, `cancelAt`, `canceledAt`, `endedAt`,
@@ -217,12 +217,15 @@ stores the warning and emits it when due. A subscription cancelled, set to cance
 or no longer active by then gets no warning. When the renewal is already within 3 days the
 warning goes out immediately.
 
-When a subscription **actually ends** (`customer.subscription.deleted`: immediate cancellation,
-or the end of a period the buyer cancelled), Sellf revokes the licenses issued for its invoices:
-you receive `license.revoked` with `revocationReason: "subscription_cancelled"` next to
-`access.revoked` with the same reason. A cancellation at period end keeps the license valid until
-that moment. A subscription that ends **unpaid** (`unpaid` or `incomplete_expired`) loses its
-licenses the same way, with `revocationReason: "expired"` (matching `access.revoked`).
+When a subscription ends **without a refund**, existing access and invoice licenses expire
+at the paid period end, emitting `access.expired` and `license.expired`. A changed license
+deadline emits `license.updated`. Previously issued tokens retain their signature: consumers
+must refresh the CRL, which includes orders whose ledger deadline has elapsed. Full or partial
+refunds after cancellation remove access and revoke licenses immediately, including later
+refunds. A credit balance or pending proration alone is not proof of a money refund; Stripe
+refund webhooks reconcile the refund ledger. Disputes still suspend access immediately.
+Subscriptions ending **unpaid** (`unpaid` or `incomplete_expired`) retain `access.revoked` /
+`license.revoked` with `revocationReason: "expired"`.
 
 ### `refund.issued` — refund + credit-note VAT
 
@@ -329,8 +332,8 @@ that dispute: you receive `license.issued` followed by `license.revoked` with
 `dispute.stripeDisputeId`, and `purchase.completed.licenses[]` omits it. A win restores
 it (`license.restored`).
 
-`license.updated` is **reserved**: no operation changes an issued license yet. It will be
-sent when one exists (tier change, extension, holder change); subscribing now is allowed.
+`license.updated` reports a changed license expiry deadline, including cancellation without
+a refund. Its `license.expiresAt` is the ledger deadline; the signed token is unchanged.
 
 ### `license.revoked` / `license.restored` — Pro
 

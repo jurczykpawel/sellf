@@ -130,12 +130,13 @@ został zaobserwowany) i łączną kwotę `refund.amount`.
 
 Dla `subscription.canceled` i `subscription.updated` pole `endedAt` oznacza faktyczne
 `ended_at` Stripe, a `canceledAt` — moment anulowania lub złożenia takiego żądania.
-`endsAt` oznacza koniec dostępu: pierwszeństwo ma `ended_at`; przy natychmiastowym
-anulowaniu możliwy jest odczyt z `canceled_at`. Przy zaplanowanym anulowaniu okres
-pochodzi z pozycji **opłaconej faktury**, a nie z bieżącego nieopłaconego odnowienia.
-Bez potwierdzonego okresu `endsAt` ma wartość null. Zdarzenia aktualizacji zakończonej
-subskrypcji lub zaplanowanego anulowania przekazują ten sam koniec dostępu w
-`currentPeriodEnd`.
+`endsAt` oznacza termin dostępu: przy anulowaniu bez zwrotu jest to koniec okresu
+potwierdzonego pozycją **opłaconej faktury**, również gdy Stripe kończy subskrypcję od razu.
+Nieopłacone odnowienie nie przedłuża terminu. Bez potwierdzonego okresu natychmiastowe
+anulowanie używa `ended_at` lub `canceled_at`, a zaplanowane podaje null. Aktualizacje
+zakończonej subskrypcji lub zaplanowanego anulowania przekazują ten sam termin
+w `currentPeriodEnd`. Zwrot kończy dostęp od razu; `endedAt` nadal opisuje moment zakończenia
+subskrypcji w Stripe, niezależnie od terminu dostępu.
 
 `subscription.updated.previousAttributes` zawiera wyłącznie **poprzednie wartości znormalizowanych
 pól, które się zmieniły**: `status`, `cancelAtPeriodEnd`, `cancelAt`, `canceledAt`, `endedAt`,
@@ -149,12 +150,15 @@ na wielu kontach zaraz po zakupie, również przy 7-dniowej próbie, dlatego Sel
 i wysyła ją w terminie. Subskrypcja anulowana, ustawiona na anulowanie z końcem okresu albo już
 nieaktywna nie dostaje zapowiedzi. Gdy do odnowienia zostały najwyżej 3 dni, zapowiedź idzie od razu.
 
-Gdy subskrypcja **faktycznie się kończy** (`customer.subscription.deleted`: natychmiastowe anulowanie
-albo koniec okresu, z którym kupujący ją anulował), Sellf odwołuje licencje wydane dla jej faktur:
-przychodzi `license.revoked` z `revocationReason: "subscription_cancelled"` i `access.revoked` z tym
-samym powodem. Anulowanie z końcem okresu zostawia licencję ważną do tej chwili. Subskrypcja zakończona
-**bez zapłaty** (`unpaid` albo `incomplete_expired`) traci licencje tak samo, z
-`revocationReason: "expired"` (jak w `access.revoked`).
+Gdy subskrypcja kończy się **bez zwrotu**, istniejący dostęp i licencje jej faktur wygasają
+z końcem opłaconego okresu, emitując `access.expired` i `license.expired`. Zmiana terminu
+licencji emituje `license.updated`. Wydane tokeny zachowują podpis: odbiorca musi odświeżać
+CRL, która uwzględnia zamówienia po upływie terminu z rejestru. Pełny lub częściowy zwrot
+po anulowaniu odbiera dostęp i odwołuje licencje od razu, również gdy zwrot przychodzi później.
+Saldo kredytowe lub oczekujące rozliczenie proporcjonalne samo nie potwierdza zwrotu pieniędzy;
+rejestr zwrotów aktualizują webhooki Stripe. Spór nadal zawiesza dostęp od razu.
+Subskrypcje zakończone **bez zapłaty** (`unpaid` albo `incomplete_expired`) zachowują
+`access.revoked` / `license.revoked` z `revocationReason: "expired"`.
 
 ## Spory płatnicze
 
@@ -206,9 +210,8 @@ odwołana przez ten spór: dostajesz `license.issued`, a po nim `license.revoked
 z `dispute.stripeDisputeId`; `purchase.completed.licenses[]` jej nie zawiera. Wygrany
 spór ją przywraca (`license.restored`).
 
-`license.updated` jest **zarezerwowane**: dziś żadna operacja nie zmienia wydanej licencji.
-Zdarzenie zacznie przychodzić, gdy taka operacja powstanie (zmiana planu, przedłużenie,
-zmiana posiadacza); subskrypcja jest już możliwa.
+`license.updated` informuje o zmianie terminu wygaśnięcia, również przy anulowaniu bez
+zwrotu. Pole `license.expiresAt` podaje termin z rejestru; podpisany token pozostaje ten sam.
 
 ## `license.revoked` / `license.restored` — Pro
 

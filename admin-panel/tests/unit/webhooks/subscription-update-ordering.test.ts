@@ -47,6 +47,7 @@ function makeDb() {
         select: self,
         eq: self,
         neq: self,
+        not: self,
         in: self,
         order: self,
         limit: self,

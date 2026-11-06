@@ -89,6 +89,9 @@ test.describe('Per-product webhook scoping', () => {
       .locator('#webhook-form label', { hasText: 'Invoice Paid' })
       .locator('[title^="A subscription renewal invoice was paid"]');
     await expect(invoicePaidInfo).toHaveCount(1);
+    const licenseUpdated = page.locator('#webhook-form label', { hasText: 'License Updated (Pro)' });
+    await expect(licenseUpdated.locator('input[type="checkbox"]')).toBeEnabled();
+    await expect(licenseUpdated.locator('[title^="A product license expiry deadline changed"]')).toHaveCount(1);
   });
 
   test('creating an all-products webhook shows the All products badge', async ({ page }) => {

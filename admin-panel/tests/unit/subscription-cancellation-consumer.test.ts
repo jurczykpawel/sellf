@@ -54,3 +54,15 @@ it('loads a paid invoice period when scheduled cancellation follows an unpaid re
   expect(await resolvePaidSubscriptionEnd(subscription, stripe)).toBe(paidInvoice.lines.data[0].period.end);
   expect(list).toHaveBeenCalledWith({ subscription: failed.id, status: 'paid', limit: 10 });
 });
+
+it('resolves the paid period after immediate termination without assuming a refund', async () => {
+  const list = vi.fn().mockResolvedValue({ data: [paidInvoice] });
+  const stripe = { invoices: { list } } as unknown as Stripe;
+  expect(await resolvePaidSubscriptionEnd(canceled as unknown as Stripe.Subscription, stripe)).toBe(paidInvoice.lines.data[0].period.end);
+});
+it('reports a proven paid end separately from the termination timestamp', () => {
+  const end = canceled.ended_at + 86400;
+  const payload = buildSubscriptionCanceledPayload({ ...input(canceled), paidPeriodEnd: end });
+  expect(payload.subscription.endsAt).toBe(new Date(end * 1000).toISOString());
+  expect(payload.subscription.endedAt).toBe(actualEnd);
+});

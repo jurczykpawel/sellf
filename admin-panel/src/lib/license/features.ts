@@ -51,7 +51,6 @@ export const EVENT_FEATURE_REQUIREMENTS = {
   'license.restored': 'license-revoked-webhook',
   'license.issued': 'license-revoked-webhook',
   'license.expired': 'license-revoked-webhook',
-  // Reserved: emitted once an operation that changes a license exists (tests/unit/license/license-updated-guard.test.ts).
   'license.updated': 'license-revoked-webhook',
 } as const satisfies Record<string, Feature>;
 

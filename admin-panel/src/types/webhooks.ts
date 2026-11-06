@@ -95,6 +95,7 @@ export const WEBHOOK_EVENTS: WebhookEventDefinition[] = [
   { value: 'license.issued', label: 'License Issued (Pro)', category: 'system' },
   { value: 'license.revoked', label: 'License Revoked (Pro)', category: 'system' },
   { value: 'license.restored', label: 'License Restored (Pro)', category: 'system' },
+  { value: 'license.updated', label: 'License Updated (Pro)', category: 'system' },
   { value: 'license.expired', label: 'License Expired (Pro)', category: 'system' },
   { value: 'invoicing.issued', label: 'Sales Invoice Issued', category: 'purchases' },
   { value: 'invoicing.failed', label: 'Sales Invoice Failed', category: 'purchases' },

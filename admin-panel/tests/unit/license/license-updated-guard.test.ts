@@ -1,5 +1,5 @@
 /**
- * license.updated is reserved until an operation changes a license (tier, extension, holder).
+ * license.updated reports changes to an issued license, including expiry deadlines.
  * Any new code that changes issued_licenses besides issuance, revocation/restoration and the
  * expiry marker must emit license.updated, or this guard fails.
  */

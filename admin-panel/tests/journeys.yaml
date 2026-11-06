@@ -4645,7 +4645,7 @@
     },
     {
       "id": "J285",
-      "title": "Ended subscription stops its offline licenses",
+      "title": "Canceled subscription retains paid access until expiry",
       "values": {
         "persona": "integrator",
         "entry": "webhook",
@@ -4655,9 +4655,9 @@
         "operation": "cancel"
       },
       "end_state": {
-        "buyer": "Subscriber's license key stops verifying once the subscription has ended.",
-        "seller": "Subscription licenses revoked with reason subscription_cancelled when Stripe ends the subscription (immediately or at period end).",
-        "integrator": "license.revoked with revocationReason subscription_cancelled; access.revoked with subscription_cancelled."
+        "buyer": "Subscriber retains access and licenses until the paid deadline unless refunded; unpaid subscriptions stop immediately.",
+        "seller": "Cancellation without a refund sets access and license expiry to the paid period end; full or partial refunds revoke immediately.",
+        "integrator": "access.expired and license.expired at the paid deadline; refund revocation when refunded; expired revocation for unpaid termination."
       },
       "status": "automated",
       "layers": [
