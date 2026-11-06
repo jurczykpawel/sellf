@@ -29,7 +29,7 @@ export async function storeBuyerPayload(event: string, payload: unknown): Promis
     visible = null;
   } else {
     visible = await mapValues(payload, [], async (value, path) => {
-      if (typeof value !== 'string' || !['token', 'licenseKey', 'participantsUrl'].includes(path.at(-1) ?? '')) return value;
+      if (typeof value !== 'string' || !['token', 'licenseKey', 'participantsUrl', 'payUrl'].includes(path.at(-1) ?? '')) return value;
       sealed[JSON.stringify(path)] = await seal(value);
       return null;
     });
