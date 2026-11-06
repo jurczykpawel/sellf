@@ -122,7 +122,7 @@ test('organization checkout retains a visible payment action after a coupon relo
   await expect(page.getByRole('radio', { name: /Przelew tradycyjny/ })).toBeVisible();
   await expect(page.getByText('Wybierz metodę płatności, aby kontynuować.')).toBeVisible();
   await page.getByRole('radio', { name: /online/i }).check();
-  await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+  await expect(page.locator('[id="buyer.email"]')).toBeVisible();
 });
 test('(a) organization places transfer with immediate access, unpaid invoice, protected instructions and Auth mail @J52 @J231', async ({ page }) => {
   test.setTimeout(120000); const order = await place(page, email); orderId = order.orderId;
