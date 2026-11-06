@@ -1,6 +1,7 @@
 import { useSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
 useSupabaseBuyerEmails();
 /** Traditional transfer buyer and administrator acceptance. */
+import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
@@ -112,6 +113,17 @@ test('settings validate account and preview the title; person cannot select a tr
   await expect(page.getByRole('button', { name: 'Przejdź do płatności' })).toHaveCount(0);
   await expect(page.locator('[id="buyer.email"]')).toBeVisible();
 });
+test('organization checkout retains a visible payment action after a coupon reload @J52', async ({ page }) => {
+  await acceptAllCookies(page);
+  await page.goto(`/pl/checkout/${product.slug}?coupon=WELCOME10`);
+  await page.getByLabel('Typ nabywcy').selectOption('organization');
+  await page.reload();
+  await page.getByLabel('Typ nabywcy').selectOption('organization');
+  await expect(page.getByRole('radio', { name: /Przelew tradycyjny/ })).toBeVisible();
+  await expect(page.getByText('Wybierz metodę płatności, aby kontynuować.')).toBeVisible();
+  await page.getByRole('radio', { name: /online/i }).check();
+  await expect(page.locator('[id="buyer.email"]')).toBeVisible();
+});
 test('(a) organization places transfer with immediate access, unpaid invoice, protected instructions and Auth mail @J52 @J231', async ({ page }) => {
   test.setTimeout(120000); const order = await place(page, email); orderId = order.orderId;
   const instructionsUrl = page.url();
@@ -130,7 +142,8 @@ test('(a) organization places transfer with immediate access, unpaid invoice, pr
   expect(mail.HTML).toContain('PL61 1090 1014 0000 0712 1981 2874'); expect(mail.HTML).not.toContain('PL61109010140000071219812874'); expect(mail.HTML).toContain('Dane do przelewu');
   expect(mail.HTML).toMatch(/<td[^>]*>Numer konta<\/td>\s*<td[^>]*>PL61 1090/);
   const placed = await checked(await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', 'order.placed').single());
-  expect(placed.payload).toMatchObject({ data: { order: { transfer: { account: 'PL61109010140000071219812874' } } } });
+  expect(JSON.stringify(placed.payload)).not.toContain('?token=');
+  expect(await readBuyerPayload(placed.payload)).toMatchObject({ data: { order: { transfer: { account: 'PL61109010140000071219812874' } } } });
   await checked(await db.from('payment_transactions').update({ payment_due_at: '2000-01-01T00:00:00Z' }).eq('id', orderId).select());
   expect((await page.request.get('/api/cron?job=bank-transfer-overdue', { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } })).ok()).toBe(true);
   expect((await db.from('payment_transactions').select('order_overdue_notified_at').eq('id', orderId).single()).data?.order_overdue_notified_at).toBeTruthy();

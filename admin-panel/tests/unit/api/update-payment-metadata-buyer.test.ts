@@ -365,3 +365,15 @@ describe('legacy invoice form: tax id validated by the company country on the se
     expect(mocks.sessionsUpdate).toHaveBeenCalledWith(SESSION_ID, { metadata: expect.objectContaining({ nip: 'DE123456789', country: 'DE' }) });
   });
 });
+
+it.each(['pl', 'en'])('saves submitted language %s on legacy and profile checkout objects', async locale => {
+  for (const id of [SESSION_ID, PI_ID]) {
+    expect((await POST(makeRequest(id, { locale }))).status).toBe(200);
+    const update = id === SESSION_ID ? mocks.sessionsUpdate : mocks.piUpdate;
+    expect(update).toHaveBeenLastCalledWith(id, { metadata: expect.objectContaining({ locale }) });
+    mocks.productRead.mockResolvedValue({ data: { checkout_profile: { v: 1, modules: [] }, currency: 'PLN' }, error: null });
+    expect((await POST(makeRequest(id, { locale, moduleValues: {} }))).status).toBe(200);
+    expect(update).toHaveBeenLastCalledWith(id, { metadata: expect.objectContaining({ locale }) });
+    mocks.productRead.mockResolvedValue({ data: { checkout_profile: null }, error: null });
+  }
+});

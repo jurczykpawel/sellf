@@ -6,6 +6,8 @@ import { NextRequest } from 'next/server';
  * Supabase, Stripe and config lookups are mocked; pricing runs for real.
  */
 
+vi.mock('@/lib/services/free-access-events', () => ({ emitFreeAccessLead: mocks.emitFreeAccessLead }));
+
 const PRODUCT = {
   id: '11111111-1111-4111-8111-111111111111',
   slug: 'course',
@@ -27,12 +29,14 @@ const PRODUCT = {
 
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
+  emitFreeAccessLead: vi.fn(),
   userRpc: vi.fn(),
   adminRpc: vi.fn(),
   adminInserts: [] as Array<{ table: string; value: unknown }>,
   getOrCreateStripeCustomer: vi.fn(),
   sessionsCreate: vi.fn(),
   piUpdate: vi.fn(),
+  subscriptionUpdate: vi.fn(),
   dynamicSubscription: vi.fn(),
   sessionsRetrieve: vi.fn(),
   sessionsExpire: vi.fn(),
@@ -101,6 +105,7 @@ vi.mock('@/lib/services/product-validation', async (importOriginal) => {
 vi.mock('@/lib/stripe/server', () => ({
   getStripeServer: vi.fn(async () => ({
     paymentIntents: { update: mocks.piUpdate },
+    subscriptions: { update: mocks.subscriptionUpdate },
     checkout: {
       sessions: {
         create: mocks.sessionsCreate,
@@ -235,10 +240,11 @@ describe('POST /api/create-payment-intent — full-discount coupon', () => {
   it('grants through the signed-in client with the coupon code', async () => {
     mocks.userRpc.mockResolvedValue({ data: true, error: null });
 
-    const res = await POST(makeRequest({ couponCode: 'free100' }));
+    const res = await POST(makeRequest({ couponCode: 'free100', locale: 'pl' }));
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ freeAccess: true });
+    expect(mocks.emitFreeAccessLead).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ locale: 'pl' }));
     expect(mocks.userRpc).toHaveBeenCalledWith('grant_free_product_access', {
       product_slug_param: PRODUCT.slug,
       coupon_code_param: 'FREE100',
@@ -458,4 +464,21 @@ it('attaches a customer and enables automatic tax for a profile in Stripe Tax mo
   vi.mocked(getCheckoutConfig).mockResolvedValueOnce({ tax_mode: 'stripe_tax', automatic_tax: { enabled: true }, tax_id_collection: { enabled: false }, billing_address_collection: 'auto', expires_hours: 24 } as Awaited<ReturnType<typeof getCheckoutConfig>>);
   expect((await POST(makeRequest({ email: 'company@example.com' }))).status).toBe(200);
   expect(mocks.sessionsCreate).toHaveBeenCalledWith(expect.objectContaining({ customer: 'cus_profile', automatic_tax: { enabled: true } }));
+});
+
+it.each(['pl', 'en'])('saves checkout language %s on the session and intent', async locale => {
+  mocks.getUser.mockResolvedValue({ data: { user: null } });
+  expect((await POST(makeRequest({ locale }))).status).toBe(200);
+  const params = mocks.sessionsCreate.mock.calls[0][0];
+  expect(params.metadata.locale).toBe(locale);
+  expect(params.payment_intent_data.metadata.locale).toBe(locale);
+});
+it.each(['pl', 'en'])('saves checkout language %s for dynamic subscriptions and their intent', async locale => {
+  mocks.getUser.mockResolvedValue({ data: { user: SIGNED_IN } });
+  mocks.getOrCreateStripeCustomer.mockResolvedValue('cus_sub');
+  mocks.dynamicSubscription.mockResolvedValue({ clientSecret: 'pi_subtest_secret_value', subscriptionId: 'sub_test' });
+  mocks.productOverride = { product_type: 'subscription', allow_custom_price: true, custom_price_min: 1, billing_interval: 'month', billing_interval_count: 1, recurring_price: 10 };
+  expect((await POST(makeRequest({ customAmount: 10, locale }))).status).toBe(200);
+  expect(mocks.subscriptionUpdate).toHaveBeenCalledWith('sub_test', { metadata: { locale } });
+  expect(mocks.piUpdate).toHaveBeenCalledWith('pi_subtest', { metadata: expect.objectContaining({ locale }) });
 });

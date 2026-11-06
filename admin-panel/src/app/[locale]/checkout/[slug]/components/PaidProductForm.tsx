@@ -651,6 +651,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             <CheckoutProfileFields profile={profile} state={profileForm} invoice={invoice} errors={profileForm.errors} disabled={paymentProcessing} />
             {transferTooLate && <p role="note" className="my-4 text-sm text-sf-muted">{bt('transferTooLate', { hours: reservationHours ?? 0 })}</p>}
             {transferAllowed && <fieldset className="my-4 space-y-3"><legend className="font-semibold">{bt('method')}</legend>
+              {activeMethod === null && <p role="status" className="text-sm text-sf-muted">{bt('chooseMethod')}</p>}
               {(['online', 'transfer'] as const).map(value => <label key={value} className="flex items-center gap-2 rounded-lg border border-sf-border p-3"><input type="radio" name="payment-method" value={value} checked={activeMethod === value} disabled={!interactive || paymentProcessing} onChange={() => { setMethod(value); setError(null); }} />{bt(value, { days: transfer?.dueDays ?? 14 })}</label>)}
               {activeMethod === 'transfer' && reservationHours !== null && <p className="text-sm text-sf-muted">{bt('reservationNotice', { hours: reservationHours })}</p>}
             </fieldset>}

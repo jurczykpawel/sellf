@@ -165,7 +165,11 @@ test('A saves descriptor-driven section intent and reloads it in both locales', 
   for (const locale of ['en', 'pl']) {
     await page.goto(`/${locale}/dashboard/templates`);
     await expect(editor.getByRole('checkbox', { name: locale === 'pl' ? 'Pokaż: Jak to działa' : 'Show How it works', exact: true })).not.toBeChecked();
-    await editor.getByRole('button', { name: locale === 'pl' ? 'Oferty na początek' : 'Starting offers', exact: true }).click();
+    const sectionButton = editor.getByRole('button', { name: locale === 'pl' ? 'Oferty na początek' : 'Starting offers', exact: true });
+    await expect(async () => {
+      await sectionButton.click();
+      await expect(sectionButton).toHaveAttribute('aria-pressed', 'true', { timeout: 1000 });
+    }).toPass({ timeout: 10000 });
     await expect(editor.getByLabel(locale === 'pl' ? 'Układ sekcji' : 'Layout style', { exact: true })).toHaveValue('compact');
     await editor.getByRole('searchbox').fill(productName);
     await expect(editor.getByRole('button', { name: `${locale === 'pl' ? 'Dodaj' : 'Add'} ${productName}`, exact: true })).toBeVisible();

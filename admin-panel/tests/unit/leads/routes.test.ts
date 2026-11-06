@@ -9,6 +9,7 @@ vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({ auth: { g
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: m.rate, checkRateLimitForIdentifier: m.emailRate }));
 vi.mock('@/lib/auth/magic-link/request', () => ({ sendTrustedMagicLink: m.send }));
 vi.mock('@/lib/actions/validate-email', () => ({ validateEmailAction: m.validate }));
+vi.mock('@/lib/services/free-access-events', () => ({ emitFreeAccessLead: async (client: unknown, _input: unknown, lead: { data: unknown }) => { await m.trigger('lead.captured', lead.data, client, product.id, 'lead:lead-1'); return true; } }));
 vi.mock('@/lib/services/free-product-access', () => ({ grantFreeProductAccess: m.grant }));
 vi.mock('@/lib/services/webhook-service', () => ({ WebhookService: { trigger: m.trigger } }));
 import { GET as challenge, OPTIONS as challengeOptions } from '@/app/api/leads/challenge/route';
@@ -112,7 +113,7 @@ describe('lead challenge and public product config', () => {
     request.headers.set('host', 'unrelated.example'); request.headers.set('x-forwarded-host', 'unrelated.example');
     const response = await config(request, { params: Promise.resolve({ id: 'guide' }) });
     const data = await response.json();
-    expect(data.emailGate.webhookUrl).toBe('https://configured.example:4443/api/leads/submit?product=guide');
+    expect(data.emailGate.webhookUrl).toBe('https://configured.example:4443/api/leads/submit?product=guide&locale=en');
     expect(data.emailGate.challengeUrl).toBe('https://configured.example:4443/api/leads/challenge?product=guide');
     expect(data.analytics).toBeUndefined();
   });
@@ -193,7 +194,7 @@ describe('lead confirmation', () => {
     const pending = rows.lead_submissions[0]; pending.id = 'lead-1'; pending.product = product;
     const secret = new URL(m.send.mock.calls[0][0].redirectTo).searchParams.get('redirect_to')!.split('token=')[1];
     const result = await confirmLead(secret, { id: 'u1', email: 'viewer@example.com' }, {} as never);
-    expect(result.ok).toBe(true); expect(m.grant).toHaveBeenCalled();
+    expect(result.ok).toBe(true); expect(m.grant).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ deferLeadEvent: true }));
     expect(m.trigger).toHaveBeenCalledWith('lead.captured', expect.objectContaining({ marketingConsent: true, consentVersion: '1:en', consentConfirmedAt: '2026-01-01T00:00:00Z', source: 'https://files.example.com/video.mp4' }), expect.anything(), product.id, 'lead:lead-1');
   });
   it.each(['email', 'expiry', 'grant'])('does not confirm after %s rejection', async reason => {
@@ -204,4 +205,24 @@ describe('lead confirmation', () => {
     expect((await confirmLead(issued, { id: 'u2', email: reason === 'email' ? 'other@example.com' : 'viewer@example.com' }, {} as never)).ok).toBe(false);
     expect(m.trigger).not.toHaveBeenCalled();
   });
+});
+
+it('persists the form language independently of optional marketing consent', async () => {
+  expect((await submit(req({ ...payload(), marketingConsent: false, consentVersion: '1:pl' }))).status).toBe(200);
+  expect(rows.lead_submissions[0]).toMatchObject({ locale: 'pl', consent_version: null, marketing_consent: false });
+});
+it.each([
+  ['/api/leads/submit', 'pl-PL,pl;q=0.9', 'pl'],
+  ['/api/leads/submit?locale=pl', 'en-US,en;q=0.9', 'pl'],
+  ['/api/leads/submit?locale=en', 'pl-PL,pl;q=0.9', 'en'],
+])('keeps the optional form language from %s and %s', async (path, language, locale) => {
+  const request = req({ ...payload(), marketingConsent: false }, origin, 'POST', path);
+  request.headers.set('accept-language', language);
+  expect((await submit(request)).status).toBe(200);
+  expect(rows.lead_submissions[0]).toMatchObject({ locale, marketing_consent: false, consent_version: null });
+  expect(m.send).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ locale }) }));
+});
+it('keeps a configured Polish confirmation endpoint in the form language', async () => {
+  const response = await config(req(undefined, origin, 'GET', '/api/products/guide/playerstack?locale=pl'), { params: Promise.resolve({ id: 'guide' }) });
+  expect((await response.json()).emailGate.webhookUrl).toBe('https://shop.example.com/api/leads/submit?product=guide&locale=pl');
 });

@@ -90,7 +90,7 @@ const provider = createSellfConfigProvider({
   fetchOptions: { credentials: 'include', headers: { 'Accept-Language': 'pl' } },
   endpoints: { emailGate: {
     challenge: `${base}/api/leads/challenge`,
-    webhook: `${base}/api/leads/submit?product=${encodeURIComponent(product)}`,
+    webhook: `${base}/api/leads/submit?product=${encodeURIComponent(product)}&locale=pl`,
   } },
 });
 ```
@@ -118,3 +118,5 @@ Dodaj osobę do listy tylko przy `marketingConsent === true` i obecnym
 Potwierdzony dowód zostaje w `lead_submissions`, dostępny wyłącznie przez service role.
 Inne źródła `lead.captured` mogą mieć inny payload; opisane pola zgody dotyczą
 zgłoszeń PlayerStacka.
+
+Przy niezaznaczonej opcjonalnej zgodzie przypięty adapter pomija `consentVersion`. Ustaw język formularza w zaufanym adresie zgłoszenia: `?locale=pl` albo `?locale=en`. Sellf zachowa go dla maila potwierdzającego i `customer.locale` niezależnie od zgody. Bez tego parametru użyje języka wersji zgody lub Accept-Language.

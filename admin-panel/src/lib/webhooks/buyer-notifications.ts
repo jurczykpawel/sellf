@@ -5,11 +5,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 export async function enrichBuyerWebhook(event: string, input: unknown, db: SupabaseClient<Database>): Promise<unknown> {
   if (event === 'purchase.completed') {
-    const purchase = input as { order?: { orderId?: string }; product?: { id?: string }; customer?: { email?: string } };
+    const purchase = input as { order?: { orderId?: string }; product?: { id?: string }; customer?: { email?: string; locale?: string } };
     if (!purchase?.order?.orderId || !purchase.product?.id || !purchase.customer?.email) return input;
-    const { data: tx, error } = await db.from('payment_transactions').select('metadata').eq('id', purchase.order.orderId).single();
-    if (error || !tx) throw new Error('Purchase notification unavailable');
-    const locale = (tx.metadata as Record<string, unknown> | null)?.locale === 'pl' ? 'pl' : 'en';
+    let locale = purchase.customer.locale;
+    if (locale !== 'pl' && locale !== 'en') {
+      const { data: tx, error } = await db.from('payment_transactions').select('metadata').eq('id', purchase.order.orderId).single();
+      if (error || !tx) throw new Error('Purchase notification unavailable');
+      locale = (tx.metadata as Record<string, unknown> | null)?.locale === 'pl' ? 'pl' : 'en';
+    }
     const access = await db.rpc('event_mail_access', { p_email: purchase.customer.email, p_product_id: purchase.product.id, p_transaction_id: purchase.order.orderId });
     if (access.error) throw new Error('Purchase notification access unavailable');
     let buyerMail: Record<string, string> = {};

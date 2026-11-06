@@ -382,7 +382,7 @@
       "end_state": {
         "buyer": "Gets exactly one registered license without a domain claim.",
         "seller": "Grant and license are stored once under the stable free order.",
-        "integrator": "HMAC lead carries token, real access dates and the saved answer snapshot."
+        "integrator": "HMAC lead carries token, real access dates and the saved answer snapshot; confirmed product leads include consent and checkout locale in one delivery."
       },
       "status": "automated",
       "layers": [

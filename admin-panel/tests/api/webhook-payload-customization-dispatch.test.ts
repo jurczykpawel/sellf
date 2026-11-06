@@ -65,3 +65,17 @@ describe('trigger applies endpoint customization', () => {
     expect(captured.body.data).toEqual({ order: { amount: 14900, currency: 'usd', paymentIntentId: 'pi_X' } });
   });
 });
+
+it('keeps order links in delivery and returns the stored payload from the logs API @J72', async () => {
+  const { error } = await admin.from('webhook_endpoints').update({ events: ['order.placed'], custom_payload_fields: null, payload_field_selection: null }).eq('id', endpointId);
+  expect(error).toBeNull();
+  const payUrl = 'https://example.com/en/order/test/transfer?token=order-link-fixture';
+  await WebhookService.trigger('order.placed', { customer: { email: 'a@b.com' }, order: { payUrl } }, admin);
+  expect(captured.body.data.order.payUrl).toBe(payUrl);
+  const stored = await admin.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', 'order.placed').single();
+  expect(stored.error).toBeNull();
+  expect(JSON.stringify(stored.data)).not.toContain('order-link-fixture');
+  const response = await fetch(`${process.env.TEST_API_URL || 'http://localhost:3777'}/api/v1/webhooks/logs?endpoint_id=${endpointId}`, { headers: { Authorization: `Bearer ${process.env.TEST_API_KEY_PLAINTEXT}` } });
+  expect(response.status).toBe(200);
+  expect(await response.text()).not.toContain('order-link-fixture');
+});

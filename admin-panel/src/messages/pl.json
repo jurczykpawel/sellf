@@ -5961,6 +5961,7 @@
       "saved": "Zapisano",
       "error": "Nie udało się zapisać ustawień",
       "invalid": "Sprawdź IBAN, odbiorcę, szablon i limity (termin 1–60 dni; przypomnienie musi być przed zwolnieniem).",
+      "chooseMethod": "Wybierz metodę płatności, aby kontynuować.",
       "method": "Metoda płatności",
       "online": "Zapłać online",
       "transfer": "Przelew tradycyjny (faktura, termin {days} dni)",

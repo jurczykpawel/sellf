@@ -117,3 +117,8 @@ it('a transfer order paid online reports its payment intent and buyer name (W147
     expect(mocks.licenses.mock.calls[0][1].orderId).toBe('tx-order');
   } finally { Object.keys(tx).forEach(k => delete (tx as Record<string, unknown>)[k]); Object.assign(tx, saved); }
 });
+
+it.each(['pl', 'en'])('carries incoming checkout language %s before metadata persistence', async locale => {
+  await fulfillPaidOrder({ ...common(), stripe: {} as Stripe, sessionId: tx.session_id, metadata: { locale } });
+  expect(mocks.trigger.mock.calls[0][1].customer).toMatchObject({ locale });
+});

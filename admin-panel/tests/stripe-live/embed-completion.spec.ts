@@ -5,7 +5,7 @@ test.beforeEach(({ page }) => { assertStripeTransport(page); });
 /** Real embedded Stripe completion with email collected by Stripe. @see README.md */
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 import Stripe from 'stripe';
 import type { AddressInfo } from 'node:net';
@@ -26,7 +26,7 @@ for (const scenario of ['coupon-stripe-email', 'plain-stripe-email', 'plain-stri
     const polish = scenario.endsWith('-pl');
     const coupon = scenario.startsWith('coupon');
     const knownEmail = scenario.includes('known-email');
-    let productId = '', couponId = '', licenseKid = '';
+    let productId = '', couponId = '', licenseKid = '', endpointId = '';
     const sessions: string[] = [];
     let html = '';
     const server = createServer((_req, res) => res.writeHead(200, { 'content-type': 'text/html' }).end(html));
@@ -41,6 +41,9 @@ for (const scenario of ['coupon-stripe-email', 'plain-stripe-email', 'plain-stri
       const product = await db.from('products').insert({ slug, name: 'Embedded payment', price: 20, currency: 'USD', vat_exempt: true,
         is_active: true, embed_enabled: true, seller_id: seller.userId, ...(polish ? { issue_license_on_purchase: true, license_tier: 'pro', license_duration_days: 30 } : {}) }).select('id').single();
       expect(product.error).toBeNull(); productId = product.data!.id;
+      const endpoint = await db.from('webhook_endpoints').insert({ url: `${process.env.STRIPE_LIVE_RECEIVER_URL}/${slug}`, secret: randomUUID(), events: ['purchase.completed'], product_filter_mode: 'selected', is_active: true }).select('id').single();
+      expect(endpoint.error).toBeNull(); endpointId = endpoint.data!.id;
+      expect((await db.from('webhook_endpoint_products').insert({ webhook_endpoint_id: endpointId, product_id: productId })).error).toBeNull();
       const code = `EMBED-${randomUUID()}`.toUpperCase();
       if (coupon) {
         const result = await db.from('coupons').insert({ code, discount_type: 'percentage', discount_value: 10,
@@ -83,6 +86,9 @@ for (const scenario of ['coupon-stripe-email', 'plain-stripe-email', 'plain-stri
         const result = await db.from('payment_transactions').select('status').eq('session_id', sessionId);
         expect(result.error).toBeNull(); return result.data?.map(row => row.status);
       }, { timeout: 90000 }).toEqual(['completed']);
+      const deliveries = () => readFileSync(`${process.env.STRIPE_LIVE_ARTIFACTS}/deliveries.jsonl`, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)).filter(row => row.path === `/${slug}`);
+      await expect.poll(() => deliveries().length, { timeout: 90000 }).toBe(1);
+      expect(deliveries()[0].body.data.customer.locale).toBe(polish ? 'pl' : 'en');
       const tx = await db.from('payment_transactions').select('*').eq('session_id', sessionId).single();
       expect(tx.data).toMatchObject({ status: 'completed', customer_email: email, amount: coupon ? 1800 : 2000, currency: 'USD' });
       await expect.poll(async () => (await db.from('guest_purchases').select('customer_email').eq('session_id', sessionId)).data).toEqual([{ customer_email: email }]);
@@ -105,6 +111,7 @@ for (const scenario of ['coupon-stripe-email', 'plain-stripe-email', 'plain-stri
         expect(second.data).toMatchObject({ valid: false });
       }
     } finally {
+      if (endpointId) await db.from('webhook_endpoints').delete().eq('id', endpointId);
       const transactions = await db.from('payment_transactions').select('*').eq('product_id', productId);
       writeFileSync(`${process.env.STRIPE_LIVE_ARTIFACTS}/${slug}.json`, JSON.stringify({ scenario, sessions, transactions: transactions.data }, null, 2));
       for (const id of sessions) if ((await stripe.checkout.sessions.retrieve(id)).status === 'open') await stripe.checkout.sessions.expire(id);

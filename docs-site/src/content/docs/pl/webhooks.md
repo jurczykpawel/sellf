@@ -432,3 +432,7 @@ Zobacz [Maile do kupujących](/pl/buyer-emails/). Kwoty są w najmniejszych jedn
 | `license.issued` | `licenseKey`, kupujący, produkt, wariant, ważność i zamówienie. Dotychczasowa bramka Pro pozostaje. |
 
 Link uczestników i klucz licencji przekazuj wyłącznie właściwemu kupującemu. Sprawdzaj podpis webhooka i nie zapisuj tych danych w logach aplikacji. Kolejka szyfruje treść wydania licencji i powiadomienia o uczestnikach kluczem APP_ENCRYPTION_KEY instancji; widok logów pokazuje zaszyfrowany zapis.
+
+### Język kupującego i potwierdzone leady
+
+`purchase.completed` i `lead.captured` zawierają `customer.locale` (`pl` lub `en`) zgodny z językiem kasy. Starsze zakupy bez zapisanego języka używają angielskiego. Potwierdzenie leada produktu emituje jedno `lead.captured`: identyfikator leada, źródło, zgoda i daty potwierdzenia trafiają do tego samego zdarzenia co szczegóły produktu, daty dostępu, własne pola oraz wydana licencja. Ponowne potwierdzenie tego samego leada zachowuje klucz dostawy. Zapis na samą listę zachowuje pola leada i zgody bez dostępu do produktu.

@@ -405,12 +405,13 @@ export async function POST(request: NextRequest) {
           automaticTax: checkoutConfig.automatic_tax,
           priceIncludesVat: subscriptionProduct.price_includes_vat,
         });
+        await stripe.subscriptions.update(subscriptionId, { metadata: { locale: checkoutLocale } });
         const stripeObjectId = extractStripeObjectId(clientSecret);
         await storeCheckoutAttribution(dataClient, [subscriptionId, stripeObjectId], attribution, attributionCtx);
         if (stripeObjectId?.startsWith('pi_')) {
           await stripe.paymentIntents.update(stripeObjectId, {
             metadata: {
-              product_id: subscriptionProduct.id, product_type: 'subscription',
+              locale: checkoutLocale, product_id: subscriptionProduct.id, product_type: 'subscription',
               subscription_id: subscriptionId, ...(user?.id ? { user_id: user.id } : {}),
             },
           });
@@ -604,6 +605,7 @@ export async function POST(request: NextRequest) {
         product: { id: product.id, slug: product.slug },
         user: { id: user.id, email: user.email ?? '' },
         couponCode: appliedCoupon.code,
+        locale: checkoutLocale,
       });
 
       if (!grant.accessGranted) {
@@ -653,6 +655,7 @@ export async function POST(request: NextRequest) {
       return ids;
     })();
     const checkoutMetadata: Record<string, string> = {
+      locale: checkoutLocale,
       product_id: productId,
       product_name: product.name,
       user_id: user?.id || '',

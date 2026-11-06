@@ -141,6 +141,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
       const session = await stripe.checkout.sessions.retrieve(sessionId);
       if (session.customer) customerIds.add(typeof session.customer === 'string' ? session.customer : session.customer.id);
       expect(session.status).toBe('complete');
+      expect(session.metadata?.locale).toBe(locale);
       expect(session.amount_total).toBe(kind === 'trial' ? 0 : 1700);
       expect(session.payment_status).toBe('paid');
       if (kind === 'trial') {
@@ -170,7 +171,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
     expect(await searchMessages(email), 'Exactly the first delivered message').toHaveLength(1);
     if (kind !== 'coupon') {
       expect(mail.HTML).toContain(`First mail ${kind}`);
-      expect(mail.HTML).toContain(kind === 'trial' ? locale === 'pl' ? '0,00\u00a0zł' : 'PLN\u00a00.00' : 'PLN\u00a017.00');
+      expect(mail.HTML).toContain(kind === 'trial' ? locale === 'pl' ? '0,00\u00a0zł' : 'PLN\u00a00.00' : locale === 'pl' ? '17,00\u00a0zł' : 'PLN\u00a017.00');
     } else {
       // No purchase exists until the coupon is redeemed after confirmation.
       expect(await rows('payment_transactions', 'product_id', product.id)).toHaveLength(0);
@@ -239,6 +240,7 @@ test('signed-in subscription first requested mail retains receipt @J141', async 
 test('trial subscription first mail confirms trial access @J142', async ({ page }) => run(page, 'trial'));
 test('full coupon first invitation redeems access @J143', async ({ page }) => run(page, 'coupon'));
 test('variant first mail identifies only selected plan @J144', async ({ page }) => run(page, 'variant'));
+test('Polish variant first mail identifies only selected plan @J144', async ({ page }) => run(page, 'variant', 'pl'));
 test('bundle first mail opens included course @J145', async ({ page }) => run(page, 'bundle'));
 test('event first mail includes session and opens access @J146', async ({ page }) => run(page, 'event'));
 test('transfer first mail includes due amount and opens early access @J147', async ({ page }) => run(page, 'transfer'));

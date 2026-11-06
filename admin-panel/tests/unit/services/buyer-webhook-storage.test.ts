@@ -31,6 +31,16 @@ it.each([
   expect(await readBuyerPayload(stored)).toEqual(payload);
  } finally {vi.unstubAllEnvs();}
 });
+it('round trips order payment links through delivery storage', async () => {
+ vi.stubEnv('APP_ENCRYPTION_KEY', Buffer.alloc(32, 7).toString('base64'));
+ const {storeBuyerPayload,readBuyerPayload}=await import('@/lib/webhooks/buyer-payload-storage');
+ const payload={id:'d',event:'order.placed',data:{order:{payUrl:'https://shop.example/order/1/transfer?token=signed.value'}}};
+ try {
+  const stored=await storeBuyerPayload('order.placed',payload);
+  expect(JSON.stringify(stored)).not.toContain('signed.value');
+  expect(await readBuyerPayload(stored)).toEqual(payload);
+ } finally {vi.unstubAllEnvs();}
+});
 it('continues a due batch after an unreadable delivery and records its attempt', async () => {
  vi.stubEnv('APP_ENCRYPTION_KEY', Buffer.alloc(32, 7).toString('base64'));
  const {storeBuyerPayload}=await import('@/lib/webhooks/buyer-payload-storage');

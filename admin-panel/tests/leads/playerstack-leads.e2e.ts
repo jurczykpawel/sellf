@@ -40,27 +40,29 @@ async function challenge(request: APIRequestContext, p?: string) {
   const solved = await solveChallenge(c.altcha.challenge, c.altcha.salt, c.altcha.algorithm, c.altcha.maxnumber).promise;
   return { nonce: c.nonce, altcha: { ...c.altcha, number: solved!.number } };
 }
-for (const required of [false, true]) {
-  test(`adapter 8baee66 confirms ${required ? 'required' : 'optional'} consent and free access`, async ({ page, request }) => {
+for (const { required, locale } of [{ required: false, locale: 'en' }, { required: true, locale: 'en' }, { required: false, locale: 'pl' }, { required: true, locale: 'pl' }]) {
+  test(`adapter 8baee66 confirms ${required ? 'required' : 'optional'} consent and free access in ${locale} @J13`, async ({ page, request }) => {
     const p = await product(required); const email = `lead-${randomUUID()}@example.com`; testEmails.push(email);
-    await page.goto(`${origin}/?product=${p.slug}`);
+    await page.goto(`${origin}/?product=${p.slug}&locale=${locale}`);
     await page.getByRole('textbox', { name: /email/i }).fill(email);
     const adapter = await page.evaluate(() => ({ config: (globalThis as unknown as {adapterConfig: {emailGate: unknown}}).adapterConfig, commit: (globalThis as unknown as {adapterCommit: string}).adapterCommit }));
     expect(adapter.commit).toBe('8baee66c50a95e21aee91fca66a2edc53bc08538');
-    expect(adapter.config.emailGate).toMatchObject({ at: 'after', product: p.slug, altchaFormat: 'base64', marketingConsent: { required, version: '1:en' } });
+    expect(adapter.config.emailGate).toMatchObject({ at: 'after', product: p.slug, altchaFormat: 'base64', marketingConsent: { required, version: `1:${locale}` } });
     const checkbox = page.getByRole('checkbox'); expect(await checkbox.isChecked()).toBe(false);
     if (required) {
-      await page.getByRole('button', { name: /submit|send|continue/i }).click();
+      await page.getByRole('button', { name: /submit|send|continue|wyślij/i }).click();
       await expect(checkbox).toHaveAttribute('aria-invalid', 'true');
       await checkbox.check();
     }
     const post = page.waitForResponse(r => r.url().includes('/api/leads/submit') && r.request().method() === 'POST');
-    await page.getByRole('button', { name: /submit|send|continue/i }).click();
-    expect((await post).status()).toBe(200);
-    await expect(page.getByRole('status')).toContainText('Check your email');
+    await page.getByRole('button', { name: /submit|send|continue|wyślij/i }).click();
+    const submission = await post; expect(submission.status()).toBe(200);
+    if (!required) expect(submission.request().postDataJSON()).not.toHaveProperty('consentVersion');
+    await expect(page.getByRole('status')).toContainText(locale === 'pl' ? 'Sprawdź pocztę' : 'Check your email');
     const pending = await db.from('lead_submissions').select('*').eq('email', email).single();
     expect(pending.error).toBeNull(); expect(pending.data!.confirmed_at).toBeNull();
     expect(pending.data!.marketing_consent).toBe(required);
+    expect(pending.data!.locale).toBe(locale);
     const beforeAccess = await db.from('user_product_access').select('id').eq('product_id', p.id);
     expect(beforeAccess.data).toEqual([]);
     const before = await db.from('webhook_logs').select('id').eq('endpoint_id', endpointId).contains('payload', { data: { leadId: pending.data!.id } });
@@ -79,7 +81,7 @@ for (const required of [false, true]) {
     }).toBe(1);
     const hooks = await (await request.get(`${origin}/hooks`)).json();
     const hook = hooks.find((h: { body: string }) => JSON.parse(h.body).data.leadId === pending.data!.id);
-    const data = JSON.parse(hook.body).data; expect(data.marketingConsent).toBe(required);
+    const data = JSON.parse(hook.body).data; expect(data.marketingConsent).toBe(required); expect(data.customer.locale).toBe(locale);
     expect(data.consentConfirmedAt).toBe(required ? confirmed.data!.confirmed_at : null);
     const signature = hook.headers['x-sellf-signature']; const timestamp = signature.match(/t=(\d+)/)[1];
     expect(signature).toContain(`v1=${createHmac('sha256', secret).update(`${timestamp}.${hook.body}`).digest('hex')}`);

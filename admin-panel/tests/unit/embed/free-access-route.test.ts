@@ -274,3 +274,9 @@ describe('embed error response origins', () => {
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://landing.example.com');
   });
 });
+
+it.each(['pl', 'en'])('passes free checkout language %s to its confirmation link', async locale => {
+  const response = await POST(makeRequest({ productSlug: 'free-guide', email: 'lead@example.com', locale }, 'https://landing.example.com'));
+  expect(response.status).toBe(200);
+  expect(mocks.requestMagicLink).toHaveBeenCalledWith(expect.objectContaining({ locale }));
+});
