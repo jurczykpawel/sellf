@@ -494,7 +494,7 @@ interface AccessMutationResult {
  * to that subscription:
  *   - relink to a sibling subscription on the same (user, product) that
  *     is still trialing/active (most-recently-paid first), or
- *   - delete the access row when no sibling is available.
+ *   - expire at the paid deadline, or delete when no paid deadline is available.
  * If the access row points at a different subscription, it is left
  * untouched.
  *
@@ -505,7 +505,8 @@ export async function revokeUserProductAccessForSubscription(
   supabase: AdminClient,
   userId: string,
   productId: string,
-  subscriptionRowId: string
+  subscriptionRowId: string,
+  paidExpiresAt?: string
 ): Promise<AccessMutationResult> {
   const { data: accessRow, error: accessErr } = await supabase
     .from('user_product_access')
@@ -540,13 +541,20 @@ export async function revokeUserProductAccessForSubscription(
   if (sibling) {
     const { error: relinkErr } = await supabase
       .from('user_product_access')
-      .update({ subscription_id: sibling.id })
+      .update({ subscription_id: sibling.id, access_expires_at: null, expiry_notified_at: null })
       .eq('id', accessRow.id);
     if (relinkErr) {
       console.error('[revokeUserProductAccess] relink error:', relinkErr);
       return { ok: false, reason: 'relink failed' };
     }
     return { ok: true };
+  }
+
+  if (paidExpiresAt) {
+    const { error } = await supabase.from('user_product_access').update({ access_expires_at: paidExpiresAt })
+      .eq('id', accessRow.id).eq('subscription_id', subscriptionRowId)
+      .or(`access_expires_at.is.null,access_expires_at.gt.${paidExpiresAt}`);
+    return error ? { ok: false, reason: 'access expiry failed' } : { ok: true };
   }
 
   const { error: deleteErr } = await supabase
@@ -593,6 +601,8 @@ export async function upsertUserProductAccess(
       .from('user_product_access')
       .update({
         subscription_id: subscriptionRowId,
+        access_expires_at: null,
+        expiry_notified_at: null,
         access_granted_at: new Date().toISOString(),
       })
       .eq('id', existingAccess.id);
@@ -731,7 +741,7 @@ export async function handleSubscriptionUpdated(
   // the only signal we get for that transition. incomplete_expired follows
   // the same rule. Escalate on failure so the Stripe retry actually
   // revokes access — there is no fall-back event to recover from.
-  if (subscriptionRowId && TERMINAL_STATUSES.has(current.status)) {
+  if (subscriptionRowId && TERMINAL_STATUSES.has(current.status) && current.status !== 'canceled') {
     const r = await revokeUserProductAccessForSubscription(
       supabase,
       ctx.userId,
@@ -743,16 +753,20 @@ export async function handleSubscriptionUpdated(
       return { processed: false, message: `Access revoke failed: ${r.reason}` };
     }
     // Ended unpaid: end of access is end of license, reported like access.revoked (`expired`).
-    if (current.status !== 'canceled' && !await revokeSubscriptionLicenses(supabase, subscriptionRowId, ctx.productId, 'expired')) {
+    if (!await revokeSubscriptionLicenses(supabase, subscriptionRowId, ctx.productId, 'expired')) {
       return { processed: false, message: 'Subscription license revocation failed' };
     }
   }
+
+  const canceled = current.status === 'canceled'
+    ? await applyCanceledSubscription(current, supabase, stripe, subscriptionRowId, ctx) : null;
+  if (canceled && !canceled.processed) return canceled;
 
   const payload = buildSubscriptionUpdatedPayload({
     customer: customerSummary(ctx.userId, ctx.email),
     product: ctx.product,
     subscription: current,
-    paidPeriodEnd: await resolvePaidSubscriptionEnd(current, stripe),
+    paidPeriodEnd: canceled ? canceled.paidPeriodEnd : await resolvePaidSubscriptionEnd(current, stripe),
     previousAttributes,
   });
   await WebhookService.trigger('subscription.updated', payload, supabase, payload.product.id);
@@ -763,6 +777,44 @@ export async function handleSubscriptionUpdated(
 // ---------------------------------------------------------------------------
 // customer.subscription.deleted (final cancel)
 // ---------------------------------------------------------------------------
+
+async function applyCanceledSubscription(
+  sub: Stripe.Subscription, supabase: AdminClient, stripe: Stripe,
+  subscriptionRowId: string | null, ctx: { userId: string; productId: string },
+): Promise<HandlerResult & { paidPeriodEnd?: number | null }> {
+  if (!subscriptionRowId) return { processed: false, message: 'Subscription row unavailable' };
+  const paidPeriod = await resolvePaidSubscriptionPeriod(sub, stripe);
+  let paidPeriodEnd = paidPeriod?.end ?? null;
+  const { data: payments, error } = await supabase.from('payment_transactions')
+    .select('stripe_invoice_id, refunded_amount, status').eq('subscription_id', subscriptionRowId);
+  if (error) return { processed: false, message: 'Subscription payments lookup failed' };
+  const currentPayment = payments?.find(payment => payment.stripe_invoice_id === paidPeriod?.invoiceId);
+  const refunded = (currentPayment?.refunded_amount ?? 0) > 0;
+  const reversed = refunded || currentPayment?.status === 'disputed';
+  if (reversed) paidPeriodEnd = null;
+  if (paidPeriodEnd && !reversed) {
+    // Only shorten existing grants: a refund or dispute may already have removed them.
+    const expiresAt = new Date(paidPeriodEnd * 1000).toISOString();
+    const access = await revokeUserProductAccessForSubscription(supabase, ctx.userId, ctx.productId, subscriptionRowId, expiresAt);
+    if (!access.ok) return { processed: false, message: 'Subscription access expiry failed' };
+    const orders = (payments ?? []).flatMap(payment => payment.stripe_invoice_id ? [payment.stripe_invoice_id] : []);
+    if (orders.length) {
+      // 'license.updated' is captured by the database when expiry changes.
+      const licenses = await supabase.from('issued_licenses').update({ expires_at: expiresAt })
+        .eq('product_id', ctx.productId).in('order_id', orders).is('revoked_at', null)
+        .or(`expires_at.is.null,expires_at.gt.${expiresAt}`);
+      if (licenses.error) return { processed: false, message: 'Subscription license expiry failed' };
+    }
+  } else {
+    const result = await revokeUserProductAccessForSubscription(supabase, ctx.userId, ctx.productId, subscriptionRowId);
+    if (!result.ok) return { processed: false, message: `Access revoke failed: ${result.reason}` };
+    if (!await revokeSubscriptionLicenses(supabase, subscriptionRowId, ctx.productId, refunded ? 'refund' : 'subscription_cancelled')) {
+      return { processed: false, message: 'Subscription license revocation failed' };
+    }
+  }
+
+  return { processed: true, message: 'Cancellation applied', paidPeriodEnd };
+}
 
 export async function handleSubscriptionDeleted(
   sub: Stripe.Subscription,
@@ -786,32 +838,15 @@ export async function handleSubscriptionDeleted(
 
   const subscriptionRowId = await upsertSubscriptionRow(supabase, ctx, sub);
 
-  if (subscriptionRowId) {
-    const r = await revokeUserProductAccessForSubscription(
-      supabase,
-      ctx.userId,
-      ctx.productId,
-      subscriptionRowId,
-    );
-    // customer.subscription.deleted is in RETRIABLE_EVENTS; surface the
-    // failure so Stripe redelivers and the revocation eventually lands.
-    if (!r.ok) {
-      console.error('[handleSubscriptionDeleted] access revoke failed:', r.reason);
-      return { processed: false, message: `Access revoke failed: ${r.reason}` };
-    }
-  }
-
-  // The subscription has really ended (immediately, or at the end of a period the buyer
-  // cancelled): its offline licenses stop working now (W147-5, owner decision 2026-11-04).
-  if (subscriptionRowId && !await revokeSubscriptionLicenses(supabase, subscriptionRowId, ctx.productId, 'subscription_cancelled')) {
-    return { processed: false, message: 'Subscription license revocation failed' };
-  }
+  const applied = await applyCanceledSubscription(sub, supabase, stripe, subscriptionRowId, ctx);
+  if (!applied.processed) return applied;
+  const paidPeriodEnd = applied.paidPeriodEnd;
 
   const payload = buildSubscriptionCanceledPayload({
     customer: customerSummary(ctx.userId, ctx.email),
     product: ctx.product,
     subscription: sub,
-    paidPeriodEnd: await resolvePaidSubscriptionEnd(sub, stripe),
+    paidPeriodEnd,
   });
   await WebhookService.trigger('subscription.canceled', payload, supabase, payload.product.id);
 
@@ -1188,13 +1223,17 @@ export function extractSubscriptionId(invoice: Stripe.Invoice): string | null {
   return lineIds.size === 1 ? [...lineIds][0] : null;
 }
 
-/** Resolve a scheduled end only from an invoice whose payment is confirmed. */
+/** Resolve a cancellation deadline only from an invoice whose payment is confirmed. */
 export async function resolvePaidSubscriptionEnd(sub: Stripe.Subscription, stripe: Stripe): Promise<number | null> {
-  if (!sub.cancel_at_period_end || sub.ended_at != null || !sub.latest_invoice) return null;
+  return (await resolvePaidSubscriptionPeriod(sub, stripe))?.end ?? null;
+}
+
+async function resolvePaidSubscriptionPeriod(sub: Stripe.Subscription, stripe: Stripe): Promise<{ invoiceId: string; end: number } | null> {
+  if ((!sub.cancel_at_period_end && sub.status !== 'canceled') || !sub.latest_invoice) return null;
   const invoices = await stripe.invoices.list({ subscription: sub.id, status: 'paid', limit: 10 });
   for (const invoice of invoices.data) {
     const period = getPaidInvoicePeriod(invoice, sub.id);
-    if (period) return period.end;
+    if (period && invoice.id) return { invoiceId: invoice.id, end: period.end };
   }
   return null;
 }

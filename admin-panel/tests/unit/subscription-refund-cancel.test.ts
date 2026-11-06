@@ -55,6 +55,17 @@ describe('scheduleSubscriptionCancelAfterFullRefund', () => {
     });
   });
 
+  it.each(['canceled', 'unpaid', 'incomplete_expired'])('does not schedule cancellation again after %s', async status => {
+    const stripe = mockStripe();
+    const result = await scheduleSubscriptionCancelAfterFullRefund({
+      supabase: mockSupabase({ stripe_subscription_id: 'sub_123', cancel_at_period_end: false, status }) as never,
+      stripe: stripe as never,
+      transaction: { id: 'tx_1', subscription_id: 'sub_row_1' },
+    });
+    expect(result).toEqual({ ok: true, canceled: false, reason: 'already_ended' });
+    expect(stripe.subscriptions.update).not.toHaveBeenCalled();
+  });
+
   it('does not call Stripe when cancellation is already scheduled', async () => {
     const supabase = mockSupabase({
       stripe_subscription_id: 'sub_123',

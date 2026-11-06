@@ -1,4 +1,4 @@
-/** Every license lifecycle event is a Pro event, subscribable, and license.updated stays reserved. */
+/** Every license lifecycle event is a Pro event, subscribable, including expiry deadline changes. */
 import { expect, it } from 'vitest';
 import { EVENT_FEATURE_REQUIREMENTS } from '@/lib/license/features';
 import { WEBHOOK_EVENT_TYPES } from '@/lib/validations/webhook';
@@ -12,5 +12,5 @@ it('accepts subscriptions to all license events and lists the emitted ones in th
   for (const event of lifecycle) expect(WEBHOOK_EVENT_TYPES).toContain(event);
   const listed = WEBHOOK_EVENTS.map(e => e.value);
   for (const event of ['license.issued', 'license.expired']) expect(listed).toContain(event);
-  expect(listed).not.toContain('license.updated');
+  expect(listed).toContain('license.updated');
 });

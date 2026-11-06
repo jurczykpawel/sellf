@@ -315,6 +315,17 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     product: { id: 'prod_12345678', name: 'Premium Plugin', slug: 'premium-plugin' },
     crlUrl: 'https://example.com/api/licenses/revoked?seller=seller-id',
   },
+  'license.updated': {
+    license: {
+      id: 'lic_12345678', order: 'cs_test_a1b2c3d4e5f6g7h8i9j0', email: 'customer@example.com',
+      tier: 'pro', domain: 'customer.example.com', issuanceSource: 'purchase',
+      issuedAt: '2026-01-01T00:00:00.000Z', expiresAt: '2027-01-01T00:00:00.000Z', revokedAt: null,
+      orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001, revocationReason: null,
+    },
+    revocationReason: null,
+    product: { id: 'prod_12345678', name: 'Premium Plugin', slug: 'premium-plugin' },
+    crlUrl: 'https://example.com/api/licenses/revoked?seller=seller-id',
+  },
   'license.expired': {
     license: {
       id: 'lic_12345678', order: 'cs_test_a1b2c3d4e5f6g7h8i9j0', email: 'customer@example.com',
