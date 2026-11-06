@@ -20,6 +20,8 @@ export interface FreeProductInput {
   couponCode?: string;
   customFieldValues?: Record<string, string>;
   grantRequestId?: string;
+  locale?: 'pl' | 'en';
+  deferLeadEvent?: boolean;
 }
 
 export interface FreeProductAccessResult {
@@ -48,7 +50,7 @@ export interface FreeProductAccessResult {
 export async function grantFreeProductAccess(
   userClient: SupabaseClient<any, any>,
   adminClient: SupabaseClient<any, any>,
-  { product, user, couponCode, customFieldValues, grantRequestId }: FreeProductInput,
+  { product, user, couponCode, customFieldValues, grantRequestId, locale, deferLeadEvent }: FreeProductInput,
 ): Promise<FreeProductAccessResult> {
   // 1. Pre-check for existing active access so callers can distinguish a fresh
   //    grant from a repeat click. The RPC would also short-circuit, but it
@@ -109,7 +111,7 @@ export async function grantFreeProductAccess(
     }
   }
 
-  if (!alreadyHadAccess) await emitFreeAccessLead(adminClient, { product, user, customFieldValues });
+  if (!alreadyHadAccess && !deferLeadEvent) await emitFreeAccessLead(adminClient, { product, user, customFieldValues, locale });
 
   // 3. Generate OTO coupon — runs for both new grants AND already-had-access cases.
   //    Idempotent: the partial unique index (oto_offer_id + allowed_emails WHERE transaction_id IS NULL)

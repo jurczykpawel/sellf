@@ -11,6 +11,7 @@ import { validateEmailAction } from '@/lib/actions/validate-email';
 import { buildEmbedCorsHeaders, getSellfBaseUrl, loadAllowedOriginsForProduct } from '@/lib/embed/checkout-embed';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { emitFreeAccessLead } from '@/lib/services/free-access-events';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { LEAD_FORM_MESSAGES, consentForLocale, leadBodySchema, leadTokenSchema, productIdentifierSchema } from '@/lib/leads/config';
@@ -106,6 +107,7 @@ export async function leadSubmit(request: Request): Promise<NextResponse> {
       product_slug: ctx.product?.slug ?? null, source: body.src, marketing_consent: body.marketingConsent === true,
       consent_version: body.marketingConsent ? consent.version : null, consent_text: body.marketingConsent ? consent.text : null,
       client_consent_text: body.consentText ?? null,
+      locale: consent.version.endsWith(':pl') ? 'pl' : 'en',
     });
     if (error) return reply(request, origins, 503, { error: 'Unavailable' });
     const redirectTo = `${getSellfBaseUrl()}/auth/callback?redirect_to=${encodeURIComponent(`/auth/lead?token=${confirmation}`)}`;
@@ -149,20 +151,26 @@ export async function confirmLead(token: string, user: { id: string; email?: str
     const { data: lead, error } = await client.from('lead_submissions').select('*, product:products(id,slug,name)').eq('token_hash', hash(token)).eq('email', user.email.toLowerCase()).maybeSingle();
     if (error || !lead || Date.parse(lead.expires_at) <= Date.now()) return { ok: false };
     const product = lead.product;
+    let sendMail = false;
     if (lead.product_slug) {
       if (!product) return { ok: false };
-      const grant = await grantFreeProductAccess(userClient, client, { product, user: { id: user.id, email: user.email } });
+      const grant = await grantFreeProductAccess(userClient, client, { product, user: { id: user.id, email: user.email }, deferLeadEvent: true });
       if (!grant.accessGranted) return { ok: false };
+      sendMail = !grant.alreadyHadAccess && !lead.confirmed_at;
     }
     const result = await client.rpc('confirm_lead_submission', { p_token_hash: hash(token), p_email: user.email.toLowerCase() });
     const confirmed = result.data?.[0];
     if (result.error || !confirmed) return { ok: false };
-    await WebhookService.trigger('lead.captured', {
-      leadId: confirmed.id, customer: { email: confirmed.email, userId: user.id }, product,
+    const locale = confirmed.locale === 'pl' ? 'pl' : 'en';
+    const payload = {
+      leadId: confirmed.id, customer: { email: confirmed.email, userId: user.id, locale }, product,
       source: confirmed.source, marketingConsent: confirmed.marketing_consent,
       consentVersion: confirmed.consent_version, consentConfirmedAt: confirmed.marketing_consent ? confirmed.confirmed_at : null,
       capturedAt: confirmed.created_at, confirmedAt: confirmed.confirmed_at,
-    }, client, product?.id, `lead:${confirmed.id}`);
+    };
+    if (product) {
+      if (!await emitFreeAccessLead(client, { product, user: { id: user.id, email: user.email }, locale }, { data: payload, sendMail })) return { ok: false };
+    } else await WebhookService.trigger('lead.captured', payload, client, undefined, `lead:${confirmed.id}`);
     return { ok: true, productSlug: product?.slug };
   } catch { return { ok: false }; }
 }

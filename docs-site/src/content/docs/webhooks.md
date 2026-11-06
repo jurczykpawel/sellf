@@ -678,3 +678,7 @@ See [Buyer emails](/buyer-emails/). All amounts below use minor currency units.
 | `license.issued` | `licenseKey` plus customer, product, tier, expiry and order identity. Pro-gated as before. |
 
 The participant link and license key are delivery credentials. Send them only to the intended buyer, validate the webhook signature, and exclude them from application logs. The persistent queue encrypts license-issuance and participant-notice bodies for retries with the instance APP_ENCRYPTION_KEY; webhook log views contain the encrypted representation.
+
+### Buyer language and confirmed leads
+
+`purchase.completed` and `lead.captured` include `customer.locale` (`pl` or `en`), matching the checkout language. Older purchases without a saved language use English. A confirmed product lead emits one `lead.captured` containing the lead ID, source, consent snapshot and confirmation dates together with the product details, access dates, custom answers and license when issued. Confirming the same lead again retains its delivery key. List-only signups retain the lead and consent fields without product access.

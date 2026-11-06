@@ -1899,6 +1899,7 @@ export type Database = {
           email: string
           expires_at: string
           id: string
+          locale: string
           marketing_consent: boolean
           product_id: string | null
           product_slug: string | null
@@ -1914,6 +1915,7 @@ export type Database = {
           email: string
           expires_at?: string
           id?: string
+          locale?: string
           marketing_consent?: boolean
           product_id?: string | null
           product_slug?: string | null
@@ -1929,6 +1931,7 @@ export type Database = {
           email?: string
           expires_at?: string
           id?: string
+          locale?: string
           marketing_consent?: boolean
           product_id?: string | null
           product_slug?: string | null
@@ -5571,6 +5574,7 @@ export type Database = {
           email: string
           expires_at: string
           id: string
+          locale: string
           marketing_consent: boolean
           product_id: string | null
           product_slug: string | null
@@ -6596,6 +6600,7 @@ export type Database = {
           email: string
           expires_at: string
           id: string
+          locale: string
           marketing_consent: boolean
           product_id: string | null
           product_slug: string | null

@@ -1580,3 +1580,7 @@ END $seed$;
 INSERT INTO public.tutorial_progress (user_id, tutorial_id)
 SELECT id, 'storefront-templates' FROM auth.users WHERE email = 'demo@sellf.app'
 ON CONFLICT DO NOTHING;
+
+INSERT INTO public.lead_submissions (token_hash, email, source, locale, marketing_consent)
+VALUES (repeat('c',64), 'lead-pl@example.com', 'https://example.com/material', 'pl', false),
+       (repeat('d',64), 'lead-en@example.com', 'https://example.com/material', 'en', false);
