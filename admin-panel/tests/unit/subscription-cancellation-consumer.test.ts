@@ -66,3 +66,9 @@ it('reports a proven paid end separately from the termination timestamp', () => 
   expect(payload.subscription.endsAt).toBe(new Date(end * 1000).toISOString());
   expect(payload.subscription.endedAt).toBe(actualEnd);
 });
+
+it.each([buildSubscriptionCanceledPayload, buildSubscriptionUpdatedPayload])('does not report an expired paid period before actual termination', builder => {
+  const end = paidInvoice.lines.data[0].period.end;
+  expect(end).toBeLessThan(canceled.ended_at);
+  expect(builder({ ...input(canceled), paidPeriodEnd: end }).subscription.endsAt).toBe(actualEnd);
+});

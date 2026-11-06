@@ -122,3 +122,25 @@ it.each(['pl', 'en'])('carries incoming checkout language %s before metadata per
   await fulfillPaidOrder({ ...common(), stripe: {} as Stripe, sessionId: tx.session_id, metadata: { locale } });
   expect(mocks.trigger.mock.calls[0][1].customer).toMatchObject({ locale });
 });
+
+it('persists the embedded checkout language before buyer events are enriched', async () => {
+  const db = client();
+  const originalFrom = db.from;
+  let metadata = {};
+  db.from = (table: string) => {
+    const q = originalFrom(table);
+    if (table === 'payment_transactions') {
+      q.update.mockImplementation((values: { metadata?: object }) => {
+        if (values.metadata) metadata = values.metadata;
+        return q;
+      });
+      q.maybeSingle = async () => ({ data: { metadata } as never, error: null });
+    }
+    return q;
+  };
+  const { withCustomerLocale } = await import('@/lib/webhooks/customer-locale');
+  mocks.trigger.mockImplementationOnce(async (event, payload) => {
+    expect(await withCustomerLocale(event, payload, db as never)).toMatchObject({ customer: { locale: 'pl' } });
+  });
+  await fulfillPaidOrder({ ...common(), supabase: db as never, stripe: {} as Stripe, sessionId: tx.session_id, metadata: { locale: 'pl' } });
+});
