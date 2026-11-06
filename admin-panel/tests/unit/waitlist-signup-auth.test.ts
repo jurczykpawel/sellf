@@ -25,6 +25,7 @@ vi.mock('@/lib/captcha/config', () => ({
   getCaptchaProvider: vi.fn().mockReturnValue('none'),
 }));
 
+import { WebhookService } from '@/lib/services/webhook-service';
 import { POST } from '@/app/api/waitlist/signup/route';
 import { createClient } from '@/lib/supabase/server';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
@@ -259,4 +260,10 @@ describe('POST /api/waitlist/signup — anonymous user', () => {
     );
     expect(res.status).toBe(400);
   });
+});
+
+it.each(['pl', 'en'])('passes the waitlist page language %s to delivery', async locale => {
+  vi.mocked(createClient).mockResolvedValue(buildSupabase({ userEmail: 'authed@example.com', product: { enable_waitlist: true } }) as never);
+  expect((await POST(buildRequest({ productId: VALID_PRODUCT_ID, locale }))).status).toBe(200);
+  expect(WebhookService.trigger).toHaveBeenCalledWith('waitlist.signup', expect.objectContaining({ customer: { email: 'authed@example.com', locale } }), undefined, VALID_PRODUCT_ID);
 });

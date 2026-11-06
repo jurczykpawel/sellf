@@ -4961,6 +4961,24 @@
         "seller": "Email channel setting saved",
         "integrator": "Receives purchase with order details and buyer language"
       }
+    },
+    {
+      "id": "J500",
+      "title": "Every buyer event retains the order language or shop default",
+      "values": {
+        "persona": "integrator",
+        "entry": "webhook",
+        "product": "event",
+        "payment": "bank_transfer",
+        "moment": "after_payment",
+        "operation": "deliver"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Receives notification language from the saved checkout or legacy shop default",
+        "seller": "Shop default applies to old records without locale",
+        "integrator": "All eight signed envelopes carry pl/en; retries retain stored language"
+      }
     }
   ],
   "escapes": [

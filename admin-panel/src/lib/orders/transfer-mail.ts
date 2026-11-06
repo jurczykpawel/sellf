@@ -1,4 +1,5 @@
 /** Buyer mails for a transfer order over the Auth mail channel. @see auth/magic-link/request.ts, supabase/templates/magic-link.html */
+import { resolveCustomerLocale } from '@/lib/webhooks/customer-locale';
 import { sendTrustedMagicLink } from '@/lib/auth/magic-link/request';
 import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
 import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
@@ -27,7 +28,7 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
     const meta = tx.metadata as Record<string, unknown> | null;
     const { data: product } = await db.from('products').select('slug,name').eq('id', tx.product_id).single();
     if (!product) return;
-    const transfer = (tx.transfer_details ?? {}) as Record<string, string>, locale = meta?.locale === 'pl' ? 'pl' : 'en';
+    const transfer = (tx.transfer_details ?? {}) as Record<string, string>, locale = await resolveCustomerLocale(db, meta?.locale);
     const pl = locale === 'pl', base = getSellfBaseUrl();
     const amount = formatPrice(fromMinorUnits(tx.amount, tx.currency), tx.currency, locale);
     const due = formatTransferDeadline(transferDeadline(tx), locale);

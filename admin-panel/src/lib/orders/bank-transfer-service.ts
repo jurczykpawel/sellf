@@ -1,4 +1,5 @@
 /** Recoverable transfer events, reservation timer and fulfillment. @see app/api/cron/route.ts, migration 20261103150000_unpaid_order_reservations.sql */
+import { resolveCustomerLocale } from '@/lib/webhooks/customer-locale';
 import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
 import { transferDeadline } from '@/lib/orders/transfer-format';
 import { orderMoney, minorOrderLines } from '@/lib/orders/event-money';
@@ -32,15 +33,11 @@ function eventApplies(tx: Tx, event: TransferEvent): boolean {
   }
 }
 
-export function orderLocale(tx: Pick<Tx, 'metadata'>): 'pl' | 'en' {
-  return (tx.metadata as Record<string, unknown> | null)?.locale === 'pl' ? 'pl' : 'en';
-}
-
 /** Lifecycle block shared by every order.* event (additive to the original payload). */
-function lifecycle(tx: Tx) {
+function lifecycle(tx: Tx, locale: 'pl' | 'en') {
   let link: { url: string | null; expiresAt: string | null } = { url: null, expiresAt: null };
   // A missing signing secret must not block the event itself; the link is then simply absent.
-  try { link = buildOrderPayLink(tx.id, orderLocale(tx), getSellfBaseUrl()); } catch { console.error('[transfer-event] Pay link unavailable:', tx.id); }
+  try { link = buildOrderPayLink(tx.id, locale, getSellfBaseUrl()); } catch { console.error('[transfer-event] Pay link unavailable:', tx.id); }
   // A cancelled order has no live reservation: its reminder and release times are void (W147-11).
   const cancelled = tx.status === 'cancelled';
   return {
@@ -74,8 +71,9 @@ export async function dispatchTransferEvent(db: SupabaseClient<Database>, id: st
     return { productId, status: grant ? (grant.access_expires_at && Date.parse(grant.access_expires_at) <= Date.now() ? 'expired' : 'granted') : tx.status === 'cancelled' ? 'revoked' : onPlacement || tx.status === 'completed' ? 'pending_confirmation' : 'pending_payment',
       grantedAt: grant?.access_granted_at ?? null, expiresAt: grant?.access_expires_at ?? null };
   }) };
-  await WebhookService.trigger(event, { amountUnit: 'minor', customer: { email: tx.customer_email, userId: buyer.data, locale: orderLocale(tx) },
-    order: { orderId: tx.id, orderNumber: tx.order_number, ...orderMoney(tx), status: tx.status, dueAt: tx.payment_due_at, transfer: tx.transfer_details, ...lifecycle(tx) },
+  const locale = await resolveCustomerLocale(db, (tx.metadata as Record<string, unknown> | null)?.locale);
+  await WebhookService.trigger(event, { amountUnit: 'minor', customer: { email: tx.customer_email, userId: buyer.data, locale },
+    order: { orderId: tx.id, orderNumber: tx.order_number, ...orderMoney(tx), status: tx.status, dueAt: tx.payment_due_at, transfer: tx.transfer_details, ...lifecycle(tx, locale) },
     access, orderDetails: tx.order_details, lines: minorOrderLines(lines ?? []) }, db, productIds);
   const saved = await db.from('payment_transactions').update({ [eventColumn[event]]: new Date().toISOString() } as TxUpdate).eq('id', id);
   if (saved.error) throw new Error('Transfer event state unavailable');

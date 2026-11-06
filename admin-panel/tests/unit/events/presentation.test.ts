@@ -70,7 +70,7 @@ describe('event presentation', () => {
     expect(participantCsv([{ transaction_id: 'tx', status: 'confirmed', customer_email: 'buyer@example.com' }])).toContain('buyer@example.com');
   });
   it('adds event snapshots only to the matching purchased line', async () => {
-    const params = { supabaseClient: { from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ data: { id: 'p', name: 'Event', slug: 'event', price: 47, currency: 'PLN', icon: null } }) }) }) }) }, customerEmail: 'b@example.com', userId: null, productId: 'p', bumpProductIds: [], metadata: {}, amount: 4700, currency: 'PLN', paymentIntentId: null, couponId: null, isGuest: true,
+    const params = { supabaseClient: { from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ data: { id: 'p', name: 'Event', slug: 'event', price: 47, currency: 'PLN', icon: null } }) }) }) }) }, customerEmail: 'b@example.com', userId: null, productId: 'p', bumpProductIds: [], metadata: { locale: 'en' }, amount: 4700, currency: 'PLN', paymentIntentId: null, couponId: null, isGuest: true,
       eventLines: [{ product_id: 'p', session_id: 's', session_starts_at: event.starts_at, session_label: 'Autumn', tier_id: 't', tier_label: 'Early' }] } as unknown as BuildWebhookPayloadParams;
     const payload = await buildPurchaseWebhookPayload(params);
     expect(payload.product).toMatchObject({ sessionId: 's', sessionLabel: 'Autumn', sessionStartsAt: event.starts_at, tierId: 't', tierLabel: 'Early' });

@@ -1,3 +1,13 @@
+import type { BuyerWebhookCustomer } from '@/lib/webhooks/customer-locale';
+
+/** Standard signed buyer envelope, before endpoint field selection. */
+export interface BuyerWebhookDelivery {
+  id: string;
+  event: string;
+  timestamp: string;
+  data: { customer: BuyerWebhookCustomer; [key: string]: unknown };
+}
+
 export interface WebhookEndpoint {
   id: string;
   url: string;

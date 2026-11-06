@@ -1,4 +1,5 @@
 /** PlayerStack lead intake and email-confirmed delivery. @see config.ts */
+import { resolveCustomerLocale } from '@/lib/webhooks/customer-locale';
 import 'server-only';
 
 import { createHash, randomBytes } from 'node:crypto';
@@ -169,7 +170,7 @@ export async function confirmLead(token: string, user: { id: string; email?: str
     const result = await client.rpc('confirm_lead_submission', { p_token_hash: hash(token), p_email: user.email.toLowerCase() });
     const confirmed = result.data?.[0];
     if (result.error || !confirmed) return { ok: false };
-    const locale = confirmed.locale === 'pl' ? 'pl' : 'en';
+    const locale = await resolveCustomerLocale(client, confirmed.locale);
     const payload = {
       leadId: confirmed.id, customer: { email: confirmed.email, userId: user.id, locale }, product,
       source: confirmed.source, marketingConsent: confirmed.marketing_consent,

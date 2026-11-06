@@ -12,7 +12,7 @@ const user = { id: 'buyer', email: 'buyer@example.com' };
 const access = { access_granted_at: '2036-01-01T00:00:00Z', access_expires_at: '2036-01-04T00:00:00Z' };
 function client(details: typeof product | null = product): SupabaseClient {
   const chain = (data: unknown) => { const query = { select: () => query, eq: () => query, single: async () => ({ data, error: null }) }; return query; };
-  return { auth: { admin: { getUserById: async () => ({ data: { user: { user_metadata: {} } } }) } }, from: (table: string) => chain(table === 'products' ? details : access) } as unknown as SupabaseClient;
+  return { auth: { admin: { getUserById: async () => ({ data: { user: { user_metadata: {} } } }) } }, from: (table: string) => table === 'shop_config' ? { select: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) } : chain(table === 'products' ? details : access) } as unknown as SupabaseClient;
 }
 beforeEach(() => { vi.clearAllMocks(); mocks.issueLicense.mockResolvedValue(null); mocks.trigger.mockResolvedValue(undefined); });
 it('uses a stable free purchase key and includes the issued license and public verification URL', async () => {

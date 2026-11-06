@@ -15,7 +15,8 @@ const row = { id, product_id: 'product', customer_email: 'buyer@example.com', us
   currency: 'PLN', payment_due_at: '2000-01-01T00:00:00Z', transfer_details: { holder: 'Example' }, order_details: { buyer: { type: 'organization' } } };
 function client(results: Array<{ data?: unknown; error?: unknown }> = []) {
   const queries: Array<Record<string, ReturnType<typeof vi.fn>>> = [];
-  const from = vi.fn(() => {
+  const from = vi.fn((table: string) => {
+    if (table === 'shop_config') return { select: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) };
     const q = Promise.resolve({ data: null, error: null, ...results.shift() });
     const methods: Record<string, ReturnType<typeof vi.fn>> = {};
     for (const name of ['select', 'update', 'eq', 'single', 'is', 'lt', 'gte', 'limit', 'not', 'in', 'contains']) {

@@ -1,3 +1,4 @@
+import { orderCustomerLocale } from '@/lib/webhooks/customer-locale';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { WebhookService } from '@/lib/services/webhook-service';
 
@@ -13,6 +14,7 @@ export interface RefundProductSummary {
 }
 
 export interface RefundCustomerSummary {
+  locale: 'pl' | 'en';
   email: string;
   userId: string | null;
 }
@@ -202,6 +204,7 @@ export async function buildRefundIssuedPayloadFromTransaction(input: {
 
   return buildRefundIssuedPayload({
     customer: {
+      locale: await orderCustomerLocale(input.supabaseClient, input.transaction.id),
       email: input.transaction.customer_email || '',
       userId: input.transaction.user_id,
     },

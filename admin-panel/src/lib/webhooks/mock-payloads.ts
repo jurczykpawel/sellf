@@ -3,7 +3,7 @@
  * Used by both server-side WebhookService and client-side WebhookTestModal.
  */
 const ACCESS_SAMPLE = {
-  customer: { email: 'customer@example.com', userId: '00000000-0000-4000-8000-000000000002' }, product: { id: '00000000-0000-4000-8000-000000000003', name: 'Example course', slug: 'example-course' },
+  customer: { locale: 'en', email: 'customer@example.com', userId: '00000000-0000-4000-8000-000000000002' }, product: { id: '00000000-0000-4000-8000-000000000003', name: 'Example course', slug: 'example-course' },
   actor: { type: 'system', id: null }, reason: 'access_change', sourceOrder: null, sourceOrders: [],
   accessGrantedAt: '2099-01-01T00:00:00Z', accessExpiresAt: '2099-01-08T00:00:00Z',
 };
@@ -13,14 +13,14 @@ const SAMPLE_PRODUCT = ACCESS_SAMPLE.product;
 const SAMPLE_PARTNER = { memberId: '00000000-0000-4000-8000-000000000031', code: 'demo-partner', displayName: 'Demo Partner', status: 'approved', userId: '00000000-0000-4000-8000-000000000032' };
 export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
   ...Object.fromEntries(['order.placed', 'order.cancelled', 'order.overdue', 'order.payment_reminder', 'order.transfer_declared', 'order.invoice_issued', 'order.reopened'].map(event => [event, {
-    amountUnit: 'minor', access: { policy: 'after_payment', grants: [{ productId: '00000000-0000-4000-8000-000000000003', status: 'pending_payment', grantedAt: null, expiresAt: null }] },
+    customer: ACCESS_SAMPLE.customer, amountUnit: 'minor', access: { policy: 'after_payment', grants: [{ productId: '00000000-0000-4000-8000-000000000003', status: 'pending_payment', grantedAt: null, expiresAt: null }] },
     order: { orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001, amount: 9400, grossTotal: 9400, netTotal: null, taxTotal: null, taxSnapshotStatus: 'unavailable', currency: 'PLN', dueAt: '2099-06-15T12:00:00Z',
       transfer: { holder: 'Example Workshops', account: 'PL61109010140000071219812874', bank: 'Example Bank', title: 'Zamówienie 1001' },
       status: 'awaiting_payment', payUrl: 'https://shop.example/pl/order/00000000-0000-4000-8000-000000000001/transfer?token=4102444800.sample', payUrlExpiresAt: '2099-08-01T12:00:00.000Z',
       reservation: 'timed', reminderAt: '2099-06-14T12:00:00Z', releaseAt: '2099-06-15T12:00:00Z', invoiceHoldAt: null, transferDeclaredAt: null, transferDeclaredNote: null, cancelReason: null, cancelReasonText: null, reopenedAt: null },
     orderDetails: { buyer: { type: 'organization', company_name: 'Example' } }, lines: [],
   }])),
-  'order.participants_needed': { amountUnit: 'minor', customer: { email: 'buyer@example.com', locale: 'en' }, product: { id: 'prod_1', name: 'Workshop', slug: 'workshop' }, order: { orderId: 'order_1', orderNumber: 42, amount: 20000, currency: 'PLN', status: 'completed' }, orderDetails: { quantity: { value: 2 } }, reminder: { stage: 1, participantsUrl: 'https://shop.example/en/order/order_1/participants?token=example' } },
+  'order.participants_needed': { amountUnit: 'minor', customer: { locale: 'en', email: 'buyer@example.com' }, product: { id: 'prod_1', name: 'Workshop', slug: 'workshop' }, order: { orderId: 'order_1', orderNumber: 42, amount: 20000, currency: 'PLN', status: 'completed' }, orderDetails: { quantity: { value: 2 } }, reminder: { stage: 1, participantsUrl: 'https://shop.example/en/order/order_1/participants?token=example' } },
   'order.participants_updated': {
     customer: ACCESS_SAMPLE.customer, product: ACCESS_SAMPLE.product, actor: { type: 'customer', id: null },
     reason: 'participants_added_after_payment', occurredAt: '2099-01-01T00:30:00Z',
@@ -37,6 +37,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
   'purchase.completed': {
     amountUnit: 'minor',
     customer: {
+      locale: 'en',
       email: 'customer@example.com',
       firstName: 'Jan',
       lastName: 'Kowalski',
@@ -84,6 +85,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     consentVersion: '1:en',
     consentConfirmedAt: '2026-10-28T12:00:00.000Z',
     customer: {
+      locale: 'en',
       email: 'lead@example.com',
       userId: 'user_123abc'
     },
@@ -119,6 +121,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
   }])),
   'waitlist.signup': {
     customer: {
+      locale: 'en',
       email: 'interested@example.com'
     },
     product: {
@@ -131,7 +134,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     }
   },
   'subscription.created': {
-    customer: { email: 'subscriber@example.com', userId: null },
+    customer: { locale: 'en', email: 'subscriber@example.com', userId: null },
     product: { id: 'prod_sub_123', name: 'Monthly Plan', slug: 'monthly-plan', currency: 'PLN' },
     subscription: {
       stripeSubscriptionId: 'sub_test_123',
@@ -146,7 +149,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     },
   },
   'subscription.updated': {
-    customer: { email: 'subscriber@example.com', userId: 'user_123abc' },
+    customer: { locale: 'en', email: 'subscriber@example.com', userId: 'user_123abc' },
     product: { id: 'prod_sub_123', name: 'Monthly Plan', slug: 'monthly-plan', currency: 'PLN' },
     subscription: {
       stripeSubscriptionId: 'sub_test_123',
@@ -157,7 +160,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     },
   },
   'subscription.canceled': {
-    customer: { email: 'subscriber@example.com', userId: 'user_123abc' },
+    customer: { locale: 'en', email: 'subscriber@example.com', userId: 'user_123abc' },
     product: { id: 'prod_sub_123', name: 'Monthly Plan', slug: 'monthly-plan', currency: 'PLN' },
     subscription: {
       stripeSubscriptionId: 'sub_test_123',
@@ -168,7 +171,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     },
   },
   'subscription.trial_ending': {
-    customer: { email: 'subscriber@example.com', userId: 'user_123abc' },
+    customer: { locale: 'en', email: 'subscriber@example.com', userId: 'user_123abc' },
     product: { id: 'prod_sub_123', name: 'Monthly Plan', slug: 'monthly-plan', currency: 'PLN' },
     subscription: {
       stripeSubscriptionId: 'sub_test_123',
@@ -176,7 +179,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     },
   },
   'subscription.renewal_upcoming': {
-    customer: { email: 'subscriber@example.com', userId: 'user_123abc' },
+    customer: { locale: 'en', email: 'subscriber@example.com', userId: 'user_123abc' },
     product: { id: 'prod_sub_123', name: 'Monthly Plan', slug: 'monthly-plan', currency: 'PLN' },
     subscription: {
       stripeSubscriptionId: 'sub_test_123',
@@ -193,7 +196,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     },
   },
   'invoice.paid': {
-    customer: { email: 'subscriber@example.com', userId: 'user_123abc' },
+    customer: { locale: 'en', email: 'subscriber@example.com', userId: 'user_123abc' },
     product: { id: 'prod_sub_123', name: 'Monthly Plan', slug: 'monthly-plan', currency: 'PLN' },
     subscription: { stripeSubscriptionId: 'sub_test_123' },
     invoice: {
@@ -207,7 +210,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     },
   },
   'invoice.payment_failed': {
-    customer: { email: 'subscriber@example.com', userId: 'user_123abc' },
+    customer: { locale: 'en', email: 'subscriber@example.com', userId: 'user_123abc' },
     product: { id: 'prod_sub_123', name: 'Monthly Plan', slug: 'monthly-plan', currency: 'PLN' },
     subscription: { stripeSubscriptionId: 'sub_test_123', status: 'past_due' },
     invoice: {
@@ -220,7 +223,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     },
   },
   ...Object.fromEntries(['dispute.created', 'dispute.closed'].map(event => [event, {
-    customer: { email: 'customer@example.com', userId: null },
+    customer: { locale: 'en', email: 'customer@example.com', userId: null },
     product: { id: '00000000-0000-4000-8000-000000000001' },
     payment: { id: '00000000-0000-4000-8000-000000000002', amount: 1100, currency: 'PLN',
       sessionId: 'cs_example', paymentIntentId: 'pi_example', stripeInvoiceId: null, subscriptionId: null },
@@ -229,13 +232,13 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       amount: 1100, currency: 'PLN', createdAt: '2026-10-01T00:00:00Z', accessRevoked: true, accessRestored: false, licenseRestored: false, restoredLicenses: [], restoredAccess: [] },
   }])),
   'refund.updated': {
-    customer: { email: 'customer@example.com', userId: null }, product: { id: 'product_example' },
+    customer: { locale: 'en', email: 'customer@example.com', userId: null }, product: { id: 'product_example' },
     payment: { id: 'payment_example', statusAfter: 'refunded' },
     refund: { stripeRefundId: 're_example', previousStatus: 'pending', status: 'succeeded',
       statusVersion: 2, amount: 1100, totalRefunded: 1100, currency: 'PLN', isFullRefund: true },
   },
   'refund.issued': {
-    customer: { email: 'customer@example.com', userId: 'user_123abc' },
+    customer: { locale: 'en', email: 'customer@example.com', userId: 'user_123abc' },
     product: {
       id: 'prod_12345678',
       name: 'Premium Course',
@@ -304,7 +307,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
   },
   'license.issued': {
     licenseKey: 'example.signed-license',
-    customer: { email: 'customer@example.com', userId: null },
+    customer: { locale: 'en', email: 'customer@example.com', userId: null },
     license: {
       id: 'lic_12345678', order: 'cs_test_a1b2c3d4e5f6g7h8i9j0', email: 'customer@example.com',
       tier: 'pro', domain: 'customer.example.com', issuanceSource: 'purchase',
@@ -344,7 +347,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       statusBefore: status === 'corrected' ? 'issued' : 'issuing', statusAfter: status, attempt: 1,
       error: status === 'failed' ? 'Provider timeout' : null, willRetry: status === 'failed', paymentSynced: false },
     order: { orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001, amount: 12300, currency: 'PLN', paymentProvider: 'stripe', status: 'completed' },
-    customer: { userId: null, email: 'customer@example.com' }, product: SAMPLE_PRODUCT,
+    customer: { locale: 'en', userId: null, email: 'customer@example.com' }, product: SAMPLE_PRODUCT,
   }])),
   ...Object.fromEntries((['accrued', 'reversed'] as const).map(kind => [`commission.${kind}`, {
     amountUnit: 'minor', actor: SYSTEM_ACTOR, occurredAt: SAMPLE_TIME, partner: SAMPLE_PARTNER, product: SAMPLE_PRODUCT,
@@ -365,7 +368,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       requestedAmount: 4900, currency: 'PLN', reason: 'Not what I expected', adminResponse: event === 'rejected' ? 'Course already consumed' : null,
       createdAt: SAMPLE_TIME, processedAt: event === 'submitted' ? null : SAMPLE_TIME },
     order: { orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001, amount: 4900, currency: 'PLN', paymentProvider: 'stripe', status: 'completed' },
-    customer: { userId: '00000000-0000-4000-8000-000000000081', email: 'customer@example.com' },
+    customer: { locale: 'en', userId: '00000000-0000-4000-8000-000000000081', email: 'customer@example.com' },
   }])),
   ...Object.fromEntries((['published', 'unpublished'] as const).map(state => [`product.${state}`, {
     actor: SYSTEM_ACTOR, occurredAt: SAMPLE_TIME, deleted: false,

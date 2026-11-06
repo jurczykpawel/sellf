@@ -6,7 +6,7 @@ import type { BuildWebhookPayloadParams } from '@/lib/services/webhook-payload';
 import details from './fixtures/order-details.json';
 const product = { id: 'prod_1', name: 'Workshop', slug: 'workshop', price: 149, currency: 'PLN', icon: null };
 function setup(profile: boolean, stored: unknown = details, sessionId: string | undefined = 'cs_test') {
-  const from = vi.fn(() => ({ select: () => ({ eq: () => ({ single: async () => ({ data: { ...product, checkout_profile: profile ? { v: 1, modules: [] } : null } }) }) }) }));
+  const from = vi.fn((table: string) => table === 'shop_config' ? { select: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) } : ({ select: () => ({ eq: () => ({ single: async () => ({ data: { ...product, checkout_profile: profile ? { v: 1, modules: [] } : null } }) }) }) }));
   const params: BuildWebhookPayloadParams = {
     supabaseClient: { from } as unknown as BuildWebhookPayloadParams['supabaseClient'],
     customerEmail: 'office@example.com', userId: null, productId: product.id, bumpProductIds: [],
@@ -21,7 +21,7 @@ describe('purchase order details', () => {
     const { params, from } = setup(false);
     const recorded = JSON.parse(readFileSync('tests/unit/fixtures/purchase-legacy-body.json', 'utf8'));
     const payload = await buildPurchaseWebhookPayload(params);
-    expect(payload.customer).toEqual(recorded.customer); expect(payload.invoice).toEqual({ ...recorded.invoice, taxIdType: 'pl_nip', taxIdCountry: 'PL' });
+    expect(payload.customer).toEqual({ ...recorded.customer, locale: 'en' }); expect(payload.invoice).toEqual({ ...recorded.invoice, taxIdType: 'pl_nip', taxIdCountry: 'PL' });
     expect(payload.order).toMatchObject(recorded.order);
     expect(payload.product).toMatchObject({ ...recorded.product, price: 14900, net: null, tax: null });
     expect(payload.amountUnit).toBe('minor'); expect(payload.order.taxSnapshotStatus).toBe('unavailable');
