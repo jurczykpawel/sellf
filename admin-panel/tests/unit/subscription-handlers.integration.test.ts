@@ -671,7 +671,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     expect(row!.renewal_notice_payload).toMatchObject({ customer: { email }, product: { id: product.id }, invoice: { nextPaymentAttempt: new Date(trialEnd * 1000).toISOString() } });
   });
 
-  it.each(['expiry', 'refund-before', 'refund-after', 'dispute-before'] as const)('immediate cancellation applies paid-period policy: %s @J285', async scenario => {
+  it.each(['expiry', 'expired-period', 'refund-before', 'refund-after', 'dispute-before'] as const)('immediate cancellation applies paid-period policy: %s @J285', async scenario => {
     const email = `cancel-license-${crypto.randomUUID()}@sellf-test.local`;
     const product = await createSubscriptionProduct();
     const customer = await createConfirmedCustomer(email);
@@ -692,26 +692,27 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     const paid = structuredClone((await import('../fixtures/stripe/cancellation_paid_invoice.json')).default);
     paid.id = invoice.id!;
     paid.lines.data[0].parent!.subscription_item_details!.subscription = sub.id;
-    paid.lines.data[0].period = { start: now - 86400, end: now + 86400 };
+    paid.lines.data[0].period = { start: now - 86400, end: scenario === 'expired-period' ? now - 3700 : now + 86400 };
     sub.latest_invoice = invoice.id!;
     stripeShim.invoices = { list: async () => ({ data: [paid] }) } as unknown as Stripe.InvoicesResource;
     if (scenario === 'dispute-before') {
       expect((await supabaseSeller!.from('payment_transactions').update({ status: 'disputed' }).eq('stripe_invoice_id', invoice.id!)).error).toBeNull();
     }
     const reversedBefore = scenario === 'refund-before' || scenario === 'dispute-before';
+    const endsImmediately = reversedBefore || scenario === 'expired-period';
     if (scenario === 'refund-before') {
       expect((await supabaseSeller!.from('payment_transactions').update({ refunded_amount: 100, status: 'partially_refunded' }).eq('stripe_invoice_id', invoice.id!)).error).toBeNull();
     }
     const result = await handleSubscriptionDeleted({ ...sub, status: 'canceled', canceled_at: now, ended_at: now },
       supabaseSeller as never, platformClient as never, stripeShim);
     expect(result.processed).toBe(true);
-    expect(emitted.mock.calls.find(([event]) => event === 'subscription.canceled')?.[1]).toMatchObject({ subscription: { endsAt: new Date((reversedBefore ? now : now + 86400) * 1000).toISOString() } });
+    expect(emitted.mock.calls.find(([event]) => event === 'subscription.canceled')?.[1]).toMatchObject({ subscription: { endsAt: new Date((endsImmediately ? now : now + 86400) * 1000).toISOString() } });
     const checkAccess = () => execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql', '-U', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1'], {
       input: `SET request.jwt.claim.sub = '${userId}'; SELECT public.check_user_product_access('${product.slug}');`, encoding: 'utf8',
     }).trim().endsWith('t');
-    expect(checkAccess()).toBe(!reversedBefore);
+    expect(checkAccess()).toBe(!endsImmediately);
     const { data: after } = await supabaseSeller!.from('issued_licenses').select('revoked_at, revocation_reason, expires_at').eq('id', license.data!.id).single();
-    if (!reversedBefore) {
+    if (!endsImmediately) {
       expect(after).toMatchObject({ revoked_at: null, revocation_reason: null });
       expect(Date.parse(after!.expires_at!)).toBe((now + 86400) * 1000);
       const access = await supabaseSeller!.from('user_product_access').select('access_expires_at').eq('product_id', product.id).single();
@@ -735,6 +736,9 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
       const renewed = await handleSubscriptionCreated(replacement, supabaseSeller as never, platformClient as never, stripeShim);
       expect(renewed.processed).toBe(true);
       expect(checkAccess()).toBe(true);
+    } else if (scenario === 'expired-period') {
+      expect(after).toMatchObject({ revoked_at: expect.any(String), revocation_reason: 'subscription_cancelled' });
+      expect((await supabaseSeller!.from('user_product_access').select('id').eq('product_id', product.id)).data).toEqual([]);
     } else {
       // A late partial refund must end both grants, even though it is not a full refund.
       const refunded = await supabaseSeller!.from('payment_transactions').update({ refunded_amount: 100, status: 'partially_refunded' }).eq('stripe_invoice_id', invoice.id!);

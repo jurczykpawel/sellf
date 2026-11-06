@@ -63,6 +63,8 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
   }
   const customFieldValues = (tx.custom_field_values ?? {}) as Record<string, string>;
   const metadata = { ...(tx.metadata ?? {}), ...(args.metadata ?? {}) };
+  const { error: metadataError } = await args.supabase.from('payment_transactions').update({ metadata }).eq('id', tx.id);
+  if (metadataError) throw new Error('Order metadata unavailable');
   const orderKey = provider.kind === 'offline' ? tx.id : provider.paymentIntentId || tx.session_id;
   if (provider.kind === 'stripe' && provider.paymentIntentId) {
     await reconcileEarlyDisputes(provider.stripe, args.supabase, provider.paymentIntentId);
@@ -105,7 +107,7 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
   }
   await issueInvoiceForTransaction(tx.id, { client: args.supabase });
   const { error: savedError } = await args.supabase.from('payment_transactions').update({
-    metadata, fulfillment_pending: false,
+    fulfillment_pending: false,
   }).eq('id', tx.id);
   if (savedError) throw new Error('Order fulfillment state unavailable');
   if (provider.kind === 'stripe' && args.source === 'stripe_webhook') {

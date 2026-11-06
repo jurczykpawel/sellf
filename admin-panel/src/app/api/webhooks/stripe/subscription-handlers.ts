@@ -791,7 +791,7 @@ async function applyCanceledSubscription(
   const currentPayment = payments?.find(payment => payment.stripe_invoice_id === paidPeriod?.invoiceId);
   const refunded = (currentPayment?.refunded_amount ?? 0) > 0;
   const reversed = refunded || currentPayment?.status === 'disputed';
-  if (reversed) paidPeriodEnd = null;
+  if (reversed || (paidPeriodEnd != null && paidPeriodEnd <= (sub.ended_at ?? sub.canceled_at ?? 0))) paidPeriodEnd = null;
   if (paidPeriodEnd && !reversed) {
     // Only shorten existing grants: a refund or dispute may already have removed them.
     const expiresAt = new Date(paidPeriodEnd * 1000).toISOString();

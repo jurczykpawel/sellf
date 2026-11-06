@@ -66,7 +66,7 @@ export function getPaidInvoicePeriod(invoice: Stripe.Invoice, subscriptionId: st
 }
 
 function subscriptionAccessEnd(sub: Stripe.Subscription, paidPeriodEnd?: number | null): string | null {
-  if (paidPeriodEnd != null) return toIso(paidPeriodEnd);
+  if (paidPeriodEnd != null) return toIso(Math.max(paidPeriodEnd, sub.ended_at ?? (sub.status === 'canceled' ? sub.canceled_at ?? 0 : 0)));
   if (sub.ended_at != null) return toIso(sub.ended_at);
   if (sub.status === 'canceled' && !sub.cancel_at_period_end) return toIso(sub.canceled_at);
   return sub.cancel_at_period_end ? toIso(paidPeriodEnd) : null;
