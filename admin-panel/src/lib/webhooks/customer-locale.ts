@@ -28,7 +28,7 @@ export async function withCustomerLocale(event: string, input: unknown, db: Supa
   const data = input as Record<string, any>;
   let saved = data.customer.locale;
   const orderId = data.order?.orderId ?? data.payment?.id ?? data.license?.orderId ?? data.sourceOrder?.id;
-  if (typeof orderId === 'string' && !(event === 'purchase.completed' && customerLocaleSchema.safeParse(saved).success)) {
+  if (typeof orderId === 'string') {
     saved = await orderCustomerLocale(db, orderId);
   } else if (event === 'license.issued' && typeof data.license?.order === 'string') {
     const ref = data.license.order;
