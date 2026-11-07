@@ -116,7 +116,7 @@ const retrieve = vi.fn();
 const stripe = { subscriptions: { retrieve } };
 
 function subscriptionStatusWrites() {
-  return writes.filter((w) => w.table === 'subscriptions').map((w) => w.value.status);
+  return writes.filter((w) => w.table === 'subscriptions' && 'status' in w.value).map((w) => w.value.status);
 }
 
 function accessGrants() {

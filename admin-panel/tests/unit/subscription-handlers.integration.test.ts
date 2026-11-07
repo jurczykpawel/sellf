@@ -671,6 +671,50 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     expect(row!.renewal_notice_payload).toMatchObject({ customer: { email }, product: { id: product.id }, invoice: { nextPaymentAttempt: new Date(trialEnd * 1000).toISOString() } });
   });
 
+  it.each(['paid', 'refund', 'dispute', 'expired', 'unpaid', 'claim-first'] as const)('guest cancellation before confirmation: %s', async scenario => {
+    const email = `guest-cancel-${crypto.randomUUID()}@sellf-test.local`;
+    const product = await createSubscriptionProduct();
+    const customer = await stripe!.customers.create({ email });
+    createdStripeCustomerIds.push(customer.id);
+    const sub = makeFakeSubscription(customer.id, product.id, { status: 'active' });
+    const shim = { subscriptions: { retrieve: async () => sub }, customers: stripe!.customers,
+      checkout: { sessions: { list: async () => ({ data: [] }) } } } as unknown as Stripe;
+    vi.spyOn(WebhookService, 'trigger').mockImplementation(async () => {});
+    expect((await handleSubscriptionCreated(sub, supabaseSeller as never, platformClient as never, shim)).processed).toBe(true);
+    const invoice = makeFakeInvoice(sub.id, customer.id, email);
+    expect((await handleInvoicePaid(invoice, supabaseSeller as never, platformClient as never, shim)).processed).toBe(true);
+    const { data: userId } = await platformClient!.rpc('find_user_id_by_email', { p_email: email });
+    createdAuthUserIds.push(userId);
+    const access = () => supabaseSeller!.from('user_product_access').select('*').eq('product_id', product.id);
+    expect((await access()).data).toEqual([]);
+    if (scenario === 'claim-first') {
+      expect((await platformClient!.auth.admin.updateUserById(userId, { email_confirm: true })).error).toBeNull();
+      expect((await access()).data).toHaveLength(1);
+    }
+    const now = Math.floor(Date.now() / 1000);
+    const paid = structuredClone((await import('../fixtures/stripe/cancellation_paid_invoice.json')).default);
+    paid.id = invoice.id!;
+    paid.lines.data[0].parent!.subscription_item_details!.subscription = sub.id;
+    paid.lines.data[0].period = { start: now - 86400, end: scenario === 'expired' ? now - 1 : now + 86400 };
+    sub.latest_invoice = invoice.id!;
+    shim.invoices = { list: async () => ({ data: scenario === 'unpaid' ? [] : [paid] }) } as unknown as Stripe.InvoicesResource;
+    expect((await handleSubscriptionDeleted({ ...sub, status: 'canceled', canceled_at: now, ended_at: now },
+      supabaseSeller as never, platformClient as never, shim)).processed).toBe(true);
+    if (scenario === 'refund' || scenario === 'dispute') {
+      expect((await supabaseSeller!.from('payment_transactions').update(scenario === 'refund'
+        ? { refunded_amount: 100, status: 'partially_refunded' } : { status: 'disputed' }).eq('stripe_invoice_id', invoice.id!)).error).toBeNull();
+    }
+    if (scenario !== 'claim-first') expect((await platformClient!.auth.admin.updateUserById(userId, { email_confirm: true })).error).toBeNull();
+    expect((await supabaseSeller!.rpc('claim_guest_purchases_for_user', { p_user_id: userId })).error).toBeNull();
+    const allowed = scenario === 'paid' || scenario === 'claim-first';
+    expect((await access()).data).toHaveLength(allowed ? 1 : 0);
+    if (allowed) expect(Date.parse((await access()).data![0].access_expires_at!)).toBe((now + 86400) * 1000);
+    const check = execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql', '-U', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1'], {
+      input: `SET request.jwt.claim.sub = '${userId}'; SELECT public.check_user_product_access('${product.slug}');`, encoding: 'utf8',
+    });
+    expect(check.trim().endsWith('t')).toBe(allowed);
+  });
+
   it.each(['expiry', 'expired-period', 'refund-before', 'refund-after', 'dispute-before'] as const)('immediate cancellation applies paid-period policy: %s @J285', async scenario => {
     const email = `cancel-license-${crypto.randomUUID()}@sellf-test.local`;
     const product = await createSubscriptionProduct();
