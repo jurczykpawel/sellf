@@ -792,6 +792,11 @@ async function applyCanceledSubscription(
   const refunded = (currentPayment?.refunded_amount ?? 0) > 0;
   const reversed = refunded || currentPayment?.status === 'disputed';
   if (reversed || (paidPeriodEnd != null && paidPeriodEnd <= (sub.ended_at ?? sub.canceled_at ?? 0))) paidPeriodEnd = null;
+  const savedPeriod = await supabase.from('subscriptions').update({
+    paid_access_expires_at: paidPeriodEnd ? new Date(paidPeriodEnd * 1000).toISOString() : null,
+    paid_access_invoice_id: paidPeriodEnd ? paidPeriod!.invoiceId : null,
+  }).eq('id', subscriptionRowId);
+  if (savedPeriod.error) return { processed: false, message: 'Paid subscription period unavailable' };
   if (paidPeriodEnd && !reversed) {
     // Only shorten existing grants: a refund or dispute may already have removed them.
     const expiresAt = new Date(paidPeriodEnd * 1000).toISOString();

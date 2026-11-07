@@ -37,7 +37,7 @@ async function remove(table: string, column: string, values: string[]) {
   const result = await db.from(table).delete().in(column, values);
   if (result.error) throw new Error(`${table}: ${result.error.message}`);
 }
-async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoupon = false): Promise<void> {
+async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoupon = false, cancelBeforeClaim = false): Promise<void> {
   expect(process.env.STRIPE_LIVE_E2E).toBe('1');
   expect(process.env.STRIPE_SECRET_KEY).toMatch(/^sk_test_/);
   const slug = `first-mail-${kind}-${randomUUID().slice(0, 8)}`;
@@ -189,12 +189,22 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
       expect(mail.HTML).toContain('PL61 1090 1014 0000 0712 1981 2874'); // grouped in fours since W137
       expect(mail.HTML).toContain('Bank transfer instructions');
     }
+    let paidEnd: number | undefined;
+    if (cancelBeforeClaim) {
+      const [row] = await rows('subscriptions', 'product_id', product.id);
+      const invoices = await stripe.invoices.list({ subscription: row.stripe_subscription_id, status: 'paid', limit: 1 });
+      paidEnd = invoices.data[0].lines.data[0].period.end;
+      await stripe.subscriptions.cancel(row.stripe_subscription_id);
+      await expect.poll(async () => (await rows('subscriptions', 'product_id', product.id))[0]?.status, { timeout: 60000 }).toBe('canceled');
+      await expect.poll(async () => Date.parse((await rows('subscriptions', 'product_id', product.id))[0]?.paid_access_expires_at ?? ''), { timeout: 60000 }).toBe(paidEnd * 1000);
+    }
     const link = extractMagicLink(mail.HTML || mail.Text || ''); expect(link).toBeTruthy();
     await page.goto(link!);
     await expect(page).toHaveURL(new RegExp(`/p/${slug}(?:[/?]|$)`), { timeout: 90000 });
     const userId = (await db.rpc('find_user_id_by_email', { p_email: email })).data as string;
     expect(userId).toBeTruthy(); buyerId = userId;
     await expect.poll(async () => (await rows('user_product_access', 'product_id', product.id)).some(access => access.user_id === userId), { timeout: 60000 }).toBe(true);
+    if (paidEnd) expect(Date.parse((await rows('user_product_access', 'product_id', product.id))[0].access_expires_at)).toBe(paidEnd * 1000);
     if (kind === 'variant') expect(await rows('user_product_access', 'product_id', ids[1])).toHaveLength(0);
     if (kind === 'bundle') expect((await rows('user_product_access', 'product_id', ids[1])).some(access => access.user_id === userId)).toBe(true);
     if (couponId) expect(await rows('coupon_redemptions', 'coupon_id', couponId)).toHaveLength(trialCoupon ? 0 : 1);
@@ -204,7 +214,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
     await page.screenshot({ path: test.info().outputPath('first-mail-access.png'), fullPage: true });
   } finally {
     for (const id of ids) for (const sub of await rows('subscriptions', 'product_id', id)) {
-      await stripe.subscriptions.cancel(sub.stripe_subscription_id);
+      if (sub.status !== 'canceled') await stripe.subscriptions.cancel(sub.stripe_subscription_id);
       await expect.poll(async () => (await rows('subscriptions', 'product_id', id)).every(row => row.status === 'canceled'), { timeout: 60000 }).toBe(true);
     }
     for (const id of sessions) {
@@ -251,3 +261,5 @@ test.describe('localized trial offer', () => {
   test('Polish buyer sees zero today, billing terms and first trial mail @J148', async ({ page }) => run(page, 'trial', 'pl', true));
   test('English buyer sees zero today, billing terms and first trial mail @J148', async ({ page }) => run(page, 'trial', 'en', true));
 });
+
+test('guest canceled subscription first mail retains paid access', async ({ page }) => run(page, 'guest', 'en', false, true));

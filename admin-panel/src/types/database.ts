@@ -4173,6 +4173,8 @@ export type Database = {
           id: string
           latest_invoice_id: string | null
           metadata: Json
+          paid_access_expires_at: string | null
+          paid_access_invoice_id: string | null
           product_id: string
           renewal_notice_at: string | null
           renewal_notice_payload: Json | null
@@ -4193,6 +4195,8 @@ export type Database = {
           id?: string
           latest_invoice_id?: string | null
           metadata?: Json
+          paid_access_expires_at?: string | null
+          paid_access_invoice_id?: string | null
           product_id: string
           renewal_notice_at?: string | null
           renewal_notice_payload?: Json | null
@@ -4213,6 +4217,8 @@ export type Database = {
           id?: string
           latest_invoice_id?: string | null
           metadata?: Json
+          paid_access_expires_at?: string | null
+          paid_access_invoice_id?: string | null
           product_id?: string
           renewal_notice_at?: string | null
           renewal_notice_payload?: Json | null
@@ -5493,6 +5499,10 @@ export type Database = {
       claim_guest_purchases_for_user: {
         Args: { p_user_id: string }
         Returns: Json
+      }
+      claim_paid_subscription_access: {
+        Args: { p_user_id: string }
+        Returns: undefined
       }
       claim_webhook_delivery: {
         Args: { p_id: string }
