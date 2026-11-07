@@ -44,7 +44,7 @@ for (const enabled of [false, true]) {
     await expect(checkbox).not.toBeChecked();
     if (enabled) { await checkbox.check(); await expect(checkbox).toBeChecked(); }
     await expect.poll(async () => (await db.from('shop_config').select('supabase_buyer_emails').single()).data?.supabase_buyer_emails).toBe(enabled);
-    const paid = await page.request.post(`/api/v1/payments/${order.orderId}/mark-paid`, { data: { amount: order.amount, paidAt: new Date().toISOString() } });
+    const paid = await page.request.post(`/api/v1/payments/${order.orderId}/mark-paid`, { data: { amount: order.amount, paidAt: `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z` } });
     expect(paid.status(), await paid.text()).toBe(200);
     const completed = async () => {
       const rows = await checked(await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', 'purchase.completed'));
