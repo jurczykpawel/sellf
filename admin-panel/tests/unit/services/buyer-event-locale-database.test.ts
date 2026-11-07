@@ -32,6 +32,8 @@ beforeAll(async () => {
   getTestDatabaseContainer();
   shop = checked(await db.from('shop_config').select('id,custom_settings').single()).data!;
   checked(await db.auth.admin.createUser({ id: userId, email, email_confirm: true }));
+  const { generateSellerKeypair, storeSellerKey } = await import('@/lib/license-keys/keys');
+  await storeSellerKey(db, { sellerId: userId, ...generateSellerKeypair(), custody: 'managed' });
   checked(await db.from('products').insert({ id: productId, name: 'Language workshop', slug: `language-${productId}`, price: 20, currency: 'PLN', seller_id: userId }));
   checked(await db.from('user_product_access').insert({ user_id: userId, product_id: productId }));
   checked(await db.from('webhook_endpoints').insert({ id: endpointId, url: `https://receiver.example/events/${endpointId}`, secret, events: [...events, 'license.updated', 'access.updated'], is_active: true }));
@@ -43,8 +45,8 @@ afterAll(async () => {
   await db.from('payment_transactions').delete().eq('product_id', productId);
   await db.from('user_product_access').delete().eq('product_id', productId);
   await db.from('business_events').delete().eq('product_id', productId);
-  await db.from('products').delete().eq('id', productId);
-  await db.from('subscriptions').delete().eq('product_id', productId);
+  checked(await db.from('subscriptions').delete().eq('product_id', productId));
+  checked(await db.from('products').delete().eq('id', productId));
   await db.from('seller_license_keys').delete().eq('original_seller_id', userId);
   await db.auth.admin.deleteUser(userId);
   if (shop) await db.from('shop_config').update({ custom_settings: shop.custom_settings }).eq('id', shop.id);
@@ -107,14 +109,12 @@ it.each([['en', 'pl', 'en'], ['pl', 'en', 'pl'], [undefined, 'pl', 'pl']] as con
 });
 
 it('preserves PL for subscription, free and manual license events @W180', async () => {
-  const { generateSellerKeypair, storeSellerKey } = await import('@/lib/license-keys/keys');
   const { issueLicense } = await import('@/lib/license-keys/issue');
   const { issueRequestedLicense } = await import('@/lib/license-keys/request');
   const { buildLicenseRevokeWebhookData } = await import('@/lib/services/license-revoke-webhook-payload');
   const { enrichBuyerWebhook } = await import('@/lib/webhooks/buyer-notifications');
   checked(await db.from('shop_config').update({ custom_settings: { default_locale: 'en' } }).eq('id', shop.id));
   checked(await db.from('products').update({ issue_license_on_purchase: true }).eq('id', productId));
-  await storeSellerKey(db, { sellerId: userId, ...generateSellerKeypair(), custody: 'managed' });
   const subId = randomUUID(), stripeSub = `sub_w180_${subId}`;
   checked(await db.from('subscriptions').insert({ id: subId, user_id: userId, product_id: productId, stripe_customer_id: `cus_${subId}`, stripe_subscription_id: stripeSub, status: 'active', metadata: { locale: 'pl' } }));
   const tx = checked(await db.from('payment_transactions').insert({ product_id: productId, user_id: userId, customer_email: email, amount: 2000, currency: 'PLN', status: 'completed', subscription_id: subId, session_id: `in_${subId.replaceAll('-', '')}`, stripe_invoice_id: `in_${subId.replaceAll('-', '')}`, metadata: {} }).select('*').single()).data!;
@@ -155,9 +155,65 @@ it('preserves PL for subscription, free and manual license events @W180', async 
   expect(manual.ok).toBe(true);
   if (!manual.ok) throw Error(manual.error);
   await capturedLicense(manual.license.id!, 'license.issued');
+  const audit = checked(await db.from('audit_log').select('operation,new_values').eq('new_values->>license_id', manual.license.id!).single()).data!;
+  expect(audit).toMatchObject({ operation: 'INSERT', new_values: { action: 'MANUAL_LICENSE_ISSUED' } });
 });
 it('uses the shop language for a manual buyer without history or submitted language @W180', async () => {
   const { resolveBuyerLocale } = await import('@/lib/license-keys/request');
   checked(await db.from('shop_config').update({ custom_settings: { default_locale: 'pl' } }).eq('id', shop.id));
   expect(await resolveBuyerLocale(db as never, `unknown-${randomUUID()}@example.com`)).toBe('pl');
+});
+
+it.each([false, true])('completes and reopens transfer orders with license issuance %s', async licensed => {
+  const { fulfillPaidOrder } = await import('@/lib/services/fulfill-paid-order');
+  const { data: config, error: configError } = await db.from('bank_transfer_config').select('*').single();
+  if (configError) throw configError;
+  const actor = checked(await db.from('admin_users').select('user_id').limit(1).single()).data!.user_id;
+  checked(await db.from('products').update({ issue_license_on_purchase: licensed, checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false, bank_transfer_for: ['organization'] }] } }).eq('id', productId));
+  checked(await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Transfer shop',
+    bank_account_number: 'PL61109010140000071219812874', bank_transfer_grant_access_on_placement: false }).eq('id', true));
+  try {
+    for (const reopen of [false, true]) {
+      checked(await db.from('user_product_access').delete().eq('user_id', userId).eq('product_id', productId));
+      const placed = checked(await db.rpc('bank_transfer_order', {
+        p_order: { product_id: productId, currency: 'PLN', customer_email: email, metadata: { locale: 'pl' },
+          order_details: { v: 1, buyer: { type: 'organization', terms_accepted: true } } },
+        p_lines: [{ product_id: productId, item_type: 'main_product', quantity: 1, unit_price: 20, total_price: 20, discounted_total: 20, currency: 'PLN' }],
+      })).data as { transaction_id: string };
+      const id = placed.transaction_id;
+      if (reopen) {
+        const cancelled = checked(await db.rpc('admin_bank_transfer_order', { p_id: id, p_action: 'cancel', p_reason: 'Buyer request', p_actor: actor })).data;
+        expect(cancelled).toMatchObject({ success: true });
+        expect(checked(await db.from('payment_transactions').select('status').eq('id', id).single()).data!.status).toBe('cancelled');
+      } else {
+        const attempt = checked(await db.rpc('open_order_payment_attempt', { p_id: id, p_kind: 'settle', p_amount: 2000, p_currency: 'PLN',
+          p_expires_at: new Date(Date.now() + 1800000).toISOString(), p_now: new Date().toISOString() })).data as { id: string };
+        checked(await db.rpc('attach_order_payment_session', { p_attempt: attempt.id, p_session_id: `cs_test_${randomUUID()}` }));
+      }
+      expect(checked(await db.from('user_product_access').select('id').eq('user_id', userId).eq('product_id', productId)).data).toHaveLength(0);
+      const paidAt = `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`;
+      const marked = checked(await db.rpc('admin_bank_transfer_order', { p_id: id, p_action: 'mark-paid', p_amount: 2000,
+        p_paid_at: paidAt, p_actor: actor, p_accept_cancelled: reopen, ...(reopen ? { p_reason: 'Transfer received' } : {}) })).data;
+      expect(marked, JSON.stringify(marked)).toMatchObject({ success: true, ...(reopen ? { reopened: true } : {}) });
+      const tx = checked(await db.from('payment_transactions').select('status,paid_at,reopened_at').eq('id', id).single()).data!;
+      expect(tx.status).toBe('completed');
+      expect(Date.parse(tx.paid_at!)).toBe(Date.parse(paidAt));
+      expect(!!tx.reopened_at).toBe(reopen);
+      if (!reopen) expect(checked(await db.from('order_payment_attempts').select('status').eq('transaction_id', id).single()).data!.status).toBe('superseded');
+      await fulfillPaidOrder({ supabase: db, transactionId: id, provider: { kind: 'offline' }, productId,
+        customerEmail: email, amount: 2000, currency: 'PLN', isGuest: false });
+      expect(checked(await db.from('user_product_access').select('id').eq('user_id', userId).eq('product_id', productId)).data).toHaveLength(1);
+      const licenses = checked(await db.from('issued_licenses').select('id,order_id,customer_locale').eq('order_id', id)).data!;
+      expect(licenses).toHaveLength(licensed ? 1 : 0);
+      if (licensed) {
+        const snapshot = checked(await db.from('business_events').select('payload').eq('event_type', 'license.issued').eq('payload->licenseRow->>id', licenses[0].id).single()).data!;
+        expect(snapshot.payload).toMatchObject({ licenseRow: { sellf_order_id: id } });
+        const { enrichBuyerWebhook } = await import('@/lib/webhooks/buyer-notifications');
+        const row = (snapshot.payload as { licenseRow: RevokedLicenseRow }).licenseRow;
+        expect(await enrichBuyerWebhook('license.issued', buildLicenseIssuedWebhookData(row, 'https://shop.example'), db as never))
+          .toMatchObject({ customer: { email, locale: 'pl' } });
+      }
+      expect(checked(await db.from('payment_transactions').select('fulfillment_pending').eq('id', id).single()).data!.fulfillment_pending).toBe(false);
+    }
+  } finally { checked(await db.from('bank_transfer_config').upsert(config)); }
 });

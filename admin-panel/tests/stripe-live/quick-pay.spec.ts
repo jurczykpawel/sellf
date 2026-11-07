@@ -95,7 +95,8 @@ test('admin marks the order paid while the buyer is on Stripe: the online paymen
   const admin = await browser.newPage();
   await loginAsAdmin(admin, 'demo@sellf.app', 'demo123');
   const { data: adminUser } = await db.from('admin_users').select('user_id').limit(1).single();
-  expect((await checked(await db.rpc('admin_bank_transfer_order', { p_id: id, p_action: 'mark-paid', p_amount: 17000, p_paid_at: new Date().toISOString(), p_actor: adminUser!.user_id })) as { success: boolean }).success).toBe(true);
+  const marked = await checked(await db.rpc('admin_bank_transfer_order', { p_id: id, p_action: 'mark-paid', p_amount: 17000, p_paid_at: `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`, p_actor: adminUser!.user_id }));
+  expect(marked, JSON.stringify(marked)).toMatchObject({ success: true });
   await admin.close();
   await payOnHostedCheckout(page);
   await expect.poll(async () => (await db.from('order_payment_attempts').select('status,refund_id').eq('transaction_id', id).single()).data, { timeout: 90000 })

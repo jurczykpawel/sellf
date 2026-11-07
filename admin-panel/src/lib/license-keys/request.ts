@@ -80,9 +80,9 @@ export async function issueRequestedLicense(
   const claims = parseLicenseClaims(result.token);
   await createPlatformClient().from('audit_log').insert({
     table_name: 'issued_licenses',
-    operation: ctx.source === 'api' ? 'API_LICENSE_ISSUED' : 'MANUAL_LICENSE_ISSUED',
+    operation: 'INSERT',
     performed_by: ctx.actorUserId,
-    new_values: { license_id: result.id, product_id: input.productId, email: input.email, domain: claims?.domain ?? null, kid: result.kid },
+    new_values: { action: ctx.source === 'api' ? 'API_LICENSE_ISSUED' : 'MANUAL_LICENSE_ISSUED', license_id: result.id, product_id: input.productId, email: input.email, domain: claims?.domain ?? null, kid: result.kid },
   });
 
   const emailSent = input.sendEmail === false ? false
