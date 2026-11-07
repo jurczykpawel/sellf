@@ -17,9 +17,15 @@ export async function resolveCustomerLocale(db: SupabaseClient, saved: unknown):
 }
 
 export async function orderCustomerLocale(db: SupabaseClient, id: string): Promise<Locale> {
-  const { data, error } = await db.from('payment_transactions').select('metadata').eq('id', id).maybeSingle();
+  const { data, error } = await db.from('payment_transactions').select('metadata,subscription_id').eq('id', id).maybeSingle();
   if (error) throw new Error('Order language unavailable');
-  return resolveCustomerLocale(db, data?.metadata?.locale);
+  let saved = data?.metadata?.locale;
+  if (!customerLocaleSchema.safeParse(saved).success && data?.subscription_id) {
+    const { data: sub, error: subError } = await db.from('subscriptions').select('metadata').eq('id', data.subscription_id).maybeSingle();
+    if (subError) throw new Error('Subscription language unavailable');
+    saved = sub?.metadata?.locale;
+  }
+  return resolveCustomerLocale(db, saved);
 }
 
 /** Used once before customization and signing, including committed SQL events. */
@@ -30,13 +36,17 @@ export async function withCustomerLocale(event: string, input: unknown, db: Supa
   const orderId = data.order?.orderId ?? data.payment?.id ?? data.license?.orderId ?? data.sourceOrder?.id;
   if (typeof orderId === 'string') {
     saved = await orderCustomerLocale(db, orderId);
-  } else if (event === 'license.issued' && typeof data.license?.order === 'string') {
+  } else if (event.startsWith('license.') && typeof data.license?.order === 'string') {
     const ref = data.license.order;
     const column = /^[0-9a-f-]{36}$/i.test(ref) ? 'id' : ref.startsWith('pi_') ? 'stripe_payment_intent_id' : ref.startsWith('cs_') ? 'session_id' : ref.startsWith('in_') ? 'stripe_invoice_id' : null;
-    if (column) {
-      const { data: tx, error } = await db.from('payment_transactions').select('metadata').eq(column, ref).maybeSingle();
+    if (ref.startsWith('sub_')) {
+      const { data: sub, error } = await db.from('subscriptions').select('metadata').eq('stripe_subscription_id', ref).maybeSingle();
+      if (error) throw new Error('Subscription language unavailable');
+      saved = sub?.metadata?.locale;
+    } else if (column) {
+      const { data: tx, error } = await db.from('payment_transactions').select('id').eq(column, ref).maybeSingle();
       if (error) throw new Error('License order language unavailable');
-      saved = tx?.metadata?.locale;
+      saved = tx?.id ? await orderCustomerLocale(db, tx.id) : saved;
     }
   } else if (data.access?.subscriptionId) {
     const { data: sub, error } = await db.from('subscriptions').select('metadata').eq('id', data.access.subscriptionId).maybeSingle();

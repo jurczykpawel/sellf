@@ -41,7 +41,7 @@ beforeEach(() => {
   delete process.env.NEXT_PUBLIC_SITE_URL;
   mocks.auth.mockResolvedValue({ user: { id: 'admin-1' }, role: 'platform_admin' });
   mocks.rate.mockResolvedValue(true);
-  const query = { select: () => query, eq: () => query, single: async () => ({ data: { custom_checkout_fields: [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] }, error: null }) };
+  const query = { select: () => query, eq: () => query, maybeSingle: async () => ({ data: null, error: null }), single: async () => ({ data: { custom_checkout_fields: [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] }, error: null }) };
   mocks.admin.mockReturnValue({ from: () => query, rpc: mocks.rpc });
   mocks.rpc.mockResolvedValue({ error: null });
   mocks.mail.mockResolvedValue({ ok: true });

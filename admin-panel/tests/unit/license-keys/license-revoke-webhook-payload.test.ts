@@ -21,6 +21,7 @@ describe('buildLicenseRevokeWebhookData', () => {
   it('maps a revoked license row to the webhook envelope data', () => {
     const data = buildLicenseRevokeWebhookData(row, 'https://sellf.example');
     expect(data).toEqual({
+      customer: { email: row.email, userId: null },
       license: {
         id: 'lic-1',
         order: 'cs_test_123',
@@ -73,4 +74,7 @@ describe('W152 contract additions', () => {
     expect(data.license).toMatchObject({ orderId: null, orderNumber: null, revocationReason: null });
     expect(data.revocationReason).toBeNull();
   });
+});
+it('includes the customer identity in expiry update data', () => {
+  expect(buildLicenseRevokeWebhookData({ ...row, user_id: 'buyer-id' }, 'https://sellf.example')).toMatchObject({ customer: { email: row.email, userId: 'buyer-id' } });
 });

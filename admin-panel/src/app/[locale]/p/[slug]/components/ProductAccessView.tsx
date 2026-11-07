@@ -185,7 +185,7 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
   }, [secureData, previewMode]);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString(locale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',

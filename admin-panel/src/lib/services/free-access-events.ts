@@ -26,7 +26,7 @@ export async function emitFreeAccessLead(adminClient: SupabaseClient, { product,
     const savedValues = (access.custom_field_values ?? customFieldValues) as Record<string, string> | undefined;
     const orderId = `free_${user.id}_${product.id}`;
     const license = await issueLicense(adminClient, {
-      productId: product.id, email: user.email, userId: user.id, orderId,
+      productId: product.id, email: user.email, userId: user.id, orderId, locale,
       ...(savedValues !== undefined ? { customFieldValues: savedValues } : {}),
     }).catch(() => { console.error('[free-access] License issuance failed'); return null; });
     if (license && (!lead || lead.sendMail)) await sendLicenseMail(adminClient, { userId: user.id, email: user.email, productSlug: details.slug, productName: details.name, token: license.token, locale });

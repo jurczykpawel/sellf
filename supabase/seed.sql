@@ -1538,10 +1538,10 @@ BEGIN
     SELECT 'e1210000-0000-4000-a000-000000000010',id,'license-example@example.com',
       'pi_seed_license_dispute','pi_seed_license_dispute',round(price*100),currency,'completed'
     FROM public.products WHERE slug='premium-course' RETURNING * INTO sample;
-  INSERT INTO public.issued_licenses(id,seller_id,original_seller_id,product_id,email,order_id,kid,license_key,issued_at,expires_at)
+  INSERT INTO public.issued_licenses(id,seller_id,original_seller_id,product_id,email,order_id,kid,license_key,issued_at,expires_at,customer_locale)
     VALUES('e1210000-0000-4000-a000-000000000011','dddddddd-0000-4000-a000-000000000000',
       'dddddddd-0000-4000-a000-000000000000',sample.product_id,sample.customer_email,sample.session_id,
-      'seed-history','[redacted historical sample]',now()-interval '60 days',now()-interval '30 days');
+      'seed-history','[redacted historical sample]',now()-interval '60 days',now()-interval '30 days','en');
   PERFORM set_config('request.jwt.claims','{"role":"service_role"}',true);
   PERFORM public.apply_payment_dispute(sample.id,'du_seed_license_dispute','needs_response',false,'fraudulent',sample.amount::integer,sample.currency,now());
   UPDATE public.business_events SET dispatched_at=now() WHERE payload->'licenseRow'->>'id'='e1210000-0000-4000-a000-000000000011';

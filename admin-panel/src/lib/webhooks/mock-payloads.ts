@@ -275,6 +275,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     }
   },
   'license.revoked': {
+    customer: { email: 'customer@example.com', userId: null, locale: 'en' },
     license: {
       id: 'lic_12345678',
       order: 'cs_test_a1b2c3d4e5f6g7h8i9j0',
@@ -294,6 +295,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     crlUrl: 'https://example.com/api/licenses/revoked?seller=seller-id'
   },
   'license.restored': {
+    customer: { email: 'customer@example.com', userId: null, locale: 'en' },
     license: {
       id: 'lic_12345678', order: 'cs_test_a1b2c3d4e5f6g7h8i9j0', email: 'customer@example.com',
       tier: 'pro', domain: 'customer.example.com', issuanceSource: 'purchase',
@@ -319,6 +321,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     crlUrl: 'https://example.com/api/licenses/revoked?seller=seller-id',
   },
   'license.updated': {
+    customer: { email: 'customer@example.com', userId: null, locale: 'en' },
     license: {
       id: 'lic_12345678', order: 'cs_test_a1b2c3d4e5f6g7h8i9j0', email: 'customer@example.com',
       tier: 'pro', domain: 'customer.example.com', issuanceSource: 'purchase',
@@ -330,6 +333,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     crlUrl: 'https://example.com/api/licenses/revoked?seller=seller-id',
   },
   'license.expired': {
+    customer: { email: 'customer@example.com', userId: null, locale: 'en' },
     license: {
       id: 'lic_12345678', order: 'cs_test_a1b2c3d4e5f6g7h8i9j0', email: 'customer@example.com',
       tier: 'pro', domain: 'customer.example.com', issuanceSource: 'purchase',

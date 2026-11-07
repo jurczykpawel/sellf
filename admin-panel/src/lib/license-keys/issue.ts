@@ -17,6 +17,7 @@ export interface IssueLicenseInput {
   email: string;
   userId: string | null;
   orderId: string;
+  locale?: 'pl' | 'en';
   customFieldValues?: Record<string, string>;
   domain?: string;
   source?: 'purchase' | 'manual' | 'api';
@@ -132,6 +133,7 @@ export async function issueLicense(
     email: input.email,
     user_id: input.userId,
     order_id: input.orderId,
+    ...(input.locale ? { customer_locale: input.locale } : {}),
     kid: key.kid,
     license_key: token,
     expires_at: exp ? new Date(exp * 1000).toISOString() : null,
