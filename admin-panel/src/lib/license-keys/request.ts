@@ -12,6 +12,7 @@ import { sendTrustedMagicLink } from '@/lib/auth/magic-link/request';
 import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
 import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
 import { issueLicense } from '@/lib/license-keys/issue';
+import { resolveCustomerLocale } from '@/lib/webhooks/customer-locale';
 import { parseLicenseClaims, type LicenseClaims } from '@/lib/license-keys/format';
 import { normalizeLicenseDomain } from '@/lib/license-keys/domain';
 import { licenseEmailSchema } from '@/lib/license-keys/email';
@@ -62,11 +63,13 @@ export async function issueRequestedLicense(
   const values = validateCustomFieldValues(definitions.value, inputValues);
   if (!values.ok) return { ok: false, status: 400, error: 'Invalid form values', fieldErrors: values.errors };
 
+  let locale: 'pl' | 'en';
   let result;
   try {
+    locale = await resolveBuyerLocale(admin, input.email, input.locale);
     result = await issueLicense(admin, {
       productId: input.productId, email: input.email, userId: null, orderId: `${ctx.source}_${randomUUID()}`,
-      customFieldValues: values.values, source: ctx.source,
+      customFieldValues: values.values, source: ctx.source, locale,
     });
   } catch (error) {
     console.error('[license-request] Issuance failed:', error instanceof Error ? error.message : 'Unknown error');
@@ -83,7 +86,7 @@ export async function issueRequestedLicense(
   });
 
   const emailSent = input.sendEmail === false ? false
-    : await mailLicenseToBuyer({ email: input.email, token: result.token, productSlug: product.data.slug, productName: product.data.name, locale: await resolveBuyerLocale(admin, input.email, input.locale) });
+    : await mailLicenseToBuyer({ email: input.email, token: result.token, productSlug: product.data.slug, productName: product.data.name, locale });
 
   return {
     ok: true,
@@ -119,5 +122,5 @@ async function mailLicenseToBuyer(input: { email: string; token: string; product
 export async function resolveBuyerLocale(admin: ReturnType<typeof createAdminClient>, email: string, fallback?: 'pl' | 'en'): Promise<'pl' | 'en'> {
   const { data, error } = await admin.rpc('buyer_mail_locale', { p_email: email });
   if (!error && (data === 'pl' || data === 'en')) return data;
-  return fallback ?? 'en';
+  return resolveCustomerLocale(admin, fallback);
 }

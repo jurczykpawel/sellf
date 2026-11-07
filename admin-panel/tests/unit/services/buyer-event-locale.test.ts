@@ -7,7 +7,7 @@ function database(locale: unknown, shopLocale: string) {
   const from = vi.fn((table: string) => {
     const data = table === 'shop_config' ? { custom_settings: { default_locale: shopLocale } }
       : table === 'issued_licenses' ? { license_key: 'signed.key', sellf_order_id: 'order-1' }
-      : table === 'lead_submissions' ? { locale } : { metadata: { locale } };
+      : table === 'lead_submissions' ? { locale } : { id: 'order-1', metadata: { locale } };
     const q = { select: () => q, eq: () => q, order: () => q, limit: () => q,
       single: async () => ({ data, error: null }), maybeSingle: async () => ({ data, error: null }) };
     return q;
@@ -50,4 +50,17 @@ it('resolves a legacy license by its original checkout reference', async () => {
 it('leaves a failed shop lookup available for retry', async () => {
   const q = { select: () => q, maybeSingle: async () => ({ data: null, error: new Error('unavailable') }) };
   await expect(enrichBuyerWebhook('waitlist.signup', { customer: { email: 'buyer@example.com' } }, { from: () => q } as never)).rejects.toThrow('Shop language unavailable');
+});
+it('uses the bound subscription language when an invoice has no locale', async () => {
+  const db = database(undefined, 'en');
+  db.from.mockImplementation((table: string) => {
+    const data = table === 'payment_transactions' ? { metadata: {}, subscription_id: 'sub-row' }
+      : table === 'subscriptions' ? { metadata: { locale: 'pl' } } : { custom_settings: { default_locale: 'en' } };
+    const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data, error: null }) };
+    return q as never;
+  });
+  expect(await enrichBuyerWebhook('refund.issued', { payment: { id: 'invoice-row' }, customer: { email: 'buyer@example.com' } }, db as never)).toMatchObject({ customer: { locale: 'pl' } });
+});
+it('resolves a subscription license by its subscription claim', async () => {
+  expect(await enrichBuyerWebhook('license.issued', { customer: { email: 'buyer@example.com' }, license: { id: 'license-1', order: 'sub_stripe' } }, database('pl', 'en') as never)).toMatchObject({ customer: { locale: 'pl' } });
 });

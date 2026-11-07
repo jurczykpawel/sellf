@@ -23,11 +23,13 @@ export interface RevokedLicenseRow {
   /** Sellf order behind `order_id` (absent on rows captured before W152). */
   sellf_order_id?: string | null;
   order_number?: number | null;
+  customer_locale?: string | null;
   /** refund | dispute | manual | subscription_cancelled; null while active. */
   revocation_reason?: string | null;
 }
 
 export interface LicenseRevokeWebhookData {
+  customer: { email: string | null; userId: string | null; locale?: string | null };
   license: {
     id: string;
     order: string;
@@ -55,6 +57,7 @@ export function buildLicenseRevokeWebhookData(
   origin: string,
 ): LicenseRevokeWebhookData {
   return {
+    customer: { email: row.email, userId: row.user_id ?? null, ...(row.customer_locale ? { locale: row.customer_locale } : {}) },
     license: {
       id: row.id,
       order: row.order_id,
@@ -94,7 +97,7 @@ export interface LicenseIssuedWebhookData extends LicenseRevokeWebhookData {
 }
 
 export function buildLicenseIssuedWebhookData(row: RevokedLicenseRow, origin: string): LicenseIssuedWebhookData {
-  return { ...buildLicenseRevokeWebhookData(row, origin), customer: { userId: row.user_id ?? null, email: row.email } };
+  return buildLicenseRevokeWebhookData(row, origin);
 }
 
 /** license.issued after delivery enrichment; only the signed receiver gets this representation. */

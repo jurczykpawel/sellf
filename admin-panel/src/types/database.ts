@@ -1756,6 +1756,7 @@ export type Database = {
       }
       issued_licenses: {
         Row: {
+          customer_locale: string | null
           email: string | null
           expires_at: string | null
           expiry_notified_at: string | null
@@ -1775,6 +1776,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          customer_locale?: string | null
           email?: string | null
           expires_at?: string | null
           expiry_notified_at?: string | null
@@ -1794,6 +1796,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          customer_locale?: string | null
           email?: string | null
           expires_at?: string | null
           expiry_notified_at?: string | null
