@@ -182,12 +182,12 @@ export default function MySubscriptions() {
                   <span>
                     {formatPriceLocalized(locale, product?.recurring_price ?? null, product?.currency ?? 'USD')} / {intervalLabel}
                   </span>
-                  <span>
+                  {row.current_period_end && <span>
                     {row.cancel_at_period_end || row.status === 'canceled'
                       ? t('endsAt', { defaultValue: 'Ends' })
                       : t('renewsAt', { defaultValue: 'Renews' })}
                     : {formatAdminDate(row.current_period_end, locale, false)}
-                  </span>
+                  </span>}
                   {row.trial_end && new Date(row.trial_end) > new Date() && (
                     <span>
                       {t('trialUntil', { defaultValue: 'Trial until' })}: {formatAdminDate(row.trial_end, locale, false)}

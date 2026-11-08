@@ -17,6 +17,8 @@ function mockStripe() {
   return {
     subscriptions: {
       update: vi.fn(async () => ({ id: 'sub_123' })),
+      retrieve: vi.fn(async () => ({ id: 'sub_123', status: 'active' })),
+      cancel: vi.fn(async () => ({ id: 'sub_123', status: 'canceled' })),
     },
   };
 }
@@ -36,7 +38,7 @@ describe('scheduleSubscriptionCancelAfterFullRefund', () => {
     expect(stripe.subscriptions.update).not.toHaveBeenCalled();
   });
 
-  it('schedules Stripe cancellation at period end for subscription transactions', async () => {
+  it('ends Stripe subscription immediately after a full refund', async () => {
     const supabase = mockSupabase({
       stripe_subscription_id: 'sub_123',
       cancel_at_period_end: false,
@@ -50,37 +52,27 @@ describe('scheduleSubscriptionCancelAfterFullRefund', () => {
     });
 
     expect(result).toEqual({ ok: true, canceled: true, stripeSubscriptionId: 'sub_123' });
-    expect(stripe.subscriptions.update).toHaveBeenCalledWith('sub_123', {
-      cancel_at_period_end: true,
-    });
+    expect(stripe.subscriptions.cancel).toHaveBeenCalledWith('sub_123');
   });
 
-  it.each(['canceled', 'unpaid', 'incomplete_expired'])('does not schedule cancellation again after %s', async status => {
+  it('ends an already scheduled subscription immediately', async () => {
     const stripe = mockStripe();
     const result = await scheduleSubscriptionCancelAfterFullRefund({
-      supabase: mockSupabase({ stripe_subscription_id: 'sub_123', cancel_at_period_end: false, status }) as never,
-      stripe: stripe as never,
-      transaction: { id: 'tx_1', subscription_id: 'sub_row_1' },
+      supabase: mockSupabase({ stripe_subscription_id: 'sub_123', cancel_at_period_end: true }) as never,
+      stripe: stripe as never, transaction: { id: 'tx_1', subscription_id: 'sub_row_1' },
+    });
+    expect(result.ok).toBe(true);
+    expect(stripe.subscriptions.cancel).toHaveBeenCalledWith('sub_123');
+  });
+
+  it('does not cancel an already ended Stripe subscription again', async () => {
+    const stripe = mockStripe(); stripe.subscriptions.retrieve.mockResolvedValueOnce({ id: 'sub_123', status: 'canceled' });
+    const result = await scheduleSubscriptionCancelAfterFullRefund({
+      supabase: mockSupabase({ stripe_subscription_id: 'sub_123', status: 'canceled' }) as never,
+      stripe: stripe as never, transaction: { id: 'tx_1', subscription_id: 'sub_row_1' },
     });
     expect(result).toEqual({ ok: true, canceled: false, reason: 'already_ended' });
-    expect(stripe.subscriptions.update).not.toHaveBeenCalled();
-  });
-
-  it('does not call Stripe when cancellation is already scheduled', async () => {
-    const supabase = mockSupabase({
-      stripe_subscription_id: 'sub_123',
-      cancel_at_period_end: true,
-    });
-    const stripe = mockStripe();
-
-    const result = await scheduleSubscriptionCancelAfterFullRefund({
-      supabase: supabase as never,
-      stripe: stripe as never,
-      transaction: { id: 'tx_1', subscription_id: 'sub_row_1' },
-    });
-
-    expect(result).toEqual({ ok: true, canceled: false, reason: 'already_scheduled' });
-    expect(stripe.subscriptions.update).not.toHaveBeenCalled();
+    expect(stripe.subscriptions.cancel).not.toHaveBeenCalled();
   });
 
   it('does not call Stripe when the subscription row is missing a Stripe subscription id', async () => {
@@ -120,7 +112,7 @@ describe('scheduleSubscriptionCancelAfterFullRefund', () => {
       cancel_at_period_end: false,
     });
     const stripe = mockStripe();
-    stripe.subscriptions.update.mockRejectedValueOnce(new Error('Stripe API unavailable'));
+    stripe.subscriptions.cancel.mockRejectedValueOnce(new Error('Stripe API unavailable'));
 
     const result = await scheduleSubscriptionCancelAfterFullRefund({
       supabase: supabase as never,

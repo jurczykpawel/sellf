@@ -130,6 +130,17 @@ describe('dispute buyer and receiver contract', () => {
       ${assert(`(SELECT (payload->'dispute'->>'accessRestored')::boolean=${state === 'active'} FROM public.payment_disputes WHERE stripe_dispute_id='${won.data.object.id}')`, 'Subscription entitlement must match its current state')}
       ${assert(`(SELECT count(*)=${state === 'active' ? 1 : 0} FROM public.user_product_access WHERE id='${grant}' AND access_expires_at=${expires})`, 'Subscription must not receive extra time')}`)).not.toThrow();
   });
+  it('restores access for a guest who confirmed email while the dispute was open', () => {
+    expect(() => run(`UPDATE public.products SET auto_grant_duration_days=30 WHERE id='${product}';
+      UPDATE auth.users SET email_confirmed_at=NULL WHERE id='${buyer}';
+      ${apply(created)}
+      UPDATE auth.users SET email_confirmed_at=now() WHERE id='${buyer}';
+      ${apply(won,true)}
+      ${assert(`EXISTS(SELECT 1 FROM public.user_product_access WHERE user_id='${buyer}' AND product_id='${product}' AND access_expires_at=now()+interval '29 days')`, 'Confirmed buyer must receive original access deadline')}
+      ${assert(`EXISTS(SELECT 1 FROM public.guest_purchases WHERE transaction_id='${tx}' AND claimed_by_user_id='${buyer}')`, 'Restored purchase must be claimed')}
+      ${apply(won,true)}
+      ${assert(`(SELECT count(*)=1 FROM public.user_product_access WHERE user_id='${buyer}' AND product_id='${product}')`, 'Repeated win retains one grant')}`, true)).not.toThrow();
+  });
   it('keeps lost access inactive and denies client execution', () => {
     expect(() => run(`${apply(lost,true)}
       ${assert(`(SELECT status='disputed' FROM public.payment_transactions WHERE id='${tx}')`, 'Lost must stay disputed')}

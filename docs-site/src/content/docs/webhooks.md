@@ -6,6 +6,8 @@ description: "Sellf delivers events to customer-configured HTTPS endpoints with 
 Sellf delivers events to customer-configured HTTPS endpoints with HMAC-signed payloads, automatic retry, a per-tenant dead-letter queue, and an admin Replay UI. The model deliberately mirrors what Stripe, Paddle, and Lemonsqueezy do.
 
 
+A full subscription refund ends the subscription immediately and revokes access. The buyer must make a new purchase to start another paid period. A won dispute restores the original entitlement, including a guest purchase confirmed while the dispute was open.
+
 ## Signing secret rotation
 
 In **Webhooks → Edit**, choose **Generate new secret** and confirm. Alternatively,

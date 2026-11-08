@@ -15,6 +15,8 @@ import type Stripe from 'stripe';
 import type { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { WebhookService } from '@/lib/services/webhook-service';
+import { normalizePurchaseEmail } from '@/lib/checkout/normalize-email';
+import { mailOrderLicenses } from '@/lib/license-keys/license-mail';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { revokeLicensesForOrder } from '@/lib/license-keys/revoke';
 import type { LicenseRevocationReason } from '@/lib/license-keys/revoke';
@@ -102,7 +104,7 @@ async function findOrCreatePasswordlessUser(
   platformClient: PlatformClient,
   email: string
 ): Promise<string | null> {
-  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedEmail = normalizePurchaseEmail(email);
 
   const { data: existing, error: rpcErr } = await platformClient.rpc(
     'find_user_id_by_email',
@@ -272,6 +274,7 @@ async function resolveSubscriptionContext(
   sub: Stripe.Subscription,
   email: string
 ): Promise<SubscriptionContextResult> {
+  email = normalizePurchaseEmail(email);
   // The first webhook for a given stripe_subscription_id stores the
   // product_id mapping in public.subscriptions. Subsequent events read
   // back the stored binding instead of trusting subscription.metadata, and
@@ -1030,13 +1033,16 @@ export async function handleInvoicePaid(
       .limit(1)
       .maybeSingle();
 
-    await issueLicense(supabase, {
+    const license = await issueLicense(supabase, {
       productId: ctx.productId,
       email: ctx.email,
       userId: ctx.userId,
       orderId: invoice.id!,
+      locale: sub.metadata.locale === 'pl' ? 'pl' : 'en',
       customFieldValues: (checkoutTransaction?.custom_field_values as Record<string, string> | null) ?? undefined,
     });
+    if (license) await mailOrderLicenses(supabase, { email: ctx.email, userId: ctx.userId,
+      locale: sub.metadata.locale === 'pl' ? 'pl' : 'en', licenses: [{ productId: ctx.productId, token: license.token }] });
   };
 
   // Insert payment_transactions row (idempotent via UNIQUE on stripe_invoice_id).

@@ -202,7 +202,7 @@
         "operation": "purchase"
       },
       "end_state": {
-        "buyer": "Initial paid access and purchase email are available.",
+        "buyer": "Initial paid access and purchase email are available; licensed invoices deliver the key and a full refund ends subscription management.",
         "seller": "Subscription and initial payment are recorded.",
         "integrator": "One invoice.paid is delivered; paid-period field assertions belong to the renewal contract journey."
       },
@@ -938,13 +938,13 @@
       "values": {
         "persona": "integrator",
         "entry": "webhook",
-        "product": "subscription",
+        "product": "paid",
         "payment": "dispute",
         "moment": "after_payment",
         "operation": "change_access"
       },
       "end_state": {
-        "buyer": "Disputed purchase loses access; won does not silently restore it.",
+        "buyer": "Disputed purchase loses access; winning restores the original entitlement, including a buyer who confirmed email during the dispute.",
         "seller": "Payment retains dispute identity and status.",
         "integrator": "Signed created/closed carries payment, customer, product and won/lost result."
       },
