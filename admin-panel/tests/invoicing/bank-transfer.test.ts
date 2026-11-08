@@ -7,6 +7,7 @@ vi.mock('@/lib/invoicing/config', async original => ({ ...await original<typeof 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { issueInvoiceForTransaction, retryInvoices } from '@/lib/invoicing/service';
 import { operateTransfer } from '@/lib/orders/bank-transfer-admin';
+import { getDateInTimezone } from '@/lib/timezone';
 import type { InvoiceInput } from '@/lib/invoicing/provider';
 const db = createAdminClient();
 if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(process.env.SUPABASE_URL ?? '')) throw new Error('Requires a local disposable Supabase stack');
@@ -49,7 +50,8 @@ describe('transfer invoice lifecycle on PostgreSQL', () => {
     const order = await place();
     expect(await issueInvoiceForTransaction(order.transaction_id, { client: db })).toMatchObject({ success: true });
     const input = state.issue.mock.calls.find(([input]) => input.externalKey.endsWith(`:${order.order_number}`))![0] as InvoiceInput;
-    expect(input.dueAt).toBe(order.dueAt.slice(0, 10)); expect(input.paidAt).toBeUndefined();
+    // Invoice dates follow the seller calendar (Europe/Warsaw by default), not the UTC day.
+    expect(input.dueAt).toBe(getDateInTimezone('Europe/Warsaw', new Date(order.dueAt))); expect(input.paidAt).toBeUndefined();
     const tx = await checked(await db.from('payment_transactions').select('created_at').eq('id', order.transaction_id).single());
     expect(Date.parse(order.dueAt) - Date.parse(tx.created_at)).toBe(14 * 86400000);
     const invoice = await checked(await db.from('invoices').select('*').eq('transaction_id', order.transaction_id).single());
