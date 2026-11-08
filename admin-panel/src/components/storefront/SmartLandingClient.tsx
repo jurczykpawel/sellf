@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+import { readBrowserAttribution } from '@/lib/attribution/browser';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import type { ReactNode } from 'react';
@@ -34,6 +36,18 @@ export default function SmartLandingClient({
   showSellfBranding,
 }: SmartLandingClientProps) {
   const { user, isAdmin } = useAuth();
+
+  // Also capture query-only navigations that keep this storefront mounted.
+  useEffect(() => {
+    const capture = () => { readBrowserAttribution(); };
+    capture();
+    window.addEventListener('cc:onConsent', capture);
+    window.addEventListener('cc:onChange', capture);
+    return () => {
+      window.removeEventListener('cc:onConsent', capture);
+      window.removeEventListener('cc:onChange', capture);
+    };
+  });
 
   const shopName = shopConfig?.shop_name || 'Sellf';
   const contactEmail = shopConfig?.contact_email || null;

@@ -14,7 +14,7 @@
 
 import { moneyAmountError } from '@/lib/currency/parse-money-input';
 import { minimumChargeAmount } from '@/lib/currency/minor-units';
-import { licenseDurationError } from '@/lib/validations/product';
+import { licenseDurationError, validateName, validateSlug, validatePrice, isValidLicenseTier, hasInvalidPricePresets } from '@/lib/validations/product';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import type { UxProductType } from '@/lib/product-defaults';
 
@@ -34,6 +34,10 @@ interface FormDataForValidation {
   ux_product_type?: UxProductType;
   issue_license_on_purchase?: boolean;
   license_duration_days?: number | null;
+  license_tier?: string | null;
+  trial_days?: number | null;
+  show_price_presets?: boolean;
+  custom_price_presets?: number[];
 }
 
 function collectPriceErrors(
@@ -47,7 +51,7 @@ function collectPriceErrors(
   if (isSubscription) {
     if (formData.recurring_price == null || Number(formData.recurring_price) <= 0) {
       errors.recurring_price = 'required';
-    } else if (moneyAmountError(Number(formData.recurring_price), formData.currency ?? '')) {
+    } else if (!validatePrice(formData.recurring_price).isValid || moneyAmountError(Number(formData.recurring_price), formData.currency ?? '')) {
       errors.recurring_price = 'invalid';
     }
     return errors;
@@ -63,6 +67,8 @@ function collectPriceErrors(
   // standard (or unspecified ux_product_type — preserves legacy behavior)
   if (priceDisplayValue === '' || formData.price <= 0) {
     errors.price = 'required';
+  } else if (!validatePrice(formData.price).isValid) {
+    errors.price = 'invalid';
   } else if (formData.price < minimumChargeAmount(formData.currency ?? '')) {
     errors.price = 'below_minimum';
   }
@@ -90,7 +96,11 @@ export function collectStep1FieldErrors(
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!formData.name?.trim()) errors.name = 'required';
+  else if (!validateName(formData.name).isValid) errors.name = 'invalid';
   if (!formData.slug?.trim()) errors.slug = 'required';
+  else if (!validateSlug(formData.slug).isValid) errors.slug = 'invalid';
+  if (formData.product_type === 'subscription' && formData.trial_days != null && (!Number.isInteger(formData.trial_days) || formData.trial_days < 0 || formData.trial_days > 730)) errors.trial_days = 'invalid';
+  if (hasInvalidPricePresets({ ...formData })) errors.custom_price_presets = 'invalid';
   Object.assign(errors, collectPriceErrors(formData, priceDisplayValue));
   Object.assign(errors, collectVatErrors(formData, taxMode));
   return errors;
@@ -102,14 +112,23 @@ export function collectRequiredFieldErrors(
   taxMode: TaxMode | undefined,
 ): Record<string, string> {
   const errors = collectStep1FieldErrors(formData, priceDisplayValue, taxMode);
+  if (formData.issue_license_on_purchase && !isValidLicenseTier(formData.license_tier)) errors.license_tier = 'invalid';
   if (formData.issue_license_on_purchase && licenseDurationError(formData.license_duration_days)) errors.license_duration_days = 'license_duration';
   return errors;
 }
 
 /** Field codes for API validation details (`{ field: string[] }`), so a server rejection shows at the field. */
-const SERVER_FIELD_CODES: Readonly<Record<string, string>> = { price: 'below_minimum', license_duration_days: 'license_duration' };
+function serverFieldCode(field: string, messages: string[]): string {
+  if (field === 'license_duration_days') return 'license_duration';
+  return field === 'price' && messages.some(message => /at least|minimum/i.test(message)) ? 'below_minimum' : 'invalid';
+}
 export function serverFieldErrors(details: Record<string, string[]> | undefined): Record<string, string> {
   const errors: Record<string, string> = {};
-  for (const key of Object.keys(details ?? {})) if (SERVER_FIELD_CODES[key]) errors[key] = SERVER_FIELD_CODES[key];
+  const fields = ['name', 'slug', 'price', 'recurring_price', 'trial_days', 'license_tier', 'license_duration_days', 'custom_price_presets'];
+  for (const key of fields) if (details?.[key]) errors[key] = serverFieldCode(key, details[key]);
+  for (const message of details?._errors ?? []) {
+    const field = fields.find(key => message.toLowerCase().startsWith(key));
+    if (field) errors[field] = serverFieldCode(field, [message]);
+  }
   return errors;
 }

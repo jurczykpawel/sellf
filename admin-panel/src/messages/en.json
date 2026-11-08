@@ -813,6 +813,8 @@
     }
   },
   "auth": {
+    "emailTooLong": "Email address must be at most 254 characters.",
+    "invalidEmail": "Enter a valid email address.",
     "emailNotConfirmedMessage": "Confirm your email address using the link in your email.",
     "demoLoginHint": "Use the demo account shown below. Creating accounts and sending sign-in emails are unavailable in demo mode.",
     "buyerPasswordLoginHint": "Sign in to access your purchases.",
@@ -1210,6 +1212,7 @@
     }
   },
   "productView": {
+    "emailTooLong": "Email address must be at most 254 characters.",
     "loading": "Loading...",
     "checkingAccess": "Checking your access to this product...",
     "checkingAccessButton": "Checking access...",
@@ -2163,6 +2166,8 @@
       }
     },
     "webhooks": {
+      "descriptionTooLong": "Description must be at most 500 characters.",
+      "eventsRequired": "Select at least one event.",
       "title": "Webhook Integrations",
       "addEndpoint": "Add Endpoint",
       "editWebhook": "Edit Webhook",
@@ -3610,6 +3615,8 @@
       "keyPlaceholder": "payload.signature"
     },
     "issuedLicenses": {
+      "invalidDomain": "Enter a valid domain, e.g. example.com.",
+      "searchTooLong": "Search must be at most 254 characters.",
       "invalidEmail": "Enter a valid email address, e.g. jan@example.com.",
       "refresh": "Refresh license list",
       "unavailable": "License issuance is available to the platform administrator.",

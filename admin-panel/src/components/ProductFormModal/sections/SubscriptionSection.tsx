@@ -1,19 +1,22 @@
 'use client';
 
+import React from 'react';
+import { useLocale } from 'next-intl';
 import { currencyExponent } from '@/lib/currency/minor-units';
 import { moneyAmountError } from '@/lib/currency/parse-money-input';
-import { MoneyInputError } from '@/components/MoneyInputError';
-import React from 'react';
-import { ModalSection } from '@/components/ui/Modal';
 import { CURRENCIES, getCurrencySymbol } from '@/lib/constants';
-import type { SectionProps } from '../types';
+import { MoneyInputError } from '@/components/MoneyInputError';
+import { productFieldErrorMessage } from '@/components/ProductFormModal/field-error-message';
+import { ModalSection } from '@/components/ui/Modal';
+import type { SectionProps } from '@/components/ProductFormModal/types';
 
 const INTERVALS: Array<{ value: 'month' | 'year'; label: string }> = [
   { value: 'month', label: 'month' },
   { value: 'year', label: 'year' },
 ];
 
-export function SubscriptionSection({ formData, setFormData, t }: SectionProps) {
+export function SubscriptionSection({ formData, setFormData, t, fieldErrors = {} }: SectionProps & { fieldErrors?: Record<string, string> }) {
+  const locale = useLocale();
   const isSubscription = formData.product_type === 'subscription';
 
   if (!isSubscription) return null;
@@ -41,6 +44,8 @@ export function SubscriptionSection({ formData, setFormData, t }: SectionProps) 
             <input
               type="number"
               id="recurring_price"
+              aria-invalid={!!fieldErrors.recurring_price}
+              aria-describedby={fieldErrors.recurring_price ? 'recurring-price-error' : undefined}
               min="0"
               step={currencyExponent(formData.currency) === 0 ? "1" : "0.01"}
               value={formData.recurring_price ?? ''}
@@ -67,6 +72,7 @@ export function SubscriptionSection({ formData, setFormData, t }: SectionProps) 
               ))}
             </select>
           </div>
+          {fieldErrors.recurring_price && <p id="recurring-price-error" role="alert" className="text-xs text-sf-danger">{productFieldErrorMessage('recurring_price', locale)}</p>}
           <MoneyInputError error={moneyAmountError(formData.recurring_price, formData.currency)} currency={formData.currency} />
           <p className="mt-1 text-xs text-sf-muted">
             {t('subscription.recurringPriceHelp', {
@@ -126,6 +132,8 @@ export function SubscriptionSection({ formData, setFormData, t }: SectionProps) 
           <input
             type="number"
             id="trial_days"
+            aria-invalid={!!fieldErrors.trial_days}
+            aria-describedby={fieldErrors.trial_days ? 'trial-days-error' : undefined}
             min="0"
             max="730"
             step="1"
@@ -134,11 +142,12 @@ export function SubscriptionSection({ formData, setFormData, t }: SectionProps) 
             onChange={(e) =>
               setFormData((prev) => ({
                 ...prev,
-                trial_days: e.target.value === '' ? null : parseInt(e.target.value, 10),
+                trial_days: e.target.value === '' ? null : Number(e.target.value),
               }))
             }
             className="w-full px-3 py-2 border-2 border-sf-border-medium bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent text-sm"
           />
+          {fieldErrors.trial_days && <p id="trial-days-error" role="alert" className="text-xs text-sf-danger">{productFieldErrorMessage('trial_days', locale)}</p>}
           <p className="mt-1 text-xs text-sf-muted">
             {t('subscription.trialDaysHelp', {
               defaultValue: 'Optional. 0 or empty = no trial. Max 730.',

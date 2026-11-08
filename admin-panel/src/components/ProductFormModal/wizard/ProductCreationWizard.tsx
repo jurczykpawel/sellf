@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { Product } from '@/types';
@@ -47,6 +47,12 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
 
   const [currentStep, setCurrentStep] = useState(1);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [openingDuplicate, setOpeningDuplicate] = useState(!!product && !product.id);
+  useEffect(() => {
+    if (!openingDuplicate) return;
+    const timer = setTimeout(() => setOpeningDuplicate(false), 500);
+    return () => clearTimeout(timer);
+  }, [openingDuplicate]);
 
   const {
     formData,
@@ -135,10 +141,10 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
   if (previousErrors !== fieldErrors) {
     setPreviousErrors(fieldErrors);
     const keys = Object.keys(fieldErrors);
-    const step1Keys = ['name', 'slug', 'price', 'recurring_price', 'custom_price_min', 'vat_rate'];
+    const step1Keys = ['name', 'slug', 'price', 'recurring_price', 'custom_price_min', 'custom_price_presets', 'trial_days', 'vat_rate'];
     if (keys.some(key => step1Keys.includes(key))) setCurrentStep(1);
     else if (keys.includes('description') || keys.includes('marketing_fields') || keys.includes('content_url')) setCurrentStep(2);
-    else if (keys.includes('sale_price') || keys.includes('license_duration_days')) setCurrentStep(3);
+    else if (keys.includes('sale_price') || keys.includes('license_duration_days') || keys.includes('license_tier')) setCurrentStep(3);
   }
 
   // Trigger the form submit via the hook's handleSubmit
@@ -216,7 +222,9 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
             />
           )}
 
-          <form id="wizard-form" onSubmit={handleSubmit}>
+          <form id="wizard-form" onSubmit={handleSubmit} noValidate onClickCapture={(event) => {
+            if (openingDuplicate && event.detail > 0) { event.preventDefault(); event.stopPropagation(); }
+          }}>
             {currentStep === 1 && (
               <StepEssentials
                 formData={formData}

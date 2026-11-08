@@ -13,6 +13,8 @@ import LoginForm from '@/components/LoginForm';
 afterEach(cleanup);
 it('explains email confirmation in Polish', async () => {
   const view = render(React.createElement(NextIntlClientProvider, { locale: 'pl', messages: pl }, React.createElement(LoginForm)));
+  fireEvent.change(view.container.querySelector('#email')!, { target: { value: 'buyer@example.com' } });
+  fireEvent.change(view.container.querySelector('#password')!, { target: { value: 'password123' } });
   fireEvent.submit(view.container.querySelector('form')!);
   expect(await screen.findByText('Potwierdź swój adres e-mail, klikając link w otrzymanej wiadomości.')).toBeTruthy();
   expect(screen.queryByText('Email not confirmed')).toBeNull();

@@ -46,3 +46,13 @@ export function parseCustomAmountInput(raw: string, currency: string): number | 
   const amount = Number(text.replace(',', '.'));
   return Number.isFinite(amount) ? amount : null;
 }
+
+/** Display only amounts that can be selected for this product and currency. */
+export function getPayablePricePresets(product: CustomAmountProductLike & { custom_price_presets?: number[] | null }): number[] {
+  const minimum = product.custom_price_min ?? minimumChargeAmount(product.currency);
+  return (product.custom_price_presets ?? []).filter(amount =>
+    amount === 0 ? minimum === 0 : Number.isFinite(amount)
+      && amount >= Math.max(minimum, minimumChargeAmount(product.currency))
+      && amount <= STRIPE_MAX_AMOUNT
+      && parseCustomAmountInput(String(amount), product.currency) !== null);
+}

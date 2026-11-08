@@ -7,6 +7,7 @@ import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from './ui/Mod
 import { useTranslations } from 'next-intl';
 import WebhookLogsTable from './webhooks/WebhookLogsTable';
 import { api, isExpectedApiError } from '@/lib/api/client';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 interface WebhookLogsDrawerProps {
   endpoint: WebhookEndpoint;
@@ -26,7 +27,11 @@ export default function WebhookLogsDrawer({ endpoint, onClose, isOpen, onRefresh
   const [showInactiveWarning, setShowInactiveWarning] = useState(false);
   const [pendingRetryLogId, setPendingRetryLogId] = useState<string | null>(null);
 
+  const beginRequest = useLatestRequest(JSON.stringify([endpoint.id, filter, isOpen]));
   const loadLogs = useCallback(async () => {
+    const isCurrent = beginRequest();
+    if (!isCurrent()) return;
+    setLoading(true);
     try {
       // Use v1 API for webhook logs
       const response = await api.list<WebhookLog>('webhooks/logs', {
@@ -34,15 +39,15 @@ export default function WebhookLogsDrawer({ endpoint, onClose, isOpen, onRefresh
         status: filter === 'failed' ? 'all_failed' : filter,
         limit: 50,
       });
-      setLogs(response.data || []);
+      if (isCurrent()) setLogs(response.data || []);
     } catch (err) {
-      if (isExpectedApiError(err)) return;
+      if (!isCurrent() || isExpectedApiError(err)) return;
       console.error(err);
       toast.error(t('loadError'));
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [endpoint.id, filter, t]);
+  }, [endpoint.id, filter, t, beginRequest]);
 
   const requestKey = JSON.stringify([endpoint.id, filter, isOpen]);
   const [previousKey, setPreviousKey] = useState(requestKey);
@@ -50,10 +55,7 @@ export default function WebhookLogsDrawer({ endpoint, onClose, isOpen, onRefresh
     setPreviousKey(requestKey);
    setLoading(true);
   }
- const fetchLogs = () => {
-   setLoading(true);
-   return loadLogs();
- };
+ const fetchLogs = () => loadLogs();
 
   useEffect(() => {
     if (isOpen) {

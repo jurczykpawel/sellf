@@ -197,7 +197,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
     setMessage({ type: null, text: '' });
     // Every problem is shown next to its own field in one pass, not one per attempt.
     const validation = validateCustomFieldValues(customFieldDefs, customFieldValues, { requireAll: true });
-    const emailProblem = !email.trim() ? t('enterEmailAddress') : !isValidEmailFormat(email) ? tCheckout('invalidEmail') : null;
+    const emailProblem = !email.trim() ? t('enterEmailAddress') : email.trim().length > 254 ? t('emailTooLong') : !isValidEmailFormat(email) ? tCheckout('invalidEmail') : null;
     const termsProblem = showTos && !termsAccepted ? tCompliance('pleaseAcceptTerms') : null;
     setEmailError(emailProblem);
     setTermsError(termsProblem);
@@ -326,6 +326,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
               </label>
               <input
                 type="email"
+                maxLength={254}
                 id="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(null); }}

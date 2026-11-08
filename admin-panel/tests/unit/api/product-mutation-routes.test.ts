@@ -100,3 +100,35 @@ it('replaces nested event sessions in the same audited product transaction', asy
   expect(response.status).toBe(200);
   expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_as', expect.objectContaining({ product_data: { sessions: [expect.objectContaining({ tiers: sessions[0].tiers })] } }));
 });
+
+it.each([
+  [{ custom_price_min: 100 }, { currency: 'JPY', custom_price_min: 0, custom_price_presets: [5, 10, 25] }],
+  [{ currency: 'JPY' }, { currency: 'USD', custom_price_min: 0, custom_price_presets: [5, 10, 25] }],
+  [{ custom_price_presets: [10, 20, 30] }, { currency: 'JPY', custom_price_min: 100, custom_price_presets: [100, 200, 300] }],
+])('rejects a partial preset policy change using saved values (%j)', async (patch, stored) => {
+  mocks.authenticate.mockResolvedValue({ admin: { userId: actor }, supabase: { from: mocks.from, rpc: mocks.rpc } });
+  const implementation = mocks.from.getMockImplementation()!;
+  mocks.from.mockImplementation((...args) => {
+    const query = implementation(...args);
+    const row = { ...product, allow_custom_price: true, show_price_presets: true, ...stored };
+    query.maybeSingle.mockResolvedValue({ data: row, error: null });
+    query.single.mockResolvedValue({ data: row, error: null });
+    return query;
+  });
+  const response = await PATCH(new NextRequest('http://localhost/api/v1/products/'+product.id, { method: 'PATCH', body: JSON.stringify(patch) }), context);
+  expect(response.status).toBe(400);
+  expect(await response.text()).toContain('custom_price_presets');
+  expect(mocks.rpc).not.toHaveBeenCalled();
+});
+
+it('accepts partial presets in the saved currency when they meet its minimum', async () => {
+  mocks.authenticate.mockResolvedValue({ admin: { userId: actor }, supabase: { from: mocks.from, rpc: mocks.rpc } });
+  const implementation = mocks.from.getMockImplementation()!;
+  mocks.from.mockImplementation((...args) => {
+    const query = implementation(...args);
+    query.single.mockResolvedValue({ data: { ...product, currency: 'GBP', allow_custom_price: false, show_price_presets: true, custom_price_min: 0, custom_price_presets: [1] }, error: null });
+    return query;
+  });
+  const response = await PATCH(new NextRequest('http://localhost/api/v1/products/'+product.id, { method: 'PATCH', body: JSON.stringify({ allow_custom_price: true, custom_price_presets: [0, 0.3, 0.4] }) }), context);
+  expect(response.status).toBe(200);
+});

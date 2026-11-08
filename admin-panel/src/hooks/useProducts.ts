@@ -7,7 +7,8 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { Product } from '@/types';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
+import type { Product } from '@/types';
 import { api, ApiError, isExpectedApiError } from '@/lib/api/client';
 
 interface UseProductsParams {
@@ -103,7 +104,10 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
    * Translates the offset-based page param into the correct cursor by
    * tracking next_cursor values as pages are visited sequentially.
    */
+  const beginRequest = useLatestRequest(JSON.stringify([page, limit, search, status, sortBy, sortOrder]));
   const fetchProducts = useCallback(async () => {
+    const isCurrent = beginRequest();
+    if (!isCurrent()) return;
     setLoading(true);
     setError(null);
 
@@ -125,6 +129,8 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
         sort_order: sortOrder,
         cursor: cursor || undefined,
       });
+
+      if (!isCurrent()) return;
 
       const allProducts = response.data;
       const hasMore = response.pagination?.has_more ?? allProducts.length > limit;
@@ -149,7 +155,7 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
         hasMore,
       });
     } catch (err) {
-      if (isExpectedApiError(err)) return;
+      if (!isCurrent() || isExpectedApiError(err)) return;
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
@@ -157,9 +163,9 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
       }
       setProducts([]);
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [page, limit, search, status, sortBy, sortOrder]);
+  }, [page, limit, search, status, sortBy, sortOrder, beginRequest]);
 
   /**
    * Create a new product

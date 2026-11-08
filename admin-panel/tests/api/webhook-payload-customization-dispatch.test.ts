@@ -7,11 +7,12 @@ import { encryptHeaderMap } from '@/lib/webhooks/custom-headers';
 // weaken that production guard, intercept the dispatcher's HTTP layer the same way
 // the dispatcher-custom-headers unit test does, and assert on what trigger() built:
 // custom header, extra placeholder-rendered fields, and the field-selected `data`.
-const captured: { headers?: Record<string, string>; body?: any } = {};
+const captured: { headers?: Record<string, string>; body?: any; deliveries: Map<string, any> } = { deliveries: new Map() };
 vi.mock('undici', () => ({
   fetch: vi.fn(async (_url: string, init: any) => {
     captured.headers = init.headers;
     captured.body = JSON.parse(init.body);
+    if (init.headers['X-Sellf-Delivery-Id']) captured.deliveries.set(init.headers['X-Sellf-Delivery-Id'], captured.body);
     return new Response(init.body, { status: 200 });
   }),
 }));
@@ -97,7 +98,7 @@ it.each(['manual', 'cron'])('retains order delivery metadata after %s retry @J72
       const { handleWebhookDeliveriesRetry } = await import('@/app/api/cron/route');
       expect((await handleWebhookDeliveriesRetry()).processed).toBeGreaterThan(0);
     }
-    expect(captured.body.data.order.payUrl).toBe(outgoing.data.order.payUrl);
+    expect(captured.deliveries.get(row!.id)?.data.order.payUrl).toBe(outgoing.data.order.payUrl);
     const stored = await admin.from('webhook_logs').select('*').eq('id', row!.id).single();
     expect(stored.error).toBeNull();
     expect(stored.data).toMatchObject({ status: 'success', http_status: 200, response_body: null, attempt_count: 2 });

@@ -4,6 +4,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import type { Product } from '@/types';
 import type { User } from '@supabase/supabase-js';
 import { formatPrice } from '@/lib/constants';
+import { getPayablePricePresets } from '@/lib/payment/custom-amount';
 import { minimumChargeAmount } from '@/lib/currency/minor-units';
 import CaptchaWidget from '@/components/captcha/CaptchaWidget';
 import TermsCheckbox from '@/components/TermsCheckbox';
@@ -68,6 +69,7 @@ export default function PwywSection({
   const tSecurity = useTranslations('security');
   // PWYW free-access form is guests-only
   const showTos = shouldShowTosCheckbox(collectTermsOfService, true);
+  const presets = getPayablePricePresets(product);
 
   return (
     <>
@@ -78,14 +80,9 @@ export default function PwywSection({
           <h3 className="text-lg font-semibold text-sf-heading mb-3">{t('customPrice.title')}</h3>
 
           {/* Preset Buttons */}
-          {product.show_price_presets &&
-            product.custom_price_presets &&
-            product.custom_price_presets.filter(
-              p => p >= 0 && (p > 0 || (product.custom_price_min ?? minimumChargeAmount(product.currency)) === 0)
-            ).length > 0 && (
+          {product.show_price_presets && presets.length > 0 && (
               <div className="flex gap-2 mb-3">
-                {product.custom_price_presets
-                  .filter(p => p >= 0 && (p > 0 || (product.custom_price_min ?? minimumChargeAmount(product.currency)) === 0))
+                {presets
                   .map((preset) => (
                     <button
                       key={preset}

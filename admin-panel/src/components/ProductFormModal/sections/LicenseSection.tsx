@@ -1,11 +1,14 @@
 'use client';
 
 import React from 'react';
+import { useLocale } from 'next-intl';
+import { productFieldErrorMessage } from '@/components/ProductFormModal/field-error-message';
 import { Lock } from 'lucide-react';
 import { licenseDurationError, MAX_LICENSE_DURATION_DAYS } from '@/lib/validations/product';
 import type { AccessSectionProps } from '@/components/ProductFormModal/types';
 
 export function LicenseSection({ formData, setFormData, t, hasLicenseIssuance = true, fieldErrors = {}, setFieldErrors }: AccessSectionProps) {
+  const locale = useLocale();
   const durationError = fieldErrors.license_duration_days;
   if (!hasLicenseIssuance) {
     return (
@@ -54,10 +57,12 @@ export function LicenseSection({ formData, setFormData, t, hasLicenseIssuance = 
               onChange={(e) =>
                 setFormData(prev => ({ ...prev, license_tier: e.target.value || null }))
               }
-              maxLength={80}
+              aria-invalid={!!fieldErrors.license_tier}
+              aria-describedby={fieldErrors.license_tier ? 'license-tier-error' : undefined}
               className="w-full px-3 py-2.5 border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent bg-sf-input text-sf-heading"
               placeholder={t('license.tierPlaceholder')}
             />
+            {fieldErrors.license_tier && <p id="license-tier-error" role="alert" className="text-xs text-sf-danger">{productFieldErrorMessage('license_tier', locale)}</p>}
             <p className="mt-1 text-xs text-sf-muted">{t('license.tierHint')}</p>
           </div>
 

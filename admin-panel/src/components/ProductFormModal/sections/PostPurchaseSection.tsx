@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { useTranslations, useLocale } from 'next-intl';
+import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
 import { formatPrice } from '@/lib/constants';
-import { PostPurchaseSectionProps } from '../types';
+import type { PostPurchaseSectionProps } from '@/components/ProductFormModal/types';
 import { ConversionBadge } from './ConversionBadge';
 
 export function PostPurchaseSection({
@@ -18,6 +19,9 @@ export function PostPurchaseSection({
 }: PostPurchaseSectionProps) {
   const tCommon = useTranslations('common');
   const locale = useLocale();
+  const priceLabel = (p: PostPurchaseSectionProps['products'][number]) => p.product_type === 'subscription'
+    ? formatRecurringProductPrice(p, locale) ?? '—'
+    : p.price === 0 ? t('free') : formatPrice(p.price, p.currency, locale);
   // Helper to detect if redirect URL points to an internal product
   const getSelectedProductFromUrl = () => {
     const url = formData.success_redirect_url || '';
@@ -125,7 +129,7 @@ export function PostPurchaseSection({
               .filter(p => p.id !== currentProductId)
               .map(p => (
                 <option key={p.id} value={p.slug}>
-                  {p.icon} {p.name} {p.price === 0 ? `(${t('free')})` : `- ${formatPrice(p.price, p.currency, locale)}`}
+                  {p.icon} {p.name} — {priceLabel(p)}
                 </option>
               ))
             }
@@ -138,7 +142,7 @@ export function PostPurchaseSection({
               <div className="flex-1">
                 <p className="font-medium text-sf-heading">{selectedRedirectProduct.name}</p>
                 <p className="text-sm text-sf-muted">
-                  {selectedRedirectProduct.price === 0 ? t('free') : formatPrice(selectedRedirectProduct.price, selectedRedirectProduct.currency, locale)}
+                  {priceLabel(selectedRedirectProduct)}
                 </p>
               </div>
               <button

@@ -7,7 +7,8 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { UserWithAccess } from '@/types';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
+import type { UserWithAccess } from '@/types';
 import { api, ApiError, isExpectedApiError } from '@/lib/api/client';
 
 interface UseUsersParams {
@@ -65,7 +66,10 @@ export function useUsers(params: UseUsersParams = {}): UseUsersResult {
    * Translates the offset-based page param into the correct cursor by
    * tracking next_cursor values as pages are visited sequentially.
    */
+  const beginRequest = useLatestRequest(JSON.stringify([page, limit, search, sortBy, sortOrder]));
   const fetchUsers = useCallback(async () => {
+    const isCurrent = beginRequest();
+    if (!isCurrent()) return;
     setLoading(true);
     setError(null);
 
@@ -86,6 +90,8 @@ export function useUsers(params: UseUsersParams = {}): UseUsersResult {
         sort_order: sortOrder,
         cursor: cursor || undefined,
       });
+
+      if (!isCurrent()) return;
 
       const allUsers = response.data;
       const hasMore = response.pagination?.has_more ?? allUsers.length > limit;
@@ -110,7 +116,7 @@ export function useUsers(params: UseUsersParams = {}): UseUsersResult {
         hasMore,
       });
     } catch (err) {
-      if (isExpectedApiError(err)) return;
+      if (!isCurrent() || isExpectedApiError(err)) return;
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
@@ -118,9 +124,9 @@ export function useUsers(params: UseUsersParams = {}): UseUsersResult {
       }
       setUsers([]);
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [page, limit, search, sortBy, sortOrder]);
+  }, [page, limit, search, sortBy, sortOrder, beginRequest]);
 
   return {
     users,

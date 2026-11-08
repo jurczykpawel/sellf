@@ -5,7 +5,9 @@ import { Check, Copy, Eye, RefreshCw, ShieldX } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatAdminDate } from '@/lib/timezone';
+import { normalizeLicenseDomain } from '@/lib/license-keys/domain';
 import { licenseEmailSchema } from '@/lib/license-keys/email';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 
 interface FieldDefinition {
@@ -63,9 +65,11 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
   const [email, setEmail] = useState(initialEmail);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [domain, setDomain] = useState('');
+  const [domainError, setDomainError] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   const [sendEmail, setSendEmail] = useState(true);
-  const [search, setSearch] = useState(initialSearch);
+  const [search, setSearch] = useState(initialSearch.slice(0, 254));
   const [source, setSource] = useState('');
   const [status, setStatus] = useState('');
   const [revealed, setRevealed] = useState<Record<string, string>>({});
@@ -79,7 +83,11 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
     [selectedProduct],
   );
 
+  const beginRequest = useLatestRequest(JSON.stringify([page, productId, search, source, status, enabled]));
   const fetchSettings = useCallback(async () => {
+    const isCurrent = beginRequest();
+    if (!isCurrent()) return;
+    setLoading(true);
 
     try {
       const query = new URLSearchParams({ page: String(page), limit: String(limit) });
@@ -89,17 +97,18 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
       const response = await fetch(`/api/admin/licenses?${query}`, { cache: 'no-store' });
       if (!response.ok) throw new Error('load');
       const body = await response.json();
+      if (!isCurrent()) return;
       setLicenses(body.licenses);
       setProducts(body.products);
       setTotal(body.total);
       // A prefilled product that cannot issue licenses falls back to the first one that can.
       if (!body.products.some((p: ProductOption) => p.id === productId)) setProductId(body.products[0]?.id ?? '');
     } catch {
-      toast.error(t('loadError'));
+      if (isCurrent()) toast.error(t('loadError'));
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [page, productId, search, source, status, t]);
+  }, [page, productId, search, source, status, t, beginRequest]);
 
   const requestKey = JSON.stringify([page, productId, search, source, status, enabled]);
   const [previousKey, setPreviousKey] = useState(requestKey);
@@ -108,10 +117,7 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
     setLoading(true);
   }
 
-  const load = useCallback(() => {
-    setLoading(true);
-    return fetchSettings();
-  }, [fetchSettings]);
+  const load = useCallback(() => fetchSettings(), [fetchSettings]);
 
   useEffect(() => {
     if (enabled) void fetchSettings();
@@ -121,6 +127,12 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
     event.preventDefault();
     if (!licenseEmailSchema.safeParse(email).success) { setEmailError(t('invalidEmail')); document.getElementById('license-email')?.focus(); return; }
     setEmailError(null);
+    if (domainField && ((domainField.required && !domain.trim()) || (domain.trim() && !normalizeLicenseDomain(domain)))) {
+      setDomainError(t('invalidDomain'));
+      document.getElementById('license-domain')?.focus();
+      return;
+    }
+    setDomainError(null);
     if (!window.confirm(t('confirmIssue'))) return;
     setWorking(true);
     try {
@@ -131,6 +143,7 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
       });
       const body = await response.json();
       if (!response.ok && (body.fieldErrors?.email || body.details?.fieldErrors?.email)) { setEmailError(t('invalidEmail')); return; }
+      if (!response.ok && (body.fieldErrors?.domain || body.details?.fieldErrors?.domain || body.fieldErrors?.[DOMAIN_FIELD])) { setDomainError(t('invalidDomain')); return; }
       if (!response.ok) throw new Error(body.error || 'issue');
       setRevealed((current) => ({ ...current, [body.license.id]: body.license.token }));
       await navigator.clipboard.writeText(body.license.token);
@@ -185,9 +198,9 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
       <form data-tour="licenses-issue" onSubmit={issue} className="p-6 border-b-2 border-sf-border-medium space-y-4">
         <h3 className="font-semibold text-sf-heading">{t('manualTitle')}</h3>
         <div className="grid md:grid-cols-3 gap-4">
-          <Field label={t('product')}><select required value={productId} onChange={(e) => { setProductId(e.target.value); setValues({}); setDomain(''); }} className="input"><option value="">{t('selectProduct')}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
+          <Field label={t('product')}><select required value={productId} onChange={(e) => { setProductId(e.target.value); setValues({}); setDomain(''); setDomainError(null); }} className="input"><option value="">{t('selectProduct')}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
           <Field label={t('email')} error={emailError} errorId="license-email-error"><input id="license-email" required type="email" maxLength={254} value={email} onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(null); }} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? 'license-email-error' : undefined} className="input" /></Field>
-          {domainField && <Field label={t('domain')}><input required={domainField.required} maxLength={253} placeholder="example.com" value={domain} onChange={(e) => setDomain(e.target.value)} className="input" /></Field>}
+          {domainField && <Field label={t('domain')} error={domainError} errorId="license-domain-error"><input id="license-domain" aria-invalid={Boolean(domainError)} aria-describedby={domainError ? 'license-domain-error' : undefined} required={domainField.required} maxLength={253} placeholder="example.com" value={domain} onChange={(e) => { setDomain(e.target.value); setDomainError(null); }} className="input" /></Field>}
         </div>
         {selectedProduct && <p className="text-xs text-sf-muted">{t('policy', { tier: selectedProduct.license_tier ?? '—', days: selectedProduct.license_duration_days ?? t('unlimited') })}</p>}
         {extraFields.length > 0 && <div className="grid md:grid-cols-2 gap-4">{extraFields.map((field) => <Field key={field.id} label={labelFor(field.label)}><input required={field.required} type={field.type === 'email' ? 'email' : 'text'} maxLength={field.max_length} value={values[field.id] ?? ''} onChange={(e) => setValues((v) => ({ ...v, [field.id]: e.target.value }))} className="input" /></Field>)}</div>}
@@ -197,7 +210,7 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
 
       <div className="p-6 space-y-4">
         <div data-tour="licenses-filters" className="flex flex-wrap gap-3 items-end">
-          <Field label={t('search')}><input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="input" /></Field>
+          <Field label={t('search')} error={searchError} errorId="license-search-error"><input maxLength={254} aria-invalid={Boolean(searchError)} aria-describedby={searchError ? 'license-search-error' : undefined} value={search} onChange={(e) => { const value = e.target.value; setSearchError(value.length > 254 ? t('searchTooLong') : null); setSearch(value.slice(0, 254)); setPage(1); }} className="input" /></Field>
           <Field label={t('source')}><select value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }} className="input"><option value="">{t('all')}</option><option value="purchase">{t('purchase')}</option><option value="manual">{t('manual')}</option><option value="api">{t('api')}</option></select></Field>
           <Field label={t('status')}><select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="input"><option value="">{t('all')}</option><option value="active">{t('active')}</option><option value="expired">{t('expired')}</option><option value="revoked">{t('revokedStatus')}</option></select></Field>
           <button type="button" onClick={() => void load()} aria-label={t('refresh')} title={t('refresh')} className="p-2 border-2 border-sf-border-medium"><RefreshCw className="w-5 h-5" aria-hidden="true" /></button>
