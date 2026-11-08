@@ -42,7 +42,7 @@ describe('event presentation', () => {
     expect(Object.keys(en.events)).toEqual(Object.keys(pl.events));
   });
   it('omits optional tier messages for unlimited regular seats and closed sales', () => {
-    const sessions = projectEventSessions([{ ...raw, ends_at: '2099-06-01T16:00:00Z', current_tier: { ...raw.current_tier, seats_left: null, ends_at: null }, next_tier_price: null, cheaper_sold_out: false }]);
+    const sessions = projectEventSessions([{ ...raw, remaining: null, ends_at: '2099-06-01T16:00:00Z', current_tier: { ...raw.current_tier, seats_left: null, ends_at: null }, next_tier_price: null, cheaper_sold_out: false }]);
     const html = renderToStaticMarkup(createElement(EventSessions, { sessions, currency: 'PLN', selected: 'term', onSelect: () => {} }));
     for (const text of ['Zostało', 'Ta cena do', 'Potem', 'Tańsze miejsca']) expect(html).not.toContain(text);
     expect(html).toContain('12:00');

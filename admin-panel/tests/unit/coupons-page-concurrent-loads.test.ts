@@ -5,7 +5,7 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import CouponsPageContent from '@/components/CouponsPageContent';
 
-const mocks = vi.hoisted(() => ({ fetchPage: vi.fn() }));
+const mocks = vi.hoisted(() => ({ fetchPage: vi.fn(), update: vi.fn(), toastError: vi.fn() }));
 
 vi.mock('next-intl', async (importOriginal) => {
   const { createNextIntlMock } = await import('@/../tests/mocks/next-intl');
@@ -14,9 +14,10 @@ vi.mock('next-intl', async (importOriginal) => {
 vi.mock('@/lib/coupons/fetch-coupons-page', () => ({ fetchCouponsPage: mocks.fetchPage }));
 vi.mock('@/hooks/useProducts', () => ({ fetchAllProductsForDropdown: async () => [] }));
 vi.mock('@/lib/api/client', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api/client')>()),
-  api: { listAll: async () => ({ data: [], truncated: false }), getCustom: async () => ({}) },
+  api: { update: mocks.update, listAll: async () => ({ data: [], truncated: false }), getCustom: async () => ({}) },
   ApiError: class extends Error {},
 }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: mocks.toastError, warning: vi.fn() } }));
 vi.mock('@/components/CouponFormModal', () => ({ default: () => null }));
 
 type Page = { coupons: { id: string; code: string }[]; nextCursor: string | null; hasMore: boolean };
@@ -25,6 +26,8 @@ const coupon = (code: string) => ({ id: code, code, discount_type: 'percentage',
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  mocks.fetchPage.mockReset();
+  mocks.update.mockReset();
   vi.clearAllMocks();
 });
 
@@ -58,4 +61,46 @@ it('does not offer "Load more" until the newest first-page load has settled', as
 
   await act(async () => { resolvers[1]({ coupons: [coupon('FIRST')], nextCursor: 'c1', hasMore: true }); });
   expect(view.getByRole('button', { name: 'loadMore' })).toBeTruthy();
+});
+
+
+it('retains the current query when an earlier status change completes', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('React', React);
+  let complete!: (value: object) => void;
+  mocks.update.mockImplementation(() => new Promise(resolve => { complete = resolve; }));
+  mocks.fetchPage.mockImplementation((_cursor, filters) => Promise.resolve({ coupons: [coupon(filters.search ? 'CURRENT' : 'EARLIER')], nextCursor: null, hasMore: false }));
+  const view = render(createElement(CouponsPageContent));
+  await act(async () => {});
+  fireEvent.click(view.getByRole('button', { name: 'active', exact: true }));
+  fireEvent.change(view.getByRole('textbox', { name: 'search' }), { target: { value: 'new' } });
+  await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+  expect(view.getByText('CURRENT')).toBeTruthy();
+  await act(async () => { complete({}); });
+  expect(view.getByText('CURRENT')).toBeTruthy();
+  expect(view.queryByText('EARLIER')).toBeNull();
+  expect(mocks.fetchPage).toHaveBeenCalledTimes(2);
+});
+
+it('keeps the latest pagination busy when an earlier page rejects', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('React', React);
+  const pending = new Map<string, { resolve: (page: Page) => void; reject: (error: Error) => void }>();
+  mocks.fetchPage.mockImplementation((cursor, filters) => cursor
+    ? new Promise<Page>((resolve, reject) => { pending.set(cursor, { resolve, reject }); })
+    : Promise.resolve({ coupons: [coupon(filters.search ? 'CURRENT' : 'EARLIER')], nextCursor: filters.search ? 'b' : 'a', hasMore: true }));
+  const view = render(createElement(CouponsPageContent));
+  await act(async () => {});
+  fireEvent.click(view.getByRole('button', { name: 'loadMore', exact: true }));
+  fireEvent.change(view.getByRole('textbox', { name: 'search' }), { target: { value: 'new' } });
+  await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+  const more = view.getByRole('button', { name: /^(loadMore|loadingMore)$/ }) as HTMLButtonElement;
+  expect(more.disabled).toBe(false);
+  fireEvent.click(more);
+  await act(async () => { pending.get('a')!.reject(new Error('earlier')); });
+  expect(mocks.toastError).not.toHaveBeenCalled();
+  expect(more.disabled).toBe(true);
+  await act(async () => { pending.get('b')!.resolve({ coupons: [coupon('NEXT')], nextCursor: null, hasMore: false }); });
+  expect(view.getByText('CURRENT')).toBeTruthy();
+  expect(view.getByText('NEXT')).toBeTruthy();
 });

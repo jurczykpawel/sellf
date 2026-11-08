@@ -1,8 +1,10 @@
 'use client';
 
 import React from 'react';
+import { useLocale } from 'next-intl';
+import { productFieldErrorMessage } from '@/components/ProductFormModal/field-error-message';
 import { ModalSection } from '@/components/ui/Modal';
-import { BasicInfoSectionProps } from '../types';
+import type { BasicInfoSectionProps } from '@/components/ProductFormModal/types';
 
 const errorBorder = 'border-red-500 focus:ring-red-500';
 const normalBorder = 'border-sf-border focus:ring-sf-accent';
@@ -18,6 +20,7 @@ export function BasicInfoSection({
   generateSlug,
   fieldErrors = {},
 }: BasicInfoSectionProps) {
+  const locale = useLocale();
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
@@ -31,7 +34,7 @@ export function BasicInfoSection({
       setSlugModified(true);
       setFormData((prev) => ({
         ...prev,
-        [name]: generateSlug(value),
+        [name]: value,
       }));
     } else {
       setFormData((prev) => ({
@@ -52,6 +55,8 @@ export function BasicInfoSection({
             type="text"
             id="name"
             name="name"
+            aria-invalid={!!fieldErrors.name}
+            aria-describedby={fieldErrors.name ? 'name-error' : undefined}
             value={formData.name}
             onChange={handleInputChange}
             ref={nameInputRef}
@@ -62,8 +67,8 @@ export function BasicInfoSection({
             required
           />
           {fieldErrors.name && (
-            <p className="mt-1 text-xs text-red-500">
-              {t('nameRequired', { name: t('productName') })}
+            <p id="name-error" role="alert" className="mt-1 text-xs text-red-500">
+              {fieldErrors.name === 'required' ? t('nameRequired', { name: t('productName') }) : productFieldErrorMessage('name', locale)}
             </p>
           )}
         </div>
@@ -78,6 +83,8 @@ export function BasicInfoSection({
               type="text"
               id="slug"
               name="slug"
+              aria-invalid={!!fieldErrors.slug}
+              aria-describedby={fieldErrors.slug ? 'slug-error' : undefined}
               value={formData.slug}
               onChange={handleInputChange}
               className={`w-full px-3 py-2.5 border ${
@@ -92,6 +99,7 @@ export function BasicInfoSection({
               </span>
             )}
           </div>
+          {fieldErrors.slug && <p id="slug-error" role="alert" className="mt-1 text-xs text-sf-danger">{productFieldErrorMessage('slug', locale)}</p>}
           <p className="mt-1 text-xs text-sf-muted">
             {currentDomain ? `${currentDomain}/p/` : 'https://example.com/p/'}
             <strong>{formData.slug || 'product-slug'}</strong>

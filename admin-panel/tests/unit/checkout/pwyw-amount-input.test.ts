@@ -80,3 +80,11 @@ describe('PWYW amount across localized routes', () => {
     expect((screen.getByDisplayValue(raw) as HTMLInputElement).value).toBe(raw);
   });
 });
+
+it('shows only payable saved presets and starts at a valid amount', () => {
+  const product = { id: 'product', slug: 'pwyw', name: 'Support', price: 0, currency: 'JPY', allow_custom_price: true, custom_price_min: 100, show_price_presets: true, custom_price_presets: [5, 10, 25, 100, 150.5, 200] } as Product;
+  render(React.createElement(NextIntlClientProvider, { locale: 'pl', messages }, React.createElement(PaidProductForm, { product, collectTermsOfService: false, layoutMode: 'embedded' })));
+  const input = screen.getByRole('textbox') as HTMLInputElement;
+  expect(input.value).toBe('100');
+  expect(screen.getAllByRole('button').map(button => button.textContent?.trim().replace(/\s+/g, ' ')).filter(label => label?.includes('JPY'))).toEqual(['100 JPY', '200 JPY']);
+});

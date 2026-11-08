@@ -1,15 +1,19 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
-/**
- * Latest-wins guard for overlapping async loads (StrictMode double effects,
- * filter changes, refetch after a mutation) that can settle out of order.
- * `begin()` starts a request and returns a check that stays true only until the
- * next `begin()`.
- */
-export function useLatestRequest(): () => () => boolean {
-  const latestRef = useRef(0);
+/** Latest-wins guard shared by filtered reads and refreshes. */
+export function useLatestRequest(key = ''): () => () => boolean {
+  const requestRef = useRef({ key, version: 0, active: true });
+  useEffect(() => {
+    const state = requestRef.current;
+    state.key = key;
+    state.active = true;
+    state.version++;
+    return () => { state.active = false; state.version++; };
+  }, [key]);
   return useCallback(() => {
-    const id = ++latestRef.current;
-    return () => id === latestRef.current;
-  }, []);
+    const state = requestRef.current;
+    if (!state.active || state.key !== key) return () => false;
+    const version = ++state.version;
+    return () => state.active && state.key === key && version === state.version;
+  }, [key]);
 }

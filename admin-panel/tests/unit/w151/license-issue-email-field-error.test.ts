@@ -62,3 +62,50 @@ it('keeps one license page title without repeating its heading inside the form',
   await screen.findByRole('option', { name: 'Course' });
   expect(screen.getAllByRole('heading', { name: 'title' })).toHaveLength(1);
 });
+
+it('rejects an invalid license domain beside the field without confirmation or POST', async () => {
+  const fetch = vi.fn(async () => new Response(JSON.stringify({ licenses: [], products: [{ ...product, custom_checkout_fields: [{ id: '_sellf_license_domain', type: 'domain', required: true }] }], total: 0 })));
+  vi.stubGlobal('fetch', fetch);
+  const confirm = vi.fn(() => true);
+  Object.defineProperty(window, 'confirm', { configurable: true, value: confirm });
+  const email = await fillAndSubmit('buyer@example.com');
+  const domain = screen.getByPlaceholderText('example.com');
+  fireEvent.change(domain, { target: { value: 'not-a-domain' } });
+  fireEvent.submit(email.closest('form')!);
+  expect(await screen.findByText('invalidDomain')).toBeTruthy();
+  expect(domain.getAttribute('aria-invalid')).toBe('true');
+  expect(confirm).not.toHaveBeenCalled();
+  expect(h.toastError).not.toHaveBeenCalled();
+});
+
+it('caps license search at 254 and explains the limit at the field', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ licenses: [], products: [product], total: 0 }))));
+  render(createElement(IssuedLicensesSettings, { enabled: true }));
+  const search = screen.getByLabelText('search') as HTMLInputElement;
+  fireEvent.change(search, { target: { value: 'x'.repeat(255) } });
+  expect(search.maxLength).toBe(254);
+  expect(search.value.length).toBeLessThanOrEqual(254);
+  expect(await screen.findByText('searchTooLong')).toBeTruthy();
+});
+
+it('accepts a valid domain after correction and maps a server rejection to the domain field', async () => {
+  const fetch = vi.fn(async (_url: string, init?: RequestInit) => init?.method === 'POST'
+    ? new Response(JSON.stringify({ fieldErrors: { domain: ['Invalid domain'] } }), { status: 400 })
+    : new Response(JSON.stringify({ licenses: [], products: [{ ...product, custom_checkout_fields: [{ id: '_sellf_license_domain', type: 'domain', required: true }] }], total: 0 })));
+  vi.stubGlobal('fetch', fetch);
+  Object.defineProperty(window, 'confirm', { configurable: true, value: () => true });
+  const email = await fillAndSubmit('buyer@example.com');
+  const domain = screen.getByPlaceholderText('example.com');
+  fireEvent.change(domain, { target: { value: 'https://www.example.com' } });
+  fireEvent.submit(email.closest('form')!);
+  expect(await screen.findByText('invalidDomain')).toBeTruthy();
+  expect(fetch.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(true);
+  expect(h.toastError).not.toHaveBeenCalled();
+});
+
+it('provides localized domain and search feedback', () => {
+  expect(pl.settings.issuedLicenses.invalidDomain).toMatch(/domenę/);
+  expect(en.settings.issuedLicenses.invalidDomain).toMatch(/domain/);
+  expect(pl.settings.issuedLicenses.searchTooLong).toContain('254');
+  expect(en.settings.issuedLicenses.searchTooLong).toContain('254');
+});

@@ -292,3 +292,54 @@ it.each(['product_page', 'checkout'] as const)('keeps %s quantity editable when 
   expect(document.activeElement).toBe(quantity);
   await waitFor(() => expect(screen.getByTestId('payment-fields')).toBeTruthy());
 });
+
+it.each([[409, 'soldOut'], [429, 'holdLimit']] as const)('recovers from event response %s by editing quantity without reloading', async (status, message) => {
+  let remaining = 5;
+  let attempts = 0;
+  mocks.fetch.mockImplementation(async (url, options) => {
+    if (url.includes('/availability')) return { ok: true, json: async () => ({ sessions: [{ id: 'event-session', startsAt: '2099-01-01T12:00:00Z', endsAt: null, timezone: 'UTC', title: 'Workshop', venue: null, extraDays: null, remaining, soldOut: false,
+      currentTier: { id: 'tier', label: null, price: 49, seatsLeft: null, endsAt: null }, nextTierPrice: null, cheaperSoldOut: false }] }) };
+    if (JSON.parse(options.body).expireOnly) return { ok: true };
+    attempts++;
+    if (attempts === 1) { remaining = 3; return { ok: false, status, json: async () => ({ error: 'sold_out' }) }; }
+    return { ok: true, json: async () => ({ clientSecret: 'cs_test_first_secret_value', checkoutSessionId: 'cs_test_first' }) };
+  });
+  vi.stubGlobal('fetch', mocks.fetch);
+  render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, {
+    product: { id: 'test-product', name: 'Workshop', slug: 'workshop', price: 49, currency: 'PLN', event_mode: true,
+      checkout_profile: { v: 1, modules: [{ id: 'quantity', min: 1, max: 100, mode: 'checkout' }] } } as Product, collectTermsOfService: false,
+  })));
+  await screen.findByRole('radio');
+  fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '4' } });
+  const email = screen.getByLabelText(en.events.email);
+  fireEvent.change(email, { target: { value: 'attendee@example.com' } }); fireEvent.blur(email);
+  await screen.findByText(en.events[message]);
+  expect(screen.queryByText(en.checkout.paymentError)).toBeNull();
+  expect(attempts).toBe(1);
+  fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '2' } });
+  await waitFor(() => expect(screen.getByTestId('payment-fields')).toBeTruthy());
+  expect(attempts).toBe(2);
+  const creates = mocks.fetch.mock.calls.filter(([url, options]) => url === '/api/create-payment-intent' && !JSON.parse(options.body).expireOnly);
+  expect(JSON.parse(creates[1][1].body)).toMatchObject({ quantity: 2, email: 'attendee@example.com', sessionId: 'event-session' });
+});
+
+it('shows the remaining session seats and blocks excessive quantity before requesting a hold', async () => {
+  mocks.fetch.mockImplementation(async url => ({ ok: true, json: async () => url.includes('/availability')
+    ? { sessions: [{ id: 'event-session', startsAt: '2099-01-01T12:00:00Z', endsAt: null, timezone: 'UTC', title: 'Workshop', remaining: 3, soldOut: false,
+      currentTier: { id: 'tier', price: 49, seatsLeft: null }, nextTierPrice: null }] }
+    : { clientSecret: 'cs_test_first_secret_value', checkoutSessionId: 'cs_test_first' } }));
+  vi.stubGlobal('fetch', mocks.fetch);
+  render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, {
+    product: { id: 'test-product', name: 'Workshop', slug: 'workshop', price: 49, currency: 'PLN', event_mode: true,
+      checkout_profile: { v: 1, modules: [{ id: 'quantity', min: 1, max: 100, mode: 'checkout' }] } } as Product, collectTermsOfService: false,
+  })));
+  await screen.findByRole('radio');
+  expect(screen.getAllByText('3 seats left at this price').length).toBeGreaterThan(0);
+  expect(screen.getByText('From 1 to 3')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '4' } });
+  const email = screen.getByLabelText(en.events.email);
+  fireEvent.change(email, { target: { value: 'attendee@example.com' } }); fireEvent.blur(email);
+  await act(async () => {});
+  expect(mocks.fetch.mock.calls.filter(([url]) => url === '/api/create-payment-intent')).toHaveLength(0);
+  expect(screen.getByLabelText('Quantity').getAttribute('aria-invalid')).toBe('true');
+});

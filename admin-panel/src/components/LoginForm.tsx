@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { isValidEmailFormat } from '@/lib/validations/custom-checkout-fields'
 import { submitMagicLink } from '@/lib/auth/magic-link/submit'
 import CaptchaWidget from '@/components/captcha/CaptchaWidget'
 import { useCaptcha } from '@/hooks/useCaptcha'
@@ -19,6 +20,7 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const { demoMode, passwordLoginEnabled, oauthProviders } = useConfig()
   const magicLinkEnabled = !demoMode
   const [email, setEmail] = useState(demoMode ? 'demo@sellf.app' : '')
+  const [emailError, setEmailError] = useState<string | null>(null)
   const [password, setPassword] = useState(demoMode ? 'demo123' : '')
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -43,6 +45,9 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
 
   const handleSubmit = async (e: React.SyntheticEvent, useMagicLink = !passwordLoginEnabled) => {
     e.preventDefault()
+    const emailProblem = email.trim().length > 254 ? t('auth.emailTooLong') : !isValidEmailFormat(email) ? t('auth.invalidEmail') : null
+    setEmailError(emailProblem)
+    if (emailProblem) { document.getElementById('email')?.focus(); return }
     if (useMagicLink) {
       if (!magicLinkEnabled) return
       const emailInput = e.currentTarget.closest('form')?.querySelector<HTMLInputElement>('#email')
@@ -114,12 +119,16 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
         <input
           id="email"
           type="email"
+          maxLength={254}
+          aria-invalid={Boolean(emailError)}
+          aria-describedby={emailError ? 'login-email-error' : undefined}
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => { setEmail(e.target.value); setEmailError(null) }}
           required
-          className="w-full px-4 py-3 bg-sf-float border border-sf-border rounded-xl text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent transition-all"
+          className={`w-full px-4 py-3 bg-sf-float border rounded-xl text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent transition-all ${emailError ? 'border-sf-danger' : 'border-sf-border'}`}
           placeholder={demoMode ? 'demo@sellf.app' : (passwordLoginEnabled ? '' : t('auth.emailPlaceholder'))}
         />
+        {emailError && <p id="login-email-error" role="alert" className="mt-1 text-xs text-sf-danger">{emailError}</p>}
       </div>
 
       {demoMode && <p className="text-sm text-sf-muted">{tDemo('authBlocked')}</p>}

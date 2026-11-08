@@ -28,6 +28,7 @@ import { z } from 'zod';
 import {
   validateProductId,
   validateUpdateProduct,
+  hasInvalidPricePresets,
   validateWholeAmounts,
   WHOLE_AMOUNT_FIELDS,
   PRODUCT_API_FIELDS,
@@ -204,12 +205,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Check product exists before update
     const { data: existingCheck, error: existsError } = await supabase
       .from('products')
-      .select('id, product_type, is_bundle, is_active, checkout_profile, checkout_template, allow_custom_price, issue_license_on_purchase')
+      .select('id, product_type, is_bundle, is_active, checkout_profile, checkout_template, allow_custom_price, issue_license_on_purchase, currency, custom_price_min, custom_price_presets, show_price_presets')
       .eq('id', id)
       .single();
 
     if (existsError || !existingCheck) {
       return apiError(request, 'NOT_FOUND', 'Product not found');
+    }
+
+    const presetFields = ['allow_custom_price', 'show_price_presets', 'custom_price_min', 'custom_price_presets', 'currency'];
+    if (presetFields.some(field => sanitizedData[field] !== undefined)
+      && hasInvalidPricePresets({ ...existingCheck, ...sanitizedData })) {
+      throw new ApiValidationError('Validation failed', {
+        custom_price_presets: ['Each visible preset must meet the product and currency payment minimums'],
+      });
     }
 
     const profileErrors = await checkoutProfileErrors({ ...existingCheck, ...sanitizedData });

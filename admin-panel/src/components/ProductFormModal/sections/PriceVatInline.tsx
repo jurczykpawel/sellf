@@ -6,6 +6,7 @@ import { CURRENCIES, formatPrice, getCurrencySymbol } from '@/lib/constants';
 import { currencyExponent, minimumChargeAmount } from '@/lib/currency/minor-units';
 import { moneyAmountError, parseMoneyInput } from '@/lib/currency/parse-money-input';
 import { MoneyInputError } from '@/components/MoneyInputError';
+import { productFieldErrorMessage } from '@/components/ProductFormModal/field-error-message';
 import { MONEY_TEXT_CHARS } from '../money-input';
 import type { SectionProps } from '../types';
 import type { TaxMode } from '@/lib/actions/shop-config';
@@ -167,6 +168,7 @@ export function PriceVatInline({
   const priceParseError = parseMoneyInput(priceDisplayValue, formData.currency, locale).error;
   const priceErrorMessage = fieldErrors.price === 'below_minimum'
     ? t('priceBelowMinimum', { currency: formData.currency, min: formatPrice(minimumChargeAmount(formData.currency), formData.currency, locale) })
+    : fieldErrors.price === 'invalid' ? productFieldErrorMessage('price', locale)
     : fieldErrors.price
       ? t(priceDisplayValue !== '' ? 'priceFreeUseLeadMagnet' : 'priceRequired')
       : null;
@@ -214,6 +216,8 @@ export function PriceVatInline({
             type="number"
             value={formData.custom_price_presets?.[index] ?? 0}
             data-preset-index={index}
+            aria-invalid={!!fieldErrors.custom_price_presets}
+            aria-describedby={fieldErrors.custom_price_presets ? 'price-presets-error' : undefined}
             onChange={handlePresetChange}
             min="0"
             step="1"
@@ -225,6 +229,7 @@ export function PriceVatInline({
           <span className="text-xs text-sf-muted">{t('customPricing.zeroHidden', { defaultValue: '(0 = ukryty)' })}</span>
         )}
       </div>
+      {fieldErrors.custom_price_presets && <p id="price-presets-error" role="alert" className="text-xs text-sf-danger">{productFieldErrorMessage('custom_price_presets', locale)}</p>}
     </div>
   );
 
@@ -373,6 +378,8 @@ export function PriceVatInline({
             inputMode="decimal"
             id="price"
             name="price"
+            aria-invalid={!!priceErrorMessage || !!priceParseError}
+            aria-describedby={priceErrorMessage && !priceParseError ? 'price-error' : undefined}
             value={priceDisplayValue}
             onChange={handlePriceChange}
             placeholder={!showCurrencyPrefix ? `${getCurrencySymbol(formData.currency)}` : ''}
@@ -406,7 +413,7 @@ export function PriceVatInline({
       {priceParseError ? (
         <MoneyInputError error={priceParseError} currency={formData.currency} className="mt-1.5 text-xs text-red-500" />
       ) : priceErrorMessage ? (
-        <p role="alert" className="mt-1.5 text-xs text-red-500">{priceErrorMessage}</p>
+        <p id="price-error" role="alert" className="mt-1.5 text-xs text-red-500">{priceErrorMessage}</p>
       ) : fieldErrors.vat_rate ? (
         <p className="mt-1.5 text-xs text-red-500">{t('vatRateRequired', { defaultValue: 'VAT rate is required (no default set in Tax settings)' })}</p>
       ) : (

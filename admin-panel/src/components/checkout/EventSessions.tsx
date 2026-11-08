@@ -3,6 +3,7 @@
 /** Session selection shared by product and checkout. @see lib/events/presentation.ts */
 import { useLocale, useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
+import { getEventSeatsLeft } from '@/lib/checkout/event-seats';
 import { formatEventDate, formatEventRange } from '@/lib/events/presentation';
 import type { EventSession } from '@/lib/events/presentation';
 
@@ -22,7 +23,7 @@ export default function EventSessions({ sessions, currency, selected, onSelect }
       {s.venue && <p>{s.venue}</p>}{s.extraDays && <p>{s.extraDays}</p>}
       {s.soldOut ? <p role="status">{t('soldOut')}</p> : !s.currentTier ? <p>{t('unavailable')}</p> : <>
         <p className="font-semibold">{formatPrice(s.currentTier.price, currency, locale)}</p>
-        {s.currentTier.seatsLeft !== null && <p>{t('seatsLeft', { count: s.currentTier.seatsLeft })}</p>}
+        {getEventSeatsLeft(s) !== null && <p>{t('seatsLeft', { count: getEventSeatsLeft(s)! })}</p>}
         {s.currentTier.endsAt && <p>{t('priceUntil', { date: formatEventDate(s.currentTier.endsAt, s.timezone, locale) })}</p>}
         {s.nextTierPrice !== null && <p>{t('nextPrice', { price: formatPrice(s.nextTierPrice, currency, locale) })}</p>}
         {s.cheaperSoldOut && <p>{t('cheaperSoldOut')}</p>}

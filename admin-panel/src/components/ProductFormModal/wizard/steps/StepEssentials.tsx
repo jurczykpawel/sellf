@@ -77,7 +77,7 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
 
       {/* A bundle cannot itself be a subscription — hide the subscription config. */}
       {!formData.is_bundle && (
-        <SubscriptionSection formData={formData} setFormData={setFormData} t={t} />
+        <SubscriptionSection formData={formData} setFormData={setFormData} t={t} fieldErrors={fieldErrors} />
       )}
 
       {isSubscription && !formData.is_bundle && (

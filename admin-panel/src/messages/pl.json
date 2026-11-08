@@ -813,6 +813,8 @@
     }
   },
   "auth": {
+    "emailTooLong": "Adres e-mail może mieć maksymalnie 254 znaki.",
+    "invalidEmail": "Podaj poprawny adres e-mail.",
     "emailNotConfirmedMessage": "Potwierdź swój adres e-mail, klikając link w otrzymanej wiadomości.",
     "demoLoginHint": "Użyj konta demonstracyjnego podanego poniżej. W trybie demo tworzenie kont i wysyłanie linków do logowania jest niedostępne.",
     "buyerPasswordLoginHint": "Zaloguj się, aby uzyskać dostęp do swoich zakupów.",
@@ -1210,6 +1212,7 @@
     }
   },
   "productView": {
+    "emailTooLong": "Adres e-mail może mieć maksymalnie 254 znaki.",
     "loading": "Ładowanie...",
     "checkingAccess": "Sprawdzanie Twojego dostępu do tego produktu...",
     "checkingAccessButton": "Sprawdzanie dostępu...",
@@ -2163,6 +2166,8 @@
       }
     },
     "webhooks": {
+      "descriptionTooLong": "Opis może mieć maksymalnie 500 znaków.",
+      "eventsRequired": "Wybierz co najmniej jedno zdarzenie.",
       "title": "Integracje Webhook",
       "addEndpoint": "Dodaj Endpoint",
       "editWebhook": "Edytuj Webhook",
@@ -3610,6 +3615,8 @@
       "keyPlaceholder": "payload.podpis"
     },
     "issuedLicenses": {
+      "invalidDomain": "Podaj poprawną domenę, np. example.com.",
+      "searchTooLong": "Wyszukiwanie może mieć maksymalnie 254 znaki.",
       "invalidEmail": "Podaj poprawny adres e-mail, np. jan@example.com.",
       "refresh": "Odśwież listę licencji",
       "unavailable": "Wystawianie licencji jest dostępne dla administratora platformy.",

@@ -418,10 +418,12 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   const generateSlug = useCallback((name: string): string => {
     return name
       .toLowerCase()
-      .replace(/[^\w\s-]/g, '')
+      .replace(/ł/g, 'l')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/--+/g, '-')
-      .trim();
+      .replace(/^-+|-+$/g, '');
   }, []);
 
   // Validate content item URL
@@ -498,7 +500,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
       setSlugModified(true);
       setFormData(prev => ({
         ...prev,
-        [name]: generateSlug(value)
+        [name]: value
       }));
     } else {
       setFormData(prev => ({

@@ -8,7 +8,7 @@ import { validateLeadSettings } from '@/lib/leads/config';
 import { parseCheckoutProfile } from '@/lib/checkout-modules/profile';
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
-import { currencyExponent } from '@/lib/currency/minor-units';
+import { currencyExponent, minimumChargeAmount } from '@/lib/currency/minor-units';
 import { getTrustedDownloadProviders } from '@/lib/trustedDownloadProviders';
 import { CHECKOUT_TEMPLATE_SLUGS } from '@/lib/checkout-templates/types';
 import { validateCustomFieldDefinitions } from '@/lib/validations/custom-checkout-fields';
@@ -140,7 +140,7 @@ export interface UpdateProductInput {
 }
 
 // Validation functions
-function validateSlug(slug: unknown): ValidationResult {
+export function validateSlug(slug: unknown): ValidationResult {
   const errors: string[] = [];
   
   if (!slug || typeof slug !== 'string') {
@@ -150,8 +150,8 @@ function validateSlug(slug: unknown): ValidationResult {
     
     if (trimmedSlug.length === 0) {
       errors.push('Slug cannot be empty');
-    } else if (trimmedSlug.length > 100) {
-      errors.push('Slug must be less than 100 characters');
+    } else if (trimmedSlug.length > 80) {
+      errors.push('Slug must be 80 characters or fewer');
     } else if (!/^[a-z0-9-]+$/.test(trimmedSlug)) {
       errors.push('Slug can only contain lowercase letters, numbers, and hyphens');
     } else if (trimmedSlug.startsWith('-') || trimmedSlug.endsWith('-')) {
@@ -164,7 +164,7 @@ function validateSlug(slug: unknown): ValidationResult {
   return { isValid: errors.length === 0, errors };
 }
 
-function validateName(name: unknown): ValidationResult {
+export function validateName(name: unknown): ValidationResult {
   const errors: string[] = [];
   
   if (!name || typeof name !== 'string') {
@@ -202,7 +202,7 @@ function validateDescription(description: unknown): ValidationResult {
   return { isValid: errors.length === 0, errors };
 }
 
-function validatePrice(price: unknown): ValidationResult {
+export function validatePrice(price: unknown): ValidationResult {
   const errors: string[] = [];
   
   if (typeof price !== 'number') {
@@ -447,6 +447,10 @@ function validateContentConfig(contentConfig: unknown): ValidationResult {
       const itemType = item.type;
       const itemConfig = item.config as Record<string, unknown> | undefined;
 
+      // URLs must use the key matching their content type.
+      const wrongKey = itemType === 'download_link' ? 'embed_url' : itemType === 'video_embed' ? 'download_url' : null;
+      if (wrongKey && itemConfig?.[wrongKey]) errors.push(`Content item ${index + 1}: URL does not match content type`);
+
       // Validate video embed URLs
       if (itemType === 'video_embed') {
         const embedUrl = itemConfig?.embed_url;
@@ -514,6 +518,18 @@ function validateContentConfig(contentConfig: unknown): ValidationResult {
   }
 
   return { isValid: errors.length === 0, errors };
+}
+
+/** Optional tier is a token identifier, never silently truncate seller input. */
+export function isValidLicenseTier(value: unknown): boolean {
+  return value == null || value === '' || (typeof value === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(value));
+}
+
+/** Zero hides a preset; every displayed amount must be payable in the selected currency. */
+export function hasInvalidPricePresets(input: Record<string, unknown>): boolean {
+  if (!input.allow_custom_price || input.show_price_presets === false || !Array.isArray(input.custom_price_presets)) return false;
+  const minimum = Math.max(Number(input.custom_price_min ?? 0), minimumChargeAmount(String(input.currency ?? 'USD')));
+  return input.custom_price_presets.some(value => value !== 0 && (typeof value !== 'number' || !Number.isFinite(value) || value < minimum || value > 999999.99 || (currencyExponent(String(input.currency ?? 'USD')) === 0 && !Number.isInteger(value))));
 }
 
 // Main validation functions
@@ -638,6 +654,8 @@ export function validateCreateProduct(data: unknown): ValidationResult {
     errors.push(...validateCheckoutTemplateDependencies(input.checkout_template, input.allow_custom_price).errors);
   }
 
+  if (!isValidLicenseTier(input.license_tier)) errors.push('license_tier must contain 1–80 letters, digits, hyphens or underscores');
+  if (hasInvalidPricePresets(input)) errors.push('custom_price_presets must be zero (hidden) or at least the payable minimum');
   errors.push(...validateLeadSettings(input));
 
   if (input.embed_enabled !== undefined && typeof input.embed_enabled !== 'boolean') {
@@ -826,6 +844,8 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
     errors.push(...validateCheckoutTemplateDependencies(input.checkout_template, input.allow_custom_price, 'update').errors);
   }
 
+  if (!isValidLicenseTier(input.license_tier)) errors.push('license_tier must contain 1–80 letters, digits, hyphens or underscores');
+  // Cross-field preset validation runs against the merged row in PATCH.
   errors.push(...validateLeadSettings(input));
 
   if (input.embed_enabled !== undefined && typeof input.embed_enabled !== 'boolean') {

@@ -98,7 +98,7 @@ const CouponsPageContent: React.FC = () => {
   // page(s) of the main list.
   const [expiredCoupons, setExpiredCoupons] = useState<Coupon[]>([]);
 
-  const beginLoad = useLatestRequest();
+  const beginLoad = useLatestRequest(JSON.stringify([typeFilter, searchTerm]));
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -122,6 +122,9 @@ const CouponsPageContent: React.FC = () => {
   // list (for "Delete expired"), and the active products picker list.
   const loadData = useCallback(async () => {
     const isCurrent = beginLoad();
+    if (!isCurrent()) return;
+    setLoading(true);
+    setLoadingMore(false);
     try {
       const [couponsPage, expiredResult, activeProducts] = await Promise.all([
         fetchCouponsPage(undefined, { type: typeFilter, search: searchTerm }),
@@ -160,10 +163,7 @@ const CouponsPageContent: React.FC = () => {
     setLoading(true);
   }
 
-  const fetchData = useCallback(() => {
-    setLoading(true);
-    return loadData();
-  }, [loadData]);
+  const fetchData = useCallback(() => loadData(), [loadData]);
 
   useEffect(() => {
     loadData();
@@ -172,8 +172,9 @@ const CouponsPageContent: React.FC = () => {
   const handleLoadMore = useCallback(async () => {
     if (!hasMore || loading || loadingMore || searchPending) return;
 
-    setLoadingMore(true);
     const isCurrent = beginLoad();
+    if (!isCurrent()) return;
+    setLoadingMore(true);
     try {
       const nextPage = await fetchCouponsPage(cursor ?? undefined, { type: typeFilter, search: searchTerm });
       if (!isCurrent()) return;
@@ -181,14 +182,14 @@ const CouponsPageContent: React.FC = () => {
       setCursor(nextPage.nextCursor);
       setHasMore(nextPage.hasMore);
     } catch (err) {
-      if (isExpectedApiError(err)) return;
+      if (!isCurrent() || isExpectedApiError(err)) return;
       if (err instanceof ApiError) {
         toast.error(err.message);
       } else {
         toast.error(t('moreLoadError'));
       }
     } finally {
-      setLoadingMore(false);
+      if (isCurrent()) setLoadingMore(false);
     }
   }, [hasMore, loading, loadingMore, searchPending, cursor, typeFilter, searchTerm, t, beginLoad]);
 

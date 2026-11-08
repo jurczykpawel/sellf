@@ -47,6 +47,7 @@ export default function WebhookFormModal({
 
   const [formData, setFormData] = useState(() => buildFormData(editingEndpoint));
   const [productFilter, setProductFilter] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{ description?: string; events?: string }>({});
 
   const buildCustomState = (endpoint: typeof editingEndpoint) => ({
     payloadFieldsSelected: endpoint?.payload_field_selection ?? [...PAYLOAD_TOP_LEVEL_KEYS],
@@ -69,6 +70,7 @@ export default function WebhookFormModal({
     setCustomState(buildCustomState(editingEndpoint));
     setShowCustom(false);
     setProductFilter('');
+    setFieldErrors({});
   }
 
   useEffect(() => {
@@ -76,6 +78,7 @@ export default function WebhookFormModal({
   }, [isOpen, fetchProducts]);
 
   const toggleEvent = (event: string) => {
+    setFieldErrors(prev => ({ ...prev, events: undefined }));
     setFormData(prev => ({
       ...prev,
       events: prev.events.includes(event)
@@ -134,6 +137,15 @@ export default function WebhookFormModal({
           id="webhook-form"
           onSubmit={(e) => {
             e.preventDefault();
+            const errors = {
+              description: formData.description.length > 500 ? t('descriptionTooLong') : undefined,
+              events: formData.events.length === 0 ? t('eventsRequired') : undefined,
+            };
+            setFieldErrors(errors);
+            if (errors.description || errors.events) {
+              document.getElementById(errors.description ? 'webhook-description' : 'webhook-events')?.focus();
+              return;
+            }
             const mode = scopingLocked ? 'all' : formData.product_filter_mode;
             const customization = customizationLocked ? {} : buildCustomizationPayload({
               ...customState,
@@ -191,19 +203,23 @@ export default function WebhookFormModal({
               {t('description')}
             </label>
             <input
+              id="webhook-description"
+              aria-invalid={Boolean(fieldErrors.description)}
+              aria-describedby={fieldErrors.description ? 'webhook-description-error' : undefined}
               type="text"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 bg-sf-input text-sf-heading border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent focus:border-transparent outline-none transition-all"
+              onChange={(e) => { setFormData({ ...formData, description: e.target.value }); setFieldErrors(prev => ({ ...prev, description: undefined })); }}
+              className={`w-full px-3 py-2 bg-sf-input text-sf-heading border-2 focus:ring-2 focus:ring-sf-accent focus:border-transparent outline-none transition-all ${fieldErrors.description ? 'border-sf-danger' : 'border-sf-border-medium'}`}
               placeholder={t('descriptionPlaceholder')}
             />
+            {fieldErrors.description && <p id="webhook-description-error" role="alert" className="mt-1 text-xs text-sf-danger">{fieldErrors.description}</p>}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-sf-body mb-2">
               {t('events')}
             </label>
-            <div className="space-y-4 bg-sf-deep p-4 border-2 border-sf-border-medium">
+            <div id="webhook-events" role="group" aria-label={t('events')} tabIndex={-1} aria-describedby={fieldErrors.events ? 'webhook-events-error' : undefined} className={`space-y-4 bg-sf-deep p-4 border-2 ${fieldErrors.events ? 'border-sf-danger' : 'border-sf-border-medium'}`}>
               {WEBHOOK_EVENT_CATEGORIES.map((cat) => {
                 const categoryEvents = WEBHOOK_EVENTS.filter((ev) => ev.category === cat);
                 if (categoryEvents.length === 0) return null;
@@ -250,6 +266,8 @@ export default function WebhookFormModal({
               })}
             </div>
           </div>
+
+          {fieldErrors.events && <p id="webhook-events-error" role="alert" className="mt-1 text-xs text-sf-danger">{fieldErrors.events}</p>}
 
           <div>
             <label className="block text-sm font-medium text-sf-body mb-2">

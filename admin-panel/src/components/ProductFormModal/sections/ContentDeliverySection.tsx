@@ -136,7 +136,10 @@ export function ContentDeliverySection({
 
   const handleItemTypeChange = (index: number, newType: 'video_embed' | 'download_link') => {
     updateContentItems(items => items.map((item, i) =>
-      i === index ? { ...item, type: newType } : item
+      i === index ? { ...item, type: newType, config: {
+        ...Object.fromEntries(Object.entries(item.config ?? {}).filter(([key]) => key !== 'embed_url' && key !== 'download_url')),
+        [newType === 'video_embed' ? 'embed_url' : 'download_url']: item.config?.[item.type === 'video_embed' ? 'embed_url' : 'download_url'] ?? '',
+      } } : item
     ));
     setUrlValidation(prev => {
       const next = { ...prev };
@@ -295,7 +298,7 @@ export function ContentDeliverySection({
                         id={`content_url_${index}`}
                         aria-invalid={urlValidation[index]?.isValid === false}
                         placeholder={t('url')}
-                        value={item.config?.embed_url || item.config?.download_url || ''}
+                        value={(item.type === 'video_embed' ? item.config?.embed_url : item.config?.download_url) || ''}
                         onChange={(e) => handleItemUrlChange(index, e.target.value)}
                         onBlur={(e) => handleItemUrlBlur(index, e.target.value, item.type as 'video_embed' | 'download_link')}
                         className={`w-full px-2 py-1 pr-8 border text-sm bg-sf-input text-sf-heading ${

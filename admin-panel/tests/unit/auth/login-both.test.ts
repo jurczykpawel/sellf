@@ -56,3 +56,29 @@ it('waits for captcha readiness before offering the email action', () => {
   expect((screen.getByRole('button', { name: 'auth.emailSignInLink' }) as HTMLButtonElement).disabled).toBe(true);
   expect((screen.getByRole('button', { name: 'auth.signIn' }) as HTMLButtonElement).disabled).toBe(false);
 });
+it('rejects email longer than 254 beside the field before either login method', async () => {
+  state.config.passwordLoginEnabled = true;
+  render(createElement(LoginForm));
+  const input = screen.getByLabelText('auth.email') as HTMLInputElement;
+  fireEvent.change(input, { target: { value: 'a'.repeat(243) + '@example.com' } });
+  fireEvent.submit(input.closest('form')!);
+  expect(await screen.findByText('auth.emailTooLong')).toBeTruthy();
+  expect(input.maxLength).toBe(254);
+  expect(input.getAttribute('aria-invalid')).toBe('true');
+  expect(state.password).not.toHaveBeenCalled();
+  expect(state.submit).not.toHaveBeenCalled();
+});
+it('accepts a 254-character email after correcting an overlong email', async () => {
+  state.config.passwordLoginEnabled = true;
+  render(createElement(LoginForm));
+  const input = screen.getByLabelText('auth.email');
+  fireEvent.change(input, { target: { value: 'a'.repeat(243) + '@example.com' } });
+  fireEvent.submit(input.closest('form')!);
+  expect(screen.getByText('auth.emailTooLong')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('auth.password'), { target: { value: 'password123' } });
+  const email = 'a'.repeat(242) + '@example.com';
+  fireEvent.change(input, { target: { value: email } });
+  fireEvent.submit(input.closest('form')!);
+  await waitFor(() => expect(state.password).toHaveBeenCalledWith({ email, password: 'password123' }));
+  expect(screen.queryByText('auth.emailTooLong')).toBeNull();
+});
