@@ -1,3 +1,4 @@
+import { normalizePurchaseEmail } from '@/lib/checkout/normalize-email';
 import { normalizeCouponCode } from '@/lib/coupons/normalize-code';
 import { COUPON_REJECTED_CODE } from '@/lib/coupons/rejection-limit';
 import { createClient } from '@/lib/supabase/server';
@@ -159,6 +160,7 @@ export class CheckoutService {
    * Create Stripe checkout session
    */
   async createStripeSession(options: CheckoutSessionOptions): Promise<{ clientSecret: string; sessionId: string; minimumApplied?: boolean }> {
+    options = { ...options, email: options.email ? normalizePurchaseEmail(options.email) : options.email };
     try {
       // Subscription products bypass bumps / coupons / PWYW (MVP scope).
       if (options.product.product_type === 'subscription') {

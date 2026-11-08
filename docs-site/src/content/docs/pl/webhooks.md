@@ -7,6 +7,8 @@ Sellf wysyła zdarzenia do skonfigurowanych endpointów HTTPS. Każda dostawa je
 zapisywana przed wysłaniem żądania HTTP. Nieudane próby trafiają do kolejki ponowień.
 
 
+Pełny zwrot płatności za subskrypcję kończy ją od razu i odbiera dostęp. Kolejny płatny okres wymaga nowego zakupu. Wygrany spór przywraca pierwotne uprawnienie, także gdy gość potwierdził adres email w trakcie sporu.
+
 ## Rotacja sekretu podpisującego
 
 W **Webhooki → Edytuj** wybierz **Wygeneruj nowy sekret** i potwierdź. Możesz też

@@ -23,7 +23,7 @@ interface SubscriptionQueryClient {
 }
 
 type CancelResult =
-  | { ok: true; canceled: false; reason: 'not_subscription_payment' | 'missing_subscription_row' | 'already_scheduled' | 'already_ended' }
+  | { ok: true; canceled: false; reason: 'not_subscription_payment' | 'missing_subscription_row' | 'already_ended' }
   | { ok: true; canceled: true; stripeSubscriptionId: string }
   | { ok: false; reason: string };
 
@@ -51,18 +51,10 @@ export async function scheduleSubscriptionCancelAfterFullRefund({
     return { ok: true, canceled: false, reason: 'missing_subscription_row' };
   }
 
-  if (['canceled', 'unpaid', 'incomplete_expired'].includes(subscription.status)) {
-    return { ok: true, canceled: false, reason: 'already_ended' };
-  }
-
-  if (subscription.cancel_at_period_end) {
-    return { ok: true, canceled: false, reason: 'already_scheduled' };
-  }
-
   try {
-    await stripe.subscriptions.update(subscription.stripe_subscription_id, {
-      cancel_at_period_end: true,
-    });
+    const current = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
+    if (current.status === 'canceled') return { ok: true, canceled: false, reason: 'already_ended' };
+    await stripe.subscriptions.cancel(subscription.stripe_subscription_id);
     return { ok: true, canceled: true, stripeSubscriptionId: subscription.stripe_subscription_id };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown Stripe error';

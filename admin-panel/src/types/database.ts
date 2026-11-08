@@ -5401,6 +5401,19 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_payment_dispute_before_guest_claim: {
+        Args: {
+          p_amount: number
+          p_closed: boolean
+          p_created: string
+          p_currency: string
+          p_dispute_id: string
+          p_reason: string
+          p_status: string
+          p_transaction_id: string
+        }
+        Returns: Json
+      }
       attach_order_payment_session: {
         Args: { p_attempt: string; p_session_id: string; p_url?: string }
         Returns: undefined

@@ -71,6 +71,16 @@ beforeEach(() => {
 });
 
 describe('issueLicense', () => {
+  it('uses the normalized contact address in both storage and signed claims', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    const result = await issueLicense(adminMock({ product: product(), insert }) as never,
+      { productId: PRODUCT, email: '  A.B+Workshop@Example.COM  ', userId: null, orderId: 'ord_normalized' }, { now: NOW });
+    expect(result).not.toBeNull();
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ email: 'a.b+workshop@example.com' }));
+    const verified = verifyLicense(result!.token, key.publicKeyPem, { now: NOW });
+    expect(verified.valid).toBe(true);
+    if (verified.valid) expect(verified.claims.email).toBe('a.b+workshop@example.com');
+  });
   it('retains the persisted expiry when fulfillment retries an existing license', async () => {
     const expiresAt = '2026-12-05T00:00:00.000Z';
     const result = await call(adminMock({ existing: { license_key: 'stored.token', kid: key.kid, seller_id: SELLER, expires_at: expiresAt } }));

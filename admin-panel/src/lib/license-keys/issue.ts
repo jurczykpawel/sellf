@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
+import { normalizePurchaseEmail } from '@/lib/checkout/normalize-email';
 
 import { signLicense, type LicenseClaims } from '@/lib/license-keys/format';
 import { normalizeLicenseDomain } from '@/lib/license-keys/domain';
@@ -52,6 +53,7 @@ export async function issueLicense(
   input: IssueLicenseInput,
   opts: { now?: Date } = {},
 ): Promise<IssueLicenseResult | null> {
+  input = { ...input, email: normalizePurchaseEmail(input.email) };
   if (!(await checkFeature('license-key-issuance', { dataClient: admin }))) return null;
 
   const existingResult = await admin

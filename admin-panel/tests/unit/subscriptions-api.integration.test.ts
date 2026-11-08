@@ -355,3 +355,18 @@ describe('POST /api/subscriptions/[id]/resume', () => {
     expect(stripeUpdates[0].params).toEqual({ cancel_at_period_end: false });
   });
 });
+
+it('rejects resume after full refund without updating Stripe', async () => {
+  authState.userId = userA; stripeUpdates.length = 0;
+  const invoice = `in_${crypto.randomUUID().replaceAll('-', '')}`;
+  const paid = await sellerAdmin.from('payment_transactions').insert({ product_id:productId,user_id:userA,subscription_id:subA,
+    session_id:invoice,customer_email:'refund-resume@example.com',amount:1000,currency:'PLN',status:'completed' }).select('id').single();
+  expect(paid.error).toBeNull();
+  try {
+    expect((await sellerAdmin.from('payment_transactions').update({status:'refunded',refunded_amount:1000}).eq('id',paid.data!.id)).error).toBeNull();
+    const response = await resumeRoute.POST(new Request('http://localhost/test', {method:'POST',headers:csrfHeaders()}), {params:Promise.resolve({id:subA})});
+    expect(response.status).toBe(400); expect(stripeUpdates).toHaveLength(0);
+    const list = await listRoute.GET(); const body = await list.json();
+    expect(body.subscriptions.find((s: {id:string})=>s.id===subA)).toMatchObject({status:'canceled',cancel_at_period_end:false,current_period_end:null});
+  } finally { await sellerAdmin.from('payment_transactions').delete().eq('id',paid.data!.id); }
+});
