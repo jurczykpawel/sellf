@@ -1518,7 +1518,7 @@
       "welcome": "Welcome to Sellf Admin",
       "overview": "Overview",
       "stats": {
-        "revenueScope": "All time · {scope} · completed, gross",
+        "revenueScope": "All time · {scope} · gross less refunds",
         "selectedProduct": "selected product",
         "allProducts": "all products",
         "convertedTo": "Converted to {currency} (estimate)",
@@ -2994,7 +2994,7 @@
       },
       "loadError": "Failed to load payment data",
       "stats": {
-        "revenueScope": "All time · all products · completed, gross",
+        "revenueScope": "All time · all products · gross less refunds",
         "convertedTo": "Converted to {currency} (estimate)",
         "originalCurrencies": "Original currencies",
         "totalRevenue": "Total Revenue",
@@ -4062,6 +4062,8 @@
     "hoursRemaining": "{hours}h left",
     "refundRequestTitle": "Request Refund",
     "refundReason": "Reason for refund (optional)",
+    "refundReasonTooLong": "Reason is too long (maximum {max} characters).",
+    "refundReasonLimit": "Maximum {max} characters.",
     "refundReasonPlaceholder": "Tell us why you want a refund...",
     "refundWarning": "Your refund request will be reviewed by our team. You will receive a response via email.",
     "cancel": "Cancel",

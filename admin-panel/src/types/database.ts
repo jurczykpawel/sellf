@@ -5830,6 +5830,10 @@ export type Database = {
         Args: { end_date?: string; start_date?: string }
         Returns: Json
       }
+      get_payment_summary: {
+        Args: { p_month_start: string; p_today_start: string }
+        Returns: Json
+      }
       get_product_order_bumps: {
         Args: { product_id_param: string }
         Returns: {
@@ -5858,6 +5862,10 @@ export type Database = {
           goal_amount: number
           start_date: string
         }[]
+      }
+      get_revenue_groups: {
+        Args: { p_end?: string; p_product_id?: string; p_start?: string }
+        Returns: Json
       }
       get_sales_chart_data: {
         Args: {

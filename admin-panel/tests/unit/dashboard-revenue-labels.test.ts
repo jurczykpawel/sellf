@@ -20,3 +20,10 @@ it('uses the shared converter for the same grouped revenue in both summaries', (
   expect(dashboard).toBe(160200);
   expect(payments).toBe(dashboard);
 });
+
+it('labels retained gross revenue after refunds in both languages', () => {
+  expect(en.admin.dashboard.stats.revenueScope).toContain('less refunds');
+  expect(en.admin.payments.stats.revenueScope).toContain('less refunds');
+  expect(pl.admin.dashboard.stats.revenueScope).toContain('po zwrotach');
+  expect(pl.admin.payments.stats.revenueScope).toContain('po zwrotach');
+});

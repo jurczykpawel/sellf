@@ -214,7 +214,7 @@ export function registerPaymentsTools(server: McpServer): void {
   // Get payment stats
   server.tool(
     'get_payment_stats',
-    'Get payment statistics including total revenue, transaction counts, and trends. Returns total_revenue, refunded_amount, today_revenue, this_month_revenue and all *_by_currency/by_currency amounts in minor units (4999 means 49.99 for PLN/USD; zero-decimal currencies such as JPY are whole units, 1000 means 1000 JPY). Aggregate amounts may mix currencies; use the currency breakdowns.',
+    'Get payment statistics including total revenue, transaction counts, and trends. Returns total_revenue, refunded_amount, today_revenue, this_month_revenue and all *_by_currency/by_currency amounts in minor units (4999 means 49.99 for PLN/USD; zero-decimal currencies such as JPY are whole units, 1000 means 1000 JPY). Revenue is gross less refunds; refunded_amount is reported separately and must not be subtracted again. Periods use UTC. Aggregate amounts may mix currencies; use the currency breakdowns.',
     {},
     async () => {
       const api = getApiClient();

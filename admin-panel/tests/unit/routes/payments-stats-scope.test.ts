@@ -23,19 +23,6 @@ const platformFrom = vi.fn((table: string) => {
   throw new Error(`unexpected table ${table}`);
 });
 
-function makeStatsChain() {
-  const chain: Record<string, unknown> = {};
-  const self = () => chain;
-  chain.select = self;
-  chain.eq = self;
-  chain.gt = self;
-  chain.gte = self;
-  chain.lte = self;
-  chain.then = (resolve: (v: { data: unknown[]; error: null; count: number }) => void) =>
-    resolve({ data: [], error: null, count: 0 });
-  return chain;
-}
-
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => ({
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }) },
@@ -44,7 +31,7 @@ vi.mock('@/lib/supabase/server', () => ({
 }));
 
 vi.mock('@/lib/supabase/admin', () => ({
-  createAdminClient: vi.fn(() => ({ from: vi.fn(() => makeStatsChain()) })),
+  createAdminClient: vi.fn(() => ({ rpc: vi.fn().mockResolvedValue({ data: { total_transactions: 0 }, error: null }) })),
   createPlatformClient: vi.fn(() => ({ rpc: rpcMock, from: platformFrom })),
 }));
 

@@ -68,6 +68,14 @@ describe('payment export filters', () => {
     expect(row[headers.indexOf('Tax Total (major units)')]).toBe(tax);
     expect(row[headers.indexOf('Refunded Amount (major units)')]).toBe(refund);
   });
+  it('keeps partial-refund amounts reconcilable with retained revenue', async () => {
+    payments = chain([{ id: 'tx', status: 'partially_refunded', currency: 'PLN', amount: 900, refunded_amount: 100,
+      created_at: '2026-11-08', updated_at: '2026-11-08' }]);
+    const response = await POST(request({}));
+    expect(response.status).toBe(200);
+    const [headers, row] = (await response.text()).split('\n').map(line => line.split(',').map(cell => cell.slice(1, -1)));
+    expect(Number(row[headers.indexOf('Amount (major units)')]) - Number(row[headers.indexOf('Refunded Amount (major units)')])).toBe(8);
+  });
   it('uses the relative date range and leaves uncaptured tax values empty', async () => {
     vi.stubEnv('TZ', 'UTC');
     vi.useFakeTimers();

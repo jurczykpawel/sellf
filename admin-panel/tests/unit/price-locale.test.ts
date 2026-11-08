@@ -89,7 +89,7 @@ describe.each([
   it('formats admin session amounts in major units', () => {
     const session: PaymentSession = {
       id: 'session', session_id: 'cs_test', provider_type: 'stripe', product_id: product.id,
-      customer_email: 'buyer@example.com', amount: 49, currency: 'pln',
+      customer_email: 'buyer@example.com', amount: 4900, currency: 'pln',
       status: 'completed', metadata: {}, expires_at: '2026-10-20',
       created_at: '2026-10-01', updated_at: '2026-10-01',
     };

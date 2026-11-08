@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { UserWithAccess } from '@/types';
+import AccessValue from '@/components/AccessValue';
 import Pagination from './Pagination';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatAdminDate } from '@/lib/timezone';
@@ -171,10 +172,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {user.stats && user.stats.total_value > 0 ? (
                         <div className="text-sf-heading">
-                          {new Intl.NumberFormat(locale, {
-                            style: 'currency',
-                            currency: 'USD',
-                          }).format(user.stats.total_value)}
+                          <AccessValue access={user.product_access} locale={locale} />
                         </div>
                       ) : (
                         <span className="text-sf-muted">-</span>

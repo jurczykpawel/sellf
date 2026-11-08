@@ -1537,7 +1537,7 @@
       "accessRecords": "Zapisy dostępu",
       "activeUsers": "Aktywni użytkownicy (7d)",
       "stats": {
-        "revenueScope": "Cały okres · {scope} · zakończone, brutto",
+        "revenueScope": "Cały okres · {scope} · brutto po zwrotach",
         "selectedProduct": "wybrany produkt",
         "allProducts": "wszystkie produkty",
         "convertedTo": "Po przeliczeniu na {currency} (szacunkowo)",
@@ -2994,7 +2994,7 @@
       },
       "loadError": "Nie udało się załadować danych płatności",
       "stats": {
-        "revenueScope": "Cały okres · wszystkie produkty · zakończone, brutto",
+        "revenueScope": "Cały okres · wszystkie produkty · brutto po zwrotach",
         "convertedTo": "Po przeliczeniu na {currency} (szacunkowo)",
         "originalCurrencies": "Waluty oryginalne",
         "totalRevenue": "Łączny przychód",
@@ -4062,6 +4062,8 @@
     "hoursRemaining": "Zostało {hours}godz.",
     "refundRequestTitle": "Prośba o zwrot",
     "refundReason": "Powód zwrotu (opcjonalnie)",
+    "refundReasonTooLong": "Powód jest za długi (maksymalnie {max} znaków).",
+    "refundReasonLimit": "Maksymalnie {max} znaków.",
     "refundReasonPlaceholder": "Powiedz nam, dlaczego chcesz zwrotu...",
     "refundWarning": "Twoja prośba o zwrot zostanie rozpatrzona przez nasz zespół. Otrzymasz odpowiedź na email.",
     "cancel": "Anuluj",

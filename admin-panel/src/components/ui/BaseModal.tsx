@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 
 interface BaseModalProps {
   isOpen: boolean;
+  labelledBy?: string;
   onClose: () => void;
   children: React.ReactNode;
   className?: string;
@@ -17,6 +18,7 @@ interface BaseModalProps {
 
 const BaseModal: React.FC<BaseModalProps> = ({
   isOpen,
+  labelledBy,
   onClose,
   children,
   className = '',
@@ -64,14 +66,17 @@ const BaseModal: React.FC<BaseModalProps> = ({
     const modal = modalRef.current;
     if (!modal) return;
 
-    const focusableElements = modal.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const focusableElements = () => modal.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
     );
-    const firstElement = focusableElements[0] as HTMLElement;
-    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
 
     const handleTabKey = (e: KeyboardEvent) => {
       if (e.key !== 'Tab') return;
+      const elements = focusableElements();
+      const firstElement = elements[0];
+      const lastElement = elements[elements.length - 1];
+      if (!firstElement) { e.preventDefault(); modal.focus(); return; }
 
       if (e.shiftKey) {
         if (document.activeElement === firstElement) {
@@ -80,17 +85,18 @@ const BaseModal: React.FC<BaseModalProps> = ({
         }
       } else {
         if (document.activeElement === lastElement) {
-          firstElement?.focus();
+          firstElement.focus();
           e.preventDefault();
         }
       }
     };
 
     modal.addEventListener('keydown', handleTabKey);
-    firstElement?.focus();
+    (focusableElements()[0] ?? modal).focus();
 
     return () => {
       modal.removeEventListener('keydown', handleTabKey);
+      previousFocus?.focus();
     };
   }, [isOpen]);
 
@@ -125,10 +131,12 @@ const BaseModal: React.FC<BaseModalProps> = ({
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
+      aria-labelledby={labelledBy}
     >
       <div className="flex min-h-full items-center justify-center p-4">
       <div
         ref={modalRef}
+        tabIndex={-1}
         className={`
           relative w-full ${getSizeClasses()}
           bg-sf-base

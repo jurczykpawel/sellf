@@ -202,7 +202,7 @@ export default function PaymentsDashboard() {
   });
 
   const deepLinkNumber = Number(deepLinkOrder.replace(/^#/, ''));
-  const deepLinkTransactionId = deepLinkOrder && !loading
+  const deepLinkTransactionId = deepLinkOrder
     ? transactions.find(transaction => transaction.order_number === deepLinkNumber || transaction.id === deepLinkOrder)?.id ?? null
     : null;
 
