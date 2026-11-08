@@ -7,6 +7,8 @@ const statsRouteSource = readFileSync(
   'utf-8'
 );
 
+const statisticsSource = readFileSync(resolve(__dirname, '../../src/lib/payments/statistics.ts'), 'utf-8');
+
 const statsCardsSource = readFileSync(
   resolve(__dirname, '../../src/components/admin/PaymentStatsCards.tsx'),
   'utf-8'
@@ -59,12 +61,12 @@ describe('admin payments dashboard', () => {
   });
 
   it('returns payment stats grouped by currency for conversion-aware totals', () => {
-    expect(statsRouteSource).toContain('total_revenue_by_currency');
-    expect(statsRouteSource).toContain('today_revenue_by_currency');
-    expect(statsRouteSource).toContain('this_month_revenue_by_currency');
-    expect(statsRouteSource).toContain('refunded_amount_by_currency');
-    expect(statsRouteSource).toContain("select('amount, currency')");
-    expect(statsRouteSource).toContain("select('refunded_amount, currency')");
+    expect(statisticsSource).toContain('total_revenue_by_currency');
+    expect(statisticsSource).toContain('today_revenue_by_currency');
+    expect(statisticsSource).toContain('this_month_revenue_by_currency');
+    expect(statisticsSource).toContain('refunded_amount_by_currency');
+    expect(statsRouteSource).toContain('getPaymentStatistics(authResult.supabase)');
+    expect(statisticsSource).toContain("rpc('get_payment_summary'");
   });
 
   it('uses the shared currency selector and conversion hook in the payments dashboard', () => {

@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { toast } from 'sonner';
+import { fromMinorUnits } from '@/lib/currency/minor-units';
 import { formatAdminDate } from '@/lib/timezone';
 import type { PaymentSession } from '@/types/payment';
 
@@ -21,6 +22,7 @@ export default function PaymentSessionsTable({
   const locale = useLocale();
   const tCancel = useTranslations('admin.payments.cancelSession');
   const t = useTranslations('admin.payments.sessions');
+  const tStatus = useTranslations('admin.payments.transactions.statuses');
   const [cancelingId, setCancelingId] = useState<string | null>(null);
 
   const handleCancelSession = async (sessionId: string) => {
@@ -51,7 +53,7 @@ export default function PaymentSessionsTable({
     return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency.toUpperCase(),
-    }).format(amount);
+    }).format(fromMinorUnits(amount, currency));
   };
 
 
@@ -116,7 +118,7 @@ export default function PaymentSessionsTable({
             <tr key={session.id} className={index % 2 === 1 ? 'bg-sf-row-alt' : ''}>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm font-medium text-sf-heading">
-                  {session.session_id.slice(0, 20)}...
+                  {session.session_id ? `${session.session_id.slice(0, 20)}...` : "—"}
                 </div>
                 <div className="text-sm text-sf-muted">
                   {session.provider_type}
@@ -134,7 +136,7 @@ export default function PaymentSessionsTable({
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm text-sf-heading">
-                  {session.product_id.slice(0, 8)}...
+                  {session.product_id ? `${session.product_id.slice(0, 8)}...` : "—"}
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
@@ -144,19 +146,19 @@ export default function PaymentSessionsTable({
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`inline-flex px-2 py-1 text-xs font-semibold ${getStatusColor(session.status)}`}>
-                  {t(`statuses.${session.status}`)}
+                  {session.status === 'awaiting_payment' ? tStatus(session.status) : t(`statuses.${session.status}`)}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-sf-muted">
                 {formatAdminDate(session.created_at, locale)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-sf-muted">
-                {formatAdminDate(session.expires_at, locale)}
+                {session.expires_at ? formatAdminDate(session.expires_at, locale) : "—"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                {session.status === 'pending' && (
+                {session.status === 'pending' && session.session_id && (
                   <button
-                    onClick={() => handleCancelSession(session.session_id)}
+                    onClick={() => session.session_id && handleCancelSession(session.session_id)}
                     disabled={cancelingId === session.session_id}
                     className="text-sf-danger hover:opacity-80 disabled:opacity-50"
                   >

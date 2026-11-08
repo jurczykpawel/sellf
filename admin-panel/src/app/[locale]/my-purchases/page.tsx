@@ -179,7 +179,7 @@ export default function MyPurchasesPage() {
   };
 
   const submitRefundRequest = async () => {
-    if (!selectedPurchase) return;
+    if (!selectedPurchase || refundReason.length > 2000) return;
 
     try {
       setSubmitting(true);
@@ -545,16 +545,22 @@ export default function MyPurchasesPage() {
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium text-sf-body mb-2">
+                <label htmlFor="buyer-refund-reason" className="block text-sm font-medium text-sf-body mb-2">
                   {t('refundReason', { defaultValue: 'Reason for refund (optional)' })}
                 </label>
                 <textarea
+                  id="buyer-refund-reason"
+                  aria-invalid={refundReason.length > 2000}
+                  aria-describedby="buyer-refund-reason-hint"
                   value={refundReason}
                   onChange={(e) => setRefundReason(e.target.value)}
                   rows={3}
                   className="w-full px-3 py-2 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent"
                   placeholder={t('refundReasonPlaceholder', { defaultValue: 'Tell us why you want a refund...' })}
                 />
+                <p id="buyer-refund-reason-hint" role={refundReason.length > 2000 ? 'alert' : undefined} className={refundReason.length > 2000 ? 'text-sm text-sf-danger' : 'text-sm text-sf-muted'}>
+                  {t(refundReason.length > 2000 ? 'refundReasonTooLong' : 'refundReasonLimit', { max: 2000 })}
+                </p>
               </div>
 
               <div className="bg-sf-warning-soft border border-sf-warning/30 rounded-lg p-4 mb-6">

@@ -274,3 +274,10 @@ describe('purchase attribution contract', () => {
     expect(z.object(tools.get('list_payments')!.schema).parse({ embed: 'attribution' })).toEqual({ embed: 'attribution' });
   });
 });
+
+it('calculates the refund rate from gross payments when revenue is already after refunds', async () => {
+  api.get.mockResolvedValue({ data: { revenue: { total: 50, net_revenue: 50 }, refunds: { pending_count: 0, total_refunded: 50 } } });
+  const result = JSON.parse((await tools.get('get_refund_stats')!.handler({})).content[0].text);
+  expect(result.refund_rate).toBe(50);
+  expect(result.net_revenue).toBe(50);
+});

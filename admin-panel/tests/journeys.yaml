@@ -1266,7 +1266,7 @@
       },
       "end_state": {
         "buyer": "Paid order is completed.",
-        "seller": "Amount mismatch is rejected; same invoice gains receipt date once.",
+        "seller": "Amount mismatch is rejected; same invoice gains receipt date once. The open details dialog refreshes to the completed status after booking.",
         "integrator": "Not exercised: no outgoing integration contract asserted."
       },
       "status": "automated",
@@ -1330,7 +1330,7 @@
         "operation": "refund"
       },
       "end_state": {
-        "buyer": "Can submit an eligible own refund request.",
+        "buyer": "Can submit an eligible own refund request. A reason over 2000 characters has an inline error and can be corrected before submission.",
         "seller": "Request is visible in saved state.",
         "integrator": "Not exercised: no outgoing integration contract asserted."
       },
@@ -3735,7 +3735,7 @@
       },
       "end_state": {
         "buyer": "Stripe test mode records the entered partial refund and then the remainder.",
-        "seller": "Refund dialog accepts an amount up to what remains and blocks more.",
+        "seller": "Refund dialog accepts an amount up to what remains and blocks more. Both payment dialogs support keyboard focus, Escape and focus restoration; partially refunded revenue is amount minus refunds.",
         "integrator": "Not exercised (existing refund webhook path unchanged)."
       },
       "status": "automated",

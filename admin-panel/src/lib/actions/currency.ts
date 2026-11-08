@@ -144,7 +144,7 @@ export async function getUsedCurrencies(): Promise<string[]> {
   const { data, error } = await supabase
     .from('payment_transactions')
     .select('currency')
-    .eq('status', 'completed')
+    .in('status', ['completed', 'partially_refunded'])
 
   if (error) {
     console.error('Error fetching currencies:', error)

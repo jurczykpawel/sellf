@@ -15,6 +15,8 @@ import {
   API_SCOPES,
 } from '@/lib/api';
 
+import { getRevenueGroups, countRevenueOrders } from '@/lib/payments/statistics';
+
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
 }
@@ -57,33 +59,33 @@ export async function GET(request: NextRequest) {
     } else {
       switch (period) {
         case 'day':
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
           groupBy = groupBy || 'day';
           break;
         case 'week':
           startDate = new Date(now);
-          startDate.setDate(startDate.getDate() - 7);
+          startDate.setUTCDate(startDate.getUTCDate() - 7);
           groupBy = groupBy || 'day';
           break;
         case 'month':
-          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
           groupBy = groupBy || 'day';
           break;
         case 'quarter':
           startDate = new Date(now);
-          startDate.setMonth(startDate.getMonth() - 3);
+          startDate.setUTCMonth(startDate.getUTCMonth() - 3);
           groupBy = groupBy || 'week';
           break;
         case 'year':
-          startDate = new Date(now.getFullYear(), 0, 1);
+          startDate = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
           groupBy = groupBy || 'month';
           break;
         case 'all':
-          startDate = new Date(2020, 0, 1); // Far enough back
+          startDate = new Date(Date.UTC(2020, 0, 1)); // Far enough back
           groupBy = groupBy || 'month';
           break;
         default:
-          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
           groupBy = groupBy || 'day';
       }
     }
@@ -96,32 +98,13 @@ export async function GET(request: NextRequest) {
       return apiError(request, 'INVALID_INPUT', 'Invalid end_date format');
     }
 
-    // Fetch transactions for the period
-    let query = auth.supabase
-      .from('payment_transactions')
-      .select('amount, currency, created_at, refunded_amount, product_id')
-      .eq('status', 'completed')
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', endDate.toISOString())
-      .order('created_at', { ascending: true });
-
-    if (productId) {
-      query = query.eq('product_id', productId);
-    }
-
-    const { data: transactions, error: txError } = await query;
-
-    if (txError) {
-      console.error('Error fetching transactions:', txError);
-      return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch transaction data');
-    }
-
-    const allTx = transactions || [];
+    const groups = await getRevenueGroups(auth.supabase, { start: startDate, end: endDate, productId });
+    const allTx = groups.filter(tx => tx.status !== 'refunded');
 
     // Calculate summary
     const totalRevenue = allTx.reduce((sum, tx) => sum + tx.amount, 0);
-    const totalRefunded = allTx.reduce((sum, tx) => sum + (tx.refunded_amount || 0), 0);
-    const totalTransactions = allTx.length;
+    const totalRefunded = groups.reduce((sum, tx) => sum + (tx.refunded_amount || 0), 0);
+    const totalTransactions = countRevenueOrders(allTx);
     const averageOrderValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
 
     // Group by currency
@@ -131,10 +114,15 @@ export async function GET(request: NextRequest) {
         acc[currency] = { revenue: 0, transactions: 0, refunded: 0 };
       }
       acc[currency].revenue += tx.amount;
-      acc[currency].transactions += 1;
+      acc[currency].transactions += tx.transaction_count;
       acc[currency].refunded += tx.refunded_amount || 0;
       return acc;
     }, {} as Record<string, { revenue: number; transactions: number; refunded: number }>);
+
+    for (const tx of groups.filter(tx => tx.status === 'refunded')) {
+      byCurrency[tx.currency] ??= { revenue: 0, transactions: 0, refunded: 0 };
+      byCurrency[tx.currency].refunded += tx.refunded_amount;
+    }
 
     // Generate breakdown by date
     const breakdown: { date: string; revenue: number; transactions: number; by_currency: Record<string, number> }[] = [];
@@ -146,10 +134,10 @@ export async function GET(request: NextRequest) {
           return date.toISOString().split('T')[0];
         case 'week':
           const weekStart = new Date(date);
-          weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+          weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
           return weekStart.toISOString().split('T')[0];
         case 'month':
-          return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
         default:
           return date.toISOString().split('T')[0];
       }
@@ -172,16 +160,16 @@ export async function GET(request: NextRequest) {
       allDateKeys.add(getDateKey(currentDate));
       switch (groupBy) {
         case 'day':
-          currentDate.setDate(currentDate.getDate() + 1);
+          currentDate.setUTCDate(currentDate.getUTCDate() + 1);
           break;
         case 'week':
-          currentDate.setDate(currentDate.getDate() + 7);
+          currentDate.setUTCDate(currentDate.getUTCDate() + 7);
           break;
         case 'month':
-          currentDate.setMonth(currentDate.getMonth() + 1);
+          currentDate.setUTCMonth(currentDate.getUTCMonth() + 1);
           break;
         default:
-          currentDate.setDate(currentDate.getDate() + 1);
+          currentDate.setUTCDate(currentDate.getUTCDate() + 1);
       }
     }
 
@@ -197,7 +185,7 @@ export async function GET(request: NextRequest) {
       breakdown.push({
         date: dateKey,
         revenue: dateTx.reduce((sum, tx) => sum + tx.amount, 0),
-        transactions: dateTx.length,
+        transactions: countRevenueOrders(dateTx),
         by_currency: dateByCurrency,
       });
     }
@@ -207,21 +195,9 @@ export async function GET(request: NextRequest) {
     const prevEndDate = new Date(startDate.getTime() - 1);
     const prevStartDate = new Date(prevEndDate.getTime() - periodDuration);
 
-    let prevQuery = auth.supabase
-      .from('payment_transactions')
-      .select('amount')
-      .eq('status', 'completed')
-      .gte('created_at', prevStartDate.toISOString())
-      .lte('created_at', prevEndDate.toISOString());
-
-    if (productId) {
-      prevQuery = prevQuery.eq('product_id', productId);
-    }
-
-    const { data: prevTransactions } = await prevQuery;
-    const prevTx = prevTransactions || [];
+    const prevTx = (await getRevenueGroups(auth.supabase, { start: prevStartDate, end: prevEndDate, productId })).filter(tx => tx.status !== 'refunded');
     const prevRevenue = prevTx.reduce((sum, tx) => sum + tx.amount, 0);
-    const prevTransactionCount = prevTx.length;
+    const prevTransactionCount = countRevenueOrders(prevTx);
 
     const revenueChange = prevRevenue > 0
       ? ((totalRevenue - prevRevenue) / prevRevenue) * 100
@@ -236,7 +212,7 @@ export async function GET(request: NextRequest) {
         summary: {
           total_revenue: totalRevenue,
           total_refunded: totalRefunded,
-          net_revenue: totalRevenue - totalRefunded,
+          net_revenue: totalRevenue,
           total_transactions: totalTransactions,
           average_order_value: Math.round(averageOrderValue * 100) / 100,
           by_currency: byCurrency,

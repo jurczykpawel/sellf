@@ -15,6 +15,8 @@ import {
   API_SCOPES,
 } from '@/lib/api';
 
+import { getRevenueGroups } from '@/lib/payments/statistics';
+
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
 }
@@ -51,40 +53,30 @@ export async function GET(request: NextRequest) {
 
     switch (period) {
       case 'day':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
         break;
       case 'week':
         startDate = new Date(now);
-        startDate.setDate(startDate.getDate() - 7);
+        startDate.setUTCDate(startDate.getUTCDate() - 7);
         break;
       case 'month':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
         break;
       case 'quarter':
         startDate = new Date(now);
-        startDate.setMonth(startDate.getMonth() - 3);
+        startDate.setUTCMonth(startDate.getUTCMonth() - 3);
         break;
       case 'year':
-        startDate = new Date(now.getFullYear(), 0, 1);
+        startDate = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
         break;
       case 'all':
-        startDate = new Date(2020, 0, 1);
+        startDate = new Date(Date.UTC(2020, 0, 1));
         break;
       default:
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
     }
 
-    // Get transactions with product info
-    const { data: transactions, error: txError } = await auth.supabase
-      .from('payment_transactions')
-      .select('product_id, amount, currency')
-      .eq('status', 'completed')
-      .gte('created_at', startDate.toISOString());
-
-    if (txError) {
-      console.error('Error fetching transactions:', txError);
-      return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch transaction data');
-    }
+    const transactions = (await getRevenueGroups(auth.supabase, { start: startDate })).filter(tx => tx.status !== 'refunded');
 
     // Aggregate by product
     const productStats = new Map<string, {
@@ -106,18 +98,19 @@ export async function GET(request: NextRequest) {
 
       const stats = productStats.get(tx.product_id)!;
       stats.revenue += tx.amount;
-      stats.sales_count += 1;
+      stats.sales_count += tx.transaction_count;
 
       const currency = tx.currency || 'PLN';
       if (!stats.by_currency[currency]) {
         stats.by_currency[currency] = { revenue: 0, count: 0 };
       }
       stats.by_currency[currency].revenue += tx.amount;
-      stats.by_currency[currency].count += 1;
+      stats.by_currency[currency].count += tx.transaction_count;
     }
 
     // Get product details
-    const productIds = Array.from(productStats.keys());
+    const ranked = Array.from(productStats.entries()).sort(([, a], [, b]) => sortBy === 'revenue' ? b.revenue - a.revenue : b.sales_count - a.sales_count).slice(0, limit);
+    const productIds = ranked.map(([id]) => id);
 
     if (productIds.length === 0) {
       return jsonResponse(
@@ -143,7 +136,7 @@ export async function GET(request: NextRequest) {
     // Build result
     const productMap = new Map(products?.map(p => [p.id, p]) || []);
 
-    const result = Array.from(productStats.entries())
+    const result = ranked
       .map(([productId, stats]) => {
         const product = productMap.get(productId);
         return {
@@ -160,12 +153,7 @@ export async function GET(request: NextRequest) {
             : 0,
           by_currency: stats.by_currency,
         };
-      })
-      .sort((a, b) => sortBy === 'revenue'
-        ? b.revenue - a.revenue
-        : b.sales_count - a.sales_count
-      )
-      .slice(0, limit);
+      });
 
     // Calculate totals
     const totalRevenue = result.reduce((sum, p) => sum + p.revenue, 0);

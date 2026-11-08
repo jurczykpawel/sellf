@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import AccessValue from '@/components/AccessValue';
 import { formatPrice } from '@/lib/constants';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, ModalSection, Button, Message } from '@/components/ui/Modal';
 import { useTranslations, useLocale } from 'next-intl';
@@ -174,7 +175,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 <div className="bg-sf-base p-4 border-2 border-sf-border-medium">
                   <p className="text-sm text-sf-muted">{t('modal.totalValue')}</p>
                   <p className="text-sm font-medium text-sf-heading">
-                    {formatPrice(userProfile.stats.total_value, 'USD', locale)}
+                    <AccessValue access={userProfile.access} locale={locale} />
                   </p>
                 </div>
               </div>
@@ -191,7 +192,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 </div>
                 <div className="bg-sf-base p-4 border-2 border-sf-border-medium text-center">
                   <div className="text-2xl font-bold text-sf-success">
-                    {formatPrice(userProfile.stats.total_value, 'USD', locale)}
+                    <AccessValue access={userProfile.access} locale={locale} />
                   </div>
                   <p className="text-sm text-sf-muted">{t('modal.totalValue')}</p>
                 </div>

@@ -15,6 +15,7 @@ import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
 import { getPaymentDiscount } from '@/lib/payments/discount';
 import { fromMinorUnits } from '@/lib/currency/minor-units';
 import { transferDeadline, formatTransferDeadline } from '@/lib/orders/transfer-format';
+import BaseModal from '@/components/ui/BaseModal';
 import BankTransferSection from '@/components/admin/BankTransferSection';
 import AttributionSection from '@/components/admin/AttributionSection';
 import InvoiceSection from '@/components/admin/InvoiceSection';
@@ -281,11 +282,11 @@ export default function PaymentTransactionsTable({
         const showSubtotal = Math.abs(lineItemsSubtotal - paidTotal) > 0.009;
 
         return (
-        <div className="fixed inset-0 bg-sf-deep/75 backdrop-blur-md flex items-center justify-center z-50 p-4">
+        <BaseModal isOpen onClose={() => setDetailsTransactionId(null)} labelledBy="payment-details-title" showCloseButton={false} size="lg">
           <div className="bg-sf-raised/95 border border-sf-border shadow-2xl rounded-2xl p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>
-                <h3 className="text-lg font-semibold text-sf-heading">
+                <h3 id="payment-details-title" className="text-lg font-semibold text-sf-heading">
                   {t('transactionDetails')}
                 </h3>
                 <p className="text-sm text-sf-muted">
@@ -375,7 +376,7 @@ export default function PaymentTransactionsTable({
             </div>
 
 <AttributionSection transactionId={detailsTransaction.id} />
-<BankTransferSection transaction={detailsTransaction} onRefresh={async () => { await onRefreshData?.(); setDetailsTransactionId(null); }} />
+<BankTransferSection transaction={detailsTransaction} onRefresh={async () => { await onRefreshData?.(); }} />
 <InvoiceSection transactionId={detailsTransaction.id} status={detailsTransaction.status} invoice={detailsTransaction.invoice} onRefresh={() => { setDetailsTransactionId(null); onRefreshData?.(); }} />
             <OrderDetailsSection
               details={detailsTransaction.order_details}
@@ -436,23 +437,24 @@ export default function PaymentTransactionsTable({
               </button>
             </div>
           </div>
-        </div>
+        </BaseModal>
         );
       })()}
 
       {/* Refund Modal */}
       {showRefundModal && (
-        <div className="fixed inset-0 bg-sf-deep/75 backdrop-blur-md flex items-center justify-center z-50 p-4">
+        <BaseModal isOpen onClose={closeRefundModal} labelledBy="payment-refund-title" showCloseButton={false}>
           <div className="bg-sf-raised/95 border border-sf-border shadow-2xl rounded-2xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold text-sf-heading mb-4">
+            <h3 id="payment-refund-title" className="text-lg font-semibold text-sf-heading mb-4">
               {tRefund('titleSentence')}
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-sf-body mb-2">
+                <label htmlFor="sf-refund-reason" className="block text-sm font-medium text-sf-body mb-2">
                   {tRefund('reason')}
                 </label>
                 <select
+                  id="sf-refund-reason"
                   value={refundReason}
                   onChange={(e) => setRefundReason(e.target.value)}
                   className="w-full px-3 py-2 border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent bg-sf-raised text-sf-heading"
@@ -511,7 +513,7 @@ export default function PaymentTransactionsTable({
               </div>
             </div>
           </div>
-        </div>
+        </BaseModal>
       )}
     </div>
   );

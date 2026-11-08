@@ -6,16 +6,16 @@ import type { TaxComponent } from '@/lib/services/tax-snapshot';
 
 export interface PaymentSession {
   id: string;
-  session_id: string;
+  session_id: string | null;
   provider_type: 'stripe';
-  product_id: string;
+  product_id: string | null;
   user_id?: string;
   customer_email: string;
   amount: number;
   currency: string;
   status: PaymentTransaction['status'] | 'failed' | 'cancelled';
   metadata: Record<string, unknown>;
-  expires_at: string;
+  expires_at: string | null;
   completed_at?: string;
   created_at: string;
   updated_at: string;

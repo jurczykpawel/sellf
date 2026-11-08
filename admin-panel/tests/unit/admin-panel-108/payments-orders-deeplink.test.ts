@@ -5,7 +5,7 @@
  * @see src/components/admin/PaymentsDashboard.tsx
  * @see src/components/admin/OrdersTable.tsx
  */
-import { createElement } from 'react';
+import { createElement, useState } from 'react';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import PaymentsDashboard from '@/components/admin/PaymentsDashboard';
@@ -26,7 +26,13 @@ vi.mock('@/components/admin/PaymentStatsCards', () => ({ default: () => null }))
 vi.mock('@/components/admin/PaymentSessionsTable', () => ({ default: () => null }));
 vi.mock('@/components/admin/PaymentFilters', () => ({ default: () => null }));
 vi.mock('@/components/admin/PaymentTransactionsTable', () => ({
-  default: (props: { initialDetailsId?: string | null }) => { tableProps.last = props; return createElement('div', { 'data-testid': 'tx' }, props.initialDetailsId ?? 'none'); },
+  default: (props: { initialDetailsId?: string | null; onRefreshData?: () => Promise<void> }) => {
+    const [open, setOpen] = useState(true);
+    tableProps.last = props;
+    return createElement('div', {}, createElement('div', { 'data-testid': 'tx' }, props.initialDetailsId ?? 'none'),
+      open && createElement('button', { onClick: () => { setOpen(false); void props.onRefreshData?.(); } }, 'refresh-open-order'),
+      !open && createElement('div', {}, 'refresh-state-preserved'));
+  },
 }));
 afterEach(() => { cleanup(); page.mockReset(); replace.mockReset(); vi.unstubAllGlobals(); params.value = new URLSearchParams(); });
 
@@ -67,4 +73,18 @@ it('loads the next page of orders with the cursor @J190', async () => {
   await act(async () => { fireEvent.click(screen.getByRole('tab', { name: /orders.title/ })); });
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'loadMore' })); });
   expect(fetch).toHaveBeenCalledWith(expect.stringContaining('cursor=CURSOR1'), expect.anything());
+});
+
+it('preserves the open transaction component during a post-payment refresh', async () => {
+  params.value = new URLSearchParams('order=1300');
+  vi.stubGlobal('fetch', fetchMock([]));
+  const result = { transactions: [{ id: 'tx-a', order_number: 1300 }], nextCursor: null, hasMore: false };
+  page.mockResolvedValue(result);
+  await act(async () => { render(createElement(PaymentsDashboard)); });
+  let finish!: (value: typeof result) => void;
+  page.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  act(() => { fireEvent.click(screen.getByRole('button', { name: 'refresh-open-order' })); });
+  expect(screen.getByText('refresh-state-preserved')).toBeTruthy();
+  await act(async () => { finish(result); });
+  expect(screen.getByText('refresh-state-preserved')).toBeTruthy();
 });

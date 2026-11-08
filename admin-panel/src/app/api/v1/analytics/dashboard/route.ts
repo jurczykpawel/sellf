@@ -8,12 +8,13 @@ import { NextRequest } from 'next/server';
 import {
   handleCorsPreFlight,
   jsonResponse,
-  apiError,
   authenticate,
   handleApiError,
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
+
+import { getRevenueGroups, countRevenueOrders } from '@/lib/payments/statistics';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -44,34 +45,13 @@ export async function GET(request: NextRequest) {
 
     // Calculate date ranges
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     const weekStart = new Date(todayStart);
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of week (Sunday)
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay()); // Start of week (Sunday)
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
-    // Build base query for transactions
-    const buildTransactionQuery = () => {
-      let query = adminClient
-        .from('payment_transactions')
-        .select('amount, currency, created_at, refunded_amount')
-        .eq('status', 'completed');
-
-      if (productId) {
-        query = query.eq('product_id', productId);
-      }
-
-      return query;
-    };
-
-    // Get all completed transactions
-    const { data: transactions, error: txError } = await buildTransactionQuery();
-
-    if (txError) {
-      console.error('Error fetching transactions:', txError);
-      return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch transaction data');
-    }
-
-    const allTx = transactions || [];
+    const groups = await getRevenueGroups(adminClient, { productId });
+    const allTx = groups.filter(tx => tx.status !== 'refunded');
 
     // Calculate revenue metrics
     const todayTx = allTx.filter(tx => new Date(tx.created_at) >= todayStart);
@@ -82,13 +62,13 @@ export async function GET(request: NextRequest) {
 
     // Group by currency
     const byCurrency = allTx.reduce((acc, tx) => {
-      const currency = tx.currency || 'PLN';
+      const currency = tx.currency;
       acc[currency] = (acc[currency] || 0) + tx.amount;
       return acc;
     }, {} as Record<string, number>);
 
     // Get refund data
-    const totalRefunded = allTx.reduce((sum, tx) => sum + (tx.refunded_amount || 0), 0);
+    const totalRefunded = groups.reduce((sum, tx) => sum + (tx.refunded_amount || 0), 0);
 
     // Get pending refund requests
     const { count: pendingRefunds } = await adminClient
@@ -112,23 +92,20 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true });
 
     // Count users with at least one product access
-    const { data: usersWithAccess } = await adminClient
+    const { count: usersWithAccess } = await adminClient
       .from('user_access_stats')
-      .select('user_id, total_products')
+      .select('*', { count: 'exact', head: true })
       .gt('total_products', 0);
 
-    const uniqueUsersWithAccess = usersWithAccess?.length || 0;
+    const uniqueUsersWithAccess = usersWithAccess || 0;
 
     // Get recent activity (last 7 days transactions count per day)
-    const sevenDaysAgo = new Date(todayStart);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
     const recentActivity = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date(todayStart);
-      date.setDate(date.getDate() - i);
+      date.setUTCDate(date.getUTCDate() - i);
       const nextDate = new Date(date);
-      nextDate.setDate(nextDate.getDate() + 1);
+      nextDate.setUTCDate(nextDate.getUTCDate() + 1);
 
       const dayTx = allTx.filter(tx => {
         const txDate = new Date(tx.created_at);
@@ -137,7 +114,7 @@ export async function GET(request: NextRequest) {
 
       recentActivity.push({
         date: date.toISOString().split('T')[0],
-        transactions: dayTx.length,
+        transactions: countRevenueOrders(dayTx),
         revenue: sumAmount(dayTx),
       });
     }
@@ -150,14 +127,14 @@ export async function GET(request: NextRequest) {
           this_month: sumAmount(monthTx),
           total: sumAmount(allTx),
           total_refunded: totalRefunded,
-          net_revenue: sumAmount(allTx) - totalRefunded,
+          net_revenue: sumAmount(allTx),
           by_currency: byCurrency,
         },
         transactions: {
-          today: todayTx.length,
-          this_week: weekTx.length,
-          this_month: monthTx.length,
-          total: allTx.length,
+          today: countRevenueOrders(todayTx),
+          this_week: countRevenueOrders(weekTx),
+          this_month: countRevenueOrders(monthTx),
+          total: countRevenueOrders(allTx),
         },
         products: {
           active: activeProducts || 0,
