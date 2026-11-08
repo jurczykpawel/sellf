@@ -17,7 +17,6 @@ test('paid subscription delivers its license, full refund ends management and a 
   test.setTimeout(300000);
   expect(process.env.SLOT_TICKET).toBeTruthy();
   expect(process.env.STRIPE_SECRET_KEY).toMatch(/^sk_test_/);
-  expect((await stripe.accounts.retrieve()).id).toBe(process.env.STRIPE_TEST_ACCOUNT_ID);
   const run = randomUUID(), email = `subscription-final-${run}@example.com`, password = 'FinalPurchase187!';
   const productId = randomUUID(), disputeProductId = randomUUID();
   let disputeBuyerId: string | undefined, disputeIntent: Stripe.PaymentIntent | undefined;

@@ -74,7 +74,10 @@ for (const action of ['mark-paid', 'cancel'] as const) {
       await expect.poll(() => refreshRequested).toBe(true);
       await expect(transfer).toBeVisible();
     } finally { releaseRefresh(); }
-    await expect(transfer).toHaveCount(0);
+    const status = pl.admin.payments.transactions.statuses[action === 'mark-paid' ? 'completed' : 'cancelled'];
+    await expect(page.getByRole('dialog', { name: pl.admin.payments.transactions.transactionDetails })).toContainText(status);
+    await expect(transfer.getByRole('button', { name: 'Anuluj zamówienie', exact: true })).toHaveCount(0);
+    await expect(transfer.getByRole('button', { name: 'Oznacz jako opłacone', exact: true })).toHaveCount(0);
     await expect(row).toContainText(pl.admin.payments.transactions.statuses[action === 'mark-paid' ? 'completed' : 'cancelled']);
     await expect(page).toHaveURL(/\/pl\/dashboard\/payments$/);
   });
