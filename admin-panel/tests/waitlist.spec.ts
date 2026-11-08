@@ -691,7 +691,6 @@ test.describe('Waitlist Feature', () => {
 
         // Wait for page to load
         await page.waitForLoadState('domcontentloaded');
-        await page.waitForTimeout(1000);
 
         // Find the webhook row
         const webhookRow = page.locator('tr').filter({ hasText: 'example.com/test-waitlist-webhook' });
@@ -705,8 +704,6 @@ test.describe('Waitlist Feature', () => {
         await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
 
         // Uncheck the waitlist.signup event
-        const waitlistCheckbox = page.locator('[role="dialog"]').locator('input[type="checkbox"]').filter({ has: page.locator('xpath=..').filter({ hasText: /waitlist/i }) });
-
         // Find checkbox by looking for the label text
         const waitlistLabel = page.locator('[role="dialog"]').locator('label').filter({ hasText: /waitlist/i });
         const checkbox = waitlistLabel.locator('input[type="checkbox"]');
@@ -719,8 +716,12 @@ test.describe('Waitlist Feature', () => {
         // Click update button (submit the form)
         await page.locator('[role="dialog"]').getByRole('button', { name: /Aktualizuj|Update/i }).click();
 
-        // Should show warning modal with amber box
-        await page.waitForTimeout(1000);
+        await expect(page.getByText('Wybierz co najmniej jedno zdarzenie.', { exact: true })).toBeVisible();
+        await expect(page.getByTestId('waitlist-webhook-warning')).toHaveCount(0);
+        await page.getByRole('dialog').getByRole('checkbox', { name: /Zakup zakończony/ }).check();
+        await page.getByRole('dialog').getByRole('button', { name: /Aktualizuj|Update/i }).click();
+
+        // Removing waitlist from a valid event selection requires confirmation.
         const warningBox = page.locator('[data-testid="waitlist-webhook-warning"]');
         await expect(warningBox).toBeVisible({ timeout: 5000 });
 

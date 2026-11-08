@@ -2,6 +2,7 @@ import { useSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright
 useSupabaseBuyerEmails();
 /** Traditional transfer buyer and administrator acceptance. */
 import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
+import pl from '@/messages/pl.json';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
@@ -182,7 +183,10 @@ test('(d) cancel requires a reason, returns event seat and access, and offers ma
   expect((await db.from('guest_purchases').select('id').eq('transaction_id', unpaidId)).data).toHaveLength(0);
   expect((await db.from('seat_reservations').select('status').eq('transaction_id', unpaidId).single()).data?.status).toBe('released');
   const availability = await checked(await db.rpc('event_availability', { p_product_id: product.id })); expect((availability as unknown as { remaining: number }[])[0].remaining).toBe(2);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Szczegóły transakcji', exact: true })).toHaveCount(0);
   await page.getByLabel('Status', { exact: true }).selectOption('cancelled'); const row = page.getByRole('row').filter({ hasText: cancelledEmail });
+  await expect(row).toContainText(pl.admin.payments.transactions.statuses.cancelled);
   await row.getByRole('button', { name: /szczegóły/i }).click(); const invoice = page.getByRole('region', { name: 'Faktury', exact: true });
   await expect(invoice.getByRole('button', { name: 'Oznacz jako skorygowaną' })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath('cancelled.png'), fullPage: true });
