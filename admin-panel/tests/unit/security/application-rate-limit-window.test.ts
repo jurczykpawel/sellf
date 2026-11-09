@@ -23,6 +23,30 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 });
 
 describe('check_application_rate_limit — window alignment', () => {
+  it('counts concurrent calls in one window', async () => {
+    for (let round = 0; round < 5; round++) {
+      const identifier = `parallel-${crypto.randomUUID()}`;
+      try {
+        const results = await Promise.all(Array.from({ length: 50 }, () =>
+          supabaseAdmin.rpc('check_application_rate_limit', {
+            identifier_param: identifier,
+            action_type_param: 'parallel_window',
+            max_requests: 5,
+            window_minutes: 1440,
+          }),
+        ));
+        expect(results.every(result => result.error === null)).toBe(true);
+        expect(results.filter(result => result.data === true)).toHaveLength(5);
+        const { data, error } = await supabaseAdmin.from('application_rate_limits')
+          .select('call_count').eq('identifier', identifier);
+        expect(error).toBeNull();
+        expect(data).toEqual([{ call_count: 50 }]);
+      } finally {
+        await supabaseAdmin.from('application_rate_limits').delete().eq('identifier', identifier);
+      }
+    }
+  });
+
   it('stores a midnight-aligned window_start for a 1440-minute (daily) window and blocks the 6th call', async () => {
     const identifier = `probe-${Date.now()}-${Math.random()}`;
 
