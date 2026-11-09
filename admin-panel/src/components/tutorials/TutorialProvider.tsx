@@ -80,6 +80,28 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
       }
       instance.moveNext();
     };
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      window.removeEventListener('keydown', handleEscape, true);
+      window.removeEventListener('keyup', handleEscape, true);
+      layoutWatch.disconnect(); active.current = null;
+      if (announcer.current) announcer.current.textContent = '';
+      // driver.js restores its own captured focus after this callback.
+      queueMicrotask(() => {
+        const target = opener?.isConnected ? opener : document.querySelector<HTMLElement>('[data-testid="tutorial-menu-button"]');
+        target?.focus();
+      });
+    };
+    const destroy = () => { tour.destroy(); finish(); };
+    // Keep Escape within the tutorial for the full key gesture; driver.js normally closes on keyup.
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (event.type === 'keyup') destroy();
+    };
     const tour = driver({
       steps: buildTourSteps(definition, text, isMissing),
       showProgress: true,
@@ -100,12 +122,16 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
       onNextClick: (_element, _step, { driver: instance, state }) => {
         const current = definition.steps[state.activeIndex ?? -1];
         const mustAct = current && 'requires' in current && current.requires && !('optionalAction' in current && current.optionalAction);
-        if (instance.isLastStep() && !mustAct) instance.destroy();
+        if (instance.isLastStep() && !mustAct) destroy();
         else void advance(instance, state);
       },
       onPopoverRender: popover => {
         popover.wrapper.setAttribute('aria-modal', 'true');
         if (announcer.current) announcer.current.textContent = `${popover.title.textContent ?? ''}. ${popover.description.textContent ?? ''} ${popover.progress.textContent ?? ''}`.trim();
+      },
+      onHighlightStarted: element => {
+        // A target inside the viewport can still sit underneath a sticky toolbar.
+        element?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
       },
       onHighlighted: (element, _step, { driver: instance, state }) => {
         const current = definition.steps[state.activeIndex ?? -1];
@@ -113,15 +139,8 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
         const proceed = () => { element.removeEventListener('click', proceed, true); if (instance.getActiveElement() === element) void advance(instance, instance.getState()); };
         element.addEventListener('click', proceed, true);
       },
-      onDestroyed: () => {
-        layoutWatch.disconnect(); active.current = null;
-        if (announcer.current) announcer.current.textContent = '';
-        // driver.js restores its own captured focus after this callback.
-        queueMicrotask(() => {
-          const target = opener?.isConnected ? opener : document.querySelector<HTMLElement>('[data-testid="tutorial-menu-button"]');
-          target?.focus();
-        });
-      },
+      onCloseClick: destroy,
+      onDestroyed: finish,
     });
     const layoutWatch = new ResizeObserver(() => {
       const element = tour.getActiveElement();
@@ -131,11 +150,13 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
       tour.refresh();
     });
     layoutWatch.observe(document.body);
-    active.current = { id, destroy: () => tour.destroy() };
+    active.current = { id, destroy };
     if (remember) {
       seen.current.add(id);
       void markTutorialSeen(id).then(result => { if (!result.success) console.error('[tutorials] Progress not saved:', result.error); });
     }
+    window.addEventListener('keydown', handleEscape, true);
+    window.addEventListener('keyup', handleEscape, true);
     tour.drive();
   }, []);
 

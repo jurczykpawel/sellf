@@ -30,9 +30,9 @@ Jednostki pozostają częścią kontraktu v1 i nie są automatycznie przeliczane
 | `GET /analytics/top-products` | `revenue`, `average_price`, przychód podsumowania i przychody według walut | Najmniejsza |
 | `GET /analytics/top-products` | `current_price` | Główna |
 | `GET /refund-requests`, `GET/PATCH /refund-requests/{id}` | `requested_amount`, zagnieżdżone `amount` transakcji, kwoty zwrotów, jeśli zwracane | Najmniejsza |
+| `GET /users`, `GET /users/{id}`, endpointy dostępu | Zagnieżdżone ceny produktów | Główna |
 
 Pola przychodu w statystykach płatności i analityce oznaczają **kwoty brutto po odjęciu zwrotów** dla zamówień zakończonych i częściowo zwróconych. `net_revenue` również zawiera kwotę po zwrotach. Sumy zwrotów są podawane osobno, więc nie odejmuj ich ponownie od przychodu. Granice okresów są liczone w UTC. CSV zachowuje osobno pierwotną kwotę i kwotę zwrotu: odejmij zwrot, aby porównać przychód po zwrotach.
-| `GET /users`, `GET /users/{id}`, endpointy dostępu | Zagnieżdżone ceny produktów | Główna |
 
 Liczniki, okresy, stawki VAT, rabaty procentowe i zmiany procentowe nie są kwotami. Sumy wielu walut nie wykonują przewalutowania — korzystaj z podziału na waluty, jeśli jest dostępny. Przed użyciem ceny produktu jako kwoty płatności jawnie przelicz jednostki.
 

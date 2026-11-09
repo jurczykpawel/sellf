@@ -6252,7 +6252,7 @@
         },
         "filters": {
           "title": "Filtry",
-          "body": "Szukaj po e-mailu albo domenie, a listę zawężaj do źródła (zakup, ręczna) i statusu."
+          "body": "Szukaj po e-mailu, a listę zawężaj do źródła (zakup, ręczna) i statusu."
         },
         "table": {
           "title": "Lista licencji",
