@@ -88,3 +88,13 @@ describe('indexable product page', () => {
     expect(await generateMetadata({ params })).toMatchObject({ robots: { index: false } });
   });
 });
+
+it.each(['coupon', 'email', 'oto'])('preserves campaign and handoff parameters when %s forces checkout', async key => {
+  const search = { [key]: 'value', utm_source: 'second', utm_medium: 'email', utm_campaign: 'product campaign', utm_content: 'button', utm_term: 'course', utm_id: 'campaign-id', sf_a: 'handoff', gclid: 'click', fbclid: 'social', ignored: 'drop' };
+  await expect(ProductPage({ params, searchParams: Promise.resolve(search) })).rejects.toThrow('redirect:');
+  const destination = new URL(redirect.mock.calls.at(-1)![0], 'https://shop.example');
+  for (const [name, value] of Object.entries(search)) {
+    if (name !== 'ignored') expect(destination.searchParams.get(name)).toBe(value);
+  }
+  expect(destination.searchParams.has('ignored')).toBe(false);
+});

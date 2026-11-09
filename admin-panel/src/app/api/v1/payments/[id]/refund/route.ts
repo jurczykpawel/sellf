@@ -21,7 +21,7 @@ import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { remainingRefundableAmount } from '@/lib/refunds/flow';
-import { getPaymentRefundStatus, isRefundablePaymentStatus } from '@/lib/refunds/payment-status';
+import { getPaymentRefundStatus, supportsStripeRefund, isRefundablePaymentStatus } from '@/lib/refunds/payment-status';
 import { scheduleSubscriptionCancelAfterFullRefund } from '@/lib/services/subscription-refund-cancel';
 import Stripe from 'stripe';
 
@@ -117,6 +117,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
       console.error('Error fetching payment:', error);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch payment');
+    }
+
+    if (!supportsStripeRefund(payment)) {
+      return apiError(request, 'INVALID_INPUT', 'Bank transfer refunds must be handled outside Sellf');
     }
 
     if (!isRefundablePaymentStatus(payment.status)) {

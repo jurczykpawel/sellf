@@ -174,8 +174,10 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
   }
 
   if (outcome.kind === 'redirect-checkout') {
-    // Preserve OTO/coupon query params so the checkout has the same context.
-    const carry = ['email', 'coupon', 'oto', 'session']
+    // Preserve checkout and campaign context across the product-page redirect.
+    const carry = ['email', 'coupon', 'oto', 'session',
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id', 'sf_a',
+      'gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid', 'ttclid', 'twclid', 'li_fat_id']
       .map((k) => {
         const v = resolvedSearch?.[k];
         return typeof v === 'string' && v.length > 0 ? `${k}=${encodeURIComponent(v)}` : null;

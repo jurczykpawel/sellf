@@ -11,7 +11,7 @@ import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { remainingRefundableAmount } from '@/lib/refunds/flow';
-import { getPaymentRefundStatus, isRefundablePaymentStatus } from '@/lib/refunds/payment-status';
+import { getPaymentRefundStatus, supportsStripeRefund, isRefundablePaymentStatus } from '@/lib/refunds/payment-status';
 import { scheduleSubscriptionCancelAfterFullRefund } from '@/lib/services/subscription-refund-cancel';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
@@ -62,9 +62,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Initialize service client only after auth validation
-    const stripe = await getStripeServer();
-
     // Use admin client for public data operations
     const supabase = createAdminClient();
 
@@ -92,6 +89,10 @@ export async function POST(request: NextRequest) {
 
     if (transactionError || !transaction) {
       return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+    }
+
+    if (!supportsStripeRefund(transaction)) {
+      return NextResponse.json({ error: 'Bank transfer refunds must be handled outside Sellf' }, { status: 400 });
     }
 
     if (!isRefundablePaymentStatus(transaction.status)) {
@@ -127,6 +128,7 @@ export async function POST(request: NextRequest) {
       refundData.reason = reason;
     }
 
+    const stripe = await getStripeServer();
     const refund = await stripe.refunds.create(refundData);
 
     // Determine if this is a full or partial refund

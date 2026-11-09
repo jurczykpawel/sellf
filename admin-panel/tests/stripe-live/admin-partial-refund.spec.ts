@@ -12,7 +12,8 @@ import { createTestAdmin, loginAsAdmin, setAuthSession, supabaseAdmin as db } fr
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-test('partial then remaining refund from the dialog reaches Stripe and the order @J192', async ({ page }) => {
+for (const paymentProvider of ['stripe', 'bank_transfer']) {
+test(`partial then remaining refund reaches Stripe for ${paymentProvider} orders @J192`, async ({ page }) => {
   expect(process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_'), 'Stripe test key required').toBe(true);
   const admin = await createTestAdmin('w135-refund');
   const run = randomUUID().replaceAll('-', '');
@@ -23,7 +24,7 @@ test('partial then remaining refund from the dialog reaches Stripe and the order
   const product = await db.from('products').insert({ name: `W135 refund ${run}`, slug: `w135-refund-${run}`, price: 70, currency: 'PLN', is_active: true }).select('id').single();
   expect(product.error).toBeNull();
   const tx = await db.from('payment_transactions').insert({ product_id: product.data!.id, amount: 7000, currency: 'PLN', status: 'completed',
-    customer_email: email, session_id: intent.id, stripe_payment_intent_id: intent.id }).select('id').single();
+    customer_email: email, payment_provider: paymentProvider, session_id: paymentProvider === 'stripe' ? intent.id : null, settled_via: paymentProvider === 'bank_transfer' ? 'stripe' : null, pricing_snapshot_version: 1, stripe_payment_intent_id: intent.id }).select('id').single();
   expect(tx.error).toBeNull();
   const refundRow = () => db.from('payment_transactions').select('status, refunded_amount').eq('id', tx.data!.id).single();
   const openDialog = async () => {
@@ -58,6 +59,7 @@ test('partial then remaining refund from the dialog reaches Stripe and the order
   }
 });
 
+}
 
 test.describe('Payment dialogs, sessions and buyer refund fields', () => {
   test.describe.configure({ mode: 'serial' });

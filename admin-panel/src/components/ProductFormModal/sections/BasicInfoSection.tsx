@@ -19,10 +19,17 @@ export function BasicInfoSection({
   currentDomain,
   generateSlug,
   fieldErrors = {},
+  setFieldErrors,
 }: BasicInfoSectionProps) {
   const locale = useLocale();
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    setFieldErrors?.(prev => {
+      const next = { ...prev };
+      delete next[name];
+      if (name === 'name' && !slugModified) delete next.slug;
+      return next;
+    });
 
     if (name === 'name' && !slugModified) {
       setFormData((prev) => ({

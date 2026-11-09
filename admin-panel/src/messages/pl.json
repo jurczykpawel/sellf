@@ -2981,6 +2981,7 @@
         "amountLabel": "Kwota zwrotu ({currency})",
         "amountHint": "Puste pole = zwrot całej pozostałej kwoty ({amount}).",
         "amountExceedsRemaining": "Kwota przekracza pozostałą do zwrotu ({amount}).",
+        "amountInvalidWhole": "Podaj kwotę większą od zera w całych jednostkach waluty (bez części ułamkowej).",
         "amountInvalid": "Podaj kwotę większą od zera, najwyżej z groszami.",
         "partialRefundSentence": "Zwróć {amount}",
         "title": "Przetwórz zwrot",

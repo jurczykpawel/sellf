@@ -1139,7 +1139,7 @@
       },
       "end_state": {
         "buyer": "Not exercised: no customer state change in this probe.",
-        "seller": "Product is saved through the wizard and CRUD actions.",
+        "seller": "Product is saved through the wizard and CRUD actions. Correcting the slug clears its field error.",
         "integrator": "Not exercised: no outgoing integration contract asserted."
       },
       "status": "automated",
@@ -3457,7 +3457,7 @@
       ],
       "end_state": {
         "buyer": "Pays by card from a link with UTM tags; no cookie consent asked or stored for attribution.",
-        "seller": "Order carries an immutable source snapshot (channel email, listmonk / email / mail-05 / cta-1, landing path, mode url).",
+        "seller": "Order carries an immutable source snapshot (channel email, listmonk / email / mail-05 / cta-1, landing path, mode url). Product-page redirects with a coupon retain UTM and handoff parameters.",
         "integrator": "GET /api/v1/analytics/attribution returns one email row with net revenue; /api/v1/payments?embed=attribution shows the frozen source; MCP get_purchase_attribution calls the same endpoint."
       }
     },
@@ -3735,7 +3735,7 @@
       },
       "end_state": {
         "buyer": "Stripe test mode records the entered partial refund and then the remainder.",
-        "seller": "Refund dialog accepts an amount up to what remains and blocks more. Both payment dialogs support keyboard focus, Escape and focus restoration; partially refunded revenue is amount minus refunds.",
+        "seller": "Refund dialog accepts an amount up to what remains and blocks more. Both payment dialogs support keyboard focus, Escape and focus restoration; partially refunded revenue is amount minus refunds. Offline bank transfers offer no Stripe refund; transfer orders settled online remain refundable; JPY validation explains whole units in PL and EN.",
         "integrator": "Not exercised (existing refund webhook path unchanged)."
       },
       "status": "automated",
@@ -4373,7 +4373,7 @@
       },
       "end_state": {
         "buyer": "Gets one mail naming the product and amount once the administrator books the payment.",
-        "seller": "Mail state is stored on the order; recovery resends only undelivered ones.",
+        "seller": "Mail state is stored on the order; recovery resends only undelivered ones. Amount mismatches appear beside the booked amount with accessible field associations.",
         "integrator": "purchase.completed is emitted once for the booked order."
       },
       "status": "automated",
