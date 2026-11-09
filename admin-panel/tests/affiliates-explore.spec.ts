@@ -59,10 +59,22 @@ for (const locale of ['en', 'pl'] as const) for (const width of [1440, 390]) {
       await page.screenshot({ path: `/tmp/fixaff-submitted-${suffix}.png`, fullPage: true });
       await setAuthSession(page, 'demo@sellf.app', 'demo123');
       await page.goto(`${prefix}/dashboard/affiliates`);
-      await expect(page.getByRole('article', { name: 'Anna Partner' }).getByText(user.email, { exact: true })).toBeVisible();
+      const application = page.getByRole('article', { name: 'Anna Partner' }).getByText(user.email, { exact: true });
+      const next = page.getByRole('button', { name: t.next, exact: true });
+      while (await application.count() === 0 && await next.count() > 0) {
+        const firstCode = page.getByRole('article').first().locator('p span').first();
+        const previous = await firstCode.innerText();
+        const responsePromise = page.waitForResponse(response => response.request().method() === 'POST' && !!response.request().headers()['next-action'] && new URL(response.url()).pathname.endsWith('/dashboard/affiliates'));
+        await next.click();
+        const response = await responsePromise;
+        expect(response.ok()).toBe(true);
+        await expect(firstCode).not.toHaveText(previous);
+      }
+      await expect(application).toBeVisible();
       await page.screenshot({ path: `/tmp/fixaff-application-card-${suffix}.png`, fullPage: true });
       await page.goto(`${prefix}/dashboard/affiliates/earnings`);
       await expect(page.getByRole('heading', { name: copy.affiliates.earningsTitle })).toBeVisible();
+      await page.getByRole('status').filter({ hasText: copy.affiliates.loadingPartners }).waitFor({ state: 'hidden' });
       await expect(page.getByText(copy.affiliates.earningsSelect)).toBeVisible();
       await page.screenshot({ path: `/tmp/fixaff-earnings-${suffix}.png`, fullPage: true });
       await page.getByRole('combobox').fill('Demo');

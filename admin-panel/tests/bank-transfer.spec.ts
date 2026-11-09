@@ -142,6 +142,7 @@ test('(a) organization places transfer with immediate access, unpaid invoice, pr
   const mail = await (await page.request.get(`${MAILPIT_URL}/api/v1/message/${mailbox.messages[0].ID}`)).json();
   expect(mail.HTML).toContain('PL61 1090 1014 0000 0712 1981 2874'); expect(mail.HTML).not.toContain('PL61109010140000071219812874'); expect(mail.HTML).toContain('Dane do przelewu');
   expect(mail.HTML).toMatch(/<td[^>]*>Numer konta<\/td>\s*<td[^>]*>PL61 1090/);
+  await expect.poll(async () => checked(await db.from('webhook_logs').select('id').eq('endpoint_id', endpointId).eq('event_type', 'order.placed'))).toHaveLength(1);
   const placed = await checked(await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', 'order.placed').single());
   expect(JSON.stringify(placed.payload)).not.toContain('?token=');
   expect(await readBuyerPayload(placed.payload)).toMatchObject({ data: { order: { transfer: { account: 'PL61109010140000071219812874' } } } });
@@ -168,7 +169,7 @@ test('(c) admin rejects amount mismatch and marks paid; invoice updates once usi
   const number = (await checked(await db.from('payment_transactions').select('order_number').eq('id', orderId).single())).order_number;
   const issued = log.filter(l => l.action === 'issue' && l.oid.endsWith(`:${number}`)); expect(issued).toHaveLength(1); expect(issued[0].status).toBe('issued');
   expect(log.find(l => l.action === 'paid' && l.oid === issued[0].oid)?.paid_date).toBe(receiptDay);
-  expect((await db.from('webhook_logs').select('id').eq('endpoint_id', endpointId).eq('event_type', 'purchase.completed')).data).toHaveLength(1);
+  await expect.poll(async () => checked(await db.from('webhook_logs').select('id').eq('endpoint_id', endpointId).eq('event_type', 'purchase.completed'))).toHaveLength(1);
   await expect.poll(async () => {
     const found = await (await request.get(`${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)).json();
     return found.messages.map((m: { Subject: string }) => m.Subject);
@@ -179,13 +180,14 @@ test('(c) admin rejects amount mismatch and marks paid; invoice updates once usi
 test('(d) cancel requires a reason, returns event seat and access, and offers manual invoice correction @J54', async ({ page }) => {
   test.setTimeout(120000); const order = await place(page, cancelledEmail); unpaidId = order.orderId;
   const section = await adminDetails(page, cancelledEmail); await expect(section.getByRole('button', { name: 'Anuluj zamówienie' })).toBeDisabled();
-  await section.getByLabel('Powód anulowania').fill('Rezygnacja klienta'); await section.getByRole('button', { name: 'Anuluj zamówienie' }).click();
+  await section.getByLabel('Powód anulowania').fill('Rezygnacja klienta');
+  await section.getByRole('button', { name: 'Anuluj zamówienie' }).click();
   await expect.poll(async () => (await db.from('payment_transactions').select('status').eq('id', unpaidId).single()).data?.status).toBe('cancelled');
   expect((await db.from('guest_purchases').select('id').eq('transaction_id', unpaidId)).data).toHaveLength(0);
   expect((await db.from('seat_reservations').select('status').eq('transaction_id', unpaidId).single()).data?.status).toBe('released');
   const availability = await checked(await db.rpc('event_availability', { p_product_id: product.id })); expect((availability as unknown as { remaining: number }[])[0].remaining).toBe(2);
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog', { name: 'Szczegóły transakcji', exact: true })).toHaveCount(0);
+  await expect(section.getByRole('button', { name: 'Anuluj zamówienie' })).toHaveCount(0);
+  await page.goto('/pl/dashboard/payments');
   await page.getByLabel('Status', { exact: true }).selectOption('cancelled'); const row = page.getByRole('row').filter({ hasText: cancelledEmail });
   await expect(row).toContainText(pl.admin.payments.transactions.statuses.cancelled);
   await row.getByRole('button', { name: /szczegóły/i }).click(); const invoice = page.getByRole('region', { name: 'Faktury', exact: true });
