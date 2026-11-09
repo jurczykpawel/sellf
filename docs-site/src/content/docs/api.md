@@ -82,9 +82,9 @@ All paths below are relative to `/api/v1`. Units apply to both input and output 
 | `GET /analytics/top-products` | `revenue`, `average_price`, summary revenue and currency breakdown revenue | Minor |
 | `GET /analytics/top-products` | `current_price` | Major |
 | `GET /refund-requests`, `GET/PATCH /refund-requests/{id}` | `requested_amount`, nested transaction `amount`, refund amounts where returned | Minor |
+| `GET /users`, `GET /users/{id}`, access endpoints | Nested product prices | Major |
 
 Revenue fields in payment statistics and analytics are **gross amounts less refunds** for completed and partially refunded orders. `net_revenue` is the same retained amount. Refund totals are reported separately; do not subtract them from revenue again. These period summaries use UTC calendar boundaries. CSV keeps the original amount and refunded amount separately: subtract the latter to reconcile retained revenue.
-| `GET /users`, `GET /users/{id}`, access endpoints | Nested product prices | Major |
 
 Counts, durations, VAT rates, percentage discounts and percentage changes are not monetary amounts. Cross-currency totals are arithmetic sums, not currency conversions: use currency breakdowns where available. Do not treat a product price as a payment amount without explicitly converting units.
 

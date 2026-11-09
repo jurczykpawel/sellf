@@ -139,6 +139,14 @@ test.describe('unpaid transfer order', () => {
     await page.getByRole('button', { name: 'Szczegóły' }).first().click();
     await walk(page, 'unpaid-orders', ['intro', 'instructions', 'markPaid', 'cancel', 'lifecycle', 'invoice']);
     await expect.poll(() => seenTutorials(session.userId)).toContain('unpaid-orders');
+    const help = page.getByTestId('tutorial-help-unpaid-orders');
+    await help.click();
+    for (let step = 0; step < 5; step++) await popover(page).locator('.driver-popover-next-btn').click();
+    await expect(popoverTitle(page)).toHaveText(stepText('unpaid-orders', 'invoice').title);
+    await page.keyboard.press('Escape');
+    await expect(popover(page)).toHaveCount(0);
+    await expect(page.getByRole('dialog')).toHaveCount(1);
+    await expect(help).toBeFocused();
   });
 });
 
@@ -309,4 +317,75 @@ test('Escape after launching a tutorial through menu navigation returns focus to
   await page.keyboard.press('Escape');
   await expect(popover(page)).toHaveCount(0);
   await expect(page.getByTestId('tutorial-menu-button')).toBeFocused();
+});
+
+test('tutorial links switch between settings tabs in both directions without a reload @J214 @J218', async ({ page }) => {
+  await admin(page, 'tour-settings-switch', false);
+  await page.goto('/pl/dashboard/settings?tab=payments');
+  for (const id of ['attribution', 'bank-transfer-setup']) {
+    await page.getByTestId('tutorial-menu-button').click();
+    await page.getByTestId(`tutorial-link-${id}`).click();
+    await expect(popoverTitle(page)).toHaveText(stepText(id, 'intro').title);
+    await page.keyboard.press('Escape');
+    await expect(popover(page)).toHaveCount(0);
+  }
+});
+
+test('Escape dismisses the tutorial while preserving the edited product and returning focus @J212', async ({ page }) => {
+  await admin(page, 'tour-parent-escape', false);
+  const product = await productFixture('Samouczek Escape');
+  await openSalesSettings(page, product.name);
+  await page.getByLabel('Własny koszyk dla tego produktu').check();
+  const help = page.getByTestId('tutorial-help-b2b-checkout-profile');
+  await help.click();
+  await expect(popoverTitle(page)).toHaveText(stepText('b2b-checkout-profile', 'intro').title);
+  await page.keyboard.press('Escape');
+  await expect(popover(page)).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  await expect(help).toBeFocused();
+  await help.click();
+  await expect(popoverTitle(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(popover(page)).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  await page.getByLabel('Własny koszyk dla tego produktu').focus();
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(2);
+});
+
+test('Appearance stays below the sticky save bar when highlighted on a phone @J210', async ({ page }) => {
+  await admin(page, 'tour-sticky');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/en/dashboard/templates');
+  for (let index = 0; index < 5; index++) {
+    await expect(popover(page)).toBeVisible();
+    await popover(page).locator('.driver-popover-next-btn').click();
+  }
+  const target = page.locator('[data-tour="template-appearance"]');
+  await expect(target).toHaveClass(/driver-active-element/);
+  await expect.poll(async () => {
+    const box = await target.boundingBox();
+    const bar = await page.locator('[data-editor-savebar]').boundingBox();
+    return box!.y >= bar!.y + bar!.height && box!.y + box!.height <= 844;
+  }).toBe(true);
+  await page.screenshot({ path: test.info().outputPath('appearance.png') });
+  await page.keyboard.press('Escape');
+});
+
+test('license filters tutorial describes email search in Polish and English @J217', async ({ page }) => {
+  await admin(page, 'tour-license-copy', false);
+  for (const [locale, description] of [
+    ['pl', 'Szukaj po e-mailu, a listę zawężaj do źródła (zakup, ręczna) i statusu.'],
+    ['en', 'Search by email and narrow the list by source (purchase, manual) and status.'],
+  ]) {
+    await page.goto(`/${locale}/dashboard/licenses?tutorial=licenses`);
+    await expect(popover(page)).toBeVisible();
+    await popover(page).locator('.driver-popover-next-btn').click();
+    await popover(page).locator('.driver-popover-next-btn').click();
+    await expect(popover(page).locator('.driver-popover-description')).toHaveText(description);
+    await page.screenshot({ path: test.info().outputPath(`licenses-${locale}.png`) });
+    await page.keyboard.press('Escape');
+    await expect(popover(page)).toHaveCount(0);
+  }
 });

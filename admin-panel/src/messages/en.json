@@ -6251,7 +6251,7 @@
         },
         "filters": {
           "title": "Filters",
-          "body": "Search by email or domain and narrow the list by source (purchase, manual) and status."
+          "body": "Search by email and narrow the list by source (purchase, manual) and status."
         },
         "table": {
           "title": "License list",
