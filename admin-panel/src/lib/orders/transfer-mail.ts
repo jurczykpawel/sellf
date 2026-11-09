@@ -25,6 +25,7 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
     const { data: tx } = await db.from('payment_transactions').select('*').eq('id', id).single();
     if (!tx || tx[spec.column] || !(spec.statuses as readonly string[]).includes(tx.status) || !tx.customer_email) return;
     if (notice === 'reminder' && !tx.release_at) return;
+    if (notice === 'paid' && tx.fulfillment_pending) return;
     const meta = tx.metadata as Record<string, unknown> | null;
     const { data: product } = await db.from('products').select('slug,name').eq('id', tx.product_id).single();
     if (!product) return;
@@ -48,6 +49,12 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
     const data: Record<string, string | Record<string, string>> = notice === 'paid' ? { locale, purchase_product: product.name, purchase_amount: amount, payment_received: 'true' }
       : { locale, mail_kind: spec.kind!, purchase_product: product.name, purchase_amount: amount,
         pay_url: buildOrderPayLink(tx.id, locale, base).url, ...(transferDetails ? { transfer: transferDetails } : {}), ...(releaseText ? { release_text: releaseText } : {}), ...(notice === 'cancelled' && tx.cancel_note ? { cancel_reason_text: tx.cancel_note } : {}) };
+    if (notice === 'paid') {
+      const orderIds = [tx.id, tx.session_id, tx.stripe_payment_intent_id, tx.stripe_invoice_id].filter((value): value is string => Boolean(value));
+      const licenses = await db.from('issued_licenses').select('id').in('order_id', orderIds).eq('email', tx.customer_email).limit(1);
+      if (licenses.error) throw new Error('Order mail state unavailable');
+      if (licenses.data?.length) data.license_mail_managed = 'true';
+    }
     const result = await sendTrustedMagicLink({ transactionalOnly: !!tx.user_id || (notice !== 'paid' && !(notice === 'placed' && meta?.access_on_placement === true)), email: tx.customer_email,
       redirectTo: buildPostCheckoutMagicLinkRedirect({ origin: base, productSlug: product.slug, locale, sessionId: undefined, paymentIntentId: undefined }), data });
     if (result.ok) await db.from('payment_transactions').update({ [spec.column]: new Date().toISOString() } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id);

@@ -208,3 +208,17 @@ describe('issueLicense', () => {
     await expect(call(adminMock({ product: product(), insert }))).rejects.toThrow('permission denied for table issued_licenses');
   });
 });
+
+it('uses only configured product fields when issuing an order license', async()=>{
+ const result=await issueLicense(adminMock({product:product()}) as never,
+  {productId:PRODUCT,email:'a@b.co',userId:null,orderId:'ord_scoped',customFieldValues:{_sellf_license_domain:'example.com'}},
+  {now:NOW,scopeToProductFields:true});
+ const verified=verifyLicense(result!.token,key.publicKeyPem,{now:NOW});
+ expect(verified.valid).toBe(true);
+ if(verified.valid) expect(verified.claims).not.toHaveProperty('domain');
+});
+it('still requires the configured fields for each order license',async()=>{
+ const admin=adminMock({product:product({custom_checkout_fields:[{id:'_sellf_license_domain',type:'domain',label:'Domain',required:true,max_length:253}]})});
+ await expect(issueLicense(admin as never,{productId:PRODUCT,email:'a@b.co',userId:null,orderId:'ord_missing',customFieldValues:{company_name:'Example'}},
+  {now:NOW,scopeToProductFields:true})).rejects.toThrow('Invalid custom field values');
+});

@@ -16,6 +16,7 @@ import type { createAdminClient, createPlatformClient } from '@/lib/supabase/adm
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { normalizePurchaseEmail } from '@/lib/checkout/normalize-email';
+import { purchaseEventMail } from '@/lib/events/mail';
 import { mailOrderLicenses } from '@/lib/license-keys/license-mail';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { revokeLicensesForOrder } from '@/lib/license-keys/revoke';
@@ -1042,7 +1043,7 @@ export async function handleInvoicePaid(
       customFieldValues: (checkoutTransaction?.custom_field_values as Record<string, string> | null) ?? undefined,
     });
     if (license) await mailOrderLicenses(supabase, { email: ctx.email, userId: ctx.userId,
-      locale: sub.metadata.locale === 'pl' ? 'pl' : 'en', licenses: [{ productId: ctx.productId, token: license.token }] });
+      locale: sub.metadata.locale === 'pl' ? 'pl' : 'en', mailData: await purchaseEventMail(ctx.email, ctx.productId, invoice.id, undefined, sub.metadata.locale === 'pl' ? 'pl' : 'en', { allowPending: true }), licenses: [{ productId: ctx.productId, token: license.token }] });
   };
 
   // Insert payment_transactions row (idempotent via UNIQUE on stripe_invoice_id).

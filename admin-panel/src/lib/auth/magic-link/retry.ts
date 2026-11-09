@@ -8,7 +8,9 @@
  */
 import 'server-only';
 
+import { eventMailForSlug } from '@/lib/events/mail';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { readBuyerEmailPolicy } from './buyer-email-policy';
 import { deliverMagicLink } from './deliver';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { MagicLinkErrorCode, MagicLinkResult } from './types';
@@ -47,8 +49,36 @@ export async function runAuthMailRetries(db: SupabaseClient = createAdminClient(
     return { processed: 0, errors: 1 };
   }
   let processed = 0, errors = 0;
-  for (const row of (claimed ?? []) as Array<{ id: string; email: string; redirect_to: string; data: Record<string, string>; attempts: number; kind: string }>) {
-    const result = await deliverMagicLink({ email: row.email, redirectTo: row.redirect_to, shouldCreateUser: true, transactionalOnly: row.kind === 'license', data: row.data });
+  for (const row of (claimed ?? []) as Array<{ id: string; email: string; redirect_to: string; data: Record<string, string | Record<string, string>>; attempts: number; kind: string }>) {
+    let purchaseReady = true;
+    if (row.kind === 'post_checkout') {
+      const destination = new URL(row.redirect_to).searchParams.get('redirect_to') ?? '';
+      const target = new URL(destination, 'http://local.invalid');
+      const slug = target.searchParams.get('product') ?? target.pathname.match(/^\/(?:pl\/|en\/)?p\/([^/?]+)/)?.[1];
+      if (slug) {
+        const context: Record<string, string> = await eventMailForSlug(row.email, slug, row.data.locale === 'pl' ? 'pl' : 'en')
+          .catch(() => ({ purchase_mail_pending: 'true' }));
+        if (context.license_mail_managed === 'true' && await readBuyerEmailPolicy(db) === true) {
+          await db.from('auth_mail_retries').delete().eq('id', row.id);
+          processed++;
+          continue;
+        }
+        if (context.purchase_mail_pending === 'true') purchaseReady = false;
+        row.data = { ...row.data, ...context };
+      }
+    }
+    const keys = row.data.license_keys && typeof row.data.license_keys === 'object'
+      ? Object.values(row.data.license_keys) : row.data.license_key ? [row.data.license_key] : [];
+    if (keys.length) {
+      const current = await db.rpc('license_mail_is_current', { p_email: row.email, p_keys: keys });
+      if (current.error) { errors++; continue; }
+      if (current.data !== true) {
+        await db.from('auth_mail_retries').delete().eq('id', row.id);
+        processed++;
+        continue;
+      }
+    }
+    const result: MagicLinkResult = !purchaseReady ? { ok: false, code: 'send_failed' } : await deliverMagicLink({ email: row.email, redirectTo: row.redirect_to, shouldCreateUser: true, transactionalOnly: row.kind === 'license', data: row.data });
     // Purchase data (e.g. a license key) must not linger in the account once the mail was rendered.
     const cleared = await db.rpc('prepare_event_mail', { p_email: row.email, p_data: { locale: row.data.locale === 'pl' ? 'pl' : 'en' } });
     if (cleared.error) console.error('[auth-mail-retry] Account data cleanup failed');

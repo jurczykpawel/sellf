@@ -4,6 +4,7 @@ import { deriveOrderId } from '@/lib/services/webhook-service';
 import type Stripe from 'stripe';
 
 const mocks = vi.hoisted(() => ({ licenses: vi.fn(), trigger: vi.fn(), capture: vi.fn(), dispute: vi.fn(), licenseMail: vi.fn(), order: [] as string[] }));
+vi.mock('@/lib/events/mail', () => ({ purchaseEventMail: async () => ({}) }));
 vi.mock('@/lib/license-keys/license-mail', () => ({ mailOrderLicenses: mocks.licenseMail }));
 vi.mock('@/app/api/webhooks/stripe/dispute-handlers', () => ({ handleChargeDispute: mocks.dispute }));
 vi.mock('@/lib/services/bundle-order', () => ({

@@ -68,9 +68,16 @@
                 {{ if .Data.transfer.due }}<tr><td style="padding: 8px 16px 12px 16px; color: #94a3b8; font-size: 14px; vertical-align: top;">{{ if eq .Data.locale "en" }}Due date{{ else }}Termin{{ end }}</td><td style="padding: 8px 16px 12px 16px; color: #ffffff; font-size: 15px;">{{ .Data.transfer.due }}</td></tr>{{ end }}
               </table>
               {{ end }}
+              {{ if .Data.license_keys }}
+              {{ range $name, $key := .Data.license_keys }}
+              <p style="color: #ffffff;">{{ $name }}</p>
+              <p style="word-break: break-all; color: #ffffff; font-family: monospace;">{{ $key }}</p>
+              {{ end }}
+              {{ else }}
               {{ if .Data.license_key }}
               <p style="margin: 0 0 8px 0; color: #94a3b8; font-size: 14px;">{{ if eq .Data.locale "en" }}Your license key{{ else }}Twój klucz licencyjny{{ end }}</p>
               <p style="margin: 0 0 24px 0; padding: 12px 16px; background-color: #0B1424; border-radius: 8px; color: #ffffff; font-family: Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5; word-break: break-all;">{{ .Data.license_key }}</p>
+              {{ end }}
               {{ end }}
               {{ if and .Data.license_key .Data.license_expires_text }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}License valid until{{ else }}Licencja ważna do{{ end }}: {{ .Data.license_expires_text }}</p>{{ end }}
               {{ if .Data.event_date }}<p style="color: #ffffff;">{{ .Data.event_date }}</p>{{ end }}

@@ -61,7 +61,7 @@ export async function issueLicensesForOrder(
       userId: args.userId,
       orderId: args.orderId,
       customFieldValues: args.customFieldValues,
-    });
+    }, { scopeToProductFields: true });
     if (res) {
       issuedIds.push(res.id);
       licenses.push({

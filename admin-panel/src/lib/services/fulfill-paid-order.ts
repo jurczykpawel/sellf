@@ -4,6 +4,7 @@
  * @see supabase/migrations/20261002000000_payment_order_reconciliation.sql
  */
 import { revalidateTag } from 'next/cache';
+import { purchaseEventMail } from '@/lib/events/mail';
 import { handleChargeDispute } from '@/app/api/webhooks/stripe/dispute-handlers';
 import { issuedInvoice, issueInvoiceForTransaction } from '@/lib/invoicing/service';
 import { snapshotFromRows } from '@/lib/orders/local-tax';
@@ -103,7 +104,7 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
   await WebhookService.trigger('purchase.completed', payload, args.supabase, [...productIds]);
   if (licenses.length) {
     const locale = metadata.locale === 'pl' || metadata.locale === 'en' ? metadata.locale : undefined;
-    await mailOrderLicenses(args.supabase, { email: tx.customer_email || args.customerEmail, userId: tx.user_id, licenses, ...(locale ? { locale } : {}) });
+    await mailOrderLicenses(args.supabase, { email: tx.customer_email || args.customerEmail, userId: tx.user_id, licenses, mailData: { ...await purchaseEventMail(tx.customer_email || args.customerEmail, args.productId, undefined, undefined, locale ?? 'en', { allowPending: true, transactionId: tx.id }), ...(provider.kind === 'offline' ? { payment_received: 'true' } : {}) }, ...(locale ? { locale } : {}) });
   }
   await issueInvoiceForTransaction(tx.id, { client: args.supabase });
   const { error: savedError } = await args.supabase.from('payment_transactions').update({

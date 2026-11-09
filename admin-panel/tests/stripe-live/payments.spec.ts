@@ -14,7 +14,7 @@ import type { Frame, Page } from '@playwright/test';
 import { supabaseAdmin, createTestUser, setAuthSession } from '../helpers/admin-auth';
 import { acceptAllCookies } from '../helpers/consent';
 import { deleteAuthUserByEmail } from '../helpers/db-cleanup';
-import { extractMagicLink, waitForEmail } from '../helpers/mailpit';
+import { extractMagicLink, waitForEmail, searchMessages } from '../helpers/mailpit';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const artifacts = process.env.STRIPE_LIVE_ARTIFACTS!;
@@ -204,7 +204,7 @@ async function timing(s: Scenario, sessionId: string, pageAt: number): Promise<s
   return order;
 }
 
-async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; setPrice?: boolean; fixedPrice?: boolean; netVat?: boolean; profile?: boolean; event?: boolean; netCouponQuantity?: number; noBump?: boolean; expireCouponAfterReservation?: boolean } = {}): Promise<void> {
+async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; setPrice?: boolean; fixedPrice?: boolean; netVat?: boolean; profile?: boolean; event?: boolean; netCouponQuantity?: number; noBump?: boolean; expireCouponAfterReservation?: boolean; multipleLicenses?: boolean; licensedSubscription?: boolean } = {}): Promise<void> {
   const slug = `stripe-live-${label}-${randomUUID().slice(0, 8)}`;
   const s: Scenario = { slug, productIds: [], email: `${slug}@example.com`, domain: `${slug}.example.com`, sessionIds: [], subscription: !!options.subscription, netVat: options.netVat, profile: options.profile, netCouponQuantity: options.netCouponQuantity, noBump: options.noBump };
   let passed = false;
@@ -222,6 +222,9 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       s.coupon = await insert('coupons', { code: `LIVE-${randomUUID().slice(0, 8)}`.toUpperCase(), name: 'Live percentage', discount_type: options.setPrice ? 'set_price' : options.fixedPrice ? 'fixed' : s.profile ? 'fixed' : 'percentage', discount_value: options.setPrice ? s.netCouponQuantity ? 30 : 3 : options.fixedPrice ? 70 * s.netCouponQuantity! : s.profile ? 7.01 : 25, currency: options.setPrice || options.fixedPrice ? s.netCouponQuantity ? 'PLN' : 'USD' : null, exclude_order_bumps: !!options.fixedPrice, usage_limit_global: s.netCouponQuantity ? 1 : null, is_active: true });
     }
     await acceptAllCookies(page);
+    if (options.multipleLicenses || options.licensedSubscription) {
+      expect((await supabaseAdmin.from('products').update({issue_license_on_purchase:true,license_tier:'pro'}).in('id',s.productIds)).error).toBeNull();
+    }
     if (s.buyerId) await setAuthSession(page, s.email, password);
     page.on('response', async response => {
       if (response.url().includes('/api/create-payment-intent') && response.ok()) {
@@ -430,6 +433,19 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         const message = await waitForEmail(s.email, { timeout: 60000 });
         expect(message.HTML).toContain(`Stripe live ${s.slug}`);
         if (s.subscription) expect(message.HTML).toContain('$10.00');
+        const keys = await rows('issued_licenses', 'email', s.email);
+        for (const key of keys) expect(message.HTML).toContain(key.license_key);
+        if (options.multipleLicenses) expect(keys).toHaveLength(2);
+        if (options.licensedSubscription) expect(keys).toHaveLength(1);
+        expect(await searchMessages(s.email)).toHaveLength(1);
+        if (keys.length) {
+          await supabaseAdmin.from('auth_mail_retries').update({next_attempt_at:new Date(0).toISOString()}).eq('email',s.email).is('license_mail_key',null);
+          const cron = await page.request.get('/api/cron?job=auth-mail-retry',{headers:{Authorization:`Bearer ${process.env.CRON_SECRET}`}});
+          expect(cron.ok()).toBe(true);
+          expect(await searchMessages(s.email)).toHaveLength(1);
+          await expect.poll(async ()=>(await rows('auth_mail_retries','email',s.email)).length,{timeout:30000}).toBe(0);
+          await expect(page.getByText(/mail server is busy/i)).toHaveCount(0);
+        }
         const magicLink = extractMagicLink(message.HTML || message.Text || '');
         expect(magicLink, 'Delivered post-checkout magic link').toBeTruthy();
         await page.goto(magicLink!);
@@ -561,3 +577,6 @@ test('PLN net coupons through transfer placement and offline completion @J11', a
 test('PLN net fixed coupon entered before email with five units and bump', async ({ page }) => { await run(page, 'net-fixed-five', '4242424242424242', { fixedPrice: true, netVat: true, netCouponQuantity: 5 }); });
 
 test('form coupon expires after reservation', async ({ page }) => { await run(page, 'coupon-expired', '4242424242424242', { coupon: true, expireCouponAfterReservation: true }); });
+
+test('multiple license keys share the first purchase email @J01', async ({page})=>run(page,'multi-license','4242424242424242',{multipleLicenses:true}));
+test('licensed subscription keeps its first purchase link @J05', async ({page})=>run(page,'licensed-subscription','4242424242424242',{subscription:true,licensedSubscription:true}));

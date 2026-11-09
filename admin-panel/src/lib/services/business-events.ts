@@ -27,7 +27,7 @@ export async function runBusinessEvents(db = createAdminClient()): Promise<{ pro
   for (const event of claimed.data ?? []) {
     try {
       const data = event.payload as Record<string, any>;
-      let payload: unknown = event.event_type === 'order.abandoned' ? { ...data, lines: minorOrderLines(data.lines ?? []) } : data;
+      let payload: unknown = event.event_type === 'order.abandoned' ? { ...data, customer: { ...data.customer, email: data.customer?.email === 'pending@sellf.app' ? null : data.customer?.email ?? null }, lines: minorOrderLines(data.lines ?? []) } : data;
       if (event.event_type.startsWith('license.')) {
         const row = data.licenseRow as RevokedLicenseRow;
         const origin = getCanonicalOriginOrNull() ?? '';

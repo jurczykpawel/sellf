@@ -49,7 +49,7 @@ Polish translations are UI labels for the same concepts.
 | Tax identifier type (typ identyfikatora podatkowego) | The rule a buyer's tax number follows, chosen by the company country: `pl_nip` (checksum), `eu_vat` (country prefix + per-country format, optional non-blocking VIES result) or `other` (any identifier outside the EU). | `order_details.buyer.tax_id_type/tax_id_country/tax_id_vies`; `admin-panel/src/lib/validation/tax-id.ts`; `invoice.taxIdType` |
 | Guided tutorial (samouczek) | A clickable, step-by-step walkthrough of one admin screen (driver.js). Starts once on the administrator's first visit to the feature, then only on request from the help menu; "seen" is stored per user. Steps attach to `data-tour` markers; texts are in `messages/*.json` under `tutorials`. | `public.tutorial_progress`; `admin-panel/src/lib/tutorials/registry.ts` |
 | Payment-received mail | The sign-in email a bank-transfer buyer receives once the administrator books the full amount; sent once per order and resumed by the scheduled recovery job if undelivered. | `public.payment_transactions.transfer_paid_mail_sent_at`; `admin-panel/src/lib/orders/transfer-mail.ts` |
-| License key mail | The sign-in email that hands a free-product buyer their license key after the grant; the key is removed from account data once rendered. | `admin-panel/src/lib/license-keys/license-mail.ts` |
+| License key mail | The sign-in email that hands a buyer all license keys from one paid order, or the key after a free grant. The purchase confirmation reuses this delivery; keys are removed from account data once rendered. Pending deliveries check current licenses and access. | `admin-panel/src/lib/license-keys/license-mail.ts` |
 
 ## Buyer emails / Maile do kupujących
 

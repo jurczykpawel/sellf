@@ -43,7 +43,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-// Mock ONLY the auth seam — authenticate() returns the real service-role client
+// The auth seam returns the real service-role client
 // as `.supabase`; every other @/lib/api export passes through untouched.
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>();
@@ -57,6 +57,12 @@ vi.mock('@/lib/api', async (importOriginal) => {
       scopes: ['*'],
     })),
   };
+});
+
+// This suite verifies licensing and storage; DNS behavior has dedicated URL tests.
+vi.mock('@/lib/validations/webhook', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/lib/validations/webhook')>();
+  return { ...actual, validateWebhookUrlAsync: async (url: string) => actual.isValidWebhookUrl(url) };
 });
 
 // Imported AFTER the mock so the handlers bind to the mocked authenticate().
@@ -188,7 +194,7 @@ describe('POST /api/v1/webhooks — payload customization gate', () => {
       ),
     );
 
-    expect(res.status).toBe(201);
+    expect(res.status, await res.clone().text()).toBe(201);
     const body = await res.json();
     expect(body.data.id).toBeDefined();
     createdEndpointIds.push(body.data.id);
@@ -254,7 +260,7 @@ describe('POST /api/v1/webhooks — payload customization gate', () => {
       ),
     );
 
-    expect(res.status).toBe(201);
+    expect(res.status, await res.clone().text()).toBe(201);
     const body = await res.json();
     createdEndpointIds.push(body.data.id);
 
