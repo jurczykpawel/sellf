@@ -91,6 +91,19 @@ describe('dispute buyer and receiver contract', () => {
       ${assert(`EXISTS(SELECT 1 FROM public.user_product_access WHERE user_id='${buyer}' AND product_id='${product}' AND access_expires_at=now()+interval '29 days')`, 'Guest must retain purchase date plus original duration')}
       ${assert(`EXISTS(SELECT 1 FROM public.business_events WHERE product_id='${product}' AND event_type='access.granted' AND (payload->>'accessExpiresAt')::timestamptz=now()+interval '29 days')`, 'The receiver must get the original guest expiry')}`,true)).not.toThrow();
   });
+  it('retains the restored guest term alongside a refunded order for the same product @J185', () => {
+    expect(() => run(`UPDATE public.products SET auto_grant_duration_days=30 WHERE id='${product}';
+      ${apply(created)}
+      UPDATE auth.users SET email_confirmed_at=now() WHERE id='${buyer}';
+      WITH inserted AS (
+        INSERT INTO public.payment_transactions(product_id,customer_email,payment_provider,pricing_snapshot_version,amount,currency,status)
+          VALUES('${product}','dispute-contract@example.com','bank_transfer',1,1100,'PLN','refunded') RETURNING id
+      ) INSERT INTO public.guest_purchases(product_id,customer_email,transaction_amount,transaction_id)
+        SELECT '${product}','dispute-contract@example.com',1100,id FROM inserted;
+      UPDATE public.products SET auto_grant_duration_days=60 WHERE id='${product}';
+      ${apply(won,true)}
+      ${assert(`EXISTS(SELECT 1 FROM public.user_product_access WHERE user_id='${buyer}' AND product_id='${product}' AND access_expires_at=now()+interval '29 days')`, 'Restored term changed')}`,true)).not.toThrow();
+  });
   it('does not restore a guest purchase whose original term elapsed before resolution', () => {
     expect(() => run(`UPDATE public.products SET auto_grant_duration_days=1 WHERE id='${product}';
       UPDATE public.guest_purchases SET created_at=now()-interval '2 days' WHERE transaction_id='${tx}';

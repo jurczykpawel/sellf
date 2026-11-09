@@ -8,8 +8,8 @@
  * 4. Bump product guest_purchases revocation (guest for each bump)
  * 5. No bumps scenario — only main product revoked
  * 6. Missing user_id — skips user_product_access, still cleans guest_purchases
- * 7. Missing session_id — skips guest_purchases, still cleans user_product_access
- * 8. Both user_id and session_id null — no revocation but no crash
+ * 7. Missing session_id — cleans guest_purchases by transaction
+ * 8. Both user_id and session_id null — cleans guest transaction
  * 9. Bump query error — warns but doesn't fail
  * 10. Batch bump revocation error — warns but doesn't fail
  * 11. Main product revocation error — warns but continues
@@ -265,7 +265,7 @@ describe('revokeTransactionAccess', () => {
 
       expect(result.success).toBe(true);
       expect(result.mainProductRevoked).toBe(false);
-      expect(result.mainGuestRevoked).toBe(false);
+      expect(result.mainGuestRevoked).toBe(true);
       expect(result.bumpProductsRevoked).toBe(0);
       expect(result.warnings).toHaveLength(0);
       // Should still query payment_line_items

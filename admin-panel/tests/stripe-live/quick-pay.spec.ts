@@ -3,10 +3,13 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import Stripe from 'stripe';
-import { loginAsAdmin, supabaseAdmin as db } from '../helpers/admin-auth';
+import { createTestAdmin, loginAsAdmin, setAuthSession, supabaseAdmin as db } from '../helpers/admin-auth';
 import { signTransferToken } from '@/lib/orders/transfer-token';
 import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
+import { extractMagicLink, searchMessages, getMessage } from '../helpers/mailpit';
+import { useSupabaseBuyerEmails } from '../helpers/buyer-email-setting-playwright';
 import type { Page } from '@playwright/test';
+useSupabaseBuyerEmails();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 test.describe.configure({ mode: 'serial' });
@@ -104,4 +107,54 @@ test('admin marks the order paid while the buyer is on Stripe: the online paymen
   const attempt = await checked(await db.from('order_payment_attempts').select('refund_id').eq('transaction_id', id).single());
   expect((await stripe.refunds.retrieve(attempt.refund_id!)).amount).toBe(17000);
   expect((await checked(await db.from('payment_transactions').select('stripe_payment_intent_id,status').eq('id', id).single()))).toEqual({ stripe_payment_intent_id: null, status: 'completed' });
+});
+
+test('guest opens the original payment email after a full quick-pay refund @J185', async ({ page, browser }) => {
+  const email = `quick-refund-${randomUUID()}@example.com`;
+  const admin = await createTestAdmin('quick-refund');
+  const adminPage = await browser.newPage();
+  let buyerId: string | undefined;
+  await checked(await db.from('product_price_tiers').update({ price: 170 }).eq('session_id', sessionId).select());
+  const id = await place(email, 170);
+  try {
+    await checked(await db.rpc('admin_bank_transfer_order', { p_id: id, p_action: 'cancel', p_reason: 'Buyer canceled before online payment', p_actor: (await checked(await db.rpc('find_user_id_by_email', { p_email: admin.email }))) as string }));
+    await page.goto(orderPage(id));
+    await page.getByRole('button', { name: /Zapłać online 170,00/ }).click();
+    await payOnHostedCheckout(page);
+    await expect.poll(async () => (await db.from('payment_transactions').select('status').eq('id', id).single()).data?.status, { timeout: 90000 }).toBe('completed');
+    const guest = await checked(await db.from('guest_purchases').select('session_id,claimed_by_user_id').eq('transaction_id', id).single());
+    expect(guest).toEqual({ session_id: null, claimed_by_user_id: null });
+    let link: string | null = null;
+    await expect.poll(async () => {
+      for (const message of await searchMessages(email)) {
+        const mail = await getMessage(message.ID);
+        const body = mail.HTML || mail.Text || '';
+        if (!/Płatność otrzymana|Payment received/.test(body)) continue;
+        const candidate = extractMagicLink(body);
+        if (candidate) { link = candidate; return true; }
+      }
+      return false;
+    }, { timeout: 60000 }).toBe(true);
+    await setAuthSession(adminPage, admin.email, admin.password);
+    const response = await adminPage.request.post('/api/admin/payments/refund', { data: { transactionId: id, reason: 'requested_by_customer' } });
+    expect(response.status(), await response.text()).toBe(200);
+    await expect.poll(async () => (await db.from('payment_transactions').select('status').eq('id', id).single()).data?.status).toBe('refunded');
+    const tx = await checked(await db.from('payment_transactions').select('stripe_payment_intent_id').eq('id', id).single());
+    expect((await stripe.refunds.list({ payment_intent: tx.stripe_payment_intent_id! })).data).toEqual(expect.arrayContaining([expect.objectContaining({ amount: 17000, status: 'succeeded' })]));
+    expect(await checked(await db.from('guest_purchases').select('id').eq('transaction_id', id))).toHaveLength(0);
+    await page.goto(link!);
+    await expect(page).toHaveURL(/\/p\//, { timeout: 90000 });
+    buyerId = (await checked(await db.rpc('find_user_id_by_email', { p_email: email }))) as string;
+    expect(buyerId).toBeTruthy();
+    expect((await checked(await db.auth.admin.getUserById(buyerId))).user?.email_confirmed_at).toBeTruthy();
+    expect(await checked(await db.from('user_product_access').select('id').eq('user_id', buyerId).eq('product_id', product.id))).toHaveLength(0);
+    await expect(page.getByRole('heading', { name: /Dostęp przyznany|Access Granted/i })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: /Dostęp przyznany|Access Granted/i })).toHaveCount(0);
+    expect(await checked(await db.from('user_product_access').select('id').eq('user_id', buyerId).eq('product_id', product.id))).toHaveLength(0);
+  } finally {
+    await adminPage.close();
+    if (buyerId) await db.auth.admin.deleteUser(buyerId);
+    await admin.cleanup();
+  }
 });
