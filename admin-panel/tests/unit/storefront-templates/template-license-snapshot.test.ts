@@ -4,6 +4,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { generateSellerKeypair } from '@/lib/license-keys/keys';
 import { signLicense } from '@/lib/license-keys/format';
 import { templateRightsForTier } from '@/lib/storefront-templates/rights';
+import { DEFAULT_CONFIG } from '@/lib/storefront-templates/fixtures';
+import { resolveSelection } from '@/lib/storefront-templates/resolver';
 import { encryptSecret } from '@/lib/services/secret-encryption';
 import { PREMIUM_POLICY_FIXTURES } from './fixtures/template-license-policy';
 import { getTemplateLicenseStatus, getLocalTemplateIds, invalidateTemplateLicense, refreshTemplateLicenseSnapshot, stopTemplateLicenseRefresh } from '@/lib/storefront-templates/template-license-snapshot';
@@ -163,5 +165,60 @@ it('reports a refused status write instead of failing silently (W148-5)', async 
   expect(getTemplateLicenseStatus(policy.templateId).state).toBe('unknown');
   expect(warn).toHaveBeenCalledWith(expect.stringContaining('[templates]'), policy.templateId);
   expect(JSON.stringify(warn.mock.calls)).not.toMatch(/private|encrypted|BEGIN/);
+  warn.mockRestore();
+});
+
+it('identifies invalid policy JSON without logging configuration contents', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  vi.stubEnv('SELLF_TEMPLATE_LICENSE_POLICIES', '[{templateId:private-order}]');
+  await refreshTemplateLicenseSnapshot();
+  expect(warn).toHaveBeenCalledWith('[templates] Template key refresh failed:', {
+    stage: 'policy-json', cause: 'invalid-json', error: 'SyntaxError',
+  });
+  expect(m.client).not.toHaveBeenCalled();
+  expect(JSON.stringify(warn.mock.calls)).not.toMatch(/private-order/);
+  warn.mockRestore();
+});
+it('bounds confirmation and expiry after policy JSON becomes unreadable', async () => {
+  await credential({ exp: claims.iat + 90 }); await refreshTemplateLicenseSnapshot();
+  const config = { ...DEFAULT_CONFIG, templateId: policy.templateId };
+  const selection = () => resolveSelection(config, templateRightsForTier('pro', getLocalTemplateIds()).availableTemplateIds);
+  expect(selection()).toMatchObject({ templateId: policy.templateId, diagnostic: null });
+  expect(getLocalTemplateIds()).toEqual([policy.templateId]);
+  vi.stubEnv('SELLF_TEMPLATE_LICENSE_POLICIES', '[{templateId:broken}]');
+  vi.advanceTimersByTime(30_000); await refreshTemplateLicenseSnapshot();
+  expect(getLocalTemplateIds()).toEqual([policy.templateId]);
+  vi.advanceTimersByTime(30_000); await refreshTemplateLicenseSnapshot();
+  expect(getTemplateLicenseStatus(policy.templateId).state).toBe('unknown');
+  expect(selection()).toMatchObject({ templateId: 'default', diagnostic: 'DENIED' });
+  vi.advanceTimersByTime(30_000);
+  expect(getTemplateLicenseStatus(policy.templateId).state).toBe('expired');
+});
+it('identifies revocation JSON errors without logging the response', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  vi.mocked(fetch).mockResolvedValue(new Response('private-order'));
+  await refreshTemplateLicenseSnapshot();
+  expect(warn).toHaveBeenCalledWith('[templates] Template key refresh failed:', {
+    stage: 'revocation', cause: 'invalid-json', error: 'SyntaxError', templateId: policy.templateId,
+  });
+  expect(getLocalTemplateIds()).toEqual([]);
+  expect(JSON.stringify(warn.mock.calls)).not.toMatch(/private-order/);
+  warn.mockRestore();
+});
+it('reports configuration validation separately and keeps custom error text private', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const policies = process.env.SELLF_TEMPLATE_LICENSE_POLICIES!;
+  vi.stubEnv('SELLF_TEMPLATE_LICENSE_POLICIES', '[{"private":"configuration"}]');
+  await refreshTemplateLicenseSnapshot();
+  expect(warn).toHaveBeenLastCalledWith('[templates] Template key refresh failed:', {
+    stage: 'policy-validation', cause: 'invalid-data', error: 'ZodError',
+  });
+  vi.stubEnv('SELLF_TEMPLATE_LICENSE_POLICIES', policies);
+  m.read.mockRejectedValue(Object.assign(new Error('private-token'), { name: 'private-key' }));
+  await refreshTemplateLicenseSnapshot();
+  expect(warn).toHaveBeenLastCalledWith('[templates] Template key refresh failed:', {
+    stage: 'credential-read', cause: 'operation-failed', error: 'Error',
+  });
+  expect(JSON.stringify(warn.mock.calls)).not.toMatch(/private/);
   warn.mockRestore();
 });

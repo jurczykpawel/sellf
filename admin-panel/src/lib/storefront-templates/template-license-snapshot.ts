@@ -41,6 +41,14 @@ export function getLocalTemplateIds(): string[] {
   return [...state.entries.keys()].filter(id => getTemplateLicenseStatus(id).state === 'valid');
 }
 
+function reportRefreshFailure(stage: string, error: unknown, templateId?: TemplateLicenseStatus['templateId']): void {
+  const name = error instanceof Error && ['SyntaxError', 'ZodError', 'TypeError', 'Error', 'TimeoutError', 'AbortError'].includes(error.name) ? error.name : 'Error';
+  console.warn('[templates] Template key refresh failed:', {
+    stage, cause: name === 'SyntaxError' ? 'invalid-json' : name === 'ZodError' ? 'invalid-data' : 'operation-failed',
+    error: name, ...(templateId ? { templateId } : {}),
+  });
+}
+
 async function revoked(url: string, order: string): Promise<boolean> {
   const hash = createHash('sha256').update(order).digest('hex');
   const target = new URL(url); target.searchParams.set('prefix', hash.slice(0, 4));
@@ -66,27 +74,35 @@ export function refreshTemplateLicenseSnapshot(): Promise<void> {
   if (state.pending) return state.pending;
   state.pending = (async () => {
     const readAt = Date.now(); const generation = state.generation;
+    let stage = 'policy-json';
     try {
-      const policies = z.array(policySchema).max(3).parse(JSON.parse(process.env.SELLF_TEMPLATE_LICENSE_POLICIES ?? '[]'));
+      const rawPolicies: unknown = JSON.parse(process.env.SELLF_TEMPLATE_LICENSE_POLICIES ?? '[]');
+      stage = 'policy-validation';
+      const policies = z.array(policySchema).max(3).parse(rawPolicies);
       if (new Set(policies.map(p => p.templateId)).size !== policies.length) { state.entries.clear(); return; }
+      stage = 'canonical-origin';
       const origin = getCanonicalOriginOrNull();
       if (!origin) { state.entries.clear(); return; }
       const runtimeHost = new URL(origin).hostname;
+      stage = 'credential-read';
       const client = createPlatformClient();
       const { data, error } = await client.from('template_credentials').select('*');
       if (error || !data) return;
       const present = new Set(data.map(row => row.template_id));
       for (const id of state.entries.keys()) if (!present.has(id)) state.entries.delete(id);
+      stage = 'credential-refresh';
       await Promise.all(data.map(async row => {
         const id = policySchema.shape.templateId.parse(row.template_id);
         const fingerprint = createHash('sha256').update(JSON.stringify([row.encrypted_key, row.encryption_iv, row.encryption_tag])).digest('hex');
         if (state.entries.get(id)?.fingerprint !== fingerprint) state.entries.delete(id);
         let status: TemplateLicenseStatus['state'] = row.encrypted_key ? 'unknown' : 'missing';
         let expiry = Infinity;
+        let credentialStage = 'credential-policy';
         try {
           const policy = policies.find(p => p.templateId === id);
           if (row.state === 'revoked') status = 'revoked';
           else if (row.encrypted_key && row.encryption_iv && row.encryption_tag && policy) {
+            credentialStage = 'credential-decryption';
             const token = await decryptSecret({ encrypted_key: row.encrypted_key, encryption_iv: row.encryption_iv, encryption_tag: row.encryption_tag });
             const parts = token.split('.');
             let parsed: ReturnType<typeof templateClaims.safeParse> | null = null;
@@ -100,17 +116,20 @@ export function refreshTemplateLicenseSnapshot(): Promise<void> {
               const claims = parsed.data;
               const pin = policy.keys.find(k => k.kid === claims.kid && k.issuerId === policy.issuerId && policy.trustedKeyIds.includes(k.kid));
               if (pin) {
+                credentialStage = 'public-key';
                 const key = createPublicKey(pin.pem);
                 const signed = key.asymmetricKeyType === 'ec' && key.asymmetricKeyDetails?.namedCurve === 'prime256v1' &&
                   createVerify('SHA256').update(parts[0]).end().verify(key, Buffer.from(parts[1], 'base64url'));
                 expiry = claims.exp == null ? Infinity : claims.exp * 1000;
                 if (signed && matchesTemplateLicensePolicy(policy, 'pro', { state: 'verified', issuerId: pin.issuerId, claims: { ...claims, exp: null } }, runtimeHost, Math.floor(readAt / 1000))) {
+                  credentialStage = 'revocation';
                   status = readAt >= expiry ? 'expired' : await revoked(policy.revocationUrl, claims.order) ? 'revoked' : 'valid';
                 }
               }
             }
           }
-        } catch {
+        } catch (error) {
+          reportRefreshFailure(credentialStage, error, id);
           // A failed refresh cannot extend a previous confirmation.
           const previous = state.entries.get(id);
           if (previous?.status.state === 'valid') return;
@@ -134,7 +153,7 @@ export function refreshTemplateLicenseSnapshot(): Promise<void> {
       }));
     } catch (error) {
       // Existing confirmations retain their original absolute deadlines.
-      console.warn('[templates] Template key refresh failed:', error instanceof Error ? error.name : 'Unknown error');
+      reportRefreshFailure(stage, error);
     }
   })().finally(() => { state.pending = undefined; });
   return state.pending;

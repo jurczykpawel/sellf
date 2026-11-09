@@ -1,6 +1,6 @@
 /** Opt-in real Stripe checkout -> local webhook -> first Auth email, without a browser. */
 import { randomUUID } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { solveChallenge } from 'altcha-lib/v1';
@@ -9,7 +9,8 @@ import { extractMagicLink, searchMessages, waitForEmail } from '../helpers/mailp
 import { deleteAuthUserByEmail } from '../helpers/db-cleanup';
 
 describe.runIf(process.env.STRIPE_LIVE_API === '1')('real subscription first email', () => {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  let stripe: Stripe;
+  beforeAll(() => { stripe = new Stripe(process.env.STRIPE_SECRET_KEY!); });
   const db = supabaseAdmin();
   async function captcha(): Promise<string> {
     const challenge = await (await fetch(`${API_URL}/api/captcha/challenge`)).json();
