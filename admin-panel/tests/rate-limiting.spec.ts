@@ -302,7 +302,7 @@ test.describe('Rate Limiting', () => {
       expect(result.successCount).toBeLessThan(100); // Should hit limit before maxAttempts
     });
 
-    test('consent endpoint should be rate limited', async ({ request }) => {
+    test('consent endpoint should be rate limited', async ({ request, baseURL }) => {
       const result = await makeRequestsUntilRateLimited(
         request,
         'post',
@@ -312,7 +312,7 @@ test.describe('Rate Limiting', () => {
           fingerprint: `test-${Date.now()}`,
         },
         100,
-        { origin: 'http://localhost:3777' },
+        { origin: new URL(baseURL!).origin },
       );
 
       expect(result.gotRateLimited).toBe(true);
@@ -399,7 +399,7 @@ test.describe('Rate Limiting', () => {
       expect(result.successCount).toBeGreaterThan(0);
     });
 
-    test('update-payment-metadata should be rate limited', async ({ request }) => {
+    test('update-payment-metadata should be rate limited', async ({ request, baseURL }) => {
       const result = await makeRequestsUntilRateLimited(
         request,
         'post',
@@ -410,7 +410,7 @@ test.describe('Rate Limiting', () => {
         },
         100,
         {
-          'origin': 'http://localhost:3777',
+          'origin': new URL(baseURL!).origin,
           'referer': '/',
         }
       );

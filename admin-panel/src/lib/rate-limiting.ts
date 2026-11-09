@@ -115,10 +115,7 @@ async function checkRateLimitDatabase(
 
   if (error) {
     console.error('Rate limit check error:', error);
-    // Fail closed in production to prevent RL bypass via injected errors.
-    // In dev/test fail open so a transient supabase hiccup doesn't return
-    // 429 to legitimate traffic.
-    return process.env.NODE_ENV !== 'production';
+    return false;
   }
 
   return !!rateLimitOk;
@@ -158,10 +155,7 @@ export async function checkRateLimit(
     return await checkRateLimitDatabase(actionType, maxRequests, windowMinutes, identifier);
   } catch (error) {
     console.error('Rate limit check exception:', error);
-    // Fail closed in production (prevent RL bypass via injected DB errors).
-    // In dev/test, fail open — a transient DB hiccup shouldn't block legitimate
-    // local traffic; production is the only place where the denial has to hold.
-    return process.env.NODE_ENV !== 'production';
+    return false;
   }
 }
 
@@ -184,7 +178,7 @@ export async function checkRateLimitForIdentifier(
     return await checkRateLimitDatabase(actionType, maxRequests, windowMinutes, identifier);
   } catch (error) {
     console.error('Rate limit check exception:', error);
-    return process.env.NODE_ENV !== 'production';
+    return false;
   }
 }
 
