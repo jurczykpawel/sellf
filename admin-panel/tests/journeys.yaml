@@ -3624,7 +3624,7 @@
         "operation": "purchase"
       },
       "end_state": {
-        "buyer": "Pays the saved amount on Stripe Checkout and sees the order as paid.",
+        "buyer": "Pays the saved amount on Stripe Checkout and sees the order as paid. After a full refund before first confirmation, the original payment email opens no product access.",
         "seller": "Order completed, settled via Stripe, still a transfer order with its PaymentIntent for refunds.",
         "integrator": "Exactly one purchase.completed."
       },
@@ -3632,7 +3632,8 @@
       "layers": [
         "browser",
         "integration"
-      ]
+      ],
+      "limits": "Covers canceled transfer orders paid online, refunded before the first email link is opened."
     },
     {
       "id": "J186",

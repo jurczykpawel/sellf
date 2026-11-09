@@ -141,6 +141,18 @@ export async function revokeTransactionAccess(
 
   // --- 3. Revoke guest_purchases (main product only — bumps don't have separate guest_purchases rows) ---
   // DB design: one guest_purchases row per session (main product). Bumps tracked via payment_line_items.
+  const { error: guestTransactionError } = await supabase
+    .from('guest_purchases')
+    .delete()
+    .eq('transaction_id', target.transactionId)
+    .eq('product_id', target.productId);
+
+  if (guestTransactionError) {
+    warnings.push(`Failed to revoke guest transaction: ${guestTransactionError.message}`);
+  } else {
+    mainGuestRevoked = true;
+  }
+
   if (target.sessionId && target.productId) {
     const { error: guestMainError } = await supabase
       .from('guest_purchases')
