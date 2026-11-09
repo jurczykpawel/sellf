@@ -32,6 +32,19 @@ test('a working license is shown valid with a copy button @J235', async ({ page 
   await expect(page.getByText(TOKEN)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Kopiuj' })).toBeVisible();
 });
+test('a dated license status stays on one line at 390 pixels @J235', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect((await db.from('issued_licenses').update({ expires_at: new Date(Date.now() + 30 * 86400_000).toISOString() }).eq('id', ids.license!)).error).toBeNull();
+  await page.goto(`/pl/p/${slug}`);
+  const badge = page.locator('[data-license-status="active"]');
+  await expect(badge).toHaveText('Ważna');
+  const dimensions = await badge.evaluate(el => {
+    const range = document.createRange(); range.selectNodeContents(el);
+    return { lines: range.getClientRects().length, overflow: document.documentElement.scrollWidth > innerWidth };
+  });
+  expect(dimensions).toEqual({ lines: 1, overflow: false });
+  await page.screenshot({ path: process.env.W200_SCREENSHOT || 'test-results/buyer-license-mobile.png' });
+});
 test('a revoked license is marked revoked and its key is neither shown nor copyable @J236', async ({ page }) => {
   expect((await db.from('issued_licenses').update({ revoked_at: new Date().toISOString() }).eq('id', ids.license!)).error).toBeNull();
   await page.goto(`/pl/p/${slug}`);

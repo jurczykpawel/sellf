@@ -29,7 +29,7 @@ export default function BuyerLicenseKey({ license }: { license: IssuedLicenseRes
         <span className="text-xs font-semibold uppercase tracking-widest text-sf-accent">{t('licenseKey')}</span>
         <span className="flex items-center gap-2">
           {license.expiresAt && !revoked && <span className="text-xs text-sf-muted">{t('licenseExpires', { date: formatDate(license.expiresAt) })}</span>}
-          <span data-license-status={license.status} className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_STYLE[license.status]}`}>{t(STATUS_LABEL[license.status])}</span>
+          <span data-license-status={license.status} className={`shrink-0 whitespace-nowrap text-xs font-semibold px-2 py-0.5 rounded ${STATUS_STYLE[license.status]}`}>{t(STATUS_LABEL[license.status])}</span>
         </span>
       </div>
       {revoked || !license.token ? (
