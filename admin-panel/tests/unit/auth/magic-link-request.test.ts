@@ -4,7 +4,7 @@ const policyRetry = vi.hoisted(() => vi.fn(async () => ({ ok: false as const, co
 vi.mock('@/lib/auth/magic-link/retry', () => ({ queueAuthMailRetry: policyRetry }));
 const buyerPolicy = vi.hoisted(() => vi.fn(async (): Promise<boolean | null> => false));
 vi.mock('@/lib/auth/magic-link/buyer-email-policy', () => ({ readBuyerEmailPolicy: buyerPolicy }));
-const eventMailForSlug = vi.hoisted(() => vi.fn(async () => ({} as Record<string,string>)));
+const eventMailForSlug = vi.hoisted(() => vi.fn(async () => ({ purchase_product: 'Course' } as Record<string,string>)));
 vi.mock('@/lib/events/mail', () => ({ eventMailForSlug }));
 const deliverMagicLink = vi.hoisted(() => vi.fn());
 const verifyCaptchaToken = vi.hoisted(() => vi.fn());
@@ -142,10 +142,10 @@ describe('requestMagicLink', () => {
   });
 
   it('passes purchased event details into the access mail after captcha verification', async () => {
-    eventMailForSlug.mockResolvedValueOnce({ event_date: '10 Jan 2036', event_online_url: 'https://meet.example.com/private' });
+    eventMailForSlug.mockResolvedValueOnce({ purchase_product: 'Course', event_date: '10 Jan 2036', event_online_url: 'https://meet.example.com/private' });
     await requestMagicLink({ ...BASE_INPUT, flow: 'post_checkout', productSlug: 'event' });
     expect(eventMailForSlug).toHaveBeenCalledWith(BASE_INPUT.email, 'event', undefined);
-    expect(deliverMagicLink).toHaveBeenCalledWith(expect.objectContaining({ data: { event_date: '10 Jan 2036', event_online_url: 'https://meet.example.com/private', locale: 'en' } }));
+    expect(deliverMagicLink).toHaveBeenCalledWith(expect.objectContaining({ data: { purchase_product: 'Course', event_date: '10 Jan 2036', event_online_url: 'https://meet.example.com/private', locale: 'en' } }));
   });
   it('delivers a post_checkout magic link with the post-checkout redirect', async () => {
     const result = await requestMagicLink({
@@ -331,4 +331,14 @@ it('queues a license notification when the buyer email policy is temporarily una
   expect(await sendTrustedMagicLink({ email: 'buyer@example.com', redirectTo: buildLoginMagicLinkRedirect('https://shop.example.com'), transactionalOnly: true, retry: 'license', data: { license_key: 'signed.key' } })).toEqual({ ok: false, code: 'send_failed', queued: true });
   expect(policyRetry).toHaveBeenCalledWith(expect.objectContaining({ kind: 'license', code: 'send_failed' }));
   vi.unstubAllEnvs();
+});
+
+it('waits for purchase fulfillment before issuing the first sign-in link', async () => {
+  buyerPolicy.mockResolvedValue(true);
+  eventMailForSlug.mockResolvedValueOnce({purchase_mail_pending:'true'});
+  deliverMagicLink.mockClear();
+  checkRateLimit.mockResolvedValue(true); checkRateLimitForIdentifier.mockResolvedValue(true);
+  verifyCaptchaToken.mockResolvedValue({ success: true }); validateEmailAction.mockResolvedValue({ isValid: true });
+  expect(await requestMagicLink({ ...BASE_INPUT, flow: 'post_checkout', productSlug: 'course' })).toEqual({ ok: true });
+  expect(deliverMagicLink).not.toHaveBeenCalled();
 });

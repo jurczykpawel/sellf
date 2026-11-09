@@ -555,7 +555,7 @@ for a pending grant they are not assigned yet. A `null` expiry on a granted enti
 
 | Event | Consumer decision and identifiers |
 |---|---|
-| `order.abandoned` | A pending checkout ended without payment: internal order/provider IDs, old/new status, customer, amount and VAT. |
+| `order.abandoned` | A pending checkout ended without payment: internal order/provider IDs, old/new status, customer, amount and VAT. `customer.email` is `null` when the buyer has not provided an address. |
 | `seats.held` | Seats reserved: reservation, order, product, session/tier, session date and quantity. |
 | `seats.confirmed` | Seats confirmed: same identifiers with the actual previous/new reservation status. |
 | `seats.released` | Seats released: same identifiers and reason (`order_abandoned`, `order_cancelled`, `payment_refunded`, `hold_expired`, or `reservation_released`). |

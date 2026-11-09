@@ -309,7 +309,7 @@ dla oczekującego grantu nie zostały jeszcze nadane. `null` końca nadanego dos
 
 | Zdarzenie | Dane potrzebne odbiorcy |
 |---|---|
-| `order.abandoned` | Porzucona oczekująca płatność: ID zamówienia i operatora, stary/nowy stan, klient, kwota i VAT. |
+| `order.abandoned` | Porzucona oczekująca płatność: ID zamówienia i operatora, stary/nowy stan, klient, kwota i VAT. `customer.email` ma wartość `null`, gdy kupujący nie podał adresu. |
 | `seats.held` | Rezerwacja miejsc: ID rezerwacji, zamówienia, produktu, terminu/progu cenowego, data i liczba miejsc. |
 | `seats.confirmed` | Potwierdzenie miejsc: te same identyfikatory oraz poprzedni i nowy stan. |
 | `seats.released` | Zwolnienie miejsc: te same dane i powód (`order_abandoned`, `order_cancelled`, `payment_refunded`, `hold_expired`, `reservation_released`). |

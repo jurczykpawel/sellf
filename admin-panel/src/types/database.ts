@@ -928,6 +928,7 @@ export type Database = {
           id: string
           kind: string
           last_error: string | null
+          license_mail_key: string | null
           next_attempt_at: string
           redirect_to: string
         }
@@ -940,6 +941,7 @@ export type Database = {
           id?: string
           kind: string
           last_error?: string | null
+          license_mail_key?: string | null
           next_attempt_at?: string
           redirect_to: string
         }
@@ -952,10 +954,19 @@ export type Database = {
           id?: string
           kind?: string
           last_error?: string | null
+          license_mail_key?: string | null
           next_attempt_at?: string
           redirect_to?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "auth_mail_retries_license_mail_key_fkey"
+            columns: ["license_mail_key"]
+            isOneToOne: false
+            referencedRelation: "license_mail_receipts"
+            referencedColumns: ["mail_key"]
+          },
+        ]
       }
       bank_transfer_config: {
         Row: {
@@ -1950,6 +1961,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      license_mail_receipts: {
+        Row: {
+          created_at: string
+          mail_key: string
+        }
+        Insert: {
+          created_at?: string
+          mail_key: string
+        }
+        Update: {
+          created_at?: string
+          mail_key?: string
+        }
+        Relationships: []
       }
       order_bumps: {
         Row: {
@@ -5480,6 +5506,7 @@ export type Database = {
           id: string
           kind: string
           last_error: string | null
+          license_mail_key: string | null
           next_attempt_at: string
           redirect_to: string
         }[]
@@ -5512,6 +5539,15 @@ export type Database = {
       claim_guest_purchases_for_user: {
         Args: { p_user_id: string }
         Returns: Json
+      }
+      claim_license_mail: {
+        Args: {
+          p_data: Json
+          p_email: string
+          p_key: string
+          p_redirect_to: string
+        }
+        Returns: string
       }
       claim_paid_subscription_access: {
         Args: { p_user_id: string }
@@ -5724,6 +5760,10 @@ export type Database = {
         Returns: Json
       }
       find_user_id_by_email: { Args: { p_email: string }; Returns: string }
+      finish_license_mail: {
+        Args: { p_completed: boolean; p_error?: string; p_retry_id: string }
+        Returns: undefined
+      }
       free_grant_context: {
         Args: { p_product_id: string; p_request_id?: string }
         Returns: {
@@ -6113,6 +6153,10 @@ export type Database = {
           p_license: Database["public"]["Tables"]["issued_licenses"]["Row"]
         }
         Returns: Json
+      }
+      license_mail_is_current: {
+        Args: { p_email: string; p_keys: Json }
+        Returns: boolean
       }
       list_orders_missing_participants: {
         Args: { p_limit?: number; p_unsent_only?: boolean }

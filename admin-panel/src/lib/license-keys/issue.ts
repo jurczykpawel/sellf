@@ -51,7 +51,7 @@ export interface IssueLicenseResult {
 export async function issueLicense(
   admin: SupabaseClient,
   input: IssueLicenseInput,
-  opts: { now?: Date } = {},
+  opts: { now?: Date; scopeToProductFields?: boolean } = {},
 ): Promise<IssueLicenseResult | null> {
   input = { ...input, email: normalizePurchaseEmail(input.email) };
   if (!(await checkFeature('license-key-issuance', { dataClient: admin }))) return null;
@@ -102,9 +102,13 @@ export async function issueLicense(
   if (!definitions.ok) {
     throw new Error('issueLicense: Invalid custom field definitions');
   }
+  const submitted = input.customFieldValues;
+  const productValues = opts.scopeToProductFields && submitted !== undefined
+    ? Object.fromEntries(definitions.value.filter(field => Object.hasOwn(submitted, field.id)).map(field => [field.id, submitted[field.id]]))
+    : submitted ?? {};
   const values = validateCustomFieldValues(
     definitions.value,
-    input.customFieldValues ?? {},
+    productValues,
     { requireAll: input.customFieldValues !== undefined },
   );
   if (!values.ok) {

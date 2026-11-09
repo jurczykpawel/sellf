@@ -39,7 +39,7 @@ Przy aktualizacji wgraj **oba** pliki HTML i ustaw tematy:
 
 Temat dopisuje nazwę produktu, gdy mail go dotyczy (zakup, darmowy produkt, przelew, klucz licencyjny).
 Dane do przelewu przychodzą jako obiekt `.Data.transfer` (`holder`, `account` w grupach po cztery cyfry, `bank`, `title`, `amount`, `due`) i są
-rysowane jako tabela; klucz licencyjny jako `.Data.license_key`; potwierdzenie wpłaty jako `.Data.payment_received`.
+rysowane jako tabela; klucz licencyjny jako `.Data.license_key`, a komplet kluczy koszyka jako mapę nazwa → klucz w `.Data.license_keys`; potwierdzenie wpłaty jako `.Data.payment_received`.
 Termin licencji przychodzi jako `.Data.license_expires_at` (ISO) i `.Data.license_expires_text` (tekst daty w języku kupującego).
 Anulowanie pokazuje `.Data.cancel_reason_text` z notatki sprzedawcy. `prepare_event_mail` usuwa te pola przed kolejnym mailem.
 

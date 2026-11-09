@@ -230,6 +230,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       // page can be reloaded any number of times with the same session_id.
       if (paymentStatus === 'magic_link_sent' && customerEmail) {
         const magicResult = await sendTrustedMagicLink({
+          retry: 'post_checkout',
           email: customerEmail,
           data: await purchaseEventMail(customerEmail, product.id, purchaseSessionId, payment_intent, resolvedParams.locale),
           redirectTo: buildPostCheckoutMagicLinkRedirect({

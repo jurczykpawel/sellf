@@ -14,7 +14,7 @@ vi.mock('@/lib/auth/magic-link/deliver', () => ({ deliverMagicLink }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: async () => true, checkRateLimitForIdentifier: async () => true }));
 vi.mock('@/lib/captcha/verify', () => ({ verifyCaptchaToken: async () => ({ success: true }) }));
 vi.mock('@/lib/actions/validate-email', () => ({ validateEmailAction: async () => ({ isValid: true }) }));
-vi.mock('@/lib/events/mail', () => ({ eventMailForSlug: async () => ({}) }));
+vi.mock('@/lib/events/mail', () => ({ eventMailForSlug: async () => ({ purchase_product: 'Course', purchase_amount: '10 PLN' }) }));
 vi.mock('@/lib/embed/checkout-embed', () => ({ getSellfBaseUrl: () => 'https://shop.example.com' }));
 
 import { requestMagicLink } from '@/lib/auth/magic-link/request';
@@ -73,7 +73,7 @@ describe('auth mail retry @J292', () => {
     expect((await rows(email)).data).toEqual([]);
   });
 
-  it('parks a refused license key mail and clears the key from account data after the retry @J291', async () => {
+  it('parks a refused key and discards it if the license is no longer present @J291', async () => {
     const email = `retry-license-${run}@example.com`; emails.push(email);
     const user = await db.auth.admin.createUser({ email, email_confirm: true, user_metadata: { locale: 'pl' } });
     expect(user.error).toBeNull();
@@ -84,8 +84,9 @@ describe('auth mail retry @J292', () => {
       expect(row).toMatchObject({ kind: 'license', data: expect.objectContaining({ license_key: 'payload.signature', locale: 'pl' }) });
       await due(email);
       deliverMagicLink.mockResolvedValue({ ok: true });
+      deliverMagicLink.mockClear();
       await runAuthMailRetries(db);
-      expect(deliverMagicLink).toHaveBeenLastCalledWith(expect.objectContaining({ email, data: expect.objectContaining({ license_key: 'payload.signature' }) }));
+      expect(deliverMagicLink).not.toHaveBeenCalled();
       expect((await rows(email)).data).toEqual([]);
       const meta = (await db.auth.admin.getUserById(user.data.user!.id)).data.user!.user_metadata;
       expect(meta.license_key).toBeUndefined();

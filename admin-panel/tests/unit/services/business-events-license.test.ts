@@ -38,3 +38,9 @@ it.each([null, 'buyer-id'])('identifies the issued license customer account %s a
  expect(await runBusinessEvents({...db,rpc} as never)).toEqual({processed:1,errors:0});
  expect(h.trigger).toHaveBeenCalledWith('license.issued',expect.objectContaining({customer:{userId,email:row.email}}),expect.anything(),'product-id','business_event-id');
 });
+
+it.each(['pending@sellf.app', null, 'buyer@example.com'])('publishes the known abandoned-order address %s', async email => {
+ const rpc=vi.fn(async(name:string)=>({data:name==='claim_business_events'&&h.pending?[{...event,event_type:'order.abandoned',payload:{customer:{email,userId:null},lines:[]}}]:[],error:null}));
+ await runBusinessEvents({...db,rpc} as never);
+ expect(h.trigger.mock.calls[0][1].customer.email).toBe(email === 'pending@sellf.app' ? null : email);
+});
