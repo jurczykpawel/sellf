@@ -6,14 +6,14 @@
 import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { toast } from 'sonner';
-import { isRefundablePaymentStatus } from '@/lib/refunds/payment-status';
+import { isRefundablePaymentStatus, supportsStripeRefund } from '@/lib/refunds/payment-status';
 import { processRefund } from '@/lib/actions/payment';
 import { getTransactionRefundProgress } from '@/lib/refunds/transaction-refund-progress';
 import { parseRefundAmountInput } from '@/lib/refunds/refund-amount';
 import { formatAdminDate } from '@/lib/timezone';
 import { formatCustomFieldsForDisplay } from '@/lib/format-custom-fields';
 import { getPaymentDiscount } from '@/lib/payments/discount';
-import { fromMinorUnits } from '@/lib/currency/minor-units';
+import { currencyExponent, fromMinorUnits } from '@/lib/currency/minor-units';
 import { transferDeadline, formatTransferDeadline } from '@/lib/orders/transfer-format';
 import BaseModal from '@/components/ui/BaseModal';
 import BankTransferSection from '@/components/admin/BankTransferSection';
@@ -255,7 +255,7 @@ export default function PaymentTransactionsTable({
                       >
                         {t('details')}
                       </button>
-                      {isRefundablePaymentStatus(transaction.status) && transaction.amount > transaction.refunded_amount && (
+                      {supportsStripeRefund(transaction) && isRefundablePaymentStatus(transaction.status) && transaction.amount > transaction.refunded_amount && (
                       <button
                         onClick={() => setShowRefundModal(transaction.id)}
                         disabled={refundingId === transaction.id}
@@ -478,7 +478,7 @@ export default function PaymentTransactionsTable({
                     value={refundAmountInput}
                     onChange={(e) => setRefundAmountInput(e.target.value)}
                     placeholder={String(fromMinorUnits(refundRemaining, refundTransaction.currency))}
-                    aria-describedby="sf-refund-amount-hint"
+                    aria-describedby={`sf-refund-amount-hint${refundAmount?.ok === false ? ' sf-refund-amount-error' : ''}`}
                     aria-invalid={refundAmount?.ok === false}
                     className="w-full px-3 py-2 border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent bg-sf-raised text-sf-heading"
                   />
@@ -486,8 +486,8 @@ export default function PaymentTransactionsTable({
                     {tRefund('amountHint', { amount: formatCurrency(refundRemaining, refundTransaction.currency) })}
                   </p>
                   {refundAmount?.ok === false && (
-                    <p role="alert" className="mt-1 text-xs text-sf-danger">
-                      {tRefund(refundAmount.error === 'exceedsRemaining' ? 'amountExceedsRemaining' : 'amountInvalid', { amount: formatCurrency(refundRemaining, refundTransaction.currency) })}
+                    <p id="sf-refund-amount-error" role="alert" className="mt-1 text-xs text-sf-danger">
+                      {tRefund(refundAmount.error === 'exceedsRemaining' ? 'amountExceedsRemaining' : currencyExponent(refundTransaction.currency) === 0 ? 'amountInvalidWhole' : 'amountInvalid', { amount: formatCurrency(refundRemaining, refundTransaction.currency) })}
                     </p>
                   )}
                 </div>

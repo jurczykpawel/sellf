@@ -162,6 +162,7 @@ export interface SectionProps {
 }
 
 export interface BasicInfoSectionProps extends SectionProps {
+  setFieldErrors?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   nameInputRef: React.RefObject<HTMLInputElement | null>;
   slugModified: boolean;
   setSlugModified: (value: boolean) => void;

@@ -1,6 +1,6 @@
 'use client';
 /** Transfer administration uses the same operation as API v1. @see lib/orders/bank-transfer-actions.ts */
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import TutorialHelpButton from '@/components/tutorials/TutorialHelpButton';
 import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
@@ -13,6 +13,8 @@ const input = 'block rounded border border-sf-border bg-sf-input p-2';
 export default function BankTransferSection({ transaction: tx, onRefresh }: { transaction: PaymentTransaction; onRefresh(): void | Promise<void> }) {
   const t = useTranslations('bankTransfer'), locale = useLocale();
   const [amount, setAmount] = useState(String(fromMinorUnits(tx.amount, tx.currency))), [paidAt, setPaidAt] = useState(''), [reason, setReason] = useState('');
+  const amountErrorId = useId();
+  const [amountError, setAmountError] = useState('');
   const [lateReason, setLateReason] = useState('');
   const [busy, setBusy] = useState(false), [message, setMessage] = useState('');
   const date = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
@@ -21,7 +23,8 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
   const failure = (code?: string) => t(code === 'paid_at_before_order' ? 'paidAtBeforeOrder' : code === 'paid_at_future' ? 'paidAtFuture' : 'operationError');
   async function run(action: 'mark-paid' | 'cancel' | 'invoice-issued' | 'accept-late') {
     setMessage('');
-    if ((action === 'mark-paid' || action === 'accept-late') && toMinorUnits(Number(amount), tx.currency) !== tx.amount) { setMessage(t('amountMismatch')); return; }
+    setAmountError('');
+    if ((action === 'mark-paid' || action === 'accept-late') && toMinorUnits(Number(amount), tx.currency) !== tx.amount) { setAmountError(t('amountMismatch')); return; }
     if ((action === 'mark-paid' || action === 'accept-late') && orderDay && paidAt && paidAt < orderDay) { setMessage(failure('paid_at_before_order')); return; }
     if ((action === 'mark-paid' || action === 'accept-late') && paidAt > today) { setMessage(failure('paid_at_future')); return; }
     setBusy(true);
@@ -35,7 +38,8 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
   }
   if (tx.payment_provider !== 'bank_transfer') return null;
   const paidFields = <>
-    <label>{t('bookedAmount')} ({tx.currency})<input className={input} type="number" min="0" step={currencyExponent(tx.currency) === 0 ? '1' : '0.01'} required value={amount} onChange={e => setAmount(e.target.value)} /></label>
+    <div><label>{t('bookedAmount')} ({tx.currency})<input className={input} type="number" min="0" step={currencyExponent(tx.currency) === 0 ? '1' : '0.01'} required value={amount} aria-invalid={!!amountError} aria-describedby={amountError ? amountErrorId : undefined} onChange={e => { setAmount(e.target.value); setAmountError(''); }} /></label>
+    {amountError && <p id={amountErrorId} role="alert" className="mt-1 text-sm text-sf-danger">{amountError}</p>}</div>
     <label>{t('paidAt')}<input className={input} type="date" required min={orderDay} max={today} value={paidAt} onChange={e => setPaidAt(e.target.value)} /></label>
   </>;
   return <section aria-label={t('title')}>

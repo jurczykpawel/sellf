@@ -9,3 +9,8 @@ export function getPaymentRefundStatus(refundedAmount: number, amount: number): 
   if (refundedAmount <= 0) return 'completed';
   return refundedAmount >= amount ? 'refunded' : 'partially_refunded';
 }
+
+/** Transfer orders paid online retain their original provider. */
+export function supportsStripeRefund(transaction: { payment_provider?: string | null; stripe_payment_intent_id?: string | null }): boolean {
+  return transaction.payment_provider !== 'bank_transfer' || !!transaction.stripe_payment_intent_id;
+}

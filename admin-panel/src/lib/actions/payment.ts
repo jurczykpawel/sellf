@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { getStripeServer } from '@/lib/stripe/server';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
-import { getPaymentRefundStatus, REFUNDABLE_PAYMENT_STATUSES } from '@/lib/refunds/payment-status';
+import { getPaymentRefundStatus, supportsStripeRefund, REFUNDABLE_PAYMENT_STATUSES } from '@/lib/refunds/payment-status';
 import { remainingRefundableAmount } from '@/lib/refunds/flow';
 import { withAdminClient } from '@/lib/actions/admin-auth';
 import type {
@@ -30,6 +30,10 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
 
     if (transactionError || !transaction) {
       return { success: false, error: 'Transaction not found or already refunded' };
+    }
+
+    if (!supportsStripeRefund(transaction)) {
+      return { success: false, error: 'Bank transfer refunds must be handled outside Sellf' };
     }
 
     // Calculate refund amount (amounts in DB are already in cents)

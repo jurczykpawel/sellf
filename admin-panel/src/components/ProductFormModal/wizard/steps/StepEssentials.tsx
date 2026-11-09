@@ -73,6 +73,7 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
         currentDomain={currentDomain}
         generateSlug={generateSlug}
         fieldErrors={fieldErrors}
+        setFieldErrors={setFieldErrors}
       />
 
       {/* A bundle cannot itself be a subscription — hide the subscription config. */}

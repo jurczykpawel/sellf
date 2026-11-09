@@ -157,7 +157,8 @@ test('(c) admin rejects amount mismatch and marks paid; invoice updates once usi
   test.setTimeout(120000); const section = await adminDetails(page, email);
   const receiptDay = new Date().toISOString().slice(0, 10); // not before the order day, not in the future
   await section.getByLabel('Zaksięgowana kwota').fill('122'); await section.getByLabel('Data wpływu').fill(receiptDay);
-  await section.getByRole('button', { name: 'Oznacz jako opłacone' }).click(); await expect(section.getByRole('status')).toContainText('pełnej kwocie');
+  await section.getByRole('button', { name: 'Oznacz jako opłacone' }).click(); await expect(section.getByRole('alert')).toContainText('pełnej kwocie');
+  await expect(section.getByLabel('Zaksięgowana kwota')).toHaveAttribute('aria-invalid', 'true');
   await section.getByLabel('Zaksięgowana kwota').fill('123'); await section.getByRole('button', { name: 'Oznacz jako opłacone' }).click();
   await expect.poll(async () => (await db.from('payment_transactions').select('status').eq('id', orderId).single()).data?.status).toBe('completed');
   expect((await request.get('/api/cron?job=invoices-retry', { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } })).ok()).toBe(true);

@@ -61,3 +61,23 @@ it('an empty amount refunds the full remaining amount', async () => {
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: /fullRefundSentence/ })); });
   expect(processRefund).toHaveBeenCalledWith({ transactionId: tx.id, amount: 5000, reason: 'duplicate' });
 });
+
+it('does not offer Stripe refunds for a booked bank transfer', () => {
+  render(createElement(PaymentTransactionsTable, { transactions: [{ ...tx, payment_provider: 'bank_transfer', stripe_payment_intent_id: null }] }));
+  expect(screen.queryByRole('button', { name: 'refund' })).toBeNull();
+});
+it('explains that a JPY refund must use whole units and permits a corrected amount', () => {
+  render(createElement(PaymentTransactionsTable, { transactions: [{ ...tx, currency: 'JPY', amount: 200 }] }));
+  fireEvent.click(screen.getByText('refund'));
+  const input = screen.getByLabelText(/amountLabel/);
+  fireEvent.change(input, { target: { value: '0.5' } });
+  expect(screen.getByRole('alert').textContent).toMatch(/amountInvalidWhole/);
+  expect(document.getElementById(input.getAttribute('aria-describedby')!.split(' ').at(-1)!)?.textContent).toMatch(/amountInvalidWhole/);
+  fireEvent.change(input, { target: { value: '100' } });
+  expect(screen.queryByRole('alert')).toBeNull();
+});
+
+it('retains the refund action for a bank-transfer order paid online through Stripe', () => {
+  render(createElement(PaymentTransactionsTable, { transactions: [{ ...tx, payment_provider: 'bank_transfer' }] }));
+  expect(screen.getByRole('button', { name: 'refund' })).toBeTruthy();
+});

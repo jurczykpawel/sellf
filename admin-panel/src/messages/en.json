@@ -2981,6 +2981,7 @@
         "amountLabel": "Refund amount ({currency})",
         "amountHint": "Leave empty to refund the full remaining amount ({amount}).",
         "amountExceedsRemaining": "Amount exceeds what is left to refund ({amount}).",
+        "amountInvalidWhole": "Enter an amount greater than zero in whole currency units (no decimals).",
         "amountInvalid": "Enter an amount greater than zero, with at most two decimals.",
         "partialRefundSentence": "Refund {amount}",
         "title": "Process Refund",
