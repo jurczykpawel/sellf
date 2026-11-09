@@ -11,7 +11,7 @@ import Stripe from 'stripe';
 import type { AddressInfo } from 'node:net';
 import { supabaseAdmin as db, createTestUser } from '../helpers/admin-auth';
 import { deleteAuthUserByEmail } from '../helpers/db-cleanup';
-import { searchMessages } from '../helpers/mailpit';
+import { extractMagicLink, getMessage, searchMessages } from '../helpers/mailpit';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -100,9 +100,31 @@ for (const scenario of ['coupon-stripe-email', 'plain-stripe-email', 'plain-stri
           const result = await page.request.get('/api/cron?job=auth-mail-retry', { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } });
           expect(result.status()).toBe(200);
           return (await searchMessages(email)).map(message => message.Subject);
-        }, { timeout: 180000, intervals: [5000] }).toEqual(expect.arrayContaining([
-          'Twój klucz licencyjny: Embedded payment', 'Potwierdź swój email: Embedded payment',
-        ]));
+        }, { timeout: 180000, intervals: [5000] }).toEqual(['Twój klucz licencyjny: Embedded payment']);
+        const [message] = await searchMessages(email);
+        const mail = await getMessage(message.ID);
+        const licenses = await db.from('issued_licenses').select('license_key').eq('product_id', productId).eq('email', email);
+        expect(licenses.error).toBeNull();
+        expect(licenses.data).toHaveLength(1);
+        expect(mail.HTML).toContain(licenses.data![0].license_key);
+        const link = extractMagicLink(mail.HTML || mail.Text || '');
+        expect(link, 'Confirmation link in the license email').toBeTruthy();
+        await page.goto(link!);
+        await expect(page).toHaveURL(new RegExp(`/pl/p/${slug}(?:[/?]|$)`), { timeout: 90000 });
+        const buyer = await db.rpc('find_user_id_by_email', { p_email: email });
+        expect(buyer.error).toBeNull();
+        expect(buyer.data).toBeTruthy();
+        const confirmed = await db.auth.admin.getUserById(buyer.data as string);
+        expect(confirmed.error).toBeNull();
+        expect(confirmed.data.user?.email_confirmed_at).toBeTruthy();
+        await expect.poll(async () => {
+          const access = await db.from('user_product_access').select('user_id').eq('product_id', productId).eq('user_id', buyer.data!);
+          expect(access.error).toBeNull();
+          return access.data;
+        }, { timeout: 60000 }).toHaveLength(1);
+        await page.goto('/pl/my-products');
+        await expect(page.getByText('Embedded payment', { exact: true }).first()).toBeVisible();
+        expect(await searchMessages(email)).toHaveLength(1);
       }
       if (coupon) {
         expect((await db.from('coupons').select('current_usage_count').eq('id', couponId).single()).data?.current_usage_count).toBe(1);
