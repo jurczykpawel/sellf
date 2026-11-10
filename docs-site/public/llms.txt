@@ -1,0 +1,49 @@
+# Sellf
+
+> Sellf is a self-hostable platform for selling digital products, built on Next.js, Supabase and Stripe. These are the documentation pages, for agents and tools. Polish versions live under https://docs.sellf.app/pl/.
+
+## Selling licenses for an application
+
+- [License integration contract](https://docs.sellf.app/llms/license-integration.md): token format, claims, public-key and revocation endpoints, verification algorithm, license webhooks, seller API
+- [Sell licenses for your app](https://docs.sellf.app/license-integration/): setup in the panel, key delivery, verification code (TypeScript, PHP, Python), agent prompt
+
+## API and integrations
+
+- [REST API v1](https://docs.sellf.app/api/): endpoints, API keys and scopes, pagination
+- [Connect your AI agent](https://docs.sellf.app/connect-ai-agent/): MCP server setup with scoped keys
+- [Webhooks](https://docs.sellf.app/webhooks/): envelope, signature verification, retries, event payloads
+- [Buyer emails](https://docs.sellf.app/buyer-emails/): delivering buyer messages through webhooks or Supabase
+- [PlayerStack lead forms](https://docs.sellf.app/playerstack-leads/): email-confirmed lead magnets
+- [Purchase sources](https://docs.sellf.app/purchase-attribution/): UTM and referrer attribution in the API and webhooks
+
+## Getting started and deployment
+
+- [Quick start](https://docs.sellf.app/quick-start/)
+- [Deployment options](https://docs.sellf.app/deployment/)
+- [Self-hosted Supabase + Docker](https://docs.sellf.app/full-stack/)
+- [Mikrus VPS](https://docs.sellf.app/deployment-mikrus/)
+- [PM2 on a VPS](https://docs.sellf.app/pm2-vps/)
+- [Vercel or Netlify](https://docs.sellf.app/deployment-vercel-netlify/)
+- [Coolify](https://docs.sellf.app/deployment-coolify/)
+- [Docker + Supabase Cloud](https://docs.sellf.app/docker-simple/)
+- [Updates from the admin UI](https://docs.sellf.app/ui-upgrades/)
+
+## Configuration
+
+- [Environment configuration](https://docs.sellf.app/configuration/)
+- [Supabase setup](https://docs.sellf.app/supabase-setup/)
+- [Email setup](https://docs.sellf.app/email-setup/)
+- [Upstash Redis](https://docs.sellf.app/upstash-redis/)
+- [Cookie consent and tracking](https://docs.sellf.app/cookie-consent/)
+- [Custom checkout](https://docs.sellf.app/custom-checkout/)
+- [Invoicing](https://docs.sellf.app/invoicing/)
+- [Taxes](https://docs.sellf.app/taxes/)
+- [Bank transfers](https://docs.sellf.app/bank-transfers/)
+- [Events and price tiers](https://docs.sellf.app/events/)
+- [Guided tutorials](https://docs.sellf.app/guided-tutorials/)
+
+## Reference
+
+- [Telemetry and privacy](https://docs.sellf.app/telemetry/)
+- [RFC: checkout mutation binding token](https://docs.sellf.app/security-rfc-checkout-binding/)
+- [Stripe configuration wizard testing](https://docs.sellf.app/stripe-testing-guide/)

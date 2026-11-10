@@ -71,7 +71,7 @@ export default defineConfig({
 				},
 				{
 					label: 'API',
-					items: [{ slug: 'api' }, { slug: 'connect-ai-agent' }],
+					items: [{ slug: 'api' }, { slug: 'connect-ai-agent' }, { slug: 'license-integration' }],
 				},
 				{
 					label: 'Security & Reference',
