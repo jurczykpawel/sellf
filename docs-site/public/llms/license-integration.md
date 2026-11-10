@@ -42,7 +42,7 @@ The application never holds the private key and never needs a Sellf API key to v
 | `kid` | string | Signing key id: first 16 hex chars of SHA-256 of the public key PEM. Selects the key from JWKS. |
 | `product` | string | Product slug in Sellf. Check it equals your product. |
 | `email` | string | Buyer email (normalized). |
-| `order` | string | Order id the license belongs to: Stripe payment intent `pi_…`, checkout session, renewal invoice `in_…`, offline order id, or `manual_<uuid>` / `api_<uuid>` for manual and API issuance. Used for revocation. |
+| `order` | string | Opaque order reference the license belongs to. Examples: Stripe payment intent `pi_…`, checkout session, renewal invoice `in_…`, offline order id, `free_<user>_<product>` for free claims, `manual_<uuid>` / `api_<uuid>` for manual and API issuance. Do not parse it; use it as-is for revocation. |
 | `tier` | string \| null | "License tier" set on the product (free text, e.g. `pro`). |
 | `iat` | number | Issued at, Unix seconds. |
 | `exp` | number \| null | Expiry, Unix seconds. `null` = never expires. Set to `iat + days * 86400` from the product's "Validity (days)" (1 to 36500). |
@@ -92,7 +92,15 @@ signed with it no longer verify against the list. If your application must keep 
 older tokens after a rotation, keep a copy of the old public key in the application.
 
 Caching: cache keys for at least 5 minutes. Keep the last good copy and use it when Sellf is
-unreachable. Do not fetch on every license check.
+unreachable. Do not fetch on every license check. Before replacing the cache, validate the
+response: an object whose `keys` is an array of `{kid: string, alg: string, pem: string}`;
+anything else counts as a failed fetch (`{"keys": []}` is a valid, empty answer).
+When a token's `kid` is not in the cached list, refresh the list once before rejecting, and
+rate-limit these forced refreshes (for example once a minute), so a key signed right after a
+rotation works without hammering the endpoint.
+Cold start: with no cached or saved key and Sellf unreachable, the signature cannot be checked.
+Never skip it; the application must decide what to do meanwhile (keep its previous decision,
+free mode, retry later). Saving the last key list (it is public) lets a restart survive an outage.
 
 ## 4. Revocation list (k-anonymity range query)
 
@@ -114,18 +122,25 @@ GET https://your-sellf.example/api/licenses/revoked?seller=<seller-uuid>&prefix=
 - `400 {"error":"Bad request"}` for a missing/invalid `seller` or `prefix`.
 - `429 {"error":"Rate limited"}` above 60 requests per minute per client.
 - `500 {"error":"Server error"}`.
-- There is no "download everything" mode.
+- The application sends only the prefix, never the token or the full hash. The endpoint does not
+  return the whole list in a single request.
 
 What puts an order on the list: full refund, order cancellation, chargeback (dispute), manual
 revocation in the panel or `DELETE /api/v1/licenses/{id}`, a subscription that ended unpaid, and
 a subscription license whose paid period ended after cancellation (even if the token's `exp`
-is later). Partial refunds do not revoke. A won dispute can remove the entry again
-(`license.restored`); the original token then works again until its own `exp`.
+is later). Partial refunds do not revoke. A won dispute can restore the license
+(`license.restored`) unless it was revoked independently (for example a full refund or a manual
+revocation); the original token then works again until its own `exp`.
 
-Caching: cache each prefix bucket (5 minutes is a reasonable default). Invalidate it when you
-receive a `license.revoked` or `license.restored` webhook. Decide what to do when Sellf is
-unreachable: keep the last known bucket; with nothing cached, most apps allow the license
-("fail open") so a paying buyer is not locked out by an outage.
+Caching: cache each prefix bucket (5 minutes is a reasonable default). Before replacing a
+bucket, validate the response: `order_hashes` must be an array of 64-character lowercase hex
+strings; anything else counts as a failed fetch and the last good bucket stays.
+On a verified `license.revoked` webhook, add SHA-256(`data.license.order`) to its bucket at once
+and mark the bucket for refresh. On `license.restored`, mark the bucket for refresh only. In both
+cases keep the known content until a refresh succeeds; never clear it first.
+When Sellf is unreachable: keep the last known bucket. With nothing known for that bucket, decide
+explicitly whether to allow the license ("fail open", so an outage does not lock out a paying
+buyer) or block it.
 
 ## 5. Verification algorithm
 
@@ -134,14 +149,16 @@ input: token, expectedProduct, instanceDomain (optional)
 1. Trim. Split at the first ".". Both parts non-empty, else MALFORMED.
 2. claims = JSON.parse(base64url_decode(payload)). Must be an object with v === 1,
    string kid/product/order, number iat, exp number or null. Else MALFORMED.
-3. key = keys.find(k => k.kid === claims.kid). None: UNKNOWN_KEY (refresh keys once, then reject).
+3. key = keys.find(k => k.kid === claims.kid). None: refresh keys once (rate-limited), retry;
+   still none: UNKNOWN_KEY.
 4. ECDSA-P256-SHA256 verify(key.pem, data = ASCII payload, sig = DER(base64url_decode(signature))).
    False or error: SIGNATURE.
 5. If claims.exp !== null and claims.exp < now_unix_seconds: EXPIRED.
 6. If claims.product !== expectedProduct: WRONG_PRODUCT.
    (All products of one seller share the same key, so this check matters.)
-7. If claims.domain is present: instance host (lowercase, without "www." and trailing ".")
-   must equal claims.domain or end with "." + claims.domain. Else WRONG_DOMAIN.
+7. If claims.domain is present: the instance domain (from the application's trusted
+   configuration, lowercase, without "www." and trailing ".") must equal claims.domain or end
+   with "." + claims.domain. Not configured or no match: WRONG_DOMAIN.
 8. Revocation (section 4). Revoked: REVOKED.
 9. Valid. Use claims.tier for feature gating.
 ```
@@ -151,7 +168,7 @@ Never trust a decoded claim before step 4 succeeds.
 Reference implementation in TypeScript (Node 18+/Bun, no dependencies), PHP and Python:
 https://docs.sellf.app/license-integration/#verify-the-key-in-your-app
 
-## 6. Webhooks (optional, push instead of polling)
+## 6. Webhooks (optional, in addition to periodic checks)
 
 Envelope (every event):
 
@@ -161,7 +178,8 @@ Envelope (every event):
 
 Headers: `X-Sellf-Event`, `X-Sellf-Delivery-Id` (equals `id`), `X-Sellf-Signature: t=<unix>,v1=<hex>`
 where `v1 = HMAC-SHA256(endpoint secret, "<t>.<raw body>")`. Verify against the raw body, reject
-old `t` (e.g. more than 5 minutes), deduplicate on `id`. Details: https://docs.sellf.app/webhooks/
+`t` outside a tolerance window (e.g. 5 minutes either way), compare in constant time, deduplicate
+on `id`. Webhooks can arrive late or not at all, so keep the periodic revocation checks. Details: https://docs.sellf.app/webhooks/
 
 License events (all require Sellf Pro, feature `license-revoked-webhook`):
 `license.issued`, `license.revoked`, `license.restored`, `license.expired`, `license.updated`.
@@ -224,9 +242,13 @@ inside a distributed application.
 ## 8. Rules for implementers
 
 - Do: verify signature, `exp`, `product` (and `domain` when present) locally; cache keys and
-  revocation buckets; re-check periodically (on start and every few hours) rather than on every request.
+  revocation buckets and validate responses before replacing them; refresh keys once on an unknown
+  `kid`; re-check periodically (on start and every few hours) rather than on every request;
+  decide cold-start and fail-open/closed behavior explicitly.
 - Do not: call Sellf on every check; store or request the seller's private key; trust claims
   without a valid signature; ignore `exp`; send the full order hash or the token to Sellf;
-  log tokens.
+  log tokens; clear known revocations before a successful refresh.
 - Test with a key pair generated locally (EC P-256), signing `base64url(JSON)` with SHA-256 and
-  DER output; cover valid, expired, modified payload, other key, wrong product, revoked.
+  DER output; cover valid, expired, modified payload, other key, unknown kid then rotation,
+  wrong product, wrong and missing domain, revoked, revoked after a webhook while offline,
+  malformed 200 responses, cold start offline.

@@ -31,7 +31,7 @@ After that the panel shows:
 - **JWKS URL**: `https://your-sellf.example/api/licenses/jwks?seller=<seller-id>`. Your application downloads public keys from here. The `seller` value is your seller ID; you will need it in the application.
 
 :::caution[Rotating the key]
-Sellf publishes only the current signing key. Generating or uploading a new one removes the old public key from the JWKS URL, so licenses signed with it stop verifying in applications that rely on that list. Rotate only when you mean to, or keep the old public key built into your application.
+Sellf publishes only the current signing key. Generating or uploading a new one removes the old public key from the JWKS URL, so licenses signed with it stop verifying in applications that rely on that list. Rotate only when you mean to, or keep the old public key in your application (the code below accepts it through `addTrustedKeys`).
 :::
 
 ### 2. Turn on licenses for a product
@@ -85,7 +85,7 @@ export interface LicenseClaims {
   kid: string;          // which signing key was used
   product: string;      // product slug in Sellf
   email: string;        // buyer email
-  order: string;        // order id the license belongs to (used for revocation)
+  order: string;        // opaque order id the license belongs to (used for revocation)
   tier: string | null;  // "License tier" set on the product, or null
   iat: number;          // issued at, Unix seconds
   exp: number | null;   // expires at, Unix seconds; null = never expires
@@ -97,9 +97,9 @@ export interface SellfPublicKey { kid: string; alg: string; pem: string }
 
 export type LicenseCheck =
   | { valid: true; claims: LicenseClaims }
-  | { valid: false; reason: 'malformed' | 'unknown_key' | 'signature' | 'expired' | 'wrong_product' | 'wrong_domain' | 'revoked' };
+  | { valid: false; reason: 'malformed' | 'unknown_key' | 'signature' | 'expired' | 'wrong_product' | 'wrong_domain' | 'revoked' | 'keys_unavailable' };
 
-/** 1. Offline check: signature, expiry, product and (optionally) domain. */
+/** 1. Offline check: signature, expiry, product and domain. */
 export function verifyLicenseKey(
   token: string,
   keys: SellfPublicKey[],
@@ -139,68 +139,116 @@ export function verifyLicenseKey(
   const nowSec = Math.floor((expect.now ?? new Date()).getTime() / 1000);
   if (claims.exp !== null && claims.exp < nowSec) return { valid: false, reason: 'expired' };
   if (claims.product !== expect.product) return { valid: false, reason: 'wrong_product' };
-  if (claims.domain && !domainMatches(claims.domain, expect.domain)) return { valid: false, reason: 'wrong_domain' };
+  // A domain-bound key needs the instance domain; without it the key is rejected.
+  if (claims.domain !== undefined && !domainMatches(claims.domain, expect.domain)) {
+    return { valid: false, reason: 'wrong_domain' };
+  }
   return { valid: true, claims };
 }
 
 /** A license for example.com also covers its subdomains (app.example.com). */
-function domainMatches(licensed: string, instance: string | undefined): boolean {
+function domainMatches(licensed: unknown, instance: string | undefined): boolean {
+  if (typeof licensed !== 'string' || !licensed) return false;
   const host = (instance ?? '').trim().toLowerCase().replace(/\.$/, '').replace(/^www\./, '');
-  return host === licensed || host.endsWith(`.${licensed}`);
+  return host !== '' && (host === licensed || host.endsWith(`.${licensed}`));
 }
 
 // ---------- network helpers (cache them; never call Sellf on every check) ----------
 
 const SELLF_URL = process.env.SELLF_URL ?? 'https://your-sellf.example';
 const SELLF_SELLER_ID = process.env.SELLF_SELLER_ID ?? '';
+const CACHE_MS = 5 * 60_000;
+const FORCED_REFRESH_MS = 60_000;
 
 let keyCache: { keys: SellfPublicKey[]; at: number } | null = null;
+let lastForcedRefresh = 0;
+const trustedKeys: SellfPublicKey[] = [];
 
-/** 2. Public keys. Cache for at least 5 minutes; keep the last good copy if Sellf is down. */
-export async function getPublicKeys(): Promise<SellfPublicKey[]> {
-  if (keyCache && Date.now() - keyCache.at < 5 * 60_000) return keyCache.keys;
-  try {
-    const res = await fetch(`${SELLF_URL}/api/licenses/jwks?seller=${SELLF_SELLER_ID}`, { redirect: 'error' });
-    if (!res.ok) throw new Error(`JWKS ${res.status}`);
-    const body = (await res.json()) as { keys?: SellfPublicKey[] };
-    const keys = Array.isArray(body.keys) ? body.keys : [];
-    keyCache = { keys, at: Date.now() };
-    return keys;
-  } catch (error) {
-    if (keyCache) return keyCache.keys;
-    throw error;
-  }
+function isPublicKey(k: unknown): k is SellfPublicKey {
+  const key = k as SellfPublicKey;
+  return !!key && typeof key.kid === 'string' && typeof key.alg === 'string' &&
+    typeof key.pem === 'string' && key.pem.includes('-----BEGIN PUBLIC KEY-----');
 }
 
+/** Keys you load yourself at startup (saved last good copy, or an old key kept after a rotation). */
+export function addTrustedKeys(keys: unknown[]): void {
+  trustedKeys.push(...keys.filter(isPublicKey));
+}
+
+/** 2. Public keys. Cached for 5 minutes; the last good copy is kept when Sellf is down or answers nonsense. */
+export async function getPublicKeys(opts: { force?: boolean } = {}): Promise<SellfPublicKey[]> {
+  const fresh = keyCache !== null && Date.now() - keyCache.at < CACHE_MS;
+  if (!fresh || opts.force) {
+    try {
+      const res = await fetch(`${SELLF_URL}/api/licenses/jwks?seller=${SELLF_SELLER_ID}`, { redirect: 'error' });
+      if (!res.ok) throw new Error(`JWKS ${res.status}`);
+      const body = (await res.json()) as { keys?: unknown };
+      if (!Array.isArray(body?.keys) || !body.keys.every(isPublicKey)) throw new Error('JWKS: unexpected response');
+      keyCache = { keys: body.keys, at: Date.now() }; // persist this copy if you want it to survive a restart
+    } catch (error) {
+      if (!keyCache && trustedKeys.length === 0) throw error;
+    }
+  }
+  return [...(keyCache?.keys ?? []), ...trustedKeys];
+}
+
+/** Revocation buckets by 4-char prefix. at = 0 means "refresh at the next check, keep the content until then". */
 const revokedCache = new Map<string, { hashes: Set<string>; at: number }>();
+const HASH = /^[a-f0-9]{64}$/;
+
+function orderHash(order: string): string {
+  return createHash('sha256').update(order, 'utf8').digest('hex');
+}
 
 /** 3. Revocation: send only the first 4 hex chars of SHA-256(order), match locally. */
 export async function isRevoked(order: string): Promise<boolean> {
-  const hash = createHash('sha256').update(order, 'utf8').digest('hex');
+  const hash = orderHash(order);
   const prefix = hash.slice(0, 4);
   const cached = revokedCache.get(prefix);
-  if (cached && Date.now() - cached.at < 5 * 60_000) return cached.hashes.has(hash);
+  if (cached && Date.now() - cached.at < CACHE_MS) return cached.hashes.has(hash);
   try {
     const res = await fetch(`${SELLF_URL}/api/licenses/revoked?seller=${SELLF_SELLER_ID}&prefix=${prefix}`, { redirect: 'error' });
     if (!res.ok) throw new Error(`CRL ${res.status}`);
-    const body = (await res.json()) as { order_hashes?: string[] };
-    const hashes = new Set(Array.isArray(body.order_hashes) ? body.order_hashes : []);
-    revokedCache.set(prefix, { hashes, at: Date.now() });
-    return hashes.has(hash);
+    const body = (await res.json()) as { order_hashes?: unknown };
+    const list = body?.order_hashes;
+    if (!Array.isArray(list) || !list.every((h) => typeof h === 'string' && HASH.test(h))) throw new Error('CRL: unexpected response');
+    revokedCache.set(prefix, { hashes: new Set(list as string[]), at: Date.now() });
+    return revokedCache.get(prefix)!.hashes.has(hash);
   } catch {
-    // Sellf unreachable: keep what you knew; with nothing cached, do not lock out a paying buyer.
+    // Sellf unreachable or wrong answer: keep what you knew. With nothing known, this
+    // example lets the license through (fail open); change it if your app must fail closed.
     return cached ? cached.hashes.has(hash) : false;
   }
 }
 
-/** Call this after a license.revoked / license.restored webhook. */
-export function forgetRevocationCache(): void {
-  revokedCache.clear();
+/**
+ * Call after a license.revoked / license.restored webhook whose signature you verified.
+ * revoked: the order counts as revoked at once, even offline.
+ * restored: the bucket is refreshed at the next check; until a refresh succeeds the last known state stays.
+ */
+export function handleLicenseWebhook(event: 'license.revoked' | 'license.restored', order: string): void {
+  const hash = orderHash(order);
+  const prefix = hash.slice(0, 4);
+  const bucket = revokedCache.get(prefix) ?? { hashes: new Set<string>(), at: 0 };
+  if (event === 'license.revoked') bucket.hashes.add(hash);
+  bucket.at = 0;
+  revokedCache.set(prefix, bucket);
 }
 
 /** Full check: offline verification first, then the revocation list. */
 export async function checkLicense(token: string, expect: { product: string; domain?: string }): Promise<LicenseCheck> {
-  const result = verifyLicenseKey(token, await getPublicKeys(), expect);
+  let keys: SellfPublicKey[];
+  try {
+    keys = await getPublicKeys();
+  } catch {
+    return { valid: false, reason: 'keys_unavailable' }; // no key known yet and Sellf unreachable
+  }
+  let result = verifyLicenseKey(token, keys, expect);
+  // A key signed right after a rotation: refresh the key list once, at most once a minute.
+  if (!result.valid && result.reason === 'unknown_key' && Date.now() - lastForcedRefresh > FORCED_REFRESH_MS) {
+    lastForcedRefresh = Date.now();
+    result = verifyLicenseKey(token, await getPublicKeys({ force: true }), expect);
+  }
   if (!result.valid) return result;
   if (await isRevoked(result.claims.order)) return { valid: false, reason: 'revoked' };
   return result;
@@ -210,27 +258,51 @@ export async function checkLicense(token: string, expect: { product: string; dom
 Usage:
 
 ```ts
-import { checkLicense } from './sellf-license';
+import { addTrustedKeys, checkLicense, handleLicenseWebhook } from './sellf-license';
 
-const result = await checkLicense(licenseKeyFromSettings, { product: 'my-app-pro', domain: 'app.example.com' });
+// Optional, at startup: keys saved from an earlier run, so a restart during a Sellf outage still works.
+addTrustedKeys(loadSavedKeys());
+
+// The domain comes from your own configuration, never from the license key or the request.
+const result = await checkLicense(licenseKeyFromSettings, { product: 'my-app-pro', domain: config.publicDomain });
 if (result.valid) {
   enablePlan(result.claims.tier); // e.g. "pro"
+} else if (result.reason === 'keys_unavailable') {
+  keepPreviousDecision(); // first start while Sellf is unreachable: your choice (see FAQ)
 } else {
   showLicenseError(result.reason); // see "Common problems" below
+}
+
+// In your webhook receiver, after verifying the X-Sellf-Signature:
+if (event.event === 'license.revoked' || event.event === 'license.restored') {
+  handleLicenseWebhook(event.event, event.data.license.order);
 }
 ```
 
 When to check: when the user saves a key, when the application starts, and then every few hours. Store the last result so a short Sellf outage does not change anything for the buyer.
 
+What the code does besides the signature check:
+
+- **New signing key.** A key with an unknown `kid` makes the code download the key list once more (at most once a minute) before rejecting it, so licenses signed right after a key rotation work at once.
+- **Wrong answers.** A response without the expected shape (`keys` with `kid`/`alg`/`pem`, `order_hashes` with 64-character hex hashes) is treated like an outage: the last good copy stays.
+- **Restarts.** The cache lives in memory. To survive a restart during a Sellf outage, save the last key list (it is public, so a plain file is fine) and load it with `addTrustedKeys` at startup.
+
 The browser's Web Crypto API expects a different signature encoding (raw `r||s`) than Sellf uses (DER). Verify on your server or in Node, not in browser JavaScript.
 
 ### PHP
 
-Same check without the network part (`ext-openssl`). `$keys` is the `keys` array from the JWKS URL.
+The same offline check, including the domain (`ext-openssl`, PHP 8+). `$keys` is the `keys` array from the JWKS URL. Fetching keys and the revocation list works as in the TypeScript version; check the revocation list before unlocking anything.
 
 ```php
 <?php
-function sellf_verify_license(string $token, array $keys, string $product, ?int $now = null): ?array {
+// $keys = the "keys" array from the JWKS URL; $instanceDomain = this installation's domain from your own config.
+function sellf_domain_matches($licensed, ?string $instance): bool {
+    if (!is_string($licensed) || $licensed === '') return false;
+    $host = preg_replace(['/\.$/', '/^www\./'], '', strtolower(trim($instance ?? '')));
+    return $host !== '' && ($host === $licensed || str_ends_with($host, '.' . $licensed));
+}
+
+function sellf_verify_license(string $token, array $keys, string $product, ?string $instanceDomain = null, ?int $now = null): ?array {
     $parts = explode('.', trim($token), 2);
     if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') return null;
     [$payload, $sig] = $parts;
@@ -244,13 +316,19 @@ function sellf_verify_license(string $token, array $keys, string $product, ?int 
     if (openssl_verify($payload, $b64($sig) ?: '', $key['pem'], OPENSSL_ALGO_SHA256) !== 1) return null;
     if ($claims['exp'] !== null && $claims['exp'] < ($now ?? time())) return null;
     if (($claims['product'] ?? null) !== $product) return null;
-    return $claims; // also check $claims['domain'] and the revocation list, as in the TypeScript version
+    // A domain-bound key needs the instance domain; without it the key is rejected.
+    if (array_key_exists('domain', $claims) && !sellf_domain_matches($claims['domain'], $instanceDomain)) return null;
+    return $claims; // then check the revocation list (see below) before unlocking anything
 }
+
+// Example:
+// $claims = sellf_verify_license($licenseKey, $keys, 'my-app-pro', 'app.example.com');
+// if ($claims === null) { /* show "invalid license" */ } else { /* use $claims['tier'] */ }
 ```
 
 ### Python
 
-Requires `pip install cryptography`.
+The same offline check, including the domain. Requires Python 3.10+ and `pip install cryptography`. Check the revocation list before unlocking anything.
 
 ```python
 import base64, json, time
@@ -261,7 +339,15 @@ from cryptography.hazmat.primitives.asymmetric import ec
 def _b64url(s: str) -> bytes:
     return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
 
-def sellf_verify_license(token: str, keys: list, product: str, now: int | None = None) -> dict | None:
+def _domain_matches(licensed, instance: str | None) -> bool:
+    if not isinstance(licensed, str) or not licensed:
+        return False
+    host = (instance or "").strip().lower().removesuffix(".")
+    host = host[4:] if host.startswith("www.") else host
+    return host != "" and (host == licensed or host.endswith("." + licensed))
+
+def sellf_verify_license(token: str, keys: list, product: str,
+                         instance_domain: str | None = None, now: int | None = None) -> dict | None:
     payload, sep, sig = token.strip().partition(".")
     if not payload or not sep or not sig:
         return None
@@ -284,7 +370,14 @@ def sellf_verify_license(token: str, keys: list, product: str, now: int | None =
         return None
     if claims.get("product") != product:
         return None
-    return claims  # also check claims.get("domain") and the revocation list
+    # A domain-bound key needs the instance domain; without it the key is rejected.
+    if "domain" in claims and not _domain_matches(claims["domain"], instance_domain):
+        return None
+    return claims  # then check the revocation list before unlocking anything
+
+# Example:
+# claims = sellf_verify_license(license_key, keys, "my-app-pro", "app.example.com")
+# if claims is None: show "invalid license"  else: use claims["tier"]
 ```
 
 ## Revocation
@@ -292,7 +385,7 @@ def sellf_verify_license(token: str, keys: list, product: str, now: int | None =
 A key keeps a valid signature forever, so Sellf publishes a list of revoked orders. An order lands on it after:
 
 - a full refund or order cancellation (partial refunds keep the license),
-- a chargeback (dispute); a won dispute removes it again,
+- a chargeback (dispute); a won dispute can restore the license, unless it was revoked independently, for example after a full refund or a manual decision by the seller,
 - manual revocation in **Licenses** or `DELETE /api/v1/licenses/{id}`,
 - a subscription that ended unpaid, or whose paid period ended after cancellation.
 
@@ -303,9 +396,9 @@ GET https://your-sellf.example/api/licenses/revoked?seller=<seller-id>&prefix=62
 → 200 { "order_hashes": ["6270e1…", "…"] }
 ```
 
-If your full hash is in `order_hashes`, the license is revoked. Sellf never learns which order you asked about, and nobody can download the whole list. The `isRevoked` function above does exactly this.
+If your full hash is in `order_hashes`, the license is revoked. Your application sends only this prefix, never the token or the full hash. The endpoint does not return the whole list in a single request. The `isRevoked` function above does exactly this.
 
-**Getting notified.** Subscribe to `license.revoked` and `license.restored` webhooks (Pro). When one arrives, clear your cached bucket and check again. The webhook payload contains the order, email, tier, domain, the reason (`refund`, `dispute`, `manual`, `subscription_cancelled`, `expired`) and `crlUrl`, but never the key itself. Details: [Webhooks](/webhooks/).
+**Getting notified.** Subscribe to `license.revoked` and `license.restored` webhooks (Pro). After verifying the webhook signature, call `handleLicenseWebhook(event, order)` with `data.license.order`. For `license.revoked` the order counts as revoked immediately, even if Sellf is unreachable afterwards. For `license.restored` the code downloads the bucket again at the next check and keeps the last known state until that succeeds. Keep the periodic checks as well: a webhook can arrive late or not at all. The webhook payload contains the order, email, tier, domain, the reason (`refund`, `dispute`, `manual`, `subscription_cancelled`, `expired`) and `crlUrl`, but never the key itself. Details: [Webhooks](/webhooks/).
 
 ## Expiry
 
@@ -319,7 +412,8 @@ If your full hash is in `order_hashes`, the license is revoked. Sellf never lear
 | Result | Usual cause | What to do |
 |---|---|---|
 | `malformed` | Key copied with extra text, cut in half, or not a Sellf key | Ask the buyer to copy the whole key again; trim spaces |
-| `unknown_key` | Wrong `SELLF_SELLER_ID`, or the seller rotated the signing key | Check the JWKS URL in **Settings → License**; see the rotation note above |
+| `unknown_key` | Wrong `SELLF_SELLER_ID`, or the key was signed with a key that is no longer published (rotation) | Check the JWKS URL in **Settings → License**; see the rotation note above |
+| `keys_unavailable` | First start, no saved keys, and Sellf unreachable | Save the key list and load it with `addTrustedKeys`; decide what the app does meanwhile |
 | `signature` | The key was edited, or it was signed by a different store | Issue a new key; check `SELLF_URL` |
 | `expired` | `exp` has passed | The buyer renews or buys again |
 | `wrong_product` | A valid key for another product of the same seller | Compare the slug in the key with your product slug |
@@ -332,7 +426,11 @@ If your full hash is in `order_hashes`, the license is revoked. Sellf never lear
 
 **Does my application need a Sellf API key?** No. Verification uses only the public endpoints. Never ship an API key inside an application you distribute.
 
-**What happens when Sellf is down?** Verification keeps working: it needs only the cached public key. The revocation check uses the last known result. With nothing cached, the code above lets the license through so an outage does not lock out a paying buyer. You can choose the opposite.
+**What happens when Sellf is down?** It depends on what the application already knows:
+
+- **Public keys known** (cached or loaded with `addTrustedKeys`): the signature check works normally, offline.
+- **No public key known** (first start without a saved copy): the signature cannot be checked and `checkLicense` returns `keys_unavailable`. Never skip the signature check. Decide what the app does meanwhile: keep the previous decision, run in free mode, or ask the user to try later.
+- **Revocation list:** the last known bucket is used. With nothing known for that bucket, the code above lets the license through so an outage does not lock out a paying buyer. If your app must fail closed, return `true` there instead.
 
 **Can a buyer share their key?** The key is tied to the buyer's email and, if you ask for it, to a domain. Show the email in your application's license screen and use the domain binding for web software.
 
@@ -364,12 +462,23 @@ Build:
 2. Offline verification: split the token at the first ".", decode the base64url JSON payload,
    pick the public key by "kid" from GET {SELLF_URL}/api/licenses/jwks?seller={SELLF_SELLER_ID},
    verify the ECDSA P-256/SHA-256 DER signature over the payload string, then check "exp",
-   "product" == SELLF_PRODUCT_SLUG and, if present, "domain" (subdomains allowed).
+   "product" == SELLF_PRODUCT_SLUG and, if present, "domain" (subdomains allowed). The instance
+   domain comes from this app's trusted configuration; a domain-bound key is rejected when it is
+   not configured. On an unknown "kid", refresh the key list once (rate-limited) before rejecting.
 3. Revocation: SHA-256 of the "order" claim, send only the first 4 hex chars to
    GET {SELLF_URL}/api/licenses/revoked?seller={SELLF_SELLER_ID}&prefix=<4 hex>, revoked if the
    full hash is in "order_hashes".
 4. Caching: public keys and revocation buckets cached (at least 5 minutes), last good copy used
-   when Sellf is unreachable. Check on key entry, on start and every few hours.
+   when Sellf is unreachable or answers with an unexpected shape (validate "keys" entries and
+   64-hex "order_hashes" before replacing the cache). Check on key entry, on start and every few
+   hours, even if webhooks are used.
+   Decide explicitly, and tell me what you chose: (a) what happens on a first start with no saved
+   public key while Sellf is unreachable (never skip the signature check), (b) whether keys are
+   saved to survive restarts, (c) whether a revocation check that cannot reach Sellf and knows
+   nothing about the bucket lets the license through or blocks it.
+   If the app receives Sellf webhooks: on a verified license.revoked mark that order revoked
+   immediately; on license.restored refresh the bucket at the next check without dropping the
+   known state before a refresh succeeds.
 5. Feature gating by the "tier" claim, in one place, and a clear message for each failure
    (malformed, unknown key, bad signature, expired, wrong product, wrong domain, revoked).
 
@@ -378,11 +487,15 @@ Do not:
 - ask for, store or generate the seller's private signing key;
 - trust any claim before the signature is verified, or skip the "exp" check;
 - use a Sellf API key in this application;
-- send the token or the full order hash to Sellf, or write tokens to logs.
+- send the token or the full order hash to Sellf, or write tokens to logs;
+- clear the known revocation state before a successful refresh.
 
 Test it with automated tests that need no network: generate an EC P-256 key pair in the test,
 sign base64url(JSON claims) with SHA-256 (DER signature) to make tokens, and cover: valid key,
 key without expiry (exp null), expired key, modified payload, key signed by another key pair,
-unknown kid, wrong product, wrong domain, revoked order (mocked revocation response) and
-Sellf unreachable. Then report what you changed and how to try it with a real key from Sellf.
+unknown kid followed by a successful key refresh (rotation), wrong product, wrong domain,
+missing instance domain for a domain-bound key, revoked order (mocked revocation response),
+revoked order still revoked after a license.revoked webhook while Sellf is unreachable, a 200
+response with the wrong shape that must not replace the cache, and Sellf unreachable on a cold
+start. Then report what you changed and how to try it with a real key from Sellf.
 ```
