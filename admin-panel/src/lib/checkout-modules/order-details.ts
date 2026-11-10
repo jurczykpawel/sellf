@@ -20,6 +20,7 @@ const storedDetailsSchema = z.object({
   participants: z.object({ v: z.literal(1), people: z.array(z.object({
     first_name: z.string(), last_name: z.string(), email: z.string(),
   })).max(100) }).nullish().catch(null),
+  missing_modules: z.array(z.enum(['buyer', 'recipient', 'quantity', 'phone', 'participants'])).optional(),
   details_missing: z.boolean().optional(),
 });
 export function readOrderDetails(value: unknown): z.infer<typeof storedDetailsSchema> {

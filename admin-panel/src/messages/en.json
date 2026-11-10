@@ -2773,6 +2773,7 @@
       "orderDetails": {
         "title": "Checkout data",
         "missing": "Checkout details are incomplete.",
+        "missingModules": {"buyer": "Buyer: details missing", "recipient": "Recipient: details missing", "quantity": "Quantity: details missing", "phone": "Phone: details missing", "participants": "Participants: to be completed by the buyer"},
         "buyer": "Buyer",
         "recipient": "Recipient",
         "phone": "Phone",

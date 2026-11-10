@@ -82,6 +82,8 @@ test('the buyer saves the list from the personal link on a phone; webhook and se
   const saved = await checked(await db.from('payment_transactions').select('order_details,participants_completed_at').eq('id', orderId).single());
   expect((saved.order_details as { participants: { people: unknown[] } }).participants.people).toHaveLength(4);
   expect(saved.participants_completed_at).toBeTruthy();
+  expect(saved.order_details).not.toHaveProperty('details_missing');
+  expect(saved.order_details).not.toHaveProperty('missing_modules');
 
   // The outbox drains oldest first in batches; repeat the job until this order's event has gone out.
   await expect.poll(async () => { await cron(request, 'business-events'); return (await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', 'order.participants_updated')).data?.length ?? 0; }, { timeout: 60000, intervals: [2000] }).toBe(1);

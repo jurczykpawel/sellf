@@ -40,6 +40,8 @@ BEGIN
   IF NOT (r->>'ok')::boolean THEN RAISE EXCEPTION 'Rejected: %', r; END IF;
   IF (SELECT order_details->'participants'->'people' FROM public.payment_transactions WHERE id=t) <> people
      OR (SELECT participants_completed_at FROM public.payment_transactions WHERE id=t) IS NULL THEN RAISE EXCEPTION 'List not stored'; END IF;
+  IF (SELECT coalesce((order_details->>'details_missing')::boolean, false) FROM public.payment_transactions WHERE id=t)
+    THEN RAISE EXCEPTION 'Completed participant list still marked incomplete'; END IF;
   SELECT payload INTO ev FROM public.business_events WHERE event_type='order.participants_updated' AND product_id=p;
   IF ev#>>'{order,orderId}' <> t::text OR ev#>'{orderDetails,participants,people}' <> people OR ev->>'reason' <> 'participants_added_after_payment' THEN
     RAISE EXCEPTION 'Event payload wrong: %', ev;
@@ -49,6 +51,20 @@ BEGIN
   IF (public.submit_order_participants(t,people)->>'code') <> 'already_complete' THEN RAISE EXCEPTION 'overwritten'; END IF;
   IF (SELECT count(*) FROM public.business_events WHERE event_type='order.participants_updated' AND product_id=p) <> 1 THEN RAISE EXCEPTION 'duplicate event'; END IF;
   IF EXISTS (SELECT 1 FROM public.list_orders_missing_participants(false,500) WHERE id=t) THEN RAISE EXCEPTION 'still listed'; END IF;
+
+  -- Completing participants preserves any other outstanding module, and later edits reconcile it.
+  UPDATE public.products SET checkout_profile = jsonb_set(checkout_profile, '{modules}',
+    checkout_profile->'modules' || '[{"id":"phone","required":true}]'::jsonb) WHERE id=p;
+  UPDATE public.payment_transactions SET order_details = order_details - 'participants', participants_completed_at = NULL WHERE id=t;
+  IF (SELECT order_details->'missing_modules' FROM public.payment_transactions WHERE id=t) <> '["participants","phone"]'::jsonb
+    THEN RAISE EXCEPTION 'Missing module names not recorded'; END IF;
+  r := public.submit_order_participants(t,people);
+  IF NOT (r->>'ok')::boolean THEN RAISE EXCEPTION 'Participant resubmission refused'; END IF;
+  IF (SELECT order_details->'missing_modules' FROM public.payment_transactions WHERE id=t) <> '["phone"]'::jsonb
+    THEN RAISE EXCEPTION 'Other missing module lost'; END IF;
+  UPDATE public.payment_transactions SET order_details = order_details || '{"phone":{"v":1,"value":"+48500100200"}}'::jsonb WHERE id=t;
+  IF (SELECT order_details ? 'details_missing' OR order_details ? 'missing_modules' FROM public.payment_transactions WHERE id=t)
+    THEN RAISE EXCEPTION 'Completed details still marked missing'; END IF;
 
   -- Buyer mail data accepts the participants kind and link only in their exact shape.
   PERFORM public.prepare_event_mail('nobody@example.com','{"locale":"pl","mail_kind":"participants_needed","participants_url":"https://shop.example/pl/order/10000000-0000-4000-8000-000000000001/participants?token=1893456000.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}');
@@ -110,5 +126,14 @@ BEGIN
     PERFORM public.prepare_event_mail('superset@example.com', '{"locale":"en","license_key":"abc.def"}');
     IF (SELECT raw_user_meta_data->>'license_key' FROM auth.users WHERE email='superset@example.com') <> 'abc.def' THEN RAISE EXCEPTION 'license_key lost'; END IF;
   END IF;
+END $$;
+DO $$
+DECLARE p uuid; t uuid;
+BEGIN
+  INSERT INTO public.products(name,slug,price,currency) VALUES ('Legacy checkout','legacy-checkout-null',10,'PLN') RETURNING id INTO p;
+  INSERT INTO public.payment_transactions(product_id,session_id,customer_email,amount,currency,status)
+    VALUES (p,'cs_legacy_null','legacy@example.com',1000,'PLN','completed') RETURNING id INTO t;
+  IF (SELECT order_details IS NOT NULL FROM public.payment_transactions WHERE id=t)
+    THEN RAISE EXCEPTION 'Legacy checkout without profile gained empty details'; END IF;
 END $$;
 ROLLBACK;

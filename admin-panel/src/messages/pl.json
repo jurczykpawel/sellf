@@ -2773,6 +2773,7 @@
       "orderDetails": {
         "title": "Dane z koszyka",
         "missing": "Dane z koszyka są niekompletne.",
+        "missingModules": {"buyer": "Nabywca: brak danych", "recipient": "Odbiorca: brak danych", "quantity": "Liczba sztuk: brak danych", "phone": "Telefon: brak danych", "participants": "Uczestnicy: do uzupełnienia przez kupującego"},
         "buyer": "Nabywca",
         "recipient": "Odbiorca",
         "phone": "Telefon",
