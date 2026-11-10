@@ -17,6 +17,7 @@ import { currencyExponent, fromMinorUnits } from '@/lib/currency/minor-units';
 import { transferDeadline, formatTransferDeadline } from '@/lib/orders/transfer-format';
 import BaseModal from '@/components/ui/BaseModal';
 import BankTransferSection from '@/components/admin/BankTransferSection';
+import PaymentEventSection from '@/components/admin/PaymentEventSection';
 import PaymentPartnerSection from '@/components/admin/PaymentPartnerSection';
 import AttributionSection from '@/components/admin/AttributionSection';
 import InvoiceSection from '@/components/admin/InvoiceSection';
@@ -329,6 +330,7 @@ export default function PaymentTransactionsTable({
                   {t(`statuses.${detailsTransaction.status}`)}
                 </div>
               </div>
+              <div><div className="text-xs font-medium uppercase tracking-wider text-sf-muted">{t('purchaseDate')}</div><div className="text-sm text-sf-heading">{formatAdminDate(detailsTransaction.created_at, locale)}</div></div>
               {detailsTransaction.stripe_payment_intent_id && (
                 <div>
                   <div className="text-xs font-medium uppercase tracking-wider text-sf-muted">
@@ -376,6 +378,7 @@ export default function PaymentTransactionsTable({
               </div>
             </div>
 
+<PaymentEventSection transactionId={detailsTransaction.id} currency={detailsTransaction.currency} />
 <PaymentPartnerSection transactionId={detailsTransaction.id} />
 <AttributionSection transactionId={detailsTransaction.id} />
 <BankTransferSection transaction={detailsTransaction} onRefresh={async () => { await onRefreshData?.(); }} />

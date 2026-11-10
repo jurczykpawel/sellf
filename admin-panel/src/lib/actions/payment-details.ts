@@ -48,3 +48,18 @@ export async function getPaymentPartnerDetails(transactionId: string): Promise<A
     }) };
   });
 }
+
+export interface PaymentEventDetail {
+  quantity: number; status: string;
+  session: { title: string | null; starts_at: string; ends_at: string | null; timezone: string; venue: string | null; online_url: string | null };
+  tier: { label: string | null; price: number; sort: number };
+}
+export async function getPaymentEventDetails(transactionId: string): Promise<ActionResponse<PaymentEventDetail | null>> {
+  if (!z.uuid().safeParse(transactionId).success) return { success: false, error: 'Invalid transaction' };
+  return withAdminClient(async ({ dataClient }) => {
+    const { data, error } = await dataClient.from('seat_reservations').select(`quantity,status,
+      session:product_sessions(title,starts_at,ends_at,timezone,venue,online_url),
+      tier:product_price_tiers(label,price,sort)`).eq('transaction_id', transactionId).maybeSingle();
+    return error ? { success: false, error: 'Event details unavailable' } : { success: true, data: data as unknown as PaymentEventDetail | null };
+  });
+}

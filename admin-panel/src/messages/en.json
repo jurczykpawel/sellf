@@ -2763,6 +2763,7 @@
       "statusError": "Failed to toggle bump status"
     },
     "payments": {
+      "event": {"title": "Event", "date": "Date and time", "venue": "Venue", "online": "Event link", "tier": "Price tier", "tierNumber": "Tier {number}", "quantity": "Seats", "status": "Reservation", "error": "Could not load event details.", "statuses": {"held": "Held", "confirmed": "Confirmed", "released": "Released"}},
       "partner": {"title": "Partner", "partner": "Partner", "coupon": "Coupon", "rate": "Rate", "commission": "Commission after adjustments", "original": "Originally accrued", "paidAmount": "Paid out", "status": "Status", "error": "Could not load commission details.", "statuses": {"accrued": "Accrued", "held": "Held", "reversed": "Reversed", "paid": "Paid"}},
       "missingParticipants": {
         "title": "{count, plural, one {# order is missing participants} other {# orders are missing participants}}",
@@ -2911,6 +2912,7 @@
         }
       },
       "transactions": {
+        "purchaseDate": "Purchase date and time",
         "titleSentence": "Payment transactions",
         "title": "Payment Transactions",
         "transactionId": "Transaction ID",

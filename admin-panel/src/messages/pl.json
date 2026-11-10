@@ -2763,6 +2763,7 @@
       "statusError": "Nie udało się zmienić statusu bumpa"
     },
     "payments": {
+      "event": {"title": "Wydarzenie", "date": "Termin", "venue": "Miejsce", "online": "Link do wydarzenia", "tier": "Próg ceny", "tierNumber": "Próg {number}", "quantity": "Liczba miejsc", "status": "Rezerwacja", "error": "Nie udało się pobrać terminu.", "statuses": {"held": "Zarezerwowana", "confirmed": "Potwierdzona", "released": "Zwolniona"}},
       "partner": {"title": "Partner", "partner": "Partner", "coupon": "Kupon", "rate": "Stawka", "commission": "Prowizja po korektach", "original": "Naliczono pierwotnie", "paidAmount": "Wypłacono", "status": "Stan", "error": "Nie udało się pobrać prowizji.", "statuses": {"accrued": "Naliczona", "held": "Wstrzymana", "reversed": "Cofnięta", "paid": "Wypłacona"}},
       "missingParticipants": {
         "title": "{count, plural, one {# zamówienie bez uczestników} few {# zamówienia bez uczestników} many {# zamówień bez uczestników} other {# zamówienia bez uczestników}}",
@@ -2911,6 +2912,7 @@
         }
       },
       "transactions": {
+        "purchaseDate": "Data i godzina zakupu",
         "titleSentence": "Transakcje płatnicze",
         "title": "Transakcje Płatnicze",
         "transactionId": "ID Transakcji",
