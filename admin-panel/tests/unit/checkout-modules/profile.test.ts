@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { checkoutProfileSchema, parseCheckoutProfile } from '@/lib/checkout-modules/profile';
+import { checkoutProfileSchema, parseCheckoutProfile, storedCheckoutProfileSchema } from '@/lib/checkout-modules/profile';
 import type { CheckoutCtx } from '@/lib/checkout-modules/registry';
 import { validateModuleValues } from '@/lib/checkout-modules/registry';
 import { mapApiInputToProductRow } from '@/lib/api/dto/product';
 import { validateCreateProduct } from '@/lib/validations/product';
 
-const buyer = { id: 'buyer', types: ['person', 'organization'], gus: false };
+const buyer = { id: 'buyer', types: ['person', 'organization'] };
 const quantity = { id: 'quantity', min: 1, max: 5, mode: 'checkout' };
 const profile = { v: 1, modules: [buyer, quantity] };
 const ctx = { locale: 'pl', currency: 'PLN', quantity: 2, buyerType: 'person' } as const;
@@ -34,9 +34,10 @@ describe('checkout profile', () => {
   ])('rejects incompatible product %j', product => {
     expect(parseCheckoutProfile(profile, product).success).toBe(false);
   });
-  it('requires configured GUS and allows one license per order', () => {
-    expect(parseCheckoutProfile({ v: 1, modules: [{ ...buyer, gus: true }] }, {}, false).success).toBe(false);
-    expect(parseCheckoutProfile({ v: 1, modules: [{ ...buyer, gus: true }] }, {}, true).success).toBe(true);
+  it('rejects removed product GUS settings in API input', () => {
+    for (const gus of [false, true]) {
+      expect(() => mapApiInputToProductRow({ name: 'Seats', slug: 'seats', price: 50, checkout_profile: { v: 1, modules: [{ ...buyer, gus }] } }, 'create')).toThrow();
+    }
     expect(parseCheckoutProfile({ v: 1, modules: [{ ...quantity, max: 1 }] }, { issue_license_on_purchase: true }).success).toBe(true);
   });
   it('keeps profiles in API inputs and validates product combinations', () => {
@@ -167,4 +168,11 @@ describe('stored tax identifier carries its type and country', () => {
     const result = validateModuleValues(checkoutProfileSchema.parse({ v: 1, modules: [buyer] }), { buyer: { ...company, country: 'US', nip: '' } }, { ...ctx, buyerType: 'organization' });
     expect(result.success && result.details.buyer).not.toHaveProperty('tax_id_type');
   });
+});
+
+it.each([false, true])('reads legacy buyer gus:%s without changing other profile fields', gus => {
+  const expected = { v: 1, modules: [{ ...buyer, bank_transfer_for: ['organization'] }, quantity] };
+  const legacy = { ...expected, modules: [{ ...expected.modules[0], gus }, quantity] };
+  expect(storedCheckoutProfileSchema.parse(legacy)).toEqual(expected);
+  expect(legacy.modules[0]).toHaveProperty('gus', gus);
 });

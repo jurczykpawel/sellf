@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
-import { post, patch, get, cleanup, deleteTestApiKey, supabaseAdmin } from './setup';
+import { post, patch, get, cleanup, deleteTestApiKey, supabaseAdmin, API_URL } from './setup';
 
 interface ProductResponse { data: { id: string; checkout_profile: unknown }; error?: { message: string } }
 const ids: string[] = [];
@@ -24,8 +24,26 @@ describe('product checkout profile API', () => {
     expect(error).toBeNull(); expect(audit?.length).toBe(2);
     expect((await patch<ProductResponse>(`/api/v1/products/${id}`, { checkout_profile: null })).data.data.checkout_profile).toBeNull();
   });
-  it('rejects unknown profile keys, modules, dependencies, product combinations and unconfigured GUS', async () => {
-    for (const value of [{ ...profile, extra: true }, { v: 1, modules: [{ id: 'unknown' }] }, { v: 1, modules: [{ id: 'participants', required: true, prefill_from_buyer: false }] }, { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: true }] }]) {
+  it('reports an unconfigured shop lookup without rejecting a valid NIP', async () => {
+    const response = await fetch(`${API_URL}/api/gus/fetch-company-data`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Origin: new URL(API_URL).origin },
+      body: JSON.stringify({ nip: '5260250274' }),
+    });
+    expect(response.status).toBe(503);
+    expect((await response.json()).code).toBe('NOT_CONFIGURED');
+  });
+  it('accepts buyer profiles without any product GUS configuration', async () => {
+    const checkout_profile = { v: 1, modules: [{ id: 'buyer', types: ['organization'] }] };
+    const created = await post<ProductResponse>('/api/v1/products', { ...product(), checkout_profile });
+    expect(created.status).toBe(201);
+    ids.push(created.data.data.id);
+    expect(created.data.data.checkout_profile).toEqual(checkout_profile);
+    for (const gus of [true, false]) {
+      expect((await patch<ProductResponse>(`/api/v1/products/${created.data.data.id}`, { checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus }] } })).status).toBe(400);
+    }
+  });
+  it('rejects unknown profile keys, modules, dependencies, product combinations and removed product GUS settings', async () => {
+    for (const value of [{ ...profile, extra: true }, { v: 1, modules: [{ id: 'unknown' }] }, { v: 1, modules: [{ id: 'participants', required: true, prefill_from_buyer: false }] }, { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: true }] }, { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false }] }]) {
       const res = await post<ProductResponse>('/api/v1/products', { ...product(), checkout_profile: value });
       if (res.status === 201) ids.push(res.data.data.id);
       expect(res.status).toBe(400); expect(res.data.error).toBeDefined();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bankTransferConfigSchema, canUseBankTransfer, normalizeBankAccount } from '@/lib/orders/bank-transfer-config';
-import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
+import { checkoutProfileSchema, storedCheckoutProfileSchema } from '@/lib/checkout-modules/profile';
 import { validateCheckoutModules } from '@/lib/checkout-modules/validate';
 import { validateEventTypes } from '@/lib/validations/webhook';
 import { WEBHOOK_EVENTS } from '@/types/webhooks';
@@ -24,7 +24,8 @@ describe('traditional transfers', () => {
     expect(canUseBankTransfer(true, null, 'organization')).toBe(false);
     expect(canUseBankTransfer(true, profile, 'person')).toBe(false);
     expect(canUseBankTransfer(true, { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false }] }, 'organization')).toBe(false);
-    expect(checkoutProfileSchema.safeParse(profile).success).toBe(true);
+    expect(checkoutProfileSchema.safeParse(profile).success).toBe(false);
+    expect(storedCheckoutProfileSchema.safeParse(profile).success).toBe(true);
   });
   it('shares module validation and records explicit consent', () => {
     const result = validateCheckoutModules({ v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }] }, {

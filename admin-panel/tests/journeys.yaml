@@ -4998,6 +4998,24 @@
         "seller": "Can subscribe to product creation, public changes and deletion in either language",
         "integrator": "Receives public snapshots with revisions, changed fields and valid signatures; selected-product deletion and retry retain identity"
       }
+    },
+    {
+      "id": "J510",
+      "title": "Shop company lookup in ordinary and profile checkout",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "event",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "configure"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Company data fills for Polish NIP; missing shop key permits manual entry without an error, including legacy gus:false products",
+        "seller": "Product GUS option is absent; shop integration controls availability",
+        "integrator": "API v1 and MCP reject removed buyer.gus input"
+      }
     }
   ],
   "escapes": [

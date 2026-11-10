@@ -23,6 +23,15 @@ Profiles support the default checkout template and one-time products. Subscripti
 pay-what-you-want products, bundles and OTO are unsupported. Products issuing licenses cannot
 use quantities above one. Invalid combinations are rejected when saving.
 
+## Company lookup
+
+Set the GUS key once in **Settings → Integrations**. With the integration enabled,
+a valid Polish buyer NIP triggers company lookup in both ordinary and profile checkouts.
+Without a key, buyers can enter details manually without a configuration error.
+There is no product GUS switch. Legacy `buyer.gus` values in saved profiles are ignored
+and removed by the database upgrade. Omit this field when writing profiles through
+API v1 or MCP: it is rejected like other unknown profile fields.
+
 ## Example: five training seats
 
 A municipality buys five seats for a school. Configure Buyer (organization), Recipient,

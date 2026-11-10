@@ -91,9 +91,9 @@ export default function CheckoutProfileFields({ profile, state, invoice, errors,
   const personFields = (prefix: string, person: Person, update: (key: keyof Person, value: string) => void, includeEmail: boolean) =>
     (includeEmail ? ['first_name', 'last_name', 'email'] as const : ['first_name', 'last_name'] as const).map(key =>
       field(`${prefix}.${key}`, t(key), person[key], value => update(key, value), key === 'email' ? 'email' : 'text'));
-  const partyFields = (prefix: string, party: Party, update: (key: keyof Party, value: string) => void, gus = false) =>
+  const partyFields = (prefix: string, party: Party, update: (key: keyof Party, value: string) => void, lookupBuyer = false) =>
     (['company_name', 'nip', 'address', 'postal_code', 'city', 'country'] as const).map(key =>
-      field(`${prefix}.${key}`, t(key), party[key], value => update(key, value), 'text', key === 'nip' && gus && party.country === 'PL' ? invoice.handleNIPBlur : undefined));
+      field(`${prefix}.${key}`, t(key), party[key], value => update(key, value), 'text', key === 'nip' && lookupBuyer && party.country === 'PL' ? invoice.handleNIPBlur : undefined));
   const buyerSetters = { company_name: invoice.setCompanyName, nip: invoice.setNip, address: invoice.setAddress, city: invoice.setCity, postal_code: invoice.setPostalCode, country: invoice.setCountry };
   const forms: Record<Exclude<ModuleConfig['id'], 'quantity'>, (config: ModuleConfig) => ReactNode> = {
     buyer: config => config.id === 'buyer' && <>
@@ -103,9 +103,9 @@ export default function CheckoutProfileFields({ profile, state, invoice, errors,
         </select>
         {personFields('buyer', state.person, (key, value) => state.setNames(previous => ({ ...previous, [key]: value })), false)}
         {state.buyerType === 'organization' && <>
-          {partyFields('buyer', state.party, (key, value) => buyerSetters[key](value), config.gus)}
-          {config.gus && invoice.isLoadingGUS && <p role="status">{t('loadingCompany')}</p>}
-          {config.gus && invoice.gusError && <p role="alert" className="text-sm text-sf-danger">{invoice.gusError}</p>}
+          {partyFields('buyer', state.party, (key, value) => buyerSetters[key](value), true)}
+          {invoice.isLoadingGUS && <p role="status">{t('loadingCompany')}</p>}
+          {invoice.gusError && <p role="alert" className="text-sm text-sf-danger">{invoice.gusError}</p>}
         </>}
       </>,
     recipient: () => <>

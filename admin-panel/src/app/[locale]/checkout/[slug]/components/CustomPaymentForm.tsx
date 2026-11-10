@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout';
-import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
+import { storedCheckoutProfileSchema } from '@/lib/checkout-modules/profile';
 import CheckoutProfileFields from '@/components/checkout/CheckoutProfileFields';
 import { formatPrice } from '@/lib/constants';
 import { formatBillingIntervalLabel } from '@/lib/product-pricing-display';
@@ -123,7 +123,7 @@ export default function CustomPaymentForm({
   const [errorMessage, setErrorMessage] = useState('');
 
   // Invoice / NIP logic
-  const parsedProfile = checkoutProfileSchema.safeParse(product.checkout_profile);
+  const parsedProfile = storedCheckoutProfileSchema.safeParse(product.checkout_profile);
   const profile = parsedProfile.success ? parsedProfile.data : null;
   const { errors: moduleErrors, setErrors: setModuleErrors } = profileForm;
 

@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { normalizeCouponCode } from '@/lib/coupons/normalize-code';
 import { resolveEventCheckout } from '@/lib/events/checkout';
 import { getClientIp } from '@/lib/security/client-ip';
-import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
+import { storedCheckoutProfileSchema } from '@/lib/checkout-modules/profile';
 import { valueSchema as quantitySchema } from '@/lib/checkout-modules/quantity';
 import { buildCheckoutReturnUrl } from '@/lib/checkout/return-url';
 import { createClient } from '@/lib/supabase/server';
@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const profile = product.checkout_profile == null ? null : checkoutProfileSchema.safeParse(product.checkout_profile);
+    const profile = product.checkout_profile == null ? null : storedCheckoutProfileSchema.safeParse(product.checkout_profile);
     if (profile && !profile.success) {
       return NextResponse.json({ error: 'Invalid checkout configuration' }, { status: 500 });
     }

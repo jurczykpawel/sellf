@@ -1346,7 +1346,7 @@ SELECT sample.id, sample.product_id, 'main_product', 1, 123, 123, 123, 'PLN',
 INSERT INTO public.products (id, name, slug, description, price, currency, checkout_profile)
 VALUES ('e1000000-0000-4000-8000-000000000001', 'Warsztat dla zespołu', 'team-workshop-checkout',
   'Warsztat z danymi organizacji, odbiorcy i uczestników.', 149, 'PLN',
-  '{"v":1,"modules":[{"id":"buyer","types":["person","organization"],"gus":false},{"id":"recipient","for":["organization"]},{"id":"phone","required":true},{"id":"quantity","min":1,"max":20,"mode":"checkout"},{"id":"participants","required":true,"prefill_from_buyer":true}]}'::jsonb)
+  '{"v":1,"modules":[{"id":"buyer","types":["person","organization"]},{"id":"recipient","for":["organization"]},{"id":"phone","required":true},{"id":"quantity","min":1,"max":20,"mode":"checkout"},{"id":"participants","required":true,"prefill_from_buyer":true}]}'::jsonb)
 ON CONFLICT (id) DO NOTHING;
 
 

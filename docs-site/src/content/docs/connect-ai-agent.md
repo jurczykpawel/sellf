@@ -185,7 +185,6 @@ a 67 PLN price, `issue_license_on_purchase: false` and this `checkout_profile`:
       "types": [
         "organization"
       ],
-      "gus": false,
       "bank_transfer_for": [
         "organization"
       ]

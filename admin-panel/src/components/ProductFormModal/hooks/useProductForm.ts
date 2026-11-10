@@ -679,7 +679,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     if (!validateRequiredFields()) return;
     if (validateWholeAmounts({ sessions: formData.sessions }, formData.currency).length) return;
     if (!isEventCompatible(formData) || (formData.event_mode && !eventSessionsSchema.safeParse(formData.sessions ?? []).success)) return;
-    if (formData.checkout_profile && !parseCheckoutProfile(formData.checkout_profile, { ...formData }, true).success) return;
+    if (formData.checkout_profile && !parseCheckoutProfile(formData.checkout_profile, { ...formData }).success) return;
 
     // Validate all content items with URLs before submission
     if (formData.content_delivery_type === 'content') {
