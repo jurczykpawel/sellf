@@ -60,6 +60,7 @@ export async function fetchEligibleEndpoints(
   client: SupabaseClientLike,
   event: string,
   productIds?: string | string[],
+  selectedEndpointIds?: string[],
 ): Promise<EligibleEndpoint[]> {
   const { data: candidates, error } = await client
     .from('webhook_endpoints')
@@ -73,8 +74,8 @@ export async function fetchEligibleEndpoints(
   const ids = normalizeProductIds(productIds);
   const hasProductContext = ids.length > 0;
 
-  let linkedEndpointIds = new Set<string>();
-  if (hasProductContext) {
+  let linkedEndpointIds = new Set<string>(selectedEndpointIds);
+  if (hasProductContext && selectedEndpointIds === undefined) {
     const selectedIds = candidates
       .filter((c: SelectableEndpoint) => c.product_filter_mode === 'selected')
       .map((c: SelectableEndpoint) => c.id);

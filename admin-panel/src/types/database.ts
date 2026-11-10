@@ -3165,6 +3165,7 @@ export type Database = {
           vat_exempt: boolean
           vat_exempt_note: string | null
           vat_rate: number | null
+          webhook_revision: number
         }
         Insert: {
           allow_custom_price?: boolean
@@ -3232,6 +3233,7 @@ export type Database = {
           vat_exempt?: boolean
           vat_exempt_note?: string | null
           vat_rate?: number | null
+          webhook_revision?: number
         }
         Update: {
           allow_custom_price?: boolean
@@ -3299,6 +3301,7 @@ export type Database = {
           vat_exempt?: boolean
           vat_exempt_note?: string | null
           vat_rate?: number | null
+          webhook_revision?: number
         }
         Relationships: [
           {
@@ -6352,6 +6355,7 @@ export type Database = {
           vat_exempt: boolean
           vat_exempt_note: string | null
           vat_rate: number | null
+          webhook_revision: number
         }[]
         SetofOptions: {
           from: "*"
@@ -6446,6 +6450,7 @@ export type Database = {
           vat_exempt: boolean
           vat_exempt_note: string | null
           vat_rate: number | null
+          webhook_revision: number
         }[]
         SetofOptions: {
           from: "*"
@@ -6549,6 +6554,10 @@ export type Database = {
           stripe_payment_intent_id?: string
           user_id_param?: string
         }
+        Returns: Json
+      }
+      product_catalogue_snapshot: {
+        Args: { p: Database["public"]["Tables"]["products"]["Row"] }
         Returns: Json
       }
       product_marketing_valid: { Args: { instance: Json }; Returns: boolean }

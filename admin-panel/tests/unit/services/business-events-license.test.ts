@@ -44,3 +44,11 @@ it.each(['pending@sellf.app', null, 'buyer@example.com'])('publishes the known a
  await runBusinessEvents({...db,rpc} as never);
  expect(h.trigger.mock.calls[0][1].customer.email).toBe(email === 'pending@sellf.app' ? null : email);
 });
+
+it.each(['product.created', 'product.updated', 'product.deleted'])('publishes %s without outbox routing metadata', async event_type => {
+ const payload = { product: { id: 'product-id', name: 'Saved name' }, revision: 2, _selectedEndpointIds: ['endpoint-id'] };
+ const rpc = vi.fn(async (name: string) => ({ data: name === 'claim_business_events' && h.pending ? [{ ...event, event_type, payload }] : [], error: null }));
+ expect(await runBusinessEvents({ ...db, rpc } as never)).toEqual({ processed: 1, errors: 0 });
+ expect(h.trigger).toHaveBeenCalledWith(event_type, { product: payload.product, revision: 2 }, expect.anything(), 'product-id', 'business_event-id', ['endpoint-id']);
+ expect(payload._selectedEndpointIds).toEqual(['endpoint-id']);
+});

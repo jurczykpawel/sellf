@@ -41,7 +41,15 @@ export async function runBusinessEvents(db = createAdminClient()): Promise<{ pro
       const productIds = event.event_type === 'order.abandoned'
         ? [...new Set([event.product_id, ...(data.lines ?? []).map((line: { product_id: string | null }) => line.product_id)].filter((id): id is string => Boolean(id)))]
         : event.product_id ?? undefined; // partner payouts are account-level (no product)
-      await WebhookService.trigger(event.event_type, payload, db, productIds, `business_${event.id}`);
+      const isProductLifecycle = ['product.created', 'product.updated', 'product.deleted'].includes(event.event_type);
+      const selectedEndpointIds = isProductLifecycle ? data._selectedEndpointIds as string[] | undefined : undefined;
+      if (isProductLifecycle) {
+        const publicPayload = { ...data };
+        delete publicPayload._selectedEndpointIds;
+        payload = publicPayload;
+      }
+      await WebhookService.trigger(event.event_type, payload, db, productIds, `business_${event.id}`,
+        ...(selectedEndpointIds === undefined ? [] : [selectedEndpointIds]));
       const saved = await db.from('business_events').update({ dispatched_at: new Date().toISOString() }).eq('id', event.id);
       if (saved.error) throw Error('Event handoff unavailable');
       processed++;

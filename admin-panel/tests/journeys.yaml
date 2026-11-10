@@ -4980,6 +4980,24 @@
         "seller": "Shop default applies to old records without locale",
         "integrator": "All eight signed envelopes carry pl/en; retries retain stored language"
       }
+    },
+    {
+      "id": "J560",
+      "title": "Product lifecycle reaches a signed receiver after deletion",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "paid",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "deliver"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Not exercised; product catalogue changes only",
+        "seller": "Can subscribe to product creation, public changes and deletion in either language",
+        "integrator": "Receives public snapshots with revisions, changed fields and valid signatures; selected-product deletion and retry retain identity"
+      }
     }
   ],
   "escapes": [

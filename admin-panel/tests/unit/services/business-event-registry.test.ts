@@ -18,7 +18,7 @@ it.each(['order.abandoned', 'access.granted', 'access.updated', 'access.revoked'
 });
 
 it.each(['invoicing.issued', 'invoicing.failed', 'invoicing.corrected', 'commission.accrued', 'commission.reversed', 'payout.reserved', 'payout.paid', 'payout.cancelled',
-  'refund.requested', 'refund.request_approved', 'refund.request_rejected', 'refund.request_cancelled', 'product.published', 'product.unpublished', 'product.price_changed', 'product.sold_out'])('registers %s for subscription, preview and translation', event => {
+  'refund.requested', 'refund.request_approved', 'refund.request_rejected', 'refund.request_cancelled', 'product.created', 'product.updated', 'product.deleted', 'product.published', 'product.unpublished', 'product.price_changed', 'product.sold_out'])('registers %s for subscription, preview and translation', event => {
   expect(WEBHOOK_EVENTS.some(entry => entry.value === event)).toBe(true);
   expect(validateEventTypes([event]).valid).toBe(true);
   const data = WEBHOOK_MOCK_PAYLOADS[event];
