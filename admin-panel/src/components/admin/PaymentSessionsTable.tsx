@@ -22,6 +22,7 @@ export default function PaymentSessionsTable({
   const locale = useLocale();
   const tCancel = useTranslations('admin.payments.cancelSession');
   const t = useTranslations('admin.payments.sessions');
+  const tCustomer = useTranslations('admin.payments.transactions');
   const tStatus = useTranslations('admin.payments.transactions.statuses');
   const [cancelingId, setCancelingId] = useState<string | null>(null);
 
@@ -126,7 +127,7 @@ export default function PaymentSessionsTable({
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm text-sf-heading">
-                  {session.customer_email}
+                  {!session.customer_email || session.customer_email === 'pending@sellf.app' ? tCustomer('unknownCustomer') : session.customer_email}
                 </div>
                 {session.user_id && (
                   <div className="text-sm text-sf-muted">

@@ -1516,7 +1516,7 @@
         "defAbandoned": "Porzucone: sesja checkoutu wygasła lub została zamknięta bez płatności. Nie dowodzi to opuszczenia strony przez odwiedzającego.",
         "defOther": "Inne: próby w pozostałych statusach, głównie przelewy czekające na wpłatę i anulowane zamówienia. Nie są porzucone ani opłacone.",
         "paidShareHelp": "Udział opłaconych = opłacone / wszystkie zapisane próby.",
-        "limitations": "To rekordy płatności, a nie unikalni kupujący, wizyty ani pełny lejek sesji. Mogą obejmować powtórne próby, dodatkowe pozycje zamówień i płatności subskrypcyjne; niezapisanych checkoutów tu nie ma. Oczekujące nie są liczone jako porzucone. E-mail gościa może być nieznany (pending@sellf.app). Przypomnienia nie są wysyłane."
+        "limitations": "To rekordy płatności, a nie unikalni kupujący, wizyty ani pełny lejek sesji. Mogą obejmować powtórne próby, dodatkowe pozycje zamówień i płatności subskrypcyjne; niezapisanych checkoutów tu nie ma. Oczekujące nie są liczone jako porzucone. E-mail gościa może być nieznany. Przypomnienia nie są wysyłane."
       },
       "title": "Panel administracyjny",
       "welcome": "Witamy w panelu admina Sellf",

@@ -1516,7 +1516,7 @@
         "defAbandoned": "Abandoned: the checkout session expired or was closed without payment. It does not prove that the visitor left the page.",
         "defOther": "Other: attempts in any other status, mainly bank transfers still awaiting payment and cancelled orders. They are not abandoned and not paid.",
         "paidShareHelp": "Paid share = paid / all recorded attempts.",
-        "limitations": "These are payment records, not unique buyers, visits or a complete session funnel. Repeated attempts, additional order rows and subscription payments may be included; unrecorded checkouts are missing. Pending is not counted as abandoned. Guest email may be unknown (pending@sellf.app). No reminders are sent."
+        "limitations": "These are payment records, not unique buyers, visits or a complete session funnel. Repeated attempts, additional order rows and subscription payments may be included; unrecorded checkouts are missing. Pending is not counted as abandoned. Guest email may be unknown. No reminders are sent."
       },
       "title": "Dashboard",
       "welcome": "Welcome to Sellf Admin",
