@@ -3254,6 +3254,11 @@
       "countryHelp": "Służy wyłącznie do dokumentów prawnych (np. które szablony Regulaminu/Polityki generować) — NIE wpływa na podatek. Podatek wynika z ustawień VAT produktu (tryb Stała stawka) lub z konta Stripe (tryb Stripe Tax). Niektóre funkcje (generowanie dokumentów prawnych) są dostępne tylko dla Polski."
     },
     "attribution": {
+      "examplesTitle": "Przykłady dla domyślnych reguł",
+      "examplePriority": "Jeśli pasują dwie reguły o priorytecie 10 i 20, wygrywa reguła z najniższą liczbą, czyli 10.",
+      "exampleSocial": "Wejście z Facebooka bez UTM trafia do organic_social, jeśli przeglądarka przekazała źródło facebook.com.",
+      "exampleDirect": "Brak źródła i parametrów kampanii oznacza ruch bezpośredni (direct).",
+      "exampleResult": "Wynik zobaczysz w szczegółach płatności, w sekcji „Źródło”.",
       "title": "Źródła zakupów",
       "description": "Każdy zakup zapisuje, skąd przyszedł (oznaczenia UTM, strona odsyłająca, strona wejścia). Bez zgody na ciasteczka używany jest tylko link do koszyka; za zgodą zapisujemy też pierwszą i ostatnią wizytę. Identyfikatory kliknięć reklam (gclid, fbclid) zapisujemy tylko za zgodą marketingową.",
       "retention": "Przechowuj identyfikatory kliknięć reklam przez",

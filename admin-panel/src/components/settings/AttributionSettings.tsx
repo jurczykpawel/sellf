@@ -105,6 +105,7 @@ export default function AttributionSettings() {
           </tbody>
         </table>
       </div>
+      <section className="mt-4 space-y-2 text-sm text-sf-body"><h4 className="font-medium">{t('examplesTitle')}</h4><ul className="list-disc space-y-1 pl-5">{['examplePriority', 'exampleSocial', 'exampleDirect'].map(key => <li key={key}>{t(key)}</li>)}</ul><p>{t('exampleResult')}</p></section>
       <div className="mt-4 flex gap-3">
         <button type="button" data-tour="attribution-add-rule" className="border border-sf-border-medium px-3 py-1.5 text-sm text-sf-heading"
           onClick={() => setConfig({ ...config, rules: [...config.rules, { priority: 10, channel: '', field: 'source', operator: 'in', value: '', is_active: true }] })}>

@@ -3254,6 +3254,11 @@
       "countryHelp": "Used only for legal documents (e.g. which Terms/Privacy templates to generate) — it does NOT affect tax. Tax comes from your product VAT settings (Fixed Rate mode) or your Stripe account (Stripe Tax mode). Some features (legal document generation) are Poland-only."
     },
     "attribution": {
+      "examplesTitle": "Examples for the default rules",
+      "examplePriority": "If two rules match with priority 10 and 20, the lowest number wins: 10.",
+      "exampleSocial": "A visit from Facebook without UTM is organic_social when the browser supplies facebook.com as its referrer.",
+      "exampleDirect": "No source or campaign parameters means direct traffic (direct).",
+      "exampleResult": "Find the result in payment details, in the “Source” section.",
       "title": "Purchase sources",
       "description": "Every purchase records where it came from (UTM tags, referring site, landing page). Without cookie consent only the checkout link is used; with consent the first and last visit are kept too. Ad click identifiers (gclid, fbclid) are stored only with marketing consent.",
       "retention": "Keep ad click identifiers for",
