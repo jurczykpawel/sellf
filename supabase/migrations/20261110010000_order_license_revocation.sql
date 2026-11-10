@@ -35,10 +35,9 @@ BEGIN
     refs:=public.license_order_references(NEW);
     PERFORM l.id FROM public.issued_licenses l WHERE l.order_id=ANY(refs) ORDER BY l.id FOR UPDATE;
     UPDATE public.issued_licenses l SET revoked_at=coalesce(l.revoked_at,now()),revoked_by_dispute_id=NULL,
-      revocation_reason=CASE WHEN l.revoked_at IS NULL OR l.revoked_by_dispute_id IS NOT NULL
-        THEN CASE WHEN NEW.status='cancelled' THEN 'manual' ELSE 'refund' END
-        ELSE coalesce(l.revocation_reason,CASE WHEN NEW.status='cancelled' THEN 'manual' ELSE 'refund' END) END
-      WHERE l.order_id=ANY(refs);
+      revocation_reason=CASE WHEN NEW.status='cancelled' THEN 'manual' ELSE 'refund' END
+      WHERE l.order_id=ANY(refs)
+        AND (l.revoked_at IS NULL OR l.revoked_by_dispute_id IS NOT NULL);
   END IF;
   RETURN NEW;
 END $$;
@@ -88,9 +87,8 @@ END $$;
 
 -- Repair existing full refunds and cancellations, preserving tokens and their CRL hashes.
 UPDATE public.issued_licenses l SET revoked_at=coalesce(l.revoked_at,now()),revoked_by_dispute_id=NULL,
-  revocation_reason=CASE WHEN l.revoked_at IS NULL OR l.revoked_by_dispute_id IS NOT NULL
-    THEN CASE WHEN t.status='cancelled' THEN 'manual' ELSE 'refund' END
-    ELSE coalesce(l.revocation_reason,CASE WHEN t.status='cancelled' THEN 'manual' ELSE 'refund' END) END
+  revocation_reason=CASE WHEN t.status='cancelled' THEN 'manual' ELSE 'refund' END
 FROM public.payment_transactions t
 WHERE (t.status IN ('refunded','cancelled') OR (t.amount>0 AND t.refunded_amount>=t.amount))
-  AND l.order_id=ANY(public.license_order_references(t));
+  AND l.order_id=ANY(public.license_order_references(t))
+  AND (l.revoked_at IS NULL OR l.revoked_by_dispute_id IS NOT NULL);

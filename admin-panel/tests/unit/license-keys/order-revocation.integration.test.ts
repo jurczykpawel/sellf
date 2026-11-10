@@ -68,4 +68,45 @@ describe('order license revocation', () => {
       ROLLBACK;`);
   });
 
+  it.each(['backfill', 'refund', 'cancel', 'amount'])('preserves historical revocations without updating their rows on %s', (action) => {
+    const tx=randomUUID(), product=randomUUID(), seller=randomUUID();
+    const migration=readFileSync(path.resolve(import.meta.dirname,'../../../../supabase/migrations/20261110010000_order_license_revocation.sql'),'utf8');
+    const backfill=migration.slice(migration.indexOf('-- Repair existing full refunds'));
+    sql(`BEGIN;
+      INSERT INTO auth.users(id,email) VALUES('${seller}','${seller}@example.com');
+      INSERT INTO public.products(id,name,slug,price,currency,seller_id)
+        VALUES('${product}','Historical','${product}',10,'PLN','${seller}');
+      INSERT INTO public.payment_transactions(id,product_id,customer_email,amount,currency,status,refunded_amount,payment_provider,pricing_snapshot_version)
+        VALUES('${tx}','${product}','buyer@example.com',1000,'PLN','completed',0,'bank_transfer',1);
+      INSERT INTO public.payment_disputes(stripe_dispute_id,transaction_id,status,previous_payment_status,suspended_at) VALUES('dp_historical','${tx}','needs_response','completed',now());
+      CREATE TEMP TABLE license_products AS SELECT n,gen_random_uuid() AS id FROM generate_series(1,47) n;
+      INSERT INTO public.products(id,name,slug,price,currency,seller_id) SELECT id,'Historical item',id::text,10,'PLN','${seller}' FROM license_products;
+      INSERT INTO public.issued_licenses(product_id,seller_id,email,order_id,kid,license_key,revoked_at,revocation_reason,revoked_by_dispute_id)
+        SELECT id,'${seller}','buyer@example.com','${tx}','kid', 'historical-' || n,
+          '2026-01-01'::timestamptz,CASE WHEN n<=17 THEN NULL ELSE 'manual' END,NULL
+        FROM license_products WHERE n<=45;
+      INSERT INTO public.issued_licenses(product_id,seller_id,email,order_id,kid,license_key,revoked_at,revoked_by_dispute_id)
+        SELECT id,'${seller}','buyer@example.com','${tx}','kid',CASE WHEN n=46 THEN 'active' ELSE 'disputed' END,
+          CASE WHEN n=47 THEN '2026-01-02'::timestamptz END,CASE WHEN n=47 THEN 'dp_historical' END FROM license_products WHERE n>45;
+      CREATE TEMP TABLE historical_before AS SELECT l.id,to_jsonb(l) AS row,l.ctid::text AS tuple FROM public.issued_licenses l WHERE license_key LIKE 'historical-%' AND seller_id='${seller}';
+      CREATE TEMP TABLE license_updates(id uuid);
+      CREATE FUNCTION pg_temp.count_license_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+        INSERT INTO license_updates VALUES(NEW.id); RETURN NEW; END $$;
+      CREATE TRIGGER count_license_update AFTER UPDATE OF revoked_at ON public.issued_licenses
+        FOR EACH ROW EXECUTE FUNCTION pg_temp.count_license_update();
+      ${action==='backfill' ? 'ALTER TABLE public.payment_transactions DISABLE TRIGGER revoke_terminal_order_licenses;' : ''}
+      UPDATE public.payment_transactions SET status='${action==='cancel'?'cancelled':action==='amount'?'partially_refunded':'refunded'}',refunded_amount=1000 WHERE id='${tx}';
+      ${action==='backfill' ? `ALTER TABLE public.payment_transactions ENABLE TRIGGER revoke_terminal_order_licenses; ${backfill}` : ''}
+      DO $$ BEGIN
+        IF EXISTS(SELECT 1 FROM public.issued_licenses l JOIN historical_before b USING(id) WHERE to_jsonb(l) IS DISTINCT FROM b.row OR l.ctid::text<>b.tuple)
+          THEN RAISE EXCEPTION 'historical license row changed'; END IF;
+        IF EXISTS(SELECT 1 FROM license_updates u JOIN historical_before b USING(id)) THEN RAISE EXCEPTION 'historical update trigger fired'; END IF;
+        IF (SELECT count(*) FROM license_updates u JOIN public.issued_licenses l USING(id) WHERE l.seller_id='${seller}')<>2 THEN RAISE EXCEPTION 'expected two required updates'; END IF;
+        IF (SELECT count(*) FROM public.issued_licenses WHERE seller_id='${seller}' AND license_key IN ('active','disputed') AND revoked_at IS NOT NULL AND revoked_by_dispute_id IS NULL AND revocation_reason='${action==='cancel'?'manual':'refund'}')<>2 THEN RAISE EXCEPTION 'required revocations missing'; END IF;
+        IF (SELECT revoked_at FROM public.issued_licenses WHERE seller_id='${seller}' AND license_key='disputed')<>'2026-01-02'::timestamptz THEN RAISE EXCEPTION 'dispute timestamp changed'; END IF;
+        IF (SELECT count(*) FROM public.issued_licenses l JOIN public.payment_transactions t ON l.order_id=ANY(public.license_order_references(t)) WHERE t.id='${tx}' AND (t.status IN ('refunded','cancelled') OR (t.amount>0 AND t.refunded_amount>=t.amount)) AND (l.revoked_at IS NULL OR l.revoked_by_dispute_id IS NOT NULL))<>0 THEN RAISE EXCEPTION 'backfill candidates remain'; END IF;
+      END $$;
+      ROLLBACK;`);
+  });
+
 });
