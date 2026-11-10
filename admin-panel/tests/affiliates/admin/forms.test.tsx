@@ -155,3 +155,12 @@ it('automatically verifies a fresh captcha after a consumed application attempt'
   fireEvent.change(screen.getByLabelText(t.code), { target: { value: 'available' } });
   await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
 });
+
+it.each(['en', 'pl'] as const)('explains the promotion channel and partner code in %s', locale => {
+  const t = affiliateAdminMessages[locale]; render(<AffiliateApplication locale={locale} program={program} />);
+  const description = (label: string) => screen.getByLabelText(label).getAttribute('aria-describedby')!.split(' ').map(id => document.getElementById(id)?.textContent ?? '').join(' ');
+  expect(description(t.channel)).toMatch(/newsletter|biuletyn/i);
+  expect(description(t.channel)).toMatch(/https:\/\/example.com/);
+  expect(description(t.code)).toMatch(/partner-anna/);
+  expect(description(t.code)).toMatch(locale === 'pl' ? /prowizji/ : /commission/);
+});
