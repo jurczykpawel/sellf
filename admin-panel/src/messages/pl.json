@@ -2768,6 +2768,7 @@
         "help": "Kupujący wybrał uzupełnienie uczestników po zapłacie. Maksymalnie dwa przypomnienia z osobistym linkiem wysyłają się automatycznie (po 24 godzinach od zakupu i, dla wydarzeń, na 2 dni przed wydarzeniem); lista pojawi się w zamówieniu, gdy kupujący ją zapisze.",
         "order": "Zamówienie", "email": "Kupujący", "product": "Produkt", "quantity": "Ilość", "paid": "Zapłacono", "mail": "Przypomnienie",
         "mailSent": "Wysłano {date}", "mailPending": "Jeszcze nie wysłano"
+      "unpaidTutorialEmpty": "Brak nieopłaconego zamówienia przelewem. Włącz przelewy w Ustawieniach płatności i złóż zamówienie testowe, wybierając przelew bankowy. Następnie uruchom ten samouczek ponownie.",
       },
       "orderDetails": {
         "title": "Dane z koszyka",

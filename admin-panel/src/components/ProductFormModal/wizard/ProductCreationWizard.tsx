@@ -18,6 +18,7 @@ import type { ProductFormData } from '../types';
 const TOTAL_STEPS = 3;
 
 export interface ProductCreationWizardProps {
+  tutorial?: string;
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (formData: ProductFormData) => Promise<void>;
@@ -31,6 +32,7 @@ export interface ProductCreationWizardProps {
 
 const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
   isOpen,
+  tutorial,
   onClose,
   onSubmit,
   isSubmitting,
@@ -45,7 +47,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
 
   const isEditMode = !!(product && product.id);
 
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(tutorial === 'events' || tutorial === 'b2b-checkout-profile' ? 3 : 1);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [openingDuplicate, setOpeningDuplicate] = useState(!!product && !product.id);
   useEffect(() => {

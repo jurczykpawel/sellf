@@ -389,3 +389,47 @@ test('license filters tutorial describes email search in Polish and English @J21
     await expect(popover(page)).toHaveCount(0);
   }
 });
+
+test('starts every registered tutorial from the help menu and reaches its first target @J210', async ({ page }) => {
+  expect(process.env.SLOT_TICKET).toBeTruthy();
+  test.setTimeout(180_000);
+  const { TUTORIAL_IDS, TUTORIALS } = await import('../src/lib/tutorials/registry');
+  await admin(page, 'tour-menu-all', false);
+  const product = await productFixture('Menu tutorials');
+  const transfer = await checked(await db.from('payment_transactions').insert({
+    pricing_snapshot_version: 1, product_id: product.id,
+    customer_email: `menu-${randomUUID()}@example.com`, amount: 5000, currency: 'PLN',
+    status: 'awaiting_payment', payment_provider: 'bank_transfer',
+    transfer_details: { holder: 'Tutorial shop', account: 'PL61109010140000071219812874', title: 'Tutorial order' },
+  }).select('id').single());
+  cleanups.push(() => db.from('payment_transactions').delete().eq('id', transfer.id));
+  for (const id of TUTORIAL_IDS) {
+    await test.step(id, async () => {
+      await page.goto('/pl/dashboard');
+      await page.getByTestId('tutorial-menu-button').click();
+      await page.getByTestId(`tutorial-link-${id}`).click();
+      await expect(popoverTitle(page)).toHaveText(stepText(id, 'intro').title);
+      await popover(page).locator('.driver-popover-next-btn').click();
+      await expect(popoverTitle(page)).toHaveText(stepText(id, TUTORIALS[id].steps[1].key).title);
+      await expect(page.locator('.driver-active-element').first()).toBeInViewport();
+      await page.keyboard.press('Escape');
+      await expect(popover(page)).toHaveCount(0);
+    });
+  }
+});
+
+test('explains how to prepare an unpaid transfer order when none exists @J215', async ({ page }) => {
+  expect(process.env.SLOT_TICKET).toBeTruthy();
+  await admin(page, 'tour-menu-empty', false);
+  await page.route('**/api/v1/payments?**', async route => {
+    if (new URL(route.request().url()).searchParams.get('status') !== 'awaiting_payment') { await route.continue(); return; }
+    const response = await route.fetch();
+    const body = await response.json();
+    await route.fulfill({ response, json: { ...body, data: [], pagination: { ...body.pagination, has_more: false, next_cursor: null } } });
+  });
+  await page.goto('/pl/dashboard');
+  await page.getByTestId('tutorial-menu-button').click();
+  await page.getByTestId('tutorial-link-unpaid-orders').click();
+  await expect(page.getByRole('status').filter({ hasText: 'Brak nieopłaconego zamówienia przelewem' })).toBeVisible();
+  await expect(popover(page)).toHaveCount(0);
+});

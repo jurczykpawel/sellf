@@ -4110,7 +4110,7 @@
       },
       "end_state": {
         "buyer": "Not exercised: the tutorial is guidance for the seller only.",
-        "seller": "Tutorial walks the template editor controls once; the seen state is stored for that administrator only and a second administrator still gets it. The Appearance target stays visible below the sticky save bar on a 390 px screen.",
+        "seller": "Every registered tutorial starts from the help menu and reaches its first target; an unpaid-order tutorial explains how to prepare a transfer order when none exists. Tutorial walks the template editor controls once; the seen state is stored for that administrator only and a second administrator still gets it. The Appearance target stays visible below the sticky save bar on a 390 px screen.",
         "integrator": "Not exercised: no event is emitted; the tutorial changes no business state."
       },
       "status": "automated",

@@ -2768,6 +2768,7 @@
         "help": "The buyer chose to add participants after payment. Up to two reminder e-mails with a personal link are sent automatically (24 hours after purchase and, for events, 2 days before the event); the list appears in the order once the buyer saves it.",
         "order": "Order", "email": "Buyer", "product": "Product", "quantity": "Quantity", "paid": "Paid", "mail": "Reminder",
         "mailSent": "Sent {date}", "mailPending": "Not sent yet"
+      "unpaidTutorialEmpty": "There is no unpaid bank transfer order. Enable bank transfers in Payment settings and place a test order using bank transfer. Then start this tutorial again.",
       },
       "orderDetails": {
         "title": "Checkout data",

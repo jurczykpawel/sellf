@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, startTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -51,6 +51,7 @@ export default function PaymentsDashboard() {
   const t = useTranslations('admin.payments');
   const searchParams = useSearchParams();
   // `?order=1300` (or `#1300`) deep-links to one order: it seeds the search and opens its details.
+  const unpaidRequested = searchParams?.get('tutorial') === 'unpaid-orders';
   const orderParam = searchParams?.get('order')?.trim().slice(0, 32) ?? '';
   const [activeTab, setActiveTab] = useState<'transactions' | 'orders' | 'sessions'>('transactions');
   const [deepLinkOrder, setDeepLinkOrder] = useState(orderParam);
@@ -71,10 +72,18 @@ export default function PaymentsDashboard() {
   // first widened the range. A seller now opts into a narrower window
   // explicitly via the dropdown.
   const [filters, setFilters] = useState({
-    status: 'all',
+    status: unpaidRequested ? 'awaiting_payment' : 'all',
     dateRange: 'all',
     searchTerm: orderParam,
   });
+
+  useEffect(() => {
+    if (unpaidRequested) startTransition(() => {
+      setFilters({ status: 'awaiting_payment', dateRange: 'all', searchTerm: '' });
+      setActiveTab('transactions');
+      setDeepLinkOrder('');
+    });
+  }, [unpaidRequested]);
 
   // Fetch payment data (all from v1 API). Transactions are paged (see
   // fetchPaymentTransactionsPage) — the seller's full payment history can
@@ -201,10 +210,15 @@ export default function PaymentsDashboard() {
     return true;
   });
 
+  const unpaidTarget = unpaidRequested ? transactions.find(tx => tx.payment_provider === 'bank_transfer' && tx.status === 'awaiting_payment')?.id : undefined;
+  useEffect(() => {
+    if (unpaidTarget) startTransition(() => setDeepLinkOrder(unpaidTarget));
+  }, [unpaidTarget]);
+
   const deepLinkNumber = Number(deepLinkOrder.replace(/^#/, ''));
   const deepLinkTransactionId = deepLinkOrder
     ? transactions.find(transaction => transaction.order_number === deepLinkNumber || transaction.id === deepLinkOrder)?.id ?? null
-    : null;
+    : unpaidTarget ?? null;
 
   // Mirror the open order in the URL so the seller can copy a link straight to it.
   const handleDetailsChange = useCallback((transaction: PaymentTransaction | null) => {
@@ -235,7 +249,8 @@ export default function PaymentsDashboard() {
   return (
     <div className="space-y-6">
       {/* An order opened from a link (`?order=`) keeps its own window; the list tutorial would point behind it (W148-2). */}
-      <TutorialTrigger id="payments-orders" auto={!openedFromLink} />
+      <TutorialTrigger id="payments-orders" auto={!openedFromLink && !unpaidRequested} />
+      {unpaidRequested && !loading && !deepLinkTransactionId && <p role="status" className="rounded border border-sf-border p-4">{t('unpaidTutorialEmpty')}</p>}
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
