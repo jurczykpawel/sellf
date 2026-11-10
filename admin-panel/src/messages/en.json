@@ -2873,7 +2873,7 @@
         "loadingMore": "Loading..."
       },
       "attribution": {
-        "title": "Source",
+        "title": "Where the buyer came from",
         "none": "No source recorded for this order",
         "error": "Could not load the source",
         "channel": "Channel",
@@ -2906,9 +2906,19 @@
           "unknown": "Unknown device"
         },
         "modes": {
-          "url": "From the checkout link only (no cookie consent)",
+          "url": "The first visit is unknown because cookie consent was not given. The source comes from the link used at purchase.",
           "stored": "First and last touch (with consent)",
           "none": "Not collected"
+        },
+        "touchHelp": "First touch is the first recorded visit. Last touch is the visit when the order was placed.",
+        "fields": {
+          "source": "Source",
+          "medium": "Medium",
+          "campaign": "Campaign",
+          "content": "Content",
+          "term": "Search term",
+          "referrer_host": "Referring site",
+          "landing_path": "Landing page"
         }
       },
       "transactions": {

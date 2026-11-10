@@ -2873,7 +2873,7 @@
         "loadingMore": "Wczytywanie..."
       },
       "attribution": {
-        "title": "Źródło",
+        "title": "Skąd przyszedł kupujący",
         "none": "Brak zapisanego źródła dla tego zamówienia",
         "error": "Nie udało się wczytać źródła",
         "channel": "Kanał",
@@ -2906,9 +2906,19 @@
           "unknown": "Nieznane urządzenie"
         },
         "modes": {
-          "url": "Tylko z linku do koszyka (bez zgody na ciasteczka)",
+          "url": "Pierwsza wizyta nieznana — brak zgody na ciasteczka. Źródło zapisano z linku użytego przy zakupie.",
           "stored": "Pierwszy i ostatni kontakt (za zgodą)",
           "none": "Nie zebrano"
+        },
+        "touchHelp": "Pierwszy kontakt to pierwsza zapisana wizyta. Ostatni kontakt to wizyta, podczas której złożono zamówienie.",
+        "fields": {
+          "source": "Źródło",
+          "medium": "Medium",
+          "campaign": "Kampania",
+          "content": "Treść",
+          "term": "Słowo kluczowe",
+          "referrer_host": "Strona odsyłająca",
+          "landing_path": "Strona wejścia"
         }
       },
       "transactions": {

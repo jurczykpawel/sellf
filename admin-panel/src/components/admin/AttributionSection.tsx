@@ -12,15 +12,6 @@ import type { PurchaseAttributionView } from '@/lib/attribution/report';
 
 const KNOWN_CHANNELS = ['email', 'paid_social', 'paid_search', 'organic_social', 'organic_search', 'referral', 'affiliate', 'direct', 'other', 'unknown'];
 
-function describeTouch(touch: Record<string, string | null> | null): string | null {
-  if (!touch) return null;
-  const parts = [
-    [touch.source, touch.medium].filter(Boolean).join(' / '),
-    touch.campaign, touch.content, touch.referrer_host, touch.landing_path,
-  ].filter(Boolean);
-  return parts.length ? parts.join(' · ') : null;
-}
-
 export default function AttributionSection({ transactionId }: { transactionId: string }) {
   const t = useTranslations('admin.payments.attribution');
   const [state, setState] = useState<{ loading: boolean; data: PurchaseAttributionView | null; error: boolean }>({ loading: true, data: null, error: false });
@@ -36,12 +27,14 @@ export default function AttributionSection({ transactionId }: { transactionId: s
   const channelLabel = (channel: string | null) =>
     channel ? (KNOWN_CHANNELS.includes(channel) ? t(`channels.${channel}`) : channel) : '—';
   const d = state.data;
-  const last = d ? describeTouch(d.last) : null;
-  const first = d ? describeTouch(d.first) : null;
+  const touch = (value: Record<string, string | null> | null) => value && Object.values(value).some(Boolean) ? <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1">
+    {(['source', 'medium', 'campaign', 'content', 'term', 'referrer_host', 'landing_path'] as const).map(field => value[field] ? <div key={field} className="contents"><dt className="text-sf-muted">{t(`fields.${field}`)}</dt><dd className="break-all">{value[field]}</dd></div> : null)}
+  </dl> : t('direct');
 
   return (
-    <div className="mb-6">
-      <div className="text-xs font-medium uppercase tracking-wider text-sf-muted mb-2">{t('title')}</div>
+    <section aria-label={t('title')} className="my-4 rounded-xl border border-sf-border bg-sf-base p-4">
+      <h4 className="font-semibold text-sf-heading mb-2">{t('title')}</h4>
+      <p className="text-sm text-sf-muted mb-3">{t('touchHelp')}</p>
       {state.loading ? (
         <div className="text-sm text-sf-muted">…</div>
       ) : state.error ? (
@@ -51,13 +44,13 @@ export default function AttributionSection({ transactionId }: { transactionId: s
       ) : (
         <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
           <dt className="text-sf-muted">{t('channel')}</dt>
-          <dd className="text-sf-heading">{channelLabel(d.channel)}</dd>
+          <dd><span className="inline-flex rounded-full bg-sf-accent-bg px-3 py-1 font-semibold text-sf-inverse">{channelLabel(d.channel)}</span></dd>
           <dt className="text-sf-muted">{t('lastTouch')}</dt>
-          <dd className="text-sf-heading break-all">{last ?? t('direct')}</dd>
-          {first && (
+          <dd className="text-sf-heading break-all">{touch(d.last)}</dd>
+          {d.first && (
             <>
               <dt className="text-sf-muted">{t('firstTouch')}</dt>
-              <dd className="text-sf-heading break-all">{channelLabel(d.first_channel)}: {first}</dd>
+              <dd className="text-sf-heading break-all">{touch(d.first)}</dd>
             </>
           )}
           {d.sessions_count !== null && (
@@ -78,6 +71,6 @@ export default function AttributionSection({ transactionId }: { transactionId: s
           <dd className="text-sf-muted">{t(`modes.${d.mode}`)}</dd>
         </dl>
       )}
-    </div>
+    </section>
   );
 }
