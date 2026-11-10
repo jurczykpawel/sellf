@@ -5990,6 +5990,7 @@
       "status_awaiting_payment": "Oczekuje na przelew",
       "status_completed": "Opłacone",
       "status_cancelled": "Anulowane — nie wysyłaj przelewu",
+      "cancelledHelp": "To zamówienie zostało anulowane. Nie wysyłaj już przelewu. Nie zostanie automatycznie zaksięgowany. Jeśli nadal chcesz kupić, możesz zapłacić online. Przywrócimy zamówienie, jeśli cena i dostępność się nie zmieniły; w przeciwnym razie możesz złożyć nowe zamówienie po aktualnej cenie.",
       "status_refunded": "Zwrócone",
       "status_partially_refunded": "Częściowo zwrócone",
       "status_disputed": "Spór płatniczy",

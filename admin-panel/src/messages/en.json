@@ -5990,6 +5990,7 @@
       "status_awaiting_payment": "Awaiting bank transfer",
       "status_completed": "Paid",
       "status_cancelled": "Cancelled — do not send a bank transfer",
+      "cancelledHelp": "This order has been cancelled. Do not send a bank transfer — it will not be credited automatically. If you still want to buy, you can pay online. We will restore the order if the price and availability are unchanged; otherwise you can place a new order at the current price.",
       "status_refunded": "Refunded",
       "status_partially_refunded": "Partially refunded",
       "status_disputed": "Disputed",
