@@ -192,8 +192,11 @@ export async function getPublicKeys(opts: { force?: boolean } = {}): Promise<Sel
   return [...(keyCache?.keys ?? []), ...trustedKeys];
 }
 
-/** Revocation buckets by 4-char prefix. at = 0 means "refresh at the next check, keep the content until then". */
-const revokedCache = new Map<string, { hashes: Set<string>; at: number }>();
+/**
+ * Revocation buckets by 4-char prefix. at = 0 means "refresh at the next check, keep the content until then".
+ * version changes on every webhook, so a response to a request sent before the webhook cannot overwrite it.
+ */
+const revokedCache = new Map<string, { hashes: Set<string>; at: number; version: number }>();
 const HASH = /^[a-f0-9]{64}$/;
 
 function orderHash(order: string): string {
@@ -206,32 +209,38 @@ export async function isRevoked(order: string): Promise<boolean> {
   const prefix = hash.slice(0, 4);
   const cached = revokedCache.get(prefix);
   if (cached && Date.now() - cached.at < CACHE_MS) return cached.hashes.has(hash);
+  const startVersion = cached?.version ?? 0;
   try {
     const res = await fetch(`${SELLF_URL}/api/licenses/revoked?seller=${SELLF_SELLER_ID}&prefix=${prefix}`, { redirect: 'error' });
     if (!res.ok) throw new Error(`CRL ${res.status}`);
     const body = (await res.json()) as { order_hashes?: unknown };
     const list = body?.order_hashes;
     if (!Array.isArray(list) || !list.every((h) => typeof h === 'string' && HASH.test(h))) throw new Error('CRL: unexpected response');
-    revokedCache.set(prefix, { hashes: new Set(list as string[]), at: Date.now() });
-    return revokedCache.get(prefix)!.hashes.has(hash);
+    // Store the answer only if no webhook changed this bucket while the request was running.
+    if ((revokedCache.get(prefix)?.version ?? 0) === startVersion) {
+      revokedCache.set(prefix, { hashes: new Set(list as string[]), at: Date.now(), version: startVersion });
+    }
   } catch {
     // Sellf unreachable or wrong answer: keep what you knew. With nothing known, this
     // example lets the license through (fail open); change it if your app must fail closed.
-    return cached ? cached.hashes.has(hash) : false;
   }
+  // Read the current bucket, not the snapshot from before the request.
+  return revokedCache.get(prefix)?.hashes.has(hash) ?? false;
 }
 
 /**
  * Call after a license.revoked / license.restored webhook whose signature you verified.
  * revoked: the order counts as revoked at once, even offline.
- * restored: the bucket is refreshed at the next check; until a refresh succeeds the last known state stays.
+ * restored: the bucket is refreshed at the next check; until a refresh started after this
+ * webhook succeeds, the last known state stays.
  */
 export function handleLicenseWebhook(event: 'license.revoked' | 'license.restored', order: string): void {
   const hash = orderHash(order);
   const prefix = hash.slice(0, 4);
-  const bucket = revokedCache.get(prefix) ?? { hashes: new Set<string>(), at: 0 };
+  const bucket = revokedCache.get(prefix) ?? { hashes: new Set<string>(), at: 0, version: 0 };
   if (event === 'license.revoked') bucket.hashes.add(hash);
   bucket.at = 0;
+  bucket.version += 1;
   revokedCache.set(prefix, bucket);
 }
 
@@ -398,7 +407,7 @@ GET https://your-sellf.example/api/licenses/revoked?seller=<id-sprzedawcy>&prefi
 
 Jeśli Twój pełny skrót jest w `order_hashes`, licencja jest cofnięta. Aplikacja wysyła tylko ten początek skrótu, nigdy klucz ani pełny skrót. Adres nie oddaje całej listy w jednym zapytaniu. Robi to funkcja `isRevoked` z kodu powyżej.
 
-**Powiadomienia.** Zasubskrybuj webhooki `license.revoked` i `license.restored` (Pro). Po sprawdzeniu podpisu webhooka wywołaj `handleLicenseWebhook(event, order)` z wartością `data.license.order`. Przy `license.revoked` zamówienie od razu liczy się jako cofnięte, nawet jeśli potem Sellf będzie niedostępny. Przy `license.restored` kod przy następnym sprawdzeniu pobierze listę ponownie i do czasu udanego pobrania zostawi ostatni znany stan. Okresowego sprawdzania nie wyłączaj: webhook może przyjść z opóźnieniem albo wcale. Webhook zawiera zamówienie, email, poziom licencji, domenę, powód (`refund`, `dispute`, `manual`, `subscription_cancelled`, `expired`) i `crlUrl`, ale nigdy samego klucza. Szczegóły: [Webhooki](/pl/webhooks/).
+**Powiadomienia.** Zasubskrybuj webhooki `license.revoked` i `license.restored` (Pro). Po sprawdzeniu podpisu webhooka wywołaj `handleLicenseWebhook(event, order)` z wartością `data.license.order`. Przy `license.revoked` zamówienie od razu liczy się jako cofnięte, nawet jeśli potem Sellf będzie niedostępny. Przy `license.restored` kod przy następnym sprawdzeniu pobierze listę ponownie i do czasu udanego pobrania zostawi ostatni znany stan. Odpowiedź na zapytanie, które trwało już w chwili nadejścia webhooka, jest pomijana, więc nie może cofnąć jego skutku; cofnięcie zdejmuje dopiero odświeżenie rozpoczęte po webhooku. Okresowego sprawdzania nie wyłączaj: webhook może przyjść z opóźnieniem albo wcale. Webhook zawiera zamówienie, email, poziom licencji, domenę, powód (`refund`, `dispute`, `manual`, `subscription_cancelled`, `expired`) i `crlUrl`, ale nigdy samego klucza. Szczegóły: [Webhooki](/pl/webhooks/).
 
 ## Wygaśnięcie
 
@@ -478,7 +487,8 @@ Build:
    nothing about the bucket lets the license through or blocks it.
    If the app receives Sellf webhooks: on a verified license.revoked mark that order revoked
    immediately; on license.restored refresh the bucket at the next check without dropping the
-   known state before a refresh succeeds.
+   known state before a refresh succeeds. Version each bucket: an answer to a request started
+   before a webhook must not overwrite the bucket.
 5. Feature gating by the "tier" claim, in one place, and a clear message for each failure
    (malformed, unknown key, bad signature, expired, wrong product, wrong domain, revoked).
 
@@ -495,7 +505,9 @@ sign base64url(JSON claims) with SHA-256 (DER signature) to make tokens, and cov
 key without expiry (exp null), expired key, modified payload, key signed by another key pair,
 unknown kid followed by a successful key refresh (rotation), wrong product, wrong domain,
 missing instance domain for a domain-bound key, revoked order (mocked revocation response),
-revoked order still revoked after a license.revoked webhook while Sellf is unreachable, a 200
+revoked order still revoked after a license.revoked webhook while Sellf is unreachable, a
+license.revoked webhook arriving while a revocation request is in flight (the late answer, ok or
+failed, must not erase it), a 200
 response with the wrong shape that must not replace the cache, and Sellf unreachable on a cold
 start. Then report what you changed and how to try it with a real key from Sellf.
 ```

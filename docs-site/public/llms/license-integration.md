@@ -137,7 +137,11 @@ bucket, validate the response: `order_hashes` must be an array of 64-character l
 strings; anything else counts as a failed fetch and the last good bucket stays.
 On a verified `license.revoked` webhook, add SHA-256(`data.license.order`) to its bucket at once
 and mark the bucket for refresh. On `license.restored`, mark the bucket for refresh only. In both
-cases keep the known content until a refresh succeeds; never clear it first.
+cases keep the known content until a refresh succeeds; never clear it first. Version each bucket
+and bump the version on every webhook: a response to a request started before the webhook must
+not replace the bucket or mark it fresh. Only a refresh started after the webhook may replace it
+(this is how `license.restored` lifts a revocation). After the request, and on errors, read the
+current bucket rather than a snapshot taken before the request.
 When Sellf is unreachable: keep the last known bucket. With nothing known for that bucket, decide
 explicitly whether to allow the license ("fail open", so an outage does not lock out a paying
 buyer) or block it.
@@ -251,4 +255,5 @@ inside a distributed application.
 - Test with a key pair generated locally (EC P-256), signing `base64url(JSON)` with SHA-256 and
   DER output; cover valid, expired, modified payload, other key, unknown kid then rotation,
   wrong product, wrong and missing domain, revoked, revoked after a webhook while offline,
+  webhook during an in-flight revocation request (successful and failed),
   malformed 200 responses, cold start offline.
