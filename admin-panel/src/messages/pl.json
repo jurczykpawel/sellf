@@ -185,6 +185,11 @@
       "publish": "Opublikowano",
       "previewUnavailable": "Podgląd jest niedostępny",
       "previewRetry": "Wróć do historii szablonu i otwórz nowy podgląd. Jeśli szkic nie został jeszcze zapisany, zapisz go najpierw.",
+      "previewExpired": "Podgląd wygasł. Wróć do edytora i otwórz nowy podgląd.",
+      "previewDraftChanged": "To nie jest bieżący szkic. Odśwież edytor i otwórz podgląd zapisanej wersji.",
+      "previewLinkInvalid": "Link podglądu jest nieprawidłowy. Otwórz nowy podgląd z edytora.",
+      "previewInvalidDraft": "Nie można wyświetlić tego szkicu. Sprawdź komunikaty przy jego ustawieniach w edytorze.",
+      "previewServiceUnavailable": "Nie udało się wczytać danych podglądu. Spróbuj ponownie za chwilę.",
       "publishedNow": "Opublikowana teraz",
       "publishVersion": "Opublikuj tę wersję"
   },

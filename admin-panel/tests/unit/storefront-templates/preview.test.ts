@@ -139,3 +139,9 @@ it('uses the C public binding adapter for draft paths and portrait without requi
     expect.objectContaining({ type: 'product-paths/1', props: expect.objectContaining({ items: [] }) }),
   ]) } } });
 });
+
+it.each(['default', 'd', 'storefront-a', 'storefront-b', 'storefront-c'])('previews a current %s draft with the standard fixture', async templateId => {
+  m.read.mockResolvedValue({ success: true, data: { revision: 59, draft: { ...structuredClone(DEFAULT_CONFIG), templateId }, published: DEFAULT_CONFIG } });
+  const response = await preparePreview(await verifyTemplateSession(), { revision: 59, locale: 'pl', fixture: 'standard' }, Date.now());
+  expect(response).toMatchObject({ success: true });
+});

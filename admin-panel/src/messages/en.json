@@ -185,6 +185,11 @@
       "publish": "Published",
       "previewUnavailable": "Preview unavailable",
       "previewRetry": "Return to template history and open a fresh preview. Save a draft first if you have not saved one yet.",
+      "previewExpired": "Preview expired. Return to the editor and open a fresh preview.",
+      "previewDraftChanged": "This is not the current draft. Reload the editor and preview the saved version.",
+      "previewLinkInvalid": "This preview link is invalid. Open a fresh preview from the editor.",
+      "previewInvalidDraft": "This draft cannot be displayed. Check the messages beside its settings in the editor.",
+      "previewServiceUnavailable": "Preview data could not be loaded. Please try again shortly.",
       "publishedNow": "Published now",
       "publishVersion": "Publish this version"
   },
