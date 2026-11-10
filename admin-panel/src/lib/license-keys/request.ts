@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { sendTrustedMagicLink } from '@/lib/auth/magic-link/request';
 import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
 import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
+import { sendLicenseMail } from '@/lib/license-keys/license-mail';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { resolveCustomerLocale } from '@/lib/webhooks/customer-locale';
 import { parseLicenseClaims, type LicenseClaims } from '@/lib/license-keys/format';
@@ -49,7 +50,7 @@ export type LicenseRequestResult =
 
 export async function issueRequestedLicense(
   input: LicenseRequestInput,
-  ctx: { actorUserId: string; source: 'manual' | 'api'; origin: string },
+  ctx: { actorUserId: string; source: 'manual' | 'api'; origin: string; accessGrantId?: string; userId?: string },
 ): Promise<LicenseRequestResult> {
   const admin = createAdminClient();
   const product = await admin.from('products').select('slug, name, custom_checkout_fields, license_duration_days').eq('id', input.productId).single();
@@ -68,7 +69,8 @@ export async function issueRequestedLicense(
   try {
     locale = await resolveBuyerLocale(admin, input.email, input.locale);
     result = await issueLicense(admin, {
-      productId: input.productId, email: input.email, userId: null, orderId: `${ctx.source}_${randomUUID()}`,
+      productId: input.productId, email: input.email, userId: ctx.userId ?? null, orderId: ctx.accessGrantId ? `access_${ctx.accessGrantId}` : `${ctx.source}_${randomUUID()}`,
+      accessGrantId: ctx.accessGrantId,
       customFieldValues: values.values, source: ctx.source, locale,
     });
   } catch (error) {
@@ -78,15 +80,22 @@ export async function issueRequestedLicense(
   if (!result?.id) return { ok: false, status: 409, error: 'Product is not configured for license issuance or no active signing key exists' };
 
   const claims = parseLicenseClaims(result.token);
-  await createPlatformClient().from('audit_log').insert({
+  const audit = await createPlatformClient().from('audit_log').insert({
     table_name: 'issued_licenses',
     operation: 'INSERT',
     performed_by: ctx.actorUserId,
-    new_values: { action: ctx.source === 'api' ? 'API_LICENSE_ISSUED' : 'MANUAL_LICENSE_ISSUED', license_id: result.id, product_id: input.productId, email: input.email, domain: claims?.domain ?? null, kid: result.kid },
+    new_values: { ...(ctx.accessGrantId ? { access_grant_id: ctx.accessGrantId } : {}), action: ctx.source === 'api' ? 'API_LICENSE_ISSUED' : 'MANUAL_LICENSE_ISSUED', license_id: result.id, product_id: input.productId, email: input.email, domain: claims?.domain ?? null, kid: result.kid },
   });
 
-  const emailSent = input.sendEmail === false ? false
-    : await mailLicenseToBuyer({ email: input.email, token: result.token, productSlug: product.data.slug, productName: product.data.name, locale });
+  if (ctx.accessGrantId && audit.error) return { ok: false, status: 500, error: 'License audit could not be saved' };
+
+  let emailSent = false;
+  if (ctx.accessGrantId) {
+    emailSent = await sendLicenseMail(admin, { userId: ctx.userId ?? null, email: input.email, token: result.token, productSlug: product.data.slug, productName: product.data.name ?? '', locale });
+    if (!emailSent) return { ok: false, status: 500, error: 'Access and license saved, but license email is awaiting delivery. Retry the grant.' };
+  } else if (input.sendEmail !== false) {
+    emailSent = await mailLicenseToBuyer({ email: input.email, token: result.token, productSlug: product.data.slug, productName: product.data.name, locale });
+  }
 
   return {
     ok: true,

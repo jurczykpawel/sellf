@@ -85,3 +85,11 @@ Licencje samego Sellfa wydaje w ten sam sposób instancja TSA, osobny generator 
 ## Zgłoszenia PlayerStack
 
 [Formularze potwierdzane mailem i zgoda marketingowa](/pl/playerstack-leads/).
+
+## Licencja przy nadaniu dostępu
+
+`POST /users/{id}/access` przyjmuje `issue_license` (domyślnie `true`) oraz opcjonalne `license: { domain, customFieldValues, locale }`. Produkt z włączonym wystawianiem licencji używa własnego poziomu i czasu ważności. Klucz trafia mailem do klienta; odpowiedź zawiera `license: { id, status, email_sent }`. `false` nadaje sam dostęp. Pakiet wydaje własną licencję, bez kaskady na składniki.
+
+Wydanie i cofnięcie klucza wymaga dodatkowo `licenses:write`. Bez tego zakresu zmienia się sam dostęp, a `license_warning` wyjaśnia pominięcie licencji. Błąd wystawienia lub maila zwraca `LICENSE_ISSUANCE_FAILED` wraz z zapisanym dostępem. Ponowienie POST kontynuuje to samo nadanie i klucz.
+
+`DELETE /users/{id}/access?product_id={uuid}` i `DELETE /users/{id}/access/{accessId}` przyjmują `revoke_license=true|false` (domyślnie `true`). Cofają tylko licencję z tego nadania; klucze z zakupu zostają. `false` świadomie zachowuje klucz. Zwykłe powodzenie to 204; brak zakresu licencji zwraca 200 z `license_warning`.

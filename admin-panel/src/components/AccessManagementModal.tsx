@@ -6,6 +6,8 @@ import { BaseModal, ModalHeader, ModalBody, ModalFooter, ModalSection, Button, M
 import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
+import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
+import { validateCustomFieldDefinitions } from '@/lib/validations/custom-checkout-fields';
 import { formatAdminDate } from '@/lib/timezone';
 
 interface AccessManagementModalProps {
@@ -27,6 +29,8 @@ interface UserAccess {
   access_expires_at?: string | null;
   access_duration_days?: number | null;
   product_slug: string;
+  has_grant_license?: boolean;
+  license_pending?: boolean;
 }
 
 const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
@@ -47,6 +51,12 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
   const [accessDuration, setAccessDuration] = useState<number | ''>('');
   const [accessExpiration, setAccessExpiration] = useState<string>('');
   const [accessType, setAccessType] = useState<'permanent' | 'duration' | 'expiration'>('permanent');
+  const [issueLicense, setIssueLicense] = useState(true);
+  const [revokeLicenses, setRevokeLicenses] = useState<Record<string, boolean>>({});
+  const [licenseValues, setLicenseValues] = useState<Record<string, string>>({});
+  const [licenseErrors, setLicenseErrors] = useState<Record<string, string>>({});
+  const selectedProduct = availableProducts.find(product => product.id === selectedProductId);
+  const definitions = validateCustomFieldDefinitions(selectedProduct?.custom_checkout_fields ?? []);
   const [error, setError] = useState<string | null>(null);
 
   const loadUserAccess = useCallback(async () => {
@@ -71,6 +81,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
     setPreviousKey(requestKey);
     setLoading(true);
     setError(null);
+    setRevokeLicenses({});
   }
 
   const fetchUserAccess = useCallback(() => {
@@ -121,20 +132,24 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
         },
         body: JSON.stringify({
           product_id: selectedProductId,
+          issue_license: issueLicense,
+          license: { customFieldValues: licenseValues, locale },
           access_type: accessType,
           access_duration_days: accessType === 'duration' ? accessDuration : null,
           access_expires_at: accessType === 'expiration' ? accessExpiration : null
         })
       });
 
+      const responseData = await response.json();
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || errorData.error || t('grantAccessError'));
+        setLicenseErrors(responseData.fieldErrors ?? {});
+        throw new Error(responseData.error_code === 'LICENSE_ISSUANCE_FAILED' ? t('licenseError') : responseData.error?.message || responseData.error || t('grantAccessError'));
       }
 
       // Refresh user access
       await fetchUserAccess();
       setShowAddForm(false);
+      setRevokeLicenses(values => ({ ...values, [selectedProductId]: true }));
       setSelectedProductId('');
       setAccessDuration('');
       setAccessExpiration('');
@@ -152,7 +167,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
       setActionLoading(productId);
       setError(null);
 
-      const response = await fetch(`/api/users/${user.id}/access?product_id=${productId}`, {
+      const response = await fetch(`/api/users/${user.id}/access?product_id=${productId}&revoke_license=${revokeLicenses[productId] !== false}`, {
         method: 'DELETE'
       });
 
@@ -178,7 +193,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
   const getAvailableProductsForUser = () => {
     const userProductIds = userAccess.map(access => access.product_id);
     return availableProducts.filter(product =>
-      product.is_active && !userProductIds.includes(product.id)
+      product.is_active && (!userProductIds.includes(product.id) || userAccess.some(access => access.product_id === product.id && access.license_pending))
     );
   };
 
@@ -243,6 +258,12 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
                               </Button>
                             </div>
                           </div>
+                          {access.has_grant_license && (
+                            <label className="flex min-h-11 items-center gap-2 mb-2 text-sm text-sf-body">
+                              <input type="checkbox" checked={revokeLicenses[access.product_id] !== false} onChange={e => setRevokeLicenses(values => ({ ...values, [access.product_id]: e.target.checked }))} />
+                              {t('revokeLicense')}
+                            </label>
+                          )}
                           <p className="text-xs text-sf-muted">
                             {t('granted')}: {formatDate(access.access_created_at)}
                             {access.access_expires_at && (
@@ -284,7 +305,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
                     <select
                       id="product-select"
                       value={selectedProductId}
-                      onChange={(e) => setSelectedProductId(e.target.value)}
+                      onChange={(e) => { setSelectedProductId(e.target.value); setIssueLicense(true); setLicenseValues({}); setLicenseErrors({}); }}
                       className="w-full px-3 py-2.5 bg-sf-input text-sf-heading border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent"
                     >
                       <option value="">{t('chooseProductPlaceholder')}</option>
@@ -296,6 +317,16 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
                     </select>
                   </div>
 
+                  {selectedProduct?.issue_license_on_purchase && (
+                    <div className="space-y-3">
+                      <label className="flex min-h-11 items-center gap-2 text-sm text-sf-body">
+                        <input type="checkbox" checked={issueLicense} onChange={e => setIssueLicense(e.target.checked)} />
+                        {t('issueLicense')}
+                      </label>
+                      <p className="text-xs text-sf-muted">{t('licenseSettings', { tier: selectedProduct.license_tier ?? '—', days: selectedProduct.license_duration_days ? `${selectedProduct.license_duration_days} ${t('days')}` : t('permanent') })}</p>
+                      {issueLicense && definitions.ok && <CustomCheckoutFieldsForm fields={definitions.value} values={licenseValues} onChange={setLicenseValues} errors={licenseErrors} disabled={actionLoading === 'grant'} />}
+                    </div>
+                  )}
                   <div>
                     <label htmlFor="access-type" className="block text-sm font-medium text-sf-body mb-2">
                       {t('accessTypeLabel')}

@@ -11,6 +11,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { licenseMailKey } from '@/lib/license-keys/license-mail';
+import { accessLicenseSchema, issueAccessLicense } from '@/lib/license-keys/access';
 import { mutateAccess } from '@/lib/services/business-events';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
@@ -65,9 +67,27 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch user access' }, { status: 500 });
     }
 
+    const ids = (userAccess ?? []).map(access => access.id).filter((id): id is string => id !== null);
+    const licenses = ids.length ? await adminClient.from('issued_licenses').select('access_grant_id,email,order_id').in('access_grant_id', ids).is('revoked_at', null) : { data: [], error: null };
+    if (licenses.error) return NextResponse.json({ error: 'Failed to fetch access licenses' }, { status: 500 });
+    const pending = ids.length ? await adminClient.from('user_product_access').select('id,license_requested').in('id', ids) : { data: [], error: null };
+    if (pending.error) return NextResponse.json({ error: 'Failed to fetch pending licenses' }, { status: 500 });
+    const keys = (licenses.data ?? []).flatMap(license => license.email ? [licenseMailKey(license.email, license.order_id)] : []);
+    const receipts = keys.length ? await adminClient.from('license_mail_receipts').select('mail_key').in('mail_key', keys) : { data: [], error: null };
+    const retries = keys.length ? await adminClient.from('auth_mail_retries').select('license_mail_key').in('license_mail_key', keys) : { data: [], error: null };
+    if (receipts.error || retries.error) return NextResponse.json({ error: 'Failed to fetch license email state' }, { status: 500 });
+    const delivered = new Set((receipts.data ?? []).map(receipt => receipt.mail_key));
+    const awaitingMail = new Set((retries.data ?? []).map(retry => retry.license_mail_key));
+    const sent = new Set((licenses.data ?? []).filter(license => {
+      if (!license.email) return false;
+      const key = licenseMailKey(license.email, license.order_id);
+      return delivered.has(key) && !awaitingMail.has(key);
+    }).map(license => license.access_grant_id));
+    const requested = new Set((pending.data ?? []).filter(access => access.license_requested).map(access => access.id));
+    const linked = new Set((licenses.data ?? []).map(license => license.access_grant_id));
     return NextResponse.json({
       user_id: userId,
-      access: userAccess || []
+      access: (userAccess ?? []).map(access => ({ ...access, has_grant_license: linked.has(access.id), license_pending: requested.has(access.id ?? '') && !sent.has(access.id) }))
     });
   } catch (error) {
     console.error('Error in GET /api/users/[id]/access:', error);
@@ -101,6 +121,8 @@ export async function POST(
     const adminClient = createAdminClient();
 
     // Sanitize input data
+    const options = accessLicenseSchema.safeParse(body);
+    if (!options.success) return NextResponse.json({ error: 'Invalid license options' }, { status: 400 });
     const sanitizedData = sanitizeGrantAccessData(body);
 
     // Validate input data
@@ -121,7 +143,7 @@ export async function POST(
     // Check if product exists using adminClient
     const { data: product, error: productError } = await adminClient
       .from('products')
-      .select('id, name, is_active')
+      .select('id, name, is_active, issue_license_on_purchase')
       .eq('id', productId)
       .single();
 
@@ -133,10 +155,12 @@ export async function POST(
       return NextResponse.json({ error: 'Cannot grant access to inactive product' }, { status: 400 });
     }
 
+    const issueLicense = product.issue_license_on_purchase && options.data.issue_license;
+
     // Check if user already has access using adminClient
     const { data: existingAccess, error: existingError } = await adminClient
       .from('user_product_access')
-      .select('id')
+      .select('*')
       .eq('user_id', userId)
       .eq('product_id', productId)
       .single();
@@ -146,7 +170,7 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to check existing access' }, { status: 500 });
     }
 
-    if (existingAccess) {
+    if (existingAccess && !(issueLicense && existingAccess.license_requested)) {
       return NextResponse.json({ error: 'User already has access to this product' }, { status: 409 });
     }
 
@@ -166,8 +190,8 @@ export async function POST(
       accessData.access_expires_at = sanitizedData.access_expires_at as string;
     }
 
-    const { data: newAccess, error: accessError } = await mutateAccess(adminClient, 'grant', userId, { type: 'user', id: adminUser.id },
-      { access_duration_days: accessData.access_duration_days ?? null, access_expires_at: accessData.access_expires_at ?? null }, undefined, productId).single();
+    const { data: newAccess, error: accessError } = existingAccess ? { data: existingAccess, error: null } : await mutateAccess(adminClient, 'grant', userId, { type: 'user', id: adminUser.id },
+      { access_duration_days: accessData.access_duration_days ?? null, access_expires_at: accessData.access_expires_at ?? null, issue_license: issueLicense }, undefined, productId).single();
 
     if (accessError) {
       console.error('Error granting access:', accessError);
@@ -184,8 +208,19 @@ export async function POST(
       new_values: { product_id: productId, product_name: product.name, action: 'admin_grant_access' },
     }).then(() => {}, (err: unknown) => console.error('[audit] Failed to log grant:', err));
 
+    let license = null;
+    if (issueLicense) {
+      const issued = await issueAccessLicense(adminClient, {
+        userId, productId, accessId: newAccess.id, actorUserId: adminUser.id,
+        source: 'manual', origin: new URL(request.url).origin, license: options.data.license,
+      });
+      if (!issued.ok) return NextResponse.json({ error: issued.error, error_code: 'LICENSE_ISSUANCE_FAILED', access: newAccess, fieldErrors: issued.fieldErrors }, { status: issued.status });
+      license = { id: issued.license.id, status: 'issued', email_sent: issued.license.emailSent };
+    }
+
     return NextResponse.json({
       message: 'Access granted successfully',
+      license,
       access: newAccess
     }, { status: 201 });
   } catch (error) {
@@ -239,8 +274,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'Access not found' }, { status: 404 });
     }
 
+    const revokeValue = searchParams.get('revoke_license');
+    if (revokeValue !== null && revokeValue !== 'true' && revokeValue !== 'false') {
+      return NextResponse.json({ error: 'Invalid revoke_license' }, { status: 400 });
+    }
     // Remove access using adminClient
-    const { error: deleteError } = await mutateAccess(adminClient, 'revoke', userId, { type: 'user', id: adminUser.id }, {}, existingAccess.id);
+    const { error: deleteError } = await mutateAccess(adminClient, 'revoke', userId, { type: 'user', id: adminUser.id }, { revoke_license: revokeValue !== 'false' }, existingAccess.id);
 
     if (deleteError) {
       console.error('Error removing access:', deleteError);

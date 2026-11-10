@@ -14,7 +14,7 @@ export interface EventActor { type: 'user' | 'api_key'; id: string }
 export function accessActor(auth: AuthResult): EventActor {
   return { type: auth.method === 'api_key' ? 'api_key' : 'user', id: auth.method === 'api_key' ? auth.apiKey.id : auth.admin.userId };
 }
-export function mutateAccess(db: SupabaseClient<Database>, action: 'grant' | 'update' | 'revoke', userId: string, actor: EventActor, values: Record<string, string | number | null> = {}, accessId?: string, productId?: string) {
+export function mutateAccess(db: SupabaseClient<Database>, action: 'grant' | 'update' | 'revoke', userId: string, actor: EventActor, values: Record<string, string | number | boolean | null> = {}, accessId?: string, productId?: string) {
   return db.rpc('mutate_access', { p_action: action, p_user_id: userId, p_actor: { ...actor }, p_values: values, p_access_id: accessId, p_product_id: productId });
 }
 export async function runBusinessEvents(db = createAdminClient()): Promise<{ processed: number; errors: number }> {

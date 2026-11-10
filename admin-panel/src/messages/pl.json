@@ -2140,6 +2140,10 @@
         "manageAccess": "Zarządzaj dostępem"
       },
       "accessModal": {
+        "issueLicense": "Wystaw licencję",
+        "revokeLicense": "Odbierz też licencję",
+        "licenseSettings": "Licencja z produktu: poziom {tier}, ważność: {days}.",
+        "licenseError": "Nie udało się zakończyć wystawiania lub wysłania licencji. Dostęp mógł zostać zapisany. Popraw pola lub ponów przyznanie dostępu.",
         "title": "Zarządzaj dostępem użytkownika",
         "subtitle": "Zarządzanie dostępem do produktów dla {email}",
         "error": "Błąd",
