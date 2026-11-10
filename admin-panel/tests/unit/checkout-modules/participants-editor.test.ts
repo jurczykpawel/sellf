@@ -62,3 +62,16 @@ it('keeps every participant input labelled for assistive technology and translat
   expect(input.labels?.[0]?.textContent).toMatch(/E-?mail/i);
   expect(document.querySelectorAll('input[id^="participants."]')).toHaveLength(30);
 });
+
+it('keeps bulk import collapsed by default, with an accessible disclosure in both languages', () => {
+  for (const locale of ['en', 'pl'] as const) {
+    const { unmount } = show(make(false), 2, locale);
+    const paste = screen.getByLabelText(locale === 'pl' ? 'Wklej listę' : 'Paste a list');
+    const disclosure = paste.closest('details');
+    expect(disclosure).not.toBeNull();
+    expect(disclosure!.open).toBe(false);
+    expect(disclosure!.querySelector('summary')?.textContent).toBe(locale === 'pl' ? 'Masz listę? Wklej lub zaimportuj' : 'Have a list? Paste or import it');
+    expect(document.getElementById('participants.0.first_name')?.closest('details')).toBeNull();
+    unmount();
+  }
+});

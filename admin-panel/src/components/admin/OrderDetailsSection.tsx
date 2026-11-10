@@ -29,7 +29,7 @@ export default function OrderDetailsSection({ details, customFields }: OrderDeta
     <section className="mt-5 border border-sf-border bg-sf-base/60 rounded-xl overflow-hidden" aria-label={t('title')}>
       <h3 className="px-4 py-3 bg-sf-float/60 text-sm font-semibold text-sf-heading">{t('title')}</h3>
       <div className="p-4 space-y-4 text-sf-heading break-words">
-        {d.details_missing && <p role="alert" className="text-sf-warning">{t('missing')}</p>}
+        {d.details_missing && <p role="alert" className="text-sf-warning">{d.missing_modules?.length ? d.missing_modules.map(id => t(`missingModules.${id}`)).join(' · ') : t('missing')}</p>}
         {hasModules && d.buyer && <div><h4 className="font-semibold mb-2">{t('buyer')}</h4>{party(d.buyer, true)}</div>}
         {d.recipient?.differs && <div><h4 className="font-semibold mb-2">{t('recipient')}</h4>{party(d.recipient)}</div>}
         {d.phone?.value && <p>{t('phone')}: {d.phone.value}</p>}

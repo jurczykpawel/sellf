@@ -224,6 +224,7 @@
       "participant": "Participant {number}",
       "later": "I'll add participants later",
       "laterHelp": "After payment you will get an e-mail with a personal link to add the participants. The seller sees the order without participants until you do.",
+      "listDisclosure": "Have a list? Paste or import it",
       "pasteLabel": "Paste a list",
       "pasteHelp": "One person per line: first name, last name, email (separated by comma, semicolon or tab).",
       "pasteApply": "Fill from list",
@@ -1515,7 +1516,7 @@
         "defAbandoned": "Abandoned: the checkout session expired or was closed without payment. It does not prove that the visitor left the page.",
         "defOther": "Other: attempts in any other status, mainly bank transfers still awaiting payment and cancelled orders. They are not abandoned and not paid.",
         "paidShareHelp": "Paid share = paid / all recorded attempts.",
-        "limitations": "These are payment records, not unique buyers, visits or a complete session funnel. Repeated attempts, additional order rows and subscription payments may be included; unrecorded checkouts are missing. Pending is not counted as abandoned. Guest email may be unknown (pending@sellf.app). No reminders are sent."
+        "limitations": "These are payment records, not unique buyers, visits or a complete session funnel. Repeated attempts, additional order rows and subscription payments may be included; unrecorded checkouts are missing. Pending is not counted as abandoned. Guest email may be unknown. No reminders are sent."
       },
       "title": "Dashboard",
       "welcome": "Welcome to Sellf Admin",
@@ -2772,6 +2773,7 @@
       "orderDetails": {
         "title": "Checkout data",
         "missing": "Checkout details are incomplete.",
+        "missingModules": {"buyer": "Buyer: details missing", "recipient": "Recipient: details missing", "quantity": "Quantity: details missing", "phone": "Phone: details missing", "participants": "Participants: to be completed by the buyer"},
         "buyer": "Buyer",
         "recipient": "Recipient",
         "phone": "Phone",
@@ -5579,9 +5581,6 @@
     "failure": "Could not update key status. Try again shortly.",
     "limit": "This key is too long. Paste the purchase key from your order.",
     "freshness": "Status refreshes every 30 seconds. A selected premium template falls back to the default storefront if its key is no longer confirmed. Offline revocation checks may be delayed; checkout and buyer access remain available.",
-    "storefront-a": "Template A",
-    "storefront-b": "Template B",
-    "storefront-c": "Template C",
     "states": {
       "valid": "Key verified",
       "missing": "Add your purchase key",
@@ -5992,6 +5991,7 @@
       "status_awaiting_payment": "Awaiting bank transfer",
       "status_completed": "Paid",
       "status_cancelled": "Cancelled — do not send a bank transfer",
+      "cancelledHelp": "This order has been cancelled. Do not send a bank transfer — it will not be credited automatically. If you still want to buy, you can pay online. We will restore the order if the price and availability are unchanged; otherwise you can place a new order at the current price.",
       "status_refunded": "Refunded",
       "status_partially_refunded": "Partially refunded",
       "status_disputed": "Disputed",

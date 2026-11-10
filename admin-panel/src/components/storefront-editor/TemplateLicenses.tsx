@@ -2,16 +2,18 @@
 
 /** Private key entry and background verification status. @see api/v1/templates/licenses */
 import { useCallback, useEffect, useId, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ChevronDown, KeyRound } from 'lucide-react';
 import { editorButton, editorControl } from '@/components/storefront-editor/SlotEditor';
 import type { SubmitEvent } from 'react';
+import { STOREFRONT_TEMPLATES } from '@/lib/storefront-templates/registry';
 import { templateKeyFormatError } from '@/lib/storefront-templates/template-license-policy';
 import type { TemplateLicenseStatus } from '@/lib/storefront-templates/template-credentials';
 
 const IDS = ['storefront-a', 'storefront-b', 'storefront-c'] as const;
 export default function TemplateLicenses() {
   const t = useTranslations('templateLicenses');
+  const locale = useLocale() === 'pl' ? 'pl' : 'en';
   const id = useId();
   const [templateId, setTemplateId] = useState<string>(IDS[0]);
   const [token, setToken] = useState('');
@@ -61,11 +63,11 @@ export default function TemplateLicenses() {
       <ul className="grid gap-2 sm:grid-cols-3" aria-label={t('statuses')}>
         {IDS.map(template => {
           const status = statuses.find(s => s.templateId === template);
-          return <li key={template} className="rounded-lg border border-sf-border px-3 py-3 text-sm"><span className="font-medium text-sf-heading">{t(template)}</span><p className="mt-1 text-sf-body">{t(`states.${status?.state ?? 'unknown'}`)}</p></li>;
+          return <li key={template} className="rounded-lg border border-sf-border px-3 py-3 text-sm"><span className="font-medium text-sf-heading">{STOREFRONT_TEMPLATES[template].label[locale]}</span><p className="mt-1 text-sf-body">{t(`states.${status?.state ?? 'unknown'}`)}</p></li>;
         })}
       </ul>
       <form onSubmit={save} className="grid items-end gap-3 sm:grid-cols-[minmax(140px,1fr)_2fr_auto]">
-        <label htmlFor={`${id}-template`} className="space-y-2 text-sm font-medium"><span>{t('template')}</span><select id={`${id}-template`} className={editorControl} value={templateId} onChange={e => { setTemplateId(e.target.value); setConfirmReplace(false); setKeyError(''); }}>{IDS.map(template => <option key={template} value={template}>{t(template)}</option>)}</select></label>
+        <label htmlFor={`${id}-template`} className="space-y-2 text-sm font-medium"><span>{t('template')}</span><select id={`${id}-template`} className={editorControl} value={templateId} onChange={e => { setTemplateId(e.target.value); setConfirmReplace(false); setKeyError(''); }}>{IDS.map(template => <option key={template} value={template}>{STOREFRONT_TEMPLATES[template].label[locale]}</option>)}</select></label>
         <label htmlFor={`${id}-key`} className="min-w-0 space-y-2 text-sm font-medium"><span>{t('key')}</span><input id={`${id}-key`} className={editorControl} type="password" autoComplete="off" spellCheck={false} maxLength={16384} required aria-invalid={keyError ? true : undefined} aria-describedby={keyError ? `${id}-key-error` : undefined} value={token} onChange={e => { setToken(e.target.value); setKeyError(''); setConfirmReplace(false); }} /></label>
         <button className={editorButton} disabled={busy || !token.trim()}>{busy ? t('saving') : t('save')}</button>
       </form>

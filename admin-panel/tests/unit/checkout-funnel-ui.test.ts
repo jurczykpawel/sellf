@@ -27,7 +27,8 @@ describe('checkout funnel view', () => {
     mocks.productId = 'p1';
     show();
     await screen.findByText('Course');
-    expect(screen.getByText(/pending@sellf.app/)).toBeTruthy();
+    expect(screen.getByText(/Guest email may be unknown/)).toBeTruthy();
+    expect(screen.queryByText(/pending@sellf.app/)).toBeNull();
     expect(screen.getByText(/unique buyers/)).toBeTruthy();
     expect(screen.getAllByText(/40%/)).toHaveLength(2);
     fireEvent.change(screen.getByLabelText('Period'), { target: { value: '7' } });

@@ -94,3 +94,14 @@ describe('tier seats never exceed the session pool (W146 U11)', () => {
     expect(projectEventSessions([{ ...raw, remaining: null }], 0)[0].currentTier?.seatsLeft).toBe(25);
   });
 });
+
+it('selects the only available session among sold-out and unpriced dates', () => {
+  const sessions = projectEventSessions([raw], 0);
+  const available = sessions[0];
+  const choices = [available, { ...available, id: 'sold', soldOut: true }, { ...available, id: 'unpriced', currentTier: null }];
+  expect(selectEventSession(choices, null)).toBe(available.id);
+  expect(selectEventSession(choices, 'sold')).toBe(available.id);
+  expect(selectEventSession(choices, 'unpriced')).toBe(available.id);
+  expect(selectEventSession(choices.slice(1), null)).toBeNull();
+  expect(selectEventSession([available, { ...available, id: 'second' }], null)).toBeNull();
+});

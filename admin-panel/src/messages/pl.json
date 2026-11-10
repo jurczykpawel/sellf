@@ -224,6 +224,7 @@
       "participant": "Uczestnik {number}",
       "later": "Uzupełnię uczestników później",
       "laterHelp": "Po zapłacie dostaniesz e-mail z osobistym linkiem do uzupełnienia uczestników. Do tego czasu sprzedawca widzi zamówienie bez uczestników.",
+      "listDisclosure": "Masz listę? Wklej lub zaimportuj",
       "pasteLabel": "Wklej listę",
       "pasteHelp": "Jedna osoba w wierszu: imię, nazwisko, e-mail (rozdzielone przecinkiem, średnikiem lub tabulatorem).",
       "pasteApply": "Wypełnij z listy",
@@ -1515,7 +1516,7 @@
         "defAbandoned": "Porzucone: sesja checkoutu wygasła lub została zamknięta bez płatności. Nie dowodzi to opuszczenia strony przez odwiedzającego.",
         "defOther": "Inne: próby w pozostałych statusach, głównie przelewy czekające na wpłatę i anulowane zamówienia. Nie są porzucone ani opłacone.",
         "paidShareHelp": "Udział opłaconych = opłacone / wszystkie zapisane próby.",
-        "limitations": "To rekordy płatności, a nie unikalni kupujący, wizyty ani pełny lejek sesji. Mogą obejmować powtórne próby, dodatkowe pozycje zamówień i płatności subskrypcyjne; niezapisanych checkoutów tu nie ma. Oczekujące nie są liczone jako porzucone. E-mail gościa może być nieznany (pending@sellf.app). Przypomnienia nie są wysyłane."
+        "limitations": "To rekordy płatności, a nie unikalni kupujący, wizyty ani pełny lejek sesji. Mogą obejmować powtórne próby, dodatkowe pozycje zamówień i płatności subskrypcyjne; niezapisanych checkoutów tu nie ma. Oczekujące nie są liczone jako porzucone. E-mail gościa może być nieznany. Przypomnienia nie są wysyłane."
       },
       "title": "Panel administracyjny",
       "welcome": "Witamy w panelu admina Sellf",
@@ -2772,6 +2773,7 @@
       "orderDetails": {
         "title": "Dane z koszyka",
         "missing": "Dane z koszyka są niekompletne.",
+        "missingModules": {"buyer": "Nabywca: brak danych", "recipient": "Odbiorca: brak danych", "quantity": "Liczba sztuk: brak danych", "phone": "Telefon: brak danych", "participants": "Uczestnicy: do uzupełnienia przez kupującego"},
         "buyer": "Nabywca",
         "recipient": "Odbiorca",
         "phone": "Telefon",
@@ -5579,9 +5581,6 @@
     "failure": "Nie udało się odświeżyć statusu klucza. Spróbuj ponownie za chwilę.",
     "limit": "Ten klucz jest za długi. Wklej klucz zakupu z zamówienia.",
     "freshness": "Status odświeża się co 30 sekund. Wybrany szablon premium wraca do domyślnego wyglądu, gdy jego klucz nie jest już potwierdzony. Bez połączenia sprawdzenie unieważnienia może być opóźnione; płatności i dostęp klientów nadal działają.",
-    "storefront-a": "Szablon A",
-    "storefront-b": "Szablon B",
-    "storefront-c": "Szablon C",
     "states": {
       "valid": "Klucz zweryfikowany",
       "missing": "Dodaj klucz zakupu",
@@ -5992,6 +5991,7 @@
       "status_awaiting_payment": "Oczekuje na przelew",
       "status_completed": "Opłacone",
       "status_cancelled": "Anulowane — nie wysyłaj przelewu",
+      "cancelledHelp": "To zamówienie zostało anulowane. Nie wysyłaj już przelewu. Nie zostanie automatycznie zaksięgowany. Jeśli nadal chcesz kupić, możesz zapłacić online. Przywrócimy zamówienie, jeśli cena i dostępność się nie zmieniły; w przeciwnym razie możesz złożyć nowe zamówienie po aktualnej cenie.",
       "status_refunded": "Zwrócone",
       "status_partially_refunded": "Częściowo zwrócone",
       "status_disputed": "Spór płatniczy",

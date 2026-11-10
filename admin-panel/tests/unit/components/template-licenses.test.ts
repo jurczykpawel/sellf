@@ -65,3 +65,12 @@ it('saves a first key for a template without a confirmation step', async () => {
   fireEvent.submit(key.closest('form')!);
   await waitFor(() => expect(posts()).toHaveLength(1));
 });
+
+it('uses the catalogue names for every premium template in the status list and selector', async () => {
+  setup();
+  await waitFor(() => expect(screen.getByText(pl.templateLicenses.states.valid)).toBeTruthy());
+  for (const label of ['Sklep z główną ofertą', 'Sklep z wyszukiwarką', 'Sklep twórcy']) {
+    expect(screen.getByRole('option', { name: label })).toBeTruthy();
+    expect(screen.getAllByText(label)).toHaveLength(2);
+  }
+});

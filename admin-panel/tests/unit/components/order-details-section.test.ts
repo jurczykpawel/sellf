@@ -45,3 +45,9 @@ describe('admin checkout data section', () => {
     expect(screen.queryByText('Tax ID')).toBeNull();
   });
 });
+
+it('names each missing module and explains deferred participants', () => {
+  show({ details_missing: true, missing_modules: ['participants', 'phone'] }, 'pl');
+  expect(screen.getByRole('alert').textContent).toContain('Uczestnicy: do uzupełnienia przez kupującego');
+  expect(screen.getByRole('alert').textContent).toContain('Telefon: brak danych');
+});
