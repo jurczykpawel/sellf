@@ -16,3 +16,8 @@ it('explains labeled touches and distinguishes the channel', async () => {
  expect(screen.getByText('newsletter')).toBeTruthy(); expect(screen.getByText(pl.admin.payments.attribution.touchHelp)).toBeTruthy();
  expect(screen.getAllByText('E-mail').some(e => e.className.includes('rounded-full'))).toBe(true);
 });
+it('describes a recorded direct visit without campaign fields', async () => {
+ m.get.mockResolvedValue({ success:true, data:{channel:'direct',last:{at:'2026-11-01T12:00:00Z'},first:null,mode:'stored',device_class:'unknown',sessions_count:null} });
+ await act(async () => { render(createElement(AttributionSection,{transactionId:'direct'})); });
+ expect(screen.getByText(pl.admin.payments.attribution.direct)).toBeTruthy();
+});

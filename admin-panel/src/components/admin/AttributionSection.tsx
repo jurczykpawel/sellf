@@ -27,7 +27,7 @@ export default function AttributionSection({ transactionId }: { transactionId: s
   const channelLabel = (channel: string | null) =>
     channel ? (KNOWN_CHANNELS.includes(channel) ? t(`channels.${channel}`) : channel) : '—';
   const d = state.data;
-  const touch = (value: Record<string, string | null> | null) => value && Object.values(value).some(Boolean) ? <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1">
+  const touch = (value: Record<string, string | null> | null) => value && ['source', 'medium', 'campaign', 'content', 'term', 'referrer_host', 'landing_path'].some(field => value[field]) ? <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1">
     {(['source', 'medium', 'campaign', 'content', 'term', 'referrer_host', 'landing_path'] as const).map(field => value[field] ? <div key={field} className="contents"><dt className="text-sf-muted">{t(`fields.${field}`)}</dt><dd className="break-all">{value[field]}</dd></div> : null)}
   </dl> : t('direct');
 
