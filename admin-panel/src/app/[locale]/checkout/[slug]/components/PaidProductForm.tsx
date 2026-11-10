@@ -6,7 +6,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { CheckoutElementsProvider } from '@stripe/react-stripe-js/checkout';
 import EventSessions from '@/components/checkout/EventSessions';
 import { selectEventSession } from '@/lib/events/presentation';
-import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
+import { storedCheckoutProfileSchema } from '@/lib/checkout-modules/profile';
 import BankTransferForm from '@/components/checkout/BankTransferForm';
 import { getTransferAvailability } from '@/lib/orders/transfer-public';
 import { availableTransferMethod, canUseBankTransfer, transferBlockedBySession, transferFitsSession } from '@/lib/orders/bank-transfer-config';
@@ -83,7 +83,7 @@ const noopSubscribe = () => () => {};
 export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, collectTermsOfService, bundleComponents, layoutMode = 'standalone', afterCheckoutSlot }: PaidProductFormProps) {
   const t = useTranslations('checkout');
   const locale = useLocale();
-  const parsedProfile = checkoutProfileSchema.safeParse(product.checkout_profile);
+  const parsedProfile = storedCheckoutProfileSchema.safeParse(product.checkout_profile);
   const quantityConfig = parsedProfile.success ? parsedProfile.data.modules.find(module => module.id === 'quantity') : undefined;
   const [quantity, setQuantity] = useState(quantityConfig?.min ?? 1);
   const [quantityInput, setQuantityInput] = useState(String(quantity));

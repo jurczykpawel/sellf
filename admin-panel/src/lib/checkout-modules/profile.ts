@@ -16,11 +16,21 @@ export const checkoutProfileSchema = z.object({ v: z.literal(1), modules: z.arra
   if (new TextEncoder().encode(JSON.stringify(p)).length > 8192) issue('profile_too_large');
 });
 export type CheckoutProfile = z.infer<typeof checkoutProfileSchema>;
-export function parseCheckoutProfile(value: unknown, product: Record<string, unknown> = {}, gusEnabled = false) {
+export function parseCheckoutProfile(value: unknown, product: Record<string, unknown> = {}) {
   return checkoutProfileSchema.superRefine((p, ctx) => {
     const issue = (message: string) => ctx.addIssue({ code: 'custom', message });
     if ((product.checkout_template ?? 'default') !== 'default' || (product.product_type ?? 'one_time') !== 'one_time' || product.allow_custom_price === true || product.is_bundle === true) issue('profile_product_incompatible');
     if (product.issue_license_on_purchase === true && p.modules.some(m => m.id === 'quantity' && m.max > 1)) issue('license_quantity');
-    if (!gusEnabled && p.modules.some(m => m.id === 'buyer' && m.gus)) issue('gus_required');
   }).safeParse(value);
 }
+
+/** Reads persisted profiles written before company lookup became shop-wide. */
+export const storedCheckoutProfileSchema = z.preprocess(value => {
+  if (!value || typeof value !== 'object' || !('modules' in value) || !Array.isArray(value.modules)) return value;
+  return { ...value, modules: value.modules.map(module => {
+    if (!module || typeof module !== 'object' || module.id !== 'buyer') return module;
+    const { gus, ...config } = module;
+    void gus;
+    return config;
+  }) };
+}, checkoutProfileSchema);

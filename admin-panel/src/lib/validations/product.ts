@@ -640,7 +640,7 @@ export function validateCreateProduct(data: unknown): ValidationResult {
   errors.push(...validateSubscriptionFields(input).errors);
 
   if (input.checkout_profile != null) {
-    const profile = parseCheckoutProfile(input.checkout_profile, input, true);
+    const profile = parseCheckoutProfile(input.checkout_profile, input);
     if (!profile.success) errors.push(...profile.error.issues.map(i => `checkout_profile: ${i.message}`));
   }
 
@@ -830,7 +830,7 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
   }
 
   if (input.checkout_profile != null) {
-    const profile = parseCheckoutProfile(input.checkout_profile, input, true);
+    const profile = parseCheckoutProfile(input.checkout_profile, input);
     if (!profile.success) errors.push(...profile.error.issues.map(i => `checkout_profile: ${i.message}`));
   }
 

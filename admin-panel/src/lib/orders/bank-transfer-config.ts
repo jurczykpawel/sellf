@@ -1,6 +1,6 @@
 /** Transfer settings and availability. @see checkout-modules/buyer.ts */
 import { z } from 'zod';
-import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';
+import { storedCheckoutProfileSchema } from '@/lib/checkout-modules/profile';
 export function normalizeBankAccount(value: string): string | null {
   const compact = value.replace(/\s/g, '').toUpperCase();
   const iban = /^\d{26}$/.test(compact) ? `PL${compact}` : compact;
@@ -40,7 +40,7 @@ export function bankTransferFieldErrors(values: unknown): Record<string, string>
   return out;
 }
 export function canUseBankTransfer(enabled: boolean, rawProfile: unknown, buyerType: unknown): boolean {
-  const profile = checkoutProfileSchema.safeParse(rawProfile);
+  const profile = storedCheckoutProfileSchema.safeParse(rawProfile);
   return enabled && profile.success && profile.data.modules.some(m => m.id === 'buyer'
     && m.bank_transfer_for?.some(t => t === buyerType) && m.types.some(t => t === buyerType));
 }

@@ -221,7 +221,7 @@ describe('product editorial metadata', () => {
 describe('checkout profile contracts', () => {
   const id = '11111111-1111-4111-8111-111111111111';
   const checkout_profile = { v: 1, modules: [
-    { id: 'buyer', types: ['person', 'organization'], gus: false },
+    { id: 'buyer', types: ['person', 'organization'] },
     { id: 'recipient', for: ['organization'] },
     { id: 'phone', required: true },
     { id: 'quantity', min: 1, max: 100, mode: 'hidden' },
@@ -235,6 +235,11 @@ describe('checkout profile contracts', () => {
     const update = tools.get('update_product')!;
     await update.handler(z.object(update.schema).parse({ id, checkout_profile }));
     expect(api.patch).toHaveBeenCalledWith(`/api/v1/products/${id}`, { checkout_profile });
+  });
+  it.each([true, false])('rejects removed buyer gus:%s configuration', gus => {
+    for (const tool of ['create_product', 'update_product']) {
+      expect(tools.get(tool)!.schema.checkout_profile.safeParse({ v: 1, modules: [{ id: 'buyer', types: ['organization'], gus }] }).success).toBe(false);
+    }
   });
   it('accepts the add-participants-later flag on the participants module', () => {
     const update = tools.get('update_product')!;

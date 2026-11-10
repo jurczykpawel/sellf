@@ -10,7 +10,7 @@ import type { CheckoutProfile } from '@/lib/checkout-modules/profile';
 import type { UseInvoiceDataReturn } from '@/hooks/useInvoiceData';
 import en from '@/messages/en.json';
 
-const profile: CheckoutProfile = { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false }, { id: 'recipient', for: ['organization'] }] };
+const profile: CheckoutProfile = { v: 1, modules: [{ id: 'buyer', types: ['organization'] }, { id: 'recipient', for: ['organization'] }] };
 const invoice = { fullName: '', companyName: '', nip: '', address: '', city: '', postalCode: '', country: 'PL' } as UseInvoiceDataReturn;
 afterEach(cleanup);
 function Harness() {
@@ -81,7 +81,7 @@ it('renders a single phone label with its associated input', () => {
 });
 
 const hydrationProfile: CheckoutProfile = { v: 1, modules: [
-  { id: 'buyer', types: ['person', 'organization'], gus: false },
+  { id: 'buyer', types: ['person', 'organization'] },
   { id: 'recipient', for: ['organization'] }, { id: 'phone', required: true },
   { id: 'participants', required: true, prefill_from_buyer: false },
 ] };
@@ -137,4 +137,12 @@ it('steps from the nearest valid quantity when the typed value is invalid and st
   fireEvent.click(screen.getByRole('button', { name: 'Increase quantity' }));
   expect(onChange).toHaveBeenLastCalledWith('2');
   expect(screen.getByText('From 2 to 5')).toBeTruthy();
+});
+
+it('looks up the buyer Polish NIP without a product lookup setting', () => {
+  const handleNIPBlur = vi.fn();
+  const state = { buyerType: 'organization', person: { first_name: '', last_name: '', email: '' }, party: { company_name: '', nip: '5260250274', address: '', postal_code: '', city: '', country: 'PL' }, differs: false } as ReturnType<typeof useCheckoutProfileValues>;
+  render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(CheckoutProfileFields, { profile, state, invoice: { ...invoice, handleNIPBlur }, errors: [], disabled: false })));
+  fireEvent.blur(document.getElementById('buyer.nip')!);
+  expect(handleNIPBlur).toHaveBeenCalledOnce();
 });

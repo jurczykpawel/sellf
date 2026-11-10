@@ -24,6 +24,15 @@ Profil obsługuje domyślny szablon koszyka i produkty jednorazowe. Subskrypcje,
 płatność własną kwotą, zestawy i OTO nie są obsługiwane. Produkt wydający licencje nie może
 mieć ilości większej od jednego. Nieprawidłowe kombinacje są odrzucane przy zapisie.
 
+## Pobieranie danych firmy
+
+Klucz GUS ustawiasz raz w **Ustawienia → Integracje**. Przy włączonej integracji dane
+nabywcy są pobierane dla poprawnego polskiego NIP-u w zwykłym koszyku i w koszyku
+z profilem. Bez klucza dane można wpisać ręcznie; brak konfiguracji nie wyświetla błędu.
+Produkt nie ma osobnego przełącznika GUS. Dawne wartości `buyer.gus` w zapisanych
+profilach są ignorowane i usuwane przy aktualizacji bazy. W zapisach przez API v1 oraz
+MCP pomiń to pole. Jest odrzucane tak jak inne nieznane pola profilu.
+
 ## Przykład: pięć miejsc na szkoleniu
 
 Gmina kupuje pięć miejsc dla szkoły. Włącz Nabywcę (organizacja), Odbiorcę, wymagany Telefon,
