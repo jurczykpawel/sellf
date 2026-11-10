@@ -1,5 +1,8 @@
 /** Private template key adapters and localized admin entry. */
 import { randomBytes } from 'node:crypto';
+import { STOREFRONT_TEMPLATES } from '@/lib/storefront-templates/registry';
+import en from '@/messages/en.json';
+import pl from '@/messages/pl.json';
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { insertTestApiKey } from './helpers/api-key';
@@ -45,6 +48,8 @@ test('independent license scopes, bounded inputs and EN/PL key entry', async ({ 
       const title = locale === 'en' ? 'Premium template keys' : 'Klucze szablonów premium';
       await page.getByText(title, { exact: true }).click();
       await expect(page.getByLabel(locale === 'en' ? 'Purchase key' : 'Klucz zakupu', { exact: true })).toHaveAttribute('type', 'password');
+      const labels = (['storefront-a', 'storefront-b', 'storefront-c'] as const).map(id => STOREFRONT_TEMPLATES[id].label[locale === 'pl' ? 'pl' : 'en']);
+      for (const label of labels) await expect(page.getByRole('list', { name: (locale === 'pl' ? pl : en).templateLicenses.statuses }).getByText(label, { exact: true })).toBeVisible();
       for (const mode of ['light', 'dark'] as const) {
         await page.emulateMedia({ colorScheme: mode });
         for (const width of [1440, 390]) {

@@ -5579,9 +5579,6 @@
     "failure": "Nie udało się odświeżyć statusu klucza. Spróbuj ponownie za chwilę.",
     "limit": "Ten klucz jest za długi. Wklej klucz zakupu z zamówienia.",
     "freshness": "Status odświeża się co 30 sekund. Wybrany szablon premium wraca do domyślnego wyglądu, gdy jego klucz nie jest już potwierdzony. Bez połączenia sprawdzenie unieważnienia może być opóźnione; płatności i dostęp klientów nadal działają.",
-    "storefront-a": "Szablon A",
-    "storefront-b": "Szablon B",
-    "storefront-c": "Szablon C",
     "states": {
       "valid": "Klucz zweryfikowany",
       "missing": "Dodaj klucz zakupu",

@@ -5579,9 +5579,6 @@
     "failure": "Could not update key status. Try again shortly.",
     "limit": "This key is too long. Paste the purchase key from your order.",
     "freshness": "Status refreshes every 30 seconds. A selected premium template falls back to the default storefront if its key is no longer confirmed. Offline revocation checks may be delayed; checkout and buyer access remain available.",
-    "storefront-a": "Template A",
-    "storefront-b": "Template B",
-    "storefront-c": "Template C",
     "states": {
       "valid": "Key verified",
       "missing": "Add your purchase key",
