@@ -148,7 +148,7 @@ export function AffiliateApplication({ program, locale }: { program: Application
     setBusy(true);
     try {
       const result = await applyToProgram(parsed.data);
-      if (result.success) setDone(true);
+      if (result.success) { setDone(true); window.dispatchEvent(new Event('affiliate-membership-changed')); }
       else if (result.errorCode === 'CODE_TAKEN') { setErrors({ code: t.codeTaken }); formRef.current?.querySelector<HTMLInputElement>('[name=code]')?.focus(); }
       else setNotice(message(result, t));
     } catch { setNotice(t.error); } finally { setToken(''); setReset(value => value + 1); setBusy(false); }

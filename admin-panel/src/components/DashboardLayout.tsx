@@ -19,6 +19,7 @@ import SiteMenu from './SiteMenu'
 import DemoBanner from './DemoBanner'
 import UpdateNotificationModal from './UpdateNotificationModal'
 import TutorialMenu from '@/components/tutorials/TutorialMenu'
+import { getApplicationProgram } from '@/lib/affiliates/admin/actions'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -252,6 +253,24 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
     }
   }, [user, isAdmin])
 
+  const [affiliateNavigation, setAffiliateNavigation] = useState<{ userId: string; enabled: boolean; hasMembership: boolean } | null>(null)
+  const userId = user?.id
+  useEffect(() => {
+    if (!userId) return
+    let active = true
+    let latestRequest = 0
+    const refresh = () => {
+      const request = ++latestRequest
+      void getApplicationProgram().then(result => {
+        if (active && request === latestRequest) setAffiliateNavigation({ userId, enabled: !!(result.success && result.data?.enabled), hasMembership: !!(result.success && result.data?.applicationStatus) })
+      }).catch(() => { if (active && request === latestRequest) setAffiliateNavigation(null) })
+    }
+    refresh()
+    window.addEventListener('affiliate-membership-changed', refresh)
+    return () => { active = false; window.removeEventListener('affiliate-membership-changed', refresh) }
+  }, [userId, pathname])
+  const affiliateEnabled = affiliateNavigation?.userId === userId && affiliateNavigation?.enabled
+
   // Navigation config — grouped admin links (see lib/navigation/admin-nav.ts).
   const adminIcons: Record<AdminNavIcon, React.ReactNode> = {
     dashboard: Icons.dashboard, payments: Icons.payments, refunds: Icons.refunds, licenses: Icons.licenses,
@@ -272,8 +291,8 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
   }));
 
   const userLinks = [
-    { href: '/my-affiliate', label: t('myAffiliate'), icon: Icons.users },
-    { href: '/affiliates/apply', label: t('affiliateApply'), icon: Icons.users },
+    ...(affiliateEnabled ? [{ href: '/my-affiliate', label: t('myAffiliate'), icon: Icons.users }] : []),
+    ...(affiliateEnabled && !affiliateNavigation?.hasMembership ? [{ href: '/affiliates/apply', label: t('affiliateApply'), icon: Icons.users }] : []),
     { href: '/my-products', label: t('myProducts'), icon: Icons.myProducts },
     { href: '/my-purchases', label: t('myPurchases', { defaultValue: 'My Purchases' }), icon: Icons.purchases },
     { href: '/', label: t('store'), icon: Icons.store },
