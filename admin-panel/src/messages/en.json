@@ -4,6 +4,7 @@
     "description": "This return address is not allowed. Return to the seller’s page and contact them if the problem persists."
   },
   "invoicing": {
+    "manualCorrectionHelp": "The invoice was marked as issued outside Sellf. Issue a correction in your invoicing system, then record it here.",
     "title": "Invoicing",
     "column": "Invoice",
     "provider": "Provider",
@@ -2764,6 +2765,41 @@
       "statusError": "Failed to toggle bump status"
     },
     "payments": {
+      "event": {
+        "purchasedDate": "Date at purchase",
+        "title": "Event",
+        "date": "Date and time",
+        "venue": "Venue",
+        "online": "Event link",
+        "tier": "Price tier",
+        "tierNumber": "Tier {number}",
+        "quantity": "Seats",
+        "status": "Reservation",
+        "error": "Could not load event details.",
+        "statuses": {
+          "held": "Held",
+          "confirmed": "Confirmed",
+          "released": "Released"
+        }
+      },
+      "partner": {
+        "title": "Partner",
+        "partner": "Partner",
+        "coupon": "Coupon",
+        "rate": "Rate",
+        "commission": "Commission after adjustments",
+        "original": "Originally accrued",
+        "paidAmount": "Paid out",
+        "status": "Status",
+        "error": "Could not load commission details.",
+        "statuses": {
+          "reserved": "Payout in progress",
+          "accrued": "Accrued",
+          "held": "Held",
+          "reversed": "Reversed",
+          "paid": "Paid"
+        }
+      },
       "missingParticipants": {
         "title": "{count, plural, one {# order is missing participants} other {# orders are missing participants}}",
         "help": "The buyer chose to add participants after payment. Up to two reminder e-mails with a personal link are sent automatically (24 hours after purchase and, for events, 2 days before the event); the list appears in the order once the buyer saves it.",
@@ -2873,7 +2909,7 @@
         "loadingMore": "Loading..."
       },
       "attribution": {
-        "title": "Source",
+        "title": "Where the buyer came from",
         "none": "No source recorded for this order",
         "error": "Could not load the source",
         "channel": "Channel",
@@ -2906,12 +2942,25 @@
           "unknown": "Unknown device"
         },
         "modes": {
-          "url": "From the checkout link only (no cookie consent)",
+          "url": "The first visit is unknown because cookie consent was not given. The source comes from the link used at purchase.",
           "stored": "First and last touch (with consent)",
           "none": "Not collected"
+        },
+        "touchHelp": "First touch is the first recorded visit. Last touch is the visit when the order was placed.",
+        "fields": {
+          "source": "Source",
+          "medium": "Medium",
+          "campaign": "Campaign",
+          "content": "Content",
+          "term": "Search term",
+          "referrer_host": "Referring site",
+          "landing_path": "Landing page"
         }
       },
       "transactions": {
+        "licenseIssued": "License issued",
+        "licenseError": "Could not check the license.",
+        "purchaseDate": "Purchase date and time",
         "titleSentence": "Payment transactions",
         "title": "Payment Transactions",
         "transactionId": "Transaction ID",
@@ -3618,6 +3667,7 @@
       "keyPlaceholder": "payload.signature"
     },
     "issuedLicenses": {
+      "showAllLicenses": "Show all licenses",
       "invalidDomain": "Enter a valid domain, e.g. example.com.",
       "searchTooLong": "Search must be at most 254 characters.",
       "invalidEmail": "Enter a valid email address, e.g. jan@example.com.",
@@ -5918,6 +5968,11 @@
     "fromPrice": "from {price}"
   },
   "bankTransfer": {
+    "markPaidPending": "Recording payment…",
+    "cancelPending": "Cancelling…",
+    "markInvoiceIssuedPending": "Recording invoice…",
+    "acceptLatePending": "Accepting payment…",
+
     "transferTooLate": "Bank transfer is not available for this date: the event starts in less than {hours} hours, which is how long a seat is held until the transfer is booked. Please pay online.",
     "sessionRuleHelp": "Transfer is not offered for an event date that starts before the reservation would end (release time in hours). Buyers see an explanation and can pay online.",
     "errors": {"iban": "Enter a Polish account number (26 digits, with or without PL) with a valid checksum.", "holder_required": "Enter the transfer recipient when transfers are enabled.", "markup": "Remove the < and > characters (HTML tags are not allowed).", "control_chars": "Remove invisible control characters.", "too_long": "At most 200 characters.", "template": "The template must contain '{order_number}'.", "range": "Enter a whole number from {min} to {max}.", "release_after_reminder": "The reservation release must come after the reminder."},

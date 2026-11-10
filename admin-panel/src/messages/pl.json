@@ -4,6 +4,7 @@
     "description": "Adres powrotu nie jest dozwolony. Wróć na stronę sprzedawcy i skontaktuj się z nim, jeśli problem się powtarza."
   },
   "invoicing": {
+    "manualCorrectionHelp": "Faktura została oznaczona jako wystawiona poza Sellf. Wystaw korektę w swoim systemie fakturowym, a następnie odnotuj ją tutaj.",
     "title": "Faktury",
     "column": "Faktura",
     "provider": "Dostawca",
@@ -2764,6 +2765,41 @@
       "statusError": "Nie udało się zmienić statusu bumpa"
     },
     "payments": {
+      "event": {
+        "purchasedDate": "Termin w chwili zakupu",
+        "title": "Wydarzenie",
+        "date": "Termin",
+        "venue": "Miejsce",
+        "online": "Link do wydarzenia",
+        "tier": "Próg ceny",
+        "tierNumber": "Próg {number}",
+        "quantity": "Liczba miejsc",
+        "status": "Rezerwacja",
+        "error": "Nie udało się pobrać terminu.",
+        "statuses": {
+          "held": "Zarezerwowana",
+          "confirmed": "Potwierdzona",
+          "released": "Zwolniona"
+        }
+      },
+      "partner": {
+        "title": "Partner",
+        "partner": "Partner",
+        "coupon": "Kupon",
+        "rate": "Stawka",
+        "commission": "Prowizja po korektach",
+        "original": "Naliczono pierwotnie",
+        "paidAmount": "Wypłacono",
+        "status": "Stan",
+        "error": "Nie udało się pobrać prowizji.",
+        "statuses": {
+          "reserved": "W trakcie wypłaty",
+          "accrued": "Naliczona",
+          "held": "Wstrzymana",
+          "reversed": "Cofnięta",
+          "paid": "Wypłacona"
+        }
+      },
       "missingParticipants": {
         "title": "{count, plural, one {# zamówienie bez uczestników} few {# zamówienia bez uczestników} many {# zamówień bez uczestników} other {# zamówienia bez uczestników}}",
         "help": "Kupujący wybrał uzupełnienie uczestników po zapłacie. Maksymalnie dwa przypomnienia z osobistym linkiem wysyłają się automatycznie (po 24 godzinach od zakupu i, dla wydarzeń, na 2 dni przed wydarzeniem); lista pojawi się w zamówieniu, gdy kupujący ją zapisze.",
@@ -2873,7 +2909,7 @@
         "loadingMore": "Wczytywanie..."
       },
       "attribution": {
-        "title": "Źródło",
+        "title": "Skąd przyszedł kupujący",
         "none": "Brak zapisanego źródła dla tego zamówienia",
         "error": "Nie udało się wczytać źródła",
         "channel": "Kanał",
@@ -2906,12 +2942,25 @@
           "unknown": "Nieznane urządzenie"
         },
         "modes": {
-          "url": "Tylko z linku do koszyka (bez zgody na ciasteczka)",
+          "url": "Pierwsza wizyta nieznana — brak zgody na ciasteczka. Źródło zapisano z linku użytego przy zakupie.",
           "stored": "Pierwszy i ostatni kontakt (za zgodą)",
           "none": "Nie zebrano"
+        },
+        "touchHelp": "Pierwszy kontakt to pierwsza zapisana wizyta. Ostatni kontakt to wizyta, podczas której złożono zamówienie.",
+        "fields": {
+          "source": "Źródło",
+          "medium": "Medium",
+          "campaign": "Kampania",
+          "content": "Treść",
+          "term": "Słowo kluczowe",
+          "referrer_host": "Strona odsyłająca",
+          "landing_path": "Strona wejścia"
         }
       },
       "transactions": {
+        "licenseIssued": "Licencja wystawiona",
+        "licenseError": "Nie udało się sprawdzić licencji.",
+        "purchaseDate": "Data i godzina zakupu",
         "titleSentence": "Transakcje płatnicze",
         "title": "Transakcje Płatnicze",
         "transactionId": "ID Transakcji",
@@ -3618,6 +3667,7 @@
       "keyPlaceholder": "payload.podpis"
     },
     "issuedLicenses": {
+      "showAllLicenses": "Pokaż wszystkie licencje",
       "invalidDomain": "Podaj poprawną domenę, np. example.com.",
       "searchTooLong": "Wyszukiwanie może mieć maksymalnie 254 znaki.",
       "invalidEmail": "Podaj poprawny adres e-mail, np. jan@example.com.",
@@ -5918,6 +5968,11 @@
     "fromPrice": "od {price}"
   },
   "bankTransfer": {
+    "markPaidPending": "Zapisywanie płatności…",
+    "cancelPending": "Anulowanie…",
+    "markInvoiceIssuedPending": "Zapisywanie faktury…",
+    "acceptLatePending": "Przyjmowanie płatności…",
+
     "transferTooLate": "Przelew tradycyjny jest niedostępny dla tego terminu: wydarzenie zaczyna się wcześniej niż za {hours} godz., a tyle trwa rezerwacja miejsca do zaksięgowania przelewu. Zapłać online.",
     "sessionRuleHelp": "Przelew nie jest oferowany na termin wydarzenia, który zaczyna się wcześniej niż koniec rezerwacji (czas zwolnienia w godzinach). Kupujący widzi wtedy wyjaśnienie i może zapłacić online.",
     "errors": {"iban": "Podaj polski numer rachunku (26 cyfr, z PL lub bez) z poprawną sumą kontrolną.", "holder_required": "Podaj odbiorcę przelewu, gdy przelew jest włączony.", "markup": "Usuń znaki < i > (znaczniki HTML nie są dozwolone).", "control_chars": "Usuń niewidoczne znaki sterujące.", "too_long": "Maksymalnie 200 znaków.", "template": "Szablon musi zawierać '{order_number}'.", "range": "Podaj liczbę całkowitą od {min} do {max}.", "release_after_reminder": "Zwolnienie rezerwacji musi być później niż przypomnienie."},

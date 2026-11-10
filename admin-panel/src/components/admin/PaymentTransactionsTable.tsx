@@ -17,6 +17,9 @@ import { currencyExponent, fromMinorUnits } from '@/lib/currency/minor-units';
 import { transferDeadline, formatTransferDeadline } from '@/lib/orders/transfer-format';
 import BaseModal from '@/components/ui/BaseModal';
 import BankTransferSection from '@/components/admin/BankTransferSection';
+import PaymentLicenseLink from '@/components/admin/PaymentLicenseLink';
+import PaymentEventSection from '@/components/admin/PaymentEventSection';
+import PaymentPartnerSection from '@/components/admin/PaymentPartnerSection';
 import AttributionSection from '@/components/admin/AttributionSection';
 import InvoiceSection from '@/components/admin/InvoiceSection';
 import OrderDetailsSection from '@/components/admin/OrderDetailsSection';
@@ -328,6 +331,7 @@ export default function PaymentTransactionsTable({
                   {t(`statuses.${detailsTransaction.status}`)}
                 </div>
               </div>
+              <div><div className="text-xs font-medium uppercase tracking-wider text-sf-muted">{t('purchaseDate')}</div><div className="text-sm text-sf-heading">{formatAdminDate(detailsTransaction.created_at, locale)}</div></div>
               {detailsTransaction.stripe_payment_intent_id && (
                 <div>
                   <div className="text-xs font-medium uppercase tracking-wider text-sf-muted">
@@ -375,9 +379,11 @@ export default function PaymentTransactionsTable({
               </div>
             </div>
 
+<PaymentEventSection transactionId={detailsTransaction.id} currency={detailsTransaction.currency} />
+<PaymentPartnerSection transactionId={detailsTransaction.id} />
 <AttributionSection transactionId={detailsTransaction.id} />
 <BankTransferSection transaction={detailsTransaction} onRefresh={async () => { await onRefreshData?.(); }} />
-<InvoiceSection transactionId={detailsTransaction.id} status={detailsTransaction.status} invoice={detailsTransaction.invoice} onRefresh={() => { setDetailsTransactionId(null); onRefreshData?.(); }} />
+<InvoiceSection transactionId={detailsTransaction.id} status={detailsTransaction.status} invoice={detailsTransaction.invoice} invoiceHoldAt={detailsTransaction.invoice_hold_at} onRefresh={() => { setDetailsTransactionId(null); onRefreshData?.(); }} />
             <OrderDetailsSection
               details={detailsTransaction.order_details}
               customFields={formatCustomFieldsForDisplay(detailsTransaction.custom_field_values, detailsTransaction.product?.custom_checkout_fields, locale)}
@@ -421,14 +427,7 @@ export default function PaymentTransactionsTable({
             </div>
 
             <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-              {detailsTransaction.customer_email && (detailsTransaction.product?.id ?? detailsTransaction.product_id) && (
-                <a
-                  href={`/dashboard/licenses?${new URLSearchParams({ email: detailsTransaction.customer_email, product: detailsTransaction.product?.id ?? detailsTransaction.product_id })}`}
-                  className="text-sm font-medium text-sf-accent hover:text-sf-accent-hover underline"
-                >
-                  {t('issueLicense')}
-                </a>
-              )}
+              <PaymentLicenseLink transactionId={detailsTransaction.id} />
               <button
                 onClick={() => setDetailsTransactionId(null)}
                 className="bg-sf-accent-bg hover:bg-sf-accent-hover text-white font-semibold py-2 px-4 rounded-lg transition-colors"

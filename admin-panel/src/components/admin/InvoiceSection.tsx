@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { getInvoiceSettings, mutateInvoice } from '@/lib/actions/invoicing';
 import type { InvoiceInfo } from '@/types/payment';
 
-export default function InvoiceSection({ transactionId, status, invoice, onRefresh }: { transactionId: string; status: string; invoice?: InvoiceInfo | null; onRefresh?(): void }) {
+export default function InvoiceSection({ transactionId, status, invoice, invoiceHoldAt, onRefresh }: { transactionId: string; status: string; invoice?: InvoiceInfo | null; invoiceHoldAt?: string | null; onRefresh?(): void }) {
   const t = useTranslations('invoicing');
   const [busy, setBusy] = useState(false), [message, setMessage] = useState('');
   const [manual, setManual] = useState(false);
@@ -19,7 +19,7 @@ export default function InvoiceSection({ transactionId, status, invoice, onRefre
     <h4 className="font-semibold">{t('title')}</h4>
     {invoice && <><p>{t(invoice.status)}</p>{invoice.view_url && <a className="underline" href={invoice.view_url} target="_blank" rel="noreferrer">{invoice.number}</a>}{invoice.error && <p>{invoice.error}</p>}</>}
     {(!invoice && manual && ['completed','partially_refunded','awaiting_payment'].includes(status) || invoice?.status === 'failed') && <button className="border p-2" disabled={busy || Boolean(invoice && invoice.attempts >= 5)} onClick={() => run('issue')}>{t(invoice ? 'retry' : 'issue')}</button>}
-    {invoice?.status === 'issued' && ['refunded','cancelled'].includes(status) && <><p>{t('correctionHelp')}</p><button className="border p-2" disabled={busy} onClick={() => run('corrected')}>{t('correct')}</button></>}
+    {(invoice?.status === 'issued' || (!invoice && invoiceHoldAt)) && ['refunded','cancelled'].includes(status) && <><p>{t(!invoice ? 'manualCorrectionHelp' : 'correctionHelp')}</p><button className="border p-2" disabled={busy} onClick={() => run('corrected')}>{t('correct')}</button></>}
     <p role="status">{message}</p>
   </section>;
 }

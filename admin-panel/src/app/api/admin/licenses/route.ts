@@ -12,6 +12,7 @@ import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
 const listSchema = z.object({
   page: z.coerce.number().int().min(1).max(10_000).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
+  licenseId: z.string().uuid().optional(),
   productId: z.string().uuid().optional(),
   source: z.enum(['purchase', 'manual', 'api']).optional(),
   status: z.enum(['active', 'expired', 'revoked']).optional(),
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!parsed.success) return NextResponse.json({ error: 'Invalid query' }, { status: 400, headers: noStore });
 
   const admin = createAdminClient();
-  const { page, limit, productId, source, status, search } = parsed.data;
+  const { page, limit, productId, source, status, search, licenseId } = parsed.data;
   const from = (page - 1) * limit;
   const now = new Date().toISOString();
   let query = admin
@@ -89,6 +90,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     .select('id, product_id, email, order_id, kid, issued_at, expires_at, revoked_at, revoked_by_dispute_id, issuance_source, license_domain, products(name, slug, license_tier)', { count: 'exact' })
     .order('issued_at', { ascending: false })
     .range(from, from + limit - 1);
+  if (licenseId) query = query.eq('id', licenseId);
   if (productId) query = query.eq('product_id', productId);
   if (source) query = query.eq('issuance_source', source);
   if (status === 'revoked') query = query.not('revoked_at', 'is', null);

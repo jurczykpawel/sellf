@@ -10,7 +10,7 @@ import { checkFeature } from '@/lib/license/resolve';
 import LicensesPageContent from '@/components/admin/LicensesPageContent';
 
 interface LicensesPageProps {
-  searchParams: Promise<{ email?: string; product?: string; q?: string }>;
+  searchParams: Promise<{ email?: string; product?: string; q?: string; license?: string }>;
 }
 
 export default async function LicensesPage({ searchParams }: LicensesPageProps) {
@@ -33,6 +33,7 @@ export default async function LicensesPage({ searchParams }: LicensesPageProps) 
         initialEmail={pick(params.email)}
         initialProductId={pick(params.product)}
         initialSearch={pick(params.q)}
+        initialLicenseId={pick(params.license)}
       />
     </div>
   );

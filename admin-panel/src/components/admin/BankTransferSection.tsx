@@ -1,6 +1,7 @@
 'use client';
 /** Transfer administration uses the same operation as API v1. @see lib/orders/bank-transfer-actions.ts */
-import { useState, useId } from 'react';
+import { useState, useId, useRef } from 'react';
+import { LoaderCircle } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import TutorialHelpButton from '@/components/tutorials/TutorialHelpButton';
 import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
@@ -9,6 +10,8 @@ import { updateBankTransfer } from '@/lib/orders/bank-transfer-actions';
 import { fromMinorUnits, toMinorUnits, currencyExponent } from '@/lib/currency/minor-units';
 import { transferDeadline } from '@/lib/orders/transfer-format';
 import type { PaymentTransaction } from '@/types/payment';
+const buttonStyle = 'inline-flex min-h-11 items-center justify-center gap-2 rounded px-4 py-2 font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:opacity-50 disabled:cursor-not-allowed';
+const primaryButton = `${buttonStyle} bg-sf-accent-bg text-sf-inverse hover:bg-sf-accent-hover`;
 const input = 'block rounded border border-sf-border bg-sf-input p-2';
 export default function BankTransferSection({ transaction: tx, onRefresh }: { transaction: PaymentTransaction; onRefresh(): void | Promise<void> }) {
   const t = useTranslations('bankTransfer'), locale = useLocale();
@@ -16,25 +19,31 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
   const amountErrorId = useId();
   const [amountError, setAmountError] = useState('');
   const [lateReason, setLateReason] = useState('');
-  const [busy, setBusy] = useState(false), [message, setMessage] = useState('');
+  const lock = useRef(false);
+  const [pending, setPending] = useState<string | null>(null);
+  const busy = pending !== null;
+  const [message, setMessage] = useState('');
+  const progress = (action: string, label: string) => <>{pending === action && <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" />}{t(pending === action ? `${label}Pending` : label)}</>;
   const date = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
   // Receipt date window (UTC days, as sent to the server): order day … today. @see supabase/tests/transfer-paid-at-window.sql
   const orderDay = tx.created_at ? tx.created_at.slice(0, 10) : undefined, today = new Date().toISOString().slice(0, 10);
   const failure = (code?: string) => t(code === 'paid_at_before_order' ? 'paidAtBeforeOrder' : code === 'paid_at_future' ? 'paidAtFuture' : 'operationError');
   async function run(action: 'mark-paid' | 'cancel' | 'invoice-issued' | 'accept-late') {
+    if (lock.current) return;
     setMessage('');
     setAmountError('');
     if ((action === 'mark-paid' || action === 'accept-late') && toMinorUnits(Number(amount), tx.currency) !== tx.amount) { setAmountError(t('amountMismatch')); return; }
     if ((action === 'mark-paid' || action === 'accept-late') && orderDay && paidAt && paidAt < orderDay) { setMessage(failure('paid_at_before_order')); return; }
     if ((action === 'mark-paid' || action === 'accept-late') && paidAt > today) { setMessage(failure('paid_at_future')); return; }
-    setBusy(true);
+    lock.current = true;
+    setPending(action);
     try {
       // The receipt date is only parsed for payment actions; an empty date field must not break cancellation.
       const paid = () => ({ amount: toMinorUnits(Number(amount), tx.currency), paidAt: new Date(`${paidAt}T00:00:00Z`).toISOString() });
       const body = action === 'cancel' ? { action, reason } : action === 'invoice-issued' ? { action }
         : action === 'accept-late' ? { action: 'mark-paid', ...paid(), acceptCancelled: true, reason: lateReason } : { action, ...paid() };
       const r = await updateBankTransfer(tx.id, body); if (r.success) await onRefresh(); else setMessage(failure('code' in r && typeof r.code === 'string' ? r.code : undefined));
-    } catch { setMessage(t('operationError')); } finally { setBusy(false); }
+    } catch { setMessage(t('operationError')); } finally { lock.current = false; setPending(null); }
   }
   if (tx.payment_provider !== 'bank_transfer') return null;
   const paidFields = <>
@@ -48,11 +57,11 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
     {tx.status === 'awaiting_payment' && <div className="space-y-3">
       <form data-tour="unpaid-mark-paid" onSubmit={e => { e.preventDefault(); void run('mark-paid'); }} className="flex flex-wrap gap-3 items-end">
         {paidFields}
-        <button disabled={busy} className="rounded bg-sf-accent-bg text-sf-inverse p-2">{t('markPaid')}</button>
+        <button aria-busy={busy} disabled={busy} className={primaryButton}>{progress('mark-paid', 'markPaid')}</button>
       </form>
       <form data-tour="unpaid-cancel" onSubmit={e => { e.preventDefault(); void run('cancel'); }} className="flex flex-wrap items-end gap-3">
         <label>{t('reason')}<input className={input} required maxLength={1000} value={reason} onChange={e => setReason(e.target.value)} /></label>
-        <button disabled={busy || !reason.trim()} className="rounded border border-sf-danger text-sf-danger p-2">{t('cancel')}</button>
+        <button aria-busy={busy} disabled={busy || !reason.trim()} className={`${buttonStyle} bg-sf-danger text-white hover:opacity-90`}>{progress('cancel', 'cancel')}</button>
       </form>
       <p role="status">{message}</p>
     </div>}
@@ -63,13 +72,13 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
       {tx.status === 'cancelled' && tx.cancel_reason && <li>{t(`cancelReason_${tx.cancel_reason === 'payment_window_expired' ? 'expired' : 'admin'}`)}</li>}
       {tx.reopened_at && <li>{t('reopened', { date: date(tx.reopened_at) })}</li>}
     </ul>
-    {tx.status === 'awaiting_payment' && !tx.invoice_hold_at && <button type="button" data-tour="unpaid-invoice" disabled={busy} onClick={() => void run('invoice-issued')} className="rounded border border-sf-border p-2">{t('markInvoiceIssued')}</button>}
+    {tx.status === 'awaiting_payment' && !tx.invoice_hold_at && <button type="button" data-tour="unpaid-invoice" aria-busy={busy} disabled={busy} onClick={() => void run('invoice-issued')} className={primaryButton}>{progress('invoice-issued', 'markInvoiceIssued')}</button>}
     {tx.status === 'cancelled' && tx.invoice?.status !== 'corrected' && <div className="space-y-3">
       <p className="text-sm text-sf-muted">{t('lateHelp')}</p>
       <form onSubmit={e => { e.preventDefault(); void run('accept-late'); }} className="flex flex-wrap gap-3 items-end" aria-label={t('acceptLate')}>
         {paidFields}
         <label>{t('lateReason')}<input className={input} required maxLength={1000} value={lateReason} onChange={e => setLateReason(e.target.value)} /></label>
-        <button disabled={busy || !lateReason.trim()} className="rounded bg-sf-accent-bg text-sf-inverse p-2">{t('acceptLate')}</button>
+        <button aria-busy={busy} disabled={busy || !lateReason.trim()} className={primaryButton}>{progress('accept-late', 'acceptLate')}</button>
       </form>
       <p role="status">{message}</p>
     </div>}

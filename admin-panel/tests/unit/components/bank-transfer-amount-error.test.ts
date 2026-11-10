@@ -27,3 +27,27 @@ it.each(['awaiting_payment', 'cancelled'])('associates a mismatched booked amoun
   expect(amount.getAttribute('aria-invalid')).toBe('false');
   expect(screen.queryByText('amountMismatch')).toBeNull();
 });
+it.each([
+  ['awaiting_payment', 'markPaid'], ['awaiting_payment', 'cancel'],
+  ['awaiting_payment', 'markInvoiceIssued'], ['cancelled', 'acceptLate'],
+])('shows progress and holds the lock until refresh for %s / %s', async (status, label) => {
+  let finish!: (result: { success: boolean }) => void;
+  let refreshed!: () => void;
+  update.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  const refresh = vi.fn(() => new Promise<void>(resolve => { refreshed = resolve; }));
+  render(createElement(BankTransferSection, { transaction: { id: 'tx', amount: 10000, currency: 'PLN', payment_provider: 'bank_transfer', status, created_at: '2026-11-01' } as PaymentTransaction, onRefresh: refresh }));
+  fireEvent.change(screen.getByLabelText('paidAt'), { target: { value: '2026-11-09' } });
+  fireEvent.change(screen.getByLabelText(status === 'cancelled' ? 'lateReason' : 'reason'), { target: { value: 'Received' } });
+  const button = screen.getByRole('button', { name: label });
+  await act(async () => { if (button.closest('form')) fireEvent.submit(button.closest('form')!); else fireEvent.click(button); });
+  expect(button.textContent).toContain(`${label}Pending`);
+  expect(button.getAttribute('aria-busy')).toBe('true');
+  expect(button.querySelector('svg')).not.toBeNull();
+  for (const candidate of screen.getAllByRole('button')) expect((candidate as HTMLButtonElement).disabled).toBe(true);
+  await act(async () => { if (button.closest('form')) fireEvent.submit(button.closest('form')!); else fireEvent.click(button); });
+  expect(update).toHaveBeenCalledTimes(1);
+  await act(async () => { finish({ success: true }); });
+  expect((button as HTMLButtonElement).disabled).toBe(true);
+  await act(async () => { refreshed(); });
+  expect((button as HTMLButtonElement).disabled).toBe(false);
+});

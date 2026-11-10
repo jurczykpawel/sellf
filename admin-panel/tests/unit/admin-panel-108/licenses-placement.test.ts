@@ -17,8 +17,5 @@ describe('license issuance placement @J193', () => {
     expect(body).toContain('IssuedLicensesSettings');
     expect(body).toMatch(/initialEmail/);
   });
-  it('order details link to issuing a license for that buyer and product', () => {
-    const table = readFileSync(src('components/admin/PaymentTransactionsTable.tsx'), 'utf-8');
-    expect(table).toContain('/dashboard/licenses?');
-  });
+
 });

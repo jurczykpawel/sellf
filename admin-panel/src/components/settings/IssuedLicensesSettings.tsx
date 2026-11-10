@@ -50,9 +50,10 @@ interface IssuedLicensesSettingsProps {
   initialEmail?: string;
   initialProductId?: string;
   initialSearch?: string;
+  initialLicenseId?: string;
 }
 
-export default function IssuedLicensesSettings({ enabled, initialEmail = '', initialProductId = '', initialSearch = '' }: IssuedLicensesSettingsProps) {
+export default function IssuedLicensesSettings({ enabled, initialEmail = '', initialProductId = '', initialSearch = '', initialLicenseId = '' }: IssuedLicensesSettingsProps) {
   const t = useTranslations('settings.issuedLicenses');
   const locale = useLocale();
   const [licenses, setLicenses] = useState<LicenseRow[]>([]);
@@ -69,6 +70,7 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
   const [searchError, setSearchError] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   const [sendEmail, setSendEmail] = useState(true);
+  const [licenseId, setLicenseId] = useState(initialLicenseId);
   const [search, setSearch] = useState(initialSearch.slice(0, 254));
   const [source, setSource] = useState('');
   const [status, setStatus] = useState('');
@@ -83,7 +85,7 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
     [selectedProduct],
   );
 
-  const beginRequest = useLatestRequest(JSON.stringify([page, productId, search, source, status, enabled]));
+  const beginRequest = useLatestRequest(JSON.stringify([page, productId, search, source, status, enabled, licenseId]));
   const fetchSettings = useCallback(async () => {
     const isCurrent = beginRequest();
     if (!isCurrent()) return;
@@ -91,6 +93,7 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
 
     try {
       const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (licenseId) query.set('licenseId', licenseId);
       if (search.trim()) query.set('search', search.trim());
       if (source) query.set('source', source);
       if (status) query.set('status', status);
@@ -108,9 +111,9 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
     } finally {
       if (isCurrent()) setLoading(false);
     }
-  }, [page, productId, search, source, status, t, beginRequest]);
+  }, [page, productId, search, source, status, t, beginRequest, licenseId]);
 
-  const requestKey = JSON.stringify([page, productId, search, source, status, enabled]);
+  const requestKey = JSON.stringify([page, productId, search, source, status, enabled, licenseId]);
   const [previousKey, setPreviousKey] = useState(requestKey);
   if (previousKey !== requestKey) {
     setPreviousKey(requestKey);
@@ -216,6 +219,7 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
           <button type="button" onClick={() => void load()} aria-label={t('refresh')} title={t('refresh')} className="p-2 border-2 border-sf-border-medium"><RefreshCw className="w-5 h-5" aria-hidden="true" /></button>
         </div>
         <div data-tour="licenses-table" className="overflow-x-auto">
+          {licenseId && <button type="button" className="mb-3 underline text-sf-accent" onClick={() => { setLicenseId(''); setPage(1); }}>{t('showAllLicenses')}</button>}
           <table className="w-full text-sm"><thead><tr className="border-b border-sf-border text-left text-sf-muted">{['product','email','domain','tier','source','issued','expires','status','actions'].map((key) => <th key={key} className="p-2">{t(key)}</th>)}</tr></thead>
             <tbody>{licenses.map((license) => <tr key={license.id} className="border-b border-sf-border align-top">
               <td className="p-2 text-sf-heading">{license.products?.name ?? '—'}</td><td className="p-2">{license.email ?? '—'}</td><td className="p-2 font-mono text-xs">{license.license_domain ?? '—'}</td><td className="p-2">{license.products?.license_tier ?? '—'}</td><td className="p-2">{t(license.issuance_source)}</td><td className="p-2 whitespace-nowrap">{formatAdminDate(license.issued_at, locale, false)}</td><td className="p-2 whitespace-nowrap">{license.expires_at ? formatAdminDate(license.expires_at, locale, false) : t('unlimited')}</td><td className="p-2">{license.revoked_at ? t(license.revoked_by_dispute_id ? 'disputeRevokedStatus' : 'revokedStatus') : license.expires_at && new Date(license.expires_at) < new Date() ? t('expired') : t('active')}</td>
