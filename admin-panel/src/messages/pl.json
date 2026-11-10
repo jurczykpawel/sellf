@@ -153,7 +153,7 @@
       "unavailable": "Niedostępne produkty",
       "published-products": "Opublikowane produkty",
       "history": "Historia",
-      "more": "Starsze rewizje",
+      "more": "Pokaż starsze",
       "compare": "Porównaj",
       "rollback": "Przywróć tę wersję",
       "noDraft": "Zapisz szkic, aby go podejrzeć.",
@@ -186,6 +186,11 @@
       "publish": "Opublikowano",
       "previewUnavailable": "Podgląd jest niedostępny",
       "previewRetry": "Wróć do historii szablonu i otwórz nowy podgląd. Jeśli szkic nie został jeszcze zapisany, zapisz go najpierw.",
+      "previewExpired": "Podgląd wygasł. Wróć do edytora i otwórz nowy podgląd.",
+      "previewDraftChanged": "To nie jest bieżący szkic. Odśwież edytor i otwórz podgląd zapisanej wersji.",
+      "previewLinkInvalid": "Link podglądu jest nieprawidłowy. Otwórz nowy podgląd z edytora.",
+      "previewInvalidDraft": "Nie można wyświetlić tego szkicu. Sprawdź komunikaty przy jego ustawieniach w edytorze.",
+      "previewServiceUnavailable": "Nie udało się wczytać danych podglądu. Spróbuj ponownie za chwilę.",
       "publishedNow": "Opublikowana teraz",
       "publishVersion": "Opublikuj tę wersję"
   },
@@ -2800,6 +2805,7 @@
           "paid": "Wypłacona"
         }
       },
+      "unpaidTutorialEmpty": "Brak nieopłaconego zamówienia przelewem. Włącz przelewy w Ustawieniach płatności i złóż zamówienie testowe, wybierając przelew bankowy. Następnie uruchom ten samouczek ponownie.",
       "missingParticipants": {
         "title": "{count, plural, one {# zamówienie bez uczestników} few {# zamówienia bez uczestników} many {# zamówień bez uczestników} other {# zamówienia bez uczestników}}",
         "help": "Kupujący wybrał uzupełnienie uczestników po zapłacie. Maksymalnie dwa przypomnienia z osobistym linkiem wysyłają się automatycznie (po 24 godzinach od zakupu i, dla wydarzeń, na 2 dni przed wydarzeniem); lista pojawi się w zamówieniu, gdy kupujący ją zapisze.",
@@ -3299,6 +3305,11 @@
       "countryHelp": "Służy wyłącznie do dokumentów prawnych (np. które szablony Regulaminu/Polityki generować) — NIE wpływa na podatek. Podatek wynika z ustawień VAT produktu (tryb Stała stawka) lub z konta Stripe (tryb Stripe Tax). Niektóre funkcje (generowanie dokumentów prawnych) są dostępne tylko dla Polski."
     },
     "attribution": {
+      "examplesTitle": "Przykłady dla domyślnych reguł",
+      "examplePriority": "Jeśli pasują dwie reguły o priorytecie 10 i 20, wygrywa reguła z najniższą liczbą, czyli 10.",
+      "exampleSocial": "Wejście z Facebooka bez UTM trafia do organic_social, jeśli przeglądarka przekazała źródło facebook.com.",
+      "exampleDirect": "Brak źródła i parametrów kampanii oznacza ruch bezpośredni (direct).",
+      "exampleResult": "Wynik zobaczysz w szczegółach płatności, w sekcji „Źródło”.",
       "title": "Źródła zakupów",
       "description": "Każdy zakup zapisuje, skąd przyszedł (oznaczenia UTM, strona odsyłająca, strona wejścia). Bez zgody na ciasteczka używany jest tylko link do koszyka; za zgodą zapisujemy też pierwszą i ostatnią wizytę. Identyfikatory kliknięć reklam (gclid, fbclid) zapisujemy tylko za zgodą marketingową.",
       "retention": "Przechowuj identyfikatory kliknięć reklam przez",
@@ -5728,7 +5739,7 @@
       "nameRequired": "Podaj nazwę (do 120 znaków).",
       "acceptRequired": "Zaakceptuj regulamin programu, aby kontynuować.",
       "newTermsVersion": "Ten regulamin został już opublikowany. Nadaj zmienionej treści nową wersję i zapisz ponownie.",
-      "codeHint": "Użyj 3–40 małych liter, cyfr, myślników lub podkreśleń.",
+      "codeHint": "Np. partner-anna. To Twój identyfikator w programie partnerskim i rozliczeniach prowizji. Sprzedawca rozpoznaje po nim Twoje konto przy przypisywaniu kuponów. Użyj 3–40 małych liter, cyfr, myślników lub podkreśleń.",
       "amountInvalid": "Wpisz poprawną kwotę wypłaty w każdej walucie. Grosze oddziel przecinkiem lub kropką.",
       "reasonRequired": "Wpisz powód przed zmianą statusu partnera.",
       "applicationHint": "Opowiedz, jak chcesz promować nasze produkty. Każde zgłoszenie sprawdzamy osobiście.",
@@ -5764,6 +5775,7 @@
       "code": "Kod partnera",
       "name": "Nazwa wyświetlana",
       "channel": "Kanał promocji",
+      "channelHelp": "Opisz, gdzie będziesz polecać produkty, np. newsletter o automatyzacji lub blog https://example.com. Pomaga to sprzedawcy ocenić zgłoszenie.",
       "reason": "Powód decyzji",
       "approved": "Akceptuj",
       "rejected": "Odrzuć",
@@ -5858,6 +5870,7 @@
       "unauthorized": "Zaloguj się, aby zobaczyć swoje prowizje.",
       "forbidden": "Ten widok jest dostępny dla administratorów. Otwórz swój panel partnera.",
       "not_found": "Nie znaleziono konta partnera. Zgłoś się do programu afiliacyjnego, aby rozpocząć.",
+      "emptyTitle": "Nie masz jeszcze konta partnera",
       "invalid_input": "Wybrana strona jest nieprawidłowa. Otwórz panel partnera ponownie.",
       "unavailable": "Prowizje są chwilowo niedostępne. Odśwież stronę za moment.",
       "title": "Prowizje partnera",

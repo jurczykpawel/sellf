@@ -79,10 +79,17 @@ test('saves, previews, publishes and restores product offers in EN and PL @J78',
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.screenshot({ path: `/tmp/t210-history-${locale}-${width}.png`, fullPage: true });
       }
-      const preview = `/template-preview/2?locale=${locale}&fixture=published-products&productId=${product.id}`;
+      const previewButton = page.getByRole('link', { name: locale === 'pl' ? /Otwórz podgląd/ : /Open preview/ });
       const requests: string[] = [];
       const record = (request: Request) => requests.push(request.url());
       page.on('request', record);
+      const previewPagePromise = context.waitForEvent('page');
+      await previewButton.click();
+      const previewPage = await previewPagePromise;
+      await expect(previewPage.locator('[data-preview-inert]')).toBeAttached();
+      const preview = previewPage.url();
+      expect(new URL(preview).searchParams.get('issuedAt')).toMatch(/^\d+$/);
+      await previewPage.close();
       const response = await page.goto(preview);
       expect(response?.status()).toBe(200);
       expect(response?.headers()['cache-control']).toMatch(process.env.OFFER_TEST_RELEASE ? /no-store/ : /no-store|no-cache, must-revalidate/);
@@ -117,6 +124,7 @@ test('saves, previews, publishes and restores product offers in EN and PL @J78',
     await expect(page.getByRole('status')).toContainText('Published as revision 3');
     expect((await supabaseAdmin.from('product_offer_config').select('published,draft').eq('product_id', product.id).single()).data).toMatchObject({ published: { enabled: true }, draft: null });
     // Baseline rollback turns the offer off without touching product commerce.
+    await page.getByRole('button', { name: 'Show older revisions', exact: true }).click();
     await page.getByRole('button', { name: 'Restore this version', exact: true }).last().click();
     await page.getByRole('button', { name: 'Confirm restore', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('Published as revision 4');

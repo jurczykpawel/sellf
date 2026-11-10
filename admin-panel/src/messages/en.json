@@ -153,7 +153,7 @@
       "unavailable": "Unavailable products",
       "published-products": "Published products",
       "history": "History",
-      "more": "Older revisions",
+      "more": "Show older revisions",
       "compare": "Compare",
       "rollback": "Restore this version",
       "noDraft": "Save a draft to preview it.",
@@ -186,6 +186,11 @@
       "publish": "Published",
       "previewUnavailable": "Preview unavailable",
       "previewRetry": "Return to template history and open a fresh preview. Save a draft first if you have not saved one yet.",
+      "previewExpired": "Preview expired. Return to the editor and open a fresh preview.",
+      "previewDraftChanged": "This is not the current draft. Reload the editor and preview the saved version.",
+      "previewLinkInvalid": "This preview link is invalid. Open a fresh preview from the editor.",
+      "previewInvalidDraft": "This draft cannot be displayed. Check the messages beside its settings in the editor.",
+      "previewServiceUnavailable": "Preview data could not be loaded. Please try again shortly.",
       "publishedNow": "Published now",
       "publishVersion": "Publish this version"
   },
@@ -2800,6 +2805,7 @@
           "paid": "Paid"
         }
       },
+      "unpaidTutorialEmpty": "There is no unpaid bank transfer order. Enable bank transfers in Payment settings and place a test order using bank transfer. Then start this tutorial again.",
       "missingParticipants": {
         "title": "{count, plural, one {# order is missing participants} other {# orders are missing participants}}",
         "help": "The buyer chose to add participants after payment. Up to two reminder e-mails with a personal link are sent automatically (24 hours after purchase and, for events, 2 days before the event); the list appears in the order once the buyer saves it.",
@@ -3299,6 +3305,11 @@
       "countryHelp": "Used only for legal documents (e.g. which Terms/Privacy templates to generate) — it does NOT affect tax. Tax comes from your product VAT settings (Fixed Rate mode) or your Stripe account (Stripe Tax mode). Some features (legal document generation) are Poland-only."
     },
     "attribution": {
+      "examplesTitle": "Examples for the default rules",
+      "examplePriority": "If two rules match with priority 10 and 20, the lowest number wins: 10.",
+      "exampleSocial": "A visit from Facebook without UTM is organic_social when the browser supplies facebook.com as its referrer.",
+      "exampleDirect": "No source or campaign parameters means direct traffic (direct).",
+      "exampleResult": "Find the result in payment details, in the “Source” section.",
       "title": "Purchase sources",
       "description": "Every purchase records where it came from (UTM tags, referring site, landing page). Without cookie consent only the checkout link is used; with consent the first and last visit are kept too. Ad click identifiers (gclid, fbclid) are stored only with marketing consent.",
       "retention": "Keep ad click identifiers for",
@@ -5728,7 +5739,7 @@
       "nameRequired": "Enter your name (up to 120 characters).",
       "acceptRequired": "Accept the program terms to continue.",
       "newTermsVersion": "These terms were already published. Give the changed terms a new version and save again.",
-      "codeHint": "Use 3–40 lowercase letters, numbers, hyphens or underscores.",
+      "codeHint": "For example, partner-anna. This identifies your partner account in the program and commission statements. The seller uses it to find your account when assigning coupons. Use 3–40 lowercase letters, numbers, hyphens or underscores.",
       "amountInvalid": "Enter a valid payout amount for each currency. Use a dot or comma for decimals.",
       "reasonRequired": "Enter a reason before changing this partner’s status.",
       "applicationHint": "Tell us how you plan to promote our products. We review every application.",
@@ -5764,6 +5775,7 @@
       "code": "Partner code",
       "name": "Display name",
       "channel": "Promotion channel",
+      "channelHelp": "Describe where you will promote products, for example an automation newsletter or a blog at https://example.com. This helps the seller assess your application.",
       "reason": "Decision reason",
       "approved": "Approve",
       "rejected": "Reject",
@@ -5858,6 +5870,7 @@
       "unauthorized": "Sign in to view your partner earnings.",
       "forbidden": "This view is available to administrators. Open your partner dashboard instead.",
       "not_found": "No partner account was found. Apply to the affiliate program to get started.",
+      "emptyTitle": "You do not have a partner account yet",
       "invalid_input": "This page selection is no longer valid. Open the partner dashboard again.",
       "unavailable": "Earnings are temporarily unavailable. Refresh the page in a moment.",
       "title": "Partner earnings",

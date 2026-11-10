@@ -96,10 +96,33 @@ it('requires confirmation before restoring a public version and supports cancell
   fireEvent.click((await screen.findAllByRole('button', { name: en.templatePreview.rollback }))[0]);
   await screen.findByRole('button', { name: en.templatePreview.rollbackConfirm });
   expect(screen.getByRole('dialog').textContent).toContain(en.templatePreview.rollbackHelp);
+  await waitFor(() => expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true));
   expect(mocks.action.mock.calls.some(([input]) => input.operation === 'rollback')).toBe(false);
   fireEvent.click(screen.getByRole('button', { name: en.templatePreview.cancel }));
   expect(screen.queryByRole('button', { name: en.templatePreview.rollbackConfirm })).toBeNull();
   fireEvent.click(screen.getAllByRole('button', { name: en.templatePreview.rollback })[0]);
   fireEvent.click(await screen.findByRole('button', { name: en.templatePreview.rollbackConfirm }));
   await waitFor(() => expect(mocks.action).toHaveBeenCalledWith({ operation: 'rollback', targetRevision: 2, expectedRevision: 3 }));
+});
+
+it('shows three recent revisions and reveals older ones on request, then brings a comparison into view', async () => {
+  const scroll = vi.fn();
+  const previous = HTMLElement.prototype.scrollIntoView;
+  HTMLElement.prototype.scrollIntoView = scroll;
+  mocks.action.mockImplementation(({ operation, fromRevision }: { operation: string; fromRevision?: number }) => Promise.resolve(
+    operation === 'read' ? { success: true, data: { revision: 6, draft: D_CONFIG, published: null } }
+      : operation === 'history' ? { success: true, data: Array.from({ length: 6 }, (_, i) => ({ revision: 6 - i, draft: D_CONFIG, published: null, created_at: '2026-11-10T10:00:00Z' })) }
+        : { success: true, data: { fromRevision, toRevision: 6, changes: [] } }));
+  try {
+    render(historyView());
+    await screen.findByText('· #6');
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    expect(screen.queryByText('· #3')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: en.templatePreview.more }));
+    expect(screen.getAllByRole('listitem')).toHaveLength(6);
+    fireEvent.click(screen.getAllByRole('button', { name: en.templatePreview.compare })[0]);
+    await screen.findByRole('region', { name: en.templatePreview.changes });
+    await waitFor(() => expect(scroll).toHaveBeenCalled());
+    expect(document.activeElement?.getAttribute('aria-label')).toBe(en.templatePreview.changes);
+  } finally { HTMLElement.prototype.scrollIntoView = previous; }
 });

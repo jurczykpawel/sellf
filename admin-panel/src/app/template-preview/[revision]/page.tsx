@@ -2,6 +2,7 @@
 import { headers } from 'next/headers';
 import { NextRequest } from 'next/server';
 import { notFound } from 'next/navigation';
+import { previewFailureMessage } from '@/lib/storefront-templates/preview-status';
 import { preparePreview } from '@/lib/storefront-templates/preview';
 import { templateRequestPrincipal } from '@/lib/storefront-templates/http';
 import { checkPublicFeature } from '@/lib/license/public-snapshot';
@@ -21,15 +22,17 @@ export default async function TemplatePreview({ params, searchParams }: {
   const query = await searchParams;
   const { revision } = await params;
   const locale = query.locale === 'pl' ? 'pl' : 'en';
+  const issuedAt = typeof query.issuedAt === 'string' && /^\d+$/.test(query.issuedAt) ? Number(query.issuedAt) : NaN;
   const response = await preparePreview(auth, {
     revision: /^(0|[1-9][0-9]*)$/.test(revision) ? Number(revision) : -1,
     locale: query.locale, fixture: query.fixture,
-  }, typeof query.issuedAt === 'string' && /^\d+$/.test(query.issuedAt) ? Number(query.issuedAt) : NaN, query.productId === undefined ? undefined : typeof query.productId === 'string' ? query.productId : 'invalid');
+  }, issuedAt, query.productId === undefined ? undefined : typeof query.productId === 'string' ? query.productId : 'invalid');
   if (!response.success && response.code === 'FORBIDDEN') notFound();
   if (!response.success) {
     const t = (locale === 'pl' ? pl : en).templatePreview;
+    const reason = t[previewFailureMessage(response.code, issuedAt)];
     return <main style={{ maxWidth: '40rem', margin: '10vh auto', padding: 24 }}>
-      <h1>{t.previewUnavailable}</h1><p>{t.previewRetry}</p>
+      <h1>{t.previewUnavailable}</h1><p>{reason}</p><p>{t.previewRetry}</p>
       <details><summary>{t.technical}</summary><p>{response.code}</p></details>
     </main>;
   }

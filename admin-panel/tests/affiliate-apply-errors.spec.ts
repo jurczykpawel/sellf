@@ -37,6 +37,7 @@ for (const locale of ['en', 'pl'] as const) test(`${locale} corrects a taken cod
     await expect(submit).toBeEnabled();
     await submit.click();
     await expect(page.getByRole('heading', { name: t.applicationReceived, exact: true })).toBeVisible();
+    await expect(page.locator('aside a[href="/affiliates/apply"]')).toHaveCount(0);
     const saved = await supabaseAdmin.from('affiliate_memberships').select('code,status,channel').eq('user_id', user.userId).single();
     expect(saved.error).toBeNull();
     expect(saved.data).toEqual({ code: available, status: 'pending', channel: 'x'.repeat(500) });

@@ -13,6 +13,8 @@ vi.mock('@/hooks/useUpdateCheck', () => ({ useUpdateCheck: () => ({ showModal: f
 vi.mock('@/components/SiteMenu', () => ({ default: () => null }));
 vi.mock('@/components/DemoBanner', () => ({ default: () => null }));
 vi.mock('@/components/UpdateNotificationModal', () => ({ default: () => null }));
+const program = vi.hoisted(() => ({ enabled: false, applicationStatus: null as string | null }));
+vi.mock('@/lib/affiliates/admin/actions', () => ({ getApplicationProgram: async () => ({ success: true, data: { ...program } }) }));
 const saved = new Map<string, string>();
 beforeEach(() => {
   saved.clear();
@@ -39,4 +41,17 @@ it('keeps the expansion control usable while collapsed and persists the change',
   view.unmount();
   const next = setup();
   await waitFor(() => expect(next.container.querySelector('aside')?.style.width).toBe('var(--sf-sidebar-width-expanded)'));
+});
+
+it.each([
+  [false, null, false, false], [true, null, true, true],
+  [true, 'pending', true, false], [true, 'approved', true, false],
+  [true, 'rejected', true, false], [false, 'approved', false, false],
+] as const)('shows partner navigation for enabled=%s membership=%s', async (enabled, status, commissions, apply) => {
+  program.enabled = enabled; program.applicationStatus = status;
+  const view = setup();
+  await waitFor(() => {
+    expect(!!view.container.querySelector('a[href="/my-affiliate"]')).toBe(commissions);
+    expect(!!view.container.querySelector('a[href="/affiliates/apply"]')).toBe(apply);
+  });
 });

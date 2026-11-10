@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { EventSection } from '@/components/ProductFormModal/sections/EventSection';
 import { CheckoutProfileSection } from '@/components/ProductFormModal/sections/CheckoutProfileSection';
 import { AffiliateRuleEditor } from '@/components/affiliates/products/Settings';
@@ -48,7 +49,8 @@ interface GroupProps {
 }
 
 function StepGroup({ letter, title, defaultExpanded = false, children }: GroupProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const tutorial = useSearchParams()?.get('tutorial');
+  const [expanded, setExpanded] = useState(defaultExpanded || letter === 'B' && (tutorial === 'events' || tutorial === 'b2b-checkout-profile'));
 
   return (
     <section data-step3-group={letter} className="border border-sf-border rounded-lg bg-sf-raised overflow-hidden">
