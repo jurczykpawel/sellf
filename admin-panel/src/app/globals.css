@@ -910,6 +910,9 @@ input[type="date"]:focus::-webkit-datetime-edit-year-field {
   text-shadow: none;
 }
 .sellf-tour .driver-popover-next-btn { border-color: transparent; background: var(--sf-accent-bg); color: var(--sf-accent-fg); }
+.sellf-tour .driver-popover-next-btn:hover,
+.sellf-tour .driver-popover-next-btn:focus,
+.sellf-tour .driver-popover-next-btn:focus-visible { background: var(--sf-accent-bg); color: var(--sf-accent-fg); }
 .sellf-tour button:focus-visible { outline: 2px solid var(--sf-accent); outline-offset: 2px; }
 .sellf-tour .driver-popover-arrow-side-left.driver-popover-arrow { border-left-color: var(--sf-bg-raised); }
 .sellf-tour .driver-popover-arrow-side-right.driver-popover-arrow { border-right-color: var(--sf-bg-raised); }
