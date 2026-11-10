@@ -4,6 +4,7 @@
     "description": "This return address is not allowed. Return to the seller’s page and contact them if the problem persists."
   },
   "invoicing": {
+    "manualCorrectionHelp": "The invoice was marked as issued outside Sellf. Issue a correction in your invoicing system, then record it here.",
     "title": "Invoicing",
     "column": "Invoice",
     "provider": "Provider",

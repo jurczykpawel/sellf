@@ -42,15 +42,13 @@ export async function mutateInvoice(transactionId: string, action: 'issue' | 'co
   if (!z.string().uuid().safeParse(transactionId).success || !['issue','corrected'].includes(action)) return { success: false, error: 'Invalid invoice request' };
   return withAdminClient(async ({ dataClient, user }) => {
     if (action === 'corrected') {
-      const { data: tx } = await dataClient.from('payment_transactions').select('status').eq('id', transactionId).single();
-      if (!tx || !['refunded','cancelled'].includes(tx.status)) return { success: false, error: 'Order does not require correction' };
-      const { data, error } = await dataClient.from('invoices').update({ status: 'corrected', updated_at: new Date().toISOString() }).eq('transaction_id', transactionId).eq('status','issued').select('id');
-      if (error || !data?.length) return { success: false, error: 'Invoice not updated' };
+      const { data, error } = await dataClient.rpc('record_invoice_correction', { p_transaction: transactionId, p_actor: user.id });
+      if (error || !data) return { success: false, error: 'Invoice not updated' };
     } else {
       const result = await issueInvoiceForTransaction(transactionId, { client: dataClient, manual: true });
       if (!result?.success) return { success: false, error: result?.error ?? 'Invoice unavailable' };
     }
-    await dataClient.from('audit_log').insert({ table_name: 'invoices', operation: 'UPDATE', performed_by: user.id, new_values: { transaction_id: transactionId, action } });
+    if (action !== 'corrected') await dataClient.from('audit_log').insert({ table_name: 'invoices', operation: 'UPDATE', performed_by: user.id, new_values: { transaction_id: transactionId, action } });
     revalidatePath('/dashboard/payments');
     return { success: true };
   }, { mutating: true });

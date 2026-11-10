@@ -383,7 +383,7 @@ export default function PaymentTransactionsTable({
 <PaymentPartnerSection transactionId={detailsTransaction.id} />
 <AttributionSection transactionId={detailsTransaction.id} />
 <BankTransferSection transaction={detailsTransaction} onRefresh={async () => { await onRefreshData?.(); }} />
-<InvoiceSection transactionId={detailsTransaction.id} status={detailsTransaction.status} invoice={detailsTransaction.invoice} onRefresh={() => { setDetailsTransactionId(null); onRefreshData?.(); }} />
+<InvoiceSection transactionId={detailsTransaction.id} status={detailsTransaction.status} invoice={detailsTransaction.invoice} invoiceHoldAt={detailsTransaction.invoice_hold_at} onRefresh={() => { setDetailsTransactionId(null); onRefreshData?.(); }} />
             <OrderDetailsSection
               details={detailsTransaction.order_details}
               customFields={formatCustomFieldsForDisplay(detailsTransaction.custom_field_values, detailsTransaction.product?.custom_checkout_fields, locale)}

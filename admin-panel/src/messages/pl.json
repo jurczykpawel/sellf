@@ -4,6 +4,7 @@
     "description": "Adres powrotu nie jest dozwolony. Wróć na stronę sprzedawcy i skontaktuj się z nim, jeśli problem się powtarza."
   },
   "invoicing": {
+    "manualCorrectionHelp": "Faktura została oznaczona jako wystawiona poza Sellf. Wystaw korektę w swoim systemie fakturowym, a następnie odnotuj ją tutaj.",
     "title": "Faktury",
     "column": "Faktura",
     "provider": "Dostawca",

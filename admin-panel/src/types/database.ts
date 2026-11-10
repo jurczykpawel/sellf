@@ -6594,6 +6594,10 @@ export type Database = {
         Args: { p_product: string; p_ref: string; p_user: string }
         Returns: undefined
       }
+      record_invoice_correction: {
+        Args: { p_actor: string; p_transaction: string }
+        Returns: boolean
+      }
       record_order_payment_refund: {
         Args: { p_attempt: string; p_refund_id: string }
         Returns: undefined
