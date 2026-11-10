@@ -15,8 +15,29 @@ permissions:
   packages: write
 
 jobs:
+  # Hard stop: Dependabot PRs that must ride in a release (runtime/major bumps labelled
+  # `release-batch`, security fixes labelled `security`) cannot sit open past 24 h while a
+  # release is built. See .github/workflows/dependabot-auto-merge.yml.
+  dependabot-gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: .github/scripts
+      - name: Block on stale release-batch/security Dependabot PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr list --repo "$GITHUB_REPOSITORY" --state open --author "app/dependabot" \
+            --limit 200 --json number,title,createdAt,labels \
+            | .github/scripts/check-dependabot-batch.sh
+
   # Run tests before building
   test:
+    needs: dependabot-gate
     runs-on: ubuntu-latest
 
     steps:
@@ -74,6 +95,7 @@ jobs:
           extra_args: --results verified,unknown
 
   verify-playerstack-bundle:
+    needs: dependabot-gate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sellf
