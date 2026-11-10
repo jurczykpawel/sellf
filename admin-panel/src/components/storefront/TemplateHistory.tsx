@@ -1,7 +1,7 @@
 'use client';
 
 /** History/diff controls delegate every operation to the session lifecycle. */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import BaseModal from '@/components/ui/BaseModal';
 import ValidationIssues from '@/components/storefront-editor/ValidationIssues';
@@ -21,6 +21,8 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [current, setCurrent] = useState<TemplateReadResult | OfferReadResult | null>(null);
   const [history, setHistory] = useState<(StorefrontHistorySnapshot | OfferHistorySnapshot)[]>([]);
+  const [visibleCount, setVisibleCount] = useState(3);
+  const comparisonRef = useRef<HTMLElement>(null);
   const [diff, setDiff] = useState<TemplateDiffResult | null>(null);
   const [pending, setPending] = useState<{ revision: number; expectedRevision: number; operation: 'publish' | 'rollback' } | null>(null);
   const [busy, setBusy] = useState(true); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
@@ -32,10 +34,14 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
     }).catch(() => { setError('error'); }).finally(() => { setBusy(false); });
   }, [action]);
   function reload(beforeRevision?: number) {
+    if (beforeRevision === undefined) setVisibleCount(3);
     setBusy(true); setError(''); setPending(null); setValidation(null);
     return load(beforeRevision);
   }
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (diff && !pending) { comparisonRef.current?.scrollIntoView?.({ block: 'center', behavior: 'instant' }); comparisonRef.current?.focus({ preventScroll: true }); }
+  }, [diff, pending]);
   async function act(operation: 'diff' | 'rollback' | 'publish', revision: number, confirmed = false) {
     if (!current) return;
     setBusy(true); setError(''); setNotice(''); setValidation(null);
@@ -102,7 +108,7 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
       </section>
       <section aria-label={t('history')}>
         <h2 className={styles.heading}>{t('history')}</h2><p className={styles.help}>{t('historyHelp')}</p>
-        <ol className={styles.list}>{history.map(row => <li key={row.revision} className={styles.row}>
+        <ol className={styles.list}>{history.slice(0, visibleCount).map(row => <li key={row.revision} className={styles.row}>
           <div className={styles.entry}>
             <strong>{productId && row.draft === null && row.published === null ? offerT('unpublished') : row.revision === publishedRevision ? t('publishedNow') : row.draft ? t('draft') : t('publish')}</strong>
             <div className={styles.meta}><time dateTime={row.created_at}>{formatAdminDate(row.created_at, locale)}</time><span>· #{row.revision}</span></div>
@@ -110,9 +116,9 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
           <div className={styles.actions}>{row.revision !== current.revision && <button type="button" disabled={busy} className={styles.textButton} onClick={() => void act('diff', row.revision)}>{t('compare')}</button>}
           {row.revision !== publishedRevision && <button type="button" disabled={busy} className={styles.secondary} onClick={() => void act(row.draft ? 'publish' : 'rollback', row.revision)}>{t(row.draft ? 'publishVersion' : 'rollback')}</button>}</div>
         </li>)}</ol>
-        {history.length > 0 && history.length % 20 === 0 && <button type="button" disabled={busy} className={styles.textButton} onClick={() => void reload(history.at(-1)!.revision)}>{t('more')}</button>}
+        {(visibleCount < history.length || history.length > 0 && history.length % 20 === 0) && <button type="button" disabled={busy} className={styles.textButton} onClick={() => { setVisibleCount(count => count + 3); if (visibleCount + 3 > history.length && history.length % 20 === 0) void reload(history.at(-1)!.revision); }}>{t('more')}</button>}
       </section>
-      {diff && <section className={styles.card} aria-label={t('changes')}>
+      {diff && <section ref={comparisonRef} tabIndex={-1} className={styles.card} aria-label={t('changes')}>
         <h2 className={styles.heading}>{t('changes')} #{diff.fromRevision} → #{diff.toRevision}</h2>
         {!diff.changes.length && <p>{t('noChanges')}</p>}
         {diff.changes.map(change => <div key={change.path} className={styles.change}>

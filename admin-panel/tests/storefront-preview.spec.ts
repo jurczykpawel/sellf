@@ -96,6 +96,7 @@ test('private preview matrix and history rollback', async ({ page, browser }) =>
     await expect(page.getByRole('status')).toContainText(`Published as revision ${revision + 2}`);
     expect(await (await page.request.get(url)).text()).toContain('Preview unavailable');
     await expect(page.getByText('Published now', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Show older revisions', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Restore this version', exact: true })).toBeVisible();
     for (const locale of ['en', 'pl']) {
       await page.goto(`/${locale}/admin/templates/history`);
@@ -112,6 +113,7 @@ test('private preview matrix and history rollback', async ({ page, browser }) =>
     await page.goto('/en/admin/templates/history');
     await expect(page.getByText(`· #${revision + 3}`, { exact: true })).toBeVisible();
     const olderDraft = (target: number) => page.locator('li').filter({ has: page.getByText(`· #${target}`, { exact: true }) }).getByRole('button', { name: 'Publish this version', exact: true });
+    await page.getByRole('button', { name: 'Show older revisions' }).click();
     await olderDraft(revision).click();
     await expect(page.getByRole('heading', { name: 'Replace your current draft?' })).toBeVisible();
     expect(sql('SELECT row_to_json(c) FROM storefront_config c;')).toBe(preservedDraft);
@@ -128,7 +130,9 @@ test('private preview matrix and history rollback', async ({ page, browser }) =>
     await olderDraft(revision + 1).click();
     await page.getByRole('button', { name: 'Replace draft and publish', exact: true }).click();
     await expect(page.getByRole('status')).toContainText(`Published as revision ${revision + 5}`);
-    await page.getByRole('button', { name: 'Restore this version', exact: true }).last().click();
+    const baseline = page.locator('li').filter({ has: page.getByText(`· #${original.revision}`, { exact: true }) });
+    for (let reveal = 0; reveal < 3 && await baseline.count() === 0; reveal++) await page.getByRole('button', { name: 'Show older revisions', exact: true }).click();
+    await baseline.getByRole('button', { name: 'Restore this version', exact: true }).click();
     await page.getByRole('button', { name: 'Confirm restore', exact: true }).click();
     await expect(page.getByRole('status')).toContainText(`Published as revision ${revision + 6}`);
     expect(sql(`SELECT restored_from FROM storefront_config_history WHERE revision=${revision + 6};`)).toBe(String(original.revision));
