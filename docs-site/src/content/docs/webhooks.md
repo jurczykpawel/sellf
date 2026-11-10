@@ -689,3 +689,95 @@ The participant link and license key are delivery credentials. Send them only to
 ### Buyer language and confirmed leads
 
 `data.customer.locale` is always present (`pl` or `en`) in `purchase.completed`, `license.issued`, `order.placed`, `order.payment_reminder`, `order.cancelled`, `order.participants_needed`, `refund.issued`, `lead.captured`, `waitlist.signup`, `access.expired`, and subscription events that carry a customer. The language is taken from that order, transaction, subscription or lead, rather than another purchase by the same email address. Older records without a saved language use the shop default: `shop_config.custom_settings.default_locale` (`pl` or `en`, configurable through the shop configuration API). If unset, the application default applies. Waitlist requests accept an optional `locale` with the same values. Retry deliveries keep their original language. Endpoint field selection can intentionally omit customer fields. A confirmed product lead emits one `lead.captured` containing the lead ID, source, consent snapshot and confirmation dates together with the product details, access dates, custom answers and license when issued. Confirming the same lead again retains its delivery key. List-only signups retain the lead and consent fields without product access.
+
+## Product creation, changes and deletion
+
+From 2026.11.1, existing subscriptions to `product.created`, `product.updated` and
+`product.deleted` start receiving events automatically. No reconfiguration is required.
+Events are captured in the product's database transaction, covering dashboard, API v1,
+MCP, import and duplication. A failed or rolled-back write produces no event.
+
+| Event | When it fires | Snapshot |
+|---|---|---|
+| `product.created` | Product row inserted, including an inactive draft. | Inserted public fields; revision 1. |
+| `product.updated` | At least one field in the public snapshot changes. | Saved public fields; sorted `changedFields` names use the snapshot's camelCase keys. |
+| `product.deleted` | Product row deleted. | Public fields immediately before deletion; next revision. |
+
+One multi-field product-row save produces one lifecycle event. Saving unchanged values,
+changing only protected content, processor IDs or timestamps produces none. The existing
+`product.published`, `product.unpublished` and `product.price_changed` events remain separate;
+subscribing to both families intentionally delivers both kinds of notification.
+
+All product kinds share this contract: one-time, subscriptions, bundles, events, free
+and pay-what-you-want. `productType` is `one_time` or `subscription`; `isBundle`, `eventMode`
+and `allowCustomPrice` distinguish capabilities. A zero `price` represents a free product.
+This is the product-row snapshot; editing category/tag links, bundle components, event
+sessions or storefront offers alone does not change this snapshot.
+
+`data.eventId` identifies the committed event across endpoints; the envelope `id` identifies
+a delivery. `data.revision` increases per public product mutation, including deletion.
+Existing products start at revision 0 on upgrade without retrospective events. Use
+`eventId` to deduplicate and revision to order updates: delivery is at least once and may
+arrive out of order. Retry uses the saved snapshot, even after the product changes or is
+removed. Selected-product routing is saved with the event and remains valid after deletion;
+endpoints must still be active and subscribed when dispatched. `occurredAt` is the database
+change time; envelope `timestamp` is the handoff time. `schemaVersion` is currently 1.
+`operation` is `insert`, `update` or `delete`; `changedFields` is empty for creation/deletion.
+
+Public snapshot fields: `id`, `name`, `slug`, `description`, `longDescription`, `icon`,
+`imageUrl`, `thumbnailUrl`, `previewVideoUrl`, `features`, `marketingFields`, `price`,
+`salePrice`, `salePriceUntil`, `recurringPrice`, `currency`, `productType`, `isBundle`,
+`eventMode`, `isActive`, `isListed`, `isFeatured`, `availableFrom`, `availableUntil`,
+`allowCustomPrice`, `customPriceMin`, `billingInterval`, `billingIntervalCount`, `trialDays`,
+`priceIncludesVat`, `vatRate`, `vatExempt`, `isRefundable`, `refundPeriodDays`,
+`autoGrantDurationDays`, `allowRepeatPurchase`, `enableWaitlist`, `saleQuantityLimit`,
+`issueLicenseOnPurchase`, `licenseDurationDays`. Nullable fields remain null. Monetary
+fields (`price`, `salePrice`, `recurringPrice`, `customPriceMin`) use minor currency units,
+including supported zero-decimal currencies; VAT rates are percentages.
+Protected content configuration, license keys, processor keys and customer data are excluded.
+
+Example `product.updated` delivery (public snapshot shortened for readability):
+
+```json
+{
+  "event": "product.updated",
+  "id": "00000000-0000-4000-8000-000000000201",
+  "timestamp": "2026-11-11T10:00:01Z",
+  "data": {
+    "schemaVersion": 1,
+    "eventId": "00000000-0000-4000-8000-000000000101",
+    "revision": 2,
+    "operation": "update",
+    "amountUnit": "minor",
+    "occurredAt": "2026-11-11T10:00:00Z",
+    "actor": {
+      "type": "system",
+      "id": null
+    },
+    "changedFields": [
+      "name",
+      "price"
+    ],
+    "product": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "name": "Advanced course",
+      "slug": "course",
+      "price": 2135,
+      "salePrice": null,
+      "salePriceUntil": null,
+      "recurringPrice": null,
+      "currency": "PLN",
+      "productType": "one_time",
+      "isBundle": false,
+      "eventMode": false,
+      "isActive": true,
+      "isListed": true,
+      "allowCustomPrice": false
+    }
+  }
+}
+```
+
+`product.created` uses the same shape with `operation: "insert"`, `revision: 1`, `changedFields: []`.
+`product.deleted` uses `operation: "delete"`, the next revision and `changedFields: []`; `product` is the last saved public state.
+The dashboard event picker describes all three; **Test endpoint** previews a complete example for each.

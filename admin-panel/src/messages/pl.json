@@ -2296,6 +2296,10 @@
         "system": "System"
       },
       "events_desc": {
+        "product_created": "Utworzono produkt, także szkic. Zawiera publiczny stan produktu i numer zmiany; kwoty w najmniejszych jednostkach waluty.",
+        "product_updated": "Zmieniono publiczne pola produktu. Zawiera zapisany stan, numer zmiany i changedFields. Zapis bez zmian lub zmiana pól chronionych nie wywołuje zdarzenia.",
+        "product_deleted": "Usunięto produkt. Zawiera publiczny stan sprzed usunięcia i kolejny numer zmiany; filtry produktów nadal obowiązują.",
+
         "order_placed": "Złożono zamówienie z płatnością przelewem tradycyjnym. Zawiera dane zamówienia i instrukcje przelewu.",
         "order_cancelled": "Anulowano zamówienie z płatnością przelewem tradycyjnym.",
         "order_overdue": "Minął termin płatności zamówienia przelewem tradycyjnym. Zamówienie pozostaje nieopłacone.",

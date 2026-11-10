@@ -2296,6 +2296,10 @@
         "system": "System"
       },
       "events_desc": {
+        "product_created": "A product was created, including a draft. Includes its public snapshot and revision; amounts use minor currency units.",
+        "product_updated": "Public product fields changed. Includes the saved snapshot, revision and changedFields. No event for unchanged or protected fields.",
+        "product_deleted": "A product was deleted. Includes its public snapshot from before deletion and the next revision; product filters still apply.",
+
         "order_placed": "An order payable by bank transfer was placed. Includes order details and transfer instructions.",
         "order_cancelled": "An order payable by bank transfer was cancelled.",
         "order_overdue": "The payment deadline for a bank transfer order passed. The order remains unpaid.",

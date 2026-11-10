@@ -443,3 +443,96 @@ Link uczestników i klucz licencji przekazuj wyłącznie właściwemu kupującem
 ### Język kupującego i potwierdzone leady
 
 `data.customer.locale` jest zawsze obecne (`pl` lub `en`) w `purchase.completed`, `license.issued`, `order.placed`, `order.payment_reminder`, `order.cancelled`, `order.participants_needed`, `refund.issued`, `lead.captured`, `waitlist.signup`, `access.expired` oraz zdarzeniach subskrypcji zawierających kupującego. Język pochodzi z danego zamówienia, transakcji, subskrypcji lub leada, a nie z innego zakupu pod tym samym adresem email. Starsze dane bez zapisanego języka korzystają z języka sklepu: `shop_config.custom_settings.default_locale` (`pl` lub `en`, ustawiane przez API konfiguracji sklepu). Przy braku ustawienia obowiązuje domyślny język aplikacji. Żądanie zapisu na listę oczekujących przyjmuje opcjonalne `locale` o tych samych wartościach. Ponowienie dostawy zachowuje pierwotny język. Wybór pól w konfiguracji endpointu może celowo pomijać pola kupującego. Potwierdzenie leada produktu emituje jedno `lead.captured`: identyfikator leada, źródło, zgoda i daty potwierdzenia trafiają do tego samego zdarzenia co szczegóły produktu, daty dostępu, własne pola oraz wydana licencja. Ponowne potwierdzenie tego samego leada zachowuje klucz dostawy. Zapis na samą listę zachowuje pola leada i zgody bez dostępu do produktu.
+
+## Utworzenie, zmiana i usunięcie produktu
+
+Od wersji 2026.11.1 istniejące subskrypcje `product.created`, `product.updated` i
+`product.deleted` automatycznie zaczną otrzymywać zdarzenia. Nie trzeba ich konfigurować ponownie.
+Zdarzenie zapisuje się w tej samej transakcji co produkt: obejmuje panel, API v1, MCP,
+import i duplikowanie. Nieudany lub wycofany zapis nie tworzy zdarzenia.
+
+| Zdarzenie | Kiedy jest wysyłane | Stan produktu |
+|---|---|---|
+| `product.created` | Utworzono rekord produktu, także nieaktywny szkic. | Publiczne pola po utworzeniu; rewizja 1. |
+| `product.updated` | Rzeczywiście zmieniono przynajmniej jedno pole publicznego stanu. | Publiczne pola po zapisie; posortowane `changedFields` używa nazw camelCase z obiektu produktu. |
+| `product.deleted` | Usunięto rekord produktu. | Publiczne pola bezpośrednio sprzed usunięcia; kolejna rewizja. |
+
+Jeden zapis wielu pól rekordu produktu tworzy jedno zdarzenie tej rodziny. Zapis bez zmian,
+zmiana tylko chronionych treści, identyfikatorów operatora płatności lub dat technicznych
+nie tworzy zdarzenia. Dotychczasowe `product.published`, `product.unpublished` i
+`product.price_changed` działają osobno. Subskrypcja obu rodzin celowo dostarcza oba rodzaje powiadomień.
+
+Kontrakt jest wspólny dla produktów jednorazowych, subskrypcji, pakietów, wydarzeń,
+produktów darmowych i z własną ceną. `productType` ma wartość `one_time` lub `subscription`;
+`isBundle`, `eventMode` i `allowCustomPrice` określają pozostałe rodzaje. `price` równe zero
+oznacza produkt darmowy. Stan obejmuje rekord produktu: sama edycja powiązań kategorii i tagów,
+składników pakietu, terminów wydarzenia lub ofert sklepu nie zmienia tego stanu.
+
+`data.eventId` identyfikuje zapisane zdarzenie niezależnie od endpointu, a `id` koperty —
+konkretną dostawę. `data.revision` rośnie przy każdej publicznej zmianie produktu, także
+usunięciu. Istniejące produkty zaczynają od rewizji 0 po aktualizacji; historia nie jest
+wysyłana wstecz. Odbiorca usuwa duplikaty po `eventId` i porządkuje zmiany po rewizji:
+dostawa może zostać ponowiona lub dotrzeć w innej kolejności. Ponowienie zachowuje zapisany
+stan, również po zmianie lub usunięciu produktu. Filtr wybranych produktów jest zapisywany
+razem ze zdarzeniem i działa po usunięciu produktu; endpoint nadal musi być aktywny i mieć
+subskrypcję zdarzenia w chwili wysyłki. `occurredAt` to czas zmiany w bazie, `timestamp`
+koperty to czas przekazania do dostawy. `schemaVersion` wynosi 1. `operation` ma wartość
+`insert`, `update` lub `delete`; `changedFields` jest puste przy utworzeniu i usunięciu.
+
+Publiczne pola: `id`, `name`, `slug`, `description`, `longDescription`, `icon`, `imageUrl`,
+`thumbnailUrl`, `previewVideoUrl`, `features`, `marketingFields`, `price`, `salePrice`,
+`salePriceUntil`, `recurringPrice`, `currency`, `productType`, `isBundle`, `eventMode`,
+`isActive`, `isListed`, `isFeatured`, `availableFrom`, `availableUntil`, `allowCustomPrice`,
+`customPriceMin`, `billingInterval`, `billingIntervalCount`, `trialDays`, `priceIncludesVat`,
+`vatRate`, `vatExempt`, `isRefundable`, `refundPeriodDays`, `autoGrantDurationDays`,
+`allowRepeatPurchase`, `enableWaitlist`, `saleQuantityLimit`, `issueLicenseOnPurchase`,
+`licenseDurationDays`. Pola opcjonalne zachowują null. Kwoty (`price`, `salePrice`,
+`recurringPrice`, `customPriceMin`) są w najmniejszych jednostkach waluty, także dla obsługiwanych walut
+bez części dziesiętnej; stawka VAT jest procentem.
+Zdarzenie nie zawiera konfiguracji chronionych treści, kluczy licencji, kluczy operatorów ani danych klientów.
+
+Przykład dostawy `product.updated` (obiekt produktu skrócony dla czytelności):
+
+```json
+{
+  "event": "product.updated",
+  "id": "00000000-0000-4000-8000-000000000201",
+  "timestamp": "2026-11-11T10:00:01Z",
+  "data": {
+    "schemaVersion": 1,
+    "eventId": "00000000-0000-4000-8000-000000000101",
+    "revision": 2,
+    "operation": "update",
+    "amountUnit": "minor",
+    "occurredAt": "2026-11-11T10:00:00Z",
+    "actor": {
+      "type": "system",
+      "id": null
+    },
+    "changedFields": [
+      "name",
+      "price"
+    ],
+    "product": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "name": "Advanced course",
+      "slug": "course",
+      "price": 2135,
+      "salePrice": null,
+      "salePriceUntil": null,
+      "recurringPrice": null,
+      "currency": "PLN",
+      "productType": "one_time",
+      "isBundle": false,
+      "eventMode": false,
+      "isActive": true,
+      "isListed": true,
+      "allowCustomPrice": false
+    }
+  }
+}
+```
+
+`product.created` ma ten sam kształt z `operation: "insert"`, `revision: 1`, `changedFields: []`.
+`product.deleted` ma `operation: "delete"`, kolejną rewizję i `changedFields: []`; `product` to ostatni zapisany publiczny stan.
+Lista zdarzeń w panelu opisuje wszystkie trzy; **Testuj endpoint** pokazuje pełny przykład każdego z nich.

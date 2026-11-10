@@ -36,6 +36,7 @@ export class WebhookService {
     client?: SupabaseClientLike,
     productIds?: string | string[],
     deduplicationKey?: string,
+    selectedEndpointIds?: string[],
   ): Promise<void> {
     const supabase = client || createAdminClient();
     const requiredFeature = (EVENT_FEATURE_REQUIREMENTS as Record<string, Feature>)[event];
@@ -49,7 +50,7 @@ export class WebhookService {
     }
     const queue = new SupabaseWebhookQueue(supabase);
 
-    const endpoints = await fetchEligibleEndpoints(supabase, event, productIds);
+    const endpoints = await fetchEligibleEndpoints(supabase, event, productIds, ...(selectedEndpointIds === undefined ? [] : [selectedEndpointIds]));
     if (!endpoints.length) return;
     data = await enrichBuyerWebhook(event, data, supabase);
     const timestamp = new Date().toISOString();

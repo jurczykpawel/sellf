@@ -222,20 +222,20 @@ export const WEBHOOK_EVENT_TYPES = [
   'refund.request_approved',
   'refund.request_rejected',
   'refund.request_cancelled',
+  'product.created',
+  'product.updated',
+  'product.deleted',
   'product.published',
   'product.unpublished',
   'product.price_changed',
   'product.sold_out',
-  // Legacy/future events
+  // Other accepted event names
   'license.updated',
   'payment.completed',
   'payment.refunded',
   'payment.failed',
   'user.access_granted',
   'user.access_revoked',
-  'product.created',
-  'product.updated',
-  'product.deleted',
 ] as const;
 
 export type WebhookEventType = typeof WEBHOOK_EVENT_TYPES[number];

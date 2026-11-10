@@ -126,3 +126,10 @@ describe('fetchEligibleEndpoints', () => {
     await expect(fetchEligibleEndpoints(client, 'purchase.completed', 'p1')).rejects.toBeTruthy();
   });
 });
+
+it('uses saved product links after deletion while still requiring active event candidates', async () => {
+  const { client, captured } = makeClient([ALL, SELa], []);
+  const result = await fetchEligibleEndpoints(client, 'product.deleted', ['deleted-product'], [SELa.id, 'no-longer-active']);
+  expect(result.map(endpoint => endpoint.id)).toEqual([ALL.id, SELa.id]);
+  expect(captured.junctionQueried).toBe(false);
+});

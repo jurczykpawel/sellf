@@ -547,6 +547,12 @@ Administrative access mutations use `mutate_access` so actor context and data ch
 Instrumentation starts the production worker every 30 seconds; `/api/cron?job=business-events` is the external scheduler entry point.
 The same worker captures natural access expiry, including renewed grants; test fixtures and builds do not start its timer.
 
+Product CRUD uses `capture_product_lifecycle_event` and the same outbox for
+`product.created/updated/deleted`. `product_catalogue_snapshot` defines public fields and
+minor-unit prices; `products.webhook_revision` is database-owned. No-op/protected-only
+writes are silent. Product routing is saved before cascading deletes; the worker removes
+internal routing metadata before signed delivery. See docs-site webhooks PL/EN.
+
 ### Free checkout field context
 
 Free magic-link requests validate custom answers before email and persist them in service-only `free_grant_contexts`.
