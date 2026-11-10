@@ -2764,8 +2764,41 @@
       "statusError": "Failed to toggle bump status"
     },
     "payments": {
-      "event": {"title": "Event", "date": "Date and time", "venue": "Venue", "online": "Event link", "tier": "Price tier", "tierNumber": "Tier {number}", "quantity": "Seats", "status": "Reservation", "error": "Could not load event details.", "statuses": {"held": "Held", "confirmed": "Confirmed", "released": "Released"}},
-      "partner": {"title": "Partner", "partner": "Partner", "coupon": "Coupon", "rate": "Rate", "commission": "Commission after adjustments", "original": "Originally accrued", "paidAmount": "Paid out", "status": "Status", "error": "Could not load commission details.", "statuses": {"accrued": "Accrued", "held": "Held", "reversed": "Reversed", "paid": "Paid"}},
+      "event": {
+        "purchasedDate": "Date at purchase",
+        "title": "Event",
+        "date": "Date and time",
+        "venue": "Venue",
+        "online": "Event link",
+        "tier": "Price tier",
+        "tierNumber": "Tier {number}",
+        "quantity": "Seats",
+        "status": "Reservation",
+        "error": "Could not load event details.",
+        "statuses": {
+          "held": "Held",
+          "confirmed": "Confirmed",
+          "released": "Released"
+        }
+      },
+      "partner": {
+        "title": "Partner",
+        "partner": "Partner",
+        "coupon": "Coupon",
+        "rate": "Rate",
+        "commission": "Commission after adjustments",
+        "original": "Originally accrued",
+        "paidAmount": "Paid out",
+        "status": "Status",
+        "error": "Could not load commission details.",
+        "statuses": {
+          "reserved": "Payout in progress",
+          "accrued": "Accrued",
+          "held": "Held",
+          "reversed": "Reversed",
+          "paid": "Paid"
+        }
+      },
       "missingParticipants": {
         "title": "{count, plural, one {# order is missing participants} other {# orders are missing participants}}",
         "help": "The buyer chose to add participants after payment. Up to two reminder e-mails with a personal link are sent automatically (24 hours after purchase and, for events, 2 days before the event); the list appears in the order once the buyer saves it.",
@@ -3632,6 +3665,7 @@
       "keyPlaceholder": "payload.signature"
     },
     "issuedLicenses": {
+      "showAllLicenses": "Show all licenses",
       "invalidDomain": "Enter a valid domain, e.g. example.com.",
       "searchTooLong": "Search must be at most 254 characters.",
       "invalidEmail": "Enter a valid email address, e.g. jan@example.com.",

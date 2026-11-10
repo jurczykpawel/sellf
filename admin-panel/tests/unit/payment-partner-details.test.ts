@@ -18,7 +18,7 @@ it.each([
   [[{ amount_minor: 1000, allocations: [{ released_at: null, payout: { status: 'paid' } }] }], null, false, null, 'paid'],
   [[{ amount_minor: 1000, allocations: [] }, { amount_minor: -1000, allocations: [] }], null, false, null, 'reversed'],
   [[{ amount_minor: 1000, allocations: [] }], '2020-01-01', true, null, 'held'],
-  [[{ amount_minor: 1000, allocations: [{ released_at: null, payout: { status: 'reserved' } }] }], '2020-01-01', false, null, 'held'],
+  [[{ amount_minor: 1000, allocations: [{ released_at: null, payout: { status: 'reserved' } }] }], '2020-01-01', false, null, 'reserved'],
 ])('shows the ledger state %s', async (ledger, eligible_at, dispute_seen, dispute_reviewed_at, status) => {
   m.rows = [{ id, currency: 'PLN', accrued_minor: 1000, eligible_at, dispute_seen, dispute_reviewed_at,
     member: { display_name: 'Partner', code: 'PARTNER' }, binding: { coupon: { code: 'SAVE' } },

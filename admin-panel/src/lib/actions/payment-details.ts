@@ -8,7 +8,7 @@ export interface PaymentPartnerDetail {
   id: string; partner: string; coupon: string | null; currency: string;
   percentage_bps: number | null; fixed_minor: number | null;
   accrued_minor: number; current_minor: number; paid_minor: number;
-  status: 'accrued' | 'held' | 'reversed' | 'paid';
+  status: 'accrued' | 'held' | 'reserved' | 'reversed' | 'paid';
 }
 interface CommissionRow {
   id: string; currency: string; accrued_minor: number; eligible_at: string | null;
@@ -44,13 +44,13 @@ export async function getPaymentPartnerDetails(transactionId: string): Promise<A
       return { id: c.id, partner: c.member.display_name || c.member.code, coupon: c.binding.coupon.code,
         currency: c.currency, percentage_bps: c.rule.percentage_bps, fixed_minor: c.rule.fixed_minor,
         accrued_minor: Number(c.accrued_minor), current_minor: current, paid_minor: paid,
-        status: current <= 0 ? 'reversed' : reserved ? 'held' : paid >= current ? 'paid' : eligible ? 'accrued' : 'held' };
+        status: current <= 0 ? 'reversed' : reserved ? 'reserved' : paid >= current ? 'paid' : eligible ? 'accrued' : 'held' };
     }) };
   });
 }
 
 export interface PaymentEventDetail {
-  quantity: number; status: string;
+  quantity: number; status: string; purchased_starts_at?: string | null;
   session: { title: string | null; starts_at: string; ends_at: string | null; timezone: string; venue: string | null; online_url: string | null };
   tier: { label: string | null; price: number; sort: number };
 }
@@ -60,11 +60,21 @@ export async function getPaymentEventDetails(transactionId: string): Promise<Act
     const { data, error } = await dataClient.from('seat_reservations').select(`quantity,status,
       session:product_sessions(title,starts_at,ends_at,timezone,venue,online_url),
       tier:product_price_tiers(label,price,sort)`).eq('transaction_id', transactionId).maybeSingle();
-    return error ? { success: false, error: 'Event details unavailable' } : { success: true, data: data as unknown as PaymentEventDetail | null };
+    if (error) return { success: false, error: 'Event details unavailable' };
+    if (!data) return { success: true, data: null };
+    const snapshot = await dataClient.from('payment_line_items').select('session_label,session_starts_at,tier_label,unit_price')
+      .eq('transaction_id', transactionId).eq('item_type', 'main_product').maybeSingle();
+    if (snapshot.error) return { success: false, error: 'Event details unavailable' };
+    const event = data as unknown as PaymentEventDetail;
+    const line = snapshot.data;
+    return { success: true, data: { ...event, purchased_starts_at: line?.session_starts_at ?? null,
+      session: { ...event.session, title: line?.session_label ?? event.session.title },
+      tier: { ...event.tier, label: line?.tier_label ?? event.tier.label, price: line?.unit_price ?? event.tier.price },
+    } };
   });
 }
 
-export interface PaymentLicenseDetail { enabled: true; email: string; productId: string; licenseId: string | null }
+export interface PaymentLicenseDetail { email: string; productId: string; licenseId: string | null }
 export async function getPaymentLicenseDetails(transactionId: string): Promise<ActionResponse<PaymentLicenseDetail | null>> {
   if (!z.uuid().safeParse(transactionId).success) return { success: false, error: 'Invalid transaction' };
   return withAdminClient(async ({ dataClient }) => {
@@ -75,6 +85,6 @@ export async function getPaymentLicenseDetails(transactionId: string): Promise<A
     const license = await dataClient.from('issued_licenses').select('id').eq('product_id', row.product_id)
       .ilike('email', row.customer_email.replace(/[\\%_]/g, '\\$&')).order('issued_at', { ascending: false }).limit(1).maybeSingle();
     if (license.error) return { success: false, error: 'License details unavailable' };
-    return { success: true, data: { enabled: true, productId: row.product_id, email: row.customer_email, licenseId: license.data?.id ?? null } };
+    return { success: true, data: { productId: row.product_id, email: row.customer_email, licenseId: license.data?.id ?? null } };
   });
 }

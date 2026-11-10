@@ -3714,7 +3714,7 @@
       },
       "end_state": {
         "buyer": "The order can be found by the number from the buyer's confirmation.",
-        "seller": "Searching 1300 or opening /dashboard/payments?order=1300 opens that order's details.",
+        "seller": "Searching 1300 or opening /dashboard/payments?order=1300 opens that order's details, including partner commission, event reservation, purchase time and the product license action.",
         "integrator": "GET /api/v1/payments?search=1300 matches the order number."
       },
       "status": "automated",

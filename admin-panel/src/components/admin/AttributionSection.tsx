@@ -50,7 +50,7 @@ export default function AttributionSection({ transactionId }: { transactionId: s
           {d.first && (
             <>
               <dt className="text-sf-muted">{t('firstTouch')}</dt>
-              <dd className="text-sf-heading break-all">{touch(d.first)}</dd>
+              <dd className="text-sf-heading break-all"><span className="font-medium">{channelLabel(d.first_channel)}</span>{touch(d.first)}</dd>
             </>
           )}
           {d.sessions_count !== null && (
