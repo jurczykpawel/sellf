@@ -1,6 +1,7 @@
 /** Online payment of unpaid transfer orders from the pay link, on real Stripe test mode (hosted Checkout + real webhook events).
  * Buyer: pays on the order page; seller: order completed, settled via Stripe; integrator: order.* / purchase.completed. */
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
+import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
 import { expect, test } from '@playwright/test';
 import Stripe from 'stripe';
 import { createTestAdmin, loginAsAdmin, setAuthSession, supabaseAdmin as db } from '../helpers/admin-auth';
@@ -155,6 +156,46 @@ test('guest opens the original payment email after a full quick-pay refund @J185
   } finally {
     await adminPage.close();
     if (buyerId) await db.auth.admin.deleteUser(buyerId);
+    await admin.cleanup();
+  }
+});
+
+
+test('cancelled transfer paid by quick-pay loses its license and CRL access after a panel refund @J186',async({page})=>{
+  const admin=await createTestAdmin('quick-license-refund');
+  const original=await checked(await db.from('products').select('seller_id,issue_license_on_purchase').eq('id',product.id).single());
+  const sellerId=await checked(await db.rpc('find_user_id_by_email',{p_email:admin.email})) as string;
+  const pair=generateSellerKeypair();
+  await storeSellerKey(db,{sellerId:sellerId,...pair,custody:'managed'});
+  await checked(await db.from('products').update({seller_id:sellerId,issue_license_on_purchase:true}).eq('id',product.id).select());
+  let id:string|undefined;
+  try{
+    const email=`quick-license-${randomUUID()}@example.com`;
+    const availability=await checked(await db.rpc('event_availability',{p_product_id:product.id,p_at:new Date().toISOString()})) as Array<{id:string;current_tier:{price:number}|null}>;
+    id=await place(email,availability.find(row=>row.id===sessionId)!.current_tier!.price);
+    const cancelled=await checked(await db.rpc('cancel_unpaid_order',{p_transaction_id:id,p_reason:'Test cancellation'}));
+    expect(cancelled).toMatchObject({success:true});
+    await page.goto(orderPage(id));
+    await page.getByRole('button',{name:/Zapłać online/}).click();
+    await payOnHostedCheckout(page);
+    await expect.poll(async()=> (await db.from('issued_licenses').select('id').eq('order_id',id!)).data?.length,{timeout:90000}).toBe(1);
+    const license=await checked(await db.from('issued_licenses').select('*').eq('order_id',id).single());
+    expect(license.revoked_at).toBeNull();
+    await setAuthSession(page,admin.email,admin.password);
+    await page.goto('/pl/dashboard/payments');
+    await page.getByRole('row').filter({hasText:email}).getByRole('button',{name:'Zwrot',exact:true}).click();
+    await page.getByRole('combobox').last().selectOption('requested_by_customer');
+    await page.getByRole('button',{name:'Pełny zwrot'}).click();
+    await expect.poll(async()=> (await db.from('issued_licenses').select('revoked_at,revocation_reason').eq('id',license.id).single()).data,{timeout:90000})
+      .toEqual({revoked_at:expect.any(String),revocation_reason:'refund'});
+    const hash=createHash('sha256').update(license.order_id).digest('hex');
+    const response=await page.request.get(`/api/licenses/revoked?seller=${sellerId}&prefix=${hash.slice(0,4)}`);
+    expect(response.status()).toBe(200);expect((await response.json()).order_hashes).toContain(hash);
+    expect((await checked(await db.from('issued_licenses').select('license_key').eq('id',license.id).single())).license_key).toBe(license.license_key);
+  }finally{
+    if(id)await db.from('issued_licenses').delete().eq('order_id',id);
+    await db.from('products').update(original).eq('id',product.id);
+    await db.from('seller_license_keys').delete().eq('seller_id',sellerId);
     await admin.cleanup();
   }
 });

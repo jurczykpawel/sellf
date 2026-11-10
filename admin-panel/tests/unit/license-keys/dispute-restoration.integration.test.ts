@@ -103,6 +103,40 @@ afterEach(async()=>{
  sql(`DELETE FROM public.business_events WHERE product_id='${product}';`);
 });
 describe('license restoration consumer contract',()=>{
+ it.each(['intent','quick-pay'])('records delayed main and bump licenses as revoked during a %s dispute',async kind=>{
+  await db.from('issued_licenses').delete().eq('id',license);
+  license=randomUUID();
+  if(kind==='quick-pay')order=transaction;
+  const bump=randomUUID();additionalProducts.push(bump);
+  expect((await db.from('products').insert({id:bump,name:'Delayed bump',slug:'late-bump-'+bump,price:1,currency:'PLN'})).error).toBeNull();
+  await apply(created);
+  await saveToken();
+  expect((await db.from('issued_licenses').insert({seller_id:h.seller,original_seller_id:h.seller,product_id:bump,email,order_id:order,kid:pair.kid,license_key:'delayed-bump'})).error).toBeNull();
+  const rows=await db.from('issued_licenses').select('revoked_at,revoked_by_dispute_id').eq('order_id',order);
+  expect(rows.data).toHaveLength(2);expect(rows.data!.every(row=>row.revoked_at&&row.revoked_by_dispute_id)).toBe(true);
+  await apply(won);
+  expect((await db.from('issued_licenses').select('revoked_at').eq('order_id',order)).data!.every(row=>row.revoked_at===null)).toBe(true);
+ });
+
+ it.each(['intent','quick-pay'])('revokes and restores main and bump on %s disputes, but keeps a later refund permanent',async kind=>{
+  if(kind==='quick-pay'){order=transaction;await saveToken();}
+  const bump=randomUUID();additionalProducts.push(bump);
+  expect((await db.from('products').insert({id:bump,name:'Licensed bump',slug:'bump-'+bump,price:1,currency:'PLN'})).error).toBeNull();
+  expect((await db.from('issued_licenses').insert({seller_id:h.seller,original_seller_id:h.seller,product_id:bump,email,order_id:order,kid:pair.kid,license_key:'fixture-bump'})).error).toBeNull();
+  await apply(created);
+  let rows=await db.from('issued_licenses').select('revoked_at,revoked_by_dispute_id').eq('order_id',order);
+  expect(rows.error).toBeNull();expect(rows.data).toHaveLength(2);expect(rows.data!.every(row=>row.revoked_at&&row.revoked_by_dispute_id)).toBe(true);
+  await apply(won);
+  rows=await db.from('issued_licenses').select('revoked_at,revoked_by_dispute_id').eq('order_id',order);
+  expect(rows.data!.every(row=>row.revoked_at===null)).toBe(true);
+  expect((await db.from('payment_transactions').update({status:'refunded',refunded_amount:wonCharge.amount}).eq('id',transaction)).error).toBeNull();
+  expect((await db.from('issued_licenses').select('revoked_at,revocation_reason').eq('order_id',order)).data).toEqual([
+    expect.objectContaining({revoked_at:expect.any(String),revocation_reason:'refund'}),
+    expect.objectContaining({revoked_at:expect.any(String),revocation_reason:'refund'}),
+  ]);
+  expect((await state()).revoked).toBe(true);
+ });
+
  it('makes the same signed token usable again and removes its CRL entry after won',async()=>{
   const original=token;expect((await state()).usable).toBe(true);
   await apply(created);expect((await state()).revoked).toBe(true);
