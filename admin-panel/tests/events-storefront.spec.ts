@@ -147,3 +147,14 @@ test('unlisted event shows sessions and tier price from a direct link but stays 
   await page.goto(`/pl/store?search=${product.slug}`);
   await expect(page.locator('article').filter({ hasText: product.slug })).toHaveCount(0);
 });
+
+test('only the available date is selected when the other dates cannot be bought @J51', async ({ page }) => {
+  const sold = await checked(await db.from('product_sessions').insert({ product_id: product.id, starts_at: '2099-07-01T12:00:00Z', capacity: 1 }).select('id').single());
+  await checked(await db.from('product_price_tiers').insert({ session_id: sold.id, price: 47, sort: 0 }));
+  await checked(await db.rpc('place_order', { p_order: { product_id: product.id, currency: 'PLN', customer_email: 'held@example.com', session_id: `cs_test_${randomUUID().replaceAll('-', '')}` }, p_lines: [{ product_id: product.id, item_type: 'main_product', product_name: 'Workshop', quantity: 1, unit_price: 47, total_price: 47, discounted_total: 47, currency: 'PLN', session_id: sold.id }] }));
+  await checked(await db.from('product_sessions').insert({ product_id: product.id, starts_at: '2099-08-01T12:00:00Z', title: 'No price' }));
+  await open(page);
+  await expect(page.locator(`input[value="${session}"]`)).toBeChecked();
+  const response = await startNativeCheckout(page);
+  expect(response.request().postDataJSON().sessionId).toBe(session);
+});

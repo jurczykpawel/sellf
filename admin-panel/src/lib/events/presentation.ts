@@ -58,7 +58,7 @@ export function eventUTCDate(value: string, timezone: string): string {
 }
 export function selectEventSession(sessions: EventSession[], requested: string | null): string | null {
   const available = sessions.filter(s => s.currentTier && !s.soldOut);
-  return available.find(s => s.id === requested)?.id ?? (sessions.length === 1 ? available[0]?.id ?? null : null);
+  return available.find(s => s.id === requested)?.id ?? (available.length === 1 ? available[0]?.id ?? null : null);
 }
 
 export interface PurchasedEvent { id: string; starts_at: string; timezone: string; online_url: string | null; title: string | null }
