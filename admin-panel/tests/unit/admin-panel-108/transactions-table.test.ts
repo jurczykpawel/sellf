@@ -11,6 +11,11 @@ import type { PaymentTransaction } from '@/types/payment';
 
 const { processRefund } = vi.hoisted(() => ({ processRefund: vi.fn() }));
 vi.mock('@/lib/actions/payment', () => ({ processRefund }));
+vi.mock('@/lib/actions/payment-details', () => ({
+  getPaymentPartnerDetails: async () => ({ success:true, data:[] }),
+  getPaymentEventDetails: async () => ({ success:true, data:null }),
+  getPaymentLicenseDetails: async () => ({ success:true, data:{email:'jan@example.com',productId:'prod-1',licenseId:null} }),
+}));
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) => values ? `${key}:${JSON.stringify(values)}` : key,
   useLocale: () => 'pl',
@@ -29,8 +34,8 @@ const tx = {
   created_at: '2026-11-01T10:00:00Z', line_items: [], metadata: {},
 } as unknown as PaymentTransaction;
 
-it('shows the order number and opens the order given in the URL @J191 @J193', () => {
-  render(createElement(PaymentTransactionsTable, { transactions: [tx], initialDetailsId: tx.id }));
+it('shows the order number and opens the order given in the URL @J191 @J193', async () => {
+  await act(async () => { render(createElement(PaymentTransactionsTable, { transactions: [tx], initialDetailsId: tx.id })); });
   expect(screen.getAllByText('#1300').length).toBeGreaterThan(0);
   expect(screen.getByText('transactionDetails')).toBeTruthy();
   const link = screen.getByRole('link', { name: 'issueLicense' }) as HTMLAnchorElement;

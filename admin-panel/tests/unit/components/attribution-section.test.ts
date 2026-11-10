@@ -23,11 +23,13 @@ const view = {
 it('shows channel, last and first touch in Polish', async () => {
   action.getPurchaseAttribution.mockResolvedValue({ success: true, data: view });
   render(React.createElement(NextIntlClientProvider, { locale: 'pl', messages: pl }, React.createElement(AttributionSection, { transactionId: 't1' })));
-  expect(await screen.findByText('Źródło')).toBeTruthy();
+  expect(await screen.findByRole('heading', {name:'Skąd przyszedł kupujący'})).toBeTruthy();
   expect(screen.getByText('E-mail')).toBeTruthy();
-  expect(screen.getByText(/listmonk \/ email/)).toBeTruthy();
+  expect(screen.getByText('listmonk')).toBeTruthy();
+  expect(screen.getAllByText('Medium')).toHaveLength(2);
   expect(screen.getByText(/mail-05/)).toBeTruthy();
-  expect(screen.getByText(/facebook \/ paid_social/)).toBeTruthy();
+  expect(screen.getByText('facebook')).toBeTruthy();
+  expect(screen.getByText('paid_social')).toBeTruthy();
 });
 
 it('says plainly when an order has no recorded source', async () => {

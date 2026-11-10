@@ -533,6 +533,7 @@ describe('All server action files have auth wrappers', () => {
       'license-config.ts',
       'payment-config.ts',
       'payment.ts',
+      'payment-details.ts',
       'preferences.ts',
       'products.ts',
       'profile.ts',
