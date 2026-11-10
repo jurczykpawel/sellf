@@ -63,3 +63,18 @@ export async function getPaymentEventDetails(transactionId: string): Promise<Act
     return error ? { success: false, error: 'Event details unavailable' } : { success: true, data: data as unknown as PaymentEventDetail | null };
   });
 }
+
+export interface PaymentLicenseDetail { enabled: true; email: string; productId: string; licenseId: string | null }
+export async function getPaymentLicenseDetails(transactionId: string): Promise<ActionResponse<PaymentLicenseDetail | null>> {
+  if (!z.uuid().safeParse(transactionId).success) return { success: false, error: 'Invalid transaction' };
+  return withAdminClient(async ({ dataClient }) => {
+    const tx = await dataClient.from('payment_transactions').select('product_id,customer_email,product:products(issue_license_on_purchase)').eq('id', transactionId).maybeSingle();
+    if (tx.error) return { success: false, error: 'License details unavailable' };
+    const row = tx.data as unknown as { product_id: string; customer_email: string | null; product: { issue_license_on_purchase: boolean } | null } | null;
+    if (!row?.product?.issue_license_on_purchase || !row.customer_email) return { success: true, data: null };
+    const license = await dataClient.from('issued_licenses').select('id').eq('product_id', row.product_id)
+      .ilike('email', row.customer_email.replace(/[\\%_]/g, '\\$&')).order('issued_at', { ascending: false }).limit(1).maybeSingle();
+    if (license.error) return { success: false, error: 'License details unavailable' };
+    return { success: true, data: { enabled: true, productId: row.product_id, email: row.customer_email, licenseId: license.data?.id ?? null } };
+  });
+}

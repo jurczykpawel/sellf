@@ -15,9 +15,10 @@ interface LicensesPageContentProps {
   initialEmail?: string;
   initialProductId?: string;
   initialSearch?: string;
+  initialLicenseId?: string;
 }
 
-export default function LicensesPageContent({ enabled, initialEmail, initialProductId, initialSearch }: LicensesPageContentProps) {
+export default function LicensesPageContent({ enabled, initialEmail, initialProductId, initialSearch, initialLicenseId }: LicensesPageContentProps) {
   const t = useTranslations('settings.issuedLicenses');
   const { demoMode } = useConfig();
   const { role } = useAuth();
@@ -31,6 +32,7 @@ export default function LicensesPageContent({ enabled, initialEmail, initialProd
       initialEmail={initialEmail}
       initialProductId={initialProductId}
       initialSearch={initialSearch}
+      initialLicenseId={initialLicenseId}
     />
   );
 }

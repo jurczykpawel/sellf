@@ -50,9 +50,10 @@ interface IssuedLicensesSettingsProps {
   initialEmail?: string;
   initialProductId?: string;
   initialSearch?: string;
+  initialLicenseId?: string;
 }
 
-export default function IssuedLicensesSettings({ enabled, initialEmail = '', initialProductId = '', initialSearch = '' }: IssuedLicensesSettingsProps) {
+export default function IssuedLicensesSettings({ enabled, initialEmail = '', initialProductId = '', initialSearch = '', initialLicenseId = '' }: IssuedLicensesSettingsProps) {
   const t = useTranslations('settings.issuedLicenses');
   const locale = useLocale();
   const [licenses, setLicenses] = useState<LicenseRow[]>([]);
@@ -91,6 +92,7 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
 
     try {
       const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (initialLicenseId) query.set('licenseId', initialLicenseId);
       if (search.trim()) query.set('search', search.trim());
       if (source) query.set('source', source);
       if (status) query.set('status', status);
@@ -108,7 +110,7 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
     } finally {
       if (isCurrent()) setLoading(false);
     }
-  }, [page, productId, search, source, status, t, beginRequest]);
+  }, [page, productId, search, source, status, t, beginRequest, initialLicenseId]);
 
   const requestKey = JSON.stringify([page, productId, search, source, status, enabled]);
   const [previousKey, setPreviousKey] = useState(requestKey);

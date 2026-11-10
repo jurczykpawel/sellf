@@ -17,6 +17,7 @@ import { currencyExponent, fromMinorUnits } from '@/lib/currency/minor-units';
 import { transferDeadline, formatTransferDeadline } from '@/lib/orders/transfer-format';
 import BaseModal from '@/components/ui/BaseModal';
 import BankTransferSection from '@/components/admin/BankTransferSection';
+import PaymentLicenseLink from '@/components/admin/PaymentLicenseLink';
 import PaymentEventSection from '@/components/admin/PaymentEventSection';
 import PaymentPartnerSection from '@/components/admin/PaymentPartnerSection';
 import AttributionSection from '@/components/admin/AttributionSection';
@@ -426,14 +427,7 @@ export default function PaymentTransactionsTable({
             </div>
 
             <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-              {detailsTransaction.customer_email && (detailsTransaction.product?.id ?? detailsTransaction.product_id) && (
-                <a
-                  href={`/dashboard/licenses?${new URLSearchParams({ email: detailsTransaction.customer_email, product: detailsTransaction.product?.id ?? detailsTransaction.product_id })}`}
-                  className="text-sm font-medium text-sf-accent hover:text-sf-accent-hover underline"
-                >
-                  {t('issueLicense')}
-                </a>
-              )}
+              <PaymentLicenseLink transactionId={detailsTransaction.id} />
               <button
                 onClick={() => setDetailsTransactionId(null)}
                 className="bg-sf-accent-bg hover:bg-sf-accent-hover text-white font-semibold py-2 px-4 rounded-lg transition-colors"

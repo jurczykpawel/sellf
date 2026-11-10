@@ -2922,6 +2922,8 @@
         }
       },
       "transactions": {
+        "licenseIssued": "Licencja wystawiona",
+        "licenseError": "Nie udało się sprawdzić licencji.",
         "purchaseDate": "Data i godzina zakupu",
         "titleSentence": "Transakcje płatnicze",
         "title": "Transakcje Płatnicze",

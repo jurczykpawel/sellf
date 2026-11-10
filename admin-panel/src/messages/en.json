@@ -2922,6 +2922,8 @@
         }
       },
       "transactions": {
+        "licenseIssued": "License issued",
+        "licenseError": "Could not check the license.",
         "purchaseDate": "Purchase date and time",
         "titleSentence": "Payment transactions",
         "title": "Payment Transactions",
