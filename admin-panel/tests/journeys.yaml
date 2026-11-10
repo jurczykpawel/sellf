@@ -113,8 +113,8 @@
       },
       "end_state": {
         "buyer": "Receives main and selected bump access, a receipt link and the stored issued token.",
-        "seller": "Completed order retains the selected lines.",
-        "integrator": "Signed purchase identifies buyer, product, amount and license."
+        "seller": "Completed order retains the selected lines. Full refund revokes both main and bump licenses.",
+        "integrator": "Signed purchase identifies buyer, product, amount and license. Each revoked license produces license.revoked and its original order hash enters the CRL."
       },
       "status": "automated",
       "layers": [
@@ -3648,8 +3648,8 @@
       },
       "end_state": {
         "buyer": "Pays and gets the same order back; after a price change sees only \"order again at the current price\".",
-        "seller": "Same order completed with reopened_at; no reopening at an outdated price.",
-        "integrator": "order.reopened then purchase.completed, once each."
+        "seller": "Same order completed with reopened_at; no reopening at an outdated price. A full panel refund after quick-pay revokes its UUID-bound license.",
+        "integrator": "order.reopened then purchase.completed, once each. The original license order hash is present in CRL after refund."
       },
       "status": "automated",
       "layers": [

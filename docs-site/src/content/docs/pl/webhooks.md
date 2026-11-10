@@ -217,6 +217,8 @@ zwrotu. Pole `license.expiresAt` podaje termin z rejestru; podpisany token pozos
 
 ## `license.revoked` / `license.restored` — Pro
 
+Pełny zwrot, anulowanie zamówienia i chargeback cofają wszystkie licencje zamówienia, także dodatków order bump i składników zestawu. Każda cofnięta licencja ma własne zdarzenie `license.revoked`. Dotyczy to również quick-pay i przelewów rozliczonych offline. Częściowy zwrot pozostawia licencje aktywne. Podpisane wartości `license.order` i ich hashe w CRL pozostają bez zmian.
+
 Każda rzeczywista zmiana stanu odwołania tworzy trwałe powiadomienie. Powtórzenie
 niezmienionego statusu nie dodaje zdarzenia. Subskrypcja i wysyłka obu typów wymagają
 funkcji Pro; sam stan licencji zmienia się niezależnie od bieżącego planu sklepu.

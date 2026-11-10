@@ -339,6 +339,8 @@ a refund. Its `license.expiresAt` is the ledger deadline; the signed token is un
 
 ### `license.revoked` / `license.restored` — Pro
 
+Full refunds, order cancellations and chargebacks revoke every license of the order, including order bumps and bundle components. Each changed license produces its own `license.revoked` event. Quick-pay and offline transfer orders use the same rule. Partial refunds keep licenses active. Historical signed `license.order` claims and CRL hashes stay unchanged.
+
 Each actual revocation-status change creates a committed notification. Repeating
 an unchanged status creates no extra event. Both subscriptions and dispatch require
 the Pro license-notification feature; the license state itself is updated regardless

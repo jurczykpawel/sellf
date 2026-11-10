@@ -3,15 +3,16 @@ useSupabaseBuyerEmails();
 import { test, startNativeCheckout } from '../helpers/checkout-intent';
 /** Real Stripe test-mode checkout, fulfillment, and delivery checks. @see README.md */
 import { readFileSync, appendFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { expect } from '@playwright/test';
 import Stripe from 'stripe';
 import { solveChallenge } from 'altcha-lib/v1';
 import { minorFactor } from '@/lib/currency/minor-units';
+import { verifyWebhookSignature } from '@/lib/services/webhook-queue/signature';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
 import { PREDEFINED_CUSTOM_FIELDS } from '@/lib/validations/custom-checkout-fields';
 import type { Frame, Page } from '@playwright/test';
-import { supabaseAdmin, createTestUser, setAuthSession } from '../helpers/admin-auth';
+import { supabaseAdmin, createTestUser, createTestAdmin, setAuthSession } from '../helpers/admin-auth';
 import { acceptAllCookies } from '../helpers/consent';
 import { deleteAuthUserByEmail } from '../helpers/db-cleanup';
 import { extractMagicLink, waitForEmail, searchMessages } from '../helpers/mailpit';
@@ -480,6 +481,34 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         }
       }
     }
+    if (options.multipleLicenses) {
+      const licenses=await rows('issued_licenses','email',s.email);
+      const transaction=(await rows('payment_transactions','product_id',s.productIds[0])).find(tx=>tx.status==='completed')!;
+      const admin=await createTestAdmin('licensed-bump-refund');
+      try {
+        expect((await supabaseAdmin.from('webhook_endpoints').update({events:['purchase.completed','license.revoked']}).eq('id',s.endpointId!)).error).toBeNull();
+        for(const productId of s.productIds.slice(1))await insert('webhook_endpoint_products',{webhook_endpoint_id:s.endpointId!,product_id:productId});
+        await setAuthSession(page,admin.email,admin.password);
+        const response=await page.request.post('/api/admin/payments/refund',{data:{transactionId:transaction.id,reason:'requested_by_customer'}});
+        expect(response.ok(),await response.text()).toBe(true);
+        await expect.poll(async()=> (await rows('issued_licenses','email',s.email)).filter(row=>row.revoked_at&&row.revocation_reason==='refund').length,{timeout:90000}).toBe(2);
+        for(const license of licenses){
+          const hash=createHash('sha256').update(license.order_id).digest('hex');
+          const crl=await page.request.get(`/api/licenses/revoked?seller=${license.original_seller_id}&prefix=${hash.slice(0,4)}`);
+          expect((await crl.json()).order_hashes).toContain(hash);
+        }
+        await expect.poll(async()=>{
+          const cron=await page.request.get('/api/cron?job=business-events',{headers:{Authorization:`Bearer ${process.env.CRON_SECRET}`}});
+          expect(cron.ok()).toBe(true);
+          return deliveries(s).filter(row=>row.body.event==='license.revoked').length;
+        },{timeout:90000}).toBe(2);
+        const revoked=deliveries(s).filter(row=>row.body.event==='license.revoked');
+        expect(revoked.map(row=>(row.body.data as {license:{id:string}}).license.id).sort()).toEqual(licenses.map(row=>row.id).sort());
+        const endpoint=(await rows('webhook_endpoints','id',s.endpointId!))[0];
+        for(const delivery of revoked)expect(verifyWebhookSignature(endpoint.secret,delivery.rawBody,delivery.headers['x-sellf-signature'])).toBe(true);
+        expect((await rows('issued_licenses','email',s.email)).map(row=>row.license_key).sort()).toEqual(licenses.map(row=>row.license_key).sort());
+      } finally {await admin.cleanup();}
+    }
     expect(hydrationErrors).toEqual([]);
     passed = true;
   } finally {
@@ -578,5 +607,5 @@ test('PLN net fixed coupon entered before email with five units and bump', async
 
 test('form coupon expires after reservation', async ({ page }) => { await run(page, 'coupon-expired', '4242424242424242', { coupon: true, expireCouponAfterReservation: true }); });
 
-test('multiple license keys share the first purchase email @J01', async ({page})=>run(page,'multi-license','4242424242424242',{multipleLicenses:true}));
+test('multiple license keys share the first purchase email and both revoke on refund @J01', async ({page})=>run(page,'multi-license','4242424242424242',{multipleLicenses:true}));
 test('licensed subscription keeps its first purchase link @J05', async ({page})=>run(page,'licensed-subscription','4242424242424242',{subscription:true,licensedSubscription:true}));

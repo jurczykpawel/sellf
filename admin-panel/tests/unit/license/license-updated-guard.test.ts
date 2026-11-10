@@ -9,7 +9,7 @@ import { expect, it } from 'vitest';
 
 const repo = path.resolve(import.meta.dirname, '../../../..');
 // Functions whose changes already have their own event: license.revoked / license.restored / license.expired.
-const ALLOWED_SQL = new Set(['revoke_issued_licenses', 'apply_payment_dispute', 'capture_expired_licenses']);
+const ALLOWED_SQL = new Set(['revoke_issued_licenses', 'apply_payment_dispute', 'capture_expired_licenses', 'revoke_terminal_order_licenses']);
 
 function latestSqlFunctions(): Map<string, string> {
   const dir = path.join(repo, 'supabase/migrations');

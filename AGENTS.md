@@ -1097,8 +1097,13 @@ function. Issuance failures leave fulfillment unfinished and request another att
 `verifySellfLicense` (`sdk.ts`) is the reference offline verifier sellers can copy.
 
 **Revocation:** licenses verify offline, so a refunded/abused token would work until
-expiry. Revocation happens **automatically** on full refund + chargeback (the Stripe webhook
-calls `revokeLicensesForOrder`, keyed on `paymentIntentId || sessionId`), on **subscription end**
+expiry. Revocation happens **automatically** on full refund or order cancellation (a transaction
+status trigger covers admin actions, API and Stripe webhooks), chargeback, and **subscription end**.
+`license_order_references` resolves the transaction UUID, PaymentIntent, session and invoice IDs
+without changing signed claims. All licenses of the order, including bumps and bundle components,
+are revoked together; partial refunds keep them active. The issuance trigger serializes with the
+transaction and records delayed fulfillment as already revoked. Free grants retain their
+`free_<user>_<product>` reference and have no payment transaction. On **subscription end**
 (`customer.subscription.deleted` revokes the licenses of the subscription's invoices; a cancellation
 at period end keeps them valid until then; a subscription ending `unpaid`/`incomplete_expired` revokes them as `expired`) and **manually** via `DELETE /api/admin/licenses/:id`.
 All flip `revoked_at` and record `issued_licenses.revocation_reason` (`refund` / `manual` /

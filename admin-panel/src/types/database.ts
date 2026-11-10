@@ -6158,6 +6158,12 @@ export type Database = {
         Args: { p_email: string; p_keys: Json }
         Returns: boolean
       }
+      license_order_references: {
+        Args: {
+          p_order: Database["public"]["Tables"]["payment_transactions"]["Row"]
+        }
+        Returns: string[]
+      }
       list_orders_missing_participants: {
         Args: { p_limit?: number; p_unsent_only?: boolean }
         Returns: {
@@ -6609,6 +6615,13 @@ export type Database = {
       }
       revoke_issued_licenses: {
         Args: { p_actor?: string; p_license_ids: string[]; p_reason?: string }
+        Returns: {
+          changed: boolean
+          id: string
+        }[]
+      }
+      revoke_order_licenses: {
+        Args: { p_order_ids: string[]; p_product_id: string; p_reason: string }
         Returns: {
           changed: boolean
           id: string
