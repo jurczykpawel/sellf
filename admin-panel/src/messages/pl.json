@@ -2763,6 +2763,7 @@
       "statusError": "Nie udało się zmienić statusu bumpa"
     },
     "payments": {
+      "partner": {"title": "Partner", "partner": "Partner", "coupon": "Kupon", "rate": "Stawka", "commission": "Prowizja po korektach", "original": "Naliczono pierwotnie", "paidAmount": "Wypłacono", "status": "Stan", "error": "Nie udało się pobrać prowizji.", "statuses": {"accrued": "Naliczona", "held": "Wstrzymana", "reversed": "Cofnięta", "paid": "Wypłacona"}},
       "missingParticipants": {
         "title": "{count, plural, one {# zamówienie bez uczestników} few {# zamówienia bez uczestników} many {# zamówień bez uczestników} other {# zamówienia bez uczestników}}",
         "help": "Kupujący wybrał uzupełnienie uczestników po zapłacie. Maksymalnie dwa przypomnienia z osobistym linkiem wysyłają się automatycznie (po 24 godzinach od zakupu i, dla wydarzeń, na 2 dni przed wydarzeniem); lista pojawi się w zamówieniu, gdy kupujący ją zapisze.",

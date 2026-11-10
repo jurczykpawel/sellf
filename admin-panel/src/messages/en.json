@@ -2763,6 +2763,7 @@
       "statusError": "Failed to toggle bump status"
     },
     "payments": {
+      "partner": {"title": "Partner", "partner": "Partner", "coupon": "Coupon", "rate": "Rate", "commission": "Commission after adjustments", "original": "Originally accrued", "paidAmount": "Paid out", "status": "Status", "error": "Could not load commission details.", "statuses": {"accrued": "Accrued", "held": "Held", "reversed": "Reversed", "paid": "Paid"}},
       "missingParticipants": {
         "title": "{count, plural, one {# order is missing participants} other {# orders are missing participants}}",
         "help": "The buyer chose to add participants after payment. Up to two reminder e-mails with a personal link are sent automatically (24 hours after purchase and, for events, 2 days before the event); the list appears in the order once the buyer saves it.",

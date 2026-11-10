@@ -17,6 +17,7 @@ import { currencyExponent, fromMinorUnits } from '@/lib/currency/minor-units';
 import { transferDeadline, formatTransferDeadline } from '@/lib/orders/transfer-format';
 import BaseModal from '@/components/ui/BaseModal';
 import BankTransferSection from '@/components/admin/BankTransferSection';
+import PaymentPartnerSection from '@/components/admin/PaymentPartnerSection';
 import AttributionSection from '@/components/admin/AttributionSection';
 import InvoiceSection from '@/components/admin/InvoiceSection';
 import OrderDetailsSection from '@/components/admin/OrderDetailsSection';
@@ -375,6 +376,7 @@ export default function PaymentTransactionsTable({
               </div>
             </div>
 
+<PaymentPartnerSection transactionId={detailsTransaction.id} />
 <AttributionSection transactionId={detailsTransaction.id} />
 <BankTransferSection transaction={detailsTransaction} onRefresh={async () => { await onRefreshData?.(); }} />
 <InvoiceSection transactionId={detailsTransaction.id} status={detailsTransaction.status} invoice={detailsTransaction.invoice} onRefresh={() => { setDetailsTransactionId(null); onRefreshData?.(); }} />
