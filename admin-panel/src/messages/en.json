@@ -5919,6 +5919,11 @@
     "fromPrice": "from {price}"
   },
   "bankTransfer": {
+    "markPaidPending": "Recording payment…",
+    "cancelPending": "Cancelling…",
+    "markInvoiceIssuedPending": "Recording invoice…",
+    "acceptLatePending": "Accepting payment…",
+
     "transferTooLate": "Bank transfer is not available for this date: the event starts in less than {hours} hours, which is how long a seat is held until the transfer is booked. Please pay online.",
     "sessionRuleHelp": "Transfer is not offered for an event date that starts before the reservation would end (release time in hours). Buyers see an explanation and can pay online.",
     "errors": {"iban": "Enter a Polish account number (26 digits, with or without PL) with a valid checksum.", "holder_required": "Enter the transfer recipient when transfers are enabled.", "markup": "Remove the < and > characters (HTML tags are not allowed).", "control_chars": "Remove invisible control characters.", "too_long": "At most 200 characters.", "template": "The template must contain '{order_number}'.", "range": "Enter a whole number from {min} to {max}.", "release_after_reminder": "The reservation release must come after the reminder."},

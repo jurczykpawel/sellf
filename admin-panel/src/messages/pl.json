@@ -5919,6 +5919,11 @@
     "fromPrice": "od {price}"
   },
   "bankTransfer": {
+    "markPaidPending": "Zapisywanie płatności…",
+    "cancelPending": "Anulowanie…",
+    "markInvoiceIssuedPending": "Zapisywanie faktury…",
+    "acceptLatePending": "Przyjmowanie płatności…",
+
     "transferTooLate": "Przelew tradycyjny jest niedostępny dla tego terminu: wydarzenie zaczyna się wcześniej niż za {hours} godz., a tyle trwa rezerwacja miejsca do zaksięgowania przelewu. Zapłać online.",
     "sessionRuleHelp": "Przelew nie jest oferowany na termin wydarzenia, który zaczyna się wcześniej niż koniec rezerwacji (czas zwolnienia w godzinach). Kupujący widzi wtedy wyjaśnienie i może zapłacić online.",
     "errors": {"iban": "Podaj polski numer rachunku (26 cyfr, z PL lub bez) z poprawną sumą kontrolną.", "holder_required": "Podaj odbiorcę przelewu, gdy przelew jest włączony.", "markup": "Usuń znaki < i > (znaczniki HTML nie są dozwolone).", "control_chars": "Usuń niewidoczne znaki sterujące.", "too_long": "Maksymalnie 200 znaków.", "template": "Szablon musi zawierać '{order_number}'.", "range": "Podaj liczbę całkowitą od {min} do {max}.", "release_after_reminder": "Zwolnienie rezerwacji musi być później niż przypomnienie."},
