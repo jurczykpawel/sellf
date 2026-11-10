@@ -46,7 +46,8 @@ export default function ParticipantsEditor(props: ParticipantsEditorProps) {
     {props.required && props.allowLater && <label className="flex items-center gap-2 text-sf-body"><input type="checkbox" checked={props.later} onChange={event => props.setLater(event.target.checked)} />{t('later')}</label>}
     {props.required && props.allowLater && props.later && <p className="text-sm text-sf-muted">{t('laterHelp')}</p>}
     {showRows && <>
-      {quantity > 1 && <div className="space-y-2 rounded-lg bg-sf-raised p-3">
+      {quantity > 1 && <details className="space-y-2 rounded-lg bg-sf-raised p-3">
+        <summary className="min-h-11 cursor-pointer content-center text-sm font-medium text-sf-body focus-visible:outline-2 focus-visible:outline-sf-accent">{t('listDisclosure')}</summary>
         <label htmlFor={`${uid}-paste`} className="block text-sm font-medium text-sf-body">{t('pasteLabel')}</label>
         <textarea id={`${uid}-paste`} rows={3} value={text} onChange={event => setText(event.target.value)} aria-describedby={`${uid}-paste-help`} placeholder="Jan, Nowak, jan@example.com" className={`${props.inputClass} font-mono text-sm`} />
         <p id={`${uid}-paste-help`} className="text-xs text-sf-muted">{t('pasteHelp')}</p>
@@ -62,7 +63,7 @@ export default function ParticipantsEditor(props: ParticipantsEditorProps) {
           </label>
         </div>
         {message && <p role="status" className="text-sm text-sf-body">{message}</p>}
-      </div>}
+      </details>}
       <ol className="space-y-3">
         {props.people.map((person, index) => <li key={index} className="grid grid-cols-2 gap-2 border-t border-sf-border pt-3 sm:grid-cols-[2.5rem_1fr_1fr_1.6fr] sm:items-start">
           <span className="col-span-2 text-sm font-medium text-sf-body sm:col-span-1 sm:pt-2" aria-hidden="true">{index + 1}.</span>

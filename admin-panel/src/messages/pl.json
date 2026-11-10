@@ -224,6 +224,7 @@
       "participant": "Uczestnik {number}",
       "later": "Uzupełnię uczestników później",
       "laterHelp": "Po zapłacie dostaniesz e-mail z osobistym linkiem do uzupełnienia uczestników. Do tego czasu sprzedawca widzi zamówienie bez uczestników.",
+      "listDisclosure": "Masz listę? Wklej lub zaimportuj",
       "pasteLabel": "Wklej listę",
       "pasteHelp": "Jedna osoba w wierszu: imię, nazwisko, e-mail (rozdzielone przecinkiem, średnikiem lub tabulatorem).",
       "pasteApply": "Wypełnij z listy",

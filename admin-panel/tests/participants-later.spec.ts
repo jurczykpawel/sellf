@@ -66,6 +66,8 @@ test('the buyer saves the list from the personal link on a phone; webhook and se
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(link);
   await expect(page.getByRole('heading', { name: /Uczestnicy zamówienia/ })).toBeVisible();
+  await expect(page.getByLabel('Wklej listę')).toBeHidden();
+  await page.getByText('Masz listę? Wklej lub zaimportuj', { exact: true }).click();
   await page.getByLabel('Wklej listę').fill('Jan, Nowak, jan@example.com\nAnna, Kowalska, anna@example.com\nPiotr, Zieliński, piotr@example.com\nEwa, Lis, ewa@example.com');
   await page.getByRole('button', { name: 'Wypełnij z listy' }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

@@ -11,6 +11,9 @@ import { checkAccessibility } from './helpers/axe';
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 const created: string[] = [];
 test.describe.configure({ mode: 'serial' });
+test.beforeEach(async ({ page }) => {
+  await page.route('https://api.stripe.com/**/confirm', route => route.abort());
+});
 test.afterAll(async () => {
   for (const id of created) {
     await db.from('payment_transactions').delete().eq('product_id', id);
@@ -37,7 +40,6 @@ async function openCheckout(page: Page, slug: string, quantity: number) {
   await expect(page.locator('[id="buyer.first_name"]')).toBeVisible({ timeout: 30000 });
 }
 async function pay(page: Page) {
-  await page.route('https://api.stripe.com/**/confirm', route => route.abort());
   const session = await (await startNativeCheckout(page)).json();
   const paymentEmail = page.locator('#checkoutEmail');
   if (await paymentEmail.count()) await paymentEmail.fill('buyer@example.com');
@@ -87,6 +89,8 @@ test('ten participants fit a compact list: paste fills rows, no horizontal scrol
   await page.locator('[id="buyer.first_name"]').fill('Anna');
   await page.locator('[id="buyer.last_name"]').fill('Nowak');
   const list = Array.from({ length: 10 }, (_, i) => `Osoba${i}, Nazwisko${i}, osoba${i}@example.com`).join('\n');
+  await expect(page.getByLabel('Wklej listę')).toBeHidden();
+  await page.getByText('Masz listę? Wklej lub zaimportuj', { exact: true }).click();
   await page.getByLabel('Wklej listę').fill(list);
   await page.getByRole('button', { name: 'Wypełnij z listy' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Wypełniono 10 z 10' })).toBeVisible();
@@ -104,6 +108,7 @@ test('ten participants fit a compact list: paste fills rows, no horizontal scrol
 test('participants can be imported from a CSV file @J201', async ({ page }) => {
   const product = await makeProduct('CSV seats', [...base, { id: 'participants', required: true, prefill_from_buyer: false }]);
   await openCheckout(page, product.slug, 3);
+  await page.getByText('Masz listę? Wklej lub zaimportuj', { exact: true }).click();
   await page.getByLabel('Importuj CSV').setInputFiles({ name: 'people.csv', mimeType: 'text/csv', buffer: Buffer.from('imię,nazwisko,email\nJan,Nowak,jan@example.com\nAnna,Kowalska,anna@example.com\n') });
   await expect(page.getByRole('status').filter({ hasText: 'Wypełniono 2 z 3' })).toBeVisible();
   await expect(page.locator('[id="participants.1.last_name"]')).toHaveValue('Kowalska');

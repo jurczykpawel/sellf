@@ -224,6 +224,7 @@
       "participant": "Participant {number}",
       "later": "I'll add participants later",
       "laterHelp": "After payment you will get an e-mail with a personal link to add the participants. The seller sees the order without participants until you do.",
+      "listDisclosure": "Have a list? Paste or import it",
       "pasteLabel": "Paste a list",
       "pasteHelp": "One person per line: first name, last name, email (separated by comma, semicolon or tab).",
       "pasteApply": "Fill from list",
