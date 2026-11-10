@@ -20,7 +20,7 @@ test.beforeAll(async () => {
   coupon = (await checked(await db.from('coupons').insert({ code: `DETAILS${randomUUID().slice(0,8)}`, discount_type: 'percentage', discount_value: 10 }).select('id').single())).id;
   rule = (await checked(await db.from('affiliate_rules').insert({ product_id: productId, revision: 1, enabled: true, percentage_bps: 1500 }).select('id').single())).id;
   binding = (await checked(await db.from('affiliate_coupon_bindings').insert({ coupon_id: coupon, member_id: member, version: 1 }).select('id').single())).id;
-  commission = (await checked(await db.from('affiliate_commissions').insert({ payment_id: txId, line_item_id: line.id, member_id: member, rule_id: rule, binding_id: binding, livemode: false, session_created_at: now, paid_at: now, currency: 'PLN', base_minor: 10000, accrued_minor: 1500, self_referral: false, is_refundable: false, hold_days: 0, buffer_days: 0, eligible_at: '2020-01-01', observed_refunded_gross: 0, observed_status: 'cancelled' }).select('id').single())).id;
+  commission = (await checked(await db.from('affiliate_commissions').insert({ payment_id: txId, line_item_id: line.id, member_id: member, rule_id: rule, binding_id: binding, livemode: false, session_created_at: now, paid_at: now, currency: 'PLN', base_minor: 10000, accrued_minor: 1500, self_referral: false, is_refundable: false, hold_days: 0, buffer_days: 0, eligible_at: now, observed_refunded_gross: 0, observed_status: 'cancelled' }).select('id').single())).id;
   await checked(await db.from('affiliate_ledger').insert({ member_id: member, commission_id: commission, kind: 'accrual', amount_minor: 1500, currency: 'PLN', economic_key: `details-${randomUUID()}` }).select());
 });
 test.afterAll(async () => {
