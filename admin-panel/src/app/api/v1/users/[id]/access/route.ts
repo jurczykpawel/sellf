@@ -6,6 +6,8 @@
  */
 
 import { NextRequest } from 'next/server';
+import { revokeUserAccess } from '@/lib/license-keys/revoke-access';
+import { accessLicenseSchema, canManageAccessLicense, issueAccessLicense } from '@/lib/license-keys/access';
 import { accessActor, mutateAccess } from '@/lib/services/business-events';
 import {
   handleCorsPreFlight,
@@ -133,6 +135,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Parse and validate request body
     const body = await parseJsonBody<Record<string, unknown>>(request);
+    const options = accessLicenseSchema.safeParse(body);
+    if (!options.success) return apiError(request, 'VALIDATION_ERROR', 'Invalid license options');
     const sanitizedData = sanitizeGrantAccessData(body);
 
     const validation = validateGrantAccess(sanitizedData);
@@ -148,7 +152,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Check if product exists and is active
     const { data: product, error: productError } = await adminClient
       .from('products')
-      .select('id, name, is_active')
+      .select('id, name, is_active, issue_license_on_purchase')
       .eq('id', productId)
       .single();
 
@@ -160,10 +164,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'VALIDATION_ERROR', 'Cannot grant access to inactive product');
     }
 
+    const licenseAllowed = canManageAccessLicense(auth.scopes);
+    const issueLicense = product.issue_license_on_purchase && options.data.issue_license && licenseAllowed;
+    const licenseWarning = product.issue_license_on_purchase && options.data.issue_license && !licenseAllowed
+      ? 'License not issued: licenses:write scope required' : null;
+
     // Check if user already has access
     const { data: existingAccess, error: existingError } = await adminClient
       .from('user_product_access')
-      .select('id')
+      .select('*')
       .eq('user_id', userId)
       .eq('product_id', productId)
       .maybeSingle();
@@ -173,7 +182,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to check existing access');
     }
 
-    if (existingAccess) {
+    if (existingAccess && !(issueLicense && existingAccess.license_requested)) {
       return apiError(request, 'ALREADY_EXISTS', 'User already has access to this product');
     }
 
@@ -202,8 +211,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Grant access
-    const { data: newAccess, error: accessError } = await mutateAccess(adminClient, 'grant', userId, accessActor(auth),
-      { access_duration_days: accessData.access_duration_days ?? null, access_expires_at: accessData.access_expires_at ?? null }, undefined, productId).single();
+    const { data: newAccess, error: accessError } = existingAccess ? { data: existingAccess, error: null } : await mutateAccess(adminClient, 'grant', userId, accessActor(auth),
+      { access_duration_days: accessData.access_duration_days ?? null, access_expires_at: accessData.access_expires_at ?? null, issue_license: issueLicense }, undefined, productId).single();
 
     if (accessError) {
       // Check for foreign key violation (user doesn't exist)
@@ -214,8 +223,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to grant access');
     }
 
+    let license = null;
+    if (issueLicense) {
+      const issued = await issueAccessLicense(adminClient, {
+        userId, productId, accessId: newAccess.id, actorUserId: auth.admin.userId,
+        source: 'api', origin: new URL(request.url).origin, license: options.data.license,
+      });
+      if (!issued.ok) return jsonResponse({ error: { code: 'LICENSE_ISSUANCE_FAILED', message: issued.error }, access: newAccess, fieldErrors: issued.fieldErrors }, request, issued.status);
+      license = { id: issued.license.id, status: 'issued', email_sent: issued.license.emailSent };
+    }
+
     return jsonResponse(
       successResponse({
+        license,
+        license_warning: licenseWarning,
         id: newAccess.id,
         user_id: userId,
         product_id: newAccess.product_id,
@@ -230,4 +251,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     return handleApiError(error, request);
   }
+}
+
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  return revokeUserAccess(request, (await params).id);
 }

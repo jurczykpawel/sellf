@@ -9,9 +9,13 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 interface LicenseMailInput { userId: string | null; email: string; productSlug: string; productName: string; token: string; keys?: Record<string, string>; mailData?: Record<string, string>; locale?: 'pl' | 'en' }
 
+export function licenseMailKey(email: string, order: string): string {
+  return createHash('sha256').update(JSON.stringify([email.trim().toLowerCase(), order])).digest('hex');
+}
+
 /** Never throws: the grant and the lead webhook must not depend on mail delivery. */
-export async function sendLicenseMail(db: SupabaseClient, input: LicenseMailInput): Promise<void> {
-  if (isDemoMode()) return;
+export async function sendLicenseMail(db: SupabaseClient, input: LicenseMailInput): Promise<boolean> {
+  if (isDemoMode()) return false;
   let retryId: string | undefined;
   try {
     const account = input.locale || !input.userId ? null : (await db.auth.admin.getUserById(input.userId)).data;
@@ -19,12 +23,15 @@ export async function sendLicenseMail(db: SupabaseClient, input: LicenseMailInpu
     const data: Record<string, string | Record<string, string>> = { ...input.mailData, locale, purchase_product: input.productName, license_key: input.token, ...(input.keys ? { license_keys: input.keys } : {}) };
     delete data.license_mail_managed;
     delete data.purchase_mail_pending;
-    const mailKey = createHash('sha256').update(JSON.stringify([input.email.trim().toLowerCase(), parseLicenseClaims(input.token)?.order ?? input.token])).digest('hex');
+    const mailKey = licenseMailKey(input.email, parseLicenseClaims(input.token)?.order ?? input.token);
     const redirect = new URL(buildPostCheckoutMagicLinkRedirect({ origin: getSellfBaseUrl(), productSlug: input.productSlug, locale, sessionId: undefined, paymentIntentId: undefined }));
     redirect.searchParams.set('mail_id', mailKey);
     const claimed = await db.rpc('claim_license_mail', { p_key: mailKey, p_email: input.email, p_redirect_to: redirect.toString(), p_data: data });
     if (claimed.error) throw new Error('Mail registration unavailable');
-    if (!claimed.data) return;
+    if (!claimed.data) {
+      const pending = await db.from('auth_mail_retries').select('id').eq('license_mail_key', mailKey).maybeSingle();
+      return !pending.error && !pending.data;
+    }
     retryId = claimed.data;
     const result = await sendTrustedMagicLink({ transactionalOnly: true,
       email: input.email,
@@ -35,8 +42,10 @@ export async function sendLicenseMail(db: SupabaseClient, input: LicenseMailInpu
     const finished = await db.rpc('finish_license_mail', { p_retry_id: retryId, p_completed: result.ok, p_error: result.ok ? null : result.code });
     if (finished.error) console.error('[license-mail] Delivery state awaiting recovery');
     if (!result.ok) console.error('[license-mail] Delivery failed:', result.code, result.queued ? '(queued for retry)' : '');
+    return result.ok && !finished.error;
   } catch {
     console.error('[license-mail] Delivery failed');
+    return false;
   } finally {
     if (retryId) {
       // The key must not linger in account data once the mail was rendered.

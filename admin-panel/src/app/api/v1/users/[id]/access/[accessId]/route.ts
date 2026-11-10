@@ -7,11 +7,11 @@
  */
 
 import { NextRequest } from 'next/server';
+import { revokeUserAccess } from '@/lib/license-keys/revoke-access';
 import { accessActor, mutateAccess } from '@/lib/services/business-events';
 import {
   handleCorsPreFlight,
   jsonResponse,
-  noContentResponse,
   apiError,
   authenticate,
   handleApiError,
@@ -236,46 +236,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  * Revoke user's access to a product.
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  try {
-    const auth = await authenticate(request, [API_SCOPES.USERS_WRITE]);
-    const { id: userId, accessId } = await params;
-
-    // Validate IDs
-    const userIdValidation = validateUUID(userId);
-    const accessIdValidation = validateUUID(accessId);
-
-    if (!userIdValidation.isValid) {
-      return apiError(request, 'INVALID_INPUT', 'Invalid user ID format');
-    }
-    if (!accessIdValidation.isValid) {
-      return apiError(request, 'INVALID_INPUT', 'Invalid access ID format');
-    }
-
-    const adminClient = auth.supabase;
-
-    // Check access exists
-    const { data: existingAccess, error: checkError } = await adminClient
-      .from('user_product_access')
-      .select('id, product_id')
-      .eq('id', accessId)
-      .eq('user_id', userId)
-      .single();
-
-    if (checkError || !existingAccess) {
-      return apiError(request, 'NOT_FOUND', 'Access entry not found');
-    }
-
-    // Delete access
-    const { error: deleteError } = await mutateAccess(adminClient, 'revoke', userId, accessActor(auth), {}, accessId);
-
-    if (deleteError) {
-      console.error('Error revoking access:', deleteError);
-      return apiError(request, 'INTERNAL_ERROR', 'Failed to revoke access');
-    }
-
-    // Return 204 No Content on successful deletion
-    return noContentResponse(request);
-  } catch (error) {
-    return handleApiError(error, request);
-  }
+  const { id, accessId } = await params;
+  return revokeUserAccess(request, id, accessId);
 }

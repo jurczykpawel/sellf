@@ -18,6 +18,7 @@ export interface IssueLicenseInput {
   email: string;
   userId: string | null;
   orderId: string;
+  accessGrantId?: string;
   locale?: 'pl' | 'en';
   customFieldValues?: Record<string, string>;
   domain?: string;
@@ -139,6 +140,7 @@ export async function issueLicense(
     email: input.email,
     user_id: input.userId,
     order_id: input.orderId,
+    ...(input.accessGrantId ? { access_grant_id: input.accessGrantId } : {}),
     ...(input.locale ? { customer_locale: input.locale } : {}),
     kid: key.kid,
     license_key: token,

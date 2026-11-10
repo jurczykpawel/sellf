@@ -1767,6 +1767,7 @@ export type Database = {
       }
       issued_licenses: {
         Row: {
+          access_grant_id: string | null
           customer_locale: string | null
           email: string | null
           expires_at: string | null
@@ -1787,6 +1788,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          access_grant_id?: string | null
           customer_locale?: string | null
           email?: string | null
           expires_at?: string | null
@@ -1807,6 +1809,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          access_grant_id?: string | null
           customer_locale?: string | null
           email?: string | null
           expires_at?: string | null
@@ -4467,6 +4470,7 @@ export type Database = {
           expiry_notified_at: string | null
           grant_source: string
           id: string
+          license_requested: boolean
           product_id: string
           subscription_id: string | null
           transfer_transaction_id: string | null
@@ -4482,6 +4486,7 @@ export type Database = {
           expiry_notified_at?: string | null
           grant_source: string
           id?: string
+          license_requested?: boolean
           product_id: string
           subscription_id?: string | null
           transfer_transaction_id?: string | null
@@ -4497,6 +4502,7 @@ export type Database = {
           expiry_notified_at?: string | null
           grant_source?: string
           id?: string
+          license_requested?: boolean
           product_id?: string
           subscription_id?: string | null
           transfer_transaction_id?: string | null
@@ -6237,6 +6243,7 @@ export type Database = {
           expiry_notified_at: string | null
           grant_source: string
           id: string
+          license_requested: boolean
           product_id: string
           subscription_id: string | null
           transfer_transaction_id: string | null
@@ -6268,6 +6275,7 @@ export type Database = {
           expiry_notified_at: string | null
           grant_source: string
           id: string
+          license_requested: boolean
           product_id: string
           subscription_id: string | null
           transfer_transaction_id: string | null
@@ -6680,6 +6688,7 @@ export type Database = {
           expiry_notified_at: string | null
           grant_source: string
           id: string
+          license_requested: boolean
           product_id: string
           subscription_id: string | null
           transfer_transaction_id: string | null

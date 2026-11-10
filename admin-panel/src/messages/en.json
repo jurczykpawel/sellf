@@ -2140,6 +2140,10 @@
         "manageAccess": "Manage Access"
       },
       "accessModal": {
+        "issueLicense": "Issue a license",
+        "revokeLicense": "Also revoke the license",
+        "licenseSettings": "Product license: tier {tier}, validity: {days}.",
+        "licenseError": "License issuance or delivery could not be completed. Access may have been saved. Check the fields or retry granting access.",
         "title": "Manage User Access",
         "subtitle": "Managing product access for {email}",
         "error": "Error",

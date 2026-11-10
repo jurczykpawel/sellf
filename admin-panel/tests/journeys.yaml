@@ -530,7 +530,7 @@
     },
     {
       "id": "J20",
-      "title": "Admin issues a license without a domain field",
+      "title": "Admin issues a license manually or with an access grant",
       "values": {
         "persona": "admin",
         "entry": "dashboard",
