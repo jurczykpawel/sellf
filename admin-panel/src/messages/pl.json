@@ -5008,6 +5008,9 @@
   },
   "systemUpdate": {
     "deployment": {
+      "updaterTooOld": "To wydanie wymaga aktualizatora {required}; na serwerze jest wersja {installed}.",
+      "updaterUnverified": "Nie udało się zweryfikować podpisanego wymagania aktualizatora. Ponów sprawdzanie aktualizacji.",
+      "updaterRecovery": "Zaktualizuj Sellf przez Stackpilot na swoim komputerze. Zastąp {server} aliasem SSH serwera:",
           "docker": "Pobierz ghcr.io/jurczykpawel/sellf:{version}, następnie odtwórz kontener z tego obrazu, zachowując zmienne, porty i sieci. Restart istniejącego kontenera nie aktualizuje Sellfa.",
           "compose": "Ustaw SELLF_VERSION={version} w .env. W katalogu z docker-compose.yml uruchom docker compose pull sellf, następnie docker compose up -d --force-recreate sellf. Zarówno docker-simple, jak i full-stack używają tej usługi Sellf.",
           "coolify": "W Coolify ustaw tag obrazu Sellf na {version} (albo wybierz commit wydania dla builda Dockerfile), następnie Redeploy. Dla zasobu Compose ustaw SELLF_VERSION={version} i wdroż go ponownie.",

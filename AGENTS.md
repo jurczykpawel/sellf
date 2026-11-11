@@ -606,6 +606,21 @@ the migration history must stay reviewable. Rules:
    apply successfully; compare the resulting schema against the original source migrations.
    Direct HTTP tests alone do not exercise the installed runner's argument limits.
 
+The version-2 updater verifies and extracts the release, then `exec`s the
+`# sellf-upgrade-stage2:1` entry in the downloaded `scripts/upgrade.sh` with the
+same token, installation, log/progress paths and inherited flock descriptor 200.
+Backup, migrations, swap, health and code rollback therefore use that release's
+runner. Packages without that marker use the installed fallback. The stage-2
+arguments are an internal protocol for an already-verified private extraction.
+`MIN_UPDATER_VERSION=1` in the script keeps 2026.11.0 compatible with unversioned
+10.6 (updater 1); `UPDATER_VERSION=2` identifies the new bootstrap. Both update APIs
+check the signed minimum before launch; the shell checks again before extraction.
+A first hop from an already-installed 10.6/4982c3de still uses that old runner:
+new release code cannot retrofit delegation or version checks into a running old
+script. Use the updated Stackpilot for the downloaded runner on that first hop.
+The migration transaction policy above remains a release requirement; this
+bootstrap change retains the existing per-file RPC transaction protocol.
+
 When creating new migrations:
 ```bash
 npx supabase migration new descriptive_name
@@ -1618,7 +1633,7 @@ Stripe key. It never resets the database; fixtures belong only to that test run.
 The production E2E solves real ALTCHA challenges because provider=none is fail-closed
 in production. The full test runner includes this release regression.
 
-Each release carries four assets: `sellf-build.tar.gz`, `sellf-build.tar.gz.sha256` (plain
+For the updater-1 bridge, releases carry the four legacy assets: `sellf-build.tar.gz`, `sellf-build.tar.gz.sha256` (plain
 `sha256sum` output, unsigned, kept for tools that read it), `sellf-build.manifest` and
 `sellf-build.manifest.sig`. The manifest is exactly two LF-terminated lines, in this order, with
 nothing after the second newline:
@@ -1627,6 +1642,17 @@ nothing after the second newline:
 version=2026.10.0
 sha256=<64 lowercase hex: sha256 of sellf-build.tar.gz>
 ```
+
+Starting with 2026.11.0, CI also publishes `sellf-build.v2.manifest` and its
+Ed25519 `.sig`. Its exact format is the two legacy lines above followed by
+`min_updater_version=1` and a final LF. The new bootstrap and API prefer V2;
+an incomplete/invalid V2 pair never falls back to legacy. The installed script's
+public key verifies both formats. `scripts/ci/write-release-manifests.sh` reads
+`MIN_UPDATER_VERSION` from `upgrade.sh`: while it is 1, CI retains the signed
+two-line legacy manifest because 10.6 rejects additional fields. When the minimum
+increases, legacy assets MUST NOT be published (otherwise updater 1 could bypass
+the minimum). Never clobber a published bridge release with a higher minimum;
+create a new release. A blocked panel shows the Stackpilot recovery command.
 
 `version` is the release tag without its leading `v` (CalVer `YYYY.M.patch`). The `.sig` is a raw
 Ed25519 signature over the exact manifest bytes (`openssl pkeyutl -sign -rawin`), made in CI
@@ -1644,7 +1670,7 @@ never the plain `.sha256`.
   byte-identical to the embedded key. Rotating the key = ship a release signed with the OLD key
   that contains the NEW public key, then switch the secret.
 - **Order in `upgrade.sh`:** download manifest + `.sig` → verify signature → parse manifest (strict
-  two-line format; version must equal the release tag minus its `v`) → compare with the installed version →
+  legacy two-line or V2 three-line format; version must equal the release tag minus its `v`) → compare with the installed version →
   download tarball → sha256 against the manifest → archive entry validation → extract.
 - **Installed version:** first line of `<install dir>/version.txt` (written by CI from
   `package.json`, copied on every install/upgrade), falling back to `version` in
@@ -1655,8 +1681,10 @@ never the plain `.sha256`.
 - **No override:** a missing or invalid signature, a malformed manifest, or an older version is
   always refused; there is no environment switch. OpenSSL ≥ 1.1.1 with Ed25519 is required (not
   LibreSSL).
-- **Bootstrap:** the first upgrade *to* the first signed release is performed by the previous,
-  non-verifying script; verification applies from the next upgrade onward.
+- **Bootstrap:** delegation starts only once updater 2 is installed. Unmodified 10.6 verifies
+  the legacy manifest and applies its own steps, even when the archive contains stage 2.
+  Its in-place self-copy can also cause trailing shell errors after `done`; prefer updated
+  Stackpilot for this first hop. Updater 2 replaces installed scripts atomically.
 
 Verify a release by hand (only `openssl` + `sha256sum` needed):
 

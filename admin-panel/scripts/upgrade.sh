@@ -19,9 +19,15 @@
 
 set -euo pipefail
 
-# Force bash to read the entire script into memory before executing.
-# Without this, the self-update step (cp new upgrade.sh over the running one)
-# corrupts bash's read offset, causing "command not found" errors mid-run.
+# Version 1 is the unversioned updater shipped through 2026.10.6.
+UPDATER_VERSION=2
+# CI emits a legacy manifest only while version-1 updaters are supported.
+MIN_UPDATER_VERSION=1
+# sellf-upgrade-stage2:1
+
+# Parse the main body before executing. Stage 2 runs from the private extraction;
+# the installed script is replaced atomically so its open inode is preserved.
+# A function alone cannot protect the reader's offset after main() returns.
 main() {
 
 # Ensure PM2 can locate its socket regardless of how this script was spawned.
@@ -111,6 +117,26 @@ write_error() {
 log() {
   echo "[$(date -u +%H:%M:%S)] $*" >> "$LOG_FILE"
 }
+
+# Stage 2 is this same script, executed FROM the verified private extraction.
+# All context is passed as argv; no downloaded shell state is sourced. Descriptor
+# 200 survives exec, keeping the original instance lock held across both stages.
+if [ "${3:-}" = "--apply-verified" ]; then
+  TMP_DIR="${4:?Missing verified extraction}"
+  TAG_NAME="${5:?Missing release tag}"
+  PM2_BIN="${6:?Missing PM2 executable}"
+  PM2_NAME="${7:?Missing PM2 name}"
+  PROGRESS_FILE="${8:?Missing progress path}"
+  LOG_FILE="${9:?Missing log path}"
+  LOCK_FILE="${10:?Missing lock path}"
+  EXTRACT_DIR="$TMP_DIR/extracted"
+  if ! flock -n 200; then
+    write_error "Missing inherited updater lock — stage 2 cannot run independently"
+    exit 1
+  fi
+  trap 'rm -rf "$TMP_DIR"; rm -f "$LOCK_FILE"' EXIT
+  log "Inherited updater lock; running downloaded stage 2"
+else
 
 # ===== EXECUTABLE PREFLIGHT =====
 # Resolve once before any download or installation changes. systemd services
@@ -226,13 +252,12 @@ LOCK_FILE="${RUNTIME_DIR}/sellf-upgrade-${INSTANCE_NAME}.lock"
 cleanup_lock() {
   rm -f "$LOCK_FILE"
 }
-trap cleanup_lock EXIT
-
 exec 200>"$LOCK_FILE"
 if ! flock -n 200; then
   write_error "Upgrade already in progress for ${INSTANCE_NAME}"
   exit 1
 fi
+trap cleanup_lock EXIT
 
 # ===== AUTO-DETECT PM2 NAME =====
 
@@ -287,8 +312,17 @@ for asset in data.get('assets', []):
 " 2>/dev/null
 }
 
-MANIFEST_URL=$(release_asset_url "sellf-build.manifest")
-SIGNATURE_URL=$(release_asset_url "sellf-build.manifest.sig")
+# Keep the two-line legacy asset for 10.6; new bootstraps prefer the signed
+# extended manifest. An advertised but incomplete v2 pair must never fall back.
+MANIFEST_URL=$(release_asset_url "sellf-build.v2.manifest")
+SIGNATURE_URL=$(release_asset_url "sellf-build.v2.manifest.sig")
+MANIFEST_V2=false
+if [ -n "$MANIFEST_URL" ] || [ -n "$SIGNATURE_URL" ]; then
+  MANIFEST_V2=true
+else
+  MANIFEST_URL=$(release_asset_url "sellf-build.manifest")
+  SIGNATURE_URL=$(release_asset_url "sellf-build.manifest.sig")
+fi
 
 TAG_NAME=$(echo "$RELEASE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('tag_name','unknown'))" 2>/dev/null)
 
@@ -340,6 +374,8 @@ write_progress "downloading" 10 "Downloading ${TAG_NAME} manifest..."
 log "Downloading manifest..."
 
 TMP_DIR=$(mktemp -d)
+chmod 700 "$TMP_DIR"
+trap 'rm -rf "$TMP_DIR"; cleanup_lock' EXIT
 ARCHIVE="$TMP_DIR/sellf-build.tar.gz"
 MANIFEST_FILE="$TMP_DIR/sellf-build.manifest"
 SIGNATURE_FILE="$TMP_DIR/sellf-build.manifest.sig"
@@ -403,21 +439,26 @@ log "Signature OK (release signing key)"
 # signature-verification:end
 
 # manifest-parse:start — extracted verbatim by tests/unit/scripts/upgrade-archive-validation.test.ts
-# Exactly two LF-terminated lines, in this order: `version=<YYYY.M.patch>`
-# (no leading v) and `sha256=<64 lowercase hex>`. Anything else is refused,
-# even when signed.
+# Legacy: two lines. V2: the same lines plus min_updater_version=<integer>.
+# Unknown, duplicate and reordered fields are rejected, even when signed.
 MANIFEST_VERSION=""
 EXPECTED_SHA=""
+REQUIRED_UPDATER_VERSION=1
 MANIFEST_LINES=0
 while IFS= read -r manifest_line || [ -n "$manifest_line" ]; do
   MANIFEST_LINES=$((MANIFEST_LINES + 1))
   case "$MANIFEST_LINES" in
     1) if [[ "$manifest_line" == version=* ]]; then MANIFEST_VERSION="${manifest_line#version=}"; fi ;;
     2) if [[ "$manifest_line" == sha256=* ]]; then EXPECTED_SHA="${manifest_line#sha256=}"; fi ;;
+    3) REQUIRED_UPDATER_VERSION="${manifest_line#min_updater_version=}"
+       [[ "$manifest_line" == min_updater_version=* ]] || REQUIRED_UPDATER_VERSION="invalid" ;;
   esac
 done < "$MANIFEST_FILE"
 
-if [ "$MANIFEST_LINES" -ne 2 ] \
+EXPECTED_MANIFEST_LINES=2
+if [ "${MANIFEST_V2:-false}" = true ]; then EXPECTED_MANIFEST_LINES=3; fi
+if [ "$MANIFEST_LINES" -ne "$EXPECTED_MANIFEST_LINES" ] \
+    || ! [[ "$REQUIRED_UPDATER_VERSION" =~ ^[1-9][0-9]{0,8}$ ]] \
     || ! [[ "$MANIFEST_VERSION" =~ ^[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$ ]] \
     || ! [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{64}$ ]]; then
   write_error "Malformed release manifest — refusing to install"
@@ -427,6 +468,12 @@ fi
 
 if [ "$MANIFEST_VERSION" != "${TAG_NAME#v}" ]; then
   write_error "Signed release version ${MANIFEST_VERSION} does not match the release tag ${TAG_NAME} — refusing to install"
+  rm -rf "$TMP_DIR"
+  exit 1
+fi
+# An old bootstrap must refuse BEFORE downloading/executing any release code.
+if [ "$REQUIRED_UPDATER_VERSION" -gt "${UPDATER_VERSION:-1}" ]; then
+  write_error "This release requires updater $REQUIRED_UPDATER_VERSION (installed: ${UPDATER_VERSION:-1}). Update Sellf through Stackpilot: ./local/deploy.sh sellf --ssh=<server> --update"
   rm -rf "$TMP_DIR"
   exit 1
 fi
@@ -585,6 +632,18 @@ fi
 
 log "Archive validated OK"
 
+# Only verified regular files can reach this point (signature, checksum and
+# archive validation above). Old packages lack the stage-2 protocol marker;
+# reinstalling those packages retains this installed script's apply logic.
+DOWNLOADED_UPDATER="$EXTRACT_DIR/scripts/upgrade.sh"
+if [ -f "$DOWNLOADED_UPDATER" ] && grep -qx '# sellf-upgrade-stage2:1' "$DOWNLOADED_UPDATER"; then
+  log "Handing verified release to downloaded stage 2"
+  exec bash "$DOWNLOADED_UPDATER" "$TOKEN" "$INSTALL_DIR" --apply-verified \
+    "$TMP_DIR" "$TAG_NAME" "$PM2_BIN" "$PM2_NAME" "$PROGRESS_FILE" "$LOG_FILE" "$LOCK_FILE"
+fi
+log "Release has no stage 2; using installed updater fallback"
+fi
+
 # ===== STEP 5: BACKUP =====
 
 write_progress "backing_up" 45 "Creating backup..."
@@ -650,8 +709,9 @@ cp "$EXTRACT_DIR/version.txt" "$INSTALL_DIR/" 2>/dev/null || true
 # Copy upgrade script itself (self-update)
 if [ -f "$EXTRACT_DIR/scripts/upgrade.sh" ]; then
   mkdir -p "$INSTALL_DIR/scripts"
-  cp "$EXTRACT_DIR/scripts/upgrade.sh" "$INSTALL_DIR/scripts/upgrade.sh" 2>/dev/null || true
-  chmod +x "$INSTALL_DIR/scripts/upgrade.sh" 2>/dev/null || true
+  cp "$EXTRACT_DIR/scripts/upgrade.sh" "$INSTALL_DIR/scripts/upgrade.sh.next"
+  chmod +x "$INSTALL_DIR/scripts/upgrade.sh.next"
+  mv -f "$INSTALL_DIR/scripts/upgrade.sh.next" "$INSTALL_DIR/scripts/upgrade.sh"
 fi
 
 # Copy supabase migrations
@@ -722,6 +782,27 @@ log "Files swapped"
 
 # ===== STEP 8: RUN MIGRATIONS =====
 
+# .env.local is dotenv data (JSON/PEM/quotes), never executable shell. This
+# preserves Stackpilot's environment contract in the downloaded runner too.
+load_pm2_environment() {
+  [ -f "$INSTALL_DIR/.env.local" ] || return 0
+  local environment_file="$TMP_DIR/pm2-environment" key value
+  if ! "${NODE_BIN:-node}" -e '
+    const { readFileSync } = require("node:fs");
+    const { parseEnv } = require("node:util");
+    for (const [key, value] of Object.entries(parseEnv(readFileSync(process.argv[1], "utf8")))) {
+      process.stdout.write(key + "\0" + value + "\0");
+    }
+  ' "$INSTALL_DIR/.env.local" > "$environment_file"; then
+    log "ERROR: Could not parse PM2 environment"
+    return 1
+  fi
+  while IFS= read -r -d '' key && IFS= read -r -d '' value; do
+    export "$key=$value"
+  done < "$environment_file"
+  rm -f "$environment_file"
+}
+
 # Restore only code/configuration. Earlier successful RPCs are already committed;
 # this does not claim to roll back the database.
 rollback_code() {
@@ -743,12 +824,7 @@ rollback_code() {
   done
   old_server="$INSTALL_DIR/.next/standalone/admin-panel/server.js"
   [ -f "$old_server" ] || old_server="$INSTALL_DIR/.next/standalone/server.js"
-  if [ -f "$INSTALL_DIR/.env.local" ]; then
-    set -o allexport
-    # shellcheck source=/dev/null
-    source "$INSTALL_DIR/.env.local"
-    set +o allexport
-  fi
+  load_pm2_environment || return 1
   local old_port
   old_port=$(grep -E '^PORT=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2 || true)
   if ! [[ "$old_port" =~ ^[0-9]+$ ]] || [ "$old_port" -lt 1024 ] || [ "$old_port" -gt 65535 ]; then
@@ -931,12 +1007,7 @@ fi
 cd "$(dirname "$SERVER_JS")"
 # Load .env.local into shell so PM2 captures actual values.
 # dotenv in server.js won't override vars already set by PM2, so we pre-load them here.
-if [ -f "$INSTALL_DIR/.env.local" ]; then
-  set -o allexport
-  # shellcheck source=/dev/null
-  source "$INSTALL_DIR/.env.local"
-  set +o allexport
-fi
+load_pm2_environment
 MEM_LIMIT="${SELLF_PM2_MAX_MEMORY:-512M}"
 OLD_SPACE="${SELLF_NODE_MAX_OLD_SPACE:-400}"
 # ::: loopback only — app runs behind Caddy, never exposed directly

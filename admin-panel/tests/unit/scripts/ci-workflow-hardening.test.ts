@@ -29,17 +29,17 @@ describe('build-release.yml hardening', () => {
     expect(buildRelease).toContain('sha256sum sellf-build.tar.gz > sellf-build.tar.gz.sha256');
   });
 
-  it('publishes a signed manifest (version without v + tarball sha256) next to the release tarball', () => {
-    expect(buildRelease).toContain(
-      "printf 'version=%s\\nsha256=%s\\n' \"$MANIFEST_VERSION\" \"$(sha256sum sellf-build.tar.gz | awk '{print $1}')\" > sellf-build.manifest",
-    );
+  it('publishes both signed manifest formats with a shared archive checksum', () => {
+    expect(buildRelease).toContain('bash admin-panel/scripts/ci/write-release-manifests.sh "$MANIFEST_VERSION" sellf-build.tar.gz .');
     expect(buildRelease).toContain('MANIFEST_VERSION="${RELEASE_VERSION#v}"');
-    expect(buildRelease).toContain('-in sellf-build.manifest -out sellf-build.manifest.sig');
+    expect(buildRelease).toContain('for manifest in sellf-build*.manifest; do');
+    expect(buildRelease).toContain('-in "$manifest" -out "$manifest.sig"');
+    expect(buildRelease).toContain('-in "$manifest" -sigfile "$manifest.sig"');
     expect(buildRelease).toContain(
-      'gh release upload "${{ steps.version.outputs.VERSION }}" sellf-build.tar.gz sellf-build.tar.gz.sha256 sellf-build.manifest sellf-build.manifest.sig',
+      'gh release upload "${{ steps.version.outputs.VERSION }}" sellf-build.tar.gz sellf-build.tar.gz.sha256 sellf-build*.manifest sellf-build*.manifest.sig',
     );
     expect(buildRelease).toMatch(
-      /files:\s*\|\s*\n\s*sellf-build\.tar\.gz\s*\n\s*sellf-build\.tar\.gz\.sha256\s*\n\s*sellf-build\.manifest\s*\n\s*sellf-build\.manifest\.sig/,
+      /files:\s*\|\s*\n\s*sellf-build\.tar\.gz\s*\n\s*sellf-build\.tar\.gz\.sha256\s*\n\s*sellf-build\*\.manifest\s*\n\s*sellf-build\*\.manifest\.sig/,
     );
     expect(buildRelease).not.toContain('sellf-build.tar.gz.sha256.sig');
   });
