@@ -1,6 +1,6 @@
 'use server';
 
-/** Session-admin product settings. @see supabase/migrations/20261016000000_release_2026_10_6.sql */
+/** Session-admin product settings. @see supabase/migrations/20261110235900_release_2026_11_0_storefront.sql */
 import { z } from 'zod';
 import { withAdminClient } from '@/lib/actions/admin-auth';
 import { commissionRuleSchema, minorSchema } from '@/lib/affiliates/model';

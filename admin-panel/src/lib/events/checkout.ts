@@ -1,5 +1,5 @@
 /** Resolve event pricing and visitor hold limits before creating Stripe checkout.
- * @see supabase/migrations/20261023080000_event_reservations.sql
+ * @see supabase/migrations/20261110235902_release_2026_11_0_orders_events.sql
  */
 import { z } from 'zod';
 import { validateUUID } from '@/lib/validations/product';

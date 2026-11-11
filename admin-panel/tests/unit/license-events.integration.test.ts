@@ -1,12 +1,11 @@
-/** Licenses issued after a dispute stay revoked; every committed license change reaches integrators once. @see supabase/migrations/20261103160000_license_events.sql */
+/** Licenses issued after a dispute stay revoked; every committed license change reaches integrators once. @see supabase/migrations/20261110235904_release_2026_11_0_fulfillment.sql */
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import created from '../fixtures/stripe/charge_dispute_created_needs_response.json';
 import won from '../fixtures/stripe/charge_dispute_closed_won.json';
 import lost from '../fixtures/stripe/charge_dispute_closed_lost.json';
 import { getTestDatabaseContainer } from '../helpers/database-container';
+import { readMigrationSource } from '../../scripts/migration-source';
 
 const product = 'e1330000-0000-4000-a000-000000000001';
 const seller = 'e1330000-0000-4000-a000-000000000002';
@@ -87,7 +86,7 @@ describe('buyer mail language', () => {
 
 describe('business event type constraint keeps every family', () => {
   it('accepts all W134 event families and all license events', () => {
-    const w134 = readFileSync(path.resolve(import.meta.dirname, '../../../supabase/migrations/20261103130000_webhook_event_families.sql'), 'utf8');
+    const w134 = readMigrationSource('20261103130000_webhook_event_families.sql');
     const listed = w134.slice(w134.indexOf('business_events_event_type_check CHECK'), w134.indexOf('));', w134.indexOf('business_events_event_type_check CHECK')));
     const types = [...new Set([...listed.matchAll(/'([a-z_]+\.[a-z_]+)'/g)].map(m => m[1]).concat(['license.issued', 'license.expired']))];
     expect(types.length).toBeGreaterThan(25);

@@ -187,7 +187,7 @@ export async function buildStripeLineItems(
 }
 
 /** Saved line prices are in major units; list and discounted totals remain separate.
- * @see supabase/migrations/20261022191538_order_core_schema.sql
+ * @see supabase/migrations/20261110235902_release_2026_11_0_orders_events.sql
  */
 export function buildOrderSnapshotLines(
   specs: CheckoutLineSpec[],

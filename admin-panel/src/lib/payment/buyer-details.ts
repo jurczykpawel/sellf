@@ -4,7 +4,7 @@
  * The one-time checkout form stores them on the pending row before confirmation;
  * backfillBuyerDetails fills missing paid-order details from Stripe metadata.
  *
- * @see supabase/migrations/20261022090000_payment_order_details.sql
+ * @see supabase/migrations/20261110235902_release_2026_11_0_orders_events.sql
  * @see src/app/api/update-payment-metadata/route.ts
  */
 

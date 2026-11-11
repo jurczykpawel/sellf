@@ -1,4 +1,4 @@
-/** Shared private payout preview. @see supabase/migrations/20261016000000_release_2026_10_6.sql */
+/** Shared private payout preview. @see supabase/migrations/20261110235900_release_2026_11_0_storefront.sql */
 import 'server-only';
 import { getAffiliateLivemode } from '@/lib/stripe/affiliate-mode';
 import type { SupabaseClient } from '@supabase/supabase-js';

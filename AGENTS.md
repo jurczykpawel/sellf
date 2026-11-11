@@ -252,7 +252,7 @@ control availability. Checkout shares buyer state across payment methods.
 61 days, with no login and no indexing. Auth access mails carry `transfer_text` via
 `prepare_event_mail`; each preparation clears older instructions.
 
-**Unpaid transfer lifecycle** (migration `20261103150000_unpaid_order_reservations.sql`, owner decisions
+**Unpaid transfer lifecycle** (migration `20261110235904_release_2026_11_0_fulfillment.sql`, owner decisions
 2026-11-03): event transfer orders get a seller-configured timed reservation (`reminder_at`/`release_at`,
 `bank_transfer_config.reservation_*`, default 24 h / 48 h); `payment_due_at` stays the due-days term. Cron
 `transfer-reservations` (every 5 min) sends `order.payment_reminder` + reminder mail, then
@@ -332,7 +332,7 @@ magic link, and completes the submission through `/auth/lead` after sign-in.
 Confirmation grants free access and emits `lead.captured` through the existing
 webhook queue with a stable lead delivery key. Mailing lists and unsubscribe
 handling remain in the receiving integration. Tables and the hourly cleanup are
-in migration `20261028141621_playerstack_leads.sql`. Dedicated local acceptance
+in migration `20261110235906_release_2026_11_0_buyer_mail.sql`. Dedicated local acceptance
 uses `vitest.leads.config.ts` and `playwright.leads.config.ts`; set
 `PLAYERSTACK_TEST_DIST` to a built PlayerStack distribution and
 `PLAYERSTACK_ADAPTER_REPO` to a read-only repository containing commit `8baee66`. The dedicated fixture
@@ -355,7 +355,7 @@ uses the owned local stack on API :55591, app :3893, plugin host :3894, HTTPS re
 
 `signInWithOtp` may only be called from `src/lib/auth/magic-link/deliver.ts` (`deliverMagicLink()`) — every other call site is a lint error (`eslint.config.mjs`, `no-restricted-syntax`). `deliverMagicLink()` itself may only be imported from `src/lib/auth/magic-link/request.ts` and its retry worker `retry.ts` (`no-restricted-imports`) — every server call site goes through `requestMagicLink()` (captcha + IP/email rate limits) or `sendTrustedMagicLink()` (per-email rate limit only, for callers that already proved trust another way, e.g. a verified Stripe payment). Browsers request a magic link via `sendMagicLinkRequest()` → `POST /api/auth/magic-link` → `requestMagicLink()`. See "Magic Link Authentication" above.
 
-**Purchase mail retry:** the post-payment login link (`post_checkout`) and the free-license key mail pass `retry` to `sendTrustedMagicLink()`. When the auth mailer refuses (Supabase 429 `over_email_send_rate_limit`, cooldown, transient failure, or our per-email cap) the mail is parked in `auth_mail_retries` (service role only, one row per email + redirect) and `runAuthMailRetries()` delivers it with backoff (5/15/30/60/120 min, 6 attempts) from the in-process worker (production, every minute) or `/api/cron?job=auth-mail-retry`; account mail data (license key) is cleared after each attempt. The API answers `{ ok:false, code, queued:true }` and the payment page tells the buyer the link will arrive automatically. Interactive flows (login, free signup) are not parked. Migration `20261104020000_auth_mail_retries.sql`.
+**Purchase mail retry:** the post-payment login link (`post_checkout`) and the free-license key mail pass `retry` to `sendTrustedMagicLink()`. When the auth mailer refuses (Supabase 429 `over_email_send_rate_limit`, cooldown, transient failure, or our per-email cap) the mail is parked in `auth_mail_retries` (service role only, one row per email + redirect) and `runAuthMailRetries()` delivers it with backoff (5/15/30/60/120 min, 6 attempts) from the in-process worker (production, every minute) or `/api/cron?job=auth-mail-retry`; account mail data (license key) is cleared after each attempt. The API answers `{ ok:false, code, queued:true }` and the payment page tells the buyer the link will arrive automatically. Interactive flows (login, free signup) are not parked. Migration `20261110235906_release_2026_11_0_buyer_mail.sql`.
 
 ### Rate Limiting Layers
 

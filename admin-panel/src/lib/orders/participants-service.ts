@@ -1,6 +1,6 @@
 /**
  * Participants added after payment: validation, atomic storage, buyer mail.
- * @see supabase/migrations/20261103191000_participants_later.sql
+ * @see supabase/migrations/20261110235904_release_2026_11_0_fulfillment.sql
  * @see ./transfer-mail.ts
  */
 import { resolveCustomerLocale } from '@/lib/webhooks/customer-locale';

@@ -1,4 +1,4 @@
-/** Portal read contracts. @see service.ts @see supabase/migrations/20261016000000_release_2026_10_6.sql */
+/** Portal read contracts. @see service.ts @see supabase/migrations/20261110235900_release_2026_11_0_storefront.sql */
 import { z } from 'zod';
 import { currencySchema } from '@/lib/affiliates/model';
 

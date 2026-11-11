@@ -1,16 +1,9 @@
 // Guards against ALL_SCOPES (TS) drifting from the api_keys.scopes SQL DEFAULT.
 
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
 import { ALL_SCOPES } from '@/lib/api/scope-constants';
-
-const MIGRATION_PATH = path.resolve(
-  __dirname,
-  '../../../../../supabase/migrations/20261103160000_license_events.sql',
-);
+import { readMigrationSource } from '../../../../scripts/migration-source';
 
 function extractScopesFromMigration(sql: string): string[] {
   const defaultMatch = sql.match(/SET DEFAULT jsonb_build_array\(([\s\S]+?)\)/);
@@ -19,7 +12,7 @@ function extractScopesFromMigration(sql: string): string[] {
 }
 
 describe('scope-constants parity with migration', () => {
-  const migrationSql = readFileSync(MIGRATION_PATH, 'utf8');
+  const migrationSql = readMigrationSource('20261103160000_license_events.sql');
   const migrationScopes = extractScopesFromMigration(migrationSql);
 
   it('migration DEFAULT lists every concrete scope from ALL_SCOPES', () => {

@@ -1,6 +1,6 @@
 /**
  * POST /api/v1/webhooks/:id/rotate-secret — replace the signing secret.
- * @see supabase/migrations/20261016000000_release_2026_10_6.sql
+ * @see supabase/migrations/20261110235900_release_2026_11_0_storefront.sql
  */
 import { NextRequest } from 'next/server';
 import { randomBytes } from 'crypto';
