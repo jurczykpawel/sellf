@@ -573,6 +573,30 @@ Manual license domains follow the product's `_sellf_license_domain` definition; 
 
 ### Database Migrations
 
+#### Release migration policy (MANDATORY — owner decision 2026-11-11)
+
+Sellers update Sellf themselves from the admin panel, so an upgrade must be all-or-nothing and
+the migration history must stay reviewable. Rules:
+
+1. **During a cycle** you may add migrations freely on feature/dev branches, one per change.
+2. **Before the release gate** the release branch is tidied: all migrations added since the last
+   release tag are consolidated into **a few logical files grouped by area** (orders, events,
+   licenses, templates, misc …; target 4–8 files, hard limit **8**). Fix-ups of a migration from
+   the same cycle (e.g. `*_repair`, `*_followup`) are folded into the file they fix. This is the
+   only moment a migration may be rewritten — it has not been released yet.
+3. **Never edit a migration that is in a released tag** (`git diff --name-only <last-tag> -- supabase/migrations`
+   must show only additions). After a tag, migrations are append-only.
+4. **Prove consolidation changes nothing**: two clean databases at the previous release, one with
+   the original files, one with the consolidated files; `pg_dump --schema-only` diff must be empty
+   and table row counts equal (show a deliberately broken RED variant to prove the diff works).
+5. **Shared test environments (TEST, demo) must not get unreleased migrations applied ad hoc**
+   unless they can be reset; after consolidation register the new versions there as applied
+   (back up the registry first) instead of re-running SQL.
+6. **Upgrade runners apply all pending migrations in ONE transaction** (`admin-panel/scripts/upgrade.sh`,
+   Stackpilot `local/setup-supabase-migrations.sh`) so a failure rolls everything back.
+7. Enforcement: the release gate (`release-layout`) and CI `Migration lint` fail when more than 8
+   migrations were added since the last tag or a released migration was modified.
+
 When creating new migrations:
 ```bash
 npx supabase migration new descriptive_name
