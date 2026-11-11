@@ -1,7 +1,11 @@
 /** Release SQL consumers read their own source section after migration consolidation. */
-import { readdirSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { readMigrationSource } from '../../../scripts/migration-source';
+import { readMigrationSource, writeMigrationSource } from '../../../scripts/migration-source';
 
 describe('release migration sources', () => {
   it('ships eight ordered release files with each of the 76 original sections exactly once', () => {
@@ -29,5 +33,35 @@ describe('release migration sources', () => {
   });
   it('reports a missing source instead of returning an entire release file', () => {
     expect(() => readMigrationSource('20261111000000_absent.sql')).toThrow('Migration source not found');
+  });
+  it('keeps each SQL file and its actual legacy jq payload under the argument limits', () => {
+    const directory = new URL('../../../../supabase/migrations/', import.meta.url);
+    for (const file of readdirSync(directory).filter(file => /^2026111023590[0-7]_/.test(file))) {
+      const sql = readFileSync(new URL(file, directory), 'utf8');
+      expect(Buffer.byteLength(sql), file).toBeLessThanOrEqual(120000);
+      const payload = execFileSync('jq', ['-n', '--arg', 'v', file.slice(0, -4), '--arg', 's', sql.replace(/\n+$/, ''), '--arg', 'c', '0'.repeat(64),
+        '{migration_version: $v, migration_sql: $s, content_checksum: $c}']);
+      expect(payload.length, file).toBeLessThanOrEqual(128000);
+    }
+  });
+  it('reads a continued section and updates a generated statement without moving file boundaries', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'sellf-sources-'));
+    const directory = pathToFileURL(`${dir}/`);
+    const a = path.join(dir, '20261110235900_fixture.sql');
+    const b = path.join(dir, '20261110235901_fixture.sql');
+    const first = '-- ===== Source: example.sql =====\nSELECT 1;';
+    const second = '\nSELECT 2;\n-- ===== Source: next.sql =====\nSELECT 3;';
+    try {
+      writeFileSync(a, first);
+      writeFileSync(b, second);
+      expect(readMigrationSource('example.sql', directory)).toBe('SELECT 1;\nSELECT 2;');
+      writeMigrationSource('example.sql', 'SELECT 1;\nSELECT 22;', directory);
+      expect(readFileSync(a, 'utf8')).toBe(first);
+      expect(readFileSync(b, 'utf8')).toBe(second.replace('SELECT 2;', 'SELECT 22;'));
+      expect(() => writeMigrationSource('example.sql', 'SELECT 11;\nSELECT 222;', directory)).toThrow('crosses migration boundaries');
+      expect(readMigrationSource('next.sql', directory)).toBe('SELECT 3;');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

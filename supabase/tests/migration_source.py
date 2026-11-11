@@ -7,10 +7,10 @@ MIGRATIONS = Path(__file__).resolve().parents[1] / 'migrations'
 
 def read_migration_source(name):
     marker = f'-- ===== Source: {name} =====\n'
-    for path in sorted(MIGRATIONS.glob('2026111023590[0-7]_*.sql')):
-        content = path.read_text()
-        if marker in content:
-            return content.split(marker, 1)[1].split('\n-- ===== Source:', 1)[0]
+    # File boundaries are at complete statements, sometimes inside a section.
+    content = ''.join(path.read_text() for path in sorted(MIGRATIONS.glob('2026111023590[0-7]_*.sql')))
+    if marker in content:
+        return content.split(marker, 1)[1].split('\n-- ===== Source:', 1)[0]
     raise ValueError(f'Migration source not found: {name}')
 
 

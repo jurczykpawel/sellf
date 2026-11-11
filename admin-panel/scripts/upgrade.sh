@@ -612,6 +612,13 @@ if [ -d "$INSTALL_DIR/public" ]; then
   cp -r "$INSTALL_DIR/public" "$BACKUP_DIR/public"
 fi
 
+# Preserve every artifact replaced by the installer, including version metadata.
+for artifact in version.txt bun.lock scripts supabase; do
+  if [ -e "$INSTALL_DIR/$artifact" ]; then
+    cp -r "$INSTALL_DIR/$artifact" "$BACKUP_DIR/"
+  fi
+done
+
 log "Backup created at $BACKUP_DIR"
 
 # ===== STEP 6: STOP PM2 =====
@@ -715,6 +722,69 @@ log "Files swapped"
 
 # ===== STEP 8: RUN MIGRATIONS =====
 
+# Restore only code/configuration. Earlier successful RPCs are already committed;
+# this does not claim to roll back the database.
+rollback_code() {
+  local old_server="$BACKUP_DIR/.next/standalone/admin-panel/server.js"
+  [ -f "$old_server" ] || old_server="$BACKUP_DIR/.next/standalone/server.js"
+  if [ ! -f "$old_server" ]; then
+    log "ERROR: Previous server.js missing from backup; application remains stopped"
+    return 1
+  fi
+  "$PM2_BIN" stop "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
+  "$PM2_BIN" delete "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
+  cd "$INSTALL_DIR" || return 1
+  local artifact
+  for artifact in .next public package.json version.txt bun.lock scripts supabase .env.local; do
+    rm -rf "$INSTALL_DIR/$artifact" || return 1
+    if [ -e "$BACKUP_DIR/$artifact" ]; then
+      cp -r "$BACKUP_DIR/$artifact" "$INSTALL_DIR/" || return 1
+    fi
+  done
+  old_server="$INSTALL_DIR/.next/standalone/admin-panel/server.js"
+  [ -f "$old_server" ] || old_server="$INSTALL_DIR/.next/standalone/server.js"
+  if [ -f "$INSTALL_DIR/.env.local" ]; then
+    set -o allexport
+    # shellcheck source=/dev/null
+    source "$INSTALL_DIR/.env.local"
+    set +o allexport
+  fi
+  local old_port
+  old_port=$(grep -E '^PORT=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2 || true)
+  if ! [[ "$old_port" =~ ^[0-9]+$ ]] || [ "$old_port" -lt 1024 ] || [ "$old_port" -gt 65535 ]; then
+    old_port=3333
+  fi
+  cd "$(dirname "$old_server")" || return 1
+  PORT="$old_port" HOSTNAME="${HOSTNAME:-::}" "$PM2_BIN" start "$(basename "$old_server")" --name "$PM2_NAME" \
+    --max-memory-restart "${SELLF_PM2_MAX_MEMORY:-512M}" \
+    --node-args="--max-old-space-size=${SELLF_NODE_MAX_OLD_SPACE:-400}" >> "$LOG_FILE" 2>&1 || return 1
+  "$PM2_BIN" save >> "$LOG_FILE" 2>&1 || true
+  log "Previous code restored; database migrations were not reversed"
+}
+
+# Keep HTTP error bodies, including non-JSON responses, in the private upgrade log.
+# Neither SQL nor JSON is ever passed as a large process argument.
+migration_rpc() {
+  local endpoint="$1" payload="$2" http_status
+  local response_file="$TMP_DIR/migration-response.json"
+  : > "$response_file"
+  if ! http_status=$(curl -sS "${SUPABASE_URL}/rest/v1/rpc/$endpoint" \
+    -H "apikey: ${SERVICE_KEY}" \
+    -H "Authorization: Bearer ${SERVICE_KEY}" \
+    -H "Content-Type: application/json" \
+    --data-binary "$payload" -o "$response_file" -w '%{http_code}' 2>>"$LOG_FILE"); then
+    log "ERROR: $endpoint transport failed (HTTP ${http_status:-unknown})"
+    cat "$response_file" >> "$LOG_FILE"
+    return 1
+  fi
+  if [ "$http_status" != "200" ]; then
+    log "ERROR: $endpoint HTTP $http_status; full response:"
+    cat "$response_file" >> "$LOG_FILE"
+    return 1
+  fi
+  cat "$response_file"
+}
+
 write_progress "migrating" 75 "Running database migrations..."
 log "Running migrations..."
 MIGRATION_ERRORS=0
@@ -729,16 +799,15 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabas
     log "ERROR: jq not installed — migrations incomplete (apt-get install jq)"
   else
     # Check which migrations are already applied via RPC
-    APPLIED=$(curl -sf "${SUPABASE_URL}/rest/v1/rpc/get_migration_status" \
-      -H "apikey: ${SERVICE_KEY}" \
-      -H "Authorization: Bearer ${SERVICE_KEY}" \
-      -H "Content-Type: application/json" \
-      -d '{}' 2>/dev/null || echo "RPC_NOT_FOUND")
-
-    if [ "$APPLIED" = "RPC_NOT_FOUND" ]; then
+    if ! APPLIED=$(migration_rpc get_migration_status '{}'); then
       MIGRATION_ERRORS=1
-      log "Migration RPC not available yet — migrations incomplete"
+      log "Migration RPC unavailable — migrations incomplete"
       log "Run 'deploy.sh sellf --update' once to bootstrap migration system"
+    elif ! jq -e -s 'length == 1 and (.[0] | type == "array" and all(.[]; type == "object" and (.version | type == "string")))' \
+      <<< "$APPLIED" >/dev/null 2>&1; then
+      MIGRATION_ERRORS=1
+      log "ERROR: Invalid migration status response; full response:"
+      printf '%s\n' "$APPLIED" >> "$LOG_FILE"
     else
       MIGRATION_COUNT=0
       MIGRATION_SKIPPED=0
@@ -755,24 +824,27 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabas
           continue
         fi
 
-        SQL_CONTENT=$(cat "$migration_file")
-        CHECKSUM=$(echo -n "$SQL_CONTENT" | sha256sum | cut -d' ' -f1)
+        if ! SQL_CONTENT=$(cat "$migration_file" 2>>"$LOG_FILE") ||
+          ! CHECKSUM=$(printf '%s' "$SQL_CONTENT" | sha256sum | cut -d' ' -f1); then
+          log "WARNING: Migration $VERSION could not be read or checksummed"
+          MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
+          continue
+        fi
 
-        # Call RPC — jq handles JSON escaping of SQL content safely
-        RESULT=$(curl -sf "${SUPABASE_URL}/rest/v1/rpc/apply_migration" \
-          -H "apikey: ${SERVICE_KEY}" \
-          -H "Authorization: Bearer ${SERVICE_KEY}" \
-          -H "Content-Type: application/json" \
-          -d "$(jq -n \
-            --arg v "$VERSION" \
-            --arg s "$SQL_CONTENT" \
-            --arg c "$CHECKSUM" \
-            '{migration_version: $v, migration_sql: $s, content_checksum: $c}')" \
-          2>>"$LOG_FILE") || {
+        # Read SQL and send JSON through files, preserving the existing checksum input.
+        PAYLOAD_FILE="$TMP_DIR/migration-payload.json"
+        if ! jq -n --arg v "$VERSION" --rawfile s "$migration_file" --arg c "$CHECKSUM" \
+          '{migration_version: $v, migration_sql: ($s | sub("\\n+$"; "")), content_checksum: $c}' \
+          > "$PAYLOAD_FILE" 2>>"$LOG_FILE"; then
+          log "WARNING: Migration $VERSION payload could not be prepared"
+          MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
+          continue
+        fi
+        if ! RESULT=$(migration_rpc apply_migration "@$PAYLOAD_FILE"); then
           log "WARNING: Migration $VERSION failed"
           MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
           continue
-        }
+        fi
 
         if ! OUTCOME=$(jq -er -s '
           if length != 1 then error("Expected one result")
@@ -786,6 +858,7 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabas
             end
           end' <<< "$RESULT" 2>/dev/null); then
           log "WARNING: Migration $VERSION failed: Invalid migration RPC response"
+          printf '%s\n' "$RESULT" >> "$LOG_FILE"
           MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
           continue
         fi
@@ -793,6 +866,7 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabas
         if [ "$OUTCOME" = "failed" ]; then
           MESSAGE=$(jq -r '.message | if type == "string" then gsub("[\\r\\n]"; " ") else "Migration RPC reported failure" end' <<< "$RESULT")
           log "WARNING: Migration $VERSION failed: $MESSAGE"
+          printf '%s\n' "$RESULT" >> "$LOG_FILE"
           MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
         elif [ "$OUTCOME" = "already_applied" ]; then
           log "Migration $VERSION: already applied"
@@ -811,6 +885,18 @@ else
   log "Migrations incomplete (missing Supabase config or migration directory)"
 fi
 
+if [ "$MIGRATION_ERRORS" -gt 0 ]; then
+  log "ERROR: Migrations failed; restoring previous code before any new-version startup"
+  write_progress "rolling_back" 85 "Database migration failed. Restoring previous code..."
+  if rollback_code; then
+    write_error "Upgrade to ${TAG_NAME} finished with $MIGRATION_ERRORS migration errors. Check upgrade logs." true
+  else
+    write_error "Upgrade failed: migrations incomplete and code restoration failed. Application remains stopped."
+  fi
+  rm -rf "$TMP_DIR"
+  exit 1
+fi
+
 # ===== STEP 9: START PM2 =====
 
 write_progress "restarting" 90 "Starting application..."
@@ -825,17 +911,11 @@ fi
 if [ ! -f "$SERVER_JS" ]; then
   log "ERROR: server.js not found — rolling back!"
   write_progress "rolling_back" 95 "Error: server.js not found. Rolling back..."
-  # Rollback
-  cd "$INSTALL_DIR"
-  rm -rf "$INSTALL_DIR/.next" "$INSTALL_DIR/public"
-  cp -r "$BACKUP_DIR/.next" "$INSTALL_DIR/" 2>/dev/null || true
-  cp -r "$BACKUP_DIR/public" "$INSTALL_DIR/" 2>/dev/null || true
-  cp "$BACKUP_DIR/package.json" "$INSTALL_DIR/" 2>/dev/null || true
-  if [ -f "$BACKUP_DIR/.env.local" ]; then
-    cp "$BACKUP_DIR/.env.local" "$INSTALL_DIR/.env.local"
+  if rollback_code; then
+    write_error "Upgrade failed: server.js not found. Rolled back to previous version." true
+  else
+    write_error "Upgrade failed: server.js not found and code restoration failed. Application remains stopped."
   fi
-  "$PM2_BIN" start "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
-  write_error "Upgrade failed: server.js not found. Rolled back to previous version." true
   rm -rf "$TMP_DIR"
   exit 1
 fi
@@ -877,44 +957,17 @@ done
 
 if [ "$HEALTH_OK" = "true" ]; then
   "$PM2_BIN" save >> "$LOG_FILE" 2>&1 || true
-  if [ "$MIGRATION_ERRORS" -gt 0 ]; then
-    write_error "Upgrade to ${TAG_NAME} finished with $MIGRATION_ERRORS migration errors. Check upgrade logs."
-    log "WARNING: Upgrade finished with $MIGRATION_ERRORS migration errors. Version: $TAG_NAME"
-  else
-    write_progress "done" 100 "Upgrade to ${TAG_NAME} completed successfully!"
-    log "Upgrade complete! Version: $TAG_NAME"
-  fi
+  write_progress "done" 100 "Upgrade to ${TAG_NAME} completed successfully!"
+  log "Upgrade complete! Version: $TAG_NAME"
 else
   log "ERROR: Health check failed after 60s — rolling back!"
   write_progress "rolling_back" 95 "Health check failed. Rolling back..."
 
-  "$PM2_BIN" stop "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
-  "$PM2_BIN" delete "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
-
-  cd "$INSTALL_DIR"
-  rm -rf "$INSTALL_DIR/.next" "$INSTALL_DIR/public"
-  cp -r "$BACKUP_DIR/.next" "$INSTALL_DIR/" 2>/dev/null || true
-  cp -r "$BACKUP_DIR/public" "$INSTALL_DIR/" 2>/dev/null || true
-  cp "$BACKUP_DIR/package.json" "$INSTALL_DIR/" 2>/dev/null || true
-
-  # Restart with old version
-  OLD_SERVER_JS="$INSTALL_DIR/.next/standalone/admin-panel/server.js"
-  [ ! -f "$OLD_SERVER_JS" ] && OLD_SERVER_JS="$INSTALL_DIR/.next/standalone/server.js"
-  if [ -f "$OLD_SERVER_JS" ]; then
-    cd "$(dirname "$OLD_SERVER_JS")"
-    if [ -f "$INSTALL_DIR/.env.local" ]; then
-      set -o allexport
-      # shellcheck source=/dev/null
-      source "$INSTALL_DIR/.env.local"
-      set +o allexport
-    fi
-    PORT="${PORT}" HOSTNAME="${HOSTNAME:-::}" "$PM2_BIN" start "$(basename "$OLD_SERVER_JS")" --name "$PM2_NAME" \
-      --max-memory-restart "${MEM_LIMIT:-512M}" \
-      --node-args="--max-old-space-size=${OLD_SPACE:-400}" >> "$LOG_FILE" 2>&1 || true
-    "$PM2_BIN" save >> "$LOG_FILE" 2>&1 || true
+  if rollback_code; then
+    write_error "Upgrade failed: health check timeout. Rolled back to previous version." true
+  else
+    write_error "Upgrade failed: health check timeout and code restoration failed. Application remains stopped."
   fi
-
-  write_error "Upgrade failed: health check timeout. Rolled back to previous version." true
   rm -rf "$TMP_DIR"
   exit 1
 fi

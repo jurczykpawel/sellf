@@ -2,7 +2,7 @@
  * Integrator contract fixes from the W147 receiver run (W152): why access and licenses were
  * revoked, one access.updated per subscription period, Sellf order identity on license events,
  * consistent buyer identity on seat events, deferred renewal notices and the admin cancel note.
- * @see supabase/migrations/20261110235904_release_2026_11_0_fulfillment.sql
+ * @see supabase/migrations/20261110235906_release_2026_11_0_fulfillment_orders.sql
  */
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';

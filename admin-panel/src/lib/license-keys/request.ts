@@ -2,7 +2,7 @@
  * Seller-initiated license issuance (admin panel and API v1): validates the request
  * against the product, issues the license, audits it and mails the buyer the key.
  * license.issued is captured by the issued_licenses insert trigger.
- * @see supabase/migrations/20261110235904_release_2026_11_0_fulfillment.sql
+ * @see supabase/migrations/20261110235905_release_2026_11_0_fulfillment_core.sql
  */
 import 'server-only';
 import { randomUUID } from 'crypto';

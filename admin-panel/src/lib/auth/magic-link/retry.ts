@@ -3,7 +3,7 @@
  * key). A refused send (send limit, cooldown, transient failure) is parked in auth_mail_retries and
  * the minute cron (`job=auth-mail-retry`) delivers it with backoff, so the buyer still gets the mail
  * after closing the page (W147-8, W147-9).
- * @see supabase/migrations/20261110235906_release_2026_11_0_buyer_mail.sql
+ * @see supabase/migrations/20261110235907_release_2026_11_0_attribution_mail_analytics.sql
  * @see src/app/api/cron/route.ts
  */
 import 'server-only';

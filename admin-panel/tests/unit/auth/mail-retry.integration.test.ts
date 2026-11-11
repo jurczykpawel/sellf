@@ -3,7 +3,7 @@ useSupabaseBuyerEmails();
 /**
  * A purchase mail refused by the auth mailer (send limit, cooldown) is retried by cron instead of
  * being lost (W147-8, W147-9). Real local database; only the auth mailer call is simulated.
- * @see supabase/migrations/20261110235906_release_2026_11_0_buyer_mail.sql
+ * @see supabase/migrations/20261110235907_release_2026_11_0_attribution_mail_analytics.sql
  * @see src/lib/auth/magic-link/retry.ts
  */
 import { createClient } from '@supabase/supabase-js';

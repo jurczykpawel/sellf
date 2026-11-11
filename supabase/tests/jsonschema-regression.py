@@ -32,8 +32,8 @@ ROOT = Path(__file__).resolve().parents[2]
 PHASE2 = False
 WORK = Path('/private/tmp/sellf-rcjson')
 CONTAINER = 'supabase_db_sellf-rcjson'
-VERSION = '20261110235900_release_2026_11_0_storefront'
-MIGRATION = ROOT / 'supabase/migrations' / (VERSION + '.sql')
+VERSION = '20261110235900'
+MIGRATIONS = sorted((ROOT / 'supabase/migrations').glob('2026111023590[0-3]_*.sql'))
 
 
 def load_gate():
@@ -116,7 +116,7 @@ def rpc():
     assert sql("SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version='20261015999999';") == '0'
     assert sql("SELECT to_regclass('public.storefront_config') IS NULL;") == 't'
     print('PASS negative control: service_role RPC cannot CREATE EXTENSION pg_jsonschema (403/42501)')
-    migrations = [MIGRATION]
+    migrations = MIGRATIONS
     for migration in migrations:
         source = migration.read_bytes().decode('utf-8')
         assert 'jsonb_matches_schema' not in source
@@ -129,8 +129,8 @@ def rpc():
         assert code == 200 and repeated['success'] is True and repeated['skipped'] is True, (version, repeated)
         assert sql(f"SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version='{version[:14]}';") == '1'
         assert sql("SELECT count(*) FROM pg_extension WHERE extname='pg_jsonschema';") == '0'
-        assert sql("SELECT public.storefront_config_valid(published) FROM public.storefront_config;") == 't'
         print('PASS exact migration + idempotency via actual non-superuser service_role RPC:', version, payload, flush=True)
+    assert sql("SELECT public.storefront_config_valid(published) FROM public.storefront_config;") == 't'
     assert sql("SELECT count(*) FROM pg_statistic_ext WHERE stxnamespace='public'::regnamespace AND stxname='storefront_products_name';") == '1'
     if PHASE2:
         for template in ('storefront-a', 'storefront-b', 'storefront-c'):

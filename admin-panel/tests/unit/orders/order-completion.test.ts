@@ -1,7 +1,7 @@
 /**
  * Completion contract exercised through the local order RPCs.
- * @see supabase/migrations/20261110235902_release_2026_11_0_orders_events.sql
- * @see supabase/migrations/20261110235902_release_2026_11_0_orders_events.sql
+ * @see supabase/migrations/20261110235903_release_2026_11_0_orders_events.sql
+ * @see supabase/migrations/20261110235903_release_2026_11_0_orders_events.sql
  */
 import { createClient } from '@supabase/supabase-js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';

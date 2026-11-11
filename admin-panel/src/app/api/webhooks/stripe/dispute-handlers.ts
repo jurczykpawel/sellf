@@ -1,6 +1,6 @@
 /**
  * Apply the stored dispute decision before delivering its durable consumer notification.
- * @see supabase/migrations/20261110235904_release_2026_11_0_fulfillment.sql
+ * @see supabase/migrations/20261110235905_release_2026_11_0_fulfillment_core.sql
  */
 import { buildLicenseRevokeWebhookData } from '@/lib/services/license-revoke-webhook-payload';
 import type { RevokedLicenseRow } from '@/lib/services/license-revoke-webhook-payload';
