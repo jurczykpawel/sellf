@@ -1,11 +1,11 @@
 /** Product editorial contracts. @see spec/contracts/product-marketing-fields.md */
-import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 import { describe, expect, it } from 'vitest';
 import { PRODUCT_PAGE_FIELDS } from '@/lib/constants';
 import { PRODUCT_PUBLIC_COLUMNS } from '@/lib/product-columns';
 import { storedJsonBytes } from '@/lib/storefront-templates/json';
 import { marketingFieldsSchema, marketingFieldsShapeSchema, marketingProjectionSchema, resolveMarketingCopy } from '@/lib/validations/product-marketing';
+import { readMigrationSource } from '../../../scripts/migration-source';
 
 const copy = { result: null, tools: [], requirements: [] };
 const empty = { format: null, sourceLocale: 'en', en: copy };
@@ -65,7 +65,7 @@ describe('product marketing', () => {
 
 describe('marketing text boundaries', () => {
   it('keeps the stored structural schema generated from the shared contract', () => {
-    const sql = readFileSync(new URL('../../../../supabase/migrations/20261016000000_release_2026_10_6.sql', import.meta.url), 'utf8');
+    const sql = readMigrationSource('20261016000000_release_2026_10_6.sql');
     const encoded = sql.match(/SELECT public\.jsonschema_subset_matches\('((?:[^']|'')*)'::json, instance\)/)?.[1];
     const { $schema, ...expected } = z.toJSONSchema(marketingFieldsShapeSchema);
     expect($schema).toBe('https://json-schema.org/draft/2020-12/schema');

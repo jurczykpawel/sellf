@@ -1,5 +1,4 @@
 /** @see priv/rfc/2026-10-03-templates/spec/contracts/template-recipe.md */
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import Ajv2020 from 'ajv/dist/2020';
 import { z } from 'zod';
@@ -7,13 +6,14 @@ import { configSchema, recipeSchema, registryEntrySchema, revisionSchema, tokenO
 import { CONFIG_BYTES, ENVELOPE_BYTES, parseBoundedJson, storedJsonBytes } from '@/lib/storefront-templates/json';
 import { CORE_SETTINGS, STOREFRONT_TEMPLATES, isResetPath, validateConfig, validateRecipe } from '@/lib/storefront-templates/registry';
 import { DEFAULT_CONFIG, D_CONFIG, PUBLIC_FIXTURE } from '@/lib/storefront-templates/fixtures';
+import { readMigrationSource } from '../../../scripts/migration-source';
 
 const clone = () => structuredClone(D_CONFIG);
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
 
 describe('storefront schema corpus', () => {
   it('keeps the generated SQL subset synchronized, excluding dialect metadata', () => {
-    const migration = readFileSync('../supabase/migrations/20261017030527_storefront_c_contract.sql', 'utf8');
+    const migration = readMigrationSource('20261017030527_storefront_c_contract.sql');
     const { $schema, ...expected } = z.toJSONSchema(configSchema);
     expect($schema).toBe('https://json-schema.org/draft/2020-12/schema');
     expect(migration).toContain(JSON.stringify(expected).replaceAll("'", "''"));

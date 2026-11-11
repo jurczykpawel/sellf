@@ -41,7 +41,7 @@ and Node 22). The gate reserves
 
 It extracts the released migrations and seed from the local `v2026.10.6` tag,
 loads `supabase/tests/upgrade-fixture-2026-10-6.sql`, records counts and financial
-sums, and applies every candidate migration from 20261016000000 over the same
+sums, and applies every candidate migration from 20261110235900 over the same
 service-role HTTP RPC as `upgrade.sh`, including checksum and repeat checks.
 SQL checks cover historical order references, VAT units, optional checkout
 profiles and completion of a historical pending order through the legacy path.

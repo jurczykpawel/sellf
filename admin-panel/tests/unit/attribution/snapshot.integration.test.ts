@@ -1,12 +1,12 @@
 /**
  * Purchase attribution snapshot + report, measured in the database the seller reads.
- * @see supabase/migrations/20261103120000_purchase_attribution.sql
+ * @see supabase/migrations/20261110235905_release_2026_11_0_attribution.sql
  */
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { getTestDatabaseContainer } from '../../helpers/database-container';
 import { collectAttribution } from '@/lib/attribution/collect';
+import { readMigrationSource } from '../../../scripts/migration-source';
 
 const product = 'a1310000-0000-4000-a000-000000000001';
 const buyer = 'a1310000-0000-4000-a000-000000000002';
@@ -138,7 +138,7 @@ describe('purchase attribution snapshot', () => {
 
 describe('attribution report', () => {
   it('preserves historical channels when the seller has since changed the matching rules', () => {
-    const migration = readFileSync('../supabase/migrations/20261105180000_attribution_touch_channels.sql', 'utf8');
+    const migration = readMigrationSource('20261105180000_attribution_touch_channels.sql');
     const payload = JSON.stringify({ v: 1, consent: 'marketing', mode: 'stored',
       last: { source: 'mailstack', medium: 'email' }, click: { type: 'gclid', value: 'old-click' } });
     expect(() => sql(`UPDATE public.attribution_channel_rules SET priority=200 WHERE is_default AND field='click_id_type' AND channel='paid_search';
@@ -157,7 +157,7 @@ describe('attribution report', () => {
     ['social', 'paid_social', 'gclid', 'paid_social'],
     ['search', 'cpc', 'fbclid', 'paid_search'],
   ])('corrects the existing %s/%s snapshot and restores immutability', (source, medium, click, expected) => {
-    const migration = readFileSync('../supabase/migrations/20261105180000_attribution_touch_channels.sql', 'utf8');
+    const migration = readMigrationSource('20261105180000_attribution_touch_channels.sql');
     const payload = JSON.stringify({ v: 1, consent: 'marketing', mode: 'stored',
       first: { source: 'first', medium: 'cpc' }, last: { source, medium },
       click: { type: click, value: 'retained-click' } });

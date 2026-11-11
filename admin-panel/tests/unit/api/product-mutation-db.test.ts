@@ -1,4 +1,4 @@
-/** @see supabase/migrations/20261016000000_release_2026_10_6.sql */
+/** @see supabase/migrations/20261110235900_release_2026_11_0_storefront.sql */
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';

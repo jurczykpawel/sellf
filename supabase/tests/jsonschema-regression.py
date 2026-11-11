@@ -12,6 +12,8 @@ it never resets a database. --parity installs pg_jsonschema only in this TEST
 harness, using supabase_admin; neither the RPC nor its owner gets superuser.
 All commands are guarded against the shared project. Credentials are not logged.
 """
+from migration_source import read_migration_source
+
 import argparse
 import concurrent.futures
 import copy
@@ -30,7 +32,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PHASE2 = False
 WORK = Path('/private/tmp/sellf-rcjson')
 CONTAINER = 'supabase_db_sellf-rcjson'
-VERSION = '20261016000000_release_2026_10_6'
+VERSION = '20261110235900_release_2026_11_0_storefront'
 MIGRATION = ROOT / 'supabase/migrations' / (VERSION + '.sql')
 
 
@@ -94,7 +96,7 @@ def prepare():
 def rpc():
     check_stack()
     assert sql("SELECT count(*) FROM pg_extension WHERE extname='pg_jsonschema';") == '0'
-    assert sql("SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version='20261016000000';") == '0'
+    assert sql("SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version='20261110235900';") == '0'
     assert sql("SELECT to_regclass('public.storefront_config') IS NULL;") == 't'
     status = json.loads(subprocess.check_output(['supabase', 'status', '--workdir', str(WORK), '-o', 'json'], stderr=subprocess.DEVNULL))
     assert status['API_URL'] == f'http://127.0.0.1:{API_PORT}'
@@ -114,9 +116,7 @@ def rpc():
     assert sql("SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version='20261015999999';") == '0'
     assert sql("SELECT to_regclass('public.storefront_config') IS NULL;") == 't'
     print('PASS negative control: service_role RPC cannot CREATE EXTENSION pg_jsonschema (403/42501)')
-    migrations = sorted((ROOT / 'supabase/migrations').glob('*.sql')) if PHASE2 else [MIGRATION]
-    migrations = [migration for migration in migrations if migration.name >= MIGRATION.name]
-    assert len(migrations) == (9 if PHASE2 else 1), [m.name for m in migrations]
+    migrations = [MIGRATION]
     for migration in migrations:
         source = migration.read_bytes().decode('utf-8')
         assert 'jsonb_matches_schema' not in source
@@ -245,12 +245,11 @@ def parity():
     # This is the sole extension installation in the TEST harness, after RPC proof.
     sql('CREATE EXTENSION IF NOT EXISTS pg_jsonschema WITH SCHEMA extensions;', admin=True)
     assert sql("SELECT extversion FROM pg_extension WHERE extname='pg_jsonschema';") == '0.3.3', 'Review translations before changing the reference version'
-    sources = [MIGRATION]
+    sources = ['20261016000000_release_2026_10_6.sql']
     if PHASE2:
-        sources += [ROOT / 'supabase/migrations' / name for name in (
-            '20261016223736_storefront_a_contract.sql', '20261017014729_storefront_b_contract.sql',
-            '20261017030527_storefront_c_contract.sql', '20261016232157_product_offer_snapshots.sql')]
-    source = '\n'.join(path.read_text() for path in sources)
+        sources += ['20261016223736_storefront_a_contract.sql', '20261017014729_storefront_b_contract.sql',
+                    '20261017030527_storefront_c_contract.sql', '20261016232157_product_offer_snapshots.sql']
+    source = '\n'.join(read_migration_source(name) for name in sources)
     schemas = [json.loads(value.replace("''", "'")) for value in re.findall(r"AS \$schema\$ SELECT (?:public\.jsonschema_subset_matches\()?'((?:''|[^'])*)'::json", source)]
     assert len(schemas) == (6 if PHASE2 else 2)
     # Stream the expanded complete-schema corpus; retaining every deep copy in

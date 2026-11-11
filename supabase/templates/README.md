@@ -49,7 +49,7 @@ Anulowanie pokazuje `.Data.cancel_reason_text` z notatki sprzedawcy. `prepare_ev
 
 Supabase Auth renderuje temat jako Go Template, tak samo jak treść. Po zmianie
 sprawdź dostawę do nowego i istniejącego konta w obu językach. Migracja
-`20261027143930_auth_mail_context.sql` odświeża kontekst maila dla istniejących kont.
+`20261110235904_release_2026_11_0_fulfillment.sql` odświeża kontekst maila dla istniejących kont.
 
 ## Konfiguracja
 

@@ -4,7 +4,7 @@
  * as GET /api/v1/analytics/attribution. Plain GET form, no client JS. Mobile shows cards instead
  * of the table so 390 px never scrolls sideways.
  * @see src/lib/attribution/report.ts — panelAttributionQuery, runAttributionReport
- * @see supabase/migrations/20261103120000_purchase_attribution.sql — get_attribution_report()
+ * @see supabase/migrations/20261110235905_release_2026_11_0_attribution.sql — get_attribution_report()
  */
 import { getLocale, getTranslations } from 'next-intl/server';
 import { verifyAdminAccess } from '@/lib/auth-server';

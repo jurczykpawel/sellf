@@ -2,7 +2,7 @@ import type { BuyerWebhookCustomer } from '@/lib/webhooks/customer-locale';
 /**
  * Safe metadata for committed license status notifications.
  * @see src/lib/services/business-events.ts
- * @see supabase/migrations/20261101141003_license_dispute_restoration.sql
+ * @see supabase/migrations/20261110235904_release_2026_11_0_fulfillment.sql
  */
 
 export interface RevokedLicenseRow {

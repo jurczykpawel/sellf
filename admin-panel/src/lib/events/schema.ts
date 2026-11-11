@@ -1,4 +1,4 @@
-/** Event authoring contract. @see supabase/migrations/20261023080000_event_reservations.sql */
+/** Event authoring contract. @see supabase/migrations/20261110235902_release_2026_11_0_orders_events.sql */
 import { z } from 'zod';
 /** Never throws: an unparsable value is simply not an HTTPS link (B8: typing "h" crashed the form). */
 const isHttpsUrl = (v: string): boolean => { try { return new URL(v).protocol === 'https:'; } catch { return false; } };

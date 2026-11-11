@@ -7,7 +7,7 @@
  * (User-Agent, CDN country header) — never from the client.
  *
  * @see src/lib/attribution/collect.ts
- * @see supabase/migrations/20261103120000_purchase_attribution.sql
+ * @see supabase/migrations/20261110235905_release_2026_11_0_attribution.sql
  */
 
 import { z } from 'zod';

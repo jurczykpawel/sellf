@@ -1,5 +1,4 @@
 /** Offer snapshot reads. @see supabase/tests/product-offers.sql */
-import { readFileSync } from 'node:fs';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { CORE_TOKENS } from '@/lib/storefront-templates/public-theme';
 import { readPublishedOffer, readOfferConfig, readOfferHistory } from '@/lib/storefront-templates/offer-repository';
@@ -8,6 +7,7 @@ import { storedJsonBytes } from '@/lib/storefront-templates/json';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { toSqlSchema } from '../../../scripts/storefront-schema-subset';
+import { readMigrationSource } from '../../../scripts/migration-source';
 const license = vi.hoisted(() => ({ allowed: vi.fn() }));
 vi.mock('@/lib/license/public-snapshot', () => ({ checkPublicFeature: license.allowed }));
 const id = '11111111-1111-4111-a111-111111111111';
@@ -84,7 +84,7 @@ it.each([102399, 102400, 102401])('checks the %i stored UTF-8 boundary', bytes =
 });
 
 it('keeps the stored structural schema aligned with the frozen offer contract', () => {
-  const sql = readFileSync(new URL('../../../../supabase/migrations/20261016232157_product_offer_snapshots.sql', import.meta.url), 'utf8');
+  const sql = readMigrationSource('20261016232157_product_offer_snapshots.sql');
   const match = sql.match(/AS \$schema\$ SELECT '([\s\S]*?)'::json; \$schema\$;/);
   expect(match).not.toBeNull();
   expect(JSON.parse(match![1].replaceAll("''", "'"))).toEqual(toSqlSchema(offerConfigSchema));

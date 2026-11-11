@@ -1,3 +1,184 @@
+-- Sellf 2026.11.0: pricing.
+-- Source sections retain their SQL and relative order within this area.
+
+-- ===== Source: 20261017083253_product_vat_default_units.sql =====
+-- Shop defaults store fractional rates; product rates use percentage points.
+CREATE OR REPLACE FUNCTION public.apply_shop_vat_defaults()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_tax_rate numeric;
+  v_vat_exempt boolean;
+  v_exempt_note text;
+BEGIN
+  SELECT tax_rate, is_vat_exempt, vat_exempt_note
+    INTO v_tax_rate, v_vat_exempt, v_exempt_note
+    FROM public.shop_config
+    ORDER BY created_at
+    LIMIT 1;
+
+  IF NEW.vat_rate IS NULL AND NEW.vat_exempt = false THEN
+    IF v_vat_exempt THEN
+      NEW.vat_exempt := true;
+    ELSIF v_tax_rate IS NOT NULL THEN
+      NEW.vat_rate := v_tax_rate * 100;
+    END IF;
+  END IF;
+
+  IF NEW.vat_exempt = true AND NEW.vat_exempt_note IS NULL THEN
+    NEW.vat_exempt_note := v_exempt_note;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.apply_shop_vat_defaults() FROM anon, authenticated, PUBLIC;
+
+-- ===== Source: 20261017173304_product_vat_rate_units_repair.sql =====
+-- Product VAT rates are stored in percentage points (23.00 means 23%).
+-- Between v2026.6.18 and 20261017083253 the new-product default copied the shop
+-- rate as a fraction (0.23) into that column. This migration rescales those rows.
+--
+-- Rule: 0 < vat_rate < 1 becomes vat_rate * 100.
+--   * No real VAT rate is below 1%, so a value in that interval can only be a
+--     fraction. Rates of 0 (zero-rated), NULL, and anything >= 1 are untouched.
+--   * The column is DECIMAL(5,2), so every candidate has at most two decimals and
+--     the result is exact (0.05 -> 5.00, 0.08 -> 8.00, 0.23 -> 23.00) and below
+--     100, so it always fits. The smallest candidate, 0.01, becomes 1.00, which
+--     the rule no longer matches: running the migration again changes nothing.
+--   * The shop default is itself stored at two decimals, so no precision is
+--     lost between the shop rate and the product copy; nothing is recovered
+--     from shop_config.
+--   * Subscriptions priced before this release were saved without a gross/net
+--     choice (the form hid it). Their prices are now treated as including VAT,
+--     so a repaired subscription is also marked price_includes_vat = true.
+--   * Products are not told apart by origin (no marker exists), exempt products
+--     included: their stored rate is shown nowhere while exempt, and a later
+--     switch back to taxable must not expose a fraction.
+--
+-- Records already written are kept exactly as recorded: completed payments, line
+-- items, invoices and their tax snapshots, and product_price_history rows. They
+-- describe what was charged at the time. The repair deliberately writes NO new
+-- product_price_history row: the price did not change, and a new row would close
+-- the current period and distort the "lowest price in the last 30 days" shown
+-- for products on an active sale. The price/rate change trigger is therefore
+-- switched off for the repair only (the table is locked for the statement, so no
+-- concurrent write can slip past while it is off).
+-- Open checkout sessions keep the rate they were created with; new sessions use
+-- the corrected value. No audit_log row is written: the codebase records admin
+-- actions through mutate_product_with_audit, and earlier data repairs do not log.
+
+-- 1. The new-product default: shop rates are stored as fractions (0.23), product
+--    rates in percentage points (23). Guard against a shop rate that was already
+--    entered in percentage points, which would otherwise become 2300 and overflow
+--    DECIMAL(5,2).
+CREATE OR REPLACE FUNCTION public.apply_shop_vat_defaults()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_tax_rate numeric;
+  v_vat_exempt boolean;
+  v_exempt_note text;
+BEGIN
+  SELECT tax_rate, is_vat_exempt, vat_exempt_note
+    INTO v_tax_rate, v_vat_exempt, v_exempt_note
+    FROM public.shop_config
+    ORDER BY created_at
+    LIMIT 1;
+
+  IF NEW.vat_rate IS NULL AND NEW.vat_exempt = false THEN
+    IF v_vat_exempt THEN
+      NEW.vat_exempt := true;
+    ELSIF v_tax_rate IS NOT NULL THEN
+      NEW.vat_rate := CASE WHEN v_tax_rate < 1 THEN v_tax_rate * 100 ELSE v_tax_rate END;
+    END IF;
+  END IF;
+
+  IF NEW.vat_exempt = true AND NEW.vat_exempt_note IS NULL THEN
+    NEW.vat_exempt_note := v_exempt_note;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.apply_shop_vat_defaults() FROM anon, authenticated, PUBLIC;
+
+-- 2. Data repair.
+ALTER TABLE public.products DISABLE TRIGGER product_price_change_trigger;
+
+UPDATE public.products
+   SET vat_rate = vat_rate * 100,
+       price_includes_vat = CASE WHEN product_type = 'subscription' THEN true ELSE price_includes_vat END
+ WHERE vat_rate > 0
+   AND vat_rate < 1;
+
+ALTER TABLE public.products ENABLE TRIGGER product_price_change_trigger;
+
+-- ===== Source: 20261017190000_order_bumps_return_vat.sql =====
+-- The checkout page needs each bump product's own VAT settings to show a total that
+-- matches the charge (net bumps get VAT added on top, exempt bumps do not).
+-- Return type changes, so the function is dropped and recreated with the same
+-- security attributes and grants as 20260310175058_multi_order_bumps.sql.
+DROP FUNCTION IF EXISTS public.get_product_order_bumps(UUID);
+
+CREATE OR REPLACE FUNCTION public.get_product_order_bumps(
+  product_id_param UUID
+) RETURNS TABLE (
+  bump_id UUID,
+  bump_product_id UUID,
+  bump_product_name TEXT,
+  bump_product_description TEXT,
+  bump_product_icon TEXT,
+  bump_price NUMERIC,
+  original_price NUMERIC,
+  bump_access_duration INTEGER,
+  bump_currency TEXT,
+  bump_title TEXT,
+  bump_description TEXT,
+  display_order INTEGER,
+  urgency_duration_minutes INTEGER,
+  vat_rate NUMERIC,
+  price_includes_vat BOOLEAN,
+  vat_exempt BOOLEAN
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    ob.id as bump_id,
+    ob.bump_product_id,
+    p.name as bump_product_name,
+    p.description as bump_product_description,
+    p.icon as bump_product_icon,
+    COALESCE(ob.bump_price, p.price) as bump_price,
+    p.price as original_price,
+    COALESCE(ob.access_duration_days, p.auto_grant_duration_days) as bump_access_duration,
+    p.currency as bump_currency,
+    ob.bump_title,
+    ob.bump_description,
+    ob.display_order,
+    ob.urgency_duration_minutes,
+    p.vat_rate,
+    p.price_includes_vat,
+    p.vat_exempt
+  FROM public.order_bumps ob
+  INNER JOIN public.products p ON p.id = ob.bump_product_id
+  WHERE ob.main_product_id = product_id_param
+    AND ob.is_active = true
+    AND p.is_active = true
+  ORDER BY ob.display_order ASC, ob.created_at ASC;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+
+REVOKE EXECUTE ON FUNCTION public.get_product_order_bumps FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_product_order_bumps TO anon, authenticated, service_role;
+
+-- ===== Source: 20261017203003_zero_decimal_currency_amounts.sql =====
 -- Stripe minor-unit factor per currency: zero-decimal currencies (JPY, KRW, VND, ...) are
 -- charged in whole units, everything else in hundredths. Twin of lib/currency/minor-units.ts.
 CREATE OR REPLACE FUNCTION public.currency_minor_factor(currency_code TEXT)

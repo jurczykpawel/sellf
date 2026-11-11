@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getTestDatabaseContainer } from '../../helpers/database-container';
+import { readMigrationSource } from '../../../scripts/migration-source';
 
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 let productId: string;
@@ -63,7 +64,7 @@ describe('order schema', () => {
     expect((await db.from('guest_purchases').insert({ ...base, transaction_id: tx.data.id })).error?.code).toBe('23505');
   });
   it('backfills historical order numbers and guest transaction references', () => {
-    const migration = readFileSync('../supabase/migrations/20261022191538_order_core_schema.sql', 'utf8').replace(/^BEGIN;|^COMMIT;/gm, '');
+    const migration = readMigrationSource('20261022191538_order_core_schema.sql').replace(/^BEGIN;|^COMMIT;/gm, '');
     const historicalClaim = readFileSync('../supabase/migrations/20261003120000_claim_after_email_confirmation.sql', 'utf8')
       .split('CREATE OR REPLACE FUNCTION public.migrate_guest_payment_data_to_profile')[0];
     const sql = `BEGIN;

@@ -1,5 +1,5 @@
 /** Permanent order-license revocations, including already revoked dispute licenses.
- * @see supabase/migrations/20261101141003_license_dispute_restoration.sql
+ * @see supabase/migrations/20261110235904_release_2026_11_0_fulfillment.sql
  */
 import type { createAdminClient } from '@/lib/supabase/admin';
 
