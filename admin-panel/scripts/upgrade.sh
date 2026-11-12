@@ -19,9 +19,15 @@
 
 set -euo pipefail
 
-# Force bash to read the entire script into memory before executing.
-# Without this, the self-update step (cp new upgrade.sh over the running one)
-# corrupts bash's read offset, causing "command not found" errors mid-run.
+# Version 1 is the unversioned updater shipped through 2026.10.6.
+UPDATER_VERSION=2
+# CI emits a legacy manifest only while version-1 updaters are supported.
+MIN_UPDATER_VERSION=1
+# sellf-upgrade-stage2:1
+
+# Parse the main body before executing. Stage 2 runs from the private extraction;
+# the installed script is replaced atomically so its open inode is preserved.
+# A function alone cannot protect the reader's offset after main() returns.
 main() {
 
 # Ensure PM2 can locate its socket regardless of how this script was spawned.
@@ -111,6 +117,26 @@ write_error() {
 log() {
   echo "[$(date -u +%H:%M:%S)] $*" >> "$LOG_FILE"
 }
+
+# Stage 2 is this same script, executed FROM the verified private extraction.
+# All context is passed as argv; no downloaded shell state is sourced. Descriptor
+# 200 survives exec, keeping the original instance lock held across both stages.
+if [ "${3:-}" = "--apply-verified" ]; then
+  TMP_DIR="${4:?Missing verified extraction}"
+  TAG_NAME="${5:?Missing release tag}"
+  PM2_BIN="${6:?Missing PM2 executable}"
+  PM2_NAME="${7:?Missing PM2 name}"
+  PROGRESS_FILE="${8:?Missing progress path}"
+  LOG_FILE="${9:?Missing log path}"
+  LOCK_FILE="${10:?Missing lock path}"
+  EXTRACT_DIR="$TMP_DIR/extracted"
+  if ! flock -n 200; then
+    write_error "Missing inherited updater lock — stage 2 cannot run independently"
+    exit 1
+  fi
+  trap 'rm -rf "$TMP_DIR"; rm -f "$LOCK_FILE"' EXIT
+  log "Inherited updater lock; running downloaded stage 2"
+else
 
 # ===== EXECUTABLE PREFLIGHT =====
 # Resolve once before any download or installation changes. systemd services
@@ -226,13 +252,12 @@ LOCK_FILE="${RUNTIME_DIR}/sellf-upgrade-${INSTANCE_NAME}.lock"
 cleanup_lock() {
   rm -f "$LOCK_FILE"
 }
-trap cleanup_lock EXIT
-
 exec 200>"$LOCK_FILE"
 if ! flock -n 200; then
   write_error "Upgrade already in progress for ${INSTANCE_NAME}"
   exit 1
 fi
+trap cleanup_lock EXIT
 
 # ===== AUTO-DETECT PM2 NAME =====
 
@@ -287,8 +312,17 @@ for asset in data.get('assets', []):
 " 2>/dev/null
 }
 
-MANIFEST_URL=$(release_asset_url "sellf-build.manifest")
-SIGNATURE_URL=$(release_asset_url "sellf-build.manifest.sig")
+# Keep the two-line legacy asset for 10.6; new bootstraps prefer the signed
+# extended manifest. An advertised but incomplete v2 pair must never fall back.
+MANIFEST_URL=$(release_asset_url "sellf-build.v2.manifest")
+SIGNATURE_URL=$(release_asset_url "sellf-build.v2.manifest.sig")
+MANIFEST_V2=false
+if [ -n "$MANIFEST_URL" ] || [ -n "$SIGNATURE_URL" ]; then
+  MANIFEST_V2=true
+else
+  MANIFEST_URL=$(release_asset_url "sellf-build.manifest")
+  SIGNATURE_URL=$(release_asset_url "sellf-build.manifest.sig")
+fi
 
 TAG_NAME=$(echo "$RELEASE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('tag_name','unknown'))" 2>/dev/null)
 
@@ -340,6 +374,8 @@ write_progress "downloading" 10 "Downloading ${TAG_NAME} manifest..."
 log "Downloading manifest..."
 
 TMP_DIR=$(mktemp -d)
+chmod 700 "$TMP_DIR"
+trap 'rm -rf "$TMP_DIR"; cleanup_lock' EXIT
 ARCHIVE="$TMP_DIR/sellf-build.tar.gz"
 MANIFEST_FILE="$TMP_DIR/sellf-build.manifest"
 SIGNATURE_FILE="$TMP_DIR/sellf-build.manifest.sig"
@@ -403,21 +439,26 @@ log "Signature OK (release signing key)"
 # signature-verification:end
 
 # manifest-parse:start — extracted verbatim by tests/unit/scripts/upgrade-archive-validation.test.ts
-# Exactly two LF-terminated lines, in this order: `version=<YYYY.M.patch>`
-# (no leading v) and `sha256=<64 lowercase hex>`. Anything else is refused,
-# even when signed.
+# Legacy: two lines. V2: the same lines plus min_updater_version=<integer>.
+# Unknown, duplicate and reordered fields are rejected, even when signed.
 MANIFEST_VERSION=""
 EXPECTED_SHA=""
+REQUIRED_UPDATER_VERSION=1
 MANIFEST_LINES=0
 while IFS= read -r manifest_line || [ -n "$manifest_line" ]; do
   MANIFEST_LINES=$((MANIFEST_LINES + 1))
   case "$MANIFEST_LINES" in
     1) if [[ "$manifest_line" == version=* ]]; then MANIFEST_VERSION="${manifest_line#version=}"; fi ;;
     2) if [[ "$manifest_line" == sha256=* ]]; then EXPECTED_SHA="${manifest_line#sha256=}"; fi ;;
+    3) REQUIRED_UPDATER_VERSION="${manifest_line#min_updater_version=}"
+       [[ "$manifest_line" == min_updater_version=* ]] || REQUIRED_UPDATER_VERSION="invalid" ;;
   esac
 done < "$MANIFEST_FILE"
 
-if [ "$MANIFEST_LINES" -ne 2 ] \
+EXPECTED_MANIFEST_LINES=2
+if [ "${MANIFEST_V2:-false}" = true ]; then EXPECTED_MANIFEST_LINES=3; fi
+if [ "$MANIFEST_LINES" -ne "$EXPECTED_MANIFEST_LINES" ] \
+    || ! [[ "$REQUIRED_UPDATER_VERSION" =~ ^[1-9][0-9]{0,8}$ ]] \
     || ! [[ "$MANIFEST_VERSION" =~ ^[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$ ]] \
     || ! [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{64}$ ]]; then
   write_error "Malformed release manifest — refusing to install"
@@ -427,6 +468,12 @@ fi
 
 if [ "$MANIFEST_VERSION" != "${TAG_NAME#v}" ]; then
   write_error "Signed release version ${MANIFEST_VERSION} does not match the release tag ${TAG_NAME} — refusing to install"
+  rm -rf "$TMP_DIR"
+  exit 1
+fi
+# An old bootstrap must refuse BEFORE downloading/executing any release code.
+if [ "$REQUIRED_UPDATER_VERSION" -gt "${UPDATER_VERSION:-1}" ]; then
+  write_error "This release requires updater $REQUIRED_UPDATER_VERSION (installed: ${UPDATER_VERSION:-1}). Update Sellf through Stackpilot: ./local/deploy.sh sellf --ssh=<server> --update"
   rm -rf "$TMP_DIR"
   exit 1
 fi
@@ -585,6 +632,18 @@ fi
 
 log "Archive validated OK"
 
+# Only verified regular files can reach this point (signature, checksum and
+# archive validation above). Old packages lack the stage-2 protocol marker;
+# reinstalling those packages retains this installed script's apply logic.
+DOWNLOADED_UPDATER="$EXTRACT_DIR/scripts/upgrade.sh"
+if [ -f "$DOWNLOADED_UPDATER" ] && grep -qx '# sellf-upgrade-stage2:1' "$DOWNLOADED_UPDATER"; then
+  log "Handing verified release to downloaded stage 2"
+  exec bash "$DOWNLOADED_UPDATER" "$TOKEN" "$INSTALL_DIR" --apply-verified \
+    "$TMP_DIR" "$TAG_NAME" "$PM2_BIN" "$PM2_NAME" "$PROGRESS_FILE" "$LOG_FILE" "$LOCK_FILE"
+fi
+log "Release has no stage 2; using installed updater fallback"
+fi
+
 # ===== STEP 5: BACKUP =====
 
 write_progress "backing_up" 45 "Creating backup..."
@@ -611,6 +670,13 @@ fi
 if [ -d "$INSTALL_DIR/public" ]; then
   cp -r "$INSTALL_DIR/public" "$BACKUP_DIR/public"
 fi
+
+# Preserve every artifact replaced by the installer, including version metadata.
+for artifact in version.txt bun.lock scripts supabase; do
+  if [ -e "$INSTALL_DIR/$artifact" ]; then
+    cp -r "$INSTALL_DIR/$artifact" "$BACKUP_DIR/"
+  fi
+done
 
 log "Backup created at $BACKUP_DIR"
 
@@ -643,8 +709,9 @@ cp "$EXTRACT_DIR/version.txt" "$INSTALL_DIR/" 2>/dev/null || true
 # Copy upgrade script itself (self-update)
 if [ -f "$EXTRACT_DIR/scripts/upgrade.sh" ]; then
   mkdir -p "$INSTALL_DIR/scripts"
-  cp "$EXTRACT_DIR/scripts/upgrade.sh" "$INSTALL_DIR/scripts/upgrade.sh" 2>/dev/null || true
-  chmod +x "$INSTALL_DIR/scripts/upgrade.sh" 2>/dev/null || true
+  cp "$EXTRACT_DIR/scripts/upgrade.sh" "$INSTALL_DIR/scripts/upgrade.sh.next"
+  chmod +x "$INSTALL_DIR/scripts/upgrade.sh.next"
+  mv -f "$INSTALL_DIR/scripts/upgrade.sh.next" "$INSTALL_DIR/scripts/upgrade.sh"
 fi
 
 # Copy supabase migrations
@@ -715,6 +782,85 @@ log "Files swapped"
 
 # ===== STEP 8: RUN MIGRATIONS =====
 
+# .env.local is dotenv data (JSON/PEM/quotes), never executable shell. This
+# preserves Stackpilot's environment contract in the downloaded runner too.
+load_pm2_environment() {
+  [ -f "$INSTALL_DIR/.env.local" ] || return 0
+  local environment_file="$TMP_DIR/pm2-environment" key value
+  if ! "${NODE_BIN:-node}" -e '
+    const { readFileSync } = require("node:fs");
+    const { parseEnv } = require("node:util");
+    for (const [key, value] of Object.entries(parseEnv(readFileSync(process.argv[1], "utf8")))) {
+      process.stdout.write(key + "\0" + value + "\0");
+    }
+  ' "$INSTALL_DIR/.env.local" > "$environment_file"; then
+    log "ERROR: Could not parse PM2 environment"
+    return 1
+  fi
+  while IFS= read -r -d '' key && IFS= read -r -d '' value; do
+    export "$key=$value"
+  done < "$environment_file"
+  rm -f "$environment_file"
+}
+
+# Restore only code/configuration. Earlier successful RPCs are already committed;
+# this does not claim to roll back the database.
+rollback_code() {
+  local old_server="$BACKUP_DIR/.next/standalone/admin-panel/server.js"
+  [ -f "$old_server" ] || old_server="$BACKUP_DIR/.next/standalone/server.js"
+  if [ ! -f "$old_server" ]; then
+    log "ERROR: Previous server.js missing from backup; application remains stopped"
+    return 1
+  fi
+  "$PM2_BIN" stop "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
+  "$PM2_BIN" delete "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
+  cd "$INSTALL_DIR" || return 1
+  local artifact
+  for artifact in .next public package.json version.txt bun.lock scripts supabase .env.local; do
+    rm -rf "$INSTALL_DIR/$artifact" || return 1
+    if [ -e "$BACKUP_DIR/$artifact" ]; then
+      cp -r "$BACKUP_DIR/$artifact" "$INSTALL_DIR/" || return 1
+    fi
+  done
+  old_server="$INSTALL_DIR/.next/standalone/admin-panel/server.js"
+  [ -f "$old_server" ] || old_server="$INSTALL_DIR/.next/standalone/server.js"
+  load_pm2_environment || return 1
+  local old_port
+  old_port=$(grep -E '^PORT=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2 || true)
+  if ! [[ "$old_port" =~ ^[0-9]+$ ]] || [ "$old_port" -lt 1024 ] || [ "$old_port" -gt 65535 ]; then
+    old_port=3333
+  fi
+  cd "$(dirname "$old_server")" || return 1
+  PORT="$old_port" HOSTNAME="${HOSTNAME:-::}" "$PM2_BIN" start "$(basename "$old_server")" --name "$PM2_NAME" \
+    --max-memory-restart "${SELLF_PM2_MAX_MEMORY:-512M}" \
+    --node-args="--max-old-space-size=${SELLF_NODE_MAX_OLD_SPACE:-400}" >> "$LOG_FILE" 2>&1 || return 1
+  "$PM2_BIN" save >> "$LOG_FILE" 2>&1 || true
+  log "Previous code restored; database migrations were not reversed"
+}
+
+# Keep HTTP error bodies, including non-JSON responses, in the private upgrade log.
+# Neither SQL nor JSON is ever passed as a large process argument.
+migration_rpc() {
+  local endpoint="$1" payload="$2" http_status
+  local response_file="$TMP_DIR/migration-response.json"
+  : > "$response_file"
+  if ! http_status=$(curl -sS "${SUPABASE_URL}/rest/v1/rpc/$endpoint" \
+    -H "apikey: ${SERVICE_KEY}" \
+    -H "Authorization: Bearer ${SERVICE_KEY}" \
+    -H "Content-Type: application/json" \
+    --data-binary "$payload" -o "$response_file" -w '%{http_code}' 2>>"$LOG_FILE"); then
+    log "ERROR: $endpoint transport failed (HTTP ${http_status:-unknown})"
+    cat "$response_file" >> "$LOG_FILE"
+    return 1
+  fi
+  if [ "$http_status" != "200" ]; then
+    log "ERROR: $endpoint HTTP $http_status; full response:"
+    cat "$response_file" >> "$LOG_FILE"
+    return 1
+  fi
+  cat "$response_file"
+}
+
 write_progress "migrating" 75 "Running database migrations..."
 log "Running migrations..."
 MIGRATION_ERRORS=0
@@ -729,16 +875,15 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabas
     log "ERROR: jq not installed — migrations incomplete (apt-get install jq)"
   else
     # Check which migrations are already applied via RPC
-    APPLIED=$(curl -sf "${SUPABASE_URL}/rest/v1/rpc/get_migration_status" \
-      -H "apikey: ${SERVICE_KEY}" \
-      -H "Authorization: Bearer ${SERVICE_KEY}" \
-      -H "Content-Type: application/json" \
-      -d '{}' 2>/dev/null || echo "RPC_NOT_FOUND")
-
-    if [ "$APPLIED" = "RPC_NOT_FOUND" ]; then
+    if ! APPLIED=$(migration_rpc get_migration_status '{}'); then
       MIGRATION_ERRORS=1
-      log "Migration RPC not available yet — migrations incomplete"
+      log "Migration RPC unavailable — migrations incomplete"
       log "Run 'deploy.sh sellf --update' once to bootstrap migration system"
+    elif ! jq -e -s 'length == 1 and (.[0] | type == "array" and all(.[]; type == "object" and (.version | type == "string")))' \
+      <<< "$APPLIED" >/dev/null 2>&1; then
+      MIGRATION_ERRORS=1
+      log "ERROR: Invalid migration status response; full response:"
+      printf '%s\n' "$APPLIED" >> "$LOG_FILE"
     else
       MIGRATION_COUNT=0
       MIGRATION_SKIPPED=0
@@ -755,24 +900,27 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabas
           continue
         fi
 
-        SQL_CONTENT=$(cat "$migration_file")
-        CHECKSUM=$(echo -n "$SQL_CONTENT" | sha256sum | cut -d' ' -f1)
+        if ! SQL_CONTENT=$(cat "$migration_file" 2>>"$LOG_FILE") ||
+          ! CHECKSUM=$(printf '%s' "$SQL_CONTENT" | sha256sum | cut -d' ' -f1); then
+          log "WARNING: Migration $VERSION could not be read or checksummed"
+          MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
+          continue
+        fi
 
-        # Call RPC — jq handles JSON escaping of SQL content safely
-        RESULT=$(curl -sf "${SUPABASE_URL}/rest/v1/rpc/apply_migration" \
-          -H "apikey: ${SERVICE_KEY}" \
-          -H "Authorization: Bearer ${SERVICE_KEY}" \
-          -H "Content-Type: application/json" \
-          -d "$(jq -n \
-            --arg v "$VERSION" \
-            --arg s "$SQL_CONTENT" \
-            --arg c "$CHECKSUM" \
-            '{migration_version: $v, migration_sql: $s, content_checksum: $c}')" \
-          2>>"$LOG_FILE") || {
+        # Read SQL and send JSON through files, preserving the existing checksum input.
+        PAYLOAD_FILE="$TMP_DIR/migration-payload.json"
+        if ! jq -n --arg v "$VERSION" --rawfile s "$migration_file" --arg c "$CHECKSUM" \
+          '{migration_version: $v, migration_sql: ($s | sub("\\n+$"; "")), content_checksum: $c}' \
+          > "$PAYLOAD_FILE" 2>>"$LOG_FILE"; then
+          log "WARNING: Migration $VERSION payload could not be prepared"
+          MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
+          continue
+        fi
+        if ! RESULT=$(migration_rpc apply_migration "@$PAYLOAD_FILE"); then
           log "WARNING: Migration $VERSION failed"
           MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
           continue
-        }
+        fi
 
         if ! OUTCOME=$(jq -er -s '
           if length != 1 then error("Expected one result")
@@ -786,6 +934,7 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabas
             end
           end' <<< "$RESULT" 2>/dev/null); then
           log "WARNING: Migration $VERSION failed: Invalid migration RPC response"
+          printf '%s\n' "$RESULT" >> "$LOG_FILE"
           MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
           continue
         fi
@@ -793,6 +942,7 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabas
         if [ "$OUTCOME" = "failed" ]; then
           MESSAGE=$(jq -r '.message | if type == "string" then gsub("[\\r\\n]"; " ") else "Migration RPC reported failure" end' <<< "$RESULT")
           log "WARNING: Migration $VERSION failed: $MESSAGE"
+          printf '%s\n' "$RESULT" >> "$LOG_FILE"
           MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
         elif [ "$OUTCOME" = "already_applied" ]; then
           log "Migration $VERSION: already applied"
@@ -811,6 +961,18 @@ else
   log "Migrations incomplete (missing Supabase config or migration directory)"
 fi
 
+if [ "$MIGRATION_ERRORS" -gt 0 ]; then
+  log "ERROR: Migrations failed; restoring previous code before any new-version startup"
+  write_progress "rolling_back" 85 "Database migration failed. Restoring previous code..."
+  if rollback_code; then
+    write_error "Upgrade to ${TAG_NAME} finished with $MIGRATION_ERRORS migration errors. Check upgrade logs." true
+  else
+    write_error "Upgrade failed: migrations incomplete and code restoration failed. Application remains stopped."
+  fi
+  rm -rf "$TMP_DIR"
+  exit 1
+fi
+
 # ===== STEP 9: START PM2 =====
 
 write_progress "restarting" 90 "Starting application..."
@@ -825,17 +987,11 @@ fi
 if [ ! -f "$SERVER_JS" ]; then
   log "ERROR: server.js not found — rolling back!"
   write_progress "rolling_back" 95 "Error: server.js not found. Rolling back..."
-  # Rollback
-  cd "$INSTALL_DIR"
-  rm -rf "$INSTALL_DIR/.next" "$INSTALL_DIR/public"
-  cp -r "$BACKUP_DIR/.next" "$INSTALL_DIR/" 2>/dev/null || true
-  cp -r "$BACKUP_DIR/public" "$INSTALL_DIR/" 2>/dev/null || true
-  cp "$BACKUP_DIR/package.json" "$INSTALL_DIR/" 2>/dev/null || true
-  if [ -f "$BACKUP_DIR/.env.local" ]; then
-    cp "$BACKUP_DIR/.env.local" "$INSTALL_DIR/.env.local"
+  if rollback_code; then
+    write_error "Upgrade failed: server.js not found. Rolled back to previous version." true
+  else
+    write_error "Upgrade failed: server.js not found and code restoration failed. Application remains stopped."
   fi
-  "$PM2_BIN" start "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
-  write_error "Upgrade failed: server.js not found. Rolled back to previous version." true
   rm -rf "$TMP_DIR"
   exit 1
 fi
@@ -851,12 +1007,7 @@ fi
 cd "$(dirname "$SERVER_JS")"
 # Load .env.local into shell so PM2 captures actual values.
 # dotenv in server.js won't override vars already set by PM2, so we pre-load them here.
-if [ -f "$INSTALL_DIR/.env.local" ]; then
-  set -o allexport
-  # shellcheck source=/dev/null
-  source "$INSTALL_DIR/.env.local"
-  set +o allexport
-fi
+load_pm2_environment
 MEM_LIMIT="${SELLF_PM2_MAX_MEMORY:-512M}"
 OLD_SPACE="${SELLF_NODE_MAX_OLD_SPACE:-400}"
 # ::: loopback only — app runs behind Caddy, never exposed directly
@@ -877,44 +1028,17 @@ done
 
 if [ "$HEALTH_OK" = "true" ]; then
   "$PM2_BIN" save >> "$LOG_FILE" 2>&1 || true
-  if [ "$MIGRATION_ERRORS" -gt 0 ]; then
-    write_error "Upgrade to ${TAG_NAME} finished with $MIGRATION_ERRORS migration errors. Check upgrade logs."
-    log "WARNING: Upgrade finished with $MIGRATION_ERRORS migration errors. Version: $TAG_NAME"
-  else
-    write_progress "done" 100 "Upgrade to ${TAG_NAME} completed successfully!"
-    log "Upgrade complete! Version: $TAG_NAME"
-  fi
+  write_progress "done" 100 "Upgrade to ${TAG_NAME} completed successfully!"
+  log "Upgrade complete! Version: $TAG_NAME"
 else
   log "ERROR: Health check failed after 60s — rolling back!"
   write_progress "rolling_back" 95 "Health check failed. Rolling back..."
 
-  "$PM2_BIN" stop "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
-  "$PM2_BIN" delete "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
-
-  cd "$INSTALL_DIR"
-  rm -rf "$INSTALL_DIR/.next" "$INSTALL_DIR/public"
-  cp -r "$BACKUP_DIR/.next" "$INSTALL_DIR/" 2>/dev/null || true
-  cp -r "$BACKUP_DIR/public" "$INSTALL_DIR/" 2>/dev/null || true
-  cp "$BACKUP_DIR/package.json" "$INSTALL_DIR/" 2>/dev/null || true
-
-  # Restart with old version
-  OLD_SERVER_JS="$INSTALL_DIR/.next/standalone/admin-panel/server.js"
-  [ ! -f "$OLD_SERVER_JS" ] && OLD_SERVER_JS="$INSTALL_DIR/.next/standalone/server.js"
-  if [ -f "$OLD_SERVER_JS" ]; then
-    cd "$(dirname "$OLD_SERVER_JS")"
-    if [ -f "$INSTALL_DIR/.env.local" ]; then
-      set -o allexport
-      # shellcheck source=/dev/null
-      source "$INSTALL_DIR/.env.local"
-      set +o allexport
-    fi
-    PORT="${PORT}" HOSTNAME="${HOSTNAME:-::}" "$PM2_BIN" start "$(basename "$OLD_SERVER_JS")" --name "$PM2_NAME" \
-      --max-memory-restart "${MEM_LIMIT:-512M}" \
-      --node-args="--max-old-space-size=${OLD_SPACE:-400}" >> "$LOG_FILE" 2>&1 || true
-    "$PM2_BIN" save >> "$LOG_FILE" 2>&1 || true
+  if rollback_code; then
+    write_error "Upgrade failed: health check timeout. Rolled back to previous version." true
+  else
+    write_error "Upgrade failed: health check timeout and code restoration failed. Application remains stopped."
   fi
-
-  write_error "Upgrade failed: health check timeout. Rolled back to previous version." true
   rm -rf "$TMP_DIR"
   exit 1
 fi

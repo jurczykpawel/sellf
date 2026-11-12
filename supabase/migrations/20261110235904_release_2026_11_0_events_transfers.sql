@@ -1,3 +1,649 @@
+
+
+CREATE OR REPLACE FUNCTION public._order_grant_and_record(
+  p_transaction_id uuid, p_user_id uuid, p_existing_user_id uuid,
+  p_requested_user_id uuid, p_coupon_id uuid, p_coupon_mode text
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  tx public.payment_transactions%ROWTYPE;
+  transaction_id_var uuid := p_transaction_id;
+  current_user_id uuid := p_user_id;
+  existing_user_id uuid := p_existing_user_id;
+  user_id_param uuid := p_requested_user_id;
+  product_id_param uuid;
+  customer_email_param text;
+  amount_total numeric;
+  session_id_param text;
+  bump_count integer;
+  bump_rec record;
+BEGIN
+  SELECT * INTO STRICT tx FROM public.payment_transactions WHERE id = p_transaction_id;
+  PERFORM public.confirm_event_order(tx.id);
+  product_id_param := tx.product_id;
+  customer_email_param := tx.customer_email;
+  amount_total := tx.amount;
+  session_id_param := tx.session_id;
+  SELECT count(*) INTO bump_count FROM public.payment_line_items
+    WHERE transaction_id = tx.id AND item_type = 'order_bump';
+  IF p_coupon_mode IS NULL OR p_coupon_mode NOT IN ('consume_reservation','already_redeemed','none')
+    OR (p_coupon_mode = 'none' AND p_coupon_id IS NOT NULL) THEN
+    RAISE EXCEPTION 'Invalid coupon mode';
+  END IF;
+  IF p_coupon_mode = 'consume_reservation' THEN
+    PERFORM public._redeem_coupon_for_order(p_coupon_id, current_user_id, existing_user_id, customer_email_param, tx.id);
+  ELSIF p_coupon_mode = 'already_redeemed' AND p_coupon_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM public.coupon_redemptions WHERE transaction_id = tx.id AND coupon_id = p_coupon_id
+  ) THEN RAISE EXCEPTION 'Order coupon has not been redeemed';
+  END IF;
+  IF tx.pricing_snapshot_version IS NULL THEN
+    PERFORM public.increment_sale_quantity_sold(product_id_param);
+  ELSE
+    FOR bump_rec IN SELECT product_id, quantity FROM public.payment_line_items WHERE transaction_id = tx.id LOOP
+      PERFORM public.increment_sale_quantity_sold(bump_rec.product_id, bump_rec.quantity);
+    END LOOP;
+  END IF;
+    IF current_user_id IS NOT NULL THEN
+      PERFORM public.grant_product_and_bundle_components(current_user_id, product_id_param);
+
+      FOR bump_rec IN
+        SELECT product_id, access_duration_override FROM public.payment_line_items
+        WHERE transaction_id = transaction_id_var AND item_type = 'order_bump'
+      LOOP
+        PERFORM public.grant_product_access_service_role(current_user_id, bump_rec.product_id,
+          override_duration_days_param => bump_rec.access_duration_override);
+      END LOOP;
+
+      IF user_id_param IS NULL AND existing_user_id IS NOT NULL THEN
+        RETURN jsonb_build_object(
+          'success', true,
+          'scenario', 'guest_purchase_user_exists_with_bump',
+          'access_granted', true,
+          'is_guest_purchase', false,
+          'send_magic_link', true,
+          'requires_login', true,
+          'bump_access_granted', bump_count > 0,
+          'bump_count', bump_count,
+          'customer_email', customer_email_param
+        );
+      END IF;
+
+      RETURN jsonb_build_object(
+        'success', true,
+        'scenario', 'logged_in_user_with_bump',
+        'access_granted', true,
+        'bump_access_granted', bump_count > 0,
+        'bump_count', bump_count,
+        'customer_email', customer_email_param
+      );
+    ELSE
+      INSERT INTO public.guest_purchases (customer_email, product_id, transaction_amount, session_id, transaction_id)
+      VALUES (customer_email_param, product_id_param, amount_total, session_id_param, transaction_id_var);
+
+      RETURN jsonb_build_object(
+        'success', true,
+        'scenario', 'guest_purchase_new_user_with_bump',
+        'access_granted', false,
+        'is_guest_purchase', true,
+        'send_magic_link', true,
+        'customer_email', customer_email_param
+      );
+    END IF;
+
+END;
+$$;
+REVOKE ALL ON FUNCTION public._order_grant_and_record(uuid,uuid,uuid,uuid,uuid,text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public._order_grant_and_record(uuid,uuid,uuid,uuid,uuid,text) TO service_role;
+
+-- ===== Source: 20261023090000_event_storefront.sql =====
+-- Event recording claims and event catalogue projection.
+DROP INDEX public.guest_purchases_transaction_idx;
+CREATE UNIQUE INDEX guest_purchases_transaction_idx ON public.guest_purchases(transaction_id,customer_email,product_id) WHERE transaction_id IS NOT NULL;
+CREATE OR REPLACE FUNCTION public.claim_guest_purchases_for_user(
+  p_user_id UUID
+) RETURNS json AS $$
+DECLARE
+  user_email_var TEXT;
+  claimed_count INTEGER := 0;
+  guest_purchase_record RECORD;
+  line_item_rec RECORD;
+BEGIN
+  IF NOT public.check_rate_limit('claim_guest_purchases_for_user', 10, 3600) THEN
+    RETURN json_build_object(
+      'success', false,
+      'error', 'Rate limit exceeded. Please wait before trying again.'
+    );
+  END IF;
+
+  IF p_user_id IS NULL THEN
+    RETURN json_build_object('success', false, 'error', 'User ID is required');
+  END IF;
+
+  SELECT email INTO user_email_var FROM auth.users WHERE id = p_user_id AND email_confirmed_at IS NOT NULL;
+
+  IF user_email_var IS NULL THEN
+    RETURN json_build_object('success', false, 'error', 'User not found');
+  END IF;
+
+  IF NOT public.validate_email_format(user_email_var) THEN
+    RETURN json_build_object('success', false, 'error', 'Invalid email format');
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtext(user_email_var));
+
+  FOR guest_purchase_record IN
+    SELECT gp.id, gp.product_id, gp.session_id, pt.id as transaction_id
+    FROM public.guest_purchases gp
+    LEFT JOIN public.payment_transactions pt ON pt.id = gp.transaction_id
+      OR (gp.transaction_id IS NULL AND pt.session_id = gp.session_id)
+    WHERE gp.customer_email = user_email_var
+      AND gp.claimed_by_user_id IS NULL
+    FOR UPDATE OF gp SKIP LOCKED
+  LOOP
+    UPDATE public.guest_purchases
+    SET claimed_by_user_id = p_user_id, claimed_at = NOW()
+    WHERE id = guest_purchase_record.id;
+
+    BEGIN
+      DECLARE
+        grant_result JSONB;
+      BEGIN
+        SELECT public.grant_product_and_bundle_components(p_user_id, guest_purchase_record.product_id) INTO grant_result;
+
+        IF (grant_result->>'success')::boolean = true THEN
+          claimed_count := claimed_count + 1;
+
+          UPDATE public.payment_transactions
+          SET user_id = p_user_id,
+              updated_at = NOW()
+          WHERE id = guest_purchase_record.transaction_id
+            AND user_id IS NULL AND lower(customer_email)=lower(user_email_var);
+        ELSE
+          IF (grant_result->>'retry_exceeded')::boolean = true THEN
+            PERFORM public.log_admin_action(
+              'guest_claim_concurrency_failure', 'guest_purchases',
+              guest_purchase_record.id::TEXT,
+              jsonb_build_object(
+                'severity', 'WARNING', 'error_type', 'optimistic_lock_retry_exceeded',
+                'user_id', p_user_id, 'product_id', guest_purchase_record.product_id,
+                'guest_purchase_id', guest_purchase_record.id, 'grant_result', grant_result,
+                'function_name', 'claim_guest_purchases_for_user'
+              )
+            );
+          ELSE
+            PERFORM public.log_admin_action(
+              'guest_claim_grant_failure', 'guest_purchases',
+              guest_purchase_record.id::TEXT,
+              jsonb_build_object(
+                'severity', 'ERROR', 'error_type', 'access_grant_failure',
+                'user_id', p_user_id, 'product_id', guest_purchase_record.product_id,
+                'guest_purchase_id', guest_purchase_record.id, 'grant_result', grant_result,
+                'function_name', 'claim_guest_purchases_for_user'
+              )
+            );
+          END IF;
+
+          UPDATE public.guest_purchases
+          SET claimed_by_user_id = NULL, claimed_at = NULL
+          WHERE id = guest_purchase_record.id;
+        END IF;
+      END;
+    EXCEPTION
+      WHEN OTHERS THEN
+        PERFORM public.log_admin_action(
+          'critical_guest_claim_failure', 'guest_purchases',
+          guest_purchase_record.id::TEXT,
+          jsonb_build_object(
+            'severity', 'CRITICAL', 'error_type', 'guest_claim_exception',
+            'error_code', SQLSTATE, 'error_message', SQLERRM,
+            'user_id', p_user_id, 'product_id', guest_purchase_record.product_id,
+            'guest_purchase_id', guest_purchase_record.id,
+            'function_name', 'claim_guest_purchases_for_user'
+          )
+        );
+        UPDATE public.guest_purchases
+        SET claimed_by_user_id = NULL, claimed_at = NULL
+        WHERE id = guest_purchase_record.id;
+        NULL;
+    END;
+
+    IF guest_purchase_record.transaction_id IS NOT NULL THEN
+      FOR line_item_rec IN
+        SELECT pli.product_id, pli.access_duration_override
+        FROM public.payment_line_items pli
+        WHERE pli.transaction_id = guest_purchase_record.transaction_id
+          AND pli.item_type = 'order_bump'
+      LOOP
+        BEGIN
+          PERFORM public.grant_product_access_service_role(
+            p_user_id,
+            line_item_rec.product_id,
+            override_duration_days_param => line_item_rec.access_duration_override
+          );
+          claimed_count := claimed_count + 1;
+        EXCEPTION WHEN OTHERS THEN
+          PERFORM public.log_admin_action(
+            'guest_claim_bump_failure', 'payment_line_items',
+            guest_purchase_record.transaction_id::TEXT,
+            jsonb_build_object(
+              'severity', 'ERROR', 'error_type', 'bump_access_grant_failure',
+              'user_id', p_user_id, 'product_id', line_item_rec.product_id,
+              'transaction_id', guest_purchase_record.transaction_id,
+              'function_name', 'claim_guest_purchases_for_user'
+            )
+          );
+          NULL;
+        END;
+      END LOOP;
+    END IF;
+  END LOOP;
+
+  RETURN json_build_object(
+    'success', true,
+    'claimed_count', claimed_count,
+    'user_email', user_email_var
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+SET statement_timeout = '30s';
+
+REVOKE ALL ON FUNCTION public.claim_guest_purchases_for_user(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_guest_purchases_for_user(uuid) TO service_role;
+CREATE OR REPLACE FUNCTION public._order_grant_and_record(
+  p_transaction_id uuid, p_user_id uuid, p_existing_user_id uuid,
+  p_requested_user_id uuid, p_coupon_id uuid, p_coupon_mode text
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  tx public.payment_transactions%ROWTYPE;
+  transaction_id_var uuid := p_transaction_id;
+  current_user_id uuid := p_user_id;
+  existing_user_id uuid := p_existing_user_id;
+  user_id_param uuid := p_requested_user_id;
+  product_id_param uuid;
+  customer_email_param text;
+  amount_total numeric;
+  session_id_param text;
+  bump_count integer;
+  bump_rec record;
+BEGIN
+  SELECT * INTO STRICT tx FROM public.payment_transactions WHERE id = p_transaction_id;
+  PERFORM public.confirm_event_order(tx.id);
+  product_id_param := tx.product_id;
+  customer_email_param := tx.customer_email;
+  amount_total := tx.amount;
+  session_id_param := tx.session_id;
+  SELECT count(*) INTO bump_count FROM public.payment_line_items
+    WHERE transaction_id = tx.id AND item_type = 'order_bump';
+  IF p_coupon_mode IS NULL OR p_coupon_mode NOT IN ('consume_reservation','already_redeemed','none')
+    OR (p_coupon_mode = 'none' AND p_coupon_id IS NOT NULL) THEN
+    RAISE EXCEPTION 'Invalid coupon mode';
+  END IF;
+  IF p_coupon_mode = 'consume_reservation' THEN
+    PERFORM public._redeem_coupon_for_order(p_coupon_id, current_user_id, existing_user_id, customer_email_param, tx.id);
+  ELSIF p_coupon_mode = 'already_redeemed' AND p_coupon_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM public.coupon_redemptions WHERE transaction_id = tx.id AND coupon_id = p_coupon_id
+  ) THEN RAISE EXCEPTION 'Order coupon has not been redeemed';
+  END IF;
+  IF tx.pricing_snapshot_version IS NULL THEN
+    PERFORM public.increment_sale_quantity_sold(product_id_param);
+  ELSE
+    FOR bump_rec IN SELECT product_id, quantity FROM public.payment_line_items WHERE transaction_id = tx.id LOOP
+      PERFORM public.increment_sale_quantity_sold(bump_rec.product_id, bump_rec.quantity);
+    END LOOP;
+  END IF;
+  IF jsonb_typeof(tx.order_details->'participants'->'people')='array' THEN
+    INSERT INTO public.guest_purchases(customer_email,product_id,transaction_amount,session_id,transaction_id)
+    SELECT DISTINCT lower(btrim(person->>'email')), li.product_id, 0, NULL, tx.id
+    FROM jsonb_array_elements(tx.order_details->'participants'->'people') person
+    CROSS JOIN public.payment_line_items li
+    WHERE li.transaction_id=tx.id AND li.item_type='order_bump'
+      AND public.validate_email_format(lower(btrim(person->>'email')))
+      AND lower(btrim(person->>'email'))<>lower(tx.customer_email)
+    ON CONFLICT DO NOTHING;
+    PERFORM public.claim_guest_purchases_for_user(u.id) FROM auth.users u
+    WHERE u.email_confirmed_at IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.guest_purchases gp WHERE gp.transaction_id=tx.id
+        AND gp.customer_email=u.email AND gp.claimed_by_user_id IS NULL
+    );
+  END IF;
+    IF current_user_id IS NOT NULL THEN
+      PERFORM public.grant_product_and_bundle_components(current_user_id, product_id_param);
+
+      FOR bump_rec IN
+        SELECT product_id, access_duration_override FROM public.payment_line_items
+        WHERE transaction_id = transaction_id_var AND item_type = 'order_bump'
+      LOOP
+        PERFORM public.grant_product_access_service_role(current_user_id, bump_rec.product_id,
+          override_duration_days_param => bump_rec.access_duration_override);
+      END LOOP;
+
+      IF user_id_param IS NULL AND existing_user_id IS NOT NULL THEN
+        RETURN jsonb_build_object('success', true, 'scenario', 'guest_purchase_user_exists_with_bump', 'access_granted', true, 'is_guest_purchase', false, 'send_magic_link', true, 'requires_login', true, 'bump_access_granted', bump_count > 0, 'bump_count', bump_count, 'customer_email', customer_email_param);
+      END IF;
+
+      RETURN jsonb_build_object(
+        'success', true,
+        'scenario', 'logged_in_user_with_bump',
+        'access_granted', true,
+        'bump_access_granted', bump_count > 0,
+        'bump_count', bump_count,
+        'customer_email', customer_email_param
+      );
+    ELSE
+      INSERT INTO public.guest_purchases (customer_email, product_id, transaction_amount, session_id, transaction_id)
+      VALUES (customer_email_param, product_id_param, amount_total, session_id_param, transaction_id_var);
+
+      RETURN jsonb_build_object(
+        'success', true,
+        'scenario', 'guest_purchase_new_user_with_bump',
+        'access_granted', false,
+        'is_guest_purchase', true,
+        'send_magic_link', true,
+        'customer_email', customer_email_param
+      );
+    END IF;
+
+END;
+$$;
+REVOKE ALL ON FUNCTION public._order_grant_and_record(uuid,uuid,uuid,uuid,uuid,text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public._order_grant_and_record(uuid,uuid,uuid,uuid,uuid,text) TO service_role;
+CREATE OR REPLACE FUNCTION public.storefront_catalogue_page(
+  filters jsonb DEFAULT '{}', after_created timestamptz DEFAULT NULL,
+  after_id uuid DEFAULT NULL, product_ids uuid[] DEFAULT NULL
+) RETURNS SETOF jsonb LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path = ''
+SET plan_cache_mode = 'force_custom_plan' AS $$
+DECLARE
+  page_size integer := coalesce((filters->>'pageSize')::integer, 9);
+  search_text text := normalize(btrim(coalesce(filters->>'search','')), NFC);
+  categories uuid[];
+  price_kind text := filters->>'priceKind';
+  product_format text := filters->>'format';
+  group_name text := coalesce(filters->>'group','all');
+BEGIN
+  IF jsonb_typeof(filters) IS DISTINCT FROM 'object' OR page_size NOT IN (9,12,24)
+    OR char_length(search_text)>100 OR group_name NOT IN ('all','featured','free','paid')
+    OR (price_kind IS NOT NULL AND price_kind NOT IN ('free','one-time','subscription','pwyw'))
+    OR (product_format IS NOT NULL AND product_format NOT IN ('course','workshop','ebook','template','tool','service','bundle','other'))
+    OR (after_created IS NULL) <> (after_id IS NULL)
+    OR cardinality(product_ids)>5 THEN RAISE EXCEPTION 'INVALID' USING ERRCODE='22023'; END IF;
+  SELECT coalesce(array_agg(value::uuid),'{}'::uuid[]) INTO categories
+    FROM jsonb_array_elements_text(coalesce(filters->'categoryIds','[]')) value;
+  IF cardinality(categories)>12 OR cardinality(categories)<>(SELECT count(DISTINCT c) FROM unnest(categories) c)
+    THEN RAISE EXCEPTION 'INVALID' USING ERRCODE='22023'; END IF;
+  RETURN QUERY
+  WITH eligible AS NOT MATERIALIZED (
+    SELECT p.id,p.name,p.slug,left(p.description,280) description,p.created_at,p.price,p.currency,p.product_type,p.recurring_price,
+      p.billing_interval,p.billing_interval_count,p.allow_custom_price,p.custom_price_min,
+      p.sale_price,p.sale_price_until,p.sale_quantity_limit,p.sale_quantity_sold,
+      p.marketing_fields,left(p.image_url,2049) image_url,p.vat_rate,p.vat_exempt,
+      left(p.vat_exempt_note,501) vat_exempt_note,p.price_includes_vat,p.omnibus_exempt,
+      p.auto_grant_duration_days,p.available_until,p.event_mode
+    FROM public.products p
+    -- The unique junction key makes the per-candidate count an intersection.
+    CROSS JOIN LATERAL (
+      SELECT count(*) FROM public.product_categories pc
+      WHERE pc.product_id=p.id AND pc.category_id=ANY(categories)
+      HAVING count(*)=cardinality(categories)
+    ) membership
+    WHERE p.is_active AND p.is_listed
+      AND (p.available_from IS NULL OR p.available_from<=statement_timestamp())
+      AND (p.available_until IS NULL OR p.available_until>statement_timestamp())
+      AND (product_ids IS NULL OR p.id=ANY(product_ids))
+      AND (search_text='' OR normalize(p.name,NFC) ILIKE '%' || replace(replace(replace(search_text, E'\\', E'\\\\'), '%', E'\\%'), '_', E'\\_') || '%')
+      AND (product_format IS NULL OR p.marketing_fields->>'format'=product_format)
+      AND (group_name<>'featured' OR p.is_featured)
+      AND (price_kind IS NULL OR price_kind=CASE WHEN p.product_type='subscription' THEN 'subscription'
+        WHEN p.allow_custom_price THEN 'pwyw' WHEN p.price=0 THEN 'free' ELSE 'one-time' END)
+      AND (group_name<>'free' OR (p.product_type<>'subscription' AND NOT p.allow_custom_price AND p.price=0))
+      AND (group_name<>'paid' OR NOT (p.product_type<>'subscription' AND NOT p.allow_custom_price AND p.price=0))
+  ), page AS MATERIALIZED (
+    SELECT * FROM (
+      (SELECT * FROM eligible WHERE after_created IS NULL OR created_at<after_created ORDER BY created_at DESC,id ASC LIMIT page_size+1)
+      UNION ALL
+      (SELECT * FROM eligible WHERE created_at=after_created AND id>after_id ORDER BY created_at DESC,id ASC LIMIT page_size+1)
+    ) candidates ORDER BY created_at DESC,id ASC LIMIT page_size+1
+  ), shop AS MATERIALIZED (
+    SELECT tax_mode,omnibus_enabled FROM public.shop_config LIMIT 1
+  ), history AS (
+    SELECT h.product_id,h.price,h.sale_price,h.effective_from,
+      max(h.effective_from) OVER (PARTITION BY h.product_id) latest
+    FROM public.omnibus_price_history h JOIN page p ON p.id=h.product_id
+    WHERE h.effective_from>=statement_timestamp()-interval '30 days'
+  ), prior AS (
+    SELECT product_id,min(CASE WHEN effective_from=latest THEN price ELSE least(price,coalesce(sale_price,price)) END) lowest
+    FROM history GROUP BY product_id
+  )
+  SELECT (to_jsonb(p)-'omnibus_exempt') || jsonb_build_object(
+    'tax_mode',coalesce(shop.tax_mode,'local'),
+    'lowest_prior_price',CASE WHEN NOT p.omnibus_exempt AND coalesce(shop.omnibus_enabled,false) THEN prior.lowest ELSE NULL END)
+  FROM page p LEFT JOIN prior ON prior.product_id=p.id LEFT JOIN shop ON true ORDER BY p.created_at DESC,p.id ASC;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.storefront_catalogue_page(jsonb,timestamptz,uuid,uuid[]) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.storefront_catalogue_page(jsonb,timestamptz,uuid,uuid[]) TO service_role;
+
+-- Participant recording grants follow the order's terminal status.
+CREATE FUNCTION public.release_participant_recordings() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE claim record;
+BEGIN
+  IF NEW.status IN ('refunded','cancelled') AND NEW.status IS DISTINCT FROM OLD.status THEN
+    FOR claim IN SELECT product_id,claimed_by_user_id FROM public.guest_purchases
+      WHERE transaction_id=NEW.id AND session_id IS NULL AND product_id<>NEW.product_id FOR UPDATE LOOP
+      IF claim.claimed_by_user_id IS NOT NULL THEN
+        DELETE FROM public.user_product_access WHERE user_id=claim.claimed_by_user_id AND product_id IN (
+          SELECT claim.product_id UNION SELECT component_product_id FROM public.bundle_items WHERE bundle_product_id=claim.product_id
+        );
+      END IF;
+    END LOOP;
+    DELETE FROM public.guest_purchases WHERE transaction_id=NEW.id AND session_id IS NULL AND product_id<>NEW.product_id;
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION public.release_participant_recordings() FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.release_participant_recordings() TO service_role;
+CREATE TRIGGER participant_recordings_release AFTER UPDATE OF status ON public.payment_transactions
+  FOR EACH ROW EXECUTE FUNCTION public.release_participant_recordings();
+
+-- ===== Source: 20261023091000_event_admin.sql =====
+-- Atomic event authoring through the existing audited product mutation.
+CREATE OR REPLACE FUNCTION public.mutate_product_with_audit(
+  operation_param text,
+  product_data jsonb,
+  product_id uuid,
+  actor_id uuid
+) RETURNS SETOF public.products
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+DECLARE
+  before_row public.products;
+  after_row public.products;
+  columns_sql text;
+  sessions jsonb := product_data->'sessions';
+  session_json jsonb; tier_json jsonb; sid uuid; tid uuid;
+  kept_sessions uuid[] := '{}'; kept_tiers uuid[]; before_sessions jsonb;
+
+BEGIN
+  -- Only the server supplies the actor, after session or API-key authentication.
+  IF (SELECT auth.role()) IS DISTINCT FROM 'service_role'
+     OR NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = actor_id) THEN
+    RAISE EXCEPTION 'Administrator required' USING ERRCODE = '42501';
+  END IF;
+  IF operation_param NOT IN ('INSERT', 'UPDATE', 'DELETE') OR operation_param IS NULL
+     OR product_data IS NULL OR jsonb_typeof(product_data) <> 'object' THEN
+    RAISE EXCEPTION 'Invalid product mutation' USING ERRCODE = '22023';
+  END IF;
+  product_data := product_data - 'sessions';
+  IF EXISTS (
+    SELECT 1 FROM jsonb_object_keys(product_data) AS k(name)
+    WHERE name IN ('id', 'created_at', 'updated_at') OR NOT EXISTS (
+      SELECT 1 FROM pg_catalog.pg_attribute
+      WHERE attrelid = 'public.products'::regclass AND attname = k.name
+        AND attnum > 0 AND NOT attisdropped
+    )
+  ) THEN
+    RAISE EXCEPTION 'Invalid product fields' USING ERRCODE = '22023';
+  END IF;
+
+  IF operation_param IN ('UPDATE', 'DELETE') THEN
+    SELECT * INTO before_row FROM public.products WHERE id = product_id FOR NO KEY UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Product not found' USING ERRCODE = 'P0002';
+    END IF;
+  END IF;
+
+  IF sessions IS NOT NULL THEN
+    IF jsonb_typeof(sessions) <> 'array' OR jsonb_array_length(sessions) > 50 THEN
+      RAISE EXCEPTION 'Invalid sessions' USING ERRCODE = '23514';
+    END IF;
+    SELECT coalesce(jsonb_agg(to_jsonb(s)), '[]') INTO before_sessions FROM public.product_sessions s WHERE s.product_id = mutate_product_with_audit.product_id;
+    FOR sid IN SELECT id FROM public.product_sessions WHERE product_sessions.product_id = mutate_product_with_audit.product_id ORDER BY id LOOP
+      PERFORM pg_advisory_xact_lock(hashtextextended(sid::text, 0));
+    END LOOP;
+  END IF;
+
+  SELECT string_agg(format('%I', name), ', ' ORDER BY name)
+    INTO columns_sql FROM jsonb_object_keys(product_data) AS k(name);
+  IF operation_param = 'INSERT' THEN
+    IF columns_sql IS NULL THEN
+      RAISE EXCEPTION 'Product fields required' USING ERRCODE = '22023';
+    END IF;
+    EXECUTE format(
+      'INSERT INTO public.products (%s) SELECT %s FROM jsonb_populate_record(NULL::public.products, $1) RETURNING *',
+      columns_sql, columns_sql
+    ) INTO after_row USING product_data;
+  ELSIF operation_param = 'UPDATE' THEN
+    IF columns_sql IS NULL THEN
+      UPDATE public.products SET updated_at = now() WHERE id = product_id RETURNING * INTO after_row;
+    ELSE
+      EXECUTE format(
+        'UPDATE public.products SET (%s) = (SELECT %s FROM jsonb_populate_record(NULL::public.products, $1)) WHERE id = $2 RETURNING *',
+        columns_sql, columns_sql
+      ) INTO after_row USING product_data, product_id;
+    END IF;
+  ELSE
+    DELETE FROM public.products WHERE id = product_id;
+  END IF;
+
+  IF sessions IS NOT NULL AND operation_param <> 'DELETE' THEN
+    FOR session_json IN SELECT value FROM jsonb_array_elements(sessions) LOOP
+      sid := coalesce((session_json->>'id')::uuid, gen_random_uuid());
+      IF sid = ANY(kept_sessions) THEN RAISE EXCEPTION 'Duplicate session' USING ERRCODE = '23514'; END IF;
+      kept_sessions := array_append(kept_sessions, sid);
+      IF jsonb_typeof(session_json->'tiers') IS DISTINCT FROM 'array'
+        OR jsonb_array_length(session_json->'tiers') NOT BETWEEN 1 AND 50
+        OR NOT EXISTS (SELECT 1 FROM pg_catalog.pg_timezone_names WHERE name=coalesce(session_json->>'timezone','Europe/Warsaw')) THEN
+        RAISE EXCEPTION 'Invalid session or tiers' USING ERRCODE = '23514';
+      END IF;
+      INSERT INTO public.product_sessions(id, product_id, starts_at, ends_at, timezone, title, venue, online_url, extra_days, capacity, sales_open, sort)
+      VALUES(sid, after_row.id, (session_json->>'starts_at')::timestamptz, (session_json->>'ends_at')::timestamptz,
+        coalesce(session_json->>'timezone','Europe/Warsaw'), session_json->>'title', session_json->>'venue', session_json->>'online_url',
+        session_json->>'extra_days', (session_json->>'capacity')::integer, coalesce((session_json->>'sales_open')::boolean,true), coalesce((session_json->>'sort')::integer,0))
+      ON CONFLICT(id) DO UPDATE SET starts_at=EXCLUDED.starts_at, ends_at=EXCLUDED.ends_at, timezone=EXCLUDED.timezone,
+        title=EXCLUDED.title, venue=EXCLUDED.venue, online_url=EXCLUDED.online_url, extra_days=EXCLUDED.extra_days,
+        capacity=EXCLUDED.capacity, sales_open=EXCLUDED.sales_open, sort=EXCLUDED.sort
+      WHERE product_sessions.product_id=after_row.id;
+      IF NOT FOUND THEN RAISE EXCEPTION 'Invalid session ID' USING ERRCODE='23514'; END IF;
+      UPDATE public.product_price_tiers SET sort=-sort-1 WHERE session_id=sid;
+      kept_tiers := '{}';
+      FOR tier_json IN SELECT value FROM jsonb_array_elements(session_json->'tiers') LOOP
+        tid := coalesce((tier_json->>'id')::uuid,gen_random_uuid());
+        IF tid = ANY(kept_tiers) OR (tier_json->>'sort')::integer < 0 THEN RAISE EXCEPTION 'Invalid tier' USING ERRCODE='23514'; END IF;
+        kept_tiers := array_append(kept_tiers,tid);
+        INSERT INTO public.product_price_tiers(id,session_id,label,price,seats,sale_ends_at,sort)
+        VALUES(tid,sid,tier_json->>'label',(tier_json->>'price')::numeric,(tier_json->>'seats')::integer,
+          (tier_json->>'sale_ends_at')::timestamptz,(tier_json->>'sort')::integer)
+        ON CONFLICT(id) DO UPDATE SET label=EXCLUDED.label,price=EXCLUDED.price,seats=EXCLUDED.seats,sale_ends_at=EXCLUDED.sale_ends_at,sort=EXCLUDED.sort
+        WHERE product_price_tiers.session_id=sid;
+        IF NOT FOUND THEN RAISE EXCEPTION 'Invalid tier ID' USING ERRCODE='23514'; END IF;
+      END LOOP;
+      DELETE FROM public.product_price_tiers WHERE session_id=sid AND NOT(id=ANY(kept_tiers));
+    END LOOP;
+    DELETE FROM public.product_sessions WHERE product_sessions.product_id=after_row.id AND NOT(id=ANY(kept_sessions));
+  END IF;
+
+  INSERT INTO public.audit_log (table_name, operation, old_values, new_values, user_id, performed_by)
+  VALUES (
+    'products', operation_param,
+    CASE WHEN operation_param <> 'INSERT' THEN to_jsonb(before_row) || CASE WHEN sessions IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('sessions',before_sessions) END END,
+    CASE WHEN operation_param <> 'DELETE' THEN to_jsonb(after_row) || CASE WHEN sessions IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('sessions',sessions) END END,
+    actor_id, actor_id
+  );
+  RETURN NEXT CASE WHEN operation_param = 'DELETE' THEN before_row ELSE after_row END;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.mutate_product_with_audit(text, jsonb, uuid, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.mutate_product_with_audit(text, jsonb, uuid, uuid) TO service_role;
+
+ALTER TABLE public.payment_line_items ADD COLUMN tier_label text;
+CREATE FUNCTION public.snapshot_event_tier_label() RETURNS trigger LANGUAGE plpgsql SET search_path='' AS $$
+BEGIN
+  IF NEW.tier_id IS NOT NULL AND NEW.tier_label IS NULL THEN SELECT label INTO NEW.tier_label FROM public.product_price_tiers WHERE id=NEW.tier_id; END IF;
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION public.snapshot_event_tier_label() FROM PUBLIC,anon,authenticated;
+CREATE TRIGGER event_tier_label BEFORE INSERT OR UPDATE OF tier_id ON public.payment_line_items FOR EACH ROW EXECUTE FUNCTION public.snapshot_event_tier_label();
+UPDATE public.payment_line_items li SET tier_label=t.label FROM public.product_price_tiers t WHERE t.id=li.tier_id;
+
+CREATE FUNCTION public.my_event_sessions(p_product_id uuid) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.check_rate_limit('my_event_sessions',1000,3600) THEN RETURN '[]'::jsonb; END IF;
+  RETURN (SELECT coalesce(jsonb_agg(DISTINCT jsonb_build_object('id',s.id,'starts_at',s.starts_at,'timezone',s.timezone,'title',s.title,'online_url',s.online_url)), '[]')
+    FROM public.product_sessions s JOIN public.seat_reservations r ON r.session_id=s.id AND r.status='confirmed'
+    JOIN public.payment_transactions t ON t.id=r.transaction_id
+    WHERE s.product_id=p_product_id AND EXISTS (SELECT 1 FROM public.user_product_access a WHERE a.product_id=p_product_id AND a.user_id=auth.uid() AND (a.access_expires_at IS NULL OR a.access_expires_at>now()))
+    AND (t.user_id=auth.uid() OR lower(t.customer_email)=(SELECT lower(email) FROM auth.users WHERE id=auth.uid())
+      OR EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(t.order_details->'participants'->'people','[]')) p WHERE lower(p->>'email')=(SELECT lower(email) FROM auth.users WHERE id=auth.uid()))));
+END $$;
+REVOKE ALL ON FUNCTION public.my_event_sessions(uuid) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.my_event_sessions(uuid) TO authenticated;
+
+CREATE FUNCTION public.event_session_admin(p_session_id uuid, p_offset integer DEFAULT 0) RETURNS jsonb LANGUAGE sql STABLE SET search_path='' AS $$
+SELECT jsonb_build_object('availability', (SELECT a FROM jsonb_array_elements(public.event_availability(s.product_id)) a WHERE a->>'id'=s.id::text),
+  'sold', (SELECT coalesce(sum(quantity),0) FROM public.seat_reservations WHERE session_id=s.id AND status='confirmed'),
+  'held', (SELECT coalesce(sum(quantity),0) FROM public.seat_reservations WHERE session_id=s.id AND status='held' AND expires_at>now()),
+  'orders', (SELECT coalesce(jsonb_agg(q),'[]') FROM (SELECT r.transaction_id,r.status,t.customer_email,t.order_details
+    FROM public.seat_reservations r JOIN public.payment_transactions t ON t.id=r.transaction_id WHERE r.session_id=s.id
+    ORDER BY r.created_at,r.id LIMIT 100 OFFSET greatest(0,p_offset)) q)) FROM public.product_sessions s WHERE s.id=p_session_id;
+$$;
+REVOKE ALL ON FUNCTION public.event_session_admin(uuid,integer) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.event_session_admin(uuid,integer) TO service_role;
+
+CREATE FUNCTION public.event_mail_access(p_email text, p_product_id uuid, p_transaction_id uuid) RETURNS boolean LANGUAGE sql STABLE SET search_path='' AS $$
+SELECT EXISTS (SELECT 1 FROM public.user_product_access a JOIN auth.users u ON u.id=a.user_id
+  WHERE lower(u.email)=lower(p_email) AND a.product_id=p_product_id AND (a.access_expires_at IS NULL OR a.access_expires_at>now()))
+  OR EXISTS (SELECT 1 FROM public.guest_purchases g WHERE lower(g.customer_email)=lower(p_email)
+    AND g.product_id=p_product_id AND g.transaction_id=p_transaction_id AND g.claimed_by_user_id IS NULL);
+$$;
+REVOKE ALL ON FUNCTION public.event_mail_access(text,uuid,uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.event_mail_access(text,uuid,uuid) TO service_role;
+
+-- Auth email templates read the account's current metadata for existing users.
+CREATE FUNCTION public.prepare_event_mail(p_email text, p_data jsonb) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+BEGIN
+  IF length(p_data->>'event_date')>500 OR length(p_data->>'event_online_url')>2048
+    OR (p_data->>'event_online_url') !~ '^https://[^[:space:]]+$' THEN RAISE EXCEPTION 'Invalid event mail data' USING ERRCODE='22023'; END IF;
+  UPDATE auth.users SET raw_user_meta_data=(coalesce(raw_user_meta_data,'{}')-'event_date'-'event_online_url')
+    ||jsonb_strip_nulls(jsonb_build_object('event_date',p_data->>'event_date','event_online_url',p_data->>'event_online_url'))
+    WHERE lower(email)=lower(p_email) AND (p_data ? 'event_date' OR raw_user_meta_data ? 'event_date' OR raw_user_meta_data ? 'event_online_url');
+END $$;
+REVOKE ALL ON FUNCTION public.prepare_event_mail(text,jsonb) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.prepare_event_mail(text,jsonb) TO service_role;
+
+-- ===== Source: 20261023140000_event_availability_unlisted.sql =====
+-- Direct event links follow the product sale window independently of catalogue listing.
+CREATE OR REPLACE FUNCTION public.public_event_availability(p_product_id uuid)
+RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+SELECT CASE WHEN EXISTS (SELECT 1 FROM public.products WHERE id=p_product_id AND event_mode AND is_active
+  AND (available_from IS NULL OR available_from<=statement_timestamp())
+  AND (available_until IS NULL OR available_until>statement_timestamp()))
+  THEN public.event_availability(p_product_id) ELSE '[]'::jsonb END;
+$$;
+REVOKE ALL ON FUNCTION public.public_event_availability(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.public_event_availability(uuid) TO service_role;
+
 -- Sellf 2026.11.0: transfers coupons.
 -- Source sections retain their SQL and relative order within this area.
 
@@ -1038,3 +1684,146 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.bank_transfer_order(jsonb,jsonb) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.bank_transfer_order(jsonb,jsonb) TO service_role;
+
+-- Sellf 2026.11.0: fulfillment.
+-- Source sections retain their SQL and relative order within this area.
+
+-- ===== Source: 20261026135522_refund_request_buyer_reads.sql =====
+-- Read refund requests using the current session's identity.
+
+DROP POLICY "Users can view own refund requests" ON public.refund_requests;
+CREATE POLICY "Users can view own refund requests" ON public.refund_requests
+  FOR SELECT TO authenticated
+  USING (
+    user_id = (SELECT auth.uid())
+    OR customer_email = (SELECT auth.jwt() ->> 'email')
+    OR (SELECT public.is_admin())
+  );
+
+-- ===== Source: 20261027143930_auth_mail_context.sql =====
+-- Keep auth email context current for existing accounts as well as signups.
+CREATE OR REPLACE FUNCTION public.prepare_event_mail(p_email text, p_data jsonb) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+BEGIN
+  IF length(p_data->>'event_date')>500 OR length(p_data->>'event_online_url')>2048
+    OR (p_data->>'event_online_url') !~ '^https://[^[:space:]]+$'
+    OR length(p_data->>'transfer_text')>2000 OR length(p_data->>'purchase_product')>500
+    OR length(p_data->>'purchase_amount')>100 OR (p_data->>'locale') NOT IN ('pl','en')
+    THEN RAISE EXCEPTION 'Invalid mail data' USING ERRCODE='22023'; END IF;
+  UPDATE auth.users SET raw_user_meta_data=(coalesce(raw_user_meta_data,'{}')
+    -'event_date'-'event_online_url'-'transfer_text'-'purchase_product'-'purchase_amount'-'locale')
+    ||jsonb_strip_nulls(jsonb_build_object('event_date',p_data->>'event_date',
+      'event_online_url',p_data->>'event_online_url','transfer_text',p_data->>'transfer_text',
+      'purchase_product',p_data->>'purchase_product','purchase_amount',p_data->>'purchase_amount',
+      'locale',coalesce(p_data->>'locale','en')))
+    WHERE lower(email)=lower(p_email);
+END $$;
+REVOKE ALL ON FUNCTION public.prepare_event_mail(text,jsonb) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.prepare_event_mail(text,jsonb) TO service_role;
+
+-- ===== Source: 20261028173057_payment_refund_processor_status.sql =====
+-- Keep the processor refund status separate from the payment transaction status.
+ALTER TABLE public.payment_transactions
+  ADD COLUMN refund_status text
+  CHECK (refund_status IN ('pending', 'requires_action', 'succeeded', 'failed', 'canceled'));
+
+COMMENT ON COLUMN public.payment_transactions.refund_status IS
+  'Status returned by Stripe for refund_id; NULL when not observed. Never inferred from payment status.';
+
+-- ===== Source: 20261028180459_refund_event_state.sql =====
+-- Refund identity and notification progress are independent of payment totals.
+CREATE TABLE public.payment_refunds (
+  stripe_refund_id text PRIMARY KEY CHECK (stripe_refund_id ~ '^re_[A-Za-z0-9_]+$'),
+  transaction_id uuid NOT NULL REFERENCES public.payment_transactions(id) ON DELETE CASCADE,
+  amount integer NOT NULL CHECK (amount > 0),
+  currency text NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
+  status text CHECK (status IN ('pending','requires_action','succeeded','failed','canceled')),
+  previous_status text,
+  version integer NOT NULL DEFAULT 1 CHECK (version > 0),
+  notified_version integer NOT NULL DEFAULT 0 CHECK (notified_version >= 0 AND notified_version <= version),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX payment_refunds_transaction_id_idx ON public.payment_refunds(transaction_id);
+ALTER TABLE public.payment_refunds ENABLE ROW LEVEL SECURITY;
+CREATE POLICY payment_refunds_service ON public.payment_refunds FOR ALL TO service_role USING (true) WITH CHECK (true);
+REVOKE ALL ON public.payment_refunds FROM PUBLIC, anon, authenticated;
+GRANT ALL ON public.payment_refunds TO service_role;
+
+CREATE TABLE public.payment_refund_events (
+  stripe_refund_id text NOT NULL REFERENCES public.payment_refunds(stripe_refund_id) ON DELETE CASCADE,
+  version integer NOT NULL CHECK (version > 0),
+  status text CHECK (status IN ('pending','requires_action','succeeded','failed','canceled')),
+  previous_status text,
+  notified boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY(stripe_refund_id,version)
+);
+ALTER TABLE public.payment_refund_events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY payment_refund_events_service ON public.payment_refund_events FOR ALL TO service_role USING (true) WITH CHECK (true);
+REVOKE ALL ON public.payment_refund_events FROM PUBLIC, anon, authenticated;
+GRANT ALL ON public.payment_refund_events TO service_role;
+
+CREATE FUNCTION public.observe_payment_refund(
+  p_transaction_id uuid, p_refund_id text, p_amount integer, p_currency text, p_status text,
+  p_initial_status text DEFAULT NULL
+) RETURNS TABLE(refund_version integer, previous_status text, notified_version integer, refund_status text)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE v_refund public.payment_refunds%ROWTYPE;
+BEGIN
+  INSERT INTO public.payment_refunds(stripe_refund_id,transaction_id,amount,currency,status)
+  VALUES(p_refund_id,p_transaction_id,p_amount,upper(p_currency),coalesce(p_initial_status,p_status))
+  ON CONFLICT (stripe_refund_id) DO NOTHING;
+  SELECT * INTO STRICT v_refund FROM public.payment_refunds WHERE stripe_refund_id=p_refund_id FOR UPDATE;
+  IF v_refund.transaction_id<>p_transaction_id OR v_refund.amount<>p_amount OR v_refund.currency<>upper(p_currency) THEN
+    RAISE EXCEPTION 'Refund binding does not match';
+  END IF;
+  INSERT INTO public.payment_refund_events(stripe_refund_id,version,status,previous_status)
+  VALUES(p_refund_id,v_refund.version,v_refund.status,v_refund.previous_status) ON CONFLICT DO NOTHING;
+  IF v_refund.status IS DISTINCT FROM p_status THEN
+    UPDATE public.payment_refunds SET previous_status=v_refund.status,status=p_status,
+      version=version+1,updated_at=now() WHERE stripe_refund_id=p_refund_id RETURNING * INTO v_refund;
+    INSERT INTO public.payment_refund_events(stripe_refund_id,version,status,previous_status)
+    VALUES(p_refund_id,v_refund.version,v_refund.status,v_refund.previous_status);
+  END IF;
+  RETURN QUERY SELECT e.version,e.previous_status,0,e.status FROM public.payment_refund_events e
+    WHERE e.stripe_refund_id=p_refund_id AND NOT e.notified ORDER BY e.version;
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT v_refund.version,v_refund.previous_status,v_refund.notified_version,v_refund.status;
+  END IF;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.observe_payment_refund(uuid,text,integer,text,text,text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.observe_payment_refund(uuid,text,integer,text,text,text) TO service_role;
+
+CREATE FUNCTION public.confirm_refund_notification(p_refund_id text,p_version integer) RETURNS void
+LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
+  UPDATE public.payment_refund_events SET notified=true WHERE stripe_refund_id=p_refund_id AND version=p_version;
+  UPDATE public.payment_refunds SET notified_version=greatest(notified_version,p_version)
+  WHERE stripe_refund_id=p_refund_id AND p_version BETWEEN 1 AND version;
+$$;
+REVOKE EXECUTE ON FUNCTION public.confirm_refund_notification(text,integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.confirm_refund_notification(text,integer) TO service_role;
+
+UPDATE public.payment_transactions SET status='partially_refunded'
+WHERE status='completed' AND refunded_amount>0 AND refunded_amount<amount;
+
+-- ===== Source: 20261028184757_business_event_delivery.sql =====
+-- Committed order, reservation and access transitions for signed webhook delivery.
+CREATE TABLE public.business_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type text NOT NULL CHECK (event_type IN ('access.granted','access.updated','access.revoked','access.expired','order.abandoned','seats.held','seats.confirmed','seats.released')),
+  product_id uuid NOT NULL,
+  payload jsonb NOT NULL,
+  deduplication_key text UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  leased_until timestamptz,
+  dispatched_at timestamptz
+);
+ALTER TABLE public.business_events ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.business_events FROM PUBLIC, anon, authenticated;
+GRANT SELECT, UPDATE ON public.business_events TO service_role;
+CREATE POLICY business_events_service ON public.business_events FOR ALL TO service_role
+  USING ((select auth.role()) = 'service_role') WITH CHECK ((select auth.role()) = 'service_role');
+CREATE INDEX business_events_pending_idx ON public.business_events(created_at,id) WHERE dispatched_at IS NULL;
+CREATE INDEX business_events_product_idx ON public.business_events(product_id);

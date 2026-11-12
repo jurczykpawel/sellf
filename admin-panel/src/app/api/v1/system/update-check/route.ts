@@ -9,6 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getUpdaterCompatibility, refreshUpdaterCompatibility, withUpdaterCompatibility } from '@/lib/system/updater-compatibility';
 import { getUpgradeCapability } from '@/lib/system/upgrade-runtime-server';
 import {
   handleCorsPreFlight,
@@ -18,7 +19,7 @@ import {
   API_SCOPES,
 } from '@/lib/api';
 import { isNewerVersion, APP_VERSION } from '@/lib/version';
-import type { UpgradeCapability } from '@/lib/system/upgrade-runtime';
+import type { UpdaterCompatibility, UpgradeCapability } from '@/lib/system/upgrade-runtime';
 import { successResponse } from '@/lib/api/types';
 
 /** Prevent proxy/CDN caching of version info */
@@ -39,6 +40,7 @@ interface CachedRelease {
 
 interface UpdateCheckData {
   upgrade: UpgradeCapability;
+  updater?: UpdaterCompatibility;
   current_version: string;
   started_at: string;
   latest_version: string;
@@ -76,7 +78,8 @@ export async function GET(request: NextRequest) {
 
     // Return cached data if fresh
     if (!force && releaseCache && Date.now() - releaseCache.fetchedAt < CACHE_TTL_MS) {
-      const cached = { ...releaseCache.data, upgrade: getUpgradeCapability(), current_version: currentVersion, started_at: PROCESS_STARTED_AT };
+      const updater = refreshUpdaterCompatibility(releaseCache.data.updater);
+      const cached = { ...releaseCache.data, ...(updater ? { updater } : {}), upgrade: withUpdaterCompatibility(getUpgradeCapability(), updater), current_version: currentVersion, started_at: PROCESS_STARTED_AT };
       cached.update_available = isNewerVersion(currentVersion, cached.latest_version);
       return withNoStore(jsonResponse(successResponse(cached), request));
     }
@@ -122,8 +125,12 @@ export async function GET(request: NextRequest) {
       ? release.published_at
       : null;
 
+    const capability = getUpgradeCapability();
+    // Manual runtimes follow their own deployment procedure.
+    const updater = capability.mode === 'in-place' ? await getUpdaterCompatibility(release) : undefined;
     const data: UpdateCheckData = {
-      upgrade: getUpgradeCapability(),
+      upgrade: withUpdaterCompatibility(capability, updater),
+      ...(updater ? { updater } : {}),
       current_version: currentVersion,
       started_at: PROCESS_STARTED_AT,
       latest_version: latestVersion,

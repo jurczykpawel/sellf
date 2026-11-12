@@ -59,6 +59,28 @@ verifies the live version after an in-place restart and retains script failures.
 An unavailable launcher is returned as a failed API request, not an accepted
 update. Inspect the instance upgrade log when an in-place update fails.
 
+## Two-stage standalone updater
+
+Updater 2 authenticates the manifest with the installed release key, checks the
+signed `min_updater_version`, validates the archive and extracts into a private
+temporary directory. It then executes the downloaded release's `scripts/upgrade.sh`
+(stage 2) with the same token, installation, progress/log paths and instance lock.
+The panel shows the same steps. Packages without stage 2 use the installed fallback.
+Migration failures restore old code before it starts; committed database migrations
+are not reversed (the RPC transaction is still per file).
+
+2026.11.0 requires updater 1 (the unversioned 10.6 script). CI publishes a signed
+three-line V2 manifest alongside the legacy two-line manifest for that bridge.
+The old script cannot delegate on its first hop, and its self-copy may leave a
+trailing shell error even after reporting success. Use an up-to-date Stackpilot
+checkout to use the downloaded runner during that first hop. If the panel reports
+an old updater or cannot verify the signed requirement, retry the check or run
+from your local Stackpilot checkout, replacing `<server>` with your SSH alias:
+
+```bash
+./local/deploy.sh sellf --ssh=<server> --update
+```
+
 ## Release metadata source
 
 `SELLF_UPDATE_CHECK_URL` optionally points the **server** to a release metadata

@@ -252,7 +252,7 @@ control availability. Checkout shares buyer state across payment methods.
 61 days, with no login and no indexing. Auth access mails carry `transfer_text` via
 `prepare_event_mail`; each preparation clears older instructions.
 
-**Unpaid transfer lifecycle** (migration `20261110235904_release_2026_11_0_fulfillment.sql`, owner decisions
+**Unpaid transfer lifecycle** (migration `20261110235905_release_2026_11_0_fulfillment_core.sql`, owner decisions
 2026-11-03): event transfer orders get a seller-configured timed reservation (`reminder_at`/`release_at`,
 `bank_transfer_config.reservation_*`, default 24 h / 48 h); `payment_due_at` stays the due-days term. Cron
 `transfer-reservations` (every 5 min) sends `order.payment_reminder` + reminder mail, then
@@ -332,7 +332,7 @@ magic link, and completes the submission through `/auth/lead` after sign-in.
 Confirmation grants free access and emits `lead.captured` through the existing
 webhook queue with a stable lead delivery key. Mailing lists and unsubscribe
 handling remain in the receiving integration. Tables and the hourly cleanup are
-in migration `20261110235906_release_2026_11_0_buyer_mail.sql`. Dedicated local acceptance
+in migration `20261110235907_release_2026_11_0_attribution_mail_analytics.sql`. Dedicated local acceptance
 uses `vitest.leads.config.ts` and `playwright.leads.config.ts`; set
 `PLAYERSTACK_TEST_DIST` to a built PlayerStack distribution and
 `PLAYERSTACK_ADAPTER_REPO` to a read-only repository containing commit `8baee66`. The dedicated fixture
@@ -355,7 +355,7 @@ uses the owned local stack on API :55591, app :3893, plugin host :3894, HTTPS re
 
 `signInWithOtp` may only be called from `src/lib/auth/magic-link/deliver.ts` (`deliverMagicLink()`) — every other call site is a lint error (`eslint.config.mjs`, `no-restricted-syntax`). `deliverMagicLink()` itself may only be imported from `src/lib/auth/magic-link/request.ts` and its retry worker `retry.ts` (`no-restricted-imports`) — every server call site goes through `requestMagicLink()` (captcha + IP/email rate limits) or `sendTrustedMagicLink()` (per-email rate limit only, for callers that already proved trust another way, e.g. a verified Stripe payment). Browsers request a magic link via `sendMagicLinkRequest()` → `POST /api/auth/magic-link` → `requestMagicLink()`. See "Magic Link Authentication" above.
 
-**Purchase mail retry:** the post-payment login link (`post_checkout`) and the free-license key mail pass `retry` to `sendTrustedMagicLink()`. When the auth mailer refuses (Supabase 429 `over_email_send_rate_limit`, cooldown, transient failure, or our per-email cap) the mail is parked in `auth_mail_retries` (service role only, one row per email + redirect) and `runAuthMailRetries()` delivers it with backoff (5/15/30/60/120 min, 6 attempts) from the in-process worker (production, every minute) or `/api/cron?job=auth-mail-retry`; account mail data (license key) is cleared after each attempt. The API answers `{ ok:false, code, queued:true }` and the payment page tells the buyer the link will arrive automatically. Interactive flows (login, free signup) are not parked. Migration `20261110235906_release_2026_11_0_buyer_mail.sql`.
+**Purchase mail retry:** the post-payment login link (`post_checkout`) and the free-license key mail pass `retry` to `sendTrustedMagicLink()`. When the auth mailer refuses (Supabase 429 `over_email_send_rate_limit`, cooldown, transient failure, or our per-email cap) the mail is parked in `auth_mail_retries` (service role only, one row per email + redirect) and `runAuthMailRetries()` delivers it with backoff (5/15/30/60/120 min, 6 attempts) from the in-process worker (production, every minute) or `/api/cron?job=auth-mail-retry`; account mail data (license key) is cleared after each attempt. The API answers `{ ok:false, code, queued:true }` and the payment page tells the buyer the link will arrive automatically. Interactive flows (login, free signup) are not parked. Migration `20261110235907_release_2026_11_0_attribution_mail_analytics.sql`.
 
 ### Rate Limiting Layers
 
@@ -596,6 +596,30 @@ the migration history must stay reviewable. Rules:
    Stackpilot `local/setup-supabase-migrations.sh`) so a failure rolls everything back.
 7. Enforcement: the release gate (`release-layout`) and CI `Migration lint` fail when more than 8
    migrations were added since the last tag or a released migration was modified.
+8. **Transport size limits:** each added SQL file must be **at most 120000 bytes** and its
+   complete JSON RPC payload (version, SQL, checksum, including escaping) **at most 128000 bytes**.
+   The installed 10.6 runner passes SQL to `jq --arg` and JSON to `curl -d`; Linux
+   `MAX_ARG_STRLEN` limits each argument to 131072 bytes on 4 KiB-page systems, independently
+   of `ARG_MAX`. A streaming replacement cannot fix the already-installed runner.
+9. **Before release, rehearse locally on a disposable copy of the production backup using
+   the unmodified runner from the previous release tag on Linux.** All pending files must
+   apply successfully; compare the resulting schema against the original source migrations.
+   Direct HTTP tests alone do not exercise the installed runner's argument limits.
+
+The version-2 updater verifies and extracts the release, then `exec`s the
+`# sellf-upgrade-stage2:1` entry in the downloaded `scripts/upgrade.sh` with the
+same token, installation, log/progress paths and inherited flock descriptor 200.
+Backup, migrations, swap, health and code rollback therefore use that release's
+runner. Packages without that marker use the installed fallback. The stage-2
+arguments are an internal protocol for an already-verified private extraction.
+`MIN_UPDATER_VERSION=1` in the script keeps 2026.11.0 compatible with unversioned
+10.6 (updater 1); `UPDATER_VERSION=2` identifies the new bootstrap. Both update APIs
+check the signed minimum before launch; the shell checks again before extraction.
+A first hop from an already-installed 10.6/4982c3de still uses that old runner:
+new release code cannot retrofit delegation or version checks into a running old
+script. Use the updated Stackpilot for the downloaded runner on that first hop.
+The migration transaction policy above remains a release requirement; this
+bootstrap change retains the existing per-file RPC transaction protocol.
 
 When creating new migrations:
 ```bash
@@ -1609,7 +1633,7 @@ Stripe key. It never resets the database; fixtures belong only to that test run.
 The production E2E solves real ALTCHA challenges because provider=none is fail-closed
 in production. The full test runner includes this release regression.
 
-Each release carries four assets: `sellf-build.tar.gz`, `sellf-build.tar.gz.sha256` (plain
+For the updater-1 bridge, releases carry the four legacy assets: `sellf-build.tar.gz`, `sellf-build.tar.gz.sha256` (plain
 `sha256sum` output, unsigned, kept for tools that read it), `sellf-build.manifest` and
 `sellf-build.manifest.sig`. The manifest is exactly two LF-terminated lines, in this order, with
 nothing after the second newline:
@@ -1618,6 +1642,17 @@ nothing after the second newline:
 version=2026.10.0
 sha256=<64 lowercase hex: sha256 of sellf-build.tar.gz>
 ```
+
+Starting with 2026.11.0, CI also publishes `sellf-build.v2.manifest` and its
+Ed25519 `.sig`. Its exact format is the two legacy lines above followed by
+`min_updater_version=1` and a final LF. The new bootstrap and API prefer V2;
+an incomplete/invalid V2 pair never falls back to legacy. The installed script's
+public key verifies both formats. `scripts/ci/write-release-manifests.sh` reads
+`MIN_UPDATER_VERSION` from `upgrade.sh`: while it is 1, CI retains the signed
+two-line legacy manifest because 10.6 rejects additional fields. When the minimum
+increases, legacy assets MUST NOT be published (otherwise updater 1 could bypass
+the minimum). Never clobber a published bridge release with a higher minimum;
+create a new release. A blocked panel shows the Stackpilot recovery command.
 
 `version` is the release tag without its leading `v` (CalVer `YYYY.M.patch`). The `.sig` is a raw
 Ed25519 signature over the exact manifest bytes (`openssl pkeyutl -sign -rawin`), made in CI
@@ -1635,7 +1670,7 @@ never the plain `.sha256`.
   byte-identical to the embedded key. Rotating the key = ship a release signed with the OLD key
   that contains the NEW public key, then switch the secret.
 - **Order in `upgrade.sh`:** download manifest + `.sig` → verify signature → parse manifest (strict
-  two-line format; version must equal the release tag minus its `v`) → compare with the installed version →
+  legacy two-line or V2 three-line format; version must equal the release tag minus its `v`) → compare with the installed version →
   download tarball → sha256 against the manifest → archive entry validation → extract.
 - **Installed version:** first line of `<install dir>/version.txt` (written by CI from
   `package.json`, copied on every install/upgrade), falling back to `version` in
@@ -1646,8 +1681,10 @@ never the plain `.sha256`.
 - **No override:** a missing or invalid signature, a malformed manifest, or an older version is
   always refused; there is no environment switch. OpenSSL ≥ 1.1.1 with Ed25519 is required (not
   LibreSSL).
-- **Bootstrap:** the first upgrade *to* the first signed release is performed by the previous,
-  non-verifying script; verification applies from the next upgrade onward.
+- **Bootstrap:** delegation starts only once updater 2 is installed. Unmodified 10.6 verifies
+  the legacy manifest and applies its own steps, even when the archive contains stage 2.
+  Its in-place self-copy can also cause trailing shell errors after `done`; prefer updated
+  Stackpilot for this first hop. Updater 2 replaces installed scripts atomically.
 
 Verify a release by hand (only `openssl` + `sha256sum` needed):
 

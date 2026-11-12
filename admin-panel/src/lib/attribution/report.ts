@@ -2,7 +2,7 @@
  * Purchase attribution report: query parsing and the per-order view shared by the API.
  *
  * @see src/app/api/v1/analytics/attribution/route.ts
- * @see supabase/migrations/20261110235905_release_2026_11_0_attribution.sql — get_attribution_report()
+ * @see supabase/migrations/20261110235907_release_2026_11_0_attribution_mail_analytics.sql — get_attribution_report()
  */
 
 import { z } from 'zod';

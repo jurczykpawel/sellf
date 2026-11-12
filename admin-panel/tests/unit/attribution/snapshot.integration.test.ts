@@ -1,6 +1,6 @@
 /**
  * Purchase attribution snapshot + report, measured in the database the seller reads.
- * @see supabase/migrations/20261110235905_release_2026_11_0_attribution.sql
+ * @see supabase/migrations/20261110235907_release_2026_11_0_attribution_mail_analytics.sql
  */
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';

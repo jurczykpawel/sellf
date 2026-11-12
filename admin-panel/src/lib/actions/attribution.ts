@@ -2,7 +2,7 @@
 
 /**
  * Admin read of an order's frozen purchase source (payment details "Source" box).
- * @see supabase/migrations/20261110235905_release_2026_11_0_attribution.sql
+ * @see supabase/migrations/20261110235907_release_2026_11_0_attribution_mail_analytics.sql
  */
 
 import { z } from 'zod';

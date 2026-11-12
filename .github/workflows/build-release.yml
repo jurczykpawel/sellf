@@ -335,12 +335,13 @@ jobs:
           sha256sum sellf-build.tar.gz > sellf-build.tar.gz.sha256
           cat sellf-build.tar.gz.sha256
 
-      # Signed release manifest: exactly two lines, `version=<YYYY.M.patch>` and
+      # Legacy signed release manifest: exactly two lines, `version=<YYYY.M.patch>` and
       # `sha256=<hex of sellf-build.tar.gz>`, plus an Ed25519 signature over
       # it (sellf-build.manifest.sig). upgrade.sh verifies the signature with
       # the public key embedded in the already-installed script, refuses a
       # version older than the installed one, and checks the tarball against
       # the hash, so one signature covers origin, version and contents.
+      # V2 also binds min_updater_version; legacy assets exist only for minimum 1.
       - name: Write and sign release manifest
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
@@ -366,16 +367,17 @@ jobs:
             exit 1
           fi
 
-          printf 'version=%s\nsha256=%s\n' "$MANIFEST_VERSION" "$(sha256sum sellf-build.tar.gz | awk '{print $1}')" > sellf-build.manifest
-          cat sellf-build.manifest
+          bash admin-panel/scripts/ci/write-release-manifests.sh "$MANIFEST_VERSION" sellf-build.tar.gz .
+          cat sellf-build*.manifest
 
           umask 077
           KEY_FILE="$(mktemp)"
           PUB_FILE="$(mktemp)"
           trap 'rm -f "$KEY_FILE" "$PUB_FILE"' EXIT
           printf '%s\n' "$RELEASE_SIGNING_KEY" > "$KEY_FILE"
-          openssl pkeyutl -sign -inkey "$KEY_FILE" -rawin \
-            -in sellf-build.manifest -out sellf-build.manifest.sig
+          for manifest in sellf-build*.manifest; do
+            openssl pkeyutl -sign -inkey "$KEY_FILE" -rawin -in "$manifest" -out "$manifest.sig"
+          done
 
           # Verify against the key installed servers trust: the one embedded
           # in upgrade.sh. Catches a secret/public-key mismatch before publishing.
@@ -385,8 +387,9 @@ jobs:
             echo "::error::admin-panel/scripts/upgrade.sh still holds the placeholder release signing public key"
             exit 1
           fi
-          openssl pkeyutl -verify -pubin -inkey "$PUB_FILE" -rawin \
-            -in sellf-build.manifest -sigfile sellf-build.manifest.sig
+          for manifest in sellf-build*.manifest; do
+            openssl pkeyutl -verify -pubin -inkey "$PUB_FILE" -rawin -in "$manifest" -sigfile "$manifest.sig"
+          done
           cmp -s "$PUB_FILE" admin-panel/scripts/release-signing-key.pub.pem || {
             echo "::error::admin-panel/scripts/release-signing-key.pub.pem differs from the key embedded in upgrade.sh"
             exit 1
@@ -394,7 +397,7 @@ jobs:
 
       - name: Upload artifact to release
         if: github.event_name == 'release'
-        run: gh release upload "${{ steps.version.outputs.VERSION }}" sellf-build.tar.gz sellf-build.tar.gz.sha256 sellf-build.manifest sellf-build.manifest.sig --clobber
+        run: gh release upload "${{ steps.version.outputs.VERSION }}" sellf-build.tar.gz sellf-build.tar.gz.sha256 sellf-build*.manifest sellf-build*.manifest.sig --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -408,8 +411,8 @@ jobs:
           files: |
             sellf-build.tar.gz
             sellf-build.tar.gz.sha256
-            sellf-build.manifest
-            sellf-build.manifest.sig
+            sellf-build*.manifest
+            sellf-build*.manifest.sig
           body: |
             ## Sellf ${{ steps.version.outputs.VERSION }}
 

@@ -1,6 +1,6 @@
 'use server';
 
-/** Which guided tutorials the signed-in user has already been shown. @see supabase/migrations/20261110235907_release_2026_11_0_analytics.sql */
+/** Which guided tutorials the signed-in user has already been shown. @see supabase/migrations/20261110235907_release_2026_11_0_attribution_mail_analytics.sql */
 import { createClient } from '@/lib/supabase/server';
 import { isTutorialId } from '@/lib/tutorials/registry';
 import type { TutorialId } from '@/lib/tutorials/registry';

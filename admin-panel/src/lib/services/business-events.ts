@@ -1,4 +1,4 @@
-/** Committed business changes handed to the signed, persistent delivery queue. @see supabase/migrations/20261110235904_release_2026_11_0_fulfillment.sql */
+/** Committed business changes handed to the signed, persistent delivery queue. @see supabase/migrations/20261110235905_release_2026_11_0_fulfillment_core.sql */
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { minorOrderLines } from '@/lib/orders/event-money';

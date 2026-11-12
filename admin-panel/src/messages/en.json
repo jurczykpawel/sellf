@@ -5008,6 +5008,9 @@
   },
   "systemUpdate": {
     "deployment": {
+      "updaterTooOld": "This release requires updater {required}; this server has updater {installed}.",
+      "updaterUnverified": "The signed updater requirement could not be verified. Retry the update check.",
+      "updaterRecovery": "Update Sellf using Stackpilot from your local machine. Replace {server} with your SSH alias:",
           "docker": "Pull ghcr.io/jurczykpawel/sellf:{version}, then recreate your container with that image, preserving its environment, ports and networks. Restarting the existing container does not update Sellf.",
           "compose": "Set SELLF_VERSION={version} in .env. Run docker compose pull sellf, then docker compose up -d --force-recreate sellf from the directory containing docker-compose.yml. Both docker-simple and full-stack use this Sellf service.",
           "coolify": "In Coolify, set the Sellf image tag to {version} (or select the release commit for a Dockerfile build), then Redeploy. For a Compose resource, set SELLF_VERSION={version} and redeploy that resource.",

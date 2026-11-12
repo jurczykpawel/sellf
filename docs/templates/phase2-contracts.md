@@ -184,7 +184,7 @@ two selected products by ID; product selectors use the existing name-based picke
 A's blue palette, bundled Geist and canonical action labels are approved content
 substitutions for the prototype; there is no seller-specific shipped claim.
 
-The A source section in `20261110235900_release_2026_11_0_storefront.sql` installs the generated
+The A source section in `20261110235901_release_2026_11_0_storefront_templates.sql` installs the generated
 schema and extends stored item validation for comparison product IDs. The schema
 generator updates named source sections in that release file; the Phase 1 section stays frozen.
 Seed data retains optional A bindings while publishing the free default, without
@@ -209,7 +209,8 @@ and optional visibility subsets through the real storefront resolver, including
 an anchored additive section. No adapter or historic JSON rewrite is introduced.
 
 The A and B schema snapshots are preserved as named source sections in
-`20261110235900_release_2026_11_0_storefront.sql`; the C section below owns the current schema.
+`20261110235901_release_2026_11_0_storefront_templates.sql` and
+`20261110235902_release_2026_11_0_storefront_affiliates_pricing.sql`; the C section below owns the current schema.
 The Phase 1 section retains its D-056 schema and conditional published-row validation.
 Credential and offer sections share the same release file. Frozen sections must never be regenerated.
 
@@ -230,7 +231,7 @@ starter uses `closingProduct` and the separate `home.starter` slot, while closin
 only targets the required catalogue. Public/preview reads include the existing
 bounded featured batch; there is no new catalogue or per-card query.
 
-The B source section in `20261110235900_release_2026_11_0_storefront.sql` contains the B generated storefront
+The B source section in `20261110235902_release_2026_11_0_storefront_affiliates_pricing.sql` contains the B generated storefront
 schema and adds item identity checks for B. Its generated block remains frozen
 after C adoption; A and released Phase 1 SQL also remain unchanged. Seed retains B bindings
 without selecting or activating it. B uses the reviewed blue palette and bundled
@@ -356,7 +357,7 @@ source-locale fallback. The bounded media/product batches remain private to the
 core resolver. C orders and all 16 optional-visibility combinations join the
 exhaustive release gate, including an anchored additive section.
 
-The C source section in `20261110235900_release_2026_11_0_storefront.sql` owns the current generated config
+The C source section across `20261110235902_release_2026_11_0_storefront_affiliates_pricing.sql` and `20261110235903_release_2026_11_0_orders_events.sql` owns the current generated config
 schema and adds C path identity and project-link validation. The frozen Phase 1,
 A and B source sections remain unchanged. Seed examples retain inactive C copy
 and bindings while the free default stays published.

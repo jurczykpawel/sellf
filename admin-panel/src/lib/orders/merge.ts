@@ -5,7 +5,7 @@
  * Access rows are classified by their recorded `grant_source` (never by product price);
  * rows that a payment already explains (purchase / bundle / bank_transfer) are not loaded.
  * @see src/app/api/admin/orders/route.ts
- * @see supabase/migrations/20261110235904_release_2026_11_0_fulfillment.sql
+ * @see supabase/migrations/20261110235906_release_2026_11_0_fulfillment_orders.sql
  */
 export type OrderType = 'paid' | 'transfer' | 'free' | 'manual' | 'subscription' | 'lead' | 'other';
 export const ORDER_TYPES: readonly OrderType[] = ['paid', 'transfer', 'free', 'manual', 'subscription', 'lead', 'other'];

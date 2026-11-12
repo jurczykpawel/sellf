@@ -7,7 +7,7 @@
  * purchase. Free grants are recorded directly. Attribution never blocks a checkout: errors are
  * logged and swallowed.
  *
- * @see supabase/migrations/20261110235905_release_2026_11_0_attribution.sql
+ * @see supabase/migrations/20261110235906_release_2026_11_0_fulfillment_orders.sql
  */
 
 import { createHmac } from 'node:crypto';
