@@ -34,10 +34,11 @@ const stripe = getStripe();
 
 // Cleanup: cancel all created PaymentIntents
 afterAll(async () => {
-  if (!stripe || createdIntents.length === 0) return;
-  await Promise.allSettled(
-    createdIntents.map((id) => stripe.paymentIntents.cancel(id))
-  );
+  if (!stripe) return;
+  await Promise.allSettled([
+    ...createdIntents.map((id) => stripe.paymentIntents.cancel(id)),
+    ...createdSessions.map((id) => stripe.checkout.sessions.expire(id)),
+  ]);
 });
 
 // ---------------------------------------------------------------------------
@@ -50,6 +51,20 @@ async function createAndTrack(
   const pi = await stripe!.paymentIntents.create(params);
   createdIntents.push(pi.id);
   return pi;
+}
+
+
+const createdSessions: string[] = [];
+
+async function createSession(opts: { currency: string; allowed: Stripe.Checkout.SessionCreateParams.AllowedPaymentMethodType[] }): Promise<Stripe.Checkout.Session> {
+  const session = await stripe!.checkout.sessions.create({
+    mode: 'payment',
+    success_url: 'https://example.com/ok',
+    line_items: [{ quantity: 1, price_data: { currency: opts.currency, unit_amount: 1000, product_data: { name: 'Test' } } }],
+    allowed_payment_method_types: opts.allowed,
+  });
+  createdSessions.push(session.id);
+  return session;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,88 +135,52 @@ describe.skipIf(!hasStripeTestKey)('Stripe PaymentIntent Integration (requires S
   });
 
   // -------------------------------------------------------------------------
-  // Custom mode — explicit payment_method_types
+  // Custom mode — Checkout Session allowed_payment_method_types (filter, not a static list)
   // -------------------------------------------------------------------------
 
-  describe('custom mode (payment_method_types)', () => {
-    it('should accept card + link', async () => {
-      const pi = await createAndTrack({
-        amount: 1000,
-        currency: 'pln',
-        payment_method_types: ['card', 'link'],
-      });
-
-      expect(pi.payment_method_types).toEqual(
-        expect.arrayContaining(['card', 'link'])
-      );
+  describe('custom mode (Checkout allowed_payment_method_types)', () => {
+    it('keeps only card when card is the sole allowed type', async () => {
+      const session = await createSession({ currency: 'pln', allowed: ['card'] });
+      expect(session.payment_method_types).toEqual(['card']);
     });
 
-    it('should accept card only', async () => {
-      const pi = await createAndTrack({
-        amount: 1000,
-        currency: 'pln',
-        payment_method_types: ['card'],
-      });
-
-      expect(pi.payment_method_types).toEqual(['card']);
+    it('returns the compatible subset for card + link', async () => {
+      const session = await createSession({ currency: 'pln', allowed: ['card', 'link'] });
+      expect(session.payment_method_types).toContain('card');
+      expect(session.payment_method_types.every((t) => ['card', 'link'].includes(t))).toBe(true);
     });
 
-    it('should accept blik for PLN if activated on account', async () => {
-      let assertionMade = false;
-      try {
-        const pi = await createAndTrack({
+    it('silently drops blik for EUR instead of failing (currency mismatch)', async () => {
+      const session = await createSession({ currency: 'eur', allowed: ['card', 'blik'] });
+      expect(session.payment_method_types).toContain('card');
+      expect(session.payment_method_types).not.toContain('blik');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Removed parameter — the API rejects the old explicit list
+  // -------------------------------------------------------------------------
+
+  describe('removed payment_method_types parameter', () => {
+    it('rejects payment_method_types on PaymentIntents', async () => {
+      await expect(
+        stripe!.paymentIntents.create({
           amount: 1000,
           currency: 'pln',
-          payment_method_types: ['card', 'blik'],
-        });
-
-        expect(pi.payment_method_types).toContain('blik');
-        expect(pi.payment_method_types).toContain('card');
-        assertionMade = true;
-      } catch (err: any) {
-        // If blik is not activated, Stripe returns 400 — expected
-        expect(err.type).toBe('StripeInvalidRequestError');
-        assertionMade = true;
-      }
-      expect(assertionMade).toBe(true);
+          payment_method_types: ['card'],
+        } as unknown as Stripe.PaymentIntentCreateParams)
+      ).rejects.toMatchObject({ type: 'StripeInvalidRequestError' });
     });
 
-    it('should accept p24 for PLN if activated on account', async () => {
-      let assertionMade = false;
-      try {
-        const pi = await createAndTrack({
-          amount: 1000,
-          currency: 'pln',
-          payment_method_types: ['card', 'p24'],
-        });
-
-        expect(pi.payment_method_types).toContain('p24');
-        assertionMade = true;
-      } catch (err: any) {
-        // If p24 is not activated, Stripe returns 400 — expected
-        expect(err.type).toBe('StripeInvalidRequestError');
-        assertionMade = true;
-      }
-      expect(assertionMade).toBe(true);
-    });
-
-    it('should reject blik for EUR (currency mismatch)', async () => {
-      let assertionMade = false;
-      try {
-        const pi = await stripe!.paymentIntents.create({
-          amount: 1000,
-          currency: 'eur',
-          payment_method_types: ['card', 'blik'],
-        });
-        // If Stripe accepts this, blik must not be in result for EUR
-        expect(pi).toBeDefined();
-        assertionMade = true;
-      } catch (err: any) {
-        // BLIK only supports PLN — Stripe should reject EUR+blik
-        expect(err.type).toBe('StripeInvalidRequestError');
-        assertionMade = true;
-      }
-      expect(assertionMade).toBe(true);
+    it('rejects payment_method_types on Checkout Sessions', async () => {
+      await expect(
+        stripe!.checkout.sessions.create({
+          mode: 'payment',
+          success_url: 'https://example.com/ok',
+          line_items: [{ quantity: 1, price_data: { currency: 'pln', unit_amount: 1000, product_data: { name: 'Test' } } }],
+          payment_method_types: ['card'],
+        } as unknown as Stripe.Checkout.SessionCreateParams)
+      ).rejects.toMatchObject({ type: 'StripeInvalidRequestError' });
     });
   });
 
@@ -210,21 +189,6 @@ describe.skipIf(!hasStripeTestKey)('Stripe PaymentIntent Integration (requires S
   // -------------------------------------------------------------------------
 
   describe('mutual exclusivity', () => {
-    it('should reject automatic_payment_methods + payment_method_types', async () => {
-      try {
-        await stripe!.paymentIntents.create({
-          amount: 1000,
-          currency: 'pln',
-          automatic_payment_methods: { enabled: true },
-          payment_method_types: ['card'],
-        });
-        throw new Error('Should have thrown');
-      } catch (err: any) {
-        expect(err.type).toBe('StripeInvalidRequestError');
-        expect(err.message).toContain('automatic_payment_methods');
-      }
-    });
-
     it('should reject automatic_payment_methods + payment_method_configuration', async () => {
       try {
         await stripe!.paymentIntents.create({
@@ -245,38 +209,10 @@ describe.skipIf(!hasStripeTestKey)('Stripe PaymentIntent Integration (requires S
   // -------------------------------------------------------------------------
 
   describe('Link payment method', () => {
-    it('should accept link as explicit payment_method_type', async () => {
-      const pi = await createAndTrack({
-        amount: 1000,
-        currency: 'pln',
-        payment_method_types: ['card', 'link'],
-        payment_method_options: {
-          link: { setup_future_usage: 'off_session' },
-        },
-      });
-
-      expect(pi.payment_method_types).toContain('link');
-    });
-
-    it('should work with link for USD', async () => {
-      const pi = await createAndTrack({
-        amount: 1000,
-        currency: 'usd',
-        payment_method_types: ['card', 'link'],
-      });
-
-      expect(pi.payment_method_types).toContain('link');
-      expect(pi.payment_method_types).toContain('card');
-    });
-
-    it('should work with link for EUR', async () => {
-      const pi = await createAndTrack({
-        amount: 1000,
-        currency: 'eur',
-        payment_method_types: ['card', 'link'],
-      });
-
-      expect(pi.payment_method_types).toContain('link');
+    it.each(['pln', 'usd', 'eur'])('offers link next to card for %s', async (currency) => {
+      const session = await createSession({ currency, allowed: ['card', 'link'] });
+      expect(session.payment_method_types).toContain('card');
+      expect(session.payment_method_types).toContain('link');
     });
   });
 });
