@@ -302,7 +302,7 @@ export class CheckoutService {
       } else if (checkoutConfig.paymentMethodMode === 'stripe_preset' && checkoutConfig.stripePresetId) {
         sessionConfig.payment_method_configuration = checkoutConfig.stripePresetId;
       } else {
-        sessionConfig.payment_method_types = [...checkoutConfig.payment_method_types];
+        sessionConfig.allowed_payment_method_types = [...checkoutConfig.payment_method_types];
       }
 
       // Only add customer_email if it's a valid email

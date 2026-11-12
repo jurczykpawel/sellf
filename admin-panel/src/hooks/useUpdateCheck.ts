@@ -196,23 +196,26 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
           try {
             const healthResp = await fetch('/api/health', { signal: AbortSignal.timeout(3000) });
             if (healthResp.ok) {
-              // Read the script's outcome again after the process returns.
-              // Migration errors can be reported after the restart step.
+              // Only the script's own "done" counts as success; a running new
+              // version can still carry migration errors. Without a readable
+              // status keep polling until the attempt limit reports failure.
+              let finalProgress: UpgradeProgress;
               try {
                 const statusResp = await fetch(`/api/v1/system/upgrade-status?token=${token}`, {
                   signal: AbortSignal.timeout(5000), cache: 'no-store',
                 });
-                if (statusResp.ok) {
-                  const finalProgress: UpgradeProgress = (await statusResp.json()).data;
-                  if (finalProgress.step !== 'failed' && finalProgress.step !== 'done') return;
-                  if (finalProgress.step === 'failed') {
-                    if (pollRef.current) clearInterval(pollRef.current);
-                    setUpgradeProgress(finalProgress);
-                    setUpgradeInProgress(false);
-                    return;
-                  }
-                }
-              } catch { /* Confirm the process below when status is unavailable. */ }
+                if (!statusResp.ok) return;
+                finalProgress = (await statusResp.json()).data;
+              } catch {
+                return;
+              }
+              if (finalProgress.step === 'failed') {
+                if (pollRef.current) clearInterval(pollRef.current);
+                setUpgradeProgress(finalProgress);
+                setUpgradeInProgress(false);
+                return;
+              }
+              if (finalProgress.step !== 'done') return;
               if (pollRef.current) clearInterval(pollRef.current);
               let confirmed = false;
               try {

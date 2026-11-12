@@ -1,6 +1,6 @@
 {
   "name": "admin-panel",
-  "version": "2026.11.0",
+  "version": "2026.11.1",
   "private": true,
   "license": "Elastic-2.0",
   "scripts": {
@@ -53,11 +53,11 @@
     "driver.js": "^1.10.2",
     "fast-xml-parser": "^5.12.0",
     "geist": "^1.9.2",
-    "hast-util-from-html": "^2.0.3",
+    "hast-util-from-html": "^2.1.0",
     "hast-util-sanitize": "^5.0.2",
     "hast-util-to-jsx-runtime": "^2.3.7",
     "lucide-react": "^1.70.0",
-    "motion": "^12.43.0",
+    "motion": "^14.10.1",
     "next": "^16.4.5",
     "next-intl": "^4.14.9",
     "react": "^19.3.1",
@@ -69,7 +69,7 @@
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
     "sonner": "^2.0.8",
-    "stripe": "^22.6.2",
+    "stripe": "^23.1.0",
     "undici": "^6.29.1",
     "vanilla-cookieconsent": "^3.3.0",
     "zod": "^4.6.7"
@@ -78,10 +78,10 @@
     "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.65.0",
     "@testing-library/react": "^16.3.3",
-    "@types/node": "^25.9.9",
+    "@types/node": "^26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitest/coverage-v8": "^4.1.12",
+    "@vitest/coverage-v8": "^5.1.0",
     "ajv": "^8.17.1",
     "dotenv": "^17.4.2",
     "eslint": "^9.39.4",
@@ -90,7 +90,7 @@
     "postcss": "^8.5.32",
     "tailwindcss": "^4.3.4",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.12"
+    "vitest": "^5.1.0"
   },
   "overrides": {
     "js-yaml": "^4.3.1",

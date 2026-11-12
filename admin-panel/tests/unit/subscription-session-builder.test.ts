@@ -197,7 +197,7 @@ describe('buildSubscriptionSessionConfig', () => {
       checkoutConfig: { ...baseConfig, paymentMethodMode: 'automatic' },
     });
     expect(config.automatic_payment_methods).toBeUndefined();
-    expect(config.payment_method_types).toBeUndefined();
+    expect(config.allowed_payment_method_types).toBeUndefined();
   });
 
   it('respects payment method config: stripe preset', () => {
@@ -228,7 +228,7 @@ describe('buildSubscriptionSessionConfig', () => {
         payment_method_types: ['card', 'p24'],
       },
     });
-    expect(config.payment_method_types).toEqual(['card', 'p24']);
+    expect(config.allowed_payment_method_types).toEqual(['card', 'p24']);
   });
 
   it('attaches local tax_rate to the line item when provided', () => {

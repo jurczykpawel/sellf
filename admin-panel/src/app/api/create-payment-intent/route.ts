@@ -52,7 +52,7 @@ function extractStripeObjectId(clientSecret: string): string | null {
 }
 
 type CheckoutSessionCreateParams = NonNullable<Parameters<Stripe['checkout']['sessions']['create']>[0]>;
-type CheckoutPaymentMethodType = NonNullable<CheckoutSessionCreateParams['payment_method_types']>[number];
+type CheckoutPaymentMethodType = NonNullable<CheckoutSessionCreateParams['allowed_payment_method_types']>[number];
 
 function stripeMetadataValue(value: unknown): string {
   return value === null || value === undefined ? '' : String(value);
@@ -800,7 +800,7 @@ export async function POST(request: NextRequest) {
           );
 
           // Apple Pay & Google Pay are card wallets — they require 'card' in
-          // payment_method_types to appear in ExpressCheckoutElement.
+          // allowed_payment_method_types to appear in ExpressCheckoutElement.
           if (paymentConfig.enable_express_checkout &&
               (paymentConfig.enable_apple_pay || paymentConfig.enable_google_pay) &&
               !enabledMethods.includes('card')) {
@@ -809,7 +809,7 @@ export async function POST(request: NextRequest) {
 
           const checkoutPaymentMethods = enabledMethods.filter(method => method !== 'link');
           if (checkoutPaymentMethods.length > 0) {
-            checkoutSessionParams.payment_method_types =
+            checkoutSessionParams.allowed_payment_method_types =
               checkoutPaymentMethods as CheckoutPaymentMethodType[];
           } else {
             // Fallback if no methods match currency and no express checkout

@@ -644,6 +644,87 @@ fi
 log "Release has no stage 2; using installed updater fallback"
 fi
 
+# ===== STEP 4b: MIGRATION PREFLIGHT =====
+# Only the release's own migration files are applied. An ambiguous set stops
+# here, before the installation, the running process or the database change.
+
+# Keep HTTP error bodies, including non-JSON responses, in the private upgrade log.
+# Neither SQL nor JSON is ever passed as a large process argument.
+migration_rpc() {
+  local endpoint="$1" payload="$2" http_status
+  local response_file="$TMP_DIR/migration-response.json"
+  : > "$response_file"
+  if ! http_status=$(curl -sS "${SUPABASE_URL}/rest/v1/rpc/$endpoint" \
+    -H "apikey: ${SERVICE_KEY}" \
+    -H "Authorization: Bearer ${SERVICE_KEY}" \
+    -H "Content-Type: application/json" \
+    --data-binary "$payload" -o "$response_file" -w '%{http_code}' 2>>"$LOG_FILE"); then
+    log "ERROR: $endpoint transport failed (HTTP ${http_status:-unknown})"
+    cat "$response_file" >> "$LOG_FILE"
+    return 1
+  fi
+  if [ "$http_status" != "200" ]; then
+    log "ERROR: $endpoint HTTP $http_status; full response:"
+    cat "$response_file" >> "$LOG_FILE"
+    return 1
+  fi
+  cat "$response_file"
+}
+
+preflight_stop() {
+  log "ERROR: $1"
+  write_error "$1"
+  rm -rf "$TMP_DIR"
+  exit 1
+}
+
+if [ ! -d "$EXTRACT_DIR/supabase/migrations" ]; then
+  preflight_stop "Invalid archive: missing supabase/migrations/. Database untouched."
+fi
+RELEASE_MIGRATIONS=$(find "$EXTRACT_DIR/supabase/migrations" -mindepth 1 -maxdepth 1 -type f -name '*.sql' \
+  -exec basename {} .sql \; | LC_ALL=C sort)
+
+DUPLICATE_TIMESTAMP=$(printf '%s\n' "$RELEASE_MIGRATIONS" | cut -d_ -f1 | LC_ALL=C sort | uniq -d | head -n 1)
+if [ -n "$DUPLICATE_TIMESTAMP" ]; then
+  preflight_stop "Migration timestamp $DUPLICATE_TIMESTAMP is used by more than one file in this release. Database untouched."
+fi
+
+# Read Supabase connection info from .env.local
+SUPABASE_URL=$(grep -E '^SUPABASE_URL=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
+SERVICE_KEY=$(grep -E '^SUPABASE_SERVICE_ROLE_KEY=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
+
+# Read-only status lookup. With a configured database the registry must be
+# readable before anything changes; without one the migration step reports it.
+APPLIED_STATE=unconfigured
+if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ]; then
+  if ! command -v jq &>/dev/null; then
+    preflight_stop "jq is not installed (apt-get install jq). Database untouched."
+  fi
+  if ! APPLIED=$(migration_rpc get_migration_status '{}'); then
+    log "Run 'deploy.sh sellf --update' once to bootstrap migration system"
+    preflight_stop "Migration status could not be read. Check upgrade logs. Database untouched."
+  fi
+  if ! jq -e -s 'length == 1 and (.[0] | type == "array" and all(.[]; type == "object" and (.version | type == "string")))' \
+    <<< "$APPLIED" >/dev/null 2>&1; then
+    log "Invalid migration status response; full response:"
+    printf '%s\n' "$APPLIED" >> "$LOG_FILE"
+    preflight_stop "Migration status response is invalid. Check upgrade logs. Database untouched."
+  fi
+  APPLIED_STATE=ok
+  # The registry keys migrations by timestamp; a different recorded name means
+  # this database holds other SQL under a timestamp this release still needs.
+  NAME_CONFLICT=$(jq -r --arg files "$RELEASE_MIGRATIONS" '
+    ($files | split("\n") | map(select(length > 0) | (split("_")[0]) as $ts
+      | {key: $ts, value: .[($ts | length) + 1:]}) | from_entries) as $release
+    | first(.[] | .version | (split("_")[0]) as $ts | .[($ts | length) + 1:] as $name
+      | select($name != "" and $release[$ts] != null and $release[$ts] != $name)
+      | [$ts, $name, $release[$ts]] | @tsv) // empty' <<< "$APPLIED")
+  if [ -n "$NAME_CONFLICT" ]; then
+    IFS=$'\t' read -r CONFLICT_TS CONFLICT_DB_NAME CONFLICT_RELEASE_NAME <<< "$NAME_CONFLICT"
+    preflight_stop "Migration $CONFLICT_TS is recorded in the database as $CONFLICT_DB_NAME, but this release names it $CONFLICT_RELEASE_NAME. Database untouched; restore the database from the backup taken before the failed upgrade."
+  fi
+fi
+
 # ===== STEP 5: BACKUP =====
 
 write_progress "backing_up" 45 "Creating backup..."
@@ -714,10 +795,11 @@ if [ -f "$EXTRACT_DIR/scripts/upgrade.sh" ]; then
   mv -f "$INSTALL_DIR/scripts/upgrade.sh.next" "$INSTALL_DIR/scripts/upgrade.sh"
 fi
 
-# Copy supabase migrations
-if [ -d "$EXTRACT_DIR/supabase" ]; then
-  cp -r "$EXTRACT_DIR/supabase" "$INSTALL_DIR/" 2>/dev/null || true
-fi
+# Replace supabase/ as a whole: files left by earlier releases must not survive.
+rm -rf "$INSTALL_DIR/supabase.next"
+cp -r "$EXTRACT_DIR/supabase" "$INSTALL_DIR/supabase.next"
+rm -rf "$INSTALL_DIR/supabase"
+mv "$INSTALL_DIR/supabase.next" "$INSTALL_DIR/supabase"
 
 # Restore .env.local from backup
 if [ -f "$BACKUP_DIR/.env.local" ]; then
@@ -838,124 +920,80 @@ rollback_code() {
   log "Previous code restored; database migrations were not reversed"
 }
 
-# Keep HTTP error bodies, including non-JSON responses, in the private upgrade log.
-# Neither SQL nor JSON is ever passed as a large process argument.
-migration_rpc() {
-  local endpoint="$1" payload="$2" http_status
-  local response_file="$TMP_DIR/migration-response.json"
-  : > "$response_file"
-  if ! http_status=$(curl -sS "${SUPABASE_URL}/rest/v1/rpc/$endpoint" \
-    -H "apikey: ${SERVICE_KEY}" \
-    -H "Authorization: Bearer ${SERVICE_KEY}" \
-    -H "Content-Type: application/json" \
-    --data-binary "$payload" -o "$response_file" -w '%{http_code}' 2>>"$LOG_FILE"); then
-    log "ERROR: $endpoint transport failed (HTTP ${http_status:-unknown})"
-    cat "$response_file" >> "$LOG_FILE"
-    return 1
-  fi
-  if [ "$http_status" != "200" ]; then
-    log "ERROR: $endpoint HTTP $http_status; full response:"
-    cat "$response_file" >> "$LOG_FILE"
-    return 1
-  fi
-  cat "$response_file"
-}
-
 write_progress "migrating" 75 "Running database migrations..."
 log "Running migrations..."
 MIGRATION_ERRORS=0
 
-# Read Supabase connection info from .env.local
-SUPABASE_URL=$(grep -E '^SUPABASE_URL=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
-SERVICE_KEY=$(grep -E '^SUPABASE_SERVICE_ROLE_KEY=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
+if [ "$APPLIED_STATE" = ok ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
+  MIGRATION_COUNT=0
+  MIGRATION_SKIPPED=0
 
-if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
-  if ! command -v jq &>/dev/null; then
-    MIGRATION_ERRORS=1
-    log "ERROR: jq not installed — migrations incomplete (apt-get install jq)"
-  else
-    # Check which migrations are already applied via RPC
-    if ! APPLIED=$(migration_rpc get_migration_status '{}'); then
-      MIGRATION_ERRORS=1
-      log "Migration RPC unavailable — migrations incomplete"
-      log "Run 'deploy.sh sellf --update' once to bootstrap migration system"
-    elif ! jq -e -s 'length == 1 and (.[0] | type == "array" and all(.[]; type == "object" and (.version | type == "string")))' \
-      <<< "$APPLIED" >/dev/null 2>&1; then
-      MIGRATION_ERRORS=1
-      log "ERROR: Invalid migration status response; full response:"
-      printf '%s\n' "$APPLIED" >> "$LOG_FILE"
-    else
-      MIGRATION_COUNT=0
-      MIGRATION_SKIPPED=0
+  # Exactly the release's file list, read on descriptor 3.
+  while IFS= read -r VERSION <&3; do
+    [ -n "$VERSION" ] || continue
+    migration_file="$INSTALL_DIR/supabase/migrations/$VERSION.sql"
 
-      for migration_file in "$INSTALL_DIR/supabase/migrations/"*.sql; do
-        [ -f "$migration_file" ] || continue
-        [ -d "$migration_file" ] && continue
-        VERSION=$(basename "$migration_file" .sql)
-
-        # The database records timestamps independently of migration names.
-        if jq -e --arg v "${VERSION%%_*}" \
-          'any(.[]; (.version | split("_")[0]) == $v)' <<< "$APPLIED" >/dev/null 2>&1; then
-          MIGRATION_SKIPPED=$((MIGRATION_SKIPPED + 1))
-          continue
-        fi
-
-        if ! SQL_CONTENT=$(cat "$migration_file" 2>>"$LOG_FILE") ||
-          ! CHECKSUM=$(printf '%s' "$SQL_CONTENT" | sha256sum | cut -d' ' -f1); then
-          log "WARNING: Migration $VERSION could not be read or checksummed"
-          MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
-          continue
-        fi
-
-        # Read SQL and send JSON through files, preserving the existing checksum input.
-        PAYLOAD_FILE="$TMP_DIR/migration-payload.json"
-        if ! jq -n --arg v "$VERSION" --rawfile s "$migration_file" --arg c "$CHECKSUM" \
-          '{migration_version: $v, migration_sql: ($s | sub("\\n+$"; "")), content_checksum: $c}' \
-          > "$PAYLOAD_FILE" 2>>"$LOG_FILE"; then
-          log "WARNING: Migration $VERSION payload could not be prepared"
-          MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
-          continue
-        fi
-        if ! RESULT=$(migration_rpc apply_migration "@$PAYLOAD_FILE"); then
-          log "WARNING: Migration $VERSION failed"
-          MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
-          continue
-        fi
-
-        if ! OUTCOME=$(jq -er -s '
-          if length != 1 then error("Expected one result")
-          else .[0] |
-            if type != "object" then error("Expected an object")
-            elif (.success | type) != "boolean" then error("Expected success boolean")
-            elif has("skipped") and (.skipped | type) != "boolean" then error("Expected skipped boolean")
-            elif .success == false then "failed"
-            elif .skipped == true then "already_applied"
-            else "applied"
-            end
-          end' <<< "$RESULT" 2>/dev/null); then
-          log "WARNING: Migration $VERSION failed: Invalid migration RPC response"
-          printf '%s\n' "$RESULT" >> "$LOG_FILE"
-          MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
-          continue
-        fi
-
-        if [ "$OUTCOME" = "failed" ]; then
-          MESSAGE=$(jq -r '.message | if type == "string" then gsub("[\\r\\n]"; " ") else "Migration RPC reported failure" end' <<< "$RESULT")
-          log "WARNING: Migration $VERSION failed: $MESSAGE"
-          printf '%s\n' "$RESULT" >> "$LOG_FILE"
-          MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
-        elif [ "$OUTCOME" = "already_applied" ]; then
-          log "Migration $VERSION: already applied"
-          MIGRATION_SKIPPED=$((MIGRATION_SKIPPED + 1))
-        else
-          log "Migration $VERSION: $RESULT"
-          MIGRATION_COUNT=$((MIGRATION_COUNT + 1))
-        fi
-      done
-
-      log "Migrations complete: $MIGRATION_COUNT applied, $MIGRATION_SKIPPED already applied, $MIGRATION_ERRORS errors"
+    # The database records timestamps independently of migration names.
+    if jq -e --arg v "${VERSION%%_*}" \
+      'any(.[]; (.version | split("_")[0]) == $v)' <<< "$APPLIED" >/dev/null 2>&1; then
+      MIGRATION_SKIPPED=$((MIGRATION_SKIPPED + 1))
+      continue
     fi
-  fi
+
+    if ! SQL_CONTENT=$(cat "$migration_file" 2>>"$LOG_FILE") ||
+      ! CHECKSUM=$(printf '%s' "$SQL_CONTENT" | sha256sum | cut -d' ' -f1); then
+      log "WARNING: Migration $VERSION could not be read or checksummed"
+      MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
+      continue
+    fi
+
+    # Read SQL and send JSON through files, preserving the existing checksum input.
+    PAYLOAD_FILE="$TMP_DIR/migration-payload.json"
+    if ! jq -n --arg v "$VERSION" --rawfile s "$migration_file" --arg c "$CHECKSUM" \
+      '{migration_version: $v, migration_sql: ($s | sub("\\n+$"; "")), content_checksum: $c}' \
+      > "$PAYLOAD_FILE" 2>>"$LOG_FILE"; then
+      log "WARNING: Migration $VERSION payload could not be prepared"
+      MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
+      continue
+    fi
+    if ! RESULT=$(migration_rpc apply_migration "@$PAYLOAD_FILE"); then
+      log "WARNING: Migration $VERSION failed"
+      MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
+      continue
+    fi
+
+    if ! OUTCOME=$(jq -er -s '
+      if length != 1 then error("Expected one result")
+      else .[0] |
+        if type != "object" then error("Expected an object")
+        elif (.success | type) != "boolean" then error("Expected success boolean")
+        elif has("skipped") and (.skipped | type) != "boolean" then error("Expected skipped boolean")
+        elif .success == false then "failed"
+        elif .skipped == true then "already_applied"
+        else "applied"
+        end
+      end' <<< "$RESULT" 2>/dev/null); then
+      log "WARNING: Migration $VERSION failed: Invalid migration RPC response"
+      printf '%s\n' "$RESULT" >> "$LOG_FILE"
+      MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
+      continue
+    fi
+
+    if [ "$OUTCOME" = "failed" ]; then
+      MESSAGE=$(jq -r '.message | if type == "string" then gsub("[\\r\\n]"; " ") else "Migration RPC reported failure" end' <<< "$RESULT")
+      log "WARNING: Migration $VERSION failed: $MESSAGE"
+      printf '%s\n' "$RESULT" >> "$LOG_FILE"
+      MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
+    elif [ "$OUTCOME" = "already_applied" ]; then
+      log "Migration $VERSION: already applied"
+      MIGRATION_SKIPPED=$((MIGRATION_SKIPPED + 1))
+    else
+      log "Migration $VERSION: $RESULT"
+      MIGRATION_COUNT=$((MIGRATION_COUNT + 1))
+    fi
+  done 3<<< "$RELEASE_MIGRATIONS"
+
+  log "Migrations complete: $MIGRATION_COUNT applied, $MIGRATION_SKIPPED already applied, $MIGRATION_ERRORS errors"
 else
   MIGRATION_ERRORS=1
   log "Migrations incomplete (missing Supabase config or migration directory)"

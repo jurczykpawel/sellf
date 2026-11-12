@@ -114,7 +114,7 @@ export function buildSubscriptionSessionConfig(
   ) {
     sessionConfig.payment_method_configuration = checkoutConfig.stripePresetId;
   } else {
-    sessionConfig.payment_method_types = [...checkoutConfig.payment_method_types];
+    sessionConfig.allowed_payment_method_types = [...checkoutConfig.payment_method_types];
   }
 
   // ToS consent: storefront subscription uses ui_mode 'elements' (Sellf renders

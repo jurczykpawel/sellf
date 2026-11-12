@@ -228,7 +228,7 @@ describe('create-payment-intent route source verification', () => {
   it('custom mode: uses getEnabledPaymentMethodsForCurrency with card wallet fallback', () => {
     expect(paymentIntentRouteSource).toContain("case 'custom':");
     expect(paymentIntentRouteSource).toContain('getEnabledPaymentMethodsForCurrency');
-    expect(paymentIntentRouteSource).toMatch(/checkoutSessionParams\.payment_method_types\s*=\s*checkoutPaymentMethods/s);
+    expect(paymentIntentRouteSource).toMatch(/checkoutSessionParams\.allowed_payment_method_types\s*=\s*checkoutPaymentMethods/s);
     expect(paymentIntentRouteSource).toContain('No payment methods match currency, falling back to automatic');
   });
 

@@ -627,6 +627,14 @@ script. Use the updated Stackpilot for the downloaded runner on that first hop.
 The migration transaction policy above remains a release requirement; this
 bootstrap change retains the existing per-file RPC transaction protocol.
 
+Since 2026.11.1 the runner applies only the files listed in the release's
+`supabase/migrations/` and replaces the installed `supabase/` directory as a
+whole (`supabase.next`, then swap). Before backup, PM2 stop or any RPC write it
+stops with a plain error when a timestamp repeats in the release, or when the
+database registry records a release timestamp under a different name. The panel
+reports success only for the script's `step:"done"`. Stackpilot follows the same
+rule.
+
 When creating new migrations:
 ```bash
 npx supabase migration new descriptive_name
