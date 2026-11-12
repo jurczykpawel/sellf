@@ -3,7 +3,7 @@
  */
 import { execFile, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -19,6 +19,8 @@ interface FixtureOptions {
   status?: number;
   body?: string;
   statusBody?: string;
+  statusCode?: number;
+  withoutJq?: boolean;
   healthFailure?: boolean;
   payloadFailure?: boolean;
   migrations?: Record<string, string>;
@@ -31,6 +33,7 @@ async function runUpgrade(options: FixtureOptions = {}) {
   const requests: Record<string, string>[] = [];
   const server = createServer(async (request, response) => {
     if (request.url?.endsWith('/get_migration_status')) {
+      response.writeHead(options.statusCode ?? 200);
       response.end(options.statusBody ?? '[]');
     } else if (request.url?.endsWith('/apply_migration')) {
       let body = '';
@@ -71,7 +74,18 @@ async function runUpgrade(options: FixtureOptions = {}) {
     writeFileSync(path.join(install, `supabase/migrations/${name}.sql`), 'SELECT 1;');
   }
   writeFileSync(path.join(install, '.env.local'), `SUPABASE_URL=http://127.0.0.1:${address.port}\nSUPABASE_SERVICE_ROLE_KEY=fixture-key\nPORT=${address.port}\n`);
-  for (const command of ['jq', 'curl']) {
+  let systemPath = process.env.PATH ?? '';
+  if (options.withoutJq) {
+    const system = path.join(dir, 'system');
+    mkdirSync(system);
+    for (const folder of ['/usr/bin', '/bin', '/usr/sbin', '/sbin']) {
+      for (const name of readdirSync(folder)) {
+        if (name !== 'jq' && !existsSync(path.join(system, name))) symlinkSync(path.join(folder, name), path.join(system, name));
+      }
+    }
+    systemPath = system;
+  }
+  for (const command of options.withoutJq ? ['curl'] : ['jq', 'curl']) {
     const executable = execFileSync('which', [command], { encoding: 'utf8' }).trim();
     // Enforce Linux MAX_ARG_STRLEN on macOS too; still execute real jq/curl.
     writeFileSync(path.join(bin, command), `#!/bin/bash
@@ -107,12 +121,12 @@ ${source.slice(start, end)}
 `);
   try {
     const result = await execute('bash', [path.join(dir, 'harness.sh')], {
-      env: { ...process.env, FIXTURE_DIR: dir, PATH: `${bin}:${process.env.PATH}` },
+      env: { ...process.env, FIXTURE_DIR: dir, PATH: `${bin}:${systemPath}` },
     }).then(({ stdout }) => ({ code: 0, stdout })).catch((error: { code: number; stdout: string }) => ({ code: error.code, stdout: error.stdout }));
     const read = (name: string) => readFileSync(path.join(dir, name), 'utf8');
     const optional = (name: string) => existsSync(path.join(dir, name)) ? read(name) : '';
     return {
-      ...result, requests, read, log: optional('upgrade.log'), started: optional('started'), pm2: optional('pm2.log'),
+      ...result, dir, requests, read, log: optional('upgrade.log'), started: optional('started'), pm2: optional('pm2.log'),
       installedMigrations: () => readdirSync(path.join(install, 'supabase/migrations')).sort(),
     };
   } finally {
@@ -141,8 +155,6 @@ describe('upgrade migration safety', () => {
     { status: 400, body: '{"message":"missing relation","details":"full database error body"}' },
     { body: '{"success":false,"message":"SQL rejected","details":"full RPC error body"}' },
     { body: 'invalid JSON error body' },
-    { statusBody: '{"message":"invalid migration status"}' },
-    { statusBody: '{}\n[]' },
     { payloadFailure: true },
   ])('restores old code without starting the failed release: %j', async options => {
     const result = await runUpgrade(options);
@@ -156,7 +168,7 @@ describe('upgrade migration safety', () => {
     expect(result.stdout).toContain('rollback=true');
     expect(result.stdout).not.toContain('PROGRESS: done');
     if (options.body) expect(result.log).toContain(options.body);
-    if (options.payloadFailure || options.statusBody) expect(result.requests).toHaveLength(0);
+    if (options.payloadFailure) expect(result.requests).toHaveLength(0);
   });
 
   it('restores the same code and version metadata after a health-check failure', async () => {
@@ -229,5 +241,27 @@ describe('upgrade migration set', () => {
     });
     expect(result.code).toBe(0);
     expect(result.requests.map(request => request.migration_version)).toEqual(added);
+  });
+});
+
+describe('upgrade migration status preflight', () => {
+  it.each([
+    { statusBody: '{"message":"invalid migration status"}' },
+    { statusBody: '{}\n[]' },
+    { statusBody: '' },
+    { statusBody: 'null' },
+    { statusBody: '[{"version":1}]' },
+    { statusCode: 503, statusBody: 'unavailable' },
+    { withoutJq: true },
+  ])('stops before backup, PM2 and file changes when the registry cannot be checked: %j', async options => {
+    const result = await runUpgrade(options);
+    expect(result.code).toBe(1);
+    expect(result.requests).toHaveLength(0);
+    expect(result.pm2).toBe('');
+    expect(result.stdout).not.toContain('PROGRESS: backing_up');
+    expect(result.stdout).toContain('Database untouched');
+    expect(result.stdout).toContain('rollback=false');
+    expect(result.read('install/version.txt')).toBe('old-code');
+    expect(existsSync(path.join(result.dir, 'install/.backup'))).toBe(false);
   });
 });
