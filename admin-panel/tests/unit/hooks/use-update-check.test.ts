@@ -300,3 +300,47 @@ it('waits for the script outcome after the new version becomes healthy', async (
   expect(result.current.upgradeInProgress).toBe(true);
   expect(result.current.upgradeProgress?.step).not.toBe('done');
 });
+
+describe('upgrade success requires the script outcome', () => {
+  async function runWithStatusAfterHealth(statusAfterHealth: () => Promise<unknown>) {
+    let baselineRead = false;
+    let healthRead = false;
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/system/update-check') return reply({ ...fresh, latest_version: '2026.11.0' });
+      if (url === '/api/v1/system/update-check?force=true' && !baselineRead) { baselineRead = true; return reply(fresh); }
+      if (url === '/api/v1/system/upgrade') return reply({ token: 'token' });
+      if (url.startsWith('/api/v1/system/upgrade-status')) {
+        return healthRead ? statusAfterHealth() : reply({ step: 'restarting', progress: 90, message: '' });
+      }
+      if (url === '/api/health') { healthRead = true; return { ok: true }; }
+      return reply({ ...fresh, current_version: '2026.11.0', started_at: '2026-10-01T11:00:00.000Z' });
+    });
+    const hook = await mount();
+    await act(async () => hook.result.current.startUpgrade());
+    return hook;
+  }
+
+  it.each([
+    ['an error response', async () => ({ ok: false, json: async () => ({}) })],
+    ['a network error', async () => { throw new Error('offline'); }],
+  ])('never reports success for a new version while the status is unavailable (%s)', async (_, status) => {
+    const { result } = await runWithStatusAfterHealth(status);
+    await act(async () => vi.advanceTimersByTimeAsync(3000));
+    expect(result.current.upgradeProgress?.step).not.toBe('done');
+    expect(result.current.upgradeInProgress).toBe(true);
+    await act(async () => vi.advanceTimersByTimeAsync(31 * 3000));
+    expect(result.current.upgradeProgress?.step).toBe('failed');
+    expect(result.current.upgradeInProgress).toBe(false);
+  });
+
+  it('shows the reported failure although the new version is already running', async () => {
+    const { result } = await runWithStatusAfterHealth(async () => reply({
+      step: 'failed', progress: -1, message: 'Upgrade to v2026.11.0 finished with 6 migration errors. Check upgrade logs.',
+    }));
+    await act(async () => vi.advanceTimersByTimeAsync(3000));
+    expect(result.current.upgradeProgress).toMatchObject({
+      step: 'failed', message: 'Upgrade to v2026.11.0 finished with 6 migration errors. Check upgrade logs.',
+    });
+    expect(result.current.upgradeInProgress).toBe(false);
+  });
+});

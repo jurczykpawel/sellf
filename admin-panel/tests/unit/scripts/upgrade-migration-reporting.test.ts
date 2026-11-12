@@ -78,6 +78,7 @@ fi
   writeFileSync(harness, `#!/usr/bin/env bash
 set -euo pipefail
 INSTALL_DIR="$FIXTURE_DIR/install"
+EXTRACT_DIR="$INSTALL_DIR"
 LOG_FILE="$FIXTURE_DIR/upgrade.log"
 TMP_DIR="$FIXTURE_DIR/scratch"
 BACKUP_DIR="$FIXTURE_DIR/backup"
@@ -89,6 +90,7 @@ write_error() { printf 'WRITE_ERROR: %s\\n' "$1"; }
 pm2() { :; }
 PM2_BIN=pm2
 PM2_NAME=sellf-fixture
+${block('# ===== STEP 4b: MIGRATION PREFLIGHT =====', '# ===== STEP 5: BACKUP =====')}
 ${block('# ===== STEP 8: RUN MIGRATIONS =====', '# ===== STEP 9: START PM2 =====')}
 ${block('if [ "$HEALTH_OK" = "true" ]; then', '# ===== FIREWALL CHECK =====')}
 ${block('# ===== CLEANUP =====', '\n}\nmain "$@"')}
@@ -130,13 +132,15 @@ describe('upgrade.sh migration reporting', () => {
     expect(run.code).toBe(0);
   });
 
-  it('recognizes a recorded timestamp despite a different migration name', async () => {
-    const run = await runHarness([{ version: first, result: 'should not be requested' }], [
-      { version: '20260523130711_webhook_secret_and_delivery_retry' },
-    ]);
+  it('stops before any migration when the database records the timestamp under a different name', async () => {
+    const run = await runHarness([
+      { version: first, result: 'should not be requested' },
+      { version: second, result: 'should not be requested' },
+    ], [{ version: '20260523130711_webhook_secret_and_delivery_retry' }]);
     expect(run.calls).toBe('');
-    expect(run.stdout).toContain('Migrations complete: 0 applied, 1 already applied, 0 errors');
-    expect(run.code).toBe(0);
+    expect(run.stdout).toContain('WRITE_ERROR: Migration 20260523130711 is recorded in the database as webhook_secret_and_delivery_retry, but this release names it webhook_secret_whsec_prefix.');
+    expect(run.stdout).not.toContain('Migrations complete');
+    expect(run.code).toBe(1);
   });
 
   it('recognizes a timestamp-only status entry', async () => {

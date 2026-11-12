@@ -3,7 +3,7 @@
  */
 import { execFile, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -21,6 +21,8 @@ interface FixtureOptions {
   statusBody?: string;
   healthFailure?: boolean;
   payloadFailure?: boolean;
+  migrations?: Record<string, string>;
+  installedMigrations?: string[];
 }
 
 async function runUpgrade(options: FixtureOptions = {}) {
@@ -61,8 +63,13 @@ async function runUpgrade(options: FixtureOptions = {}) {
     writeFileSync(path.join(folder, 'bun.lock'), code);
     writeFileSync(path.join(folder, 'scripts/upgrade.sh'), code);
   }
-  const sql = options.sql ?? 'SELECT 1;\n\n';
-  writeFileSync(path.join(release, 'supabase/migrations/20261110235900_fixture.sql'), sql);
+  const migrations = options.migrations ?? { '20261110235900_fixture': options.sql ?? 'SELECT 1;\n\n' };
+  for (const [name, sql] of Object.entries(migrations)) {
+    writeFileSync(path.join(release, `supabase/migrations/${name}.sql`), sql);
+  }
+  for (const name of options.installedMigrations ?? []) {
+    writeFileSync(path.join(install, `supabase/migrations/${name}.sql`), 'SELECT 1;');
+  }
   writeFileSync(path.join(install, '.env.local'), `SUPABASE_URL=http://127.0.0.1:${address.port}\nSUPABASE_SERVICE_ROLE_KEY=fixture-key\nPORT=${address.port}\n`);
   for (const command of ['jq', 'curl']) {
     const executable = execFileSync('which', [command], { encoding: 'utf8' }).trim();
@@ -80,7 +87,7 @@ exec ${JSON.stringify(executable)} "$@"
 printf '%s\\n' "$*" >> "$FIXTURE_DIR/pm2.log"
 if [ "$1" = start ]; then cat "$FIXTURE_DIR/install/.next/standalone/admin-panel/server.js" >> "$FIXTURE_DIR/started"; fi
 `, { mode: 0o755 });
-  const start = source.indexOf('# ===== STEP 5: BACKUP =====');
+  const start = source.indexOf('# ===== STEP 4b: MIGRATION PREFLIGHT =====');
   const end = source.indexOf('# ===== FIREWALL CHECK =====');
   if (start < 0 || end <= start) throw new Error('Missing upgrade blocks');
   writeFileSync(path.join(dir, 'harness.sh'), `#!/bin/bash
@@ -103,7 +110,11 @@ ${source.slice(start, end)}
       env: { ...process.env, FIXTURE_DIR: dir, PATH: `${bin}:${process.env.PATH}` },
     }).then(({ stdout }) => ({ code: 0, stdout })).catch((error: { code: number; stdout: string }) => ({ code: error.code, stdout: error.stdout }));
     const read = (name: string) => readFileSync(path.join(dir, name), 'utf8');
-    return { ...result, requests, read, log: read('upgrade.log'), started: read('started') };
+    const optional = (name: string) => existsSync(path.join(dir, name)) ? read(name) : '';
+    return {
+      ...result, requests, read, log: optional('upgrade.log'), started: optional('started'), pm2: optional('pm2.log'),
+      installedMigrations: () => readdirSync(path.join(install, 'supabase/migrations')).sort(),
+    };
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
@@ -155,5 +166,68 @@ describe('upgrade migration safety', () => {
     expect(result.read('install/version.txt')).toBe('old-code');
     expect(result.stdout).toContain('health check timeout');
     expect(result.stdout).toContain('rollback=true');
+  });
+});
+
+describe('upgrade migration set', () => {
+  const stale = '20261110235901_release_2026_11_0_pricing';
+  const releaseMigrations = {
+    '20261110235900_release_2026_11_0_storefront_core': 'SELECT 1;',
+    '20261110235901_release_2026_11_0_storefront_templates': 'SELECT 2;',
+  };
+
+  it('applies only the release files and removes files left by an earlier release', async () => {
+    const result = await runUpgrade({
+      migrations: releaseMigrations,
+      installedMigrations: [stale, '20261110235800_left_over'],
+    });
+    expect(result.code).toBe(0);
+    expect(result.requests.map(request => request.migration_version)).toEqual(Object.keys(releaseMigrations));
+    expect(result.installedMigrations()).toEqual(Object.keys(releaseMigrations).map(name => `${name}.sql`));
+    expect(result.started).toBe('new-code');
+  });
+
+  it('stops before the database and the running installation when a timestamp repeats', async () => {
+    const result = await runUpgrade({
+      migrations: { ...releaseMigrations, [stale]: 'SELECT 3;' },
+      installedMigrations: ['20261110235800_left_over'],
+    });
+    expect(result.code).toBe(1);
+    expect(result.requests).toHaveLength(0);
+    expect(result.pm2).toBe('');
+    expect(result.stdout).toContain('20261110235901');
+    expect(result.stdout).toContain('Database untouched');
+    expect(result.stdout).not.toContain('PROGRESS: backing_up');
+    expect(result.installedMigrations()).toEqual(['20261110235800_left_over.sql']);
+    expect(result.read('install/version.txt')).toBe('old-code');
+  });
+
+  it('stops before the database when the database records a release timestamp under another name', async () => {
+    const result = await runUpgrade({
+      migrations: releaseMigrations,
+      statusBody: JSON.stringify([{ version: '20261110235900_release_2026_11_0_storefront_core' }, { version: stale }]),
+    });
+    expect(result.code).toBe(1);
+    expect(result.requests).toHaveLength(0);
+    expect(result.pm2).toBe('');
+    expect(result.stdout).toContain(
+      'ERROR: Migration 20261110235901 is recorded in the database as release_2026_11_0_pricing, '
+      + 'but this release names it release_2026_11_0_storefront_templates. '
+      + 'Database untouched; restore the database from the backup taken before the failed upgrade. rollback=false',
+    );
+    expect(result.read('install/version.txt')).toBe('old-code');
+  });
+
+  it('applies the eight 2026.11 migrations to a database at 2026.10.6', async () => {
+    const all = readdirSync(path.resolve(__dirname, '../../../../supabase/migrations'))
+      .filter(name => name.endsWith('.sql')).map(name => name.slice(0, -4)).sort();
+    const added = all.filter(name => name.startsWith('202611102359'));
+    expect(added).toHaveLength(8);
+    const result = await runUpgrade({
+      migrations: Object.fromEntries(all.map(name => [name, 'SELECT 1;'])),
+      statusBody: JSON.stringify(all.filter(name => !added.includes(name)).map(version => ({ version }))),
+    });
+    expect(result.code).toBe(0);
+    expect(result.requests.map(request => request.migration_version)).toEqual(added);
   });
 });

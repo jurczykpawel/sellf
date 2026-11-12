@@ -644,6 +644,80 @@ fi
 log "Release has no stage 2; using installed updater fallback"
 fi
 
+# ===== STEP 4b: MIGRATION PREFLIGHT =====
+# Only the release's own migration files are applied. An ambiguous set stops
+# here, before the installation, the running process or the database change.
+
+# Keep HTTP error bodies, including non-JSON responses, in the private upgrade log.
+# Neither SQL nor JSON is ever passed as a large process argument.
+migration_rpc() {
+  local endpoint="$1" payload="$2" http_status
+  local response_file="$TMP_DIR/migration-response.json"
+  : > "$response_file"
+  if ! http_status=$(curl -sS "${SUPABASE_URL}/rest/v1/rpc/$endpoint" \
+    -H "apikey: ${SERVICE_KEY}" \
+    -H "Authorization: Bearer ${SERVICE_KEY}" \
+    -H "Content-Type: application/json" \
+    --data-binary "$payload" -o "$response_file" -w '%{http_code}' 2>>"$LOG_FILE"); then
+    log "ERROR: $endpoint transport failed (HTTP ${http_status:-unknown})"
+    cat "$response_file" >> "$LOG_FILE"
+    return 1
+  fi
+  if [ "$http_status" != "200" ]; then
+    log "ERROR: $endpoint HTTP $http_status; full response:"
+    cat "$response_file" >> "$LOG_FILE"
+    return 1
+  fi
+  cat "$response_file"
+}
+
+preflight_stop() {
+  log "ERROR: $1"
+  write_error "$1"
+  rm -rf "$TMP_DIR"
+  exit 1
+}
+
+if [ ! -d "$EXTRACT_DIR/supabase/migrations" ]; then
+  preflight_stop "Invalid archive: missing supabase/migrations/. Database untouched."
+fi
+RELEASE_MIGRATIONS=$(find "$EXTRACT_DIR/supabase/migrations" -mindepth 1 -maxdepth 1 -type f -name '*.sql' \
+  -exec basename {} .sql \; | LC_ALL=C sort)
+
+DUPLICATE_TIMESTAMP=$(printf '%s\n' "$RELEASE_MIGRATIONS" | cut -d_ -f1 | LC_ALL=C sort | uniq -d | head -n 1)
+if [ -n "$DUPLICATE_TIMESTAMP" ]; then
+  preflight_stop "Migration timestamp $DUPLICATE_TIMESTAMP is used by more than one file in this release. Database untouched."
+fi
+
+# Read Supabase connection info from .env.local
+SUPABASE_URL=$(grep -E '^SUPABASE_URL=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
+SERVICE_KEY=$(grep -E '^SUPABASE_SERVICE_ROLE_KEY=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
+
+# Read-only status lookup; failures are reported by the migration step.
+APPLIED_STATE=unconfigured
+if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && command -v jq &>/dev/null; then
+  if ! APPLIED=$(migration_rpc get_migration_status '{}'); then
+    APPLIED_STATE=unavailable
+  elif ! jq -e -s 'length == 1 and (.[0] | type == "array" and all(.[]; type == "object" and (.version | type == "string")))' \
+    <<< "$APPLIED" >/dev/null 2>&1; then
+    APPLIED_STATE=invalid
+  else
+    APPLIED_STATE=ok
+    # The registry keys migrations by timestamp; a different recorded name means
+    # this database holds other SQL under a timestamp this release still needs.
+    NAME_CONFLICT=$(jq -r --arg files "$RELEASE_MIGRATIONS" '
+      ($files | split("\n") | map(select(length > 0) | (split("_")[0]) as $ts
+        | {key: $ts, value: .[($ts | length) + 1:]}) | from_entries) as $release
+      | first(.[] | .version | (split("_")[0]) as $ts | .[($ts | length) + 1:] as $name
+        | select($name != "" and $release[$ts] != null and $release[$ts] != $name)
+        | [$ts, $name, $release[$ts]] | @tsv) // empty' <<< "$APPLIED")
+    if [ -n "$NAME_CONFLICT" ]; then
+      IFS=$'\t' read -r CONFLICT_TS CONFLICT_DB_NAME CONFLICT_RELEASE_NAME <<< "$NAME_CONFLICT"
+      preflight_stop "Migration $CONFLICT_TS is recorded in the database as $CONFLICT_DB_NAME, but this release names it $CONFLICT_RELEASE_NAME. Database untouched; restore the database from the backup taken before the failed upgrade."
+    fi
+  fi
+fi
+
 # ===== STEP 5: BACKUP =====
 
 write_progress "backing_up" 45 "Creating backup..."
@@ -714,10 +788,11 @@ if [ -f "$EXTRACT_DIR/scripts/upgrade.sh" ]; then
   mv -f "$INSTALL_DIR/scripts/upgrade.sh.next" "$INSTALL_DIR/scripts/upgrade.sh"
 fi
 
-# Copy supabase migrations
-if [ -d "$EXTRACT_DIR/supabase" ]; then
-  cp -r "$EXTRACT_DIR/supabase" "$INSTALL_DIR/" 2>/dev/null || true
-fi
+# Replace supabase/ as a whole: files left by earlier releases must not survive.
+rm -rf "$INSTALL_DIR/supabase.next"
+cp -r "$EXTRACT_DIR/supabase" "$INSTALL_DIR/supabase.next"
+rm -rf "$INSTALL_DIR/supabase"
+mv "$INSTALL_DIR/supabase.next" "$INSTALL_DIR/supabase"
 
 # Restore .env.local from backup
 if [ -f "$BACKUP_DIR/.env.local" ]; then
@@ -838,49 +913,20 @@ rollback_code() {
   log "Previous code restored; database migrations were not reversed"
 }
 
-# Keep HTTP error bodies, including non-JSON responses, in the private upgrade log.
-# Neither SQL nor JSON is ever passed as a large process argument.
-migration_rpc() {
-  local endpoint="$1" payload="$2" http_status
-  local response_file="$TMP_DIR/migration-response.json"
-  : > "$response_file"
-  if ! http_status=$(curl -sS "${SUPABASE_URL}/rest/v1/rpc/$endpoint" \
-    -H "apikey: ${SERVICE_KEY}" \
-    -H "Authorization: Bearer ${SERVICE_KEY}" \
-    -H "Content-Type: application/json" \
-    --data-binary "$payload" -o "$response_file" -w '%{http_code}' 2>>"$LOG_FILE"); then
-    log "ERROR: $endpoint transport failed (HTTP ${http_status:-unknown})"
-    cat "$response_file" >> "$LOG_FILE"
-    return 1
-  fi
-  if [ "$http_status" != "200" ]; then
-    log "ERROR: $endpoint HTTP $http_status; full response:"
-    cat "$response_file" >> "$LOG_FILE"
-    return 1
-  fi
-  cat "$response_file"
-}
-
 write_progress "migrating" 75 "Running database migrations..."
 log "Running migrations..."
 MIGRATION_ERRORS=0
-
-# Read Supabase connection info from .env.local
-SUPABASE_URL=$(grep -E '^SUPABASE_URL=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
-SERVICE_KEY=$(grep -E '^SUPABASE_SERVICE_ROLE_KEY=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
 
 if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
   if ! command -v jq &>/dev/null; then
     MIGRATION_ERRORS=1
     log "ERROR: jq not installed — migrations incomplete (apt-get install jq)"
   else
-    # Check which migrations are already applied via RPC
-    if ! APPLIED=$(migration_rpc get_migration_status '{}'); then
+    if [ "$APPLIED_STATE" = unavailable ]; then
       MIGRATION_ERRORS=1
       log "Migration RPC unavailable — migrations incomplete"
       log "Run 'deploy.sh sellf --update' once to bootstrap migration system"
-    elif ! jq -e -s 'length == 1 and (.[0] | type == "array" and all(.[]; type == "object" and (.version | type == "string")))' \
-      <<< "$APPLIED" >/dev/null 2>&1; then
+    elif [ "$APPLIED_STATE" != ok ]; then
       MIGRATION_ERRORS=1
       log "ERROR: Invalid migration status response; full response:"
       printf '%s\n' "$APPLIED" >> "$LOG_FILE"
@@ -888,10 +934,10 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabas
       MIGRATION_COUNT=0
       MIGRATION_SKIPPED=0
 
-      for migration_file in "$INSTALL_DIR/supabase/migrations/"*.sql; do
-        [ -f "$migration_file" ] || continue
-        [ -d "$migration_file" ] && continue
-        VERSION=$(basename "$migration_file" .sql)
+      # Exactly the release's file list, read on descriptor 3.
+      while IFS= read -r VERSION <&3; do
+        [ -n "$VERSION" ] || continue
+        migration_file="$INSTALL_DIR/supabase/migrations/$VERSION.sql"
 
         # The database records timestamps independently of migration names.
         if jq -e --arg v "${VERSION%%_*}" \
@@ -951,7 +997,7 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabas
           log "Migration $VERSION: $RESULT"
           MIGRATION_COUNT=$((MIGRATION_COUNT + 1))
         fi
-      done
+      done 3<<< "$RELEASE_MIGRATIONS"
 
       log "Migrations complete: $MIGRATION_COUNT applied, $MIGRATION_SKIPPED already applied, $MIGRATION_ERRORS errors"
     fi
