@@ -15,8 +15,29 @@ permissions:
   packages: write
 
 jobs:
+  # Hard stop: Dependabot PRs that must ride in a release (runtime/major bumps labelled
+  # `release-batch`, security fixes labelled `security`) cannot sit open past 24 h while a
+  # release is built. See .github/workflows/dependabot-auto-merge.yml.
+  dependabot-gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: .github/scripts
+      - name: Block on stale release-batch/security Dependabot PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr list --repo "$GITHUB_REPOSITORY" --state open --author "app/dependabot" \
+            --limit 200 --json number,title,createdAt,labels \
+            | .github/scripts/check-dependabot-batch.sh
+
   # Run tests before building
   test:
+    needs: dependabot-gate
     runs-on: ubuntu-latest
 
     steps:
@@ -69,11 +90,12 @@ jobs:
         run: bun audit --audit-level=high
 
       - name: Scan for leaked secrets
-        uses: trufflesecurity/trufflehog@e76dff8a7e57d6df0c60ad8cbf5d5cba505a8fc9 # v3.99.2
+        uses: trufflesecurity/trufflehog@ea68ca03c865c5f324e86e849ced20ed3cf9dbbb # v3.99.8
         with:
           extra_args: --results verified,unknown
 
   verify-playerstack-bundle:
+    needs: dependabot-gate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sellf
@@ -313,12 +335,13 @@ jobs:
           sha256sum sellf-build.tar.gz > sellf-build.tar.gz.sha256
           cat sellf-build.tar.gz.sha256
 
-      # Signed release manifest: exactly two lines, `version=<YYYY.M.patch>` and
+      # Legacy signed release manifest: exactly two lines, `version=<YYYY.M.patch>` and
       # `sha256=<hex of sellf-build.tar.gz>`, plus an Ed25519 signature over
       # it (sellf-build.manifest.sig). upgrade.sh verifies the signature with
       # the public key embedded in the already-installed script, refuses a
       # version older than the installed one, and checks the tarball against
       # the hash, so one signature covers origin, version and contents.
+      # V2 also binds min_updater_version; legacy assets exist only for minimum 1.
       - name: Write and sign release manifest
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
@@ -344,16 +367,17 @@ jobs:
             exit 1
           fi
 
-          printf 'version=%s\nsha256=%s\n' "$MANIFEST_VERSION" "$(sha256sum sellf-build.tar.gz | awk '{print $1}')" > sellf-build.manifest
-          cat sellf-build.manifest
+          bash admin-panel/scripts/ci/write-release-manifests.sh "$MANIFEST_VERSION" sellf-build.tar.gz .
+          cat sellf-build*.manifest
 
           umask 077
           KEY_FILE="$(mktemp)"
           PUB_FILE="$(mktemp)"
           trap 'rm -f "$KEY_FILE" "$PUB_FILE"' EXIT
           printf '%s\n' "$RELEASE_SIGNING_KEY" > "$KEY_FILE"
-          openssl pkeyutl -sign -inkey "$KEY_FILE" -rawin \
-            -in sellf-build.manifest -out sellf-build.manifest.sig
+          for manifest in sellf-build*.manifest; do
+            openssl pkeyutl -sign -inkey "$KEY_FILE" -rawin -in "$manifest" -out "$manifest.sig"
+          done
 
           # Verify against the key installed servers trust: the one embedded
           # in upgrade.sh. Catches a secret/public-key mismatch before publishing.
@@ -363,8 +387,9 @@ jobs:
             echo "::error::admin-panel/scripts/upgrade.sh still holds the placeholder release signing public key"
             exit 1
           fi
-          openssl pkeyutl -verify -pubin -inkey "$PUB_FILE" -rawin \
-            -in sellf-build.manifest -sigfile sellf-build.manifest.sig
+          for manifest in sellf-build*.manifest; do
+            openssl pkeyutl -verify -pubin -inkey "$PUB_FILE" -rawin -in "$manifest" -sigfile "$manifest.sig"
+          done
           cmp -s "$PUB_FILE" admin-panel/scripts/release-signing-key.pub.pem || {
             echo "::error::admin-panel/scripts/release-signing-key.pub.pem differs from the key embedded in upgrade.sh"
             exit 1
@@ -372,13 +397,13 @@ jobs:
 
       - name: Upload artifact to release
         if: github.event_name == 'release'
-        run: gh release upload "${{ steps.version.outputs.VERSION }}" sellf-build.tar.gz sellf-build.tar.gz.sha256 sellf-build.manifest sellf-build.manifest.sig --clobber
+        run: gh release upload "${{ steps.version.outputs.VERSION }}" sellf-build.tar.gz sellf-build.tar.gz.sha256 sellf-build*.manifest sellf-build*.manifest.sig --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create release (manual dispatch)
         if: github.event_name == 'workflow_dispatch'
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
         with:
           tag_name: ${{ steps.version.outputs.VERSION }}
           name: Sellf ${{ steps.version.outputs.VERSION }}
@@ -386,8 +411,8 @@ jobs:
           files: |
             sellf-build.tar.gz
             sellf-build.tar.gz.sha256
-            sellf-build.manifest
-            sellf-build.manifest.sig
+            sellf-build*.manifest
+            sellf-build*.manifest.sig
           body: |
             ## Sellf ${{ steps.version.outputs.VERSION }}
 
@@ -477,7 +502,7 @@ jobs:
             type=raw,value=latest,enable=${{ github.event_name == 'release' }}
 
       - name: Login to GHCR
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

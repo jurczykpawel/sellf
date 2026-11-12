@@ -1,11 +1,14 @@
 \set ON_ERROR_STOP on
--- Product VAT rate units repair (migration 20261017173304_product_vat_rate_units_repair.sql).
+-- Product VAT rate units repair (pricing release source section).
+-- Export the pricing source section first:
+--   python3 supabase/tests/migration_source.py 20261017173304_product_vat_rate_units_repair.sql > /tmp/sellf-vat-repair.sql
 -- Run on a fully migrated local stack, from a file (the repair is pulled in with \ir):
---   psql -h 127.0.0.1 -p <db port> -U postgres -v ON_ERROR_STOP=1 -f supabase/tests/product-vat-rate-repair.sql
+--   psql -h 127.0.0.1 -p <db port> -U postgres -v ON_ERROR_STOP=1 -v repair=/tmp/sellf-vat-repair.sql -f supabase/tests/product-vat-rate-repair.sql
 -- Everything is rolled back. `-v repair=<path>` points \ir at another file (used to prove RED).
 \if :{?repair}
 \else
-  \set repair ../migrations/20261017173304_product_vat_rate_units_repair.sql
+  \echo Export a source section and pass -v repair=<path> as described above.
+  \set repair /tmp/sellf-vat-repair.sql
 \endif
 BEGIN;
 CREATE FUNCTION pg_temp.assert_true(value boolean, label text) RETURNS void LANGUAGE plpgsql AS $$

@@ -1,0 +1,92 @@
+name: Dependabot Auto-Merge
+
+# Classifies every Dependabot PR:
+#   safe          docs-site, github-actions, mcp-server devDependencies, non-major only
+#                 -> merged by this workflow once every other check is green.
+#   security      fixes a vulnerability (label `security`) -> never merged here.
+#   release-batch everything else (admin-panel incl. all Bun PRs, runtime deps, Docker,
+#                 majors) -> label `release-batch`, never merged here; the release process
+#                 folds it into the release branch (see sellf-release step 0), and
+#                 build-release.yml blocks a release while one is older than 24 h.
+# Red CI on a safe PR = no merge + one @owner comment.
+#
+# Release window: set the repository variable DEPENDABOT_AUTOMERGE_PAUSED=true before
+# cutting a release (Settings > Secrets and variables > Actions > Variables) and delete
+# it afterwards. While "true" nothing is merged; labelling still happens.
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  classify-and-merge:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    env:
+      PR_URL: ${{ github.event.pull_request.html_url }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      OWNER: ${{ github.repository_owner }}
+    steps:
+      - uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        id: metadata
+
+      - name: Classify
+        id: kind
+        env:
+          ECOSYSTEM: ${{ steps.metadata.outputs.package-ecosystem }}
+          DIRECTORY: ${{ steps.metadata.outputs.directory }}
+          UPDATES: ${{ steps.metadata.outputs.updated-dependencies-json }}
+        run: |
+          pr=$(gh pr view "$PR_URL" --json body,labels)
+          dir="/${DIRECTORY#/}"
+          if jq -e '.labels[].name | select(. == "security")' <<<"$pr" >/dev/null \
+             || jq -e '.body | test("Vulnerabilities fixed|GHSA-[0-9a-z-]+|CVE-[0-9]{4}-[0-9]+")' <<<"$pr" >/dev/null; then
+            kind=security
+          elif jq -e 'any(.[]; .updateType == "version-update:semver-major")' <<<"$UPDATES" >/dev/null; then
+            kind=release-batch
+          elif [ "$ECOSYSTEM" = "github_actions" ] || { [ "$ECOSYSTEM" = "npm_and_yarn" ] && [ "$dir" = "/docs-site" ]; }; then
+            kind=safe
+          elif [ "$ECOSYSTEM" = "npm_and_yarn" ] && [ "$dir" = "/mcp-server" ] \
+               && jq -e 'all(.[]; .dependencyType == "direct:development")' <<<"$UPDATES" >/dev/null; then
+            kind=safe
+          else
+            kind=release-batch
+          fi
+          echo "ecosystem=$ECOSYSTEM dir=$dir kind=$kind"
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+
+      - name: Label PRs that ride in a release
+        if: steps.kind.outputs.kind != 'safe'
+        env:
+          LABEL: ${{ steps.kind.outputs.kind }}
+        run: |
+          gh label create "$LABEL" --force --color "$([ "$LABEL" = security ] && echo d73a4a || echo fbca04)" \
+            --description "Dependabot PR that must ship in the next release" >/dev/null
+          gh pr edit "$PR_URL" --add-label "$LABEL"
+
+      - name: Auto-merge safe updates
+        if: steps.kind.outputs.kind == 'safe' && vars.DEPENDABOT_AUTOMERGE_PAUSED != 'true'
+        # `gh pr merge --auto` needs branch protection with required checks, which this
+        # repo does not use. Wait for the other checks ourselves and merge only when all
+        # are green. PR CI (pr-ci.yml) always runs, so "no checks" never means "green".
+        run: |
+          sleep 90  # let the other workflows register their checks
+          for _ in $(seq 1 90); do
+            rollup=$(gh pr view "$PR_URL" --json statusCheckRollup -q \
+              '[.statusCheckRollup[] | select(.name != "classify-and-merge")]')
+            total=$(jq length <<<"$rollup")
+            pending=$(jq '[.[] | select(.status != "COMPLETED")] | length' <<<"$rollup")
+            bad=$(jq '[.[] | select(.conclusion | IN("FAILURE","CANCELLED","TIMED_OUT","ACTION_REQUIRED"))] | length' <<<"$rollup")
+            if [ "$bad" != 0 ]; then
+              gh pr comment "$PR_URL" --body "@${OWNER} CI failed on this dependency update, so it was not merged. Fix it or close it with \`@dependabot ignore this dependency\`."
+              exit 0
+            fi
+            if [ "$total" != 0 ] && [ "$pending" = 0 ]; then
+              gh pr merge "$PR_URL" --squash
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "Checks did not finish in time; not merging."

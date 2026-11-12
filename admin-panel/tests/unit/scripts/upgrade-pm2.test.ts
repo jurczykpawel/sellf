@@ -22,7 +22,7 @@ function run(hasPm2: boolean) {
   if (hasPm2) writeFileSync(path.join(dir, '.bun/bin/pm2'), '#!/bin/bash\nprintf "%s\\n" "$*" >> "$HOME/calls"\n', { mode: 0o755 });
   const token = randomUUID();
   const script = path.join(dir, 'preflight.sh');
-  writeFileSync(script, source.slice(0, source.indexOf('# ===== STEP 1: GET LATEST RELEASE INFO =====')) + '\n}\nmain "$@"\n');
+  writeFileSync(script, source.slice(0, source.indexOf('# ===== STEP 1: GET LATEST RELEASE INFO =====')) + '\nfi\n}\nmain "$@"\n');
   try {
     const result = spawnSync('/bin/bash', [script, token, install], { env: { HOME: dir, PATH: bin }, encoding: 'utf8' });
     const progress = readFileSync(`/tmp/sellf-upgrade-${token}.json`, 'utf8');

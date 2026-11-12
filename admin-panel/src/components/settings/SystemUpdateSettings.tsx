@@ -94,7 +94,7 @@ export default function SystemUpdateSettings() {
  </button>}
  </div>
  )}
- {updateInfo?.update_available && !canUpgrade && <UpgradeInstructions updateInfo={updateInfo} />}
+ {updateInfo && !canUpgrade && (updateInfo.update_available || updateInfo.updater?.compatible === false) && <UpgradeInstructions updateInfo={updateInfo} />}
  </div>
  </div>
 

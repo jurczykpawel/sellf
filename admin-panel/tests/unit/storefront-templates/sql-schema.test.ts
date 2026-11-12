@@ -1,11 +1,11 @@
 /** D-057 generation gate. @see scripts/storefront-schema-subset.ts */
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { offerConfigSchema } from '@/lib/storefront-templates/phase2-contracts';
 import { configSchema } from '@/lib/storefront-templates/schemas';
 import { marketingFieldsShapeSchema } from '@/lib/validations/product-marketing';
 import { assertSqlSchemaSubset, SQL_PATTERNS, toSqlSchema } from '../../../scripts/storefront-schema-subset';
+import { readMigrationSource } from '../../../scripts/migration-source';
 
 describe('SQL schema generation contract', () => {
   for (const [name, shape] of Object.entries({ config: configSchema, marketing: marketingFieldsShapeSchema, offer: offerConfigSchema })) {
@@ -26,7 +26,7 @@ describe('SQL schema generation contract', () => {
     }
   }
   it.each(['20261016223736_storefront_a_contract.sql', '20261017014729_storefront_b_contract.sql', '20261017030527_storefront_c_contract.sql', '20261016232157_product_offer_snapshots.sql'])('validates every frozen emitted keyword in %s', file => {
-    const source = readFileSync(`../supabase/migrations/${file}`, 'utf8');
+    const source = readMigrationSource(file);
     const matches = [...source.matchAll(/AS \$schema\$ SELECT '((?:''|[^'])*)'::json/g)];
     expect(matches).toHaveLength(1);
     expect(() => assertSqlSchemaSubset(JSON.parse(matches[0][1].replaceAll("''", "'")))).not.toThrow();

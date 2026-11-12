@@ -104,7 +104,7 @@ def main():
         applied = rpc(status, 'get_migration_status', {})
         versions = {row['version'].split('_')[0] for row in applied}
         migrations = sorted((ROOT / 'supabase/migrations').glob('*.sql'))
-        candidates = [p for p in migrations if p.name >= '20261016000000']
+        candidates = [p for p in migrations if p.name >= '20261110235900']
         assert candidates
         for migration in candidates:
             assert migration.stem.split('_')[0] not in versions, migration.name

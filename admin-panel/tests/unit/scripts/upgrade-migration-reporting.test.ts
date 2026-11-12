@@ -35,6 +35,8 @@ async function runHarness(migrations: MigrationFixture[], applied: unknown = [],
   mkdirSync(migrationDir, { recursive: true });
   mkdirSync(bin);
   mkdirSync(path.join(dir, 'scratch'));
+  mkdirSync(path.join(dir, 'backup/.next/standalone/admin-panel'), { recursive: true });
+  writeFileSync(path.join(dir, 'backup/.next/standalone/admin-panel/server.js'), 'previous version');
   writeFileSync(path.join(install, '.env.local'), missingConfig ? '' : 'SUPABASE_URL=http://fixture.invalid\nSUPABASE_SERVICE_ROLE_KEY=test-key\n');
   writeFileSync(path.join(dir, 'status.json'), JSON.stringify(applied));
   writeFileSync(path.join(dir, 'calls'), '');
@@ -45,21 +47,32 @@ async function runHarness(migrations: MigrationFixture[], applied: unknown = [],
   }
   writeFileSync(path.join(bin, 'curl'), `#!/usr/bin/env bash
 set -euo pipefail
-if [[ "$2" == */get_migration_status ]]; then
-  cat "$FIXTURE_DIR/status.json"
-  exit 0
-fi
+url='' payload='' output=''
 while [ "$#" -gt 0 ]; do
-  if [ "$1" = '-d' ]; then
-    VERSION=$(printf '%s' "$2" | jq -r '.migration_version')
-    printf '%s\\n' "$VERSION" >> "$FIXTURE_DIR/calls"
-    [ ! -f "$FIXTURE_DIR/$VERSION.http-error" ] || exit 22
-    cat "$FIXTURE_DIR/$VERSION.result"
-    exit 0
-  fi
+  case "$1" in
+    http*) url="$1" ;;
+    --data-binary|-d) payload="$2"; shift ;;
+    -o) output="$2"; shift ;;
+  esac
   shift
 done
-exit 1
+code=200
+if [[ "$url" == */get_migration_status ]]; then
+  body="$FIXTURE_DIR/status.json"
+else
+  if [[ "$payload" == @* ]]; then payload=$(cat "\${payload#@}"); fi
+  VERSION=$(printf '%s' "$payload" | jq -r '.migration_version')
+  printf '%s\\n' "$VERSION" >> "$FIXTURE_DIR/calls"
+  [ ! -f "$FIXTURE_DIR/$VERSION.http-error" ] || code=500
+  body="$FIXTURE_DIR/$VERSION.result"
+fi
+if [ -n "$output" ]; then
+  cat "$body" > "$output"
+  printf '%s' "$code"
+else
+  [ "$code" = 200 ] || exit 22
+  cat "$body"
+fi
 `, { mode: 0o755 });
   const harness = path.join(dir, 'harness.sh');
   writeFileSync(harness, `#!/usr/bin/env bash
@@ -75,6 +88,7 @@ write_progress() { printf 'PROGRESS: %s %s\\n' "$1" "$3"; }
 write_error() { printf 'WRITE_ERROR: %s\\n' "$1"; }
 pm2() { :; }
 PM2_BIN=pm2
+PM2_NAME=sellf-fixture
 ${block('# ===== STEP 8: RUN MIGRATIONS =====', '# ===== STEP 9: START PM2 =====')}
 ${block('if [ "$HEALTH_OK" = "true" ]; then', '# ===== FIREWALL CHECK =====')}
 ${block('# ===== CLEANUP =====', '\n}\nmain "$@"')}

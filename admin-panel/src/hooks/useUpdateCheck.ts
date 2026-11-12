@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { UpgradeCapability } from '@/lib/system/upgrade-runtime';
+import type { UpgradeCapability, UpdaterCompatibility } from '@/lib/system/upgrade-runtime';
 
 const STORAGE_KEY = 'sellf_update_check';
 const DISMISSED_KEY = 'sellf_update_dismissed';
@@ -21,6 +21,7 @@ const DISMISS_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 export interface UpdateInfo {
   upgrade?: UpgradeCapability;
+  updater?: UpdaterCompatibility;
   current_version: string;
   started_at?: string; // Older cached checks may not carry process identity.
   latest_version: string;

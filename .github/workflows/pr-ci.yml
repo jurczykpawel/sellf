@@ -1,0 +1,64 @@
+name: PR CI
+
+# Merge gate for pull requests (notably Dependabot's, see dependabot-auto-merge.yml).
+# Needs no secrets: Dependabot PRs run without them. The unit/E2E suites need a local
+# Supabase and stay out of this gate; typecheck + lint + production build catch the
+# breakage a dependency bump can cause.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  admin-panel:
+    name: admin-panel (typecheck, lint, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./admin-panel
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+        env:
+          NODE_ENV: development
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      - run: bun run lint
+      - run: bun run build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          NEXT_PUBLIC_SITE_URL: https://placeholder.example.com
+          NEXT_PUBLIC_BASE_URL: https://placeholder.example.com
+          NEXT_PUBLIC_APP_URL: https://placeholder.example.com
+          SUPABASE_URL: https://placeholder.supabase.co
+          SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-key
+          STRIPE_SECRET_KEY: sk_test_placeholder
+          STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
+          STRIPE_WEBHOOK_SECRET: whsec_placeholder
+      - run: bash scripts/check-build-artifact.sh
+
+  docs-site:
+    name: docs-site (build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./docs-site
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+      - run: npm ci
+      - run: npm run build

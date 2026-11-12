@@ -27,6 +27,7 @@ import {
   handleApiError,
   API_SCOPES,
 } from '@/lib/api';
+import { checkLatestUpdaterCompatibility } from '@/lib/system/updater-compatibility';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { getUpgradeLockFilePath, getUpgradeLogFilePath } from '@/lib/system/upgrade-paths';
@@ -63,6 +64,15 @@ export async function POST(request: NextRequest) {
         request,
         400
       );
+    }
+
+    // No files, audit entry or launcher before fresh signed compatibility checks.
+    const updater = await checkLatestUpdaterCompatibility();
+    if (!updater.compatible) {
+      return jsonResponse({ error: {
+        code: updater.reason === 'too_old' ? 'UPDATER_TOO_OLD' : 'UPDATER_VERIFICATION_FAILED',
+        message: updater.message,
+      }, data: { updater } }, request, 409);
     }
 
     // Generate upgrade token

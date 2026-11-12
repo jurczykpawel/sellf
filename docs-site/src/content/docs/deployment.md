@@ -115,6 +115,27 @@ through the same checks. A release
 with a missing or invalid signature, or an older version, is never installed, and
 there is no setting that changes this.
 
+From 2026.11.0 the release also publishes a signed `sellf-build.v2.manifest`:
+
+```text
+version=2026.11.0
+sha256=<SHA-256 of sellf-build.tar.gz, 64 lowercase hex characters>
+min_updater_version=1
+```
+
+Updater 2 prefers this manifest and refuses a minimum above its installed version
+before downloading the archive. The update APIs enforce the same signed requirement.
+The two-line legacy manifest remains available while the minimum is 1 because
+10.6 rejects extra lines; a release requiring updater 2 or newer omits legacy assets.
+
+After verification and safe extraction, updater 2 executes `scripts/upgrade.sh`
+from that release, preserving the instance lock and progress paths. That downloaded
+script performs backup, migration, swap, restart, health checks and code rollback.
+Older packages without the stage-2 protocol use the installed fallback. An
+unmodified 10.6 updater still runs its own logic on its first update to 11.0;
+installing new code cannot change a script already running. Use current Stackpilot
+for the downloaded runner on this first hop; see [UI updates](/ui-upgrades/).
+
 To check a download yourself you only need OpenSSL 1.1.1 or newer:
 
 ```bash

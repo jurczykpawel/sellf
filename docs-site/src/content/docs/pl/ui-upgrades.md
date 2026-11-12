@@ -59,6 +59,29 @@ Przy aktualizacji w miejscu panel sprawdza wersję po restarcie i zachowuje wyni
 błędu skryptu. Niedostępny launcher oznacza błędne żądanie API, a nie przyjętą
 aktualizację. Szczegóły niepowodzenia znajdziesz w logu aktualizacji instancji.
 
+## Dwustopniowy aktualizator standalone
+
+Aktualizator 2 sprawdza podpis manifestu zainstalowanym kluczem, wymaganie
+`min_updater_version`, sumę i wpisy archiwum, po czym rozpakowuje je do prywatnego
+katalogu tymczasowego. Następnie uruchamia `scripts/upgrade.sh` z pobranego wydania
+(etap 2), zachowując token, instalację, pliki postępu i logu oraz blokadę instancji.
+Panel pokazuje dotychczasowe kroki. Paczki bez etapu 2 korzystają z lokalnego
+fallbacku. Błąd migracji przywraca poprzedni kod przed startem; nie cofa już
+zatwierdzonych migracji bazy (transakcja RPC nadal obejmuje pojedynczy plik).
+
+2026.11.0 wymaga aktualizatora 1, czyli niewersjonowanego skryptu 10.6. CI publikuje
+podpisany trzywierszowy manifest V2 oraz dotychczasowy dwuwierszowy manifest dla
+tej ścieżki przejściowej. Stary skrypt przy pierwszej aktualizacji nadal wykonuje
+własne kroki. Nadpisanie jego pliku może też dać końcowy błąd powłoki po zgłoszeniu
+sukcesu. Aktualny Stackpilot pozwala użyć runnera z paczki już podczas tego przejścia.
+Gdy panel zgłasza zbyt stary aktualizator albo nie może zweryfikować wymagania,
+ponów sprawdzanie lub uruchom w aktualnym lokalnym repozytorium Stackpilot
+(zastąp `<server>` aliasem SSH serwera):
+
+```bash
+./local/deploy.sh sellf --ssh=<server> --update
+```
+
 ## Źródło informacji o wydaniach
 
 Opcjonalna serwerowa zmienna `SELLF_UPDATE_CHECK_URL` wskazuje mirror informacji

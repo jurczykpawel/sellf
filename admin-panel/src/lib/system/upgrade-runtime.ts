@@ -31,3 +31,12 @@ export function detectUpgradeRuntime(env: Record<string, string | undefined>, si
     signals.linux && signals.systemd && signals.pm2 && signals.script;
   return { runtime, mode: ready ? 'in-place' : 'manual' };
 }
+
+/** Verified release requirement; updater 1 is the unversioned 10.6 script. */
+export interface UpdaterCompatibility {
+  version: number;
+  min_updater_version?: number;
+  compatible: boolean;
+  reason?: 'too_old' | 'verification_failed';
+  message?: string;
+}

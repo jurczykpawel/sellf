@@ -1,10 +1,9 @@
 /** Every historical order reference must revoke main and bump licenses together. */
 import { randomUUID, createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { getTestDatabaseContainer } from '../../helpers/database-container';
+import { readMigrationSource } from '../../../scripts/migration-source';
 function sql(input: string): void {
   try { execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1'], { input, stdio: ['pipe','pipe','pipe'] }); }
   catch (error) { throw new Error((error as {stderr?:Buffer}).stderr?.toString() ?? String(error)); }
@@ -46,7 +45,7 @@ describe('order license revocation', () => {
   });
   it('repairs pre-migration refunded main and bump licenses and restricts the order RPC',()=>{
     const tx=randomUUID(),main=randomUUID(),bump=randomUUID(),seller=randomUUID();
-    const migration=readFileSync(path.resolve(import.meta.dirname,'../../../../supabase/migrations/20261110010000_order_license_revocation.sql'),'utf8');
+    const migration=readMigrationSource('20261110010000_order_license_revocation.sql');
     const backfill=migration.slice(migration.indexOf('-- Repair existing full refunds'));
     sql(`BEGIN;
       INSERT INTO auth.users(id,email) VALUES('${seller}','${seller}@example.com');
@@ -70,7 +69,7 @@ describe('order license revocation', () => {
 
   it.each(['backfill', 'refund', 'cancel', 'amount'])('preserves historical revocations without updating their rows on %s', (action) => {
     const tx=randomUUID(), product=randomUUID(), seller=randomUUID();
-    const migration=readFileSync(path.resolve(import.meta.dirname,'../../../../supabase/migrations/20261110010000_order_license_revocation.sql'),'utf8');
+    const migration=readMigrationSource('20261110010000_order_license_revocation.sql');
     const backfill=migration.slice(migration.indexOf('-- Repair existing full refunds'));
     sql(`BEGIN;
       INSERT INTO auth.users(id,email) VALUES('${seller}','${seller}@example.com');

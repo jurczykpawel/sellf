@@ -1,44 +1,110 @@
 version: 2
-
+# Weekly cadence, three kinds of PR (the label/merge policy lives in
+# .github/workflows/dependabot-auto-merge.yml, which classifies every PR):
+#   - "safe"        docs-site, github-actions, mcp-server devDependencies: merged by the
+#                   workflow once PR CI (pr-ci.yml) is green.
+#   - "release-batch" everything that ships in the product (admin-panel, mcp-server and
+#                   Docker runtime deps, majors): never auto-merged; labelled `release-batch`
+#                   and folded into the release branch by the release process
+#                   (sellf-release step 0). build-release.yml refuses to build a release
+#                   while such a PR is older than 24 h.
+#   - "security"    security fixes get their own PR (never grouped with version bumps),
+#                   labelled `security`, never auto-merged, same release rule.
+# Majors always arrive as individual PRs (groups below only take patch + minor).
 updates:
-  # admin-panel is built with Bun (CI: `bun install --frozen-lockfile`), so
-  # Dependabot must track bun.lock — the lockfile that actually ships. Tracking
-  # the npm ecosystem here updated a package-lock.json the build never used, so
-  # fixes never reached the artifact and alerts lingered. NOTE: Dependabot does
-  # not raise *security* PRs for Bun, only version PRs; the weekly minor+patch
-  # group carries most security patches, the rest via manual `bun update`.
+  # admin-panel is built with Bun (CI: `bun install --frozen-lockfile`), so Dependabot
+  # must track bun.lock, the lockfile that actually ships. NOTE: Dependabot does not
+  # raise *security* PRs for Bun, only version PRs.
+  # Auto-merge is OFF for bun by design: Dependabot writes bun.lock as lockfileVersion 3,
+  # which the bun pinned in CI/Dockerfile (1.3.14) cannot read, so every bun PR fails
+  # `--frozen-lockfile` and must be re-locked by hand. Revisit once CI reads lockfile v3.
   - package-ecosystem: "bun"
     directory: "/admin-panel"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-    groups:
-      minor-and-patch:
-        update-types:
-          - "minor"
-          - "patch"
-
-  - package-ecosystem: "npm"
-    directory: "/mcp-server"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    groups:
+      runtime-and-dev:
+        # One PR for the whole admin-panel (runtime + dev, patch + minor).
+        patterns: ["*"]
+        update-types: ["patch", "minor"]
     ignore:
-      - dependency-name: "*"
+      # Blocked since b3001ee5: eslint-config-next's typescript-eslint v8 relied on the
+      # FlatESLint API removed in eslint 10. That reason dates from 2026-04; re-check
+      # (and drop this entry) once eslint-config-next documents eslint 10 support.
+      - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "npm"
+    directory: "/mcp-server"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+        update-types: ["patch", "minor"]
+      runtime-dependencies:
+        dependency-type: "production"
+        update-types: ["patch", "minor"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: "npm"
+    directory: "/docs-site"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+    groups:
+      compatible-patches:
+        update-types: ["patch"]
+      compatible-minors:
+        update-types: ["minor"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 3
     labels:
       - "ci"
+    groups:
+      compatible-patches:
+        update-types: ["patch"]
+      compatible-minors:
+        update-types: ["minor"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+    groups:
+      base-images:
+        patterns: ["*"]
+        update-types: ["patch", "minor"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+    ignore:
+      # The Node/Bun base-image lines are pinned deliberately and bumped by hand.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

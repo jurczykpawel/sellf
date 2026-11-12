@@ -3,13 +3,14 @@ import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 import { validateUpdateProduct } from '@/lib/validations/product';
 import { getTestDatabaseContainer } from '../helpers/database-container';
+import { readMigrationSource } from '../../scripts/migration-source';
 
 it('normalizes stored content links while preserving content metadata and policies', () => {
   const acceptedUrls = ["  https://drive.google.com/file/with space  ", "https:drive.google.com/file/relative", "ht\ttps://drive.google.com/file/tab"];
   for (const url of acceptedUrls) expect(validateUpdateProduct({ content_config: { content_items: [{ type: 'download_link', config: { download_url: url } }] } }).isValid).toBe(true);
   const fixture = readFileSync('tests/fixtures/product-content-cleanup.sql', 'utf8')
     .replace('CREATE TABLE public.products', 'CREATE TEMP TABLE products').replaceAll('public.products', 'pg_temp.products');
-  const migration = readFileSync('../supabase/migrations/20261108170000_product_content_url_cleanup.sql', 'utf8').replaceAll('public.products', 'pg_temp.products');
+  const migration = readMigrationSource('20261108170000_product_content_url_cleanup.sql').replaceAll('public.products', 'pg_temp.products');
   const query = `BEGIN; ${fixture} ${migration}
     DO $$ BEGIN
       IF (SELECT content_config #>> '{content_items,0,config,download_url}' FROM pg_temp.products WHERE id=1) IS DISTINCT FROM '' THEN RAISE EXCEPTION 'Expected empty link'; END IF;

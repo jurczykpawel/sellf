@@ -4,6 +4,7 @@ import { spawn } from 'child_process';
 import { dirname } from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@/lib/system/updater-compatibility', () => ({ checkLatestUpdaterCompatibility: vi.fn().mockResolvedValue({ version: 2, min_updater_version: 1, compatible: true }) }));
 vi.mock('child_process', () => ({ spawn: vi.fn(() => ({ once: vi.fn((event, callback) => { if (event === 'exit') callback(0); }) })) }));
 vi.mock('@/lib/system/upgrade-runtime-server', () => ({
   getUpgradeCapability: vi.fn(() => ({ runtime: 'pm2', mode: 'in-place' })),
@@ -19,6 +20,7 @@ vi.mock('@/lib/api', () => ({
 vi.mock('@/lib/supabase/admin', () => ({ createPlatformClient: () => ({ from: () => ({ insert: vi.fn() }) }) }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: vi.fn().mockResolvedValue(true) }));
 vi.mock('@/lib/system/upgrade-paths', () => ({ getUpgradeLockFilePath: () => '/lock', getUpgradeLogFilePath: () => '/log' }));
+import { checkLatestUpdaterCompatibility } from '@/lib/system/updater-compatibility';
 import { getUpgradeCapability } from '@/lib/system/upgrade-runtime-server';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { POST } from '@/app/api/v1/system/upgrade/route';
@@ -65,5 +67,15 @@ describe('upgrade runtime API', () => {
   it('reports a launcher failure instead of accepting the upgrade', async () => {
     vi.mocked(spawn).mockImplementationOnce(() => ({ once: (event: string, callback: (code: number) => void) => { if (event === 'exit') callback(1); } }) as ReturnType<typeof spawn>);
     expect((await POST(new NextRequest('http://localhost/api/v1/system/upgrade', { method: 'POST' }))).status).toBe(500);
+  });
+});
+
+describe('signed updater preflight', () => {
+  it.each(['too_old', 'verification_failed'] as const)('rejects %s before file creation or launcher', async reason => {
+    vi.mocked(checkLatestUpdaterCompatibility).mockResolvedValueOnce({ version: 1, min_updater_version: 2, compatible: false, reason, message: 'Use Stackpilot' });
+    const response = await POST(new NextRequest('http://localhost/api/v1/system/upgrade', { method: 'POST' }));
+    expect(response.status).toBe(409);
+    expect((await response.json()).error).toMatchObject({ code: reason === 'too_old' ? 'UPDATER_TOO_OLD' : 'UPDATER_VERIFICATION_FAILED', message: 'Use Stackpilot' });
+    expect(spawn).not.toHaveBeenCalled();
   });
 });
