@@ -328,6 +328,9 @@ async function getProcessedPaymentFromDatabase(
   }
 
   if (transaction.fulfillment_pending === true) return null;
+  if (!transaction.product_id) {
+    return { session_id: sessionId, status: 'complete', payment_status: 'paid', error: 'Product is no longer available' };
+  }
 
   // Check if user has access to the product
   const effectiveUserId = transaction.user_id || user?.id;

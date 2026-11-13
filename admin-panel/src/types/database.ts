@@ -1780,7 +1780,8 @@ export type Database = {
           license_key: string
           order_id: string
           original_seller_id: string
-          product_id: string
+          product_id: string | null
+          product_name: string | null
           revocation_reason: string | null
           revoked_at: string | null
           revoked_by_dispute_id: string | null
@@ -1801,7 +1802,8 @@ export type Database = {
           license_key: string
           order_id: string
           original_seller_id: string
-          product_id: string
+          product_id?: string | null
+          product_name?: string | null
           revocation_reason?: string | null
           revoked_at?: string | null
           revoked_by_dispute_id?: string | null
@@ -1822,7 +1824,8 @@ export type Database = {
           license_key?: string
           order_id?: string
           original_seller_id?: string
-          product_id?: string
+          product_id?: string | null
+          product_name?: string | null
           revocation_reason?: string | null
           revoked_at?: string | null
           revoked_by_dispute_id?: string | null
@@ -2227,7 +2230,7 @@ export type Database = {
           metadata: Json
           net_amount: number | null
           order_bump_id: string | null
-          product_id: string
+          product_id: string | null
           product_name: string | null
           quantity: number
           session_id: string | null
@@ -2255,7 +2258,7 @@ export type Database = {
           metadata?: Json
           net_amount?: number | null
           order_bump_id?: string | null
-          product_id: string
+          product_id?: string | null
           product_name?: string | null
           quantity?: number
           session_id?: string | null
@@ -2283,7 +2286,7 @@ export type Database = {
           metadata?: Json
           net_amount?: number | null
           order_bump_id?: string | null
-          product_id?: string
+          product_id?: string | null
           product_name?: string | null
           quantity?: number
           session_id?: string | null
@@ -2514,7 +2517,8 @@ export type Database = {
           payment_due_at: string | null
           payment_provider: string
           pricing_snapshot_version: number | null
-          product_id: string
+          product_id: string | null
+          product_name: string | null
           refund_id: string | null
           refund_reason: string | null
           refund_status: string | null
@@ -2575,7 +2579,8 @@ export type Database = {
           payment_due_at?: string | null
           payment_provider?: string
           pricing_snapshot_version?: number | null
-          product_id: string
+          product_id?: string | null
+          product_name?: string | null
           refund_id?: string | null
           refund_reason?: string | null
           refund_status?: string | null
@@ -2636,7 +2641,8 @@ export type Database = {
           payment_due_at?: string | null
           payment_provider?: string
           pricing_snapshot_version?: number | null
-          product_id?: string
+          product_id?: string | null
+          product_name?: string | null
           refund_id?: string | null
           refund_reason?: string | null
           refund_status?: string | null
@@ -3105,6 +3111,7 @@ export type Database = {
         Row: {
           allow_custom_price: boolean
           allow_repeat_purchase: boolean
+          archived_at: string | null
           auto_grant_duration_days: number | null
           available_from: string | null
           available_until: string | null
@@ -3173,6 +3180,7 @@ export type Database = {
         Insert: {
           allow_custom_price?: boolean
           allow_repeat_purchase?: boolean
+          archived_at?: string | null
           auto_grant_duration_days?: number | null
           available_from?: string | null
           available_until?: string | null
@@ -3241,6 +3249,7 @@ export type Database = {
         Update: {
           allow_custom_price?: boolean
           allow_repeat_purchase?: boolean
+          archived_at?: string | null
           auto_grant_duration_days?: number | null
           available_from?: string | null
           available_until?: string | null
@@ -3590,7 +3599,7 @@ export type Database = {
           customer_email: string
           id: string
           processed_at: string | null
-          product_id: string
+          product_id: string | null
           reason: string | null
           requested_amount: number
           status: string
@@ -3606,7 +3615,7 @@ export type Database = {
           customer_email: string
           id?: string
           processed_at?: string | null
-          product_id: string
+          product_id?: string | null
           reason?: string | null
           requested_amount: number
           status?: string
@@ -3622,7 +3631,7 @@ export type Database = {
           customer_email?: string
           id?: string
           processed_at?: string | null
-          product_id?: string
+          product_id?: string | null
           reason?: string | null
           requested_amount?: number
           status?: string
@@ -5687,7 +5696,7 @@ export type Database = {
           customer_email: string
           id: string
           processed_at: string | null
-          product_id: string
+          product_id: string | null
           reason: string | null
           requested_amount: number
           status: string
@@ -6300,6 +6309,7 @@ export type Database = {
         Returns: {
           allow_custom_price: boolean
           allow_repeat_purchase: boolean
+          archived_at: string | null
           auto_grant_duration_days: number | null
           available_from: string | null
           available_until: string | null
@@ -6395,6 +6405,7 @@ export type Database = {
         Returns: {
           allow_custom_price: boolean
           allow_repeat_purchase: boolean
+          archived_at: string | null
           auto_grant_duration_days: number | null
           available_from: string | null
           available_until: string | null
@@ -6568,6 +6579,7 @@ export type Database = {
         Args: { p: Database["public"]["Tables"]["products"]["Row"] }
         Returns: Json
       }
+      product_deletion_impact: { Args: { p_product_id: string }; Returns: Json }
       product_marketing_valid: { Args: { instance: Json }; Returns: boolean }
       product_offer_config_schema: { Args: never; Returns: Json }
       product_offer_config_valid: { Args: { config: Json }; Returns: boolean }
@@ -6632,6 +6644,19 @@ export type Database = {
       }
       release_unpaid_transfer: {
         Args: { p_id: string; p_now: string }
+        Returns: Json
+      }
+      remove_product_as: {
+        Args: {
+          actor_id: string
+          event_actor: Json
+          p_permanent: boolean
+          p_product_id: string
+        }
+        Returns: Json
+      }
+      restore_product_as: {
+        Args: { actor_id: string; event_actor: Json; p_product_id: string }
         Returns: Json
       }
       revoke_issued_licenses: {
@@ -6763,7 +6788,8 @@ export type Database = {
           payment_due_at: string | null
           payment_provider: string
           pricing_snapshot_version: number | null
-          product_id: string
+          product_id: string | null
+          product_name: string | null
           refund_id: string | null
           refund_reason: string | null
           refund_status: string | null

@@ -727,7 +727,7 @@ change time; envelope `timestamp` is the handoff time. `schemaVersion` is curren
 Public snapshot fields: `id`, `name`, `slug`, `description`, `longDescription`, `icon`,
 `imageUrl`, `thumbnailUrl`, `previewVideoUrl`, `features`, `marketingFields`, `price`,
 `salePrice`, `salePriceUntil`, `recurringPrice`, `currency`, `productType`, `isBundle`,
-`eventMode`, `isActive`, `isListed`, `isFeatured`, `availableFrom`, `availableUntil`,
+`eventMode`, `isActive`, `isListed`, `isFeatured`, `archivedAt`, `availableFrom`, `availableUntil`,
 `allowCustomPrice`, `customPriceMin`, `billingInterval`, `billingIntervalCount`, `trialDays`,
 `priceIncludesVat`, `vatRate`, `vatExempt`, `isRefundable`, `refundPeriodDays`,
 `autoGrantDurationDays`, `allowRepeatPurchase`, `enableWaitlist`, `saleQuantityLimit`,
@@ -780,4 +780,11 @@ Example `product.updated` delivery (public snapshot shortened for readability):
 
 `product.created` uses the same shape with `operation: "insert"`, `revision: 1`, `changedFields: []`.
 `product.deleted` uses `operation: "delete"`, the next revision and `changedFields: []`; `product` is the last saved public state.
+
+**Archive.** Deleting a product that has orders, licenses or buyer access moves it to the archive instead
+(see [API: deleting products](/api/#deleting-products-and-the-archive)). Archiving sends `product.updated` with
+`archivedAt` set, `isActive: false` and `archivedAt` in `changedFields` (an active product also sends `product.unpublished`);
+restoring sends `product.updated` with `archivedAt: null`. A permanent delete from the archive sends exactly one
+`product.deleted`. Orders, invoices and licenses stay: later events about them (for example `refund.issued`) carry
+`product.id: null` and the product name from the time of purchase.
 The dashboard event picker describes all three; **Test endpoint** previews a complete example for each.

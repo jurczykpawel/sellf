@@ -96,7 +96,8 @@
       "configure_appearance",
       "guide",
       "buyer_mail_off",
-      "buyer_mail_on"
+      "buyer_mail_on",
+      "archive_product"
     ]
   },
   "journeys": [
@@ -5016,6 +5017,72 @@
         "seller": "Product GUS option is absent; shop integration controls availability",
         "integrator": "API v1 and MCP reject removed buyer.gus input"
       }
+    },
+    {
+      "id": "J600",
+      "title": "Admin deletes a sold product in the panel; it moves to the archive and can be restored",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "archive_product"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Order, license and access records stay; content is paused while the product is archived",
+        "seller": "Dialog 'Produkt ma 1 zamówienie — zostanie przeniesiony do archiwum.'; product leaves the list, appears under the Archiwum filter and Przywróć returns it as inactive",
+        "integrator": "Not exercised in the browser; archive state is covered by J602"
+      },
+      "layers": [
+        "browser",
+        "database"
+      ]
+    },
+    {
+      "id": "J601",
+      "title": "Admin deletes an archived licensed product permanently after reading the consequences",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "license",
+        "payment": "card",
+        "moment": "after_edit",
+        "operation": "archive_product"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Loses product access; the order and license stay with the purchase-time product name",
+        "seller": "Dialog lists kept orders, invoices and licenses, lost buyer access and that it cannot be undone; product disappears",
+        "integrator": "Not exercised in the browser; deletion events are covered by J602"
+      },
+      "layers": [
+        "browser",
+        "database"
+      ]
+    },
+    {
+      "id": "J602",
+      "title": "Integrator deletes a sold product through the API: archive, restore, permanent delete",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "archive_product"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Order and license survive both archive and permanent delete",
+        "seller": "DELETE returns status archived with the impact counts; permanent=true is refused until archived",
+        "integrator": "Archive emits one product.updated with archivedAt; permanent delete of an archived product emits exactly one product.deleted"
+      },
+      "layers": [
+        "api",
+        "database"
+      ]
     }
   ],
   "escapes": [

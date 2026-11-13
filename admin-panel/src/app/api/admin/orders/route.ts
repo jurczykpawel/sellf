@@ -66,7 +66,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const loadTransactions = async () => {
       if (!wantsTransactions) return [];
       let query = (searchText ? db.rpc('search_payment_transactions', { p_search: searchText, p_include_identifiers: false }) : db.from('payment_transactions'))
-        .select('id,order_number,customer_email,user_id,product_id,amount,currency,status,payment_provider,created_at')
+        .select('id,order_number,customer_email,user_id,product_id,product_name,amount,currency,status,payment_provider,created_at')
         .order('created_at', { ascending: false }).order('id', { ascending: false }).limit(fetchSize);
       if (type === 'transfer') query = query.eq('payment_provider', 'bank_transfer');
       if (type === 'paid') query = query.or('payment_provider.is.null,payment_provider.neq.bank_transfer');

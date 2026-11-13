@@ -12,7 +12,6 @@ import { useTranslations } from 'next-intl';
 import { useLocale } from 'next-intl';
 import { toast } from 'sonner';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { productAffiliateMessages } from '@/components/affiliates/products/messages';
 
 interface SortableHeaderProps {
   column: string;
@@ -52,7 +51,9 @@ interface ProductsTableProps {
   checkoutPath: (slug: string) => string;
   onEditProduct: (product: Product) => void;
   onDuplicateProduct: (product: Product) => void;
+  /** Delete (archives a product with orders) or, for an archived product, delete permanently. */
   onDeleteProduct: (product: Product) => void;
+  onRestoreProduct: (product: Product) => void;
   onPreviewProduct: (product: Product) => void;
   onPreviewRedirect: (product: Product) => void;
   onGenerateEmbedSnippet: (product: Product) => void;
@@ -130,6 +131,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
   onEditProduct,
   onDuplicateProduct,
   onDeleteProduct,
+  onRestoreProduct,
   onPreviewProduct,
   onPreviewRedirect,
   onGenerateEmbedSnippet,
@@ -327,7 +329,11 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center gap-1">
-                        {product.is_active ? (
+                        {product.archived_at ? (
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold bg-sf-raised text-sf-muted">
+                            {t('archivedBadge')}
+                          </span>
+                        ) : product.is_active ? (
                           <button
                             onClick={() => onToggleStatus(product.id, product.is_active)}
                             className="px-2 inline-flex text-xs leading-5 font-semibold cursor-pointer transition-colors hover:opacity-80 bg-sf-success-soft text-sf-success"
@@ -355,7 +361,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                           </Tooltip>
                         )}
                         {/* Waitlist indicator for inactive products */}
-                        {!product.is_active && (
+                        {!product.is_active && !product.archived_at && (
                           <Tooltip
                             content={product.enable_waitlist ? t('waitlistEnabled') : t('waitlistDisabled')}
                             side="top"
@@ -467,7 +473,28 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                             >
                               <ActionsDropdown
                                 onClose={() => setOpenDropdownId(null)}
-                                items={[
+                                items={product.archived_at ? [
+                                  {
+                                    label: t('restore'),
+                                    icon: (
+                                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 010 10H9M3 10l4-4M3 10l4 4" />
+                                      </svg>
+                                    ),
+                                    onClick: () => onRestoreProduct(product),
+                                  },
+                                  {
+                                    separator: true,
+                                    label: t('deletePermanently'),
+                                    icon: (
+                                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                    ),
+                                    onClick: () => onDeleteProduct(product),
+                                    danger: true,
+                                  },
+                                ] : [
                                   // ── View ────────────────────────────────────
                                   {
                                     label: t('testFunnel'),
@@ -551,11 +578,6 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                                     ),
                                     onClick: () => onDuplicateProduct(product),
                                   },
-                                  ...(product.is_active ? [{
-                                    label: productAffiliateMessages[locale === 'pl' ? 'pl' : 'en'].archive,
-                                    icon: <span aria-hidden>▣</span>,
-                                    onClick: () => onToggleStatus(product.id, product.is_active),
-                                  }] : []),
                                   // ── Danger zone ──────────────────────────────
                                   {
                                     separator: true,

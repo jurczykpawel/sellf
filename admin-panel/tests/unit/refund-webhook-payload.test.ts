@@ -190,3 +190,8 @@ it('lets a refund receiver correlate the Sellf order number', async () => {
   const payload = await buildRefundIssuedPayloadFromTransaction({ supabaseClient: mockSupabaseFor({ product: productRow, tx: { net_total: 10000, tax_total: 2300, order_number: 1801 } }), transaction: txRow, stripeRefundId: null, refundAmount: 100, previousRefundedAmount: 0, totalRefunded: 100, isFullRefund: false, statusBefore: 'completed', statusAfter: 'partially_refunded', refundedAt: '2026-11-05T00:00:00Z', source: 'admin' });
   expect(payload.payment).toMatchObject({ id: txRow.id, orderNumber: 1801 });
 });
+
+it('names the purchased product when it was permanently deleted after the order', async () => {
+  const payload = await buildRefundIssuedPayloadFromTransaction({ supabaseClient: mockSupabaseFor({ product: null, tx: { net_total: null, tax_total: null } }), transaction: { ...txRow, product_id: null, product_name: 'Archived course' }, stripeRefundId: 're_2', refundAmount: 100, previousRefundedAmount: 0, totalRefunded: 100, isFullRefund: false, statusBefore: 'completed', statusAfter: 'partially_refunded', refundedAt: '2026-11-14T00:00:00Z', source: 'admin' });
+  expect(payload.product).toEqual({ id: null, name: 'Archived course' });
+});

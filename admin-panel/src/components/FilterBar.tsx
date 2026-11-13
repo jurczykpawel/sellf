@@ -36,7 +36,8 @@ const FilterBar: React.FC<FilterBarProps> = ({
   const statusOptions: FilterOption[] = [
     { label: t('all'), value: 'all' },
     { label: t('active'), value: 'active' },
-    { label: t('inactive'), value: 'inactive' }
+    { label: t('inactive'), value: 'inactive' },
+    { label: t('archived'), value: 'archived' }
   ];
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onSearchChange(e.target.value);

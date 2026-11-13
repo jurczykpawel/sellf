@@ -48,10 +48,12 @@ describe.each(['session', 'api_key'])('%s product mutations', (method) => {
     const response = operation === 'INSERT' ? await POST(request)
       : operation === 'UPDATE' ? await PATCH(request, context) : await DELETE(request, context);
     expect(response.status).toBe(operation === 'INSERT' ? 201 : operation === 'DELETE' ? 204 : 200);
-    expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_as', expect.objectContaining({
-      operation_param: operation, actor_id: actor, product_id: operation === 'INSERT' ? null : product.id,
-      event_actor: method === 'api_key' ? { type: 'api_key', id: apiKeyId } : { type: 'user', id: actor },
-    }));
+    const eventActor = method === 'api_key' ? { type: 'api_key', id: apiKeyId } : { type: 'user', id: actor };
+    expect(mocks.rpc).toHaveBeenCalledWith(...(operation === 'DELETE'
+      ? ['remove_product_as', { event_actor: eventActor, actor_id: actor, p_product_id: product.id, p_permanent: false }]
+      : ['mutate_product_as', expect.objectContaining({
+        operation_param: operation, actor_id: actor, product_id: operation === 'INSERT' ? null : product.id, event_actor: eventActor,
+      })]));
     for (const result of mocks.from.mock.results) {
       expect(result.value.insert).not.toHaveBeenCalled();
       expect(result.value.update).not.toHaveBeenCalled();
@@ -71,7 +73,7 @@ describe.each(['session', 'api_key'])('%s product mutations', (method) => {
     const response = method === 'POST' ? await POST(request)
       : method === 'PATCH' ? await PATCH(request, context) : await DELETE(request, context);
     expect(response.status).toBe(500);
-    expect(mocks.rpc).toHaveBeenCalledWith('mutate_product_as', expect.objectContaining({ actor_id: actor }));
+    expect(mocks.rpc).toHaveBeenCalledWith(method === 'DELETE' ? 'remove_product_as' : 'mutate_product_as', expect.objectContaining({ actor_id: actor }));
     expect(await response.text()).not.toContain('private database detail');
   });
 

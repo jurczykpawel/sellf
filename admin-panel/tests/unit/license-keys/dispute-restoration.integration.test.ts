@@ -97,6 +97,8 @@ afterEach(async()=>{
  vi.restoreAllMocks();
  await db.from('webhook_endpoints').delete().eq('id',endpoint);
  await db.from('payment_transactions').delete().eq('id',transaction);
+ // Licenses outlive their product; remove this run's ones so the fixed order id starts clean.
+ await db.from('issued_licenses').delete().eq('order_id',order);
  await db.from('products').delete().in('id',[product,...additionalProducts]);
  await db.from('seller_license_keys').delete().eq('original_seller_id',h.seller);
  if(buyer)await db.auth.admin.deleteUser(buyer);if(h.seller)await db.auth.admin.deleteUser(h.seller);

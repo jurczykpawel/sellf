@@ -311,6 +311,19 @@ describe('revokeTransactionAccess', () => {
       expect(result.bumpProductsRevoked).toBe(1);
     });
 
+    it('revokes remaining bump access of an order whose main product was deleted', async () => {
+      const mock = createMockSupabase({
+        bumpLineItems: [{ product_id: BUMP_1 }, { product_id: null as unknown as string }],
+      });
+
+      const result = await revokeTransactionAccess(mock as never, { ...fullTarget, productId: null });
+
+      expect(result.success).toBe(true);
+      expect(result.mainProductRevoked).toBe(false);
+      expect(result.bumpProductsRevoked).toBe(1);
+      expect(mock._fromCalls.some(c => c.table === 'user_product_access' && c.filters.product_id === `[${BUMP_1}]`)).toBe(true);
+    });
+
     it('revokes bump guest_purchases even without user_id (guest-only)', async () => {
       const mock = createMockSupabase({
         bumpLineItems: [{ product_id: BUMP_1 }],

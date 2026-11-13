@@ -103,7 +103,8 @@ export async function POST(request: NextRequest) {
         refund_reason,
         created_at,
         updated_at,
-        products!inner(name, slug)
+        product_name,
+        products(name, slug)
       `)
       .order('created_at', { ascending: false }).order('id', { ascending: false });
 
@@ -180,7 +181,7 @@ export async function POST(request: NextRequest) {
         transaction.session_id || '',
         transaction.user_id || '',
         transaction.customer_email || '',
-        (product as Record<string, unknown> | null)?.name || '',
+        (product as Record<string, unknown> | null)?.name || transaction.product_name || '',
         (product as Record<string, unknown> | null)?.slug || '',
         money(transaction.amount),
         transaction.currency,

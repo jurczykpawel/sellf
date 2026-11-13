@@ -368,10 +368,34 @@ All endpoints are prefixed with `/api/v1`. Every endpoint also supports `OPTIONS
 | POST | `/products` | `products:write` | Create product |
 | GET | `/products/{id}` | `products:read` | Get product |
 | PATCH | `/products/{id}` | `products:write` | Update product |
-| DELETE | `/products/{id}` | `products:write` | Delete product |
+| DELETE | `/products/{id}` | `products:write` | Delete product (archives it when it has orders, see below) |
+| DELETE | `/products/{id}?permanent=true` | `products:write` | Delete an archived product permanently |
+| POST | `/products/{id}/restore` | `products:write` | Restore an archived product (stays inactive) |
+| GET | `/products/{id}/deletion-impact` | `products:read` | What a delete would affect |
 | GET | `/products/{id}/oto` | `products:read` | Get one-time offer config |
 | PUT | `/products/{id}/oto` | `products:write` | Set one-time offer |
 | DELETE | `/products/{id}/oto` | `products:write` | Remove one-time offer |
+
+### Deleting products and the archive
+
+Orders, invoices and licenses are never deleted together with a product.
+
+- `DELETE /products/{id}` on a product **without** orders, licenses, buyer access or subscriptions deletes it: **204**.
+- The same call on a product **with** such history moves it to the **archive** instead: **200** with
+  `{ "data": { "id": "…", "status": "archived", "impact": { "orders": 3, "invoices": 1, "licenses": 2, "accesses": 3, "subscriptions": 0, "hasHistory": true } } }`.
+  An archived product has `archived_at` set and `is_active: false`: it leaves the store, product lists and pickers,
+  and every record stays. Buyers cannot open its content until it is restored and activated. Repeating the call returns the same 200.
+- `GET /products?status=archived` lists archived products. The other `status` values (`all`, `active`, `inactive`) never include them.
+- `POST /products/{id}/restore` moves it back to the product list as inactive; activate it with `PATCH {"is_active": true}`.
+  Activating an archived product returns **409**.
+- `DELETE /products/{id}?permanent=true` deletes an archived product: **204**. Orders, invoices and licenses stay with
+  `product_id: null` and the product name from the time of purchase (`product_name`); buyer access ends.
+  A product with history that is not archived returns **409** (archive it first). A product still used by subscriptions,
+  affiliate rules, a bundle or event reservations returns **409** and stays in the archive.
+- `GET /products/{id}/deletion-impact` returns the `impact` object above without changing anything.
+
+Webhooks: archive and restore send `product.updated` (`changedFields` contains `archivedAt`; archiving an active product also
+sends `product.unpublished`). A permanent delete sends exactly one `product.deleted`.
 
 ### Users & Access
 

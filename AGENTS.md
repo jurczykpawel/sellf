@@ -553,6 +553,18 @@ minor-unit prices; `products.webhook_revision` is database-owned. No-op/protecte
 writes are silent. Product routing is saved before cascading deletes; the worker removes
 internal routing metadata before signed delivery. See docs-site webhooks PL/EN.
 
+### Product archive
+
+"Delete" never removes sales records. `remove_product_as` (service role, row-locked) deletes a
+product without history and archives one with orders, licenses, buyer access, subscriptions or
+affiliate rules (`archived_at` set, `is_active=false`, enforced by `products_archived_not_active`).
+`DELETE /api/v1/products/:id?permanent=true` deletes only archived products; `payment_transactions`,
+`payment_line_items`, `refund_requests` and `issued_licenses` use `ON DELETE SET NULL` and keep the
+purchase-time `product_name` (orders, licenses). Subscriptions, affiliate rules, bundle components and
+event reservations still block a permanent delete. `restore_product_as` returns a product inactive.
+`GET /api/v1/products` hides archived products unless `status=archived`, so every admin picker
+excludes them. Panel: `ProductRemoveDialog` (impact from `/deletion-impact`), "Archiwum" filter.
+
 ### Free checkout field context
 
 Free magic-link requests validate custom answers before email and persist them in service-only `free_grant_contexts`.

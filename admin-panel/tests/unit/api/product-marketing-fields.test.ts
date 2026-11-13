@@ -84,7 +84,7 @@ beforeEach(() => {
     const query = {
       select: vi.fn((fields: string) => { selected = fields; return query; }),
       eq: vi.fn((field: string) => { slugCheck = field === 'slug'; return query; }),
-      order: vi.fn(() => query), limit: vi.fn(() => query),
+      order: vi.fn(() => query), limit: vi.fn(() => query), is: vi.fn(() => query), not: vi.fn(() => query),
       insert: vi.fn((values: Record<string, unknown>[]) => { writes.push(values[0]); row = { ...row, ...values[0] }; return query; }),
       update: vi.fn((values: Record<string, unknown>) => { writes.push(values); row = { ...row, ...values }; return query; }),
       maybeSingle: vi.fn(async () => ({ data: slugCheck ? null : result().data, error: null })),

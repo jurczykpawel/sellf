@@ -11,7 +11,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
 type Db = SupabaseClient<Database>;
-export interface QuickPayOrder { id: string; payment_provider: string; status: string; amount: number; currency: string; product_id: string; coupon_id: string | null; order_number: number | null; customer_email: string }
+export interface QuickPayOrder { id: string; payment_provider: string; status: string; amount: number; currency: string; product_id: string | null; coupon_id: string | null; order_number: number | null; customer_email: string }
 export type QuickPayQuote =
   | { mode: 'settle' | 'reopen'; amount: number; currency: string }
   | { mode: 'paid' }
@@ -22,6 +22,7 @@ const unavailable = (reason: Extract<QuickPayQuote, { mode: 'unavailable' }>['re
 export async function quoteOrderPayment(db: Db, tx: QuickPayOrder, now: Date): Promise<QuickPayQuote> {
   if (tx.payment_provider !== 'bank_transfer') return unavailable('not_payable');
   if (tx.status === 'completed' || tx.status === 'partially_refunded') return { mode: 'paid' };
+  if (!tx.product_id) return unavailable('product_unavailable');
   if (tx.status === 'awaiting_payment') return { mode: 'settle', amount: tx.amount, currency: tx.currency };
   if (tx.status !== 'cancelled') return unavailable('not_payable');
   const invoice = await db.from('invoices').select('status').eq('transaction_id', tx.id).maybeSingle();

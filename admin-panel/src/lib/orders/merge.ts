@@ -20,7 +20,7 @@ const TYPE_BY_SOURCE: Record<string, OrderType> = { free: 'free', manual: 'manua
 
 export interface OrderTransactionRow {
   id: string; order_number: number | null; customer_email: string | null; user_id: string | null;
-  product_id: string; amount: number; currency: string; status: string;
+  product_id: string | null; product_name: string | null; amount: number; currency: string; status: string;
   payment_provider: string | null; created_at: string;
 }
 export interface OrderAccessRow {
@@ -66,15 +66,15 @@ export function compareOrders(a: Pick<OrderRow, 'createdAt' | 'id'>, b: Pick<Ord
 }
 
 export function mergeOrders({ transactions, accesses, leads, products, emails, now = new Date() }: MergeOrdersInput): OrderRow[] {
-  const base = (id: string | null) => {
+  const base = (id: string | null, purchasedName: string | null = null) => {
     const product = id ? products.get(id) : undefined;
-    return { productId: id, productName: product?.name ?? null, productSlug: product?.slug ?? null };
+    return { productId: id, productName: product?.name ?? purchasedName, productSlug: product?.slug ?? null };
   };
   const rows: OrderRow[] = [
     ...transactions.map((t): OrderRow => ({
       id: `tx:${t.id}`, type: t.payment_provider === 'bank_transfer' ? 'transfer' : 'paid', status: t.status,
       createdAt: t.created_at, orderNumber: t.order_number, email: t.customer_email ?? (t.user_id ? emails.get(t.user_id) ?? null : null),
-      ...base(t.product_id), amount: t.amount, currency: t.currency, transactionId: t.id,
+      ...base(t.product_id, t.product_name), amount: t.amount, currency: t.currency, transactionId: t.id,
     })),
     ...accesses.map((a): OrderRow => ({
       id: `access:${a.id}`, type: TYPE_BY_SOURCE[a.grant_source] ?? 'other',
