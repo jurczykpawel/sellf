@@ -311,8 +311,13 @@ export async function cleanup(resources: {
     // and its component.
     await deleteBundleItemsFor(supabase, resources.products);
 
+    // A product with orders is archived by the first DELETE; remove it permanently.
     resources.products.forEach((id) => {
-      calls.push({ label: `product ${id}`, promise: del(`/api/v1/products/${id}`) });
+      calls.push({
+        label: `product ${id}`,
+        promise: del(`/api/v1/products/${id}`).then((first) =>
+          first.status === 200 ? del(`/api/v1/products/${id}?permanent=true`) : first),
+      });
     });
   }
 

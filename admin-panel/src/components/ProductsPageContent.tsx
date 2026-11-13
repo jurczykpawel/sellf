@@ -10,10 +10,11 @@ import type { ProductFormData } from './ProductFormModal/types';
 import EmbedSnippetModal from './EmbedSnippetModal';
 import LoginwallSnippetModal from './LoginwallSnippetModal';
 import GateSnippetModal from './GateSnippetModal';
+import ProductRemoveDialog from './ProductRemoveDialog';
 import { exportProductsToCsv } from '@/utils/csvExport';
 import { useTranslations } from 'next-intl';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useProducts } from '@/hooks/useProducts';
+import { useProducts, type ProductStatusFilter } from '@/hooks/useProducts';
 import { isRelativeOrHttpUrl } from '@/lib/validations/redirect';
 import { duplicateProductDraft } from '@/lib/product-duplicate';
 import { ApiError } from '@/lib/api/client';
@@ -36,7 +37,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   const checkoutPath = (productSlug: string) => `/checkout/${productSlug}`;
 
   // State for modals
-  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [productToRemove, setProductToRemove] = useState<{ product: Product; mode: 'remove' | 'permanent' } | null>(null);
   const [showExportConfirmation, setShowExportConfirmation] = useState(false);
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -55,7 +56,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   // State for filtering and sorting
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>('all');
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -68,7 +69,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
     fetchProducts,
     createProduct,
     updateProduct,
-    deleteProduct,
+    restoreProduct,
     toggleStatus,
     toggleFeatured,
     toggleListed,
@@ -168,21 +169,21 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
     }
   };
 
-  const confirmDelete = async () => {
-    if (!productToDelete) return;
+  const handleRemoved = async (outcome: 'archived' | 'deleted') => {
+    if (!productToRemove) return;
+    const productName = productToRemove.product.name;
+    setProductToRemove(null);
+    await fetchProducts();
+    toast.success(outcome === 'archived' ? t('archiveSuccess', { name: productName }) : t('deleteSuccess', { name: productName }));
+  };
 
+  const handleRestoreProduct = async (product: Product) => {
     try {
-      // Use the v1 API hook to delete the product
-      await deleteProduct(productToDelete.id);
-
-      const productName = productToDelete.name;
-
+      await restoreProduct(product.id);
       await fetchProducts();
-      setProductToDelete(null);
-
-      toast.success(t('deleteSuccess', { name: productName }));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('deleteError'));
+      toast.success(t('restoreSuccess', { name: product.name }));
+    } catch {
+      toast.error(t('restoreError'));
     }
   };
 
@@ -228,7 +229,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   };
 
   const handleDeleteProductClick = (product: Product) => {
-    setProductToDelete(product);
+    setProductToRemove({ product, mode: product.archived_at ? 'permanent' : 'remove' });
   };
 
   const handleToggleStatus = async (productId: string, currentStatus: boolean) => {
@@ -287,7 +288,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   };
 
   const handleStatusFilterChange = (status: string) => {
-    setStatusFilter(status as 'all' | 'active' | 'inactive');
+    setStatusFilter(status as ProductStatusFilter);
     setCurrentPage(1);
   };
 
@@ -333,6 +334,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
         onEditProduct={handleEditProduct}
         onDuplicateProduct={handleDuplicateProduct}
         onDeleteProduct={handleDeleteProductClick}
+        onRestoreProduct={handleRestoreProduct}
         onPreviewProduct={handlePreviewProduct}
         onPreviewRedirect={handlePreviewRedirect}
         onGenerateEmbedSnippet={handleGenerateEmbedSnippet}
@@ -372,32 +374,13 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
         />
       )}
 
-      {productToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-          <div
-            className="bg-sf-base p-6 w-full max-w-md"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold text-sf-heading">{t('confirmDelete')}</h3>
-            <p className="mt-2 text-sm text-sf-body">
-              {t('deleteConfirmMessage', { name: productToDelete.name })}
-            </p>
-            <div className="mt-6 flex justify-end space-x-3">
-              <button
-                onClick={() => setProductToDelete(null)}
-                className="px-4 py-2 text-sm font-medium text-sf-body bg-sf-base border-2 border-sf-border-medium hover:bg-sf-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sf-accent"
-              >
-                {t('cancel')}
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              >
-                {t('delete')}
-              </button>
-            </div>
-          </div>
-        </div>
+      {productToRemove && (
+        <ProductRemoveDialog
+          product={productToRemove.product}
+          mode={productToRemove.mode}
+          onClose={() => setProductToRemove(null)}
+          onDone={handleRemoved}
+        />
       )}
 
       {showExportConfirmation && (

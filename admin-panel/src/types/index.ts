@@ -40,6 +40,8 @@ export interface Product {
   is_active: boolean
   is_featured: boolean
   is_listed: boolean
+  /** Set when the product is in the archive (hidden from the store and product lists). */
+  archived_at?: string | null
   // Bundle: when true this product groups other products as components
   is_bundle: boolean
   // Component count for a bundle (populated by the list API only)

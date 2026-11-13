@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       .from('payment_transactions')
       .select(`
         *,
-        products!inner(name, slug)
+        products(name, slug)
       `)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);

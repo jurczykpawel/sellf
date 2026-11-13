@@ -15,7 +15,7 @@ interface UseProductsParams {
   page?: number;
   limit?: number;
   search?: string;
-  status?: 'all' | 'active' | 'inactive';
+  status?: ProductStatusFilter;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }
@@ -33,7 +33,7 @@ interface UseProductsResult {
   fetchProducts: () => Promise<void>;
   createProduct: (data: ProductCreateData) => Promise<Product>;
   updateProduct: (id: string, data: ProductUpdateData) => Promise<Product>;
-  deleteProduct: (id: string) => Promise<void>;
+  restoreProduct: (id: string) => Promise<void>;
   toggleStatus: (id: string, currentStatus: boolean) => Promise<void>;
   toggleFeatured: (id: string, currentFeatured: boolean) => Promise<void>;
   toggleListed: (id: string, currentListed: boolean) => Promise<void>;
@@ -72,6 +72,9 @@ type ProductUpdateData = Partial<ProductCreateData>;
 /**
  * Hook for products CRUD operations using v1 API
  */
+/** `archived` lists only archived products; the other filters never include them. */
+export type ProductStatusFilter = 'all' | 'active' | 'inactive' | 'archived';
+
 export function useProducts(params: UseProductsParams = {}): UseProductsResult {
   const {
     page = 1,
@@ -252,8 +255,11 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
   /**
    * Delete a product
    */
-  const deleteProduct = useCallback(async (id: string): Promise<void> => {
-    await api.delete('products', id);
+  /**
+   * Restore an archived product (it stays inactive)
+   */
+  const restoreProduct = useCallback(async (id: string): Promise<void> => {
+    await api.postCustom(`products/${id}/restore`);
   }, []);
 
   /**
@@ -285,7 +291,7 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
     fetchProducts,
     createProduct,
     updateProduct,
-    deleteProduct,
+    restoreProduct,
     toggleStatus,
     toggleFeatured,
     toggleListed,

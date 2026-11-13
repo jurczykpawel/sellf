@@ -3,7 +3,7 @@
  *
  * GET /api/v1/products/:id - Get product by ID
  * PATCH /api/v1/products/:id - Update product
- * DELETE /api/v1/products/:id - Delete product
+ * DELETE /api/v1/products/:id - Delete product (archives it when it has orders)
  */
 
 import { NextRequest } from 'next/server';
@@ -299,6 +299,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         if (code === '23505') {
           return apiError(request, 'ALREADY_EXISTS', 'A product with this slug already exists');
         }
+        if (code === '23514' && updateError.message.includes('products_archived_not_active')) {
+          return apiError(request, 'CONFLICT', 'Restore the product from the archive before activating it');
+        }
         if (code === '23514') {
           throw new ApiValidationError('Validation failed', {
             _errors: [`Database constraint violation: ${updateError.message}`],
@@ -412,25 +415,28 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 /**
  * DELETE /api/v1/products/:id
  *
- * Delete a product. This is a soft operation that respects database constraints.
- * Products with active user access or payments may fail to delete.
+ * A product without orders, licenses, buyer access or subscriptions is deleted (204).
+ * A product with such history is moved to the archive instead (200, `status: "archived"`):
+ * it leaves the store and lists, and every record stays.
+ * DELETE /api/v1/products/:id?permanent=true deletes an archived product (204); orders,
+ * invoices and licenses are kept with the purchase-time product name, buyer access ends.
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const auth = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
     const { supabase, admin } = auth;
     const { id } = await params;
+    const permanent = request.nextUrl.searchParams.get('permanent') === 'true';
 
-    // Validate ID format
     const idValidation = validateProductId(id);
     if (!idValidation.isValid) {
       return apiError(request, 'INVALID_INPUT', 'Invalid product ID format');
     }
 
-    // Check product exists (need slug to invalidate cache below)
+    // Need the slug to invalidate the public cache below
     const { data: existingProduct, error: checkError } = await supabase
       .from('products')
-      .select('id, name, slug')
+      .select('id, slug')
       .eq('id', id)
       .single();
 
@@ -438,49 +444,31 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'NOT_FOUND', 'Product not found');
     }
 
-    const { data: affiliateRule, error: affiliateError } = await supabase
-      .from('affiliate_rules').select('id').eq('product_id', id).limit(1).maybeSingle();
-    if (affiliateError) return apiError(request, 'INTERNAL_ERROR', 'Failed to check product history');
-    const { data: affiliateCommission, error: commissionError } = await supabase
-      .from('affiliate_commissions').select('id,payment:payment_transactions!inner(product_id)')
-      .eq('payment.product_id', id).limit(1).maybeSingle();
-    if (commissionError) return apiError(request, 'INTERNAL_ERROR', 'Failed to check product history');
-    if (affiliateRule || affiliateCommission) {
-      const locale = request.cookies.get('NEXT_LOCALE')?.value ?? request.headers.get('accept-language');
-      return apiError(request, 'CONFLICT', locale?.startsWith('pl')
-        ? 'Ten produkt ma historię partnerską. Wybierz Archiwizuj w menu produktu, aby ją zachować.'
-        : 'This product has affiliate history. Choose Archive in the product menu to keep its history.',
-      { archive: ['PATCH /api/v1/products/' + id, '{"is_active":false}'] });
-    }
-
-    // Foreign-key cascades are part of the product transaction.
-    const { error: deleteError } = await supabase.rpc('mutate_product_as', {
-          event_actor: { ...accessActor(auth) },
-      operation_param: 'DELETE',
-      product_data: {},
-      product_id: id,
+    const { data, error: removeError } = await supabase.rpc('remove_product_as', {
+      event_actor: { ...accessActor(auth) },
+      p_product_id: id,
       actor_id: admin.userId,
+      p_permanent: permanent,
     });
 
-    if (deleteError) {
-      if (deleteError.code === 'P0002') return apiError(request, 'NOT_FOUND', 'Product not found');
-      console.error('[products.DELETE]', deleteError);
-
-      // Check for foreign key constraint violations
-      if (deleteError.code === '23503') {
-        return apiError(
-          request,
-          'CONFLICT',
-          'Cannot delete product with existing user access or payments'
-        );
+    if (removeError) {
+      if (removeError.code === 'P0002') return apiError(request, 'NOT_FOUND', 'Product not found');
+      if (removeError.code === '55000') {
+        return apiError(request, 'CONFLICT', 'This product has orders. Archive it first (DELETE without permanent=true).');
       }
-
+      if (removeError.code === '23503') {
+        return apiError(request, 'CONFLICT',
+          'This product is still used by subscriptions, affiliate rules, bundles or event reservations. It stays in the archive.');
+      }
+      console.error('[products.DELETE]', removeError);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to delete product');
     }
 
     invalidatePublicProducts(id, existingProduct.slug, true);
-
-    // Return 204 No Content on successful deletion
+    const result = data as { result: 'archived' | 'deleted'; impact: Record<string, unknown> } | null;
+    if (result?.result === 'archived') {
+      return jsonResponse(successResponse({ id, status: 'archived', impact: result.impact }), request);
+    }
     return noContentResponse(request);
   } catch (error) {
     return handleApiError(error, request);

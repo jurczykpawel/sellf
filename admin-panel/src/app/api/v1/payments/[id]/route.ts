@@ -69,7 +69,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         status,
         stripe_payment_intent_id,
         product_id,
-        products!inner(id, name, slug, price, currency, custom_checkout_fields, is_bundle),
+        product_name,
+        products(id, name, slug, price, currency, custom_checkout_fields, is_bundle),
         coupons!payment_transactions_coupon_id_fkey(code),
         coupon_redemptions(coupons!coupon_redemptions_coupon_id_fkey(code)),
         invoices(status,number,view_url,error,attempts),
@@ -103,9 +104,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { data: lineItems, error: lineError } = await adminClient.from('payment_line_items').select('*').eq('transaction_id', id);
     if (lineError) return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch payment items');
 
-    const productRelation = payment.products as unknown as PaymentProductRelation;
+    // Null once the product was permanently deleted; the order keeps the purchase-time name.
+    const productRelation = payment.products as unknown as PaymentProductRelation | null;
     let bundleComponents: Array<{ name: string; slug: string }> = [];
-    if (productRelation.is_bundle) {
+    if (productRelation?.is_bundle) {
       const components = await adminClient.from('bundle_items').select('component:products!bundle_items_component_product_id_fkey(name,slug)').eq('bundle_product_id', payment.product_id).order('display_order');
       if (components.error) return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch payment components');
       bundleComponents = (components.data ?? []).flatMap(row => { const value = firstRelated<{ name: string; slug: string }>(row.component); return value ? [value] : []; });
@@ -143,7 +145,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         status: payment.status,
         stripe_payment_intent_id: payment.stripe_payment_intent_id,
         product: (() => {
-          const p = payment.products as unknown as PaymentProductRelation;
+          const p = productRelation;
+          if (!p) return { id: null, name: payment.product_name, slug: null, price: null, currency: null, is_bundle: false, custom_checkout_fields: null };
           return {
             id: p.id,
             name: p.name,

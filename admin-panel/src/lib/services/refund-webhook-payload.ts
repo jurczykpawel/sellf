@@ -21,7 +21,8 @@ export interface RefundCustomerSummary {
 
 export interface RefundIssuedPayload {
   customer: RefundCustomerSummary;
-  product: RefundProductSummary | { id: string };
+  /** `id` is null when the product was permanently deleted; `name` is then the purchase-time name. */
+  product: RefundProductSummary | { id: string } | { id: null; name: string | null };
   payment: {
     id: string;
     orderNumber?: number | null;
@@ -70,7 +71,8 @@ export interface RefundIssuedPayload {
 export interface RefundTransactionSummary {
   id: string;
   user_id: string | null;
-  product_id: string;
+  product_id: string | null;
+  product_name?: string | null;
   session_id: string | null;
   stripe_payment_intent_id: string | null;
   amount: number;
@@ -135,8 +137,10 @@ export function buildRefundIssuedPayload(input: BuildRefundIssuedPayloadInput): 
 
 async function fetchProductSummary(
   supabaseClient: AnySupabaseClient,
-  productId: string
+  productId: string | null,
+  purchasedName: string | null,
 ): Promise<RefundIssuedPayload['product']> {
+  if (!productId) return { id: null, name: purchasedName };
   const { data } = await supabaseClient
     .from('products')
     .select('id, name, slug, price, currency, icon')
@@ -174,7 +178,7 @@ export async function buildRefundIssuedPayloadFromTransaction(input: {
   refundRequestId?: string | null;
   source: RefundIssuedPayload['refund']['source'];
 }): Promise<RefundIssuedPayload> {
-  const product = await fetchProductSummary(input.supabaseClient, input.transaction.product_id);
+  const product = await fetchProductSummary(input.supabaseClient, input.transaction.product_id, input.transaction.product_name ?? null);
   const currency = (input.refundCurrency || input.transaction.currency || '').toUpperCase();
 
   // VAT breakdown of the refund for credit notes — derived from the order's tax snapshot
@@ -258,7 +262,7 @@ export async function emitRefundIssuedWebhook(input: Parameters<typeof buildRefu
       payload.refund.previousStatus = state.previous_status;
       for (const key of ['net', 'tax', 'vatRate', 'vatExempt', 'taxabilityReason']) Reflect.deleteProperty(payload.refund, key);
     }
-    await WebhookService.trigger(event, payload, input.supabaseClient, payload.product.id);
+    await WebhookService.trigger(event, payload, input.supabaseClient, payload.product.id ?? undefined);
     const confirmation = await input.supabaseClient.rpc('confirm_refund_notification', {
       p_refund_id: input.stripeRefundId, p_version: state.refund_version,
     });

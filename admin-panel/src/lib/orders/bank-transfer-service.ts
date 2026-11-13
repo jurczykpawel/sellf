@@ -57,7 +57,7 @@ export async function dispatchTransferEvent(db: SupabaseClient<Database>, id: st
   if (tx[eventColumn[event]] || tx.payment_provider !== 'bank_transfer' || !eventApplies(tx, event)) return;
   const { data: lines, error: lineError } = await db.from('payment_line_items').select('*').eq('transaction_id', id);
   if (lineError) throw new Error('Transfer lines unavailable');
-  const roots = [...new Set([tx.product_id, ...(lines ?? []).map(l => l.product_id!).filter(Boolean)])];
+  const roots = [...new Set([tx.product_id, ...(lines ?? []).map(l => l.product_id)].filter((pid): pid is string => Boolean(pid)))];
   const components = await db.from('bundle_items').select('component_product_id').in('bundle_product_id', roots);
   if (components.error) throw new Error('Transfer components unavailable');
   const productIds = [...new Set([...roots, ...(components.data ?? []).map(c => c.component_product_id)])];
@@ -81,7 +81,7 @@ export async function dispatchTransferEvent(db: SupabaseClient<Database>, id: st
 
 export async function fulfillTransfer(db: SupabaseClient<Database>, id: string): Promise<void> {
   const { data: tx, error } = await db.from('payment_transactions').select('*').eq('id', id).eq('payment_provider', 'bank_transfer').eq('status', 'completed').single();
-  if (error || !tx) throw new Error('Paid transfer unavailable');
+  if (error || !tx || !tx.product_id) throw new Error('Paid transfer unavailable');
   await fulfillPaidOrder({ supabase: db, transactionId: id, provider: { kind: 'offline' }, productId: tx.product_id,
     customerEmail: tx.customer_email, amount: tx.amount, currency: tx.currency, couponId: tx.coupon_id, isGuest: !tx.user_id });
   await sendOrderNotice(db, id, 'paid');

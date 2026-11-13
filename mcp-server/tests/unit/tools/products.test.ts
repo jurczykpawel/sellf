@@ -173,6 +173,37 @@ describe('Products Tools', () => {
       expect(mockApiClient.delete).toHaveBeenCalledWith('/api/v1/products/123');
       expect(result.content[0].text).toContain('deleted successfully');
     });
+
+    it('reports that a product with orders was archived', async () => {
+      mockApiClient.delete.mockResolvedValueOnce({ data: { id: '123', status: 'archived', impact: { orders: 3, invoices: 1, licenses: 2, accesses: 3 } } });
+
+      const tool = registeredTools.get('delete_product')!;
+      const result = await tool.handler({ id: '123' }, {});
+
+      expect(result.content[0].text).toContain('archived');
+      expect(result.content[0].text).toContain('3 orders');
+    });
+
+    it('sends an explicit permanent delete', async () => {
+      mockApiClient.delete.mockResolvedValueOnce({});
+
+      const tool = registeredTools.get('delete_product')!;
+      await tool.handler({ id: '123', permanent: true }, {});
+
+      expect(mockApiClient.delete).toHaveBeenCalledWith('/api/v1/products/123?permanent=true');
+    });
+  });
+
+  describe('restore_product', () => {
+    it('restores an archived product', async () => {
+      mockApiClient.post.mockResolvedValueOnce({ data: { id: '123', name: 'Course', is_active: false, archived_at: null } });
+
+      const tool = registeredTools.get('restore_product')!;
+      const result = await tool.handler({ id: '123' }, {});
+
+      expect(mockApiClient.post).toHaveBeenCalledWith('/api/v1/products/123/restore', {});
+      expect(result.content[0].text).toContain('restored');
+    });
   });
 
   describe('toggle_product_status', () => {

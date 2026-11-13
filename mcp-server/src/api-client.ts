@@ -115,6 +115,7 @@ export class SellfApiClient {
     } finally {
       clearTimeout(timeoutId);
     }
+    if (response.status === 204) return {} as T;
     const data = await response.json() as Record<string, unknown>;
 
     if (!response.ok) {

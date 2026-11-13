@@ -199,6 +199,16 @@ describe('SellfApiClient', () => {
         })
       );
     });
+
+    it('resolves an empty 204 No Content response', async () => {
+      vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+        ok: true,
+        status: 204,
+        json: async () => { throw new SyntaxError('Unexpected end of JSON input'); },
+      } as unknown as Response);
+
+      await expect(client.delete('/api/v1/products/123')).resolves.toEqual({});
+    });
   });
 });
 

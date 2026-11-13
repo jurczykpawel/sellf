@@ -38,7 +38,7 @@ export async function sendParticipantsNotice(db: Db, id: string, stage: 1 | 2 = 
     const { data: tx } = await db.from('payment_transactions').select('*').eq('id', id).single();
     const sent = stage === 1 ? tx?.participants_mail_sent_at : tx?.participants_reminder2_sent_at;
     const people = (tx?.order_details as { participants?: { people?: unknown[] } } | null)?.participants?.people ?? [];
-    if (!tx || sent || people.length > 0 || tx.status !== 'completed' || !tx.customer_email) return 'skipped';
+    if (!tx || sent || people.length > 0 || tx.status !== 'completed' || !tx.customer_email || !tx.product_id) return 'skipped';
     const { data: product } = await db.from('products').select('slug,name').eq('id', tx.product_id).single();
     if (!product) return 'failed';
     const locale = await resolveCustomerLocale(db, (tx.metadata as Record<string, unknown> | null)?.locale), base = getSellfBaseUrl();

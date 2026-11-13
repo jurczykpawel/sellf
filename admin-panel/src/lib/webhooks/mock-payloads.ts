@@ -381,7 +381,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     changedFields: operation === 'updated' ? ['name', 'price'] : [],
     product: { ...SAMPLE_PRODUCT, name: operation === 'created' ? 'Course' : 'Advanced Course',
       price: operation === 'created' ? 10000 : 12000, currency: 'PLN', salePrice: null, salePriceUntil: null, recurringPrice: null,
-      productType: 'one_time', isBundle: false, eventMode: false, isActive: true, isListed: true, isFeatured: false,
+      productType: 'one_time', isBundle: false, eventMode: false, isActive: true, isListed: true, isFeatured: false, archivedAt: null,
       description: null, longDescription: null, icon: null, imageUrl: null, thumbnailUrl: null, previewVideoUrl: null,
       features: [], marketingFields: {}, availableFrom: null, availableUntil: null, allowCustomPrice: false, customPriceMin: 500,
       billingInterval: null, billingIntervalCount: null, trialDays: null, priceIncludesVat: true, vatRate: 23, vatExempt: false,

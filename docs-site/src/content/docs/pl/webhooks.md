@@ -482,7 +482,7 @@ koperty to czas przekazania do dostawy. `schemaVersion` wynosi 1. `operation` ma
 Publiczne pola: `id`, `name`, `slug`, `description`, `longDescription`, `icon`, `imageUrl`,
 `thumbnailUrl`, `previewVideoUrl`, `features`, `marketingFields`, `price`, `salePrice`,
 `salePriceUntil`, `recurringPrice`, `currency`, `productType`, `isBundle`, `eventMode`,
-`isActive`, `isListed`, `isFeatured`, `availableFrom`, `availableUntil`, `allowCustomPrice`,
+`isActive`, `isListed`, `isFeatured`, `archivedAt`, `availableFrom`, `availableUntil`, `allowCustomPrice`,
 `customPriceMin`, `billingInterval`, `billingIntervalCount`, `trialDays`, `priceIncludesVat`,
 `vatRate`, `vatExempt`, `isRefundable`, `refundPeriodDays`, `autoGrantDurationDays`,
 `allowRepeatPurchase`, `enableWaitlist`, `saleQuantityLimit`, `issueLicenseOnPurchase`,
@@ -535,4 +535,11 @@ Przykład dostawy `product.updated` (obiekt produktu skrócony dla czytelności)
 
 `product.created` ma ten sam kształt z `operation: "insert"`, `revision: 1`, `changedFields: []`.
 `product.deleted` ma `operation: "delete"`, kolejną rewizję i `changedFields: []`; `product` to ostatni zapisany publiczny stan.
+
+**Archiwum.** Usunięcie produktu, który ma zamówienia, licencje lub dostępy kupujących, przenosi go do archiwum
+(zob. [API: usuwanie produktów](/pl/api/#usuwanie-produktów-i-archiwum)). Archiwizacja wysyła `product.updated` z ustawionym
+`archivedAt`, `isActive: false` i `archivedAt` w `changedFields` (aktywny produkt wysyła też `product.unpublished`);
+przywrócenie wysyła `product.updated` z `archivedAt: null`. Trwałe usunięcie z archiwum wysyła dokładnie jedno
+`product.deleted`. Zamówienia, faktury i licencje zostają: późniejsze zdarzenia o nich (np. `refund.issued`) mają
+`product.id: null` i nazwę produktu z chwili zakupu.
 Lista zdarzeń w panelu opisuje wszystkie trzy; **Testuj endpoint** pokazuje pełny przykład każdego z nich.

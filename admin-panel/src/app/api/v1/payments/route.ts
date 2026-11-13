@@ -84,7 +84,8 @@ export async function GET(request: NextRequest) {
         status,
         stripe_payment_intent_id,
         product_id,
-        products!inner(name, slug, custom_checkout_fields, is_bundle),
+        product_name,
+        products(name, slug, custom_checkout_fields, is_bundle),
         user_id,
         session_id,
         metadata,
@@ -312,7 +313,8 @@ export async function GET(request: NextRequest) {
         stripe_payment_intent_id: p.stripe_payment_intent_id,
         product: {
           id: p.product_id,
-          name: productRel?.name,
+          // Purchase-time name once the product was permanently deleted.
+          name: productRel?.name ?? p.product_name,
           slug: productRel?.slug,
           custom_checkout_fields: Array.isArray(productRel?.custom_checkout_fields)
             ? productRel.custom_checkout_fields

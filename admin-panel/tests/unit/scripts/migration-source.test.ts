@@ -10,7 +10,8 @@ import { readMigrationSource, writeMigrationSource } from '../../../scripts/migr
 describe('release migration sources', () => {
   it('ships eight ordered release files with each of the 76 original sections exactly once', () => {
     const directory = new URL('../../../../supabase/migrations/', import.meta.url);
-    const files = readdirSync(directory).filter(file => file.endsWith('.sql') && file >= '20261016000000').sort();
+    // The 2026.11.0 release files; later cycles add their own migrations after them.
+    const files = readdirSync(directory).filter(file => file.endsWith('.sql') && file >= '20261016000000' && file < '20261111000000').sort();
     expect(files).toHaveLength(8);
     expect(files.every(file => /^2026111023590[0-7]_release_2026_11_0_[a-z_]+\.sql$/.test(file))).toBe(true);
     expect(new Set(files.map(file => file.split('_')[0])).size).toBe(8);

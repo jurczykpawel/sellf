@@ -15,9 +15,16 @@ it('exposes set_price including zero for creation and updates', () => {
 it('accepts the documented B2B cart profile in product creation', async () => {
   const { productCreateShape } = await import('../../../src/tools/product-schema.js');
   expect(productCreateShape.checkout_profile.safeParse({ v: 1, modules: [
-    { id: 'buyer', types: ['organization'], gus: false, bank_transfer_for: ['organization'] },
+    { id: 'buyer', types: ['organization'], bank_transfer_for: ['organization'] },
     { id: 'recipient', for: ['organization'] }, { id: 'phone', required: true },
     { id: 'quantity', min: 1, max: 50, mode: 'product_page' },
     { id: 'participants', required: true, prefill_from_buyer: true },
   ] }).success).toBe(true);
+});
+
+it('rejects the retired buyer.gus flag (company lookup uses shop integrations)', async () => {
+  const { productCreateShape } = await import('../../../src/tools/product-schema.js');
+  expect(productCreateShape.checkout_profile.safeParse({ v: 1, modules: [
+    { id: 'buyer', types: ['organization'], gus: false },
+  ] }).success).toBe(false);
 });

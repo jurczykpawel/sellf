@@ -23,7 +23,7 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
   const spec = NOTICE[notice];
   try {
     const { data: tx } = await db.from('payment_transactions').select('*').eq('id', id).single();
-    if (!tx || tx[spec.column] || !(spec.statuses as readonly string[]).includes(tx.status) || !tx.customer_email) return;
+    if (!tx || tx[spec.column] || !(spec.statuses as readonly string[]).includes(tx.status) || !tx.customer_email || !tx.product_id) return;
     if (notice === 'reminder' && !tx.release_at) return;
     if (notice === 'paid' && tx.fulfillment_pending) return;
     const meta = tx.metadata as Record<string, unknown> | null;

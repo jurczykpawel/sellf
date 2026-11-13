@@ -21,8 +21,8 @@ export interface RevocationTarget {
   transactionId: string;
   /** User UUID (null for guest-only purchases) */
   userId: string | null;
-  /** Main product UUID */
-  productId: string;
+  /** Main product UUID (null once the product was permanently deleted — its access went with it) */
+  productId: string | null;
   /** Stripe checkout session_id or payment intent ID — used for guest_purchases cleanup */
   sessionId: string | null;
 }
@@ -73,7 +73,7 @@ export async function revokeTransactionAccess(
     };
   }
 
-  if (!target.productId || !UUID_PATTERN.test(target.productId)) {
+  if (target.productId !== null && !UUID_PATTERN.test(target.productId)) {
     return {
       success: false,
       mainProductRevoked: false,
@@ -106,21 +106,24 @@ export async function revokeTransactionAccess(
     warnings.push(`Failed to query bump line items: ${bumpQueryError.message}`);
   }
 
-  const bumpProductIds = (bumpLineItems ?? []).map((item: { product_id: string }) => item.product_id);
+  const bumpProductIds = (bumpLineItems ?? [])
+    .map((item: { product_id: string | null }) => item.product_id)
+    .filter((id): id is string => id !== null);
 
   // --- 2. Revoke user_product_access (main + bumps) ---
-  if (target.userId && target.productId) {
-    // Main product
-    const { error: mainRevokeError } = await supabase
-      .from('user_product_access')
-      .delete()
-      .eq('user_id', target.userId)
-      .eq('product_id', target.productId);
+  if (target.userId) {
+    if (target.productId) {
+      const { error: mainRevokeError } = await supabase
+        .from('user_product_access')
+        .delete()
+        .eq('user_id', target.userId)
+        .eq('product_id', target.productId);
 
-    if (mainRevokeError) {
-      warnings.push(`Failed to revoke main product access: ${mainRevokeError.message}`);
-    } else {
-      mainProductRevoked = true;
+      if (mainRevokeError) {
+        warnings.push(`Failed to revoke main product access: ${mainRevokeError.message}`);
+      } else {
+        mainProductRevoked = true;
+      }
     }
 
     // Bump products (batch DELETE to avoid N+1)
@@ -141,16 +144,18 @@ export async function revokeTransactionAccess(
 
   // --- 3. Revoke guest_purchases (main product only — bumps don't have separate guest_purchases rows) ---
   // DB design: one guest_purchases row per session (main product). Bumps tracked via payment_line_items.
-  const { error: guestTransactionError } = await supabase
-    .from('guest_purchases')
-    .delete()
-    .eq('transaction_id', target.transactionId)
-    .eq('product_id', target.productId);
+  if (target.productId) {
+    const { error: guestTransactionError } = await supabase
+      .from('guest_purchases')
+      .delete()
+      .eq('transaction_id', target.transactionId)
+      .eq('product_id', target.productId);
 
-  if (guestTransactionError) {
-    warnings.push(`Failed to revoke guest transaction: ${guestTransactionError.message}`);
-  } else {
-    mainGuestRevoked = true;
+    if (guestTransactionError) {
+      warnings.push(`Failed to revoke guest transaction: ${guestTransactionError.message}`);
+    } else {
+      mainGuestRevoked = true;
+    }
   }
 
   if (target.sessionId && target.productId) {

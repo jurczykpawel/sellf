@@ -37,7 +37,7 @@ export function registerProductsTools(server: McpServer): void {
     'list_products',
     'List all products with optional filters and pagination. Returns price, sale_price, recurring_price, custom_price_min, and custom_price_presets in major units: 49.99 means 49.99 in the product currency.',
     {
-      status: z.enum(['active', 'inactive', 'all']).optional().describe('Filter by status'),
+      status: z.enum(['active', 'inactive', 'all', 'archived']).optional().describe('Filter by status (archived products are listed only with archived)'),
       search: z.string().optional().describe('Search in name and description'),
       cursor: z.string().optional().describe('Pagination cursor'),
       limit: z.number().min(1).max(100).optional().describe('Items per page (max 100)'),
@@ -116,16 +116,39 @@ export function registerProductsTools(server: McpServer): void {
   // Delete product
   server.tool(
     'delete_product',
-    'Delete a product. Products with existing user access or payments cannot be deleted.',
+    'Delete a product. A product with orders, licenses or buyer access is moved to the archive instead ' +
+      '(hidden from the store and product lists; every record stays). permanent=true deletes an archived product: ' +
+      'orders, invoices and licenses are kept with the product name from purchase, buyers lose access.',
     {
       id: z.string().uuid().describe('Product ID to delete'),
+      permanent: z.boolean().optional().describe('Delete an archived product permanently'),
+    },
+    async ({ id, permanent }) => {
+      const api = getApiClient();
+      const result = await api.delete<{ data?: { status?: string; impact?: { orders?: number } } }>(
+        `/api/v1/products/${id}${permanent ? '?permanent=true' : ''}`
+      );
+
+      const text = result.data?.status === 'archived'
+        ? `Product ${id} has ${result.data.impact?.orders ?? 0} orders, so it was archived (restore it with restore_product)`
+        : `Product ${id} deleted successfully`;
+      return { content: [{ type: 'text', text }] };
+    }
+  );
+
+  // Restore product from the archive
+  server.tool(
+    'restore_product',
+    'Restore an archived product to the product list. It stays inactive until activated.',
+    {
+      id: z.string().uuid().describe('Archived product ID'),
     },
     async ({ id }) => {
       const api = getApiClient();
-      await api.delete(`/api/v1/products/${id}`);
+      const result = await api.post<{ data: { id: string; name: string } }>(`/api/v1/products/${id}/restore`, {});
 
       return {
-        content: [{ type: 'text', text: `Product ${id} deleted successfully` }],
+        content: [{ type: 'text', text: `Product ${result.data.name} restored (inactive)` }],
       };
     }
   );

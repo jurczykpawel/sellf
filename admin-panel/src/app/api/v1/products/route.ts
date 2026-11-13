@@ -58,7 +58,8 @@ function intersectNullable(a: string[] | null, b: string[] | null): string[] | n
  * - cursor: Pagination cursor (optional)
  * - limit: Items per page, max 100 (default: 20)
  * - search: Search in name and description (optional)
- * - status: Filter by status - 'active', 'inactive', 'all' (default: 'all')
+ * - status: Filter by status - 'active', 'inactive', 'all' (default: 'all'), 'archived'.
+ *   Archived products are listed only with status=archived.
  * - sort_by: Sort field - 'created_at', 'name', 'price', etc. (default: 'created_at')
  * - sort_order: Sort direction - 'asc' or 'desc' (default: 'desc')
  */
@@ -130,6 +131,7 @@ export async function GET(request: NextRequest) {
     if (searchPattern) {
       countQuery = countQuery.or(`name.ilike.${searchPattern},description.ilike.${searchPattern}`);
     }
+    countQuery = status === 'archived' ? countQuery.not('archived_at', 'is', null) : countQuery.is('archived_at', null);
     if (status === 'active') {
       countQuery = countQuery.eq('is_active', true);
     } else if (status === 'inactive') {
@@ -150,6 +152,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Apply status filter
+    query = status === 'archived' ? query.not('archived_at', 'is', null) : query.is('archived_at', null);
     if (status === 'active') {
       query = query.eq('is_active', true);
     } else if (status === 'inactive') {
