@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 
 // NOTE: Run with --workers=1 because tests modify global DB state.
@@ -14,7 +15,8 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 async function createTestProduct(suffix: string, price = 49.99) {
-  const stamp = Date.now() + Math.floor(Math.random() * 1000);
+  // Unique per call: a millisecond stamp plus a small random number repeats when two fixtures are made within one millisecond.
+  const stamp = randomUUID().slice(0, 12);
   const { data, error } = await supabaseAdmin
     .from('products')
     .insert({
@@ -31,7 +33,7 @@ async function createTestProduct(suffix: string, price = 49.99) {
 }
 
 async function createCompletedTransaction(productId: string, email: string) {
-  const stamp = Date.now() + Math.floor(Math.random() * 1000);
+  const stamp = randomUUID();
   const { data, error } = await supabaseAdmin
     .from('payment_transactions')
     .insert({
