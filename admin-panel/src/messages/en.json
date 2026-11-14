@@ -5157,6 +5157,27 @@
       "updateAvailable": "Version {version} is available.",
       "upgradeNow": "Upgrade now",
       "reinstall": "Reinstall"
+    },
+    "failure": {
+      "checkFailed": "Could not check for updates.",
+      "github_unreachable": "Could not connect to GitHub (network error or timeout).",
+      "github_http": "GitHub refused the request: HTTP {status}.",
+      "githubSays": "GitHub says: “{message}”",
+      "release_asset_missing": "The release on GitHub is missing the file {asset}.",
+      "release_lookup_invalid": "GitHub did not report a valid latest release.",
+      "signature_invalid": "The release signature is not valid, so the release was not installed.",
+      "manifest_invalid": "The signed release description is invalid, so the release was not installed.",
+      "checksum_mismatch": "The downloaded archive does not match the signed release, so it was not installed.",
+      "archive_invalid": "The downloaded archive is damaged or invalid, so it was not installed.",
+      "release_older": "The release on GitHub is older than the installed version.",
+      "upgrade_running": "An update is already running. Wait for it to finish.",
+      "upgrade_starting": "An update is starting. Wait a few seconds.",
+      "migration_failed": "Database migration failed: {cause}",
+      "unchanged": "Nothing was changed; the shop is still running version {version}.",
+      "unchangedUnknown": "Nothing was changed; the shop is still running the previous version.",
+      "migrationRolledBack": "No migration of this release was applied and the previous code was restored; the shop is running version {version} again.",
+      "retryAt": "You can try again after {time}.",
+      "retrySoon": "Try again in a few minutes."
     }
   },
   "securityAudit": {

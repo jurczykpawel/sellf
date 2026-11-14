@@ -640,8 +640,38 @@ check the signed minimum before launch; the shell checks again before extraction
 A first hop from an already-installed 10.6/4982c3de still uses that old runner:
 new release code cannot retrofit delegation or version checks into a running old
 script. Use the updated Stackpilot for the downloaded runner on that first hop.
-The migration transaction policy above remains a release requirement; this
-bootstrap change retains the existing per-file RPC transaction protocol.
+Since 2026.11.1 both runners (Sellf stage 2 `migration-batch` block, Stackpilot
+`apps/sellf/apply-migrations.sh`) send all pending files in ONE `apply_migration`
+call: each file is wrapped in a `DO` block whose exception names the file, the
+batch inserts the registry rows of all but the last file and the RPC records the
+last one, all in the RPC's single transaction. No new RPC is needed, so 10.6+
+databases work unchanged. Pending files are matched by timestamp. A batch reported
+as `skipped` (registry changed meanwhile) is a failure. Only a PostgREST
+database error (`code`/`details`/`hint`) or a request that never left the server
+counts as a certain rollback. Any other failure (lost or garbled answer, gateway
+error) may follow a COMMIT and is settled by re-reading `get_migration_status`:
+all batch versions present -> applied, the new version starts; none (read twice,
+15 s apart) -> rolled back, old code restored; partial or unreadable ->
+`migration_state_unknown`: the application stays stopped (neither version runs on
+a database in an unknown state) and the message says what to check. Stackpilot
+exits 4 in that case. `.env.local` values are read with Node `parseEnv`.
+`/api/v1/system/upgrade-status` passes validated `code`/`details`
+(`sanitizeUpdateFailure`) and messages up to 2000 characters. Stackpilot's
+Management-API fallback for a database without the RPC still applies files one by one.
+
+The bootstrap finds the latest release through the `github.com/<repo>/releases/latest`
+redirect and downloads `releases/download/<tag>/<file>`; it never calls
+api.github.com (60 requests/hour per address, exhausted behind shared NAT). Every
+failure before backup goes through `fail_unchanged`, which writes `code` +
+`details` (`http_status`, `github_message`, `retry_at`, `asset`,
+`installed_version`) into the progress file and appends "Nothing was changed; the
+shop is still running version X." The panel localizes known codes
+(`src/lib/system/update-failure.ts`); unknown codes show the English message.
+`src/lib/system/github-release.ts` is the TypeScript counterpart used by
+`/api/v1/system/update-check` and the updater compatibility check. The upgrade API
+has no time-window rate limit: it refuses only while a request is still checking
+the release, within 10 s of a launch whose progress has not failed, or while
+`flock` reports the instance lock held (`src/lib/system/upgrade-lock.ts`).
 
 Since 2026.11.1 the runner applies only the files listed in the release's
 `supabase/migrations/` and replaces the installed `supabase/` directory as a

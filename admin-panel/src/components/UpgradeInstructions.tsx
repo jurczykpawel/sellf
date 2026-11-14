@@ -2,6 +2,7 @@
 
 /** Deployment instructions shared by both update surfaces. @see useUpdateCheck.ts */
 import { useTranslations } from 'next-intl';
+import UpdateFailureLines from '@/components/UpdateFailureLines';
 import type { UpdateInfo } from '@/hooks/useUpdateCheck';
 
 export default function UpgradeInstructions({ updateInfo }: { updateInfo: UpdateInfo }) {
@@ -12,6 +13,7 @@ export default function UpgradeInstructions({ updateInfo }: { updateInfo: Update
         <p>{t(updateInfo.updater.reason === 'too_old' ? 'deployment.updaterTooOld' : 'deployment.updaterUnverified', {
           installed: updateInfo.updater.version, required: updateInfo.updater.min_updater_version ?? '?',
         })}</p>
+        {updateInfo.updater.failure && <UpdateFailureLines failure={updateInfo.updater.failure} attempt={false} />}
         <p>{t('deployment.updaterRecovery', { server: '<server>' })}</p>
         <pre className="overflow-x-auto whitespace-pre-wrap"><code>./local/deploy.sh sellf --ssh={'<server>'} --update</code></pre>
       </div>

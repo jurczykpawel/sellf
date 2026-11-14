@@ -11,6 +11,7 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import UpgradeInstructions from '@/components/UpgradeInstructions';
+import UpdateFailureLines from '@/components/UpdateFailureLines';
 import type { UpdateInfo, UpgradeProgress } from '@/hooks/useUpdateCheck';
 
 interface UpdateNotificationModalProps {
@@ -179,8 +180,15 @@ export default function UpdateNotificationModal({
             {/* Error message */}
             {isFailed && (
               <div className="mb-4 p-3 bg-sf-danger-soft border border-sf-danger/20">
-                <p className="text-sm text-sf-danger">{upgradeProgress?.message}</p>
-                {upgradeProgress?.rollback && (
+                <UpdateFailureLines
+                  className="text-sm text-sf-danger"
+                  failure={upgradeProgress?.code ? { code: upgradeProgress.code, details: upgradeProgress.details ?? {} } : undefined}
+                  fallback={upgradeProgress?.message}
+                  attempt
+                  rollback={upgradeProgress?.rollback}
+                  currentVersion={updateInfo.current_version}
+                />
+                {upgradeProgress?.rollback && upgradeProgress.code !== 'migration_failed' && (
                   <p className="text-sm text-sf-danger mt-1">{t('progress.rolledBack')}</p>
                 )}
               </div>

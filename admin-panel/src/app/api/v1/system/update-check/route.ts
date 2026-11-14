@@ -2,14 +2,17 @@
  * GET /api/v1/system/update-check
  *
  * Checks GitHub for the latest release and compares with current version.
- * Server-side cache: 1 hour (avoids GitHub API rate limit of 60 req/h).
- * Query param ?force=true bypasses cache.
+ * The version comes from the github.com release redirect (not api.github.com,
+ * whose 60 requests/hour per address shared NATs exhaust). Release notes are an
+ * optional extra from the API. Failures are returned as `check_error`.
+ * Server-side cache: 1 hour. Query param ?force=true bypasses cache.
  *
  * @see /admin-panel/scripts/upgrade.sh
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUpdaterCompatibility, refreshUpdaterCompatibility, withUpdaterCompatibility } from '@/lib/system/updater-compatibility';
+import { fetchLatestReleaseTag, isReleaseTag, ReleaseFetchError, releaseTagUrl, SELLF_GITHUB_REPO, toUpdateFailure } from '@/lib/system/github-release';
 import { getUpgradeCapability } from '@/lib/system/upgrade-runtime-server';
 import {
   handleCorsPreFlight,
@@ -20,6 +23,7 @@ import {
 } from '@/lib/api';
 import { isNewerVersion, APP_VERSION } from '@/lib/version';
 import type { UpdaterCompatibility, UpgradeCapability } from '@/lib/system/upgrade-runtime';
+import type { UpdateFailure } from '@/lib/system/update-failure';
 import { successResponse } from '@/lib/api/types';
 
 /** Prevent proxy/CDN caching of version info */
@@ -28,7 +32,6 @@ function withNoStore(res: NextResponse) {
   return res;
 }
 
-const GITHUB_REPO = 'jurczykpawel/sellf';
 // Process identity is returned only after SYSTEM_READ admin authentication.
 const PROCESS_STARTED_AT = new Date(Date.now() - process.uptime() * 1000).toISOString();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -48,6 +51,14 @@ interface UpdateCheckData {
   release_notes: string | null;
   published_at: string | null;
   release_url: string | null;
+  check_error?: UpdateFailure;
+}
+
+interface ReleaseMetadata {
+  tag: string;
+  notes: string | null;
+  publishedAt: string | null;
+  url: string | null;
 }
 
 let releaseCache: CachedRelease | null = null;
@@ -56,8 +67,9 @@ export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
 }
 
-function unknownUpstreamResponse(currentVersion: string): UpdateCheckData {
+function unknownUpstreamResponse(currentVersion: string, checkError: UpdateFailure): UpdateCheckData {
   return {
+    check_error: checkError,
     upgrade: getUpgradeCapability(),
     current_version: currentVersion,
     started_at: PROCESS_STARTED_AT,
@@ -84,50 +96,22 @@ export async function GET(request: NextRequest) {
       return withNoStore(jsonResponse(successResponse(cached), request));
     }
 
-    // Fetch from GitHub API with bounded timeout — GitHub rate-limit / network
-    // issues must not hang the dashboard's update-check on mount. On any upstream
-    // failure (rate-limit, abort, network) we degrade gracefully to "no update
-    // info available", not a 502 — the dashboard hook treats this as "you're
-    // up to date" and doesn't bother the admin.
-    let response: Response;
+    let release: ReleaseMetadata;
     try {
-      response = await fetch(
-        process.env.SELLF_UPDATE_CHECK_URL || `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
-        {
-          headers: { 'Accept': 'application/vnd.github.v3+json' },
-          cache: 'no-store', // module-level releaseCache handles TTL — skip Next.js Data Cache
-          redirect: 'error',
-          signal: AbortSignal.timeout(5000),
-        }
-      );
-    } catch {
-      return withNoStore(jsonResponse(successResponse(unknownUpstreamResponse(currentVersion)), request));
+      release = process.env.SELLF_UPDATE_CHECK_URL
+        ? await fetchOverrideMetadata(process.env.SELLF_UPDATE_CHECK_URL)
+        : await fetchOfficialMetadata();
+    } catch (error) {
+      return withNoStore(jsonResponse(successResponse(unknownUpstreamResponse(currentVersion, toUpdateFailure(error))), request));
     }
-
-    if (!response.ok) {
-      return withNoStore(jsonResponse(successResponse(unknownUpstreamResponse(currentVersion)), request));
-    }
-
-    const release = await response.json();
-    const rawTag = (release.tag_name || '').replace(/^v/, '');
-    // Validate tag is semver-like to prevent spoofed responses
-    const latestVersion = /^\d+\.\d+/.test(rawTag) ? rawTag : currentVersion;
-
-    // Only accept release URLs from the expected GitHub repo
-    const expectedUrlPrefix = `https://github.com/${GITHUB_REPO}/releases/`;
-    const releaseUrl = typeof release.html_url === 'string' && release.html_url.startsWith(expectedUrlPrefix)
-      ? release.html_url
-      : null;
-
-    // Validate third-party API response fields (§18: don't blindly trust external APIs)
-    const releaseNotes = typeof release.body === 'string' ? release.body.slice(0, 10000) : null;
-    const publishedAt = typeof release.published_at === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(release.published_at)
-      ? release.published_at
-      : null;
+    const latestVersion = release.tag.replace(/^v/, '');
+    const releaseNotes = release.notes;
+    const publishedAt = release.publishedAt;
+    const releaseUrl = release.url;
 
     const capability = getUpgradeCapability();
     // Manual runtimes follow their own deployment procedure.
-    const updater = capability.mode === 'in-place' ? await getUpdaterCompatibility(release) : undefined;
+    const updater = capability.mode === 'in-place' ? await getUpdaterCompatibility(release.tag) : undefined;
     const data: UpdateCheckData = {
       upgrade: withUpdaterCompatibility(capability, updater),
       ...(updater ? { updater } : {}),
@@ -147,4 +131,61 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return handleApiError(error, request);
   }
+}
+
+const RELEASE_TIMEOUT_MS = 5000;
+
+/** Validates third-party release JSON fields; never trusts them blindly. */
+function parseReleaseJson(release: Record<string, unknown>): Omit<ReleaseMetadata, 'tag'> & { tag: string | null } {
+  const tag = typeof release.tag_name === 'string' && isReleaseTag(release.tag_name) ? release.tag_name : null;
+  const expectedUrlPrefix = `https://github.com/${SELLF_GITHUB_REPO}/releases/`;
+  return {
+    tag,
+    notes: typeof release.body === 'string' ? release.body.slice(0, 10000) : null,
+    publishedAt: typeof release.published_at === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(release.published_at) ? release.published_at : null,
+    url: typeof release.html_url === 'string' && release.html_url.startsWith(expectedUrlPrefix) ? release.html_url : null,
+  };
+}
+
+async function fetchReleaseJson(url: string): Promise<Record<string, unknown> | null> {
+  const response = await fetch(url, {
+    headers: { Accept: 'application/vnd.github.v3+json' },
+    cache: 'no-store', // module-level releaseCache handles TTL — skip Next.js Data Cache
+    redirect: 'error',
+    signal: AbortSignal.timeout(RELEASE_TIMEOUT_MS),
+  });
+  if (!response.ok) return null;
+  const json: unknown = await response.json();
+  return json && typeof json === 'object' ? json as Record<string, unknown> : null;
+}
+
+/** Version from the github.com redirect; notes only when the API answers for that tag. */
+async function fetchOfficialMetadata(): Promise<ReleaseMetadata> {
+  const tag = await fetchLatestReleaseTag();
+  let notes: string | null = null;
+  let publishedAt: string | null = null;
+  try {
+    const json = await fetchReleaseJson(`https://api.github.com/repos/${SELLF_GITHUB_REPO}/releases/tags/${tag}`);
+    const parsed = json ? parseReleaseJson(json) : null;
+    if (parsed?.tag === tag) {
+      notes = parsed.notes;
+      publishedAt = parsed.publishedAt;
+    }
+  } catch {
+    // Release notes are optional; the version above does not depend on them.
+  }
+  return { tag, notes, publishedAt, url: releaseTagUrl(tag) };
+}
+
+/** Notification metadata from SELLF_UPDATE_CHECK_URL (GitHub release JSON format). */
+async function fetchOverrideMetadata(url: string): Promise<ReleaseMetadata> {
+  let json: Record<string, unknown> | null;
+  try {
+    json = await fetchReleaseJson(url);
+  } catch {
+    throw new ReleaseFetchError({ code: 'github_unreachable', details: {} });
+  }
+  const parsed = json ? parseReleaseJson(json) : null;
+  if (!parsed?.tag) throw new ReleaseFetchError({ code: 'release_lookup_invalid', details: {} });
+  return { ...parsed, tag: parsed.tag };
 }

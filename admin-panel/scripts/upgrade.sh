@@ -118,6 +118,81 @@ log() {
   echo "[$(date -u +%H:%M:%S)] $*" >> "$LOG_FILE"
 }
 
+# json_string <value> [max characters, default 300]: JSON string for progress
+# files, control characters dropped.
+json_string() {
+  local value
+  value=$(printf '%s' "$1" | tr -d '\000-\037' | cut -c1-"${2:-300}" | sed 's/\\/\\\\/g; s/"/\\"/g')
+  printf '"%s"' "$value"
+}
+
+# write_failure <code> <message> [<detail key> <detail value>]...
+# The panel localizes known codes from the details and shows the message otherwise.
+# http_status is written as a number, other details as strings. A "rollback"
+# detail (any value) marks that the previous code was restored.
+write_failure() {
+  local code="$1" message="$2" details="" rollback=false key value
+  shift 2
+  while [ "$#" -ge 2 ]; do
+    key="$1" value="$2"
+    shift 2
+    if [ "$key" = rollback ]; then rollback=true; continue; fi
+    [ -n "$value" ] || continue
+    if [ "$key" = http_status ] && [[ "$value" =~ ^[0-9]{3}$ ]]; then
+      details="${details:+$details,}\"$key\":$value"
+    else
+      details="${details:+$details,}\"$key\":$(json_string "$value")"
+    fi
+  done
+  printf '{"step":"failed","progress":-1,"code":"%s","message":%s,"details":{%s},"rollback":%s,"timestamp":"%s"}\n' \
+    "$code" "$(json_string "$message" 2000)" "$details" "$rollback" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$PROGRESS_FILE"
+}
+
+# installed-version:start — extracted verbatim by tests/unit/scripts/upgrade-archive-validation.test.ts
+# The installed version comes from version.txt (written by the release build
+# and copied on every install/upgrade), falling back to package.json. Prints
+# nothing when neither holds a CalVer version.
+read_installed_version() {
+  local version=""
+  if [ -f "$INSTALL_DIR/version.txt" ]; then
+    version=$(head -n 1 "$INSTALL_DIR/version.txt" | tr -d '[:space:]')
+  fi
+  if ! [[ "$version" =~ ^v?[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$ ]] && [ -f "$INSTALL_DIR/package.json" ]; then
+    version=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('version',''))" "$INSTALL_DIR/package.json" 2>/dev/null | tr -d '[:space:]' || true)
+  fi
+  if [[ "$version" =~ ^v?[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$ ]]; then
+    printf '%s\n' "$version"
+  fi
+}
+# installed-version:end
+
+# failure-report:start — extracted verbatim by tests/unit/scripts/upgrade-archive-validation.test.ts
+# fail_unchanged <code> <message> [<detail key> <detail value>]...
+# Stops an attempt before backup, PM2 or database changes. A "note" detail is
+# appended to the message after the unchanged-version sentence.
+fail_unchanged() {
+  local code="$1" message="$2" installed note="" key value
+  local -a details=()
+  shift 2
+  while [ "$#" -ge 2 ]; do
+    key="$1" value="$2"
+    shift 2
+    if [ "$key" = note ]; then note="$value"; else details+=("$key" "$value"); fi
+  done
+  installed=$(read_installed_version)
+  if [ -n "$installed" ]; then
+    message="$message Nothing was changed; the shop is still running version ${installed#v}."
+  else
+    message="$message Nothing was changed; the shop is still running the version installed before this attempt."
+  fi
+  message="$message${note:+ $note}"
+  log "ERROR: $message"
+  write_failure "$code" "$message" installed_version "${installed#v}" ${details[@]+"${details[@]}"}
+  rm -rf "${TMP_DIR:-}"
+  exit 1
+}
+# failure-report:end
+
 # Stage 2 is this same script, executed FROM the verified private extraction.
 # All context is passed as argv; no downloaded shell state is sourced. Descriptor
 # 200 survives exec, keeping the original instance lock held across both stages.
@@ -254,8 +329,8 @@ cleanup_lock() {
 }
 exec 200>"$LOCK_FILE"
 if ! flock -n 200; then
-  write_error "Upgrade already in progress for ${INSTANCE_NAME}"
-  exit 1
+  fail_unchanged upgrade_running "Another update of ${INSTANCE_NAME} is already running." \
+    note "Wait for it to finish, then check again."
 fi
 trap cleanup_lock EXIT
 
@@ -281,97 +356,7 @@ log "PM2 name: $PM2_NAME"
 # ===== STEP 1: GET LATEST RELEASE INFO =====
 
 write_progress "checking" 5 "Checking latest release..."
-log "Fetching latest release from GitHub..."
-
-RELEASE_JSON=$(curl -sf "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null) || {
-  write_error "Failed to fetch release info from GitHub"
-  exit 1
-}
-
-DOWNLOAD_URL=$(echo "$RELEASE_JSON" | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-for asset in data.get('assets', []):
-    if asset['name'].endswith('.tar.gz'):
-        print(asset['browser_download_url'])
-        break
-" 2>/dev/null)
-
-# The manifest (two lines: `version=<YYYY.M.patch>`, `sha256=<tarball hash>`) and its
-# detached Ed25519 signature are published by build-release.yml next to the
-# tarball. Both are required: without them the release's origin, version and
-# contents cannot be verified, so the upgrade stops here.
-release_asset_url() {
-  echo "$RELEASE_JSON" | ASSET_NAME="$1" python3 -c "
-import os, sys, json
-data = json.load(sys.stdin)
-for asset in data.get('assets', []):
-    if asset['name'] == os.environ['ASSET_NAME']:
-        print(asset['browser_download_url'])
-        break
-" 2>/dev/null
-}
-
-# Keep the two-line legacy asset for 10.6; new bootstraps prefer the signed
-# extended manifest. An advertised but incomplete v2 pair must never fall back.
-MANIFEST_URL=$(release_asset_url "sellf-build.v2.manifest")
-SIGNATURE_URL=$(release_asset_url "sellf-build.v2.manifest.sig")
-MANIFEST_V2=false
-if [ -n "$MANIFEST_URL" ] || [ -n "$SIGNATURE_URL" ]; then
-  MANIFEST_V2=true
-else
-  MANIFEST_URL=$(release_asset_url "sellf-build.manifest")
-  SIGNATURE_URL=$(release_asset_url "sellf-build.manifest.sig")
-fi
-
-TAG_NAME=$(echo "$RELEASE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('tag_name','unknown'))" 2>/dev/null)
-
-if [ -z "$DOWNLOAD_URL" ]; then
-  write_error "No tar.gz asset found in latest release"
-  exit 1
-fi
-
-if [ -z "$MANIFEST_URL" ]; then
-  write_error "No sellf-build.manifest asset found in latest release — refusing to install an unverifiable archive"
-  exit 1
-fi
-
-if [ -z "$SIGNATURE_URL" ]; then
-  write_error "No sellf-build.manifest.sig asset found in latest release — refusing to install an unsigned release"
-  exit 1
-fi
-
-# Validate tag_name is semver-like
-if ! [[ "$TAG_NAME" =~ ^v?[0-9]+\.[0-9]+ ]]; then
-  write_error "Invalid release tag format: $TAG_NAME"
-  exit 1
-fi
-
-# Validate download URLs point to GitHub
-if ! [[ "$DOWNLOAD_URL" =~ ^https://github\.com/ ]]; then
-  write_error "Unexpected download URL origin"
-  exit 1
-fi
-if ! [[ "$MANIFEST_URL" =~ ^https://github\.com/ ]]; then
-  write_error "Unexpected manifest URL origin"
-  exit 1
-fi
-if ! [[ "$SIGNATURE_URL" =~ ^https://github\.com/ ]]; then
-  write_error "Unexpected signature URL origin"
-  exit 1
-fi
-
-log "Latest release: $TAG_NAME"
-log "Download URL: $DOWNLOAD_URL"
-log "Manifest URL: $MANIFEST_URL"
-log "Signature URL: $SIGNATURE_URL"
-
-# ===== STEP 2: DOWNLOAD =====
-# The small signed manifest is fetched and checked first; the archive is
-# only downloaded once the manifest is verified and its version accepted.
-
-write_progress "downloading" 10 "Downloading ${TAG_NAME} manifest..."
-log "Downloading manifest..."
+log "Looking up the latest release on github.com..."
 
 TMP_DIR=$(mktemp -d)
 chmod 700 "$TMP_DIR"
@@ -380,17 +365,137 @@ ARCHIVE="$TMP_DIR/sellf-build.tar.gz"
 MANIFEST_FILE="$TMP_DIR/sellf-build.manifest"
 SIGNATURE_FILE="$TMP_DIR/sellf-build.manifest.sig"
 
-curl -fSL --max-time 30 -o "$MANIFEST_FILE" "$MANIFEST_URL" >> "$LOG_FILE" 2>&1 || {
-  write_error "Failed to download release manifest"
-  rm -rf "$TMP_DIR"
-  exit 1
+# github-release:start
+# Only github.com pages and release files are used. api.github.com allows 60
+# requests per hour per address, and servers behind a shared NAT exhaust it.
+if ! [[ "$GITHUB_REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+  fail_unchanged release_lookup_invalid "GITHUB_REPO must look like owner/repository."
+fi
+GITHUB_BASE="https://github.com/${GITHUB_REPO}"
+GITHUB_HEADERS="$TMP_DIR/github-headers"
+
+# github_get <url> <output file> <max seconds> [follow]
+# Sets GITHUB_STATUS (000 = no complete response) and GITHUB_LOCATION.
+github_get() {
+  local result rc=0
+  : > "$GITHUB_HEADERS"
+  result=$(curl -sS ${4:+-L --proto-redir =https} --max-time "$3" -D "$GITHUB_HEADERS" -o "$2" \
+    -w '%{http_code} %{redirect_url}' "$1" 2>>"$LOG_FILE") || rc=$?
+  GITHUB_STATUS="${result%% *}"
+  GITHUB_LOCATION="${result#* }"
+  [[ "$GITHUB_STATUS" =~ ^[0-9]{3}$ ]] || GITHUB_STATUS=000
+  # An interrupted transfer can follow a 200 status line.
+  if [ "$rc" -ne 0 ] && [[ "$GITHUB_STATUS" == 2?? ]]; then GITHUB_STATUS=000; fi
+  log "GET $1 -> HTTP $GITHUB_STATUS"
+  [[ "$GITHUB_STATUS" == 2?? ]]
 }
 
-curl -fSL --max-time 30 -o "$SIGNATURE_FILE" "$SIGNATURE_URL" >> "$LOG_FILE" 2>&1 || {
-  write_error "Failed to download release signature"
-  rm -rf "$TMP_DIR"
-  exit 1
+# Last value of a response header, case-insensitive.
+github_header() {
+  tr -d '\r' < "$GITHUB_HEADERS" | grep -i "^$1:" | tail -n 1 | cut -d: -f2- \
+    | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' || true
 }
+
+# The "message" field of a JSON error body, if there is one.
+github_json_message() {
+  [ -s "$1" ] || return 0
+  if command -v jq >/dev/null 2>&1; then
+    jq -r 'if type == "object" and (.message | type) == "string" then .message else empty end' < "$1" 2>/dev/null \
+      | tr -d '\000-\037' | cut -c1-200 || true
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 -I -c 'import json,sys
+try:
+    m = json.load(open(sys.argv[1])).get("message")
+    print(m if isinstance(m, str) else "")
+except Exception:
+    pass' "$1" 2>/dev/null | tr -d '\000-\037' | cut -c1-200 || true
+  fi
+}
+
+utc_time() {
+  date -u -d "@$1" "$2" 2>/dev/null || date -u -r "$1" "$2" 2>/dev/null || true
+}
+
+# github_stop <what was requested> <asset name or empty> <response body file>
+github_stop() {
+  local what="$1" asset="$2" body="$3" code message github_message retry_after reset retry_epoch="" retry_at="" note=""
+  github_message=$(github_json_message "$body")
+  retry_after=$(github_header retry-after)
+  reset=$(github_header x-ratelimit-reset)
+  if [[ "$retry_after" =~ ^[0-9]{1,6}$ ]]; then
+    retry_epoch=$(( $(date -u +%s) + 10#$retry_after ))
+  elif [[ "$reset" =~ ^[0-9]{9,11}$ ]]; then
+    retry_epoch="$reset"
+  fi
+  if [ -n "$retry_epoch" ]; then
+    retry_at=$(utc_time "$retry_epoch" +%Y-%m-%dT%H:%M:%SZ)
+    note="Try again after $(utc_time "$retry_epoch" '+%Y-%m-%d %H:%M') UTC."
+  fi
+  case "$GITHUB_STATUS" in
+    000)
+      code=github_unreachable
+      message="Could not connect to GitHub to download ${what}${asset:+ $asset} (network error or timeout)." ;;
+    404)
+      code=release_asset_missing
+      message="Release ${TAG_NAME} on GitHub does not contain ${what} ${asset} (HTTP 404)." ;;
+    *)
+      code=github_http
+      message="GitHub refused to send ${what}${asset:+ $asset}: HTTP ${GITHUB_STATUS}${github_message:+ ($github_message)}." ;;
+  esac
+  if [ -z "$note" ] && [ "$code" != release_asset_missing ]; then note="Try again in a few minutes."; fi
+  local status_detail="$GITHUB_STATUS"
+  [ "$status_detail" != 000 ] || status_detail=""
+  fail_unchanged "$code" "$message" http_status "$status_detail" github_message "$github_message" \
+    retry_at "$retry_at" asset "$asset" note "$note"
+}
+
+# github.com answers /releases/latest with a redirect to the tag page.
+TAG_NAME=""
+github_get "$GITHUB_BASE/releases/latest" "$TMP_DIR/latest-response" 30 || true
+case "$GITHUB_STATUS" in
+  301|302|303|307|308) ;;
+  2??|404)
+    fail_unchanged release_lookup_invalid "GitHub did not report a published release for ${GITHUB_REPO}." \
+      http_status "$GITHUB_STATUS" note "Try again in a few minutes." ;;
+  *) github_stop "the latest release information" "" "$TMP_DIR/latest-response" ;;
+esac
+TAG_PREFIX="${GITHUB_BASE}/releases/tag/"
+if [[ "$GITHUB_LOCATION" == "$TAG_PREFIX"* ]]; then TAG_NAME="${GITHUB_LOCATION#"$TAG_PREFIX"}"; fi
+if ! [[ "$TAG_NAME" =~ ^v?[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$ ]]; then
+  fail_unchanged release_lookup_invalid "GitHub reported an unexpected latest release address." \
+    note "Try again in a few minutes."
+fi
+RELEASE_DOWNLOAD="${GITHUB_BASE}/releases/download/${TAG_NAME}"
+log "Latest release: $TAG_NAME"
+
+# ===== STEP 2: DOWNLOAD =====
+# The small signed manifest is fetched and checked first; the archive is
+# only downloaded once the manifest is verified and its version accepted.
+
+write_progress "downloading" 10 "Downloading ${TAG_NAME} manifest..."
+
+# Keep the two-line legacy asset for 10.6; new bootstraps prefer the signed
+# extended manifest. A release with only one v2 file never falls back.
+MANIFEST_V2=true
+if github_get "$RELEASE_DOWNLOAD/sellf-build.v2.manifest" "$MANIFEST_FILE" 30 follow; then
+  github_get "$RELEASE_DOWNLOAD/sellf-build.v2.manifest.sig" "$SIGNATURE_FILE" 30 follow \
+    || github_stop "the release signature" sellf-build.v2.manifest.sig "$SIGNATURE_FILE"
+elif [ "$GITHUB_STATUS" = 404 ]; then
+  if github_get "$RELEASE_DOWNLOAD/sellf-build.v2.manifest.sig" "$SIGNATURE_FILE" 30 follow; then
+    GITHUB_STATUS=404
+    github_stop "the release manifest" sellf-build.v2.manifest /dev/null
+  elif [ "$GITHUB_STATUS" != 404 ]; then
+    github_stop "the release signature" sellf-build.v2.manifest.sig "$SIGNATURE_FILE"
+  fi
+  MANIFEST_V2=false
+  github_get "$RELEASE_DOWNLOAD/sellf-build.manifest" "$MANIFEST_FILE" 30 follow \
+    || github_stop "the release manifest" sellf-build.manifest "$MANIFEST_FILE"
+  github_get "$RELEASE_DOWNLOAD/sellf-build.manifest.sig" "$SIGNATURE_FILE" 30 follow \
+    || github_stop "the release signature" sellf-build.manifest.sig "$SIGNATURE_FILE"
+else
+  github_stop "the release manifest" sellf-build.v2.manifest "$MANIFEST_FILE"
+fi
+# github-release:end
 
 # ===== STEP 3: VERIFY MANIFEST & VERSION =====
 
@@ -404,15 +509,11 @@ log "Verifying signature..."
 # signature to the release version (version-check) and to the archive
 # (checksum-validation). A release without a valid signature is never installed.
 if [ ! -s "$SIGNATURE_FILE" ]; then
-  write_error "Release signature missing — refusing to install"
-  rm -rf "$TMP_DIR"
-  exit 1
+  fail_unchanged signature_invalid "Release signature missing — refusing to install."
 fi
 
 if [[ "$RELEASE_SIGNING_PUBKEY" == *REPLACE_WITH_RELEASE_SIGNING_PUBLIC_KEY* ]]; then
-  write_error "Release signing public key is not configured in this upgrade script — cannot verify the release"
-  rm -rf "$TMP_DIR"
-  exit 1
+  fail_unchanged updater_misconfigured "Release signing public key is not configured in this upgrade script — cannot verify the release."
 fi
 
 PUBKEY_FILE="$TMP_DIR/release-signing-key.pub.pem"
@@ -423,16 +524,12 @@ if command -v openssl >/dev/null 2>&1; then
   PUBKEY_TEXT=$(openssl pkey -pubin -in "$PUBKEY_FILE" -noout -text 2>/dev/null || true)
 fi
 if [[ "$PUBKEY_TEXT" != *ED25519* ]]; then
-  write_error "openssl on this server cannot verify Ed25519 signatures (OpenSSL 1.1.1 or newer is required) — refusing to install"
-  rm -rf "$TMP_DIR"
-  exit 1
+  fail_unchanged openssl_unsupported "openssl on this server cannot verify Ed25519 signatures (OpenSSL 1.1.1 or newer is required) — refusing to install."
 fi
 
 if ! openssl pkeyutl -verify -pubin -inkey "$PUBKEY_FILE" -rawin \
     -in "$MANIFEST_FILE" -sigfile "$SIGNATURE_FILE" >/dev/null 2>&1; then
-  write_error "Release signature is not valid for the published manifest — refusing to install"
-  rm -rf "$TMP_DIR"
-  exit 1
+  fail_unchanged signature_invalid "Release signature is not valid for the published manifest — refusing to install."
 fi
 
 log "Signature OK (release signing key)"
@@ -461,42 +558,26 @@ if [ "$MANIFEST_LINES" -ne "$EXPECTED_MANIFEST_LINES" ] \
     || ! [[ "$REQUIRED_UPDATER_VERSION" =~ ^[1-9][0-9]{0,8}$ ]] \
     || ! [[ "$MANIFEST_VERSION" =~ ^[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$ ]] \
     || ! [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{64}$ ]]; then
-  write_error "Malformed release manifest — refusing to install"
-  rm -rf "$TMP_DIR"
-  exit 1
+  fail_unchanged manifest_invalid "Malformed release manifest — refusing to install."
 fi
 
 if [ "$MANIFEST_VERSION" != "${TAG_NAME#v}" ]; then
-  write_error "Signed release version ${MANIFEST_VERSION} does not match the release tag ${TAG_NAME} — refusing to install"
-  rm -rf "$TMP_DIR"
-  exit 1
+  fail_unchanged manifest_invalid "Signed release version ${MANIFEST_VERSION} does not match the release tag ${TAG_NAME} — refusing to install."
 fi
 # An old bootstrap must refuse BEFORE downloading/executing any release code.
 if [ "$REQUIRED_UPDATER_VERSION" -gt "${UPDATER_VERSION:-1}" ]; then
-  write_error "This release requires updater $REQUIRED_UPDATER_VERSION (installed: ${UPDATER_VERSION:-1}). Update Sellf through Stackpilot: ./local/deploy.sh sellf --ssh=<server> --update"
-  rm -rf "$TMP_DIR"
-  exit 1
+  fail_unchanged updater_too_old "This release requires updater $REQUIRED_UPDATER_VERSION (installed: ${UPDATER_VERSION:-1}). Update Sellf through Stackpilot: ./local/deploy.sh sellf --ssh=<server> --update."
 fi
 # manifest-parse:end
 
 # version-check:start — extracted verbatim by tests/unit/scripts/upgrade-archive-validation.test.ts
-# The installed version comes from version.txt (written by the release build
-# and copied on every install/upgrade), falling back to package.json. Versions
-# are CalVer YYYY.M.patch, compared field by field as numbers
+# Versions are CalVer YYYY.M.patch, compared field by field as numbers
 # (2026.10.0 > 2026.9.10). Older than installed: refused. Equal: reinstalled
 # through the normal install path (the admin UI's "Reinstall"); every check
 # above and below still applies.
-INSTALLED_VERSION=""
-if [ -f "$INSTALL_DIR/version.txt" ]; then
-  INSTALLED_VERSION=$(head -n 1 "$INSTALL_DIR/version.txt" | tr -d '[:space:]')
-fi
-if ! [[ "$INSTALLED_VERSION" =~ ^v?[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$ ]] && [ -f "$INSTALL_DIR/package.json" ]; then
-  INSTALLED_VERSION=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('version',''))" "$INSTALL_DIR/package.json" 2>/dev/null | tr -d '[:space:]' || true)
-fi
-if ! [[ "$INSTALLED_VERSION" =~ ^v?[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$ ]]; then
-  write_error "Could not determine the installed version (version.txt / package.json in ${INSTALL_DIR}) — refusing to install"
-  rm -rf "$TMP_DIR"
-  exit 1
+INSTALLED_VERSION=$(read_installed_version)
+if [ -z "$INSTALLED_VERSION" ]; then
+  fail_unchanged installed_version_unknown "Could not determine the installed version (version.txt / package.json in ${INSTALL_DIR}) — refusing to install."
 fi
 
 # Prints -1, 0 or 1 for $1 <, =, > $2 (both already validated as [v]N.N.N).
@@ -514,9 +595,7 @@ compare_calver() {
 
 case "$(compare_calver "$MANIFEST_VERSION" "$INSTALLED_VERSION")" in
   -1)
-    write_error "Release ${MANIFEST_VERSION} is older than the installed version ${INSTALLED_VERSION} — refusing to install"
-    rm -rf "$TMP_DIR"
-    exit 1
+    fail_unchanged release_older "Release ${MANIFEST_VERSION} is older than the installed version ${INSTALLED_VERSION} — refusing to install."
     ;;
   0)
     log "Release ${MANIFEST_VERSION} is already installed; reinstalling"
@@ -532,11 +611,8 @@ esac
 write_progress "downloading" 15 "Downloading ${TAG_NAME}..."
 log "Downloading archive..."
 
-curl -fSL --max-time 120 -o "$ARCHIVE" "$DOWNLOAD_URL" >> "$LOG_FILE" 2>&1 || {
-  write_error "Failed to download release archive"
-  rm -rf "$TMP_DIR"
-  exit 1
-}
+github_get "$RELEASE_DOWNLOAD/sellf-build.tar.gz" "$ARCHIVE" 120 follow \
+  || github_stop "the release archive" sellf-build.tar.gz /dev/null
 
 log "Download complete: $(du -h "$ARCHIVE" | cut -f1)"
 
@@ -547,9 +623,7 @@ log "Verifying checksum..."
 # EXPECTED_SHA comes from the signed manifest (manifest-parse).
 ACTUAL_SHA=$(sha256sum "$ARCHIVE" | awk '{print $1}')
 if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
-  write_error "Security: checksum mismatch — downloaded archive does not match the signed manifest"
-  rm -rf "$TMP_DIR"
-  exit 1
+  fail_unchanged checksum_mismatch "Security: checksum mismatch — downloaded archive does not match the signed manifest."
 fi
 
 log "Checksum OK: $ACTUAL_SHA"
@@ -566,14 +640,10 @@ write_progress "extracting" 28 "Validating archive contents..."
 log "Validating archive entries..."
 
 if ! TAR_TZVF_OUTPUT=$(tar -tzvf "$ARCHIVE" 2>/dev/null); then
-  write_error "Security: unable to read archive contents"
-  rm -rf "$TMP_DIR"
-  exit 1
+  fail_unchanged archive_invalid "Security: unable to read archive contents."
 fi
 if [ -z "$TAR_TZVF_OUTPUT" ]; then
-  write_error "Security: archive contains no entries"
-  rm -rf "$TMP_DIR"
-  exit 1
+  fail_unchanged archive_invalid "Security: archive contains no entries."
 fi
 
 while IFS= read -r tar_line; do
@@ -581,30 +651,22 @@ while IFS= read -r tar_line; do
   case "$entry_type" in
     -|d) ;; # regular file / directory — OK
     *)
-      write_error "Security: archive contains a non-regular entry (type '${entry_type}')"
-      rm -rf "$TMP_DIR"
-      exit 1
+      fail_unchanged archive_invalid "Security: archive contains a non-regular entry (type '${entry_type}')."
       ;;
   esac
 done <<< "$TAR_TZVF_OUTPUT"
 
 if ! TAR_TZF_OUTPUT=$(tar -tzf "$ARCHIVE" 2>/dev/null); then
-  write_error "Security: unable to read archive contents"
-  rm -rf "$TMP_DIR"
-  exit 1
+  fail_unchanged archive_invalid "Security: unable to read archive contents."
 fi
 if [ -z "$TAR_TZF_OUTPUT" ]; then
-  write_error "Security: archive contains no entries"
-  rm -rf "$TMP_DIR"
-  exit 1
+  fail_unchanged archive_invalid "Security: archive contains no entries."
 fi
 
 while IFS= read -r entry_path; do
   case "$entry_path" in
     /*|*/../*|../*|..|*/..)
-      write_error "Security: archive contains an unsafe path (${entry_path})"
-      rm -rf "$TMP_DIR"
-      exit 1
+      fail_unchanged archive_invalid "Security: archive contains an unsafe path (${entry_path})."
       ;;
   esac
 done <<< "$TAR_TZF_OUTPUT"
@@ -618,16 +680,12 @@ log "Extracting..."
 EXTRACT_DIR="$TMP_DIR/extracted"
 mkdir -p "$EXTRACT_DIR"
 tar -xzf "$ARCHIVE" -C "$EXTRACT_DIR" >> "$LOG_FILE" 2>&1 || {
-  write_error "Failed to extract archive"
-  rm -rf "$TMP_DIR"
-  exit 1
+  fail_unchanged archive_invalid "Failed to extract archive."
 }
 
 # Validate archive structure
 if [ ! -d "$EXTRACT_DIR/.next/standalone" ]; then
-  write_error "Invalid archive: missing .next/standalone/"
-  rm -rf "$TMP_DIR"
-  exit 1
+  fail_unchanged archive_invalid "Invalid archive: missing .next/standalone/."
 fi
 
 log "Archive validated OK"
@@ -650,16 +708,19 @@ fi
 
 # Keep HTTP error bodies, including non-JSON responses, in the private upgrade log.
 # Neither SQL nor JSON is ever passed as a large process argument.
+# "<curl exit code> <HTTP status>" of the last call is left in migration-response.status.
 migration_rpc() {
-  local endpoint="$1" payload="$2" http_status
+  local endpoint="$1" payload="$2" http_status rc=0
   local response_file="$TMP_DIR/migration-response.json"
   : > "$response_file"
-  if ! http_status=$(curl -sS "${SUPABASE_URL}/rest/v1/rpc/$endpoint" \
+  http_status=$(curl -sS "${SUPABASE_URL}/rest/v1/rpc/$endpoint" \
     -H "apikey: ${SERVICE_KEY}" \
     -H "Authorization: Bearer ${SERVICE_KEY}" \
     -H "Content-Type: application/json" \
-    --data-binary "$payload" -o "$response_file" -w '%{http_code}' 2>>"$LOG_FILE"); then
-    log "ERROR: $endpoint transport failed (HTTP ${http_status:-unknown})"
+    --data-binary "$payload" -o "$response_file" -w '%{http_code}' 2>>"$LOG_FILE") || rc=$?
+  printf '%s %s\n' "$rc" "${http_status:-000}" > "$TMP_DIR/migration-response.status"
+  if [ "$rc" -ne 0 ]; then
+    log "ERROR: $endpoint transport failed (curl exit $rc, HTTP ${http_status:-unknown})"
     cat "$response_file" >> "$LOG_FILE"
     return 1
   fi
@@ -672,10 +733,7 @@ migration_rpc() {
 }
 
 preflight_stop() {
-  log "ERROR: $1"
-  write_error "$1"
-  rm -rf "$TMP_DIR"
-  exit 1
+  fail_unchanged migration_preflight "$1"
 }
 
 if [ ! -d "$EXTRACT_DIR/supabase/migrations" ]; then
@@ -689,9 +747,21 @@ if [ -n "$DUPLICATE_TIMESTAMP" ]; then
   preflight_stop "Migration timestamp $DUPLICATE_TIMESTAMP is used by more than one file in this release. Database untouched."
 fi
 
+# One value of .env.local, parsed as dotenv (quotes, comments) by Node's parseEnv.
+read_env_value() {
+  [ -f "$INSTALL_DIR/.env.local" ] || return 0
+  "${NODE_BIN:-node}" -e '
+    const { readFileSync } = require("node:fs");
+    const { parseEnv } = require("node:util");
+    const value = parseEnv(readFileSync(process.argv[1], "utf8"))[process.argv[2]];
+    if (value !== undefined) process.stdout.write(value);
+  ' "$INSTALL_DIR/.env.local" "$1" 2>>"$LOG_FILE"
+}
+
 # Read Supabase connection info from .env.local
-SUPABASE_URL=$(grep -E '^SUPABASE_URL=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
-SERVICE_KEY=$(grep -E '^SUPABASE_SERVICE_ROLE_KEY=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
+if ! SUPABASE_URL=$(read_env_value SUPABASE_URL) || ! SERVICE_KEY=$(read_env_value SUPABASE_SERVICE_ROLE_KEY); then
+  preflight_stop "Could not read $INSTALL_DIR/.env.local with Node. Database untouched."
+fi
 
 # Read-only status lookup. With a configured database the registry must be
 # readable before anything changes; without one the migration step reports it.
@@ -885,8 +955,8 @@ load_pm2_environment() {
   rm -f "$environment_file"
 }
 
-# Restore only code/configuration. Earlier successful RPCs are already committed;
-# this does not claim to roll back the database.
+# Restore only code/configuration. A failed migration batch is rolled back by the
+# database itself; migrations of a successful batch stay applied.
 rollback_code() {
   local old_server="$BACKUP_DIR/.next/standalone/admin-panel/server.js"
   [ -f "$old_server" ] || old_server="$BACKUP_DIR/.next/standalone/server.js"
@@ -908,7 +978,7 @@ rollback_code() {
   [ -f "$old_server" ] || old_server="$INSTALL_DIR/.next/standalone/server.js"
   load_pm2_environment || return 1
   local old_port
-  old_port=$(grep -E '^PORT=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2 || true)
+  old_port=$(read_env_value PORT || true)
   if ! [[ "$old_port" =~ ^[0-9]+$ ]] || [ "$old_port" -lt 1024 ] || [ "$old_port" -gt 65535 ]; then
     old_port=3333
   fi
@@ -923,89 +993,218 @@ rollback_code() {
 write_progress "migrating" 75 "Running database migrations..."
 log "Running migrations..."
 MIGRATION_ERRORS=0
+MIGRATION_CAUSE=""
+MIGRATION_FAILED_FILE=""
+MIGRATION_PENDING_COUNT=0
 
+# migration-batch:start
+# All pending migrations of this release go to apply_migration in ONE call, so
+# PostgreSQL runs them in one transaction: an error in any file rolls back every
+# file and every registry row. Each file runs in its own block so the error
+# names it. The RPC records the last version; the batch records the others.
+build_migration_batch() {
+  local output="$1" quote last version
+  shift
+  quote="sellf_$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')"
+  last="${!#}"
+  : > "$output"
+  for version in "$@"; do
+    if grep -qF "\$${quote}" "$INSTALL_DIR/supabase/migrations/$version.sql"; then
+      log "ERROR: Migration $version contains the batch quote; retry the update"
+      return 1
+    fi
+    {
+      printf 'DO $%s_block$\nBEGIN\nEXECUTE $%s_sql$\n' "$quote" "$quote"
+      cat "$INSTALL_DIR/supabase/migrations/$version.sql"
+      printf '\n$%s_sql$;\nEXCEPTION WHEN OTHERS THEN\n' "$quote"
+      printf "  RAISE EXCEPTION 'Migration %% failed: %%', '%s', SQLERRM USING ERRCODE = SQLSTATE;\n" "$version"
+      printf 'END\n$%s_block$;\n' "$quote"
+      if [ "$version" != "$last" ]; then
+        printf "INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ('%s', '%s');\n" \
+          "${version%%_*}" "${version#*_}"
+      fi
+    } >> "$output" || return 1
+  done
+}
+
+# Prints all, none, "<present> <pending>" or unreadable for the pending versions
+# (log lines go to stderr so only the state reaches the caller).
+pending_registry_state() {
+  local status present
+  if ! status=$(migration_rpc get_migration_status '{}') ||
+    ! present=$(jq -er --arg pending "${PENDING_MIGRATIONS[*]}" '
+      ($pending | split(" ") | map(split("_")[0])) as $wanted
+      | [.[] | .version | split("_")[0]] as $have
+      | [$wanted[] | select(. as $w | $have | index($w))] | length' <<< "$status" 2>/dev/null); then
+    log "Migration registry could not be read after the migration request" >&2
+    echo unreadable
+    return
+  fi
+  if [ "$present" -eq "$MIGRATION_PENDING_COUNT" ]; then
+    log "Migration registry shows all $MIGRATION_PENDING_COUNT migrations applied" >&2
+    echo all
+  elif [ "$present" -eq 0 ]; then
+    log "Migration registry shows none of the $MIGRATION_PENDING_COUNT migrations applied" >&2
+    echo none
+  else
+    log "Migration registry shows $present of $MIGRATION_PENDING_COUNT migrations applied" >&2
+    echo "$present $MIGRATION_PENDING_COUNT"
+  fi
+}
+
+MIGRATION_UNKNOWN=""
 if [ "$APPLIED_STATE" = ok ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
-  MIGRATION_COUNT=0
   MIGRATION_SKIPPED=0
+  PENDING_MIGRATIONS=()
 
   # Exactly the release's file list, read on descriptor 3.
   while IFS= read -r VERSION <&3; do
     [ -n "$VERSION" ] || continue
-    migration_file="$INSTALL_DIR/supabase/migrations/$VERSION.sql"
-
     # The database records timestamps independently of migration names.
     if jq -e --arg v "${VERSION%%_*}" \
       'any(.[]; (.version | split("_")[0]) == $v)' <<< "$APPLIED" >/dev/null 2>&1; then
       MIGRATION_SKIPPED=$((MIGRATION_SKIPPED + 1))
       continue
     fi
-
-    if ! SQL_CONTENT=$(cat "$migration_file" 2>>"$LOG_FILE") ||
-      ! CHECKSUM=$(printf '%s' "$SQL_CONTENT" | sha256sum | cut -d' ' -f1); then
-      log "WARNING: Migration $VERSION could not be read or checksummed"
-      MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
-      continue
+    # Versions are embedded in the batch SQL; the RPC accepts only this format.
+    if ! [[ "$VERSION" =~ ^[0-9]{14}_[a-z0-9_]+$ ]]; then
+      MIGRATION_CAUSE="Migration file name $VERSION is not in the YYYYMMDDHHMMSS_name format"
+      MIGRATION_ERRORS=1
+      break
     fi
+    PENDING_MIGRATIONS+=("$VERSION")
+  done 3<<< "$RELEASE_MIGRATIONS"
+  MIGRATION_PENDING_COUNT=${#PENDING_MIGRATIONS[@]}
 
-    # Read SQL and send JSON through files, preserving the existing checksum input.
+  # A failure is "definite" only when PostgreSQL itself reported the error or the
+  # request never left this server; anything else (lost or garbled response,
+  # gateway error) may have followed a COMMIT and is settled by the registry.
+  MIGRATION_OUTCOME_CERTAIN=true
+  if [ "$MIGRATION_ERRORS" -eq 0 ] && [ "$MIGRATION_PENDING_COUNT" -gt 0 ]; then
+    BATCH_FILE="$TMP_DIR/migration-batch.sql"
     PAYLOAD_FILE="$TMP_DIR/migration-payload.json"
-    if ! jq -n --arg v "$VERSION" --rawfile s "$migration_file" --arg c "$CHECKSUM" \
-      '{migration_version: $v, migration_sql: ($s | sub("\\n+$"; "")), content_checksum: $c}' \
-      > "$PAYLOAD_FILE" 2>>"$LOG_FILE"; then
-      log "WARNING: Migration $VERSION payload could not be prepared"
-      MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
-      continue
-    fi
-    if ! RESULT=$(migration_rpc apply_migration "@$PAYLOAD_FILE"); then
-      log "WARNING: Migration $VERSION failed"
-      MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
-      continue
-    fi
-
-    if ! OUTCOME=$(jq -er -s '
+    LAST_MIGRATION="${PENDING_MIGRATIONS[$((MIGRATION_PENDING_COUNT - 1))]}"
+    log "Applying $MIGRATION_PENDING_COUNT migrations in one transaction: ${PENDING_MIGRATIONS[*]}"
+    # SQL and JSON travel through files, never as large process arguments.
+    if ! build_migration_batch "$BATCH_FILE" "${PENDING_MIGRATIONS[@]}" 2>>"$LOG_FILE" ||
+      ! CHECKSUM=$(sha256sum "$BATCH_FILE" | cut -d' ' -f1) ||
+      ! jq -n --arg v "$LAST_MIGRATION" --rawfile s "$BATCH_FILE" --arg c "$CHECKSUM" \
+        '{migration_version: $v, migration_sql: $s, content_checksum: $c}' > "$PAYLOAD_FILE" 2>>"$LOG_FILE"; then
+      MIGRATION_CAUSE="The migration request could not be prepared"
+      MIGRATION_ERRORS=1
+    elif ! RESULT=$(migration_rpc apply_migration "@$PAYLOAD_FILE"); then
+      read -r RPC_EXIT RPC_STATUS < "$TMP_DIR/migration-response.status" || { RPC_EXIT=1; RPC_STATUS=000; }
+      MIGRATION_CAUSE=$(jq -r 'if type == "object" and (.message | type) == "string" then .message else empty end' \
+        "$TMP_DIR/migration-response.json" 2>/dev/null || true)
+      # PostgREST reports a database error as {code, details, hint, message}:
+      # PostgreSQL rolled the transaction back. Connect failures never sent it.
+      if ! jq -e 'type == "object" and has("code") and has("details") and has("hint")' \
+        "$TMP_DIR/migration-response.json" >/dev/null 2>&1; then
+        case "$RPC_EXIT" in
+          6|7) MIGRATION_CAUSE="The database API could not be reached (curl exit $RPC_EXIT)" ;;
+          0) MIGRATION_CAUSE="${MIGRATION_CAUSE:-The database API answered HTTP $RPC_STATUS without a database error}"
+             MIGRATION_OUTCOME_CERTAIN=false ;;
+          *) MIGRATION_CAUSE="The connection to the database API failed before a response arrived (curl exit $RPC_EXIT)"
+             MIGRATION_OUTCOME_CERTAIN=false ;;
+        esac
+      fi
+      MIGRATION_ERRORS=1
+    elif ! OUTCOME=$(jq -er -s '
       if length != 1 then error("Expected one result")
       else .[0] |
         if type != "object" then error("Expected an object")
         elif (.success | type) != "boolean" then error("Expected success boolean")
         elif has("skipped") and (.skipped | type) != "boolean" then error("Expected skipped boolean")
         elif .success == false then "failed"
-        elif .skipped == true then "already_applied"
+        elif .skipped == true then "skipped"
         else "applied"
         end
       end' <<< "$RESULT" 2>/dev/null); then
-      log "WARNING: Migration $VERSION failed: Invalid migration RPC response"
       printf '%s\n' "$RESULT" >> "$LOG_FILE"
-      MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
-      continue
-    fi
-
-    if [ "$OUTCOME" = "failed" ]; then
-      MESSAGE=$(jq -r '.message | if type == "string" then gsub("[\\r\\n]"; " ") else "Migration RPC reported failure" end' <<< "$RESULT")
-      log "WARNING: Migration $VERSION failed: $MESSAGE"
+      MIGRATION_CAUSE="The migration RPC returned an invalid response (see the upgrade log)"
+      MIGRATION_ERRORS=1
+      MIGRATION_OUTCOME_CERTAIN=false
+    elif [ "$OUTCOME" = failed ]; then
       printf '%s\n' "$RESULT" >> "$LOG_FILE"
-      MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
-    elif [ "$OUTCOME" = "already_applied" ]; then
-      log "Migration $VERSION: already applied"
-      MIGRATION_SKIPPED=$((MIGRATION_SKIPPED + 1))
+      MIGRATION_CAUSE=$(jq -r '.message | if type == "string" then . else "The migration RPC reported a failure" end' <<< "$RESULT")
+      MIGRATION_ERRORS=1
+    elif [ "$OUTCOME" = skipped ]; then
+      # Nothing ran: another process recorded the last version after the status check.
+      printf '%s\n' "$RESULT" >> "$LOG_FILE"
+      MIGRATION_CAUSE="The migration registry changed during the update"
+      MIGRATION_ERRORS=1
+      MIGRATION_OUTCOME_CERTAIN=false
     else
-      log "Migration $VERSION: $RESULT"
-      MIGRATION_COUNT=$((MIGRATION_COUNT + 1))
+      log "Migrations applied: $RESULT"
     fi
-  done 3<<< "$RELEASE_MIGRATIONS"
+  fi
 
+  # An uncertain outcome is settled by the registry: all versions -> applied,
+  # none (read twice) -> rolled back, anything else -> unknown.
+  if [ "$MIGRATION_ERRORS" -gt 0 ] && [ "$MIGRATION_OUTCOME_CERTAIN" = false ]; then
+    MIGRATION_STATE=$(pending_registry_state)
+    if [ "$MIGRATION_STATE" = none ]; then
+      # A request cut off at a gateway may still be committing.
+      sleep "${MIGRATION_RECHECK_SECONDS:-15}"
+      MIGRATION_STATE=$(pending_registry_state)
+    fi
+    case "$MIGRATION_STATE" in
+      all)
+        log "WARNING: the migration response was not usable, but the registry shows all $MIGRATION_PENDING_COUNT migrations applied; continuing with the new version"
+        MIGRATION_ERRORS=0 ;;
+      none) ;;
+      *) MIGRATION_UNKNOWN="$MIGRATION_STATE" ;;
+    esac
+  fi
+  MIGRATION_CAUSE=$(printf '%s' "$MIGRATION_CAUSE" | tr -d '\000-\037' | cut -c1-300)
+  MIGRATION_FAILED_FILE=$(printf '%s' "$MIGRATION_CAUSE" | sed -n 's/^Migration \([0-9]\{14\}_[a-z0-9_]*\) failed: .*/\1/p')
+  if [ "$MIGRATION_ERRORS" -eq 0 ]; then
+    MIGRATION_COUNT=$MIGRATION_PENDING_COUNT
+  else
+    MIGRATION_COUNT=0
+    log "ERROR: Migrations rolled back: $MIGRATION_CAUSE"
+  fi
   log "Migrations complete: $MIGRATION_COUNT applied, $MIGRATION_SKIPPED already applied, $MIGRATION_ERRORS errors"
 else
   MIGRATION_ERRORS=1
+  MIGRATION_CAUSE="Supabase connection settings or the migration directory are missing"
   log "Migrations incomplete (missing Supabase config or migration directory)"
+fi
+# migration-batch:end
+
+if [ -n "$MIGRATION_UNKNOWN" ]; then
+  # Neither the old nor the new code may run against a database whose state is
+  # not known; the application stays stopped (PM2 was stopped before the swap).
+  if [ "$MIGRATION_UNKNOWN" = unreadable ]; then
+    REGISTRY_TEXT="could not be read afterwards"
+  else
+    REGISTRY_TEXT="shows ${MIGRATION_UNKNOWN% *} of ${MIGRATION_UNKNOWN#* } migrations of this release applied"
+  fi
+  FIRST_PENDING="${PENDING_MIGRATIONS[0]%%_*}"
+  LAST_PENDING="${LAST_MIGRATION%%_*}"
+  log "ERROR: Migration outcome unknown; application left stopped"
+  write_failure migration_state_unknown "The result of the database migration is unknown: ${MIGRATION_CAUSE%.}. The migration registry $REGISTRY_TEXT. The application was left stopped so that neither the old nor the new version runs against a database in an unknown state. Check supabase_migrations.schema_migrations for versions $FIRST_PENDING to $LAST_PENDING: if all $MIGRATION_PENDING_COUNT are present, run the update again (it skips them and starts the new version); if none is present, run the update again or restore the previous code from $BACKUP_DIR; if only some are present, restore the database from your latest backup first." \
+    cause "$MIGRATION_CAUSE"
+  rm -rf "$TMP_DIR"
+  exit 1
 fi
 
 if [ "$MIGRATION_ERRORS" -gt 0 ]; then
   log "ERROR: Migrations failed; restoring previous code before any new-version startup"
   write_progress "rolling_back" 85 "Database migration failed. Restoring previous code..."
-  if rollback_code; then
-    write_error "Upgrade to ${TAG_NAME} finished with $MIGRATION_ERRORS migration errors. Check upgrade logs." true
+  MIGRATION_MESSAGE="Database migration failed: ${MIGRATION_CAUSE%.}."
+  if [ "$MIGRATION_PENDING_COUNT" -gt 0 ]; then
+    MIGRATION_MESSAGE="$MIGRATION_MESSAGE All $MIGRATION_PENDING_COUNT pending migrations of this release were rolled back together; the database is as it was before the update."
   else
-    write_error "Upgrade failed: migrations incomplete and code restoration failed. Application remains stopped."
+    MIGRATION_MESSAGE="$MIGRATION_MESSAGE No migration of this release was applied."
+  fi
+  PREVIOUS_VERSION=$(INSTALL_DIR="$BACKUP_DIR" read_installed_version || true)
+  if rollback_code; then
+    write_failure migration_failed "$MIGRATION_MESSAGE The previous code was restored; the shop is running the previous version${PREVIOUS_VERSION:+ (${PREVIOUS_VERSION#v})} again." \
+      cause "$MIGRATION_CAUSE" migration "$MIGRATION_FAILED_FILE" installed_version "${PREVIOUS_VERSION#v}" rollback true
+  else
+    write_failure migration_failed "$MIGRATION_MESSAGE Restoring the previous code failed. Application remains stopped." \
+      cause "$MIGRATION_CAUSE" migration "$MIGRATION_FAILED_FILE"
   fi
   rm -rf "$TMP_DIR"
   exit 1
@@ -1035,7 +1234,7 @@ if [ ! -f "$SERVER_JS" ]; then
 fi
 
 # Read PORT from .env.local and validate
-PORT=$(grep -E '^PORT=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2 || true)
+PORT=$(read_env_value PORT || true)
 if ! [[ "$PORT" =~ ^[0-9]+$ ]] || [ "$PORT" -lt 1024 ] || [ "$PORT" -gt 65535 ]; then
   PORT=3333
 fi

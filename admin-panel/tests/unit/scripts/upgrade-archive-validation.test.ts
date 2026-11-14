@@ -88,8 +88,12 @@ RELEASE_SIGNING_PUBKEY="$(cat "$5")"
 INSTALL_DIR="$6"
 TAG_NAME="$7"
 write_error() { echo "WRITE_ERROR: $1"; exit 1; }
+write_failure() { echo "WRITE_ERROR: [$1] $2"; }
 write_progress() { echo "PROGRESS: $1 $3"; }
 log() { echo "LOG: $*"; }
+
+${extractBlock('installed-version')}
+${extractBlock('failure-report')}
 
 ${extractBlock('signature-verification')}
 ${extractBlock('manifest-parse')}
@@ -209,7 +213,7 @@ describe('upgrade.sh release verification (extracted verbatim from scripts/upgra
       const signatureStart = SCRIPT_SOURCE.indexOf('# signature-verification:start');
       const manifestStart = SCRIPT_SOURCE.indexOf('# manifest-parse:start');
       const versionStart = SCRIPT_SOURCE.indexOf('# version-check:start');
-      const archiveDownload = SCRIPT_SOURCE.indexOf('-o "$ARCHIVE" "$DOWNLOAD_URL"');
+      const archiveDownload = SCRIPT_SOURCE.indexOf('github_get "$RELEASE_DOWNLOAD/sellf-build.tar.gz" "$ARCHIVE"');
       const checksumStart = SCRIPT_SOURCE.indexOf('# checksum-validation:start');
       const tarStart = SCRIPT_SOURCE.indexOf('# tar-validation:start');
       const extractCall = SCRIPT_SOURCE.indexOf('tar -xzf "$ARCHIVE" -C "$EXTRACT_DIR"');
@@ -223,14 +227,11 @@ describe('upgrade.sh release verification (extracted verbatim from scripts/upgra
       expect(extractCall).toBeGreaterThan(tarStart);
     });
 
-    it('fails closed when the release has no manifest or no signature asset', () => {
-      expect(SCRIPT_SOURCE).toContain('No sellf-build.manifest asset found in latest release');
-      expect(SCRIPT_SOURCE).toContain('No sellf-build.manifest.sig asset found in latest release');
-    });
-
-    it('validates the manifest and signature asset origins the same way as the tarball', () => {
-      expect(SCRIPT_SOURCE).toContain('if ! [[ "$MANIFEST_URL" =~ ^https://github\\.com/ ]]; then');
-      expect(SCRIPT_SOURCE).toContain('if ! [[ "$SIGNATURE_URL" =~ ^https://github\\.com/ ]]; then');
+    it('builds every release address from the fixed github.com repository and never calls api.github.com', () => {
+      // Missing assets fail closed: tests/unit/scripts/upgrade-github-release.test.ts.
+      expect(SCRIPT_SOURCE).toContain('GITHUB_BASE="https://github.com/${GITHUB_REPO}"');
+      expect(SCRIPT_SOURCE).toContain('RELEASE_DOWNLOAD="${GITHUB_BASE}/releases/download/${TAG_NAME}"');
+      expect(SCRIPT_SOURCE).not.toContain('api.github.com/repos');
     });
 
     it('has no environment switch that relaxes signature verification', () => {

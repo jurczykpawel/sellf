@@ -11,7 +11,9 @@ vi.mock('@/lib/system/updater-compatibility', async importOriginal => ({
 import { GET } from '@/app/api/v1/system/update-check/route';
 afterEach(() => vi.unstubAllGlobals());
 it('returns a blocked capability and the minimum for both fresh and cached checks', async () => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ tag_name: 'v2099.1.0' }) }));
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => url.endsWith('/releases/latest')
+    ? new Response(null, { status: 302, headers: { location: 'https://github.com/jurczykpawel/sellf/releases/tag/v2099.1.0' } })
+    : Response.json({ tag_name: 'v2099.1.0' })));
   for (const query of ['?force=true', '']) {
     const response = await GET(new NextRequest('http://localhost/api/v1/system/update-check' + query));
     const data = (await response.json()).data;

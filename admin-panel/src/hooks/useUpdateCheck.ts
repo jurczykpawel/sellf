@@ -4,7 +4,7 @@
  * Hook for checking application updates.
  *
  * Auto-checks on mount with smart caching:
- * - Server-side: 1h cache (GitHub API)
+ * - Server-side: 1h cache (github.com release lookup)
  * - Deployment capabilities refreshed on every mount
  * - Dismissed version: 24h before re-showing
  *
@@ -13,6 +13,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { UpgradeCapability, UpdaterCompatibility } from '@/lib/system/upgrade-runtime';
+import type { UpdateFailure, UpdateFailureDetails } from '@/lib/system/update-failure';
 
 const STORAGE_KEY = 'sellf_update_check';
 const DISMISSED_KEY = 'sellf_update_dismissed';
@@ -29,6 +30,8 @@ export interface UpdateInfo {
   release_notes: string | null;
   published_at: string | null;
   release_url: string | null;
+  /** Why the latest release could not be checked; absent after a successful check. */
+  check_error?: UpdateFailure;
 }
 
 export interface UpgradeProgress {
@@ -37,7 +40,15 @@ export interface UpgradeProgress {
   message: string;
   rollback?: boolean;
   timestamp?: string;
+  /** Failure reason written by upgrade.sh or the upgrade API; see update-failure.ts. */
+  code?: string;
+  details?: UpdateFailureDetails;
 }
+
+const START_ERROR_CODES: Record<string, string> = {
+  UPGRADE_STARTING: 'upgrade_starting',
+  UPGRADE_RUNNING: 'upgrade_running',
+};
 
 interface DismissedVersion {
   version: string;
@@ -301,11 +312,14 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
       });
 
       if (!response.ok) {
-        const errJson = await response.json();
+        const error = (await response.json()).error ?? {};
+        const failure: UpdateFailure | undefined = error.failure
+          ?? (START_ERROR_CODES[error.code] ? { code: START_ERROR_CODES[error.code], details: {} } : undefined);
         setUpgradeProgress({
           step: 'failed',
           progress: -1,
-          message: errJson.error?.message || 'Failed to start upgrade',
+          message: error.message || 'Failed to start upgrade',
+          ...(failure ? { code: failure.code, details: failure.details ?? {} } : {}),
         });
         setUpgradeInProgress(false);
         return;

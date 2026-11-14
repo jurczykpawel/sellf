@@ -5157,6 +5157,27 @@
       "updateAvailable": "Dostępna wersja {version}.",
       "upgradeNow": "Aktualizuj teraz",
       "reinstall": "Przeinstaluj"
+    },
+    "failure": {
+      "checkFailed": "Nie udało się sprawdzić aktualizacji.",
+      "github_unreachable": "Nie udało się połączyć z GitHubem (brak sieci albo przekroczony czas).",
+      "github_http": "GitHub odrzucił zapytanie: HTTP {status}.",
+      "githubSays": "Komunikat GitHuba: „{message}”",
+      "release_asset_missing": "W wydaniu na GitHubie brakuje pliku {asset}.",
+      "release_lookup_invalid": "GitHub nie podał poprawnego najnowszego wydania.",
+      "signature_invalid": "Podpis wydania jest nieprawidłowy, więc wydanie nie zostało zainstalowane.",
+      "manifest_invalid": "Podpisany opis wydania jest nieprawidłowy, więc wydanie nie zostało zainstalowane.",
+      "checksum_mismatch": "Pobrane archiwum nie zgadza się z podpisanym wydaniem, więc nie zostało zainstalowane.",
+      "archive_invalid": "Pobrane archiwum jest uszkodzone albo nieprawidłowe, więc nie zostało zainstalowane.",
+      "release_older": "Wydanie na GitHubie jest starsze niż zainstalowana wersja.",
+      "upgrade_running": "Aktualizacja już trwa. Poczekaj, aż się skończy.",
+      "upgrade_starting": "Aktualizacja właśnie się uruchamia. Poczekaj kilka sekund.",
+      "migration_failed": "Migracja bazy danych nie powiodła się: {cause}",
+      "unchanged": "Nic nie zostało zmienione, sklep działa na wersji {version}.",
+      "unchangedUnknown": "Nic nie zostało zmienione, sklep działa na dotychczasowej wersji.",
+      "migrationRolledBack": "Żadna migracja z tego wydania nie została zastosowana, a poprzedni kod wrócił na miejsce; sklep znowu działa na wersji {version}.",
+      "retryAt": "Spróbuj ponownie po {time}.",
+      "retrySoon": "Spróbuj ponownie za kilka minut."
     }
   },
   "securityAudit": {

@@ -72,3 +72,35 @@ describe('upgrade status progress locations', () => {
     expect(readFileSync).not.toHaveBeenCalled();
   });
 });
+
+describe('upgrade status failure reason', () => {
+  it('passes a validated code and bounded details through to the panel', async () => {
+    vi.mocked(openSync).mockReturnValue(7);
+    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({
+      step: 'failed', progress: -1, rollback: false, message: 'x'.repeat(1500),
+      code: 'github_http',
+      details: {
+        http_status: 429, github_message: 'API rate limit exceeded', retry_at: '2026-11-12T14:27:00Z',
+        installed_version: '2026.11.0', asset: 'sellf-build.tar.gz', unexpected: 'dropped',
+      },
+    }));
+    const data = (await (await GET(request())).json()).data;
+    expect(data.message).toHaveLength(1500);
+    expect(data.code).toBe('github_http');
+    expect(data.details).toEqual({
+      http_status: 429, github_message: 'API rate limit exceeded', retry_at: '2026-11-12T14:27:00Z',
+      installed_version: '2026.11.0', asset: 'sellf-build.tar.gz',
+    });
+  });
+
+  it.each([
+    [{ code: 'Bad Code!', details: { http_status: 429 } }, {}],
+    [{ code: 'github_http', details: { http_status: '429', asset: '../x', retry_at: 'soon', github_message: 7, migration: 'x; drop', installed_version: 'latest' } }, { code: 'github_http', details: {} }],
+    [{ code: 'migration_failed', details: { cause: 'c'.repeat(400), migration: '20261114110001_alpha' } }, { code: 'migration_failed', details: { cause: 'c'.repeat(300), migration: '20261114110001_alpha' } }],
+  ])('drops invalid failure fields %#', async (raw, expected) => {
+    vi.mocked(openSync).mockReturnValue(7);
+    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ step: 'failed', progress: -1, message: 'm', ...raw }));
+    const data = (await (await GET(request())).json()).data;
+    expect({ code: data.code, details: data.details }).toEqual({ code: undefined, details: undefined, ...expected });
+  });
+});
