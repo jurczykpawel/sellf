@@ -1,0 +1,42 @@
+'use server';
+
+/**
+ * Locale-specific customer text for products shown on the buyer's My Products page.
+ * `content_config` is service-role only, so only the three public text fields are read here and only for
+ * products the caller may see anyway (active + listed, or already owned).
+ * @see lib/products/localized-metadata.ts
+ */
+import { z } from 'zod';
+import { locales } from '@/lib/locales';
+import { localizedFromConfig } from '@/lib/products/localized-metadata';
+import type { LocalizedProductText } from '@/lib/products/localized-metadata';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
+
+const inputSchema = z.object({ productIds: z.array(z.uuid()).max(200), locale: z.enum(locales) });
+
+export async function getProductLocalizations(productIds: string[], locale: string): Promise<Record<string, LocalizedProductText>> {
+  const input = inputSchema.safeParse({ productIds, locale });
+  if (!input.success || input.data.productIds.length === 0) return {};
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return {};
+    const ids = [...new Set(input.data.productIds)];
+    const owned = await supabase.from('user_product_access').select('product_id').eq('user_id', user.id).in('product_id', ids);
+    if (owned.error) return {};
+    const ownedIds = new Set((owned.data ?? []).map(row => row.product_id));
+    const { data, error } = await createAdminClient().from('products').select('id,is_active,is_listed,content_config').in('id', ids);
+    if (error || !data) return {};
+    const result: Record<string, LocalizedProductText> = {};
+    for (const row of data) {
+      if (!ownedIds.has(row.id) && !(row.is_active && row.is_listed)) continue;
+      const localized = localizedFromConfig(row.content_config, input.data.locale);
+      if (Object.keys(localized).length > 0) result[row.id] = localized;
+    }
+    return result;
+  } catch (error) {
+    console.error('[getProductLocalizations] Error:', error instanceof Error ? error.message : 'Unknown error');
+    return {};
+  }
+}

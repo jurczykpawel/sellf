@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import Link from '@/components/ui/LocaleLink';
 import { useTranslations, useLocale } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
 import { PRODUCT_PUBLIC_COLUMNS_CSV } from '@/lib/product-columns';
@@ -10,6 +10,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { minimumChargeAmount } from '@/lib/currency/minor-units';
 import { filterActiveAccess } from '@/lib/access/filter-active';
 import DashboardLayout from '@/components/DashboardLayout';
+import { getProductLocalizations } from '@/lib/actions/product-localization';
+import { applyLocalized } from '@/lib/products/localized-metadata';
 
 interface Product {
   id: string;
@@ -26,6 +28,8 @@ interface Product {
   is_featured: boolean;
   created_at: string;
   product_type?: string | null;
+  /** Alt text of the active locale; the product name is used when it is missing. */
+  imageAlt?: string;
 }
 
 interface SubscriptionRef {
@@ -149,7 +153,7 @@ export default function MyProductsPage() {
           subscription: Array.isArray(a.subscription) ? a.subscription[0] ?? null : a.subscription,
         }));
 
-      setUserProducts(transformedUserProducts);
+      const ownedProducts = transformedUserProducts;
 
       // "Discover more" products
       const { data: allProductsData } = await supabase
@@ -159,7 +163,11 @@ export default function MyProductsPage() {
         .eq('is_listed', true)
         .order('is_featured', { ascending: false })
         .order('price', { ascending: true });
-      setAllProducts(allProductsData || []);
+      const discoverProducts = (allProductsData || []) as unknown as Product[];
+      // Text in the active locale; every field without a translation keeps the canonical value.
+      const localizations = await getProductLocalizations([...new Set([...ownedProducts.map(a => a.product.id), ...discoverProducts.map(p => p.id)])], locale);
+      setUserProducts(ownedProducts.map(a => ({ ...a, product: applyLocalized(a.product, localizations[a.product.id]) })));
+      setAllProducts(discoverProducts.map(p => applyLocalized(p, localizations[p.id])));
 
     } catch (err) {
       const error = err as Error;
@@ -167,7 +175,7 @@ export default function MyProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, locale]);
 
   const requestKey = user?.id;
   const [previousKey, setPreviousKey] = useState(requestKey);
@@ -278,7 +286,7 @@ export default function MyProductsPage() {
     >
       <div className="relative h-40 overflow-hidden">
         {product.image_url ? (
-          <ProductImage src={product.image_url} alt={product.name} icon={product.icon} />
+          <ProductImage src={product.image_url} alt={product.imageAlt ?? product.name} icon={product.icon} />
         ) : (
           <div className="h-full flex items-center justify-center bg-sf-float">
             <span className="text-6xl">{product.icon || '📦'}</span>
@@ -342,7 +350,7 @@ export default function MyProductsPage() {
     >
       <div className="relative h-40 overflow-hidden">
         {product.image_url ? (
-          <ProductImage src={product.image_url} alt={product.name} icon={product.icon} />
+          <ProductImage src={product.image_url} alt={product.imageAlt ?? product.name} icon={product.icon} />
         ) : (
           <div className="h-full flex items-center justify-center bg-sf-float">
             <span className="text-6xl">{product.icon || '📦'}</span>
