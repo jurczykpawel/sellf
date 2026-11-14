@@ -76,14 +76,16 @@ describe.skipIf(!db)('bundle_items schema + guards', () => {
     expect(error).not.toBeNull();
   });
 
-  it('rejects duplicate component and restricts deleting a component in use', async () => {
+  it('rejects duplicate component and removes the link when the component is deleted', async () => {
     const bundle = await mkProduct({ is_bundle: true });
     const comp = await mkProduct({ is_bundle: false });
     await db!.from('bundle_items').insert({ bundle_product_id: bundle, component_product_id: comp });
     const dup = await db!.from('bundle_items').insert({ bundle_product_id: bundle, component_product_id: comp });
     expect(dup.error).not.toBeNull();
+    // Owner decision 2026-11-14: a deleted product leaves the bundles that contain it.
     const del = await db!.from('products').delete().eq('id', comp);
-    expect(del.error).not.toBeNull(); // on delete restrict
+    expect(del.error).toBeNull();
+    expect((await db!.from('bundle_items').select('component_product_id').eq('bundle_product_id', bundle)).data).toEqual([]);
   });
 
   it('grant_product_and_bundle_components grants the bundle + every component, idempotently', async () => {

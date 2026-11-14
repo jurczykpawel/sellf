@@ -42,6 +42,7 @@ export const PRODUCT_PUBLIC_COLUMNS = [
   'is_active',
   'is_featured',
   'is_listed',
+  'archived_at',
   'is_bundle',
   'available_from',
   'available_until',

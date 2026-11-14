@@ -419,7 +419,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  * A product with such history is moved to the archive instead (200, `status: "archived"`):
  * it leaves the store and lists, and every record stays.
  * DELETE /api/v1/products/:id?permanent=true deletes an archived product (204); orders,
- * invoices and licenses are kept with the purchase-time product name, buyer access ends.
+ * invoices, licenses, ended subscriptions and past reservations are kept with the purchase-time
+ * product name, buyer access ends. Active subscriptions or upcoming reservations block it (409).
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
@@ -456,9 +457,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       if (removeError.code === '55000') {
         return apiError(request, 'CONFLICT', 'This product has orders. Archive it first (DELETE without permanent=true).');
       }
-      if (removeError.code === '23503') {
+      if (removeError.code === '55006') {
         return apiError(request, 'CONFLICT',
-          'This product is still used by subscriptions, affiliate rules, bundles or event reservations. It stays in the archive.');
+          'This product still has active subscriptions or upcoming event reservations, or partner commissions. It stays in the archive.');
+      }
+      if (removeError.code === '23503') {
+        return apiError(request, 'CONFLICT', 'This product is still referenced by other records. It stays in the archive.');
       }
       console.error('[products.DELETE]', removeError);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to delete product');

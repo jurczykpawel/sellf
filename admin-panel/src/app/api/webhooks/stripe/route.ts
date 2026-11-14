@@ -84,7 +84,7 @@ async function handleChargeRefunded(
   const transaction = await findTransactionByOrderId<Parameters<typeof processRefundForTransaction>[0]>(
     supabase,
     paymentIntentId,
-    'id, user_id, product_id, status, session_id, stripe_payment_intent_id, amount, currency, customer_email, refunded_amount, refund_id, refund_status, subscription_id',
+    'id, user_id, product_id, product_name, status, session_id, stripe_payment_intent_id, amount, currency, customer_email, refunded_amount, refund_id, refund_status, subscription_id',
   );
 
   if (!transaction) {

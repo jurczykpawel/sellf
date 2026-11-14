@@ -1,9 +1,11 @@
 /** Public API shape of an issued license (API v1). The token is included only when explicitly requested. */
-export const LICENSE_API_FIELDS = 'id, product_id, email, order_id, kid, issued_at, expires_at, revoked_at, revoked_by_dispute_id, issuance_source, license_domain, original_seller_id, products(name, slug, license_tier)';
+export const LICENSE_API_FIELDS = 'id, product_id, email, order_id, kid, issued_at, expires_at, revoked_at, revoked_by_dispute_id, issuance_source, license_domain, original_seller_id, product_name, products(name, slug, license_tier)';
 
 export interface LicenseApiRow {
   id: string;
-  product_id: string;
+  /** Null once the product was permanently deleted; `product_name` keeps the purchase-time name. */
+  product_id: string | null;
+  product_name: string | null;
   email: string | null;
   order_id: string;
   kid: string;
@@ -30,7 +32,7 @@ export function toLicenseApiView(row: LicenseApiRow, origin: string) {
   return {
     id: row.id,
     productId: row.product_id,
-    product: { name: row.products?.name ?? null, slug: row.products?.slug ?? null },
+    product: { name: row.products?.name ?? row.product_name ?? null, slug: row.products?.slug ?? null },
     email: row.email,
     order: row.order_id,
     kid: row.kid,

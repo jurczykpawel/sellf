@@ -178,16 +178,18 @@ export async function buildRefundIssuedPayloadFromTransaction(input: {
   refundRequestId?: string | null;
   source: RefundIssuedPayload['refund']['source'];
 }): Promise<RefundIssuedPayload> {
-  const product = await fetchProductSummary(input.supabaseClient, input.transaction.product_id, input.transaction.product_name ?? null);
   const currency = (input.refundCurrency || input.transaction.currency || '').toUpperCase();
 
   // VAT breakdown of the refund for credit notes — derived from the order's tax snapshot
-  // (recorded at purchase). One fetch here keeps all 4 refund callers unchanged.
+  // (recorded at purchase), plus the purchase-time product name. One fetch here keeps all
+  // refund callers unchanged.
   const { data: txTax } = await input.supabaseClient
     .from('payment_transactions')
-    .select('net_total, tax_total, order_number')
+    .select('net_total, tax_total, order_number, product_name')
     .eq('id', input.transaction.id)
     .maybeSingle();
+  const product = await fetchProductSummary(input.supabaseClient, input.transaction.product_id,
+    input.transaction.product_name ?? txTax?.product_name ?? null);
   const refundTax = input.refundStatus === 'failed' || input.refundStatus === 'canceled' ? null : computeRefundTax({
     refundAmount: input.refundAmount,
     previousRefundedAmount: Math.max(input.totalRefunded - input.refundAmount, 0),

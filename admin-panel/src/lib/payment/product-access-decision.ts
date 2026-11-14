@@ -7,6 +7,8 @@ export interface ProductAccessInput {
   product: {
     id: string;
     is_active: boolean;
+    /** Archived products are no longer sold, but their buyers keep the content. */
+    archived_at?: string | null;
     available_from: string | null | undefined;
     available_until: string | null | undefined;
   };
@@ -37,7 +39,7 @@ export function decideProductAccessOutcome(
     return { kind: 'render-content', userAccess: userAccess ?? null, preview: true };
   }
 
-  if (!product.is_active) {
+  if (!product.is_active && !(product.archived_at && userAccess)) {
     return { kind: 'render-inactive' };
   }
 
@@ -61,4 +63,9 @@ export function decideProductAccessOutcome(
   // Works the same for guest and authenticated user.
   void user; // surfaced in API for future per-tier rules.
   return { kind: 'redirect-checkout' };
+}
+
+/** Whether existing buyers may open the content: active products and archived ones (owner decision 2026-11-14). */
+export function servesBuyerContent(product: { is_active: boolean; archived_at?: string | null }): boolean {
+  return product.is_active || Boolean(product.archived_at);
 }

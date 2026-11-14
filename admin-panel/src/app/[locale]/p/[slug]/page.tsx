@@ -42,10 +42,31 @@ const getProduct = cache(async (slug: string) => {
   return { product, error: product ? null : 'Product unavailable' };
 });
 
+// An archived product is hidden from the public but stays readable to its buyers through RLS,
+// so a signed-in buyer gets it from their own session (never through the shared public cache).
+const getBuyerArchivedProduct = cache(async (slug: string): Promise<Product | null> => {
+  if (!/^[a-zA-Z0-9_-]{1,100}$/.test(slug)) return null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from('products').select(PRODUCT_PUBLIC_COLUMNS_CSV)
+      .eq('slug', slug).not('archived_at', 'is', null).maybeSingle();
+    return data as unknown as Product | null;
+  } catch {
+    return null;
+  }
+});
+
+const getVisibleProduct = async (slug: string) => {
+  const result = await getProduct(slug);
+  if (result.product) return result;
+  const archived = await getBuyerArchivedProduct(slug);
+  return archived ? { product: archived, error: null } : result;
+};
+
 // Generate metadata for the page based on the product data
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug, locale } = await params;
-  const { product } = await getProduct(slug); // DEDUPED
+  const { product } = await getVisibleProduct(slug); // DEDUPED
 
   if (!product) {
     return {
@@ -100,7 +121,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     product = data as Product | null;
     fetchError = error;
   } else {
-    const { product: pub, error } = await getProduct(slug);
+    const { product: pub, error } = await getVisibleProduct(slug);
     product = pub;
     fetchError = error;
   }
@@ -155,6 +176,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     product: {
       id: product.id,
       is_active: product.is_active,
+      archived_at: product.archived_at,
       available_from: product.available_from,
       available_until: product.available_until,
     },

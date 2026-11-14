@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { servesBuyerContent } from '@/lib/payment/product-access-decision';
 
 export async function GET(
   request: NextRequest,
@@ -28,7 +29,7 @@ export async function GET(
     // Get product by slug
     const { data: product, error: productError } = await supabase
       .from('products')
-      .select('id, name, slug, price, is_active, available_from, available_until')
+      .select('id, name, slug, price, is_active, archived_at, available_from, available_until')
       .eq('slug', slug)
       .single();
 
@@ -36,8 +37,8 @@ export async function GET(
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    // For products marked as inactive, deny access completely
-    if (!product.is_active) {
+    // Inactive products deny access; archived ones keep serving their buyers.
+    if (!servesBuyerContent(product)) {
       return NextResponse.json({ 
         hasAccess: false, 
         reason: 'inactive',

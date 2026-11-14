@@ -63,16 +63,21 @@ Zamówienia, faktury i licencje nigdy nie są usuwane razem z produktem.
 - `DELETE /products/{id}` produktu **bez** zamówień, licencji, dostępów kupujących i subskrypcji usuwa go: **204**.
 - To samo wywołanie dla produktu **z** taką historią przenosi go do **archiwum**: **200** z
   `{ "data": { "id": "…", "status": "archived", "impact": { "orders": 3, "invoices": 1, "licenses": 2, "accesses": 3, "subscriptions": 0, "hasHistory": true } } }`.
-  Produkt w archiwum ma ustawione `archived_at` i `is_active: false`: znika ze sklepu, list i wyboru produktów, a wszystkie
-  rekordy zostają. Kupujący nie otworzą treści, dopóki produkt nie zostanie przywrócony i włączony. Ponowne wywołanie zwraca to samo 200.
+  Produkt w archiwum ma ustawione `archived_at` i `is_active: false`: nie jest już sprzedawany, znika ze sklepu, publicznych
+  endpointów, list i wyboru produktów (także przy włączonej liście oczekujących), a wszystkie rekordy zostają. Kupujący
+  z dostępem nadal widzą treść i produkt w „Moich produktach”. Ponowne wywołanie zwraca to samo 200.
 - `GET /products?status=archived` zwraca produkty z archiwum. Pozostałe wartości `status` (`all`, `active`, `inactive`) ich nie zawierają.
 - `POST /products/{id}/restore` przywraca produkt na listę jako nieaktywny; włączysz go przez `PATCH {"is_active": true}`.
   Włączenie produktu w archiwum zwraca **409**.
-- `DELETE /products/{id}?permanent=true` usuwa produkt z archiwum trwale: **204**. Zamówienia, faktury i licencje zostają
-  z `product_id: null` i nazwą produktu z chwili zakupu (`product_name`); kupujący tracą dostęp.
-  Produkt z historią, który nie jest w archiwum, zwraca **409** (najpierw archiwizacja). Produkt nadal używany przez subskrypcje,
-  reguły partnerskie, pakiet lub rezerwacje wydarzenia zwraca **409** i zostaje w archiwum.
-- `GET /products/{id}/deletion-impact` zwraca obiekt `impact` bez żadnej zmiany.
+- `DELETE /products/{id}?permanent=true` usuwa produkt z archiwum trwale: **204**. Zamówienia, faktury, licencje, zakończone
+  subskrypcje i rezerwacje minionych terminów zostają z `product_id: null` i nazwą produktu z chwili zakupu (`product_name`);
+  kupujący tracą dostęp; reguły prowizji partnerów i miejsce produktu w pakietach są usuwane.
+  Produkt z historią, który nie jest w archiwum, zwraca **409** (najpierw archiwizacja). **409** i pozostanie w archiwum
+  dostaje też produkt z **aktywną subskrypcją** (status Stripe `trialing`, `active`, `past_due` lub `incomplete`),
+  **rezerwacją na nadchodzący termin** (potwierdzoną lub jeszcze trzymaną, termin się nie skończył) albo naliczonymi prowizjami partnerów.
+- `GET /products/{id}/deletion-impact` zwraca obiekt `impact` bez żadnej zmiany, z polami `activeSubscriptions`,
+  `futureReservations`, `affiliateRules`, `affiliateCommissions` i `bundles`.
+- Licencje (`GET /licenses`, `/licenses/{id}`) i płatności trwale usuniętego produktu zwracają `product.name` z chwili zakupu.
 
 Webhooki: archiwizacja i przywrócenie wysyłają `product.updated` (`changedFields` zawiera `archivedAt`; archiwizacja aktywnego
 produktu wysyła też `product.unpublished`). Trwałe usunięcie wysyła dokładnie jedno `product.deleted`.
