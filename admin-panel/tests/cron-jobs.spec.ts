@@ -160,7 +160,8 @@ test.describe('Cron job: access-expired', () => {
     await expect.poll(async () => {
       const result = await request.get(cronUrl('business-events'), { headers: authHeader() });
       expect(result.status()).toBe(200);
-      const logs = await supabaseAdmin.from('webhook_logs').select('id').eq('endpoint_id', testEndpointId).eq('event_type', 'access.expired');
+      // The endpoint listens to every product, so leftovers of other suites in the shared database would be counted too.
+      const logs = await supabaseAdmin.from('webhook_logs').select('id').eq('endpoint_id', testEndpointId).eq('event_type', 'access.expired').eq('payload->data->product->>id', testProductId);
       expect(logs.error).toBeNull();
       return logs.data?.length ?? 0;
     }, { timeout: 30000 }).toBe(1);
@@ -169,6 +170,7 @@ test.describe('Cron job: access-expired', () => {
       .select('id, event_type, status, http_status')
       .eq('endpoint_id', testEndpointId)
       .eq('event_type', 'access.expired')
+      .eq('payload->data->product->>id', testProductId)
       .order('created_at', { ascending: false })
       .limit(1);
 
