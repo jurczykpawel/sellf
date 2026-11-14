@@ -33,7 +33,8 @@ async function createTestProduct(suffix: string, price = 49.99) {
 }
 
 async function createCompletedTransaction(productId: string, email: string) {
-  const stamp = randomUUID();
+  // payment_transactions_provider_ref_chk allows only letters, digits and underscores after the cs_ prefix.
+  const stamp = randomUUID().replaceAll('-', '');
   const { data, error } = await supabaseAdmin
     .from('payment_transactions')
     .insert({
