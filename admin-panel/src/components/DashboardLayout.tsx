@@ -4,7 +4,7 @@ import Image from 'next/image';
 import React, { useState, useEffect, useRef, startTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import { ADMIN_NAV_GROUPS, type AdminNavIcon } from '@/lib/navigation/admin-nav'
-import Link from 'next/link'
+import Link from '@/components/ui/LocaleLink'
 import { usePathname, useRouter } from 'next/navigation'
 import { PanelLeftOpen, PanelLeftClose } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'

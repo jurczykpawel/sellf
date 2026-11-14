@@ -126,3 +126,16 @@ it('shows three recent revisions and reveals older ones on request, then brings 
     expect(document.activeElement?.getAttribute('aria-label')).toBe(en.templatePreview.changes);
   } finally { HTMLElement.prototype.scrollIntoView = previous; }
 });
+
+it.each([['en', 'Offer-led storefront'], ['pl', 'Sklep z główną ofertą']])('names the template in a comparison instead of showing a translation key in %s', async (locale, name) => {
+  const rows = [3, 2].map(revision => ({ revision, draft: null, published: DEFAULT_CONFIG, created_at: '2026-10-17T10:00:00Z' }));
+  mocks.action.mockImplementation(async (input: { operation: string }) => input.operation === 'read'
+    ? { success: true, data: { revision: 3, draft: null, published: DEFAULT_CONFIG } }
+    : input.operation === 'history' ? { success: true, data: rows }
+    : { success: true, data: { fromRevision: 2, toRevision: 3, changes: [{ path: '/templateId', kind: 'changed', before: 'd', after: 'storefront-a' }] } });
+  render(historyView(locale));
+  const compare = await screen.findAllByRole('button', { name: locale === 'pl' ? 'Porównaj' : 'Compare' });
+  fireEvent.click(compare[0]);
+  await waitFor(() => expect(document.body.textContent).toContain(name));
+  expect(document.body.textContent).not.toContain('templatePreview.');
+});

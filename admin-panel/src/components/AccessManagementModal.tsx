@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { UserWithAccess, Product } from '@/types';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, ModalSection, Button, Message } from './ui/Modal';
 import { useTranslations, useLocale } from 'next-intl';
-import { formatPrice } from '@/lib/constants';
+import { productOptionLabel } from '@/lib/access/product-option-label';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
 import { validateCustomFieldDefinitions } from '@/lib/validations/custom-checkout-fields';
@@ -311,7 +311,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
                       <option value="">{t('chooseProductPlaceholder')}</option>
                       {getAvailableProductsForUser().map(product => (
                         <option key={product.id} value={product.id}>
-                          {product.name} {product.price > 0 ? `(${formatPrice(product.price, product.currency, locale)})` : '(Free)'}
+                          {productOptionLabel(product, locale, { free: t('free'), subscription: t('subscription') })}
                         </option>
                         ))}
                     </select>

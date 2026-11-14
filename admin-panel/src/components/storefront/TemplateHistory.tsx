@@ -13,11 +13,13 @@ import type { OfferHistorySnapshot } from '@/lib/storefront-templates/offer-repo
 import type { StorefrontHistorySnapshot } from '@/lib/storefront-templates/repository';
 import styles from './TemplateHistory.module.css';
 import { formatAdminDate } from '@/lib/timezone';
+import { STOREFRONT_TEMPLATES } from '@/lib/storefront-templates/registry';
 
 export default function TemplateHistory({ productId }: { productId?: string }) {
   const action = useCallback((input: Record<string, unknown>) => productId ? productOfferAction({ ...input, productId }) : storefrontTemplateAction(input), [productId]);
   const offerT = useTranslations('offerEditor');
   const t = useTranslations('templatePreview'); const locale = useLocale();
+  const templateName = (id: unknown) => { const entry = (STOREFRONT_TEMPLATES as Record<string, { label: { en: string; pl: string } }>)[String(id)]; return entry ? entry.label[locale === 'pl' ? 'pl' : 'en'] : t(String(id)); };
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [current, setCurrent] = useState<TemplateReadResult | OfferReadResult | null>(null);
   const [history, setHistory] = useState<(StorefrontHistorySnapshot | OfferHistorySnapshot)[]>([]);
@@ -123,7 +125,7 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
         {!diff.changes.length && <p>{t('noChanges')}</p>}
         {diff.changes.map(change => <div key={change.path} className={styles.change}>
           <strong>{fieldLabel(change.path)}</strong><span>{t(change.kind)}</span>
-          {change.path === '/templateId' && <p>{productId ? offerT('standard') : t(String(change.before))} → {productId ? offerT('standard') : t(String(change.after))}</p>}
+          {change.path === '/templateId' && <p>{productId ? offerT('standard') : templateName(change.before)} → {productId ? offerT('standard') : templateName(change.after)}</p>}
           {change.path.startsWith('/content/') && typeof change.after === 'string' && <p>{change.after}</p>}
         </div>)}
         {pending && <BaseModal isOpen onClose={() => { if (!busy) { setPending(null); setDiff(null); } }}><div role="region" className={styles.dialog} aria-label={t(pending.operation === 'rollback' ? 'rollbackTitle' : 'confirmTitle')}>

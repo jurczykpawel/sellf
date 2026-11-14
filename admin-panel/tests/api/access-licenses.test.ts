@@ -1,6 +1,6 @@
 /** Access API choices preserve separately issued licenses. */
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { useSupabaseBuyerEmails } from '../helpers/buyer-email-setting';
 import { parseLicenseClaims } from '@/lib/license-keys/format';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
@@ -23,8 +23,6 @@ beforeAll(async () => {
   expect(owner.error).toBeNull(); seller = owner.data.user!.id;
   const admin = await db.from('admin_users').insert({ user_id: seller }).select('id').single();
   expect(admin.error).toBeNull(); adminId = admin.data!.id;
-  const customer = await db.auth.admin.createUser({ email: `access-api-buyer-${randomUUID()}@example.com`, email_confirm: true });
-  expect(customer.error).toBeNull(); buyer = customer.data.user!.id;
   await storeSellerKey(db, { sellerId: seller, ...generateSellerKeypair(), custody: 'managed' });
   expect((await db.from('products').insert([
     { id: product, name: 'Access API license', slug: product, price: 10, currency: 'PLN', seller_id: seller, is_active: true, issue_license_on_purchase: true, license_tier: 'pro' },
@@ -33,13 +31,22 @@ beforeAll(async () => {
   ])).error).toBeNull();
   key = await makeKey(['users:write', 'licenses:write']); narrow = await makeKey(['users:write']);
 });
+// A fresh buyer per test: Supabase Auth sends at most one email per user per minute, and every license grant mails the buyer.
+beforeEach(async () => {
+  const customer = await db.auth.admin.createUser({ email: `access-api-buyer-${randomUUID()}@example.com`, email_confirm: true });
+  expect(customer.error).toBeNull(); buyer = customer.data.user!.id;
+});
+afterEach(async () => {
+  await db.from('issued_licenses').delete().in('product_id', [product, plain, missing]);
+  await db.from('user_product_access').delete().eq('user_id', buyer);
+  await db.auth.admin.deleteUser(buyer);
+});
 afterAll(async () => {
   await db.from('api_keys').delete().in('id', keyIds);
   await db.from('issued_licenses').delete().in('product_id', [product, plain, missing]);
   await db.from('user_product_access').delete().in('product_id', [product, plain, missing]);
   await db.from('products').delete().in('id', [product, plain, missing]);
   if (seller) { await db.from('seller_license_keys').delete().eq('seller_id', seller); await db.from('admin_users').delete().eq('user_id', seller); await db.auth.admin.deleteUser(seller); }
-  if (buyer) await db.auth.admin.deleteUser(buyer);
 });
 describe('access license API', () => {
   it('issues by default, retries the same grant and revokes its license @J197', async () => {

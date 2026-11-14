@@ -440,6 +440,8 @@ describe('All server action files have auth wrappers', () => {
     'preferences.ts',
     // Tutorial progress — session-based (getUser), rows are scoped to the caller by RLS
     'tutorial-progress.ts',
+    // Locale text of products the signed-in buyer may already see (owned or listed): session-based, reads only name/description/image_alt
+    'product-localization.ts',
     // Analytics — uses withAdminClient with schema-scoped dataClient
     // Stripe tax status — read-only Stripe API check, no mutations
     'stripe-tax.ts',
@@ -544,6 +546,8 @@ describe('All server action files have auth wrappers', () => {
       'tags.ts',
       'theme.ts',
       'tutorial-progress.ts',
+    // Locale text of products the signed-in buyer may already see (owned or listed): session-based, reads only name/description/image_alt
+    'product-localization.ts',
       'storefront-legacy-theme.ts',
       'storefront-templates.ts',
       'validate-email.ts',
