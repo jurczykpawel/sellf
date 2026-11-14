@@ -10,7 +10,9 @@ import { GET } from '@/app/api/v1/system/update-check/route';
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe('admin update-check process identity', () => {
   it('returns a stable ISO process start time on upstream failure, success and cached results', async () => {
-    const fetchMock = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue({ ok: true, json: async () => ({ tag_name: 'v2026.10.1' }) });
+    const fetchMock = vi.fn().mockRejectedValueOnce(new Error('offline')).mockImplementation(async (url: string) => url.endsWith('/releases/latest')
+      ? new Response(null, { status: 302, headers: { location: 'https://github.com/jurczykpawel/sellf/releases/tag/v2026.10.1' } })
+      : Response.json({ tag_name: 'v2026.10.1' }));
     vi.stubGlobal('fetch', fetchMock);
     const get = async (force: boolean) => (await (await GET(new NextRequest(`http://localhost/api/v1/system/update-check${force ? '?force=true' : ''}`))).json()).data;
     const failed = await get(true);

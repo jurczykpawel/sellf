@@ -101,6 +101,10 @@ exec ${JSON.stringify(executable)} "$@"
 printf '%s\\n' "$*" >> "$FIXTURE_DIR/pm2.log"
 if [ "$1" = start ]; then cat "$FIXTURE_DIR/install/.next/standalone/admin-panel/server.js" >> "$FIXTURE_DIR/started"; fi
 `, { mode: 0o755 });
+  const helperBlocks = ['installed-version', 'failure-report'].map(name => {
+    const from = source.indexOf(`# ${name}:start`);
+    return source.slice(from, source.indexOf(`# ${name}:end`, from));
+  }).join('\n');
   const start = source.indexOf('# ===== STEP 4b: MIGRATION PREFLIGHT =====');
   const end = source.indexOf('# ===== FIREWALL CHECK =====');
   if (start < 0 || end <= start) throw new Error('Missing upgrade blocks');
@@ -117,6 +121,8 @@ TAG_NAME=v2026.11.0
 log() { printf '%s\\n' "$*" >> "$LOG_FILE"; }
 write_progress() { printf 'PROGRESS: %s\\n' "$1"; }
 write_error() { printf 'ERROR: %s rollback=%s\\n' "$1" "\${2:-false}"; }
+write_failure() { local r=false a; for a in "$@"; do [ "$a" != rollback ] || r=true; done; printf 'ERROR: %s rollback=%s code=%s\\n' "$2" "$r" "$1"; }
+${helperBlocks}
 ${source.slice(start, end)}
 `);
   try {
@@ -140,14 +146,15 @@ afterEach(() => {
 });
 
 describe('upgrade migration safety', () => {
-  it('delivers SQL larger than MAX_ARG_STRLEN with the historical checksum', async () => {
+  it('delivers SQL larger than MAX_ARG_STRLEN with a checksum of exactly the SQL sent', async () => {
     const sql = `-- ${'x'.repeat(150000)}\nSELECT 'zażółć';\n\n`;
     const result = await runUpgrade({ sql });
     expect(result.code).toBe(0);
-    expect(result.requests).toEqual([{
-      migration_version: '20261110235900_fixture', migration_sql: sql.replace(/\n+$/, ''),
-      content_checksum: createHash('sha256').update(sql.replace(/\n+$/, '')).digest('hex'),
-    }]);
+    expect(result.requests).toHaveLength(1);
+    const [request] = result.requests;
+    expect(request.migration_version).toBe('20261110235900_fixture');
+    expect(request.migration_sql).toContain(sql);
+    expect(request.content_checksum).toBe(createHash('sha256').update(request.migration_sql).digest('hex'));
     expect(result.started).toBe('new-code');
   });
 
@@ -169,6 +176,7 @@ describe('upgrade migration safety', () => {
     expect(result.stdout).not.toContain('PROGRESS: done');
     if (options.body) expect(result.log).toContain(options.body);
     if (options.payloadFailure) expect(result.requests).toHaveLength(0);
+    if (options.body?.includes('"message"')) expect(result.stdout).toMatch(/ERROR: Database migration failed: (missing relation|SQL rejected)\./);
   });
 
   it('restores the same code and version metadata after a health-check failure', async () => {
@@ -194,7 +202,11 @@ describe('upgrade migration set', () => {
       installedMigrations: [stale, '20261110235800_left_over'],
     });
     expect(result.code).toBe(0);
-    expect(result.requests.map(request => request.migration_version)).toEqual(Object.keys(releaseMigrations));
+    expect(result.requests.map(request => request.migration_version)).toEqual(['20261110235901_release_2026_11_0_storefront_templates']);
+    expect(result.requests[0].migration_sql).toContain('SELECT 1;');
+    expect(result.requests[0].migration_sql).toContain('SELECT 2;');
+    expect(result.requests[0].migration_sql).toContain("VALUES ('20261110235900', 'release_2026_11_0_storefront_core')");
+    expect(result.requests[0].migration_sql).not.toContain('left_over');
     expect(result.installedMigrations()).toEqual(Object.keys(releaseMigrations).map(name => `${name}.sql`));
     expect(result.started).toBe('new-code');
   });
@@ -225,8 +237,9 @@ describe('upgrade migration set', () => {
     expect(result.stdout).toContain(
       'ERROR: Migration 20261110235901 is recorded in the database as release_2026_11_0_pricing, '
       + 'but this release names it release_2026_11_0_storefront_templates. '
-      + 'Database untouched; restore the database from the backup taken before the failed upgrade. rollback=false',
+      + 'Database untouched; restore the database from the backup taken before the failed upgrade. Nothing was changed;',
     );
+    expect(result.stdout).toContain('rollback=false code=migration_preflight');
     expect(result.read('install/version.txt')).toBe('old-code');
   });
 
@@ -240,7 +253,11 @@ describe('upgrade migration set', () => {
       statusBody: JSON.stringify(all.filter(name => !added.includes(name)).map(version => ({ version }))),
     });
     expect(result.code).toBe(0);
-    expect(result.requests.map(request => request.migration_version)).toEqual(added);
+    expect(result.requests.map(request => request.migration_version)).toEqual([added[added.length - 1]]);
+    for (const name of added.slice(0, -1)) {
+      expect(result.requests[0].migration_sql).toContain(`VALUES ('${name.slice(0, 14)}', '${name.slice(15)}')`);
+    }
+    expect(result.requests[0].migration_sql.match(/^DO \$/gm)).toHaveLength(8);
   });
 });
 

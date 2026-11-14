@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
-import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, afterAll, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { useSupabaseBuyerEmails } from '../../helpers/buyer-email-setting';
 import { waitForEmail, searchMessages } from '../../helpers/mailpit';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
@@ -15,6 +15,7 @@ vi.mock('@/lib/license/resolve', () => ({ checkFeature: async () => true }));
 useSupabaseBuyerEmails();
 const db = createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 let seller: string, buyer: string, email: string;
+const buyers: string[] = [];
 const product = randomUUID();
 const actor = () => ({ type: 'user' as const, id: seller });
 const issue = (accessId: string) => issueAccessLicense(db, { userId: buyer, productId: product, accessId, actorUserId: seller, source: 'manual', origin: process.env.SITE_URL!, license: { locale: 'pl' } });
@@ -22,18 +23,22 @@ const issue = (accessId: string) => issueAccessLicense(db, { userId: buyer, prod
 beforeAll(async () => {
   const owner = await db.auth.admin.createUser({ email: `access-owner-${randomUUID()}@example.com`, email_confirm: true });
   expect(owner.error).toBeNull(); seller = owner.data.user!.id;
+  await storeSellerKey(db, { sellerId: seller, ...generateSellerKeypair(), custody: 'managed' });
+  expect((await db.from('products').insert({ id: product, slug: `access-${product}`, name: 'Licencja dostępu', price: 10, currency: 'PLN', seller_id: seller, issue_license_on_purchase: true, license_tier: 'pro', license_duration_days: 30 })).error).toBeNull();
+});
+// A fresh buyer per test: Supabase Auth sends at most one email per user per minute.
+beforeEach(async () => {
   email = `access-buyer-${randomUUID()}@example.com`;
   const customer = await db.auth.admin.createUser({ email, email_confirm: true });
   expect(customer.error).toBeNull(); buyer = customer.data.user!.id;
-  await storeSellerKey(db, { sellerId: seller, ...generateSellerKeypair(), custody: 'managed' });
-  expect((await db.from('products').insert({ id: product, slug: `access-${product}`, name: 'Licencja dostępu', price: 10, currency: 'PLN', seller_id: seller, issue_license_on_purchase: true, license_tier: 'pro', license_duration_days: 30 })).error).toBeNull();
+  buyers.push(buyer);
 });
 afterAll(async () => {
   await db.from('issued_licenses').delete().eq('product_id', product);
   await db.from('user_product_access').delete().eq('product_id', product);
   await db.from('products').delete().eq('id', product);
   if (seller) { await db.from('seller_license_keys').delete().eq('seller_id', seller); await db.auth.admin.deleteUser(seller); }
-  if (buyer) await db.auth.admin.deleteUser(buyer);
+  for (const id of buyers) await db.auth.admin.deleteUser(id);
 });
 
 describe('licenses bound to access grants', () => {
@@ -72,6 +77,9 @@ describe('licenses bound to access grants', () => {
     expect(late.ok).toBe(false);
   });
   it('retains a license on opt-out and creates a new license on a new grant', async () => {
+    // Two license mails to one user within a minute exceed Supabase Auth's limit; delivery is covered above.
+    const mail = vi.spyOn(licenseMail, 'sendLicenseMail').mockResolvedValue(true);
+    onTestFinished(() => mail.mockRestore());
     const first = await mutateAccess(db, 'grant', buyer, actor(), { issue_license: true }, undefined, product).single();
     expect(first.error).toBeNull();
     const firstLicense = await issue(first.data!.id);

@@ -344,3 +344,51 @@ describe('upgrade success requires the script outcome', () => {
     expect(result.current.upgradeInProgress).toBe(false);
   });
 });
+
+describe('readable update failures', () => {
+  it('shows why the check failed instead of "up to date"', async () => {
+    fetchMock.mockResolvedValue(reply({ ...fresh, check_error: { code: 'github_http', details: { http_status: 429 } } }));
+    render(createElement(SystemUpdateSettings));
+    await act(async () => {});
+    expect(screen.queryByText('settings.upToDate')).toBeNull();
+    expect(screen.getByText('failure.checkFailed')).toBeTruthy();
+    expect(screen.getByText('failure.github_http')).toBeTruthy();
+    expect(screen.getByText('failure.retrySoon')).toBeTruthy();
+  });
+
+  it('keeps the reason when the update cannot start', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/system/upgrade') {
+        return { ok: false, json: async () => ({ error: {
+          code: 'UPDATER_VERIFICATION_FAILED', message: 'Could not verify',
+          failure: { code: 'github_unreachable', details: {} },
+        } }) };
+      }
+      return reply(fresh);
+    });
+    const { result } = await mount();
+    await act(async () => result.current.startUpgrade());
+    expect(result.current.upgradeProgress).toMatchObject({ step: 'failed', message: 'Could not verify', code: 'github_unreachable', details: {} });
+  });
+
+  it.each([['UPGRADE_STARTING', 'upgrade_starting'], ['UPGRADE_RUNNING', 'upgrade_running']])('maps %s to a localized reason', async (apiCode, code) => {
+    fetchMock.mockImplementation(async (url: string) => url === '/api/v1/system/upgrade'
+      ? { ok: false, json: async () => ({ error: { code: apiCode, message: 'busy' } }) }
+      : reply(fresh));
+    const { result } = await mount();
+    await act(async () => result.current.startUpgrade());
+    expect(result.current.upgradeProgress).toMatchObject({ step: 'failed', code });
+  });
+
+  it('shows the localized reason from the script progress file in the modal', () => {
+    render(createElement(UpdateNotificationModal, {
+      updateInfo: { ...fresh, latest_version: '2026.11.1', update_available: true },
+      upgradeInProgress: false,
+      upgradeProgress: { step: 'failed', progress: -1, message: 'English text', code: 'release_asset_missing', details: { asset: 'sellf-build.tar.gz', installed_version: '2026.10.0' } },
+      onUpgrade: () => {}, onDismiss: () => {},
+    }));
+    expect(screen.getByText('failure.release_asset_missing')).toBeTruthy();
+    expect(screen.getByText('failure.unchanged')).toBeTruthy();
+    expect(screen.queryByText('English text')).toBeNull();
+  });
+});

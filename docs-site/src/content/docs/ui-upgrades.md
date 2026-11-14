@@ -66,8 +66,27 @@ signed `min_updater_version`, validates the archive and extracts into a private
 temporary directory. It then executes the downloaded release's `scripts/upgrade.sh`
 (stage 2) with the same token, installation, progress/log paths and instance lock.
 The panel shows the same steps. Packages without stage 2 use the installed fallback.
-Migration failures restore old code before it starts; committed database migrations
-are not reversed (the RPC transaction is still per file).
+
+Since 2026.11.1 the runner sends all pending migrations of a release in one RPC
+call, so PostgreSQL applies them in one transaction. If any file fails, none of
+them and none of their registry entries remain; the panel names the failing file
+and the database error, and the previous code is restored before it starts.
+
+The latest release is found through the `github.com/<repo>/releases/latest`
+redirect and release files are downloaded from `releases/download/<tag>/`. Neither
+counts towards the GitHub API limit of 60 requests per hour per address, which
+servers behind a shared NAT exhaust. When GitHub refuses or cannot be reached, the
+panel shows GitHub's message, the HTTP status, that nothing was changed and the
+version still running, and when to retry (from `Retry-After` or the rate-limit
+reset time when GitHub sends them). A missing release file and an invalid
+signature are reported separately.
+
+You can retry immediately after a failed attempt. The panel refuses a new attempt
+only while an update holds the instance lock, or within a few seconds of a launch
+(double click), unless that launch has already failed.
+
+These changes take effect from the update that follows installing 2026.11.1: the
+first hop still runs the previously installed updater.
 
 2026.11.0 requires updater 1 (the unversioned 10.6 script). CI publishes a signed
 three-line V2 manifest alongside the legacy two-line manifest for that bridge.
@@ -84,9 +103,10 @@ from your local Stackpilot checkout, replacing `<server>` with your SSH alias:
 ## Release metadata source
 
 `SELLF_UPDATE_CHECK_URL` optionally points the **server** to a release metadata
-mirror or local test fixture, using the GitHub release JSON format. The default
-is GitHub's latest-release API. The request has a five-second timeout and does not
-follow redirects. This setting only changes notification metadata: `upgrade.sh`
+mirror or local test fixture, using the GitHub release JSON format. By default the
+version comes from the github.com latest-release redirect; release notes are added
+when the GitHub API answers and are omitted otherwise. The requests have a
+five-second timeout. This setting only changes notification metadata: `upgrade.sh`
 still fetches official release assets and verifies the installed signing key.
 Do not configure a mirror advertising a release absent from GitHub.
 

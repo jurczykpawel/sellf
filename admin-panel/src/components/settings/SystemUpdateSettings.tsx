@@ -11,6 +11,7 @@ import { useTranslations } from 'next-intl';
 import { useUpdateCheck } from '@/hooks/useUpdateCheck';
 import UpgradeInstructions from '@/components/UpgradeInstructions';
 import UpdateNotificationModal from '@/components/UpdateNotificationModal';
+import UpdateFailureLines from '@/components/UpdateFailureLines';
 
 export default function SystemUpdateSettings() {
  const t = useTranslations('systemUpdate');
@@ -57,7 +58,14 @@ export default function SystemUpdateSettings() {
  </div>
 
  {/* Update status */}
- {updateInfo && !updateInfo.update_available && (
+ {updateInfo?.check_error && (
+ <div data-testid="update-check-error" className="p-3 bg-sf-danger-soft border border-sf-danger/20 space-y-1">
+ <p className="text-sm font-medium text-sf-danger">{t('failure.checkFailed')}</p>
+ <UpdateFailureLines className="text-sm text-sf-danger" failure={updateInfo.check_error} attempt={false} />
+ </div>
+ )}
+
+ {updateInfo && !updateInfo.update_available && !updateInfo.check_error && (
  <div className="flex items-center justify-between p-3 bg-sf-success-soft border border-sf-success/20">
  <div className="flex items-center gap-2">
  <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">

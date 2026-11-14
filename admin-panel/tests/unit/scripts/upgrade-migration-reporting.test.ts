@@ -87,6 +87,9 @@ HEALTH_OK=true
 log() { printf '%s\\n' "$*"; }
 write_progress() { printf 'PROGRESS: %s %s\\n' "$1" "$3"; }
 write_error() { printf 'WRITE_ERROR: %s\\n' "$1"; }
+write_failure() { printf 'WRITE_ERROR: %s\\n' "$2"; }
+${block('# installed-version:start', '# installed-version:end')}
+${block('# failure-report:start', '# failure-report:end')}
 pm2() { :; }
 PM2_BIN=pm2
 PM2_NAME=sellf-fixture
@@ -112,24 +115,44 @@ const second = '20260924000000_access_scope_tightening';
 const third = '20261001000000_example';
 
 describe('upgrade.sh migration reporting', () => {
-  it('counts applied, already applied and failed RPC responses separately', async () => {
+  it('applies every pending migration in one RPC call and reports the count', async () => {
     const run = await runHarness([
-      { version: first, result: '{"success":true,"skipped":true,"message":"Already applied"}' },
-      { version: second, result: '{"success":true,"skipped":false}' },
-      { version: third, result: '{"success":false,"skipped":true,"message":"Migration could not complete"}' },
+      { version: first, result: 'should not be requested' },
+      { version: second, result: 'should not be requested' },
+      { version: third, result: '{"success":true,"skipped":false}' },
+    ], [{ version: first }]);
+    expect(run.calls).toBe(`${third}\n`);
+    expect(run.stdout).toContain('Migrations complete: 2 applied, 1 already applied, 0 errors');
+    expect(run.stdout).toContain('PROGRESS: done');
+    expect(run.code).toBe(0);
+  });
+
+  it('reports a failed batch with the database message and applies nothing', async () => {
+    const run = await runHarness([
+      { version: first, result: 'should not be requested' },
+      { version: second, result: '{"success":false,"message":"Migration 20261001000000_example failed: relation \\"x\\" does not exist"}' },
     ]);
-    expect(run.stdout).toContain('Migrations complete: 1 applied, 1 already applied, 1 errors');
-    expect(run.stdout).toContain(`WARNING: Migration ${third} failed: Migration could not complete`);
-    expect(run.stdout).toContain('WRITE_ERROR: Upgrade to v2026.10.0 finished with 1 migration errors. Check upgrade logs.');
+    expect(run.calls).toBe(`${second}\n`);
+    expect(run.stdout).toContain('Migrations complete: 0 applied, 0 already applied, 1 errors');
+    expect(run.stdout).toContain('WRITE_ERROR: Database migration failed: Migration 20261001000000_example failed: relation "x" does not exist.');
+    expect(run.stdout).toContain('All 2 pending migrations of this release were rolled back together');
     expect(run.stdout).not.toContain('completed successfully');
     expect(run.code).toBe(1);
   });
 
   it('reports a reinstall with no newly applied migrations', async () => {
-    const run = await runHarness([{ version: first, result: '{"success":true,"skipped":true}' }]);
+    const run = await runHarness([{ version: first, result: 'should not be requested' }], [{ version: first }]);
+    expect(run.calls).toBe('');
     expect(run.stdout).toContain('Migrations complete: 0 applied, 1 already applied, 0 errors');
     expect(run.stdout).toContain('PROGRESS: done');
     expect(run.code).toBe(0);
+  });
+
+  it('treats a batch the database reports as already applied as a failure', async () => {
+    const run = await runHarness([{ version: first, result: '{"success":true,"skipped":true,"message":"Already applied (concurrent)"}' }]);
+    expect(run.stdout).toContain('Migrations complete: 0 applied, 0 already applied, 1 errors');
+    expect(run.stdout).toContain('migration registry changed during the update');
+    expect(run.code).toBe(1);
   });
 
   it('stops before any migration when the database records the timestamp under a different name', async () => {
@@ -153,19 +176,18 @@ describe('upgrade.sh migration reporting', () => {
     'counts an invalid RPC result as an error: %j', async (result) => {
       const run = await runHarness([{ version: first, result }]);
       expect(run.stdout).toContain('Migrations complete: 0 applied, 0 already applied, 1 errors');
-      expect(run.stdout).toContain(`WARNING: Migration ${first} failed:`);
+      expect(run.stdout).toContain('WRITE_ERROR: Database migration failed:');
       expect(run.code).toBe(1);
     },
   );
 
-  it('continues through later migrations after an HTTP error and reports it at completion', async () => {
+  it('reports an HTTP error with the database message', async () => {
     const run = await runHarness([
-      { version: first, result: '', httpError: true },
-      { version: second, result: '{"success":true}' },
+      { version: first, result: 'should not be requested' },
+      { version: second, result: '{"code":"42P01","message":"Migration 20260523130711_webhook_secret_whsec_prefix failed: boom"}', httpError: true },
     ]);
-    expect(run.calls).toContain(second);
-    expect(run.stdout).toContain('Migrations complete: 1 applied, 0 already applied, 1 errors');
-    expect(run.stdout).toContain('WRITE_ERROR: Upgrade');
+    expect(run.calls).toBe(`${second}\n`);
+    expect(run.stdout).toContain('WRITE_ERROR: Database migration failed: Migration 20260523130711_webhook_secret_whsec_prefix failed: boom.');
     expect(run.code).toBe(1);
   });
 });

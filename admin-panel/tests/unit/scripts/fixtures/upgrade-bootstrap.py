@@ -1,7 +1,8 @@
 """Complete installed updater with signed local HTTP assets; no external services.
 
 Only the test public key and private runtime path replace production values.
-GitHub transport is redirected to loopback by a curl shim; real curl/OpenSSL/tar
+GitHub transport (github.com redirect and release files; api.github.com only for the
+legacy installed runner) is redirected to loopback by a curl shim; real curl/OpenSSL/tar
 and the full updater (including migrations, swap, health, rollback) still run.
 """
 import hashlib
@@ -52,6 +53,13 @@ with tempfile.TemporaryDirectory(prefix='sellf-bootstrap-') as temporary:
         migration_version = ('2099' + str(uuid.uuid4().int)[-10:] + '_bootstrap_fixture') if real_rpc else '20261110235900_fixture'
         port = None
 
+        def check_batch(payload):
+            # The unmodified 10.6 runner sends the file alone; newer runners wrap
+            # all pending files in one batch. Both must carry the full SQL.
+            assert sql.rstrip('\n') in payload['migration_sql']
+            assert payload['migration_version'] == migration_version
+            assert payload['content_checksum'] == hashlib.sha256(payload['migration_sql'].encode()).hexdigest()
+
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, *args):
                 pass
@@ -62,6 +70,11 @@ with tempfile.TemporaryDirectory(prefix='sellf-bootstrap-') as temporary:
                     body = json.dumps({'tag_name': 'v2026.11.0', 'assets': [
                         {'name': asset, 'browser_download_url': 'https://github.com/jurczykpawel/sellf/releases/download/v2026.11.0/' + asset}
                         for asset in assets]}).encode()
+                elif self.path == '/redirect-latest':
+                    self.send_response(302)
+                    self.send_header('Location', 'https://github.com/jurczykpawel/sellf/releases/tag/v2026.11.0')
+                    self.end_headers()
+                    return
                 elif self.path == '/api/health':
                     body = b'healthy'
                 else:
@@ -83,15 +96,13 @@ with tempfile.TemporaryDirectory(prefix='sellf-bootstrap-') as temporary:
                         response = error.read()
                     if self.path.endswith('apply_migration'):
                         payload = json.loads(body)
-                        assert payload['migration_sql'] == sql.rstrip('\n')
-                        assert payload['content_checksum'] == hashlib.sha256(sql.rstrip('\n').encode()).hexdigest()
+                        check_batch(payload)
                         requests.append('POSTGRES_SQL:' + str(len(payload['migration_sql'])))
                 elif self.path.endswith('get_migration_status'):
                     response = b'[]'
                 else:
                     payload = json.loads(body)
-                    assert payload['migration_sql'] == sql.rstrip('\n')
-                    assert payload['content_checksum'] == hashlib.sha256(sql.rstrip('\n').encode()).hexdigest()
+                    check_batch(payload)
                     requests.append('SQL:' + str(len(payload['migration_sql'])))
                     response = b'{"success":false,"message":"fixture failure"}' if fail_migration else b'{"success":true}'
                 self.send_response(status)
@@ -119,6 +130,7 @@ with tempfile.TemporaryDirectory(prefix='sellf-bootstrap-') as temporary:
 for arg in "$@"; do
  case "$arg" in
  https://api.github.com/*) arg="http://127.0.0.1:''' + str(port) + '''/latest" ;;
+ https://github.com/*/releases/latest) arg="http://127.0.0.1:''' + str(port) + '''/redirect-latest" ;;
  https://github.com/*) arg="http://127.0.0.1:''' + str(port) + '''/${arg##*/}" ;;
  esac
  args+=("$arg")

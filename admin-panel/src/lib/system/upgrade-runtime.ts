@@ -1,4 +1,6 @@
 /** Shared deployment capability contract. @see upgrade-runtime-server.ts */
+import type { UpdateFailure } from '@/lib/system/update-failure';
+
 export type DeploymentRuntime = 'pm2' | 'systemd' | 'docker' | 'compose' | 'coolify' | 'vercel' | 'netlify' | 'manual';
 export interface UpgradeCapability {
   runtime: DeploymentRuntime;
@@ -39,4 +41,6 @@ export interface UpdaterCompatibility {
   compatible: boolean;
   reason?: 'too_old' | 'verification_failed';
   message?: string;
+  /** Why verification failed (GitHub status, missing file, signature). */
+  failure?: UpdateFailure;
 }

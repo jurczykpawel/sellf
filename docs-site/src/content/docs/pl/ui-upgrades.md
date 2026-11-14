@@ -66,8 +66,27 @@ Aktualizator 2 sprawdza podpis manifestu zainstalowanym kluczem, wymaganie
 katalogu tymczasowego. Następnie uruchamia `scripts/upgrade.sh` z pobranego wydania
 (etap 2), zachowując token, instalację, pliki postępu i logu oraz blokadę instancji.
 Panel pokazuje dotychczasowe kroki. Paczki bez etapu 2 korzystają z lokalnego
-fallbacku. Błąd migracji przywraca poprzedni kod przed startem; nie cofa już
-zatwierdzonych migracji bazy (transakcja RPC nadal obejmuje pojedynczy plik).
+fallbacku.
+
+Od 2026.11.1 wszystkie brakujące migracje wydania idą jednym wywołaniem RPC, więc
+PostgreSQL stosuje je w jednej transakcji. Jeśli którykolwiek plik się nie uda, nie
+zostaje żaden z nich ani żaden wpis w rejestrze migracji. Panel podaje nazwę pliku
+i błąd bazy, a poprzedni kod wraca na miejsce, zanim nowy wystartuje.
+
+Najnowsze wydanie jest ustalane przez przekierowanie `github.com/<repo>/releases/latest`,
+a pliki wydania są pobierane z `releases/download/<tag>/`. Żadne z nich nie liczy się
+do limitu API GitHuba (60 zapytań na godzinę z jednego adresu), który serwery za
+wspólnym NAT-em szybko wyczerpują. Gdy GitHub odmówi albo jest nieosiągalny, panel
+pokazuje komunikat GitHuba, kod HTTP, informację, że nic nie zostało zmienione i na
+jakiej wersji działa sklep, oraz kiedy ponowić (z `Retry-After` albo czasu odnowienia
+limitu, jeśli GitHub je poda). Brak pliku w wydaniu i zły podpis mają osobne komunikaty.
+
+Po nieudanej próbie można od razu spróbować ponownie. Panel odmawia tylko wtedy, gdy
+aktualizacja trzyma blokadę instancji, albo przez kilka sekund od uruchomienia
+(podwójne kliknięcie), chyba że to uruchomienie już się nie powiodło.
+
+Zmiany działają od aktualizacji następującej po instalacji 2026.11.1: pierwsze
+przejście wykonuje jeszcze wcześniej zainstalowany aktualizator.
 
 2026.11.0 wymaga aktualizatora 1, czyli niewersjonowanego skryptu 10.6. CI publikuje
 podpisany trzywierszowy manifest V2 oraz dotychczasowy dwuwierszowy manifest dla
@@ -85,8 +104,9 @@ ponów sprawdzanie lub uruchom w aktualnym lokalnym repozytorium Stackpilot
 ## Źródło informacji o wydaniach
 
 Opcjonalna serwerowa zmienna `SELLF_UPDATE_CHECK_URL` wskazuje mirror informacji
-albo lokalną atrapę w formacie JSON wydań GitHub. Domyślnie Sellf korzysta z API
-ostatniego wydania na GitHub. Limit żądania to pięć sekund, bez przekierowań.
+albo lokalną atrapę w formacie JSON wydań GitHub. Domyślnie wersja pochodzi
+z przekierowania github.com do ostatniego wydania; opis zmian jest dodawany, gdy
+odpowie API GitHuba, a w przeciwnym razie pomijany. Limit każdego żądania to pięć sekund.
 Zmienna zmienia wyłącznie powiadomienia: `upgrade.sh` nadal pobiera oficjalne
 pliki i weryfikuje podpis zainstalowanym kluczem. Mirror powinien pokazywać
 wyłącznie wydania istniejące na GitHub.
