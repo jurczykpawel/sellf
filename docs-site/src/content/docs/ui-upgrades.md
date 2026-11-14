@@ -71,11 +71,31 @@ Since 2026.11.1 the runner sends all pending migrations of a release in one RPC
 call, so PostgreSQL applies them in one transaction. If any file fails, none of
 them and none of their registry entries remain; the panel names the failing file
 and the database error, and the previous code is restored before it starts.
-If the answer to the migration request is lost, the updater re-reads the migration
-registry: all migrations present means the update continues with the new version,
-none means the previous code is restored. If the registry shows only some of them
-or cannot be read, the application is left stopped and the upgrade log says what
-to check; it does not claim that the database is unchanged.
+The updater checks every answer to a migration request it sent, an error message
+included, against the migration registry (`supabase_migrations.schema_migrations`).
+The answer may have been lost, or may have come from a proxy after the changes were
+committed. Without asking the database, the previous code is restored only when the
+request never left the server.
+
+| What the registry shows | What the updater does |
+|---|---|
+| every migration of the release | starts the new version |
+| none of them, read twice 15 s apart | restores the previous code |
+| only some of them, or an answer that cannot be read as a list of entries | leaves the application stopped with the code `migration_state_unknown` |
+
+In the last case nobody knows whether the migrations went in, so neither the old
+nor the new version starts. The message says which versions to look for in the
+registry and what to do next. An empty or unreadable registry answer does not prove
+that the database is unchanged.
+
+Limitation: two reads 15 s apart do not catch a transaction that commits more than
+15 s after the connection broke. The updater would then assume nothing changed and
+restore the previous code. If the shop misbehaves after such a failure, check the
+migration registry.
+
+Before replacing files, the updater waits for PM2 to confirm that the application
+stopped. If PM2 does not confirm it, the update ends before anything changes and the
+shop keeps running the installed version.
 
 The latest release is found through the `github.com/<repo>/releases/latest`
 redirect and release files are downloaded from `releases/download/<tag>/`. Neither

@@ -646,18 +646,30 @@ call: each file is wrapped in a `DO` block whose exception names the file, the
 batch inserts the registry rows of all but the last file and the RPC records the
 last one, all in the RPC's single transaction. No new RPC is needed, so 10.6+
 databases work unchanged. Pending files are matched by timestamp. A batch reported
-as `skipped` (registry changed meanwhile) is a failure. Only a PostgREST
-database error (`code`/`details`/`hint`) or a request that never left the server
-counts as a certain rollback. Any other failure (lost or garbled answer, gateway
-error) may follow a COMMIT and is settled by re-reading `get_migration_status`:
-all batch versions present -> applied, the new version starts; none (read twice,
-15 s apart) -> rolled back, old code restored; partial or unreadable ->
-`migration_state_unknown`: the application stays stopped (neither version runs on
-a database in an unknown state) and the message says what to check. Stackpilot
-exits 4 in that case. `.env.local` values are read with Node `parseEnv`.
+as `skipped` (registry changed meanwhile) is a failure. Only a request that never
+left the server (curl exit 6/7; refused connection or DNS error in Stackpilot)
+counts as a certain rollback without asking the database. Any answer to a sent
+request, a database error included, may follow a COMMIT (or come from a gateway)
+and is settled by re-reading `get_migration_status`. Only one JSON list of entries
+whose `version` starts with a 14-digit timestamp counts as a reading; `{}`, an
+object, HTML, an empty body or `success:false` do not. All batch versions present
+-> applied, the new version starts; none (read twice, 15 s apart) -> rolled back,
+old code restored; partial, unreadable or malformed -> `migration_state_unknown`:
+the application stays stopped (neither version runs on a database in an unknown
+state) and the message says to check `supabase_migrations.schema_migrations`.
+Stackpilot exits 4 in that case. An empty registry is not proof of a rollback: a
+transaction that commits more than 15 s after the connection broke would be
+missed (no RPC can wait for the batch's lock on databases older than this release).
+Before swapping files the runner requires `pm2 stop` to succeed and `pm2 jlist` to
+report the process stopped; otherwise it ends with `pm2_stop_failed` before any
+file or database change and starts the installed version again if the stop
+attempt left it down. `.env.local` values are read with Node `parseEnv`.
 `/api/v1/system/upgrade-status` passes validated `code`/`details`
-(`sanitizeUpdateFailure`) and messages up to 2000 characters. Stackpilot's
-Management-API fallback for a database without the RPC still applies files one by one.
+(`sanitizeUpdateFailure`); message, cause, GitHub message and the panel fallback go
+through `sanitizeUpdateText` (control and direction characters and markup removed,
+key-like values and configured `*KEY*`/`*SECRET*`/`*TOKEN*`/`*PASSWORD*` values
+replaced with `[redacted]`, length bounded). Stackpilot's Management-API fallback
+for a database without the RPC still applies files one by one.
 
 The bootstrap finds the latest release through the `github.com/<repo>/releases/latest`
 redirect and downloads `releases/download/<tag>/<file>`; it never calls

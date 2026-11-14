@@ -72,11 +72,31 @@ Od 2026.11.1 wszystkie brakujące migracje wydania idą jednym wywołaniem RPC, 
 PostgreSQL stosuje je w jednej transakcji. Jeśli którykolwiek plik się nie uda, nie
 zostaje żaden z nich ani żaden wpis w rejestrze migracji. Panel podaje nazwę pliku
 i błąd bazy, a poprzedni kod wraca na miejsce, zanim nowy wystartuje.
-Gdy odpowiedź na żądanie migracji zaginie, aktualizator ponownie czyta rejestr
-migracji: wszystkie obecne oznaczają dalszy start nowej wersji, żadna — powrót
-poprzedniego kodu. Gdy rejestr pokazuje tylko część albo nie da się go odczytać,
-aplikacja zostaje zatrzymana, a log aktualizacji mówi, co sprawdzić; aktualizator
-nie twierdzi wtedy, że baza się nie zmieniła.
+Każdą odpowiedź na wysłane żądanie migracji, także komunikat o błędzie, aktualizator
+sprawdza w rejestrze migracji (`supabase_migrations.schema_migrations`). Odpowiedź
+mogła zaginąć albo przyjść od serwera pośredniczącego już po zatwierdzeniu zmian.
+Bez pytania bazy powrót poprzedniego kodu następuje tylko wtedy, gdy żądanie w ogóle
+nie wyszło z serwera.
+
+| Co pokazuje rejestr | Co robi aktualizator |
+|---|---|
+| wszystkie migracje wydania | uruchamia nową wersję |
+| żadnej, przy dwóch odczytach w odstępie 15 s | przywraca poprzedni kod |
+| tylko część, albo odpowiedzi nie da się odczytać jako listy wpisów | zostawia aplikację zatrzymaną z kodem `migration_state_unknown` |
+
+W ostatnim przypadku nie wiadomo, czy migracje weszły, więc nie startuje ani stara,
+ani nowa wersja. Komunikat mówi, które wersje sprawdzić w rejestrze i co zrobić
+dalej. Pusta lub nieczytelna odpowiedź rejestru nie dowodzi, że baza się nie
+zmieniła.
+
+Zastrzeżenie: dwa odczyty w odstępie 15 s nie wykryją transakcji, która zatwierdzi
+się później niż 15 s po zerwaniu połączenia. Wtedy aktualizator uznałby, że zmian
+nie było, i przywrócił poprzedni kod. Jeśli po takim błędzie sklep działa
+nieprawidłowo, sprawdź rejestr migracji.
+
+Przed podmianą plików aktualizator czeka na potwierdzenie z PM2, że aplikacja się
+zatrzymała. Jeśli PM2 tego nie potwierdzi, aktualizacja kończy się, zanim cokolwiek
+się zmieni, a sklep działa dalej na dotychczasowej wersji.
 
 Najnowsze wydanie jest ustalane przez przekierowanie `github.com/<repo>/releases/latest`,
 a pliki wydania są pobierane z `releases/download/<tag>/`. Żadne z nich nie liczy się
