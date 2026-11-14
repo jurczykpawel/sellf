@@ -540,6 +540,7 @@ Przykład dostawy `product.updated` (obiekt produktu skrócony dla czytelności)
 (zob. [API: usuwanie produktów](/pl/api/#usuwanie-produktów-i-archiwum)). Archiwizacja wysyła `product.updated` z ustawionym
 `archivedAt`, `isActive: false` i `archivedAt` w `changedFields` (aktywny produkt wysyła też `product.unpublished`);
 przywrócenie wysyła `product.updated` z `archivedAt: null`. Trwałe usunięcie z archiwum wysyła dokładnie jedno
-`product.deleted`. Zamówienia, faktury i licencje zostają: późniejsze zdarzenia o nich (np. `refund.issued`) mają
+`product.deleted`. Archiwizacja nie odbiera dostępu kupującym (brak zdarzeń `access.*`); trwałe usunięcie go odbiera.
+Zamówienia, faktury, licencje i zakończone subskrypcje zostają: późniejsze zdarzenia o nich (np. `refund.issued`) mają
 `product.id: null` i nazwę produktu z chwili zakupu.
 Lista zdarzeń w panelu opisuje wszystkie trzy; **Testuj endpoint** pokazuje pełny przykład każdego z nich.

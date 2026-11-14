@@ -165,3 +165,23 @@ describe('decideProductAccessOutcome', () => {
     });
   });
 });
+
+describe('archived product (owner decision 2026-11-14: archive stops sales, keeps buyer access)', () => {
+  const archived = { id: 'p1', is_active: false, archived_at: '2026-11-14T00:00:00Z', available_from: null, available_until: null };
+  const access = { access_expires_at: null, access_duration_days: null, granted_at: '2026-01-01T00:00:00Z' };
+
+  it('renders content for a buyer with access', () => {
+    expect(decideProductAccessOutcome(input({ user: { id: 'u1' }, product: archived, userAccess: access })))
+      .toEqual({ kind: 'render-content', userAccess: access });
+  });
+
+  it('stays unavailable without access', () => {
+    expect(decideProductAccessOutcome(input({ user: { id: 'u1' }, product: archived }))).toEqual({ kind: 'render-inactive' });
+  });
+
+  it('shows the expired state to a buyer whose access ended', () => {
+    const expired = { ...access, access_expires_at: '2026-02-01T00:00:00Z' };
+    expect(decideProductAccessOutcome(input({ user: { id: 'u1' }, product: archived, userAccess: expired })))
+      .toEqual({ kind: 'render-expired', userAccess: expired });
+  });
+});

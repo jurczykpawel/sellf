@@ -20,6 +20,14 @@ export interface ProductDeletionImpact {
   licenses: number;
   accesses: number;
   subscriptions: number;
+  /** Stripe still charges or is about to charge (trialing, active, past_due, incomplete). */
+  activeSubscriptions: number;
+  /** Confirmed or held seats of sessions that have not ended. */
+  futureReservations: number;
+  affiliateRules: number;
+  affiliateCommissions: number;
+  /** Bundles that contain this product. */
+  bundles: number;
   hasHistory: boolean;
 }
 
@@ -48,8 +56,13 @@ export default function ProductRemoveDialog({ product, mode, onClose, onDone }: 
   }, [product.id]);
 
   const archives = mode === 'remove' && impact?.hasHistory === true;
-  // Products with subscriptions stay in the archive (the database keeps the subscription link).
-  const blocked = mode === 'permanent' && (impact?.subscriptions ?? 0) > 0;
+  // Active subscriptions, upcoming reservations and partner commissions keep the product in the archive.
+  const blockers = impact ? [
+    impact.activeSubscriptions > 0 && t('blockedSubscriptions', { count: impact.activeSubscriptions }),
+    impact.futureReservations > 0 && t('blockedReservations', { count: impact.futureReservations }),
+    impact.affiliateCommissions > 0 && t('blockedCommissions', { count: impact.affiliateCommissions }),
+  ].filter((text): text is string => Boolean(text)) : [];
+  const blocked = mode === 'permanent' && blockers.length > 0;
 
   const confirm = async () => {
     setSubmitting(true);
@@ -65,7 +78,10 @@ export default function ProductRemoveDialog({ product, mode, onClose, onDone }: 
   };
 
   const title = mode === 'permanent' ? t('permanentTitle') : archives ? t('archiveTitle') : t('deleteTitle');
-  const counts = impact ? { orders: impact.orders, invoices: impact.invoices, licenses: impact.licenses, accesses: impact.accesses } : null;
+  const counts = impact ? {
+    orders: impact.orders, invoices: impact.invoices, licenses: impact.licenses, accesses: impact.accesses,
+    subscriptions: impact.subscriptions - impact.activeSubscriptions,
+  } : null;
 
   return (
     <BaseModal isOpen onClose={onClose} size="md" labelledBy="product-remove-title">
@@ -84,12 +100,14 @@ export default function ProductRemoveDialog({ product, mode, onClose, onDone }: 
           {impact && mode === 'permanent' && counts && (
             <>
               <p className="font-semibold">{t('permanentLead')}</p>
+              {impact.accesses > 0 && <Message type="warning" message={t('permanentAccess', counts)} />}
               <ul className="list-disc pl-5 space-y-1">
                 <li>{t('permanentKept', counts)}</li>
-                <li>{t('permanentAccess', counts)}</li>
+                {impact.affiliateRules > 0 && <li>{t('permanentRules', { count: impact.affiliateRules })}</li>}
+                {impact.bundles > 0 && <li>{t('permanentBundles', { count: impact.bundles })}</li>}
                 <li>{t('permanentIrreversible')}</li>
               </ul>
-              {blocked && <Message type="warning" message={t('permanentBlocked', { subscriptions: impact.subscriptions })} />}
+              {blocked && <Message type="warning" message={`${t('permanentBlockedLead')} ${blockers.join(' ')}`} />}
             </>
           )}
           {failed && <Message type="error" message={mode === 'permanent' ? t('permanentError') : t('error')} />}

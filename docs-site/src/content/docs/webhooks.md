@@ -785,6 +785,7 @@ Example `product.updated` delivery (public snapshot shortened for readability):
 (see [API: deleting products](/api/#deleting-products-and-the-archive)). Archiving sends `product.updated` with
 `archivedAt` set, `isActive: false` and `archivedAt` in `changedFields` (an active product also sends `product.unpublished`);
 restoring sends `product.updated` with `archivedAt: null`. A permanent delete from the archive sends exactly one
-`product.deleted`. Orders, invoices and licenses stay: later events about them (for example `refund.issued`) carry
+`product.deleted`. Archiving does not end buyer access (no `access.*` events); a permanent delete removes access.
+Orders, invoices, licenses and ended subscriptions stay: later events about them (for example `refund.issued`) carry
 `product.id: null` and the product name from the time of purchase.
 The dashboard event picker describes all three; **Test endpoint** previews a complete example for each.

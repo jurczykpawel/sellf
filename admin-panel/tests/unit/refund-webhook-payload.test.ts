@@ -8,7 +8,7 @@ import {
 /** Mock supabase: products + payment_transactions(net_total,tax_total) + payment_line_items(main). */
 function mockSupabaseFor(opts: {
   product?: Record<string, unknown> | null;
-  tx?: { order_number?: number; net_total: number | null; tax_total: number | null } | null;
+  tx?: { order_number?: number; net_total: number | null; tax_total: number | null; product_name?: string } | null;
   mainLine?: { vat_exempt?: boolean | null; taxability_reason?: string | null } | null;
 }) {
   const dataFor = (table: string) =>
@@ -193,5 +193,12 @@ it('lets a refund receiver correlate the Sellf order number', async () => {
 
 it('names the purchased product when it was permanently deleted after the order', async () => {
   const payload = await buildRefundIssuedPayloadFromTransaction({ supabaseClient: mockSupabaseFor({ product: null, tx: { net_total: null, tax_total: null } }), transaction: { ...txRow, product_id: null, product_name: 'Archived course' }, stripeRefundId: 're_2', refundAmount: 100, previousRefundedAmount: 0, totalRefunded: 100, isFullRefund: false, statusBefore: 'completed', statusAfter: 'partially_refunded', refundedAt: '2026-11-14T00:00:00Z', source: 'admin' });
+  expect(payload.product).toEqual({ id: null, name: 'Archived course' });
+});
+
+it('reads the purchase-time name from the order when the caller projection lacks it (Stripe-initiated refund)', async () => {
+  const { product_name: _omit, ...stripeProjection } = { ...txRow, product_id: null, product_name: undefined };
+  void _omit;
+  const payload = await buildRefundIssuedPayloadFromTransaction({ supabaseClient: mockSupabaseFor({ product: null, tx: { net_total: null, tax_total: null, product_name: 'Archived course' } }), transaction: stripeProjection, stripeRefundId: 're_3', refundAmount: 100, previousRefundedAmount: 0, totalRefunded: 100, isFullRefund: false, statusBefore: 'completed', statusAfter: 'partially_refunded', refundedAt: '2026-11-14T00:00:00Z', source: 'stripe_webhook' });
   expect(payload.product).toEqual({ id: null, name: 'Archived course' });
 });

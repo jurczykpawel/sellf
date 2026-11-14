@@ -41,7 +41,7 @@ it('sends permanent=true as an explicit permanent delete', async () => {
   expect(state.rpc).toHaveBeenCalledExactlyOnceWith('remove_product_as', rpcArgs(true));
 });
 
-it.each([['55000', 'Archive it first'], ['23503', 'stays in the archive']])('maps %s to a conflict with guidance', async (code, text) => {
+it.each([['55000', 'Archive it first'], ['55006', 'active subscriptions or upcoming event reservations']])('maps %s to a conflict with guidance', async (code, text) => {
   state.rpc.mockResolvedValue({ data: null, error: { code, message: 'private database detail' } });
   const response = await DELETE(request('?permanent=true'), params);
   expect(response.status).toBe(409);

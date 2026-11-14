@@ -7,7 +7,7 @@
  */
 import { test, expect, type Page } from '@playwright/test';
 import { acceptAllCookies } from './helpers/consent';
-import { createTestAdmin, setAuthSession, supabaseAdmin } from './helpers/admin-auth';
+import { createTestAdmin, createTestUser, setAuthSession, supabaseAdmin } from './helpers/admin-auth';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -63,7 +63,7 @@ test('deleting a sold product moves it to the archive and restore brings it back
   await rowAction(page, name, /^Usuń$/);
   const dialog = page.getByTestId('product-remove-dialog');
   await expect(dialog).toContainText('Produkt ma 1 zamówienie — zostanie przeniesiony do archiwum.');
-  await expect(dialog).toContainText('Zamówienia, faktury, licencje i dostępy kupujących zostaną zachowane.');
+  await expect(dialog).toContainText('Kupujący zachowują dostęp do treści, a zamówienia, faktury i licencje zostają.');
   await page.getByRole('button', { name: 'Przenieś do archiwum' }).click();
   await expect(page.getByText(`Produkt "${name}" przeniesiono do archiwum`)).toBeVisible();
   await expect(page.locator('tr').filter({ hasText: name })).toHaveCount(0);
@@ -90,6 +90,8 @@ test('deleting a sold product moves it to the archive and restore brings it back
 test('permanent delete from the archive lists the kept records and keeps the order and license @J601', async ({ page }) => {
   const name = `W250 Trwale ${Date.now()}`;
   const product = await soldProduct(name);
+  const buyer = await createTestUser('w250-perm-buyer');
+  expect((await supabaseAdmin.from('user_product_access').insert({ user_id: buyer.userId, product_id: product.id, grant_source: 'purchase' })).error).toBeNull();
   expect((await supabaseAdmin.from('products').update({ archived_at: new Date().toISOString(), is_active: false }).eq('id', product.id)).error).toBeNull();
   await openProducts(page, name);
   await page.locator('#status-filter').selectOption('archived');
@@ -98,7 +100,7 @@ test('permanent delete from the archive lists the kept records and keeps the ord
   await rowAction(page, name, /^Usuń trwale$/);
   const dialog = page.getByTestId('product-remove-dialog');
   await expect(dialog).toContainText('zamówienia (1), faktury (0), licencje (1)');
-  await expect(dialog).toContainText('Kupujący stracą dostęp do treści produktu');
+  await expect(dialog).toContainText('Kupujący stracą dostęp do treści produktu: 1 dostęp zostanie usunięty.');
   await expect(dialog).toContainText('Produktu nie będzie można przywrócić.');
   await page.getByRole('button', { name: 'Usuń trwale' }).click();
   await expect(page.getByText(`Produkt "${name}" został pomyślnie usunięty`)).toBeVisible();
@@ -109,4 +111,33 @@ test('permanent delete from the archive lists the kept records and keeps the ord
   expect(order.data).toEqual({ product_id: null, product_name: name, status: 'completed' });
   const license = await supabaseAdmin.from('issued_licenses').select('product_id,product_name').eq('id', product.licenseId).single();
   expect(license.data).toEqual({ product_id: null, product_name: name });
+  expect((await supabaseAdmin.from('user_product_access').select('id').eq('user_id', buyer.userId)).data).toEqual([]);
+  await buyer.cleanup();
+});
+
+test('a buyer keeps the content of an archived product while the public no longer sees it @J603', async ({ page, browser }) => {
+  const name = `W250 Kupujacy ${Date.now()}`;
+  const product = await soldProduct(name);
+  const { data: row } = await supabaseAdmin.from('products').select('slug').eq('id', product.id).single();
+  const buyer = await createTestUser('w250-buyer');
+  expect((await supabaseAdmin.from('user_product_access').insert({ user_id: buyer.userId, product_id: product.id, grant_source: 'purchase' })).error).toBeNull();
+  expect((await supabaseAdmin.from('products').update({ archived_at: new Date().toISOString(), is_active: false, enable_waitlist: true }).eq('id', product.id)).error).toBeNull();
+
+  const anonymous = await browser.newContext();
+  const anonPage = await anonymous.newPage();
+  const publicApi = await anonPage.request.get(`/api/public/products/${row!.slug}`);
+  expect(publicApi.status()).toBe(404);
+  const publicPage = await anonPage.goto(`/pl/p/${row!.slug}`);
+  expect(publicPage?.status()).toBe(404);
+  await anonymous.close();
+
+  await acceptAllCookies(page);
+  await page.goto('/');
+  await setAuthSession(page, buyer.email, buyer.password);
+  await page.goto(`/pl/p/${row!.slug}`);
+  await expect(page.getByRole('heading', { name })).toBeVisible();
+  await expect(page.getByText('Ten produkt nie jest już dostępny dla nowych klientów')).toBeVisible();
+  await page.goto('/pl/my-products');
+  await expect(page.getByText(name).first()).toBeVisible();
+  await buyer.cleanup();
 });

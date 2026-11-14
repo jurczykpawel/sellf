@@ -6,6 +6,7 @@ import { getShopConfig } from '@/lib/actions/shop-config';
 import { findIssuedLicense, toIssuedLicenseResponse } from '@/lib/license-keys/lookup';
 import { firstRelated } from '@/lib/supabase/relations';
 import { loadProductContentConfig } from '@/lib/services/product-content-config';
+import { servesBuyerContent } from '@/lib/payment/product-access-decision';
 
 export async function GET(
   request: NextRequest,
@@ -43,6 +44,7 @@ export async function GET(
         price,
         currency,
         is_active,
+        archived_at,
         is_featured,
         is_bundle,
         available_from,
@@ -79,11 +81,10 @@ export async function GET(
       return NextResponse.json({ error: 'Access expired' }, { status: 403 });
     }
 
-    // For products marked as inactive, deny access completely
-    // Note: We don't check temporal availability here because users who already 
-    // have access should be able to access content even if the product is no longer 
-    // available for new purchases
-    if (!productWithAccess.is_active) {
+    // Inactive products deny access; archived ones keep serving their buyers.
+    // Temporal availability is not checked: users who already have access keep the
+    // content after the product is no longer available for new purchases.
+    if (!servesBuyerContent(productWithAccess)) {
       return NextResponse.json({ error: 'Product not available' }, { status: 403 });
     }
 

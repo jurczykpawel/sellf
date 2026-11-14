@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, afterAll } from 'vitest';
-import { get, post, patch, del, cleanup, supabaseAdmin } from './setup';
+import { get, post, patch, del, cleanup, supabaseAdmin, API_URL } from './setup';
 
 interface ApiResponse<T> {
   data?: T;
@@ -130,6 +130,36 @@ describe('Product archive API @J602', () => {
     expect(detail.data.data?.product).toMatchObject({ id: null, name: 'W250 permanent' });
     const list = await get<ApiResponse<Array<{ id: string; product: { id: string | null; name: string } }>>>('/api/v1/payments?limit=100&email=w250-buyer');
     expect(list.data.data?.find(p => p.id === orderId)?.product).toMatchObject({ id: null, name: 'W250 permanent' });
+  });
+
+  it('hides an archived product from the public product endpoint even with the waitlist on', async () => {
+    const id = await createProduct('W250 public');
+    await sell(id);
+    const { data: before } = await db.from('products').update({ enable_waitlist: true, is_active: false }).eq('id', id).select('slug').single();
+    expect((await fetch(`${API_URL}/api/public/products/${before!.slug}`)).status).toBe(200);
+    await del(`/api/v1/products/${id}`);
+    expect((await fetch(`${API_URL}/api/public/products/${before!.slug}`)).status).toBe(404);
+  });
+
+  it('refuses a permanent delete while a subscription is active and keeps the ended one', async () => {
+    const id = await createProduct('W250 subscription');
+    await sell(id);
+    const { data: subscription, error } = await db.from('subscriptions').insert({
+      product_id: id, stripe_customer_id: 'cus_w250', stripe_subscription_id: `sub_w250_${Date.now()}`, status: 'active',
+    }).select('id').single();
+    expect(error).toBeNull();
+    await del(`/api/v1/products/${id}`);
+
+    const impact = await get<ApiResponse<Impact & { activeSubscriptions: number }>>(`/api/v1/products/${id}/deletion-impact`);
+    expect(impact.data.data).toMatchObject({ subscriptions: 1, activeSubscriptions: 1 });
+    const blocked = await del<ApiResponse<null>>(`/api/v1/products/${id}?permanent=true`);
+    expect(blocked.status).toBe(409);
+    expect(blocked.data.error?.message).toContain('active subscriptions');
+
+    await db.from('subscriptions').update({ status: 'canceled' }).eq('id', subscription!.id);
+    expect((await del(`/api/v1/products/${id}?permanent=true`)).status).toBe(204);
+    const kept = (await db.from('subscriptions').select('product_id,product_name,status').eq('id', subscription!.id).single()).data;
+    expect(kept).toEqual({ product_id: null, product_name: 'W250 subscription', status: 'canceled' });
   });
 
   it('a product without orders is still deleted at once', async () => {

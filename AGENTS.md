@@ -560,8 +560,12 @@ product without history and archives one with orders, licenses, buyer access, su
 affiliate rules (`archived_at` set, `is_active=false`, enforced by `products_archived_not_active`).
 `DELETE /api/v1/products/:id?permanent=true` deletes only archived products; `payment_transactions`,
 `payment_line_items`, `refund_requests` and `issued_licenses` use `ON DELETE SET NULL` and keep the
-purchase-time `product_name` (orders, licenses). Subscriptions, affiliate rules, bundle components and
-event reservations still block a permanent delete. `restore_product_as` returns a product inactive.
+purchase-time `product_name` (orders, licenses, subscriptions). Only active subscriptions (trialing,
+active, past_due, incomplete), upcoming reservations and partner commissions block a permanent delete
+(55006); past reservations are detached, affiliate rules (append-only except during this delete,
+`sellf.deleting_product`) and bundle links are removed. `restore_product_as` returns a product inactive.
+An archived product is invisible to the public (RLS, waitlist included) but its buyers keep the content:
+RLS branch `owns_product_access`, `servesBuyerContent`, `/p/[slug]` reads it through the buyer session.
 `GET /api/v1/products` hides archived products unless `status=archived`, so every admin picker
 excludes them. Panel: `ProductRemoveDialog` (impact from `/deletion-impact`), "Archiwum" filter.
 

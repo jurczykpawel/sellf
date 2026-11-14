@@ -383,16 +383,22 @@ Orders, invoices and licenses are never deleted together with a product.
 - `DELETE /products/{id}` on a product **without** orders, licenses, buyer access or subscriptions deletes it: **204**.
 - The same call on a product **with** such history moves it to the **archive** instead: **200** with
   `{ "data": { "id": "…", "status": "archived", "impact": { "orders": 3, "invoices": 1, "licenses": 2, "accesses": 3, "subscriptions": 0, "hasHistory": true } } }`.
-  An archived product has `archived_at` set and `is_active: false`: it leaves the store, product lists and pickers,
-  and every record stays. Buyers cannot open its content until it is restored and activated. Repeating the call returns the same 200.
+  An archived product has `archived_at` set and `is_active: false`: it is no longer sold and leaves the store, public
+  endpoints, product lists and pickers (also with the waitlist on), and every record stays. Buyers who have access keep
+  the content and still see it under My products. Repeating the call returns the same 200.
 - `GET /products?status=archived` lists archived products. The other `status` values (`all`, `active`, `inactive`) never include them.
 - `POST /products/{id}/restore` moves it back to the product list as inactive; activate it with `PATCH {"is_active": true}`.
   Activating an archived product returns **409**.
-- `DELETE /products/{id}?permanent=true` deletes an archived product: **204**. Orders, invoices and licenses stay with
-  `product_id: null` and the product name from the time of purchase (`product_name`); buyer access ends.
-  A product with history that is not archived returns **409** (archive it first). A product still used by subscriptions,
-  affiliate rules, a bundle or event reservations returns **409** and stays in the archive.
-- `GET /products/{id}/deletion-impact` returns the `impact` object above without changing anything.
+- `DELETE /products/{id}?permanent=true` deletes an archived product: **204**. Orders, invoices, licenses, ended
+  subscriptions and reservations for past sessions stay with `product_id: null` and the product name from the time of
+  purchase (`product_name`); buyers lose access; partner commission rules and the product's place in bundles are removed.
+  A product with history that is not archived returns **409** (archive it first). It also returns **409** and stays in
+  the archive while it has an **active subscription** (Stripe status `trialing`, `active`, `past_due` or `incomplete`),
+  a **reservation for an upcoming session** (confirmed or still held, session not yet ended) or recorded partner commissions.
+- `GET /products/{id}/deletion-impact` returns the `impact` object above without changing anything, plus
+  `activeSubscriptions`, `futureReservations`, `affiliateRules`, `affiliateCommissions` and `bundles`.
+- Licenses (`GET /licenses`, `/licenses/{id}`) and payments of a permanently deleted product return `product.name`
+  from the time of purchase.
 
 Webhooks: archive and restore send `product.updated` (`changedFields` contains `archivedAt`; archiving an active product also
 sends `product.unpublished`). A permanent delete sends exactly one `product.deleted`.

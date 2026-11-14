@@ -3727,9 +3727,9 @@ export type Database = {
           id: string
           quantity: number
           released_at: string | null
-          session_id: string
+          session_id: string | null
           status: string
-          tier_id: string
+          tier_id: string | null
           transaction_id: string
         }
         Insert: {
@@ -3739,9 +3739,9 @@ export type Database = {
           id?: string
           quantity: number
           released_at?: string | null
-          session_id: string
+          session_id?: string | null
           status: string
-          tier_id: string
+          tier_id?: string | null
           transaction_id: string
         }
         Update: {
@@ -3751,9 +3751,9 @@ export type Database = {
           id?: string
           quantity?: number
           released_at?: string | null
-          session_id?: string
+          session_id?: string | null
           status?: string
-          tier_id?: string
+          tier_id?: string | null
           transaction_id?: string
         }
         Relationships: [
@@ -4216,7 +4216,8 @@ export type Database = {
           metadata: Json
           paid_access_expires_at: string | null
           paid_access_invoice_id: string | null
-          product_id: string
+          product_id: string | null
+          product_name: string | null
           renewal_notice_at: string | null
           renewal_notice_payload: Json | null
           status: string
@@ -4238,7 +4239,8 @@ export type Database = {
           metadata?: Json
           paid_access_expires_at?: string | null
           paid_access_invoice_id?: string | null
-          product_id: string
+          product_id?: string | null
+          product_name?: string | null
           renewal_notice_at?: string | null
           renewal_notice_payload?: Json | null
           status: string
@@ -4260,7 +4262,8 @@ export type Database = {
           metadata?: Json
           paid_access_expires_at?: string | null
           paid_access_invoice_id?: string | null
-          product_id?: string
+          product_id?: string | null
+          product_name?: string | null
           renewal_notice_at?: string | null
           renewal_notice_payload?: Json | null
           status?: string
@@ -6523,6 +6526,7 @@ export type Database = {
         Args: { p_order_details: Json; p_profile: Json; p_status: string }
         Returns: boolean
       }
+      owns_product_access: { Args: { p_product_id: string }; Returns: boolean }
       pending_free_grant_products: {
         Args: never
         Returns: {

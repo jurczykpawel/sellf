@@ -5031,7 +5031,7 @@
       },
       "status": "automated",
       "end_state": {
-        "buyer": "Order, license and access records stay; content is paused while the product is archived",
+        "buyer": "Order, license and access stay; the buyer keeps the content of the archived product (J603)",
         "seller": "Dialog 'Produkt ma 1 zamówienie — zostanie przeniesiony do archiwum.'; product leaves the list, appears under the Archiwum filter and Przywróć returns it as inactive",
         "integrator": "Not exercised in the browser; archive state is covered by J602"
       },
@@ -5053,7 +5053,7 @@
       },
       "status": "automated",
       "end_state": {
-        "buyer": "Loses product access; the order and license stay with the purchase-time product name",
+        "buyer": "Loses product access (the dialog says so); the order and license stay with the purchase-time product name",
         "seller": "Dialog lists kept orders, invoices and licenses, lost buyer access and that it cannot be undone; product disappears",
         "integrator": "Not exercised in the browser; deletion events are covered by J602"
       },
@@ -5077,10 +5077,32 @@
       "end_state": {
         "buyer": "Order and license survive both archive and permanent delete",
         "seller": "DELETE returns status archived with the impact counts; permanent=true is refused until archived",
-        "integrator": "Archive emits one product.updated with archivedAt; permanent delete of an archived product emits exactly one product.deleted"
+        "integrator": "Archive emits one product.updated with archivedAt; permanent delete of an archived product emits exactly one product.deleted; active subscriptions or upcoming reservations refuse it with 409"
       },
       "layers": [
         "api",
+        "database"
+      ]
+    },
+    {
+      "id": "J603",
+      "title": "Buyer keeps the content of an archived product that the public no longer sees",
+      "values": {
+        "persona": "signed_in",
+        "entry": "storefront",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "consume"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Product page shows the content with 'Ten produkt nie jest już dostępny dla nowych klientów'; the product stays in Moje produkty",
+        "seller": "Archived product, waitlist included, is invisible to anonymous and other signed-in visitors",
+        "integrator": "Not exercised; no event"
+      },
+      "layers": [
+        "browser",
         "database"
       ]
     }
