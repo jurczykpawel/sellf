@@ -134,6 +134,7 @@ async function runUpgrade(migrations: Record<string, string>, apiUrl = SUPABASE_
   writeFileSync(path.join(bin, 'sleep'), '#!/bin/bash\nexit 0\n', { mode: 0o755 });
   writeFileSync(path.join(bin, 'pm2'), `#!/bin/bash
 if [ "$1" = start ]; then cat "$FIXTURE_DIR/install/.next/standalone/admin-panel/server.js" >> "$FIXTURE_DIR/started"; fi
+if [ "$1" = jlist ]; then echo '[]'; fi
 `, { mode: 0o755 });
   writeFileSync(path.join(dir, 'harness.sh'), `#!/bin/bash
 set -euo pipefail

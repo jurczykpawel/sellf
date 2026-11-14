@@ -33,6 +33,10 @@ interface FixtureOptions {
   quotedEnv?: boolean;
   /** curl exits with this code for apply_migration without sending the request. */
   applyCurlExit?: number;
+  /** PM2 stop: exit code and the state the process is left in (default: exit 0, stopped). */
+  pm2Stop?: { exit?: number; state?: 'online' | 'stopped' };
+  /** pm2 jlist prints something that is not a process list. */
+  pm2JlistBroken?: boolean;
 }
 
 async function runUpgrade(options: FixtureOptions = {}) {
@@ -126,9 +130,21 @@ exec ${JSON.stringify(executable)} "$@"
 `, { mode: 0o755 });
   }
   writeFileSync(path.join(bin, 'sleep'), '#!/bin/bash\nexit 0\n', { mode: 0o755 });
+  // The previous version is running when the update starts.
+  writeFileSync(path.join(dir, 'pm2.state'), 'online');
   writeFileSync(path.join(bin, 'pm2'), `#!/bin/bash
 printf '%s\\n' "$*" >> "$FIXTURE_DIR/pm2.log"
-if [ "$1" = start ]; then cat "$FIXTURE_DIR/install/.next/standalone/admin-panel/server.js" >> "$FIXTURE_DIR/started"; fi
+state="$FIXTURE_DIR/pm2.state"
+case "$1" in
+  start) cat "$FIXTURE_DIR/install/.next/standalone/admin-panel/server.js" >> "$FIXTURE_DIR/started"; echo online > "$state" ;;
+  restart) echo online > "$state" ;;
+  stop) echo ${options.pm2Stop?.state ?? 'stopped'} > "$state"; exit ${options.pm2Stop?.exit ?? 0} ;;
+  delete) echo none > "$state" ;;
+  jlist)
+    ${options.pm2JlistBroken ? "echo 'PM2 daemon not responding'; exit 0" : ''}
+    s=$(cat "$state")
+    if [ "$s" = none ]; then echo '[]'; else printf '[{"name":"sellf-fixture","pm2_env":{"status":"%s"}}]\\n' "$s"; fi ;;
+esac
 `, { mode: 0o755 });
   const helperBlocks = ['installed-version', 'failure-report'].map(name => {
     const from = source.indexOf(`# ${name}:start`);
@@ -161,7 +177,7 @@ ${source.slice(start, end)}
     const read = (name: string) => readFileSync(path.join(dir, name), 'utf8');
     const optional = (name: string) => existsSync(path.join(dir, name)) ? read(name) : '';
     return {
-      ...result, dir, requests, read, log: optional('upgrade.log'), started: optional('started'), pm2: optional('pm2.log'), statusReadsAfterApply, statusReads, apiKeys: [...apiKeys],
+      ...result, dir, requests, read, pm2State: read('pm2.state').trim(), log: optional('upgrade.log'), started: optional('started'), pm2: optional('pm2.log'), statusReadsAfterApply, statusReads, apiKeys: [...apiKeys],
       installedMigrations: () => readdirSync(path.join(install, 'supabase/migrations')).sort(),
     };
   } finally {
@@ -346,6 +362,43 @@ describe('unknown migration outcome', () => {
     expect(result.stdout).not.toContain('Nothing was changed');
     expect(result.stdout).not.toContain('as it was before the update');
     expect(result.stdout).toContain('rollback=false');
+  });
+});
+
+describe('stopping the application before the swap', () => {
+  function expectUnchanged(result: Awaited<ReturnType<typeof runUpgrade>>) {
+    expect(result.code).toBe(1);
+    expect(result.stdout).toContain('code=pm2_stop_failed');
+    expect(result.stdout).toContain('Nothing was changed');
+    expect(result.stdout).toContain('rollback=false');
+    expect(result.stdout).not.toContain('PROGRESS: installing');
+    expect(result.requests).toHaveLength(0);
+    expect(result.started).toBe('');
+    for (const file of ['.next/standalone/admin-panel/server.js', 'version.txt', 'package.json', 'scripts/upgrade.sh']) {
+      expect(result.read(`install/${file}`)).toContain('old-code');
+    }
+    expect(result.installedMigrations()).toEqual([]);
+    expect(result.pm2State).toBe('online');
+  }
+
+  it('stops before replacing files when pm2 stop fails and the old process keeps running', async () => {
+    const result = await runUpgrade({ pm2Stop: { exit: 1, state: 'online' } });
+    expectUnchanged(result);
+    expect(result.pm2).not.toContain('restart');
+  });
+
+  it('stops before replacing files when the process is still online after pm2 stop', async () => {
+    expectUnchanged(await runUpgrade({ pm2Stop: { exit: 0, state: 'online' } }));
+  });
+
+  it('starts the old process again when pm2 stop fails after stopping it', async () => {
+    const result = await runUpgrade({ pm2Stop: { exit: 1, state: 'stopped' } });
+    expectUnchanged(result);
+    expect(result.pm2).toContain('restart sellf-fixture');
+  });
+
+  it('stops before replacing files when PM2 cannot confirm the process state', async () => {
+    expectUnchanged(await runUpgrade({ pm2JlistBroken: true, pm2Stop: { exit: 0, state: 'online' } }));
   });
 });
 

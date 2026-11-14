@@ -839,7 +839,40 @@ log "Backup created at $BACKUP_DIR"
 write_progress "stopping" 55 "Stopping application..."
 log "Stopping PM2 process: $PM2_NAME"
 
-"$PM2_BIN" stop "$PM2_NAME" >> "$LOG_FILE" 2>&1 || log "WARNING: PM2 stop failed (process may not be running)"
+# Status of $PM2_NAME in "pm2 jlist" ("none" without an entry, several joined
+# by commas); fails when PM2 does not answer with a process list.
+pm2_status() {
+  local list
+  list=$("$PM2_BIN" jlist 2>>"$LOG_FILE") || return 1
+  jq -er --arg name "$PM2_NAME" '
+    if type != "array" then error("not a process list")
+    else [.[] | select(.name == $name) | (.pm2_env.status // "unknown")]
+      | if length == 0 then "none" else unique | join(",") end
+    end' <<< "$list" 2>>"$LOG_FILE"
+}
+
+# Files and the database change only after PM2 confirms the process is down.
+PM2_STOP_PROBLEM=""
+if ! "$PM2_BIN" stop "$PM2_NAME" >> "$LOG_FILE" 2>&1; then
+  PM2_STOP_PROBLEM="PM2 could not stop $PM2_NAME"
+elif ! PM2_STATE=$(pm2_status); then
+  PM2_STOP_PROBLEM="PM2 did not report the state of $PM2_NAME after stopping it"
+elif ! [[ "$PM2_STATE" =~ ^(none|stopped|errored|errored,stopped)$ ]]; then
+  PM2_STOP_PROBLEM="PM2 still reports $PM2_NAME as $PM2_STATE after stopping it"
+fi
+if [ -n "$PM2_STOP_PROBLEM" ]; then
+  PM2_NOTE=""
+  if [ "$(pm2_status || true)" != online ]; then
+    # Nothing was replaced yet, so the installed version can serve again.
+    "$PM2_BIN" restart "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
+    if [ "$(pm2_status || true)" != online ]; then
+      PM2_NOTE="PM2 does not report $PM2_NAME as online; check it with: pm2 status $PM2_NAME"
+    fi
+  fi
+  fail_unchanged pm2_stop_failed "$PM2_STOP_PROBLEM, so the update stopped before replacing any file or changing the database." \
+    note "$PM2_NOTE"
+fi
+log "PM2 process stopped: $PM2_NAME (${PM2_STATE})"
 
 # ===== STEP 7: SWAP FILES =====
 
