@@ -25,20 +25,42 @@ interface FixtureOptions {
   payloadFailure?: boolean;
   migrations?: Record<string, string>;
   installedMigrations?: string[];
+  /** Close the apply_migration connection without any response (result unknown). */
+  applyDrop?: boolean;
+  /** Registry answer once apply_migration was called: 'all' release versions, or a raw status/body. */
+  statusAfterApply?: 'all' | { code: number; body: string };
+  /** Write .env.local values in double quotes, as dotenv allows. */
+  quotedEnv?: boolean;
 }
 
 async function runUpgrade(options: FixtureOptions = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), 'sellf-streaming-'));
   directories.push(dir);
   const requests: Record<string, string>[] = [];
+  let statusReadsAfterApply = 0;
+  const apiKeys = new Set<string>();
   const server = createServer(async (request, response) => {
+    if (request.url?.includes('/rest/v1/rpc/')) apiKeys.add(String(request.headers.apikey));
     if (request.url?.endsWith('/get_migration_status')) {
-      response.writeHead(options.statusCode ?? 200);
-      response.end(options.statusBody ?? '[]');
+      const after = requests.length > 0 ? options.statusAfterApply : undefined;
+      if (after) statusReadsAfterApply++;
+      if (after === 'all') {
+        response.end(JSON.stringify(Object.keys(options.migrations ?? { '20261110235900_fixture': '' }).map(version => ({ version }))));
+      } else if (after) {
+        response.writeHead(after.code);
+        response.end(after.body);
+      } else {
+        response.writeHead(options.statusCode ?? 200);
+        response.end(options.statusBody ?? '[]');
+      }
     } else if (request.url?.endsWith('/apply_migration')) {
       let body = '';
       for await (const chunk of request) body += chunk;
       if (body) requests.push(JSON.parse(body));
+      if (options.applyDrop) {
+        request.socket.destroy();
+        return;
+      }
       response.writeHead(options.status ?? 200);
       response.end(options.body ?? '{"success":true}');
     } else {
@@ -73,7 +95,8 @@ async function runUpgrade(options: FixtureOptions = {}) {
   for (const name of options.installedMigrations ?? []) {
     writeFileSync(path.join(install, `supabase/migrations/${name}.sql`), 'SELECT 1;');
   }
-  writeFileSync(path.join(install, '.env.local'), `SUPABASE_URL=http://127.0.0.1:${address.port}\nSUPABASE_SERVICE_ROLE_KEY=fixture-key\nPORT=${address.port}\n`);
+  const quote = options.quotedEnv ? '"' : '';
+  writeFileSync(path.join(install, '.env.local'), `SUPABASE_URL=${quote}http://127.0.0.1:${address.port}${quote}\nSUPABASE_SERVICE_ROLE_KEY=${quote}fixture-key${quote}\nPORT=${quote}${address.port}${quote}\n`);
   let systemPath = process.env.PATH ?? '';
   if (options.withoutJq) {
     const system = path.join(dir, 'system');
@@ -83,6 +106,7 @@ async function runUpgrade(options: FixtureOptions = {}) {
         if (name !== 'jq' && !existsSync(path.join(system, name))) symlinkSync(path.join(folder, name), path.join(system, name));
       }
     }
+    symlinkSync(process.execPath, path.join(system, 'node'));
     systemPath = system;
   }
   for (const command of options.withoutJq ? ['curl'] : ['jq', 'curl']) {
@@ -132,7 +156,7 @@ ${source.slice(start, end)}
     const read = (name: string) => readFileSync(path.join(dir, name), 'utf8');
     const optional = (name: string) => existsSync(path.join(dir, name)) ? read(name) : '';
     return {
-      ...result, dir, requests, read, log: optional('upgrade.log'), started: optional('started'), pm2: optional('pm2.log'),
+      ...result, dir, requests, read, log: optional('upgrade.log'), started: optional('started'), pm2: optional('pm2.log'), statusReadsAfterApply, apiKeys: [...apiKeys],
       installedMigrations: () => readdirSync(path.join(install, 'supabase/migrations')).sort(),
     };
   } finally {
@@ -281,4 +305,50 @@ describe('upgrade migration status preflight', () => {
     expect(result.read('install/version.txt')).toBe('old-code');
     expect(existsSync(path.join(result.dir, 'install/.backup'))).toBe(false);
   });
+});
+
+describe('unknown migration outcome', () => {
+  it('starts the new version when the response was lost but the registry shows every migration applied', async () => {
+    const result = await runUpgrade({ applyDrop: true, statusAfterApply: 'all' });
+    expect(result.code).toBe(0);
+    expect(result.started).toBe('new-code');
+    expect(result.stdout).toContain('PROGRESS: done');
+    expect(result.stdout).not.toContain('rolled back');
+    expect(result.log).toContain('registry shows all 1 migrations applied');
+  });
+
+  it('restores the previous code only after the registry confirms none was applied, read twice', async () => {
+    const result = await runUpgrade({ applyDrop: true });
+    expect(result.code).toBe(1);
+    expect(result.started).toBe('old-code');
+    expect(result.stdout).toContain('rolled back together');
+    expect(result.log).toMatch(/registry shows none of the 1 migrations[\s\S]*registry shows none of the 1 migrations/);
+  });
+
+  it.each([
+    ['unreadable', { code: 503, body: 'unavailable' }, 'could not be read'],
+    ['partial', { code: 200, body: JSON.stringify([{ version: '20261110235900_release_2026_11_0_storefront_core' }]) }, 'shows 1 of 2'],
+  ] as const)('leaves the application stopped when the registry is %s', async (_, statusAfterApply, registryText) => {
+    const result = await runUpgrade({
+      applyDrop: true, statusAfterApply,
+      migrations: { '20261110235900_release_2026_11_0_storefront_core': 'SELECT 1;', '20261110235901_release_2026_11_0_storefront_templates': 'SELECT 2;' },
+    });
+    expect(result.code).toBe(1);
+    expect(result.started).toBe('');
+    expect(result.stdout).toContain('code=migration_state_unknown');
+    expect(result.stdout).toContain(registryText);
+    expect(result.stdout).toContain('The application was left stopped');
+    expect(result.stdout).not.toContain('Nothing was changed');
+    expect(result.stdout).not.toContain('as it was before the update');
+    expect(result.stdout).toContain('rollback=false');
+  });
+});
+
+it('reads quoted .env.local values the way dotenv does', async () => {
+  const result = await runUpgrade({ quotedEnv: true });
+  expect(result.code, result.log).toBe(0);
+  expect(result.requests).toHaveLength(1);
+  expect(result.apiKeys).toEqual(['fixture-key']);
+  expect(result.started).toBe('new-code');
+  expect(result.stdout).toContain('PROGRESS: done');
 });

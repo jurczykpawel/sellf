@@ -84,6 +84,7 @@ TMP_DIR="$FIXTURE_DIR/scratch"
 BACKUP_DIR="$FIXTURE_DIR/backup"
 TAG_NAME=v2026.10.0
 HEALTH_OK=true
+MIGRATION_RECHECK_SECONDS=0
 log() { printf '%s\\n' "$*"; }
 write_progress() { printf 'PROGRESS: %s %s\\n' "$1" "$3"; }
 write_error() { printf 'WRITE_ERROR: %s\\n' "$1"; }
@@ -184,7 +185,7 @@ describe('upgrade.sh migration reporting', () => {
   it('reports an HTTP error with the database message', async () => {
     const run = await runHarness([
       { version: first, result: 'should not be requested' },
-      { version: second, result: '{"code":"42P01","message":"Migration 20260523130711_webhook_secret_whsec_prefix failed: boom"}', httpError: true },
+      { version: second, result: '{"code":"42P01","details":null,"hint":null,"message":"Migration 20260523130711_webhook_secret_whsec_prefix failed: boom"}', httpError: true },
     ]);
     expect(run.calls).toBe(`${second}\n`);
     expect(run.stdout).toContain('WRITE_ERROR: Database migration failed: Migration 20260523130711_webhook_secret_whsec_prefix failed: boom.');

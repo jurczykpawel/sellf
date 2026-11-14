@@ -71,6 +71,11 @@ Since 2026.11.1 the runner sends all pending migrations of a release in one RPC
 call, so PostgreSQL applies them in one transaction. If any file fails, none of
 them and none of their registry entries remain; the panel names the failing file
 and the database error, and the previous code is restored before it starts.
+If the answer to the migration request is lost, the updater re-reads the migration
+registry: all migrations present means the update continues with the new version,
+none means the previous code is restored. If the registry shows only some of them
+or cannot be read, the application is left stopped and the upgrade log says what
+to check; it does not claim that the database is unchanged.
 
 The latest release is found through the `github.com/<repo>/releases/latest`
 redirect and release files are downloaded from `releases/download/<tag>/`. Neither

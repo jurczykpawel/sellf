@@ -642,7 +642,17 @@ call: each file is wrapped in a `DO` block whose exception names the file, the
 batch inserts the registry rows of all but the last file and the RPC records the
 last one, all in the RPC's single transaction. No new RPC is needed, so 10.6+
 databases work unchanged. Pending files are matched by timestamp. A batch reported
-as `skipped` (registry changed meanwhile) is a failure. Stackpilot's
+as `skipped` (registry changed meanwhile) is a failure. Only a PostgREST
+database error (`code`/`details`/`hint`) or a request that never left the server
+counts as a certain rollback. Any other failure (lost or garbled answer, gateway
+error) may follow a COMMIT and is settled by re-reading `get_migration_status`:
+all batch versions present -> applied, the new version starts; none (read twice,
+15 s apart) -> rolled back, old code restored; partial or unreadable ->
+`migration_state_unknown`: the application stays stopped (neither version runs on
+a database in an unknown state) and the message says what to check. Stackpilot
+exits 4 in that case. `.env.local` values are read with Node `parseEnv`.
+`/api/v1/system/upgrade-status` passes validated `code`/`details`
+(`sanitizeUpdateFailure`) and messages up to 2000 characters. Stackpilot's
 Management-API fallback for a database without the RPC still applies files one by one.
 
 The bootstrap finds the latest release through the `github.com/<repo>/releases/latest`

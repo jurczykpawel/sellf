@@ -70,3 +70,29 @@ export function describeUpdateFailure(failure: UpdateFailure | undefined, option
   }
   return lines;
 }
+
+const CODE = /^[a-z_]{1,40}$/;
+const ASSET = /^[A-Za-z0-9._-]{1,100}$/;
+const MIGRATION = /^[0-9]{14}_[a-z0-9_]{1,100}$/;
+const VERSION = /^v?[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$/;
+const text = (value: unknown, limit: number): string | undefined =>
+  typeof value === 'string' && value.length > 0 ? [...value].filter(character => character >= ' ').join('').slice(0, limit) : undefined;
+
+/** Only known, bounded failure fields from an upgrade progress file reach the API. */
+export function sanitizeUpdateFailure(raw: { code?: unknown; details?: unknown }): UpdateFailure | undefined {
+  if (typeof raw.code !== 'string' || !CODE.test(raw.code)) return undefined;
+  const input = raw.details && typeof raw.details === 'object' ? raw.details as Record<string, unknown> : {};
+  const details: UpdateFailureDetails = {};
+  if (Number.isInteger(input.http_status) && (input.http_status as number) >= 100 && (input.http_status as number) <= 599) {
+    details.http_status = input.http_status as number;
+  }
+  const githubMessage = text(input.github_message, 200);
+  if (githubMessage) details.github_message = githubMessage;
+  if (typeof input.retry_at === 'string' && input.retry_at.length <= 40 && Number.isFinite(Date.parse(input.retry_at))) details.retry_at = input.retry_at;
+  if (typeof input.asset === 'string' && ASSET.test(input.asset) && !input.asset.startsWith('.')) details.asset = input.asset;
+  if (typeof input.installed_version === 'string' && VERSION.test(input.installed_version)) details.installed_version = input.installed_version;
+  if (typeof input.migration === 'string' && MIGRATION.test(input.migration)) details.migration = input.migration;
+  const cause = text(input.cause, 300);
+  if (cause) details.cause = cause;
+  return { code: raw.code, details };
+}

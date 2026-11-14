@@ -708,16 +708,19 @@ fi
 
 # Keep HTTP error bodies, including non-JSON responses, in the private upgrade log.
 # Neither SQL nor JSON is ever passed as a large process argument.
+# "<curl exit code> <HTTP status>" of the last call is left in migration-response.status.
 migration_rpc() {
-  local endpoint="$1" payload="$2" http_status
+  local endpoint="$1" payload="$2" http_status rc=0
   local response_file="$TMP_DIR/migration-response.json"
   : > "$response_file"
-  if ! http_status=$(curl -sS "${SUPABASE_URL}/rest/v1/rpc/$endpoint" \
+  http_status=$(curl -sS "${SUPABASE_URL}/rest/v1/rpc/$endpoint" \
     -H "apikey: ${SERVICE_KEY}" \
     -H "Authorization: Bearer ${SERVICE_KEY}" \
     -H "Content-Type: application/json" \
-    --data-binary "$payload" -o "$response_file" -w '%{http_code}' 2>>"$LOG_FILE"); then
-    log "ERROR: $endpoint transport failed (HTTP ${http_status:-unknown})"
+    --data-binary "$payload" -o "$response_file" -w '%{http_code}' 2>>"$LOG_FILE") || rc=$?
+  printf '%s %s\n' "$rc" "${http_status:-000}" > "$TMP_DIR/migration-response.status"
+  if [ "$rc" -ne 0 ]; then
+    log "ERROR: $endpoint transport failed (curl exit $rc, HTTP ${http_status:-unknown})"
     cat "$response_file" >> "$LOG_FILE"
     return 1
   fi
@@ -744,9 +747,21 @@ if [ -n "$DUPLICATE_TIMESTAMP" ]; then
   preflight_stop "Migration timestamp $DUPLICATE_TIMESTAMP is used by more than one file in this release. Database untouched."
 fi
 
+# One value of .env.local, parsed as dotenv (quotes, comments) by Node's parseEnv.
+read_env_value() {
+  [ -f "$INSTALL_DIR/.env.local" ] || return 0
+  "${NODE_BIN:-node}" -e '
+    const { readFileSync } = require("node:fs");
+    const { parseEnv } = require("node:util");
+    const value = parseEnv(readFileSync(process.argv[1], "utf8"))[process.argv[2]];
+    if (value !== undefined) process.stdout.write(value);
+  ' "$INSTALL_DIR/.env.local" "$1" 2>>"$LOG_FILE"
+}
+
 # Read Supabase connection info from .env.local
-SUPABASE_URL=$(grep -E '^SUPABASE_URL=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
-SERVICE_KEY=$(grep -E '^SUPABASE_SERVICE_ROLE_KEY=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
+if ! SUPABASE_URL=$(read_env_value SUPABASE_URL) || ! SERVICE_KEY=$(read_env_value SUPABASE_SERVICE_ROLE_KEY); then
+  preflight_stop "Could not read $INSTALL_DIR/.env.local with Node. Database untouched."
+fi
 
 # Read-only status lookup. With a configured database the registry must be
 # readable before anything changes; without one the migration step reports it.
@@ -963,7 +978,7 @@ rollback_code() {
   [ -f "$old_server" ] || old_server="$INSTALL_DIR/.next/standalone/server.js"
   load_pm2_environment || return 1
   local old_port
-  old_port=$(grep -E '^PORT=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2 || true)
+  old_port=$(read_env_value PORT || true)
   if ! [[ "$old_port" =~ ^[0-9]+$ ]] || [ "$old_port" -lt 1024 ] || [ "$old_port" -gt 65535 ]; then
     old_port=3333
   fi
@@ -1012,6 +1027,32 @@ build_migration_batch() {
   done
 }
 
+# Prints all, none, "<present> <pending>" or unreadable for the pending versions
+# (log lines go to stderr so only the state reaches the caller).
+pending_registry_state() {
+  local status present
+  if ! status=$(migration_rpc get_migration_status '{}') ||
+    ! present=$(jq -er --arg pending "${PENDING_MIGRATIONS[*]}" '
+      ($pending | split(" ") | map(split("_")[0])) as $wanted
+      | [.[] | .version | split("_")[0]] as $have
+      | [$wanted[] | select(. as $w | $have | index($w))] | length' <<< "$status" 2>/dev/null); then
+    log "Migration registry could not be read after the migration request" >&2
+    echo unreadable
+    return
+  fi
+  if [ "$present" -eq "$MIGRATION_PENDING_COUNT" ]; then
+    log "Migration registry shows all $MIGRATION_PENDING_COUNT migrations applied" >&2
+    echo all
+  elif [ "$present" -eq 0 ]; then
+    log "Migration registry shows none of the $MIGRATION_PENDING_COUNT migrations applied" >&2
+    echo none
+  else
+    log "Migration registry shows $present of $MIGRATION_PENDING_COUNT migrations applied" >&2
+    echo "$present $MIGRATION_PENDING_COUNT"
+  fi
+}
+
+MIGRATION_UNKNOWN=""
 if [ "$APPLIED_STATE" = ok ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
   MIGRATION_SKIPPED=0
   PENDING_MIGRATIONS=()
@@ -1035,6 +1076,10 @@ if [ "$APPLIED_STATE" = ok ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
   done 3<<< "$RELEASE_MIGRATIONS"
   MIGRATION_PENDING_COUNT=${#PENDING_MIGRATIONS[@]}
 
+  # A failure is "definite" only when PostgreSQL itself reported the error or the
+  # request never left this server; anything else (lost or garbled response,
+  # gateway error) may have followed a COMMIT and is settled by the registry.
+  MIGRATION_OUTCOME_CERTAIN=true
   if [ "$MIGRATION_ERRORS" -eq 0 ] && [ "$MIGRATION_PENDING_COUNT" -gt 0 ]; then
     BATCH_FILE="$TMP_DIR/migration-batch.sql"
     PAYLOAD_FILE="$TMP_DIR/migration-payload.json"
@@ -1048,9 +1093,21 @@ if [ "$APPLIED_STATE" = ok ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
       MIGRATION_CAUSE="The migration request could not be prepared"
       MIGRATION_ERRORS=1
     elif ! RESULT=$(migration_rpc apply_migration "@$PAYLOAD_FILE"); then
+      read -r RPC_EXIT RPC_STATUS < "$TMP_DIR/migration-response.status" || { RPC_EXIT=1; RPC_STATUS=000; }
       MIGRATION_CAUSE=$(jq -r 'if type == "object" and (.message | type) == "string" then .message else empty end' \
         "$TMP_DIR/migration-response.json" 2>/dev/null || true)
-      MIGRATION_CAUSE="${MIGRATION_CAUSE:-The database did not accept the migration request (see the upgrade log)}"
+      # PostgREST reports a database error as {code, details, hint, message}:
+      # PostgreSQL rolled the transaction back. Connect failures never sent it.
+      if ! jq -e 'type == "object" and has("code") and has("details") and has("hint")' \
+        "$TMP_DIR/migration-response.json" >/dev/null 2>&1; then
+        case "$RPC_EXIT" in
+          6|7) MIGRATION_CAUSE="The database API could not be reached (curl exit $RPC_EXIT)" ;;
+          0) MIGRATION_CAUSE="${MIGRATION_CAUSE:-The database API answered HTTP $RPC_STATUS without a database error}"
+             MIGRATION_OUTCOME_CERTAIN=false ;;
+          *) MIGRATION_CAUSE="The connection to the database API failed before a response arrived (curl exit $RPC_EXIT)"
+             MIGRATION_OUTCOME_CERTAIN=false ;;
+        esac
+      fi
       MIGRATION_ERRORS=1
     elif ! OUTCOME=$(jq -er -s '
       if length != 1 then error("Expected one result")
@@ -1066,6 +1123,7 @@ if [ "$APPLIED_STATE" = ok ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
       printf '%s\n' "$RESULT" >> "$LOG_FILE"
       MIGRATION_CAUSE="The migration RPC returned an invalid response (see the upgrade log)"
       MIGRATION_ERRORS=1
+      MIGRATION_OUTCOME_CERTAIN=false
     elif [ "$OUTCOME" = failed ]; then
       printf '%s\n' "$RESULT" >> "$LOG_FILE"
       MIGRATION_CAUSE=$(jq -r '.message | if type == "string" then . else "The migration RPC reported a failure" end' <<< "$RESULT")
@@ -1075,11 +1133,29 @@ if [ "$APPLIED_STATE" = ok ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
       printf '%s\n' "$RESULT" >> "$LOG_FILE"
       MIGRATION_CAUSE="The migration registry changed during the update"
       MIGRATION_ERRORS=1
+      MIGRATION_OUTCOME_CERTAIN=false
     else
       log "Migrations applied: $RESULT"
     fi
   fi
 
+  # An uncertain outcome is settled by the registry: all versions -> applied,
+  # none (read twice) -> rolled back, anything else -> unknown.
+  if [ "$MIGRATION_ERRORS" -gt 0 ] && [ "$MIGRATION_OUTCOME_CERTAIN" = false ]; then
+    MIGRATION_STATE=$(pending_registry_state)
+    if [ "$MIGRATION_STATE" = none ]; then
+      # A request cut off at a gateway may still be committing.
+      sleep "${MIGRATION_RECHECK_SECONDS:-15}"
+      MIGRATION_STATE=$(pending_registry_state)
+    fi
+    case "$MIGRATION_STATE" in
+      all)
+        log "WARNING: the migration response was not usable, but the registry shows all $MIGRATION_PENDING_COUNT migrations applied; continuing with the new version"
+        MIGRATION_ERRORS=0 ;;
+      none) ;;
+      *) MIGRATION_UNKNOWN="$MIGRATION_STATE" ;;
+    esac
+  fi
   MIGRATION_CAUSE=$(printf '%s' "$MIGRATION_CAUSE" | tr -d '\000-\037' | cut -c1-300)
   MIGRATION_FAILED_FILE=$(printf '%s' "$MIGRATION_CAUSE" | sed -n 's/^Migration \([0-9]\{14\}_[a-z0-9_]*\) failed: .*/\1/p')
   if [ "$MIGRATION_ERRORS" -eq 0 ]; then
@@ -1095,6 +1171,23 @@ else
   log "Migrations incomplete (missing Supabase config or migration directory)"
 fi
 # migration-batch:end
+
+if [ -n "$MIGRATION_UNKNOWN" ]; then
+  # Neither the old nor the new code may run against a database whose state is
+  # not known; the application stays stopped (PM2 was stopped before the swap).
+  if [ "$MIGRATION_UNKNOWN" = unreadable ]; then
+    REGISTRY_TEXT="could not be read afterwards"
+  else
+    REGISTRY_TEXT="shows ${MIGRATION_UNKNOWN% *} of ${MIGRATION_UNKNOWN#* } migrations of this release applied"
+  fi
+  FIRST_PENDING="${PENDING_MIGRATIONS[0]%%_*}"
+  LAST_PENDING="${LAST_MIGRATION%%_*}"
+  log "ERROR: Migration outcome unknown; application left stopped"
+  write_failure migration_state_unknown "The result of the database migration is unknown: ${MIGRATION_CAUSE%.}. The migration registry $REGISTRY_TEXT. The application was left stopped so that neither the old nor the new version runs against a database in an unknown state. Check supabase_migrations.schema_migrations for versions $FIRST_PENDING to $LAST_PENDING: if all $MIGRATION_PENDING_COUNT are present, run the update again (it skips them and starts the new version); if none is present, run the update again or restore the previous code from $BACKUP_DIR; if only some are present, restore the database from your latest backup first." \
+    cause "$MIGRATION_CAUSE"
+  rm -rf "$TMP_DIR"
+  exit 1
+fi
 
 if [ "$MIGRATION_ERRORS" -gt 0 ]; then
   log "ERROR: Migrations failed; restoring previous code before any new-version startup"
@@ -1141,7 +1234,7 @@ if [ ! -f "$SERVER_JS" ]; then
 fi
 
 # Read PORT from .env.local and validate
-PORT=$(grep -E '^PORT=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2 || true)
+PORT=$(read_env_value PORT || true)
 if ! [[ "$PORT" =~ ^[0-9]+$ ]] || [ "$PORT" -lt 1024 ] || [ "$PORT" -gt 65535 ]; then
   PORT=3333
 fi

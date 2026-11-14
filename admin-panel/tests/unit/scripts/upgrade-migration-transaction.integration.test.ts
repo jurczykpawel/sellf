@@ -65,7 +65,33 @@ function releaseMigrations(brokenSecond: boolean) {
   return { migrations, tables };
 }
 
-async function runUpgrade(migrations: Record<string, string>) {
+/**
+ * Forwards RPC calls to the real API; with `dropAfterCommit` it waits for the
+ * committed apply_migration answer and then closes the connection unanswered.
+ */
+async function startProxy(dropAfterCommit: boolean) {
+  const proxy = createServer(async (request, response) => {
+    let body = '';
+    for await (const chunk of request) body += chunk;
+    const upstream = await fetch(`${SUPABASE_URL}${request.url}`, {
+      method: 'POST', body,
+      headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' },
+    });
+    const text = await upstream.text();
+    if (dropAfterCommit && request.url?.endsWith('/apply_migration')) {
+      request.socket.destroy();
+      return;
+    }
+    response.writeHead(upstream.status);
+    response.end(text);
+  });
+  await new Promise<void>(resolve => proxy.listen(0, '127.0.0.1', resolve));
+  const address = proxy.address();
+  if (!address || typeof address === 'string') throw new Error('Missing proxy address');
+  return { url: `http://127.0.0.1:${address.port}`, close: () => new Promise<void>(resolve => proxy.close(() => resolve())) };
+}
+
+async function runUpgrade(migrations: Record<string, string>, apiUrl = SUPABASE_URL) {
   const source = readFileSync(scriptPath, 'utf8');
   const dir = mkdtempSync(path.join(tmpdir(), 'sellf-migration-tx-'));
   directories.push(dir);
@@ -85,7 +111,7 @@ async function runUpgrade(migrations: Record<string, string>) {
     writeFileSync(path.join(folder, 'version.txt'), code === 'old-code' ? '2026.11.1\n' : '2026.11.2\n');
   }
   for (const [name, sql] of Object.entries(migrations)) writeFileSync(path.join(release, `supabase/migrations/${name}.sql`), sql);
-  writeFileSync(path.join(install, '.env.local'), `SUPABASE_URL=${SUPABASE_URL}\nSUPABASE_SERVICE_ROLE_KEY=${SERVICE_KEY}\nPORT=${address.port}\n`, { mode: 0o600 });
+  writeFileSync(path.join(install, '.env.local'), `SUPABASE_URL=${apiUrl}\nSUPABASE_SERVICE_ROLE_KEY=${SERVICE_KEY}\nPORT=${address.port}\n`, { mode: 0o600 });
   writeFileSync(path.join(bin, 'sleep'), '#!/bin/bash\nexit 0\n', { mode: 0o755 });
   writeFileSync(path.join(bin, 'pm2'), `#!/bin/bash
 if [ "$1" = start ]; then cat "$FIXTURE_DIR/install/.next/standalone/admin-panel/server.js" >> "$FIXTURE_DIR/started"; fi
@@ -105,7 +131,7 @@ ${between(source, '# ===== STEP 4b: MIGRATION PREFLIGHT =====', '# ===== FIREWAL
 `);
   try {
     const code = await execute('bash', [path.join(dir, 'harness.sh')], {
-      env: { ...process.env, FIXTURE_DIR: dir, PATH: `${bin}:${process.env.PATH}` },
+      env: { ...process.env, FIXTURE_DIR: dir, PATH: `${bin}:${process.env.PATH}`, MIGRATION_RECHECK_SECONDS: '0' },
     }).then(() => 0).catch((error: { code: number }) => error.code);
     const read = (name: string) => existsSync(path.join(dir, name)) ? readFileSync(path.join(dir, name), 'utf8') : '';
     return { code, progress: JSON.parse(read('progress.json')), started: read('started'), log: read('upgrade.log') };
@@ -152,5 +178,21 @@ describe.skipIf(!SUPABASE_URL || !SERVICE_KEY)('updater migrations in one transa
     for (const table of tables) expect(tableExists(table)).toBe(true);
     expect(psql(`SELECT count(*) FROM ${tables[0]} WHERE note IS NULL;`)).toBe('1');
     expect(run.started).toBe('new-code');
+  });
+
+  it('starts the new version when the connection drops after COMMIT', async () => {
+    const { migrations, tables } = releaseMigrations(false);
+    const proxy = await startProxy(true);
+    try {
+      const run = await runUpgrade(migrations, proxy.url);
+      expect(run.code, run.log).toBe(0);
+      expect(run.progress.step).toBe('done');
+      expect(run.started).toBe('new-code');
+      expect(await registry()).toEqual(expect.arrayContaining(Object.keys(migrations)));
+      for (const table of tables) expect(tableExists(table)).toBe(true);
+      expect(run.log).toContain('registry shows all 3 migrations applied');
+    } finally {
+      await proxy.close();
+    }
   });
 });

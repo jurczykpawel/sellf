@@ -72,6 +72,11 @@ Od 2026.11.1 wszystkie brakujące migracje wydania idą jednym wywołaniem RPC, 
 PostgreSQL stosuje je w jednej transakcji. Jeśli którykolwiek plik się nie uda, nie
 zostaje żaden z nich ani żaden wpis w rejestrze migracji. Panel podaje nazwę pliku
 i błąd bazy, a poprzedni kod wraca na miejsce, zanim nowy wystartuje.
+Gdy odpowiedź na żądanie migracji zaginie, aktualizator ponownie czyta rejestr
+migracji: wszystkie obecne oznaczają dalszy start nowej wersji, żadna — powrót
+poprzedniego kodu. Gdy rejestr pokazuje tylko część albo nie da się go odczytać,
+aplikacja zostaje zatrzymana, a log aktualizacji mówi, co sprawdzić; aktualizator
+nie twierdzi wtedy, że baza się nie zmieniła.
 
 Najnowsze wydanie jest ustalane przez przekierowanie `github.com/<repo>/releases/latest`,
 a pliki wydania są pobierane z `releases/download/<tag>/`. Żadne z nich nie liczy się
