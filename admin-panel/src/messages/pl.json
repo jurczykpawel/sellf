@@ -5551,7 +5551,7 @@
     "unavailableBinding": "Wybierz ofertę lub kategorię, która jest teraz publiczna i dostępna.",
     "missingOffer": "Wybierz ofertę dla tej sekcji przed publikacją.",
     "orderHint": "Przeciągnij uchwyt, aby zmienić kolejność. Na klawiaturze użyj ↑ / ↓ na uchwycie.",
-    "orderBlocked": "Sekcja otwierająca musi zostać pierwsza w tym szablonie. Przesuń zamiast niej inne sekcje.",
+    "orderInvalid": "Ten układ nie zostanie pokazany w sklepie. Sekcja otwierająca (np. Nagłówek) musi być pierwszą widoczną sekcją szablonu: przesuń ją z powrotem na górę albo ukryj sekcje nad nią.",
     "savedState": "Zapisano zmiany",
     "saving": "Zapisywanie…",
     "contentTitle": "Treść: {name}",

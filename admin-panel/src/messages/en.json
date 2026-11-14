@@ -5551,7 +5551,7 @@
     "unavailableBinding": "Choose an offer or category that is currently public and available.",
     "missingOffer": "Choose an offer for this section before publishing.",
     "orderHint": "Drag the handle to reorder. Use ↑ / ↓ on the handle with a keyboard.",
-    "orderBlocked": "The opening section must stay first in this template. Move the other sections instead.",
+    "orderInvalid": "This layout cannot be shown in the shop. The opening section (for example the header) must be the first visible section of the template: move it back to the top or hide the sections above it.",
     "savedState": "All changes saved",
     "saving": "Saving…",
     "contentTitle": "{name} content",

@@ -174,9 +174,7 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
   function moveSection(index: number, target: number) {
     if (target < 0 || target >= order.length || index === target) return;
     const next = [...order]; const [id] = next.splice(index, 1); next.splice(target, 0, id);
-    // A layout the storefront cannot render (e.g. the opening section moved down) is refused here instead of being saved.
-    if (entry && layout?.valid && !effectiveLayout(entry, { ...overrides, order: next }).valid) { setMessage(t('orderBlocked')); return; }
-    setMessage(''); changeOverride({ order: next });
+    changeOverride({ order: next });
     setArrangement(`${sectionName(id)} · ${target + 1} / ${order.length}`);
   }
   return <div data-storefront-editor className="mx-auto max-w-6xl space-y-6 text-sf-heading">
@@ -200,6 +198,7 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
       <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
         <nav data-tour="template-sections" aria-label={t('sections')} className="scroll-mt-36 min-w-0 space-y-3">
           <div><h2 className="scroll-mt-36 font-semibold">{t('sections')}</h2><p className="mt-1 text-xs text-sf-muted">{t(config.templateId === 'default' ? 'classicHint' : 'orderHint')}</p></div>
+          {layout && !layout.valid && <p role="alert" data-testid="layout-invalid" className="rounded-lg border border-sf-danger bg-sf-danger-soft p-3 text-sm">{t('orderInvalid')}</p>}
           <ol ref={sectionListRef} id={sectionListId} data-reorder-list className="relative flex min-w-0 gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-1 lg:overflow-visible">
             {order.map((id, index) => <li key={id} data-reorder-index={index} className={`flex w-64 shrink-0 items-center rounded-xl border p-2 lg:w-auto ${sectionId === id ? 'border-sf-accent bg-sf-accent-soft' : 'border-sf-border bg-sf-base'}`}
               onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const raw = event.dataTransfer.getData('text/plain'); if (event.dataTransfer.getData('application/x-sellf-list') === sectionListId && /^\d+$/.test(raw)) moveSection(Number(raw), index); }}>
