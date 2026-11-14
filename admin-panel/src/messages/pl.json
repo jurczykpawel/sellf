@@ -112,6 +112,7 @@
     "publication": "Gotowe dla odbiorców",
     "live": "Oferta jest opublikowana. Zapisane zmiany pozostają prywatne do kolejnej publikacji.",
     "notLive": "Oferta nie jest jeszcze opublikowana. Dotychczasowa strona zakupu produktu jest nadal dostępna.",
+    "openPublished": "Otwórz opublikowaną stronę oferty",
     "enabled": "Włącz stronę ofertową",
     "enabledHelp": "Zmiana zacznie działać po opublikowaniu zapisanego szkicu.",
     "history": "Historia i publikacja",
@@ -2192,6 +2193,8 @@
         "noAccessYet": "Ten użytkownik nie ma jeszcze dostępu do żadnych produktów.",
         "grantNewAccess": "Przyznaj nowy dostęp",
         "selectProductLabel": "Wybierz produkt",
+        "free": "Darmowy",
+        "subscription": "Subskrypcja",
         "chooseProductPlaceholder": "Wybierz produkt, do którego chcesz przyznać dostęp...",
         "accessTypeLabel": "Typ dostępu",
         "permanent": "Stały",
@@ -3364,7 +3367,10 @@
       "save": "Zapisz",
       "saving": "Zapisywanie…",
       "saved": "Zapisano ustawienia",
-      "saveError": "Nie udało się zapisać ustawień"
+      "saveError": "Nie udało się zapisać ustawień",
+      "channelInvalid": "Wpisz od 1 do 40 małych liter bez polskich znaków, cyfr lub podkreśleń, np. blog albo newsletter_pl.",
+      "valueRequired": "Wpisz co najmniej jedną wartość albo wybierz warunek „exists”.",
+      "fixFields": "Popraw zaznaczone pola reguł i zapisz ponownie."
     },
     "omnibus": {
       "title": "Dyrektywa Omnibus EU",
@@ -5545,6 +5551,7 @@
     "unavailableBinding": "Wybierz ofertę lub kategorię, która jest teraz publiczna i dostępna.",
     "missingOffer": "Wybierz ofertę dla tej sekcji przed publikacją.",
     "orderHint": "Przeciągnij uchwyt, aby zmienić kolejność. Na klawiaturze użyj ↑ / ↓ na uchwycie.",
+    "orderBlocked": "Sekcja otwierająca musi zostać pierwsza w tym szablonie. Przesuń zamiast niej inne sekcje.",
     "savedState": "Zapisano zmiany",
     "saving": "Zapisywanie…",
     "contentTitle": "Treść: {name}",

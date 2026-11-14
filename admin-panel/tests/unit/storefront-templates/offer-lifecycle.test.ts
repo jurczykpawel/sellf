@@ -33,7 +33,7 @@ it('requires issued principals and independent operation scopes before reads', a
 });
 it('reads an absent offer without persisting opt-in', async () => {
   m.read.mockResolvedValue({ success: true, data: null });
-  expect(await offerLifecycle(await verifyTemplateSession(), input('read'))).toMatchObject({ success: true, data: { revision: 0, draft: null, published: null, productName: 'Workshop' } });
+  expect(await offerLifecycle(await verifyTemplateSession(), input('read'))).toMatchObject({ success: true, data: { revision: 0, draft: null, published: null, productName: 'Workshop', productSlug: expect.any(String) } });
   expect(m.rpc).not.toHaveBeenCalled();
 });
 it('saves a free draft and leaves initialization to the atomic RPC', async () => {
@@ -125,7 +125,7 @@ it.each([
   m.read.mockResolvedValue({ success: true, data: snapshot });
   const response = await offerLifecycle(await verifyTemplateSession(), input('read'));
   expect(response).toEqual({ success: true, data: {
-    productId, productName: 'Workshop', revision: snapshot?.revision ?? 0,
+    productId, productName: 'Workshop', productSlug: 'workshop', revision: snapshot?.revision ?? 0,
     draft: snapshot?.draft ?? null, published: snapshot?.published ?? null,
     validation: { validatorVersion: 1, valid: true, errors: [], warnings: [] },
   } });

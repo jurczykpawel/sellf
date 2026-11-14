@@ -173,7 +173,10 @@ export default function StorefrontEditor({ initial }: StorefrontEditorProps) {
   const bindingLabel = field === 'heroProduct' ? 'primaryOffer' : field === 'closingProduct' ? 'closingOffer' : field === 'featuredProducts' ? 'featuredOffers' : field === 'comparisonProducts' ? 'comparisonOffers' : field === 'starterProducts' ? 'startingOffers' : 'topics';
   function moveSection(index: number, target: number) {
     if (target < 0 || target >= order.length || index === target) return;
-    const next = [...order]; const [id] = next.splice(index, 1); next.splice(target, 0, id); changeOverride({ order: next });
+    const next = [...order]; const [id] = next.splice(index, 1); next.splice(target, 0, id);
+    // A layout the storefront cannot render (e.g. the opening section moved down) is refused here instead of being saved.
+    if (entry && layout?.valid && !effectiveLayout(entry, { ...overrides, order: next }).valid) { setMessage(t('orderBlocked')); return; }
+    setMessage(''); changeOverride({ order: next });
     setArrangement(`${sectionName(id)} · ${target + 1} / ${order.length}`);
   }
   return <div data-storefront-editor className="mx-auto max-w-6xl space-y-6 text-sf-heading">

@@ -55,3 +55,15 @@ it('shows the field limit and flags overflow at the field instead of cutting tex
   expect(eyebrow.getAttribute('aria-invalid')).not.toBe('true');
   expect(container.querySelector(`[id="${eyebrow.getAttribute('aria-describedby')}"]`)?.textContent).toBe('charCount');
 });
+
+it('refuses to move the opening section away from the top and explains why (W224-B1)', async () => {
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  const { fireEvent } = await import('@testing-library/react');
+  const { default: StorefrontEditor } = await import('@/components/storefront-editor/StorefrontEditor');
+  const { D_CONFIG } = await import('@/lib/storefront-templates/fixtures');
+  render(createElement(StorefrontEditor, { initial: { unusedSlots: [], effectiveTokens: [], effectiveTemplateId: 'd', revision: 1, draft: D_CONFIG, published: null, validation: { valid: true, validatorVersion: 1, errors: [], warnings: [] }, rights: { availableTemplateIds: ['d'] } } as unknown as Parameters<typeof StorefrontEditor>[0] }));
+  fireEvent.keyDown(screen.getAllByRole('button', { name: 'reorder' })[0], { key: 'ArrowDown' });
+  expect(screen.getByRole('alert').textContent).toBe('orderBlocked');
+  expect(screen.getByRole('button', { name: 'save', exact: true })).toHaveProperty('disabled', true);
+  vi.unstubAllGlobals();
+});

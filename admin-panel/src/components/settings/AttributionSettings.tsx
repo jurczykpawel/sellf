@@ -15,12 +15,14 @@ import type { AttributionConfig, AttributionRuleInput } from '@/lib/actions/attr
 
 const FIELDS: AttributionRuleInput['field'][] = ['source', 'medium', 'campaign', 'referrer_host', 'click_id_type'];
 const OPERATORS: AttributionRuleInput['operator'][] = ['in', 'equals', 'contains', 'host_in', 'exists'];
+const CHANNEL = /^[a-z0-9_]{1,40}$/;
 const input = 'border border-sf-border-medium bg-sf-input px-2 py-1 text-sm text-sf-heading';
 
 export default function AttributionSettings() {
   const t = useTranslations('settings.attribution');
   const [config, setConfig] = useState<AttributionConfig | null>(null);
   const [saving, setSaving] = useState(false);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -32,7 +34,11 @@ export default function AttributionSettings() {
   const update = (index: number, patch: Partial<AttributionRuleInput>) =>
     setConfig({ ...config, rules: config.rules.map((rule, i) => (i === index ? { ...rule, ...patch } : rule)) });
 
+  const channelInvalid = (rule: AttributionRuleInput) => !rule.is_default && !CHANNEL.test(rule.channel.trim().toLowerCase());
+  const valueMissing = (rule: AttributionRuleInput) => !rule.is_default && rule.operator !== 'exists' && !(rule.value ?? '').trim();
   const save = async () => {
+    setChecked(true);
+    if (config.rules.some(rule => channelInvalid(rule) || valueMissing(rule))) { toast.error(t('fixFields')); return; }
     setSaving(true);
     const result = await saveAttributionConfig(config);
     setSaving(false);
@@ -81,7 +87,7 @@ export default function AttributionSettings() {
                 ) : (
                   <>
                     <td className="pr-2"><input type="number" className={`${input} w-20`} value={rule.priority} onChange={e => update(index, { priority: Number(e.target.value) })} /></td>
-                    <td className="pr-2"><input className={`${input} w-32`} value={rule.channel} onChange={e => update(index, { channel: e.target.value })} /></td>
+                    <td className="pr-2 align-top"><input className={`${input} w-32`} value={rule.channel} aria-invalid={checked && channelInvalid(rule)} aria-describedby={checked && channelInvalid(rule) ? `channel-error-${index}` : undefined} onChange={e => update(index, { channel: e.target.value })} />{checked && channelInvalid(rule) && <p id={`channel-error-${index}`} className="mt-1 max-w-48 text-xs text-sf-danger">{t('channelInvalid')}</p>}</td>
                     <td className="pr-2">
                       <select className={input} value={rule.field} onChange={e => update(index, { field: e.target.value as AttributionRuleInput['field'] })}>
                         {FIELDS.map(f => <option key={f} value={f}>{f}</option>)}
@@ -92,7 +98,7 @@ export default function AttributionSettings() {
                         {OPERATORS.map(o => <option key={o} value={o}>{o}</option>)}
                       </select>
                     </td>
-                    <td className="pr-2"><input className={`${input} w-48`} value={rule.value ?? ''} disabled={rule.operator === 'exists'} onChange={e => update(index, { value: e.target.value })} /></td>
+                    <td className="pr-2 align-top"><input className={`${input} w-48`} value={rule.value ?? ''} disabled={rule.operator === 'exists'} aria-invalid={checked && valueMissing(rule)} aria-describedby={checked && valueMissing(rule) ? `value-error-${index}` : undefined} onChange={e => update(index, { value: e.target.value })} />{checked && valueMissing(rule) && <p id={`value-error-${index}`} className="mt-1 max-w-48 text-xs text-sf-danger">{t('valueRequired')}</p>}</td>
                     <td>
                       <button type="button" className="text-xs text-sf-danger" onClick={() => setConfig({ ...config, rules: config.rules.filter((_, i) => i !== index) })}>
                         {t('remove')}

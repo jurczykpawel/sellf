@@ -35,7 +35,7 @@ const schema = z.discriminatedUnion('operation', [
   z.strictObject({ ...base, operation: z.literal('rollback'), expectedRevision, targetRevision: revisionSchema }),
 ]);
 export interface OfferReadResult {
-  productId: string; productName: string; revision: number; draft: OfferPageConfig | null; published: OfferPageConfig | null;
+  productId: string; productName: string; productSlug: string; revision: number; draft: OfferPageConfig | null; published: OfferPageConfig | null;
   validation: ValidationResult;
 }
 export interface OfferDiffResult { fromRevision: number; toRevision: number; changes: TemplateChange[]; validation: ValidationResult; unusedSlots: string[] }
@@ -96,7 +96,7 @@ export async function offerLifecycle(auth: unknown, input: unknown): Promise<Off
     const snapshot = await readOfferConfig(reader, productId);
     if (!snapshot.success) return templateFailure('UNAVAILABLE');
     const current = snapshot.data ?? { revision: 0, draft: null, published: null };
-    if (request.operation === 'read') return { success: true, data: { productId, productName: product.data.name, revision: current.revision, draft: current.draft, published: current.published, validation: inspectOffer(current.draft ?? current.published ?? DEFAULT_OFFER, 'draft') } };
+    if (request.operation === 'read') return { success: true, data: { productId, productName: product.data.name, productSlug: product.data.slug, revision: current.revision, draft: current.draft, published: current.published, validation: inspectOffer(current.draft ?? current.published ?? DEFAULT_OFFER, 'draft') } };
     if (request.expectedRevision !== current.revision) return templateFailure('CONFLICT', null, current.revision);
     let candidate: OfferPageConfig | null = current.draft;
     if (request.operation === 'draft') candidate = request.config;

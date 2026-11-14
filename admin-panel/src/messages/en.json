@@ -112,6 +112,7 @@
     "publication": "Ready for your audience",
     "live": "This offer is published. Saved edits remain private until you publish again.",
     "notLive": "No published offer page yet. Your product’s existing purchase page remains available.",
+    "openPublished": "Open the published offer page",
     "enabled": "Enable offer page",
     "enabledHelp": "Takes effect only when you publish the saved draft.",
     "history": "History & publish",
@@ -2192,6 +2193,8 @@
         "noAccessYet": "This user doesn't have access to any products yet.",
         "grantNewAccess": "Grant New Access",
         "selectProductLabel": "Select Product",
+        "free": "Free",
+        "subscription": "Subscription",
         "chooseProductPlaceholder": "Choose a product to grant access...",
         "accessTypeLabel": "Access Type",
         "permanent": "Permanent",
@@ -3364,7 +3367,10 @@
       "save": "Save",
       "saving": "Saving…",
       "saved": "Settings saved",
-      "saveError": "Could not save settings"
+      "saveError": "Could not save settings",
+      "channelInvalid": "Use 1 to 40 lowercase letters, digits or underscores, for example blog or newsletter_pl.",
+      "valueRequired": "Enter at least one value, or choose the condition \"exists\".",
+      "fixFields": "Fix the highlighted rule fields and save again."
     },
     "omnibus": {
       "title": "EU Omnibus Directive",
@@ -5545,6 +5551,7 @@
     "unavailableBinding": "Choose an offer or category that is currently public and available.",
     "missingOffer": "Choose an offer for this section before publishing.",
     "orderHint": "Drag the handle to reorder. Use ↑ / ↓ on the handle with a keyboard.",
+    "orderBlocked": "The opening section must stay first in this template. Move the other sections instead.",
     "savedState": "All changes saved",
     "saving": "Saving…",
     "contentTitle": "{name} content",
