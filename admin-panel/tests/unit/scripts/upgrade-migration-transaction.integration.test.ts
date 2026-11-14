@@ -65,11 +65,18 @@ function releaseMigrations(brokenSecond: boolean) {
   return { migrations, tables };
 }
 
-/**
- * Forwards RPC calls to the real API; with `dropAfterCommit` it waits for the
- * committed apply_migration answer and then closes the connection unanswered.
- */
-async function startProxy(dropAfterCommit: boolean) {
+interface ProxyOptions {
+  /** Close the apply_migration connection unanswered once the real call returned. */
+  dropAfterCommit?: boolean;
+  /** Replace the real apply_migration answer once the real call returned. */
+  replyAfterCommit?: { status: number; body: string };
+  /** Answer registry reads made after apply_migration with this body (HTTP 200). */
+  registryAfterCommit?: string;
+}
+
+/** Forwards RPC calls to the real API, optionally replacing what the updater receives. */
+async function startProxy({ dropAfterCommit, replyAfterCommit, registryAfterCommit }: ProxyOptions) {
+  let applied = false;
   const proxy = createServer(async (request, response) => {
     let body = '';
     for await (const chunk of request) body += chunk;
@@ -78,8 +85,20 @@ async function startProxy(dropAfterCommit: boolean) {
       headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' },
     });
     const text = await upstream.text();
-    if (dropAfterCommit && request.url?.endsWith('/apply_migration')) {
-      request.socket.destroy();
+    if (request.url?.endsWith('/apply_migration')) {
+      applied = true;
+      if (dropAfterCommit) {
+        request.socket.destroy();
+        return;
+      }
+      if (replyAfterCommit) {
+        response.writeHead(replyAfterCommit.status);
+        response.end(replyAfterCommit.body);
+        return;
+      }
+    }
+    if (applied && registryAfterCommit !== undefined && request.url?.endsWith('/get_migration_status')) {
+      response.end(registryAfterCommit);
       return;
     }
     response.writeHead(upstream.status);
@@ -182,7 +201,7 @@ describe.skipIf(!SUPABASE_URL || !SERVICE_KEY)('updater migrations in one transa
 
   it('starts the new version when the connection drops after COMMIT', async () => {
     const { migrations, tables } = releaseMigrations(false);
-    const proxy = await startProxy(true);
+    const proxy = await startProxy({ dropAfterCommit: true });
     try {
       const run = await runUpgrade(migrations, proxy.url);
       expect(run.code, run.log).toBe(0);
@@ -191,6 +210,26 @@ describe.skipIf(!SUPABASE_URL || !SERVICE_KEY)('updater migrations in one transa
       expect(await registry()).toEqual(expect.arrayContaining(Object.keys(migrations)));
       for (const table of tables) expect(tableExists(table)).toBe(true);
       expect(run.log).toContain('registry shows all 3 migrations applied');
+    } finally {
+      await proxy.close();
+    }
+  });
+
+  it.each([
+    ['a lost answer', { dropAfterCommit: true }],
+    ['a gateway error with a database-like body', { replyAfterCommit: { status: 502, body: JSON.stringify({ code: 'GW_AFTER_COMMIT', details: null, hint: null, message: 'upstream closed' }) } }],
+    ['success:false', { replyAfterCommit: { status: 200, body: '{"success":false,"message":"reported failure"}' } }],
+  ] as const)('reports an unknown outcome and starts no code after COMMIT, %s and a malformed registry read', async (_, reply) => {
+    const { migrations, tables } = releaseMigrations(false);
+    const proxy = await startProxy({ ...reply, registryAfterCommit: '{}' });
+    try {
+      const run = await runUpgrade(migrations, proxy.url);
+      expect(run.code).toBe(1);
+      expect(run.started).toBe('');
+      expect(run.progress).toMatchObject({ step: 'failed', code: 'migration_state_unknown', rollback: false });
+      expect(run.progress.message).not.toContain('as it was before the update');
+      expect(await registry()).toEqual(expect.arrayContaining(Object.keys(migrations)));
+      for (const table of tables) expect(tableExists(table)).toBe(true);
     } finally {
       await proxy.close();
     }

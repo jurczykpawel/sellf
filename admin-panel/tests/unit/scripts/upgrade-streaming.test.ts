@@ -31,6 +31,8 @@ interface FixtureOptions {
   statusAfterApply?: 'all' | { code: number; body: string };
   /** Write .env.local values in double quotes, as dotenv allows. */
   quotedEnv?: boolean;
+  /** curl exits with this code for apply_migration without sending the request. */
+  applyCurlExit?: number;
 }
 
 async function runUpgrade(options: FixtureOptions = {}) {
@@ -38,10 +40,12 @@ async function runUpgrade(options: FixtureOptions = {}) {
   directories.push(dir);
   const requests: Record<string, string>[] = [];
   let statusReadsAfterApply = 0;
+  let statusReads = 0;
   const apiKeys = new Set<string>();
   const server = createServer(async (request, response) => {
     if (request.url?.includes('/rest/v1/rpc/')) apiKeys.add(String(request.headers.apikey));
     if (request.url?.endsWith('/get_migration_status')) {
+      statusReads++;
       const after = requests.length > 0 ? options.statusAfterApply : undefined;
       if (after) statusReadsAfterApply++;
       if (after === 'all') {
@@ -117,6 +121,7 @@ for argument in "$@"; do
   if [ "\${#argument}" -ge 131072 ]; then echo 'Argument list too long' >&2; exit 126; fi
 done
 ${command === 'jq' && options.payloadFailure ? 'for argument in "$@"; do [ "$argument" != "--rawfile" ] || exit 9; done' : ''}
+${command === 'curl' && options.applyCurlExit ? `for argument in "$@"; do case "$argument" in */apply_migration) exit ${options.applyCurlExit} ;; esac; done` : ''}
 exec ${JSON.stringify(executable)} "$@"
 `, { mode: 0o755 });
   }
@@ -156,7 +161,7 @@ ${source.slice(start, end)}
     const read = (name: string) => readFileSync(path.join(dir, name), 'utf8');
     const optional = (name: string) => existsSync(path.join(dir, name)) ? read(name) : '';
     return {
-      ...result, dir, requests, read, log: optional('upgrade.log'), started: optional('started'), pm2: optional('pm2.log'), statusReadsAfterApply, apiKeys: [...apiKeys],
+      ...result, dir, requests, read, log: optional('upgrade.log'), started: optional('started'), pm2: optional('pm2.log'), statusReadsAfterApply, statusReads, apiKeys: [...apiKeys],
       installedMigrations: () => readdirSync(path.join(install, 'supabase/migrations')).sort(),
     };
   } finally {
@@ -341,6 +346,61 @@ describe('unknown migration outcome', () => {
     expect(result.stdout).not.toContain('Nothing was changed');
     expect(result.stdout).not.toContain('as it was before the update');
     expect(result.stdout).toContain('rollback=false');
+  });
+});
+
+describe('migration outcome after the request was sent', () => {
+  const twoMigrations = {
+    '20261110235900_release_2026_11_0_storefront_core': 'SELECT 1;',
+    '20261110235901_release_2026_11_0_storefront_templates': 'SELECT 2;',
+  };
+  const gatewayError = JSON.stringify({ code: 'GW_AFTER_COMMIT', details: null, hint: null, message: 'upstream closed' });
+
+  function expectUnknown(result: Awaited<ReturnType<typeof runUpgrade>>) {
+    expect(result.code).toBe(1);
+    expect(result.started).toBe('');
+    expect(result.stdout).toContain('code=migration_state_unknown');
+    expect(result.stdout).toContain('could not be read');
+    expect(result.stdout).toContain('rollback=false');
+    expect(result.stdout).not.toContain('as it was before the update');
+    expect(result.stdout).not.toContain('rolled back together');
+  }
+
+  it.each([
+    ['empty object', { code: 200, body: '{}' }],
+    ['object', { code: 200, body: '{"versions":[]}' }],
+    ['HTML page', { code: 200, body: '<html><body>Bad gateway</body></html>' }],
+    ['empty body', { code: 200, body: '' }],
+    ['success:false', { code: 200, body: '{"success":false,"message":"nope"}' }],
+    ['gateway error with a database-like body', { code: 502, body: gatewayError }],
+    ['entry without a version', { code: 200, body: '[{}]' }],
+    ['numeric version', { code: 200, body: '[{"version":20261110235900}]' }],
+    ['version that is not a timestamp', { code: 200, body: '[{"version":"latest"}]' }],
+    ['two documents', { code: 200, body: '[]\n[]' }],
+  ] as const)('a lost response with a malformed registry read (%s) is unknown and starts no code', async (_, statusAfterApply) => {
+    expectUnknown(await runUpgrade({ applyDrop: true, statusAfterApply, migrations: twoMigrations }));
+  });
+
+  it.each([
+    ['gateway error with a database-like body', { status: 502, body: gatewayError }],
+    ['success:false', { status: 200, body: '{"success":false,"message":"reported failure"}' }],
+    ['database error', { status: 400, body: JSON.stringify({ code: '42P01', details: null, hint: null, message: 'boom' }) }],
+  ] as const)('after a sent request answered with %s', async (_, reply) => {
+    expectUnknown(await runUpgrade({ ...reply, statusAfterApply: { code: 200, body: '{}' }, migrations: twoMigrations }));
+    const applied = await runUpgrade({ ...reply, statusAfterApply: 'all', migrations: twoMigrations });
+    expect(applied.code, applied.log).toBe(0);
+    expect(applied.started).toBe('new-code');
+    expect(applied.stdout).toContain('PROGRESS: done');
+  });
+
+  it.each([6, 7])('a request that was never sent (curl exit %i) restores the previous code without asking the registry', async exit => {
+    const result = await runUpgrade({ applyCurlExit: exit });
+    expect(result.code).toBe(1);
+    expect(result.requests).toHaveLength(0);
+    expect(result.statusReads).toBe(1);
+    expect(result.started).toBe('old-code');
+    expect(result.stdout).toContain(`curl exit ${exit}`);
+    expect(result.stdout).toContain('rollback=true');
   });
 });
 
