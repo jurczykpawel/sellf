@@ -9,6 +9,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { id } = await params;
     const body = await parseJsonBody<Record<string, unknown>>(request);
     const result = await operateTransfer(auth.supabase, auth.admin.userId, id, { ...body, action: 'mark-paid' });
-    return result.success ? jsonResponse(successResponse(result), request) : apiError(request, 'VALIDATION_ERROR', result.error!);
+    // details.code names the refusal (e.g. oversold_confirmation_required -> resend with acceptOversold: true).
+    return result.success ? jsonResponse(successResponse(result), request)
+      : apiError(request, 'VALIDATION_ERROR', result.error!, result.code ? { code: [result.code] } : undefined);
   } catch (error) { return handleApiError(error, request); }
 }

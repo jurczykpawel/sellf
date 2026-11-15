@@ -3560,7 +3560,7 @@
         "operation": "cancel"
       },
       "end_state": {
-        "buyer": "Gets the cancellation mail; the order link shows the order as cancelled with a link to the product, without the declare or pay-online button; the pay endpoint refuses the order (order_cancelled), also after an administrator cancellation.",
+        "buyer": "Past the reservation deadline, before the job runs, the pay endpoint starts no new online payment (payment_window_closed). Gets the cancellation mail; the order link shows the order as cancelled with a link to the product, without the declare or pay-online button; the pay endpoint refuses the order (order_cancelled), also after an administrator cancellation.",
         "seller": "Order is cancelled with reason payment_window_expired; seat and promo price are back on sale; placement access is withdrawn.",
         "integrator": "Exactly one order.cancelled with cancelReason payment_window_expired and lateTransferPolicy admin_decision."
       },
@@ -3604,7 +3604,7 @@
       },
       "end_state": {
         "buyer": "Order is completed again at the original order price.",
-        "seller": "Sees today's price and the seat situation before deciding; \"Do not accept\" changes nothing. After acceptance the order is completed and marked oversold because the promo seat was resold; the other buyer keeps the seat; audit order.reopened carries the reason.",
+        "seller": "Sees today's price and the seat situation (session and the order's price tier) before deciding; \"Do not accept\" changes nothing. Acceptance over the limit stays disabled until the administrator ticks \"Accept over the limit\"; then the order is completed and marked oversold because the promo seat was resold; the other buyer keeps the seat; audit order.reopened carries the reason and oversold_confirmed.",
         "integrator": "order.reopened (previousStatus cancelled) then purchase.completed, each exactly once."
       },
       "status": "automated",

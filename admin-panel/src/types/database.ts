@@ -4957,6 +4957,15 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
+      _event_line_seats: {
+        Args: {
+          p_at: string
+          p_session_id: string
+          p_tier_id: string
+          p_transaction_id: string
+        }
+        Returns: Json
+      }
       _order_grant_and_record: {
         Args: {
           p_coupon_id: string
@@ -5014,6 +5023,7 @@ export type Database = {
       admin_bank_transfer_order: {
         Args: {
           p_accept_cancelled?: boolean
+          p_accept_oversold?: boolean
           p_action: string
           p_actor?: string
           p_amount?: number
@@ -5786,6 +5796,10 @@ export type Database = {
           p_transaction_id: string
         }
         Returns: boolean
+      }
+      event_order_seats: {
+        Args: { p_at: string; p_transaction_id: string }
+        Returns: Json
       }
       event_session_admin: {
         Args: { p_offset?: number; p_session_id: string }

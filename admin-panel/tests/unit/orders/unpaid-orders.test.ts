@@ -152,6 +152,20 @@ describe('administrator decisions', () => {
     expect(trigger.mock.calls.map(c => c[0])).toEqual(['order.reopened']);
     expect(fulfill).toHaveBeenCalled();
   });
+  // W254b (owner 15.11): accepting a late transfer over a seat limit is the administrator's explicit decision.
+  it('acceptance over a seat limit is refused until the administrator confirms it', async () => {
+    const { db, rpc } = client([], () => ({ data: { success: false, error: 'oversold_confirmation_required', seats: { oversold: true } } }));
+    const input = { action: 'mark-paid', amount: 12300, paidAt: '2026-01-01T00:00:00Z', acceptCancelled: true, reason: 'Przelew po terminie' };
+    const refused = await operateTransfer(db, 'actor', id, input);
+    expect(refused).toMatchObject({ success: false, code: 'oversold_confirmation_required' });
+    expect(refused.error).toMatch(/over the seat limit/i);
+    expect(rpc).toHaveBeenCalledWith('admin_bank_transfer_order', expect.objectContaining({ p_accept_oversold: false }));
+    expect(fulfill).not.toHaveBeenCalled();
+    const reopened = { ...row, status: 'completed', reopened_at: '2026-02-05T00:00:00.000Z' };
+    const confirmed = client([{ data: reopened }, { data: [] }, { data: [] }, {}, { data: reopened }], () => ({ data: { success: true, reopened: true } }));
+    expect((await operateTransfer(confirmed.db, 'actor', id, { ...input, acceptOversold: true })).success).toBe(true);
+    expect(confirmed.rpc).toHaveBeenCalledWith('admin_bank_transfer_order', expect.objectContaining({ p_accept_oversold: true }));
+  });
   // W254: the buyer must not finish paying an order that the administrator just closed (cancelled or marked paid).
   it.each([
     ['cancel', { action: 'cancel', reason: 'Rezygnacja' }, { ...row, status: 'cancelled', cancel_reason: 'admin' }],

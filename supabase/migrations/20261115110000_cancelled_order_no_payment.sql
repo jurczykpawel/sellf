@@ -6,6 +6,12 @@
 --   duplicate the caller refunds automatically (sellf-dup-refund-<attempt>).
 -- * Every closing of an order (admin cancel, timer release, admin mark-paid) supersedes the open attempts and returns
 --   their Stripe session ids in expire_sessions, so the caller expires the payment pages still open in the buyer's browser.
+-- W254b (owner decisions 15.11.2026):
+-- * After the reservation deadline (release_at) no NEW online payment attempt opens. An attempt started before it may
+--   finish, but the release job's protection ends 30 minutes after the deadline at the latest (cannot be renewed).
+-- * Accepting a late transfer that would go over a seat limit (session capacity OR the order's saved price tier, the
+--   rules confirm_event_order applies) requires the administrator's explicit confirmation (p_accept_oversold).
+--   event_order_seats() gives the preview the same facts the acceptance uses.
 -- Bodies otherwise identical to 20261110235905 / 20261110235906.
 
 -- ===== Close the open online payment attempts of an order; caller holds the order row lock =====
@@ -39,6 +45,8 @@ BEGIN
   UPDATE public.order_payment_attempts SET status='expired' WHERE transaction_id=p_id AND status IN ('opening','open') AND expires_at<=p_now;
   SELECT * INTO a FROM public.order_payment_attempts WHERE transaction_id=p_id AND status IN ('opening','open');
   IF FOUND THEN RETURN to_jsonb(a)||'{"reused":true}'; END IF;
+  -- W254b: past the reservation deadline the order waits for the release job; no new attempt may extend it.
+  IF tx.release_at IS NOT NULL AND p_now>=tx.release_at THEN RAISE EXCEPTION 'Payment window closed' USING ERRCODE='22023'; END IF;
   INSERT INTO public.order_payment_attempts(transaction_id,kind,amount,currency,expires_at) VALUES(p_id,p_kind,p_amount,upper(p_currency),p_expires_at) RETURNING * INTO a;
   RETURN to_jsonb(a)||'{"reused":false}';
 END $$;
@@ -105,7 +113,7 @@ $$;
 REVOKE ALL ON FUNCTION public.cancel_unpaid_order(uuid,text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.cancel_unpaid_order(uuid,text) TO service_role;
 
--- ===== RELEASE: an attempt still running protects the order; a stale one is closed with the release =====
+-- ===== RELEASE: an attempt still running protects the order (at most 30 min past the deadline); a stale one is closed with the release =====
 CREATE OR REPLACE FUNCTION public.release_unpaid_transfer(p_id uuid,p_now timestamptz) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE tx public.payment_transactions%ROWTYPE; redeemed uuid; sessions jsonb;
@@ -114,7 +122,8 @@ BEGIN
   SELECT * INTO tx FROM public.payment_transactions WHERE id=p_id FOR UPDATE;
   IF NOT FOUND OR tx.payment_provider<>'bank_transfer' OR tx.status<>'awaiting_payment' OR tx.release_at IS NULL
     OR tx.release_at>p_now OR tx.invoice_hold_at IS NOT NULL
-    OR EXISTS(SELECT 1 FROM public.order_payment_attempts a WHERE a.transaction_id=tx.id AND a.status IN ('opening','open') AND a.expires_at>p_now)
+    OR (p_now<tx.release_at+interval '30 minutes'
+      AND EXISTS(SELECT 1 FROM public.order_payment_attempts a WHERE a.transaction_id=tx.id AND a.status IN ('opening','open') AND a.expires_at>p_now))
     OR EXISTS(SELECT 1 FROM public.invoices i WHERE i.transaction_id=tx.id AND i.status IN ('issuing','issued','corrected')) THEN
     RETURN jsonb_build_object('success',true,'released',false);
   END IF;
@@ -132,11 +141,71 @@ END $$;
 REVOKE ALL ON FUNCTION public.release_unpaid_transfer(uuid,timestamptz) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.release_unpaid_transfer(uuid,timestamptz) TO service_role;
 
--- ===== ADMIN: mark-paid and cancel name the online payment sessions to expire =====
-CREATE OR REPLACE FUNCTION public.admin_bank_transfer_order(p_id uuid,p_action text,p_amount numeric DEFAULT NULL,p_paid_at timestamptz DEFAULT NULL,
-  p_reason text DEFAULT NULL,p_actor uuid DEFAULT NULL,p_accept_cancelled boolean DEFAULT false)
+-- ===== SEATS: what re-taking a released seat would do (one rule for confirmation, preview and acceptance) =====
+-- Seats left for one order line, excluding the order itself: session capacity and the saved price tier. NULL = unlimited.
+CREATE FUNCTION public._event_line_seats(p_transaction_id uuid, p_session_id uuid, p_tier_id uuid, p_at timestamptz) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
+  SELECT jsonb_build_object(
+    'session',(SELECT s.capacity-coalesce((SELECT sum(r.quantity) FROM public.seat_reservations r WHERE r.session_id=p_session_id
+      AND r.transaction_id<>p_transaction_id AND (r.status='confirmed' OR (r.status='held' AND (r.expires_at IS NULL OR r.expires_at>p_at)))),0)
+      FROM public.product_sessions s WHERE s.id=p_session_id),
+    'tier',(SELECT t.seats-coalesce((SELECT sum(r.quantity) FROM public.seat_reservations r WHERE r.tier_id=p_tier_id
+      AND r.transaction_id<>p_transaction_id AND (r.status='confirmed' OR (r.status='held' AND (r.expires_at IS NULL OR r.expires_at>p_at)))),0)
+      FROM public.product_price_tiers t WHERE t.id=p_tier_id));
+$$;
+REVOKE ALL ON FUNCTION public._event_line_seats(uuid,uuid,uuid,timestamptz) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public._event_line_seats(uuid,uuid,uuid,timestamptz) TO service_role;
+
+-- Seat facts of an order at p_at: quantity, seats left in the session and in the saved tier (NULL = unlimited), and
+-- oversold = completing it now would go over a limit. NULL for an order without a seat. Read-only.
+CREATE FUNCTION public.event_order_seats(p_transaction_id uuid, p_at timestamptz) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
+  SELECT jsonb_build_object('session_id',li.session_id,'quantity',li.quantity,'session_remaining',seats->'session','tier_remaining',seats->'tier',
+    'oversold',NOT EXISTS(SELECT 1 FROM public.seat_reservations r WHERE r.transaction_id=p_transaction_id
+        AND (r.status='confirmed' OR (r.status='held' AND (r.expires_at IS NULL OR r.expires_at>p_at))))
+      AND (coalesce((seats->>'session')::integer<li.quantity,false) OR coalesce((seats->>'tier')::integer<li.quantity,false)))
+  FROM public.payment_line_items li CROSS JOIN LATERAL (SELECT public._event_line_seats(p_transaction_id,li.session_id,li.tier_id,p_at) seats) x
+  WHERE li.transaction_id=p_transaction_id AND li.session_id IS NOT NULL ORDER BY li.item_type<>'main_product', li.session_id LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION public.event_order_seats(uuid,timestamptz) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.event_order_seats(uuid,timestamptz) TO service_role;
+
+-- Same body as 20261110235904 except the seat count, which now comes from _event_line_seats.
+CREATE OR REPLACE FUNCTION public.confirm_event_order(p_transaction_id uuid) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE li public.payment_line_items%ROWTYPE; r public.seat_reservations%ROWTYPE; seats jsonb;
+BEGIN
+  FOR li IN SELECT * FROM public.payment_line_items WHERE transaction_id=p_transaction_id AND session_id IS NOT NULL ORDER BY session_id LOOP
+    PERFORM pg_advisory_xact_lock(hashtextextended(li.session_id::text,0));
+    SELECT * INTO r FROM public.seat_reservations WHERE transaction_id=p_transaction_id FOR UPDATE;
+    IF r.status='confirmed' THEN CONTINUE; END IF;
+    IF r.status='held' AND (r.expires_at IS NULL OR r.expires_at>now()) THEN
+      UPDATE public.seat_reservations SET status='confirmed',confirmed_at=now() WHERE id=r.id;
+      CONTINUE;
+    END IF;
+    seats:=public._event_line_seats(p_transaction_id,li.session_id,li.tier_id,now());
+    IF coalesce((seats->>'session')::integer<li.quantity,false) OR coalesce((seats->>'tier')::integer<li.quantity,false) THEN
+      UPDATE public.payment_transactions SET metadata=coalesce(metadata,'{}'::jsonb)||'{"oversold":true}'::jsonb WHERE id=p_transaction_id;
+      UPDATE public.seat_reservations SET status='released',released_at=now() WHERE id=r.id;
+      INSERT INTO public.audit_log(table_name,operation,new_values) VALUES ('payment_transactions','UPDATE',
+        jsonb_build_object('action','event.oversold','transaction_id',p_transaction_id,'session_id',li.session_id));
+      RAISE LOG 'event.oversold transaction=% session=%',p_transaction_id,li.session_id;
+    ELSE
+      INSERT INTO public.seat_reservations(session_id,tier_id,transaction_id,quantity,status,confirmed_at)
+        VALUES (li.session_id,li.tier_id,p_transaction_id,li.quantity,'confirmed',now())
+        ON CONFLICT (transaction_id) DO UPDATE SET status='confirmed',confirmed_at=now(),released_at=NULL;
+    END IF;
+  END LOOP;
+END $$;
+REVOKE ALL ON FUNCTION public.confirm_event_order(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.confirm_event_order(uuid) TO service_role;
+
+-- ===== ADMIN: mark-paid and cancel name the online payment sessions to expire; going over a seat limit needs confirmation =====
+DROP FUNCTION public.admin_bank_transfer_order(uuid,text,numeric,timestamptz,text,uuid,boolean);
+CREATE FUNCTION public.admin_bank_transfer_order(p_id uuid,p_action text,p_amount numeric DEFAULT NULL,p_paid_at timestamptz DEFAULT NULL,
+  p_reason text DEFAULT NULL,p_actor uuid DEFAULT NULL,p_accept_cancelled boolean DEFAULT false,p_accept_oversold boolean DEFAULT false)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
-DECLARE result jsonb; tx public.payment_transactions%ROWTYPE; invoice_status text; reopen boolean:=false;
+DECLARE result jsonb; tx public.payment_transactions%ROWTYPE; invoice_status text; reopen boolean:=false; seats jsonb;
 BEGIN
   IF NOT EXISTS(SELECT 1 FROM public.admin_users WHERE user_id=p_actor) THEN RAISE EXCEPTION 'Administrator required' USING ERRCODE='42501'; END IF;
   SELECT * INTO tx FROM public.payment_transactions WHERE id=p_id FOR UPDATE;
@@ -153,6 +222,13 @@ BEGIN
       IF p_reason IS NULL OR length(btrim(p_reason)) NOT BETWEEN 1 AND 1000 THEN RAISE EXCEPTION 'Acceptance reason required' USING ERRCODE='22023'; END IF;
       IF invoice_status='corrected' THEN RETURN jsonb_build_object('success',false,'error','invoice_corrected'); END IF;
       IF p_amount IS DISTINCT FROM tx.amount THEN RETURN jsonb_build_object('success',false,'error','amount_mismatch'); END IF;
+      -- Same session lock as confirm_event_order, so the checked seats cannot change before completion takes them.
+      PERFORM pg_advisory_xact_lock(hashtextextended(li.session_id::text,0))
+        FROM public.payment_line_items li WHERE li.transaction_id=tx.id AND li.session_id IS NOT NULL ORDER BY li.session_id;
+      seats:=public.event_order_seats(tx.id,now());
+      IF coalesce((seats->>'oversold')::boolean,false) AND NOT coalesce(p_accept_oversold,false) THEN
+        RETURN jsonb_build_object('success',false,'error','oversold_confirmation_required','seats',seats);
+      END IF;
       PERFORM public._reopen_cancelled_transfer(tx.id);
       reopen:=true;
     END IF;
@@ -166,7 +242,8 @@ BEGIN
     IF reopen AND (result->>'success')::boolean THEN
       INSERT INTO public.audit_log(table_name,operation,performed_by,user_id,new_values) VALUES('payment_transactions','UPDATE',p_actor,p_actor,
         jsonb_build_object('action','order.reopened','transaction_id',p_id,'previous_status','cancelled','amount',tx.amount,'reason',p_reason,
-          'oversold',coalesce((SELECT (metadata->>'oversold')::boolean FROM public.payment_transactions WHERE id=p_id),false)));
+          'oversold',coalesce((SELECT (metadata->>'oversold')::boolean FROM public.payment_transactions WHERE id=p_id),false),
+          'oversold_confirmed',coalesce((seats->>'oversold')::boolean,false)));
       result:=result||jsonb_build_object('reopened',true,'previous_status','cancelled');
     ELSIF reopen THEN RAISE EXCEPTION 'Late acceptance failed' USING ERRCODE='P0001';
     END IF;
@@ -185,5 +262,5 @@ BEGIN
   END IF;
   RETURN result;
 END $$;
-REVOKE ALL ON FUNCTION public.admin_bank_transfer_order(uuid,text,numeric,timestamptz,text,uuid,boolean) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_bank_transfer_order(uuid,text,numeric,timestamptz,text,uuid,boolean) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.admin_bank_transfer_order(uuid,text,numeric,timestamptz,text,uuid,boolean,boolean) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_bank_transfer_order(uuid,text,numeric,timestamptz,text,uuid,boolean,boolean) TO service_role;

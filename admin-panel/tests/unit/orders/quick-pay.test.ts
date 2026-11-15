@@ -46,6 +46,12 @@ describe('quote', () => {
   it('a paid order reports paid', () => {
     expect(quoteOrderPayment({ ...tx, status: 'completed' })).toEqual({ mode: 'paid' });
   });
+  // W254b (owner 15.11): past the reservation deadline no new online payment starts; the order waits for the release job.
+  it('an unpaid order past its reservation deadline offers no new online payment', () => {
+    expect(quoteOrderPayment({ ...tx, release_at: '2026-02-02T11:59:00Z' }, NOW)).toEqual({ mode: 'unavailable', reason: 'payment_window_closed' });
+    expect(quoteOrderPayment({ ...tx, release_at: '2026-02-02T12:01:00Z' }, NOW)).toEqual({ mode: 'settle', amount: 8000, currency: 'PLN' });
+    expect(quoteOrderPayment({ ...tx, release_at: null }, NOW)).toEqual({ mode: 'settle', amount: 8000, currency: 'PLN' });
+  });
 });
 
 describe('session', () => {
