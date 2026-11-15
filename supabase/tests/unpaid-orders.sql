@@ -10,7 +10,9 @@ BEGIN
   ASSERT NOT has_function_privilege('authenticated','public.release_unpaid_transfer(uuid,timestamptz)','execute');
   ASSERT NOT has_function_privilege('anon','public.declare_transfer(uuid,text,timestamptz)','execute');
   ASSERT NOT has_function_privilege('authenticated','public.hold_transfer_for_invoice(uuid,timestamptz)','execute');
-  ASSERT NOT has_function_privilege('authenticated','public.admin_bank_transfer_order(uuid,text,numeric,timestamptz,text,uuid,boolean)','execute');
+  ASSERT NOT has_function_privilege('authenticated','public.admin_bank_transfer_order(uuid,text,numeric,timestamptz,text,uuid,boolean,boolean)','execute');
+  ASSERT NOT has_function_privilege('authenticated','public.event_order_seats(uuid,timestamptz)','execute');
+  ASSERT NOT has_function_privilege('anon','public.event_order_seats(uuid,timestamptz)','execute');
   SELECT user_id INTO admin_id FROM public.admin_users LIMIT 1;
   IF admin_id IS NULL THEN
     INSERT INTO auth.users(id,email,email_confirmed_at) VALUES(gen_random_uuid(),'unpaid-admin@example.com',now()) RETURNING id INTO admin_id;
@@ -79,7 +81,12 @@ BEGIN
   -- the promo seats are taken by two other buyers in the meantime
   tx:=public.bank_transfer_order(input||'{"customer_email":"other-1@example.com"}',lines);
   tx:=public.bank_transfer_order(input||'{"customer_email":"other-2@example.com"}',lines);
+  -- W254b: going over the limit needs the administrator's explicit confirmation; without it nothing changes
+  ASSERT (public.event_order_seats(o,now())->>'oversold')::boolean, 'preview facts: over the limit';
   r:=public.admin_bank_transfer_order(o,'mark-paid',5000,t0,'Przelew po terminie',admin_id,true);
+  ASSERT r->>'error'='oversold_confirmation_required' AND (r->'seats'->>'oversold')::boolean, 'oversold needs confirmation: '||r::text;
+  ASSERT (SELECT status='cancelled' AND reopened_at IS NULL FROM public.payment_transactions WHERE id=o), 'unconfirmed acceptance changes nothing';
+  r:=public.admin_bank_transfer_order(o,'mark-paid',5000,t0,'Przelew po terminie',admin_id,true,true);
   ASSERT (r->>'success')::boolean AND (r->>'reopened')::boolean AND r->>'previous_status'='cancelled', 'late acceptance';
   SELECT * INTO row FROM public.payment_transactions WHERE id=o;
   ASSERT row.status='completed' AND row.reopened_at IS NOT NULL AND row.amount=5000, 'reopened at order price';
@@ -87,8 +94,9 @@ BEGIN
   ASSERT EXISTS(SELECT 1 FROM public.audit_log WHERE new_values->>'action'='order.reopened' AND new_values->>'transaction_id'=o::text);
   ASSERT EXISTS(SELECT 1 FROM public.guest_purchases WHERE transaction_id=o), 'access granted again';
   -- second click is idempotent
-  ASSERT (public.admin_bank_transfer_order(o,'mark-paid',5000,t0,'Przelew po terminie',admin_id,true)->>'success')::boolean;
+  ASSERT (public.admin_bank_transfer_order(o,'mark-paid',5000,t0,'Przelew po terminie',admin_id,true,true)->>'success')::boolean;
   ASSERT (SELECT count(*) FROM public.audit_log WHERE new_values->>'action'='order.reopened' AND new_values->>'transaction_id'=o::text)=1;
+  ASSERT (SELECT (new_values->>'oversold_confirmed')::boolean FROM public.audit_log WHERE new_values->>'action'='order.reopened' AND new_values->>'transaction_id'=o::text), 'confirmation audited';
 
   -- (5) issued invoice = held without expiry; only cancellation releases
   lines80:=jsonb_build_array(jsonb_build_object('product_id',p,'item_type','main_product','quantity',1,'unit_price',80,'total_price',80,'discounted_total',80,'currency','PLN','session_id',sid));
@@ -123,6 +131,7 @@ BEGIN
   ASSERT (public.release_unpaid_transfer(o,t0+interval '48 hours')->>'released')::boolean;
   ASSERT (SELECT current_usage_count FROM public.coupons WHERE id=coupon)=0, 'coupon returned';
   UPDATE public.coupons SET current_usage_count=1 WHERE id=coupon;
+  ASSERT NOT (public.event_order_seats(o,now())->>'oversold')::boolean, 'free seat: no confirmation needed';
   r:=public.admin_bank_transfer_order(o,'mark-paid',(SELECT amount FROM public.payment_transactions WHERE id=o),t0,'Spóźniony',admin_id,true);
   ASSERT (r->>'success')::boolean, 'coupon past limit still accepted';
   ASSERT (SELECT count(*) FROM public.coupon_redemptions WHERE transaction_id=o)=1 AND (SELECT current_usage_count FROM public.coupons WHERE id=coupon)=2;
@@ -156,7 +165,7 @@ BEGIN
 END $$;
 -- ===== W2: online payment of an unpaid order from the pay link =====
 DO $$
-DECLARE p uuid; sid uuid; tx jsonb; o uuid; o2 uuid; a jsonb; a2 jsonb; r jsonb; lines jsonb; input jsonb; admin_id uuid; t0 timestamptz:=now(); coupon uuid;
+DECLARE p uuid; sid uuid; sid2 uuid; tx jsonb; o uuid; o2 uuid; a jsonb; a2 jsonb; r jsonb; lines jsonb; lines2 jsonb; input jsonb; admin_id uuid; t0 timestamptz:=now(); coupon uuid;
 BEGIN
   ASSERT NOT has_function_privilege('anon','public.open_order_payment_attempt(uuid,text,numeric,text,timestamptz,timestamptz)','execute');
   ASSERT NOT has_function_privilege('authenticated','public.complete_order_payment_attempt(uuid,text,text,numeric,timestamptz)','execute');
@@ -240,6 +249,40 @@ BEGIN
   ASSERT (SELECT status FROM public.order_payment_attempts WHERE id=(a->>'id')::uuid)='superseded';
   ASSERT (public.complete_order_payment_attempt((a->>'id')::uuid,'cs_test_quick_7','pi_test_quick_7',8000,t0)->>'result')='duplicate';
   ASSERT (SELECT status FROM public.payment_transactions WHERE id=o2)='cancelled', 'released stays cancelled';
+  -- (4d) W254b reviewer case: the session has free seats but the saved price tier was taken meanwhile => preview and acceptance say oversold
+  INSERT INTO public.product_sessions(product_id,starts_at,capacity) VALUES(p,'2099-04-01',5) RETURNING id INTO sid2;
+  INSERT INTO public.product_price_tiers(session_id,price,seats,sort) VALUES(sid2,50,1,0);
+  INSERT INTO public.product_price_tiers(session_id,price,sort) VALUES(sid2,80,1);
+  lines2:=jsonb_set(lines,'{0,session_id}',to_jsonb(sid2));
+  tx:=public.bank_transfer_order(input||'{"customer_email":"tier-late@example.com"}',lines2); o2:=(tx->>'transaction_id')::uuid;
+  ASSERT (public.release_unpaid_transfer(o2,t0+interval '48 hours')->>'released')::boolean;
+  tx:=public.bank_transfer_order(input||'{"customer_email":"tier-other@example.com"}',lines2);
+  r:=public.event_order_seats(o2,now());
+  ASSERT (r->>'session_remaining')::integer=4 AND (r->>'tier_remaining')::integer=0 AND (r->>'quantity')::integer=1 AND (r->>'oversold')::boolean, 'tier taken: '||r::text;
+  ASSERT (public.admin_bank_transfer_order(o2,'mark-paid',5000,t0,'Spóźniony',admin_id,true)->>'error')='oversold_confirmation_required';
+  r:=public.admin_bank_transfer_order(o2,'mark-paid',5000,t0,'Spóźniony',admin_id,true,true);
+  ASSERT (r->>'success')::boolean AND (SELECT (metadata->>'oversold')::boolean FROM public.payment_transactions WHERE id=o2), 'confirmed over the tier: '||r::text;
+  -- (4e) W254b: an attempt started before the release deadline may finish; after the deadline no new attempt opens; the protection ends 30 min after the deadline
+  tx:=public.bank_transfer_order(input||'{"customer_email":"cap@example.com"}',jsonb_set(jsonb_set(jsonb_set(lines,'{0,unit_price}','80'),'{0,total_price}','80'),'{0,discounted_total}','80'));
+  o2:=(tx->>'transaction_id')::uuid;
+  a:=public.open_order_payment_attempt(o2,'settle',8000,'PLN',t0+interval '48 hours 29 minutes',t0+interval '47 hours 59 minutes');
+  PERFORM public.attach_order_payment_session((a->>'id')::uuid,'cs_test_quick_cap');
+  ASSERT (public.release_unpaid_transfer(o2,t0+interval '48 hours')->>'released')::boolean=false, 'attempt from before the deadline protects';
+  ASSERT (public.release_unpaid_transfer(o2,t0+interval '48 hours 28 minutes')->>'released')::boolean=false, 'still finishing';
+  BEGIN PERFORM public.open_order_payment_attempt(o2,'settle',8000,'PLN',t0+interval '49 hours',t0+interval '48 hours 30 minutes'); RAISE EXCEPTION 'new attempt 30 min after the deadline';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  BEGIN PERFORM public.open_order_payment_attempt(o2,'settle',8000,'PLN',t0+interval '49 hours 31 minutes',t0+interval '49 hours 1 minute'); RAISE EXCEPTION 'new attempt 61 min after the deadline';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  ASSERT (SELECT count(*) FROM public.order_payment_attempts WHERE transaction_id=o2)=1, 'no renewal of the protection';
+  ASSERT (public.release_unpaid_transfer(o2,t0+interval '48 hours 31 minutes')->>'released')::boolean, 'released after the attempt';
+  -- an attempt valid for longer (older version, manual data) never stretches the protection past deadline + 30 min
+  tx:=public.bank_transfer_order(input||'{"customer_email":"cap2@example.com"}',jsonb_set(jsonb_set(jsonb_set(lines,'{0,unit_price}','80'),'{0,total_price}','80'),'{0,discounted_total}','80'));
+  o2:=(tx->>'transaction_id')::uuid;
+  a:=public.open_order_payment_attempt(o2,'settle',8000,'PLN',t0+interval '53 hours',t0+interval '47 hours 59 minutes');
+  PERFORM public.attach_order_payment_session((a->>'id')::uuid,'cs_test_quick_cap2');
+  ASSERT (public.release_unpaid_transfer(o2,t0+interval '48 hours 29 minutes')->>'released')::boolean=false;
+  r:=public.release_unpaid_transfer(o2,t0+interval '48 hours 30 minutes');
+  ASSERT (r->>'released')::boolean AND r->'expire_sessions' ? 'cs_test_quick_cap2', 'hard limit: '||r::text;
   -- (5) expiry frees the slot for a new attempt
   tx:=public.bank_transfer_order(input||'{"customer_email":"expire@example.com"}',jsonb_set(jsonb_set(jsonb_set(lines,'{0,unit_price}','80'),'{0,total_price}','80'),'{0,discounted_total}','80'));
   o2:=(tx->>'transaction_id')::uuid;

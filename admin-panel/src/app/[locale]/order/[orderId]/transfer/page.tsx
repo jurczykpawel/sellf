@@ -21,7 +21,7 @@ export default async function TransferPage({ params, searchParams }: { params: P
   const t = await getTranslations({ locale, namespace: 'bankTransfer' });
   const date = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Warsaw' }).format(new Date(iso));
   const unpaid = tx.status === 'awaiting_payment', cancelled = tx.status === 'cancelled';
-  const quote = quoteOrderPayment(tx);
+  const quote = quoteOrderPayment(tx, new Date());
   const product = (Array.isArray(tx.products) ? tx.products[0] : tx.products) as { slug: string; is_active: boolean } | null;
   return <main className="max-w-2xl mx-auto p-6 my-10"><h1 className="text-2xl font-semibold">{t(cancelled ? 'cancelledTitle' : 'thanks', { number: tx.order_number ?? '' })}</h1>
     {!cancelled && <p className="mt-3">{t(`status_${tx.status}`)}</p>}

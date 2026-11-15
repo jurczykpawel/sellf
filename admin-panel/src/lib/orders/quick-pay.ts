@@ -1,7 +1,8 @@
 /**
  * Online payment of an unpaid transfer order from the signed order link (mail, reminder, webhook payUrl): the saved
  * amount, price and seat stay reserved. A cancelled order is never payable by the buyer (W254, owner 14/15.11.2026),
- * whatever the reason; only the administrator can accept a late transfer (see late-transfer-preview.ts).
+ * whatever the reason; only the administrator can accept a late transfer (see late-transfer-preview.ts). Past the
+ * reservation deadline no new online payment starts (W254b); the order waits for the release job.
  * @see migration 20261115110000_cancelled_order_no_payment.sql (open/complete_order_payment_attempt)
  */
 import { fulfillTransfer } from '@/lib/orders/bank-transfer-service';
@@ -15,15 +16,18 @@ export interface QuickPayOrder { id: string; payment_provider: string; status: s
 export type QuickPayQuote =
   | { mode: 'settle'; amount: number; currency: string }
   | { mode: 'paid' }
-  | { mode: 'unavailable'; reason: 'not_payable' | 'order_cancelled' | 'product_unavailable' };
+  | { mode: 'unavailable'; reason: 'not_payable' | 'order_cancelled' | 'product_unavailable' | 'payment_window_closed' };
 const ATTEMPT_MINUTES = 30;
 const unavailable = (reason: Extract<QuickPayQuote, { mode: 'unavailable' }>['reason']): QuickPayQuote => ({ mode: 'unavailable', reason });
 
-export function quoteOrderPayment(tx: Pick<QuickPayOrder, 'payment_provider' | 'status' | 'amount' | 'currency' | 'product_id'>): QuickPayQuote {
+export function quoteOrderPayment(tx: Pick<QuickPayOrder, 'payment_provider' | 'status' | 'amount' | 'currency' | 'product_id'> & { release_at?: string | null },
+  now: Date = new Date()): QuickPayQuote {
   if (tx.payment_provider !== 'bank_transfer') return unavailable('not_payable');
   if (tx.status === 'completed' || tx.status === 'partially_refunded') return { mode: 'paid' };
   if (tx.status === 'cancelled') return unavailable('order_cancelled');
   if (!tx.product_id) return unavailable('product_unavailable');
+  // Same rule as open_order_payment_attempt; the server refuses a new attempt either way.
+  if (tx.status === 'awaiting_payment' && tx.release_at && Date.parse(tx.release_at) <= now.getTime()) return unavailable('payment_window_closed');
   if (tx.status === 'awaiting_payment') return { mode: 'settle', amount: tx.amount, currency: tx.currency };
   return unavailable('not_payable');
 }

@@ -135,6 +135,10 @@ test('an unpaid order past its window is released: seat back on sale, buyer and 
   test.setTimeout(200000);
   expect((await checked(await db.rpc('event_availability', { p_product_id: event.id })) as unknown as Array<{ remaining: number }>)[0].remaining).toBe(0);
   await checked(await db.from('payment_transactions').update({ release_at: new Date(Date.now() - 60000).toISOString() }).eq('id', orderId).select());
+  // W254b: past the deadline, before the job runs, no new online payment starts (no attempt, no Stripe session).
+  const closed = await request.post(`/api/orders/${orderId}/pay`, { data: { token: new URL(payUrl).searchParams.get('token'), expectedAmount: 10000 } });
+  expect(closed.status()).toBe(409); expect(await closed.json()).toEqual({ reason: 'payment_window_closed' });
+  expect(await checked(await db.from('order_payment_attempts').select('id').eq('transaction_id', orderId))).toHaveLength(0);
   expect((await cron(request)).ok()).toBe(true);
   const tx = await checked(await db.from('payment_transactions').select('status,cancel_reason').eq('id', orderId).single());
   expect(tx).toEqual({ status: 'cancelled', cancel_reason: 'payment_window_expired' });
@@ -179,7 +183,8 @@ test('admin accepts the late transfer at the order price although the promo seat
   const preview = section.getByRole('region', { name: 'Podgląd przed przyjęciem' });
   // The session is full (capacity 1), so there is no price on sale today.
   await expect(preview).toContainText(/Cena z zamówienia: 100,00\s?zł · cena dziś: niedostępna/);
-  await expect(preview).toContainText('Brak wolnych miejsc: przyjęcie przekroczy limit');
+  await expect(preview).toContainText('przyjęcie przekroczy limit (miejsce ponad stan)');
+  await expect(preview).toContainText('Wolne miejsca w progu cenowym z zamówienia: 0');
   // "Do not accept" changes nothing: the order stays cancelled.
   await section.getByRole('button', { name: 'Nie przyjmuj' }).click();
   await expect(section.getByRole('status')).toContainText('Zamówienie pozostaje anulowane');
@@ -187,7 +192,11 @@ test('admin accepts the late transfer at the order price although the promo seat
   await section.getByRole('button', { name: 'Jednak przyjmij' }).click();
   const form = section.getByRole('form', { name: 'Przyjmij spóźniony przelew po cenie z zamówienia' });
   await form.getByLabel('Data wpływu').fill(new Date().toISOString().slice(0, 10)); await form.getByLabel('Powód przyjęcia').fill('Przelew doszedł po terminie');
-  await form.getByRole('button', { name: 'Przyjmij spóźniony przelew po cenie z zamówienia' }).click();
+  // W254b: over the limit the administrator confirms it explicitly; until then acceptance is not possible.
+  const accept = form.getByRole('button', { name: 'Przyjmij spóźniony przelew po cenie z zamówienia' });
+  await expect(accept).toBeDisabled();
+  await form.getByRole('checkbox', { name: /Przyjmuję ponad stan/ }).check();
+  await accept.click();
   await expect.poll(async () => (await db.from('payment_transactions').select('status').eq('id', orderId).single()).data?.status).toBe('completed');
   const tx = await checked(await db.from('payment_transactions').select('amount,metadata,reopened_at').eq('id', orderId).single());
   expect(tx.amount).toBe(10000); expect(tx.reopened_at).toBeTruthy(); expect((tx.metadata as Record<string, unknown>).oversold).toBe(true);
@@ -196,7 +205,7 @@ test('admin accepts the late transfer at the order price although the promo seat
   expect(reopened).toHaveLength(1); expect(reopened[0].data.order).toMatchObject({ status: 'completed', previousStatus: 'cancelled' });
   await expect.poll(async () => (await webhook('purchase.completed', orderId)).length).toBe(1);
   const audit = await checked(await db.from('audit_log').select('new_values,performed_by').eq('new_values->>action', 'order.reopened').eq('new_values->>transaction_id', orderId));
-  expect(audit).toHaveLength(1); expect(audit[0].new_values).toMatchObject({ reason: 'Przelew doszedł po terminie', previous_status: 'cancelled', oversold: true });
+  expect(audit).toHaveLength(1); expect(audit[0].new_values).toMatchObject({ reason: 'Przelew doszedł po terminie', previous_status: 'cancelled', oversold: true, oversold_confirmed: true });
   expect(audit[0].performed_by).toBeTruthy();
   expect(await checked(await db.from('guest_purchases').select('id').eq('transaction_id', orderId))).toHaveLength(1);
   expect((await checked(await db.from('payment_transactions').select('status').eq('id', other).single())).status).toBe('awaiting_payment');

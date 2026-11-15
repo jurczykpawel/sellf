@@ -25,6 +25,8 @@ Jednostki pozostają częścią kontraktu v1 i nie są automatycznie przeliczane
 | `POST /payments/export` | Kwota, kwota zwrotu, suma netto i VAT w CSV | Główna (od 2026.10.7; nagłówki kończą się na `(major units)`, kropka jako separator dziesiętny; waluty bez części dziesiętnej, np. JPY, w całych jednostkach). Przed 2026.10.7 CSV używał jednostek najmniejszych |
 | `POST /payments/{id}/refund` | `amount` żądania, `amount` i `refunded_amount` odpowiedzi, jeśli zwracane | Najmniejsza; kwota żądania musi być całkowita |
 | `GET /payments/stats` | Kwoty przychodów i zwrotów, średnie i kwoty w podziale na waluty | Najmniejsza |
+| `POST /payments/{id}/mark-paid` | `amount` żądania | Najmniejsza |
+| `GET /payments/{id}/late-transfer-preview` | `amount` | Najmniejsza; `unitPrice` i `unitPriceToday` w głównej |
 | `GET /analytics/dashboard` | Kwoty `revenue.*`, `refunds.total_refunded`, `recent_activity[].revenue` | Najmniejsza |
 | `GET /analytics/revenue` | Kwoty podsumowania, w tym `average_order_value`, przychody okresów i porównania oraz kwoty w podziale na waluty | Najmniejsza |
 | `GET /analytics/top-products` | `revenue`, `average_price`, przychód podsumowania i przychody według walut | Najmniejsza |
@@ -92,6 +94,10 @@ niezależnie od `exclude_order_bumps`. Wyższa cena ustalona nigdy nie podnosi b
 Cena zero korzysta z istniejącej ścieżki darmowego dostępu; embed odsyła wtedy do
 standardowego checkout. JPY wymaga liczb całkowitych. Kupony nie zmieniają historii
 najniższej ceny Omnibus. Typ dostępny dla wszystkich sprzedawców.
+
+## Przelewy tradycyjne
+
+Z uprawnieniem `payments:write`: `POST /payments/{id}/mark-paid` (zaksięgowanie przelewu: `amount`, `paidAt`), `POST /payments/{id}/cancel` (`reason`) i `POST /payments/{id}/invoice-issued`. Przelew, który doszedł po anulowaniu, przyjmujesz przez `mark-paid` z `acceptCancelled: true` i `reason`. Najpierw sprawdź `GET /payments/{id}/late-transfer-preview` (`payments:read`): gdy `seats.oversold` jest prawdą, przyjęcie przekroczy limit miejsc w terminie albo w progu cenowym i wymaga `acceptOversold: true`. Bez tego odpowiedź to 400 z `error.details.code: ["oversold_confirmation_required"]`. Szczegóły: [Przelewy tradycyjne](/pl/bank-transfers/).
 
 ## Licencje (Pro)
 

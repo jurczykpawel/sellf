@@ -17,6 +17,7 @@ export default function QuickPayButton({ orderId, token, amount, currency }: { o
       if (response.ok && typeof body.url === 'string') { window.location.assign(body.url); return; }
       if (body.reason === 'amount_changed' && typeof body.quote?.amount === 'number') { setConfirmed(body.quote.amount); setError(t('quickPayAmountChanged')); }
       else if (body.reason === 'order_cancelled') setError(t('quickPayCancelled'));
+      else if (body.reason === 'payment_window_closed') setError(t('quickPayWindowClosed'));
       else setError(t('quickPayError'));
     } catch { setError(t('quickPayError')); } finally { setBusy(false); }
   }
