@@ -14,6 +14,7 @@ import WebhookTestModal from './webhooks/WebhookTestModal';
 import WebhookDeleteModal from './webhooks/WebhookDeleteModal';
 import WebhookLogsDrawer from './WebhookLogsDrawer';
 import WebhookFailuresPanel from './WebhookFailuresPanel';
+import AbandonedEventsPanel from './webhooks/AbandonedEventsPanel';
 
 export default function WebhooksPageContent({ scopingLocked = false, customizationLocked = false }: { scopingLocked?: boolean; customizationLocked?: boolean }) {
   const t = useTranslations('admin.webhooks');
@@ -210,6 +211,7 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
         </button>
       </div>
 
+      <AbandonedEventsPanel />
       <WebhookFailuresPanel refreshTrigger={refreshCounter} onRefresh={triggerGlobalRefresh} />
 
       {loading && endpoints.length === 0 ? (

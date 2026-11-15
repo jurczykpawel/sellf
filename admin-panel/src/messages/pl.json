@@ -2389,6 +2389,19 @@
         "product_price_changed": "Zmieniła się cena, cena promocyjna albo waluta produktu. Zawiera ceny przed i po, w groszach.",
         "product_sold_out": "Termin wydarzenia osiągnął limit miejsc. Zawiera termin, pojemność i rezerwację, która go wypełniła."
       },
+      "abandonedEvents": {
+        "title": "Zdarzenia porzucone przed wysyłką",
+        "description": "Tych zmian (np. przyznany dostęp, wystawiona licencja) nie udało się przekazać do wysyłki webhooków mimo 8 prób w ciągu ok. 8 godzin. Nie trafiły do żadnego endpointu. Usuń przyczynę i ponów.",
+        "event": "Zdarzenie",
+        "created": "Powstało",
+        "abandoned": "Porzucone",
+        "attempts": "Próby",
+        "lastError": "Ostatni błąd",
+        "retry": "Ponów",
+        "retrySuccess": "Zdarzenie wróciło do kolejki, wyślemy je w ciągu minuty.",
+        "retryError": "Nie udało się ponowić zdarzenia.",
+        "loadError": "Nie udało się wczytać porzuconych zdarzeń."
+      },
       "logs": {
         "title": "Logi Dostarczeń",
         "status": "Status",

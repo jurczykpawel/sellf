@@ -479,6 +479,18 @@ All endpoints under `/api/v1/webhooks/logs/[id]/*` require the `webhooks:write` 
 
 Listing logs supports filters `status=pending_retry|permanently_failed|all_failed` in addition to the existing `success|failed|archived|retried|all` values. `all_failed` is the union `failed + pending_retry + permanently_failed`.
 
+## Business events abandoned before delivery
+
+Order, access, license and catalogue changes are first captured in a business event queue and
+then handed to the delivery queue above. If the hand-off itself fails (for example a malformed
+change that cannot be turned into a payload), the event waits 1, 5, 15, 30, 60, 120 and
+240 minutes between attempts and is **abandoned after the 8th attempt** (about 8 hours). New
+events are not held up by events waiting out their interval. Abandoned events are listed at
+the top of `/dashboard/webhooks` and `/dashboard/webhooks/deliveries` with their last error and a
+**Retry** button, which gives the event fresh attempts and queues it for the next worker run.
+API: `GET /api/v1/webhooks/events?status=abandoned` (`webhooks:read`, no payload) and
+`POST /api/v1/webhooks/events/{id}/retry` (`webhooks:write`; `409` unless the event is abandoned).
+
 ## Operator setup
 
 The worker is exposed at `/api/cron?job=webhook-deliveries-retry`. Schedule it to fire every minute from any cron source you trust (PM2, system cron, an external scheduler) with the shared `CRON_SECRET` bearer token:

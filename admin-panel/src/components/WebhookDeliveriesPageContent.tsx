@@ -6,6 +6,7 @@ import { useWebhookDeliveries, type DeliveryFilter } from '@/hooks/useWebhookDel
 import { computeEligibility } from '@/lib/webhooks/selection-eligibility';
 import WebhookLogsTable from './webhooks/WebhookLogsTable';
 import WebhookBatchConfirmModal from './webhooks/WebhookBatchConfirmModal';
+import AbandonedEventsPanel from './webhooks/AbandonedEventsPanel';
 
 const FILTER_ORDER: DeliveryFilter[] = [
   'permanently_failed',
@@ -78,6 +79,8 @@ export default function WebhookDeliveriesPageContent() {
         <h1 className="text-2xl font-bold text-sf-heading">{t('dlqPageTitle')}</h1>
         <p className="text-sm text-sf-muted">{t('dlqPageDescription')}</p>
       </header>
+
+      <AbandonedEventsPanel />
 
       <div className="flex items-center gap-2 flex-wrap">
         {FILTER_ORDER.map((value) => (
