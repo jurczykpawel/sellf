@@ -21118,231 +21118,231 @@ storage.s3_multipart_uploads | t | f
 storage.s3_multipart_uploads_parts | t | f
 storage.vector_indexes | t | f
 -- policies outside the dumped schemas (table | policy | permissive | roles | command | using | with check)
-cron.job | cron_job_policy | PERMISSIVE | {public} | ALL | (username = CURRENT_USER) | 
-cron.job_run_details | cron_job_run_details_policy | PERMISSIVE | {public} | ALL | (username = CURRENT_USER) | 
+cron.job | cron_job_policy | PERMISSIVE | {public} | ALL | (username = CURRENT_USER) | -
+cron.job_run_details | cron_job_run_details_policy | PERMISSIVE | {public} | ALL | (username = CURRENT_USER) | -
 -- privileges (object kind | object | grantee | privilege | grantor | grant option)
-column | public.products.allow_custom_price | anon | SELECT | postgres | 
-column | public.products.allow_custom_price | authenticated | SELECT | postgres | 
-column | public.products.archived_at | anon | SELECT | postgres | 
-column | public.products.archived_at | authenticated | SELECT | postgres | 
-column | public.products.auto_grant_duration_days | anon | SELECT | postgres | 
-column | public.products.auto_grant_duration_days | authenticated | SELECT | postgres | 
-column | public.products.available_from | anon | SELECT | postgres | 
-column | public.products.available_from | authenticated | SELECT | postgres | 
-column | public.products.available_until | anon | SELECT | postgres | 
-column | public.products.available_until | authenticated | SELECT | postgres | 
-column | public.products.billing_interval | anon | SELECT | postgres | 
-column | public.products.billing_interval | authenticated | SELECT | postgres | 
-column | public.products.billing_interval_count | anon | SELECT | postgres | 
-column | public.products.billing_interval_count | authenticated | SELECT | postgres | 
-column | public.products.checkout_profile | anon | SELECT | postgres | 
-column | public.products.checkout_profile | authenticated | SELECT | postgres | 
-column | public.products.checkout_template | anon | SELECT | postgres | 
-column | public.products.checkout_template | authenticated | SELECT | postgres | 
-column | public.products.content_delivery_type | anon | SELECT | postgres | 
-column | public.products.content_delivery_type | authenticated | SELECT | postgres | 
-column | public.products.created_at | anon | SELECT | postgres | 
-column | public.products.created_at | authenticated | SELECT | postgres | 
-column | public.products.currency | anon | SELECT | postgres | 
-column | public.products.currency | authenticated | SELECT | postgres | 
-column | public.products.custom_checkout_fields | anon | SELECT | postgres | 
-column | public.products.custom_checkout_fields | authenticated | SELECT | postgres | 
-column | public.products.custom_price_min | anon | SELECT | postgres | 
-column | public.products.custom_price_min | authenticated | SELECT | postgres | 
-column | public.products.custom_price_presets | anon | SELECT | postgres | 
-column | public.products.custom_price_presets | authenticated | SELECT | postgres | 
-column | public.products.description | anon | SELECT | postgres | 
-column | public.products.description | authenticated | SELECT | postgres | 
-column | public.products.enable_waitlist | anon | SELECT | postgres | 
-column | public.products.enable_waitlist | authenticated | SELECT | postgres | 
-column | public.products.event_mode | anon | SELECT | postgres | 
-column | public.products.event_mode | authenticated | SELECT | postgres | 
-column | public.products.features | anon | SELECT | postgres | 
-column | public.products.features | authenticated | SELECT | postgres | 
-column | public.products.icon | anon | SELECT | postgres | 
-column | public.products.icon | authenticated | SELECT | postgres | 
-column | public.products.id | anon | SELECT | postgres | 
-column | public.products.id | authenticated | SELECT | postgres | 
-column | public.products.image_url | anon | SELECT | postgres | 
-column | public.products.image_url | authenticated | SELECT | postgres | 
-column | public.products.is_active | anon | SELECT | postgres | 
-column | public.products.is_active | authenticated | SELECT | postgres | 
-column | public.products.is_bundle | anon | SELECT | postgres | 
-column | public.products.is_bundle | authenticated | SELECT | postgres | 
-column | public.products.is_featured | anon | SELECT | postgres | 
-column | public.products.is_featured | authenticated | SELECT | postgres | 
-column | public.products.is_listed | anon | SELECT | postgres | 
-column | public.products.is_listed | authenticated | SELECT | postgres | 
-column | public.products.is_refundable | anon | SELECT | postgres | 
-column | public.products.is_refundable | authenticated | SELECT | postgres | 
-column | public.products.issue_license_on_purchase | anon | SELECT | postgres | 
-column | public.products.issue_license_on_purchase | authenticated | SELECT | postgres | 
-column | public.products.layout_template | anon | SELECT | postgres | 
-column | public.products.layout_template | authenticated | SELECT | postgres | 
-column | public.products.license_duration_days | anon | SELECT | postgres | 
-column | public.products.license_duration_days | authenticated | SELECT | postgres | 
-column | public.products.long_description | anon | SELECT | postgres | 
-column | public.products.long_description | authenticated | SELECT | postgres | 
-column | public.products.marketing_fields | anon | SELECT | postgres | 
-column | public.products.marketing_fields | authenticated | SELECT | postgres | 
-column | public.products.name | anon | SELECT | postgres | 
-column | public.products.name | authenticated | SELECT | postgres | 
-column | public.products.omnibus_exempt | anon | SELECT | postgres | 
-column | public.products.omnibus_exempt | authenticated | SELECT | postgres | 
-column | public.products.pass_params_to_redirect | anon | SELECT | postgres | 
-column | public.products.pass_params_to_redirect | authenticated | SELECT | postgres | 
-column | public.products.preview_video_config | anon | SELECT | postgres | 
-column | public.products.preview_video_config | authenticated | SELECT | postgres | 
-column | public.products.preview_video_url | anon | SELECT | postgres | 
-column | public.products.preview_video_url | authenticated | SELECT | postgres | 
-column | public.products.price | anon | SELECT | postgres | 
-column | public.products.price | authenticated | SELECT | postgres | 
-column | public.products.price_includes_vat | anon | SELECT | postgres | 
-column | public.products.price_includes_vat | authenticated | SELECT | postgres | 
-column | public.products.product_type | anon | SELECT | postgres | 
-column | public.products.product_type | authenticated | SELECT | postgres | 
-column | public.products.recurring_price | anon | SELECT | postgres | 
-column | public.products.recurring_price | authenticated | SELECT | postgres | 
-column | public.products.refund_period_days | anon | SELECT | postgres | 
-column | public.products.refund_period_days | authenticated | SELECT | postgres | 
-column | public.products.sale_price | anon | SELECT | postgres | 
-column | public.products.sale_price | authenticated | SELECT | postgres | 
-column | public.products.sale_price_until | anon | SELECT | postgres | 
-column | public.products.sale_price_until | authenticated | SELECT | postgres | 
-column | public.products.sale_quantity_limit | anon | SELECT | postgres | 
-column | public.products.sale_quantity_limit | authenticated | SELECT | postgres | 
-column | public.products.sale_quantity_sold | anon | SELECT | postgres | 
-column | public.products.sale_quantity_sold | authenticated | SELECT | postgres | 
-column | public.products.seller_id | anon | SELECT | postgres | 
-column | public.products.seller_id | authenticated | SELECT | postgres | 
-column | public.products.show_price_presets | anon | SELECT | postgres | 
-column | public.products.show_price_presets | authenticated | SELECT | postgres | 
-column | public.products.slug | anon | SELECT | postgres | 
-column | public.products.slug | authenticated | SELECT | postgres | 
-column | public.products.stripe_price_id | anon | SELECT | postgres | 
-column | public.products.stripe_price_id | authenticated | SELECT | postgres | 
-column | public.products.success_redirect_url | anon | SELECT | postgres | 
-column | public.products.success_redirect_url | authenticated | SELECT | postgres | 
-column | public.products.thumbnail_url | anon | SELECT | postgres | 
-column | public.products.thumbnail_url | authenticated | SELECT | postgres | 
-column | public.products.trial_days | anon | SELECT | postgres | 
-column | public.products.trial_days | authenticated | SELECT | postgres | 
-column | public.products.updated_at | anon | SELECT | postgres | 
-column | public.products.updated_at | authenticated | SELECT | postgres | 
-column | public.products.vat_exempt | anon | SELECT | postgres | 
-column | public.products.vat_exempt | authenticated | SELECT | postgres | 
-column | public.products.vat_exempt_note | anon | SELECT | postgres | 
-column | public.products.vat_exempt_note | authenticated | SELECT | postgres | 
-column | public.products.vat_rate | anon | SELECT | postgres | 
-column | public.products.vat_rate | authenticated | SELECT | postgres | 
-column | public.shop_config.automatic_tax_enabled | anon | SELECT | postgres | 
-column | public.shop_config.automatic_tax_enabled | authenticated | SELECT | postgres | 
-column | public.shop_config.checkout_billing_address | anon | SELECT | postgres | 
-column | public.shop_config.checkout_billing_address | authenticated | SELECT | postgres | 
-column | public.shop_config.checkout_collect_terms | anon | SELECT | postgres | 
-column | public.shop_config.checkout_collect_terms | authenticated | SELECT | postgres | 
-column | public.shop_config.checkout_expires_hours | anon | SELECT | postgres | 
-column | public.shop_config.checkout_expires_hours | authenticated | SELECT | postgres | 
-column | public.shop_config.checkout_theme | anon | SELECT | postgres | 
-column | public.shop_config.checkout_theme | authenticated | SELECT | postgres | 
-column | public.shop_config.contact_email | anon | SELECT | postgres | 
-column | public.shop_config.contact_email | authenticated | SELECT | postgres | 
-column | public.shop_config.created_at | anon | SELECT | postgres | 
-column | public.shop_config.created_at | authenticated | SELECT | postgres | 
-column | public.shop_config.default_currency | anon | SELECT | postgres | 
-column | public.shop_config.default_currency | authenticated | SELECT | postgres | 
-column | public.shop_config.font_family | anon | SELECT | postgres | 
-column | public.shop_config.font_family | authenticated | SELECT | postgres | 
-column | public.shop_config.id | anon | SELECT | postgres | 
-column | public.shop_config.id | authenticated | SELECT | postgres | 
-column | public.shop_config.logo_url | anon | SELECT | postgres | 
-column | public.shop_config.logo_url | authenticated | SELECT | postgres | 
-column | public.shop_config.omnibus_enabled | anon | SELECT | postgres | 
-column | public.shop_config.omnibus_enabled | authenticated | SELECT | postgres | 
-column | public.shop_config.privacy_policy_url | anon | SELECT | postgres | 
-column | public.shop_config.privacy_policy_url | authenticated | SELECT | postgres | 
-column | public.shop_config.shop_name | anon | SELECT | postgres | 
-column | public.shop_config.shop_name | authenticated | SELECT | postgres | 
-column | public.shop_config.stripe_tax_rate_cache | anon | SELECT | postgres | 
-column | public.shop_config.stripe_tax_rate_cache | authenticated | SELECT | postgres | 
-column | public.shop_config.tax_id_collection_enabled | anon | SELECT | postgres | 
-column | public.shop_config.tax_id_collection_enabled | authenticated | SELECT | postgres | 
-column | public.shop_config.tax_mode | anon | SELECT | postgres | 
-column | public.shop_config.tax_mode | authenticated | SELECT | postgres | 
-column | public.shop_config.tax_rate | anon | SELECT | postgres | 
-column | public.shop_config.tax_rate | authenticated | SELECT | postgres | 
-column | public.shop_config.terms_of_service_url | anon | SELECT | postgres | 
-column | public.shop_config.terms_of_service_url | authenticated | SELECT | postgres | 
-column | public.shop_config.updated_at | anon | SELECT | postgres | 
-column | public.shop_config.updated_at | authenticated | SELECT | postgres | 
-default privileges | for postgres in public on functions | postgres | EXECUTE | postgres | 
-default privileges | for postgres in public on functions | service_role | EXECUTE | postgres | 
-default privileges | for postgres in public on sequences | anon | UPDATE | postgres | 
-default privileges | for postgres in public on sequences | authenticated | UPDATE | postgres | 
-default privileges | for postgres in public on sequences | authenticated | USAGE | postgres | 
-default privileges | for postgres in public on sequences | postgres | SELECT | postgres | 
-default privileges | for postgres in public on sequences | postgres | UPDATE | postgres | 
-default privileges | for postgres in public on sequences | postgres | USAGE | postgres | 
-default privileges | for postgres in public on sequences | service_role | UPDATE | postgres | 
-default privileges | for postgres in public on sequences | service_role | USAGE | postgres | 
-default privileges | for postgres in public on tables | postgres | DELETE | postgres | 
-default privileges | for postgres in public on tables | postgres | INSERT | postgres | 
-default privileges | for postgres in public on tables | postgres | REFERENCES | postgres | 
-default privileges | for postgres in public on tables | postgres | SELECT | postgres | 
-default privileges | for postgres in public on tables | postgres | TRIGGER | postgres | 
-default privileges | for postgres in public on tables | postgres | TRUNCATE | postgres | 
-default privileges | for postgres in public on tables | postgres | UPDATE | postgres | 
-default privileges | for postgres in public on tables | service_role | DELETE | postgres | 
-default privileges | for postgres in public on tables | service_role | INSERT | postgres | 
-default privileges | for postgres in public on tables | service_role | REFERENCES | postgres | 
-default privileges | for postgres in public on tables | service_role | SELECT | postgres | 
-default privileges | for postgres in public on tables | service_role | TRIGGER | postgres | 
-default privileges | for postgres in public on tables | service_role | TRUNCATE | postgres | 
-default privileges | for postgres in public on tables | service_role | UPDATE | postgres | 
-default privileges | for postgres in storage on functions | anon | EXECUTE | postgres | 
-default privileges | for postgres in storage on functions | authenticated | EXECUTE | postgres | 
-default privileges | for postgres in storage on functions | postgres | EXECUTE | postgres | 
-default privileges | for postgres in storage on functions | service_role | EXECUTE | postgres | 
-default privileges | for postgres in storage on sequences | anon | SELECT | postgres | 
-default privileges | for postgres in storage on sequences | anon | UPDATE | postgres | 
-default privileges | for postgres in storage on sequences | anon | USAGE | postgres | 
-default privileges | for postgres in storage on sequences | authenticated | SELECT | postgres | 
-default privileges | for postgres in storage on sequences | authenticated | UPDATE | postgres | 
-default privileges | for postgres in storage on sequences | authenticated | USAGE | postgres | 
-default privileges | for postgres in storage on sequences | postgres | SELECT | postgres | 
-default privileges | for postgres in storage on sequences | postgres | UPDATE | postgres | 
-default privileges | for postgres in storage on sequences | postgres | USAGE | postgres | 
-default privileges | for postgres in storage on sequences | service_role | SELECT | postgres | 
-default privileges | for postgres in storage on sequences | service_role | UPDATE | postgres | 
-default privileges | for postgres in storage on sequences | service_role | USAGE | postgres | 
-default privileges | for postgres in storage on tables | anon | DELETE | postgres | 
-default privileges | for postgres in storage on tables | anon | INSERT | postgres | 
-default privileges | for postgres in storage on tables | anon | REFERENCES | postgres | 
-default privileges | for postgres in storage on tables | anon | SELECT | postgres | 
-default privileges | for postgres in storage on tables | anon | TRIGGER | postgres | 
-default privileges | for postgres in storage on tables | anon | TRUNCATE | postgres | 
-default privileges | for postgres in storage on tables | anon | UPDATE | postgres | 
-default privileges | for postgres in storage on tables | authenticated | DELETE | postgres | 
-default privileges | for postgres in storage on tables | authenticated | INSERT | postgres | 
-default privileges | for postgres in storage on tables | authenticated | REFERENCES | postgres | 
-default privileges | for postgres in storage on tables | authenticated | SELECT | postgres | 
-default privileges | for postgres in storage on tables | authenticated | TRIGGER | postgres | 
-default privileges | for postgres in storage on tables | authenticated | TRUNCATE | postgres | 
-default privileges | for postgres in storage on tables | authenticated | UPDATE | postgres | 
-default privileges | for postgres in storage on tables | postgres | DELETE | postgres | 
-default privileges | for postgres in storage on tables | postgres | INSERT | postgres | 
-default privileges | for postgres in storage on tables | postgres | REFERENCES | postgres | 
-default privileges | for postgres in storage on tables | postgres | SELECT | postgres | 
-default privileges | for postgres in storage on tables | postgres | TRIGGER | postgres | 
-default privileges | for postgres in storage on tables | postgres | TRUNCATE | postgres | 
-default privileges | for postgres in storage on tables | postgres | UPDATE | postgres | 
-default privileges | for postgres in storage on tables | service_role | DELETE | postgres | 
-default privileges | for postgres in storage on tables | service_role | INSERT | postgres | 
-default privileges | for postgres in storage on tables | service_role | REFERENCES | postgres | 
-default privileges | for postgres in storage on tables | service_role | SELECT | postgres | 
-default privileges | for postgres in storage on tables | service_role | TRIGGER | postgres | 
-default privileges | for postgres in storage on tables | service_role | TRUNCATE | postgres | 
-default privileges | for postgres in storage on tables | service_role | UPDATE | postgres | 
+column | public.products.allow_custom_price | anon | SELECT | postgres | -
+column | public.products.allow_custom_price | authenticated | SELECT | postgres | -
+column | public.products.archived_at | anon | SELECT | postgres | -
+column | public.products.archived_at | authenticated | SELECT | postgres | -
+column | public.products.auto_grant_duration_days | anon | SELECT | postgres | -
+column | public.products.auto_grant_duration_days | authenticated | SELECT | postgres | -
+column | public.products.available_from | anon | SELECT | postgres | -
+column | public.products.available_from | authenticated | SELECT | postgres | -
+column | public.products.available_until | anon | SELECT | postgres | -
+column | public.products.available_until | authenticated | SELECT | postgres | -
+column | public.products.billing_interval | anon | SELECT | postgres | -
+column | public.products.billing_interval | authenticated | SELECT | postgres | -
+column | public.products.billing_interval_count | anon | SELECT | postgres | -
+column | public.products.billing_interval_count | authenticated | SELECT | postgres | -
+column | public.products.checkout_profile | anon | SELECT | postgres | -
+column | public.products.checkout_profile | authenticated | SELECT | postgres | -
+column | public.products.checkout_template | anon | SELECT | postgres | -
+column | public.products.checkout_template | authenticated | SELECT | postgres | -
+column | public.products.content_delivery_type | anon | SELECT | postgres | -
+column | public.products.content_delivery_type | authenticated | SELECT | postgres | -
+column | public.products.created_at | anon | SELECT | postgres | -
+column | public.products.created_at | authenticated | SELECT | postgres | -
+column | public.products.currency | anon | SELECT | postgres | -
+column | public.products.currency | authenticated | SELECT | postgres | -
+column | public.products.custom_checkout_fields | anon | SELECT | postgres | -
+column | public.products.custom_checkout_fields | authenticated | SELECT | postgres | -
+column | public.products.custom_price_min | anon | SELECT | postgres | -
+column | public.products.custom_price_min | authenticated | SELECT | postgres | -
+column | public.products.custom_price_presets | anon | SELECT | postgres | -
+column | public.products.custom_price_presets | authenticated | SELECT | postgres | -
+column | public.products.description | anon | SELECT | postgres | -
+column | public.products.description | authenticated | SELECT | postgres | -
+column | public.products.enable_waitlist | anon | SELECT | postgres | -
+column | public.products.enable_waitlist | authenticated | SELECT | postgres | -
+column | public.products.event_mode | anon | SELECT | postgres | -
+column | public.products.event_mode | authenticated | SELECT | postgres | -
+column | public.products.features | anon | SELECT | postgres | -
+column | public.products.features | authenticated | SELECT | postgres | -
+column | public.products.icon | anon | SELECT | postgres | -
+column | public.products.icon | authenticated | SELECT | postgres | -
+column | public.products.id | anon | SELECT | postgres | -
+column | public.products.id | authenticated | SELECT | postgres | -
+column | public.products.image_url | anon | SELECT | postgres | -
+column | public.products.image_url | authenticated | SELECT | postgres | -
+column | public.products.is_active | anon | SELECT | postgres | -
+column | public.products.is_active | authenticated | SELECT | postgres | -
+column | public.products.is_bundle | anon | SELECT | postgres | -
+column | public.products.is_bundle | authenticated | SELECT | postgres | -
+column | public.products.is_featured | anon | SELECT | postgres | -
+column | public.products.is_featured | authenticated | SELECT | postgres | -
+column | public.products.is_listed | anon | SELECT | postgres | -
+column | public.products.is_listed | authenticated | SELECT | postgres | -
+column | public.products.is_refundable | anon | SELECT | postgres | -
+column | public.products.is_refundable | authenticated | SELECT | postgres | -
+column | public.products.issue_license_on_purchase | anon | SELECT | postgres | -
+column | public.products.issue_license_on_purchase | authenticated | SELECT | postgres | -
+column | public.products.layout_template | anon | SELECT | postgres | -
+column | public.products.layout_template | authenticated | SELECT | postgres | -
+column | public.products.license_duration_days | anon | SELECT | postgres | -
+column | public.products.license_duration_days | authenticated | SELECT | postgres | -
+column | public.products.long_description | anon | SELECT | postgres | -
+column | public.products.long_description | authenticated | SELECT | postgres | -
+column | public.products.marketing_fields | anon | SELECT | postgres | -
+column | public.products.marketing_fields | authenticated | SELECT | postgres | -
+column | public.products.name | anon | SELECT | postgres | -
+column | public.products.name | authenticated | SELECT | postgres | -
+column | public.products.omnibus_exempt | anon | SELECT | postgres | -
+column | public.products.omnibus_exempt | authenticated | SELECT | postgres | -
+column | public.products.pass_params_to_redirect | anon | SELECT | postgres | -
+column | public.products.pass_params_to_redirect | authenticated | SELECT | postgres | -
+column | public.products.preview_video_config | anon | SELECT | postgres | -
+column | public.products.preview_video_config | authenticated | SELECT | postgres | -
+column | public.products.preview_video_url | anon | SELECT | postgres | -
+column | public.products.preview_video_url | authenticated | SELECT | postgres | -
+column | public.products.price | anon | SELECT | postgres | -
+column | public.products.price | authenticated | SELECT | postgres | -
+column | public.products.price_includes_vat | anon | SELECT | postgres | -
+column | public.products.price_includes_vat | authenticated | SELECT | postgres | -
+column | public.products.product_type | anon | SELECT | postgres | -
+column | public.products.product_type | authenticated | SELECT | postgres | -
+column | public.products.recurring_price | anon | SELECT | postgres | -
+column | public.products.recurring_price | authenticated | SELECT | postgres | -
+column | public.products.refund_period_days | anon | SELECT | postgres | -
+column | public.products.refund_period_days | authenticated | SELECT | postgres | -
+column | public.products.sale_price | anon | SELECT | postgres | -
+column | public.products.sale_price | authenticated | SELECT | postgres | -
+column | public.products.sale_price_until | anon | SELECT | postgres | -
+column | public.products.sale_price_until | authenticated | SELECT | postgres | -
+column | public.products.sale_quantity_limit | anon | SELECT | postgres | -
+column | public.products.sale_quantity_limit | authenticated | SELECT | postgres | -
+column | public.products.sale_quantity_sold | anon | SELECT | postgres | -
+column | public.products.sale_quantity_sold | authenticated | SELECT | postgres | -
+column | public.products.seller_id | anon | SELECT | postgres | -
+column | public.products.seller_id | authenticated | SELECT | postgres | -
+column | public.products.show_price_presets | anon | SELECT | postgres | -
+column | public.products.show_price_presets | authenticated | SELECT | postgres | -
+column | public.products.slug | anon | SELECT | postgres | -
+column | public.products.slug | authenticated | SELECT | postgres | -
+column | public.products.stripe_price_id | anon | SELECT | postgres | -
+column | public.products.stripe_price_id | authenticated | SELECT | postgres | -
+column | public.products.success_redirect_url | anon | SELECT | postgres | -
+column | public.products.success_redirect_url | authenticated | SELECT | postgres | -
+column | public.products.thumbnail_url | anon | SELECT | postgres | -
+column | public.products.thumbnail_url | authenticated | SELECT | postgres | -
+column | public.products.trial_days | anon | SELECT | postgres | -
+column | public.products.trial_days | authenticated | SELECT | postgres | -
+column | public.products.updated_at | anon | SELECT | postgres | -
+column | public.products.updated_at | authenticated | SELECT | postgres | -
+column | public.products.vat_exempt | anon | SELECT | postgres | -
+column | public.products.vat_exempt | authenticated | SELECT | postgres | -
+column | public.products.vat_exempt_note | anon | SELECT | postgres | -
+column | public.products.vat_exempt_note | authenticated | SELECT | postgres | -
+column | public.products.vat_rate | anon | SELECT | postgres | -
+column | public.products.vat_rate | authenticated | SELECT | postgres | -
+column | public.shop_config.automatic_tax_enabled | anon | SELECT | postgres | -
+column | public.shop_config.automatic_tax_enabled | authenticated | SELECT | postgres | -
+column | public.shop_config.checkout_billing_address | anon | SELECT | postgres | -
+column | public.shop_config.checkout_billing_address | authenticated | SELECT | postgres | -
+column | public.shop_config.checkout_collect_terms | anon | SELECT | postgres | -
+column | public.shop_config.checkout_collect_terms | authenticated | SELECT | postgres | -
+column | public.shop_config.checkout_expires_hours | anon | SELECT | postgres | -
+column | public.shop_config.checkout_expires_hours | authenticated | SELECT | postgres | -
+column | public.shop_config.checkout_theme | anon | SELECT | postgres | -
+column | public.shop_config.checkout_theme | authenticated | SELECT | postgres | -
+column | public.shop_config.contact_email | anon | SELECT | postgres | -
+column | public.shop_config.contact_email | authenticated | SELECT | postgres | -
+column | public.shop_config.created_at | anon | SELECT | postgres | -
+column | public.shop_config.created_at | authenticated | SELECT | postgres | -
+column | public.shop_config.default_currency | anon | SELECT | postgres | -
+column | public.shop_config.default_currency | authenticated | SELECT | postgres | -
+column | public.shop_config.font_family | anon | SELECT | postgres | -
+column | public.shop_config.font_family | authenticated | SELECT | postgres | -
+column | public.shop_config.id | anon | SELECT | postgres | -
+column | public.shop_config.id | authenticated | SELECT | postgres | -
+column | public.shop_config.logo_url | anon | SELECT | postgres | -
+column | public.shop_config.logo_url | authenticated | SELECT | postgres | -
+column | public.shop_config.omnibus_enabled | anon | SELECT | postgres | -
+column | public.shop_config.omnibus_enabled | authenticated | SELECT | postgres | -
+column | public.shop_config.privacy_policy_url | anon | SELECT | postgres | -
+column | public.shop_config.privacy_policy_url | authenticated | SELECT | postgres | -
+column | public.shop_config.shop_name | anon | SELECT | postgres | -
+column | public.shop_config.shop_name | authenticated | SELECT | postgres | -
+column | public.shop_config.stripe_tax_rate_cache | anon | SELECT | postgres | -
+column | public.shop_config.stripe_tax_rate_cache | authenticated | SELECT | postgres | -
+column | public.shop_config.tax_id_collection_enabled | anon | SELECT | postgres | -
+column | public.shop_config.tax_id_collection_enabled | authenticated | SELECT | postgres | -
+column | public.shop_config.tax_mode | anon | SELECT | postgres | -
+column | public.shop_config.tax_mode | authenticated | SELECT | postgres | -
+column | public.shop_config.tax_rate | anon | SELECT | postgres | -
+column | public.shop_config.tax_rate | authenticated | SELECT | postgres | -
+column | public.shop_config.terms_of_service_url | anon | SELECT | postgres | -
+column | public.shop_config.terms_of_service_url | authenticated | SELECT | postgres | -
+column | public.shop_config.updated_at | anon | SELECT | postgres | -
+column | public.shop_config.updated_at | authenticated | SELECT | postgres | -
+default privileges | for postgres in public on functions | postgres | EXECUTE | postgres | -
+default privileges | for postgres in public on functions | service_role | EXECUTE | postgres | -
+default privileges | for postgres in public on sequences | anon | UPDATE | postgres | -
+default privileges | for postgres in public on sequences | authenticated | UPDATE | postgres | -
+default privileges | for postgres in public on sequences | authenticated | USAGE | postgres | -
+default privileges | for postgres in public on sequences | postgres | SELECT | postgres | -
+default privileges | for postgres in public on sequences | postgres | UPDATE | postgres | -
+default privileges | for postgres in public on sequences | postgres | USAGE | postgres | -
+default privileges | for postgres in public on sequences | service_role | UPDATE | postgres | -
+default privileges | for postgres in public on sequences | service_role | USAGE | postgres | -
+default privileges | for postgres in public on tables | postgres | DELETE | postgres | -
+default privileges | for postgres in public on tables | postgres | INSERT | postgres | -
+default privileges | for postgres in public on tables | postgres | REFERENCES | postgres | -
+default privileges | for postgres in public on tables | postgres | SELECT | postgres | -
+default privileges | for postgres in public on tables | postgres | TRIGGER | postgres | -
+default privileges | for postgres in public on tables | postgres | TRUNCATE | postgres | -
+default privileges | for postgres in public on tables | postgres | UPDATE | postgres | -
+default privileges | for postgres in public on tables | service_role | DELETE | postgres | -
+default privileges | for postgres in public on tables | service_role | INSERT | postgres | -
+default privileges | for postgres in public on tables | service_role | REFERENCES | postgres | -
+default privileges | for postgres in public on tables | service_role | SELECT | postgres | -
+default privileges | for postgres in public on tables | service_role | TRIGGER | postgres | -
+default privileges | for postgres in public on tables | service_role | TRUNCATE | postgres | -
+default privileges | for postgres in public on tables | service_role | UPDATE | postgres | -
+default privileges | for postgres in storage on functions | anon | EXECUTE | postgres | -
+default privileges | for postgres in storage on functions | authenticated | EXECUTE | postgres | -
+default privileges | for postgres in storage on functions | postgres | EXECUTE | postgres | -
+default privileges | for postgres in storage on functions | service_role | EXECUTE | postgres | -
+default privileges | for postgres in storage on sequences | anon | SELECT | postgres | -
+default privileges | for postgres in storage on sequences | anon | UPDATE | postgres | -
+default privileges | for postgres in storage on sequences | anon | USAGE | postgres | -
+default privileges | for postgres in storage on sequences | authenticated | SELECT | postgres | -
+default privileges | for postgres in storage on sequences | authenticated | UPDATE | postgres | -
+default privileges | for postgres in storage on sequences | authenticated | USAGE | postgres | -
+default privileges | for postgres in storage on sequences | postgres | SELECT | postgres | -
+default privileges | for postgres in storage on sequences | postgres | UPDATE | postgres | -
+default privileges | for postgres in storage on sequences | postgres | USAGE | postgres | -
+default privileges | for postgres in storage on sequences | service_role | SELECT | postgres | -
+default privileges | for postgres in storage on sequences | service_role | UPDATE | postgres | -
+default privileges | for postgres in storage on sequences | service_role | USAGE | postgres | -
+default privileges | for postgres in storage on tables | anon | DELETE | postgres | -
+default privileges | for postgres in storage on tables | anon | INSERT | postgres | -
+default privileges | for postgres in storage on tables | anon | REFERENCES | postgres | -
+default privileges | for postgres in storage on tables | anon | SELECT | postgres | -
+default privileges | for postgres in storage on tables | anon | TRIGGER | postgres | -
+default privileges | for postgres in storage on tables | anon | TRUNCATE | postgres | -
+default privileges | for postgres in storage on tables | anon | UPDATE | postgres | -
+default privileges | for postgres in storage on tables | authenticated | DELETE | postgres | -
+default privileges | for postgres in storage on tables | authenticated | INSERT | postgres | -
+default privileges | for postgres in storage on tables | authenticated | REFERENCES | postgres | -
+default privileges | for postgres in storage on tables | authenticated | SELECT | postgres | -
+default privileges | for postgres in storage on tables | authenticated | TRIGGER | postgres | -
+default privileges | for postgres in storage on tables | authenticated | TRUNCATE | postgres | -
+default privileges | for postgres in storage on tables | authenticated | UPDATE | postgres | -
+default privileges | for postgres in storage on tables | postgres | DELETE | postgres | -
+default privileges | for postgres in storage on tables | postgres | INSERT | postgres | -
+default privileges | for postgres in storage on tables | postgres | REFERENCES | postgres | -
+default privileges | for postgres in storage on tables | postgres | SELECT | postgres | -
+default privileges | for postgres in storage on tables | postgres | TRIGGER | postgres | -
+default privileges | for postgres in storage on tables | postgres | TRUNCATE | postgres | -
+default privileges | for postgres in storage on tables | postgres | UPDATE | postgres | -
+default privileges | for postgres in storage on tables | service_role | DELETE | postgres | -
+default privileges | for postgres in storage on tables | service_role | INSERT | postgres | -
+default privileges | for postgres in storage on tables | service_role | REFERENCES | postgres | -
+default privileges | for postgres in storage on tables | service_role | SELECT | postgres | -
+default privileges | for postgres in storage on tables | service_role | TRIGGER | postgres | -
+default privileges | for postgres in storage on tables | service_role | TRUNCATE | postgres | -
+default privileges | for postgres in storage on tables | service_role | UPDATE | postgres | -
 default privileges | for supabase_admin in cron on functions | postgres | EXECUTE | supabase_admin | WITH GRANT OPTION
 default privileges | for supabase_admin in cron on sequences | postgres | SELECT | supabase_admin | WITH GRANT OPTION
 default privileges | for supabase_admin in cron on sequences | postgres | UPDATE | supabase_admin | WITH GRANT OPTION
@@ -21365,1384 +21365,1384 @@ default privileges | for supabase_admin in extensions on tables | postgres | SEL
 default privileges | for supabase_admin in extensions on tables | postgres | TRIGGER | supabase_admin | WITH GRANT OPTION
 default privileges | for supabase_admin in extensions on tables | postgres | TRUNCATE | supabase_admin | WITH GRANT OPTION
 default privileges | for supabase_admin in extensions on tables | postgres | UPDATE | supabase_admin | WITH GRANT OPTION
-default privileges | for supabase_admin in graphql on functions | anon | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in graphql on functions | authenticated | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in graphql on functions | postgres | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in graphql on functions | service_role | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in graphql on sequences | anon | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql on sequences | anon | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in graphql on sequences | anon | USAGE | supabase_admin | 
-default privileges | for supabase_admin in graphql on sequences | authenticated | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql on sequences | authenticated | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in graphql on sequences | authenticated | USAGE | supabase_admin | 
-default privileges | for supabase_admin in graphql on sequences | postgres | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql on sequences | postgres | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in graphql on sequences | postgres | USAGE | supabase_admin | 
-default privileges | for supabase_admin in graphql on sequences | service_role | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql on sequences | service_role | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in graphql on sequences | service_role | USAGE | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | anon | DELETE | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | anon | INSERT | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | anon | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | anon | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | anon | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | anon | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | anon | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | authenticated | DELETE | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | authenticated | INSERT | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | authenticated | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | authenticated | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | authenticated | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | authenticated | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | authenticated | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | postgres | DELETE | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | postgres | INSERT | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | postgres | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | postgres | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | postgres | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | postgres | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | postgres | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | service_role | DELETE | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | service_role | INSERT | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | service_role | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | service_role | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | service_role | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | service_role | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in graphql on tables | service_role | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on functions | anon | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on functions | authenticated | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on functions | postgres | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on functions | service_role | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on sequences | anon | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on sequences | anon | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on sequences | anon | USAGE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on sequences | authenticated | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on sequences | authenticated | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on sequences | authenticated | USAGE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on sequences | postgres | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on sequences | postgres | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on sequences | postgres | USAGE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on sequences | service_role | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on sequences | service_role | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on sequences | service_role | USAGE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | anon | DELETE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | anon | INSERT | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | anon | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | anon | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | anon | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | anon | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | anon | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | authenticated | DELETE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | authenticated | INSERT | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | authenticated | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | authenticated | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | authenticated | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | authenticated | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | authenticated | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | postgres | DELETE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | postgres | INSERT | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | postgres | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | postgres | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | postgres | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | postgres | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | postgres | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | service_role | DELETE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | service_role | INSERT | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | service_role | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | service_role | SELECT | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | service_role | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | service_role | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in graphql_public on tables | service_role | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in public on functions | anon | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in public on functions | authenticated | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in public on functions | postgres | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in public on functions | service_role | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in public on sequences | anon | SELECT | supabase_admin | 
-default privileges | for supabase_admin in public on sequences | anon | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in public on sequences | anon | USAGE | supabase_admin | 
-default privileges | for supabase_admin in public on sequences | authenticated | SELECT | supabase_admin | 
-default privileges | for supabase_admin in public on sequences | authenticated | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in public on sequences | authenticated | USAGE | supabase_admin | 
-default privileges | for supabase_admin in public on sequences | postgres | SELECT | supabase_admin | 
-default privileges | for supabase_admin in public on sequences | postgres | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in public on sequences | postgres | USAGE | supabase_admin | 
-default privileges | for supabase_admin in public on sequences | service_role | SELECT | supabase_admin | 
-default privileges | for supabase_admin in public on sequences | service_role | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in public on sequences | service_role | USAGE | supabase_admin | 
-default privileges | for supabase_admin in public on tables | anon | DELETE | supabase_admin | 
-default privileges | for supabase_admin in public on tables | anon | INSERT | supabase_admin | 
-default privileges | for supabase_admin in public on tables | anon | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in public on tables | anon | SELECT | supabase_admin | 
-default privileges | for supabase_admin in public on tables | anon | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in public on tables | anon | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in public on tables | anon | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in public on tables | authenticated | DELETE | supabase_admin | 
-default privileges | for supabase_admin in public on tables | authenticated | INSERT | supabase_admin | 
-default privileges | for supabase_admin in public on tables | authenticated | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in public on tables | authenticated | SELECT | supabase_admin | 
-default privileges | for supabase_admin in public on tables | authenticated | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in public on tables | authenticated | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in public on tables | authenticated | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in public on tables | postgres | DELETE | supabase_admin | 
-default privileges | for supabase_admin in public on tables | postgres | INSERT | supabase_admin | 
-default privileges | for supabase_admin in public on tables | postgres | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in public on tables | postgres | SELECT | supabase_admin | 
-default privileges | for supabase_admin in public on tables | postgres | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in public on tables | postgres | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in public on tables | postgres | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in public on tables | service_role | DELETE | supabase_admin | 
-default privileges | for supabase_admin in public on tables | service_role | INSERT | supabase_admin | 
-default privileges | for supabase_admin in public on tables | service_role | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in public on tables | service_role | SELECT | supabase_admin | 
-default privileges | for supabase_admin in public on tables | service_role | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in public on tables | service_role | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in public on tables | service_role | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in realtime on functions | dashboard_user | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in realtime on functions | postgres | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in realtime on sequences | dashboard_user | SELECT | supabase_admin | 
-default privileges | for supabase_admin in realtime on sequences | dashboard_user | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in realtime on sequences | dashboard_user | USAGE | supabase_admin | 
-default privileges | for supabase_admin in realtime on sequences | postgres | SELECT | supabase_admin | 
-default privileges | for supabase_admin in realtime on sequences | postgres | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in realtime on sequences | postgres | USAGE | supabase_admin | 
-default privileges | for supabase_admin in realtime on tables | dashboard_user | DELETE | supabase_admin | 
-default privileges | for supabase_admin in realtime on tables | dashboard_user | INSERT | supabase_admin | 
-default privileges | for supabase_admin in realtime on tables | dashboard_user | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in realtime on tables | dashboard_user | SELECT | supabase_admin | 
-default privileges | for supabase_admin in realtime on tables | dashboard_user | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in realtime on tables | dashboard_user | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in realtime on tables | dashboard_user | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in realtime on tables | postgres | DELETE | supabase_admin | 
-default privileges | for supabase_admin in realtime on tables | postgres | INSERT | supabase_admin | 
-default privileges | for supabase_admin in realtime on tables | postgres | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in realtime on tables | postgres | SELECT | supabase_admin | 
-default privileges | for supabase_admin in realtime on tables | postgres | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in realtime on tables | postgres | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in realtime on tables | postgres | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on functions | anon | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on functions | authenticated | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on functions | postgres | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on functions | service_role | EXECUTE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on sequences | anon | SELECT | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on sequences | anon | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on sequences | anon | USAGE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on sequences | authenticated | SELECT | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on sequences | authenticated | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on sequences | authenticated | USAGE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on sequences | postgres | SELECT | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on sequences | postgres | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on sequences | postgres | USAGE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on sequences | service_role | SELECT | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on sequences | service_role | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on sequences | service_role | USAGE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | anon | DELETE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | anon | INSERT | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | anon | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | anon | SELECT | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | anon | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | anon | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | anon | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | authenticated | DELETE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | authenticated | INSERT | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | authenticated | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | authenticated | SELECT | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | authenticated | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | authenticated | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | authenticated | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | postgres | DELETE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | postgres | INSERT | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | postgres | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | postgres | SELECT | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | postgres | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | postgres | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | postgres | UPDATE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | service_role | DELETE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | service_role | INSERT | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | service_role | REFERENCES | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | service_role | SELECT | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | service_role | TRIGGER | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | service_role | TRUNCATE | supabase_admin | 
-default privileges | for supabase_admin in supabase_functions on tables | service_role | UPDATE | supabase_admin | 
-default privileges | for supabase_auth_admin in auth on functions | dashboard_user | EXECUTE | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on functions | postgres | EXECUTE | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on sequences | dashboard_user | SELECT | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on sequences | dashboard_user | UPDATE | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on sequences | dashboard_user | USAGE | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on sequences | postgres | SELECT | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on sequences | postgres | UPDATE | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on sequences | postgres | USAGE | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on tables | dashboard_user | DELETE | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on tables | dashboard_user | INSERT | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on tables | dashboard_user | REFERENCES | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on tables | dashboard_user | SELECT | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on tables | dashboard_user | TRIGGER | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on tables | dashboard_user | TRUNCATE | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on tables | dashboard_user | UPDATE | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on tables | postgres | DELETE | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on tables | postgres | INSERT | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on tables | postgres | REFERENCES | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on tables | postgres | SELECT | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on tables | postgres | TRIGGER | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on tables | postgres | TRUNCATE | supabase_auth_admin | 
-default privileges | for supabase_auth_admin in auth on tables | postgres | UPDATE | supabase_auth_admin | 
-function | postgrest.pre_config() | authenticator | EXECUTE | postgres | 
-function | postgrest.pre_config() | postgres | EXECUTE | postgres | 
-function | public._claim_guest_purchases_before_disputes(p_user_id uuid) | postgres | EXECUTE | postgres | 
-function | public._event_line_seats(p_transaction_id uuid, p_session_id uuid, p_tier_id uuid, p_at timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public._event_line_seats(p_transaction_id uuid, p_session_id uuid, p_tier_id uuid, p_at timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public._order_grant_and_record(p_transaction_id uuid, p_user_id uuid, p_existing_user_id uuid, p_requested_user_id uuid, p_coupon_id uuid, p_coupon_mode text) | postgres | EXECUTE | postgres | 
-function | public._order_grant_and_record(p_transaction_id uuid, p_user_id uuid, p_existing_user_id uuid, p_requested_user_id uuid, p_coupon_id uuid, p_coupon_mode text) | service_role | EXECUTE | postgres | 
-function | public._place_order_without_event(p_order jsonb, p_lines jsonb) | postgres | EXECUTE | postgres | 
-function | public._process_stripe_payment_completion_with_bump_impl(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | postgres | EXECUTE | postgres | 
-function | public._process_stripe_payment_completion_with_bump_impl(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | service_role | EXECUTE | postgres | 
-function | public._redeem_coupon_for_order(coupon_id_param uuid, current_user_id uuid, existing_user_id uuid, customer_email_param text, transaction_id_var uuid) | postgres | EXECUTE | postgres | 
-function | public._redeem_coupon_for_order(coupon_id_param uuid, current_user_id uuid, existing_user_id uuid, customer_email_param text, transaction_id_var uuid) | service_role | EXECUTE | postgres | 
-function | public._reopen_cancelled_transfer(p_id uuid) | postgres | EXECUTE | postgres | 
-function | public._reopen_cancelled_transfer(p_id uuid) | service_role | EXECUTE | postgres | 
-function | public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text) | postgres | EXECUTE | postgres | 
-function | public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text) | service_role | EXECUTE | postgres | 
-function | public._supersede_order_payment_attempts(p_id uuid) | postgres | EXECUTE | postgres | 
-function | public._supersede_order_payment_attempts(p_id uuid) | service_role | EXECUTE | postgres | 
-function | public.add_access_grant_source_to_event() | postgres | EXECUTE | postgres | 
-function | public.add_access_grant_source_to_event() | service_role | EXECUTE | postgres | 
-function | public.add_event_contract_fields() | postgres | EXECUTE | postgres | 
-function | public.admin_bank_transfer_order(p_id uuid, p_action text, p_amount numeric, p_paid_at timestamp with time zone, p_reason text, p_actor uuid, p_accept_cancelled boolean, p_accept_oversold boolean) | postgres | EXECUTE | postgres | 
-function | public.admin_bank_transfer_order(p_id uuid, p_action text, p_amount numeric, p_paid_at timestamp with time zone, p_reason text, p_actor uuid, p_accept_cancelled boolean, p_accept_oversold boolean) | service_role | EXECUTE | postgres | 
-function | public.admin_delete_oto_offer(source_product_id_param uuid) | postgres | EXECUTE | postgres | 
-function | public.admin_delete_oto_offer(source_product_id_param uuid) | service_role | EXECUTE | postgres | 
-function | public.admin_get_product_order_bumps(product_id_param uuid) | postgres | EXECUTE | postgres | 
-function | public.admin_get_product_order_bumps(product_id_param uuid) | service_role | EXECUTE | postgres | 
-function | public.admin_get_product_oto_offer(product_id_param uuid) | postgres | EXECUTE | postgres | 
-function | public.admin_get_product_oto_offer(product_id_param uuid) | service_role | EXECUTE | postgres | 
-function | public.admin_save_oto_offer(source_product_id_param uuid, oto_product_id_param uuid, discount_type_param text, discount_value_param numeric, duration_minutes_param integer, is_active_param boolean, downsell_product_id_param uuid, downsell_discount_type_param text, downsell_discount_value_param numeric, downsell_duration_minutes_param integer) | postgres | EXECUTE | postgres | 
-function | public.admin_save_oto_offer(source_product_id_param uuid, oto_product_id_param uuid, discount_type_param text, discount_value_param numeric, duration_minutes_param integer, is_active_param boolean, downsell_product_id_param uuid, downsell_discount_type_param text, downsell_discount_value_param numeric, downsell_duration_minutes_param integer) | service_role | EXECUTE | postgres | 
-function | public.affiliate_admin(p_actor uuid) | postgres | EXECUTE | postgres | 
-function | public.affiliate_apply(p_user uuid, p_code text, p_display_name text, p_channel text, p_terms_version text) | postgres | EXECUTE | postgres | 
-function | public.affiliate_apply(p_user uuid, p_code text, p_display_name text, p_channel text, p_terms_version text) | service_role | EXECUTE | postgres | 
-function | public.affiliate_apply_sync(p_payment uuid, p_token uuid, p_generation bigint, p_session_created_at timestamp with time zone, p_livemode boolean) | postgres | EXECUTE | postgres | 
-function | public.affiliate_apply_sync(p_payment uuid, p_token uuid, p_generation bigint, p_session_created_at timestamp with time zone, p_livemode boolean) | service_role | EXECUTE | postgres | 
-function | public.affiliate_audit(p_table text, p_old jsonb, p_new jsonb, p_actor uuid) | postgres | EXECUTE | postgres | 
-function | public.affiliate_binding_check() | postgres | EXECUTE | postgres | 
-function | public.affiliate_cancel_payout(p_actor uuid, p_payout uuid, p_expected_version bigint, p_no_transfer boolean, p_reason text) | postgres | EXECUTE | postgres | 
-function | public.affiliate_cancel_payout(p_actor uuid, p_payout uuid, p_expected_version bigint, p_no_transfer boolean, p_reason text) | service_role | EXECUTE | postgres | 
-function | public.affiliate_check_relations() | postgres | EXECUTE | postgres | 
-function | public.affiliate_claim_work(p_limit integer) | postgres | EXECUTE | postgres | 
-function | public.affiliate_claim_work(p_limit integer) | service_role | EXECUTE | postgres | 
-function | public.affiliate_complete_unbound_work(p_payment uuid, p_token uuid, p_generation bigint) | postgres | EXECUTE | postgres | 
-function | public.affiliate_complete_unbound_work(p_payment uuid, p_token uuid, p_generation bigint) | service_role | EXECUTE | postgres | 
-function | public.affiliate_coupon_bind(p_actor uuid, p_coupon uuid, p_member uuid, p_expected_version bigint) | postgres | EXECUTE | postgres | 
-function | public.affiliate_coupon_bind(p_actor uuid, p_coupon uuid, p_member uuid, p_expected_version bigint) | service_role | EXECUTE | postgres | 
-function | public.affiliate_enqueue() | postgres | EXECUTE | postgres | 
-function | public.affiliate_guard() | postgres | EXECUTE | postgres | 
-function | public.affiliate_immutable() | postgres | EXECUTE | postgres | 
-function | public.affiliate_lock_member(p_member uuid, p_currency text, p_payments uuid[], p_livemode boolean) | postgres | EXECUTE | postgres | 
-function | public.affiliate_manual_adjustment(p_actor uuid, p_commission uuid, p_expected_version bigint, p_amount_minor bigint, p_reason text, p_evidence_reference text, p_review_dispute boolean) | postgres | EXECUTE | postgres | 
-function | public.affiliate_manual_adjustment(p_actor uuid, p_commission uuid, p_expected_version bigint, p_amount_minor bigint, p_reason text, p_evidence_reference text, p_review_dispute boolean) | service_role | EXECUTE | postgres | 
-function | public.affiliate_mark_paid(p_actor uuid, p_payout uuid, p_expected_version bigint, p_bank_reference text, p_invoice_reference text, p_bank_amount_minor bigint, p_currency text, p_paid_at timestamp with time zone, p_full_settlement boolean, p_reason text, p_evidence_reference text, p_livemode boolean) | postgres | EXECUTE | postgres | 
-function | public.affiliate_mark_paid(p_actor uuid, p_payout uuid, p_expected_version bigint, p_bank_reference text, p_invoice_reference text, p_bank_amount_minor bigint, p_currency text, p_paid_at timestamp with time zone, p_full_settlement boolean, p_reason text, p_evidence_reference text, p_livemode boolean) | service_role | EXECUTE | postgres | 
-function | public.affiliate_member_update(p_actor uuid, p_member uuid, p_expected_version bigint, p_status text, p_reason text) | postgres | EXECUTE | postgres | 
-function | public.affiliate_member_update(p_actor uuid, p_member uuid, p_expected_version bigint, p_status text, p_reason text) | service_role | EXECUTE | postgres | 
-function | public.affiliate_portal_page(p_member uuid, p_currency text, p_cursor uuid, p_limit integer, p_as_of timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.affiliate_portal_page(p_member uuid, p_currency text, p_cursor uuid, p_limit integer, p_as_of timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public.affiliate_portal_summary(p_member uuid, p_as_of timestamp with time zone, p_livemode boolean) | postgres | EXECUTE | postgres | 
-function | public.affiliate_portal_summary(p_member uuid, p_as_of timestamp with time zone, p_livemode boolean) | service_role | EXECUTE | postgres | 
-function | public.affiliate_preview(p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_livemode boolean) | postgres | EXECUTE | postgres | 
-function | public.affiliate_preview(p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_livemode boolean) | service_role | EXECUTE | postgres | 
-function | public.affiliate_program_update(p_actor uuid, p_expected_version bigint, p_enabled boolean, p_terms_version text, p_terms jsonb, p_hold_days integer, p_buffer_days integer, p_thresholds jsonb) | postgres | EXECUTE | postgres | 
-function | public.affiliate_program_update(p_actor uuid, p_expected_version bigint, p_enabled boolean, p_terms_version text, p_terms jsonb, p_hold_days integer, p_buffer_days integer, p_thresholds jsonb) | service_role | EXECUTE | postgres | 
-function | public.affiliate_reserve(p_actor uuid, p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_member_version bigint, p_program_version bigint, p_payee_reference text, p_livemode boolean) | postgres | EXECUTE | postgres | 
-function | public.affiliate_reserve(p_actor uuid, p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_member_version bigint, p_program_version bigint, p_payee_reference text, p_livemode boolean) | service_role | EXECUTE | postgres | 
-function | public.affiliate_retry_work(p_payment uuid, p_token uuid, p_generation bigint, p_error text) | postgres | EXECUTE | postgres | 
-function | public.affiliate_retry_work(p_payment uuid, p_token uuid, p_generation bigint, p_error text) | service_role | EXECUTE | postgres | 
-function | public.affiliate_rule_create(p_actor uuid, p_product uuid, p_expected_revision integer, p_enabled boolean, p_percentage_bps integer, p_fixed_minor bigint, p_currency text) | postgres | EXECUTE | postgres | 
-function | public.affiliate_rule_create(p_actor uuid, p_product uuid, p_expected_revision integer, p_enabled boolean, p_percentage_bps integer, p_fixed_minor bigint, p_currency text) | service_role | EXECUTE | postgres | 
-function | public.affiliate_rule_guard() | postgres | EXECUTE | postgres | 
-function | public.affiliate_rule_guard() | service_role | EXECUTE | postgres | 
-function | public.affiliate_valid_program(p_terms jsonb, p_thresholds jsonb) | postgres | EXECUTE | postgres | 
-function | public.affiliate_valid_program(p_terms jsonb, p_thresholds jsonb) | service_role | EXECUTE | postgres | 
-function | public.affiliate_valid_reference(p_value text) | postgres | EXECUTE | postgres | 
-function | public.affiliate_valid_reference(p_value text) | service_role | EXECUTE | postgres | 
-function | public.affiliate_work_retry(p_actor uuid, p_payment uuid, p_generation bigint, p_reason text) | postgres | EXECUTE | postgres | 
-function | public.affiliate_work_retry(p_actor uuid, p_payment uuid, p_generation bigint, p_reason text) | service_role | EXECUTE | postgres | 
-function | public.apply_migration(migration_version text, migration_sql text, content_checksum text) | postgres | EXECUTE | postgres | 
-function | public.apply_migration(migration_version text, migration_sql text, content_checksum text) | service_role | EXECUTE | postgres | 
-function | public.apply_payment_dispute(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.apply_payment_dispute(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public.apply_payment_dispute_before_guest_claim(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.apply_shop_vat_defaults() | postgres | EXECUTE | postgres | 
-function | public.apply_shop_vat_defaults() | service_role | EXECUTE | postgres | 
-function | public.attach_order_payment_session(p_attempt uuid, p_session_id text, p_url text) | postgres | EXECUTE | postgres | 
-function | public.attach_order_payment_session(p_attempt uuid, p_session_id text, p_url text) | service_role | EXECUTE | postgres | 
-function | public.attribution_text(p jsonb, k text, max_len integer) | postgres | EXECUTE | postgres | 
-function | public.attribution_text(p jsonb, k text, max_len integer) | service_role | EXECUTE | postgres | 
-function | public.attribution_time(p jsonb, k text) | postgres | EXECUTE | postgres | 
-function | public.attribution_time(p jsonb, k text) | service_role | EXECUTE | postgres | 
-function | public.audit_checkout_profile() | postgres | EXECUTE | postgres | 
-function | public.audit_checkout_profile() | service_role | EXECUTE | postgres | 
-function | public.audit_trigger_function() | postgres | EXECUTE | postgres | 
-function | public.audit_trigger_function() | service_role | EXECUTE | postgres | 
-function | public.bank_transfer_order(p_order jsonb, p_lines jsonb) | postgres | EXECUTE | postgres | 
-function | public.bank_transfer_order(p_order jsonb, p_lines jsonb) | service_role | EXECUTE | postgres | 
-function | public.batch_check_user_product_access(product_slugs_param text[]) | anon | EXECUTE | postgres | 
-function | public.batch_check_user_product_access(product_slugs_param text[]) | authenticated | EXECUTE | postgres | 
-function | public.batch_check_user_product_access(product_slugs_param text[]) | postgres | EXECUTE | postgres | 
-function | public.batch_check_user_product_access(product_slugs_param text[]) | service_role | EXECUTE | postgres | 
-function | public.bind_access_license() | postgres | EXECUTE | postgres | 
-function | public.bind_access_license() | service_role | EXECUTE | postgres | 
-function | public.business_event_actor() | postgres | EXECUTE | postgres | 
-function | public.business_event_actor() | service_role | EXECUTE | postgres | 
-function | public.business_event_order(p_transaction uuid) | postgres | EXECUTE | postgres | 
-function | public.business_event_order(p_transaction uuid) | service_role | EXECUTE | postgres | 
-function | public.business_event_partner(p_member uuid) | postgres | EXECUTE | postgres | 
-function | public.business_event_partner(p_member uuid) | service_role | EXECUTE | postgres | 
-function | public.buyer_mail_locale(p_email text) | postgres | EXECUTE | postgres | 
-function | public.buyer_mail_locale(p_email text) | service_role | EXECUTE | postgres | 
-function | public.cancel_unpaid_order(p_transaction_id uuid, p_reason text) | postgres | EXECUTE | postgres | 
-function | public.cancel_unpaid_order(p_transaction_id uuid, p_reason text) | service_role | EXECUTE | postgres | 
-function | public.capture_business_event() | postgres | EXECUTE | postgres | 
-function | public.capture_business_event() | service_role | EXECUTE | postgres | 
-function | public.capture_commission_event() | postgres | EXECUTE | postgres | 
-function | public.capture_commission_event() | service_role | EXECUTE | postgres | 
-function | public.capture_due_renewal_notices() | postgres | EXECUTE | postgres | 
-function | public.capture_due_renewal_notices() | service_role | EXECUTE | postgres | 
-function | public.capture_expired_access() | postgres | EXECUTE | postgres | 
-function | public.capture_expired_access() | service_role | EXECUTE | postgres | 
-function | public.capture_expired_licenses() | postgres | EXECUTE | postgres | 
-function | public.capture_expired_licenses() | service_role | EXECUTE | postgres | 
-function | public.capture_license_expiry_updated() | postgres | EXECUTE | postgres | 
-function | public.capture_license_issued_event() | postgres | EXECUTE | postgres | 
-function | public.capture_license_status_event() | postgres | EXECUTE | postgres | 
-function | public.capture_payout_event() | postgres | EXECUTE | postgres | 
-function | public.capture_payout_event() | service_role | EXECUTE | postgres | 
-function | public.capture_product_event() | postgres | EXECUTE | postgres | 
-function | public.capture_product_event() | service_role | EXECUTE | postgres | 
-function | public.capture_product_lifecycle_event() | postgres | EXECUTE | postgres | 
-function | public.capture_refund_request_event() | postgres | EXECUTE | postgres | 
-function | public.capture_refund_request_event() | service_role | EXECUTE | postgres | 
-function | public.capture_sales_invoice_event() | postgres | EXECUTE | postgres | 
-function | public.capture_sales_invoice_event() | service_role | EXECUTE | postgres | 
-function | public.capture_sold_out_event() | postgres | EXECUTE | postgres | 
-function | public.capture_sold_out_event() | service_role | EXECUTE | postgres | 
-function | public.capture_subscription_period_access() | postgres | EXECUTE | postgres | 
-function | public.check_application_rate_limit(identifier_param text, action_type_param text, max_requests integer, window_minutes integer) | postgres | EXECUTE | postgres | 
-function | public.check_application_rate_limit(identifier_param text, action_type_param text, max_requests integer, window_minutes integer) | service_role | EXECUTE | postgres | 
-function | public.check_rate_limit(function_name_param text, max_calls integer, time_window_seconds integer, identifier_param text) | postgres | EXECUTE | postgres | 
-function | public.check_rate_limit(function_name_param text, max_calls integer, time_window_seconds integer, identifier_param text) | service_role | EXECUTE | postgres | 
-function | public.check_refund_eligibility(transaction_id_param uuid) | authenticated | EXECUTE | postgres | 
-function | public.check_refund_eligibility(transaction_id_param uuid) | postgres | EXECUTE | postgres | 
-function | public.check_refund_eligibility(transaction_id_param uuid) | service_role | EXECUTE | postgres | 
-function | public.check_user_product_access(product_slug_param text) | anon | EXECUTE | postgres | 
-function | public.check_user_product_access(product_slug_param text) | authenticated | EXECUTE | postgres | 
-function | public.check_user_product_access(product_slug_param text) | postgres | EXECUTE | postgres | 
-function | public.check_user_product_access(product_slug_param text) | service_role | EXECUTE | postgres | 
-function | public.check_waitlist_config() | authenticated | EXECUTE | postgres | 
-function | public.check_waitlist_config() | postgres | EXECUTE | postgres | 
-function | public.check_waitlist_config() | service_role | EXECUTE | postgres | 
-function | public.claim_auth_mail_retries(p_limit integer) | postgres | EXECUTE | postgres | 
-function | public.claim_auth_mail_retries(p_limit integer) | service_role | EXECUTE | postgres | 
-function | public.claim_business_events(p_limit integer) | postgres | EXECUTE | postgres | 
-function | public.claim_business_events(p_limit integer) | service_role | EXECUTE | postgres | 
-function | public.claim_guest_purchases_for_user(p_user_id uuid) | postgres | EXECUTE | postgres | 
-function | public.claim_guest_purchases_for_user(p_user_id uuid) | service_role | EXECUTE | postgres | 
-function | public.claim_license_mail(p_key text, p_email text, p_redirect_to text, p_data jsonb) | postgres | EXECUTE | postgres | 
-function | public.claim_license_mail(p_key text, p_email text, p_redirect_to text, p_data jsonb) | service_role | EXECUTE | postgres | 
-function | public.claim_paid_subscription_access(p_user_id uuid) | postgres | EXECUTE | postgres | 
-function | public.claim_paid_subscription_access(p_user_id uuid) | service_role | EXECUTE | postgres | 
-function | public.claim_webhook_delivery(p_id uuid) | postgres | EXECUTE | postgres | 
-function | public.claim_webhook_delivery(p_id uuid) | service_role | EXECUTE | postgres | 
-function | public.classify_attribution_channel(p_source text, p_medium text, p_campaign text, p_referrer_host text, p_click_type text) | postgres | EXECUTE | postgres | 
-function | public.classify_attribution_channel(p_source text, p_medium text, p_campaign text, p_referrer_host text, p_click_type text) | service_role | EXECUTE | postgres | 
-function | public.cleanup_application_rate_limits() | postgres | EXECUTE | postgres | 
-function | public.cleanup_application_rate_limits() | service_role | EXECUTE | postgres | 
-function | public.cleanup_audit_logs(retention_days integer) | postgres | EXECUTE | postgres | 
-function | public.cleanup_audit_logs(retention_days integer) | service_role | EXECUTE | postgres | 
-function | public.cleanup_captcha_nonces() | postgres | EXECUTE | postgres | 
-function | public.cleanup_captcha_nonces() | service_role | EXECUTE | postgres | 
-function | public.cleanup_expired_oto_coupons() | postgres | EXECUTE | postgres | 
-function | public.cleanup_expired_oto_coupons() | service_role | EXECUTE | postgres | 
-function | public.cleanup_old_admin_actions(retention_days integer) | postgres | EXECUTE | postgres | 
-function | public.cleanup_old_admin_actions(retention_days integer) | service_role | EXECUTE | postgres | 
-function | public.cleanup_old_guest_purchases(retention_days integer) | postgres | EXECUTE | postgres | 
-function | public.cleanup_old_guest_purchases(retention_days integer) | service_role | EXECUTE | postgres | 
-function | public.cleanup_old_price_history() | postgres | EXECUTE | postgres | 
-function | public.cleanup_old_price_history() | service_role | EXECUTE | postgres | 
-function | public.cleanup_old_rate_limits(retention_hours integer) | postgres | EXECUTE | postgres | 
-function | public.cleanup_old_rate_limits(retention_hours integer) | service_role | EXECUTE | postgres | 
-function | public.cleanup_rate_limits() | postgres | EXECUTE | postgres | 
-function | public.cleanup_rate_limits() | service_role | EXECUTE | postgres | 
-function | public.clear_admin_cache() | postgres | EXECUTE | postgres | 
-function | public.clear_admin_cache() | service_role | EXECUTE | postgres | 
-function | public.clear_license_dispute_owner() | postgres | EXECUTE | postgres | 
-function | public.clear_license_revocation_reason() | postgres | EXECUTE | postgres | 
-function | public.clear_pending_free_grant_on_access() | postgres | EXECUTE | postgres | 
-function | public.clear_pending_free_grant_on_access() | service_role | EXECUTE | postgres | 
-function | public.complete_offline_order(p_transaction_id uuid, p_paid_minor numeric) | postgres | EXECUTE | postgres | 
-function | public.complete_offline_order(p_transaction_id uuid, p_paid_minor numeric) | service_role | EXECUTE | postgres | 
-function | public.complete_order_payment_attempt(p_attempt uuid, p_session_id text, p_payment_intent text, p_amount numeric, p_now timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.complete_order_payment_attempt(p_attempt uuid, p_session_id text, p_payment_intent text, p_amount numeric, p_now timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public.confirm_event_order(p_transaction_id uuid) | postgres | EXECUTE | postgres | 
-function | public.confirm_event_order(p_transaction_id uuid) | service_role | EXECUTE | postgres | 
-function | public.confirm_lead_submission(p_token_hash text, p_email text) | postgres | EXECUTE | postgres | 
-function | public.confirm_lead_submission(p_token_hash text, p_email text) | service_role | EXECUTE | postgres | 
-function | public.confirm_refund_notification(p_refund_id text, p_version integer) | postgres | EXECUTE | postgres | 
-function | public.confirm_refund_notification(p_refund_id text, p_version integer) | service_role | EXECUTE | postgres | 
-function | public.copy_free_grant_fields() | postgres | EXECUTE | postgres | 
-function | public.copy_free_grant_fields() | service_role | EXECUTE | postgres | 
-function | public.create_refund_request(transaction_id_param uuid, reason_param text) | authenticated | EXECUTE | postgres | 
-function | public.create_refund_request(transaction_id_param uuid, reason_param text) | postgres | EXECUTE | postgres | 
-function | public.create_refund_request(transaction_id_param uuid, reason_param text) | service_role | EXECUTE | postgres | 
-function | public.currency_minor_factor(currency_code text) | postgres | EXECUTE | postgres | 
-function | public.currency_minor_factor(currency_code text) | PUBLIC | EXECUTE | postgres | 
-function | public.currency_minor_factor(currency_code text) | service_role | EXECUTE | postgres | 
-function | public.decide_refund_request(p_request_id uuid, p_status text, p_admin_id uuid, p_admin_response text, p_actor jsonb) | postgres | EXECUTE | postgres | 
-function | public.decide_refund_request(p_request_id uuid, p_status text, p_admin_id uuid, p_admin_response text, p_actor jsonb) | service_role | EXECUTE | postgres | 
-function | public.declare_transfer(p_id uuid, p_note text, p_now timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.declare_transfer(p_id uuid, p_note text, p_now timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public.defer_subscription_access_until_confirmation() | postgres | EXECUTE | postgres | 
-function | public.defer_subscription_access_until_confirmation() | service_role | EXECUTE | postgres | 
-function | public.enable_event_repeat_purchase() | postgres | EXECUTE | postgres | 
-function | public.enable_event_repeat_purchase() | service_role | EXECUTE | postgres | 
-function | public.end_refunded_subscription() | postgres | EXECUTE | postgres | 
-function | public.end_refunded_subscription_access() | postgres | EXECUTE | postgres | 
-function | public.enforce_product_type_immutable_after_sale() | postgres | EXECUTE | postgres | 
-function | public.enforce_product_type_immutable_after_sale() | service_role | EXECUTE | postgres | 
-function | public.enforce_whole_amounts_coupon() | postgres | EXECUTE | postgres | 
-function | public.enforce_whole_amounts_coupon() | service_role | EXECUTE | postgres | 
-function | public.enforce_whole_amounts_order_bump() | postgres | EXECUTE | postgres | 
-function | public.enforce_whole_amounts_order_bump() | service_role | EXECUTE | postgres | 
-function | public.enforce_whole_amounts_product() | postgres | EXECUTE | postgres | 
-function | public.enforce_whole_amounts_product() | service_role | EXECUTE | postgres | 
-function | public.enqueue_webhook_delivery(p_id uuid, p_endpoint_id uuid, p_event_type text, p_payload jsonb, p_delivery_key text, p_max_attempts integer) | postgres | EXECUTE | postgres | 
-function | public.enqueue_webhook_delivery(p_id uuid, p_endpoint_id uuid, p_event_type text, p_payload jsonb, p_delivery_key text, p_max_attempts integer) | service_role | EXECUTE | postgres | 
-function | public.event_availability(p_product_id uuid, p_at timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.event_availability(p_product_id uuid, p_at timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public.event_hold_limits(p_session_id uuid, p_email text, p_ip text) | postgres | EXECUTE | postgres | 
-function | public.event_hold_limits(p_session_id uuid, p_email text, p_ip text) | service_role | EXECUTE | postgres | 
-function | public.event_mail_access(p_email text, p_product_id uuid, p_transaction_id uuid) | postgres | EXECUTE | postgres | 
-function | public.event_mail_access(p_email text, p_product_id uuid, p_transaction_id uuid) | service_role | EXECUTE | postgres | 
-function | public.event_order_seats(p_transaction_id uuid, p_at timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.event_order_seats(p_transaction_id uuid, p_at timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public.event_session_admin(p_session_id uuid, p_offset integer) | postgres | EXECUTE | postgres | 
-function | public.event_session_admin(p_session_id uuid, p_offset integer) | service_role | EXECUTE | postgres | 
-function | public.expire_order_payment_attempt(p_session_id text) | postgres | EXECUTE | postgres | 
-function | public.expire_order_payment_attempt(p_session_id text) | service_role | EXECUTE | postgres | 
-function | public.expire_seat_reservations() | postgres | EXECUTE | postgres | 
-function | public.expire_seat_reservations() | service_role | EXECUTE | postgres | 
-function | public.fail_business_event(p_id uuid, p_error text) | postgres | EXECUTE | postgres | 
-function | public.fail_business_event(p_id uuid, p_error text) | service_role | EXECUTE | postgres | 
-function | public.find_auto_apply_coupon(customer_email_param text, product_id_param uuid) | authenticated | EXECUTE | postgres | 
-function | public.find_auto_apply_coupon(customer_email_param text, product_id_param uuid) | postgres | EXECUTE | postgres | 
-function | public.find_auto_apply_coupon(customer_email_param text, product_id_param uuid) | service_role | EXECUTE | postgres | 
-function | public.find_user_id_by_email(p_email text) | postgres | EXECUTE | postgres | 
-function | public.find_user_id_by_email(p_email text) | service_role | EXECUTE | postgres | 
-function | public.finish_license_mail(p_retry_id uuid, p_completed boolean, p_error text) | postgres | EXECUTE | postgres | 
-function | public.finish_license_mail(p_retry_id uuid, p_completed boolean, p_error text) | service_role | EXECUTE | postgres | 
-function | public.free_grant_context(p_product_id uuid, p_request_id uuid) | authenticated | EXECUTE | postgres | 
-function | public.free_grant_context(p_product_id uuid, p_request_id uuid) | postgres | EXECUTE | postgres | 
-function | public.free_grant_context(p_product_id uuid, p_request_id uuid) | service_role | EXECUTE | postgres | 
-function | public.generate_oto_coupon(source_product_id_param uuid, customer_email_param text, transaction_id_param uuid) | postgres | EXECUTE | postgres | 
-function | public.generate_oto_coupon(source_product_id_param uuid, customer_email_param text, transaction_id_param uuid) | service_role | EXECUTE | postgres | 
-function | public.get_abandoned_cart_stats(days_ago integer) | postgres | EXECUTE | postgres | 
-function | public.get_abandoned_cart_stats(days_ago integer) | service_role | EXECUTE | postgres | 
-function | public.get_abandoned_carts(days_ago integer, limit_count integer) | postgres | EXECUTE | postgres | 
-function | public.get_abandoned_carts(days_ago integer, limit_count integer) | service_role | EXECUTE | postgres | 
-function | public.get_admin_refund_requests(status_filter text, limit_param integer, offset_param integer) | authenticated | EXECUTE | postgres | 
-function | public.get_admin_refund_requests(status_filter text, limit_param integer, offset_param integer) | postgres | EXECUTE | postgres | 
-function | public.get_admin_refund_requests(status_filter text, limit_param integer, offset_param integer) | service_role | EXECUTE | postgres | 
-function | public.get_attribution_report(p_from timestamp with time zone, p_to timestamp with time zone, p_touch text, p_group_by text[], p_product uuid) | authenticated | EXECUTE | postgres | 
-function | public.get_attribution_report(p_from timestamp with time zone, p_to timestamp with time zone, p_touch text, p_group_by text[], p_product uuid) | postgres | EXECUTE | postgres | 
-function | public.get_attribution_report(p_from timestamp with time zone, p_to timestamp with time zone, p_touch text, p_group_by text[], p_product uuid) | service_role | EXECUTE | postgres | 
-function | public.get_checkout_funnel(p_days integer, p_product_id uuid) | postgres | EXECUTE | postgres | 
-function | public.get_checkout_funnel(p_days integer, p_product_id uuid) | service_role | EXECUTE | postgres | 
-function | public.get_cleanup_job_status() | postgres | EXECUTE | postgres | 
-function | public.get_cleanup_job_status() | service_role | EXECUTE | postgres | 
-function | public.get_dashboard_stats() | authenticated | EXECUTE | postgres | 
-function | public.get_dashboard_stats() | postgres | EXECUTE | postgres | 
-function | public.get_dashboard_stats() | service_role | EXECUTE | postgres | 
-function | public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start_date timestamp with time zone) | authenticated | EXECUTE | postgres | 
-function | public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start_date timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start_date timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) | authenticated | EXECUTE | postgres | 
-function | public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) | postgres | EXECUTE | postgres | 
-function | public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) | service_role | EXECUTE | postgres | 
-function | public.get_migration_status() | postgres | EXECUTE | postgres | 
-function | public.get_migration_status() | service_role | EXECUTE | postgres | 
-function | public.get_oto_coupon_info(coupon_code_param text, email_param text) | anon | EXECUTE | postgres | 
-function | public.get_oto_coupon_info(coupon_code_param text, email_param text) | authenticated | EXECUTE | postgres | 
-function | public.get_oto_coupon_info(coupon_code_param text, email_param text) | postgres | EXECUTE | postgres | 
-function | public.get_oto_coupon_info(coupon_code_param text, email_param text) | service_role | EXECUTE | postgres | 
-function | public.get_payment_statistics(start_date timestamp with time zone, end_date timestamp with time zone) | authenticated | EXECUTE | postgres | 
-function | public.get_payment_statistics(start_date timestamp with time zone, end_date timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.get_payment_statistics(start_date timestamp with time zone, end_date timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public.get_payment_summary(p_today_start timestamp with time zone, p_month_start timestamp with time zone) | authenticated | EXECUTE | postgres | 
-function | public.get_payment_summary(p_today_start timestamp with time zone, p_month_start timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.get_payment_summary(p_today_start timestamp with time zone, p_month_start timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public.get_product_order_bumps(product_id_param uuid) | anon | EXECUTE | postgres | 
-function | public.get_product_order_bumps(product_id_param uuid) | authenticated | EXECUTE | postgres | 
-function | public.get_product_order_bumps(product_id_param uuid) | postgres | EXECUTE | postgres | 
-function | public.get_product_order_bumps(product_id_param uuid) | service_role | EXECUTE | postgres | 
-function | public.get_public_integrations_config() | anon | EXECUTE | postgres | 
-function | public.get_public_integrations_config() | authenticated | EXECUTE | postgres | 
-function | public.get_public_integrations_config() | postgres | EXECUTE | postgres | 
-function | public.get_public_integrations_config() | service_role | EXECUTE | postgres | 
-function | public.get_revenue_goal(p_product_id uuid) | authenticated | EXECUTE | postgres | 
-function | public.get_revenue_goal(p_product_id uuid) | postgres | EXECUTE | postgres | 
-function | public.get_revenue_goal(p_product_id uuid) | service_role | EXECUTE | postgres | 
-function | public.get_revenue_groups(p_start timestamp with time zone, p_end timestamp with time zone, p_product_id uuid) | authenticated | EXECUTE | postgres | 
-function | public.get_revenue_groups(p_start timestamp with time zone, p_end timestamp with time zone, p_product_id uuid) | postgres | EXECUTE | postgres | 
-function | public.get_revenue_groups(p_start timestamp with time zone, p_end timestamp with time zone, p_product_id uuid) | service_role | EXECUTE | postgres | 
-function | public.get_sales_chart_data(p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_product_id uuid, p_timezone text) | authenticated | EXECUTE | postgres | 
-function | public.get_sales_chart_data(p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_product_id uuid, p_timezone text) | postgres | EXECUTE | postgres | 
-function | public.get_sales_chart_data(p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_product_id uuid, p_timezone text) | service_role | EXECUTE | postgres | 
-function | public.get_telemetry_metrics() | postgres | EXECUTE | postgres | 
-function | public.get_telemetry_metrics() | service_role | EXECUTE | postgres | 
-function | public.get_user_payment_history(user_id_param uuid) | authenticated | EXECUTE | postgres | 
-function | public.get_user_payment_history(user_id_param uuid) | postgres | EXECUTE | postgres | 
-function | public.get_user_payment_history(user_id_param uuid) | service_role | EXECUTE | postgres | 
-function | public.get_user_profile(user_id_param uuid) | authenticated | EXECUTE | postgres | 
-function | public.get_user_profile(user_id_param uuid) | postgres | EXECUTE | postgres | 
-function | public.get_user_profile(user_id_param uuid) | service_role | EXECUTE | postgres | 
-function | public.get_user_purchases_with_refund_status(user_id_param uuid) | authenticated | EXECUTE | postgres | 
-function | public.get_user_purchases_with_refund_status(user_id_param uuid) | postgres | EXECUTE | postgres | 
-function | public.get_user_purchases_with_refund_status(user_id_param uuid) | service_role | EXECUTE | postgres | 
-function | public.get_variant_group(p_group_id uuid) | anon | EXECUTE | postgres | 
-function | public.get_variant_group(p_group_id uuid) | authenticated | EXECUTE | postgres | 
-function | public.get_variant_group(p_group_id uuid) | postgres | EXECUTE | postgres | 
-function | public.get_variant_group(p_group_id uuid) | service_role | EXECUTE | postgres | 
-function | public.get_variant_group_by_slug(p_slug text) | anon | EXECUTE | postgres | 
-function | public.get_variant_group_by_slug(p_slug text) | authenticated | EXECUTE | postgres | 
-function | public.get_variant_group_by_slug(p_slug text) | postgres | EXECUTE | postgres | 
-function | public.get_variant_group_by_slug(p_slug text) | service_role | EXECUTE | postgres | 
-function | public.grant_bundle_component_access(user_id_param uuid, product_id_param uuid, max_retries integer) | postgres | EXECUTE | postgres | 
-function | public.grant_bundle_component_access(user_id_param uuid, product_id_param uuid, max_retries integer) | service_role | EXECUTE | postgres | 
-function | public.grant_bundle_component_access_impl(user_id_param uuid, product_id_param uuid, max_retries integer) | postgres | EXECUTE | postgres | 
-function | public.grant_bundle_component_access_impl(user_id_param uuid, product_id_param uuid, max_retries integer) | service_role | EXECUTE | postgres | 
-function | public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | authenticated | EXECUTE | postgres | 
-function | public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | postgres | EXECUTE | postgres | 
-function | public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | service_role | EXECUTE | postgres | 
-function | public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | authenticated | EXECUTE | postgres | 
-function | public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | postgres | EXECUTE | postgres | 
-function | public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | service_role | EXECUTE | postgres | 
-function | public.grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid) | authenticated | EXECUTE | postgres | 
-function | public.grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid) | postgres | EXECUTE | postgres | 
-function | public.grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid) | service_role | EXECUTE | postgres | 
-function | public.grant_product_access_service_role(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | postgres | EXECUTE | postgres | 
-function | public.grant_product_access_service_role(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | service_role | EXECUTE | postgres | 
-function | public.grant_product_access_service_role_impl(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | postgres | EXECUTE | postgres | 
-function | public.grant_product_access_service_role_impl(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | service_role | EXECUTE | postgres | 
-function | public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer) | postgres | EXECUTE | postgres | 
-function | public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer) | service_role | EXECUTE | postgres | 
-function | public.handle_new_user_registration() | postgres | EXECUTE | postgres | 
-function | public.handle_new_user_registration() | service_role | EXECUTE | postgres | 
-function | public.handle_user_email_confirmation() | postgres | EXECUTE | postgres | 
-function | public.handle_user_email_confirmation() | service_role | EXECUTE | postgres | 
-function | public.hold_transfer_for_invoice(p_id uuid, p_now timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.hold_transfer_for_invoice(p_id uuid, p_now timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public.increment_coupon_usage(coupon_id_param uuid) | postgres | EXECUTE | postgres | 
-function | public.increment_coupon_usage(coupon_id_param uuid) | service_role | EXECUTE | postgres | 
-function | public.increment_sale_quantity_sold(p_product_id uuid) | postgres | EXECUTE | postgres | 
-function | public.increment_sale_quantity_sold(p_product_id uuid) | service_role | EXECUTE | postgres | 
-function | public.increment_sale_quantity_sold(p_product_id uuid, p_quantity integer) | postgres | EXECUTE | postgres | 
-function | public.increment_sale_quantity_sold(p_product_id uuid, p_quantity integer) | service_role | EXECUTE | postgres | 
-function | public.increment_webhook_attempt(p_log_id uuid, p_status text, p_http_status integer, p_response_body text, p_error_message text, p_duration_ms integer, p_next_retry_at timestamp with time zone, p_failed_permanently_at timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.increment_webhook_attempt(p_log_id uuid, p_status text, p_http_status integer, p_response_body text, p_error_message text, p_duration_ms integer, p_next_retry_at timestamp with time zone, p_failed_permanently_at timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public.insert_purchase_attribution(p_tx uuid, p_product uuid, p_user uuid, p_kind text, p_payload jsonb, p_coupon uuid) | postgres | EXECUTE | postgres | 
-function | public.insert_purchase_attribution(p_tx uuid, p_product uuid, p_user uuid, p_kind text, p_payload jsonb, p_coupon uuid) | service_role | EXECUTE | postgres | 
-function | public.invoice_holds_transfer() | postgres | EXECUTE | postgres | 
-function | public.invoice_holds_transfer() | service_role | EXECUTE | postgres | 
-function | public.is_admin(user_id_param uuid) | anon | EXECUTE | postgres | 
-function | public.is_admin(user_id_param uuid) | authenticated | EXECUTE | postgres | 
-function | public.is_admin(user_id_param uuid) | postgres | EXECUTE | postgres | 
-function | public.is_admin(user_id_param uuid) | service_role | EXECUTE | postgres | 
-function | public.is_admin_cached() | anon | EXECUTE | postgres | 
-function | public.is_admin_cached() | authenticated | EXECUTE | postgres | 
-function | public.is_admin_cached() | postgres | EXECUTE | postgres | 
-function | public.is_admin_cached() | service_role | EXECUTE | postgres | 
-function | public.is_free_claimable_product(p_product_id uuid) | postgres | EXECUTE | postgres | 
-function | public.is_free_claimable_product(p_product_id uuid) | service_role | EXECUTE | postgres | 
-function | public.is_free_grantable_now(p_product_type text, p_available_from timestamp with time zone, p_available_until timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.is_free_grantable_now(p_product_type text, p_available_from timestamp with time zone, p_available_until timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) | authenticated | EXECUTE | postgres | 
-function | public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) | postgres | EXECUTE | postgres | 
-function | public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) | service_role | EXECUTE | postgres | 
-function | public.jsonschema_subset_matches(schema json, instance jsonb) | postgres | EXECUTE | postgres | 
-function | public.jsonschema_subset_matches(schema json, instance jsonb) | service_role | EXECUTE | postgres | 
-function | public.jsonschema_subset_pattern(pattern text) | postgres | EXECUTE | postgres | 
-function | public.jsonschema_subset_pattern(pattern text) | service_role | EXECUTE | postgres | 
-function | public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer) | postgres | EXECUTE | postgres | 
-function | public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer) | service_role | EXECUTE | postgres | 
-function | public.keep_refunded_subscription_access_ended() | postgres | EXECUTE | postgres | 
-function | public.keep_refunded_subscription_ended() | postgres | EXECUTE | postgres | 
-function | public.legacy_pending_free_grant_products() | postgres | EXECUTE | postgres | 
-function | public.license_event_snapshot(p_license issued_licenses) | postgres | EXECUTE | postgres | 
-function | public.license_mail_is_current(p_email text, p_keys jsonb) | postgres | EXECUTE | postgres | 
-function | public.license_mail_is_current(p_email text, p_keys jsonb) | service_role | EXECUTE | postgres | 
-function | public.license_order_references(p_order payment_transactions) | postgres | EXECUTE | postgres | 
-function | public.list_orders_missing_participants(p_unsent_only boolean, p_limit integer) | postgres | EXECUTE | postgres | 
-function | public.list_orders_missing_participants(p_unsent_only boolean, p_limit integer) | service_role | EXECUTE | postgres | 
-function | public.list_participants_reminders_due(p_now timestamp with time zone, p_limit integer) | postgres | EXECUTE | postgres | 
-function | public.list_participants_reminders_due(p_now timestamp with time zone, p_limit integer) | service_role | EXECUTE | postgres | 
-function | public.log_admin_action(action_name text, target_type text, target_id text, action_details jsonb) | postgres | EXECUTE | postgres | 
-function | public.log_admin_action(action_name text, target_type text, target_id text, action_details jsonb) | service_role | EXECUTE | postgres | 
-function | public.log_admin_action_trigger() | postgres | EXECUTE | postgres | 
-function | public.log_admin_action_trigger() | service_role | EXECUTE | postgres | 
-function | public.log_audit_entry(table_name_param text, operation_param text, old_values_param jsonb, new_values_param jsonb, user_id_param uuid) | postgres | EXECUTE | postgres | 
-function | public.log_audit_entry(table_name_param text, operation_param text, old_values_param jsonb, new_values_param jsonb, user_id_param uuid) | service_role | EXECUTE | postgres | 
-function | public.log_product_price_change() | postgres | EXECUTE | postgres | 
-function | public.log_product_price_change() | service_role | EXECUTE | postgres | 
-function | public.logs_monitoring_check(new_action_details jsonb) | postgres | EXECUTE | postgres | 
-function | public.logs_monitoring_check(new_action_details jsonb) | service_role | EXECUTE | postgres | 
-function | public.logs_monitoring_trigger() | postgres | EXECUTE | postgres | 
-function | public.logs_monitoring_trigger() | service_role | EXECUTE | postgres | 
-function | public.mark_checkout_details_missing() | postgres | EXECUTE | postgres | 
-function | public.mark_checkout_details_missing() | service_role | EXECUTE | postgres | 
-function | public.mark_expired_pending_payments() | postgres | EXECUTE | postgres | 
-function | public.mark_expired_pending_payments() | service_role | EXECUTE | postgres | 
-function | public.migrate_guest_payment_data_to_profile(p_user_id uuid) | postgres | EXECUTE | postgres | 
-function | public.migrate_guest_payment_data_to_profile(p_user_id uuid) | service_role | EXECUTE | postgres | 
-function | public.migrate_guest_purchases(p_user_id uuid, p_email text) | postgres | EXECUTE | postgres | 
-function | public.migrate_guest_purchases(p_user_id uuid, p_email text) | service_role | EXECUTE | postgres | 
-function | public.mutate_access(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) | postgres | EXECUTE | postgres | 
-function | public.mutate_access(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) | service_role | EXECUTE | postgres | 
-function | public.mutate_access_impl(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) | postgres | EXECUTE | postgres | 
-function | public.mutate_access_impl(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) | service_role | EXECUTE | postgres | 
-function | public.mutate_product_as(event_actor jsonb, operation_param text, product_data jsonb, product_id uuid, actor_id uuid) | postgres | EXECUTE | postgres | 
-function | public.mutate_product_as(event_actor jsonb, operation_param text, product_data jsonb, product_id uuid, actor_id uuid) | service_role | EXECUTE | postgres | 
-function | public.mutate_product_offer(offer_product_id uuid, expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid) | postgres | EXECUTE | postgres | 
-function | public.mutate_product_offer(offer_product_id uuid, expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid) | service_role | EXECUTE | postgres | 
-function | public.mutate_product_with_audit(operation_param text, product_data jsonb, product_id uuid, actor_id uuid) | postgres | EXECUTE | postgres | 
-function | public.mutate_product_with_audit(operation_param text, product_data jsonb, product_id uuid, actor_id uuid) | service_role | EXECUTE | postgres | 
-function | public.mutate_storefront_config(expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid, legacy_source jsonb) | postgres | EXECUTE | postgres | 
-function | public.mutate_storefront_config(expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid, legacy_source jsonb) | service_role | EXECUTE | postgres | 
-function | public.my_event_sessions(p_product_id uuid) | authenticated | EXECUTE | postgres | 
-function | public.my_event_sessions(p_product_id uuid) | postgres | EXECUTE | postgres | 
-function | public.my_event_sessions(p_product_id uuid) | service_role | EXECUTE | postgres | 
-function | public.normalize_purchase_contact() | postgres | EXECUTE | postgres | 
-function | public.observe_payment_refund(p_transaction_id uuid, p_refund_id text, p_amount integer, p_currency text, p_status text, p_initial_status text) | postgres | EXECUTE | postgres | 
-function | public.observe_payment_refund(p_transaction_id uuid, p_refund_id text, p_amount integer, p_currency text, p_status text, p_initial_status text) | service_role | EXECUTE | postgres | 
-function | public.open_order_payment_attempt(p_id uuid, p_kind text, p_amount numeric, p_currency text, p_expires_at timestamp with time zone, p_now timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.open_order_payment_attempt(p_id uuid, p_kind text, p_amount numeric, p_currency text, p_expires_at timestamp with time zone, p_now timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public.order_awaits_participants(p_order_details jsonb, p_profile jsonb, p_status text) | postgres | EXECUTE | postgres | 
-function | public.order_awaits_participants(p_order_details jsonb, p_profile jsonb, p_status text) | service_role | EXECUTE | postgres | 
-function | public.owns_product_access(p_product_id uuid) | anon | EXECUTE | postgres | 
-function | public.owns_product_access(p_product_id uuid) | authenticated | EXECUTE | postgres | 
-function | public.owns_product_access(p_product_id uuid) | postgres | EXECUTE | postgres | 
-function | public.owns_product_access(p_product_id uuid) | service_role | EXECUTE | postgres | 
-function | public.pending_free_grant_products() | authenticated | EXECUTE | postgres | 
-function | public.pending_free_grant_products() | postgres | EXECUTE | postgres | 
-function | public.pending_free_grant_products() | service_role | EXECUTE | postgres | 
-function | public.pick_due_webhook_deliveries(p_limit integer) | postgres | EXECUTE | postgres | 
-function | public.pick_due_webhook_deliveries(p_limit integer) | service_role | EXECUTE | postgres | 
-function | public.place_order(p_order jsonb, p_lines jsonb) | postgres | EXECUTE | postgres | 
-function | public.place_order(p_order jsonb, p_lines jsonb) | service_role | EXECUTE | postgres | 
-function | public.prepare_event_mail(p_email text, p_data jsonb) | postgres | EXECUTE | postgres | 
-function | public.prepare_event_mail(p_email text, p_data jsonb) | service_role | EXECUTE | postgres | 
-function | public.prepare_free_grant(p_email text, p_product_id uuid, p_values jsonb) | postgres | EXECUTE | postgres | 
-function | public.prepare_free_grant(p_email text, p_product_id uuid, p_values jsonb) | service_role | EXECUTE | postgres | 
-function | public.prevent_delete_user_with_active_subscription() | postgres | EXECUTE | postgres | 
-function | public.prevent_delete_user_with_active_subscription() | service_role | EXECUTE | postgres | 
-function | public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) | authenticated | EXECUTE | postgres | 
-function | public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) | postgres | EXECUTE | postgres | 
-function | public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) | service_role | EXECUTE | postgres | 
-function | public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | postgres | EXECUTE | postgres | 
-function | public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | service_role | EXECUTE | postgres | 
-function | public.product_catalogue_snapshot(p products) | postgres | EXECUTE | postgres | 
-function | public.product_deletion_impact(p_product_id uuid) | postgres | EXECUTE | postgres | 
-function | public.product_deletion_impact(p_product_id uuid) | service_role | EXECUTE | postgres | 
-function | public.product_marketing_valid(instance jsonb) | authenticated | EXECUTE | postgres | 
-function | public.product_marketing_valid(instance jsonb) | postgres | EXECUTE | postgres | 
-function | public.product_marketing_valid(instance jsonb) | service_role | EXECUTE | postgres | 
-function | public.product_offer_config_schema() | postgres | EXECUTE | postgres | 
-function | public.product_offer_config_schema() | service_role | EXECUTE | postgres | 
-function | public.product_offer_config_valid(config jsonb) | postgres | EXECUTE | postgres | 
-function | public.product_offer_config_valid(config jsonb) | service_role | EXECUTE | postgres | 
-function | public.product_price_snapshot(p products) | postgres | EXECUTE | postgres | 
-function | public.product_price_snapshot(p products) | service_role | EXECUTE | postgres | 
-function | public.protect_payment_method_config_created_at() | postgres | EXECUTE | postgres | 
-function | public.protect_payment_method_config_created_at() | service_role | EXECUTE | postgres | 
-function | public.public_event_availability(p_product_id uuid) | postgres | EXECUTE | postgres | 
-function | public.public_event_availability(p_product_id uuid) | service_role | EXECUTE | postgres | 
-function | public.purchase_attribution_immutable() | postgres | EXECUTE | postgres | 
-function | public.purchase_attribution_immutable() | PUBLIC | EXECUTE | postgres | 
-function | public.purchase_attribution_immutable() | service_role | EXECUTE | postgres | 
-function | public.purge_attribution_click_ids() | postgres | EXECUTE | postgres | 
-function | public.purge_attribution_click_ids() | service_role | EXECUTE | postgres | 
-function | public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text) | postgres | EXECUTE | postgres | 
-function | public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text) | service_role | EXECUTE | postgres | 
-function | public.queue_pending_free_grant(p_email text, p_product_slug text) | postgres | EXECUTE | postgres | 
-function | public.queue_pending_free_grant(p_email text, p_product_slug text) | service_role | EXECUTE | postgres | 
-function | public.record_business_event(p_event text, p_product uuid, p_payload jsonb, p_key text) | postgres | EXECUTE | postgres | 
-function | public.record_business_event(p_event text, p_product uuid, p_payload jsonb, p_key text) | service_role | EXECUTE | postgres | 
-function | public.record_free_attribution(p_product uuid, p_user uuid, p_payload jsonb) | postgres | EXECUTE | postgres | 
-function | public.record_free_attribution(p_product uuid, p_user uuid, p_payload jsonb) | service_role | EXECUTE | postgres | 
-function | public.record_free_attribution_from_ref(p_product uuid, p_user uuid, p_ref text) | postgres | EXECUTE | postgres | 
-function | public.record_free_attribution_from_ref(p_product uuid, p_user uuid, p_ref text) | service_role | EXECUTE | postgres | 
-function | public.record_invoice_correction(p_transaction uuid, p_actor uuid) | postgres | EXECUTE | postgres | 
-function | public.record_invoice_correction(p_transaction uuid, p_actor uuid) | service_role | EXECUTE | postgres | 
-function | public.record_order_payment_refund(p_attempt uuid, p_refund_id text) | postgres | EXECUTE | postgres | 
-function | public.record_order_payment_refund(p_attempt uuid, p_refund_id text) | service_role | EXECUTE | postgres | 
-function | public.record_template_credential_status(template_id text, expected_key text, expected_iv text, expected_tag text, verification_state text, checked_at timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.record_template_credential_status(template_id text, expected_key text, expected_iv text, expected_tag text, verification_state text, checked_at timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public.release_event_order() | postgres | EXECUTE | postgres | 
-function | public.release_event_order() | service_role | EXECUTE | postgres | 
-function | public.release_participant_recordings() | postgres | EXECUTE | postgres | 
-function | public.release_participant_recordings() | service_role | EXECUTE | postgres | 
-function | public.release_transfer_access() | postgres | EXECUTE | postgres | 
-function | public.release_transfer_access() | service_role | EXECUTE | postgres | 
-function | public.release_unpaid_transfer(p_id uuid, p_now timestamp with time zone) | postgres | EXECUTE | postgres | 
-function | public.release_unpaid_transfer(p_id uuid, p_now timestamp with time zone) | service_role | EXECUTE | postgres | 
-function | public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) | postgres | EXECUTE | postgres | 
-function | public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) | service_role | EXECUTE | postgres | 
-function | public.restore_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid) | postgres | EXECUTE | postgres | 
-function | public.restore_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid) | service_role | EXECUTE | postgres | 
-function | public.retain_disputed_access() | postgres | EXECUTE | postgres | 
-function | public.retain_disputed_access() | service_role | EXECUTE | postgres | 
-function | public.retry_business_event(p_id uuid) | postgres | EXECUTE | postgres | 
-function | public.retry_business_event(p_id uuid) | service_role | EXECUTE | postgres | 
-function | public.revoke_issued_licenses(p_license_ids uuid[], p_actor uuid, p_reason text) | postgres | EXECUTE | postgres | 
-function | public.revoke_issued_licenses(p_license_ids uuid[], p_actor uuid, p_reason text) | service_role | EXECUTE | postgres | 
-function | public.revoke_license_for_disputed_order() | postgres | EXECUTE | postgres | 
-function | public.revoke_order_licenses(p_product_id uuid, p_order_ids text[], p_reason text) | postgres | EXECUTE | postgres | 
-function | public.revoke_order_licenses(p_product_id uuid, p_order_ids text[], p_reason text) | service_role | EXECUTE | postgres | 
-function | public.revoke_terminal_order_licenses() | postgres | EXECUTE | postgres | 
-function | public.rotate_webhook_secret(p_endpoint_id uuid, p_secret text, p_actor_id uuid, p_api_key_id uuid) | postgres | EXECUTE | postgres | 
-function | public.rotate_webhook_secret(p_endpoint_id uuid, p_secret text, p_actor_id uuid, p_api_key_id uuid) | service_role | EXECUTE | postgres | 
-function | public.save_attribution_config(p_retention_days integer, p_rules jsonb) | authenticated | EXECUTE | postgres | 
-function | public.save_attribution_config(p_retention_days integer, p_rules jsonb) | postgres | EXECUTE | postgres | 
-function | public.save_attribution_config(p_retention_days integer, p_rules jsonb) | service_role | EXECUTE | postgres | 
-function | public.save_bank_transfer_config(p_config jsonb, p_actor uuid) | postgres | EXECUTE | postgres | 
-function | public.save_bank_transfer_config(p_config jsonb, p_actor uuid) | service_role | EXECUTE | postgres | 
-function | public.save_template_credential(template_id text, encrypted_key text, encryption_iv text, encryption_tag text, actor_user_id uuid, actor_method text, actor_api_key_id uuid) | postgres | EXECUTE | postgres | 
-function | public.save_template_credential(template_id text, encrypted_key text, encryption_iv text, encryption_tag text, actor_user_id uuid, actor_method text, actor_api_key_id uuid) | service_role | EXECUTE | postgres | 
-function | public.search_order_accesses(p_search text) | postgres | EXECUTE | postgres | 
-function | public.search_order_accesses(p_search text) | service_role | EXECUTE | postgres | 
-function | public.search_order_leads(p_search text) | postgres | EXECUTE | postgres | 
-function | public.search_order_leads(p_search text) | service_role | EXECUTE | postgres | 
-function | public.search_payment_transactions(p_search text, p_include_identifiers boolean) | postgres | EXECUTE | postgres | 
-function | public.search_payment_transactions(p_search text, p_include_identifiers boolean) | service_role | EXECUTE | postgres | 
-function | public.seller_license_public_keys(seller uuid) | anon | EXECUTE | postgres | 
-function | public.seller_license_public_keys(seller uuid) | authenticated | EXECUTE | postgres | 
-function | public.seller_license_public_keys(seller uuid) | postgres | EXECUTE | postgres | 
-function | public.seller_license_public_keys(seller uuid) | service_role | EXECUTE | postgres | 
-function | public.seller_revoked_orders(seller uuid, hash_prefix text) | postgres | EXECUTE | postgres | 
-function | public.seller_revoked_orders(seller uuid, hash_prefix text) | service_role | EXECUTE | postgres | 
-function | public.send_monitoring_email(alert_type text, alert_details jsonb) | postgres | EXECUTE | postgres | 
-function | public.send_monitoring_email(alert_type text, alert_details jsonb) | service_role | EXECUTE | postgres | 
-function | public.set_access_grant_source() | postgres | EXECUTE | postgres | 
-function | public.set_access_grant_source() | service_role | EXECUTE | postgres | 
-function | public.set_business_event_actor(p_actor jsonb) | postgres | EXECUTE | postgres | 
-function | public.set_business_event_actor(p_actor jsonb) | service_role | EXECUTE | postgres | 
-function | public.set_invoicing_auto_since() | postgres | EXECUTE | postgres | 
-function | public.set_invoicing_auto_since() | service_role | EXECUTE | postgres | 
-function | public.set_payment_order_buyer(p_buyer jsonb, p_session_id text, p_payment_intent_id text, p_only_if_missing boolean) | postgres | EXECUTE | postgres | 
-function | public.set_payment_order_buyer(p_buyer jsonb, p_session_id text, p_payment_intent_id text, p_only_if_missing boolean) | service_role | EXECUTE | postgres | 
-function | public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text) | postgres | EXECUTE | postgres | 
-function | public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text) | service_role | EXECUTE | postgres | 
-function | public.set_product_webhook_revision() | postgres | EXECUTE | postgres | 
-function | public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) | authenticated | EXECUTE | postgres | 
-function | public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) | postgres | EXECUTE | postgres | 
-function | public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) | service_role | EXECUTE | postgres | 
-function | public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[]) | postgres | EXECUTE | postgres | 
-function | public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[]) | service_role | EXECUTE | postgres | 
-function | public.snapshot_event_tier_label() | postgres | EXECUTE | postgres | 
-function | public.snapshot_event_tier_label() | service_role | EXECUTE | postgres | 
-function | public.snapshot_purchase_attribution() | postgres | EXECUTE | postgres | 
-function | public.snapshot_purchase_attribution() | service_role | EXECUTE | postgres | 
-function | public.snapshot_purchase_attribution_inserted() | postgres | EXECUTE | postgres | 
-function | public.snapshot_purchase_attribution_inserted() | service_role | EXECUTE | postgres | 
-function | public.snapshot_purchase_attribution_row(n payment_transactions) | postgres | EXECUTE | postgres | 
-function | public.snapshot_purchase_attribution_row(n payment_transactions) | service_role | EXECUTE | postgres | 
-function | public.snapshot_purchase_product_name() | postgres | EXECUTE | postgres | 
-function | public.snapshot_purchase_product_name() | service_role | EXECUTE | postgres | 
-function | public.stamp_original_seller_id() | postgres | EXECUTE | postgres | 
-function | public.stamp_original_seller_id() | service_role | EXECUTE | postgres | 
-function | public.store_checkout_attribution(p_ref text, p_payload jsonb) | postgres | EXECUTE | postgres | 
-function | public.store_checkout_attribution(p_ref text, p_payload jsonb) | service_role | EXECUTE | postgres | 
-function | public.storefront_catalogue_boundary() | postgres | EXECUTE | postgres | 
-function | public.storefront_catalogue_boundary() | service_role | EXECUTE | postgres | 
-function | public.storefront_catalogue_categories(category_ids uuid[]) | postgres | EXECUTE | postgres | 
-function | public.storefront_catalogue_categories(category_ids uuid[]) | service_role | EXECUTE | postgres | 
-function | public.storefront_catalogue_page(filters jsonb, after_created timestamp with time zone, after_id uuid, product_ids uuid[]) | postgres | EXECUTE | postgres | 
-function | public.storefront_catalogue_page(filters jsonb, after_created timestamp with time zone, after_id uuid, product_ids uuid[]) | service_role | EXECUTE | postgres | 
-function | public.storefront_config_schema() | postgres | EXECUTE | postgres | 
-function | public.storefront_config_schema() | service_role | EXECUTE | postgres | 
-function | public.storefront_config_stored_bytes(config jsonb) | postgres | EXECUTE | postgres | 
-function | public.storefront_config_stored_bytes(config jsonb) | service_role | EXECUTE | postgres | 
-function | public.storefront_config_valid(config jsonb) | postgres | EXECUTE | postgres | 
-function | public.storefront_config_valid(config jsonb) | service_role | EXECUTE | postgres | 
-function | public.submit_order_participants(p_order_id uuid, p_people jsonb) | postgres | EXECUTE | postgres | 
-function | public.submit_order_participants(p_order_id uuid, p_people jsonb) | service_role | EXECUTE | postgres | 
-function | public.telemetry_claim_send(p_window_ms bigint, p_lease_ms bigint) | postgres | EXECUTE | postgres | 
-function | public.telemetry_claim_send(p_window_ms bigint, p_lease_ms bigint) | service_role | EXECUTE | postgres | 
-function | public.telemetry_confirm_send() | postgres | EXECUTE | postgres | 
-function | public.telemetry_confirm_send() | service_role | EXECUTE | postgres | 
-function | public.transfer_access_source() | postgres | EXECUTE | postgres | 
-function | public.transfer_access_source() | service_role | EXECUTE | postgres | 
-function | public.update_payment_method_config_timestamp() | postgres | EXECUTE | postgres | 
-function | public.update_payment_method_config_timestamp() | service_role | EXECUTE | postgres | 
-function | public.update_refund_request_timestamp() | postgres | EXECUTE | postgres | 
-function | public.update_refund_request_timestamp() | service_role | EXECUTE | postgres | 
-function | public.update_refunded_at() | postgres | EXECUTE | postgres | 
-function | public.update_refunded_at() | service_role | EXECUTE | postgres | 
-function | public.update_updated_at_column() | postgres | EXECUTE | postgres | 
-function | public.update_updated_at_column() | service_role | EXECUTE | postgres | 
-function | public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) | authenticated | EXECUTE | postgres | 
-function | public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) | postgres | EXECUTE | postgres | 
-function | public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) | service_role | EXECUTE | postgres | 
-function | public.validate_bundle_item() | postgres | EXECUTE | postgres | 
-function | public.validate_bundle_item() | PUBLIC | EXECUTE | postgres | 
-function | public.validate_bundle_item() | service_role | EXECUTE | postgres | 
-function | public.validate_email_format(email_param text) | authenticated | EXECUTE | postgres | 
-function | public.validate_email_format(email_param text) | postgres | EXECUTE | postgres | 
-function | public.validate_email_format(email_param text) | service_role | EXECUTE | postgres | 
-function | public.validate_lead_consent_version() | postgres | EXECUTE | postgres | 
-function | public.validate_lead_consent_version() | service_role | EXECUTE | postgres | 
-function | public.validate_payment_transaction(transaction_id uuid) | postgres | EXECUTE | postgres | 
-function | public.validate_payment_transaction(transaction_id uuid) | service_role | EXECUTE | postgres | 
-function | public.validate_seller_embed_origins() | postgres | EXECUTE | postgres | 
-function | public.validate_seller_embed_origins() | service_role | EXECUTE | postgres | 
-function | public.verify_api_key(p_key_hash text) | postgres | EXECUTE | postgres | 
-function | public.verify_api_key(p_key_hash text) | service_role | EXECUTE | postgres | 
-function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | anon | EXECUTE | postgres | 
-function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | authenticated | EXECUTE | postgres | 
-function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | postgres | EXECUTE | postgres | 
-function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | service_role | EXECUTE | postgres | 
-schema | auth | anon | USAGE | supabase_admin | 
-schema | auth | authenticated | USAGE | supabase_admin | 
-schema | auth | dashboard_user | CREATE | supabase_admin | 
-schema | auth | dashboard_user | USAGE | supabase_admin | 
-schema | auth | postgres | USAGE | supabase_admin | 
-schema | auth | service_role | USAGE | supabase_admin | 
-schema | auth | supabase_admin | CREATE | supabase_admin | 
-schema | auth | supabase_admin | USAGE | supabase_admin | 
-schema | auth | supabase_auth_admin | CREATE | supabase_admin | 
-schema | auth | supabase_auth_admin | USAGE | supabase_admin | 
+default privileges | for supabase_admin in graphql on functions | anon | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in graphql on functions | authenticated | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in graphql on functions | postgres | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in graphql on functions | service_role | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in graphql on sequences | anon | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql on sequences | anon | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in graphql on sequences | anon | USAGE | supabase_admin | -
+default privileges | for supabase_admin in graphql on sequences | authenticated | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql on sequences | authenticated | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in graphql on sequences | authenticated | USAGE | supabase_admin | -
+default privileges | for supabase_admin in graphql on sequences | postgres | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql on sequences | postgres | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in graphql on sequences | postgres | USAGE | supabase_admin | -
+default privileges | for supabase_admin in graphql on sequences | service_role | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql on sequences | service_role | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in graphql on sequences | service_role | USAGE | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | anon | DELETE | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | anon | INSERT | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | anon | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | anon | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | anon | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | anon | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | anon | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | authenticated | DELETE | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | authenticated | INSERT | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | authenticated | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | authenticated | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | authenticated | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | authenticated | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | authenticated | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | postgres | DELETE | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | postgres | INSERT | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | postgres | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | postgres | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | postgres | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | postgres | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | postgres | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | service_role | DELETE | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | service_role | INSERT | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | service_role | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | service_role | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | service_role | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | service_role | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in graphql on tables | service_role | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on functions | anon | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on functions | authenticated | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on functions | postgres | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on functions | service_role | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on sequences | anon | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on sequences | anon | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on sequences | anon | USAGE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on sequences | authenticated | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on sequences | authenticated | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on sequences | authenticated | USAGE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on sequences | postgres | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on sequences | postgres | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on sequences | postgres | USAGE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on sequences | service_role | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on sequences | service_role | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on sequences | service_role | USAGE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | anon | DELETE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | anon | INSERT | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | anon | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | anon | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | anon | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | anon | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | anon | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | authenticated | DELETE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | authenticated | INSERT | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | authenticated | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | authenticated | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | authenticated | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | authenticated | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | authenticated | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | postgres | DELETE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | postgres | INSERT | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | postgres | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | postgres | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | postgres | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | postgres | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | postgres | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | service_role | DELETE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | service_role | INSERT | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | service_role | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | service_role | SELECT | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | service_role | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | service_role | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in graphql_public on tables | service_role | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in public on functions | anon | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in public on functions | authenticated | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in public on functions | postgres | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in public on functions | service_role | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in public on sequences | anon | SELECT | supabase_admin | -
+default privileges | for supabase_admin in public on sequences | anon | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in public on sequences | anon | USAGE | supabase_admin | -
+default privileges | for supabase_admin in public on sequences | authenticated | SELECT | supabase_admin | -
+default privileges | for supabase_admin in public on sequences | authenticated | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in public on sequences | authenticated | USAGE | supabase_admin | -
+default privileges | for supabase_admin in public on sequences | postgres | SELECT | supabase_admin | -
+default privileges | for supabase_admin in public on sequences | postgres | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in public on sequences | postgres | USAGE | supabase_admin | -
+default privileges | for supabase_admin in public on sequences | service_role | SELECT | supabase_admin | -
+default privileges | for supabase_admin in public on sequences | service_role | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in public on sequences | service_role | USAGE | supabase_admin | -
+default privileges | for supabase_admin in public on tables | anon | DELETE | supabase_admin | -
+default privileges | for supabase_admin in public on tables | anon | INSERT | supabase_admin | -
+default privileges | for supabase_admin in public on tables | anon | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in public on tables | anon | SELECT | supabase_admin | -
+default privileges | for supabase_admin in public on tables | anon | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in public on tables | anon | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in public on tables | anon | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in public on tables | authenticated | DELETE | supabase_admin | -
+default privileges | for supabase_admin in public on tables | authenticated | INSERT | supabase_admin | -
+default privileges | for supabase_admin in public on tables | authenticated | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in public on tables | authenticated | SELECT | supabase_admin | -
+default privileges | for supabase_admin in public on tables | authenticated | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in public on tables | authenticated | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in public on tables | authenticated | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in public on tables | postgres | DELETE | supabase_admin | -
+default privileges | for supabase_admin in public on tables | postgres | INSERT | supabase_admin | -
+default privileges | for supabase_admin in public on tables | postgres | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in public on tables | postgres | SELECT | supabase_admin | -
+default privileges | for supabase_admin in public on tables | postgres | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in public on tables | postgres | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in public on tables | postgres | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in public on tables | service_role | DELETE | supabase_admin | -
+default privileges | for supabase_admin in public on tables | service_role | INSERT | supabase_admin | -
+default privileges | for supabase_admin in public on tables | service_role | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in public on tables | service_role | SELECT | supabase_admin | -
+default privileges | for supabase_admin in public on tables | service_role | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in public on tables | service_role | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in public on tables | service_role | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in realtime on functions | dashboard_user | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in realtime on functions | postgres | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in realtime on sequences | dashboard_user | SELECT | supabase_admin | -
+default privileges | for supabase_admin in realtime on sequences | dashboard_user | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in realtime on sequences | dashboard_user | USAGE | supabase_admin | -
+default privileges | for supabase_admin in realtime on sequences | postgres | SELECT | supabase_admin | -
+default privileges | for supabase_admin in realtime on sequences | postgres | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in realtime on sequences | postgres | USAGE | supabase_admin | -
+default privileges | for supabase_admin in realtime on tables | dashboard_user | DELETE | supabase_admin | -
+default privileges | for supabase_admin in realtime on tables | dashboard_user | INSERT | supabase_admin | -
+default privileges | for supabase_admin in realtime on tables | dashboard_user | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in realtime on tables | dashboard_user | SELECT | supabase_admin | -
+default privileges | for supabase_admin in realtime on tables | dashboard_user | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in realtime on tables | dashboard_user | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in realtime on tables | dashboard_user | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in realtime on tables | postgres | DELETE | supabase_admin | -
+default privileges | for supabase_admin in realtime on tables | postgres | INSERT | supabase_admin | -
+default privileges | for supabase_admin in realtime on tables | postgres | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in realtime on tables | postgres | SELECT | supabase_admin | -
+default privileges | for supabase_admin in realtime on tables | postgres | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in realtime on tables | postgres | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in realtime on tables | postgres | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on functions | anon | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on functions | authenticated | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on functions | postgres | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on functions | service_role | EXECUTE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on sequences | anon | SELECT | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on sequences | anon | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on sequences | anon | USAGE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on sequences | authenticated | SELECT | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on sequences | authenticated | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on sequences | authenticated | USAGE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on sequences | postgres | SELECT | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on sequences | postgres | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on sequences | postgres | USAGE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on sequences | service_role | SELECT | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on sequences | service_role | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on sequences | service_role | USAGE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | anon | DELETE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | anon | INSERT | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | anon | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | anon | SELECT | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | anon | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | anon | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | anon | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | authenticated | DELETE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | authenticated | INSERT | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | authenticated | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | authenticated | SELECT | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | authenticated | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | authenticated | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | authenticated | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | postgres | DELETE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | postgres | INSERT | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | postgres | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | postgres | SELECT | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | postgres | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | postgres | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | postgres | UPDATE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | service_role | DELETE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | service_role | INSERT | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | service_role | REFERENCES | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | service_role | SELECT | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | service_role | TRIGGER | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | service_role | TRUNCATE | supabase_admin | -
+default privileges | for supabase_admin in supabase_functions on tables | service_role | UPDATE | supabase_admin | -
+default privileges | for supabase_auth_admin in auth on functions | dashboard_user | EXECUTE | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on functions | postgres | EXECUTE | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on sequences | dashboard_user | SELECT | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on sequences | dashboard_user | UPDATE | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on sequences | dashboard_user | USAGE | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on sequences | postgres | SELECT | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on sequences | postgres | UPDATE | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on sequences | postgres | USAGE | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on tables | dashboard_user | DELETE | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on tables | dashboard_user | INSERT | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on tables | dashboard_user | REFERENCES | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on tables | dashboard_user | SELECT | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on tables | dashboard_user | TRIGGER | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on tables | dashboard_user | TRUNCATE | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on tables | dashboard_user | UPDATE | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on tables | postgres | DELETE | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on tables | postgres | INSERT | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on tables | postgres | REFERENCES | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on tables | postgres | SELECT | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on tables | postgres | TRIGGER | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on tables | postgres | TRUNCATE | supabase_auth_admin | -
+default privileges | for supabase_auth_admin in auth on tables | postgres | UPDATE | supabase_auth_admin | -
+function | postgrest.pre_config() | authenticator | EXECUTE | postgres | -
+function | postgrest.pre_config() | postgres | EXECUTE | postgres | -
+function | public._claim_guest_purchases_before_disputes(p_user_id uuid) | postgres | EXECUTE | postgres | -
+function | public._event_line_seats(p_transaction_id uuid, p_session_id uuid, p_tier_id uuid, p_at timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public._event_line_seats(p_transaction_id uuid, p_session_id uuid, p_tier_id uuid, p_at timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public._order_grant_and_record(p_transaction_id uuid, p_user_id uuid, p_existing_user_id uuid, p_requested_user_id uuid, p_coupon_id uuid, p_coupon_mode text) | postgres | EXECUTE | postgres | -
+function | public._order_grant_and_record(p_transaction_id uuid, p_user_id uuid, p_existing_user_id uuid, p_requested_user_id uuid, p_coupon_id uuid, p_coupon_mode text) | service_role | EXECUTE | postgres | -
+function | public._place_order_without_event(p_order jsonb, p_lines jsonb) | postgres | EXECUTE | postgres | -
+function | public._process_stripe_payment_completion_with_bump_impl(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | postgres | EXECUTE | postgres | -
+function | public._process_stripe_payment_completion_with_bump_impl(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | service_role | EXECUTE | postgres | -
+function | public._redeem_coupon_for_order(coupon_id_param uuid, current_user_id uuid, existing_user_id uuid, customer_email_param text, transaction_id_var uuid) | postgres | EXECUTE | postgres | -
+function | public._redeem_coupon_for_order(coupon_id_param uuid, current_user_id uuid, existing_user_id uuid, customer_email_param text, transaction_id_var uuid) | service_role | EXECUTE | postgres | -
+function | public._reopen_cancelled_transfer(p_id uuid) | postgres | EXECUTE | postgres | -
+function | public._reopen_cancelled_transfer(p_id uuid) | service_role | EXECUTE | postgres | -
+function | public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text) | postgres | EXECUTE | postgres | -
+function | public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text) | service_role | EXECUTE | postgres | -
+function | public._supersede_order_payment_attempts(p_id uuid) | postgres | EXECUTE | postgres | -
+function | public._supersede_order_payment_attempts(p_id uuid) | service_role | EXECUTE | postgres | -
+function | public.add_access_grant_source_to_event() | postgres | EXECUTE | postgres | -
+function | public.add_access_grant_source_to_event() | service_role | EXECUTE | postgres | -
+function | public.add_event_contract_fields() | postgres | EXECUTE | postgres | -
+function | public.admin_bank_transfer_order(p_id uuid, p_action text, p_amount numeric, p_paid_at timestamp with time zone, p_reason text, p_actor uuid, p_accept_cancelled boolean, p_accept_oversold boolean) | postgres | EXECUTE | postgres | -
+function | public.admin_bank_transfer_order(p_id uuid, p_action text, p_amount numeric, p_paid_at timestamp with time zone, p_reason text, p_actor uuid, p_accept_cancelled boolean, p_accept_oversold boolean) | service_role | EXECUTE | postgres | -
+function | public.admin_delete_oto_offer(source_product_id_param uuid) | postgres | EXECUTE | postgres | -
+function | public.admin_delete_oto_offer(source_product_id_param uuid) | service_role | EXECUTE | postgres | -
+function | public.admin_get_product_order_bumps(product_id_param uuid) | postgres | EXECUTE | postgres | -
+function | public.admin_get_product_order_bumps(product_id_param uuid) | service_role | EXECUTE | postgres | -
+function | public.admin_get_product_oto_offer(product_id_param uuid) | postgres | EXECUTE | postgres | -
+function | public.admin_get_product_oto_offer(product_id_param uuid) | service_role | EXECUTE | postgres | -
+function | public.admin_save_oto_offer(source_product_id_param uuid, oto_product_id_param uuid, discount_type_param text, discount_value_param numeric, duration_minutes_param integer, is_active_param boolean, downsell_product_id_param uuid, downsell_discount_type_param text, downsell_discount_value_param numeric, downsell_duration_minutes_param integer) | postgres | EXECUTE | postgres | -
+function | public.admin_save_oto_offer(source_product_id_param uuid, oto_product_id_param uuid, discount_type_param text, discount_value_param numeric, duration_minutes_param integer, is_active_param boolean, downsell_product_id_param uuid, downsell_discount_type_param text, downsell_discount_value_param numeric, downsell_duration_minutes_param integer) | service_role | EXECUTE | postgres | -
+function | public.affiliate_admin(p_actor uuid) | postgres | EXECUTE | postgres | -
+function | public.affiliate_apply(p_user uuid, p_code text, p_display_name text, p_channel text, p_terms_version text) | postgres | EXECUTE | postgres | -
+function | public.affiliate_apply(p_user uuid, p_code text, p_display_name text, p_channel text, p_terms_version text) | service_role | EXECUTE | postgres | -
+function | public.affiliate_apply_sync(p_payment uuid, p_token uuid, p_generation bigint, p_session_created_at timestamp with time zone, p_livemode boolean) | postgres | EXECUTE | postgres | -
+function | public.affiliate_apply_sync(p_payment uuid, p_token uuid, p_generation bigint, p_session_created_at timestamp with time zone, p_livemode boolean) | service_role | EXECUTE | postgres | -
+function | public.affiliate_audit(p_table text, p_old jsonb, p_new jsonb, p_actor uuid) | postgres | EXECUTE | postgres | -
+function | public.affiliate_binding_check() | postgres | EXECUTE | postgres | -
+function | public.affiliate_cancel_payout(p_actor uuid, p_payout uuid, p_expected_version bigint, p_no_transfer boolean, p_reason text) | postgres | EXECUTE | postgres | -
+function | public.affiliate_cancel_payout(p_actor uuid, p_payout uuid, p_expected_version bigint, p_no_transfer boolean, p_reason text) | service_role | EXECUTE | postgres | -
+function | public.affiliate_check_relations() | postgres | EXECUTE | postgres | -
+function | public.affiliate_claim_work(p_limit integer) | postgres | EXECUTE | postgres | -
+function | public.affiliate_claim_work(p_limit integer) | service_role | EXECUTE | postgres | -
+function | public.affiliate_complete_unbound_work(p_payment uuid, p_token uuid, p_generation bigint) | postgres | EXECUTE | postgres | -
+function | public.affiliate_complete_unbound_work(p_payment uuid, p_token uuid, p_generation bigint) | service_role | EXECUTE | postgres | -
+function | public.affiliate_coupon_bind(p_actor uuid, p_coupon uuid, p_member uuid, p_expected_version bigint) | postgres | EXECUTE | postgres | -
+function | public.affiliate_coupon_bind(p_actor uuid, p_coupon uuid, p_member uuid, p_expected_version bigint) | service_role | EXECUTE | postgres | -
+function | public.affiliate_enqueue() | postgres | EXECUTE | postgres | -
+function | public.affiliate_guard() | postgres | EXECUTE | postgres | -
+function | public.affiliate_immutable() | postgres | EXECUTE | postgres | -
+function | public.affiliate_lock_member(p_member uuid, p_currency text, p_payments uuid[], p_livemode boolean) | postgres | EXECUTE | postgres | -
+function | public.affiliate_manual_adjustment(p_actor uuid, p_commission uuid, p_expected_version bigint, p_amount_minor bigint, p_reason text, p_evidence_reference text, p_review_dispute boolean) | postgres | EXECUTE | postgres | -
+function | public.affiliate_manual_adjustment(p_actor uuid, p_commission uuid, p_expected_version bigint, p_amount_minor bigint, p_reason text, p_evidence_reference text, p_review_dispute boolean) | service_role | EXECUTE | postgres | -
+function | public.affiliate_mark_paid(p_actor uuid, p_payout uuid, p_expected_version bigint, p_bank_reference text, p_invoice_reference text, p_bank_amount_minor bigint, p_currency text, p_paid_at timestamp with time zone, p_full_settlement boolean, p_reason text, p_evidence_reference text, p_livemode boolean) | postgres | EXECUTE | postgres | -
+function | public.affiliate_mark_paid(p_actor uuid, p_payout uuid, p_expected_version bigint, p_bank_reference text, p_invoice_reference text, p_bank_amount_minor bigint, p_currency text, p_paid_at timestamp with time zone, p_full_settlement boolean, p_reason text, p_evidence_reference text, p_livemode boolean) | service_role | EXECUTE | postgres | -
+function | public.affiliate_member_update(p_actor uuid, p_member uuid, p_expected_version bigint, p_status text, p_reason text) | postgres | EXECUTE | postgres | -
+function | public.affiliate_member_update(p_actor uuid, p_member uuid, p_expected_version bigint, p_status text, p_reason text) | service_role | EXECUTE | postgres | -
+function | public.affiliate_portal_page(p_member uuid, p_currency text, p_cursor uuid, p_limit integer, p_as_of timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.affiliate_portal_page(p_member uuid, p_currency text, p_cursor uuid, p_limit integer, p_as_of timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.affiliate_portal_summary(p_member uuid, p_as_of timestamp with time zone, p_livemode boolean) | postgres | EXECUTE | postgres | -
+function | public.affiliate_portal_summary(p_member uuid, p_as_of timestamp with time zone, p_livemode boolean) | service_role | EXECUTE | postgres | -
+function | public.affiliate_preview(p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_livemode boolean) | postgres | EXECUTE | postgres | -
+function | public.affiliate_preview(p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_livemode boolean) | service_role | EXECUTE | postgres | -
+function | public.affiliate_program_update(p_actor uuid, p_expected_version bigint, p_enabled boolean, p_terms_version text, p_terms jsonb, p_hold_days integer, p_buffer_days integer, p_thresholds jsonb) | postgres | EXECUTE | postgres | -
+function | public.affiliate_program_update(p_actor uuid, p_expected_version bigint, p_enabled boolean, p_terms_version text, p_terms jsonb, p_hold_days integer, p_buffer_days integer, p_thresholds jsonb) | service_role | EXECUTE | postgres | -
+function | public.affiliate_reserve(p_actor uuid, p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_member_version bigint, p_program_version bigint, p_payee_reference text, p_livemode boolean) | postgres | EXECUTE | postgres | -
+function | public.affiliate_reserve(p_actor uuid, p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_member_version bigint, p_program_version bigint, p_payee_reference text, p_livemode boolean) | service_role | EXECUTE | postgres | -
+function | public.affiliate_retry_work(p_payment uuid, p_token uuid, p_generation bigint, p_error text) | postgres | EXECUTE | postgres | -
+function | public.affiliate_retry_work(p_payment uuid, p_token uuid, p_generation bigint, p_error text) | service_role | EXECUTE | postgres | -
+function | public.affiliate_rule_create(p_actor uuid, p_product uuid, p_expected_revision integer, p_enabled boolean, p_percentage_bps integer, p_fixed_minor bigint, p_currency text) | postgres | EXECUTE | postgres | -
+function | public.affiliate_rule_create(p_actor uuid, p_product uuid, p_expected_revision integer, p_enabled boolean, p_percentage_bps integer, p_fixed_minor bigint, p_currency text) | service_role | EXECUTE | postgres | -
+function | public.affiliate_rule_guard() | postgres | EXECUTE | postgres | -
+function | public.affiliate_rule_guard() | service_role | EXECUTE | postgres | -
+function | public.affiliate_valid_program(p_terms jsonb, p_thresholds jsonb) | postgres | EXECUTE | postgres | -
+function | public.affiliate_valid_program(p_terms jsonb, p_thresholds jsonb) | service_role | EXECUTE | postgres | -
+function | public.affiliate_valid_reference(p_value text) | postgres | EXECUTE | postgres | -
+function | public.affiliate_valid_reference(p_value text) | service_role | EXECUTE | postgres | -
+function | public.affiliate_work_retry(p_actor uuid, p_payment uuid, p_generation bigint, p_reason text) | postgres | EXECUTE | postgres | -
+function | public.affiliate_work_retry(p_actor uuid, p_payment uuid, p_generation bigint, p_reason text) | service_role | EXECUTE | postgres | -
+function | public.apply_migration(migration_version text, migration_sql text, content_checksum text) | postgres | EXECUTE | postgres | -
+function | public.apply_migration(migration_version text, migration_sql text, content_checksum text) | service_role | EXECUTE | postgres | -
+function | public.apply_payment_dispute(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.apply_payment_dispute(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.apply_payment_dispute_before_guest_claim(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.apply_shop_vat_defaults() | postgres | EXECUTE | postgres | -
+function | public.apply_shop_vat_defaults() | service_role | EXECUTE | postgres | -
+function | public.attach_order_payment_session(p_attempt uuid, p_session_id text, p_url text) | postgres | EXECUTE | postgres | -
+function | public.attach_order_payment_session(p_attempt uuid, p_session_id text, p_url text) | service_role | EXECUTE | postgres | -
+function | public.attribution_text(p jsonb, k text, max_len integer) | postgres | EXECUTE | postgres | -
+function | public.attribution_text(p jsonb, k text, max_len integer) | service_role | EXECUTE | postgres | -
+function | public.attribution_time(p jsonb, k text) | postgres | EXECUTE | postgres | -
+function | public.attribution_time(p jsonb, k text) | service_role | EXECUTE | postgres | -
+function | public.audit_checkout_profile() | postgres | EXECUTE | postgres | -
+function | public.audit_checkout_profile() | service_role | EXECUTE | postgres | -
+function | public.audit_trigger_function() | postgres | EXECUTE | postgres | -
+function | public.audit_trigger_function() | service_role | EXECUTE | postgres | -
+function | public.bank_transfer_order(p_order jsonb, p_lines jsonb) | postgres | EXECUTE | postgres | -
+function | public.bank_transfer_order(p_order jsonb, p_lines jsonb) | service_role | EXECUTE | postgres | -
+function | public.batch_check_user_product_access(product_slugs_param text[]) | anon | EXECUTE | postgres | -
+function | public.batch_check_user_product_access(product_slugs_param text[]) | authenticated | EXECUTE | postgres | -
+function | public.batch_check_user_product_access(product_slugs_param text[]) | postgres | EXECUTE | postgres | -
+function | public.batch_check_user_product_access(product_slugs_param text[]) | service_role | EXECUTE | postgres | -
+function | public.bind_access_license() | postgres | EXECUTE | postgres | -
+function | public.bind_access_license() | service_role | EXECUTE | postgres | -
+function | public.business_event_actor() | postgres | EXECUTE | postgres | -
+function | public.business_event_actor() | service_role | EXECUTE | postgres | -
+function | public.business_event_order(p_transaction uuid) | postgres | EXECUTE | postgres | -
+function | public.business_event_order(p_transaction uuid) | service_role | EXECUTE | postgres | -
+function | public.business_event_partner(p_member uuid) | postgres | EXECUTE | postgres | -
+function | public.business_event_partner(p_member uuid) | service_role | EXECUTE | postgres | -
+function | public.buyer_mail_locale(p_email text) | postgres | EXECUTE | postgres | -
+function | public.buyer_mail_locale(p_email text) | service_role | EXECUTE | postgres | -
+function | public.cancel_unpaid_order(p_transaction_id uuid, p_reason text) | postgres | EXECUTE | postgres | -
+function | public.cancel_unpaid_order(p_transaction_id uuid, p_reason text) | service_role | EXECUTE | postgres | -
+function | public.capture_business_event() | postgres | EXECUTE | postgres | -
+function | public.capture_business_event() | service_role | EXECUTE | postgres | -
+function | public.capture_commission_event() | postgres | EXECUTE | postgres | -
+function | public.capture_commission_event() | service_role | EXECUTE | postgres | -
+function | public.capture_due_renewal_notices() | postgres | EXECUTE | postgres | -
+function | public.capture_due_renewal_notices() | service_role | EXECUTE | postgres | -
+function | public.capture_expired_access() | postgres | EXECUTE | postgres | -
+function | public.capture_expired_access() | service_role | EXECUTE | postgres | -
+function | public.capture_expired_licenses() | postgres | EXECUTE | postgres | -
+function | public.capture_expired_licenses() | service_role | EXECUTE | postgres | -
+function | public.capture_license_expiry_updated() | postgres | EXECUTE | postgres | -
+function | public.capture_license_issued_event() | postgres | EXECUTE | postgres | -
+function | public.capture_license_status_event() | postgres | EXECUTE | postgres | -
+function | public.capture_payout_event() | postgres | EXECUTE | postgres | -
+function | public.capture_payout_event() | service_role | EXECUTE | postgres | -
+function | public.capture_product_event() | postgres | EXECUTE | postgres | -
+function | public.capture_product_event() | service_role | EXECUTE | postgres | -
+function | public.capture_product_lifecycle_event() | postgres | EXECUTE | postgres | -
+function | public.capture_refund_request_event() | postgres | EXECUTE | postgres | -
+function | public.capture_refund_request_event() | service_role | EXECUTE | postgres | -
+function | public.capture_sales_invoice_event() | postgres | EXECUTE | postgres | -
+function | public.capture_sales_invoice_event() | service_role | EXECUTE | postgres | -
+function | public.capture_sold_out_event() | postgres | EXECUTE | postgres | -
+function | public.capture_sold_out_event() | service_role | EXECUTE | postgres | -
+function | public.capture_subscription_period_access() | postgres | EXECUTE | postgres | -
+function | public.check_application_rate_limit(identifier_param text, action_type_param text, max_requests integer, window_minutes integer) | postgres | EXECUTE | postgres | -
+function | public.check_application_rate_limit(identifier_param text, action_type_param text, max_requests integer, window_minutes integer) | service_role | EXECUTE | postgres | -
+function | public.check_rate_limit(function_name_param text, max_calls integer, time_window_seconds integer, identifier_param text) | postgres | EXECUTE | postgres | -
+function | public.check_rate_limit(function_name_param text, max_calls integer, time_window_seconds integer, identifier_param text) | service_role | EXECUTE | postgres | -
+function | public.check_refund_eligibility(transaction_id_param uuid) | authenticated | EXECUTE | postgres | -
+function | public.check_refund_eligibility(transaction_id_param uuid) | postgres | EXECUTE | postgres | -
+function | public.check_refund_eligibility(transaction_id_param uuid) | service_role | EXECUTE | postgres | -
+function | public.check_user_product_access(product_slug_param text) | anon | EXECUTE | postgres | -
+function | public.check_user_product_access(product_slug_param text) | authenticated | EXECUTE | postgres | -
+function | public.check_user_product_access(product_slug_param text) | postgres | EXECUTE | postgres | -
+function | public.check_user_product_access(product_slug_param text) | service_role | EXECUTE | postgres | -
+function | public.check_waitlist_config() | authenticated | EXECUTE | postgres | -
+function | public.check_waitlist_config() | postgres | EXECUTE | postgres | -
+function | public.check_waitlist_config() | service_role | EXECUTE | postgres | -
+function | public.claim_auth_mail_retries(p_limit integer) | postgres | EXECUTE | postgres | -
+function | public.claim_auth_mail_retries(p_limit integer) | service_role | EXECUTE | postgres | -
+function | public.claim_business_events(p_limit integer) | postgres | EXECUTE | postgres | -
+function | public.claim_business_events(p_limit integer) | service_role | EXECUTE | postgres | -
+function | public.claim_guest_purchases_for_user(p_user_id uuid) | postgres | EXECUTE | postgres | -
+function | public.claim_guest_purchases_for_user(p_user_id uuid) | service_role | EXECUTE | postgres | -
+function | public.claim_license_mail(p_key text, p_email text, p_redirect_to text, p_data jsonb) | postgres | EXECUTE | postgres | -
+function | public.claim_license_mail(p_key text, p_email text, p_redirect_to text, p_data jsonb) | service_role | EXECUTE | postgres | -
+function | public.claim_paid_subscription_access(p_user_id uuid) | postgres | EXECUTE | postgres | -
+function | public.claim_paid_subscription_access(p_user_id uuid) | service_role | EXECUTE | postgres | -
+function | public.claim_webhook_delivery(p_id uuid) | postgres | EXECUTE | postgres | -
+function | public.claim_webhook_delivery(p_id uuid) | service_role | EXECUTE | postgres | -
+function | public.classify_attribution_channel(p_source text, p_medium text, p_campaign text, p_referrer_host text, p_click_type text) | postgres | EXECUTE | postgres | -
+function | public.classify_attribution_channel(p_source text, p_medium text, p_campaign text, p_referrer_host text, p_click_type text) | service_role | EXECUTE | postgres | -
+function | public.cleanup_application_rate_limits() | postgres | EXECUTE | postgres | -
+function | public.cleanup_application_rate_limits() | service_role | EXECUTE | postgres | -
+function | public.cleanup_audit_logs(retention_days integer) | postgres | EXECUTE | postgres | -
+function | public.cleanup_audit_logs(retention_days integer) | service_role | EXECUTE | postgres | -
+function | public.cleanup_captcha_nonces() | postgres | EXECUTE | postgres | -
+function | public.cleanup_captcha_nonces() | service_role | EXECUTE | postgres | -
+function | public.cleanup_expired_oto_coupons() | postgres | EXECUTE | postgres | -
+function | public.cleanup_expired_oto_coupons() | service_role | EXECUTE | postgres | -
+function | public.cleanup_old_admin_actions(retention_days integer) | postgres | EXECUTE | postgres | -
+function | public.cleanup_old_admin_actions(retention_days integer) | service_role | EXECUTE | postgres | -
+function | public.cleanup_old_guest_purchases(retention_days integer) | postgres | EXECUTE | postgres | -
+function | public.cleanup_old_guest_purchases(retention_days integer) | service_role | EXECUTE | postgres | -
+function | public.cleanup_old_price_history() | postgres | EXECUTE | postgres | -
+function | public.cleanup_old_price_history() | service_role | EXECUTE | postgres | -
+function | public.cleanup_old_rate_limits(retention_hours integer) | postgres | EXECUTE | postgres | -
+function | public.cleanup_old_rate_limits(retention_hours integer) | service_role | EXECUTE | postgres | -
+function | public.cleanup_rate_limits() | postgres | EXECUTE | postgres | -
+function | public.cleanup_rate_limits() | service_role | EXECUTE | postgres | -
+function | public.clear_admin_cache() | postgres | EXECUTE | postgres | -
+function | public.clear_admin_cache() | service_role | EXECUTE | postgres | -
+function | public.clear_license_dispute_owner() | postgres | EXECUTE | postgres | -
+function | public.clear_license_revocation_reason() | postgres | EXECUTE | postgres | -
+function | public.clear_pending_free_grant_on_access() | postgres | EXECUTE | postgres | -
+function | public.clear_pending_free_grant_on_access() | service_role | EXECUTE | postgres | -
+function | public.complete_offline_order(p_transaction_id uuid, p_paid_minor numeric) | postgres | EXECUTE | postgres | -
+function | public.complete_offline_order(p_transaction_id uuid, p_paid_minor numeric) | service_role | EXECUTE | postgres | -
+function | public.complete_order_payment_attempt(p_attempt uuid, p_session_id text, p_payment_intent text, p_amount numeric, p_now timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.complete_order_payment_attempt(p_attempt uuid, p_session_id text, p_payment_intent text, p_amount numeric, p_now timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.confirm_event_order(p_transaction_id uuid) | postgres | EXECUTE | postgres | -
+function | public.confirm_event_order(p_transaction_id uuid) | service_role | EXECUTE | postgres | -
+function | public.confirm_lead_submission(p_token_hash text, p_email text) | postgres | EXECUTE | postgres | -
+function | public.confirm_lead_submission(p_token_hash text, p_email text) | service_role | EXECUTE | postgres | -
+function | public.confirm_refund_notification(p_refund_id text, p_version integer) | postgres | EXECUTE | postgres | -
+function | public.confirm_refund_notification(p_refund_id text, p_version integer) | service_role | EXECUTE | postgres | -
+function | public.copy_free_grant_fields() | postgres | EXECUTE | postgres | -
+function | public.copy_free_grant_fields() | service_role | EXECUTE | postgres | -
+function | public.create_refund_request(transaction_id_param uuid, reason_param text) | authenticated | EXECUTE | postgres | -
+function | public.create_refund_request(transaction_id_param uuid, reason_param text) | postgres | EXECUTE | postgres | -
+function | public.create_refund_request(transaction_id_param uuid, reason_param text) | service_role | EXECUTE | postgres | -
+function | public.currency_minor_factor(currency_code text) | postgres | EXECUTE | postgres | -
+function | public.currency_minor_factor(currency_code text) | PUBLIC | EXECUTE | postgres | -
+function | public.currency_minor_factor(currency_code text) | service_role | EXECUTE | postgres | -
+function | public.decide_refund_request(p_request_id uuid, p_status text, p_admin_id uuid, p_admin_response text, p_actor jsonb) | postgres | EXECUTE | postgres | -
+function | public.decide_refund_request(p_request_id uuid, p_status text, p_admin_id uuid, p_admin_response text, p_actor jsonb) | service_role | EXECUTE | postgres | -
+function | public.declare_transfer(p_id uuid, p_note text, p_now timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.declare_transfer(p_id uuid, p_note text, p_now timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.defer_subscription_access_until_confirmation() | postgres | EXECUTE | postgres | -
+function | public.defer_subscription_access_until_confirmation() | service_role | EXECUTE | postgres | -
+function | public.enable_event_repeat_purchase() | postgres | EXECUTE | postgres | -
+function | public.enable_event_repeat_purchase() | service_role | EXECUTE | postgres | -
+function | public.end_refunded_subscription() | postgres | EXECUTE | postgres | -
+function | public.end_refunded_subscription_access() | postgres | EXECUTE | postgres | -
+function | public.enforce_product_type_immutable_after_sale() | postgres | EXECUTE | postgres | -
+function | public.enforce_product_type_immutable_after_sale() | service_role | EXECUTE | postgres | -
+function | public.enforce_whole_amounts_coupon() | postgres | EXECUTE | postgres | -
+function | public.enforce_whole_amounts_coupon() | service_role | EXECUTE | postgres | -
+function | public.enforce_whole_amounts_order_bump() | postgres | EXECUTE | postgres | -
+function | public.enforce_whole_amounts_order_bump() | service_role | EXECUTE | postgres | -
+function | public.enforce_whole_amounts_product() | postgres | EXECUTE | postgres | -
+function | public.enforce_whole_amounts_product() | service_role | EXECUTE | postgres | -
+function | public.enqueue_webhook_delivery(p_id uuid, p_endpoint_id uuid, p_event_type text, p_payload jsonb, p_delivery_key text, p_max_attempts integer) | postgres | EXECUTE | postgres | -
+function | public.enqueue_webhook_delivery(p_id uuid, p_endpoint_id uuid, p_event_type text, p_payload jsonb, p_delivery_key text, p_max_attempts integer) | service_role | EXECUTE | postgres | -
+function | public.event_availability(p_product_id uuid, p_at timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.event_availability(p_product_id uuid, p_at timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.event_hold_limits(p_session_id uuid, p_email text, p_ip text) | postgres | EXECUTE | postgres | -
+function | public.event_hold_limits(p_session_id uuid, p_email text, p_ip text) | service_role | EXECUTE | postgres | -
+function | public.event_mail_access(p_email text, p_product_id uuid, p_transaction_id uuid) | postgres | EXECUTE | postgres | -
+function | public.event_mail_access(p_email text, p_product_id uuid, p_transaction_id uuid) | service_role | EXECUTE | postgres | -
+function | public.event_order_seats(p_transaction_id uuid, p_at timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.event_order_seats(p_transaction_id uuid, p_at timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.event_session_admin(p_session_id uuid, p_offset integer) | postgres | EXECUTE | postgres | -
+function | public.event_session_admin(p_session_id uuid, p_offset integer) | service_role | EXECUTE | postgres | -
+function | public.expire_order_payment_attempt(p_session_id text) | postgres | EXECUTE | postgres | -
+function | public.expire_order_payment_attempt(p_session_id text) | service_role | EXECUTE | postgres | -
+function | public.expire_seat_reservations() | postgres | EXECUTE | postgres | -
+function | public.expire_seat_reservations() | service_role | EXECUTE | postgres | -
+function | public.fail_business_event(p_id uuid, p_error text) | postgres | EXECUTE | postgres | -
+function | public.fail_business_event(p_id uuid, p_error text) | service_role | EXECUTE | postgres | -
+function | public.find_auto_apply_coupon(customer_email_param text, product_id_param uuid) | authenticated | EXECUTE | postgres | -
+function | public.find_auto_apply_coupon(customer_email_param text, product_id_param uuid) | postgres | EXECUTE | postgres | -
+function | public.find_auto_apply_coupon(customer_email_param text, product_id_param uuid) | service_role | EXECUTE | postgres | -
+function | public.find_user_id_by_email(p_email text) | postgres | EXECUTE | postgres | -
+function | public.find_user_id_by_email(p_email text) | service_role | EXECUTE | postgres | -
+function | public.finish_license_mail(p_retry_id uuid, p_completed boolean, p_error text) | postgres | EXECUTE | postgres | -
+function | public.finish_license_mail(p_retry_id uuid, p_completed boolean, p_error text) | service_role | EXECUTE | postgres | -
+function | public.free_grant_context(p_product_id uuid, p_request_id uuid) | authenticated | EXECUTE | postgres | -
+function | public.free_grant_context(p_product_id uuid, p_request_id uuid) | postgres | EXECUTE | postgres | -
+function | public.free_grant_context(p_product_id uuid, p_request_id uuid) | service_role | EXECUTE | postgres | -
+function | public.generate_oto_coupon(source_product_id_param uuid, customer_email_param text, transaction_id_param uuid) | postgres | EXECUTE | postgres | -
+function | public.generate_oto_coupon(source_product_id_param uuid, customer_email_param text, transaction_id_param uuid) | service_role | EXECUTE | postgres | -
+function | public.get_abandoned_cart_stats(days_ago integer) | postgres | EXECUTE | postgres | -
+function | public.get_abandoned_cart_stats(days_ago integer) | service_role | EXECUTE | postgres | -
+function | public.get_abandoned_carts(days_ago integer, limit_count integer) | postgres | EXECUTE | postgres | -
+function | public.get_abandoned_carts(days_ago integer, limit_count integer) | service_role | EXECUTE | postgres | -
+function | public.get_admin_refund_requests(status_filter text, limit_param integer, offset_param integer) | authenticated | EXECUTE | postgres | -
+function | public.get_admin_refund_requests(status_filter text, limit_param integer, offset_param integer) | postgres | EXECUTE | postgres | -
+function | public.get_admin_refund_requests(status_filter text, limit_param integer, offset_param integer) | service_role | EXECUTE | postgres | -
+function | public.get_attribution_report(p_from timestamp with time zone, p_to timestamp with time zone, p_touch text, p_group_by text[], p_product uuid) | authenticated | EXECUTE | postgres | -
+function | public.get_attribution_report(p_from timestamp with time zone, p_to timestamp with time zone, p_touch text, p_group_by text[], p_product uuid) | postgres | EXECUTE | postgres | -
+function | public.get_attribution_report(p_from timestamp with time zone, p_to timestamp with time zone, p_touch text, p_group_by text[], p_product uuid) | service_role | EXECUTE | postgres | -
+function | public.get_checkout_funnel(p_days integer, p_product_id uuid) | postgres | EXECUTE | postgres | -
+function | public.get_checkout_funnel(p_days integer, p_product_id uuid) | service_role | EXECUTE | postgres | -
+function | public.get_cleanup_job_status() | postgres | EXECUTE | postgres | -
+function | public.get_cleanup_job_status() | service_role | EXECUTE | postgres | -
+function | public.get_dashboard_stats() | authenticated | EXECUTE | postgres | -
+function | public.get_dashboard_stats() | postgres | EXECUTE | postgres | -
+function | public.get_dashboard_stats() | service_role | EXECUTE | postgres | -
+function | public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start_date timestamp with time zone) | authenticated | EXECUTE | postgres | -
+function | public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start_date timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start_date timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) | authenticated | EXECUTE | postgres | -
+function | public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) | postgres | EXECUTE | postgres | -
+function | public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) | service_role | EXECUTE | postgres | -
+function | public.get_migration_status() | postgres | EXECUTE | postgres | -
+function | public.get_migration_status() | service_role | EXECUTE | postgres | -
+function | public.get_oto_coupon_info(coupon_code_param text, email_param text) | anon | EXECUTE | postgres | -
+function | public.get_oto_coupon_info(coupon_code_param text, email_param text) | authenticated | EXECUTE | postgres | -
+function | public.get_oto_coupon_info(coupon_code_param text, email_param text) | postgres | EXECUTE | postgres | -
+function | public.get_oto_coupon_info(coupon_code_param text, email_param text) | service_role | EXECUTE | postgres | -
+function | public.get_payment_statistics(start_date timestamp with time zone, end_date timestamp with time zone) | authenticated | EXECUTE | postgres | -
+function | public.get_payment_statistics(start_date timestamp with time zone, end_date timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.get_payment_statistics(start_date timestamp with time zone, end_date timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.get_payment_summary(p_today_start timestamp with time zone, p_month_start timestamp with time zone) | authenticated | EXECUTE | postgres | -
+function | public.get_payment_summary(p_today_start timestamp with time zone, p_month_start timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.get_payment_summary(p_today_start timestamp with time zone, p_month_start timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.get_product_order_bumps(product_id_param uuid) | anon | EXECUTE | postgres | -
+function | public.get_product_order_bumps(product_id_param uuid) | authenticated | EXECUTE | postgres | -
+function | public.get_product_order_bumps(product_id_param uuid) | postgres | EXECUTE | postgres | -
+function | public.get_product_order_bumps(product_id_param uuid) | service_role | EXECUTE | postgres | -
+function | public.get_public_integrations_config() | anon | EXECUTE | postgres | -
+function | public.get_public_integrations_config() | authenticated | EXECUTE | postgres | -
+function | public.get_public_integrations_config() | postgres | EXECUTE | postgres | -
+function | public.get_public_integrations_config() | service_role | EXECUTE | postgres | -
+function | public.get_revenue_goal(p_product_id uuid) | authenticated | EXECUTE | postgres | -
+function | public.get_revenue_goal(p_product_id uuid) | postgres | EXECUTE | postgres | -
+function | public.get_revenue_goal(p_product_id uuid) | service_role | EXECUTE | postgres | -
+function | public.get_revenue_groups(p_start timestamp with time zone, p_end timestamp with time zone, p_product_id uuid) | authenticated | EXECUTE | postgres | -
+function | public.get_revenue_groups(p_start timestamp with time zone, p_end timestamp with time zone, p_product_id uuid) | postgres | EXECUTE | postgres | -
+function | public.get_revenue_groups(p_start timestamp with time zone, p_end timestamp with time zone, p_product_id uuid) | service_role | EXECUTE | postgres | -
+function | public.get_sales_chart_data(p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_product_id uuid, p_timezone text) | authenticated | EXECUTE | postgres | -
+function | public.get_sales_chart_data(p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_product_id uuid, p_timezone text) | postgres | EXECUTE | postgres | -
+function | public.get_sales_chart_data(p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_product_id uuid, p_timezone text) | service_role | EXECUTE | postgres | -
+function | public.get_telemetry_metrics() | postgres | EXECUTE | postgres | -
+function | public.get_telemetry_metrics() | service_role | EXECUTE | postgres | -
+function | public.get_user_payment_history(user_id_param uuid) | authenticated | EXECUTE | postgres | -
+function | public.get_user_payment_history(user_id_param uuid) | postgres | EXECUTE | postgres | -
+function | public.get_user_payment_history(user_id_param uuid) | service_role | EXECUTE | postgres | -
+function | public.get_user_profile(user_id_param uuid) | authenticated | EXECUTE | postgres | -
+function | public.get_user_profile(user_id_param uuid) | postgres | EXECUTE | postgres | -
+function | public.get_user_profile(user_id_param uuid) | service_role | EXECUTE | postgres | -
+function | public.get_user_purchases_with_refund_status(user_id_param uuid) | authenticated | EXECUTE | postgres | -
+function | public.get_user_purchases_with_refund_status(user_id_param uuid) | postgres | EXECUTE | postgres | -
+function | public.get_user_purchases_with_refund_status(user_id_param uuid) | service_role | EXECUTE | postgres | -
+function | public.get_variant_group(p_group_id uuid) | anon | EXECUTE | postgres | -
+function | public.get_variant_group(p_group_id uuid) | authenticated | EXECUTE | postgres | -
+function | public.get_variant_group(p_group_id uuid) | postgres | EXECUTE | postgres | -
+function | public.get_variant_group(p_group_id uuid) | service_role | EXECUTE | postgres | -
+function | public.get_variant_group_by_slug(p_slug text) | anon | EXECUTE | postgres | -
+function | public.get_variant_group_by_slug(p_slug text) | authenticated | EXECUTE | postgres | -
+function | public.get_variant_group_by_slug(p_slug text) | postgres | EXECUTE | postgres | -
+function | public.get_variant_group_by_slug(p_slug text) | service_role | EXECUTE | postgres | -
+function | public.grant_bundle_component_access(user_id_param uuid, product_id_param uuid, max_retries integer) | postgres | EXECUTE | postgres | -
+function | public.grant_bundle_component_access(user_id_param uuid, product_id_param uuid, max_retries integer) | service_role | EXECUTE | postgres | -
+function | public.grant_bundle_component_access_impl(user_id_param uuid, product_id_param uuid, max_retries integer) | postgres | EXECUTE | postgres | -
+function | public.grant_bundle_component_access_impl(user_id_param uuid, product_id_param uuid, max_retries integer) | service_role | EXECUTE | postgres | -
+function | public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | authenticated | EXECUTE | postgres | -
+function | public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | postgres | EXECUTE | postgres | -
+function | public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | service_role | EXECUTE | postgres | -
+function | public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | authenticated | EXECUTE | postgres | -
+function | public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | postgres | EXECUTE | postgres | -
+function | public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | service_role | EXECUTE | postgres | -
+function | public.grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid) | authenticated | EXECUTE | postgres | -
+function | public.grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid) | postgres | EXECUTE | postgres | -
+function | public.grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid) | service_role | EXECUTE | postgres | -
+function | public.grant_product_access_service_role(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | postgres | EXECUTE | postgres | -
+function | public.grant_product_access_service_role(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | service_role | EXECUTE | postgres | -
+function | public.grant_product_access_service_role_impl(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | postgres | EXECUTE | postgres | -
+function | public.grant_product_access_service_role_impl(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | service_role | EXECUTE | postgres | -
+function | public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer) | postgres | EXECUTE | postgres | -
+function | public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer) | service_role | EXECUTE | postgres | -
+function | public.handle_new_user_registration() | postgres | EXECUTE | postgres | -
+function | public.handle_new_user_registration() | service_role | EXECUTE | postgres | -
+function | public.handle_user_email_confirmation() | postgres | EXECUTE | postgres | -
+function | public.handle_user_email_confirmation() | service_role | EXECUTE | postgres | -
+function | public.hold_transfer_for_invoice(p_id uuid, p_now timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.hold_transfer_for_invoice(p_id uuid, p_now timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.increment_coupon_usage(coupon_id_param uuid) | postgres | EXECUTE | postgres | -
+function | public.increment_coupon_usage(coupon_id_param uuid) | service_role | EXECUTE | postgres | -
+function | public.increment_sale_quantity_sold(p_product_id uuid) | postgres | EXECUTE | postgres | -
+function | public.increment_sale_quantity_sold(p_product_id uuid) | service_role | EXECUTE | postgres | -
+function | public.increment_sale_quantity_sold(p_product_id uuid, p_quantity integer) | postgres | EXECUTE | postgres | -
+function | public.increment_sale_quantity_sold(p_product_id uuid, p_quantity integer) | service_role | EXECUTE | postgres | -
+function | public.increment_webhook_attempt(p_log_id uuid, p_status text, p_http_status integer, p_response_body text, p_error_message text, p_duration_ms integer, p_next_retry_at timestamp with time zone, p_failed_permanently_at timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.increment_webhook_attempt(p_log_id uuid, p_status text, p_http_status integer, p_response_body text, p_error_message text, p_duration_ms integer, p_next_retry_at timestamp with time zone, p_failed_permanently_at timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.insert_purchase_attribution(p_tx uuid, p_product uuid, p_user uuid, p_kind text, p_payload jsonb, p_coupon uuid) | postgres | EXECUTE | postgres | -
+function | public.insert_purchase_attribution(p_tx uuid, p_product uuid, p_user uuid, p_kind text, p_payload jsonb, p_coupon uuid) | service_role | EXECUTE | postgres | -
+function | public.invoice_holds_transfer() | postgres | EXECUTE | postgres | -
+function | public.invoice_holds_transfer() | service_role | EXECUTE | postgres | -
+function | public.is_admin(user_id_param uuid) | anon | EXECUTE | postgres | -
+function | public.is_admin(user_id_param uuid) | authenticated | EXECUTE | postgres | -
+function | public.is_admin(user_id_param uuid) | postgres | EXECUTE | postgres | -
+function | public.is_admin(user_id_param uuid) | service_role | EXECUTE | postgres | -
+function | public.is_admin_cached() | anon | EXECUTE | postgres | -
+function | public.is_admin_cached() | authenticated | EXECUTE | postgres | -
+function | public.is_admin_cached() | postgres | EXECUTE | postgres | -
+function | public.is_admin_cached() | service_role | EXECUTE | postgres | -
+function | public.is_free_claimable_product(p_product_id uuid) | postgres | EXECUTE | postgres | -
+function | public.is_free_claimable_product(p_product_id uuid) | service_role | EXECUTE | postgres | -
+function | public.is_free_grantable_now(p_product_type text, p_available_from timestamp with time zone, p_available_until timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.is_free_grantable_now(p_product_type text, p_available_from timestamp with time zone, p_available_until timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) | authenticated | EXECUTE | postgres | -
+function | public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) | postgres | EXECUTE | postgres | -
+function | public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) | service_role | EXECUTE | postgres | -
+function | public.jsonschema_subset_matches(schema json, instance jsonb) | postgres | EXECUTE | postgres | -
+function | public.jsonschema_subset_matches(schema json, instance jsonb) | service_role | EXECUTE | postgres | -
+function | public.jsonschema_subset_pattern(pattern text) | postgres | EXECUTE | postgres | -
+function | public.jsonschema_subset_pattern(pattern text) | service_role | EXECUTE | postgres | -
+function | public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer) | postgres | EXECUTE | postgres | -
+function | public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer) | service_role | EXECUTE | postgres | -
+function | public.keep_refunded_subscription_access_ended() | postgres | EXECUTE | postgres | -
+function | public.keep_refunded_subscription_ended() | postgres | EXECUTE | postgres | -
+function | public.legacy_pending_free_grant_products() | postgres | EXECUTE | postgres | -
+function | public.license_event_snapshot(p_license issued_licenses) | postgres | EXECUTE | postgres | -
+function | public.license_mail_is_current(p_email text, p_keys jsonb) | postgres | EXECUTE | postgres | -
+function | public.license_mail_is_current(p_email text, p_keys jsonb) | service_role | EXECUTE | postgres | -
+function | public.license_order_references(p_order payment_transactions) | postgres | EXECUTE | postgres | -
+function | public.list_orders_missing_participants(p_unsent_only boolean, p_limit integer) | postgres | EXECUTE | postgres | -
+function | public.list_orders_missing_participants(p_unsent_only boolean, p_limit integer) | service_role | EXECUTE | postgres | -
+function | public.list_participants_reminders_due(p_now timestamp with time zone, p_limit integer) | postgres | EXECUTE | postgres | -
+function | public.list_participants_reminders_due(p_now timestamp with time zone, p_limit integer) | service_role | EXECUTE | postgres | -
+function | public.log_admin_action(action_name text, target_type text, target_id text, action_details jsonb) | postgres | EXECUTE | postgres | -
+function | public.log_admin_action(action_name text, target_type text, target_id text, action_details jsonb) | service_role | EXECUTE | postgres | -
+function | public.log_admin_action_trigger() | postgres | EXECUTE | postgres | -
+function | public.log_admin_action_trigger() | service_role | EXECUTE | postgres | -
+function | public.log_audit_entry(table_name_param text, operation_param text, old_values_param jsonb, new_values_param jsonb, user_id_param uuid) | postgres | EXECUTE | postgres | -
+function | public.log_audit_entry(table_name_param text, operation_param text, old_values_param jsonb, new_values_param jsonb, user_id_param uuid) | service_role | EXECUTE | postgres | -
+function | public.log_product_price_change() | postgres | EXECUTE | postgres | -
+function | public.log_product_price_change() | service_role | EXECUTE | postgres | -
+function | public.logs_monitoring_check(new_action_details jsonb) | postgres | EXECUTE | postgres | -
+function | public.logs_monitoring_check(new_action_details jsonb) | service_role | EXECUTE | postgres | -
+function | public.logs_monitoring_trigger() | postgres | EXECUTE | postgres | -
+function | public.logs_monitoring_trigger() | service_role | EXECUTE | postgres | -
+function | public.mark_checkout_details_missing() | postgres | EXECUTE | postgres | -
+function | public.mark_checkout_details_missing() | service_role | EXECUTE | postgres | -
+function | public.mark_expired_pending_payments() | postgres | EXECUTE | postgres | -
+function | public.mark_expired_pending_payments() | service_role | EXECUTE | postgres | -
+function | public.migrate_guest_payment_data_to_profile(p_user_id uuid) | postgres | EXECUTE | postgres | -
+function | public.migrate_guest_payment_data_to_profile(p_user_id uuid) | service_role | EXECUTE | postgres | -
+function | public.migrate_guest_purchases(p_user_id uuid, p_email text) | postgres | EXECUTE | postgres | -
+function | public.migrate_guest_purchases(p_user_id uuid, p_email text) | service_role | EXECUTE | postgres | -
+function | public.mutate_access(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) | postgres | EXECUTE | postgres | -
+function | public.mutate_access(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) | service_role | EXECUTE | postgres | -
+function | public.mutate_access_impl(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) | postgres | EXECUTE | postgres | -
+function | public.mutate_access_impl(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) | service_role | EXECUTE | postgres | -
+function | public.mutate_product_as(event_actor jsonb, operation_param text, product_data jsonb, product_id uuid, actor_id uuid) | postgres | EXECUTE | postgres | -
+function | public.mutate_product_as(event_actor jsonb, operation_param text, product_data jsonb, product_id uuid, actor_id uuid) | service_role | EXECUTE | postgres | -
+function | public.mutate_product_offer(offer_product_id uuid, expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid) | postgres | EXECUTE | postgres | -
+function | public.mutate_product_offer(offer_product_id uuid, expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid) | service_role | EXECUTE | postgres | -
+function | public.mutate_product_with_audit(operation_param text, product_data jsonb, product_id uuid, actor_id uuid) | postgres | EXECUTE | postgres | -
+function | public.mutate_product_with_audit(operation_param text, product_data jsonb, product_id uuid, actor_id uuid) | service_role | EXECUTE | postgres | -
+function | public.mutate_storefront_config(expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid, legacy_source jsonb) | postgres | EXECUTE | postgres | -
+function | public.mutate_storefront_config(expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid, legacy_source jsonb) | service_role | EXECUTE | postgres | -
+function | public.my_event_sessions(p_product_id uuid) | authenticated | EXECUTE | postgres | -
+function | public.my_event_sessions(p_product_id uuid) | postgres | EXECUTE | postgres | -
+function | public.my_event_sessions(p_product_id uuid) | service_role | EXECUTE | postgres | -
+function | public.normalize_purchase_contact() | postgres | EXECUTE | postgres | -
+function | public.observe_payment_refund(p_transaction_id uuid, p_refund_id text, p_amount integer, p_currency text, p_status text, p_initial_status text) | postgres | EXECUTE | postgres | -
+function | public.observe_payment_refund(p_transaction_id uuid, p_refund_id text, p_amount integer, p_currency text, p_status text, p_initial_status text) | service_role | EXECUTE | postgres | -
+function | public.open_order_payment_attempt(p_id uuid, p_kind text, p_amount numeric, p_currency text, p_expires_at timestamp with time zone, p_now timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.open_order_payment_attempt(p_id uuid, p_kind text, p_amount numeric, p_currency text, p_expires_at timestamp with time zone, p_now timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.order_awaits_participants(p_order_details jsonb, p_profile jsonb, p_status text) | postgres | EXECUTE | postgres | -
+function | public.order_awaits_participants(p_order_details jsonb, p_profile jsonb, p_status text) | service_role | EXECUTE | postgres | -
+function | public.owns_product_access(p_product_id uuid) | anon | EXECUTE | postgres | -
+function | public.owns_product_access(p_product_id uuid) | authenticated | EXECUTE | postgres | -
+function | public.owns_product_access(p_product_id uuid) | postgres | EXECUTE | postgres | -
+function | public.owns_product_access(p_product_id uuid) | service_role | EXECUTE | postgres | -
+function | public.pending_free_grant_products() | authenticated | EXECUTE | postgres | -
+function | public.pending_free_grant_products() | postgres | EXECUTE | postgres | -
+function | public.pending_free_grant_products() | service_role | EXECUTE | postgres | -
+function | public.pick_due_webhook_deliveries(p_limit integer) | postgres | EXECUTE | postgres | -
+function | public.pick_due_webhook_deliveries(p_limit integer) | service_role | EXECUTE | postgres | -
+function | public.place_order(p_order jsonb, p_lines jsonb) | postgres | EXECUTE | postgres | -
+function | public.place_order(p_order jsonb, p_lines jsonb) | service_role | EXECUTE | postgres | -
+function | public.prepare_event_mail(p_email text, p_data jsonb) | postgres | EXECUTE | postgres | -
+function | public.prepare_event_mail(p_email text, p_data jsonb) | service_role | EXECUTE | postgres | -
+function | public.prepare_free_grant(p_email text, p_product_id uuid, p_values jsonb) | postgres | EXECUTE | postgres | -
+function | public.prepare_free_grant(p_email text, p_product_id uuid, p_values jsonb) | service_role | EXECUTE | postgres | -
+function | public.prevent_delete_user_with_active_subscription() | postgres | EXECUTE | postgres | -
+function | public.prevent_delete_user_with_active_subscription() | service_role | EXECUTE | postgres | -
+function | public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) | authenticated | EXECUTE | postgres | -
+function | public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) | postgres | EXECUTE | postgres | -
+function | public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) | service_role | EXECUTE | postgres | -
+function | public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | postgres | EXECUTE | postgres | -
+function | public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | service_role | EXECUTE | postgres | -
+function | public.product_catalogue_snapshot(p products) | postgres | EXECUTE | postgres | -
+function | public.product_deletion_impact(p_product_id uuid) | postgres | EXECUTE | postgres | -
+function | public.product_deletion_impact(p_product_id uuid) | service_role | EXECUTE | postgres | -
+function | public.product_marketing_valid(instance jsonb) | authenticated | EXECUTE | postgres | -
+function | public.product_marketing_valid(instance jsonb) | postgres | EXECUTE | postgres | -
+function | public.product_marketing_valid(instance jsonb) | service_role | EXECUTE | postgres | -
+function | public.product_offer_config_schema() | postgres | EXECUTE | postgres | -
+function | public.product_offer_config_schema() | service_role | EXECUTE | postgres | -
+function | public.product_offer_config_valid(config jsonb) | postgres | EXECUTE | postgres | -
+function | public.product_offer_config_valid(config jsonb) | service_role | EXECUTE | postgres | -
+function | public.product_price_snapshot(p products) | postgres | EXECUTE | postgres | -
+function | public.product_price_snapshot(p products) | service_role | EXECUTE | postgres | -
+function | public.protect_payment_method_config_created_at() | postgres | EXECUTE | postgres | -
+function | public.protect_payment_method_config_created_at() | service_role | EXECUTE | postgres | -
+function | public.public_event_availability(p_product_id uuid) | postgres | EXECUTE | postgres | -
+function | public.public_event_availability(p_product_id uuid) | service_role | EXECUTE | postgres | -
+function | public.purchase_attribution_immutable() | postgres | EXECUTE | postgres | -
+function | public.purchase_attribution_immutable() | PUBLIC | EXECUTE | postgres | -
+function | public.purchase_attribution_immutable() | service_role | EXECUTE | postgres | -
+function | public.purge_attribution_click_ids() | postgres | EXECUTE | postgres | -
+function | public.purge_attribution_click_ids() | service_role | EXECUTE | postgres | -
+function | public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text) | postgres | EXECUTE | postgres | -
+function | public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text) | service_role | EXECUTE | postgres | -
+function | public.queue_pending_free_grant(p_email text, p_product_slug text) | postgres | EXECUTE | postgres | -
+function | public.queue_pending_free_grant(p_email text, p_product_slug text) | service_role | EXECUTE | postgres | -
+function | public.record_business_event(p_event text, p_product uuid, p_payload jsonb, p_key text) | postgres | EXECUTE | postgres | -
+function | public.record_business_event(p_event text, p_product uuid, p_payload jsonb, p_key text) | service_role | EXECUTE | postgres | -
+function | public.record_free_attribution(p_product uuid, p_user uuid, p_payload jsonb) | postgres | EXECUTE | postgres | -
+function | public.record_free_attribution(p_product uuid, p_user uuid, p_payload jsonb) | service_role | EXECUTE | postgres | -
+function | public.record_free_attribution_from_ref(p_product uuid, p_user uuid, p_ref text) | postgres | EXECUTE | postgres | -
+function | public.record_free_attribution_from_ref(p_product uuid, p_user uuid, p_ref text) | service_role | EXECUTE | postgres | -
+function | public.record_invoice_correction(p_transaction uuid, p_actor uuid) | postgres | EXECUTE | postgres | -
+function | public.record_invoice_correction(p_transaction uuid, p_actor uuid) | service_role | EXECUTE | postgres | -
+function | public.record_order_payment_refund(p_attempt uuid, p_refund_id text) | postgres | EXECUTE | postgres | -
+function | public.record_order_payment_refund(p_attempt uuid, p_refund_id text) | service_role | EXECUTE | postgres | -
+function | public.record_template_credential_status(template_id text, expected_key text, expected_iv text, expected_tag text, verification_state text, checked_at timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.record_template_credential_status(template_id text, expected_key text, expected_iv text, expected_tag text, verification_state text, checked_at timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.release_event_order() | postgres | EXECUTE | postgres | -
+function | public.release_event_order() | service_role | EXECUTE | postgres | -
+function | public.release_participant_recordings() | postgres | EXECUTE | postgres | -
+function | public.release_participant_recordings() | service_role | EXECUTE | postgres | -
+function | public.release_transfer_access() | postgres | EXECUTE | postgres | -
+function | public.release_transfer_access() | service_role | EXECUTE | postgres | -
+function | public.release_unpaid_transfer(p_id uuid, p_now timestamp with time zone) | postgres | EXECUTE | postgres | -
+function | public.release_unpaid_transfer(p_id uuid, p_now timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) | postgres | EXECUTE | postgres | -
+function | public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) | service_role | EXECUTE | postgres | -
+function | public.restore_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid) | postgres | EXECUTE | postgres | -
+function | public.restore_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid) | service_role | EXECUTE | postgres | -
+function | public.retain_disputed_access() | postgres | EXECUTE | postgres | -
+function | public.retain_disputed_access() | service_role | EXECUTE | postgres | -
+function | public.retry_business_event(p_id uuid) | postgres | EXECUTE | postgres | -
+function | public.retry_business_event(p_id uuid) | service_role | EXECUTE | postgres | -
+function | public.revoke_issued_licenses(p_license_ids uuid[], p_actor uuid, p_reason text) | postgres | EXECUTE | postgres | -
+function | public.revoke_issued_licenses(p_license_ids uuid[], p_actor uuid, p_reason text) | service_role | EXECUTE | postgres | -
+function | public.revoke_license_for_disputed_order() | postgres | EXECUTE | postgres | -
+function | public.revoke_order_licenses(p_product_id uuid, p_order_ids text[], p_reason text) | postgres | EXECUTE | postgres | -
+function | public.revoke_order_licenses(p_product_id uuid, p_order_ids text[], p_reason text) | service_role | EXECUTE | postgres | -
+function | public.revoke_terminal_order_licenses() | postgres | EXECUTE | postgres | -
+function | public.rotate_webhook_secret(p_endpoint_id uuid, p_secret text, p_actor_id uuid, p_api_key_id uuid) | postgres | EXECUTE | postgres | -
+function | public.rotate_webhook_secret(p_endpoint_id uuid, p_secret text, p_actor_id uuid, p_api_key_id uuid) | service_role | EXECUTE | postgres | -
+function | public.save_attribution_config(p_retention_days integer, p_rules jsonb) | authenticated | EXECUTE | postgres | -
+function | public.save_attribution_config(p_retention_days integer, p_rules jsonb) | postgres | EXECUTE | postgres | -
+function | public.save_attribution_config(p_retention_days integer, p_rules jsonb) | service_role | EXECUTE | postgres | -
+function | public.save_bank_transfer_config(p_config jsonb, p_actor uuid) | postgres | EXECUTE | postgres | -
+function | public.save_bank_transfer_config(p_config jsonb, p_actor uuid) | service_role | EXECUTE | postgres | -
+function | public.save_template_credential(template_id text, encrypted_key text, encryption_iv text, encryption_tag text, actor_user_id uuid, actor_method text, actor_api_key_id uuid) | postgres | EXECUTE | postgres | -
+function | public.save_template_credential(template_id text, encrypted_key text, encryption_iv text, encryption_tag text, actor_user_id uuid, actor_method text, actor_api_key_id uuid) | service_role | EXECUTE | postgres | -
+function | public.search_order_accesses(p_search text) | postgres | EXECUTE | postgres | -
+function | public.search_order_accesses(p_search text) | service_role | EXECUTE | postgres | -
+function | public.search_order_leads(p_search text) | postgres | EXECUTE | postgres | -
+function | public.search_order_leads(p_search text) | service_role | EXECUTE | postgres | -
+function | public.search_payment_transactions(p_search text, p_include_identifiers boolean) | postgres | EXECUTE | postgres | -
+function | public.search_payment_transactions(p_search text, p_include_identifiers boolean) | service_role | EXECUTE | postgres | -
+function | public.seller_license_public_keys(seller uuid) | anon | EXECUTE | postgres | -
+function | public.seller_license_public_keys(seller uuid) | authenticated | EXECUTE | postgres | -
+function | public.seller_license_public_keys(seller uuid) | postgres | EXECUTE | postgres | -
+function | public.seller_license_public_keys(seller uuid) | service_role | EXECUTE | postgres | -
+function | public.seller_revoked_orders(seller uuid, hash_prefix text) | postgres | EXECUTE | postgres | -
+function | public.seller_revoked_orders(seller uuid, hash_prefix text) | service_role | EXECUTE | postgres | -
+function | public.send_monitoring_email(alert_type text, alert_details jsonb) | postgres | EXECUTE | postgres | -
+function | public.send_monitoring_email(alert_type text, alert_details jsonb) | service_role | EXECUTE | postgres | -
+function | public.set_access_grant_source() | postgres | EXECUTE | postgres | -
+function | public.set_access_grant_source() | service_role | EXECUTE | postgres | -
+function | public.set_business_event_actor(p_actor jsonb) | postgres | EXECUTE | postgres | -
+function | public.set_business_event_actor(p_actor jsonb) | service_role | EXECUTE | postgres | -
+function | public.set_invoicing_auto_since() | postgres | EXECUTE | postgres | -
+function | public.set_invoicing_auto_since() | service_role | EXECUTE | postgres | -
+function | public.set_payment_order_buyer(p_buyer jsonb, p_session_id text, p_payment_intent_id text, p_only_if_missing boolean) | postgres | EXECUTE | postgres | -
+function | public.set_payment_order_buyer(p_buyer jsonb, p_session_id text, p_payment_intent_id text, p_only_if_missing boolean) | service_role | EXECUTE | postgres | -
+function | public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text) | postgres | EXECUTE | postgres | -
+function | public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text) | service_role | EXECUTE | postgres | -
+function | public.set_product_webhook_revision() | postgres | EXECUTE | postgres | -
+function | public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) | authenticated | EXECUTE | postgres | -
+function | public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) | postgres | EXECUTE | postgres | -
+function | public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) | service_role | EXECUTE | postgres | -
+function | public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[]) | postgres | EXECUTE | postgres | -
+function | public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[]) | service_role | EXECUTE | postgres | -
+function | public.snapshot_event_tier_label() | postgres | EXECUTE | postgres | -
+function | public.snapshot_event_tier_label() | service_role | EXECUTE | postgres | -
+function | public.snapshot_purchase_attribution() | postgres | EXECUTE | postgres | -
+function | public.snapshot_purchase_attribution() | service_role | EXECUTE | postgres | -
+function | public.snapshot_purchase_attribution_inserted() | postgres | EXECUTE | postgres | -
+function | public.snapshot_purchase_attribution_inserted() | service_role | EXECUTE | postgres | -
+function | public.snapshot_purchase_attribution_row(n payment_transactions) | postgres | EXECUTE | postgres | -
+function | public.snapshot_purchase_attribution_row(n payment_transactions) | service_role | EXECUTE | postgres | -
+function | public.snapshot_purchase_product_name() | postgres | EXECUTE | postgres | -
+function | public.snapshot_purchase_product_name() | service_role | EXECUTE | postgres | -
+function | public.stamp_original_seller_id() | postgres | EXECUTE | postgres | -
+function | public.stamp_original_seller_id() | service_role | EXECUTE | postgres | -
+function | public.store_checkout_attribution(p_ref text, p_payload jsonb) | postgres | EXECUTE | postgres | -
+function | public.store_checkout_attribution(p_ref text, p_payload jsonb) | service_role | EXECUTE | postgres | -
+function | public.storefront_catalogue_boundary() | postgres | EXECUTE | postgres | -
+function | public.storefront_catalogue_boundary() | service_role | EXECUTE | postgres | -
+function | public.storefront_catalogue_categories(category_ids uuid[]) | postgres | EXECUTE | postgres | -
+function | public.storefront_catalogue_categories(category_ids uuid[]) | service_role | EXECUTE | postgres | -
+function | public.storefront_catalogue_page(filters jsonb, after_created timestamp with time zone, after_id uuid, product_ids uuid[]) | postgres | EXECUTE | postgres | -
+function | public.storefront_catalogue_page(filters jsonb, after_created timestamp with time zone, after_id uuid, product_ids uuid[]) | service_role | EXECUTE | postgres | -
+function | public.storefront_config_schema() | postgres | EXECUTE | postgres | -
+function | public.storefront_config_schema() | service_role | EXECUTE | postgres | -
+function | public.storefront_config_stored_bytes(config jsonb) | postgres | EXECUTE | postgres | -
+function | public.storefront_config_stored_bytes(config jsonb) | service_role | EXECUTE | postgres | -
+function | public.storefront_config_valid(config jsonb) | postgres | EXECUTE | postgres | -
+function | public.storefront_config_valid(config jsonb) | service_role | EXECUTE | postgres | -
+function | public.submit_order_participants(p_order_id uuid, p_people jsonb) | postgres | EXECUTE | postgres | -
+function | public.submit_order_participants(p_order_id uuid, p_people jsonb) | service_role | EXECUTE | postgres | -
+function | public.telemetry_claim_send(p_window_ms bigint, p_lease_ms bigint) | postgres | EXECUTE | postgres | -
+function | public.telemetry_claim_send(p_window_ms bigint, p_lease_ms bigint) | service_role | EXECUTE | postgres | -
+function | public.telemetry_confirm_send() | postgres | EXECUTE | postgres | -
+function | public.telemetry_confirm_send() | service_role | EXECUTE | postgres | -
+function | public.transfer_access_source() | postgres | EXECUTE | postgres | -
+function | public.transfer_access_source() | service_role | EXECUTE | postgres | -
+function | public.update_payment_method_config_timestamp() | postgres | EXECUTE | postgres | -
+function | public.update_payment_method_config_timestamp() | service_role | EXECUTE | postgres | -
+function | public.update_refund_request_timestamp() | postgres | EXECUTE | postgres | -
+function | public.update_refund_request_timestamp() | service_role | EXECUTE | postgres | -
+function | public.update_refunded_at() | postgres | EXECUTE | postgres | -
+function | public.update_refunded_at() | service_role | EXECUTE | postgres | -
+function | public.update_updated_at_column() | postgres | EXECUTE | postgres | -
+function | public.update_updated_at_column() | service_role | EXECUTE | postgres | -
+function | public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) | authenticated | EXECUTE | postgres | -
+function | public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) | postgres | EXECUTE | postgres | -
+function | public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) | service_role | EXECUTE | postgres | -
+function | public.validate_bundle_item() | postgres | EXECUTE | postgres | -
+function | public.validate_bundle_item() | PUBLIC | EXECUTE | postgres | -
+function | public.validate_bundle_item() | service_role | EXECUTE | postgres | -
+function | public.validate_email_format(email_param text) | authenticated | EXECUTE | postgres | -
+function | public.validate_email_format(email_param text) | postgres | EXECUTE | postgres | -
+function | public.validate_email_format(email_param text) | service_role | EXECUTE | postgres | -
+function | public.validate_lead_consent_version() | postgres | EXECUTE | postgres | -
+function | public.validate_lead_consent_version() | service_role | EXECUTE | postgres | -
+function | public.validate_payment_transaction(transaction_id uuid) | postgres | EXECUTE | postgres | -
+function | public.validate_payment_transaction(transaction_id uuid) | service_role | EXECUTE | postgres | -
+function | public.validate_seller_embed_origins() | postgres | EXECUTE | postgres | -
+function | public.validate_seller_embed_origins() | service_role | EXECUTE | postgres | -
+function | public.verify_api_key(p_key_hash text) | postgres | EXECUTE | postgres | -
+function | public.verify_api_key(p_key_hash text) | service_role | EXECUTE | postgres | -
+function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | anon | EXECUTE | postgres | -
+function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | authenticated | EXECUTE | postgres | -
+function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | postgres | EXECUTE | postgres | -
+function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | service_role | EXECUTE | postgres | -
+schema | auth | anon | USAGE | supabase_admin | -
+schema | auth | authenticated | USAGE | supabase_admin | -
+schema | auth | dashboard_user | CREATE | supabase_admin | -
+schema | auth | dashboard_user | USAGE | supabase_admin | -
+schema | auth | postgres | USAGE | supabase_admin | -
+schema | auth | service_role | USAGE | supabase_admin | -
+schema | auth | supabase_admin | CREATE | supabase_admin | -
+schema | auth | supabase_admin | USAGE | supabase_admin | -
+schema | auth | supabase_auth_admin | CREATE | supabase_admin | -
+schema | auth | supabase_auth_admin | USAGE | supabase_admin | -
 schema | cron | postgres | USAGE | supabase_admin | WITH GRANT OPTION
-schema | cron | supabase_admin | CREATE | supabase_admin | 
-schema | cron | supabase_admin | USAGE | supabase_admin | 
-schema | postgrest | authenticator | USAGE | postgres | 
-schema | postgrest | postgres | CREATE | postgres | 
-schema | postgrest | postgres | USAGE | postgres | 
-schema | public | anon | USAGE | pg_database_owner | 
-schema | public | authenticated | USAGE | pg_database_owner | 
-schema | public | pg_database_owner | CREATE | pg_database_owner | 
-schema | public | pg_database_owner | USAGE | pg_database_owner | 
-schema | public | postgres | USAGE | pg_database_owner | 
-schema | public | PUBLIC | USAGE | pg_database_owner | 
-schema | public | service_role | USAGE | pg_database_owner | 
-schema | storage | anon | USAGE | supabase_admin | 
-schema | storage | authenticated | USAGE | supabase_admin | 
-schema | storage | dashboard_user | CREATE | supabase_admin | 
-schema | storage | dashboard_user | USAGE | supabase_admin | 
-schema | storage | postgres | USAGE | supabase_admin | 
-schema | storage | service_role | USAGE | supabase_admin | 
-schema | storage | supabase_admin | CREATE | supabase_admin | 
-schema | storage | supabase_admin | USAGE | supabase_admin | 
-schema | storage | supabase_storage_admin | CREATE | supabase_admin | 
-schema | storage | supabase_storage_admin | USAGE | supabase_admin | 
-sequence | auth.refresh_tokens_id_seq | dashboard_user | SELECT | supabase_auth_admin | 
-sequence | auth.refresh_tokens_id_seq | dashboard_user | UPDATE | supabase_auth_admin | 
-sequence | auth.refresh_tokens_id_seq | dashboard_user | USAGE | supabase_auth_admin | 
-sequence | auth.refresh_tokens_id_seq | postgres | SELECT | supabase_auth_admin | 
-sequence | auth.refresh_tokens_id_seq | postgres | UPDATE | supabase_auth_admin | 
-sequence | auth.refresh_tokens_id_seq | postgres | USAGE | supabase_auth_admin | 
-sequence | auth.refresh_tokens_id_seq | supabase_auth_admin | SELECT | supabase_auth_admin | 
-sequence | auth.refresh_tokens_id_seq | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-sequence | auth.refresh_tokens_id_seq | supabase_auth_admin | USAGE | supabase_auth_admin | 
-sequence | cron.jobid_seq | PUBLIC | SELECT | supabase_admin | 
-sequence | cron.jobid_seq | supabase_admin | SELECT | supabase_admin | 
-sequence | cron.jobid_seq | supabase_admin | UPDATE | supabase_admin | 
-sequence | cron.jobid_seq | supabase_admin | USAGE | supabase_admin | 
-sequence | cron.runid_seq | PUBLIC | SELECT | supabase_admin | 
-sequence | cron.runid_seq | supabase_admin | SELECT | supabase_admin | 
-sequence | cron.runid_seq | supabase_admin | UPDATE | supabase_admin | 
-sequence | cron.runid_seq | supabase_admin | USAGE | supabase_admin | 
-sequence | public.payment_order_number_seq | postgres | SELECT | postgres | 
-sequence | public.payment_order_number_seq | postgres | UPDATE | postgres | 
-sequence | public.payment_order_number_seq | postgres | USAGE | postgres | 
-sequence | public.payment_order_number_seq | service_role | SELECT | postgres | 
-sequence | public.payment_order_number_seq | service_role | UPDATE | postgres | 
-sequence | public.payment_order_number_seq | service_role | USAGE | postgres | 
-table | auth.audit_log_entries | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.audit_log_entries | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.audit_log_entries | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.audit_log_entries | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.audit_log_entries | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.audit_log_entries | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.audit_log_entries | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.audit_log_entries | postgres | DELETE | supabase_auth_admin | 
-table | auth.audit_log_entries | postgres | INSERT | supabase_auth_admin | 
-table | auth.audit_log_entries | postgres | REFERENCES | supabase_auth_admin | 
+schema | cron | supabase_admin | CREATE | supabase_admin | -
+schema | cron | supabase_admin | USAGE | supabase_admin | -
+schema | postgrest | authenticator | USAGE | postgres | -
+schema | postgrest | postgres | CREATE | postgres | -
+schema | postgrest | postgres | USAGE | postgres | -
+schema | public | anon | USAGE | pg_database_owner | -
+schema | public | authenticated | USAGE | pg_database_owner | -
+schema | public | pg_database_owner | CREATE | pg_database_owner | -
+schema | public | pg_database_owner | USAGE | pg_database_owner | -
+schema | public | postgres | USAGE | pg_database_owner | -
+schema | public | PUBLIC | USAGE | pg_database_owner | -
+schema | public | service_role | USAGE | pg_database_owner | -
+schema | storage | anon | USAGE | supabase_admin | -
+schema | storage | authenticated | USAGE | supabase_admin | -
+schema | storage | dashboard_user | CREATE | supabase_admin | -
+schema | storage | dashboard_user | USAGE | supabase_admin | -
+schema | storage | postgres | USAGE | supabase_admin | -
+schema | storage | service_role | USAGE | supabase_admin | -
+schema | storage | supabase_admin | CREATE | supabase_admin | -
+schema | storage | supabase_admin | USAGE | supabase_admin | -
+schema | storage | supabase_storage_admin | CREATE | supabase_admin | -
+schema | storage | supabase_storage_admin | USAGE | supabase_admin | -
+sequence | auth.refresh_tokens_id_seq | dashboard_user | SELECT | supabase_auth_admin | -
+sequence | auth.refresh_tokens_id_seq | dashboard_user | UPDATE | supabase_auth_admin | -
+sequence | auth.refresh_tokens_id_seq | dashboard_user | USAGE | supabase_auth_admin | -
+sequence | auth.refresh_tokens_id_seq | postgres | SELECT | supabase_auth_admin | -
+sequence | auth.refresh_tokens_id_seq | postgres | UPDATE | supabase_auth_admin | -
+sequence | auth.refresh_tokens_id_seq | postgres | USAGE | supabase_auth_admin | -
+sequence | auth.refresh_tokens_id_seq | supabase_auth_admin | SELECT | supabase_auth_admin | -
+sequence | auth.refresh_tokens_id_seq | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+sequence | auth.refresh_tokens_id_seq | supabase_auth_admin | USAGE | supabase_auth_admin | -
+sequence | cron.jobid_seq | PUBLIC | SELECT | supabase_admin | -
+sequence | cron.jobid_seq | supabase_admin | SELECT | supabase_admin | -
+sequence | cron.jobid_seq | supabase_admin | UPDATE | supabase_admin | -
+sequence | cron.jobid_seq | supabase_admin | USAGE | supabase_admin | -
+sequence | cron.runid_seq | PUBLIC | SELECT | supabase_admin | -
+sequence | cron.runid_seq | supabase_admin | SELECT | supabase_admin | -
+sequence | cron.runid_seq | supabase_admin | UPDATE | supabase_admin | -
+sequence | cron.runid_seq | supabase_admin | USAGE | supabase_admin | -
+sequence | public.payment_order_number_seq | postgres | SELECT | postgres | -
+sequence | public.payment_order_number_seq | postgres | UPDATE | postgres | -
+sequence | public.payment_order_number_seq | postgres | USAGE | postgres | -
+sequence | public.payment_order_number_seq | service_role | SELECT | postgres | -
+sequence | public.payment_order_number_seq | service_role | UPDATE | postgres | -
+sequence | public.payment_order_number_seq | service_role | USAGE | postgres | -
+table | auth.audit_log_entries | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.audit_log_entries | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.audit_log_entries | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.audit_log_entries | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.audit_log_entries | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.audit_log_entries | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.audit_log_entries | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.audit_log_entries | postgres | DELETE | supabase_auth_admin | -
+table | auth.audit_log_entries | postgres | INSERT | supabase_auth_admin | -
+table | auth.audit_log_entries | postgres | REFERENCES | supabase_auth_admin | -
 table | auth.audit_log_entries | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.audit_log_entries | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.audit_log_entries | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.audit_log_entries | postgres | UPDATE | supabase_auth_admin | 
-table | auth.audit_log_entries | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.audit_log_entries | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.audit_log_entries | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.audit_log_entries | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.audit_log_entries | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.audit_log_entries | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.audit_log_entries | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.custom_oauth_providers | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.custom_oauth_providers | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.custom_oauth_providers | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.custom_oauth_providers | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.custom_oauth_providers | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.custom_oauth_providers | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.custom_oauth_providers | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.custom_oauth_providers | postgres | DELETE | supabase_auth_admin | 
-table | auth.custom_oauth_providers | postgres | INSERT | supabase_auth_admin | 
-table | auth.custom_oauth_providers | postgres | REFERENCES | supabase_auth_admin | 
-table | auth.custom_oauth_providers | postgres | SELECT | supabase_auth_admin | 
-table | auth.custom_oauth_providers | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.custom_oauth_providers | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.custom_oauth_providers | postgres | UPDATE | supabase_auth_admin | 
-table | auth.custom_oauth_providers | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.custom_oauth_providers | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.custom_oauth_providers | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.custom_oauth_providers | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.custom_oauth_providers | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.custom_oauth_providers | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.custom_oauth_providers | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.flow_state | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.flow_state | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.flow_state | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.flow_state | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.flow_state | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.flow_state | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.flow_state | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.flow_state | postgres | DELETE | supabase_auth_admin | 
-table | auth.flow_state | postgres | INSERT | supabase_auth_admin | 
-table | auth.flow_state | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.audit_log_entries | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.audit_log_entries | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.audit_log_entries | postgres | UPDATE | supabase_auth_admin | -
+table | auth.audit_log_entries | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.audit_log_entries | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.audit_log_entries | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.audit_log_entries | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.audit_log_entries | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.audit_log_entries | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.audit_log_entries | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.custom_oauth_providers | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.custom_oauth_providers | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.custom_oauth_providers | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.custom_oauth_providers | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.custom_oauth_providers | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.custom_oauth_providers | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.custom_oauth_providers | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.custom_oauth_providers | postgres | DELETE | supabase_auth_admin | -
+table | auth.custom_oauth_providers | postgres | INSERT | supabase_auth_admin | -
+table | auth.custom_oauth_providers | postgres | REFERENCES | supabase_auth_admin | -
+table | auth.custom_oauth_providers | postgres | SELECT | supabase_auth_admin | -
+table | auth.custom_oauth_providers | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.custom_oauth_providers | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.custom_oauth_providers | postgres | UPDATE | supabase_auth_admin | -
+table | auth.custom_oauth_providers | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.custom_oauth_providers | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.custom_oauth_providers | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.custom_oauth_providers | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.custom_oauth_providers | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.custom_oauth_providers | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.custom_oauth_providers | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.flow_state | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.flow_state | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.flow_state | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.flow_state | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.flow_state | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.flow_state | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.flow_state | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.flow_state | postgres | DELETE | supabase_auth_admin | -
+table | auth.flow_state | postgres | INSERT | supabase_auth_admin | -
+table | auth.flow_state | postgres | REFERENCES | supabase_auth_admin | -
 table | auth.flow_state | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.flow_state | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.flow_state | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.flow_state | postgres | UPDATE | supabase_auth_admin | 
-table | auth.flow_state | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.flow_state | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.flow_state | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.flow_state | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.flow_state | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.flow_state | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.flow_state | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.identities | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.identities | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.identities | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.identities | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.identities | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.identities | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.identities | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.identities | postgres | DELETE | supabase_auth_admin | 
-table | auth.identities | postgres | INSERT | supabase_auth_admin | 
-table | auth.identities | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.flow_state | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.flow_state | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.flow_state | postgres | UPDATE | supabase_auth_admin | -
+table | auth.flow_state | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.flow_state | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.flow_state | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.flow_state | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.flow_state | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.flow_state | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.flow_state | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.identities | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.identities | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.identities | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.identities | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.identities | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.identities | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.identities | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.identities | postgres | DELETE | supabase_auth_admin | -
+table | auth.identities | postgres | INSERT | supabase_auth_admin | -
+table | auth.identities | postgres | REFERENCES | supabase_auth_admin | -
 table | auth.identities | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.identities | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.identities | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.identities | postgres | UPDATE | supabase_auth_admin | 
-table | auth.identities | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.identities | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.identities | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.identities | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.identities | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.identities | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.identities | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.instances | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.instances | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.instances | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.instances | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.instances | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.instances | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.instances | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.instances | postgres | DELETE | supabase_auth_admin | 
-table | auth.instances | postgres | INSERT | supabase_auth_admin | 
-table | auth.instances | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.identities | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.identities | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.identities | postgres | UPDATE | supabase_auth_admin | -
+table | auth.identities | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.identities | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.identities | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.identities | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.identities | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.identities | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.identities | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.instances | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.instances | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.instances | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.instances | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.instances | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.instances | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.instances | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.instances | postgres | DELETE | supabase_auth_admin | -
+table | auth.instances | postgres | INSERT | supabase_auth_admin | -
+table | auth.instances | postgres | REFERENCES | supabase_auth_admin | -
 table | auth.instances | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.instances | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.instances | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.instances | postgres | UPDATE | supabase_auth_admin | 
-table | auth.instances | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.instances | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.instances | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.instances | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.instances | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.instances | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.instances | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.mfa_amr_claims | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.mfa_amr_claims | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.mfa_amr_claims | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.mfa_amr_claims | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.mfa_amr_claims | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.mfa_amr_claims | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.mfa_amr_claims | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.mfa_amr_claims | postgres | DELETE | supabase_auth_admin | 
-table | auth.mfa_amr_claims | postgres | INSERT | supabase_auth_admin | 
-table | auth.mfa_amr_claims | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.instances | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.instances | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.instances | postgres | UPDATE | supabase_auth_admin | -
+table | auth.instances | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.instances | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.instances | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.instances | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.instances | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.instances | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.instances | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.mfa_amr_claims | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.mfa_amr_claims | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.mfa_amr_claims | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.mfa_amr_claims | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.mfa_amr_claims | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.mfa_amr_claims | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.mfa_amr_claims | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.mfa_amr_claims | postgres | DELETE | supabase_auth_admin | -
+table | auth.mfa_amr_claims | postgres | INSERT | supabase_auth_admin | -
+table | auth.mfa_amr_claims | postgres | REFERENCES | supabase_auth_admin | -
 table | auth.mfa_amr_claims | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.mfa_amr_claims | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.mfa_amr_claims | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.mfa_amr_claims | postgres | UPDATE | supabase_auth_admin | 
-table | auth.mfa_amr_claims | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.mfa_amr_claims | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.mfa_amr_claims | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.mfa_amr_claims | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.mfa_amr_claims | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.mfa_amr_claims | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.mfa_amr_claims | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.mfa_challenges | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.mfa_challenges | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.mfa_challenges | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.mfa_challenges | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.mfa_challenges | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.mfa_challenges | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.mfa_challenges | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.mfa_challenges | postgres | DELETE | supabase_auth_admin | 
-table | auth.mfa_challenges | postgres | INSERT | supabase_auth_admin | 
-table | auth.mfa_challenges | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.mfa_amr_claims | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.mfa_amr_claims | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.mfa_amr_claims | postgres | UPDATE | supabase_auth_admin | -
+table | auth.mfa_amr_claims | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.mfa_amr_claims | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.mfa_amr_claims | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.mfa_amr_claims | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.mfa_amr_claims | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.mfa_amr_claims | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.mfa_amr_claims | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.mfa_challenges | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.mfa_challenges | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.mfa_challenges | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.mfa_challenges | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.mfa_challenges | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.mfa_challenges | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.mfa_challenges | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.mfa_challenges | postgres | DELETE | supabase_auth_admin | -
+table | auth.mfa_challenges | postgres | INSERT | supabase_auth_admin | -
+table | auth.mfa_challenges | postgres | REFERENCES | supabase_auth_admin | -
 table | auth.mfa_challenges | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.mfa_challenges | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.mfa_challenges | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.mfa_challenges | postgres | UPDATE | supabase_auth_admin | 
-table | auth.mfa_challenges | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.mfa_challenges | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.mfa_challenges | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.mfa_challenges | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.mfa_challenges | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.mfa_challenges | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.mfa_challenges | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.mfa_factors | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.mfa_factors | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.mfa_factors | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.mfa_factors | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.mfa_factors | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.mfa_factors | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.mfa_factors | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.mfa_factors | postgres | DELETE | supabase_auth_admin | 
-table | auth.mfa_factors | postgres | INSERT | supabase_auth_admin | 
-table | auth.mfa_factors | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.mfa_challenges | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.mfa_challenges | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.mfa_challenges | postgres | UPDATE | supabase_auth_admin | -
+table | auth.mfa_challenges | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.mfa_challenges | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.mfa_challenges | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.mfa_challenges | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.mfa_challenges | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.mfa_challenges | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.mfa_challenges | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.mfa_factors | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.mfa_factors | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.mfa_factors | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.mfa_factors | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.mfa_factors | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.mfa_factors | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.mfa_factors | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.mfa_factors | postgres | DELETE | supabase_auth_admin | -
+table | auth.mfa_factors | postgres | INSERT | supabase_auth_admin | -
+table | auth.mfa_factors | postgres | REFERENCES | supabase_auth_admin | -
 table | auth.mfa_factors | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.mfa_factors | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.mfa_factors | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.mfa_factors | postgres | UPDATE | supabase_auth_admin | 
-table | auth.mfa_factors | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.mfa_factors | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.mfa_factors | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.mfa_factors | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.mfa_factors | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.mfa_factors | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.mfa_factors | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.oauth_authorizations | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.oauth_authorizations | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.oauth_authorizations | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.oauth_authorizations | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.oauth_authorizations | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.oauth_authorizations | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.oauth_authorizations | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.oauth_authorizations | postgres | DELETE | supabase_auth_admin | 
-table | auth.oauth_authorizations | postgres | INSERT | supabase_auth_admin | 
-table | auth.oauth_authorizations | postgres | REFERENCES | supabase_auth_admin | 
-table | auth.oauth_authorizations | postgres | SELECT | supabase_auth_admin | 
-table | auth.oauth_authorizations | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.oauth_authorizations | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.oauth_authorizations | postgres | UPDATE | supabase_auth_admin | 
-table | auth.oauth_authorizations | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.oauth_authorizations | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.oauth_authorizations | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.oauth_authorizations | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.oauth_authorizations | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.oauth_authorizations | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.oauth_authorizations | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.oauth_client_states | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.oauth_client_states | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.oauth_client_states | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.oauth_client_states | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.oauth_client_states | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.oauth_client_states | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.oauth_client_states | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.oauth_client_states | postgres | DELETE | supabase_auth_admin | 
-table | auth.oauth_client_states | postgres | INSERT | supabase_auth_admin | 
-table | auth.oauth_client_states | postgres | REFERENCES | supabase_auth_admin | 
-table | auth.oauth_client_states | postgres | SELECT | supabase_auth_admin | 
-table | auth.oauth_client_states | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.oauth_client_states | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.oauth_client_states | postgres | UPDATE | supabase_auth_admin | 
-table | auth.oauth_client_states | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.oauth_client_states | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.oauth_client_states | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.oauth_client_states | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.oauth_client_states | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.oauth_client_states | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.oauth_client_states | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.oauth_clients | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.oauth_clients | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.oauth_clients | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.oauth_clients | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.oauth_clients | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.oauth_clients | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.oauth_clients | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.oauth_clients | postgres | DELETE | supabase_auth_admin | 
-table | auth.oauth_clients | postgres | INSERT | supabase_auth_admin | 
-table | auth.oauth_clients | postgres | REFERENCES | supabase_auth_admin | 
-table | auth.oauth_clients | postgres | SELECT | supabase_auth_admin | 
-table | auth.oauth_clients | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.oauth_clients | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.oauth_clients | postgres | UPDATE | supabase_auth_admin | 
-table | auth.oauth_clients | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.oauth_clients | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.oauth_clients | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.oauth_clients | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.oauth_clients | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.oauth_clients | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.oauth_clients | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.oauth_consents | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.oauth_consents | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.oauth_consents | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.oauth_consents | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.oauth_consents | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.oauth_consents | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.oauth_consents | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.oauth_consents | postgres | DELETE | supabase_auth_admin | 
-table | auth.oauth_consents | postgres | INSERT | supabase_auth_admin | 
-table | auth.oauth_consents | postgres | REFERENCES | supabase_auth_admin | 
-table | auth.oauth_consents | postgres | SELECT | supabase_auth_admin | 
-table | auth.oauth_consents | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.oauth_consents | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.oauth_consents | postgres | UPDATE | supabase_auth_admin | 
-table | auth.oauth_consents | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.oauth_consents | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.oauth_consents | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.oauth_consents | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.oauth_consents | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.oauth_consents | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.oauth_consents | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.one_time_tokens | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.one_time_tokens | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.one_time_tokens | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.one_time_tokens | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.one_time_tokens | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.one_time_tokens | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.one_time_tokens | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.one_time_tokens | postgres | DELETE | supabase_auth_admin | 
-table | auth.one_time_tokens | postgres | INSERT | supabase_auth_admin | 
-table | auth.one_time_tokens | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.mfa_factors | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.mfa_factors | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.mfa_factors | postgres | UPDATE | supabase_auth_admin | -
+table | auth.mfa_factors | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.mfa_factors | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.mfa_factors | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.mfa_factors | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.mfa_factors | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.mfa_factors | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.mfa_factors | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.oauth_authorizations | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.oauth_authorizations | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.oauth_authorizations | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.oauth_authorizations | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.oauth_authorizations | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.oauth_authorizations | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.oauth_authorizations | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.oauth_authorizations | postgres | DELETE | supabase_auth_admin | -
+table | auth.oauth_authorizations | postgres | INSERT | supabase_auth_admin | -
+table | auth.oauth_authorizations | postgres | REFERENCES | supabase_auth_admin | -
+table | auth.oauth_authorizations | postgres | SELECT | supabase_auth_admin | -
+table | auth.oauth_authorizations | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.oauth_authorizations | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.oauth_authorizations | postgres | UPDATE | supabase_auth_admin | -
+table | auth.oauth_authorizations | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.oauth_authorizations | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.oauth_authorizations | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.oauth_authorizations | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.oauth_authorizations | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.oauth_authorizations | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.oauth_authorizations | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.oauth_client_states | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.oauth_client_states | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.oauth_client_states | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.oauth_client_states | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.oauth_client_states | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.oauth_client_states | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.oauth_client_states | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.oauth_client_states | postgres | DELETE | supabase_auth_admin | -
+table | auth.oauth_client_states | postgres | INSERT | supabase_auth_admin | -
+table | auth.oauth_client_states | postgres | REFERENCES | supabase_auth_admin | -
+table | auth.oauth_client_states | postgres | SELECT | supabase_auth_admin | -
+table | auth.oauth_client_states | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.oauth_client_states | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.oauth_client_states | postgres | UPDATE | supabase_auth_admin | -
+table | auth.oauth_client_states | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.oauth_client_states | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.oauth_client_states | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.oauth_client_states | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.oauth_client_states | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.oauth_client_states | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.oauth_client_states | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.oauth_clients | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.oauth_clients | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.oauth_clients | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.oauth_clients | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.oauth_clients | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.oauth_clients | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.oauth_clients | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.oauth_clients | postgres | DELETE | supabase_auth_admin | -
+table | auth.oauth_clients | postgres | INSERT | supabase_auth_admin | -
+table | auth.oauth_clients | postgres | REFERENCES | supabase_auth_admin | -
+table | auth.oauth_clients | postgres | SELECT | supabase_auth_admin | -
+table | auth.oauth_clients | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.oauth_clients | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.oauth_clients | postgres | UPDATE | supabase_auth_admin | -
+table | auth.oauth_clients | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.oauth_clients | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.oauth_clients | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.oauth_clients | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.oauth_clients | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.oauth_clients | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.oauth_clients | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.oauth_consents | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.oauth_consents | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.oauth_consents | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.oauth_consents | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.oauth_consents | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.oauth_consents | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.oauth_consents | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.oauth_consents | postgres | DELETE | supabase_auth_admin | -
+table | auth.oauth_consents | postgres | INSERT | supabase_auth_admin | -
+table | auth.oauth_consents | postgres | REFERENCES | supabase_auth_admin | -
+table | auth.oauth_consents | postgres | SELECT | supabase_auth_admin | -
+table | auth.oauth_consents | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.oauth_consents | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.oauth_consents | postgres | UPDATE | supabase_auth_admin | -
+table | auth.oauth_consents | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.oauth_consents | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.oauth_consents | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.oauth_consents | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.oauth_consents | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.oauth_consents | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.oauth_consents | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.one_time_tokens | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.one_time_tokens | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.one_time_tokens | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.one_time_tokens | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.one_time_tokens | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.one_time_tokens | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.one_time_tokens | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.one_time_tokens | postgres | DELETE | supabase_auth_admin | -
+table | auth.one_time_tokens | postgres | INSERT | supabase_auth_admin | -
+table | auth.one_time_tokens | postgres | REFERENCES | supabase_auth_admin | -
 table | auth.one_time_tokens | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.one_time_tokens | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.one_time_tokens | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.one_time_tokens | postgres | UPDATE | supabase_auth_admin | 
-table | auth.one_time_tokens | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.one_time_tokens | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.one_time_tokens | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.one_time_tokens | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.one_time_tokens | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.one_time_tokens | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.one_time_tokens | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.refresh_tokens | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.refresh_tokens | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.refresh_tokens | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.refresh_tokens | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.refresh_tokens | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.refresh_tokens | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.refresh_tokens | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.refresh_tokens | postgres | DELETE | supabase_auth_admin | 
-table | auth.refresh_tokens | postgres | INSERT | supabase_auth_admin | 
-table | auth.refresh_tokens | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.one_time_tokens | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.one_time_tokens | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.one_time_tokens | postgres | UPDATE | supabase_auth_admin | -
+table | auth.one_time_tokens | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.one_time_tokens | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.one_time_tokens | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.one_time_tokens | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.one_time_tokens | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.one_time_tokens | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.one_time_tokens | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.refresh_tokens | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.refresh_tokens | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.refresh_tokens | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.refresh_tokens | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.refresh_tokens | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.refresh_tokens | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.refresh_tokens | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.refresh_tokens | postgres | DELETE | supabase_auth_admin | -
+table | auth.refresh_tokens | postgres | INSERT | supabase_auth_admin | -
+table | auth.refresh_tokens | postgres | REFERENCES | supabase_auth_admin | -
 table | auth.refresh_tokens | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.refresh_tokens | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.refresh_tokens | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.refresh_tokens | postgres | UPDATE | supabase_auth_admin | 
-table | auth.refresh_tokens | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.refresh_tokens | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.refresh_tokens | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.refresh_tokens | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.refresh_tokens | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.refresh_tokens | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.refresh_tokens | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.saml_providers | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.saml_providers | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.saml_providers | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.saml_providers | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.saml_providers | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.saml_providers | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.saml_providers | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.saml_providers | postgres | DELETE | supabase_auth_admin | 
-table | auth.saml_providers | postgres | INSERT | supabase_auth_admin | 
-table | auth.saml_providers | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.refresh_tokens | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.refresh_tokens | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.refresh_tokens | postgres | UPDATE | supabase_auth_admin | -
+table | auth.refresh_tokens | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.refresh_tokens | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.refresh_tokens | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.refresh_tokens | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.refresh_tokens | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.refresh_tokens | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.refresh_tokens | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.saml_providers | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.saml_providers | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.saml_providers | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.saml_providers | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.saml_providers | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.saml_providers | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.saml_providers | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.saml_providers | postgres | DELETE | supabase_auth_admin | -
+table | auth.saml_providers | postgres | INSERT | supabase_auth_admin | -
+table | auth.saml_providers | postgres | REFERENCES | supabase_auth_admin | -
 table | auth.saml_providers | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.saml_providers | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.saml_providers | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.saml_providers | postgres | UPDATE | supabase_auth_admin | 
-table | auth.saml_providers | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.saml_providers | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.saml_providers | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.saml_providers | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.saml_providers | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.saml_providers | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.saml_providers | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.saml_relay_states | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.saml_relay_states | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.saml_relay_states | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.saml_relay_states | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.saml_relay_states | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.saml_relay_states | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.saml_relay_states | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.saml_relay_states | postgres | DELETE | supabase_auth_admin | 
-table | auth.saml_relay_states | postgres | INSERT | supabase_auth_admin | 
-table | auth.saml_relay_states | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.saml_providers | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.saml_providers | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.saml_providers | postgres | UPDATE | supabase_auth_admin | -
+table | auth.saml_providers | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.saml_providers | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.saml_providers | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.saml_providers | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.saml_providers | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.saml_providers | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.saml_providers | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.saml_relay_states | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.saml_relay_states | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.saml_relay_states | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.saml_relay_states | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.saml_relay_states | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.saml_relay_states | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.saml_relay_states | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.saml_relay_states | postgres | DELETE | supabase_auth_admin | -
+table | auth.saml_relay_states | postgres | INSERT | supabase_auth_admin | -
+table | auth.saml_relay_states | postgres | REFERENCES | supabase_auth_admin | -
 table | auth.saml_relay_states | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.saml_relay_states | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.saml_relay_states | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.saml_relay_states | postgres | UPDATE | supabase_auth_admin | 
-table | auth.saml_relay_states | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.saml_relay_states | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.saml_relay_states | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.saml_relay_states | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.saml_relay_states | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.saml_relay_states | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.saml_relay_states | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.saml_relay_states | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.saml_relay_states | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.saml_relay_states | postgres | UPDATE | supabase_auth_admin | -
+table | auth.saml_relay_states | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.saml_relay_states | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.saml_relay_states | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.saml_relay_states | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.saml_relay_states | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.saml_relay_states | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.saml_relay_states | supabase_auth_admin | UPDATE | supabase_auth_admin | -
 table | auth.schema_migrations | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.schema_migrations | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.schema_migrations | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.schema_migrations | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.schema_migrations | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.schema_migrations | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.schema_migrations | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.schema_migrations | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.sessions | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.sessions | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.sessions | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.sessions | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.sessions | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.sessions | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.sessions | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.sessions | postgres | DELETE | supabase_auth_admin | 
-table | auth.sessions | postgres | INSERT | supabase_auth_admin | 
-table | auth.sessions | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.schema_migrations | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.schema_migrations | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.schema_migrations | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.schema_migrations | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.schema_migrations | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.schema_migrations | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.schema_migrations | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.sessions | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.sessions | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.sessions | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.sessions | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.sessions | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.sessions | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.sessions | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.sessions | postgres | DELETE | supabase_auth_admin | -
+table | auth.sessions | postgres | INSERT | supabase_auth_admin | -
+table | auth.sessions | postgres | REFERENCES | supabase_auth_admin | -
 table | auth.sessions | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.sessions | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.sessions | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.sessions | postgres | UPDATE | supabase_auth_admin | 
-table | auth.sessions | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.sessions | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.sessions | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.sessions | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.sessions | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.sessions | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.sessions | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.sso_domains | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.sso_domains | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.sso_domains | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.sso_domains | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.sso_domains | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.sso_domains | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.sso_domains | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.sso_domains | postgres | DELETE | supabase_auth_admin | 
-table | auth.sso_domains | postgres | INSERT | supabase_auth_admin | 
-table | auth.sso_domains | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.sessions | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.sessions | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.sessions | postgres | UPDATE | supabase_auth_admin | -
+table | auth.sessions | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.sessions | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.sessions | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.sessions | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.sessions | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.sessions | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.sessions | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.sso_domains | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.sso_domains | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.sso_domains | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.sso_domains | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.sso_domains | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.sso_domains | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.sso_domains | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.sso_domains | postgres | DELETE | supabase_auth_admin | -
+table | auth.sso_domains | postgres | INSERT | supabase_auth_admin | -
+table | auth.sso_domains | postgres | REFERENCES | supabase_auth_admin | -
 table | auth.sso_domains | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.sso_domains | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.sso_domains | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.sso_domains | postgres | UPDATE | supabase_auth_admin | 
-table | auth.sso_domains | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.sso_domains | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.sso_domains | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.sso_domains | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.sso_domains | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.sso_domains | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.sso_domains | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.sso_providers | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.sso_providers | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.sso_providers | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.sso_providers | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.sso_providers | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.sso_providers | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.sso_providers | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.sso_providers | postgres | DELETE | supabase_auth_admin | 
-table | auth.sso_providers | postgres | INSERT | supabase_auth_admin | 
-table | auth.sso_providers | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.sso_domains | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.sso_domains | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.sso_domains | postgres | UPDATE | supabase_auth_admin | -
+table | auth.sso_domains | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.sso_domains | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.sso_domains | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.sso_domains | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.sso_domains | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.sso_domains | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.sso_domains | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.sso_providers | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.sso_providers | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.sso_providers | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.sso_providers | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.sso_providers | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.sso_providers | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.sso_providers | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.sso_providers | postgres | DELETE | supabase_auth_admin | -
+table | auth.sso_providers | postgres | INSERT | supabase_auth_admin | -
+table | auth.sso_providers | postgres | REFERENCES | supabase_auth_admin | -
 table | auth.sso_providers | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.sso_providers | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.sso_providers | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.sso_providers | postgres | UPDATE | supabase_auth_admin | 
-table | auth.sso_providers | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.sso_providers | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.sso_providers | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.sso_providers | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.sso_providers | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.sso_providers | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.sso_providers | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.users | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.users | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.users | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.users | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.users | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.users | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.users | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.users | postgres | DELETE | supabase_auth_admin | 
-table | auth.users | postgres | INSERT | supabase_auth_admin | 
-table | auth.users | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.sso_providers | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.sso_providers | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.sso_providers | postgres | UPDATE | supabase_auth_admin | -
+table | auth.sso_providers | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.sso_providers | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.sso_providers | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.sso_providers | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.sso_providers | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.sso_providers | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.sso_providers | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.users | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.users | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.users | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.users | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.users | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.users | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.users | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.users | postgres | DELETE | supabase_auth_admin | -
+table | auth.users | postgres | INSERT | supabase_auth_admin | -
+table | auth.users | postgres | REFERENCES | supabase_auth_admin | -
 table | auth.users | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
-table | auth.users | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.users | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.users | postgres | UPDATE | supabase_auth_admin | 
-table | auth.users | service_role | SELECT | postgres | 
-table | auth.users | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.users | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.users | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.users | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.users | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.users | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.users | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.webauthn_challenges | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.webauthn_challenges | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.webauthn_challenges | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.webauthn_challenges | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.webauthn_challenges | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.webauthn_challenges | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.webauthn_challenges | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.webauthn_challenges | postgres | DELETE | supabase_auth_admin | 
-table | auth.webauthn_challenges | postgres | INSERT | supabase_auth_admin | 
-table | auth.webauthn_challenges | postgres | REFERENCES | supabase_auth_admin | 
-table | auth.webauthn_challenges | postgres | SELECT | supabase_auth_admin | 
-table | auth.webauthn_challenges | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.webauthn_challenges | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.webauthn_challenges | postgres | UPDATE | supabase_auth_admin | 
-table | auth.webauthn_challenges | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.webauthn_challenges | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.webauthn_challenges | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.webauthn_challenges | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.webauthn_challenges | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.webauthn_challenges | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.webauthn_challenges | supabase_auth_admin | UPDATE | supabase_auth_admin | 
-table | auth.webauthn_credentials | dashboard_user | DELETE | supabase_auth_admin | 
-table | auth.webauthn_credentials | dashboard_user | INSERT | supabase_auth_admin | 
-table | auth.webauthn_credentials | dashboard_user | REFERENCES | supabase_auth_admin | 
-table | auth.webauthn_credentials | dashboard_user | SELECT | supabase_auth_admin | 
-table | auth.webauthn_credentials | dashboard_user | TRIGGER | supabase_auth_admin | 
-table | auth.webauthn_credentials | dashboard_user | TRUNCATE | supabase_auth_admin | 
-table | auth.webauthn_credentials | dashboard_user | UPDATE | supabase_auth_admin | 
-table | auth.webauthn_credentials | postgres | DELETE | supabase_auth_admin | 
-table | auth.webauthn_credentials | postgres | INSERT | supabase_auth_admin | 
-table | auth.webauthn_credentials | postgres | REFERENCES | supabase_auth_admin | 
-table | auth.webauthn_credentials | postgres | SELECT | supabase_auth_admin | 
-table | auth.webauthn_credentials | postgres | TRIGGER | supabase_auth_admin | 
-table | auth.webauthn_credentials | postgres | TRUNCATE | supabase_auth_admin | 
-table | auth.webauthn_credentials | postgres | UPDATE | supabase_auth_admin | 
-table | auth.webauthn_credentials | supabase_auth_admin | DELETE | supabase_auth_admin | 
-table | auth.webauthn_credentials | supabase_auth_admin | INSERT | supabase_auth_admin | 
-table | auth.webauthn_credentials | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
-table | auth.webauthn_credentials | supabase_auth_admin | SELECT | supabase_auth_admin | 
-table | auth.webauthn_credentials | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
-table | auth.webauthn_credentials | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
-table | auth.webauthn_credentials | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.users | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.users | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.users | postgres | UPDATE | supabase_auth_admin | -
+table | auth.users | service_role | SELECT | postgres | -
+table | auth.users | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.users | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.users | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.users | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.users | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.users | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.users | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.webauthn_challenges | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.webauthn_challenges | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.webauthn_challenges | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.webauthn_challenges | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.webauthn_challenges | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.webauthn_challenges | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.webauthn_challenges | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.webauthn_challenges | postgres | DELETE | supabase_auth_admin | -
+table | auth.webauthn_challenges | postgres | INSERT | supabase_auth_admin | -
+table | auth.webauthn_challenges | postgres | REFERENCES | supabase_auth_admin | -
+table | auth.webauthn_challenges | postgres | SELECT | supabase_auth_admin | -
+table | auth.webauthn_challenges | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.webauthn_challenges | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.webauthn_challenges | postgres | UPDATE | supabase_auth_admin | -
+table | auth.webauthn_challenges | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.webauthn_challenges | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.webauthn_challenges | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.webauthn_challenges | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.webauthn_challenges | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.webauthn_challenges | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.webauthn_challenges | supabase_auth_admin | UPDATE | supabase_auth_admin | -
+table | auth.webauthn_credentials | dashboard_user | DELETE | supabase_auth_admin | -
+table | auth.webauthn_credentials | dashboard_user | INSERT | supabase_auth_admin | -
+table | auth.webauthn_credentials | dashboard_user | REFERENCES | supabase_auth_admin | -
+table | auth.webauthn_credentials | dashboard_user | SELECT | supabase_auth_admin | -
+table | auth.webauthn_credentials | dashboard_user | TRIGGER | supabase_auth_admin | -
+table | auth.webauthn_credentials | dashboard_user | TRUNCATE | supabase_auth_admin | -
+table | auth.webauthn_credentials | dashboard_user | UPDATE | supabase_auth_admin | -
+table | auth.webauthn_credentials | postgres | DELETE | supabase_auth_admin | -
+table | auth.webauthn_credentials | postgres | INSERT | supabase_auth_admin | -
+table | auth.webauthn_credentials | postgres | REFERENCES | supabase_auth_admin | -
+table | auth.webauthn_credentials | postgres | SELECT | supabase_auth_admin | -
+table | auth.webauthn_credentials | postgres | TRIGGER | supabase_auth_admin | -
+table | auth.webauthn_credentials | postgres | TRUNCATE | supabase_auth_admin | -
+table | auth.webauthn_credentials | postgres | UPDATE | supabase_auth_admin | -
+table | auth.webauthn_credentials | supabase_auth_admin | DELETE | supabase_auth_admin | -
+table | auth.webauthn_credentials | supabase_auth_admin | INSERT | supabase_auth_admin | -
+table | auth.webauthn_credentials | supabase_auth_admin | REFERENCES | supabase_auth_admin | -
+table | auth.webauthn_credentials | supabase_auth_admin | SELECT | supabase_auth_admin | -
+table | auth.webauthn_credentials | supabase_auth_admin | TRIGGER | supabase_auth_admin | -
+table | auth.webauthn_credentials | supabase_auth_admin | TRUNCATE | supabase_auth_admin | -
+table | auth.webauthn_credentials | supabase_auth_admin | UPDATE | supabase_auth_admin | -
 table | cron.job | postgres | SELECT | supabase_admin | WITH GRANT OPTION
-table | cron.job | PUBLIC | SELECT | supabase_admin | 
-table | cron.job | supabase_admin | DELETE | supabase_admin | 
-table | cron.job | supabase_admin | INSERT | supabase_admin | 
-table | cron.job | supabase_admin | REFERENCES | supabase_admin | 
-table | cron.job | supabase_admin | SELECT | supabase_admin | 
-table | cron.job | supabase_admin | TRIGGER | supabase_admin | 
-table | cron.job | supabase_admin | TRUNCATE | supabase_admin | 
-table | cron.job | supabase_admin | UPDATE | supabase_admin | 
+table | cron.job | PUBLIC | SELECT | supabase_admin | -
+table | cron.job | supabase_admin | DELETE | supabase_admin | -
+table | cron.job | supabase_admin | INSERT | supabase_admin | -
+table | cron.job | supabase_admin | REFERENCES | supabase_admin | -
+table | cron.job | supabase_admin | SELECT | supabase_admin | -
+table | cron.job | supabase_admin | TRIGGER | supabase_admin | -
+table | cron.job | supabase_admin | TRUNCATE | supabase_admin | -
+table | cron.job | supabase_admin | UPDATE | supabase_admin | -
 table | cron.job_run_details | postgres | DELETE | supabase_admin | WITH GRANT OPTION
 table | cron.job_run_details | postgres | INSERT | supabase_admin | WITH GRANT OPTION
 table | cron.job_run_details | postgres | REFERENCES | supabase_admin | WITH GRANT OPTION
@@ -22750,1283 +22750,1283 @@ table | cron.job_run_details | postgres | SELECT | supabase_admin | WITH GRANT O
 table | cron.job_run_details | postgres | TRIGGER | supabase_admin | WITH GRANT OPTION
 table | cron.job_run_details | postgres | TRUNCATE | supabase_admin | WITH GRANT OPTION
 table | cron.job_run_details | postgres | UPDATE | supabase_admin | WITH GRANT OPTION
-table | cron.job_run_details | PUBLIC | DELETE | supabase_admin | 
-table | cron.job_run_details | PUBLIC | SELECT | supabase_admin | 
-table | cron.job_run_details | supabase_admin | DELETE | supabase_admin | 
-table | cron.job_run_details | supabase_admin | INSERT | supabase_admin | 
-table | cron.job_run_details | supabase_admin | REFERENCES | supabase_admin | 
-table | cron.job_run_details | supabase_admin | SELECT | supabase_admin | 
-table | cron.job_run_details | supabase_admin | TRIGGER | supabase_admin | 
-table | cron.job_run_details | supabase_admin | TRUNCATE | supabase_admin | 
-table | cron.job_run_details | supabase_admin | UPDATE | supabase_admin | 
-table | public.admin_actions | postgres | DELETE | postgres | 
-table | public.admin_actions | postgres | INSERT | postgres | 
-table | public.admin_actions | postgres | REFERENCES | postgres | 
-table | public.admin_actions | postgres | SELECT | postgres | 
-table | public.admin_actions | postgres | TRIGGER | postgres | 
-table | public.admin_actions | postgres | TRUNCATE | postgres | 
-table | public.admin_actions | postgres | UPDATE | postgres | 
-table | public.admin_actions | service_role | DELETE | postgres | 
-table | public.admin_actions | service_role | INSERT | postgres | 
-table | public.admin_actions | service_role | REFERENCES | postgres | 
-table | public.admin_actions | service_role | SELECT | postgres | 
-table | public.admin_actions | service_role | TRIGGER | postgres | 
-table | public.admin_actions | service_role | TRUNCATE | postgres | 
-table | public.admin_actions | service_role | UPDATE | postgres | 
-table | public.admin_users | authenticated | SELECT | postgres | 
-table | public.admin_users | postgres | DELETE | postgres | 
-table | public.admin_users | postgres | INSERT | postgres | 
-table | public.admin_users | postgres | REFERENCES | postgres | 
-table | public.admin_users | postgres | SELECT | postgres | 
-table | public.admin_users | postgres | TRIGGER | postgres | 
-table | public.admin_users | postgres | TRUNCATE | postgres | 
-table | public.admin_users | postgres | UPDATE | postgres | 
-table | public.admin_users | service_role | DELETE | postgres | 
-table | public.admin_users | service_role | INSERT | postgres | 
-table | public.admin_users | service_role | REFERENCES | postgres | 
-table | public.admin_users | service_role | SELECT | postgres | 
-table | public.admin_users | service_role | TRIGGER | postgres | 
-table | public.admin_users | service_role | TRUNCATE | postgres | 
-table | public.admin_users | service_role | UPDATE | postgres | 
-table | public.affiliate_commissions | postgres | DELETE | postgres | 
-table | public.affiliate_commissions | postgres | INSERT | postgres | 
-table | public.affiliate_commissions | postgres | REFERENCES | postgres | 
-table | public.affiliate_commissions | postgres | SELECT | postgres | 
-table | public.affiliate_commissions | postgres | TRIGGER | postgres | 
-table | public.affiliate_commissions | postgres | TRUNCATE | postgres | 
-table | public.affiliate_commissions | postgres | UPDATE | postgres | 
-table | public.affiliate_commissions | service_role | INSERT | postgres | 
-table | public.affiliate_commissions | service_role | SELECT | postgres | 
-table | public.affiliate_commissions | service_role | UPDATE | postgres | 
-table | public.affiliate_coupon_bindings | postgres | DELETE | postgres | 
-table | public.affiliate_coupon_bindings | postgres | INSERT | postgres | 
-table | public.affiliate_coupon_bindings | postgres | REFERENCES | postgres | 
-table | public.affiliate_coupon_bindings | postgres | SELECT | postgres | 
-table | public.affiliate_coupon_bindings | postgres | TRIGGER | postgres | 
-table | public.affiliate_coupon_bindings | postgres | TRUNCATE | postgres | 
-table | public.affiliate_coupon_bindings | postgres | UPDATE | postgres | 
-table | public.affiliate_coupon_bindings | service_role | INSERT | postgres | 
-table | public.affiliate_coupon_bindings | service_role | SELECT | postgres | 
-table | public.affiliate_coupon_bindings | service_role | UPDATE | postgres | 
-table | public.affiliate_ledger | postgres | DELETE | postgres | 
-table | public.affiliate_ledger | postgres | INSERT | postgres | 
-table | public.affiliate_ledger | postgres | REFERENCES | postgres | 
-table | public.affiliate_ledger | postgres | SELECT | postgres | 
-table | public.affiliate_ledger | postgres | TRIGGER | postgres | 
-table | public.affiliate_ledger | postgres | TRUNCATE | postgres | 
-table | public.affiliate_ledger | postgres | UPDATE | postgres | 
-table | public.affiliate_ledger | service_role | INSERT | postgres | 
-table | public.affiliate_ledger | service_role | SELECT | postgres | 
-table | public.affiliate_membership_events | postgres | DELETE | postgres | 
-table | public.affiliate_membership_events | postgres | INSERT | postgres | 
-table | public.affiliate_membership_events | postgres | REFERENCES | postgres | 
-table | public.affiliate_membership_events | postgres | SELECT | postgres | 
-table | public.affiliate_membership_events | postgres | TRIGGER | postgres | 
-table | public.affiliate_membership_events | postgres | TRUNCATE | postgres | 
-table | public.affiliate_membership_events | postgres | UPDATE | postgres | 
-table | public.affiliate_membership_events | service_role | INSERT | postgres | 
-table | public.affiliate_membership_events | service_role | SELECT | postgres | 
-table | public.affiliate_memberships | postgres | DELETE | postgres | 
-table | public.affiliate_memberships | postgres | INSERT | postgres | 
-table | public.affiliate_memberships | postgres | REFERENCES | postgres | 
-table | public.affiliate_memberships | postgres | SELECT | postgres | 
-table | public.affiliate_memberships | postgres | TRIGGER | postgres | 
-table | public.affiliate_memberships | postgres | TRUNCATE | postgres | 
-table | public.affiliate_memberships | postgres | UPDATE | postgres | 
-table | public.affiliate_memberships | service_role | INSERT | postgres | 
-table | public.affiliate_memberships | service_role | SELECT | postgres | 
-table | public.affiliate_payout_allocations | postgres | DELETE | postgres | 
-table | public.affiliate_payout_allocations | postgres | INSERT | postgres | 
-table | public.affiliate_payout_allocations | postgres | REFERENCES | postgres | 
-table | public.affiliate_payout_allocations | postgres | SELECT | postgres | 
-table | public.affiliate_payout_allocations | postgres | TRIGGER | postgres | 
-table | public.affiliate_payout_allocations | postgres | TRUNCATE | postgres | 
-table | public.affiliate_payout_allocations | postgres | UPDATE | postgres | 
-table | public.affiliate_payout_allocations | service_role | INSERT | postgres | 
-table | public.affiliate_payout_allocations | service_role | SELECT | postgres | 
-table | public.affiliate_payout_allocations | service_role | UPDATE | postgres | 
-table | public.affiliate_payouts | postgres | DELETE | postgres | 
-table | public.affiliate_payouts | postgres | INSERT | postgres | 
-table | public.affiliate_payouts | postgres | REFERENCES | postgres | 
-table | public.affiliate_payouts | postgres | SELECT | postgres | 
-table | public.affiliate_payouts | postgres | TRIGGER | postgres | 
-table | public.affiliate_payouts | postgres | TRUNCATE | postgres | 
-table | public.affiliate_payouts | postgres | UPDATE | postgres | 
-table | public.affiliate_payouts | service_role | INSERT | postgres | 
-table | public.affiliate_payouts | service_role | SELECT | postgres | 
-table | public.affiliate_payouts | service_role | UPDATE | postgres | 
-table | public.affiliate_program_versions | postgres | DELETE | postgres | 
-table | public.affiliate_program_versions | postgres | INSERT | postgres | 
-table | public.affiliate_program_versions | postgres | REFERENCES | postgres | 
-table | public.affiliate_program_versions | postgres | SELECT | postgres | 
-table | public.affiliate_program_versions | postgres | TRIGGER | postgres | 
-table | public.affiliate_program_versions | postgres | TRUNCATE | postgres | 
-table | public.affiliate_program_versions | postgres | UPDATE | postgres | 
-table | public.affiliate_program_versions | service_role | INSERT | postgres | 
-table | public.affiliate_program_versions | service_role | SELECT | postgres | 
-table | public.affiliate_programs | postgres | DELETE | postgres | 
-table | public.affiliate_programs | postgres | INSERT | postgres | 
-table | public.affiliate_programs | postgres | REFERENCES | postgres | 
-table | public.affiliate_programs | postgres | SELECT | postgres | 
-table | public.affiliate_programs | postgres | TRIGGER | postgres | 
-table | public.affiliate_programs | postgres | TRUNCATE | postgres | 
-table | public.affiliate_programs | postgres | UPDATE | postgres | 
-table | public.affiliate_programs | service_role | INSERT | postgres | 
-table | public.affiliate_programs | service_role | SELECT | postgres | 
-table | public.affiliate_rules | postgres | DELETE | postgres | 
-table | public.affiliate_rules | postgres | INSERT | postgres | 
-table | public.affiliate_rules | postgres | REFERENCES | postgres | 
-table | public.affiliate_rules | postgres | SELECT | postgres | 
-table | public.affiliate_rules | postgres | TRIGGER | postgres | 
-table | public.affiliate_rules | postgres | TRUNCATE | postgres | 
-table | public.affiliate_rules | postgres | UPDATE | postgres | 
-table | public.affiliate_rules | service_role | INSERT | postgres | 
-table | public.affiliate_rules | service_role | SELECT | postgres | 
-table | public.affiliate_work | postgres | DELETE | postgres | 
-table | public.affiliate_work | postgres | INSERT | postgres | 
-table | public.affiliate_work | postgres | REFERENCES | postgres | 
-table | public.affiliate_work | postgres | SELECT | postgres | 
-table | public.affiliate_work | postgres | TRIGGER | postgres | 
-table | public.affiliate_work | postgres | TRUNCATE | postgres | 
-table | public.affiliate_work | postgres | UPDATE | postgres | 
-table | public.affiliate_work | service_role | DELETE | postgres | 
-table | public.affiliate_work | service_role | INSERT | postgres | 
-table | public.affiliate_work | service_role | SELECT | postgres | 
-table | public.affiliate_work | service_role | UPDATE | postgres | 
-table | public.api_key_audit_log | authenticated | SELECT | postgres | 
-table | public.api_key_audit_log | postgres | DELETE | postgres | 
-table | public.api_key_audit_log | postgres | INSERT | postgres | 
-table | public.api_key_audit_log | postgres | REFERENCES | postgres | 
-table | public.api_key_audit_log | postgres | SELECT | postgres | 
-table | public.api_key_audit_log | postgres | TRIGGER | postgres | 
-table | public.api_key_audit_log | postgres | TRUNCATE | postgres | 
-table | public.api_key_audit_log | postgres | UPDATE | postgres | 
-table | public.api_key_audit_log | service_role | DELETE | postgres | 
-table | public.api_key_audit_log | service_role | INSERT | postgres | 
-table | public.api_key_audit_log | service_role | REFERENCES | postgres | 
-table | public.api_key_audit_log | service_role | SELECT | postgres | 
-table | public.api_key_audit_log | service_role | TRIGGER | postgres | 
-table | public.api_key_audit_log | service_role | TRUNCATE | postgres | 
-table | public.api_key_audit_log | service_role | UPDATE | postgres | 
-table | public.api_keys | authenticated | DELETE | postgres | 
-table | public.api_keys | authenticated | INSERT | postgres | 
-table | public.api_keys | authenticated | SELECT | postgres | 
-table | public.api_keys | authenticated | UPDATE | postgres | 
-table | public.api_keys | postgres | DELETE | postgres | 
-table | public.api_keys | postgres | INSERT | postgres | 
-table | public.api_keys | postgres | REFERENCES | postgres | 
-table | public.api_keys | postgres | SELECT | postgres | 
-table | public.api_keys | postgres | TRIGGER | postgres | 
-table | public.api_keys | postgres | TRUNCATE | postgres | 
-table | public.api_keys | postgres | UPDATE | postgres | 
-table | public.api_keys | service_role | DELETE | postgres | 
-table | public.api_keys | service_role | INSERT | postgres | 
-table | public.api_keys | service_role | REFERENCES | postgres | 
-table | public.api_keys | service_role | SELECT | postgres | 
-table | public.api_keys | service_role | TRIGGER | postgres | 
-table | public.api_keys | service_role | TRUNCATE | postgres | 
-table | public.api_keys | service_role | UPDATE | postgres | 
-table | public.application_rate_limits | postgres | DELETE | postgres | 
-table | public.application_rate_limits | postgres | INSERT | postgres | 
-table | public.application_rate_limits | postgres | REFERENCES | postgres | 
-table | public.application_rate_limits | postgres | SELECT | postgres | 
-table | public.application_rate_limits | postgres | TRIGGER | postgres | 
-table | public.application_rate_limits | postgres | TRUNCATE | postgres | 
-table | public.application_rate_limits | postgres | UPDATE | postgres | 
-table | public.application_rate_limits | service_role | DELETE | postgres | 
-table | public.application_rate_limits | service_role | INSERT | postgres | 
-table | public.application_rate_limits | service_role | REFERENCES | postgres | 
-table | public.application_rate_limits | service_role | SELECT | postgres | 
-table | public.application_rate_limits | service_role | TRIGGER | postgres | 
-table | public.application_rate_limits | service_role | TRUNCATE | postgres | 
-table | public.application_rate_limits | service_role | UPDATE | postgres | 
-table | public.attribution_channel_rules | authenticated | DELETE | postgres | 
-table | public.attribution_channel_rules | authenticated | INSERT | postgres | 
-table | public.attribution_channel_rules | authenticated | SELECT | postgres | 
-table | public.attribution_channel_rules | authenticated | UPDATE | postgres | 
-table | public.attribution_channel_rules | postgres | DELETE | postgres | 
-table | public.attribution_channel_rules | postgres | INSERT | postgres | 
-table | public.attribution_channel_rules | postgres | REFERENCES | postgres | 
-table | public.attribution_channel_rules | postgres | SELECT | postgres | 
-table | public.attribution_channel_rules | postgres | TRIGGER | postgres | 
-table | public.attribution_channel_rules | postgres | TRUNCATE | postgres | 
-table | public.attribution_channel_rules | postgres | UPDATE | postgres | 
-table | public.attribution_channel_rules | service_role | DELETE | postgres | 
-table | public.attribution_channel_rules | service_role | INSERT | postgres | 
-table | public.attribution_channel_rules | service_role | REFERENCES | postgres | 
-table | public.attribution_channel_rules | service_role | SELECT | postgres | 
-table | public.attribution_channel_rules | service_role | TRIGGER | postgres | 
-table | public.attribution_channel_rules | service_role | TRUNCATE | postgres | 
-table | public.attribution_channel_rules | service_role | UPDATE | postgres | 
-table | public.attribution_settings | authenticated | SELECT | postgres | 
-table | public.attribution_settings | authenticated | UPDATE | postgres | 
-table | public.attribution_settings | postgres | DELETE | postgres | 
-table | public.attribution_settings | postgres | INSERT | postgres | 
-table | public.attribution_settings | postgres | REFERENCES | postgres | 
-table | public.attribution_settings | postgres | SELECT | postgres | 
-table | public.attribution_settings | postgres | TRIGGER | postgres | 
-table | public.attribution_settings | postgres | TRUNCATE | postgres | 
-table | public.attribution_settings | postgres | UPDATE | postgres | 
-table | public.attribution_settings | service_role | DELETE | postgres | 
-table | public.attribution_settings | service_role | INSERT | postgres | 
-table | public.attribution_settings | service_role | REFERENCES | postgres | 
-table | public.attribution_settings | service_role | SELECT | postgres | 
-table | public.attribution_settings | service_role | TRIGGER | postgres | 
-table | public.attribution_settings | service_role | TRUNCATE | postgres | 
-table | public.attribution_settings | service_role | UPDATE | postgres | 
-table | public.audit_log | postgres | DELETE | postgres | 
-table | public.audit_log | postgres | INSERT | postgres | 
-table | public.audit_log | postgres | REFERENCES | postgres | 
-table | public.audit_log | postgres | SELECT | postgres | 
-table | public.audit_log | postgres | TRIGGER | postgres | 
-table | public.audit_log | postgres | TRUNCATE | postgres | 
-table | public.audit_log | postgres | UPDATE | postgres | 
-table | public.audit_log | service_role | DELETE | postgres | 
-table | public.audit_log | service_role | INSERT | postgres | 
-table | public.audit_log | service_role | REFERENCES | postgres | 
-table | public.audit_log | service_role | SELECT | postgres | 
-table | public.audit_log | service_role | TRIGGER | postgres | 
-table | public.audit_log | service_role | TRUNCATE | postgres | 
-table | public.audit_log | service_role | UPDATE | postgres | 
-table | public.auth_mail_retries | postgres | DELETE | postgres | 
-table | public.auth_mail_retries | postgres | INSERT | postgres | 
-table | public.auth_mail_retries | postgres | REFERENCES | postgres | 
-table | public.auth_mail_retries | postgres | SELECT | postgres | 
-table | public.auth_mail_retries | postgres | TRIGGER | postgres | 
-table | public.auth_mail_retries | postgres | TRUNCATE | postgres | 
-table | public.auth_mail_retries | postgres | UPDATE | postgres | 
-table | public.auth_mail_retries | service_role | DELETE | postgres | 
-table | public.auth_mail_retries | service_role | INSERT | postgres | 
-table | public.auth_mail_retries | service_role | REFERENCES | postgres | 
-table | public.auth_mail_retries | service_role | SELECT | postgres | 
-table | public.auth_mail_retries | service_role | TRIGGER | postgres | 
-table | public.auth_mail_retries | service_role | TRUNCATE | postgres | 
-table | public.auth_mail_retries | service_role | UPDATE | postgres | 
-table | public.bank_transfer_config | authenticated | SELECT | postgres | 
-table | public.bank_transfer_config | postgres | DELETE | postgres | 
-table | public.bank_transfer_config | postgres | INSERT | postgres | 
-table | public.bank_transfer_config | postgres | REFERENCES | postgres | 
-table | public.bank_transfer_config | postgres | SELECT | postgres | 
-table | public.bank_transfer_config | postgres | TRIGGER | postgres | 
-table | public.bank_transfer_config | postgres | TRUNCATE | postgres | 
-table | public.bank_transfer_config | postgres | UPDATE | postgres | 
-table | public.bank_transfer_config | service_role | DELETE | postgres | 
-table | public.bank_transfer_config | service_role | INSERT | postgres | 
-table | public.bank_transfer_config | service_role | REFERENCES | postgres | 
-table | public.bank_transfer_config | service_role | SELECT | postgres | 
-table | public.bank_transfer_config | service_role | TRIGGER | postgres | 
-table | public.bank_transfer_config | service_role | TRUNCATE | postgres | 
-table | public.bank_transfer_config | service_role | UPDATE | postgres | 
-table | public.bundle_items | anon | SELECT | postgres | 
-table | public.bundle_items | authenticated | SELECT | postgres | 
-table | public.bundle_items | postgres | DELETE | postgres | 
-table | public.bundle_items | postgres | INSERT | postgres | 
-table | public.bundle_items | postgres | REFERENCES | postgres | 
-table | public.bundle_items | postgres | SELECT | postgres | 
-table | public.bundle_items | postgres | TRIGGER | postgres | 
-table | public.bundle_items | postgres | TRUNCATE | postgres | 
-table | public.bundle_items | postgres | UPDATE | postgres | 
-table | public.bundle_items | service_role | DELETE | postgres | 
-table | public.bundle_items | service_role | INSERT | postgres | 
-table | public.bundle_items | service_role | REFERENCES | postgres | 
-table | public.bundle_items | service_role | SELECT | postgres | 
-table | public.bundle_items | service_role | TRIGGER | postgres | 
-table | public.bundle_items | service_role | TRUNCATE | postgres | 
-table | public.bundle_items | service_role | UPDATE | postgres | 
-table | public.business_events | postgres | DELETE | postgres | 
-table | public.business_events | postgres | INSERT | postgres | 
-table | public.business_events | postgres | REFERENCES | postgres | 
-table | public.business_events | postgres | SELECT | postgres | 
-table | public.business_events | postgres | TRIGGER | postgres | 
-table | public.business_events | postgres | TRUNCATE | postgres | 
-table | public.business_events | postgres | UPDATE | postgres | 
-table | public.business_events | service_role | DELETE | postgres | 
-table | public.business_events | service_role | INSERT | postgres | 
-table | public.business_events | service_role | REFERENCES | postgres | 
-table | public.business_events | service_role | SELECT | postgres | 
-table | public.business_events | service_role | TRIGGER | postgres | 
-table | public.business_events | service_role | TRUNCATE | postgres | 
-table | public.business_events | service_role | UPDATE | postgres | 
-table | public.captcha_nonces | postgres | DELETE | postgres | 
-table | public.captcha_nonces | postgres | INSERT | postgres | 
-table | public.captcha_nonces | postgres | REFERENCES | postgres | 
-table | public.captcha_nonces | postgres | SELECT | postgres | 
-table | public.captcha_nonces | postgres | TRIGGER | postgres | 
-table | public.captcha_nonces | postgres | TRUNCATE | postgres | 
-table | public.captcha_nonces | postgres | UPDATE | postgres | 
-table | public.captcha_nonces | service_role | DELETE | postgres | 
-table | public.captcha_nonces | service_role | INSERT | postgres | 
-table | public.captcha_nonces | service_role | REFERENCES | postgres | 
-table | public.captcha_nonces | service_role | SELECT | postgres | 
-table | public.captcha_nonces | service_role | TRIGGER | postgres | 
-table | public.captcha_nonces | service_role | TRUNCATE | postgres | 
-table | public.captcha_nonces | service_role | UPDATE | postgres | 
-table | public.categories | anon | SELECT | postgres | 
-table | public.categories | authenticated | SELECT | postgres | 
-table | public.categories | postgres | DELETE | postgres | 
-table | public.categories | postgres | INSERT | postgres | 
-table | public.categories | postgres | REFERENCES | postgres | 
-table | public.categories | postgres | SELECT | postgres | 
-table | public.categories | postgres | TRIGGER | postgres | 
-table | public.categories | postgres | TRUNCATE | postgres | 
-table | public.categories | postgres | UPDATE | postgres | 
-table | public.categories | service_role | DELETE | postgres | 
-table | public.categories | service_role | INSERT | postgres | 
-table | public.categories | service_role | REFERENCES | postgres | 
-table | public.categories | service_role | SELECT | postgres | 
-table | public.categories | service_role | TRIGGER | postgres | 
-table | public.categories | service_role | TRUNCATE | postgres | 
-table | public.categories | service_role | UPDATE | postgres | 
-table | public.checkout_attribution | postgres | DELETE | postgres | 
-table | public.checkout_attribution | postgres | INSERT | postgres | 
-table | public.checkout_attribution | postgres | REFERENCES | postgres | 
-table | public.checkout_attribution | postgres | SELECT | postgres | 
-table | public.checkout_attribution | postgres | TRIGGER | postgres | 
-table | public.checkout_attribution | postgres | TRUNCATE | postgres | 
-table | public.checkout_attribution | postgres | UPDATE | postgres | 
-table | public.checkout_attribution | service_role | DELETE | postgres | 
-table | public.checkout_attribution | service_role | INSERT | postgres | 
-table | public.checkout_attribution | service_role | REFERENCES | postgres | 
-table | public.checkout_attribution | service_role | SELECT | postgres | 
-table | public.checkout_attribution | service_role | TRIGGER | postgres | 
-table | public.checkout_attribution | service_role | TRUNCATE | postgres | 
-table | public.checkout_attribution | service_role | UPDATE | postgres | 
-table | public.consent_logs | postgres | DELETE | postgres | 
-table | public.consent_logs | postgres | INSERT | postgres | 
-table | public.consent_logs | postgres | REFERENCES | postgres | 
-table | public.consent_logs | postgres | SELECT | postgres | 
-table | public.consent_logs | postgres | TRIGGER | postgres | 
-table | public.consent_logs | postgres | TRUNCATE | postgres | 
-table | public.consent_logs | postgres | UPDATE | postgres | 
-table | public.consent_logs | service_role | DELETE | postgres | 
-table | public.consent_logs | service_role | INSERT | postgres | 
-table | public.consent_logs | service_role | REFERENCES | postgres | 
-table | public.consent_logs | service_role | SELECT | postgres | 
-table | public.consent_logs | service_role | TRIGGER | postgres | 
-table | public.consent_logs | service_role | TRUNCATE | postgres | 
-table | public.consent_logs | service_role | UPDATE | postgres | 
-table | public.coupon_redemptions | postgres | DELETE | postgres | 
-table | public.coupon_redemptions | postgres | INSERT | postgres | 
-table | public.coupon_redemptions | postgres | REFERENCES | postgres | 
-table | public.coupon_redemptions | postgres | SELECT | postgres | 
-table | public.coupon_redemptions | postgres | TRIGGER | postgres | 
-table | public.coupon_redemptions | postgres | TRUNCATE | postgres | 
-table | public.coupon_redemptions | postgres | UPDATE | postgres | 
-table | public.coupon_redemptions | service_role | DELETE | postgres | 
-table | public.coupon_redemptions | service_role | INSERT | postgres | 
-table | public.coupon_redemptions | service_role | REFERENCES | postgres | 
-table | public.coupon_redemptions | service_role | SELECT | postgres | 
-table | public.coupon_redemptions | service_role | TRIGGER | postgres | 
-table | public.coupon_redemptions | service_role | TRUNCATE | postgres | 
-table | public.coupon_redemptions | service_role | UPDATE | postgres | 
-table | public.coupon_reservations | postgres | DELETE | postgres | 
-table | public.coupon_reservations | postgres | INSERT | postgres | 
-table | public.coupon_reservations | postgres | REFERENCES | postgres | 
-table | public.coupon_reservations | postgres | SELECT | postgres | 
-table | public.coupon_reservations | postgres | TRIGGER | postgres | 
-table | public.coupon_reservations | postgres | TRUNCATE | postgres | 
-table | public.coupon_reservations | postgres | UPDATE | postgres | 
-table | public.coupon_reservations | service_role | DELETE | postgres | 
-table | public.coupon_reservations | service_role | INSERT | postgres | 
-table | public.coupon_reservations | service_role | REFERENCES | postgres | 
-table | public.coupon_reservations | service_role | SELECT | postgres | 
-table | public.coupon_reservations | service_role | TRIGGER | postgres | 
-table | public.coupon_reservations | service_role | TRUNCATE | postgres | 
-table | public.coupon_reservations | service_role | UPDATE | postgres | 
-table | public.coupons | authenticated | DELETE | postgres | 
-table | public.coupons | authenticated | INSERT | postgres | 
-table | public.coupons | authenticated | SELECT | postgres | 
-table | public.coupons | authenticated | UPDATE | postgres | 
-table | public.coupons | postgres | DELETE | postgres | 
-table | public.coupons | postgres | INSERT | postgres | 
-table | public.coupons | postgres | REFERENCES | postgres | 
-table | public.coupons | postgres | SELECT | postgres | 
-table | public.coupons | postgres | TRIGGER | postgres | 
-table | public.coupons | postgres | TRUNCATE | postgres | 
-table | public.coupons | postgres | UPDATE | postgres | 
-table | public.coupons | service_role | DELETE | postgres | 
-table | public.coupons | service_role | INSERT | postgres | 
-table | public.coupons | service_role | REFERENCES | postgres | 
-table | public.coupons | service_role | SELECT | postgres | 
-table | public.coupons | service_role | TRIGGER | postgres | 
-table | public.coupons | service_role | TRUNCATE | postgres | 
-table | public.coupons | service_role | UPDATE | postgres | 
-table | public.custom_scripts | authenticated | DELETE | postgres | 
-table | public.custom_scripts | authenticated | INSERT | postgres | 
-table | public.custom_scripts | authenticated | SELECT | postgres | 
-table | public.custom_scripts | authenticated | UPDATE | postgres | 
-table | public.custom_scripts | postgres | DELETE | postgres | 
-table | public.custom_scripts | postgres | INSERT | postgres | 
-table | public.custom_scripts | postgres | REFERENCES | postgres | 
-table | public.custom_scripts | postgres | SELECT | postgres | 
-table | public.custom_scripts | postgres | TRIGGER | postgres | 
-table | public.custom_scripts | postgres | TRUNCATE | postgres | 
-table | public.custom_scripts | postgres | UPDATE | postgres | 
-table | public.custom_scripts | service_role | DELETE | postgres | 
-table | public.custom_scripts | service_role | INSERT | postgres | 
-table | public.custom_scripts | service_role | REFERENCES | postgres | 
-table | public.custom_scripts | service_role | SELECT | postgres | 
-table | public.custom_scripts | service_role | TRIGGER | postgres | 
-table | public.custom_scripts | service_role | TRUNCATE | postgres | 
-table | public.custom_scripts | service_role | UPDATE | postgres | 
-table | public.embed_checkout_log | authenticated | DELETE | postgres | 
-table | public.embed_checkout_log | authenticated | INSERT | postgres | 
-table | public.embed_checkout_log | authenticated | SELECT | postgres | 
-table | public.embed_checkout_log | authenticated | UPDATE | postgres | 
-table | public.embed_checkout_log | postgres | DELETE | postgres | 
-table | public.embed_checkout_log | postgres | INSERT | postgres | 
-table | public.embed_checkout_log | postgres | REFERENCES | postgres | 
-table | public.embed_checkout_log | postgres | SELECT | postgres | 
-table | public.embed_checkout_log | postgres | TRIGGER | postgres | 
-table | public.embed_checkout_log | postgres | TRUNCATE | postgres | 
-table | public.embed_checkout_log | postgres | UPDATE | postgres | 
-table | public.embed_checkout_log | service_role | DELETE | postgres | 
-table | public.embed_checkout_log | service_role | INSERT | postgres | 
-table | public.embed_checkout_log | service_role | REFERENCES | postgres | 
-table | public.embed_checkout_log | service_role | SELECT | postgres | 
-table | public.embed_checkout_log | service_role | TRIGGER | postgres | 
-table | public.embed_checkout_log | service_role | TRUNCATE | postgres | 
-table | public.embed_checkout_log | service_role | UPDATE | postgres | 
-table | public.free_grant_contexts | postgres | DELETE | postgres | 
-table | public.free_grant_contexts | postgres | INSERT | postgres | 
-table | public.free_grant_contexts | postgres | REFERENCES | postgres | 
-table | public.free_grant_contexts | postgres | SELECT | postgres | 
-table | public.free_grant_contexts | postgres | TRIGGER | postgres | 
-table | public.free_grant_contexts | postgres | TRUNCATE | postgres | 
-table | public.free_grant_contexts | postgres | UPDATE | postgres | 
-table | public.free_grant_contexts | service_role | DELETE | postgres | 
-table | public.free_grant_contexts | service_role | INSERT | postgres | 
-table | public.free_grant_contexts | service_role | REFERENCES | postgres | 
-table | public.free_grant_contexts | service_role | SELECT | postgres | 
-table | public.free_grant_contexts | service_role | TRIGGER | postgres | 
-table | public.free_grant_contexts | service_role | TRUNCATE | postgres | 
-table | public.free_grant_contexts | service_role | UPDATE | postgres | 
-table | public.guest_purchases | postgres | DELETE | postgres | 
-table | public.guest_purchases | postgres | INSERT | postgres | 
-table | public.guest_purchases | postgres | REFERENCES | postgres | 
-table | public.guest_purchases | postgres | SELECT | postgres | 
-table | public.guest_purchases | postgres | TRIGGER | postgres | 
-table | public.guest_purchases | postgres | TRUNCATE | postgres | 
-table | public.guest_purchases | postgres | UPDATE | postgres | 
-table | public.guest_purchases | service_role | DELETE | postgres | 
-table | public.guest_purchases | service_role | INSERT | postgres | 
-table | public.guest_purchases | service_role | REFERENCES | postgres | 
-table | public.guest_purchases | service_role | SELECT | postgres | 
-table | public.guest_purchases | service_role | TRIGGER | postgres | 
-table | public.guest_purchases | service_role | TRUNCATE | postgres | 
-table | public.guest_purchases | service_role | UPDATE | postgres | 
-table | public.integrations_config | authenticated | DELETE | postgres | 
-table | public.integrations_config | authenticated | INSERT | postgres | 
-table | public.integrations_config | authenticated | SELECT | postgres | 
-table | public.integrations_config | authenticated | UPDATE | postgres | 
-table | public.integrations_config | postgres | DELETE | postgres | 
-table | public.integrations_config | postgres | INSERT | postgres | 
-table | public.integrations_config | postgres | REFERENCES | postgres | 
-table | public.integrations_config | postgres | SELECT | postgres | 
-table | public.integrations_config | postgres | TRIGGER | postgres | 
-table | public.integrations_config | postgres | TRUNCATE | postgres | 
-table | public.integrations_config | postgres | UPDATE | postgres | 
-table | public.integrations_config | service_role | DELETE | postgres | 
-table | public.integrations_config | service_role | INSERT | postgres | 
-table | public.integrations_config | service_role | REFERENCES | postgres | 
-table | public.integrations_config | service_role | SELECT | postgres | 
-table | public.integrations_config | service_role | TRIGGER | postgres | 
-table | public.integrations_config | service_role | TRUNCATE | postgres | 
-table | public.integrations_config | service_role | UPDATE | postgres | 
-table | public.invoices | authenticated | SELECT | postgres | 
-table | public.invoices | postgres | DELETE | postgres | 
-table | public.invoices | postgres | INSERT | postgres | 
-table | public.invoices | postgres | REFERENCES | postgres | 
-table | public.invoices | postgres | SELECT | postgres | 
-table | public.invoices | postgres | TRIGGER | postgres | 
-table | public.invoices | postgres | TRUNCATE | postgres | 
-table | public.invoices | postgres | UPDATE | postgres | 
-table | public.invoices | service_role | DELETE | postgres | 
-table | public.invoices | service_role | INSERT | postgres | 
-table | public.invoices | service_role | REFERENCES | postgres | 
-table | public.invoices | service_role | SELECT | postgres | 
-table | public.invoices | service_role | TRIGGER | postgres | 
-table | public.invoices | service_role | TRUNCATE | postgres | 
-table | public.invoices | service_role | UPDATE | postgres | 
-table | public.invoicing_config | postgres | DELETE | postgres | 
-table | public.invoicing_config | postgres | INSERT | postgres | 
-table | public.invoicing_config | postgres | REFERENCES | postgres | 
-table | public.invoicing_config | postgres | SELECT | postgres | 
-table | public.invoicing_config | postgres | TRIGGER | postgres | 
-table | public.invoicing_config | postgres | TRUNCATE | postgres | 
-table | public.invoicing_config | postgres | UPDATE | postgres | 
-table | public.invoicing_config | service_role | DELETE | postgres | 
-table | public.invoicing_config | service_role | INSERT | postgres | 
-table | public.invoicing_config | service_role | REFERENCES | postgres | 
-table | public.invoicing_config | service_role | SELECT | postgres | 
-table | public.invoicing_config | service_role | TRIGGER | postgres | 
-table | public.invoicing_config | service_role | TRUNCATE | postgres | 
-table | public.invoicing_config | service_role | UPDATE | postgres | 
-table | public.issued_licenses | postgres | DELETE | postgres | 
-table | public.issued_licenses | postgres | INSERT | postgres | 
-table | public.issued_licenses | postgres | REFERENCES | postgres | 
-table | public.issued_licenses | postgres | SELECT | postgres | 
-table | public.issued_licenses | postgres | TRIGGER | postgres | 
-table | public.issued_licenses | postgres | TRUNCATE | postgres | 
-table | public.issued_licenses | postgres | UPDATE | postgres | 
-table | public.issued_licenses | service_role | DELETE | postgres | 
-table | public.issued_licenses | service_role | INSERT | postgres | 
-table | public.issued_licenses | service_role | REFERENCES | postgres | 
-table | public.issued_licenses | service_role | SELECT | postgres | 
-table | public.issued_licenses | service_role | TRIGGER | postgres | 
-table | public.issued_licenses | service_role | TRUNCATE | postgres | 
-table | public.issued_licenses | service_role | UPDATE | postgres | 
-table | public.lead_nonces | postgres | DELETE | postgres | 
-table | public.lead_nonces | postgres | INSERT | postgres | 
-table | public.lead_nonces | postgres | REFERENCES | postgres | 
-table | public.lead_nonces | postgres | SELECT | postgres | 
-table | public.lead_nonces | postgres | TRIGGER | postgres | 
-table | public.lead_nonces | postgres | TRUNCATE | postgres | 
-table | public.lead_nonces | postgres | UPDATE | postgres | 
-table | public.lead_nonces | service_role | DELETE | postgres | 
-table | public.lead_nonces | service_role | INSERT | postgres | 
-table | public.lead_nonces | service_role | REFERENCES | postgres | 
-table | public.lead_nonces | service_role | SELECT | postgres | 
-table | public.lead_nonces | service_role | TRIGGER | postgres | 
-table | public.lead_nonces | service_role | TRUNCATE | postgres | 
-table | public.lead_nonces | service_role | UPDATE | postgres | 
-table | public.lead_submissions | postgres | DELETE | postgres | 
-table | public.lead_submissions | postgres | INSERT | postgres | 
-table | public.lead_submissions | postgres | REFERENCES | postgres | 
-table | public.lead_submissions | postgres | SELECT | postgres | 
-table | public.lead_submissions | postgres | TRIGGER | postgres | 
-table | public.lead_submissions | postgres | TRUNCATE | postgres | 
-table | public.lead_submissions | postgres | UPDATE | postgres | 
-table | public.lead_submissions | service_role | DELETE | postgres | 
-table | public.lead_submissions | service_role | INSERT | postgres | 
-table | public.lead_submissions | service_role | REFERENCES | postgres | 
-table | public.lead_submissions | service_role | SELECT | postgres | 
-table | public.lead_submissions | service_role | TRIGGER | postgres | 
-table | public.lead_submissions | service_role | TRUNCATE | postgres | 
-table | public.lead_submissions | service_role | UPDATE | postgres | 
-table | public.license_mail_receipts | postgres | DELETE | postgres | 
-table | public.license_mail_receipts | postgres | INSERT | postgres | 
-table | public.license_mail_receipts | postgres | REFERENCES | postgres | 
-table | public.license_mail_receipts | postgres | SELECT | postgres | 
-table | public.license_mail_receipts | postgres | TRIGGER | postgres | 
-table | public.license_mail_receipts | postgres | TRUNCATE | postgres | 
-table | public.license_mail_receipts | postgres | UPDATE | postgres | 
-table | public.license_mail_receipts | service_role | DELETE | postgres | 
-table | public.license_mail_receipts | service_role | INSERT | postgres | 
-table | public.license_mail_receipts | service_role | REFERENCES | postgres | 
-table | public.license_mail_receipts | service_role | SELECT | postgres | 
-table | public.license_mail_receipts | service_role | TRIGGER | postgres | 
-table | public.license_mail_receipts | service_role | TRUNCATE | postgres | 
-table | public.license_mail_receipts | service_role | UPDATE | postgres | 
-table | public.order_bumps | anon | SELECT | postgres | 
-table | public.order_bumps | authenticated | DELETE | postgres | 
-table | public.order_bumps | authenticated | INSERT | postgres | 
-table | public.order_bumps | authenticated | SELECT | postgres | 
-table | public.order_bumps | authenticated | UPDATE | postgres | 
-table | public.order_bumps | postgres | DELETE | postgres | 
-table | public.order_bumps | postgres | INSERT | postgres | 
-table | public.order_bumps | postgres | REFERENCES | postgres | 
-table | public.order_bumps | postgres | SELECT | postgres | 
-table | public.order_bumps | postgres | TRIGGER | postgres | 
-table | public.order_bumps | postgres | TRUNCATE | postgres | 
-table | public.order_bumps | postgres | UPDATE | postgres | 
-table | public.order_bumps | service_role | DELETE | postgres | 
-table | public.order_bumps | service_role | INSERT | postgres | 
-table | public.order_bumps | service_role | REFERENCES | postgres | 
-table | public.order_bumps | service_role | SELECT | postgres | 
-table | public.order_bumps | service_role | TRIGGER | postgres | 
-table | public.order_bumps | service_role | TRUNCATE | postgres | 
-table | public.order_bumps | service_role | UPDATE | postgres | 
-table | public.order_payment_attempts | authenticated | SELECT | postgres | 
-table | public.order_payment_attempts | postgres | DELETE | postgres | 
-table | public.order_payment_attempts | postgres | INSERT | postgres | 
-table | public.order_payment_attempts | postgres | REFERENCES | postgres | 
-table | public.order_payment_attempts | postgres | SELECT | postgres | 
-table | public.order_payment_attempts | postgres | TRIGGER | postgres | 
-table | public.order_payment_attempts | postgres | TRUNCATE | postgres | 
-table | public.order_payment_attempts | postgres | UPDATE | postgres | 
-table | public.order_payment_attempts | service_role | DELETE | postgres | 
-table | public.order_payment_attempts | service_role | INSERT | postgres | 
-table | public.order_payment_attempts | service_role | REFERENCES | postgres | 
-table | public.order_payment_attempts | service_role | SELECT | postgres | 
-table | public.order_payment_attempts | service_role | TRIGGER | postgres | 
-table | public.order_payment_attempts | service_role | TRUNCATE | postgres | 
-table | public.order_payment_attempts | service_role | UPDATE | postgres | 
-table | public.oto_offers | anon | SELECT | postgres | 
-table | public.oto_offers | authenticated | INSERT | postgres | 
-table | public.oto_offers | authenticated | SELECT | postgres | 
-table | public.oto_offers | authenticated | UPDATE | postgres | 
-table | public.oto_offers | postgres | DELETE | postgres | 
-table | public.oto_offers | postgres | INSERT | postgres | 
-table | public.oto_offers | postgres | REFERENCES | postgres | 
-table | public.oto_offers | postgres | SELECT | postgres | 
-table | public.oto_offers | postgres | TRIGGER | postgres | 
-table | public.oto_offers | postgres | TRUNCATE | postgres | 
-table | public.oto_offers | postgres | UPDATE | postgres | 
-table | public.oto_offers | service_role | DELETE | postgres | 
-table | public.oto_offers | service_role | INSERT | postgres | 
-table | public.oto_offers | service_role | REFERENCES | postgres | 
-table | public.oto_offers | service_role | SELECT | postgres | 
-table | public.oto_offers | service_role | TRIGGER | postgres | 
-table | public.oto_offers | service_role | TRUNCATE | postgres | 
-table | public.oto_offers | service_role | UPDATE | postgres | 
-table | public.payment_disputes | postgres | DELETE | postgres | 
-table | public.payment_disputes | postgres | INSERT | postgres | 
-table | public.payment_disputes | postgres | REFERENCES | postgres | 
-table | public.payment_disputes | postgres | SELECT | postgres | 
-table | public.payment_disputes | postgres | TRIGGER | postgres | 
-table | public.payment_disputes | postgres | TRUNCATE | postgres | 
-table | public.payment_disputes | postgres | UPDATE | postgres | 
-table | public.payment_disputes | service_role | DELETE | postgres | 
-table | public.payment_disputes | service_role | INSERT | postgres | 
-table | public.payment_disputes | service_role | REFERENCES | postgres | 
-table | public.payment_disputes | service_role | SELECT | postgres | 
-table | public.payment_disputes | service_role | TRIGGER | postgres | 
-table | public.payment_disputes | service_role | TRUNCATE | postgres | 
-table | public.payment_disputes | service_role | UPDATE | postgres | 
-table | public.payment_line_items | authenticated | SELECT | postgres | 
-table | public.payment_line_items | postgres | DELETE | postgres | 
-table | public.payment_line_items | postgres | INSERT | postgres | 
-table | public.payment_line_items | postgres | REFERENCES | postgres | 
-table | public.payment_line_items | postgres | SELECT | postgres | 
-table | public.payment_line_items | postgres | TRIGGER | postgres | 
-table | public.payment_line_items | postgres | TRUNCATE | postgres | 
-table | public.payment_line_items | postgres | UPDATE | postgres | 
-table | public.payment_line_items | service_role | DELETE | postgres | 
-table | public.payment_line_items | service_role | INSERT | postgres | 
-table | public.payment_line_items | service_role | REFERENCES | postgres | 
-table | public.payment_line_items | service_role | SELECT | postgres | 
-table | public.payment_line_items | service_role | TRIGGER | postgres | 
-table | public.payment_line_items | service_role | TRUNCATE | postgres | 
-table | public.payment_line_items | service_role | UPDATE | postgres | 
-table | public.payment_method_config | postgres | DELETE | postgres | 
-table | public.payment_method_config | postgres | INSERT | postgres | 
-table | public.payment_method_config | postgres | REFERENCES | postgres | 
-table | public.payment_method_config | postgres | SELECT | postgres | 
-table | public.payment_method_config | postgres | TRIGGER | postgres | 
-table | public.payment_method_config | postgres | TRUNCATE | postgres | 
-table | public.payment_method_config | postgres | UPDATE | postgres | 
-table | public.payment_method_config | service_role | DELETE | postgres | 
-table | public.payment_method_config | service_role | INSERT | postgres | 
-table | public.payment_method_config | service_role | REFERENCES | postgres | 
-table | public.payment_method_config | service_role | SELECT | postgres | 
-table | public.payment_method_config | service_role | TRIGGER | postgres | 
-table | public.payment_method_config | service_role | TRUNCATE | postgres | 
-table | public.payment_method_config | service_role | UPDATE | postgres | 
-table | public.payment_refund_events | postgres | DELETE | postgres | 
-table | public.payment_refund_events | postgres | INSERT | postgres | 
-table | public.payment_refund_events | postgres | REFERENCES | postgres | 
-table | public.payment_refund_events | postgres | SELECT | postgres | 
-table | public.payment_refund_events | postgres | TRIGGER | postgres | 
-table | public.payment_refund_events | postgres | TRUNCATE | postgres | 
-table | public.payment_refund_events | postgres | UPDATE | postgres | 
-table | public.payment_refund_events | service_role | DELETE | postgres | 
-table | public.payment_refund_events | service_role | INSERT | postgres | 
-table | public.payment_refund_events | service_role | REFERENCES | postgres | 
-table | public.payment_refund_events | service_role | SELECT | postgres | 
-table | public.payment_refund_events | service_role | TRIGGER | postgres | 
-table | public.payment_refund_events | service_role | TRUNCATE | postgres | 
-table | public.payment_refund_events | service_role | UPDATE | postgres | 
-table | public.payment_refunds | postgres | DELETE | postgres | 
-table | public.payment_refunds | postgres | INSERT | postgres | 
-table | public.payment_refunds | postgres | REFERENCES | postgres | 
-table | public.payment_refunds | postgres | SELECT | postgres | 
-table | public.payment_refunds | postgres | TRIGGER | postgres | 
-table | public.payment_refunds | postgres | TRUNCATE | postgres | 
-table | public.payment_refunds | postgres | UPDATE | postgres | 
-table | public.payment_refunds | service_role | DELETE | postgres | 
-table | public.payment_refunds | service_role | INSERT | postgres | 
-table | public.payment_refunds | service_role | REFERENCES | postgres | 
-table | public.payment_refunds | service_role | SELECT | postgres | 
-table | public.payment_refunds | service_role | TRIGGER | postgres | 
-table | public.payment_refunds | service_role | TRUNCATE | postgres | 
-table | public.payment_refunds | service_role | UPDATE | postgres | 
-table | public.payment_transactions | authenticated | SELECT | postgres | 
-table | public.payment_transactions | authenticated | UPDATE | postgres | 
-table | public.payment_transactions | postgres | DELETE | postgres | 
-table | public.payment_transactions | postgres | INSERT | postgres | 
-table | public.payment_transactions | postgres | REFERENCES | postgres | 
-table | public.payment_transactions | postgres | SELECT | postgres | 
-table | public.payment_transactions | postgres | TRIGGER | postgres | 
-table | public.payment_transactions | postgres | TRUNCATE | postgres | 
-table | public.payment_transactions | postgres | UPDATE | postgres | 
-table | public.payment_transactions | service_role | DELETE | postgres | 
-table | public.payment_transactions | service_role | INSERT | postgres | 
-table | public.payment_transactions | service_role | REFERENCES | postgres | 
-table | public.payment_transactions | service_role | SELECT | postgres | 
-table | public.payment_transactions | service_role | TRIGGER | postgres | 
-table | public.payment_transactions | service_role | TRUNCATE | postgres | 
-table | public.payment_transactions | service_role | UPDATE | postgres | 
-table | public.product_categories | anon | SELECT | postgres | 
-table | public.product_categories | authenticated | DELETE | postgres | 
-table | public.product_categories | authenticated | INSERT | postgres | 
-table | public.product_categories | authenticated | SELECT | postgres | 
-table | public.product_categories | postgres | DELETE | postgres | 
-table | public.product_categories | postgres | INSERT | postgres | 
-table | public.product_categories | postgres | REFERENCES | postgres | 
-table | public.product_categories | postgres | SELECT | postgres | 
-table | public.product_categories | postgres | TRIGGER | postgres | 
-table | public.product_categories | postgres | TRUNCATE | postgres | 
-table | public.product_categories | postgres | UPDATE | postgres | 
-table | public.product_categories | service_role | DELETE | postgres | 
-table | public.product_categories | service_role | INSERT | postgres | 
-table | public.product_categories | service_role | REFERENCES | postgres | 
-table | public.product_categories | service_role | SELECT | postgres | 
-table | public.product_categories | service_role | TRIGGER | postgres | 
-table | public.product_categories | service_role | TRUNCATE | postgres | 
-table | public.product_categories | service_role | UPDATE | postgres | 
-table | public.product_offer_config | authenticated | SELECT | postgres | 
-table | public.product_offer_config | postgres | DELETE | postgres | 
-table | public.product_offer_config | postgres | INSERT | postgres | 
-table | public.product_offer_config | postgres | REFERENCES | postgres | 
-table | public.product_offer_config | postgres | SELECT | postgres | 
-table | public.product_offer_config | postgres | TRIGGER | postgres | 
-table | public.product_offer_config | postgres | TRUNCATE | postgres | 
-table | public.product_offer_config | postgres | UPDATE | postgres | 
-table | public.product_offer_config | service_role | INSERT | postgres | 
-table | public.product_offer_config | service_role | SELECT | postgres | 
-table | public.product_offer_config | service_role | UPDATE | postgres | 
-table | public.product_offer_history | authenticated | SELECT | postgres | 
-table | public.product_offer_history | postgres | DELETE | postgres | 
-table | public.product_offer_history | postgres | INSERT | postgres | 
-table | public.product_offer_history | postgres | REFERENCES | postgres | 
-table | public.product_offer_history | postgres | SELECT | postgres | 
-table | public.product_offer_history | postgres | TRIGGER | postgres | 
-table | public.product_offer_history | postgres | TRUNCATE | postgres | 
-table | public.product_offer_history | postgres | UPDATE | postgres | 
-table | public.product_offer_history | service_role | INSERT | postgres | 
-table | public.product_offer_history | service_role | SELECT | postgres | 
-table | public.product_price_history | postgres | DELETE | postgres | 
-table | public.product_price_history | postgres | INSERT | postgres | 
-table | public.product_price_history | postgres | REFERENCES | postgres | 
-table | public.product_price_history | postgres | SELECT | postgres | 
-table | public.product_price_history | postgres | TRIGGER | postgres | 
-table | public.product_price_history | postgres | TRUNCATE | postgres | 
-table | public.product_price_history | postgres | UPDATE | postgres | 
-table | public.product_price_history | service_role | DELETE | postgres | 
-table | public.product_price_history | service_role | INSERT | postgres | 
-table | public.product_price_history | service_role | REFERENCES | postgres | 
-table | public.product_price_history | service_role | SELECT | postgres | 
-table | public.product_price_history | service_role | TRIGGER | postgres | 
-table | public.product_price_history | service_role | TRUNCATE | postgres | 
-table | public.product_price_history | service_role | UPDATE | postgres | 
-table | public.product_price_tiers | authenticated | DELETE | postgres | 
-table | public.product_price_tiers | authenticated | INSERT | postgres | 
-table | public.product_price_tiers | authenticated | SELECT | postgres | 
-table | public.product_price_tiers | authenticated | UPDATE | postgres | 
-table | public.product_price_tiers | postgres | DELETE | postgres | 
-table | public.product_price_tiers | postgres | INSERT | postgres | 
-table | public.product_price_tiers | postgres | REFERENCES | postgres | 
-table | public.product_price_tiers | postgres | SELECT | postgres | 
-table | public.product_price_tiers | postgres | TRIGGER | postgres | 
-table | public.product_price_tiers | postgres | TRUNCATE | postgres | 
-table | public.product_price_tiers | postgres | UPDATE | postgres | 
-table | public.product_price_tiers | service_role | DELETE | postgres | 
-table | public.product_price_tiers | service_role | INSERT | postgres | 
-table | public.product_price_tiers | service_role | REFERENCES | postgres | 
-table | public.product_price_tiers | service_role | SELECT | postgres | 
-table | public.product_price_tiers | service_role | TRIGGER | postgres | 
-table | public.product_price_tiers | service_role | TRUNCATE | postgres | 
-table | public.product_price_tiers | service_role | UPDATE | postgres | 
-table | public.product_sessions | authenticated | DELETE | postgres | 
-table | public.product_sessions | authenticated | INSERT | postgres | 
-table | public.product_sessions | authenticated | SELECT | postgres | 
-table | public.product_sessions | authenticated | UPDATE | postgres | 
-table | public.product_sessions | postgres | DELETE | postgres | 
-table | public.product_sessions | postgres | INSERT | postgres | 
-table | public.product_sessions | postgres | REFERENCES | postgres | 
-table | public.product_sessions | postgres | SELECT | postgres | 
-table | public.product_sessions | postgres | TRIGGER | postgres | 
-table | public.product_sessions | postgres | TRUNCATE | postgres | 
-table | public.product_sessions | postgres | UPDATE | postgres | 
-table | public.product_sessions | service_role | DELETE | postgres | 
-table | public.product_sessions | service_role | INSERT | postgres | 
-table | public.product_sessions | service_role | REFERENCES | postgres | 
-table | public.product_sessions | service_role | SELECT | postgres | 
-table | public.product_sessions | service_role | TRIGGER | postgres | 
-table | public.product_sessions | service_role | TRUNCATE | postgres | 
-table | public.product_sessions | service_role | UPDATE | postgres | 
-table | public.product_tags | anon | SELECT | postgres | 
-table | public.product_tags | authenticated | SELECT | postgres | 
-table | public.product_tags | postgres | DELETE | postgres | 
-table | public.product_tags | postgres | INSERT | postgres | 
-table | public.product_tags | postgres | REFERENCES | postgres | 
-table | public.product_tags | postgres | SELECT | postgres | 
-table | public.product_tags | postgres | TRIGGER | postgres | 
-table | public.product_tags | postgres | TRUNCATE | postgres | 
-table | public.product_tags | postgres | UPDATE | postgres | 
-table | public.product_tags | service_role | DELETE | postgres | 
-table | public.product_tags | service_role | INSERT | postgres | 
-table | public.product_tags | service_role | REFERENCES | postgres | 
-table | public.product_tags | service_role | SELECT | postgres | 
-table | public.product_tags | service_role | TRIGGER | postgres | 
-table | public.product_tags | service_role | TRUNCATE | postgres | 
-table | public.product_tags | service_role | UPDATE | postgres | 
-table | public.product_variant_groups | anon | SELECT | postgres | 
-table | public.product_variant_groups | authenticated | DELETE | postgres | 
-table | public.product_variant_groups | authenticated | INSERT | postgres | 
-table | public.product_variant_groups | authenticated | SELECT | postgres | 
-table | public.product_variant_groups | postgres | DELETE | postgres | 
-table | public.product_variant_groups | postgres | INSERT | postgres | 
-table | public.product_variant_groups | postgres | REFERENCES | postgres | 
-table | public.product_variant_groups | postgres | SELECT | postgres | 
-table | public.product_variant_groups | postgres | TRIGGER | postgres | 
-table | public.product_variant_groups | postgres | TRUNCATE | postgres | 
-table | public.product_variant_groups | postgres | UPDATE | postgres | 
-table | public.product_variant_groups | service_role | DELETE | postgres | 
-table | public.product_variant_groups | service_role | INSERT | postgres | 
-table | public.product_variant_groups | service_role | REFERENCES | postgres | 
-table | public.product_variant_groups | service_role | SELECT | postgres | 
-table | public.product_variant_groups | service_role | TRIGGER | postgres | 
-table | public.product_variant_groups | service_role | TRUNCATE | postgres | 
-table | public.product_variant_groups | service_role | UPDATE | postgres | 
-table | public.products | authenticated | DELETE | postgres | 
-table | public.products | authenticated | INSERT | postgres | 
-table | public.products | authenticated | UPDATE | postgres | 
-table | public.products | postgres | DELETE | postgres | 
-table | public.products | postgres | INSERT | postgres | 
-table | public.products | postgres | REFERENCES | postgres | 
-table | public.products | postgres | SELECT | postgres | 
-table | public.products | postgres | TRIGGER | postgres | 
-table | public.products | postgres | TRUNCATE | postgres | 
-table | public.products | postgres | UPDATE | postgres | 
-table | public.products | service_role | DELETE | postgres | 
-table | public.products | service_role | INSERT | postgres | 
-table | public.products | service_role | REFERENCES | postgres | 
-table | public.products | service_role | SELECT | postgres | 
-table | public.products | service_role | TRIGGER | postgres | 
-table | public.products | service_role | TRUNCATE | postgres | 
-table | public.products | service_role | UPDATE | postgres | 
-table | public.profiles | authenticated | SELECT | postgres | 
-table | public.profiles | authenticated | UPDATE | postgres | 
-table | public.profiles | postgres | DELETE | postgres | 
-table | public.profiles | postgres | INSERT | postgres | 
-table | public.profiles | postgres | REFERENCES | postgres | 
-table | public.profiles | postgres | SELECT | postgres | 
-table | public.profiles | postgres | TRIGGER | postgres | 
-table | public.profiles | postgres | TRUNCATE | postgres | 
-table | public.profiles | postgres | UPDATE | postgres | 
-table | public.profiles | service_role | DELETE | postgres | 
-table | public.profiles | service_role | INSERT | postgres | 
-table | public.profiles | service_role | REFERENCES | postgres | 
-table | public.profiles | service_role | SELECT | postgres | 
-table | public.profiles | service_role | TRIGGER | postgres | 
-table | public.profiles | service_role | TRUNCATE | postgres | 
-table | public.profiles | service_role | UPDATE | postgres | 
-table | public.purchase_attribution | authenticated | SELECT | postgres | 
-table | public.purchase_attribution | postgres | DELETE | postgres | 
-table | public.purchase_attribution | postgres | INSERT | postgres | 
-table | public.purchase_attribution | postgres | REFERENCES | postgres | 
-table | public.purchase_attribution | postgres | SELECT | postgres | 
-table | public.purchase_attribution | postgres | TRIGGER | postgres | 
-table | public.purchase_attribution | postgres | TRUNCATE | postgres | 
-table | public.purchase_attribution | postgres | UPDATE | postgres | 
-table | public.purchase_attribution | service_role | DELETE | postgres | 
-table | public.purchase_attribution | service_role | INSERT | postgres | 
-table | public.purchase_attribution | service_role | REFERENCES | postgres | 
-table | public.purchase_attribution | service_role | SELECT | postgres | 
-table | public.purchase_attribution | service_role | TRIGGER | postgres | 
-table | public.purchase_attribution | service_role | TRUNCATE | postgres | 
-table | public.purchase_attribution | service_role | UPDATE | postgres | 
-table | public.rate_limits | postgres | DELETE | postgres | 
-table | public.rate_limits | postgres | INSERT | postgres | 
-table | public.rate_limits | postgres | REFERENCES | postgres | 
-table | public.rate_limits | postgres | SELECT | postgres | 
-table | public.rate_limits | postgres | TRIGGER | postgres | 
-table | public.rate_limits | postgres | TRUNCATE | postgres | 
-table | public.rate_limits | postgres | UPDATE | postgres | 
-table | public.rate_limits | service_role | DELETE | postgres | 
-table | public.rate_limits | service_role | INSERT | postgres | 
-table | public.rate_limits | service_role | REFERENCES | postgres | 
-table | public.rate_limits | service_role | SELECT | postgres | 
-table | public.rate_limits | service_role | TRIGGER | postgres | 
-table | public.rate_limits | service_role | TRUNCATE | postgres | 
-table | public.rate_limits | service_role | UPDATE | postgres | 
-table | public.refund_requests | authenticated | SELECT | postgres | 
-table | public.refund_requests | postgres | DELETE | postgres | 
-table | public.refund_requests | postgres | INSERT | postgres | 
-table | public.refund_requests | postgres | REFERENCES | postgres | 
-table | public.refund_requests | postgres | SELECT | postgres | 
-table | public.refund_requests | postgres | TRIGGER | postgres | 
-table | public.refund_requests | postgres | TRUNCATE | postgres | 
-table | public.refund_requests | postgres | UPDATE | postgres | 
-table | public.refund_requests | service_role | DELETE | postgres | 
-table | public.refund_requests | service_role | INSERT | postgres | 
-table | public.refund_requests | service_role | REFERENCES | postgres | 
-table | public.refund_requests | service_role | SELECT | postgres | 
-table | public.refund_requests | service_role | TRIGGER | postgres | 
-table | public.refund_requests | service_role | TRUNCATE | postgres | 
-table | public.refund_requests | service_role | UPDATE | postgres | 
-table | public.revenue_goals | postgres | DELETE | postgres | 
-table | public.revenue_goals | postgres | INSERT | postgres | 
-table | public.revenue_goals | postgres | REFERENCES | postgres | 
-table | public.revenue_goals | postgres | SELECT | postgres | 
-table | public.revenue_goals | postgres | TRIGGER | postgres | 
-table | public.revenue_goals | postgres | TRUNCATE | postgres | 
-table | public.revenue_goals | postgres | UPDATE | postgres | 
-table | public.revenue_goals | service_role | DELETE | postgres | 
-table | public.revenue_goals | service_role | INSERT | postgres | 
-table | public.revenue_goals | service_role | REFERENCES | postgres | 
-table | public.revenue_goals | service_role | SELECT | postgres | 
-table | public.revenue_goals | service_role | TRIGGER | postgres | 
-table | public.revenue_goals | service_role | TRUNCATE | postgres | 
-table | public.revenue_goals | service_role | UPDATE | postgres | 
-table | public.seat_reservations | authenticated | SELECT | postgres | 
-table | public.seat_reservations | postgres | DELETE | postgres | 
-table | public.seat_reservations | postgres | INSERT | postgres | 
-table | public.seat_reservations | postgres | REFERENCES | postgres | 
-table | public.seat_reservations | postgres | SELECT | postgres | 
-table | public.seat_reservations | postgres | TRIGGER | postgres | 
-table | public.seat_reservations | postgres | TRUNCATE | postgres | 
-table | public.seat_reservations | postgres | UPDATE | postgres | 
-table | public.seat_reservations | service_role | DELETE | postgres | 
-table | public.seat_reservations | service_role | INSERT | postgres | 
-table | public.seat_reservations | service_role | REFERENCES | postgres | 
-table | public.seat_reservations | service_role | SELECT | postgres | 
-table | public.seat_reservations | service_role | TRIGGER | postgres | 
-table | public.seat_reservations | service_role | TRUNCATE | postgres | 
-table | public.seat_reservations | service_role | UPDATE | postgres | 
-table | public.seller_embed_settings | authenticated | SELECT | postgres | 
-table | public.seller_embed_settings | postgres | DELETE | postgres | 
-table | public.seller_embed_settings | postgres | INSERT | postgres | 
-table | public.seller_embed_settings | postgres | REFERENCES | postgres | 
-table | public.seller_embed_settings | postgres | SELECT | postgres | 
-table | public.seller_embed_settings | postgres | TRIGGER | postgres | 
-table | public.seller_embed_settings | postgres | TRUNCATE | postgres | 
-table | public.seller_embed_settings | postgres | UPDATE | postgres | 
-table | public.seller_embed_settings | service_role | DELETE | postgres | 
-table | public.seller_embed_settings | service_role | INSERT | postgres | 
-table | public.seller_embed_settings | service_role | REFERENCES | postgres | 
-table | public.seller_embed_settings | service_role | SELECT | postgres | 
-table | public.seller_embed_settings | service_role | TRIGGER | postgres | 
-table | public.seller_embed_settings | service_role | TRUNCATE | postgres | 
-table | public.seller_embed_settings | service_role | UPDATE | postgres | 
-table | public.seller_license_keys | postgres | DELETE | postgres | 
-table | public.seller_license_keys | postgres | INSERT | postgres | 
-table | public.seller_license_keys | postgres | REFERENCES | postgres | 
-table | public.seller_license_keys | postgres | SELECT | postgres | 
-table | public.seller_license_keys | postgres | TRIGGER | postgres | 
-table | public.seller_license_keys | postgres | TRUNCATE | postgres | 
-table | public.seller_license_keys | postgres | UPDATE | postgres | 
-table | public.seller_license_keys | service_role | DELETE | postgres | 
-table | public.seller_license_keys | service_role | INSERT | postgres | 
-table | public.seller_license_keys | service_role | REFERENCES | postgres | 
-table | public.seller_license_keys | service_role | SELECT | postgres | 
-table | public.seller_license_keys | service_role | TRIGGER | postgres | 
-table | public.seller_license_keys | service_role | TRUNCATE | postgres | 
-table | public.seller_license_keys | service_role | UPDATE | postgres | 
-table | public.shop_config | postgres | DELETE | postgres | 
-table | public.shop_config | postgres | INSERT | postgres | 
-table | public.shop_config | postgres | REFERENCES | postgres | 
-table | public.shop_config | postgres | SELECT | postgres | 
-table | public.shop_config | postgres | TRIGGER | postgres | 
-table | public.shop_config | postgres | TRUNCATE | postgres | 
-table | public.shop_config | postgres | UPDATE | postgres | 
-table | public.shop_config | service_role | DELETE | postgres | 
-table | public.shop_config | service_role | INSERT | postgres | 
-table | public.shop_config | service_role | REFERENCES | postgres | 
-table | public.shop_config | service_role | SELECT | postgres | 
-table | public.shop_config | service_role | TRIGGER | postgres | 
-table | public.shop_config | service_role | TRUNCATE | postgres | 
-table | public.shop_config | service_role | UPDATE | postgres | 
-table | public.storefront_config | authenticated | SELECT | postgres | 
-table | public.storefront_config | postgres | DELETE | postgres | 
-table | public.storefront_config | postgres | INSERT | postgres | 
-table | public.storefront_config | postgres | REFERENCES | postgres | 
-table | public.storefront_config | postgres | SELECT | postgres | 
-table | public.storefront_config | postgres | TRIGGER | postgres | 
-table | public.storefront_config | postgres | TRUNCATE | postgres | 
-table | public.storefront_config | postgres | UPDATE | postgres | 
-table | public.storefront_config | service_role | INSERT | postgres | 
-table | public.storefront_config | service_role | SELECT | postgres | 
-table | public.storefront_config | service_role | UPDATE | postgres | 
-table | public.storefront_config_history | authenticated | SELECT | postgres | 
-table | public.storefront_config_history | postgres | DELETE | postgres | 
-table | public.storefront_config_history | postgres | INSERT | postgres | 
-table | public.storefront_config_history | postgres | REFERENCES | postgres | 
-table | public.storefront_config_history | postgres | SELECT | postgres | 
-table | public.storefront_config_history | postgres | TRIGGER | postgres | 
-table | public.storefront_config_history | postgres | TRUNCATE | postgres | 
-table | public.storefront_config_history | postgres | UPDATE | postgres | 
-table | public.storefront_config_history | service_role | INSERT | postgres | 
-table | public.storefront_config_history | service_role | SELECT | postgres | 
-table | public.stripe_configurations | authenticated | DELETE | postgres | 
-table | public.stripe_configurations | authenticated | INSERT | postgres | 
-table | public.stripe_configurations | authenticated | SELECT | postgres | 
-table | public.stripe_configurations | authenticated | UPDATE | postgres | 
-table | public.stripe_configurations | postgres | DELETE | postgres | 
-table | public.stripe_configurations | postgres | INSERT | postgres | 
-table | public.stripe_configurations | postgres | REFERENCES | postgres | 
-table | public.stripe_configurations | postgres | SELECT | postgres | 
-table | public.stripe_configurations | postgres | TRIGGER | postgres | 
-table | public.stripe_configurations | postgres | TRUNCATE | postgres | 
-table | public.stripe_configurations | postgres | UPDATE | postgres | 
-table | public.stripe_configurations | service_role | DELETE | postgres | 
-table | public.stripe_configurations | service_role | INSERT | postgres | 
-table | public.stripe_configurations | service_role | REFERENCES | postgres | 
-table | public.stripe_configurations | service_role | SELECT | postgres | 
-table | public.stripe_configurations | service_role | TRIGGER | postgres | 
-table | public.stripe_configurations | service_role | TRUNCATE | postgres | 
-table | public.stripe_configurations | service_role | UPDATE | postgres | 
-table | public.stripe_customers | authenticated | SELECT | postgres | 
-table | public.stripe_customers | postgres | DELETE | postgres | 
-table | public.stripe_customers | postgres | INSERT | postgres | 
-table | public.stripe_customers | postgres | REFERENCES | postgres | 
-table | public.stripe_customers | postgres | SELECT | postgres | 
-table | public.stripe_customers | postgres | TRIGGER | postgres | 
-table | public.stripe_customers | postgres | TRUNCATE | postgres | 
-table | public.stripe_customers | postgres | UPDATE | postgres | 
-table | public.stripe_customers | service_role | DELETE | postgres | 
-table | public.stripe_customers | service_role | INSERT | postgres | 
-table | public.stripe_customers | service_role | REFERENCES | postgres | 
-table | public.stripe_customers | service_role | SELECT | postgres | 
-table | public.stripe_customers | service_role | TRIGGER | postgres | 
-table | public.stripe_customers | service_role | TRUNCATE | postgres | 
-table | public.stripe_customers | service_role | UPDATE | postgres | 
-table | public.subscriptions | authenticated | SELECT | postgres | 
-table | public.subscriptions | postgres | DELETE | postgres | 
-table | public.subscriptions | postgres | INSERT | postgres | 
-table | public.subscriptions | postgres | REFERENCES | postgres | 
-table | public.subscriptions | postgres | SELECT | postgres | 
-table | public.subscriptions | postgres | TRIGGER | postgres | 
-table | public.subscriptions | postgres | TRUNCATE | postgres | 
-table | public.subscriptions | postgres | UPDATE | postgres | 
-table | public.subscriptions | service_role | DELETE | postgres | 
-table | public.subscriptions | service_role | INSERT | postgres | 
-table | public.subscriptions | service_role | REFERENCES | postgres | 
-table | public.subscriptions | service_role | SELECT | postgres | 
-table | public.subscriptions | service_role | TRIGGER | postgres | 
-table | public.subscriptions | service_role | TRUNCATE | postgres | 
-table | public.subscriptions | service_role | UPDATE | postgres | 
-table | public.tags | anon | SELECT | postgres | 
-table | public.tags | authenticated | SELECT | postgres | 
-table | public.tags | postgres | DELETE | postgres | 
-table | public.tags | postgres | INSERT | postgres | 
-table | public.tags | postgres | REFERENCES | postgres | 
-table | public.tags | postgres | SELECT | postgres | 
-table | public.tags | postgres | TRIGGER | postgres | 
-table | public.tags | postgres | TRUNCATE | postgres | 
-table | public.tags | postgres | UPDATE | postgres | 
-table | public.tags | service_role | DELETE | postgres | 
-table | public.tags | service_role | INSERT | postgres | 
-table | public.tags | service_role | REFERENCES | postgres | 
-table | public.tags | service_role | SELECT | postgres | 
-table | public.tags | service_role | TRIGGER | postgres | 
-table | public.tags | service_role | TRUNCATE | postgres | 
-table | public.tags | service_role | UPDATE | postgres | 
-table | public.telemetry_state | postgres | DELETE | postgres | 
-table | public.telemetry_state | postgres | INSERT | postgres | 
-table | public.telemetry_state | postgres | REFERENCES | postgres | 
-table | public.telemetry_state | postgres | SELECT | postgres | 
-table | public.telemetry_state | postgres | TRIGGER | postgres | 
-table | public.telemetry_state | postgres | TRUNCATE | postgres | 
-table | public.telemetry_state | postgres | UPDATE | postgres | 
-table | public.telemetry_state | service_role | DELETE | postgres | 
-table | public.telemetry_state | service_role | INSERT | postgres | 
-table | public.telemetry_state | service_role | REFERENCES | postgres | 
-table | public.telemetry_state | service_role | SELECT | postgres | 
-table | public.telemetry_state | service_role | TRIGGER | postgres | 
-table | public.telemetry_state | service_role | TRUNCATE | postgres | 
-table | public.telemetry_state | service_role | UPDATE | postgres | 
-table | public.template_credentials | postgres | DELETE | postgres | 
-table | public.template_credentials | postgres | INSERT | postgres | 
-table | public.template_credentials | postgres | REFERENCES | postgres | 
-table | public.template_credentials | postgres | SELECT | postgres | 
-table | public.template_credentials | postgres | TRIGGER | postgres | 
-table | public.template_credentials | postgres | TRUNCATE | postgres | 
-table | public.template_credentials | postgres | UPDATE | postgres | 
-table | public.template_credentials | service_role | SELECT | postgres | 
-table | public.tracking_logs | postgres | DELETE | postgres | 
-table | public.tracking_logs | postgres | INSERT | postgres | 
-table | public.tracking_logs | postgres | REFERENCES | postgres | 
-table | public.tracking_logs | postgres | SELECT | postgres | 
-table | public.tracking_logs | postgres | TRIGGER | postgres | 
-table | public.tracking_logs | postgres | TRUNCATE | postgres | 
-table | public.tracking_logs | postgres | UPDATE | postgres | 
-table | public.tracking_logs | service_role | DELETE | postgres | 
-table | public.tracking_logs | service_role | INSERT | postgres | 
-table | public.tracking_logs | service_role | REFERENCES | postgres | 
-table | public.tracking_logs | service_role | SELECT | postgres | 
-table | public.tracking_logs | service_role | TRIGGER | postgres | 
-table | public.tracking_logs | service_role | TRUNCATE | postgres | 
-table | public.tracking_logs | service_role | UPDATE | postgres | 
-table | public.tutorial_progress | authenticated | INSERT | postgres | 
-table | public.tutorial_progress | authenticated | SELECT | postgres | 
-table | public.tutorial_progress | postgres | DELETE | postgres | 
-table | public.tutorial_progress | postgres | INSERT | postgres | 
-table | public.tutorial_progress | postgres | REFERENCES | postgres | 
-table | public.tutorial_progress | postgres | SELECT | postgres | 
-table | public.tutorial_progress | postgres | TRIGGER | postgres | 
-table | public.tutorial_progress | postgres | TRUNCATE | postgres | 
-table | public.tutorial_progress | postgres | UPDATE | postgres | 
-table | public.tutorial_progress | service_role | DELETE | postgres | 
-table | public.tutorial_progress | service_role | INSERT | postgres | 
-table | public.tutorial_progress | service_role | REFERENCES | postgres | 
-table | public.tutorial_progress | service_role | SELECT | postgres | 
-table | public.tutorial_progress | service_role | TRIGGER | postgres | 
-table | public.tutorial_progress | service_role | TRUNCATE | postgres | 
-table | public.tutorial_progress | service_role | UPDATE | postgres | 
-table | public.user_product_access | authenticated | SELECT | postgres | 
-table | public.user_product_access | postgres | DELETE | postgres | 
-table | public.user_product_access | postgres | INSERT | postgres | 
-table | public.user_product_access | postgres | REFERENCES | postgres | 
-table | public.user_product_access | postgres | SELECT | postgres | 
-table | public.user_product_access | postgres | TRIGGER | postgres | 
-table | public.user_product_access | postgres | TRUNCATE | postgres | 
-table | public.user_product_access | postgres | UPDATE | postgres | 
-table | public.user_product_access | service_role | DELETE | postgres | 
-table | public.user_product_access | service_role | INSERT | postgres | 
-table | public.user_product_access | service_role | REFERENCES | postgres | 
-table | public.user_product_access | service_role | SELECT | postgres | 
-table | public.user_product_access | service_role | TRIGGER | postgres | 
-table | public.user_product_access | service_role | TRUNCATE | postgres | 
-table | public.user_product_access | service_role | UPDATE | postgres | 
-table | public.variant_groups | anon | SELECT | postgres | 
-table | public.variant_groups | authenticated | DELETE | postgres | 
-table | public.variant_groups | authenticated | INSERT | postgres | 
-table | public.variant_groups | authenticated | SELECT | postgres | 
-table | public.variant_groups | authenticated | UPDATE | postgres | 
-table | public.variant_groups | postgres | DELETE | postgres | 
-table | public.variant_groups | postgres | INSERT | postgres | 
-table | public.variant_groups | postgres | REFERENCES | postgres | 
-table | public.variant_groups | postgres | SELECT | postgres | 
-table | public.variant_groups | postgres | TRIGGER | postgres | 
-table | public.variant_groups | postgres | TRUNCATE | postgres | 
-table | public.variant_groups | postgres | UPDATE | postgres | 
-table | public.variant_groups | service_role | DELETE | postgres | 
-table | public.variant_groups | service_role | INSERT | postgres | 
-table | public.variant_groups | service_role | REFERENCES | postgres | 
-table | public.variant_groups | service_role | SELECT | postgres | 
-table | public.variant_groups | service_role | TRIGGER | postgres | 
-table | public.variant_groups | service_role | TRUNCATE | postgres | 
-table | public.variant_groups | service_role | UPDATE | postgres | 
-table | public.video_events | authenticated | SELECT | postgres | 
-table | public.video_events | postgres | DELETE | postgres | 
-table | public.video_events | postgres | INSERT | postgres | 
-table | public.video_events | postgres | REFERENCES | postgres | 
-table | public.video_events | postgres | SELECT | postgres | 
-table | public.video_events | postgres | TRIGGER | postgres | 
-table | public.video_events | postgres | TRUNCATE | postgres | 
-table | public.video_events | postgres | UPDATE | postgres | 
-table | public.video_events | service_role | DELETE | postgres | 
-table | public.video_events | service_role | INSERT | postgres | 
-table | public.video_events | service_role | REFERENCES | postgres | 
-table | public.video_events | service_role | SELECT | postgres | 
-table | public.video_events | service_role | TRIGGER | postgres | 
-table | public.video_events | service_role | TRUNCATE | postgres | 
-table | public.video_events | service_role | UPDATE | postgres | 
-table | public.video_progress | authenticated | SELECT | postgres | 
-table | public.video_progress | postgres | DELETE | postgres | 
-table | public.video_progress | postgres | INSERT | postgres | 
-table | public.video_progress | postgres | REFERENCES | postgres | 
-table | public.video_progress | postgres | SELECT | postgres | 
-table | public.video_progress | postgres | TRIGGER | postgres | 
-table | public.video_progress | postgres | TRUNCATE | postgres | 
-table | public.video_progress | postgres | UPDATE | postgres | 
-table | public.video_progress | service_role | DELETE | postgres | 
-table | public.video_progress | service_role | INSERT | postgres | 
-table | public.video_progress | service_role | REFERENCES | postgres | 
-table | public.video_progress | service_role | SELECT | postgres | 
-table | public.video_progress | service_role | TRIGGER | postgres | 
-table | public.video_progress | service_role | TRUNCATE | postgres | 
-table | public.video_progress | service_role | UPDATE | postgres | 
-table | public.webhook_endpoint_products | authenticated | DELETE | postgres | 
-table | public.webhook_endpoint_products | authenticated | INSERT | postgres | 
-table | public.webhook_endpoint_products | authenticated | SELECT | postgres | 
-table | public.webhook_endpoint_products | authenticated | UPDATE | postgres | 
-table | public.webhook_endpoint_products | postgres | DELETE | postgres | 
-table | public.webhook_endpoint_products | postgres | INSERT | postgres | 
-table | public.webhook_endpoint_products | postgres | REFERENCES | postgres | 
-table | public.webhook_endpoint_products | postgres | SELECT | postgres | 
-table | public.webhook_endpoint_products | postgres | TRIGGER | postgres | 
-table | public.webhook_endpoint_products | postgres | TRUNCATE | postgres | 
-table | public.webhook_endpoint_products | postgres | UPDATE | postgres | 
-table | public.webhook_endpoint_products | service_role | DELETE | postgres | 
-table | public.webhook_endpoint_products | service_role | INSERT | postgres | 
-table | public.webhook_endpoint_products | service_role | REFERENCES | postgres | 
-table | public.webhook_endpoint_products | service_role | SELECT | postgres | 
-table | public.webhook_endpoint_products | service_role | TRIGGER | postgres | 
-table | public.webhook_endpoint_products | service_role | TRUNCATE | postgres | 
-table | public.webhook_endpoint_products | service_role | UPDATE | postgres | 
-table | public.webhook_endpoints | authenticated | DELETE | postgres | 
-table | public.webhook_endpoints | authenticated | INSERT | postgres | 
-table | public.webhook_endpoints | authenticated | SELECT | postgres | 
-table | public.webhook_endpoints | authenticated | UPDATE | postgres | 
-table | public.webhook_endpoints | postgres | DELETE | postgres | 
-table | public.webhook_endpoints | postgres | INSERT | postgres | 
-table | public.webhook_endpoints | postgres | REFERENCES | postgres | 
-table | public.webhook_endpoints | postgres | SELECT | postgres | 
-table | public.webhook_endpoints | postgres | TRIGGER | postgres | 
-table | public.webhook_endpoints | postgres | TRUNCATE | postgres | 
-table | public.webhook_endpoints | postgres | UPDATE | postgres | 
-table | public.webhook_endpoints | service_role | DELETE | postgres | 
-table | public.webhook_endpoints | service_role | INSERT | postgres | 
-table | public.webhook_endpoints | service_role | REFERENCES | postgres | 
-table | public.webhook_endpoints | service_role | SELECT | postgres | 
-table | public.webhook_endpoints | service_role | TRIGGER | postgres | 
-table | public.webhook_endpoints | service_role | TRUNCATE | postgres | 
-table | public.webhook_endpoints | service_role | UPDATE | postgres | 
-table | public.webhook_logs | authenticated | SELECT | postgres | 
-table | public.webhook_logs | authenticated | UPDATE | postgres | 
-table | public.webhook_logs | postgres | DELETE | postgres | 
-table | public.webhook_logs | postgres | INSERT | postgres | 
-table | public.webhook_logs | postgres | REFERENCES | postgres | 
-table | public.webhook_logs | postgres | SELECT | postgres | 
-table | public.webhook_logs | postgres | TRIGGER | postgres | 
-table | public.webhook_logs | postgres | TRUNCATE | postgres | 
-table | public.webhook_logs | postgres | UPDATE | postgres | 
-table | public.webhook_logs | service_role | DELETE | postgres | 
-table | public.webhook_logs | service_role | INSERT | postgres | 
-table | public.webhook_logs | service_role | REFERENCES | postgres | 
-table | public.webhook_logs | service_role | SELECT | postgres | 
-table | public.webhook_logs | service_role | TRIGGER | postgres | 
-table | public.webhook_logs | service_role | TRUNCATE | postgres | 
-table | public.webhook_logs | service_role | UPDATE | postgres | 
-table | realtime.subscription | anon | SELECT | supabase_admin | 
-table | realtime.subscription | authenticated | SELECT | supabase_admin | 
-table | realtime.subscription | dashboard_user | DELETE | supabase_admin | 
-table | realtime.subscription | dashboard_user | INSERT | supabase_admin | 
-table | realtime.subscription | dashboard_user | REFERENCES | supabase_admin | 
-table | realtime.subscription | dashboard_user | SELECT | supabase_admin | 
-table | realtime.subscription | dashboard_user | TRIGGER | supabase_admin | 
-table | realtime.subscription | dashboard_user | TRUNCATE | supabase_admin | 
-table | realtime.subscription | dashboard_user | UPDATE | supabase_admin | 
-table | realtime.subscription | postgres | DELETE | supabase_admin | 
-table | realtime.subscription | postgres | INSERT | supabase_admin | 
-table | realtime.subscription | postgres | REFERENCES | supabase_admin | 
-table | realtime.subscription | postgres | SELECT | supabase_admin | 
-table | realtime.subscription | postgres | TRIGGER | supabase_admin | 
-table | realtime.subscription | postgres | TRUNCATE | supabase_admin | 
-table | realtime.subscription | postgres | UPDATE | supabase_admin | 
-table | realtime.subscription | service_role | SELECT | supabase_admin | 
-table | realtime.subscription | supabase_admin | DELETE | supabase_admin | 
-table | realtime.subscription | supabase_admin | INSERT | supabase_admin | 
-table | realtime.subscription | supabase_admin | REFERENCES | supabase_admin | 
-table | realtime.subscription | supabase_admin | SELECT | supabase_admin | 
-table | realtime.subscription | supabase_admin | TRIGGER | supabase_admin | 
-table | realtime.subscription | supabase_admin | TRUNCATE | supabase_admin | 
-table | realtime.subscription | supabase_admin | UPDATE | supabase_admin | 
-table | realtime.subscription | supabase_realtime_admin | DELETE | supabase_admin | 
-table | realtime.subscription | supabase_realtime_admin | INSERT | supabase_admin | 
-table | realtime.subscription | supabase_realtime_admin | REFERENCES | supabase_admin | 
-table | realtime.subscription | supabase_realtime_admin | SELECT | supabase_admin | 
-table | realtime.subscription | supabase_realtime_admin | TRIGGER | supabase_admin | 
-table | realtime.subscription | supabase_realtime_admin | TRUNCATE | supabase_admin | 
-table | realtime.subscription | supabase_realtime_admin | UPDATE | supabase_admin | 
-table | storage.buckets | anon | DELETE | supabase_storage_admin | 
-table | storage.buckets | anon | INSERT | supabase_storage_admin | 
-table | storage.buckets | anon | REFERENCES | supabase_storage_admin | 
-table | storage.buckets | anon | SELECT | supabase_storage_admin | 
-table | storage.buckets | anon | TRIGGER | supabase_storage_admin | 
-table | storage.buckets | anon | TRUNCATE | supabase_storage_admin | 
-table | storage.buckets | anon | UPDATE | supabase_storage_admin | 
-table | storage.buckets | authenticated | DELETE | supabase_storage_admin | 
-table | storage.buckets | authenticated | INSERT | supabase_storage_admin | 
-table | storage.buckets | authenticated | REFERENCES | supabase_storage_admin | 
-table | storage.buckets | authenticated | SELECT | supabase_storage_admin | 
-table | storage.buckets | authenticated | TRIGGER | supabase_storage_admin | 
-table | storage.buckets | authenticated | TRUNCATE | supabase_storage_admin | 
-table | storage.buckets | authenticated | UPDATE | supabase_storage_admin | 
+table | cron.job_run_details | PUBLIC | DELETE | supabase_admin | -
+table | cron.job_run_details | PUBLIC | SELECT | supabase_admin | -
+table | cron.job_run_details | supabase_admin | DELETE | supabase_admin | -
+table | cron.job_run_details | supabase_admin | INSERT | supabase_admin | -
+table | cron.job_run_details | supabase_admin | REFERENCES | supabase_admin | -
+table | cron.job_run_details | supabase_admin | SELECT | supabase_admin | -
+table | cron.job_run_details | supabase_admin | TRIGGER | supabase_admin | -
+table | cron.job_run_details | supabase_admin | TRUNCATE | supabase_admin | -
+table | cron.job_run_details | supabase_admin | UPDATE | supabase_admin | -
+table | public.admin_actions | postgres | DELETE | postgres | -
+table | public.admin_actions | postgres | INSERT | postgres | -
+table | public.admin_actions | postgres | REFERENCES | postgres | -
+table | public.admin_actions | postgres | SELECT | postgres | -
+table | public.admin_actions | postgres | TRIGGER | postgres | -
+table | public.admin_actions | postgres | TRUNCATE | postgres | -
+table | public.admin_actions | postgres | UPDATE | postgres | -
+table | public.admin_actions | service_role | DELETE | postgres | -
+table | public.admin_actions | service_role | INSERT | postgres | -
+table | public.admin_actions | service_role | REFERENCES | postgres | -
+table | public.admin_actions | service_role | SELECT | postgres | -
+table | public.admin_actions | service_role | TRIGGER | postgres | -
+table | public.admin_actions | service_role | TRUNCATE | postgres | -
+table | public.admin_actions | service_role | UPDATE | postgres | -
+table | public.admin_users | authenticated | SELECT | postgres | -
+table | public.admin_users | postgres | DELETE | postgres | -
+table | public.admin_users | postgres | INSERT | postgres | -
+table | public.admin_users | postgres | REFERENCES | postgres | -
+table | public.admin_users | postgres | SELECT | postgres | -
+table | public.admin_users | postgres | TRIGGER | postgres | -
+table | public.admin_users | postgres | TRUNCATE | postgres | -
+table | public.admin_users | postgres | UPDATE | postgres | -
+table | public.admin_users | service_role | DELETE | postgres | -
+table | public.admin_users | service_role | INSERT | postgres | -
+table | public.admin_users | service_role | REFERENCES | postgres | -
+table | public.admin_users | service_role | SELECT | postgres | -
+table | public.admin_users | service_role | TRIGGER | postgres | -
+table | public.admin_users | service_role | TRUNCATE | postgres | -
+table | public.admin_users | service_role | UPDATE | postgres | -
+table | public.affiliate_commissions | postgres | DELETE | postgres | -
+table | public.affiliate_commissions | postgres | INSERT | postgres | -
+table | public.affiliate_commissions | postgres | REFERENCES | postgres | -
+table | public.affiliate_commissions | postgres | SELECT | postgres | -
+table | public.affiliate_commissions | postgres | TRIGGER | postgres | -
+table | public.affiliate_commissions | postgres | TRUNCATE | postgres | -
+table | public.affiliate_commissions | postgres | UPDATE | postgres | -
+table | public.affiliate_commissions | service_role | INSERT | postgres | -
+table | public.affiliate_commissions | service_role | SELECT | postgres | -
+table | public.affiliate_commissions | service_role | UPDATE | postgres | -
+table | public.affiliate_coupon_bindings | postgres | DELETE | postgres | -
+table | public.affiliate_coupon_bindings | postgres | INSERT | postgres | -
+table | public.affiliate_coupon_bindings | postgres | REFERENCES | postgres | -
+table | public.affiliate_coupon_bindings | postgres | SELECT | postgres | -
+table | public.affiliate_coupon_bindings | postgres | TRIGGER | postgres | -
+table | public.affiliate_coupon_bindings | postgres | TRUNCATE | postgres | -
+table | public.affiliate_coupon_bindings | postgres | UPDATE | postgres | -
+table | public.affiliate_coupon_bindings | service_role | INSERT | postgres | -
+table | public.affiliate_coupon_bindings | service_role | SELECT | postgres | -
+table | public.affiliate_coupon_bindings | service_role | UPDATE | postgres | -
+table | public.affiliate_ledger | postgres | DELETE | postgres | -
+table | public.affiliate_ledger | postgres | INSERT | postgres | -
+table | public.affiliate_ledger | postgres | REFERENCES | postgres | -
+table | public.affiliate_ledger | postgres | SELECT | postgres | -
+table | public.affiliate_ledger | postgres | TRIGGER | postgres | -
+table | public.affiliate_ledger | postgres | TRUNCATE | postgres | -
+table | public.affiliate_ledger | postgres | UPDATE | postgres | -
+table | public.affiliate_ledger | service_role | INSERT | postgres | -
+table | public.affiliate_ledger | service_role | SELECT | postgres | -
+table | public.affiliate_membership_events | postgres | DELETE | postgres | -
+table | public.affiliate_membership_events | postgres | INSERT | postgres | -
+table | public.affiliate_membership_events | postgres | REFERENCES | postgres | -
+table | public.affiliate_membership_events | postgres | SELECT | postgres | -
+table | public.affiliate_membership_events | postgres | TRIGGER | postgres | -
+table | public.affiliate_membership_events | postgres | TRUNCATE | postgres | -
+table | public.affiliate_membership_events | postgres | UPDATE | postgres | -
+table | public.affiliate_membership_events | service_role | INSERT | postgres | -
+table | public.affiliate_membership_events | service_role | SELECT | postgres | -
+table | public.affiliate_memberships | postgres | DELETE | postgres | -
+table | public.affiliate_memberships | postgres | INSERT | postgres | -
+table | public.affiliate_memberships | postgres | REFERENCES | postgres | -
+table | public.affiliate_memberships | postgres | SELECT | postgres | -
+table | public.affiliate_memberships | postgres | TRIGGER | postgres | -
+table | public.affiliate_memberships | postgres | TRUNCATE | postgres | -
+table | public.affiliate_memberships | postgres | UPDATE | postgres | -
+table | public.affiliate_memberships | service_role | INSERT | postgres | -
+table | public.affiliate_memberships | service_role | SELECT | postgres | -
+table | public.affiliate_payout_allocations | postgres | DELETE | postgres | -
+table | public.affiliate_payout_allocations | postgres | INSERT | postgres | -
+table | public.affiliate_payout_allocations | postgres | REFERENCES | postgres | -
+table | public.affiliate_payout_allocations | postgres | SELECT | postgres | -
+table | public.affiliate_payout_allocations | postgres | TRIGGER | postgres | -
+table | public.affiliate_payout_allocations | postgres | TRUNCATE | postgres | -
+table | public.affiliate_payout_allocations | postgres | UPDATE | postgres | -
+table | public.affiliate_payout_allocations | service_role | INSERT | postgres | -
+table | public.affiliate_payout_allocations | service_role | SELECT | postgres | -
+table | public.affiliate_payout_allocations | service_role | UPDATE | postgres | -
+table | public.affiliate_payouts | postgres | DELETE | postgres | -
+table | public.affiliate_payouts | postgres | INSERT | postgres | -
+table | public.affiliate_payouts | postgres | REFERENCES | postgres | -
+table | public.affiliate_payouts | postgres | SELECT | postgres | -
+table | public.affiliate_payouts | postgres | TRIGGER | postgres | -
+table | public.affiliate_payouts | postgres | TRUNCATE | postgres | -
+table | public.affiliate_payouts | postgres | UPDATE | postgres | -
+table | public.affiliate_payouts | service_role | INSERT | postgres | -
+table | public.affiliate_payouts | service_role | SELECT | postgres | -
+table | public.affiliate_payouts | service_role | UPDATE | postgres | -
+table | public.affiliate_program_versions | postgres | DELETE | postgres | -
+table | public.affiliate_program_versions | postgres | INSERT | postgres | -
+table | public.affiliate_program_versions | postgres | REFERENCES | postgres | -
+table | public.affiliate_program_versions | postgres | SELECT | postgres | -
+table | public.affiliate_program_versions | postgres | TRIGGER | postgres | -
+table | public.affiliate_program_versions | postgres | TRUNCATE | postgres | -
+table | public.affiliate_program_versions | postgres | UPDATE | postgres | -
+table | public.affiliate_program_versions | service_role | INSERT | postgres | -
+table | public.affiliate_program_versions | service_role | SELECT | postgres | -
+table | public.affiliate_programs | postgres | DELETE | postgres | -
+table | public.affiliate_programs | postgres | INSERT | postgres | -
+table | public.affiliate_programs | postgres | REFERENCES | postgres | -
+table | public.affiliate_programs | postgres | SELECT | postgres | -
+table | public.affiliate_programs | postgres | TRIGGER | postgres | -
+table | public.affiliate_programs | postgres | TRUNCATE | postgres | -
+table | public.affiliate_programs | postgres | UPDATE | postgres | -
+table | public.affiliate_programs | service_role | INSERT | postgres | -
+table | public.affiliate_programs | service_role | SELECT | postgres | -
+table | public.affiliate_rules | postgres | DELETE | postgres | -
+table | public.affiliate_rules | postgres | INSERT | postgres | -
+table | public.affiliate_rules | postgres | REFERENCES | postgres | -
+table | public.affiliate_rules | postgres | SELECT | postgres | -
+table | public.affiliate_rules | postgres | TRIGGER | postgres | -
+table | public.affiliate_rules | postgres | TRUNCATE | postgres | -
+table | public.affiliate_rules | postgres | UPDATE | postgres | -
+table | public.affiliate_rules | service_role | INSERT | postgres | -
+table | public.affiliate_rules | service_role | SELECT | postgres | -
+table | public.affiliate_work | postgres | DELETE | postgres | -
+table | public.affiliate_work | postgres | INSERT | postgres | -
+table | public.affiliate_work | postgres | REFERENCES | postgres | -
+table | public.affiliate_work | postgres | SELECT | postgres | -
+table | public.affiliate_work | postgres | TRIGGER | postgres | -
+table | public.affiliate_work | postgres | TRUNCATE | postgres | -
+table | public.affiliate_work | postgres | UPDATE | postgres | -
+table | public.affiliate_work | service_role | DELETE | postgres | -
+table | public.affiliate_work | service_role | INSERT | postgres | -
+table | public.affiliate_work | service_role | SELECT | postgres | -
+table | public.affiliate_work | service_role | UPDATE | postgres | -
+table | public.api_key_audit_log | authenticated | SELECT | postgres | -
+table | public.api_key_audit_log | postgres | DELETE | postgres | -
+table | public.api_key_audit_log | postgres | INSERT | postgres | -
+table | public.api_key_audit_log | postgres | REFERENCES | postgres | -
+table | public.api_key_audit_log | postgres | SELECT | postgres | -
+table | public.api_key_audit_log | postgres | TRIGGER | postgres | -
+table | public.api_key_audit_log | postgres | TRUNCATE | postgres | -
+table | public.api_key_audit_log | postgres | UPDATE | postgres | -
+table | public.api_key_audit_log | service_role | DELETE | postgres | -
+table | public.api_key_audit_log | service_role | INSERT | postgres | -
+table | public.api_key_audit_log | service_role | REFERENCES | postgres | -
+table | public.api_key_audit_log | service_role | SELECT | postgres | -
+table | public.api_key_audit_log | service_role | TRIGGER | postgres | -
+table | public.api_key_audit_log | service_role | TRUNCATE | postgres | -
+table | public.api_key_audit_log | service_role | UPDATE | postgres | -
+table | public.api_keys | authenticated | DELETE | postgres | -
+table | public.api_keys | authenticated | INSERT | postgres | -
+table | public.api_keys | authenticated | SELECT | postgres | -
+table | public.api_keys | authenticated | UPDATE | postgres | -
+table | public.api_keys | postgres | DELETE | postgres | -
+table | public.api_keys | postgres | INSERT | postgres | -
+table | public.api_keys | postgres | REFERENCES | postgres | -
+table | public.api_keys | postgres | SELECT | postgres | -
+table | public.api_keys | postgres | TRIGGER | postgres | -
+table | public.api_keys | postgres | TRUNCATE | postgres | -
+table | public.api_keys | postgres | UPDATE | postgres | -
+table | public.api_keys | service_role | DELETE | postgres | -
+table | public.api_keys | service_role | INSERT | postgres | -
+table | public.api_keys | service_role | REFERENCES | postgres | -
+table | public.api_keys | service_role | SELECT | postgres | -
+table | public.api_keys | service_role | TRIGGER | postgres | -
+table | public.api_keys | service_role | TRUNCATE | postgres | -
+table | public.api_keys | service_role | UPDATE | postgres | -
+table | public.application_rate_limits | postgres | DELETE | postgres | -
+table | public.application_rate_limits | postgres | INSERT | postgres | -
+table | public.application_rate_limits | postgres | REFERENCES | postgres | -
+table | public.application_rate_limits | postgres | SELECT | postgres | -
+table | public.application_rate_limits | postgres | TRIGGER | postgres | -
+table | public.application_rate_limits | postgres | TRUNCATE | postgres | -
+table | public.application_rate_limits | postgres | UPDATE | postgres | -
+table | public.application_rate_limits | service_role | DELETE | postgres | -
+table | public.application_rate_limits | service_role | INSERT | postgres | -
+table | public.application_rate_limits | service_role | REFERENCES | postgres | -
+table | public.application_rate_limits | service_role | SELECT | postgres | -
+table | public.application_rate_limits | service_role | TRIGGER | postgres | -
+table | public.application_rate_limits | service_role | TRUNCATE | postgres | -
+table | public.application_rate_limits | service_role | UPDATE | postgres | -
+table | public.attribution_channel_rules | authenticated | DELETE | postgres | -
+table | public.attribution_channel_rules | authenticated | INSERT | postgres | -
+table | public.attribution_channel_rules | authenticated | SELECT | postgres | -
+table | public.attribution_channel_rules | authenticated | UPDATE | postgres | -
+table | public.attribution_channel_rules | postgres | DELETE | postgres | -
+table | public.attribution_channel_rules | postgres | INSERT | postgres | -
+table | public.attribution_channel_rules | postgres | REFERENCES | postgres | -
+table | public.attribution_channel_rules | postgres | SELECT | postgres | -
+table | public.attribution_channel_rules | postgres | TRIGGER | postgres | -
+table | public.attribution_channel_rules | postgres | TRUNCATE | postgres | -
+table | public.attribution_channel_rules | postgres | UPDATE | postgres | -
+table | public.attribution_channel_rules | service_role | DELETE | postgres | -
+table | public.attribution_channel_rules | service_role | INSERT | postgres | -
+table | public.attribution_channel_rules | service_role | REFERENCES | postgres | -
+table | public.attribution_channel_rules | service_role | SELECT | postgres | -
+table | public.attribution_channel_rules | service_role | TRIGGER | postgres | -
+table | public.attribution_channel_rules | service_role | TRUNCATE | postgres | -
+table | public.attribution_channel_rules | service_role | UPDATE | postgres | -
+table | public.attribution_settings | authenticated | SELECT | postgres | -
+table | public.attribution_settings | authenticated | UPDATE | postgres | -
+table | public.attribution_settings | postgres | DELETE | postgres | -
+table | public.attribution_settings | postgres | INSERT | postgres | -
+table | public.attribution_settings | postgres | REFERENCES | postgres | -
+table | public.attribution_settings | postgres | SELECT | postgres | -
+table | public.attribution_settings | postgres | TRIGGER | postgres | -
+table | public.attribution_settings | postgres | TRUNCATE | postgres | -
+table | public.attribution_settings | postgres | UPDATE | postgres | -
+table | public.attribution_settings | service_role | DELETE | postgres | -
+table | public.attribution_settings | service_role | INSERT | postgres | -
+table | public.attribution_settings | service_role | REFERENCES | postgres | -
+table | public.attribution_settings | service_role | SELECT | postgres | -
+table | public.attribution_settings | service_role | TRIGGER | postgres | -
+table | public.attribution_settings | service_role | TRUNCATE | postgres | -
+table | public.attribution_settings | service_role | UPDATE | postgres | -
+table | public.audit_log | postgres | DELETE | postgres | -
+table | public.audit_log | postgres | INSERT | postgres | -
+table | public.audit_log | postgres | REFERENCES | postgres | -
+table | public.audit_log | postgres | SELECT | postgres | -
+table | public.audit_log | postgres | TRIGGER | postgres | -
+table | public.audit_log | postgres | TRUNCATE | postgres | -
+table | public.audit_log | postgres | UPDATE | postgres | -
+table | public.audit_log | service_role | DELETE | postgres | -
+table | public.audit_log | service_role | INSERT | postgres | -
+table | public.audit_log | service_role | REFERENCES | postgres | -
+table | public.audit_log | service_role | SELECT | postgres | -
+table | public.audit_log | service_role | TRIGGER | postgres | -
+table | public.audit_log | service_role | TRUNCATE | postgres | -
+table | public.audit_log | service_role | UPDATE | postgres | -
+table | public.auth_mail_retries | postgres | DELETE | postgres | -
+table | public.auth_mail_retries | postgres | INSERT | postgres | -
+table | public.auth_mail_retries | postgres | REFERENCES | postgres | -
+table | public.auth_mail_retries | postgres | SELECT | postgres | -
+table | public.auth_mail_retries | postgres | TRIGGER | postgres | -
+table | public.auth_mail_retries | postgres | TRUNCATE | postgres | -
+table | public.auth_mail_retries | postgres | UPDATE | postgres | -
+table | public.auth_mail_retries | service_role | DELETE | postgres | -
+table | public.auth_mail_retries | service_role | INSERT | postgres | -
+table | public.auth_mail_retries | service_role | REFERENCES | postgres | -
+table | public.auth_mail_retries | service_role | SELECT | postgres | -
+table | public.auth_mail_retries | service_role | TRIGGER | postgres | -
+table | public.auth_mail_retries | service_role | TRUNCATE | postgres | -
+table | public.auth_mail_retries | service_role | UPDATE | postgres | -
+table | public.bank_transfer_config | authenticated | SELECT | postgres | -
+table | public.bank_transfer_config | postgres | DELETE | postgres | -
+table | public.bank_transfer_config | postgres | INSERT | postgres | -
+table | public.bank_transfer_config | postgres | REFERENCES | postgres | -
+table | public.bank_transfer_config | postgres | SELECT | postgres | -
+table | public.bank_transfer_config | postgres | TRIGGER | postgres | -
+table | public.bank_transfer_config | postgres | TRUNCATE | postgres | -
+table | public.bank_transfer_config | postgres | UPDATE | postgres | -
+table | public.bank_transfer_config | service_role | DELETE | postgres | -
+table | public.bank_transfer_config | service_role | INSERT | postgres | -
+table | public.bank_transfer_config | service_role | REFERENCES | postgres | -
+table | public.bank_transfer_config | service_role | SELECT | postgres | -
+table | public.bank_transfer_config | service_role | TRIGGER | postgres | -
+table | public.bank_transfer_config | service_role | TRUNCATE | postgres | -
+table | public.bank_transfer_config | service_role | UPDATE | postgres | -
+table | public.bundle_items | anon | SELECT | postgres | -
+table | public.bundle_items | authenticated | SELECT | postgres | -
+table | public.bundle_items | postgres | DELETE | postgres | -
+table | public.bundle_items | postgres | INSERT | postgres | -
+table | public.bundle_items | postgres | REFERENCES | postgres | -
+table | public.bundle_items | postgres | SELECT | postgres | -
+table | public.bundle_items | postgres | TRIGGER | postgres | -
+table | public.bundle_items | postgres | TRUNCATE | postgres | -
+table | public.bundle_items | postgres | UPDATE | postgres | -
+table | public.bundle_items | service_role | DELETE | postgres | -
+table | public.bundle_items | service_role | INSERT | postgres | -
+table | public.bundle_items | service_role | REFERENCES | postgres | -
+table | public.bundle_items | service_role | SELECT | postgres | -
+table | public.bundle_items | service_role | TRIGGER | postgres | -
+table | public.bundle_items | service_role | TRUNCATE | postgres | -
+table | public.bundle_items | service_role | UPDATE | postgres | -
+table | public.business_events | postgres | DELETE | postgres | -
+table | public.business_events | postgres | INSERT | postgres | -
+table | public.business_events | postgres | REFERENCES | postgres | -
+table | public.business_events | postgres | SELECT | postgres | -
+table | public.business_events | postgres | TRIGGER | postgres | -
+table | public.business_events | postgres | TRUNCATE | postgres | -
+table | public.business_events | postgres | UPDATE | postgres | -
+table | public.business_events | service_role | DELETE | postgres | -
+table | public.business_events | service_role | INSERT | postgres | -
+table | public.business_events | service_role | REFERENCES | postgres | -
+table | public.business_events | service_role | SELECT | postgres | -
+table | public.business_events | service_role | TRIGGER | postgres | -
+table | public.business_events | service_role | TRUNCATE | postgres | -
+table | public.business_events | service_role | UPDATE | postgres | -
+table | public.captcha_nonces | postgres | DELETE | postgres | -
+table | public.captcha_nonces | postgres | INSERT | postgres | -
+table | public.captcha_nonces | postgres | REFERENCES | postgres | -
+table | public.captcha_nonces | postgres | SELECT | postgres | -
+table | public.captcha_nonces | postgres | TRIGGER | postgres | -
+table | public.captcha_nonces | postgres | TRUNCATE | postgres | -
+table | public.captcha_nonces | postgres | UPDATE | postgres | -
+table | public.captcha_nonces | service_role | DELETE | postgres | -
+table | public.captcha_nonces | service_role | INSERT | postgres | -
+table | public.captcha_nonces | service_role | REFERENCES | postgres | -
+table | public.captcha_nonces | service_role | SELECT | postgres | -
+table | public.captcha_nonces | service_role | TRIGGER | postgres | -
+table | public.captcha_nonces | service_role | TRUNCATE | postgres | -
+table | public.captcha_nonces | service_role | UPDATE | postgres | -
+table | public.categories | anon | SELECT | postgres | -
+table | public.categories | authenticated | SELECT | postgres | -
+table | public.categories | postgres | DELETE | postgres | -
+table | public.categories | postgres | INSERT | postgres | -
+table | public.categories | postgres | REFERENCES | postgres | -
+table | public.categories | postgres | SELECT | postgres | -
+table | public.categories | postgres | TRIGGER | postgres | -
+table | public.categories | postgres | TRUNCATE | postgres | -
+table | public.categories | postgres | UPDATE | postgres | -
+table | public.categories | service_role | DELETE | postgres | -
+table | public.categories | service_role | INSERT | postgres | -
+table | public.categories | service_role | REFERENCES | postgres | -
+table | public.categories | service_role | SELECT | postgres | -
+table | public.categories | service_role | TRIGGER | postgres | -
+table | public.categories | service_role | TRUNCATE | postgres | -
+table | public.categories | service_role | UPDATE | postgres | -
+table | public.checkout_attribution | postgres | DELETE | postgres | -
+table | public.checkout_attribution | postgres | INSERT | postgres | -
+table | public.checkout_attribution | postgres | REFERENCES | postgres | -
+table | public.checkout_attribution | postgres | SELECT | postgres | -
+table | public.checkout_attribution | postgres | TRIGGER | postgres | -
+table | public.checkout_attribution | postgres | TRUNCATE | postgres | -
+table | public.checkout_attribution | postgres | UPDATE | postgres | -
+table | public.checkout_attribution | service_role | DELETE | postgres | -
+table | public.checkout_attribution | service_role | INSERT | postgres | -
+table | public.checkout_attribution | service_role | REFERENCES | postgres | -
+table | public.checkout_attribution | service_role | SELECT | postgres | -
+table | public.checkout_attribution | service_role | TRIGGER | postgres | -
+table | public.checkout_attribution | service_role | TRUNCATE | postgres | -
+table | public.checkout_attribution | service_role | UPDATE | postgres | -
+table | public.consent_logs | postgres | DELETE | postgres | -
+table | public.consent_logs | postgres | INSERT | postgres | -
+table | public.consent_logs | postgres | REFERENCES | postgres | -
+table | public.consent_logs | postgres | SELECT | postgres | -
+table | public.consent_logs | postgres | TRIGGER | postgres | -
+table | public.consent_logs | postgres | TRUNCATE | postgres | -
+table | public.consent_logs | postgres | UPDATE | postgres | -
+table | public.consent_logs | service_role | DELETE | postgres | -
+table | public.consent_logs | service_role | INSERT | postgres | -
+table | public.consent_logs | service_role | REFERENCES | postgres | -
+table | public.consent_logs | service_role | SELECT | postgres | -
+table | public.consent_logs | service_role | TRIGGER | postgres | -
+table | public.consent_logs | service_role | TRUNCATE | postgres | -
+table | public.consent_logs | service_role | UPDATE | postgres | -
+table | public.coupon_redemptions | postgres | DELETE | postgres | -
+table | public.coupon_redemptions | postgres | INSERT | postgres | -
+table | public.coupon_redemptions | postgres | REFERENCES | postgres | -
+table | public.coupon_redemptions | postgres | SELECT | postgres | -
+table | public.coupon_redemptions | postgres | TRIGGER | postgres | -
+table | public.coupon_redemptions | postgres | TRUNCATE | postgres | -
+table | public.coupon_redemptions | postgres | UPDATE | postgres | -
+table | public.coupon_redemptions | service_role | DELETE | postgres | -
+table | public.coupon_redemptions | service_role | INSERT | postgres | -
+table | public.coupon_redemptions | service_role | REFERENCES | postgres | -
+table | public.coupon_redemptions | service_role | SELECT | postgres | -
+table | public.coupon_redemptions | service_role | TRIGGER | postgres | -
+table | public.coupon_redemptions | service_role | TRUNCATE | postgres | -
+table | public.coupon_redemptions | service_role | UPDATE | postgres | -
+table | public.coupon_reservations | postgres | DELETE | postgres | -
+table | public.coupon_reservations | postgres | INSERT | postgres | -
+table | public.coupon_reservations | postgres | REFERENCES | postgres | -
+table | public.coupon_reservations | postgres | SELECT | postgres | -
+table | public.coupon_reservations | postgres | TRIGGER | postgres | -
+table | public.coupon_reservations | postgres | TRUNCATE | postgres | -
+table | public.coupon_reservations | postgres | UPDATE | postgres | -
+table | public.coupon_reservations | service_role | DELETE | postgres | -
+table | public.coupon_reservations | service_role | INSERT | postgres | -
+table | public.coupon_reservations | service_role | REFERENCES | postgres | -
+table | public.coupon_reservations | service_role | SELECT | postgres | -
+table | public.coupon_reservations | service_role | TRIGGER | postgres | -
+table | public.coupon_reservations | service_role | TRUNCATE | postgres | -
+table | public.coupon_reservations | service_role | UPDATE | postgres | -
+table | public.coupons | authenticated | DELETE | postgres | -
+table | public.coupons | authenticated | INSERT | postgres | -
+table | public.coupons | authenticated | SELECT | postgres | -
+table | public.coupons | authenticated | UPDATE | postgres | -
+table | public.coupons | postgres | DELETE | postgres | -
+table | public.coupons | postgres | INSERT | postgres | -
+table | public.coupons | postgres | REFERENCES | postgres | -
+table | public.coupons | postgres | SELECT | postgres | -
+table | public.coupons | postgres | TRIGGER | postgres | -
+table | public.coupons | postgres | TRUNCATE | postgres | -
+table | public.coupons | postgres | UPDATE | postgres | -
+table | public.coupons | service_role | DELETE | postgres | -
+table | public.coupons | service_role | INSERT | postgres | -
+table | public.coupons | service_role | REFERENCES | postgres | -
+table | public.coupons | service_role | SELECT | postgres | -
+table | public.coupons | service_role | TRIGGER | postgres | -
+table | public.coupons | service_role | TRUNCATE | postgres | -
+table | public.coupons | service_role | UPDATE | postgres | -
+table | public.custom_scripts | authenticated | DELETE | postgres | -
+table | public.custom_scripts | authenticated | INSERT | postgres | -
+table | public.custom_scripts | authenticated | SELECT | postgres | -
+table | public.custom_scripts | authenticated | UPDATE | postgres | -
+table | public.custom_scripts | postgres | DELETE | postgres | -
+table | public.custom_scripts | postgres | INSERT | postgres | -
+table | public.custom_scripts | postgres | REFERENCES | postgres | -
+table | public.custom_scripts | postgres | SELECT | postgres | -
+table | public.custom_scripts | postgres | TRIGGER | postgres | -
+table | public.custom_scripts | postgres | TRUNCATE | postgres | -
+table | public.custom_scripts | postgres | UPDATE | postgres | -
+table | public.custom_scripts | service_role | DELETE | postgres | -
+table | public.custom_scripts | service_role | INSERT | postgres | -
+table | public.custom_scripts | service_role | REFERENCES | postgres | -
+table | public.custom_scripts | service_role | SELECT | postgres | -
+table | public.custom_scripts | service_role | TRIGGER | postgres | -
+table | public.custom_scripts | service_role | TRUNCATE | postgres | -
+table | public.custom_scripts | service_role | UPDATE | postgres | -
+table | public.embed_checkout_log | authenticated | DELETE | postgres | -
+table | public.embed_checkout_log | authenticated | INSERT | postgres | -
+table | public.embed_checkout_log | authenticated | SELECT | postgres | -
+table | public.embed_checkout_log | authenticated | UPDATE | postgres | -
+table | public.embed_checkout_log | postgres | DELETE | postgres | -
+table | public.embed_checkout_log | postgres | INSERT | postgres | -
+table | public.embed_checkout_log | postgres | REFERENCES | postgres | -
+table | public.embed_checkout_log | postgres | SELECT | postgres | -
+table | public.embed_checkout_log | postgres | TRIGGER | postgres | -
+table | public.embed_checkout_log | postgres | TRUNCATE | postgres | -
+table | public.embed_checkout_log | postgres | UPDATE | postgres | -
+table | public.embed_checkout_log | service_role | DELETE | postgres | -
+table | public.embed_checkout_log | service_role | INSERT | postgres | -
+table | public.embed_checkout_log | service_role | REFERENCES | postgres | -
+table | public.embed_checkout_log | service_role | SELECT | postgres | -
+table | public.embed_checkout_log | service_role | TRIGGER | postgres | -
+table | public.embed_checkout_log | service_role | TRUNCATE | postgres | -
+table | public.embed_checkout_log | service_role | UPDATE | postgres | -
+table | public.free_grant_contexts | postgres | DELETE | postgres | -
+table | public.free_grant_contexts | postgres | INSERT | postgres | -
+table | public.free_grant_contexts | postgres | REFERENCES | postgres | -
+table | public.free_grant_contexts | postgres | SELECT | postgres | -
+table | public.free_grant_contexts | postgres | TRIGGER | postgres | -
+table | public.free_grant_contexts | postgres | TRUNCATE | postgres | -
+table | public.free_grant_contexts | postgres | UPDATE | postgres | -
+table | public.free_grant_contexts | service_role | DELETE | postgres | -
+table | public.free_grant_contexts | service_role | INSERT | postgres | -
+table | public.free_grant_contexts | service_role | REFERENCES | postgres | -
+table | public.free_grant_contexts | service_role | SELECT | postgres | -
+table | public.free_grant_contexts | service_role | TRIGGER | postgres | -
+table | public.free_grant_contexts | service_role | TRUNCATE | postgres | -
+table | public.free_grant_contexts | service_role | UPDATE | postgres | -
+table | public.guest_purchases | postgres | DELETE | postgres | -
+table | public.guest_purchases | postgres | INSERT | postgres | -
+table | public.guest_purchases | postgres | REFERENCES | postgres | -
+table | public.guest_purchases | postgres | SELECT | postgres | -
+table | public.guest_purchases | postgres | TRIGGER | postgres | -
+table | public.guest_purchases | postgres | TRUNCATE | postgres | -
+table | public.guest_purchases | postgres | UPDATE | postgres | -
+table | public.guest_purchases | service_role | DELETE | postgres | -
+table | public.guest_purchases | service_role | INSERT | postgres | -
+table | public.guest_purchases | service_role | REFERENCES | postgres | -
+table | public.guest_purchases | service_role | SELECT | postgres | -
+table | public.guest_purchases | service_role | TRIGGER | postgres | -
+table | public.guest_purchases | service_role | TRUNCATE | postgres | -
+table | public.guest_purchases | service_role | UPDATE | postgres | -
+table | public.integrations_config | authenticated | DELETE | postgres | -
+table | public.integrations_config | authenticated | INSERT | postgres | -
+table | public.integrations_config | authenticated | SELECT | postgres | -
+table | public.integrations_config | authenticated | UPDATE | postgres | -
+table | public.integrations_config | postgres | DELETE | postgres | -
+table | public.integrations_config | postgres | INSERT | postgres | -
+table | public.integrations_config | postgres | REFERENCES | postgres | -
+table | public.integrations_config | postgres | SELECT | postgres | -
+table | public.integrations_config | postgres | TRIGGER | postgres | -
+table | public.integrations_config | postgres | TRUNCATE | postgres | -
+table | public.integrations_config | postgres | UPDATE | postgres | -
+table | public.integrations_config | service_role | DELETE | postgres | -
+table | public.integrations_config | service_role | INSERT | postgres | -
+table | public.integrations_config | service_role | REFERENCES | postgres | -
+table | public.integrations_config | service_role | SELECT | postgres | -
+table | public.integrations_config | service_role | TRIGGER | postgres | -
+table | public.integrations_config | service_role | TRUNCATE | postgres | -
+table | public.integrations_config | service_role | UPDATE | postgres | -
+table | public.invoices | authenticated | SELECT | postgres | -
+table | public.invoices | postgres | DELETE | postgres | -
+table | public.invoices | postgres | INSERT | postgres | -
+table | public.invoices | postgres | REFERENCES | postgres | -
+table | public.invoices | postgres | SELECT | postgres | -
+table | public.invoices | postgres | TRIGGER | postgres | -
+table | public.invoices | postgres | TRUNCATE | postgres | -
+table | public.invoices | postgres | UPDATE | postgres | -
+table | public.invoices | service_role | DELETE | postgres | -
+table | public.invoices | service_role | INSERT | postgres | -
+table | public.invoices | service_role | REFERENCES | postgres | -
+table | public.invoices | service_role | SELECT | postgres | -
+table | public.invoices | service_role | TRIGGER | postgres | -
+table | public.invoices | service_role | TRUNCATE | postgres | -
+table | public.invoices | service_role | UPDATE | postgres | -
+table | public.invoicing_config | postgres | DELETE | postgres | -
+table | public.invoicing_config | postgres | INSERT | postgres | -
+table | public.invoicing_config | postgres | REFERENCES | postgres | -
+table | public.invoicing_config | postgres | SELECT | postgres | -
+table | public.invoicing_config | postgres | TRIGGER | postgres | -
+table | public.invoicing_config | postgres | TRUNCATE | postgres | -
+table | public.invoicing_config | postgres | UPDATE | postgres | -
+table | public.invoicing_config | service_role | DELETE | postgres | -
+table | public.invoicing_config | service_role | INSERT | postgres | -
+table | public.invoicing_config | service_role | REFERENCES | postgres | -
+table | public.invoicing_config | service_role | SELECT | postgres | -
+table | public.invoicing_config | service_role | TRIGGER | postgres | -
+table | public.invoicing_config | service_role | TRUNCATE | postgres | -
+table | public.invoicing_config | service_role | UPDATE | postgres | -
+table | public.issued_licenses | postgres | DELETE | postgres | -
+table | public.issued_licenses | postgres | INSERT | postgres | -
+table | public.issued_licenses | postgres | REFERENCES | postgres | -
+table | public.issued_licenses | postgres | SELECT | postgres | -
+table | public.issued_licenses | postgres | TRIGGER | postgres | -
+table | public.issued_licenses | postgres | TRUNCATE | postgres | -
+table | public.issued_licenses | postgres | UPDATE | postgres | -
+table | public.issued_licenses | service_role | DELETE | postgres | -
+table | public.issued_licenses | service_role | INSERT | postgres | -
+table | public.issued_licenses | service_role | REFERENCES | postgres | -
+table | public.issued_licenses | service_role | SELECT | postgres | -
+table | public.issued_licenses | service_role | TRIGGER | postgres | -
+table | public.issued_licenses | service_role | TRUNCATE | postgres | -
+table | public.issued_licenses | service_role | UPDATE | postgres | -
+table | public.lead_nonces | postgres | DELETE | postgres | -
+table | public.lead_nonces | postgres | INSERT | postgres | -
+table | public.lead_nonces | postgres | REFERENCES | postgres | -
+table | public.lead_nonces | postgres | SELECT | postgres | -
+table | public.lead_nonces | postgres | TRIGGER | postgres | -
+table | public.lead_nonces | postgres | TRUNCATE | postgres | -
+table | public.lead_nonces | postgres | UPDATE | postgres | -
+table | public.lead_nonces | service_role | DELETE | postgres | -
+table | public.lead_nonces | service_role | INSERT | postgres | -
+table | public.lead_nonces | service_role | REFERENCES | postgres | -
+table | public.lead_nonces | service_role | SELECT | postgres | -
+table | public.lead_nonces | service_role | TRIGGER | postgres | -
+table | public.lead_nonces | service_role | TRUNCATE | postgres | -
+table | public.lead_nonces | service_role | UPDATE | postgres | -
+table | public.lead_submissions | postgres | DELETE | postgres | -
+table | public.lead_submissions | postgres | INSERT | postgres | -
+table | public.lead_submissions | postgres | REFERENCES | postgres | -
+table | public.lead_submissions | postgres | SELECT | postgres | -
+table | public.lead_submissions | postgres | TRIGGER | postgres | -
+table | public.lead_submissions | postgres | TRUNCATE | postgres | -
+table | public.lead_submissions | postgres | UPDATE | postgres | -
+table | public.lead_submissions | service_role | DELETE | postgres | -
+table | public.lead_submissions | service_role | INSERT | postgres | -
+table | public.lead_submissions | service_role | REFERENCES | postgres | -
+table | public.lead_submissions | service_role | SELECT | postgres | -
+table | public.lead_submissions | service_role | TRIGGER | postgres | -
+table | public.lead_submissions | service_role | TRUNCATE | postgres | -
+table | public.lead_submissions | service_role | UPDATE | postgres | -
+table | public.license_mail_receipts | postgres | DELETE | postgres | -
+table | public.license_mail_receipts | postgres | INSERT | postgres | -
+table | public.license_mail_receipts | postgres | REFERENCES | postgres | -
+table | public.license_mail_receipts | postgres | SELECT | postgres | -
+table | public.license_mail_receipts | postgres | TRIGGER | postgres | -
+table | public.license_mail_receipts | postgres | TRUNCATE | postgres | -
+table | public.license_mail_receipts | postgres | UPDATE | postgres | -
+table | public.license_mail_receipts | service_role | DELETE | postgres | -
+table | public.license_mail_receipts | service_role | INSERT | postgres | -
+table | public.license_mail_receipts | service_role | REFERENCES | postgres | -
+table | public.license_mail_receipts | service_role | SELECT | postgres | -
+table | public.license_mail_receipts | service_role | TRIGGER | postgres | -
+table | public.license_mail_receipts | service_role | TRUNCATE | postgres | -
+table | public.license_mail_receipts | service_role | UPDATE | postgres | -
+table | public.order_bumps | anon | SELECT | postgres | -
+table | public.order_bumps | authenticated | DELETE | postgres | -
+table | public.order_bumps | authenticated | INSERT | postgres | -
+table | public.order_bumps | authenticated | SELECT | postgres | -
+table | public.order_bumps | authenticated | UPDATE | postgres | -
+table | public.order_bumps | postgres | DELETE | postgres | -
+table | public.order_bumps | postgres | INSERT | postgres | -
+table | public.order_bumps | postgres | REFERENCES | postgres | -
+table | public.order_bumps | postgres | SELECT | postgres | -
+table | public.order_bumps | postgres | TRIGGER | postgres | -
+table | public.order_bumps | postgres | TRUNCATE | postgres | -
+table | public.order_bumps | postgres | UPDATE | postgres | -
+table | public.order_bumps | service_role | DELETE | postgres | -
+table | public.order_bumps | service_role | INSERT | postgres | -
+table | public.order_bumps | service_role | REFERENCES | postgres | -
+table | public.order_bumps | service_role | SELECT | postgres | -
+table | public.order_bumps | service_role | TRIGGER | postgres | -
+table | public.order_bumps | service_role | TRUNCATE | postgres | -
+table | public.order_bumps | service_role | UPDATE | postgres | -
+table | public.order_payment_attempts | authenticated | SELECT | postgres | -
+table | public.order_payment_attempts | postgres | DELETE | postgres | -
+table | public.order_payment_attempts | postgres | INSERT | postgres | -
+table | public.order_payment_attempts | postgres | REFERENCES | postgres | -
+table | public.order_payment_attempts | postgres | SELECT | postgres | -
+table | public.order_payment_attempts | postgres | TRIGGER | postgres | -
+table | public.order_payment_attempts | postgres | TRUNCATE | postgres | -
+table | public.order_payment_attempts | postgres | UPDATE | postgres | -
+table | public.order_payment_attempts | service_role | DELETE | postgres | -
+table | public.order_payment_attempts | service_role | INSERT | postgres | -
+table | public.order_payment_attempts | service_role | REFERENCES | postgres | -
+table | public.order_payment_attempts | service_role | SELECT | postgres | -
+table | public.order_payment_attempts | service_role | TRIGGER | postgres | -
+table | public.order_payment_attempts | service_role | TRUNCATE | postgres | -
+table | public.order_payment_attempts | service_role | UPDATE | postgres | -
+table | public.oto_offers | anon | SELECT | postgres | -
+table | public.oto_offers | authenticated | INSERT | postgres | -
+table | public.oto_offers | authenticated | SELECT | postgres | -
+table | public.oto_offers | authenticated | UPDATE | postgres | -
+table | public.oto_offers | postgres | DELETE | postgres | -
+table | public.oto_offers | postgres | INSERT | postgres | -
+table | public.oto_offers | postgres | REFERENCES | postgres | -
+table | public.oto_offers | postgres | SELECT | postgres | -
+table | public.oto_offers | postgres | TRIGGER | postgres | -
+table | public.oto_offers | postgres | TRUNCATE | postgres | -
+table | public.oto_offers | postgres | UPDATE | postgres | -
+table | public.oto_offers | service_role | DELETE | postgres | -
+table | public.oto_offers | service_role | INSERT | postgres | -
+table | public.oto_offers | service_role | REFERENCES | postgres | -
+table | public.oto_offers | service_role | SELECT | postgres | -
+table | public.oto_offers | service_role | TRIGGER | postgres | -
+table | public.oto_offers | service_role | TRUNCATE | postgres | -
+table | public.oto_offers | service_role | UPDATE | postgres | -
+table | public.payment_disputes | postgres | DELETE | postgres | -
+table | public.payment_disputes | postgres | INSERT | postgres | -
+table | public.payment_disputes | postgres | REFERENCES | postgres | -
+table | public.payment_disputes | postgres | SELECT | postgres | -
+table | public.payment_disputes | postgres | TRIGGER | postgres | -
+table | public.payment_disputes | postgres | TRUNCATE | postgres | -
+table | public.payment_disputes | postgres | UPDATE | postgres | -
+table | public.payment_disputes | service_role | DELETE | postgres | -
+table | public.payment_disputes | service_role | INSERT | postgres | -
+table | public.payment_disputes | service_role | REFERENCES | postgres | -
+table | public.payment_disputes | service_role | SELECT | postgres | -
+table | public.payment_disputes | service_role | TRIGGER | postgres | -
+table | public.payment_disputes | service_role | TRUNCATE | postgres | -
+table | public.payment_disputes | service_role | UPDATE | postgres | -
+table | public.payment_line_items | authenticated | SELECT | postgres | -
+table | public.payment_line_items | postgres | DELETE | postgres | -
+table | public.payment_line_items | postgres | INSERT | postgres | -
+table | public.payment_line_items | postgres | REFERENCES | postgres | -
+table | public.payment_line_items | postgres | SELECT | postgres | -
+table | public.payment_line_items | postgres | TRIGGER | postgres | -
+table | public.payment_line_items | postgres | TRUNCATE | postgres | -
+table | public.payment_line_items | postgres | UPDATE | postgres | -
+table | public.payment_line_items | service_role | DELETE | postgres | -
+table | public.payment_line_items | service_role | INSERT | postgres | -
+table | public.payment_line_items | service_role | REFERENCES | postgres | -
+table | public.payment_line_items | service_role | SELECT | postgres | -
+table | public.payment_line_items | service_role | TRIGGER | postgres | -
+table | public.payment_line_items | service_role | TRUNCATE | postgres | -
+table | public.payment_line_items | service_role | UPDATE | postgres | -
+table | public.payment_method_config | postgres | DELETE | postgres | -
+table | public.payment_method_config | postgres | INSERT | postgres | -
+table | public.payment_method_config | postgres | REFERENCES | postgres | -
+table | public.payment_method_config | postgres | SELECT | postgres | -
+table | public.payment_method_config | postgres | TRIGGER | postgres | -
+table | public.payment_method_config | postgres | TRUNCATE | postgres | -
+table | public.payment_method_config | postgres | UPDATE | postgres | -
+table | public.payment_method_config | service_role | DELETE | postgres | -
+table | public.payment_method_config | service_role | INSERT | postgres | -
+table | public.payment_method_config | service_role | REFERENCES | postgres | -
+table | public.payment_method_config | service_role | SELECT | postgres | -
+table | public.payment_method_config | service_role | TRIGGER | postgres | -
+table | public.payment_method_config | service_role | TRUNCATE | postgres | -
+table | public.payment_method_config | service_role | UPDATE | postgres | -
+table | public.payment_refund_events | postgres | DELETE | postgres | -
+table | public.payment_refund_events | postgres | INSERT | postgres | -
+table | public.payment_refund_events | postgres | REFERENCES | postgres | -
+table | public.payment_refund_events | postgres | SELECT | postgres | -
+table | public.payment_refund_events | postgres | TRIGGER | postgres | -
+table | public.payment_refund_events | postgres | TRUNCATE | postgres | -
+table | public.payment_refund_events | postgres | UPDATE | postgres | -
+table | public.payment_refund_events | service_role | DELETE | postgres | -
+table | public.payment_refund_events | service_role | INSERT | postgres | -
+table | public.payment_refund_events | service_role | REFERENCES | postgres | -
+table | public.payment_refund_events | service_role | SELECT | postgres | -
+table | public.payment_refund_events | service_role | TRIGGER | postgres | -
+table | public.payment_refund_events | service_role | TRUNCATE | postgres | -
+table | public.payment_refund_events | service_role | UPDATE | postgres | -
+table | public.payment_refunds | postgres | DELETE | postgres | -
+table | public.payment_refunds | postgres | INSERT | postgres | -
+table | public.payment_refunds | postgres | REFERENCES | postgres | -
+table | public.payment_refunds | postgres | SELECT | postgres | -
+table | public.payment_refunds | postgres | TRIGGER | postgres | -
+table | public.payment_refunds | postgres | TRUNCATE | postgres | -
+table | public.payment_refunds | postgres | UPDATE | postgres | -
+table | public.payment_refunds | service_role | DELETE | postgres | -
+table | public.payment_refunds | service_role | INSERT | postgres | -
+table | public.payment_refunds | service_role | REFERENCES | postgres | -
+table | public.payment_refunds | service_role | SELECT | postgres | -
+table | public.payment_refunds | service_role | TRIGGER | postgres | -
+table | public.payment_refunds | service_role | TRUNCATE | postgres | -
+table | public.payment_refunds | service_role | UPDATE | postgres | -
+table | public.payment_transactions | authenticated | SELECT | postgres | -
+table | public.payment_transactions | authenticated | UPDATE | postgres | -
+table | public.payment_transactions | postgres | DELETE | postgres | -
+table | public.payment_transactions | postgres | INSERT | postgres | -
+table | public.payment_transactions | postgres | REFERENCES | postgres | -
+table | public.payment_transactions | postgres | SELECT | postgres | -
+table | public.payment_transactions | postgres | TRIGGER | postgres | -
+table | public.payment_transactions | postgres | TRUNCATE | postgres | -
+table | public.payment_transactions | postgres | UPDATE | postgres | -
+table | public.payment_transactions | service_role | DELETE | postgres | -
+table | public.payment_transactions | service_role | INSERT | postgres | -
+table | public.payment_transactions | service_role | REFERENCES | postgres | -
+table | public.payment_transactions | service_role | SELECT | postgres | -
+table | public.payment_transactions | service_role | TRIGGER | postgres | -
+table | public.payment_transactions | service_role | TRUNCATE | postgres | -
+table | public.payment_transactions | service_role | UPDATE | postgres | -
+table | public.product_categories | anon | SELECT | postgres | -
+table | public.product_categories | authenticated | DELETE | postgres | -
+table | public.product_categories | authenticated | INSERT | postgres | -
+table | public.product_categories | authenticated | SELECT | postgres | -
+table | public.product_categories | postgres | DELETE | postgres | -
+table | public.product_categories | postgres | INSERT | postgres | -
+table | public.product_categories | postgres | REFERENCES | postgres | -
+table | public.product_categories | postgres | SELECT | postgres | -
+table | public.product_categories | postgres | TRIGGER | postgres | -
+table | public.product_categories | postgres | TRUNCATE | postgres | -
+table | public.product_categories | postgres | UPDATE | postgres | -
+table | public.product_categories | service_role | DELETE | postgres | -
+table | public.product_categories | service_role | INSERT | postgres | -
+table | public.product_categories | service_role | REFERENCES | postgres | -
+table | public.product_categories | service_role | SELECT | postgres | -
+table | public.product_categories | service_role | TRIGGER | postgres | -
+table | public.product_categories | service_role | TRUNCATE | postgres | -
+table | public.product_categories | service_role | UPDATE | postgres | -
+table | public.product_offer_config | authenticated | SELECT | postgres | -
+table | public.product_offer_config | postgres | DELETE | postgres | -
+table | public.product_offer_config | postgres | INSERT | postgres | -
+table | public.product_offer_config | postgres | REFERENCES | postgres | -
+table | public.product_offer_config | postgres | SELECT | postgres | -
+table | public.product_offer_config | postgres | TRIGGER | postgres | -
+table | public.product_offer_config | postgres | TRUNCATE | postgres | -
+table | public.product_offer_config | postgres | UPDATE | postgres | -
+table | public.product_offer_config | service_role | INSERT | postgres | -
+table | public.product_offer_config | service_role | SELECT | postgres | -
+table | public.product_offer_config | service_role | UPDATE | postgres | -
+table | public.product_offer_history | authenticated | SELECT | postgres | -
+table | public.product_offer_history | postgres | DELETE | postgres | -
+table | public.product_offer_history | postgres | INSERT | postgres | -
+table | public.product_offer_history | postgres | REFERENCES | postgres | -
+table | public.product_offer_history | postgres | SELECT | postgres | -
+table | public.product_offer_history | postgres | TRIGGER | postgres | -
+table | public.product_offer_history | postgres | TRUNCATE | postgres | -
+table | public.product_offer_history | postgres | UPDATE | postgres | -
+table | public.product_offer_history | service_role | INSERT | postgres | -
+table | public.product_offer_history | service_role | SELECT | postgres | -
+table | public.product_price_history | postgres | DELETE | postgres | -
+table | public.product_price_history | postgres | INSERT | postgres | -
+table | public.product_price_history | postgres | REFERENCES | postgres | -
+table | public.product_price_history | postgres | SELECT | postgres | -
+table | public.product_price_history | postgres | TRIGGER | postgres | -
+table | public.product_price_history | postgres | TRUNCATE | postgres | -
+table | public.product_price_history | postgres | UPDATE | postgres | -
+table | public.product_price_history | service_role | DELETE | postgres | -
+table | public.product_price_history | service_role | INSERT | postgres | -
+table | public.product_price_history | service_role | REFERENCES | postgres | -
+table | public.product_price_history | service_role | SELECT | postgres | -
+table | public.product_price_history | service_role | TRIGGER | postgres | -
+table | public.product_price_history | service_role | TRUNCATE | postgres | -
+table | public.product_price_history | service_role | UPDATE | postgres | -
+table | public.product_price_tiers | authenticated | DELETE | postgres | -
+table | public.product_price_tiers | authenticated | INSERT | postgres | -
+table | public.product_price_tiers | authenticated | SELECT | postgres | -
+table | public.product_price_tiers | authenticated | UPDATE | postgres | -
+table | public.product_price_tiers | postgres | DELETE | postgres | -
+table | public.product_price_tiers | postgres | INSERT | postgres | -
+table | public.product_price_tiers | postgres | REFERENCES | postgres | -
+table | public.product_price_tiers | postgres | SELECT | postgres | -
+table | public.product_price_tiers | postgres | TRIGGER | postgres | -
+table | public.product_price_tiers | postgres | TRUNCATE | postgres | -
+table | public.product_price_tiers | postgres | UPDATE | postgres | -
+table | public.product_price_tiers | service_role | DELETE | postgres | -
+table | public.product_price_tiers | service_role | INSERT | postgres | -
+table | public.product_price_tiers | service_role | REFERENCES | postgres | -
+table | public.product_price_tiers | service_role | SELECT | postgres | -
+table | public.product_price_tiers | service_role | TRIGGER | postgres | -
+table | public.product_price_tiers | service_role | TRUNCATE | postgres | -
+table | public.product_price_tiers | service_role | UPDATE | postgres | -
+table | public.product_sessions | authenticated | DELETE | postgres | -
+table | public.product_sessions | authenticated | INSERT | postgres | -
+table | public.product_sessions | authenticated | SELECT | postgres | -
+table | public.product_sessions | authenticated | UPDATE | postgres | -
+table | public.product_sessions | postgres | DELETE | postgres | -
+table | public.product_sessions | postgres | INSERT | postgres | -
+table | public.product_sessions | postgres | REFERENCES | postgres | -
+table | public.product_sessions | postgres | SELECT | postgres | -
+table | public.product_sessions | postgres | TRIGGER | postgres | -
+table | public.product_sessions | postgres | TRUNCATE | postgres | -
+table | public.product_sessions | postgres | UPDATE | postgres | -
+table | public.product_sessions | service_role | DELETE | postgres | -
+table | public.product_sessions | service_role | INSERT | postgres | -
+table | public.product_sessions | service_role | REFERENCES | postgres | -
+table | public.product_sessions | service_role | SELECT | postgres | -
+table | public.product_sessions | service_role | TRIGGER | postgres | -
+table | public.product_sessions | service_role | TRUNCATE | postgres | -
+table | public.product_sessions | service_role | UPDATE | postgres | -
+table | public.product_tags | anon | SELECT | postgres | -
+table | public.product_tags | authenticated | SELECT | postgres | -
+table | public.product_tags | postgres | DELETE | postgres | -
+table | public.product_tags | postgres | INSERT | postgres | -
+table | public.product_tags | postgres | REFERENCES | postgres | -
+table | public.product_tags | postgres | SELECT | postgres | -
+table | public.product_tags | postgres | TRIGGER | postgres | -
+table | public.product_tags | postgres | TRUNCATE | postgres | -
+table | public.product_tags | postgres | UPDATE | postgres | -
+table | public.product_tags | service_role | DELETE | postgres | -
+table | public.product_tags | service_role | INSERT | postgres | -
+table | public.product_tags | service_role | REFERENCES | postgres | -
+table | public.product_tags | service_role | SELECT | postgres | -
+table | public.product_tags | service_role | TRIGGER | postgres | -
+table | public.product_tags | service_role | TRUNCATE | postgres | -
+table | public.product_tags | service_role | UPDATE | postgres | -
+table | public.product_variant_groups | anon | SELECT | postgres | -
+table | public.product_variant_groups | authenticated | DELETE | postgres | -
+table | public.product_variant_groups | authenticated | INSERT | postgres | -
+table | public.product_variant_groups | authenticated | SELECT | postgres | -
+table | public.product_variant_groups | postgres | DELETE | postgres | -
+table | public.product_variant_groups | postgres | INSERT | postgres | -
+table | public.product_variant_groups | postgres | REFERENCES | postgres | -
+table | public.product_variant_groups | postgres | SELECT | postgres | -
+table | public.product_variant_groups | postgres | TRIGGER | postgres | -
+table | public.product_variant_groups | postgres | TRUNCATE | postgres | -
+table | public.product_variant_groups | postgres | UPDATE | postgres | -
+table | public.product_variant_groups | service_role | DELETE | postgres | -
+table | public.product_variant_groups | service_role | INSERT | postgres | -
+table | public.product_variant_groups | service_role | REFERENCES | postgres | -
+table | public.product_variant_groups | service_role | SELECT | postgres | -
+table | public.product_variant_groups | service_role | TRIGGER | postgres | -
+table | public.product_variant_groups | service_role | TRUNCATE | postgres | -
+table | public.product_variant_groups | service_role | UPDATE | postgres | -
+table | public.products | authenticated | DELETE | postgres | -
+table | public.products | authenticated | INSERT | postgres | -
+table | public.products | authenticated | UPDATE | postgres | -
+table | public.products | postgres | DELETE | postgres | -
+table | public.products | postgres | INSERT | postgres | -
+table | public.products | postgres | REFERENCES | postgres | -
+table | public.products | postgres | SELECT | postgres | -
+table | public.products | postgres | TRIGGER | postgres | -
+table | public.products | postgres | TRUNCATE | postgres | -
+table | public.products | postgres | UPDATE | postgres | -
+table | public.products | service_role | DELETE | postgres | -
+table | public.products | service_role | INSERT | postgres | -
+table | public.products | service_role | REFERENCES | postgres | -
+table | public.products | service_role | SELECT | postgres | -
+table | public.products | service_role | TRIGGER | postgres | -
+table | public.products | service_role | TRUNCATE | postgres | -
+table | public.products | service_role | UPDATE | postgres | -
+table | public.profiles | authenticated | SELECT | postgres | -
+table | public.profiles | authenticated | UPDATE | postgres | -
+table | public.profiles | postgres | DELETE | postgres | -
+table | public.profiles | postgres | INSERT | postgres | -
+table | public.profiles | postgres | REFERENCES | postgres | -
+table | public.profiles | postgres | SELECT | postgres | -
+table | public.profiles | postgres | TRIGGER | postgres | -
+table | public.profiles | postgres | TRUNCATE | postgres | -
+table | public.profiles | postgres | UPDATE | postgres | -
+table | public.profiles | service_role | DELETE | postgres | -
+table | public.profiles | service_role | INSERT | postgres | -
+table | public.profiles | service_role | REFERENCES | postgres | -
+table | public.profiles | service_role | SELECT | postgres | -
+table | public.profiles | service_role | TRIGGER | postgres | -
+table | public.profiles | service_role | TRUNCATE | postgres | -
+table | public.profiles | service_role | UPDATE | postgres | -
+table | public.purchase_attribution | authenticated | SELECT | postgres | -
+table | public.purchase_attribution | postgres | DELETE | postgres | -
+table | public.purchase_attribution | postgres | INSERT | postgres | -
+table | public.purchase_attribution | postgres | REFERENCES | postgres | -
+table | public.purchase_attribution | postgres | SELECT | postgres | -
+table | public.purchase_attribution | postgres | TRIGGER | postgres | -
+table | public.purchase_attribution | postgres | TRUNCATE | postgres | -
+table | public.purchase_attribution | postgres | UPDATE | postgres | -
+table | public.purchase_attribution | service_role | DELETE | postgres | -
+table | public.purchase_attribution | service_role | INSERT | postgres | -
+table | public.purchase_attribution | service_role | REFERENCES | postgres | -
+table | public.purchase_attribution | service_role | SELECT | postgres | -
+table | public.purchase_attribution | service_role | TRIGGER | postgres | -
+table | public.purchase_attribution | service_role | TRUNCATE | postgres | -
+table | public.purchase_attribution | service_role | UPDATE | postgres | -
+table | public.rate_limits | postgres | DELETE | postgres | -
+table | public.rate_limits | postgres | INSERT | postgres | -
+table | public.rate_limits | postgres | REFERENCES | postgres | -
+table | public.rate_limits | postgres | SELECT | postgres | -
+table | public.rate_limits | postgres | TRIGGER | postgres | -
+table | public.rate_limits | postgres | TRUNCATE | postgres | -
+table | public.rate_limits | postgres | UPDATE | postgres | -
+table | public.rate_limits | service_role | DELETE | postgres | -
+table | public.rate_limits | service_role | INSERT | postgres | -
+table | public.rate_limits | service_role | REFERENCES | postgres | -
+table | public.rate_limits | service_role | SELECT | postgres | -
+table | public.rate_limits | service_role | TRIGGER | postgres | -
+table | public.rate_limits | service_role | TRUNCATE | postgres | -
+table | public.rate_limits | service_role | UPDATE | postgres | -
+table | public.refund_requests | authenticated | SELECT | postgres | -
+table | public.refund_requests | postgres | DELETE | postgres | -
+table | public.refund_requests | postgres | INSERT | postgres | -
+table | public.refund_requests | postgres | REFERENCES | postgres | -
+table | public.refund_requests | postgres | SELECT | postgres | -
+table | public.refund_requests | postgres | TRIGGER | postgres | -
+table | public.refund_requests | postgres | TRUNCATE | postgres | -
+table | public.refund_requests | postgres | UPDATE | postgres | -
+table | public.refund_requests | service_role | DELETE | postgres | -
+table | public.refund_requests | service_role | INSERT | postgres | -
+table | public.refund_requests | service_role | REFERENCES | postgres | -
+table | public.refund_requests | service_role | SELECT | postgres | -
+table | public.refund_requests | service_role | TRIGGER | postgres | -
+table | public.refund_requests | service_role | TRUNCATE | postgres | -
+table | public.refund_requests | service_role | UPDATE | postgres | -
+table | public.revenue_goals | postgres | DELETE | postgres | -
+table | public.revenue_goals | postgres | INSERT | postgres | -
+table | public.revenue_goals | postgres | REFERENCES | postgres | -
+table | public.revenue_goals | postgres | SELECT | postgres | -
+table | public.revenue_goals | postgres | TRIGGER | postgres | -
+table | public.revenue_goals | postgres | TRUNCATE | postgres | -
+table | public.revenue_goals | postgres | UPDATE | postgres | -
+table | public.revenue_goals | service_role | DELETE | postgres | -
+table | public.revenue_goals | service_role | INSERT | postgres | -
+table | public.revenue_goals | service_role | REFERENCES | postgres | -
+table | public.revenue_goals | service_role | SELECT | postgres | -
+table | public.revenue_goals | service_role | TRIGGER | postgres | -
+table | public.revenue_goals | service_role | TRUNCATE | postgres | -
+table | public.revenue_goals | service_role | UPDATE | postgres | -
+table | public.seat_reservations | authenticated | SELECT | postgres | -
+table | public.seat_reservations | postgres | DELETE | postgres | -
+table | public.seat_reservations | postgres | INSERT | postgres | -
+table | public.seat_reservations | postgres | REFERENCES | postgres | -
+table | public.seat_reservations | postgres | SELECT | postgres | -
+table | public.seat_reservations | postgres | TRIGGER | postgres | -
+table | public.seat_reservations | postgres | TRUNCATE | postgres | -
+table | public.seat_reservations | postgres | UPDATE | postgres | -
+table | public.seat_reservations | service_role | DELETE | postgres | -
+table | public.seat_reservations | service_role | INSERT | postgres | -
+table | public.seat_reservations | service_role | REFERENCES | postgres | -
+table | public.seat_reservations | service_role | SELECT | postgres | -
+table | public.seat_reservations | service_role | TRIGGER | postgres | -
+table | public.seat_reservations | service_role | TRUNCATE | postgres | -
+table | public.seat_reservations | service_role | UPDATE | postgres | -
+table | public.seller_embed_settings | authenticated | SELECT | postgres | -
+table | public.seller_embed_settings | postgres | DELETE | postgres | -
+table | public.seller_embed_settings | postgres | INSERT | postgres | -
+table | public.seller_embed_settings | postgres | REFERENCES | postgres | -
+table | public.seller_embed_settings | postgres | SELECT | postgres | -
+table | public.seller_embed_settings | postgres | TRIGGER | postgres | -
+table | public.seller_embed_settings | postgres | TRUNCATE | postgres | -
+table | public.seller_embed_settings | postgres | UPDATE | postgres | -
+table | public.seller_embed_settings | service_role | DELETE | postgres | -
+table | public.seller_embed_settings | service_role | INSERT | postgres | -
+table | public.seller_embed_settings | service_role | REFERENCES | postgres | -
+table | public.seller_embed_settings | service_role | SELECT | postgres | -
+table | public.seller_embed_settings | service_role | TRIGGER | postgres | -
+table | public.seller_embed_settings | service_role | TRUNCATE | postgres | -
+table | public.seller_embed_settings | service_role | UPDATE | postgres | -
+table | public.seller_license_keys | postgres | DELETE | postgres | -
+table | public.seller_license_keys | postgres | INSERT | postgres | -
+table | public.seller_license_keys | postgres | REFERENCES | postgres | -
+table | public.seller_license_keys | postgres | SELECT | postgres | -
+table | public.seller_license_keys | postgres | TRIGGER | postgres | -
+table | public.seller_license_keys | postgres | TRUNCATE | postgres | -
+table | public.seller_license_keys | postgres | UPDATE | postgres | -
+table | public.seller_license_keys | service_role | DELETE | postgres | -
+table | public.seller_license_keys | service_role | INSERT | postgres | -
+table | public.seller_license_keys | service_role | REFERENCES | postgres | -
+table | public.seller_license_keys | service_role | SELECT | postgres | -
+table | public.seller_license_keys | service_role | TRIGGER | postgres | -
+table | public.seller_license_keys | service_role | TRUNCATE | postgres | -
+table | public.seller_license_keys | service_role | UPDATE | postgres | -
+table | public.shop_config | postgres | DELETE | postgres | -
+table | public.shop_config | postgres | INSERT | postgres | -
+table | public.shop_config | postgres | REFERENCES | postgres | -
+table | public.shop_config | postgres | SELECT | postgres | -
+table | public.shop_config | postgres | TRIGGER | postgres | -
+table | public.shop_config | postgres | TRUNCATE | postgres | -
+table | public.shop_config | postgres | UPDATE | postgres | -
+table | public.shop_config | service_role | DELETE | postgres | -
+table | public.shop_config | service_role | INSERT | postgres | -
+table | public.shop_config | service_role | REFERENCES | postgres | -
+table | public.shop_config | service_role | SELECT | postgres | -
+table | public.shop_config | service_role | TRIGGER | postgres | -
+table | public.shop_config | service_role | TRUNCATE | postgres | -
+table | public.shop_config | service_role | UPDATE | postgres | -
+table | public.storefront_config | authenticated | SELECT | postgres | -
+table | public.storefront_config | postgres | DELETE | postgres | -
+table | public.storefront_config | postgres | INSERT | postgres | -
+table | public.storefront_config | postgres | REFERENCES | postgres | -
+table | public.storefront_config | postgres | SELECT | postgres | -
+table | public.storefront_config | postgres | TRIGGER | postgres | -
+table | public.storefront_config | postgres | TRUNCATE | postgres | -
+table | public.storefront_config | postgres | UPDATE | postgres | -
+table | public.storefront_config | service_role | INSERT | postgres | -
+table | public.storefront_config | service_role | SELECT | postgres | -
+table | public.storefront_config | service_role | UPDATE | postgres | -
+table | public.storefront_config_history | authenticated | SELECT | postgres | -
+table | public.storefront_config_history | postgres | DELETE | postgres | -
+table | public.storefront_config_history | postgres | INSERT | postgres | -
+table | public.storefront_config_history | postgres | REFERENCES | postgres | -
+table | public.storefront_config_history | postgres | SELECT | postgres | -
+table | public.storefront_config_history | postgres | TRIGGER | postgres | -
+table | public.storefront_config_history | postgres | TRUNCATE | postgres | -
+table | public.storefront_config_history | postgres | UPDATE | postgres | -
+table | public.storefront_config_history | service_role | INSERT | postgres | -
+table | public.storefront_config_history | service_role | SELECT | postgres | -
+table | public.stripe_configurations | authenticated | DELETE | postgres | -
+table | public.stripe_configurations | authenticated | INSERT | postgres | -
+table | public.stripe_configurations | authenticated | SELECT | postgres | -
+table | public.stripe_configurations | authenticated | UPDATE | postgres | -
+table | public.stripe_configurations | postgres | DELETE | postgres | -
+table | public.stripe_configurations | postgres | INSERT | postgres | -
+table | public.stripe_configurations | postgres | REFERENCES | postgres | -
+table | public.stripe_configurations | postgres | SELECT | postgres | -
+table | public.stripe_configurations | postgres | TRIGGER | postgres | -
+table | public.stripe_configurations | postgres | TRUNCATE | postgres | -
+table | public.stripe_configurations | postgres | UPDATE | postgres | -
+table | public.stripe_configurations | service_role | DELETE | postgres | -
+table | public.stripe_configurations | service_role | INSERT | postgres | -
+table | public.stripe_configurations | service_role | REFERENCES | postgres | -
+table | public.stripe_configurations | service_role | SELECT | postgres | -
+table | public.stripe_configurations | service_role | TRIGGER | postgres | -
+table | public.stripe_configurations | service_role | TRUNCATE | postgres | -
+table | public.stripe_configurations | service_role | UPDATE | postgres | -
+table | public.stripe_customers | authenticated | SELECT | postgres | -
+table | public.stripe_customers | postgres | DELETE | postgres | -
+table | public.stripe_customers | postgres | INSERT | postgres | -
+table | public.stripe_customers | postgres | REFERENCES | postgres | -
+table | public.stripe_customers | postgres | SELECT | postgres | -
+table | public.stripe_customers | postgres | TRIGGER | postgres | -
+table | public.stripe_customers | postgres | TRUNCATE | postgres | -
+table | public.stripe_customers | postgres | UPDATE | postgres | -
+table | public.stripe_customers | service_role | DELETE | postgres | -
+table | public.stripe_customers | service_role | INSERT | postgres | -
+table | public.stripe_customers | service_role | REFERENCES | postgres | -
+table | public.stripe_customers | service_role | SELECT | postgres | -
+table | public.stripe_customers | service_role | TRIGGER | postgres | -
+table | public.stripe_customers | service_role | TRUNCATE | postgres | -
+table | public.stripe_customers | service_role | UPDATE | postgres | -
+table | public.subscriptions | authenticated | SELECT | postgres | -
+table | public.subscriptions | postgres | DELETE | postgres | -
+table | public.subscriptions | postgres | INSERT | postgres | -
+table | public.subscriptions | postgres | REFERENCES | postgres | -
+table | public.subscriptions | postgres | SELECT | postgres | -
+table | public.subscriptions | postgres | TRIGGER | postgres | -
+table | public.subscriptions | postgres | TRUNCATE | postgres | -
+table | public.subscriptions | postgres | UPDATE | postgres | -
+table | public.subscriptions | service_role | DELETE | postgres | -
+table | public.subscriptions | service_role | INSERT | postgres | -
+table | public.subscriptions | service_role | REFERENCES | postgres | -
+table | public.subscriptions | service_role | SELECT | postgres | -
+table | public.subscriptions | service_role | TRIGGER | postgres | -
+table | public.subscriptions | service_role | TRUNCATE | postgres | -
+table | public.subscriptions | service_role | UPDATE | postgres | -
+table | public.tags | anon | SELECT | postgres | -
+table | public.tags | authenticated | SELECT | postgres | -
+table | public.tags | postgres | DELETE | postgres | -
+table | public.tags | postgres | INSERT | postgres | -
+table | public.tags | postgres | REFERENCES | postgres | -
+table | public.tags | postgres | SELECT | postgres | -
+table | public.tags | postgres | TRIGGER | postgres | -
+table | public.tags | postgres | TRUNCATE | postgres | -
+table | public.tags | postgres | UPDATE | postgres | -
+table | public.tags | service_role | DELETE | postgres | -
+table | public.tags | service_role | INSERT | postgres | -
+table | public.tags | service_role | REFERENCES | postgres | -
+table | public.tags | service_role | SELECT | postgres | -
+table | public.tags | service_role | TRIGGER | postgres | -
+table | public.tags | service_role | TRUNCATE | postgres | -
+table | public.tags | service_role | UPDATE | postgres | -
+table | public.telemetry_state | postgres | DELETE | postgres | -
+table | public.telemetry_state | postgres | INSERT | postgres | -
+table | public.telemetry_state | postgres | REFERENCES | postgres | -
+table | public.telemetry_state | postgres | SELECT | postgres | -
+table | public.telemetry_state | postgres | TRIGGER | postgres | -
+table | public.telemetry_state | postgres | TRUNCATE | postgres | -
+table | public.telemetry_state | postgres | UPDATE | postgres | -
+table | public.telemetry_state | service_role | DELETE | postgres | -
+table | public.telemetry_state | service_role | INSERT | postgres | -
+table | public.telemetry_state | service_role | REFERENCES | postgres | -
+table | public.telemetry_state | service_role | SELECT | postgres | -
+table | public.telemetry_state | service_role | TRIGGER | postgres | -
+table | public.telemetry_state | service_role | TRUNCATE | postgres | -
+table | public.telemetry_state | service_role | UPDATE | postgres | -
+table | public.template_credentials | postgres | DELETE | postgres | -
+table | public.template_credentials | postgres | INSERT | postgres | -
+table | public.template_credentials | postgres | REFERENCES | postgres | -
+table | public.template_credentials | postgres | SELECT | postgres | -
+table | public.template_credentials | postgres | TRIGGER | postgres | -
+table | public.template_credentials | postgres | TRUNCATE | postgres | -
+table | public.template_credentials | postgres | UPDATE | postgres | -
+table | public.template_credentials | service_role | SELECT | postgres | -
+table | public.tracking_logs | postgres | DELETE | postgres | -
+table | public.tracking_logs | postgres | INSERT | postgres | -
+table | public.tracking_logs | postgres | REFERENCES | postgres | -
+table | public.tracking_logs | postgres | SELECT | postgres | -
+table | public.tracking_logs | postgres | TRIGGER | postgres | -
+table | public.tracking_logs | postgres | TRUNCATE | postgres | -
+table | public.tracking_logs | postgres | UPDATE | postgres | -
+table | public.tracking_logs | service_role | DELETE | postgres | -
+table | public.tracking_logs | service_role | INSERT | postgres | -
+table | public.tracking_logs | service_role | REFERENCES | postgres | -
+table | public.tracking_logs | service_role | SELECT | postgres | -
+table | public.tracking_logs | service_role | TRIGGER | postgres | -
+table | public.tracking_logs | service_role | TRUNCATE | postgres | -
+table | public.tracking_logs | service_role | UPDATE | postgres | -
+table | public.tutorial_progress | authenticated | INSERT | postgres | -
+table | public.tutorial_progress | authenticated | SELECT | postgres | -
+table | public.tutorial_progress | postgres | DELETE | postgres | -
+table | public.tutorial_progress | postgres | INSERT | postgres | -
+table | public.tutorial_progress | postgres | REFERENCES | postgres | -
+table | public.tutorial_progress | postgres | SELECT | postgres | -
+table | public.tutorial_progress | postgres | TRIGGER | postgres | -
+table | public.tutorial_progress | postgres | TRUNCATE | postgres | -
+table | public.tutorial_progress | postgres | UPDATE | postgres | -
+table | public.tutorial_progress | service_role | DELETE | postgres | -
+table | public.tutorial_progress | service_role | INSERT | postgres | -
+table | public.tutorial_progress | service_role | REFERENCES | postgres | -
+table | public.tutorial_progress | service_role | SELECT | postgres | -
+table | public.tutorial_progress | service_role | TRIGGER | postgres | -
+table | public.tutorial_progress | service_role | TRUNCATE | postgres | -
+table | public.tutorial_progress | service_role | UPDATE | postgres | -
+table | public.user_product_access | authenticated | SELECT | postgres | -
+table | public.user_product_access | postgres | DELETE | postgres | -
+table | public.user_product_access | postgres | INSERT | postgres | -
+table | public.user_product_access | postgres | REFERENCES | postgres | -
+table | public.user_product_access | postgres | SELECT | postgres | -
+table | public.user_product_access | postgres | TRIGGER | postgres | -
+table | public.user_product_access | postgres | TRUNCATE | postgres | -
+table | public.user_product_access | postgres | UPDATE | postgres | -
+table | public.user_product_access | service_role | DELETE | postgres | -
+table | public.user_product_access | service_role | INSERT | postgres | -
+table | public.user_product_access | service_role | REFERENCES | postgres | -
+table | public.user_product_access | service_role | SELECT | postgres | -
+table | public.user_product_access | service_role | TRIGGER | postgres | -
+table | public.user_product_access | service_role | TRUNCATE | postgres | -
+table | public.user_product_access | service_role | UPDATE | postgres | -
+table | public.variant_groups | anon | SELECT | postgres | -
+table | public.variant_groups | authenticated | DELETE | postgres | -
+table | public.variant_groups | authenticated | INSERT | postgres | -
+table | public.variant_groups | authenticated | SELECT | postgres | -
+table | public.variant_groups | authenticated | UPDATE | postgres | -
+table | public.variant_groups | postgres | DELETE | postgres | -
+table | public.variant_groups | postgres | INSERT | postgres | -
+table | public.variant_groups | postgres | REFERENCES | postgres | -
+table | public.variant_groups | postgres | SELECT | postgres | -
+table | public.variant_groups | postgres | TRIGGER | postgres | -
+table | public.variant_groups | postgres | TRUNCATE | postgres | -
+table | public.variant_groups | postgres | UPDATE | postgres | -
+table | public.variant_groups | service_role | DELETE | postgres | -
+table | public.variant_groups | service_role | INSERT | postgres | -
+table | public.variant_groups | service_role | REFERENCES | postgres | -
+table | public.variant_groups | service_role | SELECT | postgres | -
+table | public.variant_groups | service_role | TRIGGER | postgres | -
+table | public.variant_groups | service_role | TRUNCATE | postgres | -
+table | public.variant_groups | service_role | UPDATE | postgres | -
+table | public.video_events | authenticated | SELECT | postgres | -
+table | public.video_events | postgres | DELETE | postgres | -
+table | public.video_events | postgres | INSERT | postgres | -
+table | public.video_events | postgres | REFERENCES | postgres | -
+table | public.video_events | postgres | SELECT | postgres | -
+table | public.video_events | postgres | TRIGGER | postgres | -
+table | public.video_events | postgres | TRUNCATE | postgres | -
+table | public.video_events | postgres | UPDATE | postgres | -
+table | public.video_events | service_role | DELETE | postgres | -
+table | public.video_events | service_role | INSERT | postgres | -
+table | public.video_events | service_role | REFERENCES | postgres | -
+table | public.video_events | service_role | SELECT | postgres | -
+table | public.video_events | service_role | TRIGGER | postgres | -
+table | public.video_events | service_role | TRUNCATE | postgres | -
+table | public.video_events | service_role | UPDATE | postgres | -
+table | public.video_progress | authenticated | SELECT | postgres | -
+table | public.video_progress | postgres | DELETE | postgres | -
+table | public.video_progress | postgres | INSERT | postgres | -
+table | public.video_progress | postgres | REFERENCES | postgres | -
+table | public.video_progress | postgres | SELECT | postgres | -
+table | public.video_progress | postgres | TRIGGER | postgres | -
+table | public.video_progress | postgres | TRUNCATE | postgres | -
+table | public.video_progress | postgres | UPDATE | postgres | -
+table | public.video_progress | service_role | DELETE | postgres | -
+table | public.video_progress | service_role | INSERT | postgres | -
+table | public.video_progress | service_role | REFERENCES | postgres | -
+table | public.video_progress | service_role | SELECT | postgres | -
+table | public.video_progress | service_role | TRIGGER | postgres | -
+table | public.video_progress | service_role | TRUNCATE | postgres | -
+table | public.video_progress | service_role | UPDATE | postgres | -
+table | public.webhook_endpoint_products | authenticated | DELETE | postgres | -
+table | public.webhook_endpoint_products | authenticated | INSERT | postgres | -
+table | public.webhook_endpoint_products | authenticated | SELECT | postgres | -
+table | public.webhook_endpoint_products | authenticated | UPDATE | postgres | -
+table | public.webhook_endpoint_products | postgres | DELETE | postgres | -
+table | public.webhook_endpoint_products | postgres | INSERT | postgres | -
+table | public.webhook_endpoint_products | postgres | REFERENCES | postgres | -
+table | public.webhook_endpoint_products | postgres | SELECT | postgres | -
+table | public.webhook_endpoint_products | postgres | TRIGGER | postgres | -
+table | public.webhook_endpoint_products | postgres | TRUNCATE | postgres | -
+table | public.webhook_endpoint_products | postgres | UPDATE | postgres | -
+table | public.webhook_endpoint_products | service_role | DELETE | postgres | -
+table | public.webhook_endpoint_products | service_role | INSERT | postgres | -
+table | public.webhook_endpoint_products | service_role | REFERENCES | postgres | -
+table | public.webhook_endpoint_products | service_role | SELECT | postgres | -
+table | public.webhook_endpoint_products | service_role | TRIGGER | postgres | -
+table | public.webhook_endpoint_products | service_role | TRUNCATE | postgres | -
+table | public.webhook_endpoint_products | service_role | UPDATE | postgres | -
+table | public.webhook_endpoints | authenticated | DELETE | postgres | -
+table | public.webhook_endpoints | authenticated | INSERT | postgres | -
+table | public.webhook_endpoints | authenticated | SELECT | postgres | -
+table | public.webhook_endpoints | authenticated | UPDATE | postgres | -
+table | public.webhook_endpoints | postgres | DELETE | postgres | -
+table | public.webhook_endpoints | postgres | INSERT | postgres | -
+table | public.webhook_endpoints | postgres | REFERENCES | postgres | -
+table | public.webhook_endpoints | postgres | SELECT | postgres | -
+table | public.webhook_endpoints | postgres | TRIGGER | postgres | -
+table | public.webhook_endpoints | postgres | TRUNCATE | postgres | -
+table | public.webhook_endpoints | postgres | UPDATE | postgres | -
+table | public.webhook_endpoints | service_role | DELETE | postgres | -
+table | public.webhook_endpoints | service_role | INSERT | postgres | -
+table | public.webhook_endpoints | service_role | REFERENCES | postgres | -
+table | public.webhook_endpoints | service_role | SELECT | postgres | -
+table | public.webhook_endpoints | service_role | TRIGGER | postgres | -
+table | public.webhook_endpoints | service_role | TRUNCATE | postgres | -
+table | public.webhook_endpoints | service_role | UPDATE | postgres | -
+table | public.webhook_logs | authenticated | SELECT | postgres | -
+table | public.webhook_logs | authenticated | UPDATE | postgres | -
+table | public.webhook_logs | postgres | DELETE | postgres | -
+table | public.webhook_logs | postgres | INSERT | postgres | -
+table | public.webhook_logs | postgres | REFERENCES | postgres | -
+table | public.webhook_logs | postgres | SELECT | postgres | -
+table | public.webhook_logs | postgres | TRIGGER | postgres | -
+table | public.webhook_logs | postgres | TRUNCATE | postgres | -
+table | public.webhook_logs | postgres | UPDATE | postgres | -
+table | public.webhook_logs | service_role | DELETE | postgres | -
+table | public.webhook_logs | service_role | INSERT | postgres | -
+table | public.webhook_logs | service_role | REFERENCES | postgres | -
+table | public.webhook_logs | service_role | SELECT | postgres | -
+table | public.webhook_logs | service_role | TRIGGER | postgres | -
+table | public.webhook_logs | service_role | TRUNCATE | postgres | -
+table | public.webhook_logs | service_role | UPDATE | postgres | -
+table | realtime.subscription | anon | SELECT | supabase_admin | -
+table | realtime.subscription | authenticated | SELECT | supabase_admin | -
+table | realtime.subscription | dashboard_user | DELETE | supabase_admin | -
+table | realtime.subscription | dashboard_user | INSERT | supabase_admin | -
+table | realtime.subscription | dashboard_user | REFERENCES | supabase_admin | -
+table | realtime.subscription | dashboard_user | SELECT | supabase_admin | -
+table | realtime.subscription | dashboard_user | TRIGGER | supabase_admin | -
+table | realtime.subscription | dashboard_user | TRUNCATE | supabase_admin | -
+table | realtime.subscription | dashboard_user | UPDATE | supabase_admin | -
+table | realtime.subscription | postgres | DELETE | supabase_admin | -
+table | realtime.subscription | postgres | INSERT | supabase_admin | -
+table | realtime.subscription | postgres | REFERENCES | supabase_admin | -
+table | realtime.subscription | postgres | SELECT | supabase_admin | -
+table | realtime.subscription | postgres | TRIGGER | supabase_admin | -
+table | realtime.subscription | postgres | TRUNCATE | supabase_admin | -
+table | realtime.subscription | postgres | UPDATE | supabase_admin | -
+table | realtime.subscription | service_role | SELECT | supabase_admin | -
+table | realtime.subscription | supabase_admin | DELETE | supabase_admin | -
+table | realtime.subscription | supabase_admin | INSERT | supabase_admin | -
+table | realtime.subscription | supabase_admin | REFERENCES | supabase_admin | -
+table | realtime.subscription | supabase_admin | SELECT | supabase_admin | -
+table | realtime.subscription | supabase_admin | TRIGGER | supabase_admin | -
+table | realtime.subscription | supabase_admin | TRUNCATE | supabase_admin | -
+table | realtime.subscription | supabase_admin | UPDATE | supabase_admin | -
+table | realtime.subscription | supabase_realtime_admin | DELETE | supabase_admin | -
+table | realtime.subscription | supabase_realtime_admin | INSERT | supabase_admin | -
+table | realtime.subscription | supabase_realtime_admin | REFERENCES | supabase_admin | -
+table | realtime.subscription | supabase_realtime_admin | SELECT | supabase_admin | -
+table | realtime.subscription | supabase_realtime_admin | TRIGGER | supabase_admin | -
+table | realtime.subscription | supabase_realtime_admin | TRUNCATE | supabase_admin | -
+table | realtime.subscription | supabase_realtime_admin | UPDATE | supabase_admin | -
+table | storage.buckets | anon | DELETE | supabase_storage_admin | -
+table | storage.buckets | anon | INSERT | supabase_storage_admin | -
+table | storage.buckets | anon | REFERENCES | supabase_storage_admin | -
+table | storage.buckets | anon | SELECT | supabase_storage_admin | -
+table | storage.buckets | anon | TRIGGER | supabase_storage_admin | -
+table | storage.buckets | anon | TRUNCATE | supabase_storage_admin | -
+table | storage.buckets | anon | UPDATE | supabase_storage_admin | -
+table | storage.buckets | authenticated | DELETE | supabase_storage_admin | -
+table | storage.buckets | authenticated | INSERT | supabase_storage_admin | -
+table | storage.buckets | authenticated | REFERENCES | supabase_storage_admin | -
+table | storage.buckets | authenticated | SELECT | supabase_storage_admin | -
+table | storage.buckets | authenticated | TRIGGER | supabase_storage_admin | -
+table | storage.buckets | authenticated | TRUNCATE | supabase_storage_admin | -
+table | storage.buckets | authenticated | UPDATE | supabase_storage_admin | -
 table | storage.buckets | postgres | DELETE | supabase_storage_admin | WITH GRANT OPTION
 table | storage.buckets | postgres | INSERT | supabase_storage_admin | WITH GRANT OPTION
 table | storage.buckets | postgres | REFERENCES | supabase_storage_admin | WITH GRANT OPTION
@@ -24034,111 +24034,111 @@ table | storage.buckets | postgres | SELECT | supabase_storage_admin | WITH GRAN
 table | storage.buckets | postgres | TRIGGER | supabase_storage_admin | WITH GRANT OPTION
 table | storage.buckets | postgres | TRUNCATE | supabase_storage_admin | WITH GRANT OPTION
 table | storage.buckets | postgres | UPDATE | supabase_storage_admin | WITH GRANT OPTION
-table | storage.buckets | service_role | DELETE | supabase_storage_admin | 
-table | storage.buckets | service_role | INSERT | supabase_storage_admin | 
-table | storage.buckets | service_role | REFERENCES | supabase_storage_admin | 
-table | storage.buckets | service_role | SELECT | supabase_storage_admin | 
-table | storage.buckets | service_role | TRIGGER | supabase_storage_admin | 
-table | storage.buckets | service_role | TRUNCATE | supabase_storage_admin | 
-table | storage.buckets | service_role | UPDATE | supabase_storage_admin | 
-table | storage.buckets | supabase_storage_admin | DELETE | supabase_storage_admin | 
-table | storage.buckets | supabase_storage_admin | INSERT | supabase_storage_admin | 
-table | storage.buckets | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
-table | storage.buckets | supabase_storage_admin | SELECT | supabase_storage_admin | 
-table | storage.buckets | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
-table | storage.buckets | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
-table | storage.buckets | supabase_storage_admin | UPDATE | supabase_storage_admin | 
-table | storage.buckets_analytics | anon | DELETE | supabase_storage_admin | 
-table | storage.buckets_analytics | anon | INSERT | supabase_storage_admin | 
-table | storage.buckets_analytics | anon | REFERENCES | supabase_storage_admin | 
-table | storage.buckets_analytics | anon | SELECT | supabase_storage_admin | 
-table | storage.buckets_analytics | anon | TRIGGER | supabase_storage_admin | 
-table | storage.buckets_analytics | anon | TRUNCATE | supabase_storage_admin | 
-table | storage.buckets_analytics | anon | UPDATE | supabase_storage_admin | 
-table | storage.buckets_analytics | authenticated | DELETE | supabase_storage_admin | 
-table | storage.buckets_analytics | authenticated | INSERT | supabase_storage_admin | 
-table | storage.buckets_analytics | authenticated | REFERENCES | supabase_storage_admin | 
-table | storage.buckets_analytics | authenticated | SELECT | supabase_storage_admin | 
-table | storage.buckets_analytics | authenticated | TRIGGER | supabase_storage_admin | 
-table | storage.buckets_analytics | authenticated | TRUNCATE | supabase_storage_admin | 
-table | storage.buckets_analytics | authenticated | UPDATE | supabase_storage_admin | 
-table | storage.buckets_analytics | service_role | DELETE | supabase_storage_admin | 
-table | storage.buckets_analytics | service_role | INSERT | supabase_storage_admin | 
-table | storage.buckets_analytics | service_role | REFERENCES | supabase_storage_admin | 
-table | storage.buckets_analytics | service_role | SELECT | supabase_storage_admin | 
-table | storage.buckets_analytics | service_role | TRIGGER | supabase_storage_admin | 
-table | storage.buckets_analytics | service_role | TRUNCATE | supabase_storage_admin | 
-table | storage.buckets_analytics | service_role | UPDATE | supabase_storage_admin | 
-table | storage.buckets_analytics | supabase_storage_admin | DELETE | supabase_storage_admin | 
-table | storage.buckets_analytics | supabase_storage_admin | INSERT | supabase_storage_admin | 
-table | storage.buckets_analytics | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
-table | storage.buckets_analytics | supabase_storage_admin | SELECT | supabase_storage_admin | 
-table | storage.buckets_analytics | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
-table | storage.buckets_analytics | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
-table | storage.buckets_analytics | supabase_storage_admin | UPDATE | supabase_storage_admin | 
-table | storage.buckets_vectors | anon | SELECT | supabase_storage_admin | 
-table | storage.buckets_vectors | authenticated | SELECT | supabase_storage_admin | 
-table | storage.buckets_vectors | service_role | SELECT | supabase_storage_admin | 
-table | storage.buckets_vectors | supabase_storage_admin | DELETE | supabase_storage_admin | 
-table | storage.buckets_vectors | supabase_storage_admin | INSERT | supabase_storage_admin | 
-table | storage.buckets_vectors | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
-table | storage.buckets_vectors | supabase_storage_admin | SELECT | supabase_storage_admin | 
-table | storage.buckets_vectors | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
-table | storage.buckets_vectors | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
-table | storage.buckets_vectors | supabase_storage_admin | UPDATE | supabase_storage_admin | 
-table | storage.iceberg_namespaces | anon | SELECT | supabase_storage_admin | 
-table | storage.iceberg_namespaces | authenticated | SELECT | supabase_storage_admin | 
-table | storage.iceberg_namespaces | service_role | DELETE | supabase_storage_admin | 
-table | storage.iceberg_namespaces | service_role | INSERT | supabase_storage_admin | 
-table | storage.iceberg_namespaces | service_role | REFERENCES | supabase_storage_admin | 
-table | storage.iceberg_namespaces | service_role | SELECT | supabase_storage_admin | 
-table | storage.iceberg_namespaces | service_role | TRIGGER | supabase_storage_admin | 
-table | storage.iceberg_namespaces | service_role | TRUNCATE | supabase_storage_admin | 
-table | storage.iceberg_namespaces | service_role | UPDATE | supabase_storage_admin | 
-table | storage.iceberg_namespaces | supabase_storage_admin | DELETE | supabase_storage_admin | 
-table | storage.iceberg_namespaces | supabase_storage_admin | INSERT | supabase_storage_admin | 
-table | storage.iceberg_namespaces | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
-table | storage.iceberg_namespaces | supabase_storage_admin | SELECT | supabase_storage_admin | 
-table | storage.iceberg_namespaces | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
-table | storage.iceberg_namespaces | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
-table | storage.iceberg_namespaces | supabase_storage_admin | UPDATE | supabase_storage_admin | 
-table | storage.iceberg_tables | anon | SELECT | supabase_storage_admin | 
-table | storage.iceberg_tables | authenticated | SELECT | supabase_storage_admin | 
-table | storage.iceberg_tables | service_role | DELETE | supabase_storage_admin | 
-table | storage.iceberg_tables | service_role | INSERT | supabase_storage_admin | 
-table | storage.iceberg_tables | service_role | REFERENCES | supabase_storage_admin | 
-table | storage.iceberg_tables | service_role | SELECT | supabase_storage_admin | 
-table | storage.iceberg_tables | service_role | TRIGGER | supabase_storage_admin | 
-table | storage.iceberg_tables | service_role | TRUNCATE | supabase_storage_admin | 
-table | storage.iceberg_tables | service_role | UPDATE | supabase_storage_admin | 
-table | storage.iceberg_tables | supabase_storage_admin | DELETE | supabase_storage_admin | 
-table | storage.iceberg_tables | supabase_storage_admin | INSERT | supabase_storage_admin | 
-table | storage.iceberg_tables | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
-table | storage.iceberg_tables | supabase_storage_admin | SELECT | supabase_storage_admin | 
-table | storage.iceberg_tables | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
-table | storage.iceberg_tables | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
-table | storage.iceberg_tables | supabase_storage_admin | UPDATE | supabase_storage_admin | 
-table | storage.migrations | supabase_storage_admin | DELETE | supabase_storage_admin | 
-table | storage.migrations | supabase_storage_admin | INSERT | supabase_storage_admin | 
-table | storage.migrations | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
-table | storage.migrations | supabase_storage_admin | SELECT | supabase_storage_admin | 
-table | storage.migrations | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
-table | storage.migrations | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
-table | storage.migrations | supabase_storage_admin | UPDATE | supabase_storage_admin | 
-table | storage.objects | anon | DELETE | supabase_storage_admin | 
-table | storage.objects | anon | INSERT | supabase_storage_admin | 
-table | storage.objects | anon | REFERENCES | supabase_storage_admin | 
-table | storage.objects | anon | SELECT | supabase_storage_admin | 
-table | storage.objects | anon | TRIGGER | supabase_storage_admin | 
-table | storage.objects | anon | TRUNCATE | supabase_storage_admin | 
-table | storage.objects | anon | UPDATE | supabase_storage_admin | 
-table | storage.objects | authenticated | DELETE | supabase_storage_admin | 
-table | storage.objects | authenticated | INSERT | supabase_storage_admin | 
-table | storage.objects | authenticated | REFERENCES | supabase_storage_admin | 
-table | storage.objects | authenticated | SELECT | supabase_storage_admin | 
-table | storage.objects | authenticated | TRIGGER | supabase_storage_admin | 
-table | storage.objects | authenticated | TRUNCATE | supabase_storage_admin | 
-table | storage.objects | authenticated | UPDATE | supabase_storage_admin | 
+table | storage.buckets | service_role | DELETE | supabase_storage_admin | -
+table | storage.buckets | service_role | INSERT | supabase_storage_admin | -
+table | storage.buckets | service_role | REFERENCES | supabase_storage_admin | -
+table | storage.buckets | service_role | SELECT | supabase_storage_admin | -
+table | storage.buckets | service_role | TRIGGER | supabase_storage_admin | -
+table | storage.buckets | service_role | TRUNCATE | supabase_storage_admin | -
+table | storage.buckets | service_role | UPDATE | supabase_storage_admin | -
+table | storage.buckets | supabase_storage_admin | DELETE | supabase_storage_admin | -
+table | storage.buckets | supabase_storage_admin | INSERT | supabase_storage_admin | -
+table | storage.buckets | supabase_storage_admin | REFERENCES | supabase_storage_admin | -
+table | storage.buckets | supabase_storage_admin | SELECT | supabase_storage_admin | -
+table | storage.buckets | supabase_storage_admin | TRIGGER | supabase_storage_admin | -
+table | storage.buckets | supabase_storage_admin | TRUNCATE | supabase_storage_admin | -
+table | storage.buckets | supabase_storage_admin | UPDATE | supabase_storage_admin | -
+table | storage.buckets_analytics | anon | DELETE | supabase_storage_admin | -
+table | storage.buckets_analytics | anon | INSERT | supabase_storage_admin | -
+table | storage.buckets_analytics | anon | REFERENCES | supabase_storage_admin | -
+table | storage.buckets_analytics | anon | SELECT | supabase_storage_admin | -
+table | storage.buckets_analytics | anon | TRIGGER | supabase_storage_admin | -
+table | storage.buckets_analytics | anon | TRUNCATE | supabase_storage_admin | -
+table | storage.buckets_analytics | anon | UPDATE | supabase_storage_admin | -
+table | storage.buckets_analytics | authenticated | DELETE | supabase_storage_admin | -
+table | storage.buckets_analytics | authenticated | INSERT | supabase_storage_admin | -
+table | storage.buckets_analytics | authenticated | REFERENCES | supabase_storage_admin | -
+table | storage.buckets_analytics | authenticated | SELECT | supabase_storage_admin | -
+table | storage.buckets_analytics | authenticated | TRIGGER | supabase_storage_admin | -
+table | storage.buckets_analytics | authenticated | TRUNCATE | supabase_storage_admin | -
+table | storage.buckets_analytics | authenticated | UPDATE | supabase_storage_admin | -
+table | storage.buckets_analytics | service_role | DELETE | supabase_storage_admin | -
+table | storage.buckets_analytics | service_role | INSERT | supabase_storage_admin | -
+table | storage.buckets_analytics | service_role | REFERENCES | supabase_storage_admin | -
+table | storage.buckets_analytics | service_role | SELECT | supabase_storage_admin | -
+table | storage.buckets_analytics | service_role | TRIGGER | supabase_storage_admin | -
+table | storage.buckets_analytics | service_role | TRUNCATE | supabase_storage_admin | -
+table | storage.buckets_analytics | service_role | UPDATE | supabase_storage_admin | -
+table | storage.buckets_analytics | supabase_storage_admin | DELETE | supabase_storage_admin | -
+table | storage.buckets_analytics | supabase_storage_admin | INSERT | supabase_storage_admin | -
+table | storage.buckets_analytics | supabase_storage_admin | REFERENCES | supabase_storage_admin | -
+table | storage.buckets_analytics | supabase_storage_admin | SELECT | supabase_storage_admin | -
+table | storage.buckets_analytics | supabase_storage_admin | TRIGGER | supabase_storage_admin | -
+table | storage.buckets_analytics | supabase_storage_admin | TRUNCATE | supabase_storage_admin | -
+table | storage.buckets_analytics | supabase_storage_admin | UPDATE | supabase_storage_admin | -
+table | storage.buckets_vectors | anon | SELECT | supabase_storage_admin | -
+table | storage.buckets_vectors | authenticated | SELECT | supabase_storage_admin | -
+table | storage.buckets_vectors | service_role | SELECT | supabase_storage_admin | -
+table | storage.buckets_vectors | supabase_storage_admin | DELETE | supabase_storage_admin | -
+table | storage.buckets_vectors | supabase_storage_admin | INSERT | supabase_storage_admin | -
+table | storage.buckets_vectors | supabase_storage_admin | REFERENCES | supabase_storage_admin | -
+table | storage.buckets_vectors | supabase_storage_admin | SELECT | supabase_storage_admin | -
+table | storage.buckets_vectors | supabase_storage_admin | TRIGGER | supabase_storage_admin | -
+table | storage.buckets_vectors | supabase_storage_admin | TRUNCATE | supabase_storage_admin | -
+table | storage.buckets_vectors | supabase_storage_admin | UPDATE | supabase_storage_admin | -
+table | storage.iceberg_namespaces | anon | SELECT | supabase_storage_admin | -
+table | storage.iceberg_namespaces | authenticated | SELECT | supabase_storage_admin | -
+table | storage.iceberg_namespaces | service_role | DELETE | supabase_storage_admin | -
+table | storage.iceberg_namespaces | service_role | INSERT | supabase_storage_admin | -
+table | storage.iceberg_namespaces | service_role | REFERENCES | supabase_storage_admin | -
+table | storage.iceberg_namespaces | service_role | SELECT | supabase_storage_admin | -
+table | storage.iceberg_namespaces | service_role | TRIGGER | supabase_storage_admin | -
+table | storage.iceberg_namespaces | service_role | TRUNCATE | supabase_storage_admin | -
+table | storage.iceberg_namespaces | service_role | UPDATE | supabase_storage_admin | -
+table | storage.iceberg_namespaces | supabase_storage_admin | DELETE | supabase_storage_admin | -
+table | storage.iceberg_namespaces | supabase_storage_admin | INSERT | supabase_storage_admin | -
+table | storage.iceberg_namespaces | supabase_storage_admin | REFERENCES | supabase_storage_admin | -
+table | storage.iceberg_namespaces | supabase_storage_admin | SELECT | supabase_storage_admin | -
+table | storage.iceberg_namespaces | supabase_storage_admin | TRIGGER | supabase_storage_admin | -
+table | storage.iceberg_namespaces | supabase_storage_admin | TRUNCATE | supabase_storage_admin | -
+table | storage.iceberg_namespaces | supabase_storage_admin | UPDATE | supabase_storage_admin | -
+table | storage.iceberg_tables | anon | SELECT | supabase_storage_admin | -
+table | storage.iceberg_tables | authenticated | SELECT | supabase_storage_admin | -
+table | storage.iceberg_tables | service_role | DELETE | supabase_storage_admin | -
+table | storage.iceberg_tables | service_role | INSERT | supabase_storage_admin | -
+table | storage.iceberg_tables | service_role | REFERENCES | supabase_storage_admin | -
+table | storage.iceberg_tables | service_role | SELECT | supabase_storage_admin | -
+table | storage.iceberg_tables | service_role | TRIGGER | supabase_storage_admin | -
+table | storage.iceberg_tables | service_role | TRUNCATE | supabase_storage_admin | -
+table | storage.iceberg_tables | service_role | UPDATE | supabase_storage_admin | -
+table | storage.iceberg_tables | supabase_storage_admin | DELETE | supabase_storage_admin | -
+table | storage.iceberg_tables | supabase_storage_admin | INSERT | supabase_storage_admin | -
+table | storage.iceberg_tables | supabase_storage_admin | REFERENCES | supabase_storage_admin | -
+table | storage.iceberg_tables | supabase_storage_admin | SELECT | supabase_storage_admin | -
+table | storage.iceberg_tables | supabase_storage_admin | TRIGGER | supabase_storage_admin | -
+table | storage.iceberg_tables | supabase_storage_admin | TRUNCATE | supabase_storage_admin | -
+table | storage.iceberg_tables | supabase_storage_admin | UPDATE | supabase_storage_admin | -
+table | storage.migrations | supabase_storage_admin | DELETE | supabase_storage_admin | -
+table | storage.migrations | supabase_storage_admin | INSERT | supabase_storage_admin | -
+table | storage.migrations | supabase_storage_admin | REFERENCES | supabase_storage_admin | -
+table | storage.migrations | supabase_storage_admin | SELECT | supabase_storage_admin | -
+table | storage.migrations | supabase_storage_admin | TRIGGER | supabase_storage_admin | -
+table | storage.migrations | supabase_storage_admin | TRUNCATE | supabase_storage_admin | -
+table | storage.migrations | supabase_storage_admin | UPDATE | supabase_storage_admin | -
+table | storage.objects | anon | DELETE | supabase_storage_admin | -
+table | storage.objects | anon | INSERT | supabase_storage_admin | -
+table | storage.objects | anon | REFERENCES | supabase_storage_admin | -
+table | storage.objects | anon | SELECT | supabase_storage_admin | -
+table | storage.objects | anon | TRIGGER | supabase_storage_admin | -
+table | storage.objects | anon | TRUNCATE | supabase_storage_admin | -
+table | storage.objects | anon | UPDATE | supabase_storage_admin | -
+table | storage.objects | authenticated | DELETE | supabase_storage_admin | -
+table | storage.objects | authenticated | INSERT | supabase_storage_admin | -
+table | storage.objects | authenticated | REFERENCES | supabase_storage_admin | -
+table | storage.objects | authenticated | SELECT | supabase_storage_admin | -
+table | storage.objects | authenticated | TRIGGER | supabase_storage_admin | -
+table | storage.objects | authenticated | TRUNCATE | supabase_storage_admin | -
+table | storage.objects | authenticated | UPDATE | supabase_storage_admin | -
 table | storage.objects | postgres | DELETE | supabase_storage_admin | WITH GRANT OPTION
 table | storage.objects | postgres | INSERT | supabase_storage_admin | WITH GRANT OPTION
 table | storage.objects | postgres | REFERENCES | supabase_storage_admin | WITH GRANT OPTION
@@ -24146,150 +24146,150 @@ table | storage.objects | postgres | SELECT | supabase_storage_admin | WITH GRAN
 table | storage.objects | postgres | TRIGGER | supabase_storage_admin | WITH GRANT OPTION
 table | storage.objects | postgres | TRUNCATE | supabase_storage_admin | WITH GRANT OPTION
 table | storage.objects | postgres | UPDATE | supabase_storage_admin | WITH GRANT OPTION
-table | storage.objects | service_role | DELETE | supabase_storage_admin | 
-table | storage.objects | service_role | INSERT | supabase_storage_admin | 
-table | storage.objects | service_role | REFERENCES | supabase_storage_admin | 
-table | storage.objects | service_role | SELECT | supabase_storage_admin | 
-table | storage.objects | service_role | TRIGGER | supabase_storage_admin | 
-table | storage.objects | service_role | TRUNCATE | supabase_storage_admin | 
-table | storage.objects | service_role | UPDATE | supabase_storage_admin | 
-table | storage.objects | supabase_storage_admin | DELETE | supabase_storage_admin | 
-table | storage.objects | supabase_storage_admin | INSERT | supabase_storage_admin | 
-table | storage.objects | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
-table | storage.objects | supabase_storage_admin | SELECT | supabase_storage_admin | 
-table | storage.objects | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
-table | storage.objects | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
-table | storage.objects | supabase_storage_admin | UPDATE | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | anon | SELECT | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | authenticated | SELECT | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | service_role | DELETE | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | service_role | INSERT | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | service_role | REFERENCES | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | service_role | SELECT | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | service_role | TRIGGER | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | service_role | TRUNCATE | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | service_role | UPDATE | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | supabase_storage_admin | DELETE | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | supabase_storage_admin | INSERT | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | supabase_storage_admin | SELECT | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
-table | storage.s3_multipart_uploads | supabase_storage_admin | UPDATE | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | anon | SELECT | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | authenticated | SELECT | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | service_role | DELETE | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | service_role | INSERT | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | service_role | REFERENCES | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | service_role | SELECT | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | service_role | TRIGGER | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | service_role | TRUNCATE | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | service_role | UPDATE | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | supabase_storage_admin | DELETE | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | supabase_storage_admin | INSERT | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | supabase_storage_admin | SELECT | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
-table | storage.s3_multipart_uploads_parts | supabase_storage_admin | UPDATE | supabase_storage_admin | 
-table | storage.vector_indexes | anon | SELECT | supabase_storage_admin | 
-table | storage.vector_indexes | authenticated | SELECT | supabase_storage_admin | 
-table | storage.vector_indexes | service_role | SELECT | supabase_storage_admin | 
-table | storage.vector_indexes | supabase_storage_admin | DELETE | supabase_storage_admin | 
-table | storage.vector_indexes | supabase_storage_admin | INSERT | supabase_storage_admin | 
-table | storage.vector_indexes | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
-table | storage.vector_indexes | supabase_storage_admin | SELECT | supabase_storage_admin | 
-table | storage.vector_indexes | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
-table | storage.vector_indexes | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
-table | storage.vector_indexes | supabase_storage_admin | UPDATE | supabase_storage_admin | 
-type | public.line_item_type | postgres | USAGE | postgres | 
-type | public.line_item_type | PUBLIC | USAGE | postgres | 
-view | public.omnibus_price_history | anon | SELECT | postgres | 
-view | public.omnibus_price_history | authenticated | SELECT | postgres | 
-view | public.omnibus_price_history | postgres | DELETE | postgres | 
-view | public.omnibus_price_history | postgres | INSERT | postgres | 
-view | public.omnibus_price_history | postgres | REFERENCES | postgres | 
-view | public.omnibus_price_history | postgres | SELECT | postgres | 
-view | public.omnibus_price_history | postgres | TRIGGER | postgres | 
-view | public.omnibus_price_history | postgres | TRUNCATE | postgres | 
-view | public.omnibus_price_history | postgres | UPDATE | postgres | 
-view | public.omnibus_price_history | service_role | DELETE | postgres | 
-view | public.omnibus_price_history | service_role | INSERT | postgres | 
-view | public.omnibus_price_history | service_role | REFERENCES | postgres | 
-view | public.omnibus_price_history | service_role | SELECT | postgres | 
-view | public.omnibus_price_history | service_role | TRIGGER | postgres | 
-view | public.omnibus_price_history | service_role | TRUNCATE | postgres | 
-view | public.omnibus_price_history | service_role | UPDATE | postgres | 
-view | public.payment_system_health | postgres | DELETE | postgres | 
-view | public.payment_system_health | postgres | INSERT | postgres | 
-view | public.payment_system_health | postgres | REFERENCES | postgres | 
-view | public.payment_system_health | postgres | SELECT | postgres | 
-view | public.payment_system_health | postgres | TRIGGER | postgres | 
-view | public.payment_system_health | postgres | TRUNCATE | postgres | 
-view | public.payment_system_health | postgres | UPDATE | postgres | 
-view | public.payment_system_health | service_role | DELETE | postgres | 
-view | public.payment_system_health | service_role | INSERT | postgres | 
-view | public.payment_system_health | service_role | REFERENCES | postgres | 
-view | public.payment_system_health | service_role | SELECT | postgres | 
-view | public.payment_system_health | service_role | TRIGGER | postgres | 
-view | public.payment_system_health | service_role | TRUNCATE | postgres | 
-view | public.payment_system_health | service_role | UPDATE | postgres | 
-view | public.rate_limit_summary | postgres | DELETE | postgres | 
-view | public.rate_limit_summary | postgres | INSERT | postgres | 
-view | public.rate_limit_summary | postgres | REFERENCES | postgres | 
-view | public.rate_limit_summary | postgres | SELECT | postgres | 
-view | public.rate_limit_summary | postgres | TRIGGER | postgres | 
-view | public.rate_limit_summary | postgres | TRUNCATE | postgres | 
-view | public.rate_limit_summary | postgres | UPDATE | postgres | 
-view | public.rate_limit_summary | service_role | DELETE | postgres | 
-view | public.rate_limit_summary | service_role | INSERT | postgres | 
-view | public.rate_limit_summary | service_role | REFERENCES | postgres | 
-view | public.rate_limit_summary | service_role | SELECT | postgres | 
-view | public.rate_limit_summary | service_role | TRIGGER | postgres | 
-view | public.rate_limit_summary | service_role | TRUNCATE | postgres | 
-view | public.rate_limit_summary | service_role | UPDATE | postgres | 
-view | public.seller_customer_stats | postgres | DELETE | postgres | 
-view | public.seller_customer_stats | postgres | INSERT | postgres | 
-view | public.seller_customer_stats | postgres | REFERENCES | postgres | 
-view | public.seller_customer_stats | postgres | SELECT | postgres | 
-view | public.seller_customer_stats | postgres | TRIGGER | postgres | 
-view | public.seller_customer_stats | postgres | TRUNCATE | postgres | 
-view | public.seller_customer_stats | postgres | UPDATE | postgres | 
-view | public.seller_customer_stats | service_role | DELETE | postgres | 
-view | public.seller_customer_stats | service_role | INSERT | postgres | 
-view | public.seller_customer_stats | service_role | REFERENCES | postgres | 
-view | public.seller_customer_stats | service_role | SELECT | postgres | 
-view | public.seller_customer_stats | service_role | TRIGGER | postgres | 
-view | public.seller_customer_stats | service_role | TRUNCATE | postgres | 
-view | public.seller_customer_stats | service_role | UPDATE | postgres | 
-view | public.user_access_stats | postgres | DELETE | postgres | 
-view | public.user_access_stats | postgres | INSERT | postgres | 
-view | public.user_access_stats | postgres | REFERENCES | postgres | 
-view | public.user_access_stats | postgres | SELECT | postgres | 
-view | public.user_access_stats | postgres | TRIGGER | postgres | 
-view | public.user_access_stats | postgres | TRUNCATE | postgres | 
-view | public.user_access_stats | postgres | UPDATE | postgres | 
-view | public.user_access_stats | service_role | DELETE | postgres | 
-view | public.user_access_stats | service_role | INSERT | postgres | 
-view | public.user_access_stats | service_role | REFERENCES | postgres | 
-view | public.user_access_stats | service_role | SELECT | postgres | 
-view | public.user_access_stats | service_role | TRIGGER | postgres | 
-view | public.user_access_stats | service_role | TRUNCATE | postgres | 
-view | public.user_access_stats | service_role | UPDATE | postgres | 
-view | public.user_product_access_detailed | postgres | DELETE | postgres | 
-view | public.user_product_access_detailed | postgres | INSERT | postgres | 
-view | public.user_product_access_detailed | postgres | REFERENCES | postgres | 
-view | public.user_product_access_detailed | postgres | SELECT | postgres | 
-view | public.user_product_access_detailed | postgres | TRIGGER | postgres | 
-view | public.user_product_access_detailed | postgres | TRUNCATE | postgres | 
-view | public.user_product_access_detailed | postgres | UPDATE | postgres | 
-view | public.user_product_access_detailed | service_role | DELETE | postgres | 
-view | public.user_product_access_detailed | service_role | INSERT | postgres | 
-view | public.user_product_access_detailed | service_role | REFERENCES | postgres | 
-view | public.user_product_access_detailed | service_role | SELECT | postgres | 
-view | public.user_product_access_detailed | service_role | TRIGGER | postgres | 
-view | public.user_product_access_detailed | service_role | TRUNCATE | postgres | 
-view | public.user_product_access_detailed | service_role | UPDATE | postgres | 
+table | storage.objects | service_role | DELETE | supabase_storage_admin | -
+table | storage.objects | service_role | INSERT | supabase_storage_admin | -
+table | storage.objects | service_role | REFERENCES | supabase_storage_admin | -
+table | storage.objects | service_role | SELECT | supabase_storage_admin | -
+table | storage.objects | service_role | TRIGGER | supabase_storage_admin | -
+table | storage.objects | service_role | TRUNCATE | supabase_storage_admin | -
+table | storage.objects | service_role | UPDATE | supabase_storage_admin | -
+table | storage.objects | supabase_storage_admin | DELETE | supabase_storage_admin | -
+table | storage.objects | supabase_storage_admin | INSERT | supabase_storage_admin | -
+table | storage.objects | supabase_storage_admin | REFERENCES | supabase_storage_admin | -
+table | storage.objects | supabase_storage_admin | SELECT | supabase_storage_admin | -
+table | storage.objects | supabase_storage_admin | TRIGGER | supabase_storage_admin | -
+table | storage.objects | supabase_storage_admin | TRUNCATE | supabase_storage_admin | -
+table | storage.objects | supabase_storage_admin | UPDATE | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | anon | SELECT | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | authenticated | SELECT | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | service_role | DELETE | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | service_role | INSERT | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | service_role | REFERENCES | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | service_role | SELECT | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | service_role | TRIGGER | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | service_role | TRUNCATE | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | service_role | UPDATE | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | supabase_storage_admin | DELETE | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | supabase_storage_admin | INSERT | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | supabase_storage_admin | REFERENCES | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | supabase_storage_admin | SELECT | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | supabase_storage_admin | TRIGGER | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | supabase_storage_admin | TRUNCATE | supabase_storage_admin | -
+table | storage.s3_multipart_uploads | supabase_storage_admin | UPDATE | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | anon | SELECT | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | authenticated | SELECT | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | service_role | DELETE | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | service_role | INSERT | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | service_role | REFERENCES | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | service_role | SELECT | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | service_role | TRIGGER | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | service_role | TRUNCATE | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | service_role | UPDATE | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | supabase_storage_admin | DELETE | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | supabase_storage_admin | INSERT | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | supabase_storage_admin | REFERENCES | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | supabase_storage_admin | SELECT | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | supabase_storage_admin | TRIGGER | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | supabase_storage_admin | TRUNCATE | supabase_storage_admin | -
+table | storage.s3_multipart_uploads_parts | supabase_storage_admin | UPDATE | supabase_storage_admin | -
+table | storage.vector_indexes | anon | SELECT | supabase_storage_admin | -
+table | storage.vector_indexes | authenticated | SELECT | supabase_storage_admin | -
+table | storage.vector_indexes | service_role | SELECT | supabase_storage_admin | -
+table | storage.vector_indexes | supabase_storage_admin | DELETE | supabase_storage_admin | -
+table | storage.vector_indexes | supabase_storage_admin | INSERT | supabase_storage_admin | -
+table | storage.vector_indexes | supabase_storage_admin | REFERENCES | supabase_storage_admin | -
+table | storage.vector_indexes | supabase_storage_admin | SELECT | supabase_storage_admin | -
+table | storage.vector_indexes | supabase_storage_admin | TRIGGER | supabase_storage_admin | -
+table | storage.vector_indexes | supabase_storage_admin | TRUNCATE | supabase_storage_admin | -
+table | storage.vector_indexes | supabase_storage_admin | UPDATE | supabase_storage_admin | -
+type | public.line_item_type | postgres | USAGE | postgres | -
+type | public.line_item_type | PUBLIC | USAGE | postgres | -
+view | public.omnibus_price_history | anon | SELECT | postgres | -
+view | public.omnibus_price_history | authenticated | SELECT | postgres | -
+view | public.omnibus_price_history | postgres | DELETE | postgres | -
+view | public.omnibus_price_history | postgres | INSERT | postgres | -
+view | public.omnibus_price_history | postgres | REFERENCES | postgres | -
+view | public.omnibus_price_history | postgres | SELECT | postgres | -
+view | public.omnibus_price_history | postgres | TRIGGER | postgres | -
+view | public.omnibus_price_history | postgres | TRUNCATE | postgres | -
+view | public.omnibus_price_history | postgres | UPDATE | postgres | -
+view | public.omnibus_price_history | service_role | DELETE | postgres | -
+view | public.omnibus_price_history | service_role | INSERT | postgres | -
+view | public.omnibus_price_history | service_role | REFERENCES | postgres | -
+view | public.omnibus_price_history | service_role | SELECT | postgres | -
+view | public.omnibus_price_history | service_role | TRIGGER | postgres | -
+view | public.omnibus_price_history | service_role | TRUNCATE | postgres | -
+view | public.omnibus_price_history | service_role | UPDATE | postgres | -
+view | public.payment_system_health | postgres | DELETE | postgres | -
+view | public.payment_system_health | postgres | INSERT | postgres | -
+view | public.payment_system_health | postgres | REFERENCES | postgres | -
+view | public.payment_system_health | postgres | SELECT | postgres | -
+view | public.payment_system_health | postgres | TRIGGER | postgres | -
+view | public.payment_system_health | postgres | TRUNCATE | postgres | -
+view | public.payment_system_health | postgres | UPDATE | postgres | -
+view | public.payment_system_health | service_role | DELETE | postgres | -
+view | public.payment_system_health | service_role | INSERT | postgres | -
+view | public.payment_system_health | service_role | REFERENCES | postgres | -
+view | public.payment_system_health | service_role | SELECT | postgres | -
+view | public.payment_system_health | service_role | TRIGGER | postgres | -
+view | public.payment_system_health | service_role | TRUNCATE | postgres | -
+view | public.payment_system_health | service_role | UPDATE | postgres | -
+view | public.rate_limit_summary | postgres | DELETE | postgres | -
+view | public.rate_limit_summary | postgres | INSERT | postgres | -
+view | public.rate_limit_summary | postgres | REFERENCES | postgres | -
+view | public.rate_limit_summary | postgres | SELECT | postgres | -
+view | public.rate_limit_summary | postgres | TRIGGER | postgres | -
+view | public.rate_limit_summary | postgres | TRUNCATE | postgres | -
+view | public.rate_limit_summary | postgres | UPDATE | postgres | -
+view | public.rate_limit_summary | service_role | DELETE | postgres | -
+view | public.rate_limit_summary | service_role | INSERT | postgres | -
+view | public.rate_limit_summary | service_role | REFERENCES | postgres | -
+view | public.rate_limit_summary | service_role | SELECT | postgres | -
+view | public.rate_limit_summary | service_role | TRIGGER | postgres | -
+view | public.rate_limit_summary | service_role | TRUNCATE | postgres | -
+view | public.rate_limit_summary | service_role | UPDATE | postgres | -
+view | public.seller_customer_stats | postgres | DELETE | postgres | -
+view | public.seller_customer_stats | postgres | INSERT | postgres | -
+view | public.seller_customer_stats | postgres | REFERENCES | postgres | -
+view | public.seller_customer_stats | postgres | SELECT | postgres | -
+view | public.seller_customer_stats | postgres | TRIGGER | postgres | -
+view | public.seller_customer_stats | postgres | TRUNCATE | postgres | -
+view | public.seller_customer_stats | postgres | UPDATE | postgres | -
+view | public.seller_customer_stats | service_role | DELETE | postgres | -
+view | public.seller_customer_stats | service_role | INSERT | postgres | -
+view | public.seller_customer_stats | service_role | REFERENCES | postgres | -
+view | public.seller_customer_stats | service_role | SELECT | postgres | -
+view | public.seller_customer_stats | service_role | TRIGGER | postgres | -
+view | public.seller_customer_stats | service_role | TRUNCATE | postgres | -
+view | public.seller_customer_stats | service_role | UPDATE | postgres | -
+view | public.user_access_stats | postgres | DELETE | postgres | -
+view | public.user_access_stats | postgres | INSERT | postgres | -
+view | public.user_access_stats | postgres | REFERENCES | postgres | -
+view | public.user_access_stats | postgres | SELECT | postgres | -
+view | public.user_access_stats | postgres | TRIGGER | postgres | -
+view | public.user_access_stats | postgres | TRUNCATE | postgres | -
+view | public.user_access_stats | postgres | UPDATE | postgres | -
+view | public.user_access_stats | service_role | DELETE | postgres | -
+view | public.user_access_stats | service_role | INSERT | postgres | -
+view | public.user_access_stats | service_role | REFERENCES | postgres | -
+view | public.user_access_stats | service_role | SELECT | postgres | -
+view | public.user_access_stats | service_role | TRIGGER | postgres | -
+view | public.user_access_stats | service_role | TRUNCATE | postgres | -
+view | public.user_access_stats | service_role | UPDATE | postgres | -
+view | public.user_product_access_detailed | postgres | DELETE | postgres | -
+view | public.user_product_access_detailed | postgres | INSERT | postgres | -
+view | public.user_product_access_detailed | postgres | REFERENCES | postgres | -
+view | public.user_product_access_detailed | postgres | SELECT | postgres | -
+view | public.user_product_access_detailed | postgres | TRIGGER | postgres | -
+view | public.user_product_access_detailed | postgres | TRUNCATE | postgres | -
+view | public.user_product_access_detailed | postgres | UPDATE | postgres | -
+view | public.user_product_access_detailed | service_role | DELETE | postgres | -
+view | public.user_product_access_detailed | service_role | INSERT | postgres | -
+view | public.user_product_access_detailed | service_role | REFERENCES | postgres | -
+view | public.user_product_access_detailed | service_role | SELECT | postgres | -
+view | public.user_product_access_detailed | service_role | TRIGGER | postgres | -
+view | public.user_product_access_detailed | service_role | TRUNCATE | postgres | -
+view | public.user_product_access_detailed | service_role | UPDATE | postgres | -
 -- storage buckets (id | name | public | size limit | mime types)
 legal | legal | f | 5242880 | {text/html,text/plain}
 -- cron jobs (name | schedule | active | database | user | node | port | command)

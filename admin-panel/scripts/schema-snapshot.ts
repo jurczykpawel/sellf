@@ -89,7 +89,7 @@ SELECT format('%I.%I', n.nspname, c.relname), t.tgname, t.tgenabled, pg_get_trig
 \echo '-- row level security of platform tables (table | enabled | forced)'
 SELECT name, relrowsecurity, relforcerowsecurity FROM snapshot_platform_tables WHERE relkind IN ('r', 'p') ORDER BY 1;
 \echo '-- policies outside the dumped schemas (table | policy | permissive | roles | command | using | with check)'
-SELECT schemaname || '.' || tablename, policyname, permissive, roles::text, cmd, coalesce(qual, ''), coalesce(with_check, '')
+SELECT schemaname || '.' || tablename, policyname, permissive, roles::text, cmd, coalesce(qual, '-'), coalesce(with_check, '-')
   FROM pg_policies WHERE schemaname NOT IN (${sqlList(DUMP_SCHEMAS)}) ORDER BY 1, 2;
 \echo '-- privileges (object kind | object | grantee | privilege | grantor | grant option)'
 WITH objects(kind, name, acl, dflt) AS (
@@ -123,11 +123,11 @@ WITH objects(kind, name, acl, dflt) AS (
     FROM pg_default_acl d
 )
 SELECT o.kind, o.name, CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE a.grantee::regrole::text END,
-       a.privilege_type, a.grantor::regrole, CASE WHEN a.is_grantable THEN 'WITH GRANT OPTION' ELSE '' END
+       a.privilege_type, a.grantor::regrole, CASE WHEN a.is_grantable THEN 'WITH GRANT OPTION' ELSE '-' END
   FROM objects o, aclexplode(coalesce(o.acl, o.dflt)) a
  ORDER BY 1, 2, 3, 4, 5, 6;
 \echo '-- storage buckets (id | name | public | size limit | mime types)'
-SELECT id, name, public, coalesce(file_size_limit::text, ''), coalesce(allowed_mime_types::text, '')
+SELECT id, name, public, coalesce(file_size_limit::text, '-'), coalesce(allowed_mime_types::text, '-')
   FROM storage.buckets ORDER BY id;
 \echo '-- cron jobs (name | schedule | active | database | user | node | port | command)'
 SELECT jobname, schedule, active, database, username, nodename, nodeport, command FROM cron.job ORDER BY jobname;
