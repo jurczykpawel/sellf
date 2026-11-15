@@ -5,8 +5,8 @@
  *   bun run release:bump 2026.11.2      — check the version (CalVer YYYY.M.patch, newer than the
  *                                          current one, new month starts at .0, no existing tag,
  *                                          all files agree today) and write it to every location.
- *   bun run release:bump --check [ver]  — exit 1 unless every location holds the same version
- *                                          (and equals `ver` when given). The release build runs it.
+ *   bun run release:bump --check [ver]  — exit 1 unless every location holds the same valid CalVer
+ *                                          version (and equals `ver` when given). The release build runs it.
  *
  * Runs from the repository root or admin-panel (`--root <dir>` overrides; used by tests).
  * Does not commit: the release skill commits `chore: bump version to <ver>`.
@@ -65,13 +65,18 @@ export function readVersions(root: string): Record<string, string | null> {
   return result;
 }
 
-/** Errors when the files disagree (or `expected` is given and differs). */
+function notCalVer(version: string): string {
+  return `${version} is not CalVer YYYY.M.patch (no "v", no leading zeros, month 1-12)`;
+}
+
+/** Errors when the files disagree (or `expected` is given and differs), or the version is not CalVer. */
 export function checkConsistent(versions: Record<string, string | null>, expected?: string): string[] {
   const errors: string[] = [];
   for (const [file, version] of Object.entries(versions)) {
     if (version === null) errors.push(`${file}: version not found (exactly one match expected)`);
   }
   const reference = expected ?? versions['admin-panel/package.json'];
+  if (reference && !parseCalVer(reference)) errors.push(notCalVer(reference));
   for (const [file, version] of Object.entries(versions)) {
     if (version !== null && reference && version !== reference) errors.push(`${file} has ${version}, expected ${reference}`);
   }
@@ -81,7 +86,7 @@ export function checkConsistent(versions: Record<string, string | null>, expecte
 export function checkBump(versions: Record<string, string | null>, next: string, tags: string[]): string[] {
   const errors = checkConsistent(versions);
   const target = parseCalVer(next);
-  if (!target) return [...errors, `${next} is not CalVer YYYY.M.patch (no "v", no leading zeros, month 1-12)`];
+  if (!target) return [...errors, notCalVer(next)];
   const currentRaw = versions['admin-panel/package.json'];
   const current = currentRaw ? parseCalVer(currentRaw) : null;
   if (current) {

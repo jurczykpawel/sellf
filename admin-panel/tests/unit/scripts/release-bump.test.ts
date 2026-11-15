@@ -8,6 +8,7 @@ import {
   VERSION_FILES,
   applyBump,
   checkBump,
+  checkConsistent,
   parseCalVer,
   readVersions,
 } from '@/../scripts/release-bump';
@@ -63,6 +64,19 @@ describe('checkBump', () => {
   });
 });
 
+describe('checkConsistent', () => {
+  const consistent = (v: string) => Object.fromEntries(VERSION_FILES.map((f) => [f.file, v]));
+
+  it('accepts consistent CalVer files', () => {
+    expect(checkConsistent(consistent('2026.11.1'), '2026.11.1')).toEqual([]);
+  });
+
+  it('rejects consistent files that are not CalVer (month 13), with or without an expected version', () => {
+    expect(checkConsistent(consistent('2026.13.0')).join('\n')).toContain('YYYY.M.patch');
+    expect(checkConsistent(consistent('2026.13.0'), '2026.13.0').join('\n')).toContain('YYYY.M.patch');
+  });
+});
+
 describe('the version files of this repository', () => {
   it('all hold one consistent version (the release build relies on it)', () => {
     const versions = readVersions(REPO);
@@ -105,6 +119,13 @@ describe('applyBump on a copy of the real files', () => {
     expect(ok.status, ok.stderr).toBe(0);
     const check = spawnSync('bun', [SCRIPT, '--check', '2099.1.0', '--root', dir], { encoding: 'utf8' });
     expect(check.status, check.stderr).toBe(0);
+  });
+
+  it('CLI --check fails on agreeing files with an invalid CalVer (2026.13.0)', () => {
+    applyBump(dir, '2026.13.0');
+    const check = spawnSync('bun', [SCRIPT, '--check', '2026.13.0', '--root', dir], { encoding: 'utf8' });
+    expect(check.status).not.toBe(0);
+    expect(check.stderr).toContain('2026.13.0 is not CalVer');
   });
 
   it('CLI --check fails when one file drifted', () => {
