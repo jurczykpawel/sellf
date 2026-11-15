@@ -670,7 +670,9 @@ but PM2 does not confirm the application runs (never "the shop is still running"
 (`sanitizeUpdateFailure`); message, cause, GitHub message and the panel fallback go
 through `sanitizeUpdateText` (control and direction characters and markup removed,
 key-like values and configured `*KEY*`/`*SECRET*`/`*TOKEN*`/`*PASSWORD*` values
-replaced with `[redacted]`, length bounded). Stackpilot's Management-API fallback
+replaced with `[redacted]`, length bounded; values of URL/`name=value`
+parameters named like key, token, secret, password, signature are redacted, while a
+base64-like run counts only as a standalone token, so URLs and file names stay). Stackpilot's Management-API fallback
 for a database without the RPC still applies files one by one.
 
 The bootstrap finds the latest release through the `github.com/<repo>/releases/latest`

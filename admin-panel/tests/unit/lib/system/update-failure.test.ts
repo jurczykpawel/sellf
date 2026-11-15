@@ -93,6 +93,24 @@ describe('sanitizeUpdateText', () => {
     expect(sanitizeUpdateText(text, 500)).toBe(text);
   });
 
+  it('keeps a release URL whose path has upper case letters and digits', () => {
+    const url = 'https://github.com/jurczykpawel/Sellf/releases/download/v2026.11.1/sellf-build.tar.gz';
+    expect(sanitizeUpdateText(url, 2000)).toBe(url);
+    expect(sanitizeUpdateText(`Download failed: ${url} (HTTP 404)`, 2000)).toBe(`Download failed: ${url} (HTTP 404)`);
+  });
+
+  it('redacts secrets carried in URL parameters and keeps the rest of the URL', () => {
+    expect(sanitizeUpdateText(`GET https://x.supabase.co/rest/v1/?apikey=${jwt} failed`, 2000))
+      .toBe('GET https://x.supabase.co/rest/v1/?apikey=[redacted] failed');
+    expect(sanitizeUpdateText('https://example.com/a?page=2&key=short1&token=abc.def&Access_Token=Zz9&X-Amz-Signature=f00d#top', 2000))
+      .toBe('https://example.com/a?page=2&key=[redacted]&token=[redacted]&Access_Token=[redacted]&X-Amz-Signature=[redacted]#top');
+    expect(sanitizeUpdateText('curl failed for token=plainvalue, retrying', 2000)).toBe('curl failed for token=[redacted], retrying');
+  });
+
+  it('still redacts a standalone base64url value with dashes and underscores', () => {
+    expect(sanitizeUpdateText('value Qm-FzZTY0RmFrZVNlY3JldF_ZhbHVlRm9yVGVzdHM9 end', 500)).toBe('value [redacted] end');
+  });
+
   it('limits the length after redaction', () => {
     expect(sanitizeUpdateText(`${'x'.repeat(10)}${samples.stripeLive}`, 14)).toBe('xxxxxxxxxx[red');
     expect(sanitizeUpdateText('x'.repeat(50), 20)).toHaveLength(20);

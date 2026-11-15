@@ -85,10 +85,15 @@ const KEY_PATTERNS = [
   /sbp_[A-Za-z0-9]+/g,
   /sb_secret_[A-Za-z0-9_-]+/g,
 ];
+// A URL or "name=value" parameter whose name ends in key, token, secret, password,
+// signature or credential (apikey, access_token, X-Amz-Signature…): only its value goes.
+const SECRET_PARAM = /(^|[?&;\s])((?:[A-Za-z0-9_-]*[_-])?(?:api[_-]?key|key|token|secret|password|passwd|pwd|signature|sig|credential)=)[^&#\s"'<>;,)]+/gi;
 const HEX_RUN = /\b[0-9A-Fa-f]{32,}\b/g;
-const BASE64_RUN = /[A-Za-z0-9+/]{32,}={0,2}/g;
+// A whole standalone base64/base64url token: a run touching "." or ":" belongs to a
+// host, URL or file name, and a run starting with "/" is an absolute path.
+const BASE64_RUN = /(?<![A-Za-z0-9+/=_.:-])[A-Za-z0-9+/_-]{32,}={0,2}(?![A-Za-z0-9+/=_.:-])/g;
 // A random base64 value mixes digits, upper and lower case; long paths and words do not.
-const looksRandom = (run: string): boolean => /[0-9]/.test(run) && /[A-Z]/.test(run) && /[a-z]/.test(run);
+const looksRandom = (run: string): boolean => !run.startsWith('/') && /[0-9]/.test(run) && /[A-Z]/.test(run) && /[a-z]/.test(run);
 
 /**
  * Text from an upgrade progress file made safe to show: control and direction
@@ -102,6 +107,7 @@ export function sanitizeUpdateText(value: unknown, limit: number, secretValues: 
     if (secret) cleaned = cleaned.split(secret).join(REDACTED);
   }
   for (const pattern of KEY_PATTERNS) cleaned = cleaned.replace(pattern, REDACTED);
+  cleaned = cleaned.replace(SECRET_PARAM, `$1$2${REDACTED}`);
   cleaned = cleaned.replace(HEX_RUN, run => (/[0-9]/.test(run) ? REDACTED : run));
   cleaned = cleaned.replace(BASE64_RUN, run => (looksRandom(run) ? REDACTED : run));
   cleaned = cleaned.slice(0, limit).trim();
