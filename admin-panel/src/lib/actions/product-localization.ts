@@ -3,7 +3,7 @@
 /**
  * Locale-specific customer text for products shown on the buyer's My Products page.
  * `content_config` is service-role only, so only the three public text fields are read here and only for
- * products the caller may see anyway (active + listed, or already owned).
+ * products the caller's session can read (the products read policy: publication window, inactive, archive).
  * @see lib/products/localized-metadata.ts
  */
 import { z } from 'zod';
@@ -22,10 +22,9 @@ export async function getProductLocalizations(productIds: string[], locale: stri
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return {};
     const ids = [...new Set(input.data.productIds)];
-    const owned = await supabase.from('user_product_access').select('product_id').eq('user_id', user.id).in('product_id', ids);
-    if (owned.error) return {};
-    const ownedIds = new Set((owned.data ?? []).map(row => row.product_id));
-    return await readProductLocalizations(ids, input.data.locale, ownedIds);
+    const visible = await supabase.from('products').select('id').in('id', ids);
+    if (visible.error) return {};
+    return await readProductLocalizations((visible.data ?? []).map(row => row.id), input.data.locale);
   } catch (error) {
     console.error('[getProductLocalizations] Error:', error instanceof Error ? error.message : 'Unknown error');
     return {};
