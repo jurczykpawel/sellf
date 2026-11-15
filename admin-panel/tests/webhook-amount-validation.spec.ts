@@ -57,8 +57,8 @@ test.describe('Webhook Amount Validation Security', () => {
     console.log(`Using test product: ${testProduct.name} ($${testProduct.price})`);
 
     // 2. Create a Stripe checkout session with MANIPULATED amount (only $1)
+    // No payment_method_types: current Stripe accounts manage methods in the Dashboard and reject the parameter.
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
       line_items: [{
         price_data: {
           currency: 'usd',

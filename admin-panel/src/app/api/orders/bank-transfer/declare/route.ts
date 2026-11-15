@@ -1,4 +1,8 @@
-/** Buyer declares the transfer is on its way; the signed order link is the only credential. @see migration 20261103150000_unpaid_order_reservations.sql (declare_transfer) */
+/**
+ * Buyer declares the transfer is on its way; the signed order link is the only credential. Past the reservation deadline
+ * the declaration only tells the seller (afterDeadline), it does not extend the reservation (W254d).
+ * @see migration 20261115110000_cancelled_order_no_payment.sql (declare_transfer)
+ */
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
@@ -23,14 +27,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!verifyTransferToken(token, orderId)) return reply({ error: 'Not found' }, 404);
     const db = createAdminClient();
     const { data, error } = await db.rpc('declare_transfer', { p_id: orderId, p_note: note ?? '', p_now: new Date().toISOString() });
-    const result = data as { success?: boolean; already_declared?: boolean; releaseAt?: string | null; declaredAt?: string } | null;
+    const result = data as { success?: boolean; already_declared?: boolean; releaseAt?: string | null; declaredAt?: string; afterDeadline?: boolean } | null;
     if (error || !result) return reply({ error: 'Declaration unavailable' }, 500);
     if (!result.success) return reply({ error: 'Order is not awaiting payment' }, 409);
     if (!result.already_declared) {
       try { await dispatchTransferEvent(db, orderId, 'order.transfer_declared'); }
       catch { console.error('[transfer-declare] Event awaiting recovery:', orderId); }
     }
-    return reply({ declaredAt: result.declaredAt, releaseAt: result.releaseAt ?? null });
+    return reply({ declaredAt: result.declaredAt, releaseAt: result.releaseAt ?? null, afterDeadline: result.afterDeadline === true });
   } catch (error) {
     return reply({ error: error instanceof ApiPayloadTooLargeError ? 'Request too large' : 'Declaration unavailable' }, error instanceof ApiPayloadTooLargeError ? 413 : 500);
   }

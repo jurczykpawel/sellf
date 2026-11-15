@@ -131,6 +131,35 @@ test('buyer declares the transfer once from the pay link; the reservation is ext
   expect((await cron(request)).ok()).toBe(true);
 });
 
+test('a declaration after the deadline tells the seller but does not extend the reservation; the job cancels on time @J181', async ({ page, request }) => {
+  test.setTimeout(120000);
+  // W254d (owner 15.11): past release_at, before the release job runs, the button stays; clicking it only informs the seller.
+  const email = `unpaid-late-declare-${randomUUID()}@example.com`;
+  const lateId = await placeViaRpc(plain.id, email);
+  const releaseAt = new Date(Date.now() - 60000).toISOString();
+  await checked(await db.from('payment_transactions').update({ release_at: releaseAt }).eq('id', lateId).select());
+  await page.goto(`/pl/order/${lateId}/transfer?token=${encodeURIComponent(signTransferToken(lateId))}`);
+  await expect(page.getByText('Zapłaciłeś przed terminem? Daj znać sprzedawcy. Termin rezerwacji już minął, więc nie zostanie przedłużony.')).toBeVisible();
+  await page.getByLabel('Uwaga dla sprzedawcy (opcjonalnie)').fill('Wysłane przed terminem');
+  await page.getByRole('button', { name: 'Wysłałem przelew' }).click();
+  await expect(page.getByRole('status')).toContainText('Daliśmy znać sprzedawcy. Jeśli przelew dojdzie po anulowaniu, sprzedawca może go przyjąć');
+  await expect(page.getByRole('status')).not.toContainText('Rezerwacja przedłużona');
+  const tx = await checked(await db.from('payment_transactions').select('status,release_at,transfer_declared_at,transfer_declared_note').eq('id', lateId).single());
+  expect(Date.parse(tx.release_at!)).toBe(Date.parse(releaseAt));
+  expect(tx).toMatchObject({ status: 'awaiting_payment', transfer_declared_note: 'Wysłane przed terminem' });
+  expect(Date.parse(tx.transfer_declared_at!)).toBeGreaterThan(Date.parse(releaseAt));
+  const declared = await webhook('order.transfer_declared', lateId);
+  expect(declared).toHaveLength(1); expect(Date.parse(declared[0].data.order.releaseAt as string)).toBe(Date.parse(releaseAt));
+  await page.reload();
+  await expect(page.getByRole('status')).toContainText('Daliśmy znać sprzedawcy');
+  await loginAsAdmin(page, 'demo@sellf.app', 'demo123'); await page.goto('/pl/dashboard/payments');
+  await page.getByLabel('Status', { exact: true }).selectOption('awaiting_payment');
+  await page.getByRole('row').filter({ hasText: email }).getByRole('button', { name: /szczegóły/i }).click();
+  await expect(page.getByText(/Kupujący zgłosił przelew .* sprawdź wyciąg: Wysłane przed terminem \(po terminie rezerwacji\)/)).toBeVisible();
+  expect((await cron(request)).ok()).toBe(true);
+  expect(await checked(await db.from('payment_transactions').select('status,cancel_reason').eq('id', lateId).single())).toEqual({ status: 'cancelled', cancel_reason: 'payment_window_expired' });
+});
+
 test('an unpaid order past its window is released: seat back on sale, buyer and integrator told @J182', async ({ page, request }) => {
   test.setTimeout(200000);
   expect((await checked(await db.rpc('event_availability', { p_product_id: event.id })) as unknown as Array<{ remaining: number }>)[0].remaining).toBe(0);
