@@ -139,6 +139,12 @@ test('an unpaid order past its window is released: seat back on sale, buyer and 
   const closed = await request.post(`/api/orders/${orderId}/pay`, { data: { token: new URL(payUrl).searchParams.get('token'), expectedAmount: 10000 } });
   expect(closed.status()).toBe(409); expect(await closed.json()).toEqual({ reason: 'payment_window_closed' });
   expect(await checked(await db.from('order_payment_attempts').select('id').eq('transaction_id', orderId))).toHaveLength(0);
+  // W254c: the order page says the deadline passed, without "reserved until <past date>" and without the transfer details.
+  await page.goto(new URL(payUrl).pathname + new URL(payUrl).search);
+  await expect(page.getByRole('alert')).toContainText('Termin płatności minął — zamówienie zostanie wkrótce anulowane');
+  await expect(page.getByText(/zarezerwowane do/)).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Dane do przelewu' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Zapłać online/ })).toHaveCount(0);
   expect((await cron(request)).ok()).toBe(true);
   const tx = await checked(await db.from('payment_transactions').select('status,cancel_reason').eq('id', orderId).single());
   expect(tx).toEqual({ status: 'cancelled', cancel_reason: 'payment_window_expired' });

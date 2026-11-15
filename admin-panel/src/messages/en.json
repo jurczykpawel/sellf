@@ -6152,6 +6152,8 @@
       "status_completed": "Paid",
       "status_cancelled": "Cancelled — do not send a bank transfer",
       "cancelledHelp": "This order can no longer be paid. Do not send a bank transfer: it will not be credited. If a transfer is already on its way, contact the seller.",
+      "overdueTitle": "The payment deadline has passed — the order will be cancelled soon",
+      "overdueHelp": "Do not send a bank transfer now. If you paid before the deadline and the payment has not reached us yet, let the seller know.",
       "cancelledTitle": "Order #{number} has been cancelled",
       "cancelledNewOrder": "Still want to buy? Place a new order.",
       "cancelledProductLink": "Go to the product",

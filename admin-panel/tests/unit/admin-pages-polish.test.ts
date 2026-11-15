@@ -21,7 +21,8 @@ describe('cancelled bank transfer page', () => {
     const source = readFileSync('src/app/[locale]/order/[orderId]/transfer/page.tsx', 'utf8');
     expect(source).toContain("cancelled = tx.status === 'cancelled'");
     expect(source).toContain('cancelled={cancelled}');
-    expect(source).toContain("{!cancelled && <p className=\"mt-3\">{t(`status_${tx.status}`)}</p>}");
+    // W254c: past the deadline the status line ("Oczekuje na przelew") is hidden too; the overdue alert replaces it.
+    expect(source).toContain("{!cancelled && !overdue && <p className=\"mt-3\">{t(`status_${tx.status}`)}</p>}");
   });
 });
 

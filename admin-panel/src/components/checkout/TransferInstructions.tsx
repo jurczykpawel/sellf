@@ -5,10 +5,12 @@ import { formatPrice } from '@/lib/constants';
 import { fromMinorUnits } from '@/lib/currency/minor-units';
 import { formatTransferAccount, formatTransferDeadline } from '@/lib/orders/transfer-format';
 import type { Json } from '@/types/database';
-export default function TransferInstructions({ transfer, amount, currency, dueAt, print = false, paid = false, cancelled = false }: { transfer: Json | null; amount: number; currency: string; dueAt?: string | null; print?: boolean; paid?: boolean; cancelled?: boolean }) {
+export default function TransferInstructions({ transfer, amount, currency, dueAt, print = false, paid = false, cancelled = false, overdue = false }: { transfer: Json | null; amount: number; currency: string; dueAt?: string | null; print?: boolean; paid?: boolean; cancelled?: boolean; overdue?: boolean }) {
   const t = useTranslations('bankTransfer'), locale = useLocale();
   const details = transfer && typeof transfer === 'object' && !Array.isArray(transfer) ? transfer : {};
   if (cancelled) return <div role="alert" className="my-4 rounded-xl border border-sf-danger bg-sf-danger-soft p-5 text-lg font-bold text-sf-danger"><p>{t('status_cancelled')}</p><p className="mt-2 text-base font-normal">{t('cancelledHelp')}</p></div>;
+  // Past the deadline, before the release job: no transfer details, they would invite paying an order about to be cancelled (W254c).
+  if (overdue) return <div role="alert" className="my-4 rounded-xl border border-sf-danger bg-sf-danger-soft p-5 text-lg font-bold text-sf-danger"><p>{t('overdueTitle')}</p><p className="mt-2 text-base font-normal">{t('overdueHelp')}</p></div>;
   if (paid) return <p className="my-4 font-semibold">{t('paid')}</p>;
   return <section aria-label={t('instructions')} className="space-y-4 rounded-xl border border-sf-border p-5 my-4">
     <h3 className="font-semibold">{t('instructions')}</h3>

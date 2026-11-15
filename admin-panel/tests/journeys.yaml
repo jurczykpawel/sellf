@@ -3560,7 +3560,7 @@
         "operation": "cancel"
       },
       "end_state": {
-        "buyer": "Past the reservation deadline, before the job runs, the pay endpoint starts no new online payment (payment_window_closed). Gets the cancellation mail; the order link shows the order as cancelled with a link to the product, without the declare or pay-online button; the pay endpoint refuses the order (order_cancelled), also after an administrator cancellation.",
+        "buyer": "Past the reservation deadline, before the job runs, the pay endpoint starts no new online payment (payment_window_closed) and the order link says the payment deadline passed and the order will be cancelled soon, without the transfer details or a reserved-until date. Gets the cancellation mail; the order link shows the order as cancelled with a link to the product, without the declare or pay-online button; the pay endpoint refuses the order (order_cancelled), also after an administrator cancellation.",
         "seller": "Order is cancelled with reason payment_window_expired; seat and promo price are back on sale; placement access is withdrawn.",
         "integrator": "Exactly one order.cancelled with cancelReason payment_window_expired and lateTransferPolicy admin_decision."
       },

@@ -457,7 +457,7 @@ change Omnibus lowest-price history. This type is available to all sellers.
 | GET | `/analytics/attribution` | `analytics:read` | Where purchases came from — aggregates by channel / UTM, net of refunds, major units ([Purchase sources](/purchase-attribution/)) |
 | POST | `/payments/export` | `payments:read` | Export payments (CSV) |
 | POST | `/payments/{id}/refund` | `payments:refund` | Refund a payment, including partial refunds |
-| POST | `/payments/{id}/mark-paid` | `payments:write` | Book a bank transfer (`amount` minor units, `paidAt`); for a cancelled order add `acceptCancelled: true` and `reason`, and `acceptOversold: true` when the preview says `oversold` ([Bank transfers](/bank-transfers/)) |
+| POST | `/payments/{id}/mark-paid` | `payments:write` | Book a bank transfer (`amount` minor units, `paidAt`); for a cancelled order add `acceptCancelled: true` and `reason`, and `acceptOversold: true` when the preview says `oversold`, otherwise 409 `CONFLICT` with `error.details.code: ["oversold_confirmation_required"]` ([Bank transfers](/bank-transfers/)) |
 | POST | `/payments/{id}/cancel` | `payments:write` | Cancel an unpaid bank transfer order (`reason`) |
 | POST | `/payments/{id}/invoice-issued` | `payments:write` | Mark an invoice issued outside Sellf (the order no longer expires) |
 | GET | `/payments/{id}/late-transfer-preview` | `payments:read` | Facts before accepting a transfer that arrived after cancellation: price then and today, seats in the session and price tier, `oversold`, coupon state ([Bank transfers](/bank-transfers/)) |

@@ -97,7 +97,7 @@ najniższej ceny Omnibus. Typ dostępny dla wszystkich sprzedawców.
 
 ## Przelewy tradycyjne
 
-Z uprawnieniem `payments:write`: `POST /payments/{id}/mark-paid` (zaksięgowanie przelewu: `amount`, `paidAt`), `POST /payments/{id}/cancel` (`reason`) i `POST /payments/{id}/invoice-issued`. Przelew, który doszedł po anulowaniu, przyjmujesz przez `mark-paid` z `acceptCancelled: true` i `reason`. Najpierw sprawdź `GET /payments/{id}/late-transfer-preview` (`payments:read`): gdy `seats.oversold` jest prawdą, przyjęcie przekroczy limit miejsc w terminie albo w progu cenowym i wymaga `acceptOversold: true`. Bez tego odpowiedź to 400 z `error.details.code: ["oversold_confirmation_required"]`. Szczegóły: [Przelewy tradycyjne](/pl/bank-transfers/).
+Z uprawnieniem `payments:write`: `POST /payments/{id}/mark-paid` (zaksięgowanie przelewu: `amount`, `paidAt`), `POST /payments/{id}/cancel` (`reason`) i `POST /payments/{id}/invoice-issued`. Przelew, który doszedł po anulowaniu, przyjmujesz przez `mark-paid` z `acceptCancelled: true` i `reason`. Najpierw sprawdź `GET /payments/{id}/late-transfer-preview` (`payments:read`): gdy `seats.oversold` jest prawdą, przyjęcie przekroczy limit miejsc w terminie albo w progu cenowym i wymaga `acceptOversold: true`. Bez tego odpowiedź to **409** `CONFLICT` z `error.details.code: ["oversold_confirmation_required"]` (inne odmowy, np. zła kwota, zostają 400 `VALIDATION_ERROR`). Szczegóły: [Przelewy tradycyjne](/pl/bank-transfers/).
 
 ## Licencje (Pro)
 
