@@ -23,17 +23,30 @@ import type { Database } from '@/types/database';
 vi.mock('@/lib/license/resolve', () => ({ checkFeature: async () => true }));
 useSupabaseBuyerEmails();
 const db = createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-const products = [randomUUID(), randomUUID()];
+const products = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
 const email = `limit-buyer-${randomUUID()}@example.com`;
 let seller = '', buyer = '';
 
-const grantAndIssue = async (productId: string) => {
-  const granted = await mutateAccess(db, 'grant', buyer, { type: 'user', id: seller }, { issue_license: true }, undefined, productId).single();
+const grantAndIssue = async (productId: string, userId = buyer) => {
+  const granted = await mutateAccess(db, 'grant', userId, { type: 'user', id: seller }, { issue_license: true }, undefined, productId).single();
   expect(granted.error).toBeNull();
   const accessId = (granted.data as { id: string }).id;
-  return { accessId, issued: await issueAccessLicense(db, { userId: buyer, productId, accessId, actorUserId: seller, source: 'manual', origin: process.env.SITE_URL!, license: { locale: 'pl' } }) };
+  return { accessId, issued: await issueAccessLicense(db, { userId, productId, accessId, actorUserId: seller, source: 'manual', origin: process.env.SITE_URL!, license: { locale: 'pl' } }) };
 };
-const licenseMails = async () => (await searchMessages(email)).filter(message => message.Subject.startsWith('Twój klucz licencyjny'));
+const regrant = (productId: string, accessId: string, userId: string) =>
+  issueAccessLicense(db, { userId, productId, accessId, actorUserId: seller, source: 'manual', origin: process.env.SITE_URL!, license: { locale: 'pl' } });
+const licenseMails = async (to = email) => (await searchMessages(to)).filter(message => message.Subject.startsWith('Twój klucz licencyjny'));
+const extraBuyers: { id: string; email: string }[] = [];
+async function newBuyer() {
+  const address = `resume-buyer-${randomUUID()}@example.com`;
+  const created = await db.auth.admin.createUser({ email: address, email_confirm: true });
+  expect(created.error).toBeNull();
+  extraBuyers.push({ id: created.data.user!.id, email: address });
+  return { id: created.data.user!.id, email: address };
+}
+/** The retry worker's six failed attempts, recorded as it records them. */
+const giveUp = (mailKey: string, at = new Date()) => db.from('auth_mail_retries')
+  .update({ attempts: 6, given_up_at: at.toISOString(), last_error: 'rate_limited' }).eq('license_mail_key', mailKey);
 
 /** Moves the buyer's last auth mail a few minutes back, as if the per-recipient interval had passed. */
 function letAuthMailLimitPass(userId: string) {
@@ -51,7 +64,8 @@ beforeAll(async () => {
   expect(customer.error).toBeNull(); buyer = customer.data.user!.id;
 });
 afterAll(async () => {
-  await db.from('auth_mail_retries').delete().eq('email', email);
+  await db.from('auth_mail_retries').delete().in('email', [email, ...extraBuyers.map(b => b.email)]);
+  for (const extra of extraBuyers) await db.auth.admin.deleteUser(extra.id);
   await db.from('issued_licenses').delete().in('product_id', products);
   await db.from('user_product_access').delete().in('product_id', products);
   await db.from('products').delete().in('id', products);
@@ -84,4 +98,42 @@ it('grants the second license within a minute, reports the mail as pending and d
   await expect.poll(async () => (await licenseMails()).length, { timeout: 10_000 }).toBe(2);
   const mails = await licenseMails();
   expect((await getMessage(mails[0].ID)).HTML).toContain(token);
+}, 60_000);
+
+it('a repeated grant puts an abandoned license mail back in the queue and the worker delivers it', async () => {
+  const resumed = await newBuyer();
+  await grantAndIssue(products[2], resumed.id);
+  const second = await grantAndIssue(products[3], resumed.id);
+  expect(second.issued).toMatchObject({ ok: true, license: { emailPending: true } });
+  const mailKey = licenseMailKey(resumed.email, `access_${second.accessId}`);
+  expect((await giveUp(mailKey)).error).toBeNull();
+
+  const repeated = await regrant(products[3], second.accessId, resumed.id);
+  expect(repeated).toMatchObject({ ok: true, license: { emailSent: false, emailPending: true } });
+  const row = (await db.from('auth_mail_retries').select('attempts,given_up_at,next_attempt_at').eq('license_mail_key', mailKey).single()).data!;
+  expect(row).toMatchObject({ attempts: 0, given_up_at: null });
+  expect(Date.parse(row.next_attempt_at)).toBeLessThanOrEqual(Date.now() + 1000);
+
+  letAuthMailLimitPass(resumed.id);
+  expect(await runAuthMailRetries(db)).toMatchObject({ errors: 0 });
+  expect((await db.from('auth_mail_retries').select('id').eq('license_mail_key', mailKey)).data).toEqual([]);
+  if (!repeated.ok) throw Error(repeated.error);
+  await expect.poll(async () => (await licenseMails(resumed.email)).length, { timeout: 10_000 }).toBe(2);
+  expect((await getMessage((await licenseMails(resumed.email))[0].ID)).HTML).toContain(repeated.license.token);
+}, 60_000);
+
+it('a repeated grant after the abandoned mail was purged sends the key again instead of reporting it sent', async () => {
+  const purged = await newBuyer();
+  await grantAndIssue(products[2], purged.id);
+  const second = await grantAndIssue(products[3], purged.id);
+  expect(second.issued).toMatchObject({ ok: true, license: { emailPending: true } });
+  const mailKey = licenseMailKey(purged.email, `access_${second.accessId}`);
+  expect((await giveUp(mailKey, new Date(Date.now() - 8 * 86_400_000))).error).toBeNull();
+  await runAuthMailRetries(db); // purges given-up rows older than seven days
+  expect((await db.from('auth_mail_retries').select('id').eq('license_mail_key', mailKey)).data).toEqual([]);
+
+  letAuthMailLimitPass(purged.id);
+  const repeated = await regrant(products[3], second.accessId, purged.id);
+  expect(repeated).toMatchObject({ ok: true, license: { emailSent: true, emailPending: false } });
+  await expect.poll(async () => (await licenseMails(purged.email)).length, { timeout: 10_000 }).toBe(2);
 }, 60_000);
