@@ -206,7 +206,7 @@ test('purchase started on premium storefront and free access finish after downgr
   const email = `t208-paid-${Date.now()}@example.com`;
   await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
   await page.locator('#checkoutEmail').fill(email); await page.locator('#fullName').fill('Example Buyer');
-  for (const box of await page.locator('input[type="checkbox"]').all()) if (await box.isVisible()) await box.check();
+  for (const box of await page.locator('input[type="checkbox"]:not(#wantInvoice):not(#wantRecipient)').all()) if (await box.isVisible()) await box.check();
   const frame = page.frameLocator('iframe[title="Secure payment input frame"][src*="elements-inner-payment"]');
   await expect(frame.locator('input[name="number"]')).toBeVisible({ timeout: 60000 });
   await frame.locator('input[name="number"]').fill('4242424242424242'); await frame.locator('input[name="expiry"]').fill('1234'); await frame.locator('input[name="cvc"]').fill('123');

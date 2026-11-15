@@ -1,6 +1,6 @@
 /**
  * Single source of truth for EU member states used across checkout:
- *  - the buyer-country selector (InvoiceFields) — needs code + display name,
+ *  - the buyer-country selector (invoice section) — needs code + display name,
  *  - the eu_vat gate (buyer-tax-identity) — needs the set of codes.
  *
  * Stable reference data (EU membership changes ~once a decade). Note: Greece's VAT-number

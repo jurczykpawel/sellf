@@ -58,6 +58,6 @@ For an organization, `invoice` uses the saved buyer: `needsInvoice`, `nip`, `com
 `address`, `city`, `postalCode`, `country`. A different recipient is included as
 `invoice.recipient` in its stored snake_case module format. Personal purchases without an
 invoice request omit `invoice`. Products without a profile do not receive `orderDetails`
-and retain their existing invoice format. Existing `customFields` continue to carry resolved answers.
+and retain their existing invoice format, plus `invoice.recipient` when the shop collects a recipient ([Webhooks](/webhooks/)). Existing `customFields` continue to carry resolved answers.
 
 See [Webhooks](/webhooks/) for endpoint configuration and delivery settings.

@@ -8,7 +8,7 @@ import { taxIdErrorCode } from '@/lib/checkout/invoice-form-logic';
 import { lookupCompanyByNip } from '@/lib/gus/lookup';
 import type { GusCompanyData } from '@/lib/gus/lookup';
 
-/** Narrow interface for InvoiceFields component — only what it needs */
+/** Company fields shared with the profile checkout (CheckoutProfileFields). */
 export interface InvoiceFieldsData {
   nip: string;
   setNip: (v: string) => void;

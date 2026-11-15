@@ -99,6 +99,14 @@ Obiekt `invoice` w `purchase.completed` i `invoice.paid` zawiera obok `nip` pola
 bez identyfikatora oba mają wartość `null`. Koszyk z profilem zapisuje też w
 `orderDetails.buyer` pola `tax_id_type`, `tax_id_country` i, przy włączonym VIES, `tax_id_vies`.
 
+Zwykły koszyk (bez profilu): `invoice` pojawia się, gdy kupujący zaznaczył „Chcę fakturę na firmę”.
+`needsInvoice` ma wtedy wartość `true` także bez identyfikatora — organizacja bez NIP albo firma
+spoza UE wysyła `nip: null` z nazwą i adresem. Gdy sklep zbiera osobnego odbiorcę faktury
+(Ustawienia → Sklep → Odbiorca faktury albo `PATCH /api/v1/settings/checkout`), `invoice.recipient`
+zawiera go w zapisanym formacie snake_case (`v`, `differs: true`, `company_name`, `nip`, `address`,
+`postal_code`, `city`, `country`, `tax_id_type`, `tax_id_country`); w innym przypadku pola nie ma.
+Zmiana jest addytywna: dotychczasowe pola się nie zmieniają.
+
 `invoice.paid` wiąże `data.invoice.stripeInvoiceId` z
 `data.subscription.stripeSubscriptionId`, `data.product.id` i `data.customer.userId`.
 `invoice.orderId` i `invoice.orderNumber` wskazują zamówienie Sellf przypisane do tej

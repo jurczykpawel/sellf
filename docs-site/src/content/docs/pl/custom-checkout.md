@@ -59,6 +59,6 @@ Dla organizacji blok `invoice` powstaje z zapisanego nabywcy: `needsInvoice`, `n
 `companyName`, `address`, `city`, `postalCode`, `country`. Inny odbiorca trafia do
 `invoice.recipient` w zapisanym formacie modułu z kluczami snake_case. Zakup osoby prywatnej
 bez prośby o fakturę pomija `invoice`. Produkty bez profilu nie otrzymują `orderDetails`
-i zachowują istniejący format faktury. Dotychczasowe `customFields` nadal zawierają odpowiedzi.
+i zachowują istniejący format faktury, z `invoice.recipient`, gdy sklep zbiera odbiorcę ([Webhooki](/pl/webhooks/)). Dotychczasowe `customFields` nadal zawierają odpowiedzi.
 
 Konfigurację adresów i dostarczania opisuje strona [Webhooki](/pl/webhooks/).

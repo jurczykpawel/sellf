@@ -21,7 +21,9 @@ Set the VAT exemption basis when selling exempt products, and enable the exempti
 basis option in Fakturownia. The line template supports `{product}`, `{date}`,
 `{session}` and `{tier}`. Prices, quantities, tax and allocated discounts come from
 saved order lines; bumps remain separate lines. A separate recipient retains its
-name, address and tax number.
+name, address and tax number. In the standard checkout buyers can add a recipient only
+when Settings → Shop → Invoice recipient is on (off by default); a company bought
+without a NIP gets an invoice with its name and address and no tax number.
 
 Schedule `/api/cron?job=invoices-retry` every minute with the existing `CRON_SECRET`
 bearer credential. Failed attempts wait 1, 2, 4 and 8 minutes, up to five attempts.

@@ -21,6 +21,10 @@ import {
 } from '@/lib/validations/custom-checkout-fields';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { buildBuyerDetails } from '@/lib/payment/buyer-details';
+import { validateInvoiceSection } from '@/lib/checkout/invoice-section';
+import { readInvoiceRecipientEnabled } from '@/lib/checkout/invoice-recipient-setting';
+import { saveOrderRecipient, toStoredRecipient } from '@/lib/payment/order-recipient';
+import type { StoredRecipient } from '@/lib/payment/order-recipient';
 
 /**
  * POST /api/update-payment-metadata
@@ -99,6 +103,8 @@ export async function POST(request: NextRequest) {
       // Validated with requireAll=true so required fields must be filled
       // before checkout.confirm() is allowed to proceed.
       customFieldValues,
+      // W223a invoice section of the standard checkout; when present it replaces the flat fields above.
+      invoice,
     } = await readJsonBody<any>(request);
 
     if (!clientSecret) {
@@ -156,19 +162,31 @@ export async function POST(request: NextRequest) {
     if (shouldShowTosCheckbox(checkoutConfig.collect_terms_of_service, !sessionUser) && termsAccepted !== true) {
       return NextResponse.json({ success: false, error: 'Terms acceptance required' }, { status: 400 });
     }
-    // Legacy invoice form: the tax id follows the company country, as in the profile checkout.
     const taxCountry = typeof country === 'string' && /^[A-Z]{2}$/.test(country) ? country : 'PL';
-    let taxId: unknown = nip;
-    if (typeof nip === 'string' && nip.trim()) {
-      const classified = classifyTaxId(nip, taxCountry);
-      if (!classified.valid) return NextResponse.json({ success: false, error: 'invalid_tax_id' }, { status: 400 });
-      taxId = classified.normalized;
+    let buyerInput: Parameters<typeof buildBuyerDetails>[0];
+    let recipientToStore: StoredRecipient | null = null;
+    if (invoice !== undefined) {
+      // Invoice section (W223a): the same rules as the browser; the number decides the company country.
+      const recipientEnabled = await readInvoiceRecipientEnabled(createAdminClient());
+      const section = validateInvoiceSection(invoice, { recipientEnabled });
+      if (!section.ok) return NextResponse.json({ success: false, errors: section.errors }, { status: 422 });
+      const party = section.buyer;
+      buyerInput = party
+        ? { firstName, lastName, fullName, termsAccepted, needsInvoice: true, buyerType: 'organization', nip: party.nip, companyName: party.company_name, address: party.address, city: party.city, postalCode: party.postal_code, country: party.country }
+        : { firstName, lastName, fullName, termsAccepted, needsInvoice: false, buyerType: 'person', country: taxCountry };
+      if (recipientEnabled) recipientToStore = toStoredRecipient(section.recipient);
+    } else {
+      // Legacy flat fields: the tax id follows the company country, as in the profile checkout.
+      let taxId: unknown = nip;
+      if (typeof nip === 'string' && nip.trim()) {
+        const classified = classifyTaxId(nip, taxCountry);
+        if (!classified.valid) return NextResponse.json({ success: false, error: 'invalid_tax_id' }, { status: 400 });
+        taxId = classified.normalized;
+      }
+      buyerInput = { firstName, lastName, fullName, termsAccepted, needsInvoice, nip: taxId, companyName, address, city, postalCode, country };
     }
     const stripe = await getStripeServer();
-    const buyer = buildBuyerDetails(
-      { firstName, lastName, fullName, termsAccepted, needsInvoice, nip: taxId, companyName, address, city, postalCode, country },
-      'checkout',
-    );
+    const buyer = buildBuyerDetails(buyerInput, 'checkout');
     const localeMetadata: Record<string, string> = locale === 'pl' || locale === 'en' ? { locale } : {};
     const metadata = {
       ...localeMetadata,
@@ -420,7 +438,7 @@ export async function POST(request: NextRequest) {
         await applyBuyerTaxIdentityToCustomer({
           stripe,
           customerId: stripeTaxCustomerId,
-          identity: { country, taxId: buyer.nip || undefined, address, city, postalCode },
+          identity: { country: buyer.country || undefined, taxId: buyer.nip || undefined, address: buyer.address || undefined, city: buyer.city || undefined, postalCode: buyer.postal_code || undefined },
         });
       }
     }
@@ -445,6 +463,10 @@ export async function POST(request: NextRequest) {
       if (!savedRows && !isSubscription) {
         console.error('[update-payment-metadata] no pending payment row for', stripeObjectId);
         return detailsNotSaved(409);
+      }
+      if (recipientToStore) {
+        const saved = await saveOrderRecipient(createAdminClient(), isCheckoutSession ? { session_id: stripeObjectId } : { stripe_payment_intent_id: stripeObjectId }, recipientToStore);
+        if (!saved.ok) return detailsNotSaved(500);
       }
     } catch (saveError) {
       console.error('[update-payment-metadata] failed to persist buyer details:', saveError instanceof Error ? saveError.message : 'Unknown error');

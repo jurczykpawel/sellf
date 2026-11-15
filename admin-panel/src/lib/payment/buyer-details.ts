@@ -17,6 +17,8 @@ type AdminClient = ReturnType<typeof createAdminClient>;
 // `type` (not interface): the value is stored as JSON and must be assignable to Json.
 export type BuyerDetails = {
   v: 1;
+  /** Standard checkout invoice section: organization when a company invoice was requested. */
+  type?: 'person' | 'organization';
   first_name: string;
   last_name: string;
   full_name: string;
@@ -44,6 +46,7 @@ export interface RawBuyerInput {
   city?: unknown;
   postalCode?: unknown;
   country?: unknown;
+  buyerType?: 'person' | 'organization';
 }
 
 const text = (value: unknown, max: number): string =>
@@ -62,6 +65,7 @@ export function buildBuyerDetails(input: RawBuyerInput, source: BuyerDetails['so
 
   return {
     v: 1,
+    ...(input.buyerType && { type: input.buyerType }),
     first_name: firstName,
     last_name: lastName,
     full_name: fullNameInput || `${firstName} ${lastName}`.trim(),

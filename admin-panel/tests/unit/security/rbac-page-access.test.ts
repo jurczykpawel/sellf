@@ -536,6 +536,7 @@ describe('All server action files have auth wrappers', () => {
       'dashboard.ts',
       'gus-config.ts',
       'integrations.ts',
+      'invoice-recipient-config.ts', // Admin-only shop setting via withAdminClient
       'invoicing.ts',
       'license-config.ts',
       'payment-config.ts',

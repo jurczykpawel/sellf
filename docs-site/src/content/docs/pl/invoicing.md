@@ -21,6 +21,9 @@ Dla produktów zwolnionych wpisz podstawę zwolnienia z VAT i włącz wybór pod
 stawki zw w Fakturowni. Szablon pozycji obsługuje `{product}`, `{date}`, `{session}`
 i `{tier}`. Ceny, ilości, podatki i rozdzielony kupon pochodzą z zapisanych pozycji
 zamówienia. Dodatki są osobnymi pozycjami. Osobny odbiorca zachowuje nazwę, adres i NIP.
+W zwykłym koszyku kupujący poda odbiorcę tylko wtedy, gdy włączysz Ustawienia → Sklep →
+Odbiorca faktury (domyślnie wyłączone); firma kupująca bez NIP dostaje fakturę z nazwą i adresem,
+bez numeru podatkowego.
 
 Uruchamiaj `/api/cron?job=invoices-retry` co minutę z nagłówkiem Bearer zawierającym
 `CRON_SECRET`. Ponowienia następują po 1, 2, 4 i 8 minutach, maksymalnie pięć prób.

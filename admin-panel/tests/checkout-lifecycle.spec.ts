@@ -33,7 +33,7 @@ test.beforeAll(async () => {
     'next/navigation', '@stripe/react-stripe-js/checkout', '@/lib/actions/checkout', '@/lib/stripe/client',
     '@/contexts/AuthContext', '@/components/providers/config-provider', '@/components/providers/theme-provider',
     '@/hooks/useTracking', '@/hooks/useOrderBumps', '@/hooks/useOto', '@/hooks/useFreeAccess', '@/hooks/useCheckoutRedirect',
-    '@/hooks/useCoupon', '@/lib/orders/transfer-public', '@/hooks/useInvoiceData', '@/components/DemoCheckoutNotice', '@/components/checkout/InvoiceFields', './ProductShowcase',
+    '@/hooks/useCoupon', '@/lib/orders/transfer-public', '@/hooks/useInvoiceData', '@/components/DemoCheckoutNotice', '@/components/checkout/InvoiceSection', './ProductShowcase',
   ];
   // Exact-specifier filter: Bun 1.3.14 drops next-intl's provider from the bundle when onResolve matches every import.
   const mockFilter = `^(${mocks.map(name => name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')).join('|')})$`;

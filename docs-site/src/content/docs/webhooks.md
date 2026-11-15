@@ -188,6 +188,13 @@ each invoice at purchase (so they don't change if the buyer later edits their pr
   appear next to `nip` in both `invoice.paid` and `purchase.completed` (`invoice` object); both are
   `null` when there is no tax id. Profile checkouts also store `tax_id_type`, `tax_id_country`
   and, with the optional VIES check, `tax_id_vies` on `orderDetails.buyer`.
+- Standard checkout (without a profile): `invoice` appears when the buyer ticked "I want a company
+  invoice". `needsInvoice` is then `true` even without a tax id — an organization without a NIP or a
+  company outside the EU sends `nip: null` with its name and address. When the shop collects a
+  different invoice recipient (Settings → Shop → Invoice recipient, or
+  `PATCH /api/v1/settings/checkout`), `invoice.recipient` carries it in the stored snake_case format
+  (`v`, `differs: true`, `company_name`, `nip`, `address`, `postal_code`, `city`, `country`,
+  `tax_id_type`, `tax_id_country`); it is absent otherwise. Additive: existing fields are unchanged.
 
 For an `invoice.paid` receiver to extend access, use `data.subscription.stripeSubscriptionId`,
 `data.invoice.stripeInvoiceId`, `data.product.id`, `data.customer.userId`, `amountPaid`,

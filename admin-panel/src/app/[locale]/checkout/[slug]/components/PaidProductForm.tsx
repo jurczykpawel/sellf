@@ -68,6 +68,7 @@ interface PaidProductFormProps {
   paymentMethodOrder?: string[];
   expressCheckoutConfig?: ExpressCheckoutConfig;
   taxMode?: TaxMode;
+  collectInvoiceRecipient?: boolean;
   collectTermsOfService: boolean;
   bundleComponents?: BundleComponentSummary[];
   /**
@@ -80,7 +81,7 @@ interface PaidProductFormProps {
 
 const noopSubscribe = () => () => {};
 
-export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, collectTermsOfService, bundleComponents, layoutMode = 'standalone', afterCheckoutSlot }: PaidProductFormProps) {
+export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, collectInvoiceRecipient = false, collectTermsOfService, bundleComponents, layoutMode = 'standalone', afterCheckoutSlot }: PaidProductFormProps) {
   const t = useTranslations('checkout');
   const locale = useLocale();
   const parsedProfile = storedCheckoutProfileSchema.safeParse(product.checkout_profile);
@@ -801,6 +802,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 customFieldErrors={customFieldErrors}
                 isGuest={!user}
                 collectTermsOfService={collectTermsOfService}
+                collectInvoiceRecipient={collectInvoiceRecipient}
                 onCouponUnavailable={coupon.invalidateCoupon}
               />
             </CheckoutElementsProvider></div>

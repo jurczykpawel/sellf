@@ -8,10 +8,11 @@ import CheckoutProfileFields from '@/components/checkout/CheckoutProfileFields';
 import { formatPrice } from '@/lib/constants';
 import { formatBillingIntervalLabel } from '@/lib/product-pricing-display';
 import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
-import { hasValidTaxId, shouldRequestInvoice, taxIdErrorCode } from '@/lib/checkout/invoice-form-logic';
+import { shouldRequestInvoice } from '@/lib/checkout/invoice-form-logic';
 import { useTracking } from '@/hooks/useTracking';
 import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
-import InvoiceFields from '@/components/checkout/InvoiceFields';
+import InvoiceSection from '@/components/checkout/InvoiceSection';
+import { useInvoiceSection } from '@/hooks/useInvoiceSection';
 import PaymentFormSkeleton from '@/components/checkout/PaymentFormSkeleton';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
 import { getCheckoutRequestError } from '@/lib/checkout/request-error';
@@ -48,6 +49,8 @@ interface CustomPaymentFormProps {
   expressCheckoutConfig?: ExpressCheckoutConfig;
   taxMode?: TaxMode;
   collectTermsOfService: boolean;
+  /** Shop setting: offer a different invoice recipient (institutions, always with a NIP). */
+  collectInvoiceRecipient?: boolean;
   termsAccepted: boolean;
   onTermsAcceptedChange(value: boolean): void;
   isGuest?: boolean;
@@ -85,7 +88,9 @@ export default function CustomPaymentForm({
   pricing,
   paymentMethodOrder,
   expressCheckoutConfig,
+  taxMode,
   collectTermsOfService,
+  collectInvoiceRecipient = false,
   termsAccepted,
   onTermsAcceptedChange: setTermsAccepted,
   isGuest = true,
@@ -126,6 +131,14 @@ export default function CustomPaymentForm({
   const parsedProfile = storedCheckoutProfileSchema.safeParse(product.checkout_profile);
   const profile = parsedProfile.success ? parsedProfile.data : null;
   const { errors: moduleErrors, setErrors: setModuleErrors } = profileForm;
+  // Invoice section of the standard checkout (W223a); a saved profile company opens it filled in.
+  const invoiceSection = useInvoiceSection({
+    recipientEnabled: collectInvoiceRecipient,
+    prefill: !profile && (invoice.nip || invoice.companyName)
+      ? { taxId: invoice.nip, companyName: invoice.companyName, address: invoice.address, postalCode: invoice.postalCode, city: invoice.city, country: invoice.country }
+      : null,
+  });
+  const invoiceBuyer = invoiceSection.want ? invoiceSection.buyer.fields : null;
 
   const { basePrice, totalPayable } = pricing;
   const paymentElementOptions: StripePaymentElementOptions = {
@@ -184,8 +197,8 @@ export default function CustomPaymentForm({
       return;
     }
 
-    if (!profile && invoice.nip && invoice.nip.trim().length > 0 && !hasValidTaxId(invoice.nip, invoice.country)) {
-      setErrorMessage(t(`profile.errors.${taxIdErrorCode(invoice.country)}`));
+    if (!profile && !invoiceSection.validate()) {
+      setErrorMessage(t('invoiceSection.fixFields'));
       return;
     }
 
@@ -223,13 +236,18 @@ export default function CustomPaymentForm({
             moduleValues: profile ? profileForm.values : undefined,
             fullName: invoice.fullName,
             termsAccepted: showTos ? termsAccepted : undefined,
-            needsInvoice: shouldRequestInvoice(invoice.nip, invoice.country),
-            nip: invoice.nip || undefined,
-            companyName: invoice.companyName || undefined,
-            address: invoice.address || undefined,
-            city: invoice.city || undefined,
-            postalCode: invoice.postalCode || undefined,
-            country: invoice.country || undefined,
+            ...(profile ? {
+              needsInvoice: shouldRequestInvoice(invoice.nip, invoice.country),
+              nip: invoice.nip || undefined,
+              companyName: invoice.companyName || undefined,
+              address: invoice.address || undefined,
+              city: invoice.city || undefined,
+              postalCode: invoice.postalCode || undefined,
+              country: invoice.country || undefined,
+            } : {
+              invoice: invoiceSection.toSubmit(),
+              country: invoice.country || 'PL',
+            }),
             customFieldValues:
               customFieldDefs.length > 0 ? customFieldValues : undefined,
           }),
@@ -239,8 +257,9 @@ export default function CustomPaymentForm({
           // Any failure stops the payment: the details must be stored before confirming.
           const errorBody = await updateResponse.json().catch(() => ({}));
           if (updateResponse.status === 422 && Array.isArray(errorBody.errors)) {
-            setModuleErrors(errorBody.errors);
-            setErrorMessage(t('profile.fixFields'));
+            if (profile) setModuleErrors(errorBody.errors);
+            else invoiceSection.applyServerErrors(errorBody.errors);
+            setErrorMessage(t(profile ? 'profile.fixFields' : 'invoiceSection.fixFields'));
             setIsProcessing(false);
             return;
           }
@@ -308,13 +327,14 @@ export default function CustomPaymentForm({
             ? profileForm.party.company_name
             : `${profileForm.person.first_name} ${profileForm.person.last_name}`)
           : invoice.fullName,
+        // Standard checkout: the invoice section's company address; profile checkout: the profile fields.
         address: {
-          country: invoice.country || 'PL',
-          line1: invoice.address || null,
+          country: invoiceBuyer?.country || invoice.country || 'PL',
+          line1: (invoiceBuyer ? invoiceBuyer.address : invoice.address) || null,
           line2: null,
-          city: invoice.city || null,
+          city: (invoiceBuyer ? invoiceBuyer.city : invoice.city) || null,
           state: null,
-          postal_code: invoice.postalCode || null,
+          postal_code: (invoiceBuyer ? invoiceBuyer.postalCode : invoice.postalCode) || null,
         },
       });
       if (billingAddressUpdate.type === 'error') {
@@ -450,9 +470,15 @@ export default function CustomPaymentForm({
         </div>
       )}
 
-      {/* Invoice Fields (NIP + company). Country selector only in Stripe Tax mode (drives
-          jurisdiction + reverse charge); in Fixed-Rate mode the rate is flat. */}
-      {!profile && <InvoiceFields invoice={invoice} />}
+      {/* Invoice section (NIP / EU VAT / manual company data, optional recipient). Without a company
+          invoice the buyer's country is asked only in Stripe Tax mode (it drives the jurisdiction). */}
+      {!profile && (
+        <InvoiceSection
+          section={invoiceSection}
+          disabled={isProcessing}
+          personCountry={taxMode === 'stripe_tax' ? { value: invoice.country || 'PL', onChange: invoice.setCountry } : null}
+        />
+      )}
 
       {/* Product-defined custom checkout fields (e.g. message, domain). */}
       {customFieldDefs.length > 0 && onCustomFieldValuesChange && (

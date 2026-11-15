@@ -20,7 +20,7 @@ vi.mock('@stripe/react-stripe-js/checkout', () => ({
 vi.mock('@/hooks/useTracking', () => ({ useTracking: () => ({ track: vi.fn() }) }));
 vi.mock('@/hooks/useInvoiceData', () => ({ useInvoiceData: () => ({ fullName: 'Test Buyer', setFullName: vi.fn(), isLoadingProfile: false }) }));
 vi.mock('@/components/DemoCheckoutNotice', () => ({ default: () => null }));
-vi.mock('@/components/checkout/InvoiceFields', () => ({ default: () => null }));
+vi.mock('@/components/checkout/InvoiceSection', () => ({ default: () => null }));
 vi.mock('@/components/checkout/OrderSummary', () => ({ default: () => null }));
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); stripe.result.type = 'success'; });
 

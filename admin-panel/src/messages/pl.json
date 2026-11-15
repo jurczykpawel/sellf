@@ -194,6 +194,48 @@
       "publishVersion": "Opublikuj tę wersję"
   },
   "checkout": {
+    "invoiceSection": {
+      "wantInvoice": "Chcę fakturę na firmę",
+      "taxIdLabel": "NIP lub numer VAT UE",
+      "taxIdPlaceholder": "np. 1234563218 albo DE123456789",
+      "toManual": "Nie mam NIP albo firma jest spoza UE",
+      "toTaxId": "Mam NIP, pobierz dane automatycznie",
+      "loading": "Pobieramy dane firmy z GUS…",
+      "editData": "Popraw dane",
+      "euNotice": "Firma z UE. Danych z tego kraju nie pobieramy automatycznie, wpisz je.",
+      "notFound": "Nie znaleźliśmy firmy o tym numerze w GUS. Wpisz dane.",
+      "unavailable": "Nie udało się pobrać danych firmy. Wpisz je.",
+      "rateLimit": "Zbyt wiele zapytań o dane firmy. Wpisz dane albo spróbuj za chwilę.",
+      "country": "Kraj",
+      "countryLocked": "Ustawiony na podstawie numeru. Aby zmienić kraj, zmień numer.",
+      "personCountry": "Kraj zamieszkania",
+      "companyName": "Nazwa firmy lub instytucji",
+      "address": "Ulica i numer",
+      "postalCode": "Kod pocztowy",
+      "city": "Miejscowość",
+      "taxIdOptional": "Numer podatkowy",
+      "optional": "(opcjonalnie)",
+      "wantRecipient": "Faktura dla innej placówki (odbiorca)",
+      "recipientTaxId": "NIP odbiorcy",
+      "recipientPlaceholder": "np. 9876543210",
+      "recipientHelp": "Np. szkoła jako odbiorca, gmina jako nabywca.",
+      "fixFields": "Popraw dane do faktury.",
+      "errors": {
+        "required": "Uzupełnij to pole.",
+        "tax_id_required": "Podaj NIP albo wybierz „Nie mam NIP albo firma jest spoza UE”.",
+        "nip_length": "NIP ma 10 cyfr.",
+        "nip_checksum": "Ten NIP ma błąd w cyfrach. Sprawdź, czy nie ma literówki.",
+        "unknown_prefix": "Nie znamy tego prefiksu. Firma spoza UE? Wybierz „Nie mam NIP albo firma jest spoza UE”.",
+        "eu_vat_format": "Ten numer VAT UE ma zły format dla wybranego kraju.",
+        "not_tax_id": "To nie wygląda na NIP ani numer VAT UE.",
+        "nip_only": "Odbiorca musi mieć polski NIP (10 cyfr).",
+        "invalid_tax_id": "Ten numer podatkowy zawiera niedozwolone znaki.",
+        "too_long": "Ten tekst jest za długi.",
+        "invalid_text": "To pole zawiera niedozwolone znaki.",
+        "invalid_country": "Wybierz kraj z listy.",
+        "recipient_disabled": "Sklep nie przyjmuje osobnego odbiorcy faktury."
+      }
+    },
     "customFieldErrors": {
       "required": "To pole jest wymagane.",
       "tooLong": "Maksymalnie {max} znaków.",
@@ -2633,7 +2675,7 @@
         "refundRequestsRead": "Przeglądanie wniosków o zwrot",
         "refundRequestsWrite": "Obsługa wniosków o zwrot",
         "systemRead": "Przeglądanie konfiguracji systemu",
-        "systemWrite": "Uruchamianie operacji systemowych (aktualizacja)",
+        "systemWrite": "Uruchamianie operacji systemowych (aktualizacja) i zmiana ustawień koszyka",
         "licensesRead": "Przeglądanie wydanych licencji",
         "licensesWrite": "Wystawianie i cofanie licencji",
         "templatesRead": "Wyświetlanie konfiguracji szablonów",
@@ -3236,6 +3278,14 @@
     "errorLoadingConfiguration": "Nie można załadować konfiguracji aplikacji. Sprawdź połączenie i spróbuj ponownie."
   },
   "settings": {
+      "invoiceRecipient": {
+        "title": "Odbiorca faktury",
+        "description": "Gdy fakturę opłaca jedna placówka, a dostaje inna (np. gmina kupuje, szkoła jest odbiorcą), kupujący może podać osobnego odbiorcę.",
+        "toggle": "Pozwól podać odbiorcę faktury w koszyku",
+        "help": "Domyślnie wyłączone. Odbiorca zawsze ma NIP. Jego dane trafiają do zamówienia, do faktury i do webhooka purchase.completed (invoice.recipient).",
+        "saved": "Zapisano ustawienie odbiorcy faktury",
+        "error": "Nie udało się zapisać ustawienia odbiorcy faktury"
+      },
     "buyerEmails": {
       "title": "Maile do kupujących",
       "toggle": "Wysyłaj maile do kupujących przez Supabase",

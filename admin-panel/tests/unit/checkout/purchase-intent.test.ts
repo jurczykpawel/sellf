@@ -24,7 +24,7 @@ vi.mock('@/app/[locale]/checkout/[slug]/components/ProductShowcase', () => ({ de
 vi.mock('@/hooks/useInvoiceData', () => ({ useInvoiceData: () => ({ fullName: 'Test Buyer', setFullName: vi.fn(), isLoadingProfile: false }) }));
 vi.mock('@/components/DemoCheckoutNotice', () => ({ default: () => null }));
 vi.mock('@/app/[locale]/checkout/[slug]/components/PwywSection', () => ({ default: ({ isFreeAccess }: { isFreeAccess: boolean }) => isFreeAccess ? React.createElement('div', { 'data-testid': 'free-access-view' }, 'Free access') : null }));
-vi.mock('@/components/checkout/InvoiceFields', () => ({ default: () => null }));
+vi.mock('@/components/checkout/InvoiceSection', () => ({ default: () => null }));
 vi.mock('@/hooks/useCoupon', () => ({ useCoupon: () => ({ appliedCoupon: mocks.coupon, couponCode: '', setCouponCode: vi.fn(), showCouponInput: false, isVerifyingCoupon: mocks.verifying, couponError: null, removeCoupon: vi.fn(), handleVerifyCoupon: vi.fn(), applyOtoCoupon: vi.fn() }) }));
 vi.mock('@stripe/react-stripe-js/checkout', () => ({
   CheckoutElementsProvider: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),

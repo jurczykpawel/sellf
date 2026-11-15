@@ -18,7 +18,7 @@ function setup(profile: boolean, stored: unknown = details, sessionId: string | 
 }
 describe('purchase order details', () => {
   it('keeps recorded customer and invoice data with explicit minor-unit prices', async () => {
-    const { params, from } = setup(false);
+    const { params, from } = setup(false, { buyer: details.buyer });
     const recorded = JSON.parse(readFileSync('tests/unit/fixtures/purchase-legacy-body.json', 'utf8'));
     const payload = await buildPurchaseWebhookPayload(params);
     expect(payload.customer).toEqual({ ...recorded.customer, locale: 'en' }); expect(payload.invoice).toEqual({ ...recorded.invoice, taxIdType: 'pl_nip', taxIdCountry: 'PL' });
@@ -49,6 +49,21 @@ describe('purchase order details', () => {
   ])('tells integrators the %s tax id type @J220', async (country, nip, type) => {
     const { params } = setup(true, { buyer: { ...details.buyer, country, nip } });
     expect((await buildPurchaseWebhookPayload(params)).invoice).toMatchObject({ nip, country, taxIdType: type, taxIdCountry: country });
+  });
+  it('the standard checkout adds a different invoice recipient stored with the order @J621', async () => {
+    const { params } = setup(false);
+    const payload = await buildPurchaseWebhookPayload(params);
+    expect(payload.invoice).toMatchObject({ needsInvoice: true, companyName: 'Old metadata', recipient: details.recipient });
+    expect(payload).not.toHaveProperty('orderDetails');
+  });
+  it('the standard checkout omits the recipient when none was given @J621', async () => {
+    const { params } = setup(false, { buyer: details.buyer, recipient: null });
+    expect((await buildPurchaseWebhookPayload(params)).invoice).not.toHaveProperty('recipient');
+  });
+  it('the standard checkout sends a company invoice without a tax id (organization without NIP) @J620', async () => {
+    const { params } = setup(false, { buyer: { ...details.buyer, nip: '' } });
+    params.metadata = { needs_invoice: 'true', nip: '', company_name: 'Fundacja Bez NIP', address: 'Prosta 1', city: 'Kraków', postal_code: '30-001', country: 'PL' };
+    expect((await buildPurchaseWebhookPayload(params)).invoice).toEqual({ needsInvoice: true, nip: null, companyName: 'Fundacja Bez NIP', address: 'Prosta 1', city: 'Kraków', postalCode: '30-001', country: 'PL', taxIdType: null, taxIdCountry: null });
   });
   it('derives the type for embed purchases from the Stripe customer address', async () => {
     const { params } = setup(false);

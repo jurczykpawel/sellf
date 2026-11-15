@@ -5,6 +5,14 @@ description: "Jednostki kwot i zgodność danych wejściowych API Sellf v1."
 
 API administracyjne Sellf jest dostępne pod adresem `https://twoja-domena.pl/api/v1`. Wysyłaj klucz API w nagłówku `Authorization: Bearer sf_live_...` lub `X-API-Key`. [Pełna lista endpointów, uprawnień i przykładów (EN)](/api/).
 
+## Ustawienia koszyka
+
+`GET /settings/checkout` (`system:read`) zwraca `{ "invoice_recipient_enabled": false }`.
+`PATCH /settings/checkout` (`system:write`) przyjmuje dokładnie `{ "invoice_recipient_enabled": true }`
+(inne pola → `400`). Ustawienie (domyślnie wyłączone) pozwala w zwykłym koszyku podać osobnego
+odbiorcę faktury — placówkę, zawsze z polskim NIP. Odbiorca trafia do zamówienia i do webhooka
+`purchase.completed` jako `invoice.recipient`. Zmiana jest zapisywana w dzienniku audytu.
+
 ## Jednostki kwot w v1
 
 Jednostki pozostają częścią kontraktu v1 i nie są automatycznie przeliczane. **Jednostki główne**: `49.99` oznacza 49,99 PLN/USD. **Jednostki najmniejsze**: `4999` oznacza 49,99 PLN/USD. Uwzględniaj liczbę miejsc dziesiętnych danej waluty (np. JPY nie ma części dziesiętnej). Średnie mogą zawierać ułamki jednostki najmniejszej.

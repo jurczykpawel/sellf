@@ -10,7 +10,7 @@ vi.mock('@stripe/react-stripe-js/checkout', () => ({ PaymentElement: () => null,
 vi.mock('@/hooks/useTracking', () => ({ useTracking: () => ({ track: vi.fn() }) }));
 vi.mock('@/components/DemoCheckoutNotice', () => ({ default: () => null }));
 vi.mock('@/components/checkout/CheckoutProfileFields', () => ({ default: () => null }));
-vi.mock('@/components/checkout/InvoiceFields', () => ({ default: () => null }));
+vi.mock('@/components/checkout/InvoiceSection', () => ({ default: () => null }));
 afterEach(cleanup);
 it.each([true, false])('shows the collected profile email without asking again: %s', hasProfile => {
   const props = { product: { price: 10, currency: 'PLN', checkout_profile: hasProfile ? { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }] } : null }, email: 'buyer@example.com', invoice: {}, profileForm: { errors: [] }, pricing: {}, onEmailChange: vi.fn(), collectTermsOfService: false } as unknown as ComponentProps<typeof CustomPaymentForm>;

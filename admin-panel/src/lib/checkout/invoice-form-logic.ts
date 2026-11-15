@@ -2,7 +2,8 @@ import { classifyTaxId, taxIdTypeForCountry } from '@/lib/validation/tax-id';
 import type { TaxMode } from '@/lib/actions/shop-config';
 
 /**
- * Pure decision logic for the on-site checkout invoice/company fields. Extracted from the
+ * Pure decision logic shared by the profile checkout and the server (the standard checkout's
+ * invoice section lives in ./invoice-section.ts). Extracted from the
  * React components so every condition (visibility, required-vs-optional, what goes to the
  * order vs to Stripe) is covered by unit tests rather than buried in JSX.
  *
@@ -35,21 +36,6 @@ export function shouldRequestInvoice(nip: string | null | undefined, country: st
 export function taxIdErrorCode(country: string): 'invalid_nip' | 'invalid_eu_vat' | 'invalid_tax_id' {
   const type = taxIdTypeForCountry(country);
   return type === 'pl_nip' ? 'invalid_nip' : type === 'eu_vat' ? 'invalid_eu_vat' : 'invalid_tax_id';
-}
-
-/**
- * Show the company/address group. Appears once a full PL NIP (10 chars) or any foreign number is
- * typed, GUS data has been fetched, or a company name is already present (e.g. restored from profile pre-fill).
- */
-export function shouldShowCompanyFields(opts: {
-  nip?: string | null;
-  country?: string;
-  hasGusData?: boolean;
-  companyName?: string | null;
-}): boolean {
-  const nip = opts.nip ?? '';
-  const typed = (opts.country ?? 'PL') === 'PL' ? nip.length === 10 : nip.trim().length > 0;
-  return typed || !!opts.hasGusData || !!opts.companyName;
 }
 
 /**
