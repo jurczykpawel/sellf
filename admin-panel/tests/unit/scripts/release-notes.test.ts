@@ -32,6 +32,23 @@ describe('parseCommit', () => {
     expect(parseCommit({ hash: 'f'.repeat(40), subject: 'fix(x): y', body: 'this is a non-breaking tweak' }).breaking).toBeNull();
   });
 
+  it('keeps the whole multi-paragraph BREAKING CHANGE footer, up to the next footer', () => {
+    const body = [
+      'Moves orders to v2.',
+      '',
+      'BREAKING CHANGE: Use /v2/orders instead.',
+      'The old path answers 410.',
+      '',
+      'Clients must also send the new tenant header.',
+      '',
+      'Refs: #12',
+      'Co-Authored-By: Someone <x@example.com>',
+    ].join('\n');
+    expect(parseCommit({ hash: '9'.repeat(40), subject: 'feat(api)!: orders v2', body }).breaking).toBe(
+      'Use /v2/orders instead.\nThe old path answers 410.\n\nClients must also send the new tenant header.',
+    );
+  });
+
   it('treats a non-conventional subject as "other"', () => {
     expect(parseCommit({ hash: '1'.repeat(40), subject: 'Update README', body: '' })).toMatchObject({ type: 'other', scope: null, subject: 'Update README' });
   });
@@ -65,6 +82,14 @@ describe('buildReleaseNotes', () => {
     expect(notes).toContain('- **api:** clients must read `amount_total`. (3333333)');
     expect(notes).toContain('- **api:** remove legacy field (3333333)');
     expect(notes).not.toContain('W254');
+  });
+
+  it('renders a multi-paragraph breaking footer as one list item (continuation indented)', () => {
+    const out = buildReleaseNotes(
+      [{ hash: '4444444dddd', subject: 'feat(api)!: orders v2', body: 'BREAKING CHANGE: Use /v2/orders instead.\n\nClients must also send the new tenant header.' }],
+      { version: '2026.11.1', from: 'v2026.11.0' },
+    );
+    expect(out).toContain('- **api:** Use /v2/orders instead.\n\n  Clients must also send the new tenant header. (4444444)');
   });
 
   it('leaves out version bump commits and ends with stats and the compare link', () => {

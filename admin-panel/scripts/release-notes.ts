@@ -48,20 +48,38 @@ const SECTIONS: { heading: string; match: (c: ParsedCommit) => boolean }[] = [
 
 const VERSION_BUMP_RE = /^chore(\(release\))?: bump version to /;
 
+/** A footer line per Conventional Commits: `Token: value` / `Token #value` (or `BREAKING CHANGE: value`). */
+const FOOTER_RE = /^(?:BREAKING[ -]CHANGES?|[A-Za-z][\w-]*)(?:: | #)/;
+
+/**
+ * Text of the BREAKING CHANGE footer: the first line plus every continuation line and paragraph
+ * up to the next footer or the end of the message (a migration note is often several paragraphs).
+ */
+function breakingFooter(body: string): string | null {
+  const lines = body.replace(/\r\n/g, '\n').split('\n');
+  const start = lines.findIndex((line) => /^BREAKING[ -]CHANGES?:\s*\S/.test(line));
+  if (start < 0) return null;
+  const end = lines.findIndex((line, i) => i > start && FOOTER_RE.test(line));
+  const text = lines.slice(start, end < 0 ? undefined : end).join('\n').replace(/^BREAKING[ -]CHANGES?:\s*/, '');
+  return text.replace(/\s+$/, '');
+}
+
 export function parseCommit({ hash, subject, body }: RawCommit): ParsedCommit {
   const match = /^([a-z]+)(?:\(([^)]+)\))?(!)?:\s*(.+)$/.exec(subject.trim());
-  const footer = /^BREAKING[ -]CHANGES?:\s*(.+)$/m.exec(body);
-  if (!match) return { hash, type: 'other', scope: null, subject: subject.trim(), breaking: footer ? footer[1].trim() : null };
+  const footer = breakingFooter(body);
+  if (!match) return { hash, type: 'other', scope: null, subject: subject.trim(), breaking: footer };
   const [, type, rawScope, bang, rawSubject] = match;
   // Internal task ids (W254b) mean nothing to sellers.
   const cleanSubject = rawSubject.replace(/\s*\(W\d+[a-z]*\)$/i, '').trim();
   const scope = rawScope && !/^w\d+[a-z]*$/i.test(rawScope) ? rawScope : null;
-  const breaking = footer ? footer[1].trim() : bang ? cleanSubject : null;
+  const breaking = footer ?? (bang ? cleanSubject : null);
   return { hash, type, scope, subject: cleanSubject, breaking };
 }
 
+/** One list item; continuation lines are indented so a multi-paragraph text stays in the item. */
 function bullet(scope: string | null, text: string, hash: string): string {
-  return `- ${scope ? `**${scope}:** ` : ''}${text} (${hash.slice(0, 7)})`;
+  const body = text.split('\n').map((line, i) => (i === 0 || line === '' ? line : `  ${line}`)).join('\n');
+  return `- ${scope ? `**${scope}:** ` : ''}${body} (${hash.slice(0, 7)})`;
 }
 
 export interface NotesOptions {
