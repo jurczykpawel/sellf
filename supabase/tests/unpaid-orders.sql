@@ -51,6 +51,7 @@ BEGIN
   -- (3) declaration extends once by 72 h from declaration time, never shortens
   r:=public.declare_transfer(o,'Przelew wysłany 3.11',t0+interval '30 hours');
   ASSERT (r->>'success')::boolean AND (r->>'releaseAt')::timestamptz=t0+interval '102 hours', 'declared extension';
+  ASSERT (r->>'afterDeadline')::boolean=false, 'declaration before the deadline is not late';
   r:=public.declare_transfer(o,'drugi raz',t0+interval '40 hours');
   ASSERT (r->>'already_declared')::boolean, 'declared twice';
   SELECT * INTO row FROM public.payment_transactions WHERE id=o;
@@ -137,6 +138,26 @@ BEGIN
   ASSERT (SELECT count(*) FROM public.coupon_redemptions WHERE transaction_id=o)=1 AND (SELECT current_usage_count FROM public.coupons WHERE id=coupon)=2;
   ASSERT (SELECT status FROM public.seat_reservations WHERE transaction_id=o)='confirmed', 'seat available is re-taken';
   ASSERT NOT coalesce((SELECT (metadata->>'oversold')::boolean FROM public.payment_transactions WHERE id=o),false);
+
+  -- (6b) W254d (owner 15.11): a declaration past the deadline is recorded for the seller but moves neither the
+  -- reservation nor the cancellation; the release job cancels on time. The deadline moment itself counts as late.
+  tx:=public.bank_transfer_order(input||'{"customer_email":"late-declare@example.com"}',lines); o:=(tx->>'transaction_id')::uuid;
+  r:=public.declare_transfer(o,'Wysłałem wczoraj wieczorem',t0+interval '48 hours 5 minutes');
+  ASSERT (r->>'success')::boolean AND (r->>'already_declared')::boolean=false AND (r->>'afterDeadline')::boolean
+    AND (r->>'releaseAt')::timestamptz=t0+interval '48 hours', 'late declaration keeps the deadline: '||r::text;
+  SELECT * INTO row FROM public.payment_transactions WHERE id=o;
+  ASSERT row.release_at=t0+interval '48 hours' AND row.transfer_declared_at=t0+interval '48 hours 5 minutes'
+    AND row.transfer_declared_note='Wysłałem wczoraj wieczorem', 'late declaration recorded, reservation unchanged';
+  ASSERT (SELECT (new_values->>'after_deadline')::boolean FROM public.audit_log WHERE new_values->>'action'='order.transfer_declared'
+    AND new_values->>'transaction_id'=o::text), 'late declaration audited as late';
+  r:=public.declare_transfer(o,'jeszcze raz',t0+interval '48 hours 6 minutes');
+  ASSERT (r->>'already_declared')::boolean AND (SELECT release_at=t0+interval '48 hours' FROM public.payment_transactions WHERE id=o), 'repeat changes nothing';
+  ASSERT (public.release_unpaid_transfer(o,t0+interval '48 hours 7 minutes')->>'released')::boolean, 'release job cancels on time';
+  ASSERT (SELECT status='cancelled' AND cancel_reason='payment_window_expired' FROM public.payment_transactions WHERE id=o), 'cancelled after late declaration';
+  tx:=public.bank_transfer_order(input||'{"customer_email":"boundary-declare@example.com"}',lines); o:=(tx->>'transaction_id')::uuid;
+  r:=public.declare_transfer(o,NULL,t0+interval '48 hours');
+  ASSERT (r->>'afterDeadline')::boolean AND (r->>'releaseAt')::timestamptz=t0+interval '48 hours', 'declaration at the deadline is late';
+  ASSERT (public.release_unpaid_transfer(o,t0+interval '48 hours')->>'released')::boolean, 'released at the deadline';
 
   -- (7) regular product: no timer, no release
   INSERT INTO public.products(name,slug,price,currency,checkout_profile) VALUES('Unpaid course','unpaid-plain-test',100,'PLN',

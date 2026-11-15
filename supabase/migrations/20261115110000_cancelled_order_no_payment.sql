@@ -12,6 +12,9 @@
 -- * Accepting a late transfer that would go over a seat limit (session capacity OR the order's saved price tier, the
 --   rules confirm_event_order applies) requires the administrator's explicit confirmation (p_accept_oversold).
 --   event_order_seats() gives the preview the same facts the acceptance uses.
+-- W254d (owner decision 15.11.2026):
+-- * "I have sent the transfer" after the reservation deadline (release_at, before the release job cancels) is recorded so the
+--   seller sees it, but neither extends the reservation nor delays the cancellation. Before the deadline: extended as before.
 -- Bodies otherwise identical to 20261110235905 / 20261110235906.
 
 -- ===== Close the open online payment attempts of an order; caller holds the order row lock =====
@@ -264,3 +267,29 @@ BEGIN
 END $$;
 REVOKE EXECUTE ON FUNCTION public.admin_bank_transfer_order(uuid,text,numeric,timestamptz,text,uuid,boolean,boolean) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_bank_transfer_order(uuid,text,numeric,timestamptz,text,uuid,boolean,boolean) TO service_role;
+
+-- ===== DECLARATION: past the deadline it only tells the seller (W254d) =====
+CREATE OR REPLACE FUNCTION public.declare_transfer(p_id uuid,p_note text,p_now timestamptz) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE tx public.payment_transactions%ROWTYPE; hold integer; note text:=nullif(btrim(p_note),''); late boolean;
+BEGIN
+  IF p_now IS NULL OR length(note)>200 OR note ~ '[[:cntrl:]]' THEN RAISE EXCEPTION 'Invalid declaration' USING ERRCODE='22023'; END IF;
+  SELECT * INTO tx FROM public.payment_transactions WHERE id=p_id FOR UPDATE;
+  IF NOT FOUND OR tx.payment_provider<>'bank_transfer' OR tx.status<>'awaiting_payment' THEN
+    RETURN jsonb_build_object('success',false,'error','not_awaiting_payment');
+  END IF;
+  -- Same moment the release job cancels at (release_at<=now): from then on the reservation is over.
+  late:=tx.release_at IS NOT NULL AND p_now>=tx.release_at;
+  IF tx.transfer_declared_at IS NOT NULL THEN
+    RETURN jsonb_build_object('success',true,'already_declared',true,'releaseAt',tx.release_at,'declaredAt',tx.transfer_declared_at,'afterDeadline',late);
+  END IF;
+  SELECT declared_hold_hours INTO STRICT hold FROM public.bank_transfer_config WHERE id;
+  UPDATE public.payment_transactions SET transfer_declared_at=p_now,transfer_declared_note=note,
+    release_at=CASE WHEN release_at IS NULL OR late THEN release_at ELSE greatest(release_at,p_now+make_interval(hours=>hold)) END,
+    updated_at=now() WHERE id=tx.id RETURNING * INTO tx;
+  INSERT INTO public.audit_log(table_name,operation,new_values) VALUES('payment_transactions','UPDATE',
+    jsonb_build_object('action','order.transfer_declared','transaction_id',tx.id,'release_at',tx.release_at,'after_deadline',late));
+  RETURN jsonb_build_object('success',true,'already_declared',false,'releaseAt',tx.release_at,'declaredAt',tx.transfer_declared_at,'afterDeadline',late);
+END $$;
+REVOKE ALL ON FUNCTION public.declare_transfer(uuid,text,timestamptz) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.declare_transfer(uuid,text,timestamptz) TO service_role;
