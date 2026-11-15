@@ -74,3 +74,40 @@ for (const locale of ['en', 'pl'] as const) {
     }
   });
 }
+
+test('second license grant within a minute shows the saved access and a pending mail notice @J20', async ({ page }) => {
+  const admin = await createTestAdmin('access-limit-admin');
+  const buyer = await createTestUser('access-limit-buyer');
+  const owner = await createTestUser('access-limit-owner');
+  const products = [randomUUID(), randomUUID()];
+  try {
+    await storeSellerKey(db, { sellerId: owner.userId, ...generateSellerKeypair(), custody: 'managed' });
+    expect((await db.from('products').insert(products.map((id, i) => ({ id, slug: id, name: `Limit UI ${i}`, price: 10, currency: 'PLN', seller_id: owner.userId, is_active: true, issue_license_on_purchase: true, license_tier: 'pro' })))).error).toBeNull();
+    await setAuthSession(page, admin.email, admin.password);
+    await page.goto('/pl/dashboard/users');
+    await page.locator('input[type="text"]').first().fill(buyer.email);
+    await page.getByRole('button', { name: `Zarządzaj dostępem dla ${buyer.email}`, exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    for (const [i, id] of products.entries()) {
+      await dialog.getByRole('button', { name: 'Dodaj nowy dostęp', exact: true }).click();
+      await dialog.locator('#product-select').selectOption(id);
+      const grant = page.waitForResponse(response => response.url().includes(`/api/users/${buyer.userId}/access`) && response.request().method() === 'POST');
+      await dialog.getByRole('button', { name: 'Przyznaj dostęp', exact: true }).click();
+      const response = await grant;
+      expect(response.status()).toBe(201);
+      expect((await response.json()).license).toMatchObject(i === 0 ? { email_sent: true, email_pending: false } : { email_sent: false, email_pending: true });
+      await expect(dialog.locator('h4', { hasText: `Limit UI ${i}` })).toBeVisible();
+    }
+    await expect(dialog.getByText('Licencja przyznana, mail czeka na wysłanie (limit dostawcy poczty). Wyślemy go automatycznie.')).toBeVisible();
+    await expect(dialog.getByText('Nie udało się zakończyć wystawiania')).toHaveCount(0);
+    expect((await db.from('issued_licenses').select('id').in('product_id', products)).data).toHaveLength(2);
+    expect((await db.from('auth_mail_retries').select('kind').eq('email', buyer.email.toLowerCase())).data).toEqual([{ kind: 'license' }]);
+  } finally {
+    await db.from('auth_mail_retries').delete().eq('email', buyer.email.toLowerCase());
+    await db.from('issued_licenses').delete().in('product_id', products);
+    await db.from('user_product_access').delete().in('product_id', products);
+    await db.from('products').delete().in('id', products);
+    await db.from('seller_license_keys').delete().eq('seller_id', owner.userId);
+    await buyer.cleanup(); await owner.cleanup(); await admin.cleanup();
+  }
+});
