@@ -94,8 +94,13 @@ restore the previous code. If the shop misbehaves after such a failure, check th
 migration registry.
 
 Before replacing files, the updater waits for PM2 to confirm that the application
-stopped. If PM2 does not confirm it, the update ends before anything changes and the
-shop keeps running the installed version.
+stopped. If PM2 does not confirm it, the update ends before any file or the database
+changes. If the failed stop attempt still took the application down, the updater
+starts it again. The shop keeps running the installed version only when PM2
+confirms the process is running. If it does not, the panel says so plainly: files
+and the database are unchanged, but it is not known whether the shop is running.
+Check it on the server with `pm2 status <process name>` and start a stopped process
+with `pm2 start <process name>`.
 
 The latest release is found through the `github.com/<repo>/releases/latest`
 redirect and release files are downloaded from `releases/download/<tag>/`. Neither

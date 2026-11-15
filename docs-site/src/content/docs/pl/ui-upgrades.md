@@ -95,8 +95,13 @@ nie było, i przywrócił poprzedni kod. Jeśli po takim błędzie sklep działa
 nieprawidłowo, sprawdź rejestr migracji.
 
 Przed podmianą plików aktualizator czeka na potwierdzenie z PM2, że aplikacja się
-zatrzymała. Jeśli PM2 tego nie potwierdzi, aktualizacja kończy się, zanim cokolwiek
-się zmieni, a sklep działa dalej na dotychczasowej wersji.
+zatrzymała. Jeśli PM2 tego nie potwierdzi, aktualizacja kończy się, zanim zmieni się
+jakikolwiek plik albo baza. Jeśli nieudana próba zatrzymania jednak wyłączyła
+aplikację, aktualizator uruchamia ją ponownie. Sklep działa dalej na dotychczasowej
+wersji tylko wtedy, gdy PM2 potwierdzi, że proces działa. Jeśli nie potwierdzi,
+panel mówi wprost: pliki i baza są bez zmian, ale nie wiadomo, czy sklep działa.
+Sprawdź wtedy na serwerze `pm2 status <nazwa procesu>`, a zatrzymany proces uruchom
+poleceniem `pm2 start <nazwa procesu>`.
 
 Najnowsze wydanie jest ustalane przez przekierowanie `github.com/<repo>/releases/latest`,
 a pliki wydania są pobierane z `releases/download/<tag>/`. Żadne z nich nie liczy się

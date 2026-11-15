@@ -168,19 +168,26 @@ read_installed_version() {
 
 # failure-report:start — extracted verbatim by tests/unit/scripts/upgrade-archive-validation.test.ts
 # fail_unchanged <code> <message> [<detail key> <detail value>]...
-# Stops an attempt before backup, PM2 or database changes. A "note" detail is
-# appended to the message after the unchanged-version sentence.
+# Stops an attempt before file or database changes. A "note" detail is appended
+# to the message after the unchanged-version sentence; "app_stopped 1" says PM2
+# does not confirm the application runs instead of promising the shop still runs.
 fail_unchanged() {
-  local code="$1" message="$2" installed note="" key value
+  local code="$1" message="$2" installed note="" app_stopped="" key value
   local -a details=()
   shift 2
   while [ "$#" -ge 2 ]; do
     key="$1" value="$2"
     shift 2
-    if [ "$key" = note ]; then note="$value"; else details+=("$key" "$value"); fi
+    case "$key" in
+      note) note="$value" ;;
+      app_stopped) app_stopped="$value" ;;
+      *) details+=("$key" "$value") ;;
+    esac
   done
   installed=$(read_installed_version)
-  if [ -n "$installed" ]; then
+  if [ -n "$app_stopped" ]; then
+    message="$message Files and the database were not changed${installed:+ (version ${installed#v} is still installed)}, but PM2 does not confirm that the application is running."
+  elif [ -n "$installed" ]; then
     message="$message Nothing was changed; the shop is still running version ${installed#v}."
   else
     message="$message Nothing was changed; the shop is still running the version installed before this attempt."
@@ -861,16 +868,16 @@ elif ! [[ "$PM2_STATE" =~ ^(none|stopped|errored|errored,stopped)$ ]]; then
   PM2_STOP_PROBLEM="PM2 still reports $PM2_NAME as $PM2_STATE after stopping it"
 fi
 if [ -n "$PM2_STOP_PROBLEM" ]; then
-  PM2_NOTE=""
+  PM2_STOP_MESSAGE="$PM2_STOP_PROBLEM, so the update stopped before replacing any file or changing the database."
   if [ "$(pm2_status || true)" != online ]; then
     # Nothing was replaced yet, so the installed version can serve again.
     "$PM2_BIN" restart "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
     if [ "$(pm2_status || true)" != online ]; then
-      PM2_NOTE="PM2 does not report $PM2_NAME as online; check it with: pm2 status $PM2_NAME"
+      fail_unchanged pm2_stop_failed_offline "$PM2_STOP_MESSAGE" app_stopped 1 \
+        note "PM2 did not report $PM2_NAME as online after a restart. Check it with 'pm2 status $PM2_NAME'; if it is stopped, start it with 'pm2 start $PM2_NAME'."
     fi
   fi
-  fail_unchanged pm2_stop_failed "$PM2_STOP_PROBLEM, so the update stopped before replacing any file or changing the database." \
-    note "$PM2_NOTE"
+  fail_unchanged pm2_stop_failed "$PM2_STOP_MESSAGE"
 fi
 log "PM2 process stopped: $PM2_NAME (${PM2_STATE})"
 

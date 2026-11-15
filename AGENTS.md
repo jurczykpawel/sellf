@@ -663,7 +663,9 @@ missed (no RPC can wait for the batch's lock on databases older than this releas
 Before swapping files the runner requires `pm2 stop` to succeed and `pm2 jlist` to
 report the process stopped; otherwise it ends with `pm2_stop_failed` before any
 file or database change and starts the installed version again if the stop
-attempt left it down. `.env.local` values are read with Node `parseEnv`.
+attempt left it down. When PM2 then does not report it online, the code is
+`pm2_stop_failed_offline` and the message says files and database are unchanged
+but PM2 does not confirm the application runs (never "the shop is still running"). `.env.local` values are read with Node `parseEnv`.
 `/api/v1/system/upgrade-status` passes validated `code`/`details`
 (`sanitizeUpdateFailure`); message, cause, GitHub message and the panel fallback go
 through `sanitizeUpdateText` (control and direction characters and markup removed,

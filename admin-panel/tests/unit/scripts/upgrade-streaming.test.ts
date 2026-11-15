@@ -35,6 +35,8 @@ interface FixtureOptions {
   applyCurlExit?: number;
   /** PM2 stop: exit code and the state the process is left in (default: exit 0, stopped). */
   pm2Stop?: { exit?: number; state?: 'online' | 'stopped' };
+  /** PM2 restart: exit code and the state the process is left in (default: exit 0, online). */
+  pm2Restart?: { exit?: number; state?: 'online' | 'stopped' };
   /** pm2 jlist prints something that is not a process list. */
   pm2JlistBroken?: boolean;
 }
@@ -137,7 +139,7 @@ printf '%s\\n' "$*" >> "$FIXTURE_DIR/pm2.log"
 state="$FIXTURE_DIR/pm2.state"
 case "$1" in
   start) cat "$FIXTURE_DIR/install/.next/standalone/admin-panel/server.js" >> "$FIXTURE_DIR/started"; echo online > "$state" ;;
-  restart) echo online > "$state" ;;
+  restart) echo ${options.pm2Restart?.state ?? 'online'} > "$state"; exit ${options.pm2Restart?.exit ?? 0} ;;
   stop) echo ${options.pm2Stop?.state ?? 'stopped'} > "$state"; exit ${options.pm2Stop?.exit ?? 0} ;;
   delete) echo none > "$state" ;;
   jlist)
@@ -366,10 +368,8 @@ describe('unknown migration outcome', () => {
 });
 
 describe('stopping the application before the swap', () => {
-  function expectUnchanged(result: Awaited<ReturnType<typeof runUpgrade>>) {
+  function expectFilesAndDatabaseUnchanged(result: Awaited<ReturnType<typeof runUpgrade>>) {
     expect(result.code).toBe(1);
-    expect(result.stdout).toContain('code=pm2_stop_failed');
-    expect(result.stdout).toContain('Nothing was changed');
     expect(result.stdout).toContain('rollback=false');
     expect(result.stdout).not.toContain('PROGRESS: installing');
     expect(result.requests).toHaveLength(0);
@@ -378,7 +378,24 @@ describe('stopping the application before the swap', () => {
       expect(result.read(`install/${file}`)).toContain('old-code');
     }
     expect(result.installedMigrations()).toEqual([]);
+  }
+
+  function expectUnchanged(result: Awaited<ReturnType<typeof runUpgrade>>) {
+    expectFilesAndDatabaseUnchanged(result);
+    expect(result.stdout).toMatch(/code=pm2_stop_failed$/m);
+    expect(result.stdout).toContain('Nothing was changed; the shop is still running');
     expect(result.pm2State).toBe('online');
+  }
+
+  // PM2 does not confirm the old process is back: no promise that the shop runs.
+  function expectUnconfirmed(result: Awaited<ReturnType<typeof runUpgrade>>) {
+    expectFilesAndDatabaseUnchanged(result);
+    expect(result.stdout).toContain('code=pm2_stop_failed_offline');
+    expect(result.stdout).toContain('Files and the database were not changed');
+    expect(result.stdout).toContain('PM2 does not confirm that the application is running');
+    expect(result.stdout).toContain('pm2 start sellf-fixture');
+    expect(result.stdout).not.toContain('still running');
+    expect(result.stdout).not.toContain('Nothing was changed');
   }
 
   it('stops before replacing files when pm2 stop fails and the old process keeps running', async () => {
@@ -397,8 +414,15 @@ describe('stopping the application before the swap', () => {
     expect(result.pm2).toContain('restart sellf-fixture');
   });
 
+  it('says the application is not running when PM2 does not bring the old process back', async () => {
+    const result = await runUpgrade({ pm2Stop: { exit: 1, state: 'stopped' }, pm2Restart: { exit: 1, state: 'stopped' } });
+    expectUnconfirmed(result);
+    expect(result.pm2).toContain('restart sellf-fixture');
+    expect(result.pm2State).toBe('stopped');
+  });
+
   it('stops before replacing files when PM2 cannot confirm the process state', async () => {
-    expectUnchanged(await runUpgrade({ pm2JlistBroken: true, pm2Stop: { exit: 0, state: 'online' } }));
+    expectUnconfirmed(await runUpgrade({ pm2JlistBroken: true, pm2Stop: { exit: 0, state: 'online' } }));
   });
 });
 
