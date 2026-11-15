@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
-import { beforeAll, beforeEach, afterAll, describe, expect, it, onTestFinished, vi } from 'vitest';
+import { beforeAll, beforeEach, afterAll, describe, expect, it, vi } from 'vitest';
 import { useSupabaseBuyerEmails } from '../../helpers/buyer-email-setting';
 import { waitForEmail, searchMessages } from '../../helpers/mailpit';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
@@ -15,7 +15,7 @@ vi.mock('@/lib/license/resolve', () => ({ checkFeature: async () => true }));
 useSupabaseBuyerEmails();
 const db = createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 let seller: string, buyer: string, email: string;
-const buyers: string[] = [];
+const buyers: string[] = [], emails: string[] = [];
 const product = randomUUID();
 const actor = () => ({ type: 'user' as const, id: seller });
 const issue = (accessId: string) => issueAccessLicense(db, { userId: buyer, productId: product, accessId, actorUserId: seller, source: 'manual', origin: process.env.SITE_URL!, license: { locale: 'pl' } });
@@ -31,9 +31,10 @@ beforeEach(async () => {
   email = `access-buyer-${randomUUID()}@example.com`;
   const customer = await db.auth.admin.createUser({ email, email_confirm: true });
   expect(customer.error).toBeNull(); buyer = customer.data.user!.id;
-  buyers.push(buyer);
+  buyers.push(buyer); emails.push(email);
 });
 afterAll(async () => {
+  await db.from('auth_mail_retries').delete().in('email', emails);
   await db.from('issued_licenses').delete().eq('product_id', product);
   await db.from('user_product_access').delete().eq('product_id', product);
   await db.from('products').delete().eq('id', product);
@@ -77,9 +78,7 @@ describe('licenses bound to access grants', () => {
     expect(late.ok).toBe(false);
   });
   it('retains a license on opt-out and creates a new license on a new grant', async () => {
-    // Two license mails to one user within a minute exceed Supabase Auth's limit; delivery is covered above.
-    const mail = vi.spyOn(licenseMail, 'sendLicenseMail').mockResolvedValue(true);
-    onTestFinished(() => mail.mockRestore());
+    // The second license mail within a minute waits in the retry queue; the grant itself succeeds.
     const first = await mutateAccess(db, 'grant', buyer, actor(), { issue_license: true }, undefined, product).single();
     expect(first.error).toBeNull();
     const firstLicense = await issue(first.data!.id);
@@ -92,6 +91,7 @@ describe('licenses bound to access grants', () => {
     expect(secondLicense.ok).toBe(true);
     if (!secondLicense.ok) throw Error(secondLicense.error);
     expect(secondLicense.license.id).not.toBe(firstLicense.license.id);
+    expect(secondLicense.license).toMatchObject({ emailSent: false, emailPending: true });
     expect((await mutateAccess(db, 'revoke', buyer, actor(), { revoke_license: true }, second.data!.id)).error).toBeNull();
     expect((await db.from('issued_licenses').select('revoked_at').eq('id', firstLicense.license.id).single()).data?.revoked_at).toBeNull();
   });
@@ -126,7 +126,7 @@ describe('licenses bound to access grants', () => {
   it('returns a clear mail failure and retries the same saved key', async () => {
     const grant = await mutateAccess(db, 'grant', buyer, actor(), { issue_license: true }, undefined, product).single();
     expect(grant.error).toBeNull();
-    const mail = vi.spyOn(licenseMail, 'sendLicenseMail').mockResolvedValueOnce(false);
+    const mail = vi.spyOn(licenseMail, 'sendLicenseMail').mockResolvedValueOnce('failed');
     try {
       const failed = await issue(grant.data!.id);
       expect(failed).toMatchObject({ ok: false, status: 500 });

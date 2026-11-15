@@ -417,9 +417,9 @@ sends `product.unpublished`). A permanent delete sends exactly one `product.dele
 
 ### License on access grants
 
-`POST /users/{id}/access` accepts `issue_license` (default `true`) and optional `license: { domain, customFieldValues, locale }`. For products configured to issue licenses, it uses the product tier and duration, emails the key and returns `license: { id, status, email_sent }`. Set `issue_license: false` for access alone. A bundle issues only its own license, without component licenses.
+`POST /users/{id}/access` accepts `issue_license` (default `true`) and optional `license: { domain, customFieldValues, locale }`. For products configured to issue licenses, it uses the product tier and duration, emails the key and returns `license: { id, status, email_sent, email_pending }`. `email_pending: true` means the grant and the key are saved but the mail provider refused the email for now (for example Supabase Auth's per-recipient limit); Sellf retries it automatically. Set `issue_license: false` for access alone. A bundle issues only its own license, without component licenses.
 
-Issuing or revoking a key additionally requires `licenses:write`. Without that scope only access changes, and `license_warning` explains the skipped license operation. Issuance or email failure returns `LICENSE_ISSUANCE_FAILED` with the saved access; repeating POST continues the same grant and key.
+Issuing or revoking a key additionally requires `licenses:write`. Without that scope only access changes, and `license_warning` explains the skipped license operation. Issuance failure, or an email that could not be sent nor queued, returns `LICENSE_ISSUANCE_FAILED` with the saved access; repeating POST continues the same grant and key.
 
 `DELETE /users/{id}/access?product_id={uuid}` and `DELETE /users/{id}/access/{accessId}` accept `revoke_license=true|false` (default `true`). Only the license from that grant is revoked; purchased keys remain. Set `false` to keep the key. Normal success returns 204; a skipped revocation due to scope returns 200 with `license_warning`.
 

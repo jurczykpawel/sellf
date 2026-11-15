@@ -42,6 +42,8 @@ export interface IssuedLicenseView {
   jwksUrl: string;
   crlUrl: string;
   emailSent: boolean;
+  /** The key mail is queued for automatic delivery (auth mail limit); access and license are saved. */
+  emailPending: boolean;
 }
 
 export type LicenseRequestResult =
@@ -90,9 +92,12 @@ export async function issueRequestedLicense(
   if (ctx.accessGrantId && audit.error) return { ok: false, status: 500, error: 'License audit could not be saved' };
 
   let emailSent = false;
+  let emailPending = false;
   if (ctx.accessGrantId) {
-    emailSent = await sendLicenseMail(admin, { userId: ctx.userId ?? null, email: input.email, token: result.token, productSlug: product.data.slug, productName: product.data.name ?? '', locale });
-    if (!emailSent) return { ok: false, status: 500, error: 'Access and license saved, but license email is awaiting delivery. Retry the grant.' };
+    const delivery = await sendLicenseMail(admin, { userId: ctx.userId ?? null, email: input.email, token: result.token, productSlug: product.data.slug, productName: product.data.name ?? '', locale });
+    if (delivery === 'failed') return { ok: false, status: 500, error: 'Access and license saved, but the license email could not be sent.' };
+    emailSent = delivery === 'sent';
+    emailPending = delivery === 'pending';
   } else if (input.sendEmail !== false) {
     emailSent = await mailLicenseToBuyer({ email: input.email, token: result.token, productSlug: product.data.slug, productName: product.data.name, locale });
   }
@@ -104,6 +109,7 @@ export async function issueRequestedLicense(
       jwksUrl: `${ctx.origin}/api/licenses/jwks?seller=${result.sellerId}`,
       crlUrl: `${ctx.origin}/api/licenses/revoked?seller=${result.sellerId}`,
       emailSent,
+      emailPending,
     },
   };
 }

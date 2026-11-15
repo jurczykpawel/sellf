@@ -2172,6 +2172,7 @@
         "issueLicense": "Wystaw licencję",
         "revokeLicense": "Odbierz też licencję",
         "licenseSettings": "Licencja z produktu: poziom {tier}, ważność: {days}.",
+        "licenseMailPending": "Licencja przyznana, mail czeka na wysłanie (limit dostawcy poczty). Wyślemy go automatycznie.",
         "licenseError": "Nie udało się zakończyć wystawiania lub wysłania licencji. Dostęp mógł zostać zapisany. Popraw pola lub ponów przyznanie dostępu.",
         "title": "Zarządzaj dostępem użytkownika",
         "subtitle": "Zarządzanie dostępem do produktów dla {email}",

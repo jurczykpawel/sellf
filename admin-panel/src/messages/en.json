@@ -2172,6 +2172,7 @@
         "issueLicense": "Issue a license",
         "revokeLicense": "Also revoke the license",
         "licenseSettings": "Product license: tier {tier}, validity: {days}.",
+        "licenseMailPending": "License granted. The email is waiting to be sent (mail provider limit); we will send it automatically.",
         "licenseError": "License issuance or delivery could not be completed. Access may have been saved. Check the fields or retry granting access.",
         "title": "Manage User Access",
         "subtitle": "Managing product access for {email}",

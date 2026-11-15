@@ -230,7 +230,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         source: 'api', origin: new URL(request.url).origin, license: options.data.license,
       });
       if (!issued.ok) return jsonResponse({ error: { code: 'LICENSE_ISSUANCE_FAILED', message: issued.error }, access: newAccess, fieldErrors: issued.fieldErrors }, request, issued.status);
-      license = { id: issued.license.id, status: 'issued', email_sent: issued.license.emailSent };
+      license = { id: issued.license.id, status: 'issued', email_sent: issued.license.emailSent, email_pending: issued.license.emailPending };
     }
 
     return jsonResponse(
