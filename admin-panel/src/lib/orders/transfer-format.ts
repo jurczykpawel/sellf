@@ -12,6 +12,15 @@ export function transferDeadline(tx: { release_at?: string | null; payment_due_a
   return tx.release_at ?? tx.payment_due_at ?? null;
 }
 
+/**
+ * Unpaid order past its reservation deadline, waiting for the release job to cancel it (W254b/W254c): no new online
+ * payment starts, and the order page says the deadline passed instead of showing the transfer details.
+ * @see supabase migration 20261115110000_cancelled_order_no_payment.sql (open_order_payment_attempt, release_unpaid_transfer)
+ */
+export function isReservationOverdue(tx: { status: string; release_at?: string | null }, now: Date): boolean {
+  return tx.status === 'awaiting_payment' && !!tx.release_at && Date.parse(tx.release_at) <= now.getTime();
+}
+
 /** Deadline as the buyer reads it, identical on the page and in mail (Warsaw time, with the hour). */
 export function formatTransferDeadline(iso: string | null | undefined, locale: string): string {
   return iso ? new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Warsaw' }).format(new Date(iso)) : '';

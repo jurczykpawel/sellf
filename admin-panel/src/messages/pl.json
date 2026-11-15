@@ -6152,6 +6152,8 @@
       "status_completed": "Opłacone",
       "status_cancelled": "Anulowane — nie wysyłaj przelewu",
       "cancelledHelp": "Tego zamówienia nie można już opłacić. Nie wysyłaj przelewu: nie zostanie zaksięgowany. Jeśli przelew jest już w drodze, skontaktuj się ze sprzedawcą.",
+      "overdueTitle": "Termin płatności minął — zamówienie zostanie wkrótce anulowane",
+      "overdueHelp": "Nie wysyłaj już przelewu. Jeśli zapłaciłeś przed terminem, a wpłata jeszcze do nas nie dotarła, daj znać sprzedawcy.",
       "cancelledTitle": "Zamówienie nr {number} zostało anulowane",
       "cancelledNewOrder": "Nadal chcesz kupić? Złóż nowe zamówienie.",
       "cancelledProductLink": "Przejdź do produktu",

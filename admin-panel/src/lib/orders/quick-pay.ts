@@ -7,6 +7,7 @@
  */
 import { fulfillTransfer } from '@/lib/orders/bank-transfer-service';
 import { expireOrderPaymentSessions } from '@/lib/orders/payment-attempt-sessions';
+import { isReservationOverdue } from '@/lib/orders/transfer-format';
 import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
@@ -27,7 +28,7 @@ export function quoteOrderPayment(tx: Pick<QuickPayOrder, 'payment_provider' | '
   if (tx.status === 'cancelled') return unavailable('order_cancelled');
   if (!tx.product_id) return unavailable('product_unavailable');
   // Same rule as open_order_payment_attempt; the server refuses a new attempt either way.
-  if (tx.status === 'awaiting_payment' && tx.release_at && Date.parse(tx.release_at) <= now.getTime()) return unavailable('payment_window_closed');
+  if (isReservationOverdue(tx, now)) return unavailable('payment_window_closed');
   if (tx.status === 'awaiting_payment') return { mode: 'settle', amount: tx.amount, currency: tx.currency };
   return unavailable('not_payable');
 }

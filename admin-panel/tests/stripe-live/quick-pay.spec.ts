@@ -25,15 +25,32 @@ async function place(email: string, price: number): Promise<string> {
 const orderPage = (id: string) => `/pl/order/${id}/transfer?token=${signTransferToken(id)}`;
 async function payOnHostedCheckout(page: Page) {
   await page.waitForURL(/checkout\.stripe\.com/, { timeout: 60000 });
-  // Hosted Checkout lists PLN methods (card, BLIK, P24); the card form opens from its accordion item when several are offered.
-  const number = page.locator('input[name="cardNumber"]'), card = page.getByTestId('card-accordion-item');
-  await expect(number.or(card).first()).toBeVisible({ timeout: 60000 });
-  if (!await number.isVisible()) await card.click();
-  await page.locator('input[name="cardNumber"]').fill('4242424242424242');
-  await page.locator('input[name="cardExpiry"]').fill('1234');
-  await page.locator('input[name="cardCvc"]').fill('123');
-  const name = page.locator('input[name="billingName"]'); if (await name.isVisible()) await name.fill('Quick Pay Buyer');
-  await page.getByTestId('hosted-payment-submit-button').click();
+  // Hosted Checkout comes in two layouts. Classic: the card form is in the page (input cardNumber, opened from the card
+  // accordion item when several PLN methods are offered). Newer (local-tests sandbox, 11.2026, W254c): the whole form is
+  // a Payment Element inside an iframe (inputs number/expiry/cvc/name, "Card" accordion row, submit inside the frame).
+  const classicNumber = page.locator('input[name="cardNumber"]'), classicCard = page.getByTestId('card-accordion-item');
+  const form = page.frameLocator('iframe[src*="elements-inner-habanero"]');
+  const layout = async () => await classicNumber.isVisible() || await classicCard.isVisible() ? 'classic'
+    : await form.getByTestId('payment-accordion-wrapper').isVisible() ? 'framed' : 'loading';
+  await expect.poll(layout, { timeout: 60000, intervals: [500] }).not.toBe('loading');
+  if (await layout() === 'classic') {
+    if (!await classicNumber.isVisible()) await classicCard.click();
+    await classicNumber.fill('4242424242424242');
+    await page.locator('input[name="cardExpiry"]').fill('1234');
+    await page.locator('input[name="cardCvc"]').fill('123');
+    const name = page.locator('input[name="billingName"]'); if (await name.isVisible()) await name.fill('Quick Pay Buyer');
+    await page.getByTestId('hosted-payment-submit-button').click();
+  } else {
+    const number = form.locator('input[name="number"]');
+    if (!await number.isVisible()) await form.getByText('Card', { exact: true }).first().click();
+    await number.fill('4242424242424242');
+    await form.locator('input[name="expiry"]').fill('1234');
+    await form.locator('input[name="cvc"]').fill('123');
+    const name = form.locator('input[name="name"]'); if (await name.isVisible()) await name.fill('Quick Pay Buyer');
+    // Saving to Link would ask for a phone number; the buyer pays as a guest.
+    const link = form.locator('input[name="linkOptIn"]'); if (await link.isVisible() && await link.isChecked()) await link.uncheck();
+    await form.getByTestId('payment-form-submit-button').click();
+  }
   await page.waitForURL(/\/order\/.*\/transfer\?token=/, { timeout: 120000 });
 }
 async function events(type: string, id: string) {
@@ -92,6 +109,8 @@ test('a cancelled order cannot be paid online whatever the reason; its page lead
 });
 
 test('admin marks the order paid while the buyer is on Stripe: the online payment is refunded automatically @J187', async ({ page, browser }) => {
+  // The order carries the current tier price (bank_transfer_order refuses another one with event_price_changed).
+  await checked(await db.from('product_price_tiers').update({ price: 170 }).eq('session_id', sessionId).select());
   const id = await place(`quick-race-${randomUUID()}@example.com`, 170);
   await page.goto(orderPage(id));
   await page.getByRole('button', { name: /Zapłać online 170,00/ }).click();

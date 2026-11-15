@@ -6,7 +6,7 @@ import TransferDeclaration from '@/components/checkout/TransferDeclaration';
 import TransferInstructions from '@/components/checkout/TransferInstructions';
 import QuickPayButton from '@/components/checkout/QuickPayButton';
 import { quoteOrderPayment } from '@/lib/orders/quick-pay';
-import { transferDeadline } from '@/lib/orders/transfer-format';
+import { isReservationOverdue, transferDeadline } from '@/lib/orders/transfer-format';
 import { verifyTransferToken } from '@/lib/orders/transfer-token';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -21,13 +21,15 @@ export default async function TransferPage({ params, searchParams }: { params: P
   const t = await getTranslations({ locale, namespace: 'bankTransfer' });
   const date = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Warsaw' }).format(new Date(iso));
   const unpaid = tx.status === 'awaiting_payment', cancelled = tx.status === 'cancelled';
-  const quote = quoteOrderPayment(tx, new Date());
+  const now = new Date(), quote = quoteOrderPayment(tx, now);
+  // Past the deadline the release job cancels the order soon: say so instead of "reserved until <past date>" (W254c).
+  const overdue = isReservationOverdue(tx, now);
   const product = (Array.isArray(tx.products) ? tx.products[0] : tx.products) as { slug: string; is_active: boolean } | null;
   return <main className="max-w-2xl mx-auto p-6 my-10"><h1 className="text-2xl font-semibold">{t(cancelled ? 'cancelledTitle' : 'thanks', { number: tx.order_number ?? '' })}</h1>
-    {!cancelled && <p className="mt-3">{t(`status_${tx.status}`)}</p>}
+    {!cancelled && !overdue && <p className="mt-3">{t(`status_${tx.status}`)}</p>}
     {unpaid && tx.invoice_hold_at && <p className="mt-3">{t('invoiceHold')}</p>}
-    {unpaid && tx.release_at && <p className="mt-3 font-semibold">{t('reservedUntil', { date: date(tx.release_at) })}</p>}
-    <TransferInstructions paid={tx.status === 'completed'} cancelled={cancelled} transfer={tx.transfer_details} amount={tx.amount} currency={tx.currency} dueAt={transferDeadline(tx)} print />
+    {unpaid && !overdue && tx.release_at && <p className="mt-3 font-semibold">{t('reservedUntil', { date: date(tx.release_at) })}</p>}
+    <TransferInstructions paid={tx.status === 'completed'} cancelled={cancelled} overdue={overdue} transfer={tx.transfer_details} amount={tx.amount} currency={tx.currency} dueAt={transferDeadline(tx)} print />
     {quote.mode === 'settle' && <QuickPayButton orderId={orderId} token={token!} amount={quote.amount} currency={quote.currency} />}
     {/* A cancelled order cannot be paid (W254); the buyer who still wants it places a new order from the product page. */}
     {cancelled && product?.is_active && <p className="my-4 print:hidden">{t('cancelledNewOrder')} <a className="underline" href={`/${locale}/p/${product.slug}`}>{t('cancelledProductLink')}</a></p>}

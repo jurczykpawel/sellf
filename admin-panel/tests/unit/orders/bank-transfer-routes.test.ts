@@ -33,12 +33,20 @@ describe('transfer administration API', () => {
     const response = await markPaid(new NextRequest('http://localhost/api/v1/payments/id/mark-paid', { method: 'POST', body: JSON.stringify({ amount: 1 }) }), { params: Promise.resolve({ id }) });
     expect(response.status).toBe(400);
   });
-  it('names the refusal so an integrator can ask for an explicit over-the-limit confirmation', async () => {
+  // W254c: the request is valid, it conflicts with the current seat state; the integrator resends with acceptOversold: true.
+  it('reports an over-the-limit refusal as 409 CONFLICT naming the refusal', async () => {
     operate.mockResolvedValue({ success: false, error: 'Accepting this order goes over the seat limit', code: 'oversold_confirmation_required' });
     const response = await markPaid(new NextRequest(`http://localhost/api/v1/payments/${id}/mark-paid`, { method: 'POST',
       body: JSON.stringify({ amount: 9400, paidAt: '2026-01-01T00:00:00Z', acceptCancelled: true, reason: 'Late' }) }), { params: Promise.resolve({ id }) });
+    expect(response.status).toBe(409);
+    expect((await response.json()).error).toMatchObject({ code: 'CONFLICT', details: { code: ['oversold_confirmation_required'] } });
+  });
+  it('keeps other named refusals (e.g. a cancelled order without acceptCancelled) as validation errors', async () => {
+    operate.mockResolvedValue({ success: false, error: 'The order is cancelled', code: 'order_cancelled' });
+    const response = await markPaid(new NextRequest(`http://localhost/api/v1/payments/${id}/mark-paid`, { method: 'POST',
+      body: JSON.stringify({ amount: 9400, paidAt: '2026-01-01T00:00:00Z' }) }), { params: Promise.resolve({ id }) });
     expect(response.status).toBe(400);
-    expect((await response.json()).error).toMatchObject({ code: 'VALIDATION_ERROR', details: { code: ['oversold_confirmation_required'] } });
+    expect((await response.json()).error).toMatchObject({ code: 'VALIDATION_ERROR', details: { code: ['order_cancelled'] } });
   });
 });
 
