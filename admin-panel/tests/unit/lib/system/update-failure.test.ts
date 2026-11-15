@@ -142,6 +142,31 @@ describe('sanitizeUpdateText', () => {
     expect(sanitizeUpdateText('value Qm-FzZTY0RmFrZVNlY3JldF_ZhbHVlRm9yVGVzdHM9 end', 500)).toBe('value [redacted] end');
   });
 
+  // W251rd: a value next to ":" or ".", or inside a URL or file path, is still a value (T is not a real key).
+  it.each([
+    ['apikey:T', 'apikey:[redacted]'],
+    ['apikey: T', 'apikey: [redacted]'],
+    ['https://example.com/T', 'https://example.com/[redacted]'],
+    ['/tmp/T', '/tmp/[redacted]'],
+    ['T.', '[redacted].'],
+    ['T.json', '[redacted].json'],
+    ['see https://example.com/a/T/b?x=1 now', 'see https://example.com/a/[redacted]/b?x=1 now'],
+    ['dir/T', '[redacted]'],
+  ])('redacts T in %s', (input, expected) => {
+    const T = samples.base64;
+    expect(sanitizeUpdateText(input.replace('T', T), 500)).toBe(expected);
+  });
+
+  it('keeps release URLs, versions and migration names next to those rules', () => {
+    for (const text of [
+      'https://github.com/jurczykpawel/Sellf/releases/download/v2026.11.1/sellf-build.tar.gz',
+      'v2026.11.1', '2026.11.1',
+      '20261110235901_release_2026_11_0_storefront_templates',
+      '/opt/stacks/sellf-tsa/supabase/migrations/20261110235901_release_2026_11_0_storefront_templates.sql',
+      'Cause: relation "public.business_events" does not exist.',
+    ]) expect(sanitizeUpdateText(text, 2000)).toBe(text);
+  });
+
   it('limits the length after redaction', () => {
     expect(sanitizeUpdateText(`${'x'.repeat(10)}${samples.stripeLive}`, 14)).toBe('xxxxxxxxxx[red');
     expect(sanitizeUpdateText('x'.repeat(50), 20)).toHaveLength(20);

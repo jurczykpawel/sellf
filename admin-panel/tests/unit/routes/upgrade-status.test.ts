@@ -107,6 +107,33 @@ describe('upgrade status failure reason', () => {
     vi.unstubAllEnvs();
   });
 
+  it.each(['pm2_stop_failed', 'pm2_stop_failed_offline', 'migration_state_unknown'])('passes the localized code %s through to the panel', async code => {
+    vi.mocked(openSync).mockReturnValue(7);
+    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ step: 'failed', progress: -1, message: 'm', code, details: { installed_version: '2026.11.0', cause: 'c' } }));
+    const data = (await (await GET(request())).json()).data;
+    expect({ code: data.code, details: data.details }).toEqual({ code, details: { installed_version: '2026.11.0', cause: 'c' } });
+  });
+
+  it('redacts a value after a colon, in a URL path, in a file path and before a dot in every text field', async () => {
+    const T = 'QmFzZTY0RmFrZVNlY3JldFZhbHVlRm9yVGVzdHM9PQ==';
+    const dirty = `apikey:${T} https://example.com/${T} /tmp/${T} ${T}. ${T}.json`;
+    vi.mocked(openSync).mockReturnValue(7);
+    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ step: 'failed', progress: -1, message: dirty, code: 'migration_failed', details: { cause: dirty, github_message: dirty } }));
+    const data = (await (await GET(request())).json()).data;
+    for (const value of [data.message, data.details.cause, data.details.github_message]) {
+      expect(value).not.toContain('QmFzZTY0');
+      expect(value).toBe('apikey:[redacted] https://example.com/[redacted] /tmp/[redacted] [redacted]. [redacted].json');
+    }
+  });
+
+  it('rejects codes outside the controlled format', async () => {
+    for (const code of ['2fa', 'Upper', 'a-b', 'x'.repeat(41), '_lead']) {
+      vi.mocked(openSync).mockReturnValue(7);
+      vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ step: 'failed', progress: -1, message: 'm', code }));
+      expect((await (await GET(request())).json()).data.code, code).toBeUndefined();
+    }
+  });
+
   it.each([
     [{ code: 'Bad Code!', details: { http_status: 429 } }, {}],
     [{ code: 'github_http', details: { http_status: '429', asset: '../x', retry_at: 'soon', github_message: 7, migration: 'x; drop', installed_version: 'latest' } }, { code: 'github_http', details: {} }],
