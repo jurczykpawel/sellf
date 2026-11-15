@@ -37,6 +37,13 @@ describe('pay link endpoint', () => {
     expect(response.status).toBe(409); expect(await response.json()).toEqual({ reason: 'order_cancelled' });
     expect(create).not.toHaveBeenCalled();
   });
+  it('quotes against the current time so a passed reservation deadline is refused', async () => {
+    quote.mockReturnValue({ mode: 'unavailable', reason: 'payment_window_closed' });
+    const response = await call({ token: signTransferToken(id), expectedAmount: 8000 });
+    expect(quote).toHaveBeenCalledWith(expect.objectContaining({ id }), expect.any(Date));
+    expect(response.status).toBe(409); expect(await response.json()).toEqual({ reason: 'payment_window_closed' });
+    expect(create).not.toHaveBeenCalled();
+  });
   it('is rate limited', async () => {
     limit.mockResolvedValue(false);
     expect((await call({ token: signTransferToken(id), expectedAmount: 8000 })).status).toBe(429);

@@ -10,7 +10,9 @@ const reason = z.string().trim().min(1).max(1000);
 export const transferOperationSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('mark-paid'), amount: z.number().int().positive().max(Number.MAX_SAFE_INTEGER), paidAt: z.iso.datetime({ offset: true }),
     // A transfer received after the order was cancelled is accepted only on an explicit administrator decision.
-    acceptCancelled: z.boolean().optional(), reason: reason.optional() }).strict()
+    acceptCancelled: z.boolean().optional(), reason: reason.optional(),
+    // Accepting it over a seat limit (session or the order's price tier) is a second explicit decision (W254b).
+    acceptOversold: z.boolean().optional() }).strict()
     .refine(v => !v.acceptCancelled || !!v.reason),
   z.object({ action: z.literal('cancel'), reason }).strict(),
   z.object({ action: z.literal('invoice-issued') }).strict(),
@@ -22,11 +24,13 @@ export async function operateTransfer(db: SupabaseClient<Database>, actor: strin
   const op = parsed.data;
   const { data, error } = await db.rpc('admin_bank_transfer_order', { p_id: id, p_actor: actor, p_action: op.action,
     p_amount: op.action === 'mark-paid' ? op.amount : undefined, p_paid_at: op.action === 'mark-paid' ? op.paidAt : undefined,
-    p_reason: op.action === 'invoice-issued' ? undefined : op.reason, p_accept_cancelled: op.action === 'mark-paid' ? op.acceptCancelled === true : undefined });
+    p_reason: op.action === 'invoice-issued' ? undefined : op.reason, p_accept_cancelled: op.action === 'mark-paid' ? op.acceptCancelled === true : undefined,
+    p_accept_oversold: op.action === 'mark-paid' ? op.acceptOversold === true : undefined });
   if (error || !data || typeof data !== 'object' || Array.isArray(data) || data.success !== true) {
     const code = data && typeof data === 'object' && !Array.isArray(data) && typeof data.error === 'string' ? data.error : undefined;
     return { success: false, error: code === 'invoice_corrected' ? 'The invoice was corrected; issue a new order instead'
       : code === 'order_cancelled' ? 'The order is cancelled; accept the late transfer explicitly with a reason'
+      : code === 'oversold_confirmation_required' ? 'Accepting this order goes over the seat limit; confirm it explicitly (acceptOversold)'
       : code === 'paid_at_before_order' ? 'The receipt date cannot be earlier than the order date'
       : code === 'paid_at_future' ? 'The receipt date cannot be in the future'
       : 'The order must be awaiting payment and the booked amount must equal its full amount in minor units', ...(code ? { code } : {}) };

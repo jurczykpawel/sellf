@@ -1,8 +1,11 @@
 /**
  * Read-only preview for the administrator before accepting a transfer that arrived after the order was cancelled
- * (plan D6, W254): the order price against today's price, seats left in the session, the coupon state and whether
- * the invoice was corrected. Acceptance always honours the order price (the seat may go over the limit).
- * @see components/admin/BankTransferSection.tsx, migration 20261115110000_cancelled_order_no_payment.sql
+ * (plan D6, W254): the order price against today's price, seats left in the session and in the order's saved price tier,
+ * the coupon state and whether the invoice was corrected. Acceptance always honours the order price; going over a seat
+ * limit needs the administrator's explicit confirmation (W254b). The seat facts come from event_order_seats, the same
+ * rule the acceptance applies, so the preview cannot say "free" when acceptance would go over a limit.
+ * @see components/admin/BankTransferSection.tsx, app/api/v1/payments/[id]/late-transfer-preview/route.ts,
+ *   migration 20261115110000_cancelled_order_no_payment.sql (event_order_seats, admin_bank_transfer_order)
  */
 import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -15,11 +18,13 @@ export interface LateTransferPreview {
   unitPrice: number;
   unitPriceToday: number | null;
   priceChanged: boolean;
-  seats: { remaining: number | null; quantity: number; oversold: boolean; started: boolean } | null;
+  seats: { remaining: number | null; tierRemaining: number | null; quantity: number; oversold: boolean; started: boolean } | null;
   coupon: { code: string | null; status: LateCouponStatus } | null;
   invoiceCorrected: boolean;
 }
-interface SessionAvailability { id: string; starts_at: string; remaining: number | null; sold_out: boolean; current_tier: { price: number } | null }
+interface SessionAvailability { id: string; starts_at: string; current_tier: { price: number } | null }
+interface OrderSeats { quantity: number; session_remaining: number | null; tier_remaining: number | null; oversold: boolean }
+const seatsLeft = (n: number | null) => n === null ? null : Math.max(0, n);
 
 export async function previewLateTransfer(db: SupabaseClient<Database>, id: string, now: Date): Promise<LateTransferPreview | null> {
   const { data: tx } = await db.from('payment_transactions').select('id,payment_provider,status,amount,currency,product_id,coupon_id').eq('id', id).single();
@@ -35,12 +40,17 @@ export async function previewLateTransfer(db: SupabaseClient<Database>, id: stri
   let unitPriceToday: number | null = product ? Number(getEffectiveUnitPrice(product)) : null;
   let seats: LateTransferPreview['seats'] = null;
   if (main.session_id) {
-    const { data } = await db.rpc('event_availability', { p_product_id: tx.product_id, p_at: now.toISOString() });
+    const at = now.toISOString();
+    const [{ data }, { data: facts, error }] = await Promise.all([
+      db.rpc('event_availability', { p_product_id: tx.product_id, p_at: at }),
+      db.rpc('event_order_seats', { p_transaction_id: id, p_at: at }),
+    ]);
+    if (error || !facts) return null;
     const session = (data as SessionAvailability[] | null)?.find(s => s.id === main.session_id);
-    const remaining = session ? session.remaining : 0;
+    const f = facts as unknown as OrderSeats;
     unitPriceToday = session?.current_tier ? Number(session.current_tier.price) : null;
-    seats = { remaining, quantity: main.quantity, started: !session || Date.parse(session.starts_at) <= now.getTime(),
-      oversold: !session || session.sold_out || (remaining !== null && remaining < main.quantity) };
+    seats = { remaining: seatsLeft(f.session_remaining), tierRemaining: seatsLeft(f.tier_remaining), quantity: f.quantity,
+      oversold: f.oversold === true, started: !session || Date.parse(session.starts_at) <= now.getTime() };
   }
   let coupon: LateTransferPreview['coupon'] = null;
   if (tx.coupon_id) {

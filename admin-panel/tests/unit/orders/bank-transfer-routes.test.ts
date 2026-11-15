@@ -2,11 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 const auth = vi.hoisted(() => vi.fn());
 const operate = vi.hoisted(() => vi.fn());
+const preview = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/orders/bank-transfer-admin', () => ({ operateTransfer: operate }));
+vi.mock('@/lib/orders/late-transfer-preview', () => ({ previewLateTransfer: preview }));
 vi.mock('@/lib/api', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/api')>(), authenticate: auth }));
 import { POST as markPaid } from '@/app/api/v1/payments/[id]/mark-paid/route';
 import { POST as cancel } from '@/app/api/v1/payments/[id]/cancel/route';
 import { POST as invoiceIssued } from '@/app/api/v1/payments/[id]/invoice-issued/route';
+import { GET as latePreview } from '@/app/api/v1/payments/[id]/late-transfer-preview/route';
 const id = '10000000-0000-4000-8000-000000000001';
 beforeEach(() => { vi.clearAllMocks(); auth.mockResolvedValue({ supabase: {}, admin: { userId: 'session-actor' } }); operate.mockResolvedValue({ success: true }); });
 describe('transfer administration API', () => {
@@ -29,5 +32,36 @@ describe('transfer administration API', () => {
     operate.mockResolvedValue({ success: false, error: 'Amount mismatch' });
     const response = await markPaid(new NextRequest('http://localhost/api/v1/payments/id/mark-paid', { method: 'POST', body: JSON.stringify({ amount: 1 }) }), { params: Promise.resolve({ id }) });
     expect(response.status).toBe(400);
+  });
+  it('names the refusal so an integrator can ask for an explicit over-the-limit confirmation', async () => {
+    operate.mockResolvedValue({ success: false, error: 'Accepting this order goes over the seat limit', code: 'oversold_confirmation_required' });
+    const response = await markPaid(new NextRequest(`http://localhost/api/v1/payments/${id}/mark-paid`, { method: 'POST',
+      body: JSON.stringify({ amount: 9400, paidAt: '2026-01-01T00:00:00Z', acceptCancelled: true, reason: 'Late' }) }), { params: Promise.resolve({ id }) });
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toMatchObject({ code: 'VALIDATION_ERROR', details: { code: ['oversold_confirmation_required'] } });
+  });
+});
+
+// W254b (owner 15.11): the facts the administrator sees before accepting a late transfer are also available to integrators.
+describe('late transfer preview API', () => {
+  const facts = { amount: 5000, currency: 'PLN', unitPrice: 50, unitPriceToday: 80, priceChanged: true,
+    seats: { remaining: 4, tierRemaining: 0, quantity: 1, oversold: true, started: false }, coupon: null, invoiceCorrected: false };
+  const get = (orderId = id) => latePreview(new NextRequest(`http://localhost/api/v1/payments/${orderId}/late-transfer-preview`), { params: Promise.resolve({ id: orderId }) });
+  it('requires payments:read and returns the read-only preview', async () => {
+    preview.mockResolvedValue(facts);
+    const response = await get();
+    expect(auth).toHaveBeenCalledWith(expect.any(NextRequest), ['payments:read']);
+    expect(preview).toHaveBeenCalledWith({}, id, expect.any(Date));
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toEqual(facts);
+    expect(operate).not.toHaveBeenCalled();
+  });
+  it('only a cancelled transfer order has a preview', async () => {
+    preview.mockResolvedValue(null);
+    expect((await get()).status).toBe(404);
+  });
+  it('rejects a malformed id before reading anything', async () => {
+    expect((await get('not-a-uuid')).status).toBe(400);
+    expect(preview).not.toHaveBeenCalled();
   });
 });

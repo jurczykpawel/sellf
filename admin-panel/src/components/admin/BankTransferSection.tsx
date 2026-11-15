@@ -28,6 +28,9 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
   const lateDecision = tx.payment_provider === 'bank_transfer' && tx.status === 'cancelled' && tx.invoice?.status !== 'corrected';
   const [preview, setPreview] = useState<LateTransferPreview | null | 'error'>(null);
   const [declined, setDeclined] = useState(false);
+  // Over a seat limit the acceptance is a second explicit decision; the server refuses it without one (W254b).
+  const [overLimitRefused, setOverLimitRefused] = useState(false), [acceptOversold, setAcceptOversold] = useState(false);
+  const overLimit = overLimitRefused || (!!preview && preview !== 'error' && preview.seats?.oversold === true);
   useEffect(() => {
     if (!lateDecision) return;
     let live = true;
@@ -39,7 +42,8 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
   const date = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
   // Receipt date window (UTC days, as sent to the server): order day … today. @see supabase/tests/transfer-paid-at-window.sql
   const orderDay = tx.created_at ? tx.created_at.slice(0, 10) : undefined, today = new Date().toISOString().slice(0, 10);
-  const failure = (code?: string) => t(code === 'paid_at_before_order' ? 'paidAtBeforeOrder' : code === 'paid_at_future' ? 'paidAtFuture' : 'operationError');
+  const failure = (code?: string) => t(code === 'paid_at_before_order' ? 'paidAtBeforeOrder' : code === 'paid_at_future' ? 'paidAtFuture'
+    : code === 'oversold_confirmation_required' ? 'lateOversoldRequired' : 'operationError');
   async function run(action: 'mark-paid' | 'cancel' | 'invoice-issued' | 'accept-late') {
     if (lock.current) return;
     setMessage('');
@@ -53,8 +57,14 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
       // The receipt date is only parsed for payment actions; an empty date field must not break cancellation.
       const paid = () => ({ amount: toMinorUnits(Number(amount), tx.currency), paidAt: new Date(`${paidAt}T00:00:00Z`).toISOString() });
       const body = action === 'cancel' ? { action, reason } : action === 'invoice-issued' ? { action }
-        : action === 'accept-late' ? { action: 'mark-paid', ...paid(), acceptCancelled: true, reason: lateReason } : { action, ...paid() };
-      const r = await updateBankTransfer(tx.id, body); if (r.success) await onRefresh(); else setMessage(failure('code' in r && typeof r.code === 'string' ? r.code : undefined));
+        : action === 'accept-late' ? { action: 'mark-paid', ...paid(), acceptCancelled: true, reason: lateReason, acceptOversold: overLimit && acceptOversold } : { action, ...paid() };
+      const r = await updateBankTransfer(tx.id, body);
+      if (r.success) await onRefresh();
+      else {
+        const code = 'code' in r && typeof r.code === 'string' ? r.code : undefined;
+        if (code === 'oversold_confirmation_required') setOverLimitRefused(true);
+        setMessage(failure(code));
+      }
     } catch { setMessage(t('operationError')); } finally { lock.current = false; setPending(null); }
   }
   if (tx.payment_provider !== 'bank_transfer') return null;
@@ -95,6 +105,7 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
           <li>{t('latePrice', { then: price(preview.unitPrice), today: preview.unitPriceToday === null ? t('latePriceTodayUnavailable') : price(preview.unitPriceToday) })}{preview.priceChanged && preview.unitPriceToday !== null ? ` ${t('latePriceChanged')}` : ''}</li>
           {preview.seats && <li className={preview.seats.oversold ? 'font-semibold text-sf-warning' : undefined}>{preview.seats.oversold ? t('lateSeatsOversold')
             : preview.seats.remaining === null ? t('lateSeatsUnlimited') : t('lateSeatsFree', { remaining: preview.seats.remaining })}</li>}
+          {preview.seats && preview.seats.tierRemaining !== null && <li>{t('lateSeatsTier', { remaining: preview.seats.tierRemaining })}</li>}
           {preview.seats?.started && <li className="font-semibold text-sf-warning">{t('lateSessionStarted')}</li>}
           {preview.coupon && <li>{t('lateCoupon', { code: preview.coupon.code ?? '—', status: t(`lateCoupon_${preview.coupon.status}`) })}</li>}
         </ul>}
@@ -105,7 +116,9 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
       </div> : <form onSubmit={e => { e.preventDefault(); void run('accept-late'); }} className="flex flex-wrap gap-3 items-end" aria-label={t('acceptLate')}>
         {paidFields}
         <label>{t('lateReason')}<input className={input} required maxLength={1000} value={lateReason} onChange={e => setLateReason(e.target.value)} /></label>
-        <button aria-busy={busy} disabled={busy || !lateReason.trim()} className={primaryButton}>{progress('accept-late', 'acceptLate')}</button>
+        {overLimit && <label className="flex min-h-11 items-center gap-2 font-semibold text-sf-warning">
+          <input type="checkbox" required checked={acceptOversold} onChange={e => setAcceptOversold(e.target.checked)} />{t('lateOversoldConfirm')}</label>}
+        <button aria-busy={busy} disabled={busy || !lateReason.trim() || (overLimit && !acceptOversold)} className={primaryButton}>{progress('accept-late', 'acceptLate')}</button>
         {/* Declining changes nothing: the order stays cancelled and the money is returned outside Sellf. */}
         <button type="button" disabled={busy} onClick={() => { setDeclined(true); setMessage(''); }} className={`${buttonStyle} border border-sf-border`}>{t('lateDecline')}</button>
       </form>}

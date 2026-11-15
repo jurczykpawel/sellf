@@ -77,6 +77,8 @@ All paths below are relative to `/api/v1`. Units apply to both input and output 
 | `POST /payments/export` | CSV amount, refunded amount, net total, tax total | Major (since 2026.10.7; headers end with `(major units)`, dot as decimal separator; zero-decimal currencies such as JPY are whole units). Before 2026.10.7 the CSV used minor units |
 | `POST /payments/{id}/refund` | Request `amount`, response `amount` and `refunded_amount` where returned | Minor; request amount must be an integer |
 | `GET /payments/stats` | Revenue/refund amounts, averages and currency breakdown amounts | Minor |
+| `POST /payments/{id}/mark-paid` | Request `amount` | Minor |
+| `GET /payments/{id}/late-transfer-preview` | `amount` | Minor; `unitPrice` and `unitPriceToday` major |
 | `GET /analytics/dashboard` | `revenue.*` amounts, `refunds.total_refunded`, `recent_activity[].revenue` | Minor |
 | `GET /analytics/revenue` | Summary amounts including `average_order_value`, breakdown revenue, comparison revenue and currency breakdown amounts | Minor |
 | `GET /analytics/top-products` | `revenue`, `average_price`, summary revenue and currency breakdown revenue | Minor |
@@ -455,6 +457,10 @@ change Omnibus lowest-price history. This type is available to all sellers.
 | GET | `/analytics/attribution` | `analytics:read` | Where purchases came from — aggregates by channel / UTM, net of refunds, major units ([Purchase sources](/purchase-attribution/)) |
 | POST | `/payments/export` | `payments:read` | Export payments (CSV) |
 | POST | `/payments/{id}/refund` | `payments:refund` | Refund a payment, including partial refunds |
+| POST | `/payments/{id}/mark-paid` | `payments:write` | Book a bank transfer (`amount` minor units, `paidAt`); for a cancelled order add `acceptCancelled: true` and `reason`, and `acceptOversold: true` when the preview says `oversold` ([Bank transfers](/bank-transfers/)) |
+| POST | `/payments/{id}/cancel` | `payments:write` | Cancel an unpaid bank transfer order (`reason`) |
+| POST | `/payments/{id}/invoice-issued` | `payments:write` | Mark an invoice issued outside Sellf (the order no longer expires) |
+| GET | `/payments/{id}/late-transfer-preview` | `payments:read` | Facts before accepting a transfer that arrived after cancellation: price then and today, seats in the session and price tier, `oversold`, coupon state ([Bank transfers](/bank-transfers/)) |
 
 ### Order Bumps
 
