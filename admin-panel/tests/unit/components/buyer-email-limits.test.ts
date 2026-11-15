@@ -38,3 +38,18 @@ it('has the same explanation in English', () => {
   const text = screen.getByRole('region', { name: 'Supabase Auth email limits' }).textContent ?? '';
   for (const fact of ['2 emails per hour', '30 emails per hour', '60 s', 'Authentication → Rate Limits', 'GOTRUE_RATE_LIMIT_EMAIL_SENT', 'GOTRUE_SMTP_MAX_FREQUENCY', 'retries', 'Mailstack']) expect(text).toContain(fact);
 });
+
+it('places the per-recipient interval in Authentication → Rate Limits, where Supabase Studio shows it (W252br P3)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const path = await import('node:path');
+  // Supabase Studio: SMTP_MAX_FREQUENCY is a field of Auth/RateLimits/RateLimits.tsx, not of the SMTP form.
+  expect(pl.settings.buyerEmails.limitsRecipient).toContain('Authentication → Rate Limits');
+  expect(en.settings.buyerEmails.limitsRecipient).toContain('Authentication → Rate Limits');
+  for (const messages of [pl, en]) expect(messages.settings.buyerEmails.limitsRecipient).not.toMatch(/SMTP/);
+  for (const doc of ['email-setup.md', 'pl/email-setup.md']) {
+    const text = readFileSync(path.resolve(import.meta.dirname, '../../../../docs-site/src/content/docs', doc), 'utf8');
+    const sentence = text.split('\n').find(line => line.includes('Minimum interval per user')) ?? '';
+    expect(sentence, doc).toMatch(/Minimum interval per user\*\*[^.]*Authentication → Rate Limits|Authentication → Rate Limits\*\*[^.]*Minimum interval per user/);
+    expect(sentence, doc).not.toMatch(/SMTP form|Formularz SMTP/);
+  }
+});

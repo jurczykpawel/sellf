@@ -3240,7 +3240,7 @@
       "limitsTitle": "Supabase Auth email limits",
       "limitsCloud": "Supabase Cloud without your own SMTP: 2 emails per hour for the whole project, and only to addresses of the project's team members.",
       "limitsSmtp": "With your own SMTP (Authentication → Emails → SMTP Settings): 30 emails per hour to start. Change it in Authentication → Rate Limits; sending costs depend on your email provider.",
-      "limitsRecipient": "One recipient gets the next email no sooner than 60 s after the previous one (default; “Minimum interval per user” in the SMTP settings).",
+      "limitsRecipient": "One recipient gets the next email no sooner than 60 s after the previous one (default; “Minimum interval per user” in Authentication → Rate Limits).",
       "limitsSelfHosted": "Self-hosted Supabase: GOTRUE_RATE_LIMIT_EMAIL_SENT (default 30 per hour) and GOTRUE_SMTP_MAX_FREQUENCY (default 1 min) on the Auth service.",
       "limitsRetry": "When a limit refuses the post-payment link or a license key email, Sellf retries it automatically (after about 2, 5, 15, 30, 60 and 120 minutes).",
       "limitsAdvice": "For more traffic use Mailstack (buyer emails sent from webhooks, without the Supabase limit; sign-in links still go through Supabase Auth) or raise the limits in Supabase.",
