@@ -55,6 +55,25 @@ describe('describeUpdateFailure', () => {
       .toEqual(['failure.pm2_stop_failed_offline', 'failure.unchangedAppStoppedUnknown']);
   });
 
+  it('explains an unknown migration outcome: app stopped, check the registry, never "nothing changed"', () => {
+    expect(describeUpdateFailure({ code: 'migration_state_unknown', details: { cause: 'connection reset', installed_version: '2026.11.0' } }, { t, formatTime: time, attempt: true, fallback: 'English text' }))
+      .toEqual(['failure.migration_state_unknown', 'failure.migrationStateCause {"cause":"connection reset"}', 'failure.migrationStateNext']);
+    expect(describeUpdateFailure({ code: 'migration_state_unknown', details: {} }, { t, formatTime: time, attempt: true }))
+      .toEqual(['failure.migration_state_unknown', 'failure.migrationStateNext']);
+  });
+
+  it.each([
+    ['pl', ['nie wiadomo', 'zatrzymana', 'supabase_migrations.schema_migrations', 'kopii zapasowej', 'log aktualizacji']],
+    ['en', ['not known', 'stopped', 'supabase_migrations.schema_migrations', 'backup', 'update log']],
+  ] as const)('says in %s that the outcome is unknown, the shop is stopped and what to check', async (locale, phrases) => {
+    const { createTranslator } = await import('next-intl');
+    const messages = JSON.parse(readFileSync(path.resolve(__dirname, `../../../../src/messages/${locale}.json`), 'utf8'));
+    const translate = createTranslator({ locale, messages, namespace: 'systemUpdate' });
+    const text = describeUpdateFailure({ code: 'migration_state_unknown', details: { cause: 'timeout' } }, { t: (key, values) => translate(key as never, values as never), formatTime: time, attempt: true }).join(' ').toLowerCase();
+    for (const phrase of phrases) expect(text).toContain(phrase.toLowerCase());
+    expect(text).toContain('timeout');
+  });
+
   it('falls back to the script message for codes the panel does not localize', () => {
     expect(describeUpdateFailure({ code: 'migration_preflight', details: {} }, { t, formatTime: time, attempt: true, fallback: 'Migration 1 is recorded as x. Nothing was changed.' }))
       .toEqual(['Migration 1 is recorded as x. Nothing was changed.']);
@@ -63,7 +82,7 @@ describe('describeUpdateFailure', () => {
 
   it.each(['en', 'pl'])('has %s texts for every localized code and helper line', locale => {
     const messages = JSON.parse(readFileSync(path.resolve(__dirname, `../../../../src/messages/${locale}.json`), 'utf8')).systemUpdate.failure;
-    for (const key of [...LOCALIZED_FAILURE_CODES, 'githubSays', 'unchanged', 'unchangedUnknown', 'unchangedAppStopped', 'unchangedAppStoppedUnknown', 'migrationRolledBack', 'retryAt', 'retrySoon', 'checkFailed']) {
+    for (const key of [...LOCALIZED_FAILURE_CODES, 'githubSays', 'unchanged', 'unchangedUnknown', 'unchangedAppStopped', 'unchangedAppStoppedUnknown', 'migrationRolledBack', 'migrationStateCause', 'migrationStateNext', 'retryAt', 'retrySoon', 'checkFailed']) {
       expect(typeof messages[key], `${locale}: failure.${key}`).toBe('string');
     }
   });

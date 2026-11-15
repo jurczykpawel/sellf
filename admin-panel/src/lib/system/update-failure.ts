@@ -25,7 +25,7 @@ export interface UpdateFailure {
 export const LOCALIZED_FAILURE_CODES = [
   'github_unreachable', 'github_http', 'release_asset_missing', 'release_lookup_invalid', 'signature_invalid',
   'manifest_invalid', 'checksum_mismatch', 'archive_invalid', 'release_older', 'upgrade_running', 'upgrade_starting',
-  'migration_failed', 'pm2_stop_failed', 'pm2_stop_failed_offline',
+  'migration_failed', 'migration_state_unknown', 'pm2_stop_failed', 'pm2_stop_failed_offline',
 ] as const;
 
 const GITHUB_CODES = new Set(['github_unreachable', 'github_http']);
@@ -57,6 +57,10 @@ export function describeUpdateFailure(failure: UpdateFailure | undefined, option
   if (details.http_status !== undefined) values.status = details.http_status;
   if (details.asset) values.asset = details.asset;
   if (details.cause) values.cause = details.cause;
+  if (failure.code === 'migration_state_unknown') {
+    // Neither version runs: the database may hold some of the release's migrations. Never "nothing changed".
+    return [t('failure.migration_state_unknown'), ...(details.cause ? [t('failure.migrationStateCause', { cause: details.cause })] : []), t('failure.migrationStateNext')];
+  }
   const lines = [t(`failure.${failure.code}`, Object.keys(values).length ? values : undefined)];
   if (details.github_message) lines.push(t('failure.githubSays', { message: details.github_message }));
   if (failure.code === 'migration_failed') {

@@ -87,7 +87,7 @@ it('shows the localized reason the script wrote', async () => {
 it('shows a script message for an unlocalized failure without secrets, markup or control characters', async () => {
   vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'FAKE_SERVICE_KEY_w251rb_only');
   vi.stubEnv('DIRTY', 'rejected FAKE_SERVICE_KEY_w251rb_only ' + ['wh', 'sec_FakeFakeFakeFakeFake'].join('') + ' <img src=x onerror=alert(1)> \u0001\u007f\u0085\u202e done');
-  files.progress = await scriptFailure('write_failure migration_state_unknown "Update stopped: $DIRTY" cause "Cause: $DIRTY"');
+  files.progress = await scriptFailure('write_failure migration_preflight "Update stopped: $DIRTY" cause "Cause: $DIRTY"');
   const status = await (await GET(new NextRequest(`http://localhost/api/v1/system/upgrade-status?token=${token}`))).json();
   const leaks = /FAKE_SERVICE_KEY|whsec_|<img|[\u007f\u0085\u202e]/;
   expect(status.data.message).toContain('Update stopped: rejected [redacted] [redacted]');

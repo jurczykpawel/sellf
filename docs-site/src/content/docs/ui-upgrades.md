@@ -84,8 +84,9 @@ request never left the server.
 | only some of them, or an answer that cannot be read as a list of entries | leaves the application stopped with the code `migration_state_unknown` |
 
 In the last case nobody knows whether the migrations went in, so neither the old
-nor the new version starts. The message says which versions to look for in the
-registry and what to do next. An empty or unreadable registry answer does not prove
+nor the new version starts. The panel says so in your language and lists what to
+check in the registry and what to do next; the exact range of versions and the
+folder with the previous code are in the update log. An empty or unreadable registry answer does not prove
 that the database is unchanged.
 
 Limitation: two reads 15 s apart do not catch a transaction that commits more than
