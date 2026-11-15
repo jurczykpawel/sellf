@@ -2340,7 +2340,7 @@
         "order_cancelled": "An order payable by bank transfer was cancelled.",
         "order_overdue": "The payment deadline for a bank transfer order passed. The order remains unpaid.",
         "order_payment_reminder": "The reminder time of an unpaid bank transfer order passed. Includes the pay link and the release time.",
-        "order_transfer_declared": "The buyer declared the bank transfer was sent; the reservation was extended. Check the bank statement.",
+        "order_transfer_declared": "The buyer declared the bank transfer was sent (before the deadline the reservation is extended, after it it is not). Check the bank statement.",
         "order_invoice_issued": "An invoice was issued for an unpaid transfer order; the order is held without expiry until payment or cancellation.",
         "order_reopened": "An administrator accepted a transfer received after cancellation; the order is completed at its original price.",
         "order_participants_needed": "The buyer has not provided participants. Includes the personal link and reminder stage.",
@@ -6108,7 +6108,7 @@
       "quickPayError": "Payment could not be started. Try again in a moment.",
       "invoiceHold": "Invoice issued, awaiting payment. Your seat is held until payment.",
       "reservedUntil": "Seat and price reserved until {date}. If the payment has not arrived by then (and you have not clicked \"I have sent the transfer\"), the order is cancelled.",
-      "declareHelp": "Already paid? Let the seller know and the reservation will be extended while the payment arrives.",
+      "declareHelp": "Already paid? Let the seller know. Before the reservation deadline this extends the reservation while the payment arrives; after it, it only informs the seller.",
       "declareNote": "Note for the seller (optional)",
       "declareButton": "I have sent the transfer",
       "declareError": "Could not save. Refresh the page and try again.",
@@ -6397,7 +6397,7 @@
         },
         "lifecycle": {
           "title": "Order state",
-          "body": "Shows when the reminder goes out and when the reservation is released, plus the buyer's note that they sent the transfer, which extends the reservation."
+          "body": "Shows when the reminder goes out and when the reservation is released, plus the buyer's note that they sent the transfer (before the deadline it extends the reservation, after it it only informs you)."
         },
         "invoice": {
           "title": "Invoice issued",

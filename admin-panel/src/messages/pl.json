@@ -2340,7 +2340,7 @@
         "order_cancelled": "Anulowano zamówienie z płatnością przelewem tradycyjnym.",
         "order_overdue": "Minął termin płatności zamówienia przelewem tradycyjnym. Zamówienie pozostaje nieopłacone.",
         "order_payment_reminder": "Minął czas przypomnienia o nieopłaconym zamówieniu przelewem. Zawiera link do zamówienia i czas zwolnienia rezerwacji.",
-        "order_transfer_declared": "Kupujący zgłosił wysłanie przelewu; rezerwacja została przedłużona. Sprawdź wyciąg.",
+        "order_transfer_declared": "Kupujący zgłosił wysłanie przelewu (przed terminem rezerwacja jest przedłużana, po terminie nie). Sprawdź wyciąg.",
         "order_invoice_issued": "Dla nieopłaconego zamówienia przelewem wystawiono fakturę; zamówienie czeka na płatność bez terminu wygaśnięcia, do zapłaty lub anulowania.",
         "order_reopened": "Administrator przyjął przelew, który doszedł po anulowaniu; zamówienie zrealizowano po cenie z zamówienia.",
         "order_participants_needed": "Kupujący nie uzupełnił uczestników. Zawiera osobisty link i etap przypomnienia.",
@@ -6108,7 +6108,7 @@
       "quickPayError": "Nie udało się rozpocząć płatności. Spróbuj ponownie za chwilę.",
       "invoiceHold": "Faktura wystawiona, czeka na płatność. Miejsce jest zarezerwowane do zapłaty.",
       "reservedUntil": "Miejsce i cena zarezerwowane do {date}. Jeśli do tego czasu nie zaksięgujemy wpłaty (albo nie klikniesz „Wysłałem przelew”), zamówienie zostanie anulowane.",
-      "declareHelp": "Już zapłaciłeś? Daj znać sprzedawcy, a rezerwacja zostanie przedłużona do czasu zaksięgowania wpłaty.",
+      "declareHelp": "Już zapłaciłeś? Daj znać sprzedawcy. Zgłoszenie przed terminem rezerwacji przedłuża ją do czasu zaksięgowania wpłaty; po terminie tylko informuje sprzedawcę.",
       "declareNote": "Uwaga dla sprzedawcy (opcjonalnie)",
       "declareButton": "Wysłałem przelew",
       "declareError": "Nie udało się zapisać. Odśwież stronę i spróbuj ponownie.",
@@ -6397,7 +6397,7 @@
         },
         "lifecycle": {
           "title": "Stan zamówienia",
-          "body": "Tu widać, kiedy wyśle się przypomnienie i kiedy zwolni się rezerwacja, a także zgłoszenie kupującego, że wysłał przelew, które przedłuża rezerwację."
+          "body": "Tu widać, kiedy wyśle się przypomnienie i kiedy zwolni się rezerwacja, a także zgłoszenie kupującego, że wysłał przelew (przed terminem przedłuża rezerwację, po terminie tylko informuje)."
         },
         "invoice": {
           "title": "Faktura wystawiona",
