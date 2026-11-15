@@ -13,6 +13,7 @@
     "schema:check": "bun scripts/schema-snapshot.ts check",
     "schema:snapshot": "bun scripts/schema-snapshot.ts update",
     "release:bump": "bun scripts/release-bump.ts",
+    "release:notes": "bun scripts/release-notes.ts",
     "typecheck": "tsc --noEmit",
     "template:schema": "bun scripts/generate-storefront-schema.ts",
     "template:check": "bun --no-env-file scripts/check-template.ts",
