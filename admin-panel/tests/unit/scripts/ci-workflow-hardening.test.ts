@@ -147,8 +147,10 @@ describe('lint-migrations.yml hardening', () => {
     expect(unpinnedThirdPartyActions(lintMigrations)).toEqual([]);
   });
 
-  it('runs the schema snapshot check', () => {
+  it('fetches tags for the append-only order check and runs the schema snapshot check', () => {
+    expect(lintMigrations).toMatch(/lint:[\s\S]*?fetch-depth: 0[\s\S]*?run: bun run lint:migrations/);
     expect(lintMigrations).toMatch(/schema-snapshot:[\s\S]*?run: bun run schema:check/);
+    expect(lintMigrations).toContain('supabase/migration-order.txt');
   });
 });
 
@@ -165,7 +167,10 @@ describe('migration gates use the pinned Supabase CLI', () => {
 describe('build-release.yml migration gate', () => {
   const migrationsJob = buildRelease.slice(buildRelease.indexOf('\n  migrations:\n'), buildRelease.indexOf('\n  verify-playerstack-bundle:\n'));
 
-  it('checks the schema snapshot', () => {
+  it('lints against the previous release tag in release mode and checks the schema snapshot', () => {
+    expect(migrationsJob).toContain('fetch-depth: 0');
+    expect(migrationsJob).toContain(`git describe --tags --abbrev=0 --match 'v[0-9]*' "\${GITHUB_SHA}^"`);
+    expect(migrationsJob).toContain('bun run lint:migrations --release');
     expect(migrationsJob).toContain('bun run schema:check');
   });
 

@@ -6,9 +6,18 @@
  * DROP + CREATE OR REPLACE silently restores default PUBLIC EXECUTE.
  */
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  ORDER_FILE,
+  changedReleasedFiles,
+  checkMigrationOrder,
+  checkReleaseSize,
+  parseOrderFile,
+  readReleasedMigrations,
+  resolveReleaseBase,
+} from './migration-order';
 
 const SCHEMAS = new Set(['public', 'public']);
 const CREATE_FUNCTION_RE =
@@ -171,6 +180,9 @@ const KNOWN_RPC_INCOMPAT_MIGRATIONS = new Set<string>([
   '20260319000000_is_admin_service_role_bypass.sql',
 ]);
 
+/** AGENTS.md, Release migration policy point 2 (hard limit per release). */
+const RELEASE_MIGRATION_LIMIT = 8;
+
 function main() {
   const scriptDir = dirname(fileURLToPath(import.meta.url));
   const migrationsDir = resolve(scriptDir, '../../supabase/migrations');
@@ -226,11 +238,36 @@ function main() {
       }
     }
   }
+  const repoRoot = resolve(scriptDir, '../..');
+  const orderPath = resolve(repoRoot, ORDER_FILE);
+  let releaseBase = '';
+  try {
+    if (!existsSync(orderPath)) throw new Error(`${ORDER_FILE} is missing`);
+    releaseBase = resolveReleaseBase(repoRoot);
+    const released = readReleasedMigrations(repoRoot, releaseBase);
+    const order = parseOrderFile(readFileSync(orderPath, 'utf8'));
+    const orderErrors = checkMigrationOrder({
+      order,
+      files,
+      released,
+      releasedChanged: changedReleasedFiles(repoRoot, released),
+    });
+    // --release (release build): the cycle's migrations must already be consolidated.
+    if (process.argv.includes('--release')) orderErrors.push(...checkReleaseSize(order, released, RELEASE_MIGRATION_LIMIT));
+    for (const error of orderErrors) {
+      failures++;
+      console.error(`✖ ${error}`);
+    }
+  } catch (error) {
+    failures++;
+    console.error(`✖ migration order: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+
   if (failures > 0) {
     console.error(`\nLint failed for ${failures} migration finding(s). New migrations must satisfy all lint rules.`);
     process.exit(1);
   }
-  const summary = `Checked ${files.length - skipped} migrations (${skipped} grandfathered, ${knownDebt} legacy debt).`;
+  const summary = `Checked ${files.length - skipped} migrations (${skipped} grandfathered, ${knownDebt} legacy debt); ${ORDER_FILE} append-only since ${releaseBase}.`;
   console.log(`✓ ${summary}`);
 }
 

@@ -94,8 +94,9 @@ jobs:
         with:
           extra_args: --results verified,unknown
 
-  # Blocking migration gate (AGENTS.md, Release migration policy): the schema built from all
-  # migrations must equal supabase/schema.snapshot.sql.
+  # Blocking migration gate (AGENTS.md, Release migration policy): lint rules, migration order
+  # append-only against the PREVIOUS release tag, at most 8 migrations added since it, and the
+  # schema built from all migrations equal to supabase/schema.snapshot.sql.
   migrations:
     needs: dependabot-gate
     runs-on: ubuntu-latest
@@ -103,6 +104,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -113,6 +116,15 @@ jobs:
         uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
         with:
           version: 2.109.1
+
+      - name: Migration lint against the previous release
+        working-directory: ./admin-panel
+        run: |
+          set -euo pipefail
+          MIGRATION_ORDER_BASE="$(git describe --tags --abbrev=0 --match 'v[0-9]*' "${GITHUB_SHA}^")"
+          export MIGRATION_ORDER_BASE
+          echo "previous release: $MIGRATION_ORDER_BASE"
+          bun run lint:migrations --release
 
       - name: Schema from migrations equals the snapshot
         working-directory: ./admin-panel
