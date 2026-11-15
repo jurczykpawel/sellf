@@ -5129,6 +5129,29 @@
         "browser",
         "unit"
       ]
+    },
+    {
+      "id": "J611",
+      "title": "Buyer who paid for a product deactivated after checkout started still gets it; the payment is not parked",
+      "values": {
+        "persona": "guest",
+        "entry": "webhook",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "purchase"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Order completed and a guest purchase recorded for the paid amount (claimable access), although the product is inactive now.",
+        "seller": "Payment appears as completed; nothing waits for a decision in Payments.",
+        "integrator": "Not asserted here; the usual purchase.completed path runs."
+      },
+      "layers": [
+        "sandbox",
+        "database",
+        "unit"
+      ]
     }
   ],
   "escapes": [

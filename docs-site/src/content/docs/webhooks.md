@@ -554,12 +554,10 @@ the domain and holds no personal data.
 After verifying the Stripe signature, `/api/webhooks/stripe`:
 
 - always processes an event with its own marker;
-- answers HTTP 200 and skips an event whose marker belongs to another
-  installation (log: `foreign instance, skipped`), unless this database has a
-  record bound to that Stripe object (an order or pay-link attempt with the same
-  session or payment, or the same subscription). Then the event is processed as
-  its own (log: `marker mismatch, local record found`): this keeps open checkouts
-  and subscription renewals working after the identifier changed;
+- answers HTTP 200 and skips an event with any other marker (log:
+  `foreign instance, skipped`), even when this database holds a copy of the
+  order or subscription it refers to. Only the current marker and the markers
+  listed in `SELLF_INSTANCE_ALIASES` (see below) count as its own;
 - processes an event without a marker (created before this version, or by hand
   in Stripe) as before, except a one-time payment for a product this database
   does not know, or a pay-link payment for an attempt it never had: HTTP 200 and
@@ -591,24 +589,36 @@ it survives restarts and upgrades. Setting the environment variable
 source. A malformed value stops payments with an error rather than being guessed.
 
 **A copy restored from a database dump has the same database identifier as its
-source.** If such a copy (a release rehearsal, a local copy of production) can
-reach the same Stripe account, give it its own identifier **before its first
-start**:
+source.** There are two cases, handled differently.
+
+**A rehearsal copy** (a release rehearsal, a local copy of production) that can
+reach the same Stripe account must be a separate installation:
 
 1. Restore the dump.
 2. Add `SELLF_INSTANCE_ID=<unique value, e.g. rehearsal-2026-11-15>` to the copy's
-   `.env.local` (or the container environment).
+   `.env.local` (or the container environment). Do **not** set
+   `SELLF_INSTANCE_ALIASES`.
 3. Only then start the copy.
 
-Without step 2 the copy and the original would accept each other's events.
-Do not set `SELLF_INSTANCE_ID` on the original just to tell it apart: changing
-the identifier of a running installation makes its existing Stripe objects carry
-the old marker. Sellf still processes them when it finds the local order or
-subscription, but objects with no local record yet (for example a checkout
-started from the embed snippet on an external page before the change) would be
-skipped. The same
-applies when moving production to a new database without the `telemetry_state`
-row: keep the row, or finish or expire open checkouts before the move.
+Such a copy does not fulfil the original's payments, not even for orders copied
+from its database, and the original skips the copy's events. Without step 2 the
+copy and the original would accept each other's events.
+
+**Moving an installation** (new server or new database, same installation):
+
+- If you move the whole database including the `telemetry_state` row (a normal
+  dump and restore), there is nothing to do: the identifier stays the same.
+- If the identifier changed (a new database without that row, or a new
+  `SELLF_INSTANCE_ID`), put the previous marker in `SELLF_INSTANCE_ALIASES`. You
+  can see it in Stripe, in the metadata of any payment of this installation
+  (`sellf_instance`). The previous `SELLF_INSTANCE_ID` value or the previous
+  `telemetry_state` id work too. Separate several values with commas. Open
+  checkouts and renewals of existing subscriptions then keep working. A
+  malformed value stops payments with an error.
+
+Do not set `SELLF_INSTANCE_ID` on the original just to tell it apart from a copy:
+it changes its identifier, and without an alias it would skip its own earlier
+payments and renewals.
 
 ## Order and entitlement contracts
 

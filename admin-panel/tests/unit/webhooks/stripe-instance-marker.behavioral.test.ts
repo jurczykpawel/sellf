@@ -39,7 +39,7 @@ vi.mock('@/lib/services/product-validation', () => ({ ProductValidationService: 
 import { POST } from '@/app/api/webhooks/stripe/route';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { getStripeInstanceId, STRIPE_INSTANCE_METADATA_KEY } from '@/lib/stripe/instance-marker';
-import { listPaymentsNeedingReconciliation, PAYMENT_RECONCILIATION_ACTION } from '@/lib/stripe/payment-reconciliation';
+import { listPaymentsNeedingReconciliation, PAYMENT_RECONCILIATION_ACTION, reconcilePaymentForMissingProduct } from '@/lib/stripe/payment-reconciliation';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -248,44 +248,90 @@ describe.skipIf(!hasSupabase)('Stripe webhook — delayed payment completion is 
   });
 });
 
-describe.skipIf(!hasSupabase)('Stripe webhook — changed installation marker keeps local payments (W253b P1)', () => {
-  it('session with a stale marker but a local pending order → processed as ours and logged as a mismatch', async () => {
-    const productId = await createProduct();
-    const event = sessionEvent({ product_id: productId, [STRIPE_INSTANCE_METADATA_KEY]: FOREIGN });
+describe.skipIf(!hasSupabase)('Stripe webhook — identity changes only explicitly (W253c: no acceptance through local records)', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  async function pendingOrderFor(event: ReturnType<typeof sessionEvent>, productId: string) {
     const object = event.data.object;
     const { error } = await db!.from('payment_transactions').insert({ session_id: object.id as string, product_id: productId, amount: 49.99, currency: 'usd',
       customer_email: (object.customer_details as { email: string }).email, status: 'pending' });
     expect(error).toBeNull();
-    expect(await post(event)).toBe(200);
-    const { data } = await db!.from('payment_transactions').select('status').eq('session_id', object.id as string).single();
-    expect(data?.status).toBe('completed');
-    expect(logs()).toContain('marker mismatch, local record found');
+  }
+  const statusOf = async (sessionId: string) => (await db!.from('payment_transactions').select('status').eq('session_id', sessionId).single()).data?.status;
+
+  it('rehearsal copy (own SELLF_INSTANCE_ID, no aliases) with a copied pending order does NOT fulfil the original\'s event', async () => {
+    const productId = await createProduct();
+    const event = sessionEvent({ product_id: productId, [STRIPE_INSTANCE_METADATA_KEY]: ours });
+    await pendingOrderFor(event, productId);
+    vi.stubEnv('SELLF_INSTANCE_ID', 'rehearsal-copy-w253c');
+    expect(await postFull(event)).toEqual({ status: 200, body: { received: true, skipped: 'foreign instance, skipped' } });
+    expect(await statusOf(event.data.object.id as string)).toBe('pending');
   });
 
-  it('invoice.paid with the old marker for a local subscription → handled (renewal not cut off)', async () => {
+  it('moved installation (new SELLF_INSTANCE_ID + previous marker in SELLF_INSTANCE_ALIASES) fulfils events with the previous marker', async () => {
+    const productId = await createProduct();
+    const event = sessionEvent({ product_id: productId, [STRIPE_INSTANCE_METADATA_KEY]: ours });
+    await pendingOrderFor(event, productId);
+    vi.stubEnv('SELLF_INSTANCE_ID', 'moved-server-w253c');
+    vi.stubEnv('SELLF_INSTANCE_ALIASES', ours);
+    expect(await post(event)).toBe(200);
+    expect(await statusOf(event.data.object.id as string)).toBe('completed');
+  });
+
+  it('moved installation: invoice.paid with the previous marker for a local subscription is handled (renewal not cut off)', async () => {
     const stripeSubscriptionId = await createSubscription(await createProduct());
     const event = structuredClone(invoiceFixture) as unknown as { data: { object: { parent: { subscription_details: Record<string, unknown> } } } };
     event.data.object.parent.subscription_details = { metadata: { [STRIPE_INSTANCE_METADATA_KEY]: FOREIGN }, subscription: stripeSubscriptionId };
+    vi.stubEnv('SELLF_INSTANCE_ALIASES', FOREIGN);
     const touched: string[] = [];
     h.stripe = recordingStripe(touched);
     const { body } = await postFull(event);
     expect(body.skipped).toBeUndefined();
     expect(touched).toContain('subscriptions');
-    expect(logs()).toContain('marker mismatch, local record found');
-    expect(logs()).not.toContain('foreign instance, skipped');
   });
 
-  it('invoice.paid with a foreign marker and no local subscription → still skipped', async () => {
+  it('foreign marker + a local order bound to the same session → still skipped, order untouched', async () => {
+    const productId = await createProduct();
+    const event = sessionEvent({ product_id: productId, [STRIPE_INSTANCE_METADATA_KEY]: FOREIGN });
+    await pendingOrderFor(event, productId);
+    expect(await post(event)).toBe(200);
+    expect(await statusOf(event.data.object.id as string)).toBe('pending');
+    expect(logs()).not.toContain('marker mismatch');
+  });
+
+  it('foreign marker + a local subscription → invoice.paid skipped without touching Stripe', async () => {
+    const stripeSubscriptionId = await createSubscription(await createProduct());
     const event = structuredClone(invoiceFixture) as unknown as { data: { object: { parent: { subscription_details: Record<string, unknown> } } } };
-    event.data.object.parent.subscription_details = { metadata: { [STRIPE_INSTANCE_METADATA_KEY]: FOREIGN }, subscription: uniq('sub') };
+    event.data.object.parent.subscription_details = { metadata: { [STRIPE_INSTANCE_METADATA_KEY]: FOREIGN }, subscription: stripeSubscriptionId };
+    const touched: string[] = [];
+    h.stripe = recordingStripe(touched);
+    expect(await postFull(event)).toEqual({ status: 200, body: { received: true, skipped: 'foreign instance, skipped' } });
+    expect(touched).toEqual([]);
+  });
+
+  it('foreign subscription whose metadata names a local pay-link attempt of another order → skipped, no subscription and no access', async () => {
+    const productId = await createProduct();
+    const attemptId = await createTransferAttempt(productId);
+    const subscription = { ...structuredClone(subscriptionFixture), id: uniq('sub'), metadata: { [STRIPE_INSTANCE_METADATA_KEY]: FOREIGN, sellf_payment_attempt: attemptId, product_id: productId } };
+    subscriptionIds.push(subscription.id);
+    const event = { id: uniq('evt'), type: 'customer.subscription.created', data: { object: subscription } };
     h.stripe = recordingStripe([]);
     expect(await postFull(event)).toEqual({ status: 200, body: { received: true, skipped: 'foreign instance, skipped' } });
+    const { count: subs } = await db!.from('subscriptions').select('id', { count: 'exact', head: true }).eq('stripe_subscription_id', subscription.id);
+    expect(subs).toBe(0);
+    const { count: access } = await db!.from('user_product_access').select('id', { count: 'exact', head: true }).eq('product_id', productId);
+    expect(access).toBe(0);
   });
 
-  it('foreign marker + failure while looking for a local record → 500, even for a non-retriable event type', async () => {
+  it('foreign marker is decided without reading the database (a failing database still acknowledges)', async () => {
     const event = { id: uniq('evt'), type: 'customer.subscription.created', data: { object: { ...structuredClone(subscriptionFixture), metadata: { [STRIPE_INSTANCE_METADATA_KEY]: FOREIGN } } } };
     h.admin = failingReads;
-    expect(await post(event)).toBe(500);
+    expect(await post(event)).toBe(200);
+  });
+
+  it('malformed SELLF_INSTANCE_ALIASES → 500 (configuration error is not guessed)', async () => {
+    vi.stubEnv('SELLF_INSTANCE_ALIASES', 'bad;alias');
+    expect(await post(sessionEvent({ product_id: crypto.randomUUID(), [STRIPE_INSTANCE_METADATA_KEY]: FOREIGN }))).toBe(500);
     expect(errors()).toContain('Instance check failed');
   });
 });
@@ -349,12 +395,105 @@ describe.skipIf(!hasSupabase)('Stripe webhook — our payment for a deleted prod
     expect(listed.find((item) => item.paymentId === paymentIntent)).toMatchObject({ amount: 4999, currency: 'usd', productId, reason: 'product_deleted' });
   });
 
-  it('inactive but existing product → handled as before (not acknowledged as reconciliation)', async () => {
+  it('the same payment reported by both the Checkout Session and its PaymentIntent, delivered in parallel → one record (database-enforced)', async () => {
+    const productId = crypto.randomUUID();
+    const paymentIntentId = uniq('pi');
+    reconciliationTargets.push(paymentIntentId);
+    const base = { productId, paymentIntentId, amount: 4999, currency: 'usd', customerEmail: 'buyer@example.com' };
+    const results = await Promise.all([
+      reconcilePaymentForMissingProduct(db as never, { ...base, sessionId: uniq('cs'), eventType: 'checkout.session' }),
+      reconcilePaymentForMissingProduct(db as never, { ...base, sessionId: null, eventType: 'payment_intent' }),
+      reconcilePaymentForMissingProduct(db as never, { ...base, sessionId: null, eventType: 'payment_intent' }),
+    ]);
+    expect(results.every((r) => r?.processed === true)).toBe(true);
+    const { count } = await db!.from('admin_actions').select('id', { count: 'exact', head: true }).eq('action', PAYMENT_RECONCILIATION_ACTION).eq('target_id', paymentIntentId);
+    expect(count).toBe(1);
+    const duplicate = await db!.from('admin_actions').insert({ action: PAYMENT_RECONCILIATION_ACTION, target_type: 'stripe_payment', target_id: paymentIntentId, details: {} });
+    expect(duplicate.error?.code).toBe('23505');
+  });
+
+  it('log retention (cleanup_old_admin_actions) keeps a payment waiting for reconciliation, even 100 days old', async () => {
+    const paymentIntentId = uniq('pi');
+    const oldAction = uniq('old_action');
+    reconciliationTargets.push(paymentIntentId, oldAction);
+    const created_at = new Date(Date.now() - 100 * 86400000).toISOString();
+    const { error } = await db!.from('admin_actions').insert([
+      { action: PAYMENT_RECONCILIATION_ACTION, target_type: 'stripe_payment', target_id: paymentIntentId, details: { reason: 'product_deleted' }, created_at },
+      { action: 'test_old_action', target_type: 'test', target_id: oldAction, details: {}, created_at },
+    ]);
+    expect(error).toBeNull();
+    const cleanup = await db!.rpc('cleanup_old_admin_actions', { retention_days: 90 });
+    expect(cleanup.error).toBeNull();
+    const { data } = await db!.from('admin_actions').select('target_id').in('target_id', [paymentIntentId, oldAction]);
+    expect(data?.map((row) => row.target_id)).toEqual([paymentIntentId]);
+  });
+});
+
+describe.skipIf(!hasSupabase)('Stripe webhook — our paid session for an existing but inactive product (W253c P2/3)', () => {
+  async function guestPurchases(event: ReturnType<typeof sessionEvent>, productId: string) {
+    const email = (event.data.object.customer_details as { email: string }).email;
+    const { count } = await db!.from('guest_purchases').select('id', { count: 'exact', head: true }).eq('customer_email', email).eq('product_id', productId);
+    return count;
+  }
+  const statusOf = async (sessionId: string) => (await db!.from('payment_transactions').select('status').eq('session_id', sessionId).maybeSingle()).data?.status;
+
+  it('product deactivated after checkout, no local order row → fulfilled (completed + access), not recorded for reconciliation', async () => {
     const productId = await createProduct(false);
     const event = sessionEvent({ product_id: productId, [STRIPE_INSTANCE_METADATA_KEY]: ours });
     reconciliationTargets.push(event.data.object.payment_intent as string);
-    expect(await post(event)).toBe(500);
+    expect(await post(event)).toBe(200);
+    expect(await statusOf(event.data.object.id as string)).toBe('completed');
+    expect(await guestPurchases(event, productId)).toBe(1);
     const { count } = await db!.from('admin_actions').select('id', { count: 'exact', head: true }).eq('target_id', event.data.object.payment_intent as string);
     expect(count).toBe(0);
+  });
+
+  it('old-format pending order (no price snapshot), product deactivated before payment → fulfilled', async () => {
+    const productId = await createProduct();
+    const event = sessionEvent({ product_id: productId, [STRIPE_INSTANCE_METADATA_KEY]: ours });
+    const object = event.data.object;
+    const { error } = await db!.from('payment_transactions').insert({ session_id: object.id as string, product_id: productId, amount: 49.99, currency: 'usd',
+      customer_email: (object.customer_details as { email: string }).email, status: 'pending' });
+    expect(error).toBeNull();
+    expect((await db!.from('products').update({ is_active: false }).eq('id', productId)).error).toBeNull();
+    expect(await post(event)).toBe(200);
+    expect(await statusOf(object.id as string)).toBe('completed');
+    expect(await guestPurchases(event, productId)).toBe(1);
+  });
+
+  it('inactive product keeps the amount check: a paid amount below the price is not fulfilled', async () => {
+    const productId = await createProduct(false);
+    const event = sessionEvent({ product_id: productId, [STRIPE_INSTANCE_METADATA_KEY]: ours });
+    Object.assign(event.data.object, { amount_total: 100, amount_subtotal: 100 });
+    expect(await post(event)).toBe(500);
+    expect(await txCount(event.data.object.id as string)).toBe(0);
+    expect(await guestPurchases(event, productId)).toBe(0);
+  });
+
+  it('inactive product keeps the currency check', async () => {
+    const productId = await createProduct(false);
+    const event = sessionEvent({ product_id: productId, [STRIPE_INSTANCE_METADATA_KEY]: ours });
+    Object.assign(event.data.object, { currency: 'eur' });
+    expect(await post(event)).toBe(500);
+    expect(await txCount(event.data.object.id as string)).toBe(0);
+  });
+
+  it('payment_intent.succeeded with our marker for an inactive product → fulfilled', async () => {
+    const productId = await createProduct(false);
+    const email = `${uniq('buyer')}@example.com`;
+    emails.push(email);
+    const paymentIntentId = uniq('pi');
+    const event = { id: uniq('evt'), type: 'payment_intent.succeeded', data: { object: { id: paymentIntentId, object: 'payment_intent', amount: 4999, currency: 'usd', receipt_email: email,
+      metadata: { product_id: productId, [STRIPE_INSTANCE_METADATA_KEY]: ours } } } };
+    expect(await post(event)).toBe(200);
+    const { data } = await db!.from('payment_transactions').select('status').eq('stripe_payment_intent_id', paymentIntentId).single();
+    expect(data?.status).toBe('completed');
+  });
+
+  it('no marker (session from before this release) + inactive product → unchanged: not fulfilled, Stripe retries', async () => {
+    const productId = await createProduct(false);
+    const event = sessionEvent({ product_id: productId });
+    expect(await post(event)).toBe(500);
+    expect(await txCount(event.data.object.id as string)).toBe(0);
   });
 });

@@ -310,12 +310,10 @@ i nie zawiera danych osobowych.
 Po sprawdzeniu podpisu Stripe `/api/webhooks/stripe`:
 
 - zawsze obsługuje zdarzenie z własnym znacznikiem;
-- odpowiada HTTP 200 i pomija zdarzenie ze znacznikiem innej instalacji
-  (log: `foreign instance, skipped`), chyba że ta baza ma zapis powiązany z tym
-  obiektem Stripe (zamówienie albo próbę płatności z linku z tą samą sesją lub
-  płatnością, albo tę samą subskrypcję). Wtedy obsługuje zdarzenie jak własne
-  (log: `marker mismatch, local record found`), dzięki czemu otwarte płatności
-  i odnowienia subskrypcji działają także po zmianie identyfikatora;
+- odpowiada HTTP 200 i pomija zdarzenie z każdym innym znacznikiem
+  (log: `foreign instance, skipped`), nawet jeśli ta baza ma kopię zamówienia
+  albo subskrypcji, której dotyczy. Za własne uznaje tylko obecny znacznik
+  i znaczniki wpisane w `SELLF_INSTANCE_ALIASES` (patrz niżej);
 - zdarzenie bez znacznika (utworzone przed tą wersją albo ręcznie w Stripe)
   obsługuje jak dotąd, z dwoma wyjątkami: płatność jednorazowa za produkt,
   którego ta baza nie zna, i płatność z linku dla próby, której ta baza nigdy
@@ -349,24 +347,37 @@ znaków: litery, cyfry, `_`, `-`) zastępuje to źródło. Wartość w złym for
 zatrzymuje płatności z błędem, zamiast zgadywać.
 
 **Kopia odtworzona z kopii zapasowej bazy ma ten sam identyfikator bazy co
-oryginał.** Jeśli taka kopia (próba wydania, lokalna kopia produkcji) ma dostęp
-do tego samego konta Stripe, nadaj jej własny identyfikator **przed pierwszym
-uruchomieniem**:
+oryginał.** Są dwa przypadki i każdy załatwia się inaczej.
+
+**Kopia do prób** (próba wydania, lokalna kopia produkcji) z dostępem do tego
+samego konta Stripe ma być oddzielną instalacją:
 
 1. Odtwórz kopię bazy.
 2. Dopisz `SELLF_INSTANCE_ID=<unikalna wartość, np. proba-2026-11-15>` do
-   `.env.local` kopii (albo do środowiska kontenera).
+   `.env.local` kopii (albo do środowiska kontenera). **Nie** ustawiaj
+   `SELLF_INSTANCE_ALIASES`.
 3. Dopiero wtedy uruchom kopię.
 
-Bez kroku 2 kopia i oryginał przyjmowałyby nawzajem swoje zdarzenia.
-Nie ustawiaj `SELLF_INSTANCE_ID` na oryginale tylko po to, żeby go odróżnić:
-zmiana identyfikatora działającej instalacji sprawia, że jej istniejące obiekty
-Stripe mają stary znacznik. Sellf nadal je obsłuży, gdy znajdzie lokalne
-zamówienie albo subskrypcję, ale obiekty bez lokalnego zapisu (na przykład
-płatność rozpoczęta przez osadzony fragment na zewnętrznej stronie przed zmianą)
-zostałyby pominięte. To samo dotyczy przeniesienia produkcji na nową bazę bez
-wiersza `telemetry_state`: zachowaj ten wiersz albo przed przeniesieniem dokończ
-lub wygaś otwarte płatności.
+Taka kopia nie realizuje płatności oryginału, nawet dla zamówień skopiowanych
+z jego bazy, a oryginał pomija zdarzenia kopii. Bez kroku 2 kopia i oryginał
+przyjmowałyby nawzajem swoje zdarzenia.
+
+**Przeniesienie instalacji** (nowy serwer albo nowa baza, ta sama instalacja):
+
+- Jeśli przenosisz całą bazę razem z wierszem `telemetry_state` (zwykły zrzut
+  i odtworzenie), nic nie musisz robić: identyfikator zostaje ten sam.
+- Jeśli identyfikator się zmienił (nowa baza bez tego wiersza albo nowe
+  `SELLF_INSTANCE_ID`), wpisz poprzedni znacznik do `SELLF_INSTANCE_ALIASES`.
+  Znacznik widać w Stripe, w metadanych dowolnej płatności tej instalacji
+  (`sellf_instance`). Można też podać poprzednią wartość `SELLF_INSTANCE_ID`
+  albo poprzedni identyfikator z `telemetry_state`. Kilka wartości oddziel
+  przecinkami. Dzięki temu otwarte płatności i odnowienia istniejących
+  subskrypcji nadal są realizowane. Wartość w złym formacie zatrzymuje płatności
+  z błędem.
+
+Nie ustawiaj `SELLF_INSTANCE_ID` na oryginale tylko po to, żeby go odróżnić od
+kopii: to zmienia jego identyfikator i bez aliasu pominąłby własne wcześniejsze
+płatności i odnowienia.
 
 ## Kontrakt zamówienia i dostępu
 

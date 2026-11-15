@@ -4983,6 +4983,7 @@ export type Database = {
       }
       _process_stripe_payment_completion_with_bump_impl: {
         Args: {
+          allow_inactive_product_param?: boolean
           amount_subtotal_param?: number
           amount_total: number
           bump_product_ids_param?: string[]
@@ -6604,6 +6605,7 @@ export type Database = {
       }
       process_stripe_payment_completion_with_bump: {
         Args: {
+          allow_inactive_product_param?: boolean
           amount_subtotal_param?: number
           amount_total: number
           bump_product_ids_param?: string[]

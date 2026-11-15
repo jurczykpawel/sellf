@@ -19,7 +19,7 @@ vi.mock('@/lib/stripe/customer', () => ({ getOrCreateStripeCustomer: vi.fn(async
 vi.mock('@/lib/stripe/product-price', () => ({ getOrCreateStripePriceForProduct: vi.fn(async () => 'price_1') }));
 vi.mock('@/lib/stripe/server', () => ({ getStripeServer: vi.fn() }));
 
-import { getStripeInstanceId, readStripeInstanceMarker, STRIPE_INSTANCE_METADATA_KEY } from '@/lib/stripe/instance-marker';
+import { getStripeInstanceId, isForeignStripeMarker, isOwnStripeMarker, readStripeInstanceMarker, STRIPE_INSTANCE_METADATA_KEY } from '@/lib/stripe/instance-marker';
 import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checkout';
 import { createSubscriptionWithDynamicPrice } from '@/lib/stripe/subscription-dynamic-price';
 import { createQuickPaySession } from '@/lib/orders/quick-pay';
@@ -71,6 +71,35 @@ describe('instance id', () => {
     it.each(['short', 'has space inside', 'ą-polish-chars', 'x'.repeat(65), 'semi;colon-value'])('rejects a malformed value %j instead of guessing', async (value) => {
       vi.stubEnv('SELLF_INSTANCE_ID', value);
       await expect(getStripeInstanceId()).rejects.toThrow(/SELLF_INSTANCE_ID/);
+    });
+  });
+
+  describe('SELLF_INSTANCE_ALIASES (moved installation keeps its previous identity, explicitly)', () => {
+    afterEach(() => vi.unstubAllEnvs());
+    const markerOf = (source: string) => createHash('sha256').update(`sellf-stripe-instance:${source}`).digest('hex').slice(0, 32);
+
+    it('without aliases only the current marker is ours; a copy with a new SELLF_INSTANCE_ID does not own the original marker', async () => {
+      expect(await isOwnStripeMarker(EXPECTED)).toBe(true);
+      vi.stubEnv('SELLF_INSTANCE_ID', 'rehearsal-copy-2026');
+      expect(await isOwnStripeMarker(EXPECTED)).toBe(false);
+      expect(await isForeignStripeMarker(EXPECTED)).toBe(true);
+    });
+
+    it('accepts a previous marker as seen in Stripe, a previous SELLF_INSTANCE_ID, or a previous database id', async () => {
+      vi.stubEnv('SELLF_INSTANCE_ID', 'moved-server-2026');
+      vi.stubEnv('SELLF_INSTANCE_ALIASES', `${EXPECTED}, old-env-id-01\n b7d2e5aa-1111-4222-8333-444455556666`);
+      expect(await isOwnStripeMarker(markerOf('env:moved-server-2026'))).toBe(true);
+      expect(await isOwnStripeMarker(EXPECTED)).toBe(true);
+      expect(await isOwnStripeMarker(markerOf('env:old-env-id-01'))).toBe(true);
+      expect(await isOwnStripeMarker(markerOf('b7d2e5aa-1111-4222-8333-444455556666'))).toBe(true);
+      expect(await isForeignStripeMarker(EXPECTED)).toBe(false);
+      expect(await isOwnStripeMarker('f'.repeat(32))).toBe(false);
+      expect(await isForeignStripeMarker(null)).toBe(false);
+    });
+
+    it.each(['short', 'semi;colon-value', 'ą-polish-chars'])('rejects a malformed alias %j instead of guessing', async (value) => {
+      vi.stubEnv('SELLF_INSTANCE_ALIASES', `${EXPECTED},${value}`);
+      await expect(isOwnStripeMarker('f'.repeat(32))).rejects.toThrow(/SELLF_INSTANCE_ALIASES/);
     });
   });
 

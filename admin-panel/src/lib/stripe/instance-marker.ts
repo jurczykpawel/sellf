@@ -29,6 +29,15 @@ function instanceIdFromEnv(): string | null {
   return value;
 }
 
+function aliasMarkersFromEnv(): Set<string> {
+  const markers = new Set<string>();
+  for (const alias of (process.env.SELLF_INSTANCE_ALIASES ?? '').split(/[\s,]+/).filter(Boolean)) {
+    if (!INSTANCE_ID_ENV_FORMAT.test(alias)) throw new Error('Invalid SELLF_INSTANCE_ALIASES: comma-separated values of 8-64 characters A-Z, a-z, 0-9, "_" or "-"');
+    markers.add(alias).add(markerOf(alias)).add(markerOf(`env:${alias}`));
+  }
+  return markers;
+}
+
 /** Stable Stripe marker of this installation. Throws when SELLF_INSTANCE_ID is malformed or the database cannot be read. */
 export async function getStripeInstanceId(): Promise<string> {
   const override = instanceIdFromEnv();
@@ -63,7 +72,13 @@ export function readStripeInstanceMarker(object: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
+/** Our current marker or one listed in SELLF_INSTANCE_ALIASES. Throws when either variable is malformed. */
+export async function isOwnStripeMarker(marker: string): Promise<boolean> {
+  const aliases = aliasMarkersFromEnv();
+  return marker === await getStripeInstanceId() || aliases.has(marker);
+}
+
 /** True when the object carries another installation's marker (no marker → false). */
 export async function isForeignStripeMarker(marker: string | null): Promise<boolean> {
-  return marker !== null && marker !== await getStripeInstanceId();
+  return marker !== null && !await isOwnStripeMarker(marker);
 }

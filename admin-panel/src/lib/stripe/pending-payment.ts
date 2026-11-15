@@ -1,6 +1,7 @@
 /**
  * Classify an unmatched order using provider data and local product bindings. A payment carrying
- * another installation's marker (shared Stripe account) is not ours.
+ * another installation's marker (shared Stripe account) is not ours, whatever this database holds;
+ * only markers listed in SELLF_INSTANCE_ALIASES count as ours besides the current one.
  * @see src/app/api/webhooks/stripe/dispute-handlers.ts
  */
 import type Stripe from 'stripe';
@@ -24,6 +25,7 @@ export async function pendingPaymentResult(
     for (const item of payments.data) {
       const invoice = typeof item.invoice === 'string' ? await stripe.invoices.retrieve(item.invoice) : item.invoice;
       if ('deleted' in invoice && invoice.deleted) continue;
+      if (await isForeignStripeMarker(readStripeInstanceMarker(invoice))) return OTHER_INSTALLATION;
       const binding = invoice.parent?.subscription_details;
       if (binding?.metadata?.product_id) candidates.add(binding.metadata.product_id);
       const id = typeof binding?.subscription === 'string' ? binding.subscription : binding?.subscription?.id;
@@ -34,7 +36,6 @@ export async function pendingPaymentResult(
         if (bound.error) throw new Error('Subscription binding unavailable');
         if (bound.data) return { processed: false, message: 'Local payment awaiting storage' };
       }
-      if (await isForeignStripeMarker(readStripeInstanceMarker(invoice))) return OTHER_INSTALLATION;
     }
   }
   for (const productId of candidates) {

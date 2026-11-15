@@ -12,11 +12,21 @@ import { getStripeServer } from '@/lib/stripe/server';
 import { fulfillStripeOrder } from '@/lib/services/fulfill-paid-order';
 import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
 import { reconcilePaymentForMissingProduct } from '@/lib/stripe/payment-reconciliation';
+import { isOwnStripeMarker, readStripeInstanceMarker } from '@/lib/stripe/instance-marker';
 import type { createAdminClient } from '@/lib/supabase/admin';
 import { redactEmail } from '@/lib/logger';
 import type Stripe from 'stripe';
 
 const PRODUCT_UNAVAILABLE = 'Product not found or inactive';
+
+/**
+ * A paid session or payment created by this installation (own marker) stays payable after its product
+ * was deactivated or archived; unmarked objects keep the active-product requirement.
+ */
+async function createdByThisInstallation(object: { metadata?: Stripe.Metadata | null }): Promise<boolean> {
+  const marker = readStripeInstanceMarker(object);
+  return marker !== null && await isOwnStripeMarker(marker);
+}
 
 /**
  * Process successful payment from checkout session.
@@ -125,6 +135,7 @@ export async function handleCheckoutSessionCompleted(
     coupon_id_param: hasCoupon && couponId ? couponId : undefined,
     // Net subtotal: net-priced products validate the NET amount, not the gross.
     amount_subtotal_param: session.amount_subtotal ?? undefined,
+    allow_inactive_product_param: await createdByThisInstallation(session),
   });
   const result = rawResult as Record<string, unknown> | null;
 
@@ -253,6 +264,7 @@ export async function handlePaymentIntentSucceeded(
     bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : undefined,
     coupon_id_param: couponId || undefined,
     amount_subtotal_param: piAmountSubtotal,
+    allow_inactive_product_param: await createdByThisInstallation(paymentIntent),
   });
   const result = rawResult2 as Record<string, unknown> | null;
 
