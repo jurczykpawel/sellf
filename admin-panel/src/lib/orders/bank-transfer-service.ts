@@ -5,6 +5,8 @@ import { transferDeadline } from '@/lib/orders/transfer-format';
 import { orderMoney, minorOrderLines } from '@/lib/orders/event-money';
 import { sendOrderNotice } from '@/lib/orders/transfer-mail';
 import { buildOrderPayLink } from '@/lib/orders/transfer-token';
+import { expireOrderPaymentSessions, sessionsToExpire } from '@/lib/orders/payment-attempt-sessions';
+import { getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { fulfillPaidOrder } from '@/lib/services/fulfill-paid-order';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -106,6 +108,7 @@ async function runReservations(db: SupabaseClient<Database>, run: (id: string, a
       const { data, error } = await db.rpc('release_unpaid_transfer', { p_id: id, p_now: now });
       if (error) throw new Error('Release failed');
       if ((data as { released?: boolean } | null)?.released !== true) return;
+      await expireOrderPaymentSessions(getStripeServer, sessionsToExpire(data)).catch(() => console.error('[runTransferJob] Session expiry deferred:', id));
       await dispatchTransferEvent(db, id, 'order.cancelled'); await sendOrderNotice(db, id, 'cancelled');
     });
   }

@@ -1,5 +1,5 @@
 'use client';
-/** "Pay online" for an unpaid or released transfer order. @see app/api/orders/[orderId]/pay/route.ts */
+/** "Pay online" for an unpaid transfer order (never a cancelled one, W254). @see app/api/orders/[orderId]/pay/route.ts */
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
@@ -16,7 +16,7 @@ export default function QuickPayButton({ orderId, token, amount, currency }: { o
       const body = await response.json().catch(() => ({}));
       if (response.ok && typeof body.url === 'string') { window.location.assign(body.url); return; }
       if (body.reason === 'amount_changed' && typeof body.quote?.amount === 'number') { setConfirmed(body.quote.amount); setError(t('quickPayAmountChanged')); }
-      else if (typeof body.checkoutUrl === 'string') { setError(t('quickPayUnavailable')); }
+      else if (body.reason === 'order_cancelled') setError(t('quickPayCancelled'));
       else setError(t('quickPayError'));
     } catch { setError(t('quickPayError')); } finally { setBusy(false); }
   }

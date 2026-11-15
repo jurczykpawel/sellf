@@ -196,25 +196,50 @@ BEGIN
   o2:=(tx->>'transaction_id')::uuid;
   a:=public.open_order_payment_attempt(o2,'settle',8000,'PLN',t0+interval '30 minutes',t0);
   PERFORM public.attach_order_payment_session((a->>'id')::uuid,'cs_test_quick_2');
-  ASSERT (public.admin_bank_transfer_order(o2,'mark-paid',8000,t0,NULL,admin_id)->>'success')::boolean;
+  r:=public.admin_bank_transfer_order(o2,'mark-paid',8000,t0,NULL,admin_id);
+  ASSERT (r->>'success')::boolean AND r->'expire_sessions' ? 'cs_test_quick_2', 'mark paid names the Stripe session to expire: '||r::text;
   ASSERT (SELECT status FROM public.order_payment_attempts WHERE id=(a->>'id')::uuid)='superseded';
   r:=public.complete_order_payment_attempt((a->>'id')::uuid,'cs_test_quick_2','pi_test_quick_2',8000,t0);
   ASSERT r->>'result'='duplicate' AND (SELECT status FROM public.order_payment_attempts WHERE id=(a->>'id')::uuid)='duplicate', r::text;
   ASSERT (SELECT stripe_payment_intent_id IS NULL FROM public.payment_transactions WHERE id=o2), 'duplicate does not overwrite';
   PERFORM public.record_order_payment_refund((a->>'id')::uuid,'re_test_dup');
   ASSERT (SELECT refund_id FROM public.order_payment_attempts WHERE id=(a->>'id')::uuid)='re_test_dup';
-  -- (4) reopen: a released order paid online comes back as the same order at its price
+  -- (4) W254: a cancelled order cannot be paid online in any mode (released by the timer or cancelled by the administrator)
   tx:=public.bank_transfer_order(input||'{"customer_email":"reopen@example.com"}',jsonb_set(jsonb_set(jsonb_set(lines,'{0,unit_price}','80'),'{0,total_price}','80'),'{0,discounted_total}','80'));
   o2:=(tx->>'transaction_id')::uuid;
   ASSERT (public.release_unpaid_transfer(o2,t0+interval '48 hours')->>'released')::boolean;
   BEGIN PERFORM public.open_order_payment_attempt(o2,'settle',8000,'PLN',t0+interval '30 minutes',t0); RAISE EXCEPTION 'settle on cancelled';
   EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
-  a:=public.open_order_payment_attempt(o2,'reopen',8000,'PLN',t0+interval '30 minutes',t0);
-  PERFORM public.attach_order_payment_session((a->>'id')::uuid,'cs_test_quick_3');
+  BEGIN PERFORM public.open_order_payment_attempt(o2,'reopen',8000,'PLN',t0+interval '30 minutes',t0); RAISE EXCEPTION 'reopen on cancelled';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  -- a revival attempt opened by an older version and paid now is a duplicate to refund; the order stays cancelled
+  INSERT INTO public.order_payment_attempts(transaction_id,kind,amount,currency,expires_at,status,stripe_session_id)
+    VALUES(o2,'reopen',8000,'PLN',t0+interval '30 minutes','open','cs_test_quick_3') RETURNING to_jsonb(order_payment_attempts.*) INTO a;
   r:=public.complete_order_payment_attempt((a->>'id')::uuid,'cs_test_quick_3','pi_test_quick_3',8000,t0);
-  ASSERT r->>'result'='completed' AND (r->>'reopened')::boolean, r::text;
-  ASSERT (SELECT status='completed' AND reopened_at IS NOT NULL AND cancel_reason IS NULL FROM public.payment_transactions WHERE id=o2);
-  ASSERT EXISTS(SELECT 1 FROM public.guest_purchases WHERE transaction_id=o2);
+  ASSERT r->>'result'='duplicate', r::text;
+  ASSERT (SELECT status='cancelled' AND reopened_at IS NULL AND stripe_payment_intent_id IS NULL FROM public.payment_transactions WHERE id=o2), 'stays cancelled';
+  ASSERT NOT EXISTS(SELECT 1 FROM public.guest_purchases WHERE transaction_id=o2), 'no access from a refunded payment';
+  ASSERT EXISTS(SELECT 1 FROM public.audit_log WHERE new_values->>'action'='order.payment_duplicate' AND new_values->>'transaction_id'=o2::text);
+  -- (4b) administrator cancels while the buyer is on the Stripe page: attempt superseded, its session named for expiry, a payment that still lands is refunded
+  tx:=public.bank_transfer_order(input||'{"customer_email":"cancel-open@example.com"}',jsonb_set(jsonb_set(jsonb_set(lines,'{0,unit_price}','80'),'{0,total_price}','80'),'{0,discounted_total}','80'));
+  o2:=(tx->>'transaction_id')::uuid;
+  a:=public.open_order_payment_attempt(o2,'settle',8000,'PLN',t0+interval '30 minutes',t0);
+  PERFORM public.attach_order_payment_session((a->>'id')::uuid,'cs_test_quick_6');
+  r:=public.admin_bank_transfer_order(o2,'cancel',NULL,NULL,'Rezygnacja klienta',admin_id);
+  ASSERT (r->>'success')::boolean AND r->'expire_sessions' ? 'cs_test_quick_6', 'cancel names the Stripe session to expire: '||r::text;
+  ASSERT (SELECT status FROM public.order_payment_attempts WHERE id=(a->>'id')::uuid)='superseded';
+  ASSERT (public.complete_order_payment_attempt((a->>'id')::uuid,'cs_test_quick_6','pi_test_quick_6',8000,t0)->>'result')='duplicate';
+  ASSERT (SELECT status='cancelled' AND stripe_payment_intent_id IS NULL FROM public.payment_transactions WHERE id=o2), 'admin-cancelled stays cancelled';
+  -- (4c) the reservation job cancels an order whose attempt is past its time: the stale session is named for expiry, a late payment is refunded
+  tx:=public.bank_transfer_order(input||'{"customer_email":"cron-open@example.com"}',jsonb_set(jsonb_set(jsonb_set(lines,'{0,unit_price}','80'),'{0,total_price}','80'),'{0,discounted_total}','80'));
+  o2:=(tx->>'transaction_id')::uuid;
+  a:=public.open_order_payment_attempt(o2,'settle',8000,'PLN',t0+interval '30 minutes',t0);
+  PERFORM public.attach_order_payment_session((a->>'id')::uuid,'cs_test_quick_7');
+  r:=public.release_unpaid_transfer(o2,t0+interval '48 hours');
+  ASSERT (r->>'released')::boolean AND r->'expire_sessions' ? 'cs_test_quick_7', 'release names the Stripe session to expire: '||r::text;
+  ASSERT (SELECT status FROM public.order_payment_attempts WHERE id=(a->>'id')::uuid)='superseded';
+  ASSERT (public.complete_order_payment_attempt((a->>'id')::uuid,'cs_test_quick_7','pi_test_quick_7',8000,t0)->>'result')='duplicate';
+  ASSERT (SELECT status FROM public.payment_transactions WHERE id=o2)='cancelled', 'released stays cancelled';
   -- (5) expiry frees the slot for a new attempt
   tx:=public.bank_transfer_order(input||'{"customer_email":"expire@example.com"}',jsonb_set(jsonb_set(jsonb_set(lines,'{0,unit_price}','80'),'{0,total_price}','80'),'{0,discounted_total}','80'));
   o2:=(tx->>'transaction_id')::uuid;

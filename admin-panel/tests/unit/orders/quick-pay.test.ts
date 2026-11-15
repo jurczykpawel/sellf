@@ -7,6 +7,7 @@ vi.mock('@/lib/orders/bank-transfer-service', () => ({ dispatchTransferEvent: di
 import recorded from '../../fixtures/stripe/checkout_completed_receiver.json';
 import quickPay from '../../fixtures/stripe/quick_pay_checkout_completed.json';
 import { quoteOrderPayment, createQuickPaySession, handleQuickPayEvent, isQuickPayObject } from '@/lib/orders/quick-pay';
+import { expireOrderPaymentSessions } from '@/lib/orders/payment-attempt-sessions';
 import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
@@ -14,9 +15,6 @@ import type { Database } from '@/types/database';
 const id = '10000000-0000-4000-8000-000000000001', attemptId = '20000000-0000-4000-8000-000000000002';
 const NOW = new Date('2026-02-02T12:00:00Z');
 const tx = { id, payment_provider: 'bank_transfer', status: 'awaiting_payment', amount: 8000, currency: 'PLN', product_id: 'p1', coupon_id: null as string | null, order_number: 1001, customer_email: 'buyer@example.com', metadata: { locale: 'pl' } };
-const line = { product_id: 'p1', item_type: 'main_product', quantity: 1, unit_price: 80, session_id: 's1' };
-const product = { id: 'p1', is_active: true, price: 80, sale_price: null, sale_price_until: null, event_mode: true, name: 'Warsztat' };
-const session = (tier: number, extra: Record<string, unknown> = {}) => [{ id: 's1', starts_at: '2099-01-01T00:00:00Z', remaining: 3, sold_out: false, current_tier: { price: tier }, ...extra }];
 function db(tables: Record<string, unknown>, rpcs: Record<string, unknown> = {}) {
   const rpc = vi.fn(async (name: string) => ({ data: typeof rpcs[name] === 'function' ? (rpcs[name] as () => unknown)() : rpcs[name] ?? null, error: null }));
   const from = vi.fn((table: string) => {
@@ -34,31 +32,19 @@ function db(tables: Record<string, unknown>, rpcs: Record<string, unknown> = {})
 beforeEach(() => { vi.clearAllMocks(); dispatch.mockResolvedValue(undefined); fulfill.mockResolvedValue(undefined); });
 
 describe('quote', () => {
-  it('an unpaid order is paid at its saved amount without re-pricing', async () => {
-    const { client } = db({ payment_line_items: [{ ...line, unit_price: 50 }] }, { event_availability: session(80) });
-    expect(await quoteOrderPayment(client, tx, NOW)).toEqual({ mode: 'settle', amount: 8000, currency: 'PLN' });
+  it('an unpaid order is paid at its saved amount without re-pricing', () => {
+    expect(quoteOrderPayment(tx)).toEqual({ mode: 'settle', amount: 8000, currency: 'PLN' });
   });
+  // W254 (owner 14/15.11): a cancelled order is never payable by the buyer, whatever the reason and even when price,
+  // seats and coupon are unchanged. Only the administrator can accept a late transfer.
   it.each([
-    ['promo seats still available at the same price', session(80), {}, null, { mode: 'reopen', amount: 8000, currency: 'PLN' }],
-    ['promo sold out, a higher tier applies', session(120), {}, null, { mode: 'unavailable', reason: 'price_changed' }],
-    ['session full', session(80, { sold_out: true, remaining: 0 }), {}, null, { mode: 'unavailable', reason: 'sold_out' }],
-    ['session already started', session(80, { starts_at: '2026-02-01T00:00:00Z' }), {}, null, { mode: 'unavailable', reason: 'sold_out' }],
-    ['product deactivated', session(80), { is_active: false }, null, { mode: 'unavailable', reason: 'product_unavailable' }],
-    ['coupon exhausted after release', session(80), {}, { is_active: true, usage_limit_global: 1, current_usage_count: 1, expires_at: null }, { mode: 'unavailable', reason: 'coupon_unavailable' }],
-    ['coupon expired', session(80), {}, { is_active: true, usage_limit_global: null, current_usage_count: 0, expires_at: '2026-01-01T00:00:00Z' }, { mode: 'unavailable', reason: 'coupon_unavailable' }],
-  ])('cancelled order: %s', async (_, availability, productChange, coupon, expected) => {
-    const { client } = db({ payment_line_items: [line], products: { ...product, ...productChange }, invoices: null, coupons: coupon }, { event_availability: availability });
-    expect(await quoteOrderPayment(client, { ...tx, status: 'cancelled', coupon_id: coupon ? 'c1' : null }, NOW)).toEqual(expected);
+    ['released by the reservation timer', 'payment_window_expired'],
+    ['cancelled by the administrator', 'admin'],
+  ])('cancelled order (%s) is refused although price and seats are unchanged', (_, cancelReason) => {
+    expect(quoteOrderPayment({ ...tx, status: 'cancelled', cancel_reason: cancelReason } as typeof tx)).toEqual({ mode: 'unavailable', reason: 'order_cancelled' });
   });
-  it('a corrected invoice blocks reopening; a paid order reports paid', async () => {
-    const { client } = db({ payment_line_items: [line], products: product, invoices: { status: 'corrected' } }, { event_availability: session(80) });
-    expect(await quoteOrderPayment(client, { ...tx, status: 'cancelled' }, NOW)).toEqual({ mode: 'unavailable', reason: 'invoice_corrected' });
-    expect(await quoteOrderPayment(client, { ...tx, status: 'completed' }, NOW)).toEqual({ mode: 'paid' });
-  });
-  it('a regular product follows its current effective price', async () => {
-    const plain = { ...line, session_id: null };
-    const { client } = db({ payment_line_items: [plain], products: { ...product, event_mode: false, price: 100 }, invoices: null });
-    expect(await quoteOrderPayment(client, { ...tx, status: 'cancelled' }, NOW)).toEqual({ mode: 'unavailable', reason: 'price_changed' });
+  it('a paid order reports paid', () => {
+    expect(quoteOrderPayment({ ...tx, status: 'completed' })).toEqual({ mode: 'paid' });
   });
 });
 
@@ -76,6 +62,23 @@ describe('session', () => {
     expect(params.line_items?.[0]).toMatchObject({ quantity: 1, price_data: { currency: 'pln', unit_amount: 8000 } });
     expect(options).toEqual({ idempotencyKey: `sellf-quickpay-${attemptId}` });
     expect(rpc).toHaveBeenCalledWith('attach_order_payment_session', { p_attempt: attemptId, p_session_id: 'cs_quick', p_url: 'https://checkout.stripe.com/c/pay/cs_quick' });
+  });
+  it('a session created after the order was cancelled meanwhile is expired at once and never shown to the buyer', async () => {
+    const { client } = db({}, { open_order_payment_attempt: { id: attemptId, reused: false, status: 'opening' } });
+    (client.rpc as unknown as ReturnType<typeof vi.fn>).mockImplementation(async (name: string) => name === 'attach_order_payment_session'
+      ? { data: null, error: { message: 'Attempt not opening' } } : { data: { id: attemptId, reused: false, status: 'opening' }, error: null });
+    const create = vi.fn(async () => ({ id: 'cs_late', url: 'https://checkout.stripe.com/c/pay/cs_late' })), expire = vi.fn(async () => ({}));
+    await expect(createQuickPaySession(client, { checkout: { sessions: { create, expire } } } as unknown as Stripe, tx, { mode: 'settle', amount: 8000, currency: 'PLN' },
+      { baseUrl: 'https://shop.example', returnUrl: 'https://shop.example/r', now: NOW, productName: 'W' })).rejects.toThrow();
+    expect(expire).toHaveBeenCalledWith('cs_late');
+  });
+  it('closing payment attempts expires every named Stripe session; one failure does not stop the others', async () => {
+    const expire = vi.fn(async (sid: string) => { if (sid === 'cs_done') throw new Error('Session already complete'); return {}; });
+    const stripe = { checkout: { sessions: { expire } } } as unknown as Stripe;
+    await expect(expireOrderPaymentSessions(async () => stripe, ['cs_done', 'cs_open'])).resolves.toEqual({ expired: ['cs_open'], failed: ['cs_done'] });
+    expect(expire).toHaveBeenCalledTimes(2);
+    const lazy = vi.fn(async () => stripe);
+    await expireOrderPaymentSessions(lazy, []); expect(lazy).not.toHaveBeenCalled();
   });
   it('a second click reuses the open session', async () => {
     const { client } = db({}, { open_order_payment_attempt: { id: attemptId, reused: true, status: 'open', checkout_url: 'https://checkout.stripe.com/c/pay/cs_old' } });
@@ -99,13 +102,7 @@ describe('webhook completion', () => {
     expect(rpc).toHaveBeenCalledWith('complete_order_payment_attempt', { p_attempt: attemptId, p_session_id: quickPay.data.object.id, p_payment_intent: quickPay.data.object.payment_intent, p_amount: 17000, p_now: NOW.toISOString() });
     expect(fulfill).toHaveBeenCalledWith(client, id); expect(dispatch).not.toHaveBeenCalled();
   });
-  it('reopening announces order.reopened before the purchase', async () => {
-    const { client } = db({}, { complete_order_payment_attempt: { result: 'completed', transaction_id: id, reopened: true } });
-    await handleQuickPayEvent(client, {} as Stripe, 'checkout.session.completed', event(), NOW);
-    expect(dispatch).toHaveBeenCalledWith(client, id, 'order.reopened');
-    expect(dispatch.mock.invocationCallOrder[0]).toBeLessThan(fulfill.mock.invocationCallOrder[0]);
-  });
-  it('a duplicate payment (admin already marked paid) is refunded automatically and once', async () => {
+  it('a duplicate payment (order already paid by the admin, or cancelled meanwhile) is refunded automatically and once', async () => {
     const { client, rpc } = db({}, { complete_order_payment_attempt: { result: 'duplicate', transaction_id: id } });
     const create = vi.fn(async () => ({ id: 're_dup' }));
     await handleQuickPayEvent(client, { refunds: { create } } as unknown as Stripe, 'checkout.session.completed', event(), NOW);

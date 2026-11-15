@@ -53,7 +53,7 @@
 
               {{ if .Data.release_text }}<p style="color: #ffffff; font-weight: 600;">{{ .Data.release_text }}</p>{{ end }}
               {{ if .Data.cancel_reason_text }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}Reason{{ else }}Powód{{ end }}: {{ .Data.cancel_reason_text }}</p>{{ end }}
-              {{ if .Data.pay_url }}<p><a style="color: #2090D0;" href="{{ .Data.pay_url }}">{{ if eq .Data.locale "en" }}View the order and payment details{{ else }}Zobacz zamówienie i dane do płatności{{ end }}</a></p>{{ end }}
+              {{ if .Data.pay_url }}<p><a style="color: #2090D0;" href="{{ .Data.pay_url }}">{{ if eq .Data.mail_kind "order_cancelled" }}{{ if eq .Data.locale "en" }}View the cancelled order{{ else }}Zobacz anulowane zamówienie{{ end }}{{ else }}{{ if eq .Data.locale "en" }}View the order and payment details{{ else }}Zobacz zamówienie i dane do płatności{{ end }}{{ end }}</a></p>{{ end }}
               {{ if .Data.participants_url }}<p><a style="color: #2090D0;" href="{{ .Data.participants_url }}">{{ if eq .Data.locale "en" }}Add the participants of your order{{ else }}Uzupełnij uczestników zamówienia{{ end }}</a></p>{{ end }}
               {{ if .Data.purchase_product }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}Product{{ else }}Produkt{{ end }}: {{ .Data.purchase_product }}</p>{{ end }}
               {{ if and .Data.purchase_amount (not .Data.transfer) }}<p style="color: #ffffff;">{{ if eq .Data.locale "en" }}Amount{{ else }}Kwota{{ end }}: {{ .Data.purchase_amount }}</p>{{ end }}

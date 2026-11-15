@@ -14,7 +14,7 @@ useSupabaseBuyerEmails();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 test.describe.configure({ mode: 'serial' });
-let product: { id: string }, sessionId: string, endpointId: string, bankConfig: unknown;
+let product: { id: string; slug: string }, sessionId: string, endpointId: string, bankConfig: unknown;
 async function checked<T>({ data, error }: { data: T; error: unknown }): Promise<NonNullable<T>> { if (error) throw error; return data!; }
 async function place(email: string, price: number): Promise<string> {
   const placed = await checked(await db.rpc('bank_transfer_order', { p_order: { product_id: product.id, currency: 'PLN', customer_email: email,
@@ -46,7 +46,7 @@ test.beforeAll(async () => {
   bankConfig = await checked(await db.from('bank_transfer_config').select('*').single());
   await checked(await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Quick shop', bank_account_number: 'PL61109010140000071219812874', bank_transfer_max_unpaid_per_email: 20 }).eq('id', true).select());
   product = await checked(await db.from('products').insert({ name: 'Szybka płatność warsztat', slug: `quick-${randomUUID()}`, price: 100, currency: 'PLN', is_active: true, event_mode: true, vat_exempt: true,
-    checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false, bank_transfer_for: ['organization'] }] } }).select('id').single());
+    checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false, bank_transfer_for: ['organization'] }] } }).select('id,slug').single());
   sessionId = (await checked(await db.from('product_sessions').insert({ product_id: product.id, starts_at: '2099-05-01T10:00:00Z', capacity: 10 }).select('id').single())).id;
   await checked(await db.from('product_price_tiers').insert([{ session_id: sessionId, price: 100, seats: 2, sort: 0 }, { session_id: sessionId, price: 150, sort: 1 }]).select());
   endpointId = (await checked(await db.from('webhook_endpoints').insert({ url: 'https://127.0.0.1/quick-pay-fixture', events: ['order.reopened', 'purchase.completed'], secret: 'test-only-secret', product_filter_mode: 'selected', is_active: true }).select('id').single())).id;
@@ -73,22 +73,22 @@ test('buyer pays an unpaid transfer order online from the pay link at the saved 
   await expect(page.getByText('Zamówienie opłacone')).toBeVisible();
 });
 
-test('a released order paid online is reopened while the promo price is still current; after a price change a new order is required @J186', async ({ page }) => {
-  const id = await place(`quick-reopen-${randomUUID()}@example.com`, 100);
-  expect((await checked(await db.rpc('release_unpaid_transfer', { p_id: id, p_now: new Date(Date.now() + 49 * 3600000).toISOString() })) as { released: boolean }).released).toBe(true);
-  await page.goto(orderPage(id));
-  await page.getByRole('button', { name: /Zapłać online 100,00/ }).click();
-  await payOnHostedCheckout(page);
-  await expect.poll(async () => (await db.from('payment_transactions').select('status').eq('id', id).single()).data?.status, { timeout: 90000 }).toBe('completed');
-  expect((await checked(await db.from('payment_transactions').select('reopened_at').eq('id', id).single())).reopened_at).toBeTruthy();
-  await expect.poll(async () => (await events('order.reopened', id)).length, { timeout: 60000 }).toBe(1);
-  // The 100 PLN tier is now sold out: a released order cannot be paid at its old price.
-  const late = await place(`quick-late-${randomUUID()}@example.com`, 150);
-  await checked(await db.from('product_price_tiers').update({ price: 170 }).eq('session_id', sessionId).eq('price', 150).select());
-  await checked(await db.rpc('release_unpaid_transfer', { p_id: late, p_now: new Date(Date.now() + 49 * 3600000).toISOString() }));
-  await page.goto(orderPage(late));
-  await expect(page.getByRole('button', { name: /Zapłać online/ })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Zamów ponownie po aktualnej cenie' })).toBeVisible();
+test('a cancelled order cannot be paid online whatever the reason; its page leads to the product @J186', async ({ page }) => {
+  // W254 (owner 14/15.11): neither a timer release nor an administrator cancellation leaves a way to pay.
+  const released = await place(`quick-released-${randomUUID()}@example.com`, 100);
+  expect((await checked(await db.rpc('release_unpaid_transfer', { p_id: released, p_now: new Date(Date.now() + 49 * 3600000).toISOString() })) as { released: boolean }).released).toBe(true);
+  const cancelled = await place(`quick-cancelled-${randomUUID()}@example.com`, 100);
+  expect(await checked(await db.rpc('cancel_unpaid_order', { p_transaction_id: cancelled, p_reason: 'Rezygnacja' }))).toMatchObject({ success: true });
+  for (const id of [released, cancelled]) {
+    await page.goto(orderPage(id));
+    await expect(page.getByRole('heading', { name: /zostało anulowane/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Zapłać online/ })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Przejdź do produktu' })).toHaveAttribute('href', `/pl/p/${product.slug}`);
+    const token = new URL(page.url()).searchParams.get('token');
+    const refused = await page.request.post(`/api/orders/${id}/pay`, { data: { token, expectedAmount: 10000 } });
+    expect(refused.status()).toBe(409); expect(await refused.json()).toEqual({ reason: 'order_cancelled' });
+    expect(await checked(await db.from('order_payment_attempts').select('id').eq('transaction_id', id))).toHaveLength(0);
+  }
 });
 
 test('admin marks the order paid while the buyer is on Stripe: the online payment is refunded automatically @J187', async ({ page, browser }) => {
@@ -118,7 +118,6 @@ test('guest opens the original payment email after a full quick-pay refund @J185
   await checked(await db.from('product_price_tiers').update({ price: 170 }).eq('session_id', sessionId).select());
   const id = await place(email, 170);
   try {
-    await checked(await db.rpc('admin_bank_transfer_order', { p_id: id, p_action: 'cancel', p_reason: 'Buyer canceled before online payment', p_actor: (await checked(await db.rpc('find_user_id_by_email', { p_email: admin.email }))) as string }));
     await page.goto(orderPage(id));
     await page.getByRole('button', { name: /Zapłać online 170,00/ }).click();
     await payOnHostedCheckout(page);
@@ -161,7 +160,7 @@ test('guest opens the original payment email after a full quick-pay refund @J185
 });
 
 
-test('cancelled transfer paid by quick-pay loses its license and CRL access after a panel refund @J186',async({page})=>{
+test('transfer paid by quick-pay loses its license and CRL access after a panel refund @J186',async({page})=>{
   const admin=await createTestAdmin('quick-license-refund');
   const original=await checked(await db.from('products').select('seller_id,issue_license_on_purchase').eq('id',product.id).single());
   const sellerId=await checked(await db.rpc('find_user_id_by_email',{p_email:admin.email})) as string;
@@ -173,8 +172,6 @@ test('cancelled transfer paid by quick-pay loses its license and CRL access afte
     const email=`quick-license-${randomUUID()}@example.com`;
     const availability=await checked(await db.rpc('event_availability',{p_product_id:product.id,p_at:new Date().toISOString()})) as Array<{id:string;current_tier:{price:number}|null}>;
     id=await place(email,availability.find(row=>row.id===sessionId)!.current_tier!.price);
-    const cancelled=await checked(await db.rpc('cancel_unpaid_order',{p_transaction_id:id,p_reason:'Test cancellation'}));
-    expect(cancelled).toMatchObject({success:true});
     await page.goto(orderPage(id));
     await page.getByRole('button',{name:/Zapłać online/}).click();
     await payOnHostedCheckout(page);

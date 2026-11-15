@@ -133,7 +133,7 @@ products), `purchase.completed` also carries the granted components and any issu
 
 #### Transfer order paid online
 
-A bank-transfer order the buyer paid by card from the order page sends `purchase.completed` with
+A bank-transfer order the buyer paid by card from the order page (possible only while it awaits payment, never after cancellation) sends `purchase.completed` with
 `order.settledVia: "stripe"` and the Stripe `order.paymentIntentId` (use it to reconcile or refund);
 a transfer booked by the seller has `settledVia: "bank_transfer"` and `paymentIntentId: null`.
 `customer.firstName` / `lastName` fall back to the buyer recorded in `orderDetails.buyer`.
@@ -593,7 +593,7 @@ their own proforma, invoice or mail (n8n, Listmonk). Each event is delivered onc
 | `order.payment_reminder` | `reminderAt` (default 24 h) passed without payment or invoice. | Reminder "pay by `releaseAt`" with the link. |
 | `order.transfer_declared` | The buyer clicked "I have sent the transfer" (once). | Check the bank statement; `releaseAt` is already extended (default 72 h). |
 | `order.invoice_issued` | An invoice was issued for the unpaid order (in Sellf or via `POST /api/v1/payments/:id/invoice-issued`). | Status "invoice issued, awaiting payment": `reservation = invoice`, `releaseAt = null`, no expiry. |
-| `order.cancelled` | Cancellation: `cancelReason = payment_window_expired` (automatic after `releaseAt`) or `admin` with the administrator's text in `cancelReasonText`. `reservation = none`, `reminderAt`/`releaseAt` are `null`. `customer.userId` matches `seats.released`. | Tell the buyer, correct the invoice; `lateTransferPolicy = admin_decision`. |
+| `order.cancelled` | Cancellation: `cancelReason = payment_window_expired` (automatic after `releaseAt`) or `admin` with the administrator's text in `cancelReasonText`. `reservation = none`, `reminderAt`/`releaseAt` are `null`. `customer.userId` matches `seats.released`. | Tell the buyer, correct the invoice; `lateTransferPolicy = admin_decision`: the buyer can no longer pay the order (`payUrl` shows it as cancelled), only an administrator can accept a late transfer. |
 | `order.overdue` | The due date of an order without a timed hold passed. | Dunning. |
 | `order.reopened` | An administrator accepted a transfer that arrived after cancellation (order price, even over the seat limit). | Match the payment: `previousStatus = cancelled`; `purchase.completed` follows. |
 | `order.participants_updated` | The buyer added the participant list after payment (product option "add participants later"). Sent once per order. | `orderDetails.participants.people` holds the full list (`first_name`, `last_name`, `email`), `orderDetails.quantity.value` the count; `purchase.completed` carried an empty list. |

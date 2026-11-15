@@ -1,11 +1,11 @@
 /**
- * Online payment of an unpaid transfer order from the signed order link (mail, reminder, webhook payUrl).
- * Unpaid → the saved amount (price and seat stay reserved). Cancelled → the same order at its saved price only when
- * that price is still current and seats remain; otherwise the buyer starts a new checkout at today's price.
- * @see migration 20261103150000_unpaid_order_reservations.sql (open/complete_order_payment_attempt)
+ * Online payment of an unpaid transfer order from the signed order link (mail, reminder, webhook payUrl): the saved
+ * amount, price and seat stay reserved. A cancelled order is never payable by the buyer (W254, owner 14/15.11.2026),
+ * whatever the reason; only the administrator can accept a late transfer (see late-transfer-preview.ts).
+ * @see migration 20261115110000_cancelled_order_no_payment.sql (open/complete_order_payment_attempt)
  */
-import { dispatchTransferEvent, fulfillTransfer } from '@/lib/orders/bank-transfer-service';
-import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
+import { fulfillTransfer } from '@/lib/orders/bank-transfer-service';
+import { expireOrderPaymentSessions } from '@/lib/orders/payment-attempt-sessions';
 import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
@@ -13,37 +13,19 @@ import type { Database } from '@/types/database';
 type Db = SupabaseClient<Database>;
 export interface QuickPayOrder { id: string; payment_provider: string; status: string; amount: number; currency: string; product_id: string | null; coupon_id: string | null; order_number: number | null; customer_email: string }
 export type QuickPayQuote =
-  | { mode: 'settle' | 'reopen'; amount: number; currency: string }
+  | { mode: 'settle'; amount: number; currency: string }
   | { mode: 'paid' }
-  | { mode: 'unavailable'; reason: 'not_payable' | 'invoice_corrected' | 'product_unavailable' | 'sold_out' | 'price_changed' | 'coupon_unavailable' };
+  | { mode: 'unavailable'; reason: 'not_payable' | 'order_cancelled' | 'product_unavailable' };
 const ATTEMPT_MINUTES = 30;
 const unavailable = (reason: Extract<QuickPayQuote, { mode: 'unavailable' }>['reason']): QuickPayQuote => ({ mode: 'unavailable', reason });
 
-export async function quoteOrderPayment(db: Db, tx: QuickPayOrder, now: Date): Promise<QuickPayQuote> {
+export function quoteOrderPayment(tx: Pick<QuickPayOrder, 'payment_provider' | 'status' | 'amount' | 'currency' | 'product_id'>): QuickPayQuote {
   if (tx.payment_provider !== 'bank_transfer') return unavailable('not_payable');
   if (tx.status === 'completed' || tx.status === 'partially_refunded') return { mode: 'paid' };
+  if (tx.status === 'cancelled') return unavailable('order_cancelled');
   if (!tx.product_id) return unavailable('product_unavailable');
   if (tx.status === 'awaiting_payment') return { mode: 'settle', amount: tx.amount, currency: tx.currency };
-  if (tx.status !== 'cancelled') return unavailable('not_payable');
-  const invoice = await db.from('invoices').select('status').eq('transaction_id', tx.id).maybeSingle();
-  if (invoice.data?.status === 'corrected') return unavailable('invoice_corrected');
-  const { data: product } = await db.from('products').select('id,is_active,price,sale_price,sale_price_until,event_mode').eq('id', tx.product_id).single();
-  if (!product?.is_active) return unavailable('product_unavailable');
-  const { data: lines } = await db.from('payment_line_items').select('product_id,item_type,quantity,unit_price,session_id').eq('transaction_id', tx.id);
-  const main = (lines ?? []).find(l => l.item_type === 'main_product');
-  if (!main) return unavailable('not_payable');
-  if (main.session_id) {
-    const { data } = await db.rpc('event_availability', { p_product_id: tx.product_id, p_at: now.toISOString() });
-    const session = (data as Array<{ id: string; starts_at: string; remaining: number | null; sold_out: boolean; current_tier: { price: number } | null }> | null)?.find(s => s.id === main.session_id);
-    if (!session || session.sold_out || Date.parse(session.starts_at) <= now.getTime() || (session.remaining !== null && session.remaining < main.quantity) || !session.current_tier) return unavailable('sold_out');
-    if (Number(session.current_tier.price) !== Number(main.unit_price)) return unavailable('price_changed');
-  } else if (Number(getEffectiveUnitPrice(product)) !== Number(main.unit_price)) return unavailable('price_changed');
-  if (tx.coupon_id) {
-    const { data: coupon } = await db.from('coupons').select('is_active,usage_limit_global,current_usage_count,expires_at').eq('id', tx.coupon_id).maybeSingle();
-    if (!coupon?.is_active || (coupon.expires_at && Date.parse(coupon.expires_at) <= now.getTime())
-      || (coupon.usage_limit_global !== null && coupon.current_usage_count >= coupon.usage_limit_global)) return unavailable('coupon_unavailable');
-  }
-  return { mode: 'reopen', amount: tx.amount, currency: tx.currency };
+  return unavailable('not_payable');
 }
 
 export async function createQuickPaySession(db: Db, stripe: Stripe, tx: QuickPayOrder, quote: Extract<QuickPayQuote, { amount: number }>,
@@ -64,7 +46,11 @@ export async function createQuickPaySession(db: Db, stripe: Stripe, tx: QuickPay
   }, { idempotencyKey: `sellf-quickpay-${attempt.id}` });
   if (!session.url) throw new Error('Checkout URL missing');
   const attached = await db.rpc('attach_order_payment_session', { p_attempt: attempt.id, p_session_id: session.id, p_url: session.url });
-  if (attached.error) throw new Error('Payment attempt state unavailable');
+  if (attached.error) {
+    // The order was closed (cancelled or paid) while the session was being created: never show this page.
+    await expireOrderPaymentSessions(async () => stripe, [session.id]);
+    throw new Error('Payment attempt state unavailable');
+  }
   return { url: session.url };
 }
 
@@ -87,7 +73,7 @@ export async function handleQuickPayEvent(db: Db, stripe: Stripe, type: string, 
   if (!paymentIntent || session.amount_total === null) return { processed: false, message: 'Quick pay: payment details missing' };
   const { data, error } = await db.rpc('complete_order_payment_attempt', { p_attempt: attemptId, p_session_id: session.id, p_payment_intent: paymentIntent,
     p_amount: session.amount_total, p_now: now.toISOString() });
-  const result = data as { result: 'completed' | 'already' | 'duplicate'; transaction_id: string; reopened?: boolean; refund_id?: string | null } | null;
+  const result = data as { result: 'completed' | 'already' | 'duplicate'; transaction_id: string; refund_id?: string | null } | null;
   if (error || !result) throw new Error('Quick pay completion unavailable');
   if (result.result === 'duplicate') {
     if (!result.refund_id) {
@@ -99,7 +85,6 @@ export async function handleQuickPayEvent(db: Db, stripe: Stripe, type: string, 
     }
     return { processed: true, message: 'Quick pay duplicate refunded' };
   }
-  if (result.result === 'completed' && result.reopened) await dispatchTransferEvent(db, result.transaction_id, 'order.reopened');
   if (result.result === 'completed') await fulfillTransfer(db, result.transaction_id);
   return { processed: true, message: `Quick pay ${result.result}` };
 }

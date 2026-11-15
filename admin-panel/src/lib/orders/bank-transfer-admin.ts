@@ -1,7 +1,9 @@
 /** Shared admin operation for session and API-key callers. @see bank-transfer-service.ts */
 import { z } from 'zod';
 import { dispatchTransferEvent, fulfillTransfer } from '@/lib/orders/bank-transfer-service';
+import { expireOrderPaymentSessions, sessionsToExpire } from '@/lib/orders/payment-attempt-sessions';
 import { sendOrderNotice } from '@/lib/orders/transfer-mail';
+import { getStripeServer } from '@/lib/stripe/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 const reason = z.string().trim().min(1).max(1000);
@@ -29,6 +31,8 @@ export async function operateTransfer(db: SupabaseClient<Database>, actor: strin
       : code === 'paid_at_future' ? 'The receipt date cannot be in the future'
       : 'The order must be awaiting payment and the booked amount must equal its full amount in minor units', ...(code ? { code } : {}) };
   }
+  // The order is closed: a Stripe page the buyer still has open must not take a payment (a late one is refunded).
+  await expireOrderPaymentSessions(getStripeServer, sessionsToExpire(data)).catch(() => console.error('[operateTransfer] Session expiry deferred:', id));
   try {
     if (op.action === 'mark-paid') {
       if (data.reopened === true) await dispatchTransferEvent(db, id, 'order.reopened');
