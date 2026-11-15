@@ -1057,32 +1057,44 @@ export type Database = {
       }
       business_events: {
         Row: {
+          abandoned_at: string | null
+          attempts: number
           created_at: string
           deduplication_key: string | null
           dispatched_at: string | null
           event_type: string
           id: string
+          last_error: string | null
           leased_until: string | null
+          next_attempt_at: string
           payload: Json
           product_id: string | null
         }
         Insert: {
+          abandoned_at?: string | null
+          attempts?: number
           created_at?: string
           deduplication_key?: string | null
           dispatched_at?: string | null
           event_type: string
           id?: string
+          last_error?: string | null
           leased_until?: string | null
+          next_attempt_at?: string
           payload: Json
           product_id?: string | null
         }
         Update: {
+          abandoned_at?: string | null
+          attempts?: number
           created_at?: string
           deduplication_key?: string | null
           dispatched_at?: string | null
           event_type?: string
           id?: string
+          last_error?: string | null
           leased_until?: string | null
+          next_attempt_at?: string
           payload?: Json
           product_id?: string | null
         }
@@ -5541,12 +5553,16 @@ export type Database = {
       claim_business_events: {
         Args: { p_limit?: number }
         Returns: {
+          abandoned_at: string | null
+          attempts: number
           created_at: string
           deduplication_key: string | null
           dispatched_at: string | null
           event_type: string
           id: string
+          last_error: string | null
           leased_until: string | null
+          next_attempt_at: string
           payload: Json
           product_id: string | null
         }[]
@@ -5776,6 +5792,10 @@ export type Database = {
         Returns: boolean
       }
       expire_seat_reservations: { Args: never; Returns: number }
+      fail_business_event: {
+        Args: { p_error: string; p_id: string }
+        Returns: boolean
+      }
       find_auto_apply_coupon: {
         Args: { customer_email_param: string; product_id_param: string }
         Returns: Json
@@ -6663,6 +6683,7 @@ export type Database = {
         Args: { actor_id: string; event_actor: Json; p_product_id: string }
         Returns: Json
       }
+      retry_business_event: { Args: { p_id: string }; Returns: boolean }
       revoke_issued_licenses: {
         Args: { p_actor?: string; p_license_ids: string[]; p_reason?: string }
         Returns: {

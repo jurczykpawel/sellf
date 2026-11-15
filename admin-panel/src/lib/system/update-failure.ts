@@ -25,7 +25,7 @@ export interface UpdateFailure {
 export const LOCALIZED_FAILURE_CODES = [
   'github_unreachable', 'github_http', 'release_asset_missing', 'release_lookup_invalid', 'signature_invalid',
   'manifest_invalid', 'checksum_mismatch', 'archive_invalid', 'release_older', 'upgrade_running', 'upgrade_starting',
-  'migration_failed', 'pm2_stop_failed', 'pm2_stop_failed_offline',
+  'migration_failed', 'migration_state_unknown', 'pm2_stop_failed', 'pm2_stop_failed_offline',
 ] as const;
 
 const GITHUB_CODES = new Set(['github_unreachable', 'github_http']);
@@ -57,6 +57,10 @@ export function describeUpdateFailure(failure: UpdateFailure | undefined, option
   if (details.http_status !== undefined) values.status = details.http_status;
   if (details.asset) values.asset = details.asset;
   if (details.cause) values.cause = details.cause;
+  if (failure.code === 'migration_state_unknown') {
+    // Neither version runs: the database may hold some of the release's migrations. Never "nothing changed".
+    return [t('failure.migration_state_unknown'), ...(details.cause ? [t('failure.migrationStateCause', { cause: details.cause })] : []), t('failure.migrationStateNext')];
+  }
   const lines = [t(`failure.${failure.code}`, Object.keys(values).length ? values : undefined)];
   if (details.github_message) lines.push(t('failure.githubSays', { message: details.github_message }));
   if (failure.code === 'migration_failed') {
@@ -88,15 +92,28 @@ const KEY_PATTERNS = [
   /sbp_[A-Za-z0-9]+/g,
   /sb_secret_[A-Za-z0-9_-]+/g,
 ];
-// A URL or "name=value" parameter whose name ends in key, token, secret, password,
+// A URL parameter, "name=value" or "name: value" whose name ends in key, token, secret, password,
 // signature or credential (apikey, access_token, X-Amz-Signature…): only its value goes.
-const SECRET_PARAM = /(^|[?&;\s])((?:[A-Za-z0-9_-]*[_-])?(?:api[_-]?key|key|token|secret|password|passwd|pwd|signature|sig|credential)=)[^&#\s"'<>;,)]+/gi;
+const SECRET_PARAM = /(^|[?&;,(\s])((?:[A-Za-z0-9_-]*[_-])?(?:api[_-]?key|key|token|secret|password|passwd|pwd|signature|sig|credential)(?:=|:\s?))[^&#\s"'<>;,)]+/gi;
 const HEX_RUN = /\b[0-9A-Fa-f]{32,}\b/g;
-// A whole standalone base64/base64url token: a run touching "." or ":" belongs to a
-// host, URL or file name, and a run starting with "/" is an absolute path.
-const BASE64_RUN = /(?<![A-Za-z0-9+/=_.:-])[A-Za-z0-9+/_-]{32,}={0,2}(?![A-Za-z0-9+/=_.:-])/g;
-// A random base64 value mixes digits, upper and lower case; long paths and words do not.
-const looksRandom = (run: string): boolean => !run.startsWith('/') && /[0-9]/.test(run) && /[A-Z]/.test(run) && /[a-z]/.test(run);
+// Maximal runs of base64/base64url characters; "." and ":" end a run, so a host, file
+// extension or label next to a value does not hide it.
+const BASE64_RUN = /(?<![A-Za-z0-9+/_-])[A-Za-z0-9+/_-]{32,}(?![A-Za-z0-9+/_-])={0,2}/g;
+// A random base64 value mixes digits, upper and lower case; long words and names do not.
+const looksRandom = (value: string): boolean => /[0-9]/.test(value) && /[A-Z]/.test(value) && /[a-z]/.test(value);
+const MIN_SECRET_LENGTH = 32;
+/**
+ * A run inside a URL or file path (starts with "/" or follows a host or label) is judged
+ * segment by segment, so ordinary path words stay and only a random-looking segment goes;
+ * any other run is judged whole, as a standalone value that may itself contain "/".
+ */
+function redactRun(run: string, offset: number, text: string): string {
+  const before = text[offset - 1];
+  if (run.startsWith('/') || before === '.' || before === ':') {
+    return run.split('/').map(segment => (segment.length >= MIN_SECRET_LENGTH && looksRandom(segment) ? REDACTED : segment)).join('/');
+  }
+  return looksRandom(run) ? REDACTED : run;
+}
 
 /**
  * Text from an upgrade progress file made safe to show: control and direction
@@ -112,12 +129,13 @@ export function sanitizeUpdateText(value: unknown, limit: number, secretValues: 
   for (const pattern of KEY_PATTERNS) cleaned = cleaned.replace(pattern, REDACTED);
   cleaned = cleaned.replace(SECRET_PARAM, `$1$2${REDACTED}`);
   cleaned = cleaned.replace(HEX_RUN, run => (/[0-9]/.test(run) ? REDACTED : run));
-  cleaned = cleaned.replace(BASE64_RUN, run => (looksRandom(run) ? REDACTED : run));
+  cleaned = cleaned.replace(BASE64_RUN, (run, offset: number, text: string) => redactRun(run, offset, text));
   cleaned = cleaned.slice(0, limit).trim();
   return cleaned || undefined;
 }
 
-const CODE = /^[a-z_]{1,40}$/;
+// Lower-case words joined by underscores; digits allowed after the first letter (pm2_stop_failed).
+const CODE = /^[a-z][a-z0-9_]{0,39}$/;
 const ASSET = /^[A-Za-z0-9._-]{1,100}$/;
 const MIGRATION = /^[0-9]{14}_[a-z0-9_]{1,100}$/;
 const VERSION = /^v?[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$/;

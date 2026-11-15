@@ -53,7 +53,13 @@ export async function runBusinessEvents(db = createAdminClient()): Promise<{ pro
       const saved = await db.from('business_events').update({ dispatched_at: new Date().toISOString() }).eq('id', event.id);
       if (saved.error) throw Error('Event handoff unavailable');
       processed++;
-    } catch { console.error('[business-events] Event awaiting retry:', event.id); errors++; }
+    } catch (error) {
+      errors++;
+      // Growing wait between attempts, abandoned after the last one (visible in the webhook deliveries panel).
+      const failed = await db.rpc('fail_business_event', { p_id: event.id, p_error: error instanceof Error ? error.message : 'delivery_failed' });
+      if (failed.error) console.error('[business-events] Event awaiting retry:', event.id);
+      else console.error(failed.data ? '[business-events] Event abandoned after its last attempt:' : '[business-events] Event awaiting retry:', event.id);
+    }
   }
   return { processed, errors };
 }

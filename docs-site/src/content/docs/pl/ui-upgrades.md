@@ -85,8 +85,9 @@ nie wyszło z serwera.
 | tylko część, albo odpowiedzi nie da się odczytać jako listy wpisów | zostawia aplikację zatrzymaną z kodem `migration_state_unknown` |
 
 W ostatnim przypadku nie wiadomo, czy migracje weszły, więc nie startuje ani stara,
-ani nowa wersja. Komunikat mówi, które wersje sprawdzić w rejestrze i co zrobić
-dalej. Pusta lub nieczytelna odpowiedź rejestru nie dowodzi, że baza się nie
+ani nowa wersja. Panel mówi to po polsku i podpowiada, co sprawdzić w rejestrze
+i co zrobić dalej; dokładny zakres wersji i katalog z poprzednim kodem podaje log
+aktualizacji. Pusta lub nieczytelna odpowiedź rejestru nie dowodzi, że baza się nie
 zmieniła.
 
 Zastrzeżenie: dwa odczyty w odstępie 15 s nie wykryją transakcji, która zatwierdzi

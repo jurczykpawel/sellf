@@ -13,8 +13,11 @@ export function licenseMailKey(email: string, order: string): string {
   return createHash('sha256').update(JSON.stringify([email.trim().toLowerCase(), order])).digest('hex');
 }
 
-/** `pending`: the mail is parked in auth_mail_retries and the retry worker delivers it (e.g. after the auth mail limit). */
-export type LicenseMailDelivery = 'sent' | 'pending' | 'failed';
+/**
+ * `pending`: the mail is parked in auth_mail_retries and the retry worker delivers it (e.g. after the auth mail limit).
+ * `skipped`: buyer emails are off, so the mail is left to the webhook channel.
+ */
+export type LicenseMailDelivery = 'sent' | 'skipped' | 'pending' | 'failed';
 
 /** Never throws: the grant and the lead webhook must not depend on mail delivery. */
 export async function sendLicenseMail(db: SupabaseClient, input: LicenseMailInput): Promise<LicenseMailDelivery> {
@@ -33,9 +36,14 @@ export async function sendLicenseMail(db: SupabaseClient, input: LicenseMailInpu
     const claimed = await db.rpc('claim_license_mail', { p_key: mailKey, p_email: input.email, p_redirect_to: redirect.toString(), p_data: data });
     if (claimed.error) throw new Error('Mail registration unavailable');
     if (!claimed.data) {
-      const pending = await db.from('auth_mail_retries').select('given_up_at').eq('license_mail_key', mailKey).maybeSingle();
-      if (pending.error || pending.data?.given_up_at) return 'failed';
-      return pending.data ? 'pending' : 'sent';
+      const pending = await db.from('auth_mail_retries').select('id,given_up_at').eq('license_mail_key', mailKey).maybeSingle();
+      if (pending.error) return 'failed';
+      if (!pending.data) return 'sent';
+      if (!pending.data.given_up_at) return 'pending';
+      // A repeated grant resumes a mail the worker gave up on: fresh attempts, due on its next tick.
+      const resumed = await db.from('auth_mail_retries').update({ given_up_at: null, attempts: 0, next_attempt_at: new Date().toISOString() })
+        .eq('id', pending.data.id).not('given_up_at', 'is', null).select('id');
+      return resumed.error || !resumed.data?.length ? 'failed' : 'pending';
     }
     retryId = claimed.data;
     const result = await sendTrustedMagicLink({ transactionalOnly: true,
@@ -48,7 +56,7 @@ export async function sendLicenseMail(db: SupabaseClient, input: LicenseMailInpu
     if (finished.error) console.error('[license-mail] Delivery state awaiting recovery');
     if (!result.ok) console.error('[license-mail] Delivery failed:', result.code, result.queued ? '(queued for retry)' : '');
     if (finished.error) return 'failed';
-    return result.ok ? 'sent' : 'pending';
+    return result.ok ? (result.skipped ? 'skipped' : 'sent') : 'pending';
   } catch {
     console.error('[license-mail] Delivery failed');
     // A claimed mail keeps its queue row, so the retry worker still delivers it.

@@ -55,6 +55,25 @@ describe('describeUpdateFailure', () => {
       .toEqual(['failure.pm2_stop_failed_offline', 'failure.unchangedAppStoppedUnknown']);
   });
 
+  it('explains an unknown migration outcome: app stopped, check the registry, never "nothing changed"', () => {
+    expect(describeUpdateFailure({ code: 'migration_state_unknown', details: { cause: 'connection reset', installed_version: '2026.11.0' } }, { t, formatTime: time, attempt: true, fallback: 'English text' }))
+      .toEqual(['failure.migration_state_unknown', 'failure.migrationStateCause {"cause":"connection reset"}', 'failure.migrationStateNext']);
+    expect(describeUpdateFailure({ code: 'migration_state_unknown', details: {} }, { t, formatTime: time, attempt: true }))
+      .toEqual(['failure.migration_state_unknown', 'failure.migrationStateNext']);
+  });
+
+  it.each([
+    ['pl', ['nie wiadomo', 'zatrzymana', 'supabase_migrations.schema_migrations', 'kopii zapasowej', 'log aktualizacji']],
+    ['en', ['not known', 'stopped', 'supabase_migrations.schema_migrations', 'backup', 'update log']],
+  ] as const)('says in %s that the outcome is unknown, the shop is stopped and what to check', async (locale, phrases) => {
+    const { createTranslator } = await import('next-intl');
+    const messages = JSON.parse(readFileSync(path.resolve(__dirname, `../../../../src/messages/${locale}.json`), 'utf8'));
+    const translate = createTranslator({ locale, messages, namespace: 'systemUpdate' });
+    const text = describeUpdateFailure({ code: 'migration_state_unknown', details: { cause: 'timeout' } }, { t: (key, values) => translate(key as never, values as never), formatTime: time, attempt: true }).join(' ').toLowerCase();
+    for (const phrase of phrases) expect(text).toContain(phrase.toLowerCase());
+    expect(text).toContain('timeout');
+  });
+
   it('falls back to the script message for codes the panel does not localize', () => {
     expect(describeUpdateFailure({ code: 'migration_preflight', details: {} }, { t, formatTime: time, attempt: true, fallback: 'Migration 1 is recorded as x. Nothing was changed.' }))
       .toEqual(['Migration 1 is recorded as x. Nothing was changed.']);
@@ -63,7 +82,7 @@ describe('describeUpdateFailure', () => {
 
   it.each(['en', 'pl'])('has %s texts for every localized code and helper line', locale => {
     const messages = JSON.parse(readFileSync(path.resolve(__dirname, `../../../../src/messages/${locale}.json`), 'utf8')).systemUpdate.failure;
-    for (const key of [...LOCALIZED_FAILURE_CODES, 'githubSays', 'unchanged', 'unchangedUnknown', 'unchangedAppStopped', 'unchangedAppStoppedUnknown', 'migrationRolledBack', 'retryAt', 'retrySoon', 'checkFailed']) {
+    for (const key of [...LOCALIZED_FAILURE_CODES, 'githubSays', 'unchanged', 'unchangedUnknown', 'unchangedAppStopped', 'unchangedAppStoppedUnknown', 'migrationRolledBack', 'migrationStateCause', 'migrationStateNext', 'retryAt', 'retrySoon', 'checkFailed']) {
       expect(typeof messages[key], `${locale}: failure.${key}`).toBe('string');
     }
   });
@@ -121,6 +140,31 @@ describe('sanitizeUpdateText', () => {
 
   it('still redacts a standalone base64url value with dashes and underscores', () => {
     expect(sanitizeUpdateText('value Qm-FzZTY0RmFrZVNlY3JldF_ZhbHVlRm9yVGVzdHM9 end', 500)).toBe('value [redacted] end');
+  });
+
+  // W251rd: a value next to ":" or ".", or inside a URL or file path, is still a value (T is not a real key).
+  it.each([
+    ['apikey:T', 'apikey:[redacted]'],
+    ['apikey: T', 'apikey: [redacted]'],
+    ['https://example.com/T', 'https://example.com/[redacted]'],
+    ['/tmp/T', '/tmp/[redacted]'],
+    ['T.', '[redacted].'],
+    ['T.json', '[redacted].json'],
+    ['see https://example.com/a/T/b?x=1 now', 'see https://example.com/a/[redacted]/b?x=1 now'],
+    ['dir/T', '[redacted]'],
+  ])('redacts T in %s', (input, expected) => {
+    const T = samples.base64;
+    expect(sanitizeUpdateText(input.replace('T', T), 500)).toBe(expected);
+  });
+
+  it('keeps release URLs, versions and migration names next to those rules', () => {
+    for (const text of [
+      'https://github.com/jurczykpawel/Sellf/releases/download/v2026.11.1/sellf-build.tar.gz',
+      'v2026.11.1', '2026.11.1',
+      '20261110235901_release_2026_11_0_storefront_templates',
+      '/opt/stacks/sellf-tsa/supabase/migrations/20261110235901_release_2026_11_0_storefront_templates.sql',
+      'Cause: relation "public.business_events" does not exist.',
+    ]) expect(sanitizeUpdateText(text, 2000)).toBe(text);
   });
 
   it('limits the length after redaction', () => {

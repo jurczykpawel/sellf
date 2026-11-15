@@ -2389,6 +2389,19 @@
         "product_price_changed": "A product's price, sale price or currency changed. Includes before/after prices in minor units.",
         "product_sold_out": "An event session reached its seat capacity. Includes session, capacity and the reservation that filled it."
       },
+      "abandonedEvents": {
+        "title": "Events abandoned before delivery",
+        "description": "These changes (for example a granted access or an issued license) could not be handed to webhook delivery after 8 attempts over about 8 hours. They reached no endpoint. Fix the cause and retry.",
+        "event": "Event",
+        "created": "Created",
+        "abandoned": "Abandoned",
+        "attempts": "Attempts",
+        "lastError": "Last error",
+        "retry": "Retry",
+        "retrySuccess": "The event is back in the queue and will be sent within a minute.",
+        "retryError": "Could not retry the event.",
+        "loadError": "Could not load abandoned events."
+      },
       "logs": {
         "title": "Delivery Logs",
         "status": "Status",
@@ -3227,7 +3240,7 @@
       "limitsTitle": "Supabase Auth email limits",
       "limitsCloud": "Supabase Cloud without your own SMTP: 2 emails per hour for the whole project, and only to addresses of the project's team members.",
       "limitsSmtp": "With your own SMTP (Authentication → Emails → SMTP Settings): 30 emails per hour to start. Change it in Authentication → Rate Limits; sending costs depend on your email provider.",
-      "limitsRecipient": "One recipient gets the next email no sooner than 60 s after the previous one (default; “Minimum interval per user” in the SMTP settings).",
+      "limitsRecipient": "One recipient gets the next email no sooner than 60 s after the previous one (default; “Minimum interval per user” in Authentication → Rate Limits).",
       "limitsSelfHosted": "Self-hosted Supabase: GOTRUE_RATE_LIMIT_EMAIL_SENT (default 30 per hour) and GOTRUE_SMTP_MAX_FREQUENCY (default 1 min) on the Auth service.",
       "limitsRetry": "When a limit refuses the post-payment link or a license key email, Sellf retries it automatically (after about 2, 5, 15, 30, 60 and 120 minutes).",
       "limitsAdvice": "For more traffic use Mailstack (buyer emails sent from webhooks, without the Supabase limit; sign-in links still go through Supabase Auth) or raise the limits in Supabase.",
@@ -5188,6 +5201,9 @@
       "upgrade_running": "An update is already running. Wait for it to finish.",
       "upgrade_starting": "An update is starting. Wait a few seconds.",
       "migration_failed": "Database migration failed: {cause}",
+      "migration_state_unknown": "It is not known whether the database migrations of this release were applied. The application is stopped so that neither the old nor the new version runs against a database in an unknown state.",
+      "migrationStateCause": "Migration error: {cause}",
+      "migrationStateNext": "Check the release's versions in the migration registry (table supabase_migrations.schema_migrations); the update log gives their range and the folder with the previous code. If all are present, run the update again. If none is present, run it again or restore the previous code from that folder. If only some are present, restore the database from your latest backup first. If in doubt, contact your server administrator.",
       "pm2_stop_failed": "PM2 could not confirm that the application stopped, so the update was cancelled before any file or the database was changed.",
       "pm2_stop_failed_offline": "PM2 could not confirm that the application stopped, so the update was cancelled before any file or the database was changed. PM2 also did not confirm that the application started again.",
       "unchanged": "Nothing was changed; the shop is still running version {version}.",

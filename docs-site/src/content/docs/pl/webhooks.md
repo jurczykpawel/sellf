@@ -261,6 +261,20 @@ harmonogramu. Brak harmonogramu wstrzymuje ponowienia, ale nie pierwszą próbę
 ani zapis logów. Ręczne ponowienie starej dostawy o statusie `failed` aktualizuje
 ten sam wpis, zachowując identyfikator dostawy.
 
+### Zdarzenia porzucone przed wysyłką
+
+Zmiany zamówień, dostępów, licencji i katalogu najpierw trafiają do kolejki zdarzeń
+biznesowych, a dopiero z niej do kolejki dostaw webhooków. Jeśli nie uda się samo
+przekazanie (np. zmiana z niepełnymi danymi, z której nie da się zbudować treści
+webhooka), zdarzenie czeka między próbami 1, 5, 15, 30, 60, 120 i 240 minut, a po
+**8. próbie zostaje porzucone** (po ok. 8 godzinach). Nowe zdarzenia nie czekają za
+tymi, które odczekują przerwę. Porzucone zdarzenia widać na górze stron
+`/dashboard/webhooks` i `/dashboard/webhooks/deliveries`, z ostatnim błędem i przyciskiem
+**Ponów**, który daje zdarzeniu nowe próby i ustawia je w kolejce na najbliższy przebieg.
+API: `GET /api/v1/webhooks/events?status=abandoned` (`webhooks:read`, bez treści
+zdarzenia) i `POST /api/v1/webhooks/events/{id}/retry` (`webhooks:write`; `409`, jeśli
+zdarzenie nie jest porzucone).
+
 ## Wygaśnięcie checkoutu Stripe
 
 Włącz `checkout.session.expired` na endpoincie Stripe wysyłającym zdarzenia do
