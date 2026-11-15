@@ -542,6 +542,84 @@ event enabled to reconcile these attempts. While the page remains alive, queued
 closure waits for creation to finish. Sellf also retains sessions whose
 PaymentIntent is processing, awaiting capture or additional action, or succeeded.
 
+## One Stripe account for several installations
+
+Several Sellf installations (for example production, a test server and a local
+copy) may use the same Stripe account or sandbox. Stripe then sends every
+endpoint the events of every installation. Sellf tells them apart by a marker:
+each Checkout Session, PaymentIntent, subscription and refund it creates carries
+`metadata.sellf_instance`, a fixed identifier of the installation. It is not
+the domain and holds no personal data.
+
+After verifying the Stripe signature, `/api/webhooks/stripe`:
+
+- always processes an event with its own marker;
+- answers HTTP 200 and skips an event with any other marker (log:
+  `foreign instance, skipped`), even when this database holds a copy of the
+  order or subscription it refers to. Only the current marker and the markers
+  listed in `SELLF_INSTANCE_ALIASES` (see below) count as its own;
+- processes an event without a marker (created before this version, or by hand
+  in Stripe) as before, except a one-time payment for a product this database
+  does not know, or a pay-link payment for an attempt it never had: HTTP 200 and
+  skipped (logs: `unmarked event for an unknown product, skipped`,
+  `unmarked quick pay attempt unknown here, skipped`);
+- for a refund or dispute it cannot match to a local payment, reads the marker of
+  the underlying payment in Stripe: another installation's payment is
+  acknowledged with 200.
+
+Stripe disables an endpoint that keeps failing, so these skips answer 200 rather
+than an error. A temporary error while processing your own event, or while
+deciding whether the event is yours (for example the database is unavailable),
+still answers 5xx, and Stripe retries it. This includes
+`checkout.session.async_payment_succeeded`, the event that completes delayed
+payment methods.
+
+If your own paid event names a product that was deleted from this database,
+nothing can be granted and retrying would never help. Sellf records the payment
+(amount, Stripe payment id, buyer, product id) and shows it to the administrator
+under **Payments** as a paid payment waiting for a decision (refund it in Stripe
+or recreate the product and grant access manually), then answers 200. A product
+that still exists but is inactive keeps the normal handling.
+
+### Where the identifier comes from
+
+By default the identifier is derived from the database (`telemetry_state`), so
+it survives restarts and upgrades. Setting the environment variable
+`SELLF_INSTANCE_ID` (8 to 64 characters: letters, digits, `_`, `-`) replaces that
+source. A malformed value stops payments with an error rather than being guessed.
+
+**A copy restored from a database dump has the same database identifier as its
+source.** There are two cases, handled differently.
+
+**A rehearsal copy** (a release rehearsal, a local copy of production) that can
+reach the same Stripe account must be a separate installation:
+
+1. Restore the dump.
+2. Add `SELLF_INSTANCE_ID=<unique value, e.g. rehearsal-2026-11-15>` to the copy's
+   `.env.local` (or the container environment). Do **not** set
+   `SELLF_INSTANCE_ALIASES`.
+3. Only then start the copy.
+
+Such a copy does not fulfil the original's payments, not even for orders copied
+from its database, and the original skips the copy's events. Without step 2 the
+copy and the original would accept each other's events.
+
+**Moving an installation** (new server or new database, same installation):
+
+- If you move the whole database including the `telemetry_state` row (a normal
+  dump and restore), there is nothing to do: the identifier stays the same.
+- If the identifier changed (a new database without that row, or a new
+  `SELLF_INSTANCE_ID`), put the previous marker in `SELLF_INSTANCE_ALIASES`. You
+  can see it in Stripe, in the metadata of any payment of this installation
+  (`sellf_instance`). The previous `SELLF_INSTANCE_ID` value or the previous
+  `telemetry_state` id work too. Separate several values with commas. Open
+  checkouts and renewals of existing subscriptions then keep working. A
+  malformed value stops payments with an error.
+
+Do not set `SELLF_INSTANCE_ID` on the original just to tell it apart from a copy:
+it changes its identifier, and without an alias it would skip its own earlier
+payments and renewals.
+
 ## Order and entitlement contracts
 
 `purchase.completed` always includes `data.order.orderId` (the immutable Sellf payment UUID) and

@@ -2859,6 +2859,11 @@
         }
       },
       "unpaidTutorialEmpty": "Brak nieopłaconego zamówienia przelewem. Włącz przelewy w Ustawieniach płatności i złóż zamówienie testowe, wybierając przelew bankowy. Następnie uruchom ten samouczek ponownie.",
+      "reconciliation": {
+        "title": "{count, plural, one {# opłacona płatność czeka na Twoją decyzję} few {# opłacone płatności czekają na Twoją decyzję} many {# opłaconych płatności czeka na Twoją decyzję} other {# opłaconej płatności czeka na Twoją decyzję}}",
+        "help": "Stripe pobrał pieniądze za produkt, który został usunięty z tego sklepu, więc dostęp nie mógł zostać nadany. Zwróć płatność w Stripe albo odtwórz produkt i nadaj dostęp ręcznie.",
+        "payment": "Płatność Stripe", "email": "Kupujący", "amount": "Kwota", "product": "Usunięty produkt", "recorded": "Zapisano"
+      },
       "missingParticipants": {
         "title": "{count, plural, one {# zamówienie bez uczestników} few {# zamówienia bez uczestników} many {# zamówień bez uczestników} other {# zamówienia bez uczestników}}",
         "help": "Kupujący wybrał uzupełnienie uczestników po zapłacie. Maksymalnie dwa przypomnienia z osobistym linkiem wysyłają się automatycznie (po 24 godzinach od zakupu i, dla wydarzeń, na 2 dni przed wydarzeniem); lista pojawi się w zamówieniu, gdy kupujący ją zapisze.",

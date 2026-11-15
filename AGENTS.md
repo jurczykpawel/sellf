@@ -1464,6 +1464,26 @@ days. Because it is anonymous with no personal data, **no DPA is required**.
 
 Admin screens carry clickable tutorials (store templates, offer page, business cart, events, bank transfer settings, unpaid orders, affiliates, licenses, purchase sources, payments). Registry: `src/lib/tutorials/registry.ts` (id, screen, ordered steps). A step highlights `[data-tour="<target>"]`; its texts are `tutorials.<id>.steps.<key>.{title,body[,bodyAct]}` in `messages/{en,pl}.json`. A screen opts in with `<TutorialTrigger id="…" />` (`auto={false}` or a condition keeps it menu-only until the feature is on); `TutorialProvider` (dashboard layout) starts it once on the user's first visit and stores it in `public.tutorial_progress` (RLS: own rows only, actions in `lib/actions/tutorial-progress.ts`). The "?" button in the header (`TutorialMenu`) replays the tutorials of the open screen and links to the others (`?tutorial=<id>` starts one on demand). A step with `requires` asks for a click until the element it reveals exists. Test servers (`E2E_MODE`) keep first-visit start off unless the `sellf_tutorial_autostart=on` cookie is set (`lib/tutorials/autostart.ts`); a new tutorial needs its registry entry, both locales, the `data-tour` markers (`tests/unit/tutorials/registry.test.ts` checks them) and a `@Jnn` journey.
 
+### Shared Stripe account (instance marker)
+
+Several installations may share one Stripe account, so every Stripe Checkout Session, PaymentIntent,
+subscription and refund Sellf creates carries `metadata.sellf_instance` (`stripeInstanceMetadata()` /
+`getStripeInstanceId()` in `src/lib/stripe/instance-marker.ts`: SHA-256 of `SELLF_INSTANCE_ID` when set,
+else of `telemetry_state.instance_id`, 32 hex). A database copy restored from a dump that can reach the
+same Stripe account MUST set its own `SELLF_INSTANCE_ID` before the first start and no aliases. Identity changes
+only explicitly: a moved installation whose identifier changed lists its previous markers (or the previous
+`SELLF_INSTANCE_ID` / telemetry id) in `SELLF_INSTANCE_ALIASES` (`isOwnStripeMarker`). After the signature
+check, `/api/webhooks/stripe` runs `gateEventByInstance` (`instance-gate.ts`): own marker (current or alias) →
+always processed; any other marker → 200 skipped without reading the database (a local copy of the order does
+NOT make it ours); no marker + one-time payment for a product id absent here, or a pay-link attempt absent
+here → 200 skipped; a DB/config error while deciding → 5xx for every event type. Unmatched refunds/disputes read the underlying payment's
+marker (`pending-payment.ts`). Our paid event for a deleted product is recorded in `admin_actions`
+(`stripe_payment_needs_reconciliation`, `src/lib/stripe/payment-reconciliation.ts`; one row per payment via a
+partial unique index, kept by `cleanup_old_admin_actions`), shown in the payments dashboard and acknowledged.
+Our paid event for an existing but inactive/archived product is fulfilled (`allow_inactive_product_param` of
+the completion RPC; amount/currency checks unchanged). Any new Stripe create call for a payment object must spread the marker
+(guard: `tests/unit/stripe/instance-marker.test.ts`).
+
 ### Stable Versions & Known Issues
 
 - **Supabase CLI**: 2.101.0 (run via `npx supabase`) — pin via `npx supabase@2.101.0` if needed

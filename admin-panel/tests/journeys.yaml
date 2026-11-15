@@ -5105,6 +5105,53 @@
         "browser",
         "database"
       ]
+    },
+    {
+      "id": "J610",
+      "title": "Seller sees a paid Stripe payment for a deleted product waiting for a decision; the webhook does not loop",
+      "values": {
+        "persona": "admin",
+        "entry": "webhook",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "reconcile"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Not exercised; nothing can be granted for a deleted product (the seller refunds or grants manually).",
+        "seller": "Payments page shows the payment (Stripe payment id, buyer, amount, deleted product id) once, also after a redelivery; Stripe gets 200 instead of endless 500s.",
+        "integrator": "Not exercised; no outbound event."
+      },
+      "layers": [
+        "sandbox",
+        "database",
+        "browser",
+        "unit"
+      ]
+    },
+    {
+      "id": "J611",
+      "title": "Buyer who paid for a product deactivated after checkout started still gets it; the payment is not parked",
+      "values": {
+        "persona": "guest",
+        "entry": "webhook",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "purchase"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Order completed and a guest purchase recorded for the paid amount (claimable access), although the product is inactive now.",
+        "seller": "Payment appears as completed; nothing waits for a decision in Payments.",
+        "integrator": "Not asserted here; the usual purchase.completed path runs."
+      },
+      "layers": [
+        "sandbox",
+        "database",
+        "unit"
+      ]
     }
   ],
   "escapes": [

@@ -1,5 +1,6 @@
 import type Stripe from 'stripe';
 import { toMinorUnits } from '@/lib/currency/minor-units';
+import { STRIPE_INSTANCE_METADATA_KEY } from '@/lib/stripe/instance-marker';
 
 export interface CreateDynamicSubscriptionInput {
   stripe: Stripe;
@@ -26,6 +27,8 @@ export interface CreateDynamicSubscriptionInput {
   automaticTax?: { enabled: boolean };
   /** brutto (true) → inclusive, netto (false) → exclusive tax_behavior on the recurring price. */
   priceIncludesVat: boolean;
+  /** Installation marker (@see lib/stripe/instance-marker.ts). */
+  instanceId: string;
 }
 
 export interface CreateDynamicSubscriptionResult {
@@ -76,6 +79,7 @@ export async function createSubscriptionWithDynamicPrice(
       product_id: input.productId,
       product_slug: input.productSlug,
       ...(input.userId ? { user_id: input.userId } : {}),
+      [STRIPE_INSTANCE_METADATA_KEY]: input.instanceId,
     },
     payment_settings: {
       payment_method_types: ['card'],

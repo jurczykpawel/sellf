@@ -8,6 +8,7 @@
 import { fulfillTransfer } from '@/lib/orders/bank-transfer-service';
 import { expireOrderPaymentSessions } from '@/lib/orders/payment-attempt-sessions';
 import { isReservationOverdue } from '@/lib/orders/transfer-format';
+import { stripeInstanceMetadata } from '@/lib/stripe/instance-marker';
 import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
@@ -41,7 +42,7 @@ export async function createQuickPaySession(db: Db, stripe: Stripe, tx: QuickPay
   const attempt = data as { id: string; reused: boolean; status: string; checkout_url?: string | null } | null;
   if (error || !attempt) throw new Error('Payment attempt unavailable');
   if (attempt.reused && attempt.checkout_url) return { url: attempt.checkout_url };
-  const metadata = { sellf_payment_attempt: attempt.id, sellf_order: tx.id };
+  const metadata = { sellf_payment_attempt: attempt.id, sellf_order: tx.id, ...(await stripeInstanceMetadata()) };
   const session = await stripe.checkout.sessions.create({
     mode: 'payment', customer_email: tx.customer_email, expires_at: Math.floor(expires.getTime() / 1000),
     line_items: [{ quantity: 1, price_data: { currency: quote.currency.toLowerCase(), unit_amount: quote.amount,
@@ -82,7 +83,7 @@ export async function handleQuickPayEvent(db: Db, stripe: Stripe, type: string, 
   if (error || !result) throw new Error('Quick pay completion unavailable');
   if (result.result === 'duplicate') {
     if (!result.refund_id) {
-      const refund = await stripe.refunds.create({ payment_intent: paymentIntent, reason: 'duplicate', metadata: { sellf_payment_attempt: attemptId } },
+      const refund = await stripe.refunds.create({ payment_intent: paymentIntent, reason: 'duplicate', metadata: { sellf_payment_attempt: attemptId, ...(await stripeInstanceMetadata()) } },
         { idempotencyKey: `sellf-dup-refund-${attemptId}` });
       const saved = await db.rpc('record_order_payment_refund', { p_attempt: attemptId, p_refund_id: refund.id });
       if (saved.error) throw new Error('Duplicate refund state unavailable');

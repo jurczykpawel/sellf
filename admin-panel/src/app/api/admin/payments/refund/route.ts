@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getStripeServer } from '@/lib/stripe/server';
+import { stripeInstanceMetadata } from '@/lib/stripe/instance-marker';
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { requireAdminApiWithRequest } from '@/lib/auth-server';
@@ -117,6 +118,7 @@ export async function POST(request: NextRequest) {
     // Process refund through Stripe
     // SECURITY: Use payment intent from DB, not client-supplied value
     const refundData: Stripe.RefundCreateParams = {
+      metadata: await stripeInstanceMetadata(),
       payment_intent: transaction.stripe_payment_intent_id ?? undefined,
     };
 

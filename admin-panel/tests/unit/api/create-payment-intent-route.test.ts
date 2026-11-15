@@ -90,6 +90,7 @@ vi.mock('@/lib/supabase/admin', () => ({
 }));
 
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: vi.fn().mockResolvedValue(true) }));
+vi.mock('@/lib/telemetry/identity', () => ({ readInstanceId: vi.fn(async () => 'route-test-installation') }));
 
 vi.mock('@/lib/services/product-validation', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/services/product-validation')>();
@@ -150,11 +151,13 @@ vi.mock('@/lib/services/checkout-line-items', async (importOriginal) => {
   }};
 });
 
+vi.mock('@/lib/stripe/product-price', () => ({ getOrCreateStripePriceForProduct: vi.fn().mockResolvedValue('price_sub') }));
 vi.mock('@/lib/stripe/ensure-product', () => ({ ensureStripeProduct: vi.fn().mockResolvedValue('prod_sub') }));
 vi.mock('@/lib/stripe/subscription-dynamic-price', () => ({ createSubscriptionWithDynamicPrice: mocks.dynamicSubscription }));
 
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { POST } from '@/app/api/create-payment-intent/route';
+import { getStripeInstanceId } from '@/lib/stripe/instance-marker';
 
 function makeRequest(body: Record<string, unknown>) {
   return new NextRequest('http://localhost/api/create-payment-intent', {
@@ -296,6 +299,29 @@ describe('POST /api/create-payment-intent — pending row', () => {
     expect((await res.json()).clientSecret).toBe('cs_test_1_secret_x');
     expect(mocks.sessionsExpire).not.toHaveBeenCalled();
   });
+
+  it('marks the Checkout Session and its PaymentIntent with this installation', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    expect((await POST(makeRequest({ email: 'guest@example.com' }))).status).toBe(200);
+    const sellf_instance = await getStripeInstanceId();
+    expect(mocks.sessionsCreate).toHaveBeenCalledWith(expect.objectContaining({
+      metadata: expect.objectContaining({ sellf_instance }),
+      payment_intent_data: expect.objectContaining({ metadata: expect.objectContaining({ sellf_instance }) }),
+    }));
+  });
+
+  it('marks a subscription Checkout Session and its subscription', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: SIGNED_IN } });
+    mocks.getOrCreateStripeCustomer.mockResolvedValue('cus_sub');
+    mocks.productOverride = { product_type: 'subscription', billing_interval: 'month', billing_interval_count: 1, recurring_price: 10, stripe_price_id: 'price_sub' };
+    vi.mocked(getCheckoutConfig).mockResolvedValueOnce({ ...(await getCheckoutConfig()), paymentMethodMode: 'automatic' });
+    expect((await POST(makeRequest({}))).status).toBe(200);
+    const sellf_instance = await getStripeInstanceId();
+    expect(mocks.sessionsCreate).toHaveBeenCalledWith(expect.objectContaining({
+      metadata: expect.objectContaining({ sellf_instance }),
+      subscription_data: expect.objectContaining({ metadata: expect.objectContaining({ sellf_instance }) }),
+    }));
+  });
 });
 
 describe('POST /api/create-payment-intent — sale window', () => {
@@ -364,8 +390,9 @@ it('pins the subscription context on a dynamic-price payment intent', async () =
   mocks.productOverride = { product_type: 'subscription', allow_custom_price: true, custom_price_min: 1, billing_interval: 'month', billing_interval_count: 1, recurring_price: 10 };
   expect((await POST(makeRequest({ customAmount: 10 }))).status).toBe(200);
   expect(mocks.piUpdate).toHaveBeenCalledWith('pi_subtest', {
-    metadata: expect.objectContaining({ product_id: PRODUCT.id, product_type: 'subscription', subscription_id: 'sub_test', user_id: SIGNED_IN.id }),
+    metadata: expect.objectContaining({ product_id: PRODUCT.id, product_type: 'subscription', subscription_id: 'sub_test', user_id: SIGNED_IN.id, sellf_instance: await getStripeInstanceId() }),
   });
+  expect(mocks.dynamicSubscription).toHaveBeenCalledWith(expect.objectContaining({ instanceId: await getStripeInstanceId() }));
 });
 
 

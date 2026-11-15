@@ -14,6 +14,9 @@
  *   are created or changed externally
  * - charge.dispute.created: Revoke access when chargeback is initiated
  *
+ * Several installations may share one Stripe account: events of another installation are
+ * acknowledged (200) and skipped before any processing. @see ./instance-gate.ts
+ *
  * NOTE: the one-time payment handlers (checkout.session.completed,
  * payment_intent.succeeded) live in ./onetime-handlers.ts; POST dispatches to them.
  * Dispute and subscription handlers live in sibling modules. Refund reconciliation stays here.
@@ -46,6 +49,7 @@ import { RETRIABLE_EVENTS, TERMINAL_FAILURE_REASONS } from './retriable-events';
 import { handleChargeDispute } from './dispute-handlers';
 import { handleCheckoutSessionCompleted, handlePaymentIntentSucceeded } from './onetime-handlers';
 import { handleQuickPayEvent, isQuickPayObject } from '@/lib/orders/quick-pay';
+import { gateEventByInstance } from './instance-gate';
 import { readBodyWithByteLimit, ApiPayloadTooLargeError, DEFAULT_MAX_BODY_BYTES } from '@/lib/api/body-limit';
 
 // Stripe events — particularly ones with many expanded line items, invoices,
@@ -322,6 +326,19 @@ export async function POST(request: NextRequest) {
 
   // Handle events
   let result: { processed: boolean; message: string };
+
+  // Shared Stripe account: acknowledge another installation's events without processing them.
+  // Not knowing whether the event is ours (database error) always asks Stripe to redeliver.
+  try {
+    const gate = await gateEventByInstance(event, supabase);
+    if (gate.skip) {
+      console.log(`[Stripe Webhook] ${event.type} (${event.id}): ${gate.reason}`);
+      return NextResponse.json({ received: true, skipped: gate.reason });
+    }
+  } catch (err) {
+    console.error(`[Stripe Webhook] Instance check failed for ${event.type}:`, err instanceof Error ? err.message : 'Unknown error');
+    return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
+  }
 
   try {
     // Online payment of an unpaid transfer order (pay link) has its own attempt ledger. @see lib/orders/quick-pay.ts

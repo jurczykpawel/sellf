@@ -298,6 +298,87 @@ nadal działa, kolejka czeka z zamknięciem na zakończenie tworzenia sesji. Sel
 zachowuje też sesje, których PaymentIntent jest przetwarzany, czeka na pobranie
 środków lub dodatkowe działanie klienta albo zakończył się powodzeniem.
 
+## Jedno konto Stripe dla kilku instalacji
+
+Kilka instalacji Sellf (na przykład produkcja, serwer testowy i kopia lokalna)
+może korzystać z tego samego konta lub sandboxa Stripe. Stripe wysyła wtedy
+każdemu endpointowi zdarzenia wszystkich instalacji. Sellf rozróżnia je znacznikiem:
+każda tworzona przez niego Checkout Session, PaymentIntent, subskrypcja i zwrot
+ma w `metadata.sellf_instance` stały identyfikator instalacji. To nie jest domena
+i nie zawiera danych osobowych.
+
+Po sprawdzeniu podpisu Stripe `/api/webhooks/stripe`:
+
+- zawsze obsługuje zdarzenie z własnym znacznikiem;
+- odpowiada HTTP 200 i pomija zdarzenie z każdym innym znacznikiem
+  (log: `foreign instance, skipped`), nawet jeśli ta baza ma kopię zamówienia
+  albo subskrypcji, której dotyczy. Za własne uznaje tylko obecny znacznik
+  i znaczniki wpisane w `SELLF_INSTANCE_ALIASES` (patrz niżej);
+- zdarzenie bez znacznika (utworzone przed tą wersją albo ręcznie w Stripe)
+  obsługuje jak dotąd, z dwoma wyjątkami: płatność jednorazowa za produkt,
+  którego ta baza nie zna, i płatność z linku dla próby, której ta baza nigdy
+  nie miała, dostają HTTP 200 i są pomijane (logi:
+  `unmarked event for an unknown product, skipped`,
+  `unmarked quick pay attempt unknown here, skipped`);
+- przy zwrocie albo sporze, którego nie da się dopasować do lokalnej płatności,
+  odczytuje znacznik samej płatności w Stripe: płatność innej instalacji dostaje
+  200.
+
+Stripe wyłącza endpoint, który długo zwraca błędy, dlatego pominięcia odpowiadają
+200, a nie błędem. Chwilowy błąd przy obsłudze własnego zdarzenia albo przy
+ustalaniu, czy zdarzenie jest nasze (na przykład niedostępna baza), nadal zwraca
+5xx i Stripe ponawia dostawę. Dotyczy to też
+`checkout.session.async_payment_succeeded`, czyli zdarzenia kończącego płatności
+odroczone.
+
+Jeśli własne opłacone zdarzenie wskazuje produkt usunięty z tej bazy, nie da się
+nadać dostępu, a ponawianie nic nie zmieni. Sellf zapisuje wtedy płatność (kwota,
+identyfikator płatności Stripe, kupujący, identyfikator produktu) i pokazuje ją
+administratorowi w **Płatnościach** jako opłaconą płatność czekającą na decyzję
+(zwrot w Stripe albo odtworzenie produktu i ręczne nadanie dostępu), po czym
+odpowiada 200. Produkt, który istnieje, ale jest nieaktywny, jest obsługiwany
+jak dotąd.
+
+### Skąd się bierze identyfikator
+
+Domyślnie identyfikator pochodzi z bazy (`telemetry_state`), więc przetrwa
+restarty i aktualizacje. Zmienna środowiskowa `SELLF_INSTANCE_ID` (od 8 do 64
+znaków: litery, cyfry, `_`, `-`) zastępuje to źródło. Wartość w złym formacie
+zatrzymuje płatności z błędem, zamiast zgadywać.
+
+**Kopia odtworzona z kopii zapasowej bazy ma ten sam identyfikator bazy co
+oryginał.** Są dwa przypadki i każdy załatwia się inaczej.
+
+**Kopia do prób** (próba wydania, lokalna kopia produkcji) z dostępem do tego
+samego konta Stripe ma być oddzielną instalacją:
+
+1. Odtwórz kopię bazy.
+2. Dopisz `SELLF_INSTANCE_ID=<unikalna wartość, np. proba-2026-11-15>` do
+   `.env.local` kopii (albo do środowiska kontenera). **Nie** ustawiaj
+   `SELLF_INSTANCE_ALIASES`.
+3. Dopiero wtedy uruchom kopię.
+
+Taka kopia nie realizuje płatności oryginału, nawet dla zamówień skopiowanych
+z jego bazy, a oryginał pomija zdarzenia kopii. Bez kroku 2 kopia i oryginał
+przyjmowałyby nawzajem swoje zdarzenia.
+
+**Przeniesienie instalacji** (nowy serwer albo nowa baza, ta sama instalacja):
+
+- Jeśli przenosisz całą bazę razem z wierszem `telemetry_state` (zwykły zrzut
+  i odtworzenie), nic nie musisz robić: identyfikator zostaje ten sam.
+- Jeśli identyfikator się zmienił (nowa baza bez tego wiersza albo nowe
+  `SELLF_INSTANCE_ID`), wpisz poprzedni znacznik do `SELLF_INSTANCE_ALIASES`.
+  Znacznik widać w Stripe, w metadanych dowolnej płatności tej instalacji
+  (`sellf_instance`). Można też podać poprzednią wartość `SELLF_INSTANCE_ID`
+  albo poprzedni identyfikator z `telemetry_state`. Kilka wartości oddziel
+  przecinkami. Dzięki temu otwarte płatności i odnowienia istniejących
+  subskrypcji nadal są realizowane. Wartość w złym formacie zatrzymuje płatności
+  z błędem.
+
+Nie ustawiaj `SELLF_INSTANCE_ID` na oryginale tylko po to, żeby go odróżnić od
+kopii: to zmienia jego identyfikator i bez aliasu pominąłby własne wcześniejsze
+płatności i odnowienia.
+
 ## Kontrakt zamówienia i dostępu
 
 Każdy `purchase.completed` zawiera `data.order.orderId` (trwały UUID płatności Sellf) i `orderNumber`,

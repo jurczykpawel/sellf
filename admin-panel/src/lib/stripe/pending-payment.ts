@@ -1,11 +1,15 @@
 /**
- * Classify an unmatched order using provider data and local product bindings.
+ * Classify an unmatched order using provider data and local product bindings. A payment carrying
+ * another installation's marker (shared Stripe account) is not ours, whatever this database holds;
+ * only markers listed in SELLF_INSTANCE_ALIASES count as ours besides the current one.
  * @see src/app/api/webhooks/stripe/dispute-handlers.ts
  */
 import type Stripe from 'stripe';
+import { isForeignStripeMarker, readStripeInstanceMarker } from '@/lib/stripe/instance-marker';
 import type { createAdminClient } from '@/lib/supabase/admin';
 
 interface PaymentResult { processed: boolean; message: string }
+const OTHER_INSTALLATION: PaymentResult = { processed: true, message: 'Payment belongs to another installation' };
 
 export async function pendingPaymentResult(
   db: ReturnType<typeof createAdminClient>, stripe: Stripe, paymentIntentId: string,
@@ -15,11 +19,13 @@ export async function pendingPaymentResult(
   if (payment.metadata?.product_id) candidates.add(payment.metadata.product_id);
   const sessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntentId, limit: 1 });
   for (const session of sessions.data) if (session.metadata?.product_id) candidates.add(session.metadata.product_id);
+  if (await isForeignStripeMarker(readStripeInstanceMarker(payment) ?? readStripeInstanceMarker(sessions.data[0]))) return OTHER_INSTALLATION;
   if (!candidates.size) {
     const payments = await stripe.invoicePayments.list({ payment: { type: 'payment_intent', payment_intent: paymentIntentId }, limit: 1 });
     for (const item of payments.data) {
       const invoice = typeof item.invoice === 'string' ? await stripe.invoices.retrieve(item.invoice) : item.invoice;
       if ('deleted' in invoice && invoice.deleted) continue;
+      if (await isForeignStripeMarker(readStripeInstanceMarker(invoice))) return OTHER_INSTALLATION;
       const binding = invoice.parent?.subscription_details;
       if (binding?.metadata?.product_id) candidates.add(binding.metadata.product_id);
       const id = typeof binding?.subscription === 'string' ? binding.subscription : binding?.subscription?.id;
@@ -38,5 +44,5 @@ export async function pendingPaymentResult(
     if (product.error) throw new Error('Product binding unavailable');
     if (product.data) return { processed: false, message: 'Local payment awaiting storage' };
   }
-  return { processed: true, message: 'Payment belongs to another installation' };
+  return OTHER_INSTALLATION;
 }

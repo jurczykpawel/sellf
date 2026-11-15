@@ -53,9 +53,13 @@ describe('Stripe webhook retriable events', () => {
     expect(RETRIABLE_EVENTS.has('payment_intent.succeeded')).toBe(true);
   });
 
-  it('does not include events that should always 200-OK (recoverable or no-op)', () => {
-    expect(RETRIABLE_EVENTS.has('checkout.session.async_payment_succeeded')).toBe(false);
+  it('forces retry on delayed payment completion (the earlier unpaid checkout.session.completed fulfils nothing)', () => {
+    // For delayed methods checkout.session.completed arrives with payment_status 'unpaid' and is
+    // acknowledged without fulfilment, so a lost async_payment_succeeded leaves the buyer paid without access.
+    expect(RETRIABLE_EVENTS.has('checkout.session.async_payment_succeeded')).toBe(true);
+  });
 
+  it('does not include events that should always 200-OK (recoverable or no-op)', () => {
     // subscription.created is recoverable via the eventual invoice.paid,
     // which is itself retriable.
     expect(RETRIABLE_EVENTS.has('customer.subscription.created')).toBe(false);

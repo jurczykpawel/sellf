@@ -15,6 +15,7 @@
 import type { ValidatedProduct } from '@/lib/services/product-validation';
 import type { CheckoutConfig } from '@/lib/stripe/checkout-config';
 import { applyTosConsent } from '@/lib/stripe/tos-consent';
+import { STRIPE_INSTANCE_METADATA_KEY } from '@/lib/stripe/instance-marker';
 
 export interface SubscriptionSessionInput {
   product: ValidatedProduct;
@@ -34,6 +35,8 @@ export interface SubscriptionSessionInput {
   uiMode?: 'embedded_page' | 'elements';
   /** Purchase attribution reference (@see lib/attribution/store.ts); pinned on the subscription. */
   attributionRef?: string;
+  /** Installation marker (@see lib/stripe/instance-marker.ts), pinned on the session and the subscription. */
+  instanceId: string;
 }
 
 export function buildSubscriptionSessionConfig(
@@ -74,6 +77,7 @@ export function buildSubscriptionSessionConfig(
       ...(input.locale === 'pl' || input.locale === 'en' ? { locale: input.locale } : {}),
       product_type: 'subscription',
       user_id: userId || null,
+      [STRIPE_INSTANCE_METADATA_KEY]: input.instanceId,
     },
     subscription_data: {
       metadata: {
@@ -82,6 +86,7 @@ export function buildSubscriptionSessionConfig(
         ...(input.locale === 'pl' || input.locale === 'en' ? { locale: input.locale } : {}),
         user_id: userId || null,
         ...(input.attributionRef ? { sf_attr_ref: input.attributionRef } : {}),
+        [STRIPE_INSTANCE_METADATA_KEY]: input.instanceId,
       },
       ...(product.trial_days && product.trial_days > 0
         ? { trial_period_days: product.trial_days }

@@ -84,6 +84,7 @@ import { WebhookService } from '@/lib/services/webhook-service';
 import { trackServerSideConversion } from '@/lib/tracking';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
 import { verifySellfLicense } from '@/lib/license-keys/sdk';
+import { getStripeInstanceId } from '@/lib/stripe/instance-marker';
 
 // ----- env / DB -------------------------------------------------------------------------------
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -97,7 +98,10 @@ const createdEmails: string[] = [];
 const createdAuthUserIds: string[] = [];
 const createdSellerIds: string[] = [];
 
-beforeAll(() => {
+// Events marked as this installation's own reach the handlers even for an unknown product (@see instance-gate.ts).
+let OURS = '';
+beforeAll(async () => {
+  if (hasSupabase) OURS = await getStripeInstanceId();
   if (!hasSupabase) {
     console.warn('[onetime-payment-handlers.behavioral] Skipping — requires Supabase env');
   }
@@ -346,14 +350,16 @@ describe.skipIf(!hasSupabase)('Stripe webhook — POST routing & gates', () => {
     expect(json.skipped).toBe('Missing product_id or customer_email in session');
   });
 
-  it('non-terminal completion failure (unknown product) → 500 so Stripe retries', async () => {
+  // A deleted product is acknowledged and recorded for reconciliation (W253b); an inactive one is fulfilled (W253c).
+  it('non-terminal completion failure (our marker, amount below the price) → 500 so Stripe retries', async () => {
     const email = uniq('buyer') + '@example.com';
+    const product = await createProduct({ price: 49.99 });
     const { status } = await post(
       checkoutEvent({
         id: uniq('cs'),
         mode: 'payment',
         payment_status: 'paid',
-        metadata: { product_id: '00000000-0000-0000-0000-000000000000' },
+        metadata: { product_id: product.id, sellf_instance: OURS },
         customer_details: { email },
         amount_total: 1000,
         amount_subtotal: 1000,
@@ -632,15 +638,16 @@ describe.skipIf(!hasSupabase)('payment_intent.succeeded — handler behavior', (
     expect(calls).toHaveLength(0);
   });
 
-  it('RPC failure (unknown product) → 500 so Stripe retries', async () => {
+  it('RPC failure (our marker, amount below the price) → 500 so Stripe retries', async () => {
     const email = uniq('guest') + '@example.com';
+    const product = await createProduct({ price: 49.99 });
     const { status } = await post(
       piEvent({
         id: uniq('pi'),
         amount: 1000,
         currency: 'usd',
         receipt_email: email,
-        metadata: { product_id: '00000000-0000-0000-0000-000000000000' },
+        metadata: { product_id: product.id, sellf_instance: OURS },
       }),
     );
     expect(status).toBe(500);
@@ -815,7 +822,7 @@ describe.skipIf(!hasSupabase)('one-time handlers — additional branch coverage'
     const { status } = await post(
       checkoutEvent({
         id: uniq('cs'), mode: 'payment', payment_status: 'paid',
-        metadata: { product_id: 'not-a-uuid' }, customer_details: { email },
+        metadata: { product_id: 'not-a-uuid', sellf_instance: OURS }, customer_details: { email },
         payment_intent: uniq('pi'), amount_total: 1000, amount_subtotal: 1000, currency: 'usd',
       }),
     );
@@ -825,7 +832,7 @@ describe.skipIf(!hasSupabase)('one-time handlers — additional branch coverage'
   it('PI: thrown RPC error (non-uuid product) → DB-failure branch → 500', async () => {
     const email = uniq('guest') + '@example.com';
     const { status } = await post(
-      piEvent({ id: uniq('pi'), amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: 'not-a-uuid' } }),
+      piEvent({ id: uniq('pi'), amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: 'not-a-uuid', sellf_instance: OURS } }),
     );
     expect(status).toBe(500);
   });
