@@ -37,7 +37,7 @@ import UpdateNotificationModal from '@/components/UpdateNotificationModal';
 const token = '00000000-0000-4000-8000-000000000000';
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
-async function scriptFailure(): Promise<string> {
+async function scriptFailure(command = '( fail_unchanged release_asset_missing "Release v2026.11.1 on GitHub does not contain the release archive sellf-build.tar.gz (HTTP 404)." http_status 404 asset sellf-build.tar.gz ) || true'): Promise<string> {
   const { mkdtempSync, readFileSync: readRealFile, rmSync, writeFileSync } = await vi.importActual<typeof import('node:fs')>('node:fs');
   const source = readRealFile(path.resolve(__dirname, '../../../scripts/upgrade.sh'), 'utf8');
   const helpers = source.slice(source.indexOf('# ===== HELPERS ====='), source.indexOf('# Stage 2 is this same script'));
@@ -47,7 +47,7 @@ async function scriptFailure(): Promise<string> {
     execFileSync('bash', ['-c', `set -euo pipefail
 PROGRESS_FILE="$1/progress.json"; LOG_FILE="$1/log"; INSTALL_DIR="$1"
 ${helpers}
-( fail_unchanged release_asset_missing "Release v2026.11.1 on GitHub does not contain the release archive sellf-build.tar.gz (HTTP 404)." http_status 404 asset sellf-build.tar.gz ) || true`, 'contract', dir]);
+${command}`, 'contract', dir]);
     return readRealFile(path.join(dir, 'progress.json'), 'utf8');
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -82,4 +82,24 @@ it('shows the localized reason the script wrote', async () => {
   expect(screen.getByText('failure.release_asset_missing')).toBeTruthy();
   expect(screen.getByText('failure.unchanged')).toBeTruthy();
   expect(screen.queryByText(/Nothing was changed/)).toBeNull();
+});
+
+it('shows a script message for an unlocalized failure without secrets, markup or control characters', async () => {
+  vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'FAKE_SERVICE_KEY_w251rb_only');
+  vi.stubEnv('DIRTY', 'rejected FAKE_SERVICE_KEY_w251rb_only ' + ['wh', 'sec_FakeFakeFakeFakeFake'].join('') + ' <img src=x onerror=alert(1)> \u0001\u007f\u0085\u202e done');
+  files.progress = await scriptFailure('write_failure migration_state_unknown "Update stopped: $DIRTY" cause "Cause: $DIRTY"');
+  const status = await (await GET(new NextRequest(`http://localhost/api/v1/system/upgrade-status?token=${token}`))).json();
+  const leaks = /FAKE_SERVICE_KEY|whsec_|<img|[\u007f\u0085\u202e]/;
+  expect(status.data.message).toContain('Update stopped: rejected [redacted] [redacted]');
+  expect(status.data.message).not.toMatch(leaks);
+  expect(status.data.details.cause).not.toMatch(leaks);
+
+  render(createElement(UpdateNotificationModal, {
+    updateInfo: { upgrade: { runtime: 'pm2', mode: 'in-place' }, current_version: '2026.11.0', latest_version: '2026.11.1', update_available: true } as never,
+    upgradeInProgress: false, upgradeProgress: status.data, onUpgrade: () => {}, onDismiss: () => {},
+  }));
+  const shown = screen.getByText(/Update stopped:/).textContent ?? '';
+  expect(shown).toContain('[redacted]');
+  expect(shown).not.toMatch(leaks);
+  vi.unstubAllEnvs();
 });

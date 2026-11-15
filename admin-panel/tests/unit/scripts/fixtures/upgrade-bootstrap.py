@@ -136,7 +136,7 @@ for arg in "$@"; do
  args+=("$arg")
 done
 exec ''' + shlex.quote(curl) + ''' "${args[@]}"''')
-        executable('pm2', 'printf "%s\\n" "$*" >> "$FIXTURE/pm2.log"\nif [ "$1" = start ]; then cat "$FIXTURE/stack/admin-panel/.next/standalone/admin-panel/server.js" >> "$FIXTURE/started"; printf "%s\\n" "${LITERAL:-}" "${QUOTED:-}" "${SELLF_TEMPLATE_LICENSE_POLICIES:-}" > "$FIXTURE/pm2-environment"; fi')
+        executable('pm2', 'printf "%s\\n" "$*" >> "$FIXTURE/pm2.log"\nif [ "$1" = jlist ]; then echo "[]"; fi\nif [ "$1" = start ]; then cat "$FIXTURE/stack/admin-panel/.next/standalone/admin-panel/server.js" >> "$FIXTURE/started"; printf "%s\\n" "${LITERAL:-}" "${QUOTED:-}" "${SELLF_TEMPLATE_LICENSE_POLICIES:-}" > "$FIXTURE/pm2-environment"; fi')
         if real_pm2:
             assert real_pm2_bin, 'Real PM2 required'
             executable('pm2', 'printf "%s\\n" "$*" >> "$FIXTURE/pm2.log"\nif [ "$1" = start ]; then head -c 11 "$FIXTURE/stack/admin-panel/.next/standalone/admin-panel/server.js" >> "$FIXTURE/started"; fi\nexec ' + shlex.quote(real_pm2_bin) + ' "$@"')
@@ -202,6 +202,10 @@ exec ''' + shlex.quote(curl) + ''' "${args[@]}"''')
             assets[asset] = content + (b'tampered\n' if bad_signature else b'')
             assets[asset + '.sig'] = sig
         token = str(uuid.uuid4())
+        if real_pm2:
+            # The installed version is running under PM2 when the update starts.
+            subprocess.run([real_pm2_bin, 'start', str(install / '.next/standalone/admin-panel/server.js'), '--name', 'sellf-fixture'],
+                           env={**os.environ, **pm2_environment, 'PORT': str(app_port)}, capture_output=True, check=True, timeout=30)
         try:
             run = subprocess.run(['bash', str(old_script), token, str(install)], env={**os.environ, 'FIXTURE': str(folder), 'PATH': str(bin_dir) + ':' + os.environ['PATH'], 'PM2_NAME': 'sellf-fixture', **pm2_environment}, capture_output=True, text=True, timeout=30)
             progress = json.loads((runtime / f'sellf-upgrade-{token}.json').read_text())

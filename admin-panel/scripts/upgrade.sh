@@ -168,19 +168,26 @@ read_installed_version() {
 
 # failure-report:start — extracted verbatim by tests/unit/scripts/upgrade-archive-validation.test.ts
 # fail_unchanged <code> <message> [<detail key> <detail value>]...
-# Stops an attempt before backup, PM2 or database changes. A "note" detail is
-# appended to the message after the unchanged-version sentence.
+# Stops an attempt before file or database changes. A "note" detail is appended
+# to the message after the unchanged-version sentence; "app_stopped 1" says PM2
+# does not confirm the application runs instead of promising the shop still runs.
 fail_unchanged() {
-  local code="$1" message="$2" installed note="" key value
+  local code="$1" message="$2" installed note="" app_stopped="" key value
   local -a details=()
   shift 2
   while [ "$#" -ge 2 ]; do
     key="$1" value="$2"
     shift 2
-    if [ "$key" = note ]; then note="$value"; else details+=("$key" "$value"); fi
+    case "$key" in
+      note) note="$value" ;;
+      app_stopped) app_stopped="$value" ;;
+      *) details+=("$key" "$value") ;;
+    esac
   done
   installed=$(read_installed_version)
-  if [ -n "$installed" ]; then
+  if [ -n "$app_stopped" ]; then
+    message="$message Files and the database were not changed${installed:+ (version ${installed#v} is still installed)}, but PM2 does not confirm that the application is running."
+  elif [ -n "$installed" ]; then
     message="$message Nothing was changed; the shop is still running version ${installed#v}."
   else
     message="$message Nothing was changed; the shop is still running the version installed before this attempt."
@@ -736,6 +743,10 @@ preflight_stop() {
   fail_unchanged migration_preflight "$1"
 }
 
+# A readable registry (jq -s): exactly one JSON list of entries whose version
+# starts with a 14-digit timestamp. Any other answer is not a reading.
+REGISTRY_IS_VALID='length == 1 and (.[0] | type == "array" and all(.[]; type == "object" and (.version | type == "string") and (.version | test("^[0-9]{14}(_.+)?$"))))'
+
 if [ ! -d "$EXTRACT_DIR/supabase/migrations" ]; then
   preflight_stop "Invalid archive: missing supabase/migrations/. Database untouched."
 fi
@@ -774,8 +785,7 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ]; then
     log "Run 'deploy.sh sellf --update' once to bootstrap migration system"
     preflight_stop "Migration status could not be read. Check upgrade logs. Database untouched."
   fi
-  if ! jq -e -s 'length == 1 and (.[0] | type == "array" and all(.[]; type == "object" and (.version | type == "string")))' \
-    <<< "$APPLIED" >/dev/null 2>&1; then
+  if ! jq -e -s "$REGISTRY_IS_VALID" <<< "$APPLIED" >/dev/null 2>&1; then
     log "Invalid migration status response; full response:"
     printf '%s\n' "$APPLIED" >> "$LOG_FILE"
     preflight_stop "Migration status response is invalid. Check upgrade logs. Database untouched."
@@ -836,7 +846,40 @@ log "Backup created at $BACKUP_DIR"
 write_progress "stopping" 55 "Stopping application..."
 log "Stopping PM2 process: $PM2_NAME"
 
-"$PM2_BIN" stop "$PM2_NAME" >> "$LOG_FILE" 2>&1 || log "WARNING: PM2 stop failed (process may not be running)"
+# Status of $PM2_NAME in "pm2 jlist" ("none" without an entry, several joined
+# by commas); fails when PM2 does not answer with a process list.
+pm2_status() {
+  local list
+  list=$("$PM2_BIN" jlist 2>>"$LOG_FILE") || return 1
+  jq -er --arg name "$PM2_NAME" '
+    if type != "array" then error("not a process list")
+    else [.[] | select(.name == $name) | (.pm2_env.status // "unknown")]
+      | if length == 0 then "none" else unique | join(",") end
+    end' <<< "$list" 2>>"$LOG_FILE"
+}
+
+# Files and the database change only after PM2 confirms the process is down.
+PM2_STOP_PROBLEM=""
+if ! "$PM2_BIN" stop "$PM2_NAME" >> "$LOG_FILE" 2>&1; then
+  PM2_STOP_PROBLEM="PM2 could not stop $PM2_NAME"
+elif ! PM2_STATE=$(pm2_status); then
+  PM2_STOP_PROBLEM="PM2 did not report the state of $PM2_NAME after stopping it"
+elif ! [[ "$PM2_STATE" =~ ^(none|stopped|errored|errored,stopped)$ ]]; then
+  PM2_STOP_PROBLEM="PM2 still reports $PM2_NAME as $PM2_STATE after stopping it"
+fi
+if [ -n "$PM2_STOP_PROBLEM" ]; then
+  PM2_STOP_MESSAGE="$PM2_STOP_PROBLEM, so the update stopped before replacing any file or changing the database."
+  if [ "$(pm2_status || true)" != online ]; then
+    # Nothing was replaced yet, so the installed version can serve again.
+    "$PM2_BIN" restart "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
+    if [ "$(pm2_status || true)" != online ]; then
+      fail_unchanged pm2_stop_failed_offline "$PM2_STOP_MESSAGE" app_stopped 1 \
+        note "PM2 did not report $PM2_NAME as online after a restart. Check it with 'pm2 status $PM2_NAME'; if it is stopped, start it with 'pm2 start $PM2_NAME'."
+    fi
+  fi
+  fail_unchanged pm2_stop_failed "$PM2_STOP_MESSAGE"
+fi
+log "PM2 process stopped: $PM2_NAME (${PM2_STATE})"
 
 # ===== STEP 7: SWAP FILES =====
 
@@ -1031,7 +1074,12 @@ build_migration_batch() {
 # (log lines go to stderr so only the state reaches the caller).
 pending_registry_state() {
   local status present
-  if ! status=$(migration_rpc get_migration_status '{}') ||
+  if status=$(migration_rpc get_migration_status '{}') && ! jq -e -s "$REGISTRY_IS_VALID" <<< "$status" >/dev/null 2>&1; then
+    log "Invalid migration status response after the migration request; full response:" >&2
+    printf '%s\n' "$status" >> "$LOG_FILE"
+    status=""
+  fi
+  if [ -z "$status" ] ||
     ! present=$(jq -er --arg pending "${PENDING_MIGRATIONS[*]}" '
       ($pending | split(" ") | map(split("_")[0])) as $wanted
       | [.[] | .version | split("_")[0]] as $have
@@ -1076,9 +1124,9 @@ if [ "$APPLIED_STATE" = ok ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
   done 3<<< "$RELEASE_MIGRATIONS"
   MIGRATION_PENDING_COUNT=${#PENDING_MIGRATIONS[@]}
 
-  # A failure is "definite" only when PostgreSQL itself reported the error or the
-  # request never left this server; anything else (lost or garbled response,
-  # gateway error) may have followed a COMMIT and is settled by the registry.
+  # A failure is "definite" only when the request never left this server. Any
+  # answer to a sent request, a database error included, may have followed a
+  # COMMIT (or come from a gateway), so the registry settles it.
   MIGRATION_OUTCOME_CERTAIN=true
   if [ "$MIGRATION_ERRORS" -eq 0 ] && [ "$MIGRATION_PENDING_COUNT" -gt 0 ]; then
     BATCH_FILE="$TMP_DIR/migration-batch.sql"
@@ -1096,18 +1144,14 @@ if [ "$APPLIED_STATE" = ok ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
       read -r RPC_EXIT RPC_STATUS < "$TMP_DIR/migration-response.status" || { RPC_EXIT=1; RPC_STATUS=000; }
       MIGRATION_CAUSE=$(jq -r 'if type == "object" and (.message | type) == "string" then .message else empty end' \
         "$TMP_DIR/migration-response.json" 2>/dev/null || true)
-      # PostgREST reports a database error as {code, details, hint, message}:
-      # PostgreSQL rolled the transaction back. Connect failures never sent it.
-      if ! jq -e 'type == "object" and has("code") and has("details") and has("hint")' \
-        "$TMP_DIR/migration-response.json" >/dev/null 2>&1; then
-        case "$RPC_EXIT" in
-          6|7) MIGRATION_CAUSE="The database API could not be reached (curl exit $RPC_EXIT)" ;;
-          0) MIGRATION_CAUSE="${MIGRATION_CAUSE:-The database API answered HTTP $RPC_STATUS without a database error}"
-             MIGRATION_OUTCOME_CERTAIN=false ;;
-          *) MIGRATION_CAUSE="The connection to the database API failed before a response arrived (curl exit $RPC_EXIT)"
-             MIGRATION_OUTCOME_CERTAIN=false ;;
-        esac
-      fi
+      # curl exit 6/7: name resolution or connection failed, nothing was sent.
+      case "$RPC_EXIT" in
+        6|7) MIGRATION_CAUSE="The database API could not be reached (curl exit $RPC_EXIT)" ;;
+        0) MIGRATION_CAUSE="${MIGRATION_CAUSE:-The database API answered HTTP $RPC_STATUS}"
+           MIGRATION_OUTCOME_CERTAIN=false ;;
+        *) MIGRATION_CAUSE="The connection to the database API failed before a response arrived (curl exit $RPC_EXIT)"
+           MIGRATION_OUTCOME_CERTAIN=false ;;
+      esac
       MIGRATION_ERRORS=1
     elif ! OUTCOME=$(jq -er -s '
       if length != 1 then error("Expected one result")
@@ -1128,6 +1172,7 @@ if [ "$APPLIED_STATE" = ok ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
       printf '%s\n' "$RESULT" >> "$LOG_FILE"
       MIGRATION_CAUSE=$(jq -r '.message | if type == "string" then . else "The migration RPC reported a failure" end' <<< "$RESULT")
       MIGRATION_ERRORS=1
+      MIGRATION_OUTCOME_CERTAIN=false
     elif [ "$OUTCOME" = skipped ]; then
       # Nothing ran: another process recorded the last version after the status check.
       printf '%s\n' "$RESULT" >> "$LOG_FILE"
@@ -1140,7 +1185,8 @@ if [ "$APPLIED_STATE" = ok ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
   fi
 
   # An uncertain outcome is settled by the registry: all versions -> applied,
-  # none (read twice) -> rolled back, anything else -> unknown.
+  # none (read twice) -> rolled back, anything else (unreadable, malformed,
+  # partial) -> unknown.
   if [ "$MIGRATION_ERRORS" -gt 0 ] && [ "$MIGRATION_OUTCOME_CERTAIN" = false ]; then
     MIGRATION_STATE=$(pending_registry_state)
     if [ "$MIGRATION_STATE" = none ]; then
@@ -1162,7 +1208,11 @@ if [ "$APPLIED_STATE" = ok ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
     MIGRATION_COUNT=$MIGRATION_PENDING_COUNT
   else
     MIGRATION_COUNT=0
-    log "ERROR: Migrations rolled back: $MIGRATION_CAUSE"
+    if [ -n "$MIGRATION_UNKNOWN" ]; then
+      log "ERROR: Migration outcome unknown: $MIGRATION_CAUSE"
+    else
+      log "ERROR: Migrations rolled back: $MIGRATION_CAUSE"
+    fi
   fi
   log "Migrations complete: $MIGRATION_COUNT applied, $MIGRATION_SKIPPED already applied, $MIGRATION_ERRORS errors"
 else

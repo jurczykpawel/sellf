@@ -8,6 +8,7 @@
  * @see src/lib/system/update-failure.ts
  */
 
+import { sanitizeUpdateText } from '@/lib/system/update-failure';
 import type { UpdateFailure } from '@/lib/system/update-failure';
 
 export const SELLF_GITHUB_REPO = 'jurczykpawel/sellf';
@@ -65,9 +66,7 @@ async function githubMessage(response: Response): Promise<string | undefined> {
   try {
     const body = await readBounded(response, ERROR_BODY_LIMIT);
     const message = body ? (JSON.parse(body.toString('utf8')) as { message?: unknown }).message : undefined;
-    if (typeof message !== 'string') return undefined;
-    const printable = [...message].filter(character => character >= ' ' && character !== '\u007f').join('');
-    return printable.slice(0, 200) || undefined;
+    return sanitizeUpdateText(message, 200);
   } catch {
     return undefined;
   }

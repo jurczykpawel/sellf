@@ -21,10 +21,16 @@ import {
 } from '@/lib/api';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { getUpgradeProgressFilePath } from '@/lib/system/upgrade-paths';
-import { sanitizeUpdateFailure } from '@/lib/system/update-failure';
+import { MAX_UPDATE_MESSAGE_LENGTH, sanitizeUpdateFailure, sanitizeUpdateText } from '@/lib/system/update-failure';
 
-/** upgrade.sh writes messages of up to 2000 characters (write_failure). */
-const MAX_MESSAGE_LENGTH = 2000;
+/** Configured credential values (names with KEY, SECRET, TOKEN or PASSWORD) never reach the panel. */
+function secretEnvironmentValues(): string[] {
+  return Object.entries(process.env)
+    .filter(([name, value]) => /KEY|SECRET|TOKEN|PASSWORD/i.test(name) && typeof value === 'string' && value.length >= 8)
+    .map(([, value]) => value as string)
+    // Longest first, so a value containing another is replaced whole.
+    .sort((a, b) => b.length - a.length);
+}
 
 function pendingResponse(request: NextRequest) {
   const response = jsonResponse({
@@ -101,11 +107,12 @@ export async function GET(request: NextRequest) {
       const content = readFileSync(fd, 'utf-8');
       const raw = JSON.parse(content);
       // Return only the supported progress fields; failure details are validated and bounded.
-      const failure = sanitizeUpdateFailure(raw);
+      const secrets = secretEnvironmentValues();
+      const failure = sanitizeUpdateFailure(raw, secrets);
       const progress = {
         step: typeof raw.step === 'string' ? raw.step : 'unknown',
         progress: typeof raw.progress === 'number' ? raw.progress : 0,
-        message: typeof raw.message === 'string' ? raw.message.slice(0, MAX_MESSAGE_LENGTH) : '',
+        message: sanitizeUpdateText(raw.message, MAX_UPDATE_MESSAGE_LENGTH, secrets) ?? '',
         ...(failure ? { code: failure.code, details: failure.details } : {}),
         ...(typeof raw.rollback === 'boolean' ? { rollback: raw.rollback } : {}),
         ...(typeof raw.timestamp === 'string' ? { timestamp: raw.timestamp } : {}),

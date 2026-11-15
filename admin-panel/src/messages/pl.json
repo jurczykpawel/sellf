@@ -5188,8 +5188,12 @@
       "upgrade_running": "Aktualizacja już trwa. Poczekaj, aż się skończy.",
       "upgrade_starting": "Aktualizacja właśnie się uruchamia. Poczekaj kilka sekund.",
       "migration_failed": "Migracja bazy danych nie powiodła się: {cause}",
+      "pm2_stop_failed": "PM2 nie potwierdził, że aplikacja się zatrzymała, więc aktualizacja została przerwana, zanim zmienił się jakikolwiek plik albo baza danych.",
+      "pm2_stop_failed_offline": "PM2 nie potwierdził, że aplikacja się zatrzymała, więc aktualizacja została przerwana, zanim zmienił się jakikolwiek plik albo baza danych. PM2 nie potwierdził też ponownego uruchomienia aplikacji.",
       "unchanged": "Nic nie zostało zmienione, sklep działa na wersji {version}.",
       "unchangedUnknown": "Nic nie zostało zmienione, sklep działa na dotychczasowej wersji.",
+      "unchangedAppStopped": "Pliki i baza danych są nadal w wersji {version}, ale PM2 nie potwierdza, że sklep działa. Sprawdź to na serwerze poleceniem pm2 status; jeśli proces jest zatrzymany, uruchom go poleceniem pm2 start z nazwą procesu.",
+      "unchangedAppStoppedUnknown": "Pliki i baza danych są bez zmian, ale PM2 nie potwierdza, że sklep działa. Sprawdź to na serwerze poleceniem pm2 status; jeśli proces jest zatrzymany, uruchom go poleceniem pm2 start z nazwą procesu.",
       "migrationRolledBack": "Żadna migracja z tego wydania nie została zastosowana, a poprzedni kod wrócił na miejsce; sklep znowu działa na wersji {version}.",
       "retryAt": "Spróbuj ponownie po {time}.",
       "retrySoon": "Spróbuj ponownie za kilka minut."
