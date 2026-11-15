@@ -229,7 +229,8 @@ describe('license restoration consumer contract',()=>{
   });
   expect((await runBusinessEvents(db)).errors).toBe(1);handoff.mockRestore();
   expect(received('license.restored')).toHaveLength(0);
-  sql(`UPDATE public.business_events SET leased_until=now()-interval '1 second' WHERE product_id='${product}' AND event_type='license.restored';`);
+  // The failed attempt waits one minute before its retry (W252c backoff); let that minute pass.
+  sql(`UPDATE public.business_events SET leased_until=now()-interval '1 second',next_attempt_at=now()-interval '1 second' WHERE product_id='${product}' AND event_type='license.restored';`);
   await drain();await drain();
   expect((await state()).usable).toBe(true);expect(received('license.restored')).toHaveLength(1);
  });
