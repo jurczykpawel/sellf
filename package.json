@@ -6,6 +6,7 @@
   "scripts": {
     "setup": "bun run scripts/setup-supabase.ts",
     "setup:supabase": "bun run scripts/setup-supabase.ts",
+    "release:bump": "bun admin-panel/scripts/release-bump.ts",
     "dev": "python3 -m http.server 8000",
     "lint": "echo 'No linting configured'",
     "test": "echo 'No tests configured'"

@@ -180,6 +180,13 @@ describe('build-release.yml migration gate', () => {
   });
 });
 
+describe('build-release.yml version consistency', () => {
+  it('fails the release unless every version location equals the tag (release:bump --check)', () => {
+    const testJob = buildRelease.slice(buildRelease.indexOf('\n  test:\n'), buildRelease.indexOf('\n  migrations:\n'));
+    expect(testJob).toContain('run: bun run release:bump --check "${RELEASE_VERSION#v}"');
+  });
+});
+
 describe('sync-ksef-example.yml hardening', () => {
   it('opens a pull request instead of pushing straight to main', () => {
     expect(syncKsef).not.toMatch(/\bgit push\b/);

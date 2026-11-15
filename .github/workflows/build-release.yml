@@ -57,6 +57,12 @@ jobs:
         working-directory: ./mcp-server
         run: bun install --frozen-lockfile
 
+      - name: Version files agree with the tag
+        working-directory: ./admin-panel
+        env:
+          RELEASE_VERSION: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.version }}
+        run: bun run release:bump --check "${RELEASE_VERSION#v}"
+
       - name: Run type check
         working-directory: ./admin-panel
         run: bun run typecheck
