@@ -54,6 +54,9 @@ CREATE INDEX business_events_abandoned_idx ON public.business_events (abandoned_
 -- Claims due events for one worker. The one-minute lease still keeps a parallel run away; an
 -- event whose attempts ran out without a recorded failure (worker crashed mid-delivery) is
 -- abandoned here instead of being claimed forever.
+-- Contract for callers: every claimed event must be delivered or recorded with
+-- fail_business_event in the same run, whatever happened before the claim (W252cr P2: a failed
+-- detection step used to end the run and let claimed events expire into abandonment).
 CREATE OR REPLACE FUNCTION public.claim_business_events(p_limit integer DEFAULT 100) RETURNS SETOF public.business_events
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN

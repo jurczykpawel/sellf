@@ -25,3 +25,9 @@ it('finishes the current batch before starting another interval cycle', async ()
   release(); await vi.advanceTimersByTimeAsync(0);
   expect(duringBatch).toBe(1);
 });
+it('still claims and reports the cycle when a detection step throws instead of returning an error', async () => {
+  rpc.mockImplementationOnce(async () => { throw new Error('network down'); });
+  const { runBusinessEvents } = await import('@/lib/services/business-events');
+  expect(await runBusinessEvents()).toEqual({ processed: 0, errors: 1 });
+  expect(rpc.mock.calls.map(call => call[0])).toEqual(['capture_expired_access', 'capture_expired_licenses', 'capture_due_renewal_notices', 'claim_business_events']);
+});

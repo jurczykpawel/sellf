@@ -17,13 +17,19 @@ export function accessActor(auth: AuthResult): EventActor {
 export function mutateAccess(db: SupabaseClient<Database>, action: 'grant' | 'update' | 'revoke', userId: string, actor: EventActor, values: Record<string, string | number | boolean | null> = {}, accessId?: string, productId?: string) {
   return db.rpc('mutate_access', { p_action: action, p_user_id: userId, p_actor: { ...actor }, p_values: values, p_access_id: accessId, p_product_id: productId });
 }
+const DETECTION_STEPS = ['capture_expired_access', 'capture_expired_licenses', 'capture_due_renewal_notices'] as const;
+
 export async function runBusinessEvents(db = createAdminClient()): Promise<{ processed: number; errors: number }> {
-  const swept = await db.rpc('capture_expired_access');
-  const lapsed = await db.rpc('capture_expired_licenses');
-  const renewals = await db.rpc('capture_due_renewal_notices');
+  // Detection and delivery are independent: claiming counts an attempt, so a failed detection
+  // step must not keep the claimed events from being delivered (W252cr P2).
+  let detectionErrors = 0;
+  for (const step of DETECTION_STEPS) {
+    const failed = await db.rpc(step).then(result => Boolean(result.error), () => true);
+    if (failed) { detectionErrors++; console.error('[business-events] Detection step unavailable:', step); }
+  }
   const claimed = await db.rpc('claim_business_events');
-  if (swept.error || lapsed.error || renewals.error || claimed.error) { console.error('[business-events] Queue unavailable'); return { processed: 0, errors: 1 }; }
-  let processed = 0, errors = 0;
+  if (claimed.error) { console.error('[business-events] Queue unavailable'); return { processed: 0, errors: detectionErrors + 1 }; }
+  let processed = 0, errors = detectionErrors;
   for (const event of claimed.data ?? []) {
     try {
       const data = event.payload as Record<string, any>;

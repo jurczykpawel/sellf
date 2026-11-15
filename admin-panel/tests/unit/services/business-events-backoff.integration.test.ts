@@ -66,6 +66,26 @@ it('dispatches a new event by the second 62 s tick despite 120 permanently faili
   expect(ticks[0]).toEqual({ processed: 0, errors: 100 });
 }, 60_000);
 
+it('delivers a claimed event even when an expiry detection step fails, instead of using up its attempts (W252cr P2)', async () => {
+  // Only capture_expired_access fails; every other RPC and the queue run for real.
+  const detectionDown = new Proxy(db, {
+    get(target, key, receiver) {
+      if (key !== 'rpc') return Reflect.get(target, key, receiver);
+      return (name: string, ...rest: unknown[]) => name === 'capture_expired_access'
+        ? Promise.resolve({ data: null, error: { message: 'detection unavailable' } })
+        : (target.rpc as (...args: unknown[]) => unknown).call(target, name, ...rest);
+    },
+  });
+  const [event] = insertEvents(1, 'access.granted', { customer: { email: null } }, 0);
+  for (let cycle = 1; cycle <= 9 && !(await isDispatched(event)); cycle++) {
+    if (cycle > 1) advance(61); // the previous one-minute lease has run out
+    await runBusinessEvents(detectionDown);
+  }
+  const row = (await db.from('business_events').select('dispatched_at,abandoned_at,attempts,last_error').eq('id', event).single()).data!;
+  expect(row).toMatchObject({ abandoned_at: null, attempts: 1, last_error: null });
+  expect(row.dispatched_at).not.toBeNull();
+}, 60_000);
+
 it('abandons an event after eight failed attempts with growing intervals and lets an admin retry it', async () => {
   const [stuck] = insertEvents(1, 'license.issued', failing, 60);
   const waits: number[] = [];
