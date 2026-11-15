@@ -43,7 +43,8 @@ beforeEach(() => {
   mocks.rate.mockResolvedValue(true);
   const query = { select: () => query, eq: () => query, maybeSingle: async () => ({ data: null, error: null }), single: async () => ({ data: { custom_checkout_fields: [{ id: '_sellf_license_domain', type: 'domain', label: { en: 'Domain', pl: 'Domena' }, required: true, max_length: 253 }] }, error: null }) };
   mocks.admin.mockReturnValue({ from: () => query, rpc: mocks.rpc });
-  mocks.rpc.mockResolvedValue({ error: null });
+  // The key mail claims its retry-queue row first (claim_license_mail), then sends.
+  mocks.rpc.mockImplementation(async (name: string) => name === 'claim_license_mail' ? { data: 'retry-1', error: null } : { error: null });
   mocks.mail.mockResolvedValue({ ok: true });
   mocks.platform.mockReturnValue({ from: () => ({ insert: vi.fn().mockResolvedValue({ error: null }) }) });
   mocks.issue.mockResolvedValue({ id: LICENSE, token: 'payload.signature', kid: 'kid-1', sellerId: SELLER });
@@ -153,11 +154,11 @@ describe('buyer mail on manual issuance', () => {
 
 describe('buyer mail language', () => {
   it('uses the buyer language over the seller panel language, falling back to the panel', async () => {
-    mocks.rpc.mockImplementation(async (name: string) => name === 'buyer_mail_locale' ? { data: 'pl', error: null } : { error: null });
+    mocks.rpc.mockImplementation(async (name: string) => name === 'buyer_mail_locale' ? { data: 'pl', error: null } : name === 'claim_license_mail' ? { data: 'retry-1', error: null } : { error: null });
     await POST(request({ productId: PRODUCT, email: 'kupujacy@example.com', domain: 'shop.example.com', locale: 'en' }));
     expect(mocks.mail).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ locale: 'pl' }) }));
     mocks.mail.mockClear();
-    mocks.rpc.mockImplementation(async (name: string) => name === 'buyer_mail_locale' ? { data: null, error: null } : { error: null });
+    mocks.rpc.mockImplementation(async (name: string) => name === 'buyer_mail_locale' ? { data: null, error: null } : name === 'claim_license_mail' ? { data: 'retry-2', error: null } : { error: null });
     await POST(request({ productId: PRODUCT, email: 'unknown@example.com', domain: 'shop.example.com', locale: 'pl' }));
     expect(mocks.mail).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ locale: 'pl' }) }));
   });

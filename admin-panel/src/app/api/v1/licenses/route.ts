@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     }
     const row = await admin.from('issued_licenses').select(`${LICENSE_API_FIELDS}, license_key`).eq('id', issued.license.id).single();
     if (row.error || !row.data) return apiError(request, 'INTERNAL_ERROR', 'License issued but could not be read back');
-    return jsonResponse(successResponse({ ...toLicenseApiView(row.data as unknown as LicenseApiRow, origin), emailSent: issued.license.emailSent }), request, 201);
+    return jsonResponse(successResponse({ ...toLicenseApiView(row.data as unknown as LicenseApiRow, origin), emailSent: issued.license.emailSent, emailPending: issued.license.emailPending }), request, 201);
   } catch (error) {
     return handleApiError(error, request);
   }

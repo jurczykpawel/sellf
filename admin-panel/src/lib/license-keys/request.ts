@@ -8,9 +8,6 @@ import 'server-only';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 
-import { sendTrustedMagicLink } from '@/lib/auth/magic-link/request';
-import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
-import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
 import { sendLicenseMail } from '@/lib/license-keys/license-mail';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { resolveCustomerLocale } from '@/lib/webhooks/customer-locale';
@@ -93,13 +90,15 @@ export async function issueRequestedLicense(
 
   let emailSent = false;
   let emailPending = false;
-  if (ctx.accessGrantId) {
-    const delivery = await sendLicenseMail(admin, { userId: ctx.userId ?? null, email: input.email, token: result.token, productSlug: product.data.slug, productName: product.data.name ?? '', locale });
-    if (delivery === 'failed') return { ok: false, status: 500, error: 'Access and license saved, but the license email could not be sent.' };
-    emailSent = delivery === 'sent';
+  if (ctx.accessGrantId || input.sendEmail !== false) {
+    // Both paths share the durable retry queue: a mail the provider refuses for now is delivered later.
+    const exp = claims?.exp ? new Date(claims.exp * 1000).toISOString() : null;
+    const delivery = await sendLicenseMail(admin, { userId: ctx.userId ?? null, email: input.email, token: result.token, productSlug: product.data.slug, productName: (product.data.name ?? '').slice(0, 500), locale,
+      ...(exp && { mailData: { license_expires_at: exp, license_expires_text: formatTransferDeadline(exp, locale) } }) });
+    if (delivery === 'failed' && ctx.accessGrantId) return { ok: false, status: 500, error: 'Access and license saved, but the license email could not be sent.' };
+    // A mail left to the webhook channel (buyer emails off) counts as sent only for a grant, as before.
+    emailSent = delivery === 'sent' || (delivery === 'skipped' && Boolean(ctx.accessGrantId));
     emailPending = delivery === 'pending';
-  } else if (input.sendEmail !== false) {
-    emailSent = await mailLicenseToBuyer({ email: input.email, token: result.token, productSlug: product.data.slug, productName: product.data.name, locale });
   }
 
   return {
@@ -112,25 +111,6 @@ export async function issueRequestedLicense(
       emailPending,
     },
   };
-}
-
-/** Sign-in mail carrying the key and a link to the product page; the key is removed from account data after delivery. */
-async function mailLicenseToBuyer(input: { email: string; token: string; productSlug: string; productName: string | null; locale: 'pl' | 'en' }): Promise<boolean> {
-  const admin = createAdminClient();
-  try {
-    const exp = parseLicenseClaims(input.token)?.exp;
-    const expiresAt = exp ? new Date(exp * 1000).toISOString() : null;
-    const sent = await sendTrustedMagicLink({ transactionalOnly: true,
-      email: input.email,
-      redirectTo: buildPostCheckoutMagicLinkRedirect({ origin: getSellfBaseUrl(), productSlug: input.productSlug, locale: input.locale, sessionId: undefined, paymentIntentId: undefined }),
-      data: { locale: input.locale, license_key: input.token, ...(expiresAt && { license_expires_at: expiresAt, license_expires_text: formatTransferDeadline(expiresAt, input.locale) }), ...(input.productName && { purchase_product: input.productName.slice(0, 500) }) },
-    });
-    if (!sent.ok) console.error('[license-request] Buyer mail not sent:', sent.code);
-    return sent.ok && !sent.skipped;
-  } finally {
-    const cleared = await admin.rpc('prepare_event_mail', { p_email: input.email, p_data: { locale: input.locale } });
-    if (cleared.error) console.error('[license-request] License key cleanup failed');
-  }
 }
 
 /** Buyer's own language (latest order, then account) wins; the seller panel language is only a fallback. */

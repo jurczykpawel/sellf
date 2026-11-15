@@ -13,8 +13,11 @@ export function licenseMailKey(email: string, order: string): string {
   return createHash('sha256').update(JSON.stringify([email.trim().toLowerCase(), order])).digest('hex');
 }
 
-/** `pending`: the mail is parked in auth_mail_retries and the retry worker delivers it (e.g. after the auth mail limit). */
-export type LicenseMailDelivery = 'sent' | 'pending' | 'failed';
+/**
+ * `pending`: the mail is parked in auth_mail_retries and the retry worker delivers it (e.g. after the auth mail limit).
+ * `skipped`: buyer emails are off, so the mail is left to the webhook channel.
+ */
+export type LicenseMailDelivery = 'sent' | 'skipped' | 'pending' | 'failed';
 
 /** Never throws: the grant and the lead webhook must not depend on mail delivery. */
 export async function sendLicenseMail(db: SupabaseClient, input: LicenseMailInput): Promise<LicenseMailDelivery> {
@@ -53,7 +56,7 @@ export async function sendLicenseMail(db: SupabaseClient, input: LicenseMailInpu
     if (finished.error) console.error('[license-mail] Delivery state awaiting recovery');
     if (!result.ok) console.error('[license-mail] Delivery failed:', result.code, result.queued ? '(queued for retry)' : '');
     if (finished.error) return 'failed';
-    return result.ok ? 'sent' : 'pending';
+    return result.ok ? (result.skipped ? 'skipped' : 'sent') : 'pending';
   } catch {
     console.error('[license-mail] Delivery failed');
     // A claimed mail keeps its queue row, so the retry worker still delivers it.

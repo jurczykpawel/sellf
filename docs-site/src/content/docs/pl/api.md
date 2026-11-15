@@ -101,6 +101,9 @@ przez `DELETE /api/v1/licenses/{id}`. `licenses:read` daje listę `GET /api/v1/l
 (filtry `product_id`, `email`, `status`, `source`, bez tokenów) i pojedynczą licencję z tokenem
 `GET /api/v1/licenses/{id}`. Wydanie wysyła `license.issued` i, o ile nie podasz `sendEmail: false`,
 mail do kupującego z kluczem i linkiem do produktu.
+Odpowiedź zawiera `emailSent` i `emailPending`. `emailPending: true` oznacza, że licencja jest
+wydana, a dostawca poczty chwilowo odmówił wysyłki (np. limit Supabase Auth na odbiorcę). Sellf
+ponowi ją automatycznie, więc nie wydawaj licencji drugi raz.
 
 Skrypt `admin-panel/scripts/issue-license.ts` wydaje licencję przez to API (`SELLF_URL`,
 `SELLF_API_KEY`). Tryb `--offline` podpisuje lokalnie kluczem prywatnym sprzedawcy w tym samym

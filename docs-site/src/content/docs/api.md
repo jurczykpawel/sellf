@@ -513,12 +513,15 @@ Supported outgoing event types include purchases, leads, waitlist signups, `refu
 | Method | Path | Scope | Description |
 |--------|------|-------|-------------|
 | GET | `/licenses` | `licenses:read` | List; filters `product_id`, `email`, `status` (`active`/`expired`/`revoked`), `source` (`purchase`/`manual`/`api`); no tokens |
-| POST | `/licenses` | `licenses:write` | Issue `{ productId, email, domain?, customFieldValues?, sendEmail? = true, locale? }`; returns the license with `token`, `jwksUrl`, `crlUrl`, `emailSent` |
+| POST | `/licenses` | `licenses:write` | Issue `{ productId, email, domain?, customFieldValues?, sendEmail? = true, locale? }`; returns the license with `token`, `jwksUrl`, `crlUrl`, `emailSent`, `emailPending` |
 | GET | `/licenses/{id}` | `licenses:read` | One license including its signed `token` |
 | DELETE | `/licenses/{id}` | `licenses:write` | Permanent revocation (same as the panel) |
 
 Issuance and revocation send `license.issued` / `license.revoked`. The product must have
 license issuance enabled and the seller an active signing key, otherwise `409 CONFLICT`.
+Unless `sendEmail: false`, the buyer gets the key by email. `emailPending: true` means the license
+is issued but the mail provider refused the email for now (for example Supabase Auth's
+per-recipient limit); Sellf retries it automatically, so do not issue the license again.
 
 **CLI.** `admin-panel/scripts/issue-license.ts` issues through this endpoint
 (`SELLF_URL`, `SELLF_API_KEY`); `--offline` signs locally with the seller's private key
