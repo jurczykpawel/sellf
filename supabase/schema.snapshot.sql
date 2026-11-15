@@ -8,6 +8,7 @@
 -- PostgreSQL database dump
 --
 
+
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -25,6 +26,7 @@ SET row_security = off;
 
 CREATE SCHEMA postgrest;
 
+
 ALTER SCHEMA postgrest OWNER TO postgres;
 
 --
@@ -32,6 +34,7 @@ ALTER SCHEMA postgrest OWNER TO postgres;
 --
 
 CREATE SCHEMA public;
+
 
 ALTER SCHEMA public OWNER TO pg_database_owner;
 
@@ -41,6 +44,7 @@ ALTER SCHEMA public OWNER TO pg_database_owner;
 
 COMMENT ON SCHEMA public IS 'standard public schema';
 
+
 --
 -- Name: line_item_type; Type: TYPE; Schema: public; Owner: postgres
 --
@@ -49,6 +53,7 @@ CREATE TYPE public.line_item_type AS ENUM (
     'main_product',
     'order_bump'
 );
+
 
 ALTER TYPE public.line_item_type OWNER TO postgres;
 
@@ -66,6 +71,7 @@ CREATE FUNCTION postgrest.pre_config() RETURNS void
     true
   );
 $$;
+
 
 ALTER FUNCTION postgrest.pre_config() OWNER TO postgres;
 
@@ -115,6 +121,7 @@ BEGIN
   RETURN json_build_object('success',true,'claimed_count',claimed,'user_email',email);
 END $$;
 
+
 ALTER FUNCTION public._claim_guest_purchases_before_disputes(p_user_id uuid) OWNER TO postgres;
 
 --
@@ -122,6 +129,7 @@ ALTER FUNCTION public._claim_guest_purchases_before_disputes(p_user_id uuid) OWN
 --
 
 COMMENT ON FUNCTION public._claim_guest_purchases_before_disputes(p_user_id uuid) IS '@graphql({"include": false})';
+
 
 --
 -- Name: _event_line_seats(uuid, uuid, uuid, timestamp with time zone); Type: FUNCTION; Schema: public; Owner: postgres
@@ -139,6 +147,7 @@ CREATE FUNCTION public._event_line_seats(p_transaction_id uuid, p_session_id uui
       AND r.transaction_id<>p_transaction_id AND (r.status='confirmed' OR (r.status='held' AND (r.expires_at IS NULL OR r.expires_at>p_at)))),0)
       FROM public.product_price_tiers t WHERE t.id=p_tier_id));
 $$;
+
 
 ALTER FUNCTION public._event_line_seats(p_transaction_id uuid, p_session_id uuid, p_tier_id uuid, p_at timestamp with time zone) OWNER TO postgres;
 
@@ -196,6 +205,7 @@ BEGIN
   RETURN jsonb_build_object('success',true,'scenario','guest_purchase_new_user_with_bump','access_granted',false,
     'is_guest_purchase',true,'send_magic_link',true,'customer_email',tx.customer_email);
 END $$;
+
 
 ALTER FUNCTION public._order_grant_and_record(p_transaction_id uuid, p_user_id uuid, p_existing_user_id uuid, p_requested_user_id uuid, p_coupon_id uuid, p_coupon_mode text) OWNER TO postgres;
 
@@ -301,6 +311,7 @@ BEGIN
   RETURN jsonb_build_object('success', true, 'transaction_id', tx.id, 'order_number', tx.order_number, 'amount', tx.amount);
 END;
 $$;
+
 
 ALTER FUNCTION public._place_order_without_event(p_order jsonb, p_lines jsonb) OWNER TO postgres;
 
@@ -691,6 +702,7 @@ BEGIN
 END;
 $_$;
 
+
 ALTER FUNCTION public._process_stripe_payment_completion_with_bump_impl(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) OWNER TO postgres;
 
 --
@@ -752,6 +764,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public._redeem_coupon_for_order(coupon_id_param uuid, current_user_id uuid, existing_user_id uuid, customer_email_param text, transaction_id_var uuid) OWNER TO postgres;
 
 --
@@ -773,6 +786,7 @@ BEGIN
   UPDATE public.payment_transactions SET status='awaiting_payment',cancel_reason=NULL,
     metadata=coalesce(metadata,'{}')||'{"access_on_placement":false}'::jsonb WHERE id=tx.id;
 END $$;
+
 
 ALTER FUNCTION public._reopen_cancelled_transfer(p_id uuid) OWNER TO postgres;
 
@@ -875,6 +889,7 @@ BEGIN
 END;
 $_$;
 
+
 ALTER FUNCTION public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text) OWNER TO postgres;
 
 --
@@ -893,6 +908,7 @@ BEGIN
   ) SELECT coalesce(jsonb_agg(stripe_session_id) FILTER (WHERE stripe_session_id IS NOT NULL),'[]'::jsonb) INTO sessions FROM closed;
   RETURN sessions;
 END $$;
+
 
 ALTER FUNCTION public._supersede_order_payment_attempts(p_id uuid) OWNER TO postgres;
 
@@ -913,6 +929,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
 
 ALTER FUNCTION public.add_access_grant_source_to_event() OWNER TO postgres;
 
@@ -953,6 +970,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.add_event_contract_fields() OWNER TO postgres;
 
@@ -1022,6 +1040,7 @@ BEGIN
   RETURN result;
 END $$;
 
+
 ALTER FUNCTION public.admin_bank_transfer_order(p_id uuid, p_action text, p_amount numeric, p_paid_at timestamp with time zone, p_reason text, p_actor uuid, p_accept_cancelled boolean, p_accept_oversold boolean) OWNER TO postgres;
 
 --
@@ -1052,6 +1071,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.admin_delete_oto_offer(source_product_id_param uuid) OWNER TO postgres;
 
 --
@@ -1059,6 +1079,7 @@ ALTER FUNCTION public.admin_delete_oto_offer(source_product_id_param uuid) OWNER
 --
 
 COMMENT ON FUNCTION public.admin_delete_oto_offer(source_product_id_param uuid) IS '@graphql({"include": false})';
+
 
 --
 -- Name: admin_get_product_order_bumps(uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -1094,6 +1115,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.admin_get_product_order_bumps(product_id_param uuid) OWNER TO postgres;
 
 --
@@ -1101,6 +1123,7 @@ ALTER FUNCTION public.admin_get_product_order_bumps(product_id_param uuid) OWNER
 --
 
 COMMENT ON FUNCTION public.admin_get_product_order_bumps(product_id_param uuid) IS '@graphql({"include": false})';
+
 
 --
 -- Name: admin_get_product_oto_offer(uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -1152,6 +1175,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.admin_get_product_oto_offer(product_id_param uuid) OWNER TO postgres;
 
 --
@@ -1159,6 +1183,7 @@ ALTER FUNCTION public.admin_get_product_oto_offer(product_id_param uuid) OWNER T
 --
 
 COMMENT ON FUNCTION public.admin_get_product_oto_offer(product_id_param uuid) IS '@graphql({"include": false})';
+
 
 --
 -- Name: admin_save_oto_offer(uuid, uuid, text, numeric, integer, boolean, uuid, text, numeric, integer); Type: FUNCTION; Schema: public; Owner: postgres
@@ -1242,6 +1267,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.admin_save_oto_offer(source_product_id_param uuid, oto_product_id_param uuid, discount_type_param text, discount_value_param numeric, duration_minutes_param integer, is_active_param boolean, downsell_product_id_param uuid, downsell_discount_type_param text, downsell_discount_value_param numeric, downsell_duration_minutes_param integer) OWNER TO postgres;
 
 --
@@ -1249,6 +1275,7 @@ ALTER FUNCTION public.admin_save_oto_offer(source_product_id_param uuid, oto_pro
 --
 
 COMMENT ON FUNCTION public.admin_save_oto_offer(source_product_id_param uuid, oto_product_id_param uuid, discount_type_param text, discount_value_param numeric, duration_minutes_param integer, is_active_param boolean, downsell_product_id_param uuid, downsell_discount_type_param text, downsell_discount_value_param numeric, downsell_duration_minutes_param integer) IS '@graphql({"include": false})';
+
 
 --
 -- Name: affiliate_admin(uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -1265,6 +1292,7 @@ BEGIN
  RAISE EXCEPTION 'Admin required' USING ERRCODE='42501'; END IF;
 END $$;
 
+
 ALTER FUNCTION public.affiliate_admin(p_actor uuid) OWNER TO postgres;
 
 --
@@ -1277,6 +1305,7 @@ CREATE FUNCTION public.affiliate_valid_reference(p_value text) RETURNS boolean
     AS $$
  SELECT p_value IS NOT NULL AND length(btrim(p_value)) BETWEEN 1 AND 200 AND p_value !~ E'[\r\n]';
 $$;
+
 
 ALTER FUNCTION public.affiliate_valid_reference(p_value text) OWNER TO postgres;
 
@@ -1307,6 +1336,7 @@ CREATE TABLE public.affiliate_memberships (
     CONSTRAINT affiliate_memberships_version_check CHECK ((version > 0))
 );
 
+
 ALTER TABLE public.affiliate_memberships OWNER TO postgres;
 
 --
@@ -1331,6 +1361,7 @@ BEGIN
  PERFORM public.affiliate_audit('affiliate_memberships',NULL,to_jsonb(result),p_user);
  RETURN result;
 END $$;
+
 
 ALTER FUNCTION public.affiliate_apply(p_user uuid, p_code text, p_display_name text, p_channel text, p_terms_version text) OWNER TO postgres;
 
@@ -1443,6 +1474,7 @@ BEGIN
  RETURN NOT waiting AND NOT net_missing;
 END $$;
 
+
 ALTER FUNCTION public.affiliate_apply_sync(p_payment uuid, p_token uuid, p_generation bigint, p_session_created_at timestamp with time zone, p_livemode boolean) OWNER TO postgres;
 
 --
@@ -1457,6 +1489,7 @@ BEGIN
  INSERT INTO public.audit_log(table_name,operation,old_values,new_values,performed_by)
  VALUES(p_table,CASE WHEN p_old IS NULL THEN 'INSERT' ELSE 'UPDATE' END,p_old,p_new,p_actor);
 END $$;
+
 
 ALTER FUNCTION public.affiliate_audit(p_table text, p_old jsonb, p_new jsonb, p_actor uuid) OWNER TO postgres;
 
@@ -1477,6 +1510,7 @@ BEGIN
   RAISE EXCEPTION 'Binding periods overlap' USING ERRCODE='23514'; END IF;
  RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.affiliate_binding_check() OWNER TO postgres;
 
@@ -1511,6 +1545,7 @@ CREATE TABLE public.affiliate_payouts (
     CONSTRAINT affiliate_payouts_version_check CHECK ((version > 0))
 );
 
+
 ALTER TABLE public.affiliate_payouts OWNER TO postgres;
 
 --
@@ -1536,6 +1571,7 @@ BEGIN
  PERFORM public.affiliate_audit('affiliate_payouts',to_jsonb(old),to_jsonb(result)||jsonb_build_object('reason',p_reason),p_actor);
  RETURN result;
 END $$;
+
 
 ALTER FUNCTION public.affiliate_cancel_payout(p_actor uuid, p_payout uuid, p_expected_version bigint, p_no_transfer boolean, p_reason text) OWNER TO postgres;
 
@@ -1587,6 +1623,7 @@ BEGIN
  RETURN NULL;
 END $$;
 
+
 ALTER FUNCTION public.affiliate_check_relations() OWNER TO postgres;
 
 --
@@ -1614,6 +1651,7 @@ CREATE TABLE public.affiliate_work (
     CONSTRAINT affiliate_work_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'leased'::text, 'done'::text, 'needs_review'::text])))
 );
 
+
 ALTER TABLE public.affiliate_work OWNER TO postgres;
 
 --
@@ -1633,6 +1671,7 @@ BEGIN
  UPDATE public.affiliate_work w SET status='leased',lease_token=gen_random_uuid(),leased_until=now()+interval '5 minutes',attempts=attempts+1
  FROM due WHERE w.payment_id=due.payment_id RETURNING w.*;
 END $$;
+
 
 ALTER FUNCTION public.affiliate_claim_work(p_limit integer) OWNER TO postgres;
 
@@ -1656,6 +1695,7 @@ BEGIN
  RETURN FOUND;
 END $$;
 
+
 ALTER FUNCTION public.affiliate_complete_unbound_work(p_payment uuid, p_token uuid, p_generation bigint) OWNER TO postgres;
 
 --
@@ -1672,6 +1712,7 @@ CREATE TABLE public.affiliate_coupon_bindings (
     CONSTRAINT affiliate_coupon_bindings_check CHECK (((retired_at IS NULL) OR (retired_at >= created_at))),
     CONSTRAINT affiliate_coupon_bindings_version_check CHECK ((version > 0))
 );
+
 
 ALTER TABLE public.affiliate_coupon_bindings OWNER TO postgres;
 
@@ -1697,6 +1738,7 @@ BEGIN
  PERFORM public.affiliate_audit('affiliate_coupon_bindings',CASE WHEN old.id IS NULL THEN NULL ELSE to_jsonb(old) END,to_jsonb(result),p_actor);
  RETURN result;
 END $$;
+
 
 ALTER FUNCTION public.affiliate_coupon_bind(p_actor uuid, p_coupon uuid, p_member uuid, p_expected_version bigint) OWNER TO postgres;
 
@@ -1734,6 +1776,7 @@ BEGIN
  RETURN NEW;
 END $$;
 
+
 ALTER FUNCTION public.affiliate_enqueue() OWNER TO postgres;
 
 --
@@ -1770,6 +1813,7 @@ BEGIN
  RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
 END $$;
 
+
 ALTER FUNCTION public.affiliate_guard() OWNER TO postgres;
 
 --
@@ -1781,6 +1825,7 @@ CREATE FUNCTION public.affiliate_immutable() RETURNS trigger
     SET search_path TO ''
     AS $$
 BEGIN RAISE EXCEPTION 'Append only record' USING ERRCODE='23514'; END $$;
+
 
 ALTER FUNCTION public.affiliate_immutable() OWNER TO postgres;
 
@@ -1804,6 +1849,7 @@ BEGIN
  PERFORM pg_advisory_xact_lock(hashtextextended(p_member::text||p_currency,0));
  RETURN locked;
 END $$;
+
 
 ALTER FUNCTION public.affiliate_lock_member(p_member uuid, p_currency text, p_payments uuid[], p_livemode boolean) OWNER TO postgres;
 
@@ -1833,6 +1879,7 @@ CREATE TABLE public.affiliate_ledger (
     CONSTRAINT affiliate_ledger_kind_check CHECK ((kind = ANY (ARRAY['accrual'::text, 'reversal'::text, 'restoration'::text, 'settlement'::text, 'manual_adjustment'::text]))),
     CONSTRAINT affiliate_ledger_reason_check CHECK (((reason IS NULL) OR public.affiliate_valid_reference(reason)))
 );
+
 
 ALTER TABLE public.affiliate_ledger OWNER TO postgres;
 
@@ -1866,6 +1913,7 @@ BEGIN
  PERFORM public.affiliate_audit('affiliate_ledger',NULL,to_jsonb(result),p_actor);
  RETURN result;
 END $$;
+
 
 ALTER FUNCTION public.affiliate_manual_adjustment(p_actor uuid, p_commission uuid, p_expected_version bigint, p_amount_minor bigint, p_reason text, p_evidence_reference text, p_review_dispute boolean) OWNER TO postgres;
 
@@ -1902,6 +1950,7 @@ BEGIN
  RETURN result;
 END $$;
 
+
 ALTER FUNCTION public.affiliate_mark_paid(p_actor uuid, p_payout uuid, p_expected_version bigint, p_bank_reference text, p_invoice_reference text, p_bank_amount_minor bigint, p_currency text, p_paid_at timestamp with time zone, p_full_settlement boolean, p_reason text, p_evidence_reference text, p_livemode boolean) OWNER TO postgres;
 
 --
@@ -1923,6 +1972,7 @@ BEGIN
  PERFORM public.affiliate_audit('affiliate_memberships',to_jsonb(old),to_jsonb(result)||jsonb_build_object('reason',p_reason),p_actor);
  RETURN result;
 END $$;
+
 
 ALTER FUNCTION public.affiliate_member_update(p_actor uuid, p_member uuid, p_expected_version bigint, p_status text, p_reason text) OWNER TO postgres;
 
@@ -1964,6 +2014,7 @@ BEGIN
  RETURN result;
 END $$;
 
+
 ALTER FUNCTION public.affiliate_portal_page(p_member uuid, p_currency text, p_cursor uuid, p_limit integer, p_as_of timestamp with time zone) OWNER TO postgres;
 
 --
@@ -1995,6 +2046,7 @@ CREATE FUNCTION public.affiliate_portal_summary(p_member uuid, p_as_of timestamp
    OR EXISTS(SELECT 1 FROM public.affiliate_commissions c LEFT JOIN public.affiliate_work w ON w.payment_id=c.payment_id
     WHERE c.member_id=p_member AND c.livemode=p_livemode AND (w.status='needs_review' OR (c.dispute_seen AND c.dispute_reviewed_at IS NULL))))
 $$;
+
 
 ALTER FUNCTION public.affiliate_portal_summary(p_member uuid, p_as_of timestamp with time zone, p_livemode boolean) OWNER TO postgres;
 
@@ -2052,6 +2104,7 @@ CREATE FUNCTION public.affiliate_preview(p_member uuid, p_currency text, p_cutof
  CROSS JOIN held h CROSS JOIN settlements s CROSS JOIN readiness r WHERE m.id=p_member;
 $$;
 
+
 ALTER FUNCTION public.affiliate_preview(p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_livemode boolean) OWNER TO postgres;
 
 --
@@ -2072,6 +2125,7 @@ BEGIN
  WHERE t.key !~ '^[A-Z]{3}$' OR jsonb_typeof(t.value)<>'string' OR t.value#>>'{}' !~ '^[1-9][0-9]{0,18}$'
  OR (t.value#>>'{}')::numeric>9223372036854775807);
 END $_$;
+
 
 ALTER FUNCTION public.affiliate_valid_program(p_terms jsonb, p_thresholds jsonb) OWNER TO postgres;
 
@@ -2098,6 +2152,7 @@ CREATE TABLE public.affiliate_programs (
     CONSTRAINT affiliate_programs_thresholds_check CHECK ((jsonb_typeof(thresholds) = 'object'::text)),
     CONSTRAINT affiliate_programs_version_check CHECK ((version > 0))
 );
+
 
 ALTER TABLE public.affiliate_programs OWNER TO postgres;
 
@@ -2129,6 +2184,7 @@ BEGIN
  PERFORM public.affiliate_audit('affiliate_programs',CASE WHEN old.id IS NULL THEN NULL ELSE to_jsonb(old) END,to_jsonb(result),p_actor);
  RETURN result;
 END $$;
+
 
 ALTER FUNCTION public.affiliate_program_update(p_actor uuid, p_expected_version bigint, p_enabled boolean, p_terms_version text, p_terms jsonb, p_hold_days integer, p_buffer_days integer, p_thresholds jsonb) OWNER TO postgres;
 
@@ -2165,6 +2221,7 @@ BEGIN
  RETURN result;
 END $_$;
 
+
 ALTER FUNCTION public.affiliate_reserve(p_actor uuid, p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_member_version bigint, p_program_version bigint, p_payee_reference text, p_livemode boolean) OWNER TO postgres;
 
 --
@@ -2183,6 +2240,7 @@ BEGIN
  AND p_generation<=requested_generation AND p_generation>processed_generation;
  RETURN FOUND;
 END $$;
+
 
 ALTER FUNCTION public.affiliate_retry_work(p_payment uuid, p_token uuid, p_generation bigint, p_error text) OWNER TO postgres;
 
@@ -2205,6 +2263,7 @@ CREATE TABLE public.affiliate_rules (
     CONSTRAINT affiliate_rules_percentage_bps_check CHECK (((percentage_bps >= 0) AND (percentage_bps <= 10000))),
     CONSTRAINT affiliate_rules_revision_check CHECK ((revision > 0))
 );
+
 
 ALTER TABLE public.affiliate_rules OWNER TO postgres;
 
@@ -2229,6 +2288,7 @@ BEGIN
  RETURN result;
 END $$;
 
+
 ALTER FUNCTION public.affiliate_rule_create(p_actor uuid, p_product uuid, p_expected_revision integer, p_enabled boolean, p_percentage_bps integer, p_fixed_minor bigint, p_currency text) OWNER TO postgres;
 
 --
@@ -2243,6 +2303,7 @@ BEGIN
   IF TG_OP = 'DELETE' AND OLD.product_id::text = current_setting('sellf.deleting_product', true) THEN RETURN OLD; END IF;
   RAISE EXCEPTION 'Append only record' USING ERRCODE = '23514';
 END $$;
+
 
 ALTER FUNCTION public.affiliate_rule_guard() OWNER TO postgres;
 
@@ -2264,6 +2325,7 @@ BEGIN
  requested_generation=requested_generation+1 WHERE payment_id=p_payment RETURNING * INTO result;
  PERFORM public.affiliate_audit('affiliate_work',to_jsonb(old),to_jsonb(result)||jsonb_build_object('reason',p_reason),p_actor);
 END $$;
+
 
 ALTER FUNCTION public.affiliate_work_retry(p_actor uuid, p_payment uuid, p_generation bigint, p_reason text) OWNER TO postgres;
 
@@ -2358,6 +2420,7 @@ BEGIN
 END;
 $_$;
 
+
 ALTER FUNCTION public.apply_migration(migration_version text, migration_sql text, content_checksum text) OWNER TO postgres;
 
 --
@@ -2397,6 +2460,7 @@ BEGIN
   UPDATE public.payment_disputes SET payload=result WHERE stripe_dispute_id=p_dispute_id;
   RETURN result;
 END $$;
+
 
 ALTER FUNCTION public.apply_payment_dispute(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone) OWNER TO postgres;
 
@@ -2558,6 +2622,7 @@ BEGIN
   RETURN result;
 END $$;
 
+
 ALTER FUNCTION public.apply_payment_dispute_before_guest_claim(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone) OWNER TO postgres;
 
 --
@@ -2595,6 +2660,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.apply_shop_vat_defaults() OWNER TO postgres;
 
 --
@@ -2611,6 +2677,7 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'Attempt not opening' USING ERRCODE='22023'; END IF;
 END $$;
 
+
 ALTER FUNCTION public.attach_order_payment_session(p_attempt uuid, p_session_id text, p_url text) OWNER TO postgres;
 
 --
@@ -2624,6 +2691,7 @@ CREATE FUNCTION public.attribution_text(p jsonb, k text, max_len integer) RETURN
   SELECT CASE WHEN jsonb_typeof(p) = 'object' AND jsonb_typeof(p->k) = 'string'
     THEN left(nullif(btrim(regexp_replace(p->>k, '[[:cntrl:]]', '', 'g')), ''), max_len) END
 $$;
+
 
 ALTER FUNCTION public.attribution_text(p jsonb, k text, max_len integer) OWNER TO postgres;
 
@@ -2646,6 +2714,7 @@ BEGIN
   END;
 END $$;
 
+
 ALTER FUNCTION public.attribution_time(p jsonb, k text) OWNER TO postgres;
 
 --
@@ -2665,6 +2734,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.audit_checkout_profile() OWNER TO postgres;
 
@@ -2693,6 +2763,7 @@ BEGIN
   RETURN NULL;
 END;
 $$;
+
 
 ALTER FUNCTION public.audit_trigger_function() OWNER TO postgres;
 
@@ -2753,6 +2824,7 @@ BEGIN
   RETURN result||jsonb_build_object('currency',p_order->>'currency','dueAt',due,'reminderAt',remind,'releaseAt',release,'transfer',transfer);
 END $$;
 
+
 ALTER FUNCTION public.bank_transfer_order(p_order jsonb, p_lines jsonb) OWNER TO postgres;
 
 --
@@ -2781,18 +2853,18 @@ BEGIN
     IF product_slugs_param IS NULL OR array_length(product_slugs_param, 1) IS NULL THEN
         RETURN result;
     END IF;
-
+    
     -- Limit array size to prevent DoS attacks (reduced from 50 to 20)
     IF array_length(product_slugs_param, 1) > 20 THEN
         RAISE EXCEPTION 'Too many product slugs requested (maximum 20)';
     END IF;
-
+    
     -- Get current authenticated user ID
     current_user_id := auth.uid();
     IF current_user_id IS NULL THEN
         RETURN result;
     END IF;
-
+    
     -- Check access for each product slug with proper sanitization
     FOREACH slug IN ARRAY product_slugs_param
     LOOP
@@ -2800,18 +2872,18 @@ BEGIN
         IF slug IS NULL OR length(slug) = 0 OR length(slug) > 100 THEN
             CONTINUE; -- Skip invalid slugs completely
         END IF;
-
+        
         -- Sanitize slug: only allow alphanumeric, hyphens, and underscores
         clean_slug := regexp_replace(slug, '[^a-zA-Z0-9_-]', '', 'g');
-
+        
         -- Skip empty or invalid slugs after sanitization
         IF clean_slug IS NULL OR length(clean_slug) = 0 THEN
             CONTINUE;
         END IF;
-
+        
         -- Create safe JSON key (use clean_slug for both query and key)
         safe_key := clean_slug;
-
+        
         -- Use parameterized query to prevent SQL injection
         -- NOTE: is_active controls product visibility for NEW purchases only
         -- Users who already have access keep it regardless of is_active status
@@ -2824,14 +2896,15 @@ BEGIN
               -- Check temporal access for user (only condition that revokes access)
               AND (upa.access_expires_at IS NULL OR upa.access_expires_at >= NOW())
         ) INTO has_access;
-
+        
         -- Use sanitized key for JSON to prevent injection
         result := result || jsonb_build_object(safe_key, has_access);
     END LOOP;
-
+    
     RETURN result;
 END;
 $$;
+
 
 ALTER FUNCTION public.batch_check_user_product_access(product_slugs_param text[]) OWNER TO postgres;
 
@@ -2840,6 +2913,7 @@ ALTER FUNCTION public.batch_check_user_product_access(product_slugs_param text[]
 --
 
 COMMENT ON FUNCTION public.batch_check_user_product_access(product_slugs_param text[]) IS 'Batch check user access for multiple products. Limited to 20 products per call with rate limiting.';
+
 
 --
 -- Name: bind_access_license(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -2860,6 +2934,7 @@ BEGIN
   RETURN NEW;
 END $$;
 
+
 ALTER FUNCTION public.bind_access_license() OWNER TO postgres;
 
 --
@@ -2873,6 +2948,7 @@ CREATE FUNCTION public.business_event_actor() RETURNS jsonb
   SELECT coalesce(nullif(current_setting('sellf.event_context',true),'')::jsonb->'actor',
     jsonb_build_object('type',CASE WHEN auth.uid() IS NULL THEN 'system' ELSE 'user' END,'id',auth.uid()));
 $$;
+
 
 ALTER FUNCTION public.business_event_actor() OWNER TO postgres;
 
@@ -2888,6 +2964,7 @@ CREATE FUNCTION public.business_event_order(p_transaction uuid) RETURNS jsonb
     'paymentProvider',t.payment_provider,'status',t.status) FROM public.payment_transactions t WHERE t.id=p_transaction;
 $$;
 
+
 ALTER FUNCTION public.business_event_order(p_transaction uuid) OWNER TO postgres;
 
 --
@@ -2901,6 +2978,7 @@ CREATE FUNCTION public.business_event_partner(p_member uuid) RETURNS jsonb
   SELECT jsonb_build_object('memberId',m.id,'code',m.code,'displayName',m.display_name,'status',m.status,'userId',m.user_id)
   FROM public.affiliate_memberships m WHERE m.id=p_member;
 $$;
+
 
 ALTER FUNCTION public.business_event_partner(p_member uuid) OWNER TO postgres;
 
@@ -2919,6 +2997,7 @@ CREATE FUNCTION public.buyer_mail_locale(p_email text) RETURNS text
     (SELECT u.raw_user_meta_data->>'locale' FROM auth.users u
       WHERE lower(u.email)=lower(p_email) AND u.raw_user_meta_data->>'locale' IN ('pl','en') LIMIT 1));
 $$;
+
 
 ALTER FUNCTION public.buyer_mail_locale(p_email text) OWNER TO postgres;
 
@@ -2950,6 +3029,7 @@ BEGIN
   RETURN jsonb_build_object('success', true, 'transaction_id', tx.id, 'expire_sessions', sessions);
 END;
 $$;
+
 
 ALTER FUNCTION public.cancel_unpaid_order(p_transaction_id uuid, p_reason text) OWNER TO postgres;
 
@@ -3030,6 +3110,7 @@ BEGIN
   RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
 END $$;
 
+
 ALTER FUNCTION public.capture_business_event() OWNER TO postgres;
 
 --
@@ -3057,6 +3138,7 @@ BEGIN
   RETURN NEW;
 END $$;
 
+
 ALTER FUNCTION public.capture_commission_event() OWNER TO postgres;
 
 --
@@ -3083,6 +3165,7 @@ BEGIN
   GET DIAGNOSTICS count=ROW_COUNT; RETURN count;
 END $$;
 
+
 ALTER FUNCTION public.capture_due_renewal_notices() OWNER TO postgres;
 
 --
@@ -3100,6 +3183,7 @@ BEGIN
     ORDER BY access_expires_at FOR UPDATE SKIP LOCKED LIMIT 100);
   GET DIAGNOSTICS count=ROW_COUNT; RETURN count;
 END $$;
+
 
 ALTER FUNCTION public.capture_expired_access() OWNER TO postgres;
 
@@ -3123,6 +3207,7 @@ BEGIN
   GET DIAGNOSTICS count=ROW_COUNT; RETURN count;
 END $$;
 
+
 ALTER FUNCTION public.capture_expired_licenses() OWNER TO postgres;
 
 --
@@ -3140,6 +3225,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.capture_license_expiry_updated() OWNER TO postgres;
 
@@ -3163,6 +3249,7 @@ BEGIN
   RETURN NEW;
 END $$;
 
+
 ALTER FUNCTION public.capture_license_issued_event() OWNER TO postgres;
 
 --
@@ -3181,6 +3268,7 @@ BEGIN
       'disputeId',coalesce(NEW.revoked_by_dispute_id,OLD.revoked_by_dispute_id)));
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.capture_license_status_event() OWNER TO postgres;
 
@@ -3208,6 +3296,7 @@ BEGIN
     'payout.'||NEW.status||':'||NEW.id);
   RETURN NULL;
 END $$;
+
 
 ALTER FUNCTION public.capture_payout_event() OWNER TO postgres;
 
@@ -3248,6 +3337,7 @@ BEGIN
   RETURN NULL;
 END $$;
 
+
 ALTER FUNCTION public.capture_product_event() OWNER TO postgres;
 
 --
@@ -3282,6 +3372,7 @@ BEGIN
   RETURN p;
 END $$;
 
+
 ALTER FUNCTION public.capture_product_lifecycle_event() OWNER TO postgres;
 
 --
@@ -3305,6 +3396,7 @@ BEGIN
     event||':'||NEW.id||CASE WHEN TG_OP='UPDATE' AND NEW.status='pending' THEN ':'||clock_timestamp() ELSE '' END);
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.capture_refund_request_event() OWNER TO postgres;
 
@@ -3332,6 +3424,7 @@ BEGIN
   RETURN NEW;
 END $$;
 
+
 ALTER FUNCTION public.capture_sales_invoice_event() OWNER TO postgres;
 
 --
@@ -3357,6 +3450,7 @@ BEGIN
     'product.sold_out:'||s.id||':'||NEW.id);
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.capture_sold_out_event() OWNER TO postgres;
 
@@ -3387,6 +3481,7 @@ BEGIN
     ON CONFLICT(deduplication_key) DO NOTHING;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.capture_subscription_period_access() OWNER TO postgres;
 
@@ -3435,6 +3530,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.check_application_rate_limit(identifier_param text, action_type_param text, max_requests integer, window_minutes integer) OWNER TO postgres;
 
 --
@@ -3442,6 +3538,7 @@ ALTER FUNCTION public.check_application_rate_limit(identifier_param text, action
 --
 
 COMMENT ON FUNCTION public.check_application_rate_limit(identifier_param text, action_type_param text, max_requests integer, window_minutes integer) IS 'Application-level rate limiting for Next.js API routes. Use this from /lib/rate-limiting.ts. Windows are epoch-aligned so sizes > 60 minutes work correctly.';
+
 
 --
 -- Name: check_rate_limit(text, integer, integer, text); Type: FUNCTION; Schema: public; Owner: postgres
@@ -3492,6 +3589,7 @@ BEGIN
     RETURN current_count <= max_calls;
 END;
 $$;
+
 
 ALTER FUNCTION public.check_rate_limit(function_name_param text, max_calls integer, time_window_seconds integer, identifier_param text) OWNER TO postgres;
 
@@ -3587,6 +3685,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.check_refund_eligibility(transaction_id_param uuid) OWNER TO postgres;
 
 --
@@ -3610,20 +3709,20 @@ BEGIN
     IF product_slug_param IS NULL THEN
         RETURN FALSE;
     END IF;
-
+    
     -- Sanitize slug: only allow alphanumeric, hyphens, and underscores
     clean_slug := regexp_replace(product_slug_param, '[^a-zA-Z0-9_-]', '', 'g');
-
+    
     -- Validate sanitized slug
     IF clean_slug IS NULL OR length(clean_slug) = 0 OR length(clean_slug) > 100 THEN
         RETURN FALSE;
     END IF;
-
+    
     -- Get current authenticated user ID
     IF auth.uid() IS NULL THEN
         RETURN FALSE;
     END IF;
-
+    
     -- NOTE: is_active controls product visibility for NEW purchases only
     -- Users who already have access keep it regardless of is_active status
     -- Access is revoked only when: product is deleted OR access_expires_at passes
@@ -3639,6 +3738,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.check_user_product_access(product_slug_param text) OWNER TO postgres;
 
 --
@@ -3646,6 +3746,7 @@ ALTER FUNCTION public.check_user_product_access(product_slug_param text) OWNER T
 --
 
 COMMENT ON FUNCTION public.check_user_product_access(product_slug_param text) IS 'Check if authenticated user has access to a specific product by slug. Includes rate limiting and input sanitization.';
+
 
 --
 -- Name: check_waitlist_config(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -3675,6 +3776,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.check_waitlist_config() OWNER TO postgres;
 
 --
@@ -3682,6 +3784,7 @@ ALTER FUNCTION public.check_waitlist_config() OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.check_waitlist_config() IS 'Check if waitlist.signup webhook exists and count products with waitlist enabled. Used for admin warnings.';
+
 
 --
 -- Name: auth_mail_retries; Type: TABLE; Schema: public; Owner: postgres
@@ -3707,6 +3810,7 @@ CREATE TABLE public.auth_mail_retries (
     CONSTRAINT auth_mail_retries_redirect_to_check CHECK (((length(redirect_to) >= 1) AND (length(redirect_to) <= 2048)))
 );
 
+
 ALTER TABLE public.auth_mail_retries OWNER TO postgres;
 
 --
@@ -3729,6 +3833,7 @@ BEGIN
     ORDER BY q.next_attempt_at LIMIT least(greatest(coalesce(p_limit, 20), 1), 100) FOR UPDATE SKIP LOCKED)
   RETURNING r.*;
 END $$;
+
 
 ALTER FUNCTION public.claim_auth_mail_retries(p_limit integer) OWNER TO postgres;
 
@@ -3753,6 +3858,7 @@ CREATE TABLE public.business_events (
     CONSTRAINT business_events_event_type_check CHECK ((event_type = ANY (ARRAY['access.granted'::text, 'access.updated'::text, 'access.revoked'::text, 'access.expired'::text, 'order.abandoned'::text, 'seats.held'::text, 'seats.confirmed'::text, 'seats.released'::text, 'license.revoked'::text, 'license.restored'::text, 'invoicing.issued'::text, 'invoicing.failed'::text, 'invoicing.corrected'::text, 'commission.accrued'::text, 'commission.reversed'::text, 'payout.reserved'::text, 'payout.paid'::text, 'payout.cancelled'::text, 'refund.requested'::text, 'refund.request_approved'::text, 'refund.request_rejected'::text, 'refund.request_cancelled'::text, 'product.published'::text, 'product.unpublished'::text, 'product.price_changed'::text, 'product.sold_out'::text, 'license.issued'::text, 'license.expired'::text, 'order.participants_updated'::text, 'subscription.renewal_upcoming'::text, 'license.updated'::text, 'product.created'::text, 'product.updated'::text, 'product.deleted'::text]))),
     CONSTRAINT business_events_last_error_check CHECK (((last_error IS NULL) OR (length(last_error) <= 200)))
 );
+
 
 ALTER TABLE public.business_events OWNER TO postgres;
 
@@ -3780,6 +3886,7 @@ BEGIN
   )
   SELECT * FROM leased ORDER BY next_attempt_at, created_at, id;
 END $$;
+
 
 ALTER FUNCTION public.claim_business_events(p_limit integer) OWNER TO postgres;
 
@@ -3827,6 +3934,7 @@ BEGIN
   RETURN result;
 END $$;
 
+
 ALTER FUNCTION public.claim_guest_purchases_for_user(p_user_id uuid) OWNER TO postgres;
 
 --
@@ -3846,6 +3954,7 @@ BEGIN
     RETURNING id INTO retry_id;
   RETURN retry_id;
 END $$;
+
 
 ALTER FUNCTION public.claim_license_mail(p_key text, p_email text, p_redirect_to text, p_data jsonb) OWNER TO postgres;
 
@@ -3875,6 +3984,7 @@ BEGIN
   ON CONFLICT (user_id,product_id) DO NOTHING;
 END $$;
 
+
 ALTER FUNCTION public.claim_paid_subscription_access(p_user_id uuid) OWNER TO postgres;
 
 --
@@ -3900,6 +4010,7 @@ CREATE TABLE public.webhook_logs (
     CONSTRAINT webhook_logs_status_check CHECK ((status = ANY (ARRAY['success'::text, 'failed'::text, 'retried'::text, 'archived'::text, 'pending_retry'::text, 'permanently_failed'::text])))
 );
 
+
 ALTER TABLE public.webhook_logs OWNER TO postgres;
 
 --
@@ -3908,11 +4019,13 @@ ALTER TABLE public.webhook_logs OWNER TO postgres;
 
 COMMENT ON COLUMN public.webhook_logs.attempt_count IS 'Number of delivery attempts so far (1 = first attempt completed)';
 
+
 --
 -- Name: COLUMN webhook_logs.max_attempts; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.webhook_logs.max_attempts IS 'Maximum delivery attempts before going to DLQ';
+
 
 --
 -- Name: COLUMN webhook_logs.next_retry_at; Type: COMMENT; Schema: public; Owner: postgres
@@ -3920,11 +4033,13 @@ COMMENT ON COLUMN public.webhook_logs.max_attempts IS 'Maximum delivery attempts
 
 COMMENT ON COLUMN public.webhook_logs.next_retry_at IS 'When the worker should attempt next delivery (also used as in-flight lease)';
 
+
 --
 -- Name: COLUMN webhook_logs.failed_permanently_at; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.webhook_logs.failed_permanently_at IS 'Set when delivery enters DLQ (status=permanently_failed)';
+
 
 --
 -- Name: claim_webhook_delivery(uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -3938,6 +4053,7 @@ CREATE FUNCTION public.claim_webhook_delivery(p_id uuid) RETURNS SETOF public.we
   WHERE id = p_id AND status = 'pending_retry' AND next_retry_at <= now()
   RETURNING *;
 $$;
+
 
 ALTER FUNCTION public.claim_webhook_delivery(p_id uuid) OWNER TO postgres;
 
@@ -3970,6 +4086,7 @@ BEGIN
   RETURN CASE WHEN coalesce(p_source, p_medium, p_campaign) IS NOT NULL THEN 'other' ELSE 'direct' END;
 END $$;
 
+
 ALTER FUNCTION public.classify_attribution_channel(p_source text, p_medium text, p_campaign text, p_referrer_host text, p_click_type text) OWNER TO postgres;
 
 --
@@ -3992,6 +4109,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.cleanup_application_rate_limits() OWNER TO postgres;
 
 --
@@ -3999,6 +4117,7 @@ ALTER FUNCTION public.cleanup_application_rate_limits() OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.cleanup_application_rate_limits() IS 'Cleanup old application rate limit entries (run via cron job)';
+
 
 --
 -- Name: cleanup_audit_logs(integer); Type: FUNCTION; Schema: public; Owner: postgres
@@ -4015,16 +4134,17 @@ BEGIN
     IF retention_days < 1 OR retention_days > 3650 THEN
         RAISE EXCEPTION 'Retention days must be between 1 and 3650';
     END IF;
-
+    
     -- Delete audit log records older than retention period
     DELETE FROM public.audit_log
     WHERE performed_at < NOW() - INTERVAL '1 day' * retention_days;
-
+    
     GET DIAGNOSTICS deleted_count = ROW_COUNT;
-
+    
     RETURN deleted_count;
 END;
 $$;
+
 
 ALTER FUNCTION public.cleanup_audit_logs(retention_days integer) OWNER TO postgres;
 
@@ -4033,6 +4153,7 @@ ALTER FUNCTION public.cleanup_audit_logs(retention_days integer) OWNER TO postgr
 --
 
 COMMENT ON FUNCTION public.cleanup_audit_logs(retention_days integer) IS 'Cleanup old audit log records based on retention policy. Default is 90 days.';
+
 
 --
 -- Name: cleanup_captcha_nonces(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -4053,6 +4174,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.cleanup_captcha_nonces() OWNER TO postgres;
 
 --
@@ -4060,6 +4182,7 @@ ALTER FUNCTION public.cleanup_captcha_nonces() OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.cleanup_captcha_nonces() IS 'Hourly maintenance: deletes consumed captcha nonces older than 24h past expiry.';
+
 
 --
 -- Name: cleanup_expired_oto_coupons(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -4090,6 +4213,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.cleanup_expired_oto_coupons() OWNER TO postgres;
 
 --
@@ -4097,6 +4221,7 @@ ALTER FUNCTION public.cleanup_expired_oto_coupons() OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.cleanup_expired_oto_coupons() IS '@graphql({"include": false})';
+
 
 --
 -- Name: cleanup_old_admin_actions(integer); Type: FUNCTION; Schema: public; Owner: postgres
@@ -4126,6 +4251,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.cleanup_old_admin_actions(retention_days integer) OWNER TO postgres;
 
 --
@@ -4144,20 +4270,20 @@ BEGIN
     IF NOT ( select public.is_admin() ) THEN
         RAISE EXCEPTION 'Unauthorized: Admin privileges required';
     END IF;
-
+    
     -- Input validation
     IF retention_days IS NULL OR retention_days < 30 THEN
         RAISE EXCEPTION 'Retention period must be at least 30 days';
     END IF;
-
+    
     -- Delete old claimed guest purchases (leverages BRIN index for efficiency)
     -- Only delete claimed purchases to preserve unclaimed ones
-    DELETE FROM public.guest_purchases
-    WHERE claimed_at IS NOT NULL
+    DELETE FROM public.guest_purchases 
+    WHERE claimed_at IS NOT NULL 
       AND claimed_at < NOW() - (retention_days || ' days')::INTERVAL;
-
+    
     GET DIAGNOSTICS deleted_count = ROW_COUNT;
-
+    
     -- VACUUM workaround: Reset statistics to encourage autovacuum after bulk deletion
     -- Note: This is a safe workaround since we can't execute VACUUM directly in functions
     -- PostgreSQL autovacuum will handle actual space reclamation based on updated statistics
@@ -4168,10 +4294,11 @@ BEGIN
             PERFORM pg_stat_reset_single_table_counters('public.guest_purchases'::regclass);
         END IF;
     END IF;
-
+    
     RETURN deleted_count;
 END;
 $$;
+
 
 ALTER FUNCTION public.cleanup_old_guest_purchases(retention_days integer) OWNER TO postgres;
 
@@ -4180,6 +4307,7 @@ ALTER FUNCTION public.cleanup_old_guest_purchases(retention_days integer) OWNER 
 --
 
 COMMENT ON FUNCTION public.cleanup_old_guest_purchases(retention_days integer) IS '@graphql({"include": false})';
+
 
 --
 -- Name: cleanup_old_price_history(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -4199,6 +4327,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.cleanup_old_price_history() OWNER TO postgres;
 
 --
@@ -4206,6 +4335,7 @@ ALTER FUNCTION public.cleanup_old_price_history() OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.cleanup_old_price_history() IS 'Automatically removes price history entries older than 30 days to comply with Omnibus Directive requirements';
+
 
 --
 -- Name: cleanup_old_rate_limits(integer); Type: FUNCTION; Schema: public; Owner: postgres
@@ -4234,6 +4364,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.cleanup_old_rate_limits(retention_hours integer) OWNER TO postgres;
 
 --
@@ -4250,12 +4381,13 @@ BEGIN
     -- Delete rate limit records older than 24 hours
     DELETE FROM public.rate_limits
     WHERE window_start < NOW() - INTERVAL '24 hours';
-
+    
     GET DIAGNOSTICS deleted_count = ROW_COUNT;
-
+    
     RETURN deleted_count;
 END;
 $$;
+
 
 ALTER FUNCTION public.cleanup_rate_limits() OWNER TO postgres;
 
@@ -4264,6 +4396,7 @@ ALTER FUNCTION public.cleanup_rate_limits() OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.cleanup_rate_limits() IS 'Cleanup old rate limit records. Should be called periodically (e.g., daily cron job).';
+
 
 --
 -- Name: clear_admin_cache(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -4287,6 +4420,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.clear_admin_cache() OWNER TO postgres;
 
 --
@@ -4304,6 +4438,7 @@ BEGIN
   RETURN NEW;
 END $$;
 
+
 ALTER FUNCTION public.clear_license_dispute_owner() OWNER TO postgres;
 
 --
@@ -4318,6 +4453,7 @@ BEGIN
   IF NEW.revoked_at IS NULL THEN NEW.revocation_reason:=NULL; END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.clear_license_revocation_reason() OWNER TO postgres;
 
@@ -4341,6 +4477,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
 
 ALTER FUNCTION public.clear_pending_free_grant_on_access() OWNER TO postgres;
 
@@ -4378,6 +4515,7 @@ BEGIN
   RETURN result || jsonb_build_object('transaction_id', tx.id, 'pricing_source', 'snapshot');
 END;
 $$;
+
 
 ALTER FUNCTION public.complete_offline_order(p_transaction_id uuid, p_paid_minor numeric) OWNER TO postgres;
 
@@ -4417,6 +4555,7 @@ BEGIN
   RETURN jsonb_build_object('result','completed','transaction_id',tx.id,'reopened',false);
 END $$;
 
+
 ALTER FUNCTION public.complete_order_payment_attempt(p_attempt uuid, p_session_id text, p_payment_intent text, p_amount numeric, p_now timestamp with time zone) OWNER TO postgres;
 
 --
@@ -4452,6 +4591,7 @@ BEGIN
   END LOOP;
 END $$;
 
+
 ALTER FUNCTION public.confirm_event_order(p_transaction_id uuid) OWNER TO postgres;
 
 --
@@ -4483,6 +4623,7 @@ CREATE TABLE public.lead_submissions (
     CONSTRAINT lead_submissions_token_hash_check CHECK ((token_hash ~ '^[a-f0-9]{64}$'::text))
 );
 
+
 ALTER TABLE public.lead_submissions OWNER TO postgres;
 
 --
@@ -4499,6 +4640,7 @@ CREATE FUNCTION public.confirm_lead_submission(p_token_hash text, p_email text) 
   RETURNING *;
 $$;
 
+
 ALTER FUNCTION public.confirm_lead_submission(p_token_hash text, p_email text) OWNER TO postgres;
 
 --
@@ -4513,6 +4655,7 @@ CREATE FUNCTION public.confirm_refund_notification(p_refund_id text, p_version i
   UPDATE public.payment_refunds SET notified_version=greatest(notified_version,p_version)
   WHERE stripe_refund_id=p_refund_id AND p_version BETWEEN 1 AND version;
 $$;
+
 
 ALTER FUNCTION public.confirm_refund_notification(p_refund_id text, p_version integer) OWNER TO postgres;
 
@@ -4533,6 +4676,7 @@ BEGIN
  END IF;
  RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.copy_free_grant_fields() OWNER TO postgres;
 
@@ -4605,6 +4749,7 @@ EXCEPTION WHEN unique_violation THEN
 END;
 $$;
 
+
 ALTER FUNCTION public.create_refund_request(transaction_id_param uuid, reason_param text) OWNER TO postgres;
 
 --
@@ -4619,6 +4764,7 @@ CREATE FUNCTION public.currency_minor_factor(currency_code text) RETURNS numeric
     ('BIF','CLP','DJF','GNF','JPY','KMF','KRW','MGA','PYG','RWF','VND','VUV','XAF','XOF','XPF')
     THEN 1::numeric ELSE 100::numeric END;
 $$;
+
 
 ALTER FUNCTION public.currency_minor_factor(currency_code text) OWNER TO postgres;
 
@@ -4636,18 +4782,18 @@ BEGIN
     IF email_param IS NULL THEN
         RETURN FALSE;
     END IF;
-
+    
     -- Length check (RFC 5321)
     IF length(email_param) < 3 OR length(email_param) > 254 THEN
         RETURN FALSE;
     END IF;
-
+    
     -- Basic format validation with simplified but robust regex
     -- This pattern is more maintainable and covers most real-world cases
     IF NOT (email_param ~* '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$') THEN
         RETURN FALSE;
     END IF;
-
+    
     -- Additional security checks
     IF email_param LIKE '%..%' OR     -- Consecutive dots
        email_param LIKE '.%' OR       -- Starting with dot
@@ -4656,15 +4802,16 @@ BEGIN
        email_param LIKE '%.@%' THEN   -- Dot immediately before @
         RETURN FALSE;
     END IF;
-
+    
     -- Check for multiple @ symbols
     IF (length(email_param) - length(replace(email_param, '@', ''))) != 1 THEN
         RETURN FALSE;
     END IF;
-
+    
     RETURN TRUE;
 END;
 $_$;
+
 
 ALTER FUNCTION public.validate_email_format(email_param text) OWNER TO postgres;
 
@@ -4673,6 +4820,7 @@ ALTER FUNCTION public.validate_email_format(email_param text) OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.validate_email_format(email_param text) IS '@graphql({"include": false})';
+
 
 --
 -- Name: refund_requests; Type: TABLE; Schema: public; Owner: postgres
@@ -4701,6 +4849,7 @@ CREATE TABLE public.refund_requests (
     CONSTRAINT refund_requests_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'cancelled'::text])))
 );
 
+
 ALTER TABLE public.refund_requests OWNER TO postgres;
 
 --
@@ -4708,6 +4857,7 @@ ALTER TABLE public.refund_requests OWNER TO postgres;
 --
 
 COMMENT ON TABLE public.refund_requests IS 'Customer-initiated refund requests that require admin approval';
+
 
 --
 -- Name: decide_refund_request(uuid, text, uuid, text, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
@@ -4726,6 +4876,7 @@ BEGIN
     processed_at=CASE WHEN p_status='pending' THEN NULL ELSE now() END, updated_at=now()
     WHERE id=p_request_id RETURNING *;
 END $$;
+
 
 ALTER FUNCTION public.decide_refund_request(p_request_id uuid, p_status text, p_admin_id uuid, p_admin_response text, p_actor jsonb) OWNER TO postgres;
 
@@ -4758,6 +4909,7 @@ BEGIN
   RETURN jsonb_build_object('success',true,'already_declared',false,'releaseAt',tx.release_at,'declaredAt',tx.transfer_declared_at,'afterDeadline',late);
 END $$;
 
+
 ALTER FUNCTION public.declare_transfer(p_id uuid, p_note text, p_now timestamp with time zone) OWNER TO postgres;
 
 --
@@ -4778,6 +4930,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.defer_subscription_access_until_confirmation() OWNER TO postgres;
 
 --
@@ -4792,6 +4945,7 @@ BEGIN
   IF NEW.event_mode AND (TG_OP = 'INSERT' OR NOT OLD.event_mode) THEN NEW.allow_repeat_purchase := true; END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.enable_event_repeat_purchase() OWNER TO postgres;
 
@@ -4810,6 +4964,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.end_refunded_subscription() OWNER TO postgres;
 
@@ -4834,6 +4989,7 @@ BEGIN
   IF ids IS NOT NULL THEN PERFORM public.revoke_issued_licenses(ids,p_reason=>'refund'); END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.end_refunded_subscription_access() OWNER TO postgres;
 
@@ -4867,6 +5023,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.enforce_product_type_immutable_after_sale() OWNER TO postgres;
 
 --
@@ -4874,6 +5031,7 @@ ALTER FUNCTION public.enforce_product_type_immutable_after_sale() OWNER TO postg
 --
 
 COMMENT ON FUNCTION public.enforce_product_type_immutable_after_sale() IS 'BEFORE UPDATE trigger on public.products: rejects product_type changes once any payment_transactions / user_product_access / subscriptions row references the product.';
+
 
 --
 -- Name: enforce_whole_amounts_coupon(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -4893,6 +5051,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
 
 ALTER FUNCTION public.enforce_whole_amounts_coupon() OWNER TO postgres;
 
@@ -4914,6 +5073,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
 
 ALTER FUNCTION public.enforce_whole_amounts_order_bump() OWNER TO postgres;
 
@@ -4949,6 +5109,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.enforce_whole_amounts_product() OWNER TO postgres;
 
 --
@@ -4969,6 +5130,7 @@ CREATE FUNCTION public.enqueue_webhook_delivery(p_id uuid, p_endpoint_id uuid, p
   ) ON CONFLICT DO NOTHING
   RETURNING *;
 $$;
+
 
 ALTER FUNCTION public.enqueue_webhook_delivery(p_id uuid, p_endpoint_id uuid, p_event_type text, p_payload jsonb, p_delivery_key text, p_max_attempts integer) OWNER TO postgres;
 
@@ -5012,6 +5174,7 @@ FROM sessions s LEFT JOIN LATERAL (
 ) c ON true;
 $$;
 
+
 ALTER FUNCTION public.event_availability(p_product_id uuid, p_at timestamp with time zone) OWNER TO postgres;
 
 --
@@ -5027,6 +5190,7 @@ SELECT count(*) FILTER (WHERE lower(t.customer_email)=lower(p_email)) < 3
 FROM public.seat_reservations r JOIN public.payment_transactions t ON t.id=r.transaction_id
 WHERE r.session_id=p_session_id AND r.status='held' AND (r.expires_at IS NULL OR r.expires_at > now());
 $$;
+
 
 ALTER FUNCTION public.event_hold_limits(p_session_id uuid, p_email text, p_ip text) OWNER TO postgres;
 
@@ -5048,6 +5212,7 @@ OR EXISTS(SELECT 1 FROM public.guest_purchases g
         AND t.session_id IS NOT NULL AND t.session_id=g.session_id))));
 $$;
 
+
 ALTER FUNCTION public.event_mail_access(p_email text, p_product_id uuid, p_transaction_id uuid) OWNER TO postgres;
 
 --
@@ -5065,6 +5230,7 @@ CREATE FUNCTION public.event_order_seats(p_transaction_id uuid, p_at timestamp w
   FROM public.payment_line_items li CROSS JOIN LATERAL (SELECT public._event_line_seats(p_transaction_id,li.session_id,li.tier_id,p_at) seats) x
   WHERE li.transaction_id=p_transaction_id AND li.session_id IS NOT NULL ORDER BY li.item_type<>'main_product', li.session_id LIMIT 1;
 $$;
+
 
 ALTER FUNCTION public.event_order_seats(p_transaction_id uuid, p_at timestamp with time zone) OWNER TO postgres;
 
@@ -5084,6 +5250,7 @@ SELECT jsonb_build_object('availability', (SELECT a FROM jsonb_array_elements(pu
     ORDER BY r.created_at,r.id LIMIT 100 OFFSET greatest(0,p_offset)) q)) FROM public.product_sessions s WHERE s.id=p_session_id;
 $$;
 
+
 ALTER FUNCTION public.event_session_admin(p_session_id uuid, p_offset integer) OWNER TO postgres;
 
 --
@@ -5098,6 +5265,7 @@ BEGIN
   UPDATE public.order_payment_attempts SET status='expired' WHERE stripe_session_id=p_session_id AND status IN ('opening','open');
   RETURN FOUND;
 END $$;
+
 
 ALTER FUNCTION public.expire_order_payment_attempt(p_session_id text) OWNER TO postgres;
 
@@ -5114,6 +5282,7 @@ BEGIN
   UPDATE public.seat_reservations SET status='released',released_at=now() WHERE status='held' AND expires_at<=now();
   GET DIAGNOSTICS n = ROW_COUNT; RETURN n;
 END $$;
+
 
 ALTER FUNCTION public.expire_seat_reservations() OWNER TO postgres;
 
@@ -5139,6 +5308,7 @@ BEGIN
   RETURNING attempts INTO done;
   RETURN coalesce(done >= 8, false);
 END $$;
+
 
 ALTER FUNCTION public.fail_business_event(p_id uuid, p_error text) OWNER TO postgres;
 
@@ -5222,6 +5392,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.find_auto_apply_coupon(customer_email_param text, product_id_param uuid) OWNER TO postgres;
 
 --
@@ -5236,6 +5407,7 @@ CREATE FUNCTION public.find_user_id_by_email(p_email text) RETURNS uuid
   WHERE lower(email) = lower(p_email)
   LIMIT 1;
 $$;
+
 
 ALTER FUNCTION public.find_user_id_by_email(p_email text) OWNER TO postgres;
 
@@ -5256,6 +5428,7 @@ BEGIN
   END IF;
 END $$;
 
+
 ALTER FUNCTION public.finish_license_mail(p_retry_id uuid, p_completed boolean, p_error text) OWNER TO postgres;
 
 --
@@ -5271,6 +5444,7 @@ CREATE FUNCTION public.free_grant_context(p_product_id uuid, p_request_id uuid D
   AND c.claimed_at IS NULL AND c.expires_at>now() AND (p_request_id IS NULL OR c.id=p_request_id)
  ORDER BY c.created_at DESC LIMIT 1;
 $$;
+
 
 ALTER FUNCTION public.free_grant_context(p_product_id uuid, p_request_id uuid) OWNER TO postgres;
 
@@ -5624,6 +5798,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.generate_oto_coupon(source_product_id_param uuid, customer_email_param text, transaction_id_param uuid) OWNER TO postgres;
 
 --
@@ -5631,6 +5806,7 @@ ALTER FUNCTION public.generate_oto_coupon(source_product_id_param uuid, customer
 --
 
 COMMENT ON FUNCTION public.generate_oto_coupon(source_product_id_param uuid, customer_email_param text, transaction_id_param uuid) IS 'Generates a time-limited, email-bound coupon for OTO after purchase';
+
 
 --
 -- Name: get_abandoned_cart_stats(integer); Type: FUNCTION; Schema: public; Owner: postgres
@@ -5664,6 +5840,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_abandoned_cart_stats(days_ago integer) OWNER TO postgres;
 
 --
@@ -5671,6 +5848,7 @@ ALTER FUNCTION public.get_abandoned_cart_stats(days_ago integer) OWNER TO postgr
 --
 
 COMMENT ON FUNCTION public.get_abandoned_cart_stats(days_ago integer) IS '@graphql({"include": false})';
+
 
 --
 -- Name: get_abandoned_carts(integer, integer); Type: FUNCTION; Schema: public; Owner: postgres
@@ -5708,6 +5886,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_abandoned_carts(days_ago integer, limit_count integer) OWNER TO postgres;
 
 --
@@ -5715,6 +5894,7 @@ ALTER FUNCTION public.get_abandoned_carts(days_ago integer, limit_count integer)
 --
 
 COMMENT ON FUNCTION public.get_abandoned_carts(days_ago integer, limit_count integer) IS '@graphql({"include": false})';
+
 
 --
 -- Name: get_admin_refund_requests(text, integer, integer); Type: FUNCTION; Schema: public; Owner: postgres
@@ -5761,6 +5941,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_admin_refund_requests(status_filter text, limit_param integer, offset_param integer) OWNER TO postgres;
 
 --
@@ -5768,6 +5949,7 @@ ALTER FUNCTION public.get_admin_refund_requests(status_filter text, limit_param 
 --
 
 COMMENT ON FUNCTION public.get_admin_refund_requests(status_filter text, limit_param integer, offset_param integer) IS '@graphql({"include": false})';
+
 
 --
 -- Name: get_attribution_report(timestamp with time zone, timestamp with time zone, text, text[], uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -5851,6 +6033,7 @@ BEGIN
   RETURN result;
 END $$;
 
+
 ALTER FUNCTION public.get_attribution_report(p_from timestamp with time zone, p_to timestamp with time zone, p_touch text, p_group_by text[], p_product uuid) OWNER TO postgres;
 
 --
@@ -5912,6 +6095,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_checkout_funnel(p_days integer, p_product_id uuid) OWNER TO postgres;
 
 --
@@ -5932,6 +6116,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_cleanup_job_status() OWNER TO postgres;
 
 --
@@ -5939,6 +6124,7 @@ ALTER FUNCTION public.get_cleanup_job_status() OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.get_cleanup_job_status() IS 'Get status of cleanup cron jobs for monitoring purposes';
+
 
 --
 -- Name: get_dashboard_stats(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -5977,6 +6163,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_dashboard_stats() OWNER TO postgres;
 
 --
@@ -5984,6 +6171,7 @@ ALTER FUNCTION public.get_dashboard_stats() OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.get_dashboard_stats() IS '@graphql({"include": false})';
+
 
 --
 -- Name: get_detailed_revenue_stats(uuid, timestamp with time zone); Type: FUNCTION; Schema: public; Owner: postgres
@@ -6043,6 +6231,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start_date timestamp with time zone) OWNER TO postgres;
 
 --
@@ -6050,6 +6239,7 @@ ALTER FUNCTION public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start
 --
 
 COMMENT ON FUNCTION public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start_date timestamp with time zone) IS '@graphql({"include": false})';
+
 
 --
 -- Name: get_hourly_revenue_stats(date, uuid, text); Type: FUNCTION; Schema: public; Owner: postgres
@@ -6105,6 +6295,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) OWNER TO postgres;
 
 --
@@ -6112,6 +6303,7 @@ ALTER FUNCTION public.get_hourly_revenue_stats(p_target_date date, p_product_id 
 --
 
 COMMENT ON FUNCTION public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) IS '@graphql({"include": false})';
+
 
 --
 -- Name: get_migration_status(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -6129,6 +6321,7 @@ CREATE FUNCTION public.get_migration_status() RETURNS jsonb
   )
   FROM supabase_migrations.schema_migrations sm;
 $$;
+
 
 ALTER FUNCTION public.get_migration_status() OWNER TO postgres;
 
@@ -6206,6 +6399,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_oto_coupon_info(coupon_code_param text, email_param text) OWNER TO postgres;
 
 --
@@ -6213,6 +6407,7 @@ ALTER FUNCTION public.get_oto_coupon_info(coupon_code_param text, email_param te
 --
 
 COMMENT ON FUNCTION public.get_oto_coupon_info(coupon_code_param text, email_param text) IS 'Returns OTO coupon details for frontend timer display';
+
 
 --
 -- Name: get_payment_statistics(timestamp with time zone, timestamp with time zone); Type: FUNCTION; Schema: public; Owner: postgres
@@ -6230,37 +6425,37 @@ BEGIN
     IF NOT ( select public.is_admin() ) THEN
         RAISE EXCEPTION 'Unauthorized: Admin privileges required';
     END IF;
-
+    
     -- Enhanced input validation for dates
     IF start_date IS NULL OR end_date IS NULL THEN
         RAISE EXCEPTION 'Start date and end date are required';
     END IF;
-
+    
     IF start_date > end_date THEN
         RAISE EXCEPTION 'Start date must be before or equal to end date';
     END IF;
-
+    
     -- Prevent future dates (data sanity check)
     IF start_date > NOW() OR end_date > NOW() + INTERVAL '1 day' THEN
         RAISE EXCEPTION 'Dates cannot be in the future';
     END IF;
-
+    
     -- Prevent unreasonably old dates (prevent excessive processing)
     IF start_date < NOW() - INTERVAL '10 years' THEN
         RAISE EXCEPTION 'Start date cannot be more than 10 years in the past';
     END IF;
-
+    
     -- Limit date range to prevent excessive data processing (max 1 year)
     IF end_date - start_date > INTERVAL '1 year' THEN
         RAISE EXCEPTION 'Date range too large (maximum 1 year)';
     END IF;
-
+    
     -- Return sanitized statistics without exposing sensitive details
     SELECT jsonb_build_object(
         'period_start', start_date,
         'period_end', end_date,
         'total_transactions', COUNT(*),
-        'total_revenue_range', CASE
+        'total_revenue_range', CASE 
             WHEN COALESCE(SUM(amount), 0) = 0 THEN 'No revenue'
             WHEN COALESCE(SUM(amount), 0) < 100000 THEN 'Under $1,000'
             WHEN COALESCE(SUM(amount), 0) < 1000000 THEN '$1,000 - $10,000'
@@ -6273,12 +6468,12 @@ BEGIN
         ),
         'guest_purchase_summary', jsonb_build_object(
             'total_guest_purchases', (
-                SELECT COUNT(*)
-                FROM public.guest_purchases
+                SELECT COUNT(*) 
+                FROM public.guest_purchases 
                 WHERE created_at BETWEEN start_date AND end_date
             ),
-            'claimed_percentage', CASE
-                WHEN (SELECT COUNT(*) FROM public.guest_purchases WHERE created_at BETWEEN start_date AND end_date) = 0
+            'claimed_percentage', CASE 
+                WHEN (SELECT COUNT(*) FROM public.guest_purchases WHERE created_at BETWEEN start_date AND end_date) = 0 
                 THEN 0
                 ELSE ROUND(
                     (SELECT COUNT(*) FROM public.guest_purchases WHERE claimed_at BETWEEN start_date AND end_date)::numeric * 100.0 /
@@ -6290,10 +6485,11 @@ BEGIN
     ) INTO stats
     FROM public.payment_transactions
     WHERE created_at BETWEEN start_date AND end_date;
-
+    
     RETURN stats;
 END;
 $_$;
+
 
 ALTER FUNCTION public.get_payment_statistics(start_date timestamp with time zone, end_date timestamp with time zone) OWNER TO postgres;
 
@@ -6302,6 +6498,7 @@ ALTER FUNCTION public.get_payment_statistics(start_date timestamp with time zone
 --
 
 COMMENT ON FUNCTION public.get_payment_statistics(start_date timestamp with time zone, end_date timestamp with time zone) IS '@graphql({"include": false})';
+
 
 --
 -- Name: get_payment_summary(timestamp with time zone, timestamp with time zone); Type: FUNCTION; Schema: public; Owner: postgres
@@ -6349,6 +6546,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_payment_summary(p_today_start timestamp with time zone, p_month_start timestamp with time zone) OWNER TO postgres;
 
 --
@@ -6356,6 +6554,7 @@ ALTER FUNCTION public.get_payment_summary(p_today_start timestamp with time zone
 --
 
 COMMENT ON FUNCTION public.get_payment_summary(p_today_start timestamp with time zone, p_month_start timestamp with time zone) IS '@graphql({"include": false})';
+
 
 --
 -- Name: get_product_order_bumps(uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -6393,6 +6592,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_product_order_bumps(product_id_param uuid) OWNER TO postgres;
 
 --
@@ -6422,6 +6622,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_public_integrations_config() OWNER TO postgres;
 
 --
@@ -6445,6 +6646,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_revenue_goal(p_product_id uuid) OWNER TO postgres;
 
 --
@@ -6452,6 +6654,7 @@ ALTER FUNCTION public.get_revenue_goal(p_product_id uuid) OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.get_revenue_goal(p_product_id uuid) IS '@graphql({"include": false})';
+
 
 --
 -- Name: get_revenue_groups(timestamp with time zone, timestamp with time zone, uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -6480,6 +6683,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_revenue_groups(p_start timestamp with time zone, p_end timestamp with time zone, p_product_id uuid) OWNER TO postgres;
 
 --
@@ -6487,6 +6691,7 @@ ALTER FUNCTION public.get_revenue_groups(p_start timestamp with time zone, p_end
 --
 
 COMMENT ON FUNCTION public.get_revenue_groups(p_start timestamp with time zone, p_end timestamp with time zone, p_product_id uuid) IS '@graphql({"include": false})';
+
 
 --
 -- Name: get_sales_chart_data(timestamp with time zone, timestamp with time zone, uuid, text); Type: FUNCTION; Schema: public; Owner: postgres
@@ -6531,6 +6736,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_sales_chart_data(p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_product_id uuid, p_timezone text) OWNER TO postgres;
 
 --
@@ -6538,6 +6744,7 @@ ALTER FUNCTION public.get_sales_chart_data(p_start_date timestamp with time zone
 --
 
 COMMENT ON FUNCTION public.get_sales_chart_data(p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_product_id uuid, p_timezone text) IS '@graphql({"include": false})';
+
 
 --
 -- Name: get_telemetry_metrics(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -6570,6 +6777,7 @@ CREATE FUNCTION public.get_telemetry_metrics() RETURNS jsonb
   );
 $$;
 
+
 ALTER FUNCTION public.get_telemetry_metrics() OWNER TO postgres;
 
 --
@@ -6600,7 +6808,7 @@ BEGIN
     END IF;
 
     RETURN QUERY
-    SELECT
+    SELECT 
         pt.id,
         p.name,
         p.slug,
@@ -6617,6 +6825,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_user_payment_history(user_id_param uuid) OWNER TO postgres;
 
 --
@@ -6624,6 +6833,7 @@ ALTER FUNCTION public.get_user_payment_history(user_id_param uuid) OWNER TO post
 --
 
 COMMENT ON FUNCTION public.get_user_payment_history(user_id_param uuid) IS '@graphql({"include": false})';
+
 
 --
 -- Name: get_user_profile(uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -6644,13 +6854,13 @@ BEGIN
     IF user_id_param IS NULL THEN
         RETURN NULL;
     END IF;
-
+    
     -- Get current authenticated user
     current_user_id := auth.uid();
     IF current_user_id IS NULL THEN
         RAISE EXCEPTION 'Authentication required';
     END IF;
-
+    
     -- Security check: only allow users to view their own profile, or admins to view any profile
     IF user_id_param != current_user_id THEN
         IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = current_user_id)
@@ -6658,7 +6868,7 @@ BEGIN
             RAISE EXCEPTION 'Unauthorized: Can only view your own profile';
         END IF;
     END IF;
-
+    
     -- Get user info from auth.users
     SELECT jsonb_build_object(
         'id', id,
@@ -6670,12 +6880,12 @@ BEGIN
     ) INTO user_info
     FROM auth.users
     WHERE id = user_id_param;
-
+    
     -- Return null if user not found
     IF user_info IS NULL THEN
         RETURN NULL;
     END IF;
-
+    
     -- Get user statistics
     SELECT jsonb_build_object(
         'total_products', total_products,
@@ -6685,7 +6895,7 @@ BEGIN
     ) INTO user_stats
     FROM public.user_access_stats
     WHERE user_id = user_id_param;
-
+    
     -- Get user access details
     SELECT jsonb_agg(
         jsonb_build_object(
@@ -6702,7 +6912,7 @@ BEGIN
     ) INTO user_access
     FROM public.user_product_access_detailed
     WHERE user_id = user_id_param;
-
+    
     -- Return the combined user profile
     RETURN jsonb_build_object(
         'user', user_info,
@@ -6712,6 +6922,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_user_profile(user_id_param uuid) OWNER TO postgres;
 
 --
@@ -6719,6 +6930,7 @@ ALTER FUNCTION public.get_user_profile(user_id_param uuid) OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.get_user_profile(user_id_param uuid) IS 'Get complete user profile with access statistics. Users can only view their own profile, admins can view any profile.';
+
 
 --
 -- Name: get_user_purchases_with_refund_status(uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -6777,6 +6989,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.get_user_purchases_with_refund_status(user_id_param uuid) OWNER TO postgres;
 
 --
@@ -6784,6 +6997,7 @@ ALTER FUNCTION public.get_user_purchases_with_refund_status(user_id_param uuid) 
 --
 
 COMMENT ON FUNCTION public.get_user_purchases_with_refund_status(user_id_param uuid) IS '@graphql({"include": false})';
+
 
 --
 -- Name: get_variant_group(uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -6821,6 +7035,7 @@ CREATE FUNCTION public.get_variant_group(p_group_id uuid) RETURNS TABLE(id uuid,
   ORDER BY pvg.display_order ASC, p.price ASC;
 $$;
 
+
 ALTER FUNCTION public.get_variant_group(p_group_id uuid) OWNER TO postgres;
 
 --
@@ -6828,6 +7043,7 @@ ALTER FUNCTION public.get_variant_group(p_group_id uuid) OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.get_variant_group(p_group_id uuid) IS 'Get all active variants in an active group by UUID (M:N schema), incl. Omnibus sale pricing';
+
 
 --
 -- Name: get_variant_group_by_slug(text); Type: FUNCTION; Schema: public; Owner: postgres
@@ -6865,6 +7081,7 @@ CREATE FUNCTION public.get_variant_group_by_slug(p_slug text) RETURNS TABLE(id u
   ORDER BY pvg.display_order ASC, p.price ASC;
 $$;
 
+
 ALTER FUNCTION public.get_variant_group_by_slug(p_slug text) OWNER TO postgres;
 
 --
@@ -6872,6 +7089,7 @@ ALTER FUNCTION public.get_variant_group_by_slug(p_slug text) OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.get_variant_group_by_slug(p_slug text) IS 'Get all active variants in an active group by slug (M:N schema), incl. Omnibus sale pricing';
+
 
 --
 -- Name: grant_bundle_component_access(uuid, uuid, integer); Type: FUNCTION; Schema: public; Owner: postgres
@@ -6889,6 +7107,7 @@ BEGIN
   RETURN result;
 END;
 $$;
+
 
 ALTER FUNCTION public.grant_bundle_component_access(user_id_param uuid, product_id_param uuid, max_retries integer) OWNER TO postgres;
 
@@ -6999,6 +7218,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.grant_bundle_component_access_impl(user_id_param uuid, product_id_param uuid, max_retries integer) OWNER TO postgres;
 
 --
@@ -7017,6 +7237,7 @@ BEGIN
   RETURN result;
 END;
 $$;
+
 
 ALTER FUNCTION public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) OWNER TO postgres;
 
@@ -7170,6 +7391,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) OWNER TO postgres;
 
 --
@@ -7177,6 +7399,7 @@ ALTER FUNCTION public.grant_free_product_access_impl(product_slug_param text, ac
 --
 
 COMMENT ON FUNCTION public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) IS '@graphql({"include": false})';
+
 
 --
 -- Name: grant_free_with_context(text, text, uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -7199,6 +7422,7 @@ BEGIN
  RETURN result;
 END $$;
 
+
 ALTER FUNCTION public.grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid) OWNER TO postgres;
 
 --
@@ -7217,6 +7441,7 @@ BEGIN
   RETURN result;
 END;
 $$;
+
 
 ALTER FUNCTION public.grant_product_access_service_role(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) OWNER TO postgres;
 
@@ -7284,7 +7509,7 @@ BEGIN
     -- Retry loop for optimistic locking
     WHILE retry_count < max_retries LOOP
         -- Get current state (including version for optimistic locking)
-        SELECT
+        SELECT 
             access_expires_at,
             version,
             (access_expires_at IS NULL) as has_permanent_access,
@@ -7323,8 +7548,8 @@ BEGIN
             END IF;
 
             -- Optimistic update with version check
-            UPDATE public.user_product_access
-            SET
+            UPDATE public.user_product_access 
+            SET 
                 access_granted_at = NOW(),
                 access_duration_days = final_duration,
                 access_expires_at = CASE
@@ -7334,13 +7559,13 @@ BEGIN
                     ELSE new_expires_at
                 END,
                 version = version + 1
-            WHERE
-                user_id = user_id_param
-                AND product_id = product_id_param
+            WHERE 
+                user_id = user_id_param 
+                AND product_id = product_id_param 
                 AND version = existing_record.version; -- Optimistic locking condition
-
+            
             GET DIAGNOSTICS rows_affected = ROW_COUNT;
-
+            
             IF rows_affected = 1 THEN
                 -- Success! Update succeeded
                 RETURN jsonb_build_object(
@@ -7354,12 +7579,12 @@ BEGIN
             ELSE
                 -- Optimistic lock failure - someone else modified the record
                 retry_count := retry_count + 1;
-
+                
                 -- Small delay before retry (exponential backoff)
                 IF retry_count < max_retries THEN
                     PERFORM pg_sleep(0.01 * (2 ^ retry_count)); -- 10ms, 20ms, 40ms
                 END IF;
-
+                
                 CONTINUE; -- Retry the loop
             END IF;
         ELSE
@@ -7375,22 +7600,22 @@ BEGIN
             -- Insert new record with optimistic locking protection
             BEGIN
                 INSERT INTO public.user_product_access (
-                    user_id,
-                    product_id,
-                    access_duration_days,
+                    user_id, 
+                    product_id, 
+                    access_duration_days, 
                     access_expires_at,
                     access_granted_at,
                     version
                 )
                 VALUES (
-                    user_id_param,
-                    product_id_param,
-                    final_duration,
+                    user_id_param, 
+                    product_id_param, 
+                    final_duration, 
                     new_expires_at,
                     NOW(),
                     1
                 );
-
+                
                 -- Success! Insert succeeded
                 RETURN jsonb_build_object(
                     'success', true,
@@ -7398,22 +7623,22 @@ BEGIN
                     'new_expires_at', new_expires_at,
                     'retry_count', retry_count
                 );
-
-            EXCEPTION
+                
+            EXCEPTION 
                 WHEN unique_violation THEN
                     -- Someone else created the record concurrently
                     retry_count := retry_count + 1;
-
+                    
                     -- Small delay before retry
                     IF retry_count < max_retries THEN
                         PERFORM pg_sleep(0.01 * (2 ^ retry_count));
                     END IF;
-
+                    
                     CONTINUE; -- Retry the loop
             END;
         END IF;
     END LOOP;
-
+    
     -- All retries exhausted - CRITICAL: Log this business failure
     BEGIN
         PERFORM public.log_admin_action(
@@ -7433,12 +7658,12 @@ BEGIN
                 'context', 'optimistic_locking'
             )
         );
-    EXCEPTION
+    EXCEPTION 
         WHEN OTHERS THEN
             -- If logging fails, continue anyway
             NULL;
     END;
-
+    
     -- All retries exhausted
     RETURN jsonb_build_object(
         'success', false,
@@ -7447,7 +7672,7 @@ BEGIN
         'max_retries', max_retries,
         'retry_exceeded', true
     );
-
+    
 EXCEPTION
     WHEN OTHERS THEN
         -- Log the error for debugging
@@ -7469,12 +7694,12 @@ EXCEPTION
                     'context', 'optimistic_locking'
                 )
             );
-        EXCEPTION
+        EXCEPTION 
             WHEN OTHERS THEN
                 -- If logging fails, continue
                 NULL;
         END;
-
+        
         RETURN jsonb_build_object(
             'success', false,
             'error', 'Database error occurred',
@@ -7484,6 +7709,7 @@ EXCEPTION
 END;
 $$;
 
+
 ALTER FUNCTION public.grant_product_access_service_role_impl(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) OWNER TO postgres;
 
 --
@@ -7491,6 +7717,7 @@ ALTER FUNCTION public.grant_product_access_service_role_impl(user_id_param uuid,
 --
 
 COMMENT ON FUNCTION public.grant_product_access_service_role_impl(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) IS '@graphql({"include": false})';
+
 
 --
 -- Name: grant_product_and_bundle_components(uuid, uuid, integer); Type: FUNCTION; Schema: public; Owner: postgres
@@ -7558,6 +7785,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer) OWNER TO postgres;
 
 --
@@ -7589,6 +7817,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.handle_new_user_registration() OWNER TO postgres;
 
 --
@@ -7615,6 +7844,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.handle_user_email_confirmation() OWNER TO postgres;
 
 --
@@ -7635,6 +7865,7 @@ BEGIN
     AND status='awaiting_payment'),'held',changed=1);
 END $$;
 
+
 ALTER FUNCTION public.hold_transfer_for_invoice(p_id uuid, p_now timestamp with time zone) OWNER TO postgres;
 
 --
@@ -7652,6 +7883,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.increment_coupon_usage(coupon_id_param uuid) OWNER TO postgres;
 
 --
@@ -7659,6 +7891,7 @@ ALTER FUNCTION public.increment_coupon_usage(coupon_id_param uuid) OWNER TO post
 --
 
 COMMENT ON FUNCTION public.increment_coupon_usage(coupon_id_param uuid) IS '@graphql({"include": false})';
+
 
 --
 -- Name: increment_sale_quantity_sold(uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -7686,6 +7919,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.increment_sale_quantity_sold(p_product_id uuid) OWNER TO postgres;
 
 --
@@ -7693,6 +7927,7 @@ ALTER FUNCTION public.increment_sale_quantity_sold(p_product_id uuid) OWNER TO p
 --
 
 COMMENT ON FUNCTION public.increment_sale_quantity_sold(p_product_id uuid) IS '@graphql({"include": false})';
+
 
 --
 -- Name: increment_sale_quantity_sold(uuid, integer); Type: FUNCTION; Schema: public; Owner: postgres
@@ -7711,6 +7946,7 @@ BEGIN
   RETURN FOUND;
 END;
 $$;
+
 
 ALTER FUNCTION public.increment_sale_quantity_sold(p_product_id uuid, p_quantity integer) OWNER TO postgres;
 
@@ -7737,6 +7973,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.increment_webhook_attempt(p_log_id uuid, p_status text, p_http_status integer, p_response_body text, p_error_message text, p_duration_ms integer, p_next_retry_at timestamp with time zone, p_failed_permanently_at timestamp with time zone) OWNER TO postgres;
 
 --
@@ -7744,6 +7981,7 @@ ALTER FUNCTION public.increment_webhook_attempt(p_log_id uuid, p_status text, p_
 --
 
 COMMENT ON FUNCTION public.increment_webhook_attempt(p_log_id uuid, p_status text, p_http_status integer, p_response_body text, p_error_message text, p_duration_ms integer, p_next_retry_at timestamp with time zone, p_failed_permanently_at timestamp with time zone) IS 'Bumps attempt_count and updates result fields in a single statement';
+
 
 --
 -- Name: insert_purchase_attribution(uuid, uuid, uuid, text, jsonb, uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -7822,6 +8060,7 @@ BEGIN
   ) ON CONFLICT DO NOTHING;
 END $_$;
 
+
 ALTER FUNCTION public.insert_purchase_attribution(p_tx uuid, p_product uuid, p_user uuid, p_kind text, p_payload jsonb, p_coupon uuid) OWNER TO postgres;
 
 --
@@ -7836,6 +8075,7 @@ BEGIN
   PERFORM public.hold_transfer_for_invoice(NEW.transaction_id,now());
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.invoice_holds_transfer() OWNER TO postgres;
 
@@ -7876,6 +8116,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.is_admin(user_id_param uuid) OWNER TO postgres;
 
 --
@@ -7896,34 +8137,35 @@ BEGIN
     IF current_user_id IS NULL THEN
         RETURN FALSE;
     END IF;
-
+    
     -- Create session-specific cache key
     cache_key := 'app.user_is_admin_' || replace(current_user_id::TEXT, '-', '_');
-
+    
     -- Try to get from session cache first
     BEGIN
         user_is_admin := current_setting(cache_key, true)::boolean;
         IF user_is_admin IS NOT NULL THEN
             RETURN user_is_admin;
         END IF;
-    EXCEPTION
+    EXCEPTION 
         WHEN OTHERS THEN
             -- Cache miss, continue to DB lookup
             NULL;
     END;
-
+    
     -- Check admin status from database
     SELECT EXISTS(
-        SELECT 1 FROM public.admin_users
+        SELECT 1 FROM public.admin_users 
         WHERE user_id = current_user_id
     ) INTO user_is_admin;
-
+    
     -- Set session cache (expires with session)
     PERFORM set_config(cache_key, user_is_admin::TEXT, false);
-
+    
     RETURN user_is_admin;
 END;
 $$;
+
 
 ALTER FUNCTION public.is_admin_cached() OWNER TO postgres;
 
@@ -7945,6 +8187,7 @@ CREATE FUNCTION public.is_free_claimable_product(p_product_id uuid) RETURNS bool
   );
 $$;
 
+
 ALTER FUNCTION public.is_free_claimable_product(p_product_id uuid) OWNER TO postgres;
 
 --
@@ -7959,6 +8202,7 @@ CREATE FUNCTION public.is_free_grantable_now(p_product_type text, p_available_fr
      AND (p_available_from IS NULL OR p_available_from <= NOW())
      AND (p_available_until IS NULL OR p_available_until >= NOW());
 $$;
+
 
 ALTER FUNCTION public.is_free_grantable_now(p_product_type text, p_available_from timestamp with time zone, p_available_until timestamp with time zone) OWNER TO postgres;
 
@@ -7990,6 +8234,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) OWNER TO postgres;
 
 --
@@ -7997,6 +8242,7 @@ ALTER FUNCTION public.is_sale_price_active(p_sale_price numeric, p_sale_price_un
 --
 
 COMMENT ON FUNCTION public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) IS '@graphql({"include": false})';
+
 
 --
 -- Name: jsonschema_subset_matches(json, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
@@ -8013,6 +8259,7 @@ BEGIN
   RETURN (SELECT valid FROM public.jsonschema_subset_walk(schema::jsonb,instance,0,16384));
 END;
 $$;
+
 
 ALTER FUNCTION public.jsonschema_subset_matches(schema json, instance jsonb) OWNER TO postgres;
 
@@ -8034,6 +8281,7 @@ CREATE FUNCTION public.jsonschema_subset_pattern(pattern text) RETURNS text
     WHEN '^(?![\s\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\/\/|[wW][wW][wW]\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\u20AC\u00A3]\s*\d|\d\s*(?:USD|EUR|PLN|GBP|z\u0142)|[\u0000\uFEFF\uFFFD]))[\s\S]*$' THEN '^(?!.*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|://|[wW][wW][wW]\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$€£][\u0009-\u000d\u0020\u00a0\u2003\u2029\ufeff]*[0-9]|[0-9][\u0009-\u000d\u0020\u00a0\u2003\u2029\ufeff]*(?:USD|EUR|PLN|GBP|zł)|[﻿�])).*$'
     ELSE NULL END;
 $_$;
+
 
 ALTER FUNCTION public.jsonschema_subset_pattern(pattern text) OWNER TO postgres;
 
@@ -8119,6 +8367,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer) OWNER TO postgres;
 
 --
@@ -8136,6 +8385,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.keep_refunded_subscription_access_ended() OWNER TO postgres;
 
@@ -8155,6 +8405,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.keep_refunded_subscription_ended() OWNER TO postgres;
 
@@ -8204,6 +8455,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.legacy_pending_free_grant_products() OWNER TO postgres;
 
 --
@@ -8236,6 +8488,7 @@ CREATE TABLE public.issued_licenses (
     CONSTRAINT issued_licenses_issuance_source_check CHECK ((issuance_source = ANY (ARRAY['purchase'::text, 'manual'::text, 'api'::text]))),
     CONSTRAINT issued_licenses_revocation_reason_check CHECK ((revocation_reason = ANY (ARRAY['refund'::text, 'dispute'::text, 'manual'::text, 'subscription_cancelled'::text, 'expired'::text])))
 );
+
 
 ALTER TABLE public.issued_licenses OWNER TO postgres;
 
@@ -8272,6 +8525,7 @@ BEGIN
       WHEN p_license.revoked_by_dispute_id IS NOT NULL THEN 'dispute'
       ELSE p_license.revocation_reason END);
 END $$;
+
 
 ALTER FUNCTION public.license_event_snapshot(p_license public.issued_licenses) OWNER TO postgres;
 
@@ -8310,6 +8564,7 @@ AND NOT EXISTS (
   )
 );
 $$;
+
 
 ALTER FUNCTION public.license_mail_is_current(p_email text, p_keys jsonb) OWNER TO postgres;
 
@@ -8401,6 +8656,7 @@ CREATE TABLE public.payment_transactions (
 
 ALTER TABLE ONLY public.payment_transactions REPLICA IDENTITY FULL;
 
+
 ALTER TABLE public.payment_transactions OWNER TO postgres;
 
 --
@@ -8414,11 +8670,13 @@ COMMENT ON COLUMN public.payment_transactions.status IS 'Payment status flow:
 - refunded: Payment was refunded
 - disputed: Payment disputed (chargeback)';
 
+
 --
 -- Name: COLUMN payment_transactions.abandoned_at; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.payment_transactions.abandoned_at IS 'Timestamp when payment was marked as abandoned (either manually or automatically after expiration)';
+
 
 --
 -- Name: COLUMN payment_transactions.expires_at; Type: COMMENT; Schema: public; Owner: postgres
@@ -8426,11 +8684,13 @@ COMMENT ON COLUMN public.payment_transactions.abandoned_at IS 'Timestamp when pa
 
 COMMENT ON COLUMN public.payment_transactions.expires_at IS 'When this pending payment expires (typically 24 hours after creation). NULL for non-pending statuses.';
 
+
 --
 -- Name: COLUMN payment_transactions.custom_field_values; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.payment_transactions.custom_field_values IS 'Map of field_id → buyer-typed string. Validated against the buying product''s custom_checkout_fields before insert.';
+
 
 --
 -- Name: COLUMN payment_transactions.net_total; Type: COMMENT; Schema: public; Owner: postgres
@@ -8438,11 +8698,13 @@ COMMENT ON COLUMN public.payment_transactions.custom_field_values IS 'Map of fie
 
 COMMENT ON COLUMN public.payment_transactions.net_total IS 'MINOR units (cents); Stripe amount_subtotal.';
 
+
 --
 -- Name: COLUMN payment_transactions.tax_total; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.payment_transactions.tax_total IS 'MINOR units (cents); matches Stripe total_details.amount_tax verbatim.';
+
 
 --
 -- Name: COLUMN payment_transactions.tax_snapshot_status; Type: COMMENT; Schema: public; Owner: postgres
@@ -8450,11 +8712,13 @@ COMMENT ON COLUMN public.payment_transactions.tax_total IS 'MINOR units (cents);
 
 COMMENT ON COLUMN public.payment_transactions.tax_snapshot_status IS 'none = no tax line; captured = full per-line snapshot; partial = totals only (line match failed); unavailable = tax not computable.';
 
+
 --
 -- Name: COLUMN payment_transactions.fulfillment_pending; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.payment_transactions.fulfillment_pending IS 'Explicitly unfinished fulfillment; existing and directly inserted completed orders default to fulfilled.';
+
 
 --
 -- Name: COLUMN payment_transactions.order_details; Type: COMMENT; Schema: public; Owner: postgres
@@ -8462,11 +8726,13 @@ COMMENT ON COLUMN public.payment_transactions.fulfillment_pending IS 'Explicitly
 
 COMMENT ON COLUMN public.payment_transactions.order_details IS 'Versioned order module details (max 65536 bytes).';
 
+
 --
 -- Name: COLUMN payment_transactions.refund_status; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.payment_transactions.refund_status IS 'Status returned by Stripe for refund_id; NULL when not observed. Never inferred from payment status.';
+
 
 --
 -- Name: license_order_references(public.payment_transactions); Type: FUNCTION; Schema: public; Owner: postgres
@@ -8478,6 +8744,7 @@ CREATE FUNCTION public.license_order_references(p_order public.payment_transacti
     AS $$
   SELECT array_remove(ARRAY[p_order.id::text,p_order.session_id,p_order.stripe_payment_intent_id,p_order.stripe_invoice_id],NULL)
 $$;
+
 
 ALTER FUNCTION public.license_order_references(p_order public.payment_transactions) OWNER TO postgres;
 
@@ -8500,6 +8767,7 @@ BEGIN
     AND (NOT p_unsent_only OR t.participants_mail_sent_at IS NULL)
   ORDER BY t.created_at, t.id LIMIT greatest(1, least(p_limit, 500));
 END $$;
+
 
 ALTER FUNCTION public.list_orders_missing_participants(p_unsent_only boolean, p_limit integer) OWNER TO postgres;
 
@@ -8531,6 +8799,7 @@ BEGIN
      OR (w.first_sent IS NULL AND p_now >= w.bought_at + interval '24 hours' AND (w.event_at IS NULL OR p_now < w.event_at))
   ORDER BY w.bought_at, w.id LIMIT greatest(1, least(p_limit, 500));
 END $$;
+
 
 ALTER FUNCTION public.list_participants_reminders_due(p_now timestamp with time zone, p_limit integer) OWNER TO postgres;
 
@@ -8568,15 +8837,15 @@ BEGIN
     IF action_name IS NULL OR length(action_name) = 0 OR length(action_name) > 100 THEN
         RAISE EXCEPTION 'Invalid action name: must be 1-100 characters';
     END IF;
-
+    
     IF target_type IS NULL OR length(target_type) = 0 OR length(target_type) > 50 THEN
         RAISE EXCEPTION 'Invalid target type: must be 1-50 characters';
     END IF;
-
+    
     IF target_id IS NULL OR length(target_id) = 0 OR length(target_id) > 255 THEN
         RAISE EXCEPTION 'Invalid target ID: must be 1-255 characters';
     END IF;
-
+    
     -- Validate JSONB is not too large (prevent DoS) - reduced limit for non-admins
     IF ( select public.is_admin() ) THEN
         -- Admins can log larger details (64KB) for legitimate debugging
@@ -8589,7 +8858,7 @@ BEGIN
             RAISE EXCEPTION 'Action details too large (max 8KB for non-admin users)';
         END IF;
     END IF;
-
+    
     -- Insert admin action with proper user identification
     INSERT INTO public.admin_actions (admin_id, action, target_type, target_id, details)
     VALUES (
@@ -8601,6 +8870,7 @@ BEGIN
     );
 END;
 $$;
+
 
 ALTER FUNCTION public.log_admin_action(action_name text, target_type text, target_id text, action_details jsonb) OWNER TO postgres;
 
@@ -8718,6 +8988,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.log_admin_action_trigger() OWNER TO postgres;
 
 --
@@ -8734,26 +9005,26 @@ BEGIN
     IF table_name_param IS NULL OR length(table_name_param) = 0 OR length(table_name_param) > 100 THEN
         RAISE EXCEPTION 'Invalid table name: must be 1-100 characters';
     END IF;
-
+    
     IF operation_param IS NULL OR operation_param NOT IN ('INSERT', 'UPDATE', 'DELETE') THEN
         RAISE EXCEPTION 'Invalid operation: must be INSERT, UPDATE, or DELETE';
     END IF;
-
+    
     -- Validate JSONB size (prevent DoS)
     IF pg_column_size(old_values_param) > 65536 THEN -- 64KB limit
         RAISE EXCEPTION 'Old values too large (max 64KB)';
     END IF;
-
+    
     IF pg_column_size(new_values_param) > 65536 THEN -- 64KB limit
         RAISE EXCEPTION 'New values too large (max 64KB)';
     END IF;
-
+    
     -- Insert audit entry
     INSERT INTO public.audit_log (
-        table_name,
-        operation,
-        old_values,
-        new_values,
+        table_name, 
+        operation, 
+        old_values, 
+        new_values, 
         user_id,
         performed_at
     ) VALUES (
@@ -8766,6 +9037,7 @@ BEGIN
     );
 END;
 $$;
+
 
 ALTER FUNCTION public.log_audit_entry(table_name_param text, operation_param text, old_values_param jsonb, new_values_param jsonb, user_id_param uuid) OWNER TO postgres;
 
@@ -8808,6 +9080,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.log_product_price_change() OWNER TO postgres;
 
 --
@@ -8815,6 +9088,7 @@ ALTER FUNCTION public.log_product_price_change() OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.log_product_price_change() IS 'Automatically logs price changes to product_price_history for Omnibus compliance';
+
 
 --
 -- Name: logs_monitoring_check(jsonb); Type: FUNCTION; Schema: public; Owner: postgres
@@ -8846,12 +9120,12 @@ BEGIN
                     'urgent', true
                 )
             );
-        EXCEPTION
+        EXCEPTION 
             WHEN OTHERS THEN
                 NULL; -- Never break the main operation
         END;
     END IF;
-
+    
     -- For WARNING events OR regular monitoring check - handle batch warnings
     IF new_action_details IS NULL OR (new_action_details->>'severity') = 'WARNING' THEN
         -- Count warnings in last 5 minutes (for batch alerts)
@@ -8860,17 +9134,17 @@ BEGIN
         WHERE (details->>'severity') = 'WARNING'
           AND (details->>'context') LIKE '%payment%'
           AND created_at > NOW() - INTERVAL '5 minutes';
-
+        
         -- Check when we last sent payment alert email
         SELECT MAX(created_at) INTO last_email_sent
         FROM public.admin_actions
         WHERE action = 'monitoring_email_sent'
           AND (details->>'alert_type') = 'payment_issues';
-
+        
         -- If too many payment warnings AND we haven't sent email recently
-        IF warning_count >= 5 AND
+        IF warning_count >= 5 AND 
            (last_email_sent IS NULL OR last_email_sent < NOW() - INTERVAL '15 minutes') THEN
-
+            
             -- Send email about payment issues
             PERFORM public.send_monitoring_email(
                 'payment_issues',
@@ -8883,12 +9157,12 @@ BEGIN
                     'dashboard_link', '/admin/payments'
                 )
             );
-
+            
             -- Log that we sent email (just once)
             PERFORM public.log_admin_action(
                 'monitoring_email_sent',
                 'admin_actions',
-                'email_notification',
+                'email_notification', 
                 jsonb_build_object(
                     'severity', 'INFO',
                     'alert_type', 'payment_issues',
@@ -8900,13 +9174,14 @@ BEGIN
             );
         END IF;
     END IF;
-
-EXCEPTION
+    
+EXCEPTION 
     WHEN OTHERS THEN
         -- Don't break anything if monitoring fails
         NULL;
 END;
 $$;
+
 
 ALTER FUNCTION public.logs_monitoring_check(new_action_details jsonb) OWNER TO postgres;
 
@@ -8920,21 +9195,22 @@ CREATE FUNCTION public.logs_monitoring_trigger() RETURNS trigger
     AS $$
 BEGIN
     -- Call unified monitoring function for any CRITICAL or WARNING event
-    IF TG_TABLE_NAME = 'admin_actions' AND
+    IF TG_TABLE_NAME = 'admin_actions' AND 
        (NEW.details->>'severity') IN ('CRITICAL', 'WARNING') THEN
-
+        
         -- Pass the event details to the monitoring function
         BEGIN
             PERFORM public.logs_monitoring_check(NEW.details);
-        EXCEPTION
+        EXCEPTION 
             WHEN OTHERS THEN
                 NULL; -- Never break the main operation
         END;
     END IF;
-
+    
     RETURN NEW;
 END;
 $$;
+
 
 ALTER FUNCTION public.logs_monitoring_trigger() OWNER TO postgres;
 
@@ -8995,6 +9271,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.mark_checkout_details_missing() OWNER TO postgres;
 
 --
@@ -9022,6 +9299,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.mark_expired_pending_payments() OWNER TO postgres;
 
 --
@@ -9029,6 +9307,7 @@ ALTER FUNCTION public.mark_expired_pending_payments() OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.mark_expired_pending_payments() IS '@graphql({"include": false})';
+
 
 --
 -- Name: migrate_guest_payment_data_to_profile(uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -9146,6 +9425,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.migrate_guest_payment_data_to_profile(p_user_id uuid) OWNER TO postgres;
 
 --
@@ -9153,6 +9433,7 @@ ALTER FUNCTION public.migrate_guest_payment_data_to_profile(p_user_id uuid) OWNE
 --
 
 COMMENT ON FUNCTION public.migrate_guest_payment_data_to_profile(p_user_id uuid) IS '@graphql({"include": false})';
+
 
 --
 -- Name: migrate_guest_purchases(uuid, text); Type: FUNCTION; Schema: public; Owner: postgres
@@ -9180,6 +9461,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.migrate_guest_purchases(p_user_id uuid, p_email text) OWNER TO postgres;
 
 --
@@ -9187,6 +9469,7 @@ ALTER FUNCTION public.migrate_guest_purchases(p_user_id uuid, p_email text) OWNE
 --
 
 COMMENT ON FUNCTION public.migrate_guest_purchases(p_user_id uuid, p_email text) IS '@graphql({"include": false})';
+
 
 --
 -- Name: user_product_access; Type: TABLE; Schema: public; Owner: postgres
@@ -9212,6 +9495,7 @@ CREATE TABLE public.user_product_access (
     CONSTRAINT user_product_access_custom_field_values_check CHECK ((jsonb_typeof(custom_field_values) = 'object'::text)),
     CONSTRAINT user_product_access_grant_source_chk CHECK ((grant_source = ANY (ARRAY['purchase'::text, 'bundle'::text, 'bank_transfer'::text, 'subscription'::text, 'free'::text, 'manual'::text, 'unknown'::text])))
 );
+
 
 ALTER TABLE public.user_product_access OWNER TO postgres;
 
@@ -9244,6 +9528,7 @@ BEGIN
   PERFORM set_config('sellf.grant_source', coalesce(previous, ''), true);
 END $$;
 
+
 ALTER FUNCTION public.mutate_access(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) OWNER TO postgres;
 
 --
@@ -9273,6 +9558,7 @@ BEGIN
   ELSE RAISE EXCEPTION 'Invalid access action'; END IF;
 END $$;
 
+
 ALTER FUNCTION public.mutate_access_impl(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) OWNER TO postgres;
 
 --
@@ -9283,6 +9569,7 @@ CREATE FUNCTION public.product_marketing_valid(instance jsonb) RETURNS boolean
     LANGUAGE sql IMMUTABLE STRICT SECURITY DEFINER
     SET search_path TO ''
     AS $_$ SELECT public.jsonschema_subset_matches('{"anyOf":[{"type":"object","properties":{"format":{"anyOf":[{"type":"string","enum":["course","workshop","ebook","template","tool","service","bundle","other"]},{"type":"null"}]},"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false},"pl":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false}},"required":["format","sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"format":{"anyOf":[{"type":"string","enum":["course","workshop","ebook","template","tool","service","bundle","other"]},{"type":"null"}]},"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false},"pl":{"type":"object","properties":{"result":{"anyOf":[{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},{"type":"null"}]},"tools":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":80},"uniqueItems":true},"requirements":{"maxItems":12,"type":"array","items":{"type":"string","pattern":"^(?![\\s\\S]*(?:[<>]|(?:https?|ftp|javascript|data|mailto):|:\\/\\/|[wW][wW][wW]\\.|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[$\\u20AC\\u00A3]\\s*\\d|\\d\\s*(?:USD|EUR|PLN|GBP|z\\u0142)|[\\u0000\\uFEFF\\uFFFD]))[\\s\\S]*$","maxLength":240},"uniqueItems":true}},"required":["result","tools","requirements"],"additionalProperties":false}},"required":["format","sourceLocale","pl"],"additionalProperties":false}]}'::json, instance); $_$;
+
 
 ALTER FUNCTION public.product_marketing_valid(instance jsonb) OWNER TO postgres;
 
@@ -9394,6 +9681,7 @@ CREATE TABLE public.products (
     CONSTRAINT products_webhook_revision_check CHECK ((webhook_revision >= 0))
 );
 
+
 ALTER TABLE public.products OWNER TO postgres;
 
 --
@@ -9402,11 +9690,13 @@ ALTER TABLE public.products OWNER TO postgres;
 
 COMMENT ON TABLE public.products IS 'Products catalog with sellf integration support';
 
+
 --
 -- Name: COLUMN products.slug; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.products.slug IS 'URL-safe unique identifier for sellf system';
+
 
 --
 -- Name: COLUMN products.content_config; Type: COMMENT; Schema: public; Owner: postgres
@@ -9414,11 +9704,13 @@ COMMENT ON COLUMN public.products.slug IS 'URL-safe unique identifier for sellf 
 
 COMMENT ON COLUMN public.products.content_config IS 'JSON configuration for content delivery and sellf integration';
 
+
 --
 -- Name: COLUMN products.omnibus_exempt; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.products.omnibus_exempt IS 'Exempt this product from Omnibus price history display (e.g., perishable goods, new arrivals <30 days)';
+
 
 --
 -- Name: COLUMN products.sale_price; Type: COMMENT; Schema: public; Owner: postgres
@@ -9426,11 +9718,13 @@ COMMENT ON COLUMN public.products.omnibus_exempt IS 'Exempt this product from Om
 
 COMMENT ON COLUMN public.products.sale_price IS 'Promotional price for the product. When set and active (not expired), this is the public discounted price that triggers Omnibus display.';
 
+
 --
 -- Name: COLUMN products.sale_price_until; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.products.sale_price_until IS 'Optional expiration date for sale_price. NULL means sale price is active indefinitely. When date passes, sale_price is no longer used.';
+
 
 --
 -- Name: COLUMN products.sale_quantity_limit; Type: COMMENT; Schema: public; Owner: postgres
@@ -9438,11 +9732,13 @@ COMMENT ON COLUMN public.products.sale_price_until IS 'Optional expiration date 
 
 COMMENT ON COLUMN public.products.sale_quantity_limit IS 'Maximum number of units that can be sold at sale price (NULL = unlimited). When limit is reached, sale_price is no longer used.';
 
+
 --
 -- Name: COLUMN products.sale_quantity_sold; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.products.sale_quantity_sold IS 'Number of units already sold at sale price. Automatically incremented on successful payment when sale is active.';
+
 
 --
 -- Name: COLUMN products.checkout_template; Type: COMMENT; Schema: public; Owner: postgres
@@ -9450,11 +9746,13 @@ COMMENT ON COLUMN public.products.sale_quantity_sold IS 'Number of units already
 
 COMMENT ON COLUMN public.products.checkout_template IS 'Slug of the React template that renders /checkout/<slug>. Allowed values mirrored in admin-panel/src/lib/checkout-templates/types.ts.';
 
+
 --
 -- Name: COLUMN products.custom_checkout_fields; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.products.custom_checkout_fields IS 'Array of {id,type,label,required,max_length,placeholder?} definitions. Shape validated at API layer (lib/validations/custom-checkout-fields.ts).';
+
 
 --
 -- Name: COLUMN products.stripe_product_id; Type: COMMENT; Schema: public; Owner: postgres
@@ -9462,11 +9760,13 @@ COMMENT ON COLUMN public.products.custom_checkout_fields IS 'Array of {id,type,l
 
 COMMENT ON COLUMN public.products.stripe_product_id IS 'Stripe Product ID lazily created the first time a buyer initiates a PWYW subscription for this product. Reused for subsequent dynamic-price subscriptions so we never accumulate one Stripe Product per donation amount.';
 
+
 --
 -- Name: COLUMN products.vat_exempt; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.products.vat_exempt IS 'Product sold VAT-exempt ("zwolniony / zw."), distinct from a 0% rate. Carried into the order tax snapshot. Default for new products inherits shop_config.is_vat_exempt.';
+
 
 --
 -- Name: mutate_product_as(jsonb, text, jsonb, uuid, uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -9480,6 +9780,7 @@ BEGIN
   PERFORM public.set_business_event_actor(event_actor);
   RETURN QUERY SELECT * FROM public.mutate_product_with_audit(operation_param,product_data,product_id,actor_id);
 END $$;
+
 
 ALTER FUNCTION public.mutate_product_as(event_actor jsonb, operation_param text, product_data jsonb, product_id uuid, actor_id uuid) OWNER TO postgres;
 
@@ -9547,6 +9848,7 @@ BEGIN
  RETURN jsonb_build_object('success',true,'revision',current_config.revision+1);
 EXCEPTION WHEN OTHERS THEN RETURN jsonb_build_object('success',false,'code','UNAVAILABLE');
 END; $$;
+
 
 ALTER FUNCTION public.mutate_product_offer(offer_product_id uuid, expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid) OWNER TO postgres;
 
@@ -9676,6 +9978,7 @@ BEGIN
 END;
 $_$;
 
+
 ALTER FUNCTION public.mutate_product_with_audit(operation_param text, product_data jsonb, product_id uuid, actor_id uuid) OWNER TO postgres;
 
 --
@@ -9771,6 +10074,7 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $_$;
 
+
 ALTER FUNCTION public.mutate_storefront_config(expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid, legacy_source jsonb) OWNER TO postgres;
 
 --
@@ -9792,6 +10096,7 @@ BEGIN
       OR EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(t.order_details->'participants'->'people','[]')) p WHERE lower(p->>'email')=(SELECT lower(email) FROM auth.users WHERE id=auth.uid()))));
 END $$;
 
+
 ALTER FUNCTION public.my_event_sessions(p_product_id uuid) OWNER TO postgres;
 
 --
@@ -9807,6 +10112,7 @@ BEGIN
   ELSE NEW.customer_email:=lower(btrim(NEW.customer_email)); END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.normalize_purchase_contact() OWNER TO postgres;
 
@@ -9843,6 +10149,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.observe_payment_refund(p_transaction_id uuid, p_refund_id text, p_amount integer, p_currency text, p_status text, p_initial_status text) OWNER TO postgres;
 
 --
@@ -9870,6 +10177,7 @@ BEGIN
   RETURN to_jsonb(a)||'{"reused":false}';
 END $$;
 
+
 ALTER FUNCTION public.open_order_payment_attempt(p_id uuid, p_kind text, p_amount numeric, p_currency text, p_expires_at timestamp with time zone, p_now timestamp with time zone) OWNER TO postgres;
 
 --
@@ -9888,6 +10196,7 @@ CREATE FUNCTION public.order_awaits_participants(p_order_details jsonb, p_profil
     AND coalesce((p_order_details->'quantity'->>'value')::integer, 1) >= 1;
 $$;
 
+
 ALTER FUNCTION public.order_awaits_participants(p_order_details jsonb, p_profile jsonb, p_status text) OWNER TO postgres;
 
 --
@@ -9901,6 +10210,7 @@ CREATE FUNCTION public.owns_product_access(p_product_id uuid) RETURNS boolean
   SELECT EXISTS (SELECT 1 FROM public.user_product_access
     WHERE product_id = p_product_id AND user_id = (SELECT auth.uid()));
 $$;
+
 
 ALTER FUNCTION public.owns_product_access(p_product_id uuid) OWNER TO postgres;
 
@@ -9919,6 +10229,7 @@ CREATE FUNCTION public.pending_free_grant_products() RETURNS TABLE(product_id uu
  LEFT JOIN LATERAL(SELECT * FROM public.free_grant_contexts c WHERE c.email=u.email AND c.product_id=p.id AND c.claimed_at IS NULL AND c.expires_at>now() ORDER BY created_at DESC LIMIT 1)c ON true
  WHERE public.is_free_claimable_product(p.id) AND NOT EXISTS(SELECT 1 FROM public.user_product_access a WHERE a.user_id=(select auth.uid()) AND a.product_id=p.id AND (a.access_expires_at IS NULL OR a.access_expires_at>now()));
 $$;
+
 
 ALTER FUNCTION public.pending_free_grant_products() OWNER TO postgres;
 
@@ -9956,6 +10267,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.pick_due_webhook_deliveries(p_limit integer) OWNER TO postgres;
 
 --
@@ -9963,6 +10275,7 @@ ALTER FUNCTION public.pick_due_webhook_deliveries(p_limit integer) OWNER TO post
 --
 
 COMMENT ON FUNCTION public.pick_due_webhook_deliveries(p_limit integer) IS 'Atomically claims due retries with FOR UPDATE SKIP LOCKED + 60s lease';
+
 
 --
 -- Name: place_order(jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
@@ -10007,6 +10320,7 @@ BEGIN
     VALUES (sid,(tier->>'id')::uuid,txid,q,'held',deadline);
   RETURN result;
 END $$;
+
 
 ALTER FUNCTION public.place_order(p_order jsonb, p_lines jsonb) OWNER TO postgres;
 
@@ -10058,6 +10372,7 @@ BEGIN
     WHERE lower(email)=lower(p_email);
 END $_$;
 
+
 ALTER FUNCTION public.prepare_event_mail(p_email text, p_data jsonb) OWNER TO postgres;
 
 --
@@ -10077,6 +10392,7 @@ BEGIN
  INSERT INTO public.free_grant_contexts(email,product_id,custom_field_values) VALUES(lower(trim(p_email)),p_product_id,p_values) RETURNING id INTO result;
  RETURN result;
 END $$;
+
 
 ALTER FUNCTION public.prepare_free_grant(p_email text, p_product_id uuid, p_values jsonb) OWNER TO postgres;
 
@@ -10099,6 +10415,7 @@ BEGIN
   RETURN OLD;
 END;
 $$;
+
 
 ALTER FUNCTION public.prevent_delete_user_with_active_subscription() OWNER TO postgres;
 
@@ -10173,6 +10490,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) OWNER TO postgres;
 
 --
@@ -10180,6 +10498,7 @@ ALTER FUNCTION public.process_refund_request(request_id_param uuid, action_param
 --
 
 COMMENT ON FUNCTION public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) IS '@graphql({"include": false})';
+
 
 --
 -- Name: process_stripe_payment_completion_with_bump(text, uuid, text, numeric, text, text, uuid, uuid[], uuid, numeric, boolean); Type: FUNCTION; Schema: public; Owner: postgres
@@ -10267,6 +10586,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) OWNER TO postgres;
 
 --
@@ -10292,6 +10612,7 @@ CREATE FUNCTION public.product_catalogue_snapshot(p public.products) RETURNS jso
     'enableWaitlist',p.enable_waitlist,'saleQuantityLimit',p.sale_quantity_limit,
     'issueLicenseOnPurchase',p.issue_license_on_purchase,'licenseDurationDays',p.license_duration_days);
 $$;
+
 
 ALTER FUNCTION public.product_catalogue_snapshot(p public.products) OWNER TO postgres;
 
@@ -10330,6 +10651,7 @@ CREATE FUNCTION public.product_deletion_impact(p_product_id uuid) RETURNS jsonb
   FROM counts;
 $$;
 
+
 ALTER FUNCTION public.product_deletion_impact(p_product_id uuid) OWNER TO postgres;
 
 --
@@ -10340,6 +10662,7 @@ CREATE FUNCTION public.product_offer_config_schema() RETURNS json
     LANGUAGE sql IMMUTABLE
     SET search_path TO ''
     AS $_$ SELECT '{"type":"object","properties":{"format":{"type":"number","const":1},"enabled":{"type":"boolean"},"templateId":{"type":"string","const":"offer-default"},"settings":{"type":"object","properties":{"density":{"type":"string","enum":["comfortable","compact"]}},"required":["density"],"additionalProperties":false},"content":{"type":"object","properties":{"offer.hero":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false},"en":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"offer.faq":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false},"en":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"offer.closing":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"en":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]}},"additionalProperties":false},"tokens":{"anyOf":[{"type":"object","properties":{"format":{"type":"number","const":1},"light":{"type":"object","properties":{"background":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"foreground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accent":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accentForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"muted":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"mutedForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"border":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"}},"required":["background","foreground","accent","accentForeground","muted","mutedForeground","border"],"additionalProperties":false},"dark":{"type":"object","properties":{"background":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"foreground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accent":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accentForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"muted":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"mutedForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"border":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"}},"required":["background","foreground","accent","accentForeground","muted","mutedForeground","border"],"additionalProperties":false},"typography":{"type":"object","properties":{"font":{"type":"string","enum":["geist","dm-sans"]},"bodyWeight":{"anyOf":[{"type":"number","const":400},{"type":"number","const":500}]},"headingWeight":{"anyOf":[{"type":"number","const":500},{"type":"number","const":600},{"type":"number","const":700}]},"baseSizePx":{"anyOf":[{"type":"number","const":16},{"type":"number","const":17},{"type":"number","const":18}]},"headingLetterSpacingEm":{"anyOf":[{"type":"number","const":-0.02},{"type":"number","const":-0.01},{"type":"number","const":0}]}},"required":["font","bodyWeight","headingWeight","baseSizePx","headingLetterSpacingEm"],"additionalProperties":false},"shapes":{"type":"object","properties":{"radiusSmPx":{"anyOf":[{"type":"number","const":0},{"type":"number","const":4},{"type":"number","const":8}]},"radiusMdPx":{"anyOf":[{"type":"number","const":4},{"type":"number","const":8},{"type":"number","const":12}]},"radiusLgPx":{"anyOf":[{"type":"number","const":8},{"type":"number","const":12},{"type":"number","const":16},{"type":"number","const":24}]}},"required":["radiusSmPx","radiusMdPx","radiusLgPx"],"additionalProperties":false}},"required":["format","light","dark","typography","shapes"],"additionalProperties":false},{"type":"null"}]}},"required":["format","enabled","templateId","settings","content","tokens"],"additionalProperties":false}'::json; $_$;
+
 
 ALTER FUNCTION public.product_offer_config_schema() OWNER TO postgres;
 
@@ -10374,6 +10697,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.product_offer_config_valid(config jsonb) OWNER TO postgres;
 
 --
@@ -10388,6 +10712,7 @@ CREATE FUNCTION public.product_price_snapshot(p public.products) RETURNS jsonb
     'salePrice',round(p.sale_price*public.currency_minor_factor(p.currency))::bigint,'salePriceUntil',p.sale_price_until,
     'recurringPrice',round(p.recurring_price*public.currency_minor_factor(p.currency))::bigint,'currency',p.currency);
 $$;
+
 
 ALTER FUNCTION public.product_price_snapshot(p public.products) OWNER TO postgres;
 
@@ -10405,6 +10730,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.protect_payment_method_config_created_at() OWNER TO postgres;
 
 --
@@ -10420,6 +10746,7 @@ SELECT CASE WHEN EXISTS (SELECT 1 FROM public.products WHERE id=p_product_id AND
   AND (available_until IS NULL OR available_until>statement_timestamp()))
   THEN public.event_availability(p_product_id) ELSE '[]'::jsonb END;
 $$;
+
 
 ALTER FUNCTION public.public_event_availability(p_product_id uuid) OWNER TO postgres;
 
@@ -10444,6 +10771,7 @@ BEGIN
   RETURN NEW;
 END $$;
 
+
 ALTER FUNCTION public.purchase_attribution_immutable() OWNER TO postgres;
 
 --
@@ -10463,6 +10791,7 @@ BEGIN
   RETURN n;
 END $$;
 
+
 ALTER FUNCTION public.purge_attribution_click_ids() OWNER TO postgres;
 
 --
@@ -10479,6 +10808,7 @@ CREATE FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p
     kind = CASE WHEN public.auth_mail_retries.kind='license' THEN 'license' ELSE EXCLUDED.kind END, last_error = EXCLUDED.last_error,
     given_up_at = NULL, attempts = CASE WHEN public.auth_mail_retries.given_up_at IS NULL THEN public.auth_mail_retries.attempts ELSE 0 END;
 $$;
+
 
 ALTER FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text) OWNER TO postgres;
 
@@ -10524,6 +10854,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.queue_pending_free_grant(p_email text, p_product_slug text) OWNER TO postgres;
 
 --
@@ -10544,6 +10875,7 @@ BEGIN
   ON CONFLICT(deduplication_key) DO NOTHING;
 END $$;
 
+
 ALTER FUNCTION public.record_business_event(p_event text, p_product uuid, p_payload jsonb, p_key text) OWNER TO postgres;
 
 --
@@ -10560,6 +10892,7 @@ BEGIN
   END IF;
   PERFORM public.insert_purchase_attribution(NULL, p_product, p_user, 'free', p_payload, NULL);
 END $$;
+
 
 ALTER FUNCTION public.record_free_attribution(p_product uuid, p_user uuid, p_payload jsonb) OWNER TO postgres;
 
@@ -10579,6 +10912,7 @@ BEGIN
   DELETE FROM public.checkout_attribution WHERE ref = p_ref RETURNING checkout_attribution.payload INTO payload;
   PERFORM public.insert_purchase_attribution(NULL, p_product, p_user, 'free', payload, NULL);
 END $$;
+
 
 ALTER FUNCTION public.record_free_attribution_from_ref(p_product uuid, p_user uuid, p_ref text) OWNER TO postgres;
 
@@ -10612,6 +10946,7 @@ BEGIN
   RETURN true;
 END $$;
 
+
 ALTER FUNCTION public.record_invoice_correction(p_transaction uuid, p_actor uuid) OWNER TO postgres;
 
 --
@@ -10628,6 +10963,7 @@ BEGIN
   INSERT INTO public.audit_log(table_name,operation,new_values) VALUES('order_payment_attempts','UPDATE',
     jsonb_build_object('action','order.payment_duplicate_refunded','attempt_id',p_attempt,'refund_id',p_refund_id));
 END $$;
+
 
 ALTER FUNCTION public.record_order_payment_refund(p_attempt uuid, p_refund_id text) OWNER TO postgres;
 
@@ -10660,6 +10996,7 @@ EXCEPTION WHEN OTHERS THEN RETURN false;
 END;
 $$;
 
+
 ALTER FUNCTION public.record_template_credential_status(template_id text, expected_key text, expected_iv text, expected_tag text, verification_state text, checked_at timestamp with time zone) OWNER TO postgres;
 
 --
@@ -10677,6 +11014,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.release_event_order() OWNER TO postgres;
 
@@ -10705,6 +11043,7 @@ BEGIN
   RETURN NEW;
 END $$;
 
+
 ALTER FUNCTION public.release_participant_recordings() OWNER TO postgres;
 
 --
@@ -10727,6 +11066,7 @@ BEGIN
     END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.release_transfer_access() OWNER TO postgres;
 
@@ -10760,6 +11100,7 @@ BEGIN
     jsonb_build_object('action','order.released','transaction_id',tx.id,'release_at',tx.release_at,'coupon_id',tx.coupon_id,'expire_sessions',sessions));
   RETURN jsonb_build_object('success',true,'released',true,'transaction_id',tx.id,'expire_sessions',sessions);
 END $$;
+
 
 ALTER FUNCTION public.release_unpaid_transfer(p_id uuid, p_now timestamp with time zone) OWNER TO postgres;
 
@@ -10800,6 +11141,7 @@ BEGIN
   RETURN jsonb_build_object('result', 'deleted', 'impact', impact);
 END $$;
 
+
 ALTER FUNCTION public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) OWNER TO postgres;
 
 --
@@ -10819,6 +11161,7 @@ BEGIN
   END IF;
   RETURN jsonb_build_object('result', 'restored');
 END $$;
+
 
 ALTER FUNCTION public.restore_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid) OWNER TO postgres;
 
@@ -10855,6 +11198,7 @@ BEGIN
   RETURN NEW;
 END $$;
 
+
 ALTER FUNCTION public.retain_disputed_access() OWNER TO postgres;
 
 --
@@ -10870,6 +11214,7 @@ BEGIN
   WHERE id = p_id AND dispatched_at IS NULL AND abandoned_at IS NOT NULL;
   RETURN FOUND;
 END $$;
+
 
 ALTER FUNCTION public.retry_business_event(p_id uuid) OWNER TO postgres;
 
@@ -10907,6 +11252,7 @@ BEGIN
   END LOOP;
 END $$;
 
+
 ALTER FUNCTION public.revoke_issued_licenses(p_license_ids uuid[], p_actor uuid, p_reason text) OWNER TO postgres;
 
 --
@@ -10941,6 +11287,7 @@ BEGIN
   RETURN NEW;
 END $_$;
 
+
 ALTER FUNCTION public.revoke_license_for_disputed_order() OWNER TO postgres;
 
 --
@@ -10968,6 +11315,7 @@ BEGIN
   END LOOP;
 END $$;
 
+
 ALTER FUNCTION public.revoke_order_licenses(p_product_id uuid, p_order_ids text[], p_reason text) OWNER TO postgres;
 
 --
@@ -10990,6 +11338,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.revoke_terminal_order_licenses() OWNER TO postgres;
 
@@ -11023,6 +11372,7 @@ BEGIN
   RETURN true;
 END;
 $$;
+
 
 ALTER FUNCTION public.rotate_webhook_secret(p_endpoint_id uuid, p_secret text, p_actor_id uuid, p_api_key_id uuid) OWNER TO postgres;
 
@@ -11061,6 +11411,7 @@ BEGIN
   RETURN jsonb_build_object('success', true, 'custom_rules', n);
 END $$;
 
+
 ALTER FUNCTION public.save_attribution_config(p_retention_days integer, p_rules jsonb) OWNER TO postgres;
 
 --
@@ -11086,6 +11437,7 @@ BEGIN
     jsonb_build_object('action','bank_transfer.settings','enabled',cfg.bank_transfer_enabled,'reservation_enabled',cfg.reservation_enabled,
       'reminder_hours',cfg.reservation_reminder_hours,'release_hours',cfg.reservation_release_hours,'declared_hold_hours',cfg.declared_hold_hours));
 END $$;
+
 
 ALTER FUNCTION public.save_bank_transfer_config(p_config jsonb, p_actor uuid) OWNER TO postgres;
 
@@ -11131,6 +11483,7 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
+
 ALTER FUNCTION public.save_template_credential(template_id text, encrypted_key text, encryption_iv text, encryption_tag text, actor_user_id uuid, actor_method text, actor_api_key_id uuid) OWNER TO postgres;
 
 --
@@ -11152,6 +11505,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.search_order_accesses(p_search text) OWNER TO postgres;
 
 --
@@ -11172,6 +11526,7 @@ BEGIN
       AND (strpos(lower(p.name), lower(p_search)) > 0 OR strpos(lower(p.slug), lower(p_search)) > 0));
 END;
 $$;
+
 
 ALTER FUNCTION public.search_order_leads(p_search text) OWNER TO postgres;
 
@@ -11197,6 +11552,7 @@ BEGIN
 END;
 $_$;
 
+
 ALTER FUNCTION public.search_payment_transactions(p_search text, p_include_identifiers boolean) OWNER TO postgres;
 
 --
@@ -11212,6 +11568,7 @@ CREATE FUNCTION public.seller_license_public_keys(seller uuid) RETURNS TABLE(kid
   WHERE k.original_seller_id = seller AND k.is_active = true;
 $$;
 
+
 ALTER FUNCTION public.seller_license_public_keys(seller uuid) OWNER TO postgres;
 
 --
@@ -11219,6 +11576,7 @@ ALTER FUNCTION public.seller_license_public_keys(seller uuid) OWNER TO postgres;
 --
 
 COMMENT ON FUNCTION public.seller_license_public_keys(seller uuid) IS 'Returns active public keys (kid, public_key, alg) for a seller. Public-safe: never exposes encrypted private-key columns.';
+
 
 --
 -- Name: seller_revoked_orders(uuid, text); Type: FUNCTION; Schema: public; Owner: postgres
@@ -11238,6 +11596,7 @@ CREATE FUNCTION public.seller_revoked_orders(seller uuid, hash_prefix text) RETU
     AND hash_prefix ~ '^[0-9a-f]{1,64}$' AND h.order_hash LIKE hash_prefix||'%';
 $_$;
 
+
 ALTER FUNCTION public.seller_revoked_orders(seller uuid, hash_prefix text) OWNER TO postgres;
 
 --
@@ -11245,6 +11604,7 @@ ALTER FUNCTION public.seller_revoked_orders(seller uuid, hash_prefix text) OWNER
 --
 
 COMMENT ON FUNCTION public.seller_revoked_orders(seller uuid, hash_prefix text) IS 'k-anonymity CRL range query: returns revoked SHA-256 order hashes matching a hex prefix for a seller. Service-role only; never exposes raw order ids, tokens, or PII columns.';
+
 
 --
 -- Name: send_monitoring_email(text, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
@@ -11260,29 +11620,30 @@ BEGIN
     IF (select auth.role()) NOT IN ('service_role', 'authenticated') THEN
         RAISE EXCEPTION 'Unauthorized';
     END IF;
-
+    
     -- TODO: Integrate with email service (SMTP, SendGrid, etc.)
     -- For now, we'll use pg_notify to send to external service
-
+    
     PERFORM pg_notify(
         'monitoring_alerts',
         jsonb_build_object(
             'alert_type', alert_type,
             'alert_details', alert_details,
             'timestamp', extract(epoch from NOW()),
-            'urgent', CASE
+            'urgent', CASE 
                 WHEN alert_type = 'critical_errors' THEN true
                 ELSE false
             END
         )::text
     );
-
-EXCEPTION
+    
+EXCEPTION 
     WHEN OTHERS THEN
         -- If email fails, don't break anything
         NULL;
 END;
 $$;
+
 
 ALTER FUNCTION public.send_monitoring_email(alert_type text, alert_details jsonb) OWNER TO postgres;
 
@@ -11305,6 +11666,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.set_access_grant_source() OWNER TO postgres;
 
 --
@@ -11323,6 +11685,7 @@ BEGIN
   PERFORM (p_actor->>'id')::uuid;
   PERFORM set_config('sellf.event_context',jsonb_build_object('actor',jsonb_build_object('type',p_actor->>'type','id',p_actor->>'id'))::text,true);
 END $$;
+
 
 ALTER FUNCTION public.set_business_event_actor(p_actor jsonb) OWNER TO postgres;
 
@@ -11343,6 +11706,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.set_invoicing_auto_since() OWNER TO postgres;
 
@@ -11378,6 +11742,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.set_payment_order_buyer(p_buyer jsonb, p_session_id text, p_payment_intent_id text, p_only_if_missing boolean) OWNER TO postgres;
 
 --
@@ -11407,6 +11772,7 @@ BEGIN
   RETURN 1;
 END $$;
 
+
 ALTER FUNCTION public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text) OWNER TO postgres;
 
 --
@@ -11424,6 +11790,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.set_product_webhook_revision() OWNER TO postgres;
 
@@ -11460,6 +11827,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) OWNER TO postgres;
 
 --
@@ -11467,6 +11835,7 @@ ALTER FUNCTION public.set_revenue_goal(p_goal_amount bigint, p_start_date timest
 --
 
 COMMENT ON FUNCTION public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) IS '@graphql({"include": false})';
+
 
 --
 -- Name: set_webhook_endpoint_scoping(uuid, text, uuid[]); Type: FUNCTION; Schema: public; Owner: postgres
@@ -11500,6 +11869,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[]) OWNER TO postgres;
 
 --
@@ -11515,6 +11885,7 @@ BEGIN
   RETURN NEW;
 END $$;
 
+
 ALTER FUNCTION public.snapshot_event_tier_label() OWNER TO postgres;
 
 --
@@ -11529,6 +11900,7 @@ BEGIN
   PERFORM public.snapshot_purchase_attribution_row(NEW);
   RETURN NULL;
 END $$;
+
 
 ALTER FUNCTION public.snapshot_purchase_attribution() OWNER TO postgres;
 
@@ -11578,6 +11950,7 @@ EXCEPTION WHEN OTHERS THEN
   RAISE WARNING 'purchase attribution snapshot skipped for this statement: %', SQLERRM;
   RETURN NULL;
 END $_$;
+
 
 ALTER FUNCTION public.snapshot_purchase_attribution_inserted() OWNER TO postgres;
 
@@ -11631,6 +12004,7 @@ BEGIN
   END;
 END $_$;
 
+
 ALTER FUNCTION public.snapshot_purchase_attribution_row(n public.payment_transactions) OWNER TO postgres;
 
 --
@@ -11647,6 +12021,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
+
 
 ALTER FUNCTION public.snapshot_purchase_product_name() OWNER TO postgres;
 
@@ -11665,6 +12040,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
 
 ALTER FUNCTION public.stamp_original_seller_id() OWNER TO postgres;
 
@@ -11685,6 +12061,7 @@ BEGIN
     ON CONFLICT (ref) DO UPDATE SET payload = EXCLUDED.payload, created_at = now();
 END $$;
 
+
 ALTER FUNCTION public.store_checkout_attribution(p_ref text, p_payload jsonb) OWNER TO postgres;
 
 --
@@ -11703,6 +12080,7 @@ CREATE FUNCTION public.storefront_catalogue_boundary() RETURNS timestamp with ti
     (SELECT sale_price_until FROM public.products WHERE is_active AND is_listed AND sale_price_until>statement_timestamp() ORDER BY sale_price_until LIMIT 1)
   ) boundaries;
 $$;
+
 
 ALTER FUNCTION public.storefront_catalogue_boundary() OWNER TO postgres;
 
@@ -11724,6 +12102,7 @@ BEGIN
     WHERE c.id=ANY(category_ids);
 END;
 $$;
+
 
 ALTER FUNCTION public.storefront_catalogue_categories(category_ids uuid[]) OWNER TO postgres;
 
@@ -11804,6 +12183,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.storefront_catalogue_page(filters jsonb, after_created timestamp with time zone, after_id uuid, product_ids uuid[]) OWNER TO postgres;
 
 --
@@ -11815,6 +12195,7 @@ CREATE FUNCTION public.storefront_config_schema() RETURNS json
     SET search_path TO ''
     AS $_$ SELECT '{"type":"object","properties":{"format":{"type":"number","const":1},"templateId":{"type":"string","enum":["default","d","storefront-a","storefront-b","storefront-c"]},"settingsByTemplate":{"type":"object","properties":{"d":{"type":"object","properties":{"heroProduct":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"closingProduct":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"starterProducts":{"maxItems":3,"type":"array","items":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"uniqueItems":true},"taskCategories":{"maxItems":12,"type":"array","items":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"uniqueItems":true},"density":{"type":"string","enum":["comfortable","compact"]}},"additionalProperties":false},"default":{"type":"object","properties":{},"additionalProperties":false},"storefront-c":{"type":"object","properties":{"starterProducts":{"maxItems":3,"type":"array","items":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"uniqueItems":true},"density":{"type":"string","enum":["comfortable","compact"]}},"additionalProperties":false},"storefront-b":{"type":"object","properties":{"closingProduct":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"taskCategories":{"maxItems":12,"type":"array","items":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"uniqueItems":true},"density":{"type":"string","enum":["comfortable","compact"]},"featuredProducts":{"maxItems":6,"type":"array","items":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"}}},"additionalProperties":false},"storefront-a":{"type":"object","properties":{"heroProduct":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"starterProducts":{"maxItems":3,"type":"array","items":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"uniqueItems":true},"taskCategories":{"maxItems":12,"type":"array","items":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"uniqueItems":true},"density":{"type":"string","enum":["comfortable","compact"]},"comparisonProducts":{"minItems":2,"maxItems":2,"type":"array","items":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"}}},"additionalProperties":false}},"additionalProperties":false},"overridesByTemplate":{"type":"object","properties":{"d":{"type":"object","properties":{"order":{"maxItems":32,"type":"array","items":{"type":"string","enum":["hero","tasks","start","catalogue","faq","closing"]},"uniqueItems":true},"sections":{"type":"object","properties":{"hero":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["split-process","simple"]}},"additionalProperties":false},"tasks":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]}},"additionalProperties":false},"start":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]},"variant":{"type":"string","enum":["detail-cards","compact"]}},"additionalProperties":false},"catalogue":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["detail-cards","default-groups"]}},"additionalProperties":false},"faq":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]}},"additionalProperties":false},"closing":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"}},"additionalProperties":false}},"additionalProperties":false}},"additionalProperties":false},"default":{"type":"object","properties":{"order":{"maxItems":32,"type":"array","items":{"type":"string","enum":["catalogue"]},"uniqueItems":true},"sections":{"type":"object","properties":{"catalogue":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["detail-cards","default-groups"]}},"additionalProperties":false}},"additionalProperties":false}},"additionalProperties":false},"storefront-c":{"type":"object","properties":{"order":{"maxItems":32,"type":"array","items":{"type":"string","enum":["hero","story","paths","projects","start","catalogue","faq","closing"]},"uniqueItems":true},"sections":{"type":"object","properties":{"hero":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"}},"additionalProperties":false},"story":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]}},"additionalProperties":false},"paths":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"}},"additionalProperties":false},"projects":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]}},"additionalProperties":false},"start":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]},"variant":{"type":"string","enum":["detail-cards","compact"]}},"additionalProperties":false},"catalogue":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["compact"]}},"additionalProperties":false},"faq":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]}},"additionalProperties":false},"closing":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["catalogue-link"]}},"additionalProperties":false}},"additionalProperties":false}},"additionalProperties":false},"storefront-b":{"type":"object","properties":{"order":{"maxItems":32,"type":"array","items":{"type":"string","enum":["hero","featured","catalogue","starter","faq","closing"]},"uniqueItems":true},"sections":{"type":"object","properties":{"hero":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["search-hero"]}},"additionalProperties":false},"featured":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]},"variant":{"type":"string","enum":["featured-grid"]}},"additionalProperties":false},"catalogue":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["compact"]}},"additionalProperties":false},"starter":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]}},"additionalProperties":false},"faq":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]}},"additionalProperties":false},"closing":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["catalogue-link"]}},"additionalProperties":false}},"additionalProperties":false}},"additionalProperties":false},"storefront-a":{"type":"object","properties":{"order":{"maxItems":32,"type":"array","items":{"type":"string","enum":["hero","tasks","comparison","start","catalogue","faq","closing"]},"uniqueItems":true},"sections":{"type":"object","properties":{"hero":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["offer-focus"]}},"additionalProperties":false},"tasks":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]}},"additionalProperties":false},"comparison":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["comparison"]}},"additionalProperties":false},"start":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]},"variant":{"type":"string","enum":["detail-cards","compact"]}},"additionalProperties":false},"catalogue":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["compact"]}},"additionalProperties":false},"faq":{"type":"object","properties":{"visibility":{"type":"string","enum":["visible","hidden"]}},"additionalProperties":false},"closing":{"type":"object","properties":{"visibility":{"type":"string","const":"visible"},"variant":{"type":"string","enum":["catalogue-link"]}},"additionalProperties":false}},"additionalProperties":false}},"additionalProperties":false}},"additionalProperties":false},"content":{"type":"object","properties":{"home.hero":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"mediaCaption":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"stepDetails":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"}},"staticDemo":{"type":"object","properties":{"title":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"}},"required":["title","body"],"additionalProperties":false}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"mediaCaption":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"stepDetails":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"}},"staticDemo":{"type":"object","properties":{"title":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"}},"required":["title","body"],"additionalProperties":false}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"mediaCaption":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"stepDetails":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"}},"staticDemo":{"type":"object","properties":{"title":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"}},"required":["title","body"],"additionalProperties":false}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false},"en":{"type":"object","properties":{"kind":{"type":"string","const":"hero"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"steps":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"mediaCaption":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"stepDetails":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"}},"staticDemo":{"type":"object","properties":{"title":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"}},"required":["title","body"],"additionalProperties":false}},"required":["kind","eyebrow","heading","body","steps"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.tasks":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.starts":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.faq":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"faq"},"items":{"maxItems":20,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"question":{"type":"string","maxLength":240,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"answer":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["id","question","answer"],"additionalProperties":false}}},"required":["kind","items"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.closing":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.comparison":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"comparison"},"actionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"items":{"minItems":2,"maxItems":2,"type":"array","items":{"type":"object","properties":{"productId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"bullets":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^[^<>]*$"}}},"required":["productId","eyebrow","heading","body","bullets"],"additionalProperties":false}}},"required":["kind","heading","body","items"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"comparison"},"actionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"items":{"minItems":2,"maxItems":2,"type":"array","items":{"type":"object","properties":{"productId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"bullets":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^[^<>]*$"}}},"required":["productId","eyebrow","heading","body","bullets"],"additionalProperties":false}}},"required":["kind","heading","body","items"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"comparison"},"actionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"items":{"minItems":2,"maxItems":2,"type":"array","items":{"type":"object","properties":{"productId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"bullets":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^[^<>]*$"}}},"required":["productId","eyebrow","heading","body","bullets"],"additionalProperties":false}}},"required":["kind","heading","body","items"],"additionalProperties":false},"en":{"type":"object","properties":{"kind":{"type":"string","const":"comparison"},"actionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"items":{"minItems":2,"maxItems":2,"type":"array","items":{"type":"object","properties":{"productId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"bullets":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":240,"pattern":"^[^<>]*$"}}},"required":["productId","eyebrow","heading","body","bullets"],"additionalProperties":false}}},"required":["kind","heading","body","items"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.catalogue":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.search":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"search"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"items":{"maxItems":12,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"categoryId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"description":{"type":"string","maxLength":240,"pattern":"^[^<>]*$"}},"required":["id","categoryId","description"],"additionalProperties":false}}},"required":["kind","heading","body","items"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"search"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"items":{"maxItems":12,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"categoryId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"description":{"type":"string","maxLength":240,"pattern":"^[^<>]*$"}},"required":["id","categoryId","description"],"additionalProperties":false}}},"required":["kind","heading","body","items"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"search"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"items":{"maxItems":12,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"categoryId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"description":{"type":"string","maxLength":240,"pattern":"^[^<>]*$"}},"required":["id","categoryId","description"],"additionalProperties":false}}},"required":["kind","heading","body","items"],"additionalProperties":false},"en":{"type":"object","properties":{"kind":{"type":"string","const":"search"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"items":{"maxItems":12,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"categoryId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"description":{"type":"string","maxLength":240,"pattern":"^[^<>]*$"}},"required":["id","categoryId","description"],"additionalProperties":false}}},"required":["kind","heading","body","items"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.featured":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"actionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"detailsLabel":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"detailActionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"items":{"maxItems":6,"type":"array","items":{"type":"object","properties":{"productId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"descriptor":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"detailHeading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"detailBody":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"requirementsLabel":{"type":"string","maxLength":240,"pattern":"^[^<>]*$"}},"required":["productId"],"additionalProperties":false}}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"actionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"detailsLabel":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"detailActionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"items":{"maxItems":6,"type":"array","items":{"type":"object","properties":{"productId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"descriptor":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"detailHeading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"detailBody":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"requirementsLabel":{"type":"string","maxLength":240,"pattern":"^[^<>]*$"}},"required":["productId"],"additionalProperties":false}}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"actionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"detailsLabel":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"detailActionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"items":{"maxItems":6,"type":"array","items":{"type":"object","properties":{"productId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"descriptor":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"detailHeading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"detailBody":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"requirementsLabel":{"type":"string","maxLength":240,"pattern":"^[^<>]*$"}},"required":["productId"],"additionalProperties":false}}},"required":["kind","heading","body"],"additionalProperties":false},"en":{"type":"object","properties":{"kind":{"type":"string","const":"heading"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"actionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"detailsLabel":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"detailActionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"items":{"maxItems":6,"type":"array","items":{"type":"object","properties":{"productId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"descriptor":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"detailHeading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"detailBody":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"requirementsLabel":{"type":"string","maxLength":240,"pattern":"^[^<>]*$"}},"required":["productId"],"additionalProperties":false}}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.starter":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false},"en":{"type":"object","properties":{"kind":{"type":"string","const":"cta"},"heading":{"type":"string","maxLength":160,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^(?![\\s\\S]*<[^>]*>)[\\s\\S]*$"}},"required":["kind","heading","body"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.author":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"author"},"name":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"intro":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"portraitMediaId":{"anyOf":[{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},{"type":"null"}]}},"required":["kind","name","eyebrow","heading","intro","portraitMediaId"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"author"},"name":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"intro":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"portraitMediaId":{"anyOf":[{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},{"type":"null"}]}},"required":["kind","name","eyebrow","heading","intro","portraitMediaId"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"author"},"name":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"intro":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"portraitMediaId":{"anyOf":[{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},{"type":"null"}]}},"required":["kind","name","eyebrow","heading","intro","portraitMediaId"],"additionalProperties":false},"en":{"type":"object","properties":{"kind":{"type":"string","const":"author"},"name":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"intro":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"portraitMediaId":{"anyOf":[{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},{"type":"null"}]}},"required":["kind","name","eyebrow","heading","intro","portraitMediaId"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.story":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"biography"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"paragraphs":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":2000,"pattern":"^[^<>]*$"}}},"required":["kind","heading","paragraphs"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"biography"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"paragraphs":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":2000,"pattern":"^[^<>]*$"}}},"required":["kind","heading","paragraphs"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"biography"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"paragraphs":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":2000,"pattern":"^[^<>]*$"}}},"required":["kind","heading","paragraphs"],"additionalProperties":false},"en":{"type":"object","properties":{"kind":{"type":"string","const":"biography"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"paragraphs":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":2000,"pattern":"^[^<>]*$"}}},"required":["kind","heading","paragraphs"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.paths":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"paths"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"actionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"items":{"maxItems":4,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"productId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"situation":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"label":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"}},"required":["id","productId","situation","body"],"additionalProperties":false}}},"required":["kind","heading","body","items"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"paths"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"actionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"items":{"maxItems":4,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"productId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"situation":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"label":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"}},"required":["id","productId","situation","body"],"additionalProperties":false}}},"required":["kind","heading","body","items"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"paths"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"actionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"items":{"maxItems":4,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"productId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"situation":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"label":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"}},"required":["id","productId","situation","body"],"additionalProperties":false}}},"required":["kind","heading","body","items"],"additionalProperties":false},"en":{"type":"object","properties":{"kind":{"type":"string","const":"paths"},"eyebrow":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"actionLabel":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":4000,"pattern":"^[^<>]*$"},"items":{"maxItems":4,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"productId":{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},"situation":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"label":{"type":"string","maxLength":80,"pattern":"^[^<>]*$"}},"required":["id","productId","situation","body"],"additionalProperties":false}}},"required":["kind","heading","body","items"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]},"home.projects":{"anyOf":[{"type":"object","properties":{"sourceLocale":{"type":"string","const":"en"},"en":{"type":"object","properties":{"kind":{"type":"string","const":"projects"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"items":{"maxItems":3,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"name":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"url":{"type":"string","maxLength":2048,"pattern":"^https:\\/\\/(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}(?::443)?(?:\\/[a-zA-Z0-9/_-]*)?$"},"mediaId":{"anyOf":[{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},{"type":"null"}]}},"required":["id","name","body","url","mediaId"],"additionalProperties":false}}},"required":["kind","heading","items"],"additionalProperties":false},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"projects"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"items":{"maxItems":3,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"name":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"url":{"type":"string","maxLength":2048,"pattern":"^https:\\/\\/(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}(?::443)?(?:\\/[a-zA-Z0-9/_-]*)?$"},"mediaId":{"anyOf":[{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},{"type":"null"}]}},"required":["id","name","body","url","mediaId"],"additionalProperties":false}}},"required":["kind","heading","items"],"additionalProperties":false}},"required":["sourceLocale","en"],"additionalProperties":false},{"type":"object","properties":{"sourceLocale":{"type":"string","const":"pl"},"pl":{"type":"object","properties":{"kind":{"type":"string","const":"projects"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"items":{"maxItems":3,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"name":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"url":{"type":"string","maxLength":2048,"pattern":"^https:\\/\\/(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}(?::443)?(?:\\/[a-zA-Z0-9/_-]*)?$"},"mediaId":{"anyOf":[{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},{"type":"null"}]}},"required":["id","name","body","url","mediaId"],"additionalProperties":false}}},"required":["kind","heading","items"],"additionalProperties":false},"en":{"type":"object","properties":{"kind":{"type":"string","const":"projects"},"heading":{"type":"string","maxLength":160,"pattern":"^[^<>]*$"},"items":{"maxItems":3,"type":"array","items":{"type":"object","properties":{"id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,63}$"},"name":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"},"body":{"type":"string","maxLength":1000,"pattern":"^[^<>]*$"},"url":{"type":"string","maxLength":2048,"pattern":"^https:\\/\\/(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}(?::443)?(?:\\/[a-zA-Z0-9/_-]*)?$"},"mediaId":{"anyOf":[{"type":"string","format":"uuid","pattern":"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"},{"type":"null"}]}},"required":["id","name","body","url","mediaId"],"additionalProperties":false}}},"required":["kind","heading","items"],"additionalProperties":false}},"required":["sourceLocale","pl"],"additionalProperties":false}]}},"additionalProperties":false},"tokens":{"anyOf":[{"type":"object","properties":{"format":{"type":"number","const":1},"light":{"type":"object","properties":{"background":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"foreground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accent":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accentForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"muted":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"mutedForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"border":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"}},"additionalProperties":false},"dark":{"type":"object","properties":{"background":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"foreground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accent":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"accentForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"muted":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"mutedForeground":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},"border":{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"}},"additionalProperties":false},"typography":{"type":"object","properties":{"font":{"type":"string","enum":["geist","dm-sans"]},"bodyWeight":{"anyOf":[{"type":"number","const":400},{"type":"number","const":500}]},"headingWeight":{"anyOf":[{"type":"number","const":500},{"type":"number","const":600},{"type":"number","const":700}]},"baseSizePx":{"anyOf":[{"type":"number","const":16},{"type":"number","const":17},{"type":"number","const":18}]},"headingLetterSpacingEm":{"anyOf":[{"type":"number","const":-0.02},{"type":"number","const":-0.01},{"type":"number","const":0}]}},"additionalProperties":false},"shapes":{"type":"object","properties":{"radiusSmPx":{"anyOf":[{"type":"number","const":0},{"type":"number","const":4},{"type":"number","const":8}]},"radiusMdPx":{"anyOf":[{"type":"number","const":4},{"type":"number","const":8},{"type":"number","const":12}]},"radiusLgPx":{"anyOf":[{"type":"number","const":8},{"type":"number","const":12},{"type":"number","const":16},{"type":"number","const":24}]}},"additionalProperties":false}},"required":["format"],"additionalProperties":false},{"type":"null"}]}},"required":["format","templateId","settingsByTemplate","overridesByTemplate","content","tokens"],"additionalProperties":false}'::json; $_$;
 
+
 ALTER FUNCTION public.storefront_config_schema() OWNER TO postgres;
 
 --
@@ -11825,6 +12206,7 @@ CREATE FUNCTION public.storefront_config_stored_bytes(config jsonb) RETURNS inte
     LANGUAGE sql IMMUTABLE STRICT
     SET search_path TO ''
     AS $$ SELECT pg_catalog.octet_length(config::text); $$;
+
 
 ALTER FUNCTION public.storefront_config_stored_bytes(config jsonb) OWNER TO postgres;
 
@@ -11880,6 +12262,7 @@ BEGIN
 END;
 $_$;
 
+
 ALTER FUNCTION public.storefront_config_valid(config jsonb) OWNER TO postgres;
 
 --
@@ -11932,6 +12315,7 @@ BEGIN
   RETURN jsonb_build_object('ok', true);
 END $$;
 
+
 ALTER FUNCTION public.submit_order_participants(p_order_id uuid, p_people jsonb) OWNER TO postgres;
 
 --
@@ -11951,6 +12335,7 @@ CREATE FUNCTION public.telemetry_claim_send(p_window_ms bigint, p_lease_ms bigin
    RETURNING instance_id, report_id;
 $$;
 
+
 ALTER FUNCTION public.telemetry_claim_send(p_window_ms bigint, p_lease_ms bigint) OWNER TO postgres;
 
 --
@@ -11963,6 +12348,7 @@ CREATE FUNCTION public.telemetry_confirm_send() RETURNS void
     AS $$
   UPDATE public.telemetry_state SET last_sent_at = now(), report_id = NULL WHERE id = 'singleton';
 $$;
+
 
 ALTER FUNCTION public.telemetry_confirm_send() OWNER TO postgres;
 
@@ -11988,6 +12374,7 @@ BEGIN
   RETURN NEW;
 END $$;
 
+
 ALTER FUNCTION public.transfer_access_source() OWNER TO postgres;
 
 --
@@ -12004,6 +12391,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.update_payment_method_config_timestamp() OWNER TO postgres;
 
 --
@@ -12019,6 +12407,7 @@ BEGIN
     RETURN NEW;
 END;
 $$;
+
 
 ALTER FUNCTION public.update_refund_request_timestamp() OWNER TO postgres;
 
@@ -12040,6 +12429,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.update_refunded_at() OWNER TO postgres;
 
 --
@@ -12055,6 +12445,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
 
 ALTER FUNCTION public.update_updated_at_column() OWNER TO postgres;
 
@@ -12112,6 +12503,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) OWNER TO postgres;
 
 --
@@ -12119,6 +12511,7 @@ ALTER FUNCTION public.update_video_progress(product_id_param uuid, video_id_para
 --
 
 COMMENT ON FUNCTION public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) IS '@graphql({"include": false})';
+
 
 --
 -- Name: validate_bundle_item(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -12149,6 +12542,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.validate_bundle_item() OWNER TO postgres;
 
 --
@@ -12173,6 +12567,7 @@ BEGIN
   RETURN NEW;
 END $$;
 
+
 ALTER FUNCTION public.validate_lead_consent_version() OWNER TO postgres;
 
 --
@@ -12192,12 +12587,12 @@ BEGIN
     IF transaction_id IS NULL THEN
         RETURN FALSE;
     END IF;
-
+    
     -- Check for null UUID or invalid patterns
     IF transaction_id = '00000000-0000-0000-0000-000000000000'::UUID THEN
         RETURN FALSE; -- Reject null UUID
     END IF;
-
+    
     -- Additional validation: ensure UUID string format is canonical
     -- PostgreSQL automatically validates UUID format on cast, but this adds extra safety
     BEGIN
@@ -12208,10 +12603,10 @@ BEGIN
     EXCEPTION WHEN OTHERS THEN
         RETURN FALSE; -- Invalid UUID format or conversion error
     END;
-
+    
     -- Get current user
     current_user_id := auth.uid();
-
+    
     -- Get transaction with access control
     SELECT * INTO transaction_record
     FROM public.payment_transactions
@@ -12224,32 +12619,33 @@ BEGIN
         -- Service role can validate any transaction
         (select auth.role()) = 'service_role'
       );
-
+    
     IF NOT FOUND THEN
         RETURN FALSE; -- Transaction not found or access denied
     END IF;
-
+    
     -- Validate transaction integrity
     IF transaction_record.amount <= 0 THEN
         RETURN FALSE;
     END IF;
-
+    
     IF transaction_record.refunded_amount > transaction_record.amount THEN
         RETURN FALSE;
     END IF;
-
+    
     IF transaction_record.status = 'refunded' AND transaction_record.refunded_at IS NULL THEN
         RETURN FALSE;
     END IF;
-
+    
     -- Validate refunded_amount is non-negative
     IF transaction_record.refunded_amount < 0 THEN
         RETURN FALSE;
     END IF;
-
+    
     RETURN TRUE;
 END;
 $$;
+
 
 ALTER FUNCTION public.validate_payment_transaction(transaction_id uuid) OWNER TO postgres;
 
@@ -12258,6 +12654,7 @@ ALTER FUNCTION public.validate_payment_transaction(transaction_id uuid) OWNER TO
 --
 
 COMMENT ON FUNCTION public.validate_payment_transaction(transaction_id uuid) IS '@graphql({"include": false})';
+
 
 --
 -- Name: validate_seller_embed_origins(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -12283,6 +12680,7 @@ BEGIN
   RETURN NEW;
 END;
 $_$;
+
 
 ALTER FUNCTION public.validate_seller_embed_origins() OWNER TO postgres;
 
@@ -12353,6 +12751,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.verify_api_key(p_key_hash text) OWNER TO postgres;
 
 --
@@ -12396,6 +12795,7 @@ BEGIN
 END;
 $$;
 
+
 ALTER FUNCTION public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) OWNER TO postgres;
 
 --
@@ -12415,6 +12815,7 @@ CREATE TABLE public.admin_actions (
     CONSTRAINT admin_actions_target_type_check CHECK (((length((target_type)::text) >= 1) AND (length((target_type)::text) <= 50)))
 );
 
+
 ALTER TABLE public.admin_actions OWNER TO postgres;
 
 --
@@ -12426,6 +12827,7 @@ CREATE TABLE public.admin_users (
     user_id uuid NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
 
 ALTER TABLE public.admin_users OWNER TO postgres;
 
@@ -12474,6 +12876,7 @@ END))::double precision * '1 day'::interval))))),
     CONSTRAINT affiliate_commissions_version_check CHECK ((version > 0))
 );
 
+
 ALTER TABLE public.affiliate_commissions OWNER TO postgres;
 
 --
@@ -12489,6 +12892,7 @@ CREATE TABLE public.affiliate_membership_events (
     CONSTRAINT affiliate_membership_events_version_check CHECK ((version > 0))
 );
 
+
 ALTER TABLE public.affiliate_membership_events OWNER TO postgres;
 
 --
@@ -12500,6 +12904,7 @@ CREATE TABLE public.affiliate_payout_allocations (
     entry_id uuid NOT NULL,
     released_at timestamp with time zone
 );
+
 
 ALTER TABLE public.affiliate_payout_allocations OWNER TO postgres;
 
@@ -12524,6 +12929,7 @@ CREATE TABLE public.affiliate_program_versions (
     CONSTRAINT affiliate_program_versions_version_check CHECK ((version > 0))
 );
 
+
 ALTER TABLE public.affiliate_program_versions OWNER TO postgres;
 
 --
@@ -12540,6 +12946,7 @@ CREATE TABLE public.api_key_audit_log (
     CONSTRAINT api_key_audit_log_event_type_check CHECK ((event_type = ANY (ARRAY['created'::text, 'rotated'::text, 'revoked'::text, 'deactivated'::text, 'reactivated'::text, 'expired'::text, 'used_after_revoke'::text])))
 );
 
+
 ALTER TABLE public.api_key_audit_log OWNER TO postgres;
 
 --
@@ -12547,6 +12954,7 @@ ALTER TABLE public.api_key_audit_log OWNER TO postgres;
 --
 
 COMMENT ON TABLE public.api_key_audit_log IS 'Audit trail for API key lifecycle events';
+
 
 --
 -- Name: api_keys; Type: TABLE; Schema: public; Owner: postgres
@@ -12577,6 +12985,7 @@ CREATE TABLE public.api_keys (
     CONSTRAINT check_revoked_consistency CHECK ((((is_active = true) AND (revoked_at IS NULL)) OR (is_active = false)))
 );
 
+
 ALTER TABLE public.api_keys OWNER TO postgres;
 
 --
@@ -12585,11 +12994,13 @@ ALTER TABLE public.api_keys OWNER TO postgres;
 
 COMMENT ON TABLE public.api_keys IS 'API keys for external authentication (MCP Server, integrations, external developers)';
 
+
 --
 -- Name: COLUMN api_keys.key_prefix; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.api_keys.key_prefix IS 'First 12 characters of the key for identification (shown in UI)';
+
 
 --
 -- Name: COLUMN api_keys.key_hash; Type: COMMENT; Schema: public; Owner: postgres
@@ -12597,17 +13008,20 @@ COMMENT ON COLUMN public.api_keys.key_prefix IS 'First 12 characters of the key 
 
 COMMENT ON COLUMN public.api_keys.key_hash IS 'SHA-256 hash of the full API key - never store plaintext';
 
+
 --
 -- Name: COLUMN api_keys.scopes; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.api_keys.scopes IS 'JSONB array of explicit scope strings. The "*" wildcard is never persisted: it is expanded to the current scope snapshot at key-creation time (see expandScopes in admin-panel/src/lib/api/api-keys.ts).';
 
+
 --
 -- Name: COLUMN api_keys.rotation_grace_until; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.api_keys.rotation_grace_until IS 'During key rotation, old key remains valid until this timestamp';
+
 
 --
 -- Name: application_rate_limits; Type: TABLE; Schema: public; Owner: postgres
@@ -12623,6 +13037,7 @@ CREATE TABLE public.application_rate_limits (
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
+
 ALTER TABLE public.application_rate_limits OWNER TO postgres;
 
 --
@@ -12630,6 +13045,7 @@ ALTER TABLE public.application_rate_limits OWNER TO postgres;
 --
 
 COMMENT ON TABLE public.application_rate_limits IS 'Rate limiting for application-level API routes (Next.js) - separate from internal RPC rate limiting';
+
 
 --
 -- Name: attribution_channel_rules; Type: TABLE; Schema: public; Owner: postgres
@@ -12653,6 +13069,7 @@ CREATE TABLE public.attribution_channel_rules (
     CONSTRAINT attribution_channel_rules_value_check CHECK (((value IS NULL) OR ((length(value) >= 1) AND (length(value) <= 2000))))
 );
 
+
 ALTER TABLE public.attribution_channel_rules OWNER TO postgres;
 
 --
@@ -12666,6 +13083,7 @@ CREATE TABLE public.attribution_settings (
     CONSTRAINT attribution_settings_click_id_retention_days_check CHECK (((click_id_retention_days >= 1) AND (click_id_retention_days <= 365))),
     CONSTRAINT attribution_settings_id_check CHECK ((id = 1))
 );
+
 
 ALTER TABLE public.attribution_settings OWNER TO postgres;
 
@@ -12686,6 +13104,7 @@ CREATE TABLE public.audit_log (
     user_agent text,
     CONSTRAINT audit_log_operation_check CHECK ((operation = ANY (ARRAY['INSERT'::text, 'UPDATE'::text, 'DELETE'::text])))
 );
+
 
 ALTER TABLE public.audit_log OWNER TO postgres;
 
@@ -12719,6 +13138,7 @@ CREATE TABLE public.bank_transfer_config (
     CONSTRAINT bank_transfer_reservation_order CHECK ((reservation_release_hours > reservation_reminder_hours))
 );
 
+
 ALTER TABLE public.bank_transfer_config OWNER TO postgres;
 
 --
@@ -12734,6 +13154,7 @@ CREATE TABLE public.bundle_items (
     CONSTRAINT bundle_items_check CHECK ((bundle_product_id <> component_product_id))
 );
 
+
 ALTER TABLE public.bundle_items OWNER TO postgres;
 
 --
@@ -12745,6 +13166,7 @@ CREATE TABLE public.captcha_nonces (
     expires_at timestamp with time zone NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
 
 ALTER TABLE public.captcha_nonces OWNER TO postgres;
 
@@ -12765,6 +13187,7 @@ CREATE TABLE public.categories (
     CONSTRAINT categories_slug_check CHECK (((slug ~ '^[a-zA-Z0-9_-]+$'::text) AND ((length(slug) >= 1) AND (length(slug) <= 100))))
 );
 
+
 ALTER TABLE public.categories OWNER TO postgres;
 
 --
@@ -12778,6 +13201,7 @@ CREATE TABLE public.checkout_attribution (
     CONSTRAINT checkout_attribution_payload_check CHECK (((jsonb_typeof(payload) = 'object'::text) AND (octet_length((payload)::text) <= 16384))),
     CONSTRAINT checkout_attribution_ref_check CHECK (((length(ref) >= 1) AND (length(ref) <= 255)))
 );
+
 
 ALTER TABLE public.checkout_attribution OWNER TO postgres;
 
@@ -12796,6 +13220,7 @@ CREATE TABLE public.consent_logs (
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
+
 ALTER TABLE public.consent_logs OWNER TO postgres;
 
 --
@@ -12812,6 +13237,7 @@ CREATE TABLE public.coupon_redemptions (
     redeemed_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
+
 ALTER TABLE public.coupon_redemptions OWNER TO postgres;
 
 --
@@ -12826,6 +13252,7 @@ CREATE TABLE public.coupon_reservations (
     expires_at timestamp with time zone NOT NULL,
     session_id text
 );
+
 
 ALTER TABLE public.coupon_reservations OWNER TO postgres;
 
@@ -12870,6 +13297,7 @@ CREATE TABLE public.coupons (
     CONSTRAINT valid_percentage CHECK (((discount_type <> 'percentage'::text) OR (discount_value <= (100)::numeric)))
 );
 
+
 ALTER TABLE public.coupons OWNER TO postgres;
 
 --
@@ -12878,11 +13306,13 @@ ALTER TABLE public.coupons OWNER TO postgres;
 
 COMMENT ON TABLE public.coupons IS 'Smart discount codes with auto-apply and targeting';
 
+
 --
 -- Name: COLUMN coupons.is_oto_coupon; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.coupons.is_oto_coupon IS 'True if this coupon was auto-generated by the OTO system';
+
 
 --
 -- Name: COLUMN coupons.oto_offer_id; Type: COMMENT; Schema: public; Owner: postgres
@@ -12890,17 +13320,20 @@ COMMENT ON COLUMN public.coupons.is_oto_coupon IS 'True if this coupon was auto-
 
 COMMENT ON COLUMN public.coupons.oto_offer_id IS 'Reference to the OTO offer that generated this coupon';
 
+
 --
 -- Name: COLUMN coupons.source_transaction_id; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.coupons.source_transaction_id IS 'The transaction that triggered OTO coupon generation';
 
+
 --
 -- Name: COLUMN coupons.coupon_role; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.coupons.coupon_role IS 'Funnel role: upsell or downsell. NULL for non-funnel coupons (manual, campaign, etc.).';
+
 
 --
 -- Name: custom_scripts; Type: TABLE; Schema: public; Owner: postgres
@@ -12918,6 +13351,7 @@ CREATE TABLE public.custom_scripts (
     CONSTRAINT custom_scripts_category_check CHECK ((category = ANY (ARRAY['essential'::text, 'analytics'::text, 'marketing'::text]))),
     CONSTRAINT custom_scripts_script_location_check CHECK ((script_location = ANY (ARRAY['head'::text, 'body'::text])))
 );
+
 
 ALTER TABLE public.custom_scripts OWNER TO postgres;
 
@@ -12939,6 +13373,7 @@ CREATE TABLE public.embed_checkout_log (
     CONSTRAINT embed_checkout_log_action_check CHECK ((action = ANY (ARRAY['paid_checkout'::text, 'free_email_gate'::text])))
 );
 
+
 ALTER TABLE public.embed_checkout_log OWNER TO postgres;
 
 --
@@ -12956,6 +13391,7 @@ CREATE TABLE public.free_grant_contexts (
     CONSTRAINT free_grant_contexts_custom_field_values_check CHECK (((jsonb_typeof(custom_field_values) = 'object'::text) AND (octet_length((custom_field_values)::text) <= 10000))),
     CONSTRAINT free_grant_contexts_email_check CHECK (((length(email) >= 3) AND (length(email) <= 254)))
 );
+
 
 ALTER TABLE public.free_grant_contexts OWNER TO postgres;
 
@@ -12979,6 +13415,7 @@ CREATE TABLE public.guest_purchases (
     CONSTRAINT guest_purchases_transaction_amount_check CHECK (((transaction_amount >= (0)::numeric) AND (transaction_amount <= (99999999)::numeric)))
 );
 
+
 ALTER TABLE public.guest_purchases OWNER TO postgres;
 
 --
@@ -12986,6 +13423,7 @@ ALTER TABLE public.guest_purchases OWNER TO postgres;
 --
 
 COMMENT ON COLUMN public.guest_purchases.metadata IS 'Additional purchase metadata (e.g., NIP, company details from GUS, invoice information)';
+
 
 --
 -- Name: integrations_config; Type: TABLE; Schema: public; Owner: postgres
@@ -13028,6 +13466,7 @@ CREATE TABLE public.integrations_config (
     CONSTRAINT integrations_config_id_check CHECK ((id = 1))
 );
 
+
 ALTER TABLE public.integrations_config OWNER TO postgres;
 
 --
@@ -13036,11 +13475,13 @@ ALTER TABLE public.integrations_config OWNER TO postgres;
 
 COMMENT ON TABLE public.integrations_config IS 'Global integrations configuration (singleton)';
 
+
 --
 -- Name: COLUMN integrations_config.facebook_capi_token; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.integrations_config.facebook_capi_token IS 'Legacy plaintext Meta CAPI token. New saves leave it NULL; a remaining value is converted to the encrypted columns by the app.';
+
 
 --
 -- Name: COLUMN integrations_config.currency_api_provider; Type: COMMENT; Schema: public; Owner: postgres
@@ -13048,11 +13489,13 @@ COMMENT ON COLUMN public.integrations_config.facebook_capi_token IS 'Legacy plai
 
 COMMENT ON COLUMN public.integrations_config.currency_api_provider IS 'Currency exchange rate provider: ecb (free EU, default), exchangerate-api (free 1500/mo), or fixer (paid)';
 
+
 --
 -- Name: COLUMN integrations_config.currency_api_key_encrypted; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.integrations_config.currency_api_key_encrypted IS 'AES-256-GCM encrypted Currency API key (base64 encoded) - for ExchangeRate-API or Fixer.io';
+
 
 --
 -- Name: COLUMN integrations_config.currency_api_key_iv; Type: COMMENT; Schema: public; Owner: postgres
@@ -13060,11 +13503,13 @@ COMMENT ON COLUMN public.integrations_config.currency_api_key_encrypted IS 'AES-
 
 COMMENT ON COLUMN public.integrations_config.currency_api_key_iv IS 'Initialization vector for Currency API key decryption (base64 encoded)';
 
+
 --
 -- Name: COLUMN integrations_config.currency_api_key_tag; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.integrations_config.currency_api_key_tag IS 'Authentication tag for Currency API key decryption (base64 encoded)';
+
 
 --
 -- Name: COLUMN integrations_config.currency_api_enabled; Type: COMMENT; Schema: public; Owner: postgres
@@ -13072,11 +13517,13 @@ COMMENT ON COLUMN public.integrations_config.currency_api_key_tag IS 'Authentica
 
 COMMENT ON COLUMN public.integrations_config.currency_api_enabled IS 'Whether Currency API integration is enabled for exchange rate fetching';
 
+
 --
 -- Name: COLUMN integrations_config.gus_api_key_encrypted; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.integrations_config.gus_api_key_encrypted IS 'AES-256-GCM encrypted GUS REGON API key (base64 encoded)';
+
 
 --
 -- Name: COLUMN integrations_config.gus_api_key_iv; Type: COMMENT; Schema: public; Owner: postgres
@@ -13084,11 +13531,13 @@ COMMENT ON COLUMN public.integrations_config.gus_api_key_encrypted IS 'AES-256-G
 
 COMMENT ON COLUMN public.integrations_config.gus_api_key_iv IS 'Initialization vector for GUS API key decryption (base64 encoded)';
 
+
 --
 -- Name: COLUMN integrations_config.gus_api_key_tag; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.integrations_config.gus_api_key_tag IS 'Authentication tag for GUS API key decryption (base64 encoded)';
+
 
 --
 -- Name: COLUMN integrations_config.gus_api_enabled; Type: COMMENT; Schema: public; Owner: postgres
@@ -13096,11 +13545,13 @@ COMMENT ON COLUMN public.integrations_config.gus_api_key_tag IS 'Authentication 
 
 COMMENT ON COLUMN public.integrations_config.gus_api_enabled IS 'Whether GUS API integration is enabled for automatic company data fetching';
 
+
 --
 -- Name: COLUMN integrations_config.gtm_ss_enabled; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.integrations_config.gtm_ss_enabled IS 'Enable sending server-side conversion events to GTM SS container';
+
 
 --
 -- Name: COLUMN integrations_config.facebook_capi_token_encrypted; Type: COMMENT; Schema: public; Owner: postgres
@@ -13108,17 +13559,20 @@ COMMENT ON COLUMN public.integrations_config.gtm_ss_enabled IS 'Enable sending s
 
 COMMENT ON COLUMN public.integrations_config.facebook_capi_token_encrypted IS 'AES-256-GCM encrypted Meta CAPI access token (base64 encoded)';
 
+
 --
 -- Name: COLUMN integrations_config.facebook_capi_token_iv; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.integrations_config.facebook_capi_token_iv IS 'Initialization vector for Meta CAPI token decryption (base64 encoded)';
 
+
 --
 -- Name: COLUMN integrations_config.facebook_capi_token_tag; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.integrations_config.facebook_capi_token_tag IS 'Authentication tag for Meta CAPI token decryption (base64 encoded)';
+
 
 --
 -- Name: invoices; Type: TABLE; Schema: public; Owner: postgres
@@ -13144,6 +13598,7 @@ CREATE TABLE public.invoices (
     CONSTRAINT invoices_status_check CHECK ((status = ANY (ARRAY['issuing'::text, 'issued'::text, 'failed'::text, 'corrected'::text])))
 );
 
+
 ALTER TABLE public.invoices OWNER TO postgres;
 
 --
@@ -13167,6 +13622,7 @@ CREATE TABLE public.invoicing_config (
     CONSTRAINT invoicing_config_template_check CHECK ((length(template) <= 300))
 );
 
+
 ALTER TABLE public.invoicing_config OWNER TO postgres;
 
 --
@@ -13184,6 +13640,7 @@ CREATE TABLE public.lead_nonces (
     CONSTRAINT lead_nonces_signature_check CHECK ((length(signature) <= 256))
 );
 
+
 ALTER TABLE public.lead_nonces OWNER TO postgres;
 
 --
@@ -13195,6 +13652,7 @@ CREATE TABLE public.license_mail_receipts (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT license_mail_receipts_mail_key_check CHECK ((mail_key ~ '^[a-f0-9]{64}$'::text))
 );
+
 
 ALTER TABLE public.license_mail_receipts OWNER TO postgres;
 
@@ -13220,6 +13678,7 @@ CREATE TABLE public.product_price_history (
     CONSTRAINT product_price_history_sale_price_check CHECK ((sale_price >= (0)::numeric))
 );
 
+
 ALTER TABLE public.product_price_history OWNER TO postgres;
 
 --
@@ -13227,6 +13686,7 @@ ALTER TABLE public.product_price_history OWNER TO postgres;
 --
 
 COMMENT ON TABLE public.product_price_history IS 'Price history for Omnibus Directive compliance (EU 2019/2161) - tracks lowest price in last 30 days';
+
 
 --
 -- Name: omnibus_price_history; Type: VIEW; Schema: public; Owner: postgres
@@ -13242,6 +13702,7 @@ CREATE VIEW public.omnibus_price_history AS
      JOIN public.products p ON ((p.id = pph.product_id)))
   WHERE ((p.is_active = true) AND (p.is_listed = true));
 
+
 ALTER TABLE public.omnibus_price_history OWNER TO postgres;
 
 --
@@ -13249,6 +13710,7 @@ ALTER TABLE public.omnibus_price_history OWNER TO postgres;
 --
 
 COMMENT ON VIEW public.omnibus_price_history IS 'Omnibus Directive (2019/2161) public display surface — narrowed columns over the active+listed product set.';
+
 
 --
 -- Name: order_bumps; Type: TABLE; Schema: public; Owner: postgres
@@ -13275,6 +13737,7 @@ CREATE TABLE public.order_bumps (
     CONSTRAINT order_bumps_urgency_duration_minutes_check CHECK (((urgency_duration_minutes IS NULL) OR ((urgency_duration_minutes >= 1) AND (urgency_duration_minutes <= 1440))))
 );
 
+
 ALTER TABLE public.order_bumps OWNER TO postgres;
 
 --
@@ -13283,17 +13746,20 @@ ALTER TABLE public.order_bumps OWNER TO postgres;
 
 COMMENT ON TABLE public.order_bumps IS 'Order bump configurations for one-click upsells';
 
+
 --
 -- Name: COLUMN order_bumps.bump_price; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.order_bumps.bump_price IS 'Special discounted price for bump (NULL = use product default price)';
 
+
 --
 -- Name: COLUMN order_bumps.urgency_duration_minutes; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.order_bumps.urgency_duration_minutes IS 'Urgency countdown timer in minutes (NULL = no timer, 1-1440). Purely cosmetic — counts from page load.';
+
 
 --
 -- Name: order_payment_attempts; Type: TABLE; Schema: public; Owner: postgres
@@ -13319,6 +13785,7 @@ CREATE TABLE public.order_payment_attempts (
     CONSTRAINT order_payment_attempts_kind_check CHECK ((kind = ANY (ARRAY['settle'::text, 'reopen'::text]))),
     CONSTRAINT order_payment_attempts_status_check CHECK ((status = ANY (ARRAY['opening'::text, 'open'::text, 'completed'::text, 'expired'::text, 'superseded'::text, 'duplicate'::text])))
 );
+
 
 ALTER TABLE public.order_payment_attempts OWNER TO postgres;
 
@@ -13354,6 +13821,7 @@ CREATE TABLE public.oto_offers (
     CONSTRAINT valid_percentage_discount CHECK (((discount_type <> 'percentage'::text) OR (discount_value <= (100)::numeric)))
 );
 
+
 ALTER TABLE public.oto_offers OWNER TO postgres;
 
 --
@@ -13362,11 +13830,13 @@ ALTER TABLE public.oto_offers OWNER TO postgres;
 
 COMMENT ON TABLE public.oto_offers IS 'OTO (One-Time Offer) configurations - defines which product to offer after purchasing another';
 
+
 --
 -- Name: COLUMN oto_offers.source_product_id; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.oto_offers.source_product_id IS 'The product that triggers the OTO after purchase';
+
 
 --
 -- Name: COLUMN oto_offers.oto_product_id; Type: COMMENT; Schema: public; Owner: postgres
@@ -13374,17 +13844,20 @@ COMMENT ON COLUMN public.oto_offers.source_product_id IS 'The product that trigg
 
 COMMENT ON COLUMN public.oto_offers.oto_product_id IS 'The product offered as OTO with a discount';
 
+
 --
 -- Name: COLUMN oto_offers.duration_minutes; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.oto_offers.duration_minutes IS 'How long the OTO coupon is valid (default: 15 minutes, max: 24 hours)';
 
+
 --
 -- Name: COLUMN oto_offers.downsell_product_id; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.oto_offers.downsell_product_id IS 'Optional product offered when the buyer declines the upsell. Forms the second branch of the post-purchase funnel.';
+
 
 --
 -- Name: payment_disputes; Type: TABLE; Schema: public; Owner: postgres
@@ -13402,6 +13875,7 @@ CREATE TABLE public.payment_disputes (
     closed boolean DEFAULT false NOT NULL,
     revoked_license_ids uuid[] DEFAULT '{}'::uuid[] NOT NULL
 );
+
 
 ALTER TABLE public.payment_disputes OWNER TO postgres;
 
@@ -13446,6 +13920,7 @@ CREATE TABLE public.payment_line_items (
     CONSTRAINT valid_total_price CHECK ((total_price = (unit_price * (quantity)::numeric)))
 );
 
+
 ALTER TABLE public.payment_line_items OWNER TO postgres;
 
 --
@@ -13454,11 +13929,13 @@ ALTER TABLE public.payment_line_items OWNER TO postgres;
 
 COMMENT ON COLUMN public.payment_line_items.tax_breakdown IS 'Array of Stripe tax components: {amount,taxableAmount,rate,effectiveRate,inclusive,taxType,jurisdiction,country,state,taxabilityReason}. amount/taxableAmount in MINOR units.';
 
+
 --
 -- Name: COLUMN payment_line_items.tax_amount; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.payment_line_items.tax_amount IS 'MINOR units (cents). Unlike unit_price/total_price which are MAJOR units.';
+
 
 --
 -- Name: COLUMN payment_line_items.net_amount; Type: COMMENT; Schema: public; Owner: postgres
@@ -13466,11 +13943,13 @@ COMMENT ON COLUMN public.payment_line_items.tax_amount IS 'MINOR units (cents). 
 
 COMMENT ON COLUMN public.payment_line_items.net_amount IS 'MINOR units (cents). Unlike unit_price/total_price which are MAJOR units.';
 
+
 --
 -- Name: COLUMN payment_line_items.discounted_total; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.payment_line_items.discounted_total IS 'MAJOR units after coupon; NULL for legacy lines.';
+
 
 --
 -- Name: payment_method_config; Type: TABLE; Schema: public; Owner: postgres
@@ -13502,6 +13981,7 @@ CREATE TABLE public.payment_method_config (
     CONSTRAINT payment_method_config_payment_method_order_check CHECK ((jsonb_typeof(payment_method_order) = 'array'::text))
 );
 
+
 ALTER TABLE public.payment_method_config OWNER TO postgres;
 
 --
@@ -13510,11 +13990,13 @@ ALTER TABLE public.payment_method_config OWNER TO postgres;
 
 COMMENT ON TABLE public.payment_method_config IS 'Global payment method configuration (singleton). Controls how payment methods are displayed at checkout. Future: per-product overrides via products.payment_config_override JSONB column';
 
+
 --
 -- Name: COLUMN payment_method_config.id; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.payment_method_config.id IS 'Singleton ID (always 1). Enforced by PRIMARY KEY and CHECK constraint';
+
 
 --
 -- Name: COLUMN payment_method_config.config_mode; Type: COMMENT; Schema: public; Owner: postgres
@@ -13522,11 +14004,13 @@ COMMENT ON COLUMN public.payment_method_config.id IS 'Singleton ID (always 1). E
 
 COMMENT ON COLUMN public.payment_method_config.config_mode IS 'Configuration mode: automatic (Stripe default), stripe_preset (use specific PMC), or custom (explicit payment methods)';
 
+
 --
 -- Name: COLUMN payment_method_config.stripe_pmc_id; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.payment_method_config.stripe_pmc_id IS 'Stripe Payment Method Configuration ID (e.g., pmc_xxx). Required for stripe_preset mode. Must start with pmc_ prefix';
+
 
 --
 -- Name: COLUMN payment_method_config.stripe_pmc_name; Type: COMMENT; Schema: public; Owner: postgres
@@ -13534,11 +14018,13 @@ COMMENT ON COLUMN public.payment_method_config.stripe_pmc_id IS 'Stripe Payment 
 
 COMMENT ON COLUMN public.payment_method_config.stripe_pmc_name IS 'Cached display name of the Stripe PMC (e.g., "Default Config", "EU Only"). Updated when PMC is selected';
 
+
 --
 -- Name: COLUMN payment_method_config.stripe_pmc_last_synced; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.payment_method_config.stripe_pmc_last_synced IS 'Timestamp of last successful fetch from Stripe API. Used for cache TTL (1 hour)';
+
 
 --
 -- Name: COLUMN payment_method_config.custom_payment_methods; Type: COMMENT; Schema: public; Owner: postgres
@@ -13546,11 +14032,13 @@ COMMENT ON COLUMN public.payment_method_config.stripe_pmc_last_synced IS 'Timest
 
 COMMENT ON COLUMN public.payment_method_config.custom_payment_methods IS 'Custom payment methods array with enabled state, order, and currency restrictions (only for custom mode). Structure: [{"type": "blik", "enabled": true, "display_order": 0, "currency_restrictions": ["PLN"]}]';
 
+
 --
 -- Name: COLUMN payment_method_config.payment_method_order; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.payment_method_config.payment_method_order IS 'Preferred display order of payment methods. Used for paymentMethodOrder in PaymentElement options. Example: ["blik", "p24", "card"]';
+
 
 --
 -- Name: COLUMN payment_method_config.currency_overrides; Type: COMMENT; Schema: public; Owner: postgres
@@ -13558,11 +14046,13 @@ COMMENT ON COLUMN public.payment_method_config.payment_method_order IS 'Preferre
 
 COMMENT ON COLUMN public.payment_method_config.currency_overrides IS 'Currency-specific payment method ordering overrides for localized optimization. Example: {"PLN": ["blik", "p24", "card"], "EUR": ["sepa_debit", "ideal"]}';
 
+
 --
 -- Name: COLUMN payment_method_config.enable_express_checkout; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.payment_method_config.enable_express_checkout IS 'Master toggle for Express Checkout Element (Link, Apple Pay, Google Pay)';
+
 
 --
 -- Name: COLUMN payment_method_config.enable_apple_pay; Type: COMMENT; Schema: public; Owner: postgres
@@ -13570,11 +14060,13 @@ COMMENT ON COLUMN public.payment_method_config.enable_express_checkout IS 'Maste
 
 COMMENT ON COLUMN public.payment_method_config.enable_apple_pay IS 'Enable Apple Pay in Express Checkout Element';
 
+
 --
 -- Name: COLUMN payment_method_config.enable_google_pay; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.payment_method_config.enable_google_pay IS 'Enable Google Pay in Express Checkout Element';
+
 
 --
 -- Name: COLUMN payment_method_config.enable_link; Type: COMMENT; Schema: public; Owner: postgres
@@ -13582,17 +14074,20 @@ COMMENT ON COLUMN public.payment_method_config.enable_google_pay IS 'Enable Goog
 
 COMMENT ON COLUMN public.payment_method_config.enable_link IS 'Enable Stripe Link in Express Checkout Element for one-click checkout';
 
+
 --
 -- Name: COLUMN payment_method_config.available_payment_methods; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.payment_method_config.available_payment_methods IS 'Cached list of Stripe Payment Method Configurations from API. Refreshed every 1 hour. Used for admin UI dropdown';
 
+
 --
 -- Name: COLUMN payment_method_config.last_modified_by; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.payment_method_config.last_modified_by IS 'User ID of the admin who last modified this configuration';
+
 
 --
 -- Name: payment_order_number_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -13605,6 +14100,7 @@ CREATE SEQUENCE public.payment_order_number_seq
     NO MAXVALUE
     CACHE 1;
 
+
 ALTER TABLE public.payment_order_number_seq OWNER TO postgres;
 
 --
@@ -13612,6 +14108,7 @@ ALTER TABLE public.payment_order_number_seq OWNER TO postgres;
 --
 
 ALTER SEQUENCE public.payment_order_number_seq OWNED BY public.payment_transactions.order_number;
+
 
 --
 -- Name: payment_refund_events; Type: TABLE; Schema: public; Owner: postgres
@@ -13627,6 +14124,7 @@ CREATE TABLE public.payment_refund_events (
     CONSTRAINT payment_refund_events_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'requires_action'::text, 'succeeded'::text, 'failed'::text, 'canceled'::text]))),
     CONSTRAINT payment_refund_events_version_check CHECK ((version > 0))
 );
+
 
 ALTER TABLE public.payment_refund_events OWNER TO postgres;
 
@@ -13653,6 +14151,7 @@ CREATE TABLE public.payment_refunds (
     CONSTRAINT payment_refunds_version_check CHECK ((version > 0))
 );
 
+
 ALTER TABLE public.payment_refunds OWNER TO postgres;
 
 --
@@ -13670,6 +14169,7 @@ CREATE VIEW public.payment_system_health WITH (security_invoker='on') AS
     now() AS snapshot_time
    FROM public.payment_transactions;
 
+
 ALTER TABLE public.payment_system_health OWNER TO postgres;
 
 --
@@ -13681,6 +14181,7 @@ CREATE TABLE public.product_categories (
     category_id uuid NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
 
 ALTER TABLE public.product_categories OWNER TO postgres;
 
@@ -13699,6 +14200,7 @@ CREATE TABLE public.product_offer_config (
     CONSTRAINT product_offer_config_published_check CHECK (((published IS NULL) OR ((octet_length((published)::text) <= 102400) AND public.product_offer_config_valid(published)))),
     CONSTRAINT product_offer_config_revision_check CHECK (((revision >= 0) AND (revision <= '9007199254740991'::bigint)))
 );
+
 
 ALTER TABLE public.product_offer_config OWNER TO postgres;
 
@@ -13722,6 +14224,7 @@ CREATE TABLE public.product_offer_history (
     CONSTRAINT product_offer_history_revision_check CHECK (((revision >= 0) AND (revision <= '9007199254740991'::bigint)))
 );
 
+
 ALTER TABLE public.product_offer_history OWNER TO postgres;
 
 --
@@ -13739,6 +14242,7 @@ CREATE TABLE public.product_price_tiers (
     CONSTRAINT product_price_tiers_price_check CHECK ((price >= (0)::numeric)),
     CONSTRAINT product_price_tiers_seats_check CHECK ((seats > 0))
 );
+
 
 ALTER TABLE public.product_price_tiers OWNER TO postgres;
 
@@ -13766,6 +14270,7 @@ CREATE TABLE public.product_sessions (
     CONSTRAINT product_sessions_online_url_check CHECK (((online_url IS NULL) OR (online_url ~ '^https://[^[:space:]]+$'::text)))
 );
 
+
 ALTER TABLE public.product_sessions OWNER TO postgres;
 
 --
@@ -13777,6 +14282,7 @@ CREATE TABLE public.product_tags (
     tag_id uuid NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
 
 ALTER TABLE public.product_tags OWNER TO postgres;
 
@@ -13794,6 +14300,7 @@ CREATE TABLE public.product_variant_groups (
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
+
 ALTER TABLE public.product_variant_groups OWNER TO postgres;
 
 --
@@ -13802,11 +14309,13 @@ ALTER TABLE public.product_variant_groups OWNER TO postgres;
 
 COMMENT ON TABLE public.product_variant_groups IS 'Junction table linking products to variant groups with display metadata';
 
+
 --
 -- Name: COLUMN product_variant_groups.variant_name; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.product_variant_groups.variant_name IS 'Display name for this product in the variant selector';
+
 
 --
 -- Name: COLUMN product_variant_groups.display_order; Type: COMMENT; Schema: public; Owner: postgres
@@ -13814,11 +14323,13 @@ COMMENT ON COLUMN public.product_variant_groups.variant_name IS 'Display name fo
 
 COMMENT ON COLUMN public.product_variant_groups.display_order IS 'Order in variant selector (lower numbers appear first)';
 
+
 --
 -- Name: COLUMN product_variant_groups.is_featured; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.product_variant_groups.is_featured IS 'Whether this product is the featured/highlighted option in the group';
+
 
 --
 -- Name: profiles; Type: TABLE; Schema: public; Owner: postgres
@@ -13844,6 +14355,7 @@ CREATE TABLE public.profiles (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
 
 ALTER TABLE public.profiles OWNER TO postgres;
 
@@ -13901,6 +14413,7 @@ CREATE TABLE public.purchase_attribution (
     CONSTRAINT purchase_attribution_sessions_count_check CHECK (((sessions_count IS NULL) OR ((sessions_count >= 1) AND (sessions_count <= 10000))))
 );
 
+
 ALTER TABLE public.purchase_attribution OWNER TO postgres;
 
 --
@@ -13918,6 +14431,7 @@ CREATE TABLE public.rate_limits (
     CONSTRAINT rate_limits_function_name_check CHECK ((length(function_name) <= 100))
 );
 
+
 ALTER TABLE public.rate_limits OWNER TO postgres;
 
 --
@@ -13934,6 +14448,7 @@ CREATE VIEW public.rate_limit_summary WITH (security_invoker='on') AS
    FROM public.rate_limits
   GROUP BY rate_limits.function_name;
 
+
 ALTER TABLE public.rate_limit_summary OWNER TO postgres;
 
 --
@@ -13948,6 +14463,7 @@ CREATE TABLE public.revenue_goals (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
 
 ALTER TABLE public.revenue_goals OWNER TO postgres;
 
@@ -13969,6 +14485,7 @@ CREATE TABLE public.seat_reservations (
     CONSTRAINT seat_reservations_quantity_check CHECK (((quantity >= 1) AND (quantity <= 100))),
     CONSTRAINT seat_reservations_status_check CHECK ((status = ANY (ARRAY['held'::text, 'confirmed'::text, 'released'::text])))
 );
+
 
 ALTER TABLE public.seat_reservations OWNER TO postgres;
 
@@ -14003,6 +14520,7 @@ CREATE VIEW public.seller_customer_stats WITH (security_invoker='on') AS
              JOIN public.products p ON ((upa.product_id = p.id)))
           GROUP BY upa.user_id) access_stats ON ((access_stats.user_id = u.id)));
 
+
 ALTER TABLE public.seller_customer_stats OWNER TO postgres;
 
 --
@@ -14015,6 +14533,7 @@ CREATE TABLE public.seller_embed_settings (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
 
 ALTER TABLE public.seller_embed_settings OWNER TO postgres;
 
@@ -14037,6 +14556,7 @@ CREATE TABLE public.seller_license_keys (
     original_seller_id uuid NOT NULL,
     CONSTRAINT seller_license_keys_custody_check CHECK ((custody = ANY (ARRAY['managed'::text, 'byok'::text])))
 );
+
 
 ALTER TABLE public.seller_license_keys OWNER TO postgres;
 
@@ -14093,6 +14613,7 @@ CREATE TABLE public.shop_config (
     CONSTRAINT shop_config_tax_mode_check CHECK ((tax_mode = ANY (ARRAY['local'::text, 'stripe_tax'::text])))
 );
 
+
 ALTER TABLE public.shop_config OWNER TO postgres;
 
 --
@@ -14101,11 +14622,13 @@ ALTER TABLE public.shop_config OWNER TO postgres;
 
 COMMENT ON TABLE public.shop_config IS 'Global shop configuration settings (singleton)';
 
+
 --
 -- Name: COLUMN shop_config.terms_of_service_url; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.shop_config.terms_of_service_url IS 'URL to Terms of Service document (PDF, webpage, etc.)';
+
 
 --
 -- Name: COLUMN shop_config.privacy_policy_url; Type: COMMENT; Schema: public; Owner: postgres
@@ -14113,17 +14636,20 @@ COMMENT ON COLUMN public.shop_config.terms_of_service_url IS 'URL to Terms of Se
 
 COMMENT ON COLUMN public.shop_config.privacy_policy_url IS 'URL to Privacy Policy document (PDF, webpage, etc.)';
 
+
 --
 -- Name: COLUMN shop_config.custom_settings; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.shop_config.custom_settings IS 'Flexible JSONB field for additional custom settings';
 
+
 --
 -- Name: COLUMN shop_config.omnibus_enabled; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.shop_config.omnibus_enabled IS 'Global toggle for EU Omnibus Directive (2019/2161) price history display';
+
 
 --
 -- Name: storefront_config; Type: TABLE; Schema: public; Owner: postgres
@@ -14141,6 +14667,7 @@ CREATE TABLE public.storefront_config (
     CONSTRAINT storefront_config_published_check CHECK ((octet_length((published)::text) <= 102400)),
     CONSTRAINT storefront_config_revision_check CHECK (((revision >= 0) AND (revision <= '9007199254740991'::bigint)))
 );
+
 
 ALTER TABLE public.storefront_config OWNER TO postgres;
 
@@ -14161,6 +14688,7 @@ CREATE TABLE public.storefront_config_history (
     CONSTRAINT storefront_config_history_published_check CHECK ((octet_length((published)::text) <= 102400)),
     CONSTRAINT storefront_config_history_revision_check CHECK (((revision >= 0) AND (revision <= '9007199254740991'::bigint)))
 );
+
 
 ALTER TABLE public.storefront_config_history OWNER TO postgres;
 
@@ -14193,6 +14721,7 @@ CREATE TABLE public.stripe_configurations (
     CONSTRAINT stripe_configurations_mode_check CHECK ((mode = ANY (ARRAY['test'::text, 'live'::text])))
 );
 
+
 ALTER TABLE public.stripe_configurations OWNER TO postgres;
 
 --
@@ -14201,11 +14730,13 @@ ALTER TABLE public.stripe_configurations OWNER TO postgres;
 
 COMMENT ON TABLE public.stripe_configurations IS 'Encrypted Stripe API keys with rotation support';
 
+
 --
 -- Name: COLUMN stripe_configurations.encrypted_key; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.stripe_configurations.encrypted_key IS 'AES-256-GCM encrypted Stripe API key (base64 encoded)';
+
 
 --
 -- Name: COLUMN stripe_configurations.webhook_endpoint_id; Type: COMMENT; Schema: public; Owner: postgres
@@ -14213,11 +14744,13 @@ COMMENT ON COLUMN public.stripe_configurations.encrypted_key IS 'AES-256-GCM enc
 
 COMMENT ON COLUMN public.stripe_configurations.webhook_endpoint_id IS 'Stripe webhook endpoint ID (we_xxx). NULL = not registered via Sellf.';
 
+
 --
 -- Name: COLUMN stripe_configurations.webhook_signing_secret_enc; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.stripe_configurations.webhook_signing_secret_enc IS 'AES-256-GCM encrypted webhook signing secret (whsec_xxx). Base64 encoded.';
+
 
 --
 -- Name: COLUMN stripe_configurations.webhook_signing_iv; Type: COMMENT; Schema: public; Owner: postgres
@@ -14225,11 +14758,13 @@ COMMENT ON COLUMN public.stripe_configurations.webhook_signing_secret_enc IS 'AE
 
 COMMENT ON COLUMN public.stripe_configurations.webhook_signing_iv IS 'AES-256-GCM IV for webhook signing secret. Base64 encoded.';
 
+
 --
 -- Name: COLUMN stripe_configurations.webhook_signing_tag; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.stripe_configurations.webhook_signing_tag IS 'AES-256-GCM auth tag for webhook signing secret. Base64 encoded.';
+
 
 --
 -- Name: stripe_customers; Type: TABLE; Schema: public; Owner: postgres
@@ -14242,6 +14777,7 @@ CREATE TABLE public.stripe_customers (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
 
 ALTER TABLE public.stripe_customers OWNER TO postgres;
 
@@ -14274,6 +14810,7 @@ CREATE TABLE public.subscriptions (
     CONSTRAINT subscriptions_status_check CHECK ((status = ANY (ARRAY['incomplete'::text, 'incomplete_expired'::text, 'trialing'::text, 'active'::text, 'past_due'::text, 'canceled'::text, 'unpaid'::text, 'paused'::text])))
 );
 
+
 ALTER TABLE public.subscriptions OWNER TO postgres;
 
 --
@@ -14288,6 +14825,7 @@ CREATE TABLE public.tags (
     CONSTRAINT tags_name_check CHECK ((length(name) <= 50)),
     CONSTRAINT tags_slug_check CHECK (((slug ~ '^[a-zA-Z0-9_-]+$'::text) AND ((length(slug) >= 1) AND (length(slug) <= 50))))
 );
+
 
 ALTER TABLE public.tags OWNER TO postgres;
 
@@ -14304,6 +14842,7 @@ CREATE TABLE public.telemetry_state (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT telemetry_state_id_check CHECK ((id = 'singleton'::text))
 );
+
 
 ALTER TABLE public.telemetry_state OWNER TO postgres;
 
@@ -14324,6 +14863,7 @@ CREATE TABLE public.template_credentials (
     CONSTRAINT template_credentials_value CHECK ((((state = 'missing'::text) AND (encrypted_key IS NULL) AND (encryption_iv IS NULL) AND (encryption_tag IS NULL) AND (verified_at IS NULL)) OR ((state <> 'missing'::text) AND (encrypted_key IS NOT NULL) AND (encryption_iv IS NOT NULL) AND (encryption_tag IS NOT NULL) AND ((length(encrypted_key) >= 4) AND (length(encrypted_key) <= 21848)) AND (encrypted_key ~ '^[A-Za-z0-9+/]+={0,2}$'::text) AND ((octet_length(decode(encrypted_key, 'base64'::text)) >= 1) AND (octet_length(decode(encrypted_key, 'base64'::text)) <= 16384)) AND (length(encryption_iv) = 24) AND (octet_length(decode(encryption_iv, 'base64'::text)) = 16) AND (length(encryption_tag) = 24) AND (octet_length(decode(encryption_tag, 'base64'::text)) = 16)))),
     CONSTRAINT template_credentials_verification CHECK (((state <> 'valid'::text) OR (verified_at IS NOT NULL)))
 );
+
 
 ALTER TABLE public.template_credentials OWNER TO postgres;
 
@@ -14354,6 +14894,7 @@ CREATE TABLE public.tracking_logs (
     CONSTRAINT tracking_logs_status_check CHECK ((status = ANY (ARRAY['success'::text, 'failed'::text, 'skipped'::text])))
 );
 
+
 ALTER TABLE public.tracking_logs OWNER TO postgres;
 
 --
@@ -14361,6 +14902,7 @@ ALTER TABLE public.tracking_logs OWNER TO postgres;
 --
 
 COMMENT ON COLUMN public.tracking_logs.destination IS 'Where the event was sent: gtm_ss, fb_capi, or both';
+
 
 --
 -- Name: tutorial_progress; Type: TABLE; Schema: public; Owner: postgres
@@ -14372,6 +14914,7 @@ CREATE TABLE public.tutorial_progress (
     seen_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT tutorial_progress_tutorial_id_check CHECK ((tutorial_id ~ '^[a-z][a-z0-9-]{1,63}$'::text))
 );
+
 
 ALTER TABLE public.tutorial_progress OWNER TO postgres;
 
@@ -14394,6 +14937,7 @@ CREATE VIEW public.user_access_stats WITH (security_invoker='on') AS
      LEFT JOIN public.user_product_access upa ON ((u.id = upa.user_id)))
      LEFT JOIN public.products p ON ((upa.product_id = p.id)))
   GROUP BY u.id, u.email, u.created_at, u.email_confirmed_at, u.last_sign_in_at, u.raw_user_meta_data;
+
 
 ALTER TABLE public.user_access_stats OWNER TO postgres;
 
@@ -14421,6 +14965,7 @@ CREATE VIEW public.user_product_access_detailed WITH (security_invoker='on') AS
    FROM (public.user_product_access upa
      JOIN public.products p ON ((upa.product_id = p.id)));
 
+
 ALTER TABLE public.user_product_access_detailed OWNER TO postgres;
 
 --
@@ -14438,6 +14983,7 @@ CREATE TABLE public.variant_groups (
     CONSTRAINT variant_groups_slug_check CHECK (((slug IS NULL) OR ((slug ~ '^[a-z0-9_-]+$'::text) AND ((length(slug) >= 1) AND (length(slug) <= 100)))))
 );
 
+
 ALTER TABLE public.variant_groups OWNER TO postgres;
 
 --
@@ -14446,11 +14992,13 @@ ALTER TABLE public.variant_groups OWNER TO postgres;
 
 COMMENT ON TABLE public.variant_groups IS 'Variant groups for organizing products as selectable options';
 
+
 --
 -- Name: COLUMN variant_groups.name; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.variant_groups.name IS 'Optional human-readable name for the variant group';
+
 
 --
 -- Name: COLUMN variant_groups.slug; Type: COMMENT; Schema: public; Owner: postgres
@@ -14458,11 +15006,13 @@ COMMENT ON COLUMN public.variant_groups.name IS 'Optional human-readable name fo
 
 COMMENT ON COLUMN public.variant_groups.slug IS 'URL-friendly identifier for the variant group (alternative to UUID)';
 
+
 --
 -- Name: COLUMN variant_groups.is_active; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.variant_groups.is_active IS 'Controls visibility of the variant group on the public selector page';
+
 
 --
 -- Name: video_events; Type: TABLE; Schema: public; Owner: postgres
@@ -14476,6 +15026,7 @@ CREATE TABLE public.video_events (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT video_events_event_type_check CHECK ((event_type = ANY (ARRAY['play'::text, 'pause'::text, 'seek'::text, 'heartbeat'::text, 'complete'::text])))
 );
+
 
 ALTER TABLE public.video_events OWNER TO postgres;
 
@@ -14497,6 +15048,7 @@ CREATE TABLE public.video_progress (
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
+
 ALTER TABLE public.video_progress OWNER TO postgres;
 
 --
@@ -14504,6 +15056,7 @@ ALTER TABLE public.video_progress OWNER TO postgres;
 --
 
 COMMENT ON TABLE public.video_progress IS 'Tracks user progress for video content';
+
 
 --
 -- Name: webhook_endpoint_products; Type: TABLE; Schema: public; Owner: postgres
@@ -14514,6 +15067,7 @@ CREATE TABLE public.webhook_endpoint_products (
     product_id uuid NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
 
 ALTER TABLE public.webhook_endpoint_products OWNER TO postgres;
 
@@ -14537,6 +15091,7 @@ CREATE TABLE public.webhook_endpoints (
     CONSTRAINT webhook_endpoints_product_filter_mode_check CHECK ((product_filter_mode = ANY (ARRAY['all'::text, 'selected'::text])))
 );
 
+
 ALTER TABLE public.webhook_endpoints OWNER TO postgres;
 
 --
@@ -14545,11 +15100,13 @@ ALTER TABLE public.webhook_endpoints OWNER TO postgres;
 
 COMMENT ON TABLE public.webhook_endpoints IS 'Webhook endpoint configurations';
 
+
 --
 -- Name: COLUMN webhook_endpoints.custom_headers_encrypted; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.webhook_endpoints.custom_headers_encrypted IS 'Encrypted JSON map of extra request headers (e.g. Authorization). Decrypted service-role only at send time.';
+
 
 --
 -- Name: COLUMN webhook_endpoints.custom_payload_fields; Type: COMMENT; Schema: public; Owner: postgres
@@ -14557,17 +15114,20 @@ COMMENT ON COLUMN public.webhook_endpoints.custom_headers_encrypted IS 'Encrypte
 
 COMMENT ON COLUMN public.webhook_endpoints.custom_payload_fields IS 'Extra top-level body fields; string leaves may contain {{placeholder}} tokens.';
 
+
 --
 -- Name: COLUMN webhook_endpoints.payload_field_selection; Type: COMMENT; Schema: public; Owner: postgres
 --
 
 COMMENT ON COLUMN public.webhook_endpoints.payload_field_selection IS 'Whitelist (string[]) of standard data.* keys to include; NULL = all.';
 
+
 --
 -- Name: payment_transactions order_number; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payment_transactions ALTER COLUMN order_number SET DEFAULT nextval('public.payment_order_number_seq'::regclass);
+
 
 --
 -- Name: admin_actions admin_actions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14576,12 +15136,14 @@ ALTER TABLE ONLY public.payment_transactions ALTER COLUMN order_number SET DEFAU
 ALTER TABLE ONLY public.admin_actions
     ADD CONSTRAINT admin_actions_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: admin_users admin_users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.admin_users
     ADD CONSTRAINT admin_users_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: admin_users admin_users_user_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14590,12 +15152,14 @@ ALTER TABLE ONLY public.admin_users
 ALTER TABLE ONLY public.admin_users
     ADD CONSTRAINT admin_users_user_id_key UNIQUE (user_id);
 
+
 --
 -- Name: affiliate_commissions affiliate_commissions_payment_id_line_item_id_livemode_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_commissions
     ADD CONSTRAINT affiliate_commissions_payment_id_line_item_id_livemode_key UNIQUE (payment_id, line_item_id, livemode);
+
 
 --
 -- Name: affiliate_commissions affiliate_commissions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14604,12 +15168,14 @@ ALTER TABLE ONLY public.affiliate_commissions
 ALTER TABLE ONLY public.affiliate_commissions
     ADD CONSTRAINT affiliate_commissions_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: affiliate_coupon_bindings affiliate_coupon_bindings_coupon_id_version_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_coupon_bindings
     ADD CONSTRAINT affiliate_coupon_bindings_coupon_id_version_key UNIQUE (coupon_id, version);
+
 
 --
 -- Name: affiliate_coupon_bindings affiliate_coupon_bindings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14618,12 +15184,14 @@ ALTER TABLE ONLY public.affiliate_coupon_bindings
 ALTER TABLE ONLY public.affiliate_coupon_bindings
     ADD CONSTRAINT affiliate_coupon_bindings_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: affiliate_ledger affiliate_ledger_economic_key_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_ledger
     ADD CONSTRAINT affiliate_ledger_economic_key_key UNIQUE (economic_key);
+
 
 --
 -- Name: affiliate_ledger affiliate_ledger_payout_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14632,12 +15200,14 @@ ALTER TABLE ONLY public.affiliate_ledger
 ALTER TABLE ONLY public.affiliate_ledger
     ADD CONSTRAINT affiliate_ledger_payout_id_key UNIQUE (payout_id);
 
+
 --
 -- Name: affiliate_ledger affiliate_ledger_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_ledger
     ADD CONSTRAINT affiliate_ledger_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: affiliate_membership_events affiliate_membership_events_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14646,12 +15216,14 @@ ALTER TABLE ONLY public.affiliate_ledger
 ALTER TABLE ONLY public.affiliate_membership_events
     ADD CONSTRAINT affiliate_membership_events_pkey PRIMARY KEY (member_id, version);
 
+
 --
 -- Name: affiliate_memberships affiliate_memberships_code_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_memberships
     ADD CONSTRAINT affiliate_memberships_code_key UNIQUE (code);
+
 
 --
 -- Name: affiliate_memberships affiliate_memberships_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14660,12 +15232,14 @@ ALTER TABLE ONLY public.affiliate_memberships
 ALTER TABLE ONLY public.affiliate_memberships
     ADD CONSTRAINT affiliate_memberships_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: affiliate_memberships affiliate_memberships_user_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_memberships
     ADD CONSTRAINT affiliate_memberships_user_id_key UNIQUE (user_id);
+
 
 --
 -- Name: affiliate_payout_allocations affiliate_payout_allocations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14674,12 +15248,14 @@ ALTER TABLE ONLY public.affiliate_memberships
 ALTER TABLE ONLY public.affiliate_payout_allocations
     ADD CONSTRAINT affiliate_payout_allocations_pkey PRIMARY KEY (payout_id, entry_id);
 
+
 --
 -- Name: affiliate_payouts affiliate_payouts_bank_reference_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_payouts
     ADD CONSTRAINT affiliate_payouts_bank_reference_key UNIQUE (bank_reference);
+
 
 --
 -- Name: affiliate_payouts affiliate_payouts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14688,12 +15264,14 @@ ALTER TABLE ONLY public.affiliate_payouts
 ALTER TABLE ONLY public.affiliate_payouts
     ADD CONSTRAINT affiliate_payouts_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: affiliate_program_versions affiliate_program_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_program_versions
     ADD CONSTRAINT affiliate_program_versions_pkey PRIMARY KEY (program_id, version);
+
 
 --
 -- Name: affiliate_programs affiliate_programs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14702,12 +15280,14 @@ ALTER TABLE ONLY public.affiliate_program_versions
 ALTER TABLE ONLY public.affiliate_programs
     ADD CONSTRAINT affiliate_programs_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: affiliate_programs affiliate_programs_singleton_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_programs
     ADD CONSTRAINT affiliate_programs_singleton_key UNIQUE (singleton);
+
 
 --
 -- Name: affiliate_rules affiliate_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14716,12 +15296,14 @@ ALTER TABLE ONLY public.affiliate_programs
 ALTER TABLE ONLY public.affiliate_rules
     ADD CONSTRAINT affiliate_rules_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: affiliate_rules affiliate_rules_product_id_revision_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_rules
     ADD CONSTRAINT affiliate_rules_product_id_revision_key UNIQUE (product_id, revision);
+
 
 --
 -- Name: affiliate_work affiliate_work_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14730,12 +15312,14 @@ ALTER TABLE ONLY public.affiliate_rules
 ALTER TABLE ONLY public.affiliate_work
     ADD CONSTRAINT affiliate_work_pkey PRIMARY KEY (payment_id);
 
+
 --
 -- Name: api_key_audit_log api_key_audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.api_key_audit_log
     ADD CONSTRAINT api_key_audit_log_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: api_keys api_keys_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14744,12 +15328,14 @@ ALTER TABLE ONLY public.api_key_audit_log
 ALTER TABLE ONLY public.api_keys
     ADD CONSTRAINT api_keys_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: application_rate_limits application_rate_limits_identifier_action_type_window_start_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.application_rate_limits
     ADD CONSTRAINT application_rate_limits_identifier_action_type_window_start_key UNIQUE (identifier, action_type, window_start);
+
 
 --
 -- Name: application_rate_limits application_rate_limits_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14758,12 +15344,14 @@ ALTER TABLE ONLY public.application_rate_limits
 ALTER TABLE ONLY public.application_rate_limits
     ADD CONSTRAINT application_rate_limits_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: attribution_channel_rules attribution_channel_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.attribution_channel_rules
     ADD CONSTRAINT attribution_channel_rules_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: attribution_settings attribution_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14772,12 +15360,14 @@ ALTER TABLE ONLY public.attribution_channel_rules
 ALTER TABLE ONLY public.attribution_settings
     ADD CONSTRAINT attribution_settings_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: audit_log audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.audit_log
     ADD CONSTRAINT audit_log_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: auth_mail_retries auth_mail_retries_email_redirect_to_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14786,12 +15376,14 @@ ALTER TABLE ONLY public.audit_log
 ALTER TABLE ONLY public.auth_mail_retries
     ADD CONSTRAINT auth_mail_retries_email_redirect_to_key UNIQUE (email, redirect_to);
 
+
 --
 -- Name: auth_mail_retries auth_mail_retries_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.auth_mail_retries
     ADD CONSTRAINT auth_mail_retries_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: bank_transfer_config bank_transfer_config_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14800,12 +15392,14 @@ ALTER TABLE ONLY public.auth_mail_retries
 ALTER TABLE ONLY public.bank_transfer_config
     ADD CONSTRAINT bank_transfer_config_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: bundle_items bundle_items_bundle_product_id_component_product_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.bundle_items
     ADD CONSTRAINT bundle_items_bundle_product_id_component_product_id_key UNIQUE (bundle_product_id, component_product_id);
+
 
 --
 -- Name: bundle_items bundle_items_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14814,12 +15408,14 @@ ALTER TABLE ONLY public.bundle_items
 ALTER TABLE ONLY public.bundle_items
     ADD CONSTRAINT bundle_items_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: business_events business_events_deduplication_key_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.business_events
     ADD CONSTRAINT business_events_deduplication_key_key UNIQUE (deduplication_key);
+
 
 --
 -- Name: business_events business_events_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14828,12 +15424,14 @@ ALTER TABLE ONLY public.business_events
 ALTER TABLE ONLY public.business_events
     ADD CONSTRAINT business_events_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: captcha_nonces captcha_nonces_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.captcha_nonces
     ADD CONSTRAINT captcha_nonces_pkey PRIMARY KEY (nonce_hash);
+
 
 --
 -- Name: categories categories_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14842,12 +15440,14 @@ ALTER TABLE ONLY public.captcha_nonces
 ALTER TABLE ONLY public.categories
     ADD CONSTRAINT categories_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: categories categories_slug_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.categories
     ADD CONSTRAINT categories_slug_key UNIQUE (slug);
+
 
 --
 -- Name: checkout_attribution checkout_attribution_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14856,12 +15456,14 @@ ALTER TABLE ONLY public.categories
 ALTER TABLE ONLY public.checkout_attribution
     ADD CONSTRAINT checkout_attribution_pkey PRIMARY KEY (ref);
 
+
 --
 -- Name: consent_logs consent_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.consent_logs
     ADD CONSTRAINT consent_logs_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: coupon_redemptions coupon_redemptions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14870,12 +15472,14 @@ ALTER TABLE ONLY public.consent_logs
 ALTER TABLE ONLY public.coupon_redemptions
     ADD CONSTRAINT coupon_redemptions_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: coupon_reservations coupon_reservations_coupon_id_customer_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.coupon_reservations
     ADD CONSTRAINT coupon_reservations_coupon_id_customer_email_key UNIQUE (coupon_id, customer_email);
+
 
 --
 -- Name: coupon_reservations coupon_reservations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14884,12 +15488,14 @@ ALTER TABLE ONLY public.coupon_reservations
 ALTER TABLE ONLY public.coupon_reservations
     ADD CONSTRAINT coupon_reservations_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: coupons coupons_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.coupons
     ADD CONSTRAINT coupons_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: custom_scripts custom_scripts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14898,12 +15504,14 @@ ALTER TABLE ONLY public.coupons
 ALTER TABLE ONLY public.custom_scripts
     ADD CONSTRAINT custom_scripts_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: embed_checkout_log embed_checkout_log_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.embed_checkout_log
     ADD CONSTRAINT embed_checkout_log_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: free_grant_contexts free_grant_contexts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14912,12 +15520,14 @@ ALTER TABLE ONLY public.embed_checkout_log
 ALTER TABLE ONLY public.free_grant_contexts
     ADD CONSTRAINT free_grant_contexts_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: guest_purchases guest_purchases_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.guest_purchases
     ADD CONSTRAINT guest_purchases_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: guest_purchases guest_purchases_session_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14926,12 +15536,14 @@ ALTER TABLE ONLY public.guest_purchases
 ALTER TABLE ONLY public.guest_purchases
     ADD CONSTRAINT guest_purchases_session_id_key UNIQUE (session_id);
 
+
 --
 -- Name: integrations_config integrations_config_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.integrations_config
     ADD CONSTRAINT integrations_config_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: invoices invoices_external_key_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14940,12 +15552,14 @@ ALTER TABLE ONLY public.integrations_config
 ALTER TABLE ONLY public.invoices
     ADD CONSTRAINT invoices_external_key_key UNIQUE (external_key);
 
+
 --
 -- Name: invoices invoices_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.invoices
     ADD CONSTRAINT invoices_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: invoices invoices_transaction_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14954,12 +15568,14 @@ ALTER TABLE ONLY public.invoices
 ALTER TABLE ONLY public.invoices
     ADD CONSTRAINT invoices_transaction_id_key UNIQUE (transaction_id);
 
+
 --
 -- Name: invoicing_config invoicing_config_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.invoicing_config
     ADD CONSTRAINT invoicing_config_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: issued_licenses issued_licenses_access_grant_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14968,12 +15584,14 @@ ALTER TABLE ONLY public.invoicing_config
 ALTER TABLE ONLY public.issued_licenses
     ADD CONSTRAINT issued_licenses_access_grant_id_key UNIQUE (access_grant_id);
 
+
 --
 -- Name: issued_licenses issued_licenses_order_id_product_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.issued_licenses
     ADD CONSTRAINT issued_licenses_order_id_product_id_key UNIQUE (order_id, product_id);
+
 
 --
 -- Name: issued_licenses issued_licenses_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14982,12 +15600,14 @@ ALTER TABLE ONLY public.issued_licenses
 ALTER TABLE ONLY public.issued_licenses
     ADD CONSTRAINT issued_licenses_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: lead_nonces lead_nonces_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.lead_nonces
     ADD CONSTRAINT lead_nonces_pkey PRIMARY KEY (nonce_hash);
+
 
 --
 -- Name: lead_submissions lead_submissions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -14996,12 +15616,14 @@ ALTER TABLE ONLY public.lead_nonces
 ALTER TABLE ONLY public.lead_submissions
     ADD CONSTRAINT lead_submissions_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: lead_submissions lead_submissions_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.lead_submissions
     ADD CONSTRAINT lead_submissions_token_hash_key UNIQUE (token_hash);
+
 
 --
 -- Name: license_mail_receipts license_mail_receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15010,12 +15632,14 @@ ALTER TABLE ONLY public.lead_submissions
 ALTER TABLE ONLY public.license_mail_receipts
     ADD CONSTRAINT license_mail_receipts_pkey PRIMARY KEY (mail_key);
 
+
 --
 -- Name: order_bumps order_bumps_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.order_bumps
     ADD CONSTRAINT order_bumps_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: order_payment_attempts order_payment_attempts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15024,12 +15648,14 @@ ALTER TABLE ONLY public.order_bumps
 ALTER TABLE ONLY public.order_payment_attempts
     ADD CONSTRAINT order_payment_attempts_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: order_payment_attempts order_payment_attempts_stripe_session_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.order_payment_attempts
     ADD CONSTRAINT order_payment_attempts_stripe_session_id_key UNIQUE (stripe_session_id);
+
 
 --
 -- Name: oto_offers oto_offers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15038,12 +15664,14 @@ ALTER TABLE ONLY public.order_payment_attempts
 ALTER TABLE ONLY public.oto_offers
     ADD CONSTRAINT oto_offers_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: payment_disputes payment_disputes_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payment_disputes
     ADD CONSTRAINT payment_disputes_pkey PRIMARY KEY (stripe_dispute_id);
+
 
 --
 -- Name: payment_line_items payment_line_items_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15052,12 +15680,14 @@ ALTER TABLE ONLY public.payment_disputes
 ALTER TABLE ONLY public.payment_line_items
     ADD CONSTRAINT payment_line_items_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: payment_method_config payment_method_config_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payment_method_config
     ADD CONSTRAINT payment_method_config_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: payment_refund_events payment_refund_events_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15066,12 +15696,14 @@ ALTER TABLE ONLY public.payment_method_config
 ALTER TABLE ONLY public.payment_refund_events
     ADD CONSTRAINT payment_refund_events_pkey PRIMARY KEY (stripe_refund_id, version);
 
+
 --
 -- Name: payment_refunds payment_refunds_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payment_refunds
     ADD CONSTRAINT payment_refunds_pkey PRIMARY KEY (stripe_refund_id);
+
 
 --
 -- Name: payment_transactions payment_transactions_order_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15080,12 +15712,14 @@ ALTER TABLE ONLY public.payment_refunds
 ALTER TABLE ONLY public.payment_transactions
     ADD CONSTRAINT payment_transactions_order_number_key UNIQUE (order_number);
 
+
 --
 -- Name: payment_transactions payment_transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payment_transactions
     ADD CONSTRAINT payment_transactions_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: product_categories product_categories_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15094,12 +15728,14 @@ ALTER TABLE ONLY public.payment_transactions
 ALTER TABLE ONLY public.product_categories
     ADD CONSTRAINT product_categories_pkey PRIMARY KEY (product_id, category_id);
 
+
 --
 -- Name: product_offer_config product_offer_config_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_offer_config
     ADD CONSTRAINT product_offer_config_pkey PRIMARY KEY (product_id);
+
 
 --
 -- Name: product_offer_history product_offer_history_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15108,12 +15744,14 @@ ALTER TABLE ONLY public.product_offer_config
 ALTER TABLE ONLY public.product_offer_history
     ADD CONSTRAINT product_offer_history_pkey PRIMARY KEY (product_id, revision);
 
+
 --
 -- Name: product_price_history product_price_history_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_price_history
     ADD CONSTRAINT product_price_history_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: product_price_tiers product_price_tiers_id_session_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15122,12 +15760,14 @@ ALTER TABLE ONLY public.product_price_history
 ALTER TABLE ONLY public.product_price_tiers
     ADD CONSTRAINT product_price_tiers_id_session_id_key UNIQUE (id, session_id);
 
+
 --
 -- Name: product_price_tiers product_price_tiers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_price_tiers
     ADD CONSTRAINT product_price_tiers_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: product_price_tiers product_price_tiers_session_id_sort_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15136,12 +15776,14 @@ ALTER TABLE ONLY public.product_price_tiers
 ALTER TABLE ONLY public.product_price_tiers
     ADD CONSTRAINT product_price_tiers_session_id_sort_key UNIQUE (session_id, sort);
 
+
 --
 -- Name: product_sessions product_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_sessions
     ADD CONSTRAINT product_sessions_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: product_tags product_tags_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15150,12 +15792,14 @@ ALTER TABLE ONLY public.product_sessions
 ALTER TABLE ONLY public.product_tags
     ADD CONSTRAINT product_tags_pkey PRIMARY KEY (product_id, tag_id);
 
+
 --
 -- Name: product_variant_groups product_variant_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_variant_groups
     ADD CONSTRAINT product_variant_groups_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: product_variant_groups product_variant_groups_product_id_group_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15164,12 +15808,14 @@ ALTER TABLE ONLY public.product_variant_groups
 ALTER TABLE ONLY public.product_variant_groups
     ADD CONSTRAINT product_variant_groups_product_id_group_id_key UNIQUE (product_id, group_id);
 
+
 --
 -- Name: products products_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.products
     ADD CONSTRAINT products_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: products products_slug_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15178,12 +15824,14 @@ ALTER TABLE ONLY public.products
 ALTER TABLE ONLY public.products
     ADD CONSTRAINT products_slug_key UNIQUE (slug);
 
+
 --
 -- Name: profiles profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.profiles
     ADD CONSTRAINT profiles_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: purchase_attribution purchase_attribution_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15192,12 +15840,14 @@ ALTER TABLE ONLY public.profiles
 ALTER TABLE ONLY public.purchase_attribution
     ADD CONSTRAINT purchase_attribution_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: purchase_attribution purchase_attribution_transaction_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.purchase_attribution
     ADD CONSTRAINT purchase_attribution_transaction_id_key UNIQUE (transaction_id);
+
 
 --
 -- Name: rate_limits rate_limits_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15206,12 +15856,14 @@ ALTER TABLE ONLY public.purchase_attribution
 ALTER TABLE ONLY public.rate_limits
     ADD CONSTRAINT rate_limits_pkey PRIMARY KEY (user_id, function_name, window_start);
 
+
 --
 -- Name: refund_requests refund_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.refund_requests
     ADD CONSTRAINT refund_requests_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: revenue_goals revenue_goals_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15220,12 +15872,14 @@ ALTER TABLE ONLY public.refund_requests
 ALTER TABLE ONLY public.revenue_goals
     ADD CONSTRAINT revenue_goals_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: seat_reservations seat_reservations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.seat_reservations
     ADD CONSTRAINT seat_reservations_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: seat_reservations seat_reservations_transaction_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15234,12 +15888,14 @@ ALTER TABLE ONLY public.seat_reservations
 ALTER TABLE ONLY public.seat_reservations
     ADD CONSTRAINT seat_reservations_transaction_id_key UNIQUE (transaction_id);
 
+
 --
 -- Name: seller_embed_settings seller_embed_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.seller_embed_settings
     ADD CONSTRAINT seller_embed_settings_pkey PRIMARY KEY (seller_id);
+
 
 --
 -- Name: seller_license_keys seller_license_keys_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15248,12 +15904,14 @@ ALTER TABLE ONLY public.seller_embed_settings
 ALTER TABLE ONLY public.seller_license_keys
     ADD CONSTRAINT seller_license_keys_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: seller_license_keys seller_license_keys_seller_id_kid_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.seller_license_keys
     ADD CONSTRAINT seller_license_keys_seller_id_kid_key UNIQUE (seller_id, kid);
+
 
 --
 -- Name: shop_config shop_config_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15262,12 +15920,14 @@ ALTER TABLE ONLY public.seller_license_keys
 ALTER TABLE ONLY public.shop_config
     ADD CONSTRAINT shop_config_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: storefront_config_history storefront_config_history_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.storefront_config_history
     ADD CONSTRAINT storefront_config_history_pkey PRIMARY KEY (revision);
+
 
 --
 -- Name: storefront_config storefront_config_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15276,12 +15936,14 @@ ALTER TABLE ONLY public.storefront_config_history
 ALTER TABLE ONLY public.storefront_config
     ADD CONSTRAINT storefront_config_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: stripe_configurations stripe_configurations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.stripe_configurations
     ADD CONSTRAINT stripe_configurations_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: stripe_customers stripe_customers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15290,12 +15952,14 @@ ALTER TABLE ONLY public.stripe_configurations
 ALTER TABLE ONLY public.stripe_customers
     ADD CONSTRAINT stripe_customers_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: stripe_customers stripe_customers_stripe_customer_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.stripe_customers
     ADD CONSTRAINT stripe_customers_stripe_customer_id_key UNIQUE (stripe_customer_id);
+
 
 --
 -- Name: stripe_customers stripe_customers_user_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15304,12 +15968,14 @@ ALTER TABLE ONLY public.stripe_customers
 ALTER TABLE ONLY public.stripe_customers
     ADD CONSTRAINT stripe_customers_user_id_key UNIQUE (user_id);
 
+
 --
 -- Name: subscriptions subscriptions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.subscriptions
     ADD CONSTRAINT subscriptions_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: subscriptions subscriptions_stripe_subscription_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15318,12 +15984,14 @@ ALTER TABLE ONLY public.subscriptions
 ALTER TABLE ONLY public.subscriptions
     ADD CONSTRAINT subscriptions_stripe_subscription_id_key UNIQUE (stripe_subscription_id);
 
+
 --
 -- Name: tags tags_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.tags
     ADD CONSTRAINT tags_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: tags tags_slug_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15332,12 +16000,14 @@ ALTER TABLE ONLY public.tags
 ALTER TABLE ONLY public.tags
     ADD CONSTRAINT tags_slug_key UNIQUE (slug);
 
+
 --
 -- Name: telemetry_state telemetry_state_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.telemetry_state
     ADD CONSTRAINT telemetry_state_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: template_credentials template_credentials_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15346,12 +16016,14 @@ ALTER TABLE ONLY public.telemetry_state
 ALTER TABLE ONLY public.template_credentials
     ADD CONSTRAINT template_credentials_pkey PRIMARY KEY (template_id);
 
+
 --
 -- Name: tracking_logs tracking_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.tracking_logs
     ADD CONSTRAINT tracking_logs_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: tutorial_progress tutorial_progress_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15360,12 +16032,14 @@ ALTER TABLE ONLY public.tracking_logs
 ALTER TABLE ONLY public.tutorial_progress
     ADD CONSTRAINT tutorial_progress_pkey PRIMARY KEY (user_id, tutorial_id);
 
+
 --
 -- Name: order_bumps unique_bump_pair; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.order_bumps
     ADD CONSTRAINT unique_bump_pair UNIQUE (main_product_id, bump_product_id);
+
 
 --
 -- Name: coupons unique_coupon_code; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15374,12 +16048,14 @@ ALTER TABLE ONLY public.order_bumps
 ALTER TABLE ONLY public.coupons
     ADD CONSTRAINT unique_coupon_code UNIQUE (code);
 
+
 --
 -- Name: api_keys unique_key_hash; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.api_keys
     ADD CONSTRAINT unique_key_hash UNIQUE (key_hash);
+
 
 --
 -- Name: api_keys unique_key_prefix; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15388,12 +16064,14 @@ ALTER TABLE ONLY public.api_keys
 ALTER TABLE ONLY public.api_keys
     ADD CONSTRAINT unique_key_prefix UNIQUE (key_prefix);
 
+
 --
 -- Name: oto_offers unique_oto_pair; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.oto_offers
     ADD CONSTRAINT unique_oto_pair UNIQUE (source_product_id, oto_product_id);
+
 
 --
 -- Name: refund_requests unique_pending_request; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15402,12 +16080,14 @@ ALTER TABLE ONLY public.oto_offers
 ALTER TABLE ONLY public.refund_requests
     ADD CONSTRAINT unique_pending_request UNIQUE (transaction_id) DEFERRABLE INITIALLY DEFERRED;
 
+
 --
 -- Name: payment_line_items unique_product_per_transaction; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payment_line_items
     ADD CONSTRAINT unique_product_per_transaction UNIQUE (transaction_id, product_id);
+
 
 --
 -- Name: payment_transactions unique_session_id; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15416,12 +16096,14 @@ ALTER TABLE ONLY public.payment_line_items
 ALTER TABLE ONLY public.payment_transactions
     ADD CONSTRAINT unique_session_id UNIQUE (session_id);
 
+
 --
 -- Name: payment_transactions unique_stripe_payment_intent_id; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payment_transactions
     ADD CONSTRAINT unique_stripe_payment_intent_id UNIQUE (stripe_payment_intent_id) DEFERRABLE INITIALLY DEFERRED;
+
 
 --
 -- Name: video_progress unique_user_video_progress; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15430,12 +16112,14 @@ ALTER TABLE ONLY public.payment_transactions
 ALTER TABLE ONLY public.video_progress
     ADD CONSTRAINT unique_user_video_progress UNIQUE (user_id, product_id, video_id);
 
+
 --
 -- Name: user_product_access user_product_access_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.user_product_access
     ADD CONSTRAINT user_product_access_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: user_product_access user_product_access_user_id_product_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15444,12 +16128,14 @@ ALTER TABLE ONLY public.user_product_access
 ALTER TABLE ONLY public.user_product_access
     ADD CONSTRAINT user_product_access_user_id_product_id_key UNIQUE (user_id, product_id);
 
+
 --
 -- Name: variant_groups variant_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.variant_groups
     ADD CONSTRAINT variant_groups_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: variant_groups variant_groups_slug_key; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15458,12 +16144,14 @@ ALTER TABLE ONLY public.variant_groups
 ALTER TABLE ONLY public.variant_groups
     ADD CONSTRAINT variant_groups_slug_key UNIQUE (slug);
 
+
 --
 -- Name: video_events video_events_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.video_events
     ADD CONSTRAINT video_events_pkey PRIMARY KEY (id);
+
 
 --
 -- Name: video_progress video_progress_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15472,12 +16160,14 @@ ALTER TABLE ONLY public.video_events
 ALTER TABLE ONLY public.video_progress
     ADD CONSTRAINT video_progress_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: webhook_endpoint_products webhook_endpoint_products_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.webhook_endpoint_products
     ADD CONSTRAINT webhook_endpoint_products_pkey PRIMARY KEY (webhook_endpoint_id, product_id);
+
 
 --
 -- Name: webhook_endpoints webhook_endpoints_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -15486,6 +16176,7 @@ ALTER TABLE ONLY public.webhook_endpoint_products
 ALTER TABLE ONLY public.webhook_endpoints
     ADD CONSTRAINT webhook_endpoints_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: webhook_logs webhook_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
@@ -15493,11 +16184,13 @@ ALTER TABLE ONLY public.webhook_endpoints
 ALTER TABLE ONLY public.webhook_logs
     ADD CONSTRAINT webhook_logs_pkey PRIMARY KEY (id);
 
+
 --
 -- Name: admin_actions_payment_reconciliation_key; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE UNIQUE INDEX admin_actions_payment_reconciliation_key ON public.admin_actions USING btree (target_id) WHERE ((action)::text = 'stripe_payment_needs_reconciliation'::text);
+
 
 --
 -- Name: affiliate_allocation_entry; Type: INDEX; Schema: public; Owner: postgres
@@ -15505,11 +16198,13 @@ CREATE UNIQUE INDEX admin_actions_payment_reconciliation_key ON public.admin_act
 
 CREATE INDEX affiliate_allocation_entry ON public.affiliate_payout_allocations USING btree (entry_id);
 
+
 --
 -- Name: affiliate_binding_member; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX affiliate_binding_member ON public.affiliate_coupon_bindings USING btree (member_id);
+
 
 --
 -- Name: affiliate_commission_binding; Type: INDEX; Schema: public; Owner: postgres
@@ -15517,11 +16212,13 @@ CREATE INDEX affiliate_binding_member ON public.affiliate_coupon_bindings USING 
 
 CREATE INDEX affiliate_commission_binding ON public.affiliate_commissions USING btree (binding_id);
 
+
 --
 -- Name: affiliate_commission_line; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX affiliate_commission_line ON public.affiliate_commissions USING btree (line_item_id);
+
 
 --
 -- Name: affiliate_commission_rule; Type: INDEX; Schema: public; Owner: postgres
@@ -15529,11 +16226,13 @@ CREATE INDEX affiliate_commission_line ON public.affiliate_commissions USING btr
 
 CREATE INDEX affiliate_commission_rule ON public.affiliate_commissions USING btree (rule_id);
 
+
 --
 -- Name: affiliate_coupon_owner; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE UNIQUE INDEX affiliate_coupon_owner ON public.affiliate_coupon_bindings USING btree (coupon_id) WHERE (retired_at IS NULL);
+
 
 --
 -- Name: affiliate_ledger_balance; Type: INDEX; Schema: public; Owner: postgres
@@ -15541,11 +16240,13 @@ CREATE UNIQUE INDEX affiliate_coupon_owner ON public.affiliate_coupon_bindings U
 
 CREATE INDEX affiliate_ledger_balance ON public.affiliate_ledger USING btree (member_id, currency, created_at, id);
 
+
 --
 -- Name: affiliate_ledger_commission; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX affiliate_ledger_commission ON public.affiliate_ledger USING btree (commission_id);
+
 
 --
 -- Name: affiliate_maturity; Type: INDEX; Schema: public; Owner: postgres
@@ -15553,11 +16254,13 @@ CREATE INDEX affiliate_ledger_commission ON public.affiliate_ledger USING btree 
 
 CREATE INDEX affiliate_maturity ON public.affiliate_commissions USING btree (member_id, currency, eligible_at, id);
 
+
 --
 -- Name: affiliate_member_time; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX affiliate_member_time ON public.affiliate_membership_events USING btree (member_id, created_at DESC, version DESC);
+
 
 --
 -- Name: affiliate_one_accrual; Type: INDEX; Schema: public; Owner: postgres
@@ -15565,11 +16268,13 @@ CREATE INDEX affiliate_member_time ON public.affiliate_membership_events USING b
 
 CREATE UNIQUE INDEX affiliate_one_accrual ON public.affiliate_ledger USING btree (commission_id) WHERE (kind = 'accrual'::text);
 
+
 --
 -- Name: affiliate_one_allocation; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE UNIQUE INDEX affiliate_one_allocation ON public.affiliate_payout_allocations USING btree (entry_id) WHERE (released_at IS NULL);
+
 
 --
 -- Name: affiliate_one_open_payout; Type: INDEX; Schema: public; Owner: postgres
@@ -15577,11 +16282,13 @@ CREATE UNIQUE INDEX affiliate_one_allocation ON public.affiliate_payout_allocati
 
 CREATE UNIQUE INDEX affiliate_one_open_payout ON public.affiliate_payouts USING btree (member_id, currency, livemode) WHERE (status = 'reserved'::text);
 
+
 --
 -- Name: affiliate_payout_member; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX affiliate_payout_member ON public.affiliate_payouts USING btree (member_id, currency);
+
 
 --
 -- Name: affiliate_portal_page; Type: INDEX; Schema: public; Owner: postgres
@@ -15589,11 +16296,13 @@ CREATE INDEX affiliate_payout_member ON public.affiliate_payouts USING btree (me
 
 CREATE INDEX affiliate_portal_page ON public.affiliate_commissions USING btree (member_id, paid_at DESC, id DESC);
 
+
 --
 -- Name: affiliate_program_time; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX affiliate_program_time ON public.affiliate_program_versions USING btree (created_at DESC, version DESC);
+
 
 --
 -- Name: affiliate_terms_history; Type: INDEX; Schema: public; Owner: postgres
@@ -15601,11 +16310,13 @@ CREATE INDEX affiliate_program_time ON public.affiliate_program_versions USING b
 
 CREATE INDEX affiliate_terms_history ON public.affiliate_program_versions USING btree (terms_version, created_at DESC);
 
+
 --
 -- Name: affiliate_work_due; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX affiliate_work_due ON public.affiliate_work USING btree (next_attempt_at, payment_id) WHERE (status = ANY (ARRAY['pending'::text, 'leased'::text]));
+
 
 --
 -- Name: attribution_channel_rules_order; Type: INDEX; Schema: public; Owner: postgres
@@ -15613,11 +16324,13 @@ CREATE INDEX affiliate_work_due ON public.affiliate_work USING btree (next_attem
 
 CREATE INDEX attribution_channel_rules_order ON public.attribution_channel_rules USING btree (priority, created_at) WHERE is_active;
 
+
 --
 -- Name: auth_mail_retries_due; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX auth_mail_retries_due ON public.auth_mail_retries USING btree (next_attempt_at) WHERE (given_up_at IS NULL);
+
 
 --
 -- Name: bank_transfer_due_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -15625,11 +16338,13 @@ CREATE INDEX auth_mail_retries_due ON public.auth_mail_retries USING btree (next
 
 CREATE INDEX bank_transfer_due_idx ON public.payment_transactions USING btree (payment_due_at) WHERE (status = 'awaiting_payment'::text);
 
+
 --
 -- Name: business_events_abandoned_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX business_events_abandoned_idx ON public.business_events USING btree (abandoned_at DESC) WHERE ((dispatched_at IS NULL) AND (abandoned_at IS NOT NULL));
+
 
 --
 -- Name: business_events_due_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -15637,11 +16352,13 @@ CREATE INDEX business_events_abandoned_idx ON public.business_events USING btree
 
 CREATE INDEX business_events_due_idx ON public.business_events USING btree (next_attempt_at, created_at, id) WHERE ((dispatched_at IS NULL) AND (abandoned_at IS NULL));
 
+
 --
 -- Name: business_events_product_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX business_events_product_idx ON public.business_events USING btree (product_id);
+
 
 --
 -- Name: free_grant_context_claimed_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -15649,11 +16366,13 @@ CREATE INDEX business_events_product_idx ON public.business_events USING btree (
 
 CREATE INDEX free_grant_context_claimed_idx ON public.free_grant_contexts USING btree (claimed_at) WHERE (claimed_at IS NOT NULL);
 
+
 --
 -- Name: free_grant_context_email_product_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX free_grant_context_email_product_idx ON public.free_grant_contexts USING btree (email, product_id, created_at DESC) WHERE (claimed_at IS NULL);
+
 
 --
 -- Name: free_grant_context_expiry_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -15661,11 +16380,13 @@ CREATE INDEX free_grant_context_email_product_idx ON public.free_grant_contexts 
 
 CREATE INDEX free_grant_context_expiry_idx ON public.free_grant_contexts USING btree (expires_at);
 
+
 --
 -- Name: free_grant_context_product_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX free_grant_context_product_idx ON public.free_grant_contexts USING btree (product_id);
+
 
 --
 -- Name: guest_purchases_transaction_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -15673,11 +16394,13 @@ CREATE INDEX free_grant_context_product_idx ON public.free_grant_contexts USING 
 
 CREATE UNIQUE INDEX guest_purchases_transaction_idx ON public.guest_purchases USING btree (transaction_id, customer_email, product_id) WHERE (transaction_id IS NOT NULL);
 
+
 --
 -- Name: idx_admin_actions_admin_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_admin_actions_admin_id ON public.admin_actions USING btree (admin_id);
+
 
 --
 -- Name: idx_admin_actions_created_at; Type: INDEX; Schema: public; Owner: postgres
@@ -15685,11 +16408,13 @@ CREATE INDEX idx_admin_actions_admin_id ON public.admin_actions USING btree (adm
 
 CREATE INDEX idx_admin_actions_created_at ON public.admin_actions USING brin (created_at);
 
+
 --
 -- Name: idx_admin_actions_target; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_admin_actions_target ON public.admin_actions USING btree (target_type, target_id);
+
 
 --
 -- Name: idx_admin_users_user_id; Type: INDEX; Schema: public; Owner: postgres
@@ -15697,11 +16422,13 @@ CREATE INDEX idx_admin_actions_target ON public.admin_actions USING btree (targe
 
 CREATE INDEX idx_admin_users_user_id ON public.admin_users USING btree (user_id);
 
+
 --
 -- Name: idx_api_key_audit_log_created_at; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_api_key_audit_log_created_at ON public.api_key_audit_log USING btree (created_at);
+
 
 --
 -- Name: idx_api_key_audit_log_key_id; Type: INDEX; Schema: public; Owner: postgres
@@ -15709,11 +16436,13 @@ CREATE INDEX idx_api_key_audit_log_created_at ON public.api_key_audit_log USING 
 
 CREATE INDEX idx_api_key_audit_log_key_id ON public.api_key_audit_log USING btree (api_key_id);
 
+
 --
 -- Name: idx_api_keys_admin_user_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_api_keys_admin_user_id ON public.api_keys USING btree (admin_user_id);
+
 
 --
 -- Name: idx_api_keys_is_active; Type: INDEX; Schema: public; Owner: postgres
@@ -15721,11 +16450,13 @@ CREATE INDEX idx_api_keys_admin_user_id ON public.api_keys USING btree (admin_us
 
 CREATE INDEX idx_api_keys_is_active ON public.api_keys USING btree (is_active) WHERE (is_active = true);
 
+
 --
 -- Name: idx_api_keys_key_hash; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_api_keys_key_hash ON public.api_keys USING btree (key_hash);
+
 
 --
 -- Name: idx_application_rate_limits_lookup; Type: INDEX; Schema: public; Owner: postgres
@@ -15733,11 +16464,13 @@ CREATE INDEX idx_api_keys_key_hash ON public.api_keys USING btree (key_hash);
 
 CREATE INDEX idx_application_rate_limits_lookup ON public.application_rate_limits USING btree (identifier, action_type, window_start DESC);
 
+
 --
 -- Name: idx_application_rate_limits_window_start; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_application_rate_limits_window_start ON public.application_rate_limits USING btree (window_start);
+
 
 --
 -- Name: idx_audit_log_performed_at; Type: INDEX; Schema: public; Owner: postgres
@@ -15745,11 +16478,13 @@ CREATE INDEX idx_application_rate_limits_window_start ON public.application_rate
 
 CREATE INDEX idx_audit_log_performed_at ON public.audit_log USING btree (performed_at DESC);
 
+
 --
 -- Name: idx_bundle_items_bundle; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_bundle_items_bundle ON public.bundle_items USING btree (bundle_product_id, display_order);
+
 
 --
 -- Name: idx_bundle_items_component; Type: INDEX; Schema: public; Owner: postgres
@@ -15757,11 +16492,13 @@ CREATE INDEX idx_bundle_items_bundle ON public.bundle_items USING btree (bundle_
 
 CREATE INDEX idx_bundle_items_component ON public.bundle_items USING btree (component_product_id);
 
+
 --
 -- Name: idx_captcha_nonces_cleanup; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_captcha_nonces_cleanup ON public.captcha_nonces USING btree (expires_at);
+
 
 --
 -- Name: idx_categories_parent_id; Type: INDEX; Schema: public; Owner: postgres
@@ -15769,11 +16506,13 @@ CREATE INDEX idx_captcha_nonces_cleanup ON public.captcha_nonces USING btree (ex
 
 CREATE INDEX idx_categories_parent_id ON public.categories USING btree (parent_id);
 
+
 --
 -- Name: idx_categories_slug; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_categories_slug ON public.categories USING btree (slug);
+
 
 --
 -- Name: idx_consent_logs_anonymous_id; Type: INDEX; Schema: public; Owner: postgres
@@ -15781,11 +16520,13 @@ CREATE INDEX idx_categories_slug ON public.categories USING btree (slug);
 
 CREATE INDEX idx_consent_logs_anonymous_id ON public.consent_logs USING btree (anonymous_id) WHERE (anonymous_id IS NOT NULL);
 
+
 --
 -- Name: idx_consent_logs_user_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_consent_logs_user_id ON public.consent_logs USING btree (user_id) WHERE (user_id IS NOT NULL);
+
 
 --
 -- Name: idx_coupon_redemptions_coupon; Type: INDEX; Schema: public; Owner: postgres
@@ -15793,11 +16534,13 @@ CREATE INDEX idx_consent_logs_user_id ON public.consent_logs USING btree (user_i
 
 CREATE INDEX idx_coupon_redemptions_coupon ON public.coupon_redemptions USING btree (coupon_id);
 
+
 --
 -- Name: idx_coupon_redemptions_email; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_coupon_redemptions_email ON public.coupon_redemptions USING btree (customer_email);
+
 
 --
 -- Name: idx_coupon_redemptions_transaction; Type: INDEX; Schema: public; Owner: postgres
@@ -15805,11 +16548,13 @@ CREATE INDEX idx_coupon_redemptions_email ON public.coupon_redemptions USING btr
 
 CREATE INDEX idx_coupon_redemptions_transaction ON public.coupon_redemptions USING btree (transaction_id) WHERE (transaction_id IS NOT NULL);
 
+
 --
 -- Name: idx_coupon_redemptions_user; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_coupon_redemptions_user ON public.coupon_redemptions USING btree (user_id);
+
 
 --
 -- Name: idx_coupon_reservations_coupon; Type: INDEX; Schema: public; Owner: postgres
@@ -15817,11 +16562,13 @@ CREATE INDEX idx_coupon_redemptions_user ON public.coupon_redemptions USING btre
 
 CREATE INDEX idx_coupon_reservations_coupon ON public.coupon_reservations USING btree (coupon_id);
 
+
 --
 -- Name: idx_coupon_reservations_email; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_coupon_reservations_email ON public.coupon_reservations USING btree (customer_email);
+
 
 --
 -- Name: idx_coupon_reservations_expires; Type: INDEX; Schema: public; Owner: postgres
@@ -15829,11 +16576,13 @@ CREATE INDEX idx_coupon_reservations_email ON public.coupon_reservations USING b
 
 CREATE INDEX idx_coupon_reservations_expires ON public.coupon_reservations USING btree (expires_at);
 
+
 --
 -- Name: idx_coupons_active; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_coupons_active ON public.coupons USING btree (is_active) WHERE (is_active = true);
+
 
 --
 -- Name: idx_coupons_code; Type: INDEX; Schema: public; Owner: postgres
@@ -15841,11 +16590,13 @@ CREATE INDEX idx_coupons_active ON public.coupons USING btree (is_active) WHERE 
 
 CREATE INDEX idx_coupons_code ON public.coupons USING btree (code);
 
+
 --
 -- Name: idx_coupons_code_trgm; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_coupons_code_trgm ON public.coupons USING gin (code extensions.gin_trgm_ops);
+
 
 --
 -- Name: idx_coupons_created_at; Type: INDEX; Schema: public; Owner: postgres
@@ -15853,11 +16604,13 @@ CREATE INDEX idx_coupons_code_trgm ON public.coupons USING gin (code extensions.
 
 CREATE INDEX idx_coupons_created_at ON public.coupons USING btree (created_at DESC, id DESC);
 
+
 --
 -- Name: idx_coupons_expires_at; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_coupons_expires_at ON public.coupons USING btree (expires_at) WHERE (expires_at IS NOT NULL);
+
 
 --
 -- Name: idx_coupons_name_trgm; Type: INDEX; Schema: public; Owner: postgres
@@ -15865,11 +16618,13 @@ CREATE INDEX idx_coupons_expires_at ON public.coupons USING btree (expires_at) W
 
 CREATE INDEX idx_coupons_name_trgm ON public.coupons USING gin (name extensions.gin_trgm_ops);
 
+
 --
 -- Name: idx_coupons_not_oto; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_coupons_not_oto ON public.coupons USING btree (is_oto_coupon) WHERE (is_oto_coupon = false);
+
 
 --
 -- Name: idx_coupons_offer_role; Type: INDEX; Schema: public; Owner: postgres
@@ -15877,11 +16632,13 @@ CREATE INDEX idx_coupons_not_oto ON public.coupons USING btree (is_oto_coupon) W
 
 CREATE INDEX idx_coupons_offer_role ON public.coupons USING btree (oto_offer_id, coupon_role) WHERE (oto_offer_id IS NOT NULL);
 
+
 --
 -- Name: idx_coupons_oto; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_coupons_oto ON public.coupons USING btree (is_oto_coupon) WHERE (is_oto_coupon = true);
+
 
 --
 -- Name: idx_coupons_oto_expires; Type: INDEX; Schema: public; Owner: postgres
@@ -15889,11 +16646,13 @@ CREATE INDEX idx_coupons_oto ON public.coupons USING btree (is_oto_coupon) WHERE
 
 CREATE INDEX idx_coupons_oto_expires ON public.coupons USING btree (expires_at) WHERE (is_oto_coupon = true);
 
+
 --
 -- Name: idx_coupons_oto_free_unique; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE UNIQUE INDEX idx_coupons_oto_free_unique ON public.coupons USING btree (oto_offer_id, allowed_emails, coupon_role) WHERE ((source_transaction_id IS NULL) AND (is_oto_coupon = true));
+
 
 --
 -- Name: idx_coupons_oto_transaction_unique; Type: INDEX; Schema: public; Owner: postgres
@@ -15901,11 +16660,13 @@ CREATE UNIQUE INDEX idx_coupons_oto_free_unique ON public.coupons USING btree (o
 
 CREATE UNIQUE INDEX idx_coupons_oto_transaction_unique ON public.coupons USING btree (source_transaction_id, coupon_role) WHERE ((source_transaction_id IS NOT NULL) AND (is_oto_coupon = true));
 
+
 --
 -- Name: idx_coupons_role; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_coupons_role ON public.coupons USING btree (coupon_role) WHERE (coupon_role IS NOT NULL);
+
 
 --
 -- Name: idx_coupons_source_transaction; Type: INDEX; Schema: public; Owner: postgres
@@ -15913,11 +16674,13 @@ CREATE INDEX idx_coupons_role ON public.coupons USING btree (coupon_role) WHERE 
 
 CREATE INDEX idx_coupons_source_transaction ON public.coupons USING btree (source_transaction_id) WHERE (source_transaction_id IS NOT NULL);
 
+
 --
 -- Name: idx_guest_purchases_claimed_by_user_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_guest_purchases_claimed_by_user_id ON public.guest_purchases USING btree (claimed_by_user_id) WHERE (claimed_by_user_id IS NOT NULL);
+
 
 --
 -- Name: idx_guest_purchases_cleanup; Type: INDEX; Schema: public; Owner: postgres
@@ -15925,11 +16688,13 @@ CREATE INDEX idx_guest_purchases_claimed_by_user_id ON public.guest_purchases US
 
 CREATE INDEX idx_guest_purchases_cleanup ON public.guest_purchases USING brin (created_at);
 
+
 --
 -- Name: idx_guest_purchases_customer_email; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_guest_purchases_customer_email ON public.guest_purchases USING btree (customer_email);
+
 
 --
 -- Name: idx_guest_purchases_metadata; Type: INDEX; Schema: public; Owner: postgres
@@ -15937,11 +16702,13 @@ CREATE INDEX idx_guest_purchases_customer_email ON public.guest_purchases USING 
 
 CREATE INDEX idx_guest_purchases_metadata ON public.guest_purchases USING gin (metadata);
 
+
 --
 -- Name: idx_guest_purchases_product_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_guest_purchases_product_id ON public.guest_purchases USING btree (product_id);
+
 
 --
 -- Name: idx_guest_purchases_session_id; Type: INDEX; Schema: public; Owner: postgres
@@ -15949,11 +16716,13 @@ CREATE INDEX idx_guest_purchases_product_id ON public.guest_purchases USING btre
 
 CREATE INDEX idx_guest_purchases_session_id ON public.guest_purchases USING btree (session_id);
 
+
 --
 -- Name: idx_integrations_config_currency_api_enabled; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_integrations_config_currency_api_enabled ON public.integrations_config USING btree (currency_api_enabled) WHERE (currency_api_enabled = true);
+
 
 --
 -- Name: idx_integrations_config_gus_enabled; Type: INDEX; Schema: public; Owner: postgres
@@ -15961,11 +16730,13 @@ CREATE INDEX idx_integrations_config_currency_api_enabled ON public.integrations
 
 CREATE INDEX idx_integrations_config_gus_enabled ON public.integrations_config USING btree (gus_api_enabled) WHERE (gus_api_enabled = true);
 
+
 --
 -- Name: idx_issued_licenses_domain; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_issued_licenses_domain ON public.issued_licenses USING btree (license_domain) WHERE (license_domain IS NOT NULL);
+
 
 --
 -- Name: idx_issued_licenses_original_seller_id; Type: INDEX; Schema: public; Owner: postgres
@@ -15973,11 +16744,13 @@ CREATE INDEX idx_issued_licenses_domain ON public.issued_licenses USING btree (l
 
 CREATE INDEX idx_issued_licenses_original_seller_id ON public.issued_licenses USING btree (original_seller_id);
 
+
 --
 -- Name: idx_issued_licenses_product; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_issued_licenses_product ON public.issued_licenses USING btree (product_id);
+
 
 --
 -- Name: idx_issued_licenses_source_issued_at; Type: INDEX; Schema: public; Owner: postgres
@@ -15985,11 +16758,13 @@ CREATE INDEX idx_issued_licenses_product ON public.issued_licenses USING btree (
 
 CREATE INDEX idx_issued_licenses_source_issued_at ON public.issued_licenses USING btree (issuance_source, issued_at DESC);
 
+
 --
 -- Name: idx_order_bumps_bump_product; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_order_bumps_bump_product ON public.order_bumps USING btree (bump_product_id);
+
 
 --
 -- Name: idx_order_bumps_created_at; Type: INDEX; Schema: public; Owner: postgres
@@ -15997,11 +16772,13 @@ CREATE INDEX idx_order_bumps_bump_product ON public.order_bumps USING btree (bum
 
 CREATE INDEX idx_order_bumps_created_at ON public.order_bumps USING brin (created_at);
 
+
 --
 -- Name: idx_order_bumps_main_product; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_order_bumps_main_product ON public.order_bumps USING btree (main_product_id, is_active, display_order);
+
 
 --
 -- Name: idx_oto_offers_downsell_product; Type: INDEX; Schema: public; Owner: postgres
@@ -16009,11 +16786,13 @@ CREATE INDEX idx_order_bumps_main_product ON public.order_bumps USING btree (mai
 
 CREATE INDEX idx_oto_offers_downsell_product ON public.oto_offers USING btree (downsell_product_id) WHERE (downsell_product_id IS NOT NULL);
 
+
 --
 -- Name: idx_oto_offers_oto_product; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_oto_offers_oto_product ON public.oto_offers USING btree (oto_product_id);
+
 
 --
 -- Name: idx_oto_offers_source_product; Type: INDEX; Schema: public; Owner: postgres
@@ -16021,11 +16800,13 @@ CREATE INDEX idx_oto_offers_oto_product ON public.oto_offers USING btree (oto_pr
 
 CREATE INDEX idx_oto_offers_source_product ON public.oto_offers USING btree (source_product_id, is_active, display_order);
 
+
 --
 -- Name: idx_payment_line_items_order_bump; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_payment_line_items_order_bump ON public.payment_line_items USING btree (order_bump_id) WHERE (order_bump_id IS NOT NULL);
+
 
 --
 -- Name: idx_payment_line_items_product; Type: INDEX; Schema: public; Owner: postgres
@@ -16033,11 +16814,13 @@ CREATE INDEX idx_payment_line_items_order_bump ON public.payment_line_items USIN
 
 CREATE INDEX idx_payment_line_items_product ON public.payment_line_items USING btree (product_id);
 
+
 --
 -- Name: idx_payment_line_items_transaction; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_payment_line_items_transaction ON public.payment_line_items USING btree (transaction_id);
+
 
 --
 -- Name: idx_payment_line_items_type; Type: INDEX; Schema: public; Owner: postgres
@@ -16045,11 +16828,13 @@ CREATE INDEX idx_payment_line_items_transaction ON public.payment_line_items USI
 
 CREATE INDEX idx_payment_line_items_type ON public.payment_line_items USING btree (item_type);
 
+
 --
 -- Name: idx_payment_method_config_currency_overrides; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_payment_method_config_currency_overrides ON public.payment_method_config USING gin (currency_overrides);
+
 
 --
 -- Name: idx_payment_method_config_custom_methods; Type: INDEX; Schema: public; Owner: postgres
@@ -16057,11 +16842,13 @@ CREATE INDEX idx_payment_method_config_currency_overrides ON public.payment_meth
 
 CREATE INDEX idx_payment_method_config_custom_methods ON public.payment_method_config USING gin (custom_payment_methods);
 
+
 --
 -- Name: idx_payment_method_config_mode; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_payment_method_config_mode ON public.payment_method_config USING btree (config_mode);
+
 
 --
 -- Name: idx_payment_transactions_created_at; Type: INDEX; Schema: public; Owner: postgres
@@ -16069,11 +16856,13 @@ CREATE INDEX idx_payment_method_config_mode ON public.payment_method_config USIN
 
 CREATE INDEX idx_payment_transactions_created_at ON public.payment_transactions USING brin (created_at);
 
+
 --
 -- Name: idx_payment_transactions_customer_email; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_payment_transactions_customer_email ON public.payment_transactions USING btree (customer_email);
+
 
 --
 -- Name: idx_payment_transactions_customer_email_status; Type: INDEX; Schema: public; Owner: postgres
@@ -16081,11 +16870,13 @@ CREATE INDEX idx_payment_transactions_customer_email ON public.payment_transacti
 
 CREATE INDEX idx_payment_transactions_customer_email_status ON public.payment_transactions USING btree (customer_email, status, created_at DESC);
 
+
 --
 -- Name: idx_payment_transactions_customer_email_trgm; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_payment_transactions_customer_email_trgm ON public.payment_transactions USING gin (customer_email extensions.gin_trgm_ops);
+
 
 --
 -- Name: idx_payment_transactions_email_date; Type: INDEX; Schema: public; Owner: postgres
@@ -16093,11 +16884,13 @@ CREATE INDEX idx_payment_transactions_customer_email_trgm ON public.payment_tran
 
 CREATE INDEX idx_payment_transactions_email_date ON public.payment_transactions USING btree (customer_email, created_at DESC);
 
+
 --
 -- Name: idx_payment_transactions_expires; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_payment_transactions_expires ON public.payment_transactions USING btree (expires_at) WHERE ((status = 'pending'::text) AND (expires_at IS NOT NULL));
+
 
 --
 -- Name: idx_payment_transactions_product_id; Type: INDEX; Schema: public; Owner: postgres
@@ -16105,11 +16898,13 @@ CREATE INDEX idx_payment_transactions_expires ON public.payment_transactions USI
 
 CREATE INDEX idx_payment_transactions_product_id ON public.payment_transactions USING btree (product_id);
 
+
 --
 -- Name: idx_payment_transactions_session_id_trgm; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_payment_transactions_session_id_trgm ON public.payment_transactions USING gin (session_id extensions.gin_trgm_ops);
+
 
 --
 -- Name: idx_payment_transactions_status_created; Type: INDEX; Schema: public; Owner: postgres
@@ -16117,11 +16912,13 @@ CREATE INDEX idx_payment_transactions_session_id_trgm ON public.payment_transact
 
 CREATE INDEX idx_payment_transactions_status_created ON public.payment_transactions USING btree (status, created_at DESC) WHERE (status = ANY (ARRAY['pending'::text, 'abandoned'::text]));
 
+
 --
 -- Name: idx_payment_transactions_status_created_uncovered; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_payment_transactions_status_created_uncovered ON public.payment_transactions USING btree (status, created_at DESC) WHERE (status = ANY (ARRAY['completed'::text, 'partially_refunded'::text]));
+
 
 --
 -- Name: idx_payment_transactions_status_date; Type: INDEX; Schema: public; Owner: postgres
@@ -16129,11 +16926,13 @@ CREATE INDEX idx_payment_transactions_status_created_uncovered ON public.payment
 
 CREATE INDEX idx_payment_transactions_status_date ON public.payment_transactions USING btree (status, created_at DESC) WHERE (status = ANY (ARRAY['refunded'::text, 'disputed'::text]));
 
+
 --
 -- Name: idx_payment_transactions_stripe_invoice_unique; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE UNIQUE INDEX idx_payment_transactions_stripe_invoice_unique ON public.payment_transactions USING btree (stripe_invoice_id) WHERE (stripe_invoice_id IS NOT NULL);
+
 
 --
 -- Name: idx_payment_transactions_stripe_payment_intent_id_trgm; Type: INDEX; Schema: public; Owner: postgres
@@ -16141,11 +16940,13 @@ CREATE UNIQUE INDEX idx_payment_transactions_stripe_invoice_unique ON public.pay
 
 CREATE INDEX idx_payment_transactions_stripe_payment_intent_id_trgm ON public.payment_transactions USING gin (stripe_payment_intent_id extensions.gin_trgm_ops);
 
+
 --
 -- Name: idx_payment_transactions_subscription_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_payment_transactions_subscription_id ON public.payment_transactions USING btree (subscription_id) WHERE (subscription_id IS NOT NULL);
+
 
 --
 -- Name: idx_payment_transactions_user_id; Type: INDEX; Schema: public; Owner: postgres
@@ -16153,11 +16954,13 @@ CREATE INDEX idx_payment_transactions_subscription_id ON public.payment_transact
 
 CREATE INDEX idx_payment_transactions_user_id ON public.payment_transactions USING btree (user_id);
 
+
 --
 -- Name: idx_product_categories_category_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_product_categories_category_id ON public.product_categories USING btree (category_id);
+
 
 --
 -- Name: idx_product_categories_product_id; Type: INDEX; Schema: public; Owner: postgres
@@ -16165,11 +16968,13 @@ CREATE INDEX idx_product_categories_category_id ON public.product_categories USI
 
 CREATE INDEX idx_product_categories_product_id ON public.product_categories USING btree (product_id);
 
+
 --
 -- Name: idx_product_price_history_current; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_product_price_history_current ON public.product_price_history USING btree (product_id, effective_until) WHERE (effective_until IS NULL);
+
 
 --
 -- Name: idx_product_price_history_product_date; Type: INDEX; Schema: public; Owner: postgres
@@ -16177,11 +16982,13 @@ CREATE INDEX idx_product_price_history_current ON public.product_price_history U
 
 CREATE INDEX idx_product_price_history_product_date ON public.product_price_history USING btree (product_id, effective_from DESC);
 
+
 --
 -- Name: idx_product_tags_product_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_product_tags_product_id ON public.product_tags USING btree (product_id);
+
 
 --
 -- Name: idx_product_tags_tag_id; Type: INDEX; Schema: public; Owner: postgres
@@ -16189,11 +16996,13 @@ CREATE INDEX idx_product_tags_product_id ON public.product_tags USING btree (pro
 
 CREATE INDEX idx_product_tags_tag_id ON public.product_tags USING btree (tag_id);
 
+
 --
 -- Name: idx_product_variant_groups_display_order; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_product_variant_groups_display_order ON public.product_variant_groups USING btree (group_id, display_order);
+
 
 --
 -- Name: idx_product_variant_groups_featured; Type: INDEX; Schema: public; Owner: postgres
@@ -16201,11 +17010,13 @@ CREATE INDEX idx_product_variant_groups_display_order ON public.product_variant_
 
 CREATE INDEX idx_product_variant_groups_featured ON public.product_variant_groups USING btree (group_id, is_featured) WHERE (is_featured = true);
 
+
 --
 -- Name: idx_product_variant_groups_group_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_product_variant_groups_group_id ON public.product_variant_groups USING btree (group_id);
+
 
 --
 -- Name: idx_product_variant_groups_product_id; Type: INDEX; Schema: public; Owner: postgres
@@ -16213,11 +17024,13 @@ CREATE INDEX idx_product_variant_groups_group_id ON public.product_variant_group
 
 CREATE INDEX idx_product_variant_groups_product_id ON public.product_variant_groups USING btree (product_id);
 
+
 --
 -- Name: idx_products_archived_at; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_products_archived_at ON public.products USING btree (archived_at) WHERE (archived_at IS NOT NULL);
+
 
 --
 -- Name: idx_products_created_at; Type: INDEX; Schema: public; Owner: postgres
@@ -16225,11 +17038,13 @@ CREATE INDEX idx_products_archived_at ON public.products USING btree (archived_a
 
 CREATE INDEX idx_products_created_at ON public.products USING btree (created_at);
 
+
 --
 -- Name: idx_products_description_trgm; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_products_description_trgm ON public.products USING gin (description extensions.gin_trgm_ops);
+
 
 --
 -- Name: idx_products_is_active; Type: INDEX; Schema: public; Owner: postgres
@@ -16237,11 +17052,13 @@ CREATE INDEX idx_products_description_trgm ON public.products USING gin (descrip
 
 CREATE INDEX idx_products_is_active ON public.products USING btree (is_active);
 
+
 --
 -- Name: idx_products_is_featured; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_products_is_featured ON public.products USING btree (is_featured);
+
 
 --
 -- Name: idx_products_is_listed; Type: INDEX; Schema: public; Owner: postgres
@@ -16249,11 +17066,13 @@ CREATE INDEX idx_products_is_featured ON public.products USING btree (is_feature
 
 CREATE INDEX idx_products_is_listed ON public.products USING btree (is_listed);
 
+
 --
 -- Name: idx_products_is_refundable; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_products_is_refundable ON public.products USING btree (is_refundable) WHERE (is_refundable = true);
+
 
 --
 -- Name: idx_products_name_trgm; Type: INDEX; Schema: public; Owner: postgres
@@ -16261,11 +17080,13 @@ CREATE INDEX idx_products_is_refundable ON public.products USING btree (is_refun
 
 CREATE INDEX idx_products_name_trgm ON public.products USING gin (name extensions.gin_trgm_ops);
 
+
 --
 -- Name: idx_products_price; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_products_price ON public.products USING btree (price);
+
 
 --
 -- Name: idx_products_seller_id; Type: INDEX; Schema: public; Owner: postgres
@@ -16273,11 +17094,13 @@ CREATE INDEX idx_products_price ON public.products USING btree (price);
 
 CREATE INDEX idx_products_seller_id ON public.products USING btree (seller_id);
 
+
 --
 -- Name: idx_products_slug; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_products_slug ON public.products USING btree (slug);
+
 
 --
 -- Name: idx_products_stripe_price_id_unique; Type: INDEX; Schema: public; Owner: postgres
@@ -16285,11 +17108,13 @@ CREATE INDEX idx_products_slug ON public.products USING btree (slug);
 
 CREATE UNIQUE INDEX idx_products_stripe_price_id_unique ON public.products USING btree (stripe_price_id) WHERE (stripe_price_id IS NOT NULL);
 
+
 --
 -- Name: idx_rate_limits_cleanup_brin; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_rate_limits_cleanup_brin ON public.rate_limits USING brin (window_start);
+
 
 --
 -- Name: idx_rate_limits_user_function; Type: INDEX; Schema: public; Owner: postgres
@@ -16297,11 +17122,13 @@ CREATE INDEX idx_rate_limits_cleanup_brin ON public.rate_limits USING brin (wind
 
 CREATE INDEX idx_rate_limits_user_function ON public.rate_limits USING btree (user_id, function_name);
 
+
 --
 -- Name: idx_rate_limits_window_start; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_rate_limits_window_start ON public.rate_limits USING btree (window_start);
+
 
 --
 -- Name: idx_refund_requests_created_at; Type: INDEX; Schema: public; Owner: postgres
@@ -16309,11 +17136,13 @@ CREATE INDEX idx_rate_limits_window_start ON public.rate_limits USING btree (win
 
 CREATE INDEX idx_refund_requests_created_at ON public.refund_requests USING brin (created_at);
 
+
 --
 -- Name: idx_refund_requests_product_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_refund_requests_product_id ON public.refund_requests USING btree (product_id);
+
 
 --
 -- Name: idx_refund_requests_status; Type: INDEX; Schema: public; Owner: postgres
@@ -16321,11 +17150,13 @@ CREATE INDEX idx_refund_requests_product_id ON public.refund_requests USING btre
 
 CREATE INDEX idx_refund_requests_status ON public.refund_requests USING btree (status);
 
+
 --
 -- Name: idx_refund_requests_transaction_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_refund_requests_transaction_id ON public.refund_requests USING btree (transaction_id);
+
 
 --
 -- Name: idx_refund_requests_user_id; Type: INDEX; Schema: public; Owner: postgres
@@ -16333,11 +17164,13 @@ CREATE INDEX idx_refund_requests_transaction_id ON public.refund_requests USING 
 
 CREATE INDEX idx_refund_requests_user_id ON public.refund_requests USING btree (user_id);
 
+
 --
 -- Name: idx_seller_license_keys_active; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE UNIQUE INDEX idx_seller_license_keys_active ON public.seller_license_keys USING btree (seller_id) WHERE (is_active = true);
+
 
 --
 -- Name: idx_seller_license_keys_original_seller_id; Type: INDEX; Schema: public; Owner: postgres
@@ -16345,11 +17178,13 @@ CREATE UNIQUE INDEX idx_seller_license_keys_active ON public.seller_license_keys
 
 CREATE INDEX idx_seller_license_keys_original_seller_id ON public.seller_license_keys USING btree (original_seller_id);
 
+
 --
 -- Name: idx_stripe_config_active; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_stripe_config_active ON public.stripe_configurations USING btree (is_active) WHERE (is_active = true);
+
 
 --
 -- Name: idx_stripe_config_expires_at; Type: INDEX; Schema: public; Owner: postgres
@@ -16357,11 +17192,13 @@ CREATE INDEX idx_stripe_config_active ON public.stripe_configurations USING btre
 
 CREATE INDEX idx_stripe_config_expires_at ON public.stripe_configurations USING btree (expires_at) WHERE ((is_active = true) AND (expires_at IS NOT NULL));
 
+
 --
 -- Name: idx_stripe_config_mode; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_stripe_config_mode ON public.stripe_configurations USING btree (mode);
+
 
 --
 -- Name: idx_stripe_customers_stripe_id; Type: INDEX; Schema: public; Owner: postgres
@@ -16369,11 +17206,13 @@ CREATE INDEX idx_stripe_config_mode ON public.stripe_configurations USING btree 
 
 CREATE INDEX idx_stripe_customers_stripe_id ON public.stripe_customers USING btree (stripe_customer_id);
 
+
 --
 -- Name: idx_subscriptions_period_end_active; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_subscriptions_period_end_active ON public.subscriptions USING btree (current_period_end) WHERE (status = ANY (ARRAY['active'::text, 'trialing'::text]));
+
 
 --
 -- Name: idx_subscriptions_product_id; Type: INDEX; Schema: public; Owner: postgres
@@ -16381,11 +17220,13 @@ CREATE INDEX idx_subscriptions_period_end_active ON public.subscriptions USING b
 
 CREATE INDEX idx_subscriptions_product_id ON public.subscriptions USING btree (product_id);
 
+
 --
 -- Name: idx_subscriptions_status; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_subscriptions_status ON public.subscriptions USING btree (status);
+
 
 --
 -- Name: idx_subscriptions_stripe_price_id; Type: INDEX; Schema: public; Owner: postgres
@@ -16393,11 +17234,13 @@ CREATE INDEX idx_subscriptions_status ON public.subscriptions USING btree (statu
 
 CREATE INDEX idx_subscriptions_stripe_price_id ON public.subscriptions USING btree (stripe_price_id) WHERE (stripe_price_id IS NOT NULL);
 
+
 --
 -- Name: idx_subscriptions_user_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_subscriptions_user_id ON public.subscriptions USING btree (user_id);
+
 
 --
 -- Name: idx_tags_slug; Type: INDEX; Schema: public; Owner: postgres
@@ -16405,11 +17248,13 @@ CREATE INDEX idx_subscriptions_user_id ON public.subscriptions USING btree (user
 
 CREATE INDEX idx_tags_slug ON public.tags USING btree (slug);
 
+
 --
 -- Name: idx_tracking_logs_created_at; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_tracking_logs_created_at ON public.tracking_logs USING btree (created_at DESC);
+
 
 --
 -- Name: idx_tracking_logs_event_name; Type: INDEX; Schema: public; Owner: postgres
@@ -16417,11 +17262,13 @@ CREATE INDEX idx_tracking_logs_created_at ON public.tracking_logs USING btree (c
 
 CREATE INDEX idx_tracking_logs_event_name ON public.tracking_logs USING btree (event_name);
 
+
 --
 -- Name: idx_tracking_logs_order_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_tracking_logs_order_id ON public.tracking_logs USING btree (order_id);
+
 
 --
 -- Name: idx_tracking_logs_status; Type: INDEX; Schema: public; Owner: postgres
@@ -16429,11 +17276,13 @@ CREATE INDEX idx_tracking_logs_order_id ON public.tracking_logs USING btree (ord
 
 CREATE INDEX idx_tracking_logs_status ON public.tracking_logs USING btree (status);
 
+
 --
 -- Name: idx_user_product_access_expires_at; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_user_product_access_expires_at ON public.user_product_access USING btree (access_expires_at) WHERE (access_expires_at IS NOT NULL);
+
 
 --
 -- Name: idx_user_product_access_expiry_notified; Type: INDEX; Schema: public; Owner: postgres
@@ -16441,11 +17290,13 @@ CREATE INDEX idx_user_product_access_expires_at ON public.user_product_access US
 
 CREATE INDEX idx_user_product_access_expiry_notified ON public.user_product_access USING btree (expiry_notified_at) WHERE (expiry_notified_at IS NULL);
 
+
 --
 -- Name: idx_user_product_access_product_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_user_product_access_product_id ON public.user_product_access USING btree (product_id);
+
 
 --
 -- Name: idx_user_product_access_subscription_id; Type: INDEX; Schema: public; Owner: postgres
@@ -16453,11 +17304,13 @@ CREATE INDEX idx_user_product_access_product_id ON public.user_product_access US
 
 CREATE INDEX idx_user_product_access_subscription_id ON public.user_product_access USING btree (subscription_id) WHERE (subscription_id IS NOT NULL);
 
+
 --
 -- Name: idx_user_product_access_unique; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_user_product_access_unique ON public.user_product_access USING btree (user_id, product_id);
+
 
 --
 -- Name: idx_user_product_access_user_id; Type: INDEX; Schema: public; Owner: postgres
@@ -16465,11 +17318,13 @@ CREATE INDEX idx_user_product_access_unique ON public.user_product_access USING 
 
 CREATE INDEX idx_user_product_access_user_id ON public.user_product_access USING btree (user_id);
 
+
 --
 -- Name: idx_user_product_access_version; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_user_product_access_version ON public.user_product_access USING btree (user_id, product_id, version);
+
 
 --
 -- Name: idx_video_events_progress; Type: INDEX; Schema: public; Owner: postgres
@@ -16477,11 +17332,13 @@ CREATE INDEX idx_user_product_access_version ON public.user_product_access USING
 
 CREATE INDEX idx_video_events_progress ON public.video_events USING btree (progress_id);
 
+
 --
 -- Name: idx_video_progress_product; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_video_progress_product ON public.video_progress USING btree (product_id);
+
 
 --
 -- Name: idx_video_progress_user; Type: INDEX; Schema: public; Owner: postgres
@@ -16489,11 +17346,13 @@ CREATE INDEX idx_video_progress_product ON public.video_progress USING btree (pr
 
 CREATE INDEX idx_video_progress_user ON public.video_progress USING btree (user_id);
 
+
 --
 -- Name: idx_webhook_endpoint_products_endpoint_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_webhook_endpoint_products_endpoint_id ON public.webhook_endpoint_products USING btree (webhook_endpoint_id);
+
 
 --
 -- Name: idx_webhook_endpoint_products_product_id; Type: INDEX; Schema: public; Owner: postgres
@@ -16501,11 +17360,13 @@ CREATE INDEX idx_webhook_endpoint_products_endpoint_id ON public.webhook_endpoin
 
 CREATE INDEX idx_webhook_endpoint_products_product_id ON public.webhook_endpoint_products USING btree (product_id);
 
+
 --
 -- Name: idx_webhook_logs_created_at; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_webhook_logs_created_at ON public.webhook_logs USING btree (created_at DESC);
+
 
 --
 -- Name: idx_webhook_logs_dlq; Type: INDEX; Schema: public; Owner: postgres
@@ -16513,11 +17374,13 @@ CREATE INDEX idx_webhook_logs_created_at ON public.webhook_logs USING btree (cre
 
 CREATE INDEX idx_webhook_logs_dlq ON public.webhook_logs USING btree (failed_permanently_at DESC) WHERE (status = 'permanently_failed'::text);
 
+
 --
 -- Name: idx_webhook_logs_endpoint_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_webhook_logs_endpoint_id ON public.webhook_logs USING btree (endpoint_id);
+
 
 --
 -- Name: idx_webhook_logs_pending_retry; Type: INDEX; Schema: public; Owner: postgres
@@ -16525,11 +17388,13 @@ CREATE INDEX idx_webhook_logs_endpoint_id ON public.webhook_logs USING btree (en
 
 CREATE INDEX idx_webhook_logs_pending_retry ON public.webhook_logs USING btree (next_retry_at) WHERE (status = 'pending_retry'::text);
 
+
 --
 -- Name: idx_webhook_logs_status; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_webhook_logs_status ON public.webhook_logs USING btree (status);
+
 
 --
 -- Name: invoices_payment_sync_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -16537,11 +17402,13 @@ CREATE INDEX idx_webhook_logs_status ON public.webhook_logs USING btree (status)
 
 CREATE INDEX invoices_payment_sync_idx ON public.invoices USING btree (updated_at) WHERE ((status = 'issued'::text) AND (NOT payment_synced));
 
+
 --
 -- Name: invoices_retry_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX invoices_retry_idx ON public.invoices USING btree (updated_at) WHERE (status = ANY (ARRAY['failed'::text, 'issuing'::text]));
+
 
 --
 -- Name: issued_licenses_dispute_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -16549,11 +17416,13 @@ CREATE INDEX invoices_retry_idx ON public.invoices USING btree (updated_at) WHER
 
 CREATE INDEX issued_licenses_dispute_idx ON public.issued_licenses USING btree (revoked_by_dispute_id) WHERE (revoked_by_dispute_id IS NOT NULL);
 
+
 --
 -- Name: issued_licenses_expiry_pending_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX issued_licenses_expiry_pending_idx ON public.issued_licenses USING btree (expires_at) WHERE ((expires_at IS NOT NULL) AND (revoked_at IS NULL) AND (expiry_notified_at IS NULL));
+
 
 --
 -- Name: lead_nonces_expiry_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -16561,11 +17430,13 @@ CREATE INDEX issued_licenses_expiry_pending_idx ON public.issued_licenses USING 
 
 CREATE INDEX lead_nonces_expiry_idx ON public.lead_nonces USING btree (expires_at);
 
+
 --
 -- Name: lead_nonces_product_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX lead_nonces_product_idx ON public.lead_nonces USING btree (product_id);
+
 
 --
 -- Name: lead_submissions_email_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -16573,11 +17444,13 @@ CREATE INDEX lead_nonces_product_idx ON public.lead_nonces USING btree (product_
 
 CREATE INDEX lead_submissions_email_idx ON public.lead_submissions USING btree (email);
 
+
 --
 -- Name: lead_submissions_expiry_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX lead_submissions_expiry_idx ON public.lead_submissions USING btree (expires_at) WHERE (confirmed_at IS NULL);
+
 
 --
 -- Name: lead_submissions_product_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -16585,11 +17458,13 @@ CREATE INDEX lead_submissions_expiry_idx ON public.lead_submissions USING btree 
 
 CREATE INDEX lead_submissions_product_idx ON public.lead_submissions USING btree (product_id);
 
+
 --
 -- Name: order_payment_attempt_open_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE UNIQUE INDEX order_payment_attempt_open_idx ON public.order_payment_attempts USING btree (transaction_id) WHERE (status = ANY (ARRAY['opening'::text, 'open'::text]));
+
 
 --
 -- Name: payment_disputes_open_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -16597,11 +17472,13 @@ CREATE UNIQUE INDEX order_payment_attempt_open_idx ON public.order_payment_attem
 
 CREATE INDEX payment_disputes_open_idx ON public.payment_disputes USING btree (transaction_id) WHERE ((NOT closed) AND (status <> 'won'::text));
 
+
 --
 -- Name: payment_disputes_transaction_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX payment_disputes_transaction_idx ON public.payment_disputes USING btree (transaction_id);
+
 
 --
 -- Name: payment_refunds_transaction_id_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -16609,11 +17486,13 @@ CREATE INDEX payment_disputes_transaction_idx ON public.payment_disputes USING b
 
 CREATE INDEX payment_refunds_transaction_id_idx ON public.payment_refunds USING btree (transaction_id);
 
+
 --
 -- Name: payment_transactions_coupon_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX payment_transactions_coupon_idx ON public.payment_transactions USING btree (coupon_id) WHERE (coupon_id IS NOT NULL);
+
 
 --
 -- Name: payment_transactions_transfer_paid_mail_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -16621,11 +17500,13 @@ CREATE INDEX payment_transactions_coupon_idx ON public.payment_transactions USIN
 
 CREATE INDEX payment_transactions_transfer_paid_mail_idx ON public.payment_transactions USING btree (id) WHERE ((payment_provider = 'bank_transfer'::text) AND (status = 'completed'::text) AND (transfer_paid_mail_sent_at IS NULL));
 
+
 --
 -- Name: payment_transfer_mail_pending; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX payment_transfer_mail_pending ON public.payment_transactions USING btree (created_at) WHERE ((payment_provider = 'bank_transfer'::text) AND (transfer_mail_sent_at IS NULL) AND (status = ANY (ARRAY['awaiting_payment'::text, 'completed'::text])));
+
 
 --
 -- Name: product_offer_history_actor; Type: INDEX; Schema: public; Owner: postgres
@@ -16633,11 +17514,13 @@ CREATE INDEX payment_transfer_mail_pending ON public.payment_transactions USING 
 
 CREATE INDEX product_offer_history_actor ON public.product_offer_history USING btree (actor_id);
 
+
 --
 -- Name: product_offer_history_restored; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX product_offer_history_restored ON public.product_offer_history USING btree (product_id, restored_from);
+
 
 --
 -- Name: product_offer_updated_by; Type: INDEX; Schema: public; Owner: postgres
@@ -16645,11 +17528,13 @@ CREATE INDEX product_offer_history_restored ON public.product_offer_history USIN
 
 CREATE INDEX product_offer_updated_by ON public.product_offer_config USING btree (updated_by);
 
+
 --
 -- Name: product_sessions_product_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX product_sessions_product_idx ON public.product_sessions USING btree (product_id);
+
 
 --
 -- Name: purchase_attribution_click_expiry; Type: INDEX; Schema: public; Owner: postgres
@@ -16657,11 +17542,13 @@ CREATE INDEX product_sessions_product_idx ON public.product_sessions USING btree
 
 CREATE INDEX purchase_attribution_click_expiry ON public.purchase_attribution USING btree (click_id_expires_at) WHERE (click_id IS NOT NULL);
 
+
 --
 -- Name: purchase_attribution_created; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX purchase_attribution_created ON public.purchase_attribution USING btree (created_at DESC);
+
 
 --
 -- Name: purchase_attribution_free_once; Type: INDEX; Schema: public; Owner: postgres
@@ -16669,11 +17556,13 @@ CREATE INDEX purchase_attribution_created ON public.purchase_attribution USING b
 
 CREATE UNIQUE INDEX purchase_attribution_free_once ON public.purchase_attribution USING btree (product_id, user_id) WHERE (kind = 'free'::text);
 
+
 --
 -- Name: purchase_attribution_member; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX purchase_attribution_member ON public.purchase_attribution USING btree (affiliate_member_id) WHERE (affiliate_member_id IS NOT NULL);
+
 
 --
 -- Name: purchase_attribution_product; Type: INDEX; Schema: public; Owner: postgres
@@ -16681,11 +17570,13 @@ CREATE INDEX purchase_attribution_member ON public.purchase_attribution USING bt
 
 CREATE INDEX purchase_attribution_product ON public.purchase_attribution USING btree (product_id);
 
+
 --
 -- Name: purchase_attribution_user; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX purchase_attribution_user ON public.purchase_attribution USING btree (user_id) WHERE (user_id IS NOT NULL);
+
 
 --
 -- Name: revenue_goals_global_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -16693,11 +17584,13 @@ CREATE INDEX purchase_attribution_user ON public.purchase_attribution USING btre
 
 CREATE UNIQUE INDEX revenue_goals_global_idx ON public.revenue_goals USING btree ((1)) WHERE (product_id IS NULL);
 
+
 --
 -- Name: revenue_goals_product_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE UNIQUE INDEX revenue_goals_product_idx ON public.revenue_goals USING btree (product_id) WHERE (product_id IS NOT NULL);
+
 
 --
 -- Name: seat_reservations_expiry_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -16705,11 +17598,13 @@ CREATE UNIQUE INDEX revenue_goals_product_idx ON public.revenue_goals USING btre
 
 CREATE INDEX seat_reservations_expiry_idx ON public.seat_reservations USING btree (status, expires_at);
 
+
 --
 -- Name: seat_reservations_session_status_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX seat_reservations_session_status_idx ON public.seat_reservations USING btree (session_id, status);
+
 
 --
 -- Name: seat_reservations_tier_status_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -16717,11 +17612,13 @@ CREATE INDEX seat_reservations_session_status_idx ON public.seat_reservations US
 
 CREATE INDEX seat_reservations_tier_status_idx ON public.seat_reservations USING btree (tier_id, status);
 
+
 --
 -- Name: shop_config_singleton_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE UNIQUE INDEX shop_config_singleton_idx ON public.shop_config USING btree ((true));
+
 
 --
 -- Name: storefront_config_updated_by; Type: INDEX; Schema: public; Owner: postgres
@@ -16729,11 +17626,13 @@ CREATE UNIQUE INDEX shop_config_singleton_idx ON public.shop_config USING btree 
 
 CREATE INDEX storefront_config_updated_by ON public.storefront_config USING btree (updated_by);
 
+
 --
 -- Name: storefront_history_actor; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX storefront_history_actor ON public.storefront_config_history USING btree (actor_id);
+
 
 --
 -- Name: storefront_history_restored; Type: INDEX; Schema: public; Owner: postgres
@@ -16741,11 +17640,13 @@ CREATE INDEX storefront_history_actor ON public.storefront_config_history USING 
 
 CREATE INDEX storefront_history_restored ON public.storefront_config_history USING btree (restored_from);
 
+
 --
 -- Name: storefront_products_available_from; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX storefront_products_available_from ON public.products USING btree (available_from) WHERE (is_active AND is_listed);
+
 
 --
 -- Name: storefront_products_available_until; Type: INDEX; Schema: public; Owner: postgres
@@ -16753,11 +17654,13 @@ CREATE INDEX storefront_products_available_from ON public.products USING btree (
 
 CREATE INDEX storefront_products_available_until ON public.products USING btree (available_until) WHERE (is_active AND is_listed);
 
+
 --
 -- Name: storefront_products_featured; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX storefront_products_featured ON public.products USING btree (created_at DESC, id) WHERE (is_active AND is_listed AND is_featured);
+
 
 --
 -- Name: storefront_products_free; Type: INDEX; Schema: public; Owner: postgres
@@ -16765,11 +17668,13 @@ CREATE INDEX storefront_products_featured ON public.products USING btree (create
 
 CREATE INDEX storefront_products_free ON public.products USING btree (created_at DESC, id) WHERE (is_active AND is_listed AND (product_type <> 'subscription'::text) AND (NOT allow_custom_price) AND (price = (0)::numeric));
 
+
 --
 -- Name: storefront_products_name_trgm; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX storefront_products_name_trgm ON public.products USING gin (NORMALIZE(name, NFC) extensions.gin_trgm_ops) WHERE (is_active AND is_listed);
+
 
 --
 -- Name: storefront_products_order; Type: INDEX; Schema: public; Owner: postgres
@@ -16777,11 +17682,13 @@ CREATE INDEX storefront_products_name_trgm ON public.products USING gin (NORMALI
 
 CREATE INDEX storefront_products_order ON public.products USING btree (created_at DESC, id) WHERE (is_active AND is_listed);
 
+
 --
 -- Name: storefront_products_paid; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX storefront_products_paid ON public.products USING btree (created_at DESC, id) WHERE (is_active AND is_listed AND (NOT ((product_type <> 'subscription'::text) AND (NOT allow_custom_price) AND (price = (0)::numeric))));
+
 
 --
 -- Name: storefront_products_sale_until; Type: INDEX; Schema: public; Owner: postgres
@@ -16789,11 +17696,13 @@ CREATE INDEX storefront_products_paid ON public.products USING btree (created_at
 
 CREATE INDEX storefront_products_sale_until ON public.products USING btree (sale_price_until) WHERE (is_active AND is_listed);
 
+
 --
 -- Name: subscriptions_renewal_notice_due_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX subscriptions_renewal_notice_due_idx ON public.subscriptions USING btree (renewal_notice_at) WHERE (renewal_notice_at IS NOT NULL);
+
 
 --
 -- Name: transfer_access_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -16801,11 +17710,13 @@ CREATE INDEX subscriptions_renewal_notice_due_idx ON public.subscriptions USING 
 
 CREATE INDEX transfer_access_idx ON public.user_product_access USING btree (transfer_transaction_id) WHERE (transfer_transaction_id IS NOT NULL);
 
+
 --
 -- Name: transfer_release_due_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX transfer_release_due_idx ON public.payment_transactions USING btree (release_at) WHERE ((status = 'awaiting_payment'::text) AND (release_at IS NOT NULL));
+
 
 --
 -- Name: transfer_reminder_due_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -16813,11 +17724,13 @@ CREATE INDEX transfer_release_due_idx ON public.payment_transactions USING btree
 
 CREATE INDEX transfer_reminder_due_idx ON public.payment_transactions USING btree (reminder_at) WHERE ((status = 'awaiting_payment'::text) AND (reminder_at IS NOT NULL) AND (order_reminder_notified_at IS NULL));
 
+
 --
 -- Name: unique_active_mode_per_stripe_config; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE UNIQUE INDEX unique_active_mode_per_stripe_config ON public.stripe_configurations USING btree (mode, is_active) WHERE (is_active = true);
+
 
 --
 -- Name: user_product_access_grant_source_idx; Type: INDEX; Schema: public; Owner: postgres
@@ -16825,17 +17738,20 @@ CREATE UNIQUE INDEX unique_active_mode_per_stripe_config ON public.stripe_config
 
 CREATE INDEX user_product_access_grant_source_idx ON public.user_product_access USING btree (grant_source, access_granted_at DESC);
 
+
 --
 -- Name: webhook_logs_delivery_key_uniq; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE UNIQUE INDEX webhook_logs_delivery_key_uniq ON public.webhook_logs USING btree (delivery_key) WHERE (delivery_key IS NOT NULL);
 
+
 --
 -- Name: storefront_products_name; Type: STATISTICS; Schema: public; Owner: postgres
 --
 
 CREATE STATISTICS public.storefront_products_name ON NORMALIZE(name, NFC) FROM public.products;
+
 
 ALTER STATISTICS public.storefront_products_name OWNER TO postgres;
 
@@ -16845,11 +17761,13 @@ ALTER STATISTICS public.storefront_products_name OWNER TO postgres;
 
 CREATE TRIGGER access_business_event AFTER INSERT OR DELETE OR UPDATE ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION public.capture_business_event();
 
+
 --
 -- Name: business_events add_access_grant_source; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER add_access_grant_source BEFORE INSERT ON public.business_events FOR EACH ROW EXECUTE FUNCTION public.add_access_grant_source_to_event();
+
 
 --
 -- Name: business_events add_event_contract_fields; Type: TRIGGER; Schema: public; Owner: postgres
@@ -16857,11 +17775,13 @@ CREATE TRIGGER add_access_grant_source BEFORE INSERT ON public.business_events F
 
 CREATE TRIGGER add_event_contract_fields BEFORE INSERT ON public.business_events FOR EACH ROW EXECUTE FUNCTION public.add_event_contract_fields();
 
+
 --
 -- Name: affiliate_coupon_bindings affiliate_binding_period; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER affiliate_binding_period BEFORE INSERT OR UPDATE ON public.affiliate_coupon_bindings FOR EACH ROW EXECUTE FUNCTION public.affiliate_binding_check();
+
 
 --
 -- Name: affiliate_commissions affiliate_commissions_guard; Type: TRIGGER; Schema: public; Owner: postgres
@@ -16869,11 +17789,13 @@ CREATE TRIGGER affiliate_binding_period BEFORE INSERT OR UPDATE ON public.affili
 
 CREATE TRIGGER affiliate_commissions_guard BEFORE UPDATE ON public.affiliate_commissions FOR EACH ROW EXECUTE FUNCTION public.affiliate_guard();
 
+
 --
 -- Name: affiliate_commissions affiliate_commissions_relations; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE CONSTRAINT TRIGGER affiliate_commissions_relations AFTER INSERT OR UPDATE ON public.affiliate_commissions DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.affiliate_check_relations();
+
 
 --
 -- Name: affiliate_coupon_bindings affiliate_coupon_bindings_guard; Type: TRIGGER; Schema: public; Owner: postgres
@@ -16881,11 +17803,13 @@ CREATE CONSTRAINT TRIGGER affiliate_commissions_relations AFTER INSERT OR UPDATE
 
 CREATE TRIGGER affiliate_coupon_bindings_guard BEFORE UPDATE ON public.affiliate_coupon_bindings FOR EACH ROW EXECUTE FUNCTION public.affiliate_guard();
 
+
 --
 -- Name: affiliate_ledger affiliate_ledger_guard; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER affiliate_ledger_guard BEFORE DELETE OR UPDATE ON public.affiliate_ledger FOR EACH ROW EXECUTE FUNCTION public.affiliate_immutable();
+
 
 --
 -- Name: affiliate_ledger affiliate_ledger_relations; Type: TRIGGER; Schema: public; Owner: postgres
@@ -16893,11 +17817,13 @@ CREATE TRIGGER affiliate_ledger_guard BEFORE DELETE OR UPDATE ON public.affiliat
 
 CREATE CONSTRAINT TRIGGER affiliate_ledger_relations AFTER INSERT OR UPDATE ON public.affiliate_ledger DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.affiliate_check_relations();
 
+
 --
 -- Name: affiliate_membership_events affiliate_membership_events_guard; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER affiliate_membership_events_guard BEFORE DELETE OR UPDATE ON public.affiliate_membership_events FOR EACH ROW EXECUTE FUNCTION public.affiliate_immutable();
+
 
 --
 -- Name: payment_transactions affiliate_payment_enqueue; Type: TRIGGER; Schema: public; Owner: postgres
@@ -16905,11 +17831,13 @@ CREATE TRIGGER affiliate_membership_events_guard BEFORE DELETE OR UPDATE ON publ
 
 CREATE TRIGGER affiliate_payment_enqueue AFTER UPDATE OF status, refunded_amount, fulfillment_pending ON public.payment_transactions FOR EACH ROW EXECUTE FUNCTION public.affiliate_enqueue();
 
+
 --
 -- Name: affiliate_payout_allocations affiliate_payout_allocations_guard; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER affiliate_payout_allocations_guard BEFORE UPDATE ON public.affiliate_payout_allocations FOR EACH ROW EXECUTE FUNCTION public.affiliate_guard();
+
 
 --
 -- Name: affiliate_payout_allocations affiliate_payout_allocations_relations; Type: TRIGGER; Schema: public; Owner: postgres
@@ -16917,11 +17845,13 @@ CREATE TRIGGER affiliate_payout_allocations_guard BEFORE UPDATE ON public.affili
 
 CREATE CONSTRAINT TRIGGER affiliate_payout_allocations_relations AFTER INSERT OR UPDATE ON public.affiliate_payout_allocations DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.affiliate_check_relations();
 
+
 --
 -- Name: affiliate_payouts affiliate_payouts_guard; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER affiliate_payouts_guard BEFORE UPDATE ON public.affiliate_payouts FOR EACH ROW EXECUTE FUNCTION public.affiliate_guard();
+
 
 --
 -- Name: affiliate_payouts affiliate_payouts_relations; Type: TRIGGER; Schema: public; Owner: postgres
@@ -16929,11 +17859,13 @@ CREATE TRIGGER affiliate_payouts_guard BEFORE UPDATE ON public.affiliate_payouts
 
 CREATE CONSTRAINT TRIGGER affiliate_payouts_relations AFTER INSERT OR UPDATE ON public.affiliate_payouts DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.affiliate_check_relations();
 
+
 --
 -- Name: affiliate_program_versions affiliate_program_versions_guard; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER affiliate_program_versions_guard BEFORE DELETE OR UPDATE ON public.affiliate_program_versions FOR EACH ROW EXECUTE FUNCTION public.affiliate_immutable();
+
 
 --
 -- Name: coupon_redemptions affiliate_redemption_enqueue; Type: TRIGGER; Schema: public; Owner: postgres
@@ -16941,11 +17873,13 @@ CREATE TRIGGER affiliate_program_versions_guard BEFORE DELETE OR UPDATE ON publi
 
 CREATE TRIGGER affiliate_redemption_enqueue AFTER INSERT ON public.coupon_redemptions FOR EACH ROW EXECUTE FUNCTION public.affiliate_enqueue();
 
+
 --
 -- Name: affiliate_rules affiliate_rules_guard; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER affiliate_rules_guard BEFORE DELETE OR UPDATE ON public.affiliate_rules FOR EACH ROW EXECUTE FUNCTION public.affiliate_rule_guard();
+
 
 --
 -- Name: affiliate_work affiliate_work_guard; Type: TRIGGER; Schema: public; Owner: postgres
@@ -16953,11 +17887,13 @@ CREATE TRIGGER affiliate_rules_guard BEFORE DELETE OR UPDATE ON public.affiliate
 
 CREATE TRIGGER affiliate_work_guard BEFORE DELETE ON public.affiliate_work FOR EACH ROW EXECUTE FUNCTION public.affiliate_guard();
 
+
 --
 -- Name: admin_users audit_admin_users; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER audit_admin_users AFTER INSERT OR DELETE OR UPDATE ON public.admin_users FOR EACH ROW EXECUTE FUNCTION public.audit_trigger_function();
+
 
 --
 -- Name: guest_purchases audit_guest_purchases_updates; Type: TRIGGER; Schema: public; Owner: postgres
@@ -16965,11 +17901,13 @@ CREATE TRIGGER audit_admin_users AFTER INSERT OR DELETE OR UPDATE ON public.admi
 
 CREATE TRIGGER audit_guest_purchases_updates AFTER UPDATE ON public.guest_purchases FOR EACH ROW EXECUTE FUNCTION public.log_admin_action_trigger();
 
+
 --
 -- Name: payment_transactions audit_payment_transactions; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER audit_payment_transactions AFTER INSERT OR DELETE OR UPDATE ON public.payment_transactions FOR EACH ROW EXECUTE FUNCTION public.log_admin_action_trigger();
+
 
 --
 -- Name: user_product_access audit_user_product_access; Type: TRIGGER; Schema: public; Owner: postgres
@@ -16977,11 +17915,13 @@ CREATE TRIGGER audit_payment_transactions AFTER INSERT OR DELETE OR UPDATE ON pu
 
 CREATE TRIGGER audit_user_product_access AFTER INSERT OR DELETE OR UPDATE ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION public.audit_trigger_function();
 
+
 --
 -- Name: payment_transactions bank_transfer_access_release; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER bank_transfer_access_release AFTER UPDATE OF status ON public.payment_transactions FOR EACH ROW WHEN ((new.payment_provider = 'bank_transfer'::text)) EXECUTE FUNCTION public.release_transfer_access();
+
 
 --
 -- Name: issued_licenses bind_access_license; Type: TRIGGER; Schema: public; Owner: postgres
@@ -16989,11 +17929,13 @@ CREATE TRIGGER bank_transfer_access_release AFTER UPDATE OF status ON public.pay
 
 CREATE TRIGGER bind_access_license BEFORE INSERT ON public.issued_licenses FOR EACH ROW EXECUTE FUNCTION public.bind_access_license();
 
+
 --
 -- Name: issued_licenses capture_license_expiry_updated; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER capture_license_expiry_updated AFTER UPDATE OF expires_at ON public.issued_licenses FOR EACH ROW EXECUTE FUNCTION public.capture_license_expiry_updated();
+
 
 --
 -- Name: issued_licenses capture_license_issued_event; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17001,11 +17943,13 @@ CREATE TRIGGER capture_license_expiry_updated AFTER UPDATE OF expires_at ON publ
 
 CREATE TRIGGER capture_license_issued_event AFTER INSERT ON public.issued_licenses FOR EACH ROW EXECUTE FUNCTION public.capture_license_issued_event();
 
+
 --
 -- Name: issued_licenses capture_license_status_event; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER capture_license_status_event AFTER UPDATE OF revoked_at ON public.issued_licenses FOR EACH ROW EXECUTE FUNCTION public.capture_license_status_event();
+
 
 --
 -- Name: subscriptions capture_subscription_period_access; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17013,11 +17957,13 @@ CREATE TRIGGER capture_license_status_event AFTER UPDATE OF revoked_at ON public
 
 CREATE TRIGGER capture_subscription_period_access AFTER UPDATE OF current_period_end ON public.subscriptions FOR EACH ROW EXECUTE FUNCTION public.capture_subscription_period_access();
 
+
 --
 -- Name: payment_transactions checkout_details_on_completion; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER checkout_details_on_completion BEFORE INSERT OR UPDATE OF status, order_details ON public.payment_transactions FOR EACH ROW WHEN ((new.status = 'completed'::text)) EXECUTE FUNCTION public.mark_checkout_details_missing();
+
 
 --
 -- Name: product_price_history cleanup_price_history_trigger; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17025,11 +17971,13 @@ CREATE TRIGGER checkout_details_on_completion BEFORE INSERT OR UPDATE OF status,
 
 CREATE TRIGGER cleanup_price_history_trigger AFTER INSERT ON public.product_price_history FOR EACH STATEMENT EXECUTE FUNCTION public.cleanup_old_price_history();
 
+
 --
 -- Name: issued_licenses clear_license_dispute_owner; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER clear_license_dispute_owner BEFORE UPDATE OF revoked_at ON public.issued_licenses FOR EACH ROW EXECUTE FUNCTION public.clear_license_dispute_owner();
+
 
 --
 -- Name: issued_licenses clear_license_revocation_reason; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17037,11 +17985,13 @@ CREATE TRIGGER clear_license_dispute_owner BEFORE UPDATE OF revoked_at ON public
 
 CREATE TRIGGER clear_license_revocation_reason BEFORE UPDATE OF revoked_at ON public.issued_licenses FOR EACH ROW EXECUTE FUNCTION public.clear_license_revocation_reason();
 
+
 --
 -- Name: user_product_access clear_pending_free_grant_on_access; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER clear_pending_free_grant_on_access AFTER INSERT OR UPDATE OF product_id, access_expires_at ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION public.clear_pending_free_grant_on_access();
+
 
 --
 -- Name: affiliate_ledger commission_business_event; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17049,11 +17999,13 @@ CREATE TRIGGER clear_pending_free_grant_on_access AFTER INSERT OR UPDATE OF prod
 
 CREATE TRIGGER commission_business_event AFTER INSERT ON public.affiliate_ledger FOR EACH ROW EXECUTE FUNCTION public.capture_commission_event();
 
+
 --
 -- Name: coupons coupons_whole_amounts; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER coupons_whole_amounts BEFORE INSERT OR UPDATE ON public.coupons FOR EACH ROW EXECUTE FUNCTION public.enforce_whole_amounts_coupon();
+
 
 --
 -- Name: user_product_access defer_subscription_access_until_confirmation; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17061,11 +18013,13 @@ CREATE TRIGGER coupons_whole_amounts BEFORE INSERT OR UPDATE ON public.coupons F
 
 CREATE TRIGGER defer_subscription_access_until_confirmation BEFORE INSERT OR UPDATE ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION public.defer_subscription_access_until_confirmation();
 
+
 --
 -- Name: payment_transactions end_refunded_subscription; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER end_refunded_subscription AFTER INSERT OR UPDATE OF status, subscription_id ON public.payment_transactions FOR EACH ROW EXECUTE FUNCTION public.end_refunded_subscription();
+
 
 --
 -- Name: payment_transactions end_refunded_subscription_access; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17073,11 +18027,13 @@ CREATE TRIGGER end_refunded_subscription AFTER INSERT OR UPDATE OF status, subsc
 
 CREATE TRIGGER end_refunded_subscription_access AFTER UPDATE OF refunded_amount ON public.payment_transactions FOR EACH ROW EXECUTE FUNCTION public.end_refunded_subscription_access();
 
+
 --
 -- Name: products enforce_product_type_immutable_after_sale; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER enforce_product_type_immutable_after_sale BEFORE UPDATE OF product_type ON public.products FOR EACH ROW EXECUTE FUNCTION public.enforce_product_type_immutable_after_sale();
+
 
 --
 -- Name: payment_transactions event_order_release; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17085,11 +18041,13 @@ CREATE TRIGGER enforce_product_type_immutable_after_sale BEFORE UPDATE OF produc
 
 CREATE TRIGGER event_order_release AFTER UPDATE OF status ON public.payment_transactions FOR EACH ROW WHEN ((old.status IS DISTINCT FROM new.status)) EXECUTE FUNCTION public.release_event_order();
 
+
 --
 -- Name: payment_line_items event_tier_label; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER event_tier_label BEFORE INSERT OR UPDATE OF tier_id ON public.payment_line_items FOR EACH ROW EXECUTE FUNCTION public.snapshot_event_tier_label();
+
 
 --
 -- Name: user_product_access free_grant_fields; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17097,11 +18055,13 @@ CREATE TRIGGER event_tier_label BEFORE INSERT OR UPDATE OF tier_id ON public.pay
 
 CREATE TRIGGER free_grant_fields BEFORE INSERT OR UPDATE ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION public.copy_free_grant_fields();
 
+
 --
 -- Name: invoices invoice_holds_transfer; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER invoice_holds_transfer AFTER INSERT OR UPDATE OF status ON public.invoices FOR EACH ROW WHEN ((new.status = 'issued'::text)) EXECUTE FUNCTION public.invoice_holds_transfer();
+
 
 --
 -- Name: invoicing_config invoicing_auto_since; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17109,11 +18069,13 @@ CREATE TRIGGER invoice_holds_transfer AFTER INSERT OR UPDATE OF status ON public
 
 CREATE TRIGGER invoicing_auto_since BEFORE INSERT OR UPDATE ON public.invoicing_config FOR EACH ROW EXECUTE FUNCTION public.set_invoicing_auto_since();
 
+
 --
 -- Name: issued_licenses issued_licenses_stamp_original_seller_id; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER issued_licenses_stamp_original_seller_id BEFORE INSERT ON public.issued_licenses FOR EACH ROW EXECUTE FUNCTION public.stamp_original_seller_id();
+
 
 --
 -- Name: subscriptions keep_refunded_subscription_ended; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17121,11 +18083,13 @@ CREATE TRIGGER issued_licenses_stamp_original_seller_id BEFORE INSERT ON public.
 
 CREATE TRIGGER keep_refunded_subscription_ended BEFORE INSERT OR UPDATE ON public.subscriptions FOR EACH ROW EXECUTE FUNCTION public.keep_refunded_subscription_ended();
 
+
 --
 -- Name: admin_actions logs_monitoring_trigger; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER logs_monitoring_trigger AFTER INSERT ON public.admin_actions FOR EACH ROW EXECUTE FUNCTION public.logs_monitoring_trigger();
+
 
 --
 -- Name: guest_purchases normalize_purchase_contact; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17133,11 +18097,13 @@ CREATE TRIGGER logs_monitoring_trigger AFTER INSERT ON public.admin_actions FOR 
 
 CREATE TRIGGER normalize_purchase_contact BEFORE INSERT OR UPDATE OF customer_email ON public.guest_purchases FOR EACH ROW EXECUTE FUNCTION public.normalize_purchase_contact();
 
+
 --
 -- Name: issued_licenses normalize_purchase_contact; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER normalize_purchase_contact BEFORE INSERT OR UPDATE OF email ON public.issued_licenses FOR EACH ROW EXECUTE FUNCTION public.normalize_purchase_contact();
+
 
 --
 -- Name: payment_transactions normalize_purchase_contact; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17145,11 +18111,13 @@ CREATE TRIGGER normalize_purchase_contact BEFORE INSERT OR UPDATE OF email ON pu
 
 CREATE TRIGGER normalize_purchase_contact BEFORE INSERT OR UPDATE OF customer_email ON public.payment_transactions FOR EACH ROW EXECUTE FUNCTION public.normalize_purchase_contact();
 
+
 --
 -- Name: order_bumps order_bumps_whole_amounts; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER order_bumps_whole_amounts BEFORE INSERT OR UPDATE ON public.order_bumps FOR EACH ROW EXECUTE FUNCTION public.enforce_whole_amounts_order_bump();
+
 
 --
 -- Name: payment_transactions order_business_event; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17157,11 +18125,13 @@ CREATE TRIGGER order_bumps_whole_amounts BEFORE INSERT OR UPDATE ON public.order
 
 CREATE TRIGGER order_business_event AFTER UPDATE OF status ON public.payment_transactions FOR EACH ROW EXECUTE FUNCTION public.capture_business_event();
 
+
 --
 -- Name: payment_transactions participant_recordings_release; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER participant_recordings_release AFTER UPDATE OF status ON public.payment_transactions FOR EACH ROW EXECUTE FUNCTION public.release_participant_recordings();
+
 
 --
 -- Name: payment_method_config payment_method_config_protect_created_at; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17169,11 +18139,13 @@ CREATE TRIGGER participant_recordings_release AFTER UPDATE OF status ON public.p
 
 CREATE TRIGGER payment_method_config_protect_created_at BEFORE UPDATE ON public.payment_method_config FOR EACH ROW EXECUTE FUNCTION public.protect_payment_method_config_created_at();
 
+
 --
 -- Name: payment_method_config payment_method_config_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER payment_method_config_updated_at BEFORE UPDATE ON public.payment_method_config FOR EACH ROW EXECUTE FUNCTION public.update_payment_method_config_timestamp();
+
 
 --
 -- Name: affiliate_payouts payout_business_event; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17181,11 +18153,13 @@ CREATE TRIGGER payment_method_config_updated_at BEFORE UPDATE ON public.payment_
 
 CREATE CONSTRAINT TRIGGER payout_business_event AFTER INSERT OR UPDATE ON public.affiliate_payouts DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.capture_payout_event();
 
+
 --
 -- Name: products product_business_event; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER product_business_event AFTER INSERT OR DELETE OR UPDATE ON public.products FOR EACH ROW EXECUTE FUNCTION public.capture_product_event();
+
 
 --
 -- Name: products product_delete_lifecycle_event; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17193,11 +18167,13 @@ CREATE TRIGGER product_business_event AFTER INSERT OR DELETE OR UPDATE ON public
 
 CREATE TRIGGER product_delete_lifecycle_event BEFORE DELETE ON public.products FOR EACH ROW EXECUTE FUNCTION public.capture_product_lifecycle_event();
 
+
 --
 -- Name: products product_lifecycle_event; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER product_lifecycle_event AFTER INSERT OR UPDATE ON public.products FOR EACH ROW EXECUTE FUNCTION public.capture_product_lifecycle_event();
+
 
 --
 -- Name: products product_price_change_trigger; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17205,11 +18181,13 @@ CREATE TRIGGER product_lifecycle_event AFTER INSERT OR UPDATE ON public.products
 
 CREATE TRIGGER product_price_change_trigger AFTER INSERT OR UPDATE OF price, sale_price, currency, vat_rate ON public.products FOR EACH ROW EXECUTE FUNCTION public.log_product_price_change();
 
+
 --
 -- Name: product_sessions product_sessions_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER product_sessions_updated_at BEFORE UPDATE ON public.product_sessions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
 
 --
 -- Name: products product_webhook_revision; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17217,11 +18195,13 @@ CREATE TRIGGER product_sessions_updated_at BEFORE UPDATE ON public.product_sessi
 
 CREATE TRIGGER product_webhook_revision BEFORE INSERT OR UPDATE ON public.products FOR EACH ROW EXECUTE FUNCTION public.set_product_webhook_revision();
 
+
 --
 -- Name: products products_apply_shop_vat_defaults; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER products_apply_shop_vat_defaults BEFORE INSERT ON public.products FOR EACH ROW EXECUTE FUNCTION public.apply_shop_vat_defaults();
+
 
 --
 -- Name: products products_checkout_profile_audit; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17229,11 +18209,13 @@ CREATE TRIGGER products_apply_shop_vat_defaults BEFORE INSERT ON public.products
 
 CREATE TRIGGER products_checkout_profile_audit AFTER INSERT OR UPDATE OF checkout_profile ON public.products FOR EACH ROW EXECUTE FUNCTION public.audit_checkout_profile();
 
+
 --
 -- Name: products products_event_repeat; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER products_event_repeat BEFORE INSERT OR UPDATE OF event_mode ON public.products FOR EACH ROW EXECUTE FUNCTION public.enable_event_repeat_purchase();
+
 
 --
 -- Name: products products_whole_amounts; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17241,11 +18223,13 @@ CREATE TRIGGER products_event_repeat BEFORE INSERT OR UPDATE OF event_mode ON pu
 
 CREATE TRIGGER products_whole_amounts BEFORE INSERT OR UPDATE ON public.products FOR EACH ROW EXECUTE FUNCTION public.enforce_whole_amounts_product();
 
+
 --
 -- Name: purchase_attribution purchase_attribution_immutable; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER purchase_attribution_immutable BEFORE UPDATE ON public.purchase_attribution FOR EACH ROW EXECUTE FUNCTION public.purchase_attribution_immutable();
+
 
 --
 -- Name: issued_licenses purchase_product_name; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17253,11 +18237,13 @@ CREATE TRIGGER purchase_attribution_immutable BEFORE UPDATE ON public.purchase_a
 
 CREATE TRIGGER purchase_product_name BEFORE INSERT ON public.issued_licenses FOR EACH ROW EXECUTE FUNCTION public.snapshot_purchase_product_name();
 
+
 --
 -- Name: payment_transactions purchase_product_name; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER purchase_product_name BEFORE INSERT ON public.payment_transactions FOR EACH ROW EXECUTE FUNCTION public.snapshot_purchase_product_name();
+
 
 --
 -- Name: subscriptions purchase_product_name; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17265,11 +18251,13 @@ CREATE TRIGGER purchase_product_name BEFORE INSERT ON public.payment_transaction
 
 CREATE TRIGGER purchase_product_name BEFORE INSERT ON public.subscriptions FOR EACH ROW EXECUTE FUNCTION public.snapshot_purchase_product_name();
 
+
 --
 -- Name: refund_requests refund_request_business_event; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER refund_request_business_event AFTER INSERT OR UPDATE OF status ON public.refund_requests FOR EACH ROW EXECUTE FUNCTION public.capture_refund_request_event();
+
 
 --
 -- Name: user_product_access retain_disputed_access; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17277,11 +18265,13 @@ CREATE TRIGGER refund_request_business_event AFTER INSERT OR UPDATE OF status ON
 
 CREATE TRIGGER retain_disputed_access BEFORE INSERT OR UPDATE ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION public.retain_disputed_access();
 
+
 --
 -- Name: issued_licenses revoke_license_for_disputed_order; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER revoke_license_for_disputed_order BEFORE INSERT ON public.issued_licenses FOR EACH ROW EXECUTE FUNCTION public.revoke_license_for_disputed_order();
+
 
 --
 -- Name: payment_transactions revoke_terminal_order_licenses; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17289,11 +18279,13 @@ CREATE TRIGGER revoke_license_for_disputed_order BEFORE INSERT ON public.issued_
 
 CREATE TRIGGER revoke_terminal_order_licenses AFTER INSERT OR UPDATE OF status, refunded_amount ON public.payment_transactions FOR EACH ROW EXECUTE FUNCTION public.revoke_terminal_order_licenses();
 
+
 --
 -- Name: invoices sales_invoice_business_event; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER sales_invoice_business_event AFTER UPDATE OF status ON public.invoices FOR EACH ROW EXECUTE FUNCTION public.capture_sales_invoice_event();
+
 
 --
 -- Name: seat_reservations seats_business_event; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17301,11 +18293,13 @@ CREATE TRIGGER sales_invoice_business_event AFTER UPDATE OF status ON public.inv
 
 CREATE TRIGGER seats_business_event AFTER INSERT OR UPDATE ON public.seat_reservations FOR EACH ROW EXECUTE FUNCTION public.capture_business_event();
 
+
 --
 -- Name: seller_embed_settings seller_embed_settings_validate_origins; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER seller_embed_settings_validate_origins BEFORE INSERT OR UPDATE OF allowed_embed_origins ON public.seller_embed_settings FOR EACH ROW EXECUTE FUNCTION public.validate_seller_embed_origins();
+
 
 --
 -- Name: seller_license_keys seller_license_keys_stamp_original_seller_id; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17313,11 +18307,13 @@ CREATE TRIGGER seller_embed_settings_validate_origins BEFORE INSERT OR UPDATE OF
 
 CREATE TRIGGER seller_license_keys_stamp_original_seller_id BEFORE INSERT ON public.seller_license_keys FOR EACH ROW EXECUTE FUNCTION public.stamp_original_seller_id();
 
+
 --
 -- Name: user_product_access set_access_grant_source; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER set_access_grant_source BEFORE INSERT ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION public.set_access_grant_source();
+
 
 --
 -- Name: payment_transactions snapshot_purchase_attribution; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17325,11 +18321,13 @@ CREATE TRIGGER set_access_grant_source BEFORE INSERT ON public.user_product_acce
 
 CREATE TRIGGER snapshot_purchase_attribution AFTER UPDATE OF status ON public.payment_transactions FOR EACH ROW EXECUTE FUNCTION public.snapshot_purchase_attribution();
 
+
 --
 -- Name: payment_transactions snapshot_purchase_attribution_inserted; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER snapshot_purchase_attribution_inserted AFTER INSERT ON public.payment_transactions REFERENCING NEW TABLE AS new_rows FOR EACH STATEMENT EXECUTE FUNCTION public.snapshot_purchase_attribution_inserted();
+
 
 --
 -- Name: seat_reservations sold_out_business_event; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17337,11 +18335,13 @@ CREATE TRIGGER snapshot_purchase_attribution_inserted AFTER INSERT ON public.pay
 
 CREATE TRIGGER sold_out_business_event AFTER INSERT OR UPDATE OF status ON public.seat_reservations FOR EACH ROW EXECUTE FUNCTION public.capture_sold_out_event();
 
+
 --
 -- Name: user_product_access transfer_access_source; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER transfer_access_source BEFORE INSERT OR UPDATE ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION public.transfer_access_source();
+
 
 --
 -- Name: coupons trigger_update_coupons_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17349,11 +18349,13 @@ CREATE TRIGGER transfer_access_source BEFORE INSERT OR UPDATE ON public.user_pro
 
 CREATE TRIGGER trigger_update_coupons_updated_at BEFORE UPDATE ON public.coupons FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+
 --
 -- Name: custom_scripts trigger_update_custom_scripts_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER trigger_update_custom_scripts_updated_at BEFORE UPDATE ON public.custom_scripts FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
 
 --
 -- Name: integrations_config trigger_update_integrations_config_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17361,11 +18363,13 @@ CREATE TRIGGER trigger_update_custom_scripts_updated_at BEFORE UPDATE ON public.
 
 CREATE TRIGGER trigger_update_integrations_config_updated_at BEFORE UPDATE ON public.integrations_config FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+
 --
 -- Name: order_bumps trigger_update_order_bumps_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER trigger_update_order_bumps_updated_at BEFORE UPDATE ON public.order_bumps FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
 
 --
 -- Name: oto_offers trigger_update_oto_offers_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17373,11 +18377,13 @@ CREATE TRIGGER trigger_update_order_bumps_updated_at BEFORE UPDATE ON public.ord
 
 CREATE TRIGGER trigger_update_oto_offers_updated_at BEFORE UPDATE ON public.oto_offers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+
 --
 -- Name: profiles trigger_update_profiles_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER trigger_update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
 
 --
 -- Name: refund_requests trigger_update_refund_request_timestamp; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17385,11 +18391,13 @@ CREATE TRIGGER trigger_update_profiles_updated_at BEFORE UPDATE ON public.profil
 
 CREATE TRIGGER trigger_update_refund_request_timestamp BEFORE UPDATE ON public.refund_requests FOR EACH ROW EXECUTE FUNCTION public.update_refund_request_timestamp();
 
+
 --
 -- Name: payment_transactions trigger_update_refunded_at; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER trigger_update_refunded_at BEFORE UPDATE ON public.payment_transactions FOR EACH ROW EXECUTE FUNCTION public.update_refunded_at();
+
 
 --
 -- Name: revenue_goals trigger_update_revenue_goals_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17397,11 +18405,13 @@ CREATE TRIGGER trigger_update_refunded_at BEFORE UPDATE ON public.payment_transa
 
 CREATE TRIGGER trigger_update_revenue_goals_updated_at BEFORE UPDATE ON public.revenue_goals FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+
 --
 -- Name: shop_config trigger_update_shop_config_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER trigger_update_shop_config_updated_at BEFORE UPDATE ON public.shop_config FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
 
 --
 -- Name: stripe_configurations trigger_update_stripe_configurations_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17409,11 +18419,13 @@ CREATE TRIGGER trigger_update_shop_config_updated_at BEFORE UPDATE ON public.sho
 
 CREATE TRIGGER trigger_update_stripe_configurations_updated_at BEFORE UPDATE ON public.stripe_configurations FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+
 --
 -- Name: video_progress trigger_update_video_progress_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER trigger_update_video_progress_updated_at BEFORE UPDATE ON public.video_progress FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
 
 --
 -- Name: webhook_endpoints trigger_update_webhook_endpoints_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17421,11 +18433,13 @@ CREATE TRIGGER trigger_update_video_progress_updated_at BEFORE UPDATE ON public.
 
 CREATE TRIGGER trigger_update_webhook_endpoints_updated_at BEFORE UPDATE ON public.webhook_endpoints FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+
 --
 -- Name: categories update_categories_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER update_categories_updated_at BEFORE UPDATE ON public.categories FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
 
 --
 -- Name: products update_products_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17433,11 +18447,13 @@ CREATE TRIGGER update_categories_updated_at BEFORE UPDATE ON public.categories F
 
 CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON public.products FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+
 --
 -- Name: variant_groups update_variant_groups_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER update_variant_groups_updated_at BEFORE UPDATE ON public.variant_groups FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
 
 --
 -- Name: bundle_items validate_bundle_item_trigger; Type: TRIGGER; Schema: public; Owner: postgres
@@ -17445,17 +18461,20 @@ CREATE TRIGGER update_variant_groups_updated_at BEFORE UPDATE ON public.variant_
 
 CREATE TRIGGER validate_bundle_item_trigger BEFORE INSERT OR UPDATE ON public.bundle_items FOR EACH ROW EXECUTE FUNCTION public.validate_bundle_item();
 
+
 --
 -- Name: products validate_lead_consent_version; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER validate_lead_consent_version BEFORE UPDATE OF lead_consent_version, lead_consent_text_pl, lead_consent_text_en ON public.products FOR EACH ROW EXECUTE FUNCTION public.validate_lead_consent_version();
 
+
 --
 -- Name: user_product_access zz_keep_refunded_subscription_access_ended; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER zz_keep_refunded_subscription_access_ended BEFORE INSERT OR UPDATE ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION public.keep_refunded_subscription_access_ended();
+
 
 --
 -- Name: admin_actions admin_actions_admin_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17464,12 +18483,14 @@ CREATE TRIGGER zz_keep_refunded_subscription_access_ended BEFORE INSERT OR UPDAT
 ALTER TABLE ONLY public.admin_actions
     ADD CONSTRAINT admin_actions_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES auth.users(id) ON DELETE SET NULL;
 
+
 --
 -- Name: admin_users admin_users_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.admin_users
     ADD CONSTRAINT admin_users_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
 
 --
 -- Name: affiliate_commissions affiliate_commissions_binding_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17478,12 +18499,14 @@ ALTER TABLE ONLY public.admin_users
 ALTER TABLE ONLY public.affiliate_commissions
     ADD CONSTRAINT affiliate_commissions_binding_id_fkey FOREIGN KEY (binding_id) REFERENCES public.affiliate_coupon_bindings(id);
 
+
 --
 -- Name: affiliate_commissions affiliate_commissions_line_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_commissions
     ADD CONSTRAINT affiliate_commissions_line_item_id_fkey FOREIGN KEY (line_item_id) REFERENCES public.payment_line_items(id) ON DELETE RESTRICT;
+
 
 --
 -- Name: affiliate_commissions affiliate_commissions_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17492,12 +18515,14 @@ ALTER TABLE ONLY public.affiliate_commissions
 ALTER TABLE ONLY public.affiliate_commissions
     ADD CONSTRAINT affiliate_commissions_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.affiliate_memberships(id);
 
+
 --
 -- Name: affiliate_commissions affiliate_commissions_payment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_commissions
     ADD CONSTRAINT affiliate_commissions_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payment_transactions(id) ON DELETE RESTRICT;
+
 
 --
 -- Name: affiliate_commissions affiliate_commissions_rule_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17506,12 +18531,14 @@ ALTER TABLE ONLY public.affiliate_commissions
 ALTER TABLE ONLY public.affiliate_commissions
     ADD CONSTRAINT affiliate_commissions_rule_id_fkey FOREIGN KEY (rule_id) REFERENCES public.affiliate_rules(id);
 
+
 --
 -- Name: affiliate_coupon_bindings affiliate_coupon_bindings_coupon_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_coupon_bindings
     ADD CONSTRAINT affiliate_coupon_bindings_coupon_id_fkey FOREIGN KEY (coupon_id) REFERENCES public.coupons(id) ON DELETE RESTRICT;
+
 
 --
 -- Name: affiliate_coupon_bindings affiliate_coupon_bindings_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17520,12 +18547,14 @@ ALTER TABLE ONLY public.affiliate_coupon_bindings
 ALTER TABLE ONLY public.affiliate_coupon_bindings
     ADD CONSTRAINT affiliate_coupon_bindings_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.affiliate_memberships(id);
 
+
 --
 -- Name: affiliate_ledger affiliate_ledger_commission_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_ledger
     ADD CONSTRAINT affiliate_ledger_commission_id_fkey FOREIGN KEY (commission_id) REFERENCES public.affiliate_commissions(id);
+
 
 --
 -- Name: affiliate_ledger affiliate_ledger_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17534,12 +18563,14 @@ ALTER TABLE ONLY public.affiliate_ledger
 ALTER TABLE ONLY public.affiliate_ledger
     ADD CONSTRAINT affiliate_ledger_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.affiliate_memberships(id);
 
+
 --
 -- Name: affiliate_ledger affiliate_ledger_payout_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_ledger
     ADD CONSTRAINT affiliate_ledger_payout_id_fkey FOREIGN KEY (payout_id) REFERENCES public.affiliate_payouts(id);
+
 
 --
 -- Name: affiliate_membership_events affiliate_membership_events_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17548,12 +18579,14 @@ ALTER TABLE ONLY public.affiliate_ledger
 ALTER TABLE ONLY public.affiliate_membership_events
     ADD CONSTRAINT affiliate_membership_events_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.affiliate_memberships(id);
 
+
 --
 -- Name: affiliate_memberships affiliate_memberships_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_memberships
     ADD CONSTRAINT affiliate_memberships_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+
 
 --
 -- Name: affiliate_payout_allocations affiliate_payout_allocations_entry_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17562,12 +18595,14 @@ ALTER TABLE ONLY public.affiliate_memberships
 ALTER TABLE ONLY public.affiliate_payout_allocations
     ADD CONSTRAINT affiliate_payout_allocations_entry_id_fkey FOREIGN KEY (entry_id) REFERENCES public.affiliate_ledger(id);
 
+
 --
 -- Name: affiliate_payout_allocations affiliate_payout_allocations_payout_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_payout_allocations
     ADD CONSTRAINT affiliate_payout_allocations_payout_id_fkey FOREIGN KEY (payout_id) REFERENCES public.affiliate_payouts(id);
+
 
 --
 -- Name: affiliate_payouts affiliate_payouts_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17576,12 +18611,14 @@ ALTER TABLE ONLY public.affiliate_payout_allocations
 ALTER TABLE ONLY public.affiliate_payouts
     ADD CONSTRAINT affiliate_payouts_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.affiliate_memberships(id);
 
+
 --
 -- Name: affiliate_program_versions affiliate_program_versions_program_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_program_versions
     ADD CONSTRAINT affiliate_program_versions_program_id_fkey FOREIGN KEY (program_id) REFERENCES public.affiliate_programs(id);
+
 
 --
 -- Name: affiliate_rules affiliate_rules_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17590,12 +18627,14 @@ ALTER TABLE ONLY public.affiliate_program_versions
 ALTER TABLE ONLY public.affiliate_rules
     ADD CONSTRAINT affiliate_rules_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
 
+
 --
 -- Name: affiliate_work affiliate_work_payment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_work
     ADD CONSTRAINT affiliate_work_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payment_transactions(id) ON DELETE CASCADE;
+
 
 --
 -- Name: api_key_audit_log api_key_audit_log_api_key_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17604,12 +18643,14 @@ ALTER TABLE ONLY public.affiliate_work
 ALTER TABLE ONLY public.api_key_audit_log
     ADD CONSTRAINT api_key_audit_log_api_key_id_fkey FOREIGN KEY (api_key_id) REFERENCES public.api_keys(id) ON DELETE SET NULL;
 
+
 --
 -- Name: api_keys api_keys_admin_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.api_keys
     ADD CONSTRAINT api_keys_admin_user_id_fkey FOREIGN KEY (admin_user_id) REFERENCES public.admin_users(id) ON DELETE CASCADE;
+
 
 --
 -- Name: api_keys api_keys_rotated_from_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17618,12 +18659,14 @@ ALTER TABLE ONLY public.api_keys
 ALTER TABLE ONLY public.api_keys
     ADD CONSTRAINT api_keys_rotated_from_id_fkey FOREIGN KEY (rotated_from_id) REFERENCES public.api_keys(id) ON DELETE SET NULL;
 
+
 --
 -- Name: audit_log audit_log_performed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.audit_log
     ADD CONSTRAINT audit_log_performed_by_fkey FOREIGN KEY (performed_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+
 
 --
 -- Name: audit_log audit_log_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17632,12 +18675,14 @@ ALTER TABLE ONLY public.audit_log
 ALTER TABLE ONLY public.audit_log
     ADD CONSTRAINT audit_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
 
+
 --
 -- Name: auth_mail_retries auth_mail_retries_license_mail_key_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.auth_mail_retries
     ADD CONSTRAINT auth_mail_retries_license_mail_key_fkey FOREIGN KEY (license_mail_key) REFERENCES public.license_mail_receipts(mail_key);
+
 
 --
 -- Name: bundle_items bundle_items_bundle_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17646,12 +18691,14 @@ ALTER TABLE ONLY public.auth_mail_retries
 ALTER TABLE ONLY public.bundle_items
     ADD CONSTRAINT bundle_items_bundle_product_id_fkey FOREIGN KEY (bundle_product_id) REFERENCES public.products(id) ON DELETE CASCADE;
 
+
 --
 -- Name: bundle_items bundle_items_component_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.bundle_items
     ADD CONSTRAINT bundle_items_component_product_id_fkey FOREIGN KEY (component_product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+
 
 --
 -- Name: categories categories_parent_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17660,12 +18707,14 @@ ALTER TABLE ONLY public.bundle_items
 ALTER TABLE ONLY public.categories
     ADD CONSTRAINT categories_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.categories(id) ON DELETE SET NULL;
 
+
 --
 -- Name: coupon_redemptions coupon_redemptions_coupon_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.coupon_redemptions
     ADD CONSTRAINT coupon_redemptions_coupon_id_fkey FOREIGN KEY (coupon_id) REFERENCES public.coupons(id) ON DELETE RESTRICT;
+
 
 --
 -- Name: coupon_redemptions coupon_redemptions_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17674,12 +18723,14 @@ ALTER TABLE ONLY public.coupon_redemptions
 ALTER TABLE ONLY public.coupon_redemptions
     ADD CONSTRAINT coupon_redemptions_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.payment_transactions(id) ON DELETE CASCADE;
 
+
 --
 -- Name: coupon_redemptions coupon_redemptions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.coupon_redemptions
     ADD CONSTRAINT coupon_redemptions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+
 
 --
 -- Name: coupon_reservations coupon_reservations_coupon_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17688,12 +18739,14 @@ ALTER TABLE ONLY public.coupon_redemptions
 ALTER TABLE ONLY public.coupon_reservations
     ADD CONSTRAINT coupon_reservations_coupon_id_fkey FOREIGN KEY (coupon_id) REFERENCES public.coupons(id) ON DELETE CASCADE;
 
+
 --
 -- Name: coupons coupons_oto_offer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.coupons
     ADD CONSTRAINT coupons_oto_offer_id_fkey FOREIGN KEY (oto_offer_id) REFERENCES public.oto_offers(id) ON DELETE SET NULL;
+
 
 --
 -- Name: coupons coupons_source_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17702,12 +18755,14 @@ ALTER TABLE ONLY public.coupons
 ALTER TABLE ONLY public.coupons
     ADD CONSTRAINT coupons_source_transaction_id_fkey FOREIGN KEY (source_transaction_id) REFERENCES public.payment_transactions(id) ON DELETE SET NULL;
 
+
 --
 -- Name: embed_checkout_log embed_checkout_log_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.embed_checkout_log
     ADD CONSTRAINT embed_checkout_log_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE SET NULL;
+
 
 --
 -- Name: free_grant_contexts free_grant_contexts_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17716,12 +18771,14 @@ ALTER TABLE ONLY public.embed_checkout_log
 ALTER TABLE ONLY public.free_grant_contexts
     ADD CONSTRAINT free_grant_contexts_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
 
+
 --
 -- Name: guest_purchases guest_purchases_claimed_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.guest_purchases
     ADD CONSTRAINT guest_purchases_claimed_by_user_id_fkey FOREIGN KEY (claimed_by_user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+
 
 --
 -- Name: guest_purchases guest_purchases_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17730,12 +18787,14 @@ ALTER TABLE ONLY public.guest_purchases
 ALTER TABLE ONLY public.guest_purchases
     ADD CONSTRAINT guest_purchases_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
 
+
 --
 -- Name: guest_purchases guest_purchases_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.guest_purchases
     ADD CONSTRAINT guest_purchases_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.payment_transactions(id) ON DELETE CASCADE;
+
 
 --
 -- Name: invoices invoices_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17744,12 +18803,14 @@ ALTER TABLE ONLY public.guest_purchases
 ALTER TABLE ONLY public.invoices
     ADD CONSTRAINT invoices_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.payment_transactions(id) ON DELETE RESTRICT;
 
+
 --
 -- Name: issued_licenses issued_licenses_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.issued_licenses
     ADD CONSTRAINT issued_licenses_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE SET NULL;
+
 
 --
 -- Name: issued_licenses issued_licenses_revoked_by_dispute_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17758,12 +18819,14 @@ ALTER TABLE ONLY public.issued_licenses
 ALTER TABLE ONLY public.issued_licenses
     ADD CONSTRAINT issued_licenses_revoked_by_dispute_id_fkey FOREIGN KEY (revoked_by_dispute_id) REFERENCES public.payment_disputes(stripe_dispute_id) ON DELETE SET NULL;
 
+
 --
 -- Name: issued_licenses issued_licenses_seller_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.issued_licenses
     ADD CONSTRAINT issued_licenses_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+
 
 --
 -- Name: issued_licenses issued_licenses_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17772,12 +18835,14 @@ ALTER TABLE ONLY public.issued_licenses
 ALTER TABLE ONLY public.issued_licenses
     ADD CONSTRAINT issued_licenses_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
 
+
 --
 -- Name: lead_nonces lead_nonces_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.lead_nonces
     ADD CONSTRAINT lead_nonces_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+
 
 --
 -- Name: lead_submissions lead_submissions_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17786,12 +18851,14 @@ ALTER TABLE ONLY public.lead_nonces
 ALTER TABLE ONLY public.lead_submissions
     ADD CONSTRAINT lead_submissions_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE SET NULL;
 
+
 --
 -- Name: order_bumps order_bumps_bump_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.order_bumps
     ADD CONSTRAINT order_bumps_bump_product_id_fkey FOREIGN KEY (bump_product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+
 
 --
 -- Name: order_bumps order_bumps_main_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17800,12 +18867,14 @@ ALTER TABLE ONLY public.order_bumps
 ALTER TABLE ONLY public.order_bumps
     ADD CONSTRAINT order_bumps_main_product_id_fkey FOREIGN KEY (main_product_id) REFERENCES public.products(id) ON DELETE CASCADE;
 
+
 --
 -- Name: order_payment_attempts order_payment_attempts_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.order_payment_attempts
     ADD CONSTRAINT order_payment_attempts_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.payment_transactions(id) ON DELETE CASCADE;
+
 
 --
 -- Name: oto_offers oto_offers_downsell_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17814,12 +18883,14 @@ ALTER TABLE ONLY public.order_payment_attempts
 ALTER TABLE ONLY public.oto_offers
     ADD CONSTRAINT oto_offers_downsell_product_id_fkey FOREIGN KEY (downsell_product_id) REFERENCES public.products(id) ON DELETE SET NULL;
 
+
 --
 -- Name: oto_offers oto_offers_oto_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.oto_offers
     ADD CONSTRAINT oto_offers_oto_product_id_fkey FOREIGN KEY (oto_product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+
 
 --
 -- Name: oto_offers oto_offers_source_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17828,12 +18899,14 @@ ALTER TABLE ONLY public.oto_offers
 ALTER TABLE ONLY public.oto_offers
     ADD CONSTRAINT oto_offers_source_product_id_fkey FOREIGN KEY (source_product_id) REFERENCES public.products(id) ON DELETE CASCADE;
 
+
 --
 -- Name: payment_disputes payment_disputes_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payment_disputes
     ADD CONSTRAINT payment_disputes_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.payment_transactions(id) ON DELETE CASCADE;
+
 
 --
 -- Name: payment_line_items payment_line_items_order_bump_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17842,12 +18915,14 @@ ALTER TABLE ONLY public.payment_disputes
 ALTER TABLE ONLY public.payment_line_items
     ADD CONSTRAINT payment_line_items_order_bump_id_fkey FOREIGN KEY (order_bump_id) REFERENCES public.order_bumps(id) ON DELETE SET NULL;
 
+
 --
 -- Name: payment_line_items payment_line_items_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payment_line_items
     ADD CONSTRAINT payment_line_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE SET NULL;
+
 
 --
 -- Name: payment_line_items payment_line_items_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17856,12 +18931,14 @@ ALTER TABLE ONLY public.payment_line_items
 ALTER TABLE ONLY public.payment_line_items
     ADD CONSTRAINT payment_line_items_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.payment_transactions(id) ON DELETE CASCADE;
 
+
 --
 -- Name: payment_method_config payment_method_config_last_modified_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payment_method_config
     ADD CONSTRAINT payment_method_config_last_modified_by_fkey FOREIGN KEY (last_modified_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+
 
 --
 -- Name: payment_refund_events payment_refund_events_stripe_refund_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17870,12 +18947,14 @@ ALTER TABLE ONLY public.payment_method_config
 ALTER TABLE ONLY public.payment_refund_events
     ADD CONSTRAINT payment_refund_events_stripe_refund_id_fkey FOREIGN KEY (stripe_refund_id) REFERENCES public.payment_refunds(stripe_refund_id) ON DELETE CASCADE;
 
+
 --
 -- Name: payment_refunds payment_refunds_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payment_refunds
     ADD CONSTRAINT payment_refunds_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.payment_transactions(id) ON DELETE CASCADE;
+
 
 --
 -- Name: payment_transactions payment_transactions_coupon_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17884,12 +18963,14 @@ ALTER TABLE ONLY public.payment_refunds
 ALTER TABLE ONLY public.payment_transactions
     ADD CONSTRAINT payment_transactions_coupon_id_fkey FOREIGN KEY (coupon_id) REFERENCES public.coupons(id) ON DELETE RESTRICT;
 
+
 --
 -- Name: payment_transactions payment_transactions_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payment_transactions
     ADD CONSTRAINT payment_transactions_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE SET NULL;
+
 
 --
 -- Name: payment_transactions payment_transactions_refunded_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17898,12 +18979,14 @@ ALTER TABLE ONLY public.payment_transactions
 ALTER TABLE ONLY public.payment_transactions
     ADD CONSTRAINT payment_transactions_refunded_by_fkey FOREIGN KEY (refunded_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 
+
 --
 -- Name: payment_transactions payment_transactions_subscription_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payment_transactions
     ADD CONSTRAINT payment_transactions_subscription_id_fkey FOREIGN KEY (subscription_id) REFERENCES public.subscriptions(id) ON DELETE SET NULL;
+
 
 --
 -- Name: payment_transactions payment_transactions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17912,12 +18995,14 @@ ALTER TABLE ONLY public.payment_transactions
 ALTER TABLE ONLY public.payment_transactions
     ADD CONSTRAINT payment_transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
 
+
 --
 -- Name: product_categories product_categories_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_categories
     ADD CONSTRAINT product_categories_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id) ON DELETE CASCADE;
+
 
 --
 -- Name: product_categories product_categories_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17926,12 +19011,14 @@ ALTER TABLE ONLY public.product_categories
 ALTER TABLE ONLY public.product_categories
     ADD CONSTRAINT product_categories_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
 
+
 --
 -- Name: product_offer_config product_offer_config_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_offer_config
     ADD CONSTRAINT product_offer_config_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+
 
 --
 -- Name: product_offer_config product_offer_config_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17940,12 +19027,14 @@ ALTER TABLE ONLY public.product_offer_config
 ALTER TABLE ONLY public.product_offer_config
     ADD CONSTRAINT product_offer_config_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 
+
 --
 -- Name: product_offer_history product_offer_history_actor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_offer_history
     ADD CONSTRAINT product_offer_history_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+
 
 --
 -- Name: product_offer_history product_offer_history_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17954,12 +19043,14 @@ ALTER TABLE ONLY public.product_offer_history
 ALTER TABLE ONLY public.product_offer_history
     ADD CONSTRAINT product_offer_history_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
 
+
 --
 -- Name: product_offer_history product_offer_history_product_id_restored_from_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_offer_history
     ADD CONSTRAINT product_offer_history_product_id_restored_from_fkey FOREIGN KEY (product_id, restored_from) REFERENCES public.product_offer_history(product_id, revision);
+
 
 --
 -- Name: product_price_history product_price_history_changed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17968,12 +19059,14 @@ ALTER TABLE ONLY public.product_offer_history
 ALTER TABLE ONLY public.product_price_history
     ADD CONSTRAINT product_price_history_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 
+
 --
 -- Name: product_price_history product_price_history_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_price_history
     ADD CONSTRAINT product_price_history_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+
 
 --
 -- Name: product_price_tiers product_price_tiers_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17982,12 +19075,14 @@ ALTER TABLE ONLY public.product_price_history
 ALTER TABLE ONLY public.product_price_tiers
     ADD CONSTRAINT product_price_tiers_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.product_sessions(id) ON DELETE CASCADE;
 
+
 --
 -- Name: product_sessions product_sessions_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_sessions
     ADD CONSTRAINT product_sessions_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+
 
 --
 -- Name: product_tags product_tags_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -17996,12 +19091,14 @@ ALTER TABLE ONLY public.product_sessions
 ALTER TABLE ONLY public.product_tags
     ADD CONSTRAINT product_tags_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
 
+
 --
 -- Name: product_tags product_tags_tag_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_tags
     ADD CONSTRAINT product_tags_tag_id_fkey FOREIGN KEY (tag_id) REFERENCES public.tags(id) ON DELETE CASCADE;
+
 
 --
 -- Name: product_variant_groups product_variant_groups_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18010,12 +19107,14 @@ ALTER TABLE ONLY public.product_tags
 ALTER TABLE ONLY public.product_variant_groups
     ADD CONSTRAINT product_variant_groups_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.variant_groups(id) ON DELETE CASCADE;
 
+
 --
 -- Name: product_variant_groups product_variant_groups_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_variant_groups
     ADD CONSTRAINT product_variant_groups_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+
 
 --
 -- Name: products products_seller_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18024,12 +19123,14 @@ ALTER TABLE ONLY public.product_variant_groups
 ALTER TABLE ONLY public.products
     ADD CONSTRAINT products_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES auth.users(id) ON DELETE SET NULL;
 
+
 --
 -- Name: profiles profiles_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.profiles
     ADD CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
 
 --
 -- Name: purchase_attribution purchase_attribution_affiliate_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18038,12 +19139,14 @@ ALTER TABLE ONLY public.profiles
 ALTER TABLE ONLY public.purchase_attribution
     ADD CONSTRAINT purchase_attribution_affiliate_member_id_fkey FOREIGN KEY (affiliate_member_id) REFERENCES public.affiliate_memberships(id) ON DELETE SET NULL;
 
+
 --
 -- Name: purchase_attribution purchase_attribution_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.purchase_attribution
     ADD CONSTRAINT purchase_attribution_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE SET NULL;
+
 
 --
 -- Name: purchase_attribution purchase_attribution_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18052,12 +19155,14 @@ ALTER TABLE ONLY public.purchase_attribution
 ALTER TABLE ONLY public.purchase_attribution
     ADD CONSTRAINT purchase_attribution_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.payment_transactions(id) ON DELETE CASCADE;
 
+
 --
 -- Name: purchase_attribution purchase_attribution_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.purchase_attribution
     ADD CONSTRAINT purchase_attribution_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+
 
 --
 -- Name: refund_requests refund_requests_admin_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18066,12 +19171,14 @@ ALTER TABLE ONLY public.purchase_attribution
 ALTER TABLE ONLY public.refund_requests
     ADD CONSTRAINT refund_requests_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES auth.users(id) ON DELETE SET NULL;
 
+
 --
 -- Name: refund_requests refund_requests_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.refund_requests
     ADD CONSTRAINT refund_requests_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE SET NULL;
+
 
 --
 -- Name: refund_requests refund_requests_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18080,12 +19187,14 @@ ALTER TABLE ONLY public.refund_requests
 ALTER TABLE ONLY public.refund_requests
     ADD CONSTRAINT refund_requests_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.payment_transactions(id) ON DELETE CASCADE;
 
+
 --
 -- Name: refund_requests refund_requests_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.refund_requests
     ADD CONSTRAINT refund_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+
 
 --
 -- Name: revenue_goals revenue_goals_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18094,12 +19203,14 @@ ALTER TABLE ONLY public.refund_requests
 ALTER TABLE ONLY public.revenue_goals
     ADD CONSTRAINT revenue_goals_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
 
+
 --
 -- Name: seat_reservations seat_reservations_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.seat_reservations
     ADD CONSTRAINT seat_reservations_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.product_sessions(id);
+
 
 --
 -- Name: seat_reservations seat_reservations_tier_id_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18108,12 +19219,14 @@ ALTER TABLE ONLY public.seat_reservations
 ALTER TABLE ONLY public.seat_reservations
     ADD CONSTRAINT seat_reservations_tier_id_session_id_fkey FOREIGN KEY (tier_id, session_id) REFERENCES public.product_price_tiers(id, session_id);
 
+
 --
 -- Name: seat_reservations seat_reservations_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.seat_reservations
     ADD CONSTRAINT seat_reservations_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.payment_transactions(id) ON DELETE CASCADE;
+
 
 --
 -- Name: seller_embed_settings seller_embed_settings_seller_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18122,12 +19235,14 @@ ALTER TABLE ONLY public.seat_reservations
 ALTER TABLE ONLY public.seller_embed_settings
     ADD CONSTRAINT seller_embed_settings_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 
+
 --
 -- Name: seller_license_keys seller_license_keys_seller_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.seller_license_keys
     ADD CONSTRAINT seller_license_keys_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+
 
 --
 -- Name: storefront_config_history storefront_config_history_actor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18136,12 +19251,14 @@ ALTER TABLE ONLY public.seller_license_keys
 ALTER TABLE ONLY public.storefront_config_history
     ADD CONSTRAINT storefront_config_history_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL;
 
+
 --
 -- Name: storefront_config_history storefront_config_history_restored_from_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.storefront_config_history
     ADD CONSTRAINT storefront_config_history_restored_from_fkey FOREIGN KEY (restored_from) REFERENCES public.storefront_config_history(revision);
+
 
 --
 -- Name: storefront_config storefront_config_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18150,12 +19267,14 @@ ALTER TABLE ONLY public.storefront_config_history
 ALTER TABLE ONLY public.storefront_config
     ADD CONSTRAINT storefront_config_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 
+
 --
 -- Name: stripe_customers stripe_customers_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.stripe_customers
     ADD CONSTRAINT stripe_customers_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
 
 --
 -- Name: subscriptions subscriptions_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18164,12 +19283,14 @@ ALTER TABLE ONLY public.stripe_customers
 ALTER TABLE ONLY public.subscriptions
     ADD CONSTRAINT subscriptions_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE SET NULL;
 
+
 --
 -- Name: subscriptions subscriptions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.subscriptions
     ADD CONSTRAINT subscriptions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+
 
 --
 -- Name: tutorial_progress tutorial_progress_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18178,12 +19299,14 @@ ALTER TABLE ONLY public.subscriptions
 ALTER TABLE ONLY public.tutorial_progress
     ADD CONSTRAINT tutorial_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 
+
 --
 -- Name: user_product_access user_product_access_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.user_product_access
     ADD CONSTRAINT user_product_access_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+
 
 --
 -- Name: user_product_access user_product_access_subscription_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18192,12 +19315,14 @@ ALTER TABLE ONLY public.user_product_access
 ALTER TABLE ONLY public.user_product_access
     ADD CONSTRAINT user_product_access_subscription_id_fkey FOREIGN KEY (subscription_id) REFERENCES public.subscriptions(id) ON DELETE SET NULL;
 
+
 --
 -- Name: user_product_access user_product_access_transfer_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.user_product_access
     ADD CONSTRAINT user_product_access_transfer_transaction_id_fkey FOREIGN KEY (transfer_transaction_id) REFERENCES public.payment_transactions(id) ON DELETE SET NULL;
+
 
 --
 -- Name: user_product_access user_product_access_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18206,12 +19331,14 @@ ALTER TABLE ONLY public.user_product_access
 ALTER TABLE ONLY public.user_product_access
     ADD CONSTRAINT user_product_access_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 
+
 --
 -- Name: video_events video_events_progress_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.video_events
     ADD CONSTRAINT video_events_progress_id_fkey FOREIGN KEY (progress_id) REFERENCES public.video_progress(id) ON DELETE CASCADE;
+
 
 --
 -- Name: video_progress video_progress_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18220,12 +19347,14 @@ ALTER TABLE ONLY public.video_events
 ALTER TABLE ONLY public.video_progress
     ADD CONSTRAINT video_progress_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
 
+
 --
 -- Name: video_progress video_progress_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.video_progress
     ADD CONSTRAINT video_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
 
 --
 -- Name: webhook_endpoint_products webhook_endpoint_products_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18234,12 +19363,14 @@ ALTER TABLE ONLY public.video_progress
 ALTER TABLE ONLY public.webhook_endpoint_products
     ADD CONSTRAINT webhook_endpoint_products_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
 
+
 --
 -- Name: webhook_endpoint_products webhook_endpoint_products_webhook_endpoint_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.webhook_endpoint_products
     ADD CONSTRAINT webhook_endpoint_products_webhook_endpoint_id_fkey FOREIGN KEY (webhook_endpoint_id) REFERENCES public.webhook_endpoints(id) ON DELETE CASCADE;
+
 
 --
 -- Name: webhook_logs webhook_logs_endpoint_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
@@ -18248,11 +19379,13 @@ ALTER TABLE ONLY public.webhook_endpoint_products
 ALTER TABLE ONLY public.webhook_logs
     ADD CONSTRAINT webhook_logs_endpoint_id_fkey FOREIGN KEY (endpoint_id) REFERENCES public.webhook_endpoints(id) ON DELETE CASCADE;
 
+
 --
 -- Name: payment_line_items Admin can view all line items; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admin can view all line items" ON public.payment_line_items FOR SELECT USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: profiles Admin delete profiles; Type: POLICY; Schema: public; Owner: postgres
@@ -18260,11 +19393,13 @@ CREATE POLICY "Admin can view all line items" ON public.payment_line_items FOR S
 
 CREATE POLICY "Admin delete profiles" ON public.profiles FOR DELETE TO service_role USING (true);
 
+
 --
 -- Name: invoices Admin invoice read; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admin invoice read" ON public.invoices FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: attribution_channel_rules Admin manage; Type: POLICY; Schema: public; Owner: postgres
@@ -18272,11 +19407,13 @@ CREATE POLICY "Admin invoice read" ON public.invoices FOR SELECT TO authenticate
 
 CREATE POLICY "Admin manage" ON public.attribution_channel_rules TO authenticated USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: attribution_settings Admin read; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admin read" ON public.attribution_settings FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: order_payment_attempts Admin read; Type: POLICY; Schema: public; Owner: postgres
@@ -18284,17 +19421,20 @@ CREATE POLICY "Admin read" ON public.attribution_settings FOR SELECT TO authenti
 
 CREATE POLICY "Admin read" ON public.order_payment_attempts FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: purchase_attribution Admin read; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admin read" ON public.purchase_attribution FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: attribution_settings Admin update; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admin update" ON public.attribution_settings FOR UPDATE TO authenticated USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: api_keys Admin users can delete their own API keys; Type: POLICY; Schema: public; Owner: postgres
@@ -18304,6 +19444,7 @@ CREATE POLICY "Admin users can delete their own API keys" ON public.api_keys FOR
    FROM public.admin_users
   WHERE (admin_users.user_id = auth.uid()))));
 
+
 --
 -- Name: api_keys Admin users can insert their own API keys; Type: POLICY; Schema: public; Owner: postgres
 --
@@ -18312,11 +19453,13 @@ CREATE POLICY "Admin users can insert their own API keys" ON public.api_keys FOR
    FROM public.admin_users
   WHERE (admin_users.user_id = auth.uid()))));
 
+
 --
 -- Name: payment_method_config Admin users can update payment method config; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admin users can update payment method config" ON public.payment_method_config FOR UPDATE TO authenticated USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: api_keys Admin users can update their own API keys; Type: POLICY; Schema: public; Owner: postgres
@@ -18325,6 +19468,7 @@ CREATE POLICY "Admin users can update payment method config" ON public.payment_m
 CREATE POLICY "Admin users can update their own API keys" ON public.api_keys FOR UPDATE TO authenticated USING ((admin_user_id IN ( SELECT admin_users.id
    FROM public.admin_users
   WHERE (admin_users.user_id = auth.uid()))));
+
 
 --
 -- Name: api_key_audit_log Admin users can view audit logs for their own keys; Type: POLICY; Schema: public; Owner: postgres
@@ -18335,11 +19479,13 @@ CREATE POLICY "Admin users can view audit logs for their own keys" ON public.api
      JOIN public.admin_users au ON ((ak.admin_user_id = au.id)))
   WHERE (au.user_id = auth.uid()))));
 
+
 --
 -- Name: payment_method_config Admin users can view payment method config; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admin users can view payment method config" ON public.payment_method_config FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: api_keys Admin users can view their own API keys; Type: POLICY; Schema: public; Owner: postgres
@@ -18349,11 +19495,13 @@ CREATE POLICY "Admin users can view their own API keys" ON public.api_keys FOR S
    FROM public.admin_users
   WHERE (admin_users.user_id = auth.uid()))));
 
+
 --
 -- Name: profiles Admin view; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admin view" ON public.profiles FOR SELECT USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: rate_limits Admin-only SELECT on rate_limits; Type: POLICY; Schema: public; Owner: postgres
@@ -18361,11 +19509,13 @@ CREATE POLICY "Admin view" ON public.profiles FOR SELECT USING (( SELECT public.
 
 CREATE POLICY "Admin-only SELECT on rate_limits" ON public.rate_limits FOR SELECT USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: order_bumps Admins can delete order bumps; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admins can delete order bumps" ON public.order_bumps FOR DELETE USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: admin_actions Admins can insert admin actions; Type: POLICY; Schema: public; Owner: postgres
@@ -18373,11 +19523,13 @@ CREATE POLICY "Admins can delete order bumps" ON public.order_bumps FOR DELETE U
 
 CREATE POLICY "Admins can insert admin actions" ON public.admin_actions FOR INSERT WITH CHECK ((((admin_id = ( SELECT auth.uid() AS uid)) AND ( SELECT public.is_admin() AS is_admin)) OR (( SELECT ( SELECT auth.role() AS role) AS role) = 'service_role'::text)));
 
+
 --
 -- Name: order_bumps Admins can insert order bumps; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admins can insert order bumps" ON public.order_bumps FOR INSERT WITH CHECK (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: oto_offers Admins can manage oto_offers; Type: POLICY; Schema: public; Owner: postgres
@@ -18385,11 +19537,13 @@ CREATE POLICY "Admins can insert order bumps" ON public.order_bumps FOR INSERT W
 
 CREATE POLICY "Admins can manage oto_offers" ON public.oto_offers TO authenticated USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: revenue_goals Admins can manage revenue goals; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admins can manage revenue goals" ON public.revenue_goals USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: webhook_endpoint_products Admins can manage webhook endpoint products; Type: POLICY; Schema: public; Owner: postgres
@@ -18397,11 +19551,13 @@ CREATE POLICY "Admins can manage revenue goals" ON public.revenue_goals USING ((
 
 CREATE POLICY "Admins can manage webhook endpoint products" ON public.webhook_endpoint_products USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: webhook_endpoints Admins can manage webhook endpoints; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admins can manage webhook endpoints" ON public.webhook_endpoints USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: order_bumps Admins can update order bumps; Type: POLICY; Schema: public; Owner: postgres
@@ -18409,11 +19565,13 @@ CREATE POLICY "Admins can manage webhook endpoints" ON public.webhook_endpoints 
 
 CREATE POLICY "Admins can update order bumps" ON public.order_bumps FOR UPDATE USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: payment_transactions Admins can update payment transactions for refunds; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admins can update payment transactions for refunds" ON public.payment_transactions FOR UPDATE TO authenticated USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: webhook_logs Admins can update webhook logs; Type: POLICY; Schema: public; Owner: postgres
@@ -18421,11 +19579,13 @@ CREATE POLICY "Admins can update payment transactions for refunds" ON public.pay
 
 CREATE POLICY "Admins can update webhook logs" ON public.webhook_logs FOR UPDATE USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: admin_actions Admins can view admin actions; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admins can view admin actions" ON public.admin_actions FOR SELECT USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: video_events Admins can view all video events; Type: POLICY; Schema: public; Owner: postgres
@@ -18433,11 +19593,13 @@ CREATE POLICY "Admins can view admin actions" ON public.admin_actions FOR SELECT
 
 CREATE POLICY "Admins can view all video events" ON public.video_events FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: video_progress Admins can view all video progress; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admins can view all video progress" ON public.video_progress FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: order_bumps Admins can view order bumps; Type: POLICY; Schema: public; Owner: postgres
@@ -18445,11 +19607,13 @@ CREATE POLICY "Admins can view all video progress" ON public.video_progress FOR 
 
 CREATE POLICY "Admins can view order bumps" ON public.order_bumps FOR SELECT USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: webhook_logs Admins can view webhook logs; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admins can view webhook logs" ON public.webhook_logs FOR SELECT USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: coupons Admins full access coupons; Type: POLICY; Schema: public; Owner: postgres
@@ -18457,11 +19621,13 @@ CREATE POLICY "Admins can view webhook logs" ON public.webhook_logs FOR SELECT U
 
 CREATE POLICY "Admins full access coupons" ON public.coupons TO authenticated USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: categories Admins full access for categories; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admins full access for categories" ON public.categories USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: product_categories Admins full access for product_categories; Type: POLICY; Schema: public; Owner: postgres
@@ -18469,11 +19635,13 @@ CREATE POLICY "Admins full access for categories" ON public.categories USING (( 
 
 CREATE POLICY "Admins full access for product_categories" ON public.product_categories USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: product_tags Admins full access for product_tags; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admins full access for product_tags" ON public.product_tags USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: product_variant_groups Admins full access for product_variant_groups; Type: POLICY; Schema: public; Owner: postgres
@@ -18481,11 +19649,13 @@ CREATE POLICY "Admins full access for product_tags" ON public.product_tags USING
 
 CREATE POLICY "Admins full access for product_variant_groups" ON public.product_variant_groups USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: tags Admins full access for tags; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admins full access for tags" ON public.tags USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: variant_groups Admins full access for variant_groups; Type: POLICY; Schema: public; Owner: postgres
@@ -18493,11 +19663,13 @@ CREATE POLICY "Admins full access for tags" ON public.tags USING (( SELECT publi
 
 CREATE POLICY "Admins full access for variant_groups" ON public.variant_groups USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: coupon_redemptions Admins full access redemptions; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admins full access redemptions" ON public.coupon_redemptions TO authenticated USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: coupon_reservations Admins full access reservations; Type: POLICY; Schema: public; Owner: postgres
@@ -18505,11 +19677,13 @@ CREATE POLICY "Admins full access redemptions" ON public.coupon_redemptions TO a
 
 CREATE POLICY "Admins full access reservations" ON public.coupon_reservations TO authenticated USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: shop_config Admins full access to shop_config; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admins full access to shop_config" ON public.shop_config TO authenticated USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: stripe_configurations Admins full access to stripe_configurations; Type: POLICY; Schema: public; Owner: postgres
@@ -18517,11 +19691,13 @@ CREATE POLICY "Admins full access to shop_config" ON public.shop_config TO authe
 
 CREATE POLICY "Admins full access to stripe_configurations" ON public.stripe_configurations USING ((( SELECT public.is_admin() AS is_admin) OR (( SELECT auth.role() AS role) = 'service_role'::text))) WITH CHECK ((( SELECT public.is_admin() AS is_admin) OR (( SELECT auth.role() AS role) = 'service_role'::text)));
 
+
 --
 -- Name: integrations_config Admins manage config; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admins manage config" ON public.integrations_config USING ((( SELECT public.is_admin() AS is_admin) OR (( SELECT auth.role() AS role) = 'service_role'::text))) WITH CHECK ((( SELECT public.is_admin() AS is_admin) OR (( SELECT auth.role() AS role) = 'service_role'::text)));
+
 
 --
 -- Name: custom_scripts Admins manage scripts; Type: POLICY; Schema: public; Owner: postgres
@@ -18529,11 +19705,13 @@ CREATE POLICY "Admins manage config" ON public.integrations_config USING ((( SEL
 
 CREATE POLICY "Admins manage scripts" ON public.custom_scripts USING ((( SELECT public.is_admin() AS is_admin) OR (( SELECT auth.role() AS role) = 'service_role'::text))) WITH CHECK ((( SELECT public.is_admin() AS is_admin) OR (( SELECT auth.role() AS role) = 'service_role'::text)));
 
+
 --
 -- Name: consent_logs Admins view logs; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Admins view logs" ON public.consent_logs FOR SELECT USING ((( SELECT public.is_admin() AS is_admin) OR (( SELECT auth.role() AS role) = 'service_role'::text)));
+
 
 --
 -- Name: user_product_access Allow admin users to delete access; Type: POLICY; Schema: public; Owner: postgres
@@ -18541,11 +19719,13 @@ CREATE POLICY "Admins view logs" ON public.consent_logs FOR SELECT USING ((( SEL
 
 CREATE POLICY "Allow admin users to delete access" ON public.user_product_access FOR DELETE TO authenticated USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: products Allow admin users to delete products; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Allow admin users to delete products" ON public.products FOR DELETE TO authenticated USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: products Allow admin users to insert products; Type: POLICY; Schema: public; Owner: postgres
@@ -18553,11 +19733,13 @@ CREATE POLICY "Allow admin users to delete products" ON public.products FOR DELE
 
 CREATE POLICY "Allow admin users to insert products" ON public.products FOR INSERT TO authenticated WITH CHECK (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: audit_log Allow admin users to read audit logs; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Allow admin users to read audit logs" ON public.audit_log FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: user_product_access Allow admin users to update access; Type: POLICY; Schema: public; Owner: postgres
@@ -18565,11 +19747,13 @@ CREATE POLICY "Allow admin users to read audit logs" ON public.audit_log FOR SEL
 
 CREATE POLICY "Allow admin users to update access" ON public.user_product_access FOR UPDATE TO authenticated USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: products Allow admin users to update products; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Allow admin users to update products" ON public.products FOR UPDATE TO authenticated USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: user_product_access Allow service role to insert product access; Type: POLICY; Schema: public; Owner: postgres
@@ -18577,11 +19761,13 @@ CREATE POLICY "Allow admin users to update products" ON public.products FOR UPDA
 
 CREATE POLICY "Allow service role to insert product access" ON public.user_product_access FOR INSERT TO service_role WITH CHECK (true);
 
+
 --
 -- Name: rate_limits Allow system to delete rate limits; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Allow system to delete rate limits" ON public.rate_limits FOR DELETE TO service_role USING (true);
+
 
 --
 -- Name: audit_log Allow system to insert audit logs; Type: POLICY; Schema: public; Owner: postgres
@@ -18589,11 +19775,13 @@ CREATE POLICY "Allow system to delete rate limits" ON public.rate_limits FOR DEL
 
 CREATE POLICY "Allow system to insert audit logs" ON public.audit_log FOR INSERT TO service_role WITH CHECK (true);
 
+
 --
 -- Name: rate_limits Allow system to insert rate limits; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Allow system to insert rate limits" ON public.rate_limits FOR INSERT TO service_role WITH CHECK (true);
+
 
 --
 -- Name: rate_limits Allow system to update rate limits; Type: POLICY; Schema: public; Owner: postgres
@@ -18601,11 +19789,13 @@ CREATE POLICY "Allow system to insert rate limits" ON public.rate_limits FOR INS
 
 CREATE POLICY "Allow system to update rate limits" ON public.rate_limits FOR UPDATE TO service_role USING (true) WITH CHECK (true);
 
+
 --
 -- Name: admin_users Allow users to read their own admin status; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Allow users to read their own admin status" ON public.admin_users FOR SELECT TO authenticated USING ((( SELECT auth.uid() AS uid) = user_id));
+
 
 --
 -- Name: user_product_access Allow users to read their own product access; Type: POLICY; Schema: public; Owner: postgres
@@ -18613,11 +19803,13 @@ CREATE POLICY "Allow users to read their own admin status" ON public.admin_users
 
 CREATE POLICY "Allow users to read their own product access" ON public.user_product_access FOR SELECT USING (((( SELECT auth.uid() AS uid) = user_id) OR ( SELECT public.is_admin() AS is_admin)));
 
+
 --
 -- Name: consent_logs Authenticated users log own consent; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Authenticated users log own consent" ON public.consent_logs FOR INSERT TO authenticated WITH CHECK ((user_id = ( SELECT auth.uid() AS uid)));
+
 
 --
 -- Name: user_product_access Combined INSERT policy for user_product_access; Type: POLICY; Schema: public; Owner: postgres
@@ -18627,11 +19819,13 @@ CREATE POLICY "Combined INSERT policy for user_product_access" ON public.user_pr
    FROM public.products
   WHERE ((products.id = user_product_access.product_id) AND (products.price = (0)::numeric)))))));
 
+
 --
 -- Name: guest_purchases Combined SELECT policy for guest purchases; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Combined SELECT policy for guest purchases" ON public.guest_purchases FOR SELECT USING (((claimed_by_user_id = ( SELECT auth.uid() AS uid)) OR (( SELECT auth.role() AS role) = 'service_role'::text)));
+
 
 --
 -- Name: payment_transactions Combined SELECT policy for payment transactions; Type: POLICY; Schema: public; Owner: postgres
@@ -18639,11 +19833,13 @@ CREATE POLICY "Combined SELECT policy for guest purchases" ON public.guest_purch
 
 CREATE POLICY "Combined SELECT policy for payment transactions" ON public.payment_transactions FOR SELECT USING (((user_id = ( SELECT auth.uid() AS uid)) OR ( SELECT public.is_admin() AS is_admin) OR (( SELECT auth.role() AS role) = 'service_role'::text)));
 
+
 --
 -- Name: product_price_history Only admins can delete price history; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Only admins can delete price history" ON public.product_price_history FOR DELETE USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: product_price_history Only admins can update price history; Type: POLICY; Schema: public; Owner: postgres
@@ -18651,11 +19847,13 @@ CREATE POLICY "Only admins can delete price history" ON public.product_price_his
 
 CREATE POLICY "Only admins can update price history" ON public.product_price_history FOR UPDATE USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: product_price_history Only system or admins can insert price history; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Only system or admins can insert price history" ON public.product_price_history FOR INSERT WITH CHECK (((( SELECT auth.role() AS role) = 'service_role'::text) OR ( SELECT public.is_admin() AS is_admin)));
+
 
 --
 -- Name: product_price_history Price history is publicly readable; Type: POLICY; Schema: public; Owner: postgres
@@ -18663,11 +19861,13 @@ CREATE POLICY "Only system or admins can insert price history" ON public.product
 
 CREATE POLICY "Price history is publicly readable" ON public.product_price_history FOR SELECT USING (true);
 
+
 --
 -- Name: order_bumps Public can view active order bumps; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Public can view active order bumps" ON public.order_bumps FOR SELECT USING ((is_active = true));
+
 
 --
 -- Name: oto_offers Public can view active oto_offers; Type: POLICY; Schema: public; Owner: postgres
@@ -18675,11 +19875,13 @@ CREATE POLICY "Public can view active order bumps" ON public.order_bumps FOR SEL
 
 CREATE POLICY "Public can view active oto_offers" ON public.oto_offers FOR SELECT TO authenticated, anon USING ((is_active = true));
 
+
 --
 -- Name: categories Public read access for categories; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Public read access for categories" ON public.categories FOR SELECT USING (true);
+
 
 --
 -- Name: product_categories Public read access for product_categories; Type: POLICY; Schema: public; Owner: postgres
@@ -18687,11 +19889,13 @@ CREATE POLICY "Public read access for categories" ON public.categories FOR SELEC
 
 CREATE POLICY "Public read access for product_categories" ON public.product_categories FOR SELECT USING (true);
 
+
 --
 -- Name: product_tags Public read access for product_tags; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Public read access for product_tags" ON public.product_tags FOR SELECT USING (true);
+
 
 --
 -- Name: product_variant_groups Public read access for product_variant_groups; Type: POLICY; Schema: public; Owner: postgres
@@ -18699,11 +19903,13 @@ CREATE POLICY "Public read access for product_tags" ON public.product_tags FOR S
 
 CREATE POLICY "Public read access for product_variant_groups" ON public.product_variant_groups FOR SELECT USING (true);
 
+
 --
 -- Name: tags Public read access for tags; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Public read access for tags" ON public.tags FOR SELECT USING (true);
+
 
 --
 -- Name: variant_groups Public read access for variant_groups; Type: POLICY; Schema: public; Owner: postgres
@@ -18711,11 +19917,13 @@ CREATE POLICY "Public read access for tags" ON public.tags FOR SELECT USING (tru
 
 CREATE POLICY "Public read access for variant_groups" ON public.variant_groups FOR SELECT USING (true);
 
+
 --
 -- Name: shop_config Public read access to shop_config; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Public read access to shop_config" ON public.shop_config FOR SELECT USING (true);
+
 
 --
 -- Name: products SELECT policy for products; Type: POLICY; Schema: public; Owner: postgres
@@ -18723,11 +19931,13 @@ CREATE POLICY "Public read access to shop_config" ON public.shop_config FOR SELE
 
 CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING ((( SELECT public.is_admin() AS is_admin) OR ((archived_at IS NULL) AND (is_active = true) AND ((available_from IS NULL) OR (available_from <= now())) AND ((available_until IS NULL) OR (available_until >= now()))) OR ((archived_at IS NULL) AND (is_active = false) AND (enable_waitlist = true)) OR ((archived_at IS NOT NULL) AND public.owns_product_access(id))));
 
+
 --
 -- Name: profiles Self update; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Self update" ON public.profiles FOR UPDATE USING ((( SELECT auth.uid() AS uid) = id));
+
 
 --
 -- Name: profiles Self view; Type: POLICY; Schema: public; Owner: postgres
@@ -18735,11 +19945,13 @@ CREATE POLICY "Self update" ON public.profiles FOR UPDATE USING ((( SELECT auth.
 
 CREATE POLICY "Self view" ON public.profiles FOR SELECT USING ((( SELECT auth.uid() AS uid) = id));
 
+
 --
 -- Name: invoices Service invoices; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service invoices" ON public.invoices TO service_role USING (true) WITH CHECK (true);
+
 
 --
 -- Name: guest_purchases Service role can delete guest purchases; Type: POLICY; Schema: public; Owner: postgres
@@ -18747,11 +19959,13 @@ CREATE POLICY "Service invoices" ON public.invoices TO service_role USING (true)
 
 CREATE POLICY "Service role can delete guest purchases" ON public.guest_purchases FOR DELETE TO service_role USING (true);
 
+
 --
 -- Name: webhook_logs Service role can delete webhook logs; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service role can delete webhook logs" ON public.webhook_logs FOR DELETE USING ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: guest_purchases Service role can insert guest purchases; Type: POLICY; Schema: public; Owner: postgres
@@ -18759,11 +19973,13 @@ CREATE POLICY "Service role can delete webhook logs" ON public.webhook_logs FOR 
 
 CREATE POLICY "Service role can insert guest purchases" ON public.guest_purchases FOR INSERT TO service_role WITH CHECK (true);
 
+
 --
 -- Name: webhook_logs Service role can insert webhook logs; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service role can insert webhook logs" ON public.webhook_logs FOR INSERT WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: payment_transactions Service role can manage all payment statuses; Type: POLICY; Schema: public; Owner: postgres
@@ -18771,11 +19987,13 @@ CREATE POLICY "Service role can insert webhook logs" ON public.webhook_logs FOR 
 
 CREATE POLICY "Service role can manage all payment statuses" ON public.payment_transactions TO service_role USING (true);
 
+
 --
 -- Name: order_bumps Service role can manage order bumps; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service role can manage order bumps" ON public.order_bumps TO service_role USING (true) WITH CHECK (true);
+
 
 --
 -- Name: guest_purchases Service role can update guest purchases; Type: POLICY; Schema: public; Owner: postgres
@@ -18783,11 +20001,13 @@ CREATE POLICY "Service role can manage order bumps" ON public.order_bumps TO ser
 
 CREATE POLICY "Service role can update guest purchases" ON public.guest_purchases FOR UPDATE TO service_role USING (true) WITH CHECK (true);
 
+
 --
 -- Name: attribution_channel_rules Service role full access; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service role full access" ON public.attribution_channel_rules TO service_role USING (true) WITH CHECK (true);
+
 
 --
 -- Name: attribution_settings Service role full access; Type: POLICY; Schema: public; Owner: postgres
@@ -18795,11 +20015,13 @@ CREATE POLICY "Service role full access" ON public.attribution_channel_rules TO 
 
 CREATE POLICY "Service role full access" ON public.attribution_settings TO service_role USING (true) WITH CHECK (true);
 
+
 --
 -- Name: auth_mail_retries Service role full access; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service role full access" ON public.auth_mail_retries TO service_role USING (true) WITH CHECK (true);
+
 
 --
 -- Name: captcha_nonces Service role full access; Type: POLICY; Schema: public; Owner: postgres
@@ -18807,11 +20029,13 @@ CREATE POLICY "Service role full access" ON public.auth_mail_retries TO service_
 
 CREATE POLICY "Service role full access" ON public.captcha_nonces TO service_role USING (true) WITH CHECK (true);
 
+
 --
 -- Name: checkout_attribution Service role full access; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service role full access" ON public.checkout_attribution TO service_role USING (true) WITH CHECK (true);
+
 
 --
 -- Name: issued_licenses Service role full access; Type: POLICY; Schema: public; Owner: postgres
@@ -18819,11 +20043,13 @@ CREATE POLICY "Service role full access" ON public.checkout_attribution TO servi
 
 CREATE POLICY "Service role full access" ON public.issued_licenses TO service_role USING (true) WITH CHECK (true);
 
+
 --
 -- Name: license_mail_receipts Service role full access; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service role full access" ON public.license_mail_receipts TO service_role USING (true) WITH CHECK (true);
+
 
 --
 -- Name: order_payment_attempts Service role full access; Type: POLICY; Schema: public; Owner: postgres
@@ -18831,11 +20057,13 @@ CREATE POLICY "Service role full access" ON public.license_mail_receipts TO serv
 
 CREATE POLICY "Service role full access" ON public.order_payment_attempts TO service_role USING (true) WITH CHECK (true);
 
+
 --
 -- Name: purchase_attribution Service role full access; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service role full access" ON public.purchase_attribution TO service_role USING (true) WITH CHECK (true);
+
 
 --
 -- Name: seller_license_keys Service role full access; Type: POLICY; Schema: public; Owner: postgres
@@ -18843,11 +20071,13 @@ CREATE POLICY "Service role full access" ON public.purchase_attribution TO servi
 
 CREATE POLICY "Service role full access" ON public.seller_license_keys TO service_role USING (true) WITH CHECK (true);
 
+
 --
 -- Name: tutorial_progress Service role full access; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service role full access" ON public.tutorial_progress TO service_role USING (true) WITH CHECK (true);
+
 
 --
 -- Name: coupons Service role full access coupons; Type: POLICY; Schema: public; Owner: postgres
@@ -18855,11 +20085,13 @@ CREATE POLICY "Service role full access" ON public.tutorial_progress TO service_
 
 CREATE POLICY "Service role full access coupons" ON public.coupons TO service_role USING (true) WITH CHECK (true);
 
+
 --
 -- Name: coupon_redemptions Service role full access redemptions; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service role full access redemptions" ON public.coupon_redemptions TO service_role USING (true) WITH CHECK (true);
+
 
 --
 -- Name: coupon_reservations Service role full access reservations; Type: POLICY; Schema: public; Owner: postgres
@@ -18867,11 +20099,13 @@ CREATE POLICY "Service role full access redemptions" ON public.coupon_redemption
 
 CREATE POLICY "Service role full access reservations" ON public.coupon_reservations TO service_role USING (true) WITH CHECK (true);
 
+
 --
 -- Name: stripe_customers Service role full access stripe_customers; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service role full access stripe_customers" ON public.stripe_customers TO service_role USING (true) WITH CHECK (true);
+
 
 --
 -- Name: subscriptions Service role full access subscriptions; Type: POLICY; Schema: public; Owner: postgres
@@ -18879,11 +20113,13 @@ CREATE POLICY "Service role full access stripe_customers" ON public.stripe_custo
 
 CREATE POLICY "Service role full access subscriptions" ON public.subscriptions TO service_role USING (true) WITH CHECK (true);
 
+
 --
 -- Name: payment_line_items Service role full access to line items; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service role full access to line items" ON public.payment_line_items USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: oto_offers Service role full access to oto_offers; Type: POLICY; Schema: public; Owner: postgres
@@ -18891,11 +20127,13 @@ CREATE POLICY "Service role full access to line items" ON public.payment_line_it
 
 CREATE POLICY "Service role full access to oto_offers" ON public.oto_offers TO service_role USING (true) WITH CHECK (true);
 
+
 --
 -- Name: payment_method_config Service role full access to payment method config; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service role full access to payment method config" ON public.payment_method_config TO service_role USING (true) WITH CHECK (true);
+
 
 --
 -- Name: tracking_logs Service role full access to tracking_logs; Type: POLICY; Schema: public; Owner: postgres
@@ -18903,11 +20141,13 @@ CREATE POLICY "Service role full access to payment method config" ON public.paym
 
 CREATE POLICY "Service role full access to tracking_logs" ON public.tracking_logs TO service_role USING (true) WITH CHECK (true);
 
+
 --
 -- Name: application_rate_limits Service role has full access to rate limits; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service role has full access to rate limits" ON public.application_rate_limits USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: consent_logs Service role insert consent; Type: POLICY; Schema: public; Owner: postgres
@@ -18915,11 +20155,13 @@ CREATE POLICY "Service role has full access to rate limits" ON public.applicatio
 
 CREATE POLICY "Service role insert consent" ON public.consent_logs FOR INSERT TO service_role WITH CHECK (true);
 
+
 --
 -- Name: profiles Service role insert profiles; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service role insert profiles" ON public.profiles FOR INSERT TO service_role WITH CHECK (true);
+
 
 --
 -- Name: payment_transactions Service role limited access payment transactions; Type: POLICY; Schema: public; Owner: postgres
@@ -18927,11 +20169,13 @@ CREATE POLICY "Service role insert profiles" ON public.profiles FOR INSERT TO se
 
 CREATE POLICY "Service role limited access payment transactions" ON public.payment_transactions FOR INSERT TO service_role WITH CHECK (true);
 
+
 --
 -- Name: invoicing_config Service settings; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Service settings" ON public.invoicing_config TO service_role USING (true) WITH CHECK (true);
+
 
 --
 -- Name: video_events Users can insert own video events; Type: POLICY; Schema: public; Owner: postgres
@@ -18941,17 +20185,20 @@ CREATE POLICY "Users can insert own video events" ON public.video_events FOR INS
    FROM public.video_progress
   WHERE ((video_progress.id = video_events.progress_id) AND (video_progress.user_id = auth.uid())))));
 
+
 --
 -- Name: video_progress Users can insert own video progress; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Users can insert own video progress" ON public.video_progress FOR INSERT WITH CHECK ((( SELECT auth.uid() AS uid) = user_id));
 
+
 --
 -- Name: video_progress Users can update own video progress; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Users can update own video progress" ON public.video_progress FOR UPDATE USING ((( SELECT auth.uid() AS uid) = user_id));
+
 
 --
 -- Name: payment_line_items Users can view own line items; Type: POLICY; Schema: public; Owner: postgres
@@ -18961,11 +20208,13 @@ CREATE POLICY "Users can view own line items" ON public.payment_line_items FOR S
    FROM public.payment_transactions pt
   WHERE ((pt.id = payment_line_items.transaction_id) AND (pt.user_id = auth.uid())))));
 
+
 --
 -- Name: refund_requests Users can view own refund requests; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Users can view own refund requests" ON public.refund_requests FOR SELECT TO authenticated USING (((user_id = ( SELECT auth.uid() AS uid)) OR (customer_email = ( SELECT (auth.jwt() ->> 'email'::text))) OR ( SELECT public.is_admin() AS is_admin)));
+
 
 --
 -- Name: video_events Users can view own video events; Type: POLICY; Schema: public; Owner: postgres
@@ -18975,11 +20224,13 @@ CREATE POLICY "Users can view own video events" ON public.video_events FOR SELEC
    FROM public.video_progress
   WHERE ((video_progress.id = video_events.progress_id) AND (video_progress.user_id = auth.uid())))));
 
+
 --
 -- Name: video_progress Users can view own video progress; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Users can view own video progress" ON public.video_progress FOR SELECT USING ((( SELECT auth.uid() AS uid) = user_id));
+
 
 --
 -- Name: payment_transactions Users can view their own pending payments; Type: POLICY; Schema: public; Owner: postgres
@@ -18987,11 +20238,13 @@ CREATE POLICY "Users can view own video progress" ON public.video_progress FOR S
 
 CREATE POLICY "Users can view their own pending payments" ON public.payment_transactions FOR SELECT TO authenticated USING (((user_id = ( SELECT auth.uid() AS uid)) AND (status = ANY (ARRAY['pending'::text, 'completed'::text, 'refunded'::text]))));
 
+
 --
 -- Name: stripe_customers Users read own stripe_customer mapping; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Users read own stripe_customer mapping" ON public.stripe_customers FOR SELECT TO authenticated USING (((( SELECT auth.uid() AS uid) = user_id) OR ( SELECT public.is_admin() AS is_admin)));
+
 
 --
 -- Name: subscriptions Users read own subscriptions; Type: POLICY; Schema: public; Owner: postgres
@@ -18999,11 +20252,13 @@ CREATE POLICY "Users read own stripe_customer mapping" ON public.stripe_customer
 
 CREATE POLICY "Users read own subscriptions" ON public.subscriptions FOR SELECT TO authenticated USING (((( SELECT auth.uid() AS uid) = user_id) OR ( SELECT public.is_admin() AS is_admin)));
 
+
 --
 -- Name: tutorial_progress Users read own tutorial progress; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Users read own tutorial progress" ON public.tutorial_progress FOR SELECT TO authenticated USING ((user_id = ( SELECT auth.uid() AS uid)));
+
 
 --
 -- Name: tutorial_progress Users record own tutorial progress; Type: POLICY; Schema: public; Owner: postgres
@@ -19011,11 +20266,13 @@ CREATE POLICY "Users read own tutorial progress" ON public.tutorial_progress FOR
 
 CREATE POLICY "Users record own tutorial progress" ON public.tutorial_progress FOR INSERT TO authenticated WITH CHECK ((user_id = ( SELECT auth.uid() AS uid)));
 
+
 --
 -- Name: coupon_redemptions Users view own redemptions; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "Users view own redemptions" ON public.coupon_redemptions FOR SELECT USING ((( SELECT auth.uid() AS uid) = user_id));
+
 
 --
 -- Name: admin_actions; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -19041,6 +20298,7 @@ ALTER TABLE public.affiliate_commissions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY affiliate_commissions_service ON public.affiliate_commissions TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
 
+
 --
 -- Name: affiliate_coupon_bindings; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
@@ -19052,6 +20310,7 @@ ALTER TABLE public.affiliate_coupon_bindings ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY affiliate_coupon_bindings_service ON public.affiliate_coupon_bindings TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: affiliate_ledger; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -19065,6 +20324,7 @@ ALTER TABLE public.affiliate_ledger ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY affiliate_ledger_service ON public.affiliate_ledger TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
 
+
 --
 -- Name: affiliate_membership_events; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
@@ -19076,6 +20336,7 @@ ALTER TABLE public.affiliate_membership_events ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY affiliate_membership_events_service ON public.affiliate_membership_events TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: affiliate_memberships; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -19089,6 +20350,7 @@ ALTER TABLE public.affiliate_memberships ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY affiliate_memberships_service ON public.affiliate_memberships TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
 
+
 --
 -- Name: affiliate_payout_allocations; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
@@ -19100,6 +20362,7 @@ ALTER TABLE public.affiliate_payout_allocations ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY affiliate_payout_allocations_service ON public.affiliate_payout_allocations TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: affiliate_payouts; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -19113,6 +20376,7 @@ ALTER TABLE public.affiliate_payouts ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY affiliate_payouts_service ON public.affiliate_payouts TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
 
+
 --
 -- Name: affiliate_program_versions; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
@@ -19124,6 +20388,7 @@ ALTER TABLE public.affiliate_program_versions ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY affiliate_program_versions_service ON public.affiliate_program_versions TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: affiliate_programs; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -19137,6 +20402,7 @@ ALTER TABLE public.affiliate_programs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY affiliate_programs_service ON public.affiliate_programs TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
 
+
 --
 -- Name: affiliate_rules; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
@@ -19149,6 +20415,7 @@ ALTER TABLE public.affiliate_rules ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY affiliate_rules_service ON public.affiliate_rules TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
 
+
 --
 -- Name: affiliate_work; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
@@ -19160,6 +20427,7 @@ ALTER TABLE public.affiliate_work ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY affiliate_work_service ON public.affiliate_work TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: api_key_audit_log; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -19209,6 +20477,7 @@ ALTER TABLE public.auth_mail_retries ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY bank_transfer_admin ON public.bank_transfer_config FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: bank_transfer_config; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
@@ -19229,11 +20498,13 @@ CREATE POLICY "bundle_items public read" ON public.bundle_items FOR SELECT TO au
    FROM public.products p
   WHERE ((p.id = bundle_items.bundle_product_id) AND (((p.is_active = true) AND ((p.available_from IS NULL) OR (p.available_from <= now())) AND ((p.available_until IS NULL) OR (p.available_until >= now()))) OR ((p.is_active = false) AND (p.enable_waitlist = true))))))));
 
+
 --
 -- Name: bundle_items bundle_items service role; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY "bundle_items service role" ON public.bundle_items TO service_role USING (true) WITH CHECK (true);
+
 
 --
 -- Name: business_events; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -19246,6 +20517,7 @@ ALTER TABLE public.business_events ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY business_events_service ON public.business_events TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: captcha_nonces; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -19271,11 +20543,13 @@ ALTER TABLE public.checkout_attribution ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY config_admin_read ON public.storefront_config FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: storefront_config config_service; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY config_service ON public.storefront_config TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: consent_logs; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -19319,11 +20593,13 @@ ALTER TABLE public.embed_checkout_log ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY embed_checkout_log_admin_all ON public.embed_checkout_log TO authenticated USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: seat_reservations event_reservations_admin; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY event_reservations_admin ON public.seat_reservations FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
+
 
 --
 -- Name: product_sessions event_sessions_admin; Type: POLICY; Schema: public; Owner: postgres
@@ -19331,17 +20607,20 @@ CREATE POLICY event_reservations_admin ON public.seat_reservations FOR SELECT TO
 
 CREATE POLICY event_sessions_admin ON public.product_sessions TO authenticated USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: product_price_tiers event_tiers_admin; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY event_tiers_admin ON public.product_price_tiers TO authenticated USING (( SELECT public.is_admin() AS is_admin)) WITH CHECK (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: free_grant_contexts free_grant_context_service; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY free_grant_context_service ON public.free_grant_contexts TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: free_grant_contexts; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -19361,17 +20640,20 @@ ALTER TABLE public.guest_purchases ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY history_admin_read ON public.storefront_config_history FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: storefront_config_history history_service_insert; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY history_service_insert ON public.storefront_config_history FOR INSERT TO service_role WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
 
+
 --
 -- Name: storefront_config_history history_service_read; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY history_service_read ON public.storefront_config_history FOR SELECT TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: integrations_config; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -19409,6 +20691,7 @@ ALTER TABLE public.lead_nonces ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY lead_nonces_service ON public.lead_nonces TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
 
+
 --
 -- Name: lead_submissions; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
@@ -19420,6 +20703,7 @@ ALTER TABLE public.lead_submissions ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY lead_submissions_service ON public.lead_submissions TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: license_mail_receipts; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -19433,11 +20717,13 @@ ALTER TABLE public.license_mail_receipts ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY offer_config_admin_read ON public.product_offer_config FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: product_offer_config offer_config_service; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY offer_config_service ON public.product_offer_config TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: product_offer_history offer_history_admin_read; Type: POLICY; Schema: public; Owner: postgres
@@ -19445,17 +20731,20 @@ CREATE POLICY offer_config_service ON public.product_offer_config TO service_rol
 
 CREATE POLICY offer_history_admin_read ON public.product_offer_history FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: product_offer_history offer_history_service_insert; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY offer_history_service_insert ON public.product_offer_history FOR INSERT TO service_role WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
 
+
 --
 -- Name: product_offer_history offer_history_service_read; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY offer_history_service_read ON public.product_offer_history FOR SELECT TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: order_bumps; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -19487,6 +20776,7 @@ ALTER TABLE public.payment_disputes ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY payment_disputes_service ON public.payment_disputes TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
 
+
 --
 -- Name: payment_line_items; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
@@ -19511,6 +20801,7 @@ ALTER TABLE public.payment_refund_events ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY payment_refund_events_service ON public.payment_refund_events TO service_role USING (true) WITH CHECK (true);
 
+
 --
 -- Name: payment_refunds; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
@@ -19522,6 +20813,7 @@ ALTER TABLE public.payment_refunds ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY payment_refunds_service ON public.payment_refunds TO service_role USING (true) WITH CHECK (true);
+
 
 --
 -- Name: payment_transactions; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -19631,6 +20923,7 @@ ALTER TABLE public.seller_embed_settings ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY seller_embed_settings_admin_read ON public.seller_embed_settings FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
 
+
 --
 -- Name: seller_license_keys; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
@@ -19691,6 +20984,7 @@ ALTER TABLE public.telemetry_state ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "telemetry_state service role only" ON public.telemetry_state TO service_role USING (true) WITH CHECK (true);
 
+
 --
 -- Name: template_credentials; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
@@ -19702,6 +20996,7 @@ ALTER TABLE public.template_credentials ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY template_credentials_service_read ON public.template_credentials FOR SELECT TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: tracking_logs; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -19758,3326 +21053,9 @@ ALTER TABLE public.webhook_endpoints ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.webhook_logs ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: SCHEMA postgrest; Type: ACL; Schema: -; Owner: postgres
---
-
-GRANT USAGE ON SCHEMA postgrest TO authenticator;
-
---
--- Name: SCHEMA public; Type: ACL; Schema: -; Owner: pg_database_owner
---
-
-GRANT USAGE ON SCHEMA public TO postgres;
-GRANT USAGE ON SCHEMA public TO anon;
-GRANT USAGE ON SCHEMA public TO authenticated;
-GRANT USAGE ON SCHEMA public TO service_role;
-
---
--- Name: FUNCTION pre_config(); Type: ACL; Schema: postgrest; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION postgrest.pre_config() FROM PUBLIC;
-GRANT ALL ON FUNCTION postgrest.pre_config() TO authenticator;
-
---
--- Name: FUNCTION _claim_guest_purchases_before_disputes(p_user_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public._claim_guest_purchases_before_disputes(p_user_id uuid) FROM PUBLIC;
-
---
--- Name: FUNCTION _event_line_seats(p_transaction_id uuid, p_session_id uuid, p_tier_id uuid, p_at timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public._event_line_seats(p_transaction_id uuid, p_session_id uuid, p_tier_id uuid, p_at timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public._event_line_seats(p_transaction_id uuid, p_session_id uuid, p_tier_id uuid, p_at timestamp with time zone) TO service_role;
-
---
--- Name: FUNCTION _order_grant_and_record(p_transaction_id uuid, p_user_id uuid, p_existing_user_id uuid, p_requested_user_id uuid, p_coupon_id uuid, p_coupon_mode text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public._order_grant_and_record(p_transaction_id uuid, p_user_id uuid, p_existing_user_id uuid, p_requested_user_id uuid, p_coupon_id uuid, p_coupon_mode text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public._order_grant_and_record(p_transaction_id uuid, p_user_id uuid, p_existing_user_id uuid, p_requested_user_id uuid, p_coupon_id uuid, p_coupon_mode text) TO service_role;
-
---
--- Name: FUNCTION _place_order_without_event(p_order jsonb, p_lines jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public._place_order_without_event(p_order jsonb, p_lines jsonb) FROM PUBLIC;
-
---
--- Name: FUNCTION _process_stripe_payment_completion_with_bump_impl(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public._process_stripe_payment_completion_with_bump_impl(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public._process_stripe_payment_completion_with_bump_impl(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) TO service_role;
-
---
--- Name: FUNCTION _redeem_coupon_for_order(coupon_id_param uuid, current_user_id uuid, existing_user_id uuid, customer_email_param text, transaction_id_var uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public._redeem_coupon_for_order(coupon_id_param uuid, current_user_id uuid, existing_user_id uuid, customer_email_param text, transaction_id_var uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public._redeem_coupon_for_order(coupon_id_param uuid, current_user_id uuid, existing_user_id uuid, customer_email_param text, transaction_id_var uuid) TO service_role;
-
---
--- Name: FUNCTION _reopen_cancelled_transfer(p_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public._reopen_cancelled_transfer(p_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public._reopen_cancelled_transfer(p_id uuid) TO service_role;
-
---
--- Name: FUNCTION _reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text) TO service_role;
-
---
--- Name: FUNCTION _supersede_order_payment_attempts(p_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public._supersede_order_payment_attempts(p_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public._supersede_order_payment_attempts(p_id uuid) TO service_role;
-
---
--- Name: FUNCTION add_access_grant_source_to_event(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.add_access_grant_source_to_event() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.add_access_grant_source_to_event() TO service_role;
-
---
--- Name: FUNCTION add_event_contract_fields(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.add_event_contract_fields() FROM PUBLIC;
-
---
--- Name: FUNCTION admin_bank_transfer_order(p_id uuid, p_action text, p_amount numeric, p_paid_at timestamp with time zone, p_reason text, p_actor uuid, p_accept_cancelled boolean, p_accept_oversold boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.admin_bank_transfer_order(p_id uuid, p_action text, p_amount numeric, p_paid_at timestamp with time zone, p_reason text, p_actor uuid, p_accept_cancelled boolean, p_accept_oversold boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.admin_bank_transfer_order(p_id uuid, p_action text, p_amount numeric, p_paid_at timestamp with time zone, p_reason text, p_actor uuid, p_accept_cancelled boolean, p_accept_oversold boolean) TO service_role;
-
---
--- Name: FUNCTION admin_delete_oto_offer(source_product_id_param uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.admin_delete_oto_offer(source_product_id_param uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.admin_delete_oto_offer(source_product_id_param uuid) TO service_role;
-
---
--- Name: FUNCTION admin_get_product_order_bumps(product_id_param uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.admin_get_product_order_bumps(product_id_param uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.admin_get_product_order_bumps(product_id_param uuid) TO service_role;
-
---
--- Name: FUNCTION admin_get_product_oto_offer(product_id_param uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.admin_get_product_oto_offer(product_id_param uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.admin_get_product_oto_offer(product_id_param uuid) TO service_role;
-
---
--- Name: FUNCTION admin_save_oto_offer(source_product_id_param uuid, oto_product_id_param uuid, discount_type_param text, discount_value_param numeric, duration_minutes_param integer, is_active_param boolean, downsell_product_id_param uuid, downsell_discount_type_param text, downsell_discount_value_param numeric, downsell_duration_minutes_param integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.admin_save_oto_offer(source_product_id_param uuid, oto_product_id_param uuid, discount_type_param text, discount_value_param numeric, duration_minutes_param integer, is_active_param boolean, downsell_product_id_param uuid, downsell_discount_type_param text, downsell_discount_value_param numeric, downsell_duration_minutes_param integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.admin_save_oto_offer(source_product_id_param uuid, oto_product_id_param uuid, discount_type_param text, discount_value_param numeric, duration_minutes_param integer, is_active_param boolean, downsell_product_id_param uuid, downsell_discount_type_param text, downsell_discount_value_param numeric, downsell_duration_minutes_param integer) TO service_role;
-
---
--- Name: FUNCTION affiliate_admin(p_actor uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_admin(p_actor uuid) FROM PUBLIC;
-
---
--- Name: FUNCTION affiliate_valid_reference(p_value text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_valid_reference(p_value text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_valid_reference(p_value text) TO service_role;
-
---
--- Name: TABLE affiliate_memberships; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT,INSERT ON TABLE public.affiliate_memberships TO service_role;
-
---
--- Name: FUNCTION affiliate_apply(p_user uuid, p_code text, p_display_name text, p_channel text, p_terms_version text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_apply(p_user uuid, p_code text, p_display_name text, p_channel text, p_terms_version text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_apply(p_user uuid, p_code text, p_display_name text, p_channel text, p_terms_version text) TO service_role;
-
---
--- Name: FUNCTION affiliate_apply_sync(p_payment uuid, p_token uuid, p_generation bigint, p_session_created_at timestamp with time zone, p_livemode boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_apply_sync(p_payment uuid, p_token uuid, p_generation bigint, p_session_created_at timestamp with time zone, p_livemode boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_apply_sync(p_payment uuid, p_token uuid, p_generation bigint, p_session_created_at timestamp with time zone, p_livemode boolean) TO service_role;
-
---
--- Name: FUNCTION affiliate_audit(p_table text, p_old jsonb, p_new jsonb, p_actor uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_audit(p_table text, p_old jsonb, p_new jsonb, p_actor uuid) FROM PUBLIC;
-
---
--- Name: FUNCTION affiliate_binding_check(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_binding_check() FROM PUBLIC;
-
---
--- Name: TABLE affiliate_payouts; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT,INSERT,UPDATE ON TABLE public.affiliate_payouts TO service_role;
-
---
--- Name: FUNCTION affiliate_cancel_payout(p_actor uuid, p_payout uuid, p_expected_version bigint, p_no_transfer boolean, p_reason text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_cancel_payout(p_actor uuid, p_payout uuid, p_expected_version bigint, p_no_transfer boolean, p_reason text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_cancel_payout(p_actor uuid, p_payout uuid, p_expected_version bigint, p_no_transfer boolean, p_reason text) TO service_role;
-
---
--- Name: FUNCTION affiliate_check_relations(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_check_relations() FROM PUBLIC;
-
---
--- Name: TABLE affiliate_work; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.affiliate_work TO service_role;
-
---
--- Name: FUNCTION affiliate_claim_work(p_limit integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_claim_work(p_limit integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_claim_work(p_limit integer) TO service_role;
-
---
--- Name: FUNCTION affiliate_complete_unbound_work(p_payment uuid, p_token uuid, p_generation bigint); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_complete_unbound_work(p_payment uuid, p_token uuid, p_generation bigint) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_complete_unbound_work(p_payment uuid, p_token uuid, p_generation bigint) TO service_role;
-
---
--- Name: TABLE affiliate_coupon_bindings; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT,INSERT,UPDATE ON TABLE public.affiliate_coupon_bindings TO service_role;
-
---
--- Name: FUNCTION affiliate_coupon_bind(p_actor uuid, p_coupon uuid, p_member uuid, p_expected_version bigint); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_coupon_bind(p_actor uuid, p_coupon uuid, p_member uuid, p_expected_version bigint) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_coupon_bind(p_actor uuid, p_coupon uuid, p_member uuid, p_expected_version bigint) TO service_role;
-
---
--- Name: FUNCTION affiliate_enqueue(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_enqueue() FROM PUBLIC;
-
---
--- Name: FUNCTION affiliate_guard(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_guard() FROM PUBLIC;
-
---
--- Name: FUNCTION affiliate_immutable(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_immutable() FROM PUBLIC;
-
---
--- Name: FUNCTION affiliate_lock_member(p_member uuid, p_currency text, p_payments uuid[], p_livemode boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_lock_member(p_member uuid, p_currency text, p_payments uuid[], p_livemode boolean) FROM PUBLIC;
-
---
--- Name: TABLE affiliate_ledger; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT,INSERT ON TABLE public.affiliate_ledger TO service_role;
-
---
--- Name: FUNCTION affiliate_manual_adjustment(p_actor uuid, p_commission uuid, p_expected_version bigint, p_amount_minor bigint, p_reason text, p_evidence_reference text, p_review_dispute boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_manual_adjustment(p_actor uuid, p_commission uuid, p_expected_version bigint, p_amount_minor bigint, p_reason text, p_evidence_reference text, p_review_dispute boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_manual_adjustment(p_actor uuid, p_commission uuid, p_expected_version bigint, p_amount_minor bigint, p_reason text, p_evidence_reference text, p_review_dispute boolean) TO service_role;
-
---
--- Name: FUNCTION affiliate_mark_paid(p_actor uuid, p_payout uuid, p_expected_version bigint, p_bank_reference text, p_invoice_reference text, p_bank_amount_minor bigint, p_currency text, p_paid_at timestamp with time zone, p_full_settlement boolean, p_reason text, p_evidence_reference text, p_livemode boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_mark_paid(p_actor uuid, p_payout uuid, p_expected_version bigint, p_bank_reference text, p_invoice_reference text, p_bank_amount_minor bigint, p_currency text, p_paid_at timestamp with time zone, p_full_settlement boolean, p_reason text, p_evidence_reference text, p_livemode boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_mark_paid(p_actor uuid, p_payout uuid, p_expected_version bigint, p_bank_reference text, p_invoice_reference text, p_bank_amount_minor bigint, p_currency text, p_paid_at timestamp with time zone, p_full_settlement boolean, p_reason text, p_evidence_reference text, p_livemode boolean) TO service_role;
-
---
--- Name: FUNCTION affiliate_member_update(p_actor uuid, p_member uuid, p_expected_version bigint, p_status text, p_reason text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_member_update(p_actor uuid, p_member uuid, p_expected_version bigint, p_status text, p_reason text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_member_update(p_actor uuid, p_member uuid, p_expected_version bigint, p_status text, p_reason text) TO service_role;
-
---
--- Name: FUNCTION affiliate_portal_page(p_member uuid, p_currency text, p_cursor uuid, p_limit integer, p_as_of timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_portal_page(p_member uuid, p_currency text, p_cursor uuid, p_limit integer, p_as_of timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_portal_page(p_member uuid, p_currency text, p_cursor uuid, p_limit integer, p_as_of timestamp with time zone) TO service_role;
-
---
--- Name: FUNCTION affiliate_portal_summary(p_member uuid, p_as_of timestamp with time zone, p_livemode boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_portal_summary(p_member uuid, p_as_of timestamp with time zone, p_livemode boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_portal_summary(p_member uuid, p_as_of timestamp with time zone, p_livemode boolean) TO service_role;
-
---
--- Name: FUNCTION affiliate_preview(p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_livemode boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_preview(p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_livemode boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_preview(p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_livemode boolean) TO service_role;
-
---
--- Name: FUNCTION affiliate_valid_program(p_terms jsonb, p_thresholds jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_valid_program(p_terms jsonb, p_thresholds jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_valid_program(p_terms jsonb, p_thresholds jsonb) TO service_role;
-
---
--- Name: TABLE affiliate_programs; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT,INSERT ON TABLE public.affiliate_programs TO service_role;
-
---
--- Name: FUNCTION affiliate_program_update(p_actor uuid, p_expected_version bigint, p_enabled boolean, p_terms_version text, p_terms jsonb, p_hold_days integer, p_buffer_days integer, p_thresholds jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_program_update(p_actor uuid, p_expected_version bigint, p_enabled boolean, p_terms_version text, p_terms jsonb, p_hold_days integer, p_buffer_days integer, p_thresholds jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_program_update(p_actor uuid, p_expected_version bigint, p_enabled boolean, p_terms_version text, p_terms jsonb, p_hold_days integer, p_buffer_days integer, p_thresholds jsonb) TO service_role;
-
---
--- Name: FUNCTION affiliate_reserve(p_actor uuid, p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_member_version bigint, p_program_version bigint, p_payee_reference text, p_livemode boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_reserve(p_actor uuid, p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_member_version bigint, p_program_version bigint, p_payee_reference text, p_livemode boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_reserve(p_actor uuid, p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_member_version bigint, p_program_version bigint, p_payee_reference text, p_livemode boolean) TO service_role;
-
---
--- Name: FUNCTION affiliate_retry_work(p_payment uuid, p_token uuid, p_generation bigint, p_error text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_retry_work(p_payment uuid, p_token uuid, p_generation bigint, p_error text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_retry_work(p_payment uuid, p_token uuid, p_generation bigint, p_error text) TO service_role;
-
---
--- Name: TABLE affiliate_rules; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT,INSERT ON TABLE public.affiliate_rules TO service_role;
-
---
--- Name: FUNCTION affiliate_rule_create(p_actor uuid, p_product uuid, p_expected_revision integer, p_enabled boolean, p_percentage_bps integer, p_fixed_minor bigint, p_currency text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_rule_create(p_actor uuid, p_product uuid, p_expected_revision integer, p_enabled boolean, p_percentage_bps integer, p_fixed_minor bigint, p_currency text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_rule_create(p_actor uuid, p_product uuid, p_expected_revision integer, p_enabled boolean, p_percentage_bps integer, p_fixed_minor bigint, p_currency text) TO service_role;
-
---
--- Name: FUNCTION affiliate_rule_guard(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_rule_guard() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_rule_guard() TO service_role;
-
---
--- Name: FUNCTION affiliate_work_retry(p_actor uuid, p_payment uuid, p_generation bigint, p_reason text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.affiliate_work_retry(p_actor uuid, p_payment uuid, p_generation bigint, p_reason text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.affiliate_work_retry(p_actor uuid, p_payment uuid, p_generation bigint, p_reason text) TO service_role;
-
---
--- Name: FUNCTION apply_migration(migration_version text, migration_sql text, content_checksum text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.apply_migration(migration_version text, migration_sql text, content_checksum text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.apply_migration(migration_version text, migration_sql text, content_checksum text) TO service_role;
-
---
--- Name: FUNCTION apply_payment_dispute(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.apply_payment_dispute(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.apply_payment_dispute(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone) TO service_role;
-
---
--- Name: FUNCTION apply_payment_dispute_before_guest_claim(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.apply_payment_dispute_before_guest_claim(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone) FROM PUBLIC;
-
---
--- Name: FUNCTION apply_shop_vat_defaults(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.apply_shop_vat_defaults() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.apply_shop_vat_defaults() TO service_role;
-
---
--- Name: FUNCTION attach_order_payment_session(p_attempt uuid, p_session_id text, p_url text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.attach_order_payment_session(p_attempt uuid, p_session_id text, p_url text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.attach_order_payment_session(p_attempt uuid, p_session_id text, p_url text) TO service_role;
-
---
--- Name: FUNCTION attribution_text(p jsonb, k text, max_len integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.attribution_text(p jsonb, k text, max_len integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.attribution_text(p jsonb, k text, max_len integer) TO service_role;
-
---
--- Name: FUNCTION attribution_time(p jsonb, k text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.attribution_time(p jsonb, k text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.attribution_time(p jsonb, k text) TO service_role;
-
---
--- Name: FUNCTION audit_checkout_profile(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.audit_checkout_profile() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.audit_checkout_profile() TO service_role;
-
---
--- Name: FUNCTION audit_trigger_function(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.audit_trigger_function() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.audit_trigger_function() TO service_role;
-
---
--- Name: FUNCTION bank_transfer_order(p_order jsonb, p_lines jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.bank_transfer_order(p_order jsonb, p_lines jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.bank_transfer_order(p_order jsonb, p_lines jsonb) TO service_role;
-
---
--- Name: FUNCTION batch_check_user_product_access(product_slugs_param text[]); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.batch_check_user_product_access(product_slugs_param text[]) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.batch_check_user_product_access(product_slugs_param text[]) TO service_role;
-GRANT ALL ON FUNCTION public.batch_check_user_product_access(product_slugs_param text[]) TO anon;
-GRANT ALL ON FUNCTION public.batch_check_user_product_access(product_slugs_param text[]) TO authenticated;
-
---
--- Name: FUNCTION bind_access_license(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.bind_access_license() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.bind_access_license() TO service_role;
-
---
--- Name: FUNCTION business_event_actor(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.business_event_actor() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.business_event_actor() TO service_role;
-
---
--- Name: FUNCTION business_event_order(p_transaction uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.business_event_order(p_transaction uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.business_event_order(p_transaction uuid) TO service_role;
-
---
--- Name: FUNCTION business_event_partner(p_member uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.business_event_partner(p_member uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.business_event_partner(p_member uuid) TO service_role;
-
---
--- Name: FUNCTION buyer_mail_locale(p_email text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.buyer_mail_locale(p_email text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.buyer_mail_locale(p_email text) TO service_role;
-
---
--- Name: FUNCTION cancel_unpaid_order(p_transaction_id uuid, p_reason text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.cancel_unpaid_order(p_transaction_id uuid, p_reason text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.cancel_unpaid_order(p_transaction_id uuid, p_reason text) TO service_role;
-
---
--- Name: FUNCTION capture_business_event(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.capture_business_event() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.capture_business_event() TO service_role;
-
---
--- Name: FUNCTION capture_commission_event(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.capture_commission_event() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.capture_commission_event() TO service_role;
-
---
--- Name: FUNCTION capture_due_renewal_notices(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.capture_due_renewal_notices() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.capture_due_renewal_notices() TO service_role;
-
---
--- Name: FUNCTION capture_expired_access(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.capture_expired_access() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.capture_expired_access() TO service_role;
-
---
--- Name: FUNCTION capture_expired_licenses(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.capture_expired_licenses() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.capture_expired_licenses() TO service_role;
-
---
--- Name: FUNCTION capture_license_expiry_updated(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.capture_license_expiry_updated() FROM PUBLIC;
-
---
--- Name: FUNCTION capture_license_issued_event(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.capture_license_issued_event() FROM PUBLIC;
-
---
--- Name: FUNCTION capture_license_status_event(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.capture_license_status_event() FROM PUBLIC;
-
---
--- Name: FUNCTION capture_payout_event(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.capture_payout_event() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.capture_payout_event() TO service_role;
-
---
--- Name: FUNCTION capture_product_event(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.capture_product_event() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.capture_product_event() TO service_role;
-
---
--- Name: FUNCTION capture_product_lifecycle_event(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.capture_product_lifecycle_event() FROM PUBLIC;
-
---
--- Name: FUNCTION capture_refund_request_event(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.capture_refund_request_event() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.capture_refund_request_event() TO service_role;
-
---
--- Name: FUNCTION capture_sales_invoice_event(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.capture_sales_invoice_event() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.capture_sales_invoice_event() TO service_role;
-
---
--- Name: FUNCTION capture_sold_out_event(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.capture_sold_out_event() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.capture_sold_out_event() TO service_role;
-
---
--- Name: FUNCTION capture_subscription_period_access(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.capture_subscription_period_access() FROM PUBLIC;
-
---
--- Name: FUNCTION check_application_rate_limit(identifier_param text, action_type_param text, max_requests integer, window_minutes integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.check_application_rate_limit(identifier_param text, action_type_param text, max_requests integer, window_minutes integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.check_application_rate_limit(identifier_param text, action_type_param text, max_requests integer, window_minutes integer) TO service_role;
-
---
--- Name: FUNCTION check_rate_limit(function_name_param text, max_calls integer, time_window_seconds integer, identifier_param text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.check_rate_limit(function_name_param text, max_calls integer, time_window_seconds integer, identifier_param text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.check_rate_limit(function_name_param text, max_calls integer, time_window_seconds integer, identifier_param text) TO service_role;
-
---
--- Name: FUNCTION check_refund_eligibility(transaction_id_param uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.check_refund_eligibility(transaction_id_param uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.check_refund_eligibility(transaction_id_param uuid) TO service_role;
-GRANT ALL ON FUNCTION public.check_refund_eligibility(transaction_id_param uuid) TO authenticated;
-
---
--- Name: FUNCTION check_user_product_access(product_slug_param text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.check_user_product_access(product_slug_param text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.check_user_product_access(product_slug_param text) TO service_role;
-GRANT ALL ON FUNCTION public.check_user_product_access(product_slug_param text) TO anon;
-GRANT ALL ON FUNCTION public.check_user_product_access(product_slug_param text) TO authenticated;
-
---
--- Name: FUNCTION check_waitlist_config(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.check_waitlist_config() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.check_waitlist_config() TO service_role;
-GRANT ALL ON FUNCTION public.check_waitlist_config() TO authenticated;
-
---
--- Name: TABLE auth_mail_retries; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.auth_mail_retries TO service_role;
-
---
--- Name: FUNCTION claim_auth_mail_retries(p_limit integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.claim_auth_mail_retries(p_limit integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.claim_auth_mail_retries(p_limit integer) TO service_role;
-
---
--- Name: TABLE business_events; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.business_events TO service_role;
-
---
--- Name: FUNCTION claim_business_events(p_limit integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.claim_business_events(p_limit integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.claim_business_events(p_limit integer) TO service_role;
-
---
--- Name: FUNCTION claim_guest_purchases_for_user(p_user_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.claim_guest_purchases_for_user(p_user_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.claim_guest_purchases_for_user(p_user_id uuid) TO service_role;
-
---
--- Name: FUNCTION claim_license_mail(p_key text, p_email text, p_redirect_to text, p_data jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.claim_license_mail(p_key text, p_email text, p_redirect_to text, p_data jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.claim_license_mail(p_key text, p_email text, p_redirect_to text, p_data jsonb) TO service_role;
-
---
--- Name: FUNCTION claim_paid_subscription_access(p_user_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.claim_paid_subscription_access(p_user_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.claim_paid_subscription_access(p_user_id uuid) TO service_role;
-
---
--- Name: TABLE webhook_logs; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.webhook_logs TO service_role;
-GRANT SELECT,UPDATE ON TABLE public.webhook_logs TO authenticated;
-
---
--- Name: FUNCTION claim_webhook_delivery(p_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.claim_webhook_delivery(p_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.claim_webhook_delivery(p_id uuid) TO service_role;
-
---
--- Name: FUNCTION classify_attribution_channel(p_source text, p_medium text, p_campaign text, p_referrer_host text, p_click_type text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.classify_attribution_channel(p_source text, p_medium text, p_campaign text, p_referrer_host text, p_click_type text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.classify_attribution_channel(p_source text, p_medium text, p_campaign text, p_referrer_host text, p_click_type text) TO service_role;
-
---
--- Name: FUNCTION cleanup_application_rate_limits(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.cleanup_application_rate_limits() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.cleanup_application_rate_limits() TO service_role;
-
---
--- Name: FUNCTION cleanup_audit_logs(retention_days integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.cleanup_audit_logs(retention_days integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.cleanup_audit_logs(retention_days integer) TO service_role;
-
---
--- Name: FUNCTION cleanup_captcha_nonces(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.cleanup_captcha_nonces() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.cleanup_captcha_nonces() TO service_role;
-
---
--- Name: FUNCTION cleanup_expired_oto_coupons(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.cleanup_expired_oto_coupons() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.cleanup_expired_oto_coupons() TO service_role;
-
---
--- Name: FUNCTION cleanup_old_admin_actions(retention_days integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.cleanup_old_admin_actions(retention_days integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.cleanup_old_admin_actions(retention_days integer) TO service_role;
-
---
--- Name: FUNCTION cleanup_old_guest_purchases(retention_days integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.cleanup_old_guest_purchases(retention_days integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.cleanup_old_guest_purchases(retention_days integer) TO service_role;
-
---
--- Name: FUNCTION cleanup_old_price_history(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.cleanup_old_price_history() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.cleanup_old_price_history() TO service_role;
-
---
--- Name: FUNCTION cleanup_old_rate_limits(retention_hours integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.cleanup_old_rate_limits(retention_hours integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.cleanup_old_rate_limits(retention_hours integer) TO service_role;
-
---
--- Name: FUNCTION cleanup_rate_limits(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.cleanup_rate_limits() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.cleanup_rate_limits() TO service_role;
-
---
--- Name: FUNCTION clear_admin_cache(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.clear_admin_cache() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.clear_admin_cache() TO service_role;
-
---
--- Name: FUNCTION clear_license_dispute_owner(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.clear_license_dispute_owner() FROM PUBLIC;
-
---
--- Name: FUNCTION clear_license_revocation_reason(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.clear_license_revocation_reason() FROM PUBLIC;
-
---
--- Name: FUNCTION clear_pending_free_grant_on_access(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.clear_pending_free_grant_on_access() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.clear_pending_free_grant_on_access() TO service_role;
-
---
--- Name: FUNCTION complete_offline_order(p_transaction_id uuid, p_paid_minor numeric); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.complete_offline_order(p_transaction_id uuid, p_paid_minor numeric) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.complete_offline_order(p_transaction_id uuid, p_paid_minor numeric) TO service_role;
-
---
--- Name: FUNCTION complete_order_payment_attempt(p_attempt uuid, p_session_id text, p_payment_intent text, p_amount numeric, p_now timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.complete_order_payment_attempt(p_attempt uuid, p_session_id text, p_payment_intent text, p_amount numeric, p_now timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.complete_order_payment_attempt(p_attempt uuid, p_session_id text, p_payment_intent text, p_amount numeric, p_now timestamp with time zone) TO service_role;
-
---
--- Name: FUNCTION confirm_event_order(p_transaction_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.confirm_event_order(p_transaction_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.confirm_event_order(p_transaction_id uuid) TO service_role;
-
---
--- Name: TABLE lead_submissions; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.lead_submissions TO service_role;
-
---
--- Name: FUNCTION confirm_lead_submission(p_token_hash text, p_email text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.confirm_lead_submission(p_token_hash text, p_email text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.confirm_lead_submission(p_token_hash text, p_email text) TO service_role;
-
---
--- Name: FUNCTION confirm_refund_notification(p_refund_id text, p_version integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.confirm_refund_notification(p_refund_id text, p_version integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.confirm_refund_notification(p_refund_id text, p_version integer) TO service_role;
-
---
--- Name: FUNCTION copy_free_grant_fields(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.copy_free_grant_fields() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.copy_free_grant_fields() TO service_role;
-
---
--- Name: FUNCTION create_refund_request(transaction_id_param uuid, reason_param text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.create_refund_request(transaction_id_param uuid, reason_param text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.create_refund_request(transaction_id_param uuid, reason_param text) TO service_role;
-GRANT ALL ON FUNCTION public.create_refund_request(transaction_id_param uuid, reason_param text) TO authenticated;
-
---
--- Name: FUNCTION currency_minor_factor(currency_code text); Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON FUNCTION public.currency_minor_factor(currency_code text) TO service_role;
-
---
--- Name: FUNCTION validate_email_format(email_param text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.validate_email_format(email_param text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.validate_email_format(email_param text) TO service_role;
-GRANT ALL ON FUNCTION public.validate_email_format(email_param text) TO authenticated;
-
---
--- Name: TABLE refund_requests; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.refund_requests TO service_role;
-GRANT SELECT ON TABLE public.refund_requests TO authenticated;
-
---
--- Name: FUNCTION decide_refund_request(p_request_id uuid, p_status text, p_admin_id uuid, p_admin_response text, p_actor jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.decide_refund_request(p_request_id uuid, p_status text, p_admin_id uuid, p_admin_response text, p_actor jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.decide_refund_request(p_request_id uuid, p_status text, p_admin_id uuid, p_admin_response text, p_actor jsonb) TO service_role;
-
---
--- Name: FUNCTION declare_transfer(p_id uuid, p_note text, p_now timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.declare_transfer(p_id uuid, p_note text, p_now timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.declare_transfer(p_id uuid, p_note text, p_now timestamp with time zone) TO service_role;
-
---
--- Name: FUNCTION defer_subscription_access_until_confirmation(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.defer_subscription_access_until_confirmation() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.defer_subscription_access_until_confirmation() TO service_role;
-
---
--- Name: FUNCTION enable_event_repeat_purchase(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.enable_event_repeat_purchase() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.enable_event_repeat_purchase() TO service_role;
-
---
--- Name: FUNCTION end_refunded_subscription(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.end_refunded_subscription() FROM PUBLIC;
-
---
--- Name: FUNCTION end_refunded_subscription_access(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.end_refunded_subscription_access() FROM PUBLIC;
-
---
--- Name: FUNCTION enforce_product_type_immutable_after_sale(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.enforce_product_type_immutable_after_sale() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.enforce_product_type_immutable_after_sale() TO service_role;
-
---
--- Name: FUNCTION enforce_whole_amounts_coupon(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.enforce_whole_amounts_coupon() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.enforce_whole_amounts_coupon() TO service_role;
-
---
--- Name: FUNCTION enforce_whole_amounts_order_bump(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.enforce_whole_amounts_order_bump() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.enforce_whole_amounts_order_bump() TO service_role;
-
---
--- Name: FUNCTION enforce_whole_amounts_product(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.enforce_whole_amounts_product() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.enforce_whole_amounts_product() TO service_role;
-
---
--- Name: FUNCTION enqueue_webhook_delivery(p_id uuid, p_endpoint_id uuid, p_event_type text, p_payload jsonb, p_delivery_key text, p_max_attempts integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.enqueue_webhook_delivery(p_id uuid, p_endpoint_id uuid, p_event_type text, p_payload jsonb, p_delivery_key text, p_max_attempts integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.enqueue_webhook_delivery(p_id uuid, p_endpoint_id uuid, p_event_type text, p_payload jsonb, p_delivery_key text, p_max_attempts integer) TO service_role;
-
---
--- Name: FUNCTION event_availability(p_product_id uuid, p_at timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.event_availability(p_product_id uuid, p_at timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.event_availability(p_product_id uuid, p_at timestamp with time zone) TO service_role;
-
---
--- Name: FUNCTION event_hold_limits(p_session_id uuid, p_email text, p_ip text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.event_hold_limits(p_session_id uuid, p_email text, p_ip text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.event_hold_limits(p_session_id uuid, p_email text, p_ip text) TO service_role;
-
---
--- Name: FUNCTION event_mail_access(p_email text, p_product_id uuid, p_transaction_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.event_mail_access(p_email text, p_product_id uuid, p_transaction_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.event_mail_access(p_email text, p_product_id uuid, p_transaction_id uuid) TO service_role;
-
---
--- Name: FUNCTION event_order_seats(p_transaction_id uuid, p_at timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.event_order_seats(p_transaction_id uuid, p_at timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.event_order_seats(p_transaction_id uuid, p_at timestamp with time zone) TO service_role;
-
---
--- Name: FUNCTION event_session_admin(p_session_id uuid, p_offset integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.event_session_admin(p_session_id uuid, p_offset integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.event_session_admin(p_session_id uuid, p_offset integer) TO service_role;
-
---
--- Name: FUNCTION expire_order_payment_attempt(p_session_id text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.expire_order_payment_attempt(p_session_id text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.expire_order_payment_attempt(p_session_id text) TO service_role;
-
---
--- Name: FUNCTION expire_seat_reservations(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.expire_seat_reservations() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.expire_seat_reservations() TO service_role;
-
---
--- Name: FUNCTION fail_business_event(p_id uuid, p_error text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.fail_business_event(p_id uuid, p_error text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.fail_business_event(p_id uuid, p_error text) TO service_role;
-
---
--- Name: FUNCTION find_auto_apply_coupon(customer_email_param text, product_id_param uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.find_auto_apply_coupon(customer_email_param text, product_id_param uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.find_auto_apply_coupon(customer_email_param text, product_id_param uuid) TO service_role;
-GRANT ALL ON FUNCTION public.find_auto_apply_coupon(customer_email_param text, product_id_param uuid) TO authenticated;
-
---
--- Name: FUNCTION find_user_id_by_email(p_email text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.find_user_id_by_email(p_email text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.find_user_id_by_email(p_email text) TO service_role;
-
---
--- Name: FUNCTION finish_license_mail(p_retry_id uuid, p_completed boolean, p_error text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.finish_license_mail(p_retry_id uuid, p_completed boolean, p_error text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.finish_license_mail(p_retry_id uuid, p_completed boolean, p_error text) TO service_role;
-
---
--- Name: FUNCTION free_grant_context(p_product_id uuid, p_request_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.free_grant_context(p_product_id uuid, p_request_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.free_grant_context(p_product_id uuid, p_request_id uuid) TO service_role;
-GRANT ALL ON FUNCTION public.free_grant_context(p_product_id uuid, p_request_id uuid) TO authenticated;
-
---
--- Name: FUNCTION generate_oto_coupon(source_product_id_param uuid, customer_email_param text, transaction_id_param uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.generate_oto_coupon(source_product_id_param uuid, customer_email_param text, transaction_id_param uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.generate_oto_coupon(source_product_id_param uuid, customer_email_param text, transaction_id_param uuid) TO service_role;
-
---
--- Name: FUNCTION get_abandoned_cart_stats(days_ago integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_abandoned_cart_stats(days_ago integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_abandoned_cart_stats(days_ago integer) TO service_role;
-
---
--- Name: FUNCTION get_abandoned_carts(days_ago integer, limit_count integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_abandoned_carts(days_ago integer, limit_count integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_abandoned_carts(days_ago integer, limit_count integer) TO service_role;
-
---
--- Name: FUNCTION get_admin_refund_requests(status_filter text, limit_param integer, offset_param integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_admin_refund_requests(status_filter text, limit_param integer, offset_param integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_admin_refund_requests(status_filter text, limit_param integer, offset_param integer) TO service_role;
-GRANT ALL ON FUNCTION public.get_admin_refund_requests(status_filter text, limit_param integer, offset_param integer) TO authenticated;
-
---
--- Name: FUNCTION get_attribution_report(p_from timestamp with time zone, p_to timestamp with time zone, p_touch text, p_group_by text[], p_product uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_attribution_report(p_from timestamp with time zone, p_to timestamp with time zone, p_touch text, p_group_by text[], p_product uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_attribution_report(p_from timestamp with time zone, p_to timestamp with time zone, p_touch text, p_group_by text[], p_product uuid) TO service_role;
-GRANT ALL ON FUNCTION public.get_attribution_report(p_from timestamp with time zone, p_to timestamp with time zone, p_touch text, p_group_by text[], p_product uuid) TO authenticated;
-
---
--- Name: FUNCTION get_checkout_funnel(p_days integer, p_product_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_checkout_funnel(p_days integer, p_product_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_checkout_funnel(p_days integer, p_product_id uuid) TO service_role;
-
---
--- Name: FUNCTION get_cleanup_job_status(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_cleanup_job_status() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_cleanup_job_status() TO service_role;
-
---
--- Name: FUNCTION get_dashboard_stats(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_dashboard_stats() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_dashboard_stats() TO service_role;
-GRANT ALL ON FUNCTION public.get_dashboard_stats() TO authenticated;
-
---
--- Name: FUNCTION get_detailed_revenue_stats(p_product_id uuid, p_goal_start_date timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start_date timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start_date timestamp with time zone) TO service_role;
-GRANT ALL ON FUNCTION public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start_date timestamp with time zone) TO authenticated;
-
---
--- Name: FUNCTION get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) TO service_role;
-GRANT ALL ON FUNCTION public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) TO authenticated;
-
---
--- Name: FUNCTION get_migration_status(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_migration_status() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_migration_status() TO service_role;
-
---
--- Name: FUNCTION get_oto_coupon_info(coupon_code_param text, email_param text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_oto_coupon_info(coupon_code_param text, email_param text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_oto_coupon_info(coupon_code_param text, email_param text) TO service_role;
-GRANT ALL ON FUNCTION public.get_oto_coupon_info(coupon_code_param text, email_param text) TO anon;
-GRANT ALL ON FUNCTION public.get_oto_coupon_info(coupon_code_param text, email_param text) TO authenticated;
-
---
--- Name: FUNCTION get_payment_statistics(start_date timestamp with time zone, end_date timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_payment_statistics(start_date timestamp with time zone, end_date timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_payment_statistics(start_date timestamp with time zone, end_date timestamp with time zone) TO service_role;
-GRANT ALL ON FUNCTION public.get_payment_statistics(start_date timestamp with time zone, end_date timestamp with time zone) TO authenticated;
-
---
--- Name: FUNCTION get_payment_summary(p_today_start timestamp with time zone, p_month_start timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_payment_summary(p_today_start timestamp with time zone, p_month_start timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_payment_summary(p_today_start timestamp with time zone, p_month_start timestamp with time zone) TO service_role;
-GRANT ALL ON FUNCTION public.get_payment_summary(p_today_start timestamp with time zone, p_month_start timestamp with time zone) TO authenticated;
-
---
--- Name: FUNCTION get_product_order_bumps(product_id_param uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_product_order_bumps(product_id_param uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_product_order_bumps(product_id_param uuid) TO service_role;
-GRANT ALL ON FUNCTION public.get_product_order_bumps(product_id_param uuid) TO anon;
-GRANT ALL ON FUNCTION public.get_product_order_bumps(product_id_param uuid) TO authenticated;
-
---
--- Name: FUNCTION get_public_integrations_config(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_public_integrations_config() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_public_integrations_config() TO service_role;
-GRANT ALL ON FUNCTION public.get_public_integrations_config() TO anon;
-GRANT ALL ON FUNCTION public.get_public_integrations_config() TO authenticated;
-
---
--- Name: FUNCTION get_revenue_goal(p_product_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_revenue_goal(p_product_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_revenue_goal(p_product_id uuid) TO service_role;
-GRANT ALL ON FUNCTION public.get_revenue_goal(p_product_id uuid) TO authenticated;
-
---
--- Name: FUNCTION get_revenue_groups(p_start timestamp with time zone, p_end timestamp with time zone, p_product_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_revenue_groups(p_start timestamp with time zone, p_end timestamp with time zone, p_product_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_revenue_groups(p_start timestamp with time zone, p_end timestamp with time zone, p_product_id uuid) TO service_role;
-GRANT ALL ON FUNCTION public.get_revenue_groups(p_start timestamp with time zone, p_end timestamp with time zone, p_product_id uuid) TO authenticated;
-
---
--- Name: FUNCTION get_sales_chart_data(p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_product_id uuid, p_timezone text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_sales_chart_data(p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_product_id uuid, p_timezone text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_sales_chart_data(p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_product_id uuid, p_timezone text) TO service_role;
-GRANT ALL ON FUNCTION public.get_sales_chart_data(p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_product_id uuid, p_timezone text) TO authenticated;
-
---
--- Name: FUNCTION get_telemetry_metrics(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_telemetry_metrics() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_telemetry_metrics() TO service_role;
-
---
--- Name: FUNCTION get_user_payment_history(user_id_param uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_user_payment_history(user_id_param uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_user_payment_history(user_id_param uuid) TO service_role;
-GRANT ALL ON FUNCTION public.get_user_payment_history(user_id_param uuid) TO authenticated;
-
---
--- Name: FUNCTION get_user_profile(user_id_param uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_user_profile(user_id_param uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_user_profile(user_id_param uuid) TO service_role;
-GRANT ALL ON FUNCTION public.get_user_profile(user_id_param uuid) TO authenticated;
-
---
--- Name: FUNCTION get_user_purchases_with_refund_status(user_id_param uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_user_purchases_with_refund_status(user_id_param uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_user_purchases_with_refund_status(user_id_param uuid) TO service_role;
-GRANT ALL ON FUNCTION public.get_user_purchases_with_refund_status(user_id_param uuid) TO authenticated;
-
---
--- Name: FUNCTION get_variant_group(p_group_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_variant_group(p_group_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_variant_group(p_group_id uuid) TO service_role;
-GRANT ALL ON FUNCTION public.get_variant_group(p_group_id uuid) TO anon;
-GRANT ALL ON FUNCTION public.get_variant_group(p_group_id uuid) TO authenticated;
-
---
--- Name: FUNCTION get_variant_group_by_slug(p_slug text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.get_variant_group_by_slug(p_slug text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.get_variant_group_by_slug(p_slug text) TO service_role;
-GRANT ALL ON FUNCTION public.get_variant_group_by_slug(p_slug text) TO anon;
-GRANT ALL ON FUNCTION public.get_variant_group_by_slug(p_slug text) TO authenticated;
-
---
--- Name: FUNCTION grant_bundle_component_access(user_id_param uuid, product_id_param uuid, max_retries integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.grant_bundle_component_access(user_id_param uuid, product_id_param uuid, max_retries integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.grant_bundle_component_access(user_id_param uuid, product_id_param uuid, max_retries integer) TO service_role;
-
---
--- Name: FUNCTION grant_bundle_component_access_impl(user_id_param uuid, product_id_param uuid, max_retries integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.grant_bundle_component_access_impl(user_id_param uuid, product_id_param uuid, max_retries integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.grant_bundle_component_access_impl(user_id_param uuid, product_id_param uuid, max_retries integer) TO service_role;
-
---
--- Name: FUNCTION grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) TO service_role;
-GRANT ALL ON FUNCTION public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) TO authenticated;
-
---
--- Name: FUNCTION grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) TO service_role;
-GRANT ALL ON FUNCTION public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) TO authenticated;
-
---
--- Name: FUNCTION grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid) TO service_role;
-GRANT ALL ON FUNCTION public.grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid) TO authenticated;
-
---
--- Name: FUNCTION grant_product_access_service_role(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.grant_product_access_service_role(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.grant_product_access_service_role(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) TO service_role;
-
---
--- Name: FUNCTION grant_product_access_service_role_impl(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.grant_product_access_service_role_impl(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.grant_product_access_service_role_impl(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) TO service_role;
-
---
--- Name: FUNCTION grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer) TO service_role;
-
---
--- Name: FUNCTION handle_new_user_registration(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.handle_new_user_registration() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.handle_new_user_registration() TO service_role;
-
---
--- Name: FUNCTION handle_user_email_confirmation(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.handle_user_email_confirmation() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.handle_user_email_confirmation() TO service_role;
-
---
--- Name: FUNCTION hold_transfer_for_invoice(p_id uuid, p_now timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.hold_transfer_for_invoice(p_id uuid, p_now timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.hold_transfer_for_invoice(p_id uuid, p_now timestamp with time zone) TO service_role;
-
---
--- Name: FUNCTION increment_coupon_usage(coupon_id_param uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.increment_coupon_usage(coupon_id_param uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.increment_coupon_usage(coupon_id_param uuid) TO service_role;
-
---
--- Name: FUNCTION increment_sale_quantity_sold(p_product_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.increment_sale_quantity_sold(p_product_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.increment_sale_quantity_sold(p_product_id uuid) TO service_role;
-
---
--- Name: FUNCTION increment_sale_quantity_sold(p_product_id uuid, p_quantity integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.increment_sale_quantity_sold(p_product_id uuid, p_quantity integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.increment_sale_quantity_sold(p_product_id uuid, p_quantity integer) TO service_role;
-
---
--- Name: FUNCTION increment_webhook_attempt(p_log_id uuid, p_status text, p_http_status integer, p_response_body text, p_error_message text, p_duration_ms integer, p_next_retry_at timestamp with time zone, p_failed_permanently_at timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.increment_webhook_attempt(p_log_id uuid, p_status text, p_http_status integer, p_response_body text, p_error_message text, p_duration_ms integer, p_next_retry_at timestamp with time zone, p_failed_permanently_at timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.increment_webhook_attempt(p_log_id uuid, p_status text, p_http_status integer, p_response_body text, p_error_message text, p_duration_ms integer, p_next_retry_at timestamp with time zone, p_failed_permanently_at timestamp with time zone) TO service_role;
-
---
--- Name: FUNCTION insert_purchase_attribution(p_tx uuid, p_product uuid, p_user uuid, p_kind text, p_payload jsonb, p_coupon uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.insert_purchase_attribution(p_tx uuid, p_product uuid, p_user uuid, p_kind text, p_payload jsonb, p_coupon uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.insert_purchase_attribution(p_tx uuid, p_product uuid, p_user uuid, p_kind text, p_payload jsonb, p_coupon uuid) TO service_role;
-
---
--- Name: FUNCTION invoice_holds_transfer(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.invoice_holds_transfer() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.invoice_holds_transfer() TO service_role;
-
---
--- Name: FUNCTION is_admin(user_id_param uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.is_admin(user_id_param uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.is_admin(user_id_param uuid) TO service_role;
-GRANT ALL ON FUNCTION public.is_admin(user_id_param uuid) TO anon;
-GRANT ALL ON FUNCTION public.is_admin(user_id_param uuid) TO authenticated;
-
---
--- Name: FUNCTION is_admin_cached(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.is_admin_cached() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.is_admin_cached() TO service_role;
-GRANT ALL ON FUNCTION public.is_admin_cached() TO anon;
-GRANT ALL ON FUNCTION public.is_admin_cached() TO authenticated;
-
---
--- Name: FUNCTION is_free_claimable_product(p_product_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.is_free_claimable_product(p_product_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.is_free_claimable_product(p_product_id uuid) TO service_role;
-
---
--- Name: FUNCTION is_free_grantable_now(p_product_type text, p_available_from timestamp with time zone, p_available_until timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.is_free_grantable_now(p_product_type text, p_available_from timestamp with time zone, p_available_until timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.is_free_grantable_now(p_product_type text, p_available_from timestamp with time zone, p_available_until timestamp with time zone) TO service_role;
-
---
--- Name: FUNCTION is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) TO service_role;
-GRANT ALL ON FUNCTION public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) TO authenticated;
-
---
--- Name: FUNCTION jsonschema_subset_matches(schema json, instance jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.jsonschema_subset_matches(schema json, instance jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.jsonschema_subset_matches(schema json, instance jsonb) TO service_role;
-
---
--- Name: FUNCTION jsonschema_subset_pattern(pattern text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.jsonschema_subset_pattern(pattern text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.jsonschema_subset_pattern(pattern text) TO service_role;
-
---
--- Name: FUNCTION jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer) TO service_role;
-
---
--- Name: FUNCTION keep_refunded_subscription_access_ended(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.keep_refunded_subscription_access_ended() FROM PUBLIC;
-
---
--- Name: FUNCTION keep_refunded_subscription_ended(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.keep_refunded_subscription_ended() FROM PUBLIC;
-
---
--- Name: FUNCTION legacy_pending_free_grant_products(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.legacy_pending_free_grant_products() FROM PUBLIC;
-
---
--- Name: TABLE issued_licenses; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.issued_licenses TO service_role;
-
---
--- Name: FUNCTION license_event_snapshot(p_license public.issued_licenses); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.license_event_snapshot(p_license public.issued_licenses) FROM PUBLIC;
-
---
--- Name: FUNCTION license_mail_is_current(p_email text, p_keys jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.license_mail_is_current(p_email text, p_keys jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.license_mail_is_current(p_email text, p_keys jsonb) TO service_role;
-
---
--- Name: TABLE payment_transactions; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.payment_transactions TO service_role;
-GRANT SELECT,UPDATE ON TABLE public.payment_transactions TO authenticated;
-
---
--- Name: FUNCTION license_order_references(p_order public.payment_transactions); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.license_order_references(p_order public.payment_transactions) FROM PUBLIC;
-
---
--- Name: FUNCTION list_orders_missing_participants(p_unsent_only boolean, p_limit integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.list_orders_missing_participants(p_unsent_only boolean, p_limit integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.list_orders_missing_participants(p_unsent_only boolean, p_limit integer) TO service_role;
-
---
--- Name: FUNCTION list_participants_reminders_due(p_now timestamp with time zone, p_limit integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.list_participants_reminders_due(p_now timestamp with time zone, p_limit integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.list_participants_reminders_due(p_now timestamp with time zone, p_limit integer) TO service_role;
-
---
--- Name: FUNCTION log_admin_action(action_name text, target_type text, target_id text, action_details jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.log_admin_action(action_name text, target_type text, target_id text, action_details jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.log_admin_action(action_name text, target_type text, target_id text, action_details jsonb) TO service_role;
-
---
--- Name: FUNCTION log_admin_action_trigger(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.log_admin_action_trigger() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.log_admin_action_trigger() TO service_role;
-
---
--- Name: FUNCTION log_audit_entry(table_name_param text, operation_param text, old_values_param jsonb, new_values_param jsonb, user_id_param uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.log_audit_entry(table_name_param text, operation_param text, old_values_param jsonb, new_values_param jsonb, user_id_param uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.log_audit_entry(table_name_param text, operation_param text, old_values_param jsonb, new_values_param jsonb, user_id_param uuid) TO service_role;
-
---
--- Name: FUNCTION log_product_price_change(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.log_product_price_change() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.log_product_price_change() TO service_role;
-
---
--- Name: FUNCTION logs_monitoring_check(new_action_details jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.logs_monitoring_check(new_action_details jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.logs_monitoring_check(new_action_details jsonb) TO service_role;
-
---
--- Name: FUNCTION logs_monitoring_trigger(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.logs_monitoring_trigger() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.logs_monitoring_trigger() TO service_role;
-
---
--- Name: FUNCTION mark_checkout_details_missing(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.mark_checkout_details_missing() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.mark_checkout_details_missing() TO service_role;
-
---
--- Name: FUNCTION mark_expired_pending_payments(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.mark_expired_pending_payments() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.mark_expired_pending_payments() TO service_role;
-
---
--- Name: FUNCTION migrate_guest_payment_data_to_profile(p_user_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.migrate_guest_payment_data_to_profile(p_user_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.migrate_guest_payment_data_to_profile(p_user_id uuid) TO service_role;
-
---
--- Name: FUNCTION migrate_guest_purchases(p_user_id uuid, p_email text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.migrate_guest_purchases(p_user_id uuid, p_email text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.migrate_guest_purchases(p_user_id uuid, p_email text) TO service_role;
-
---
--- Name: TABLE user_product_access; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.user_product_access TO authenticated;
-GRANT ALL ON TABLE public.user_product_access TO service_role;
-
---
--- Name: FUNCTION mutate_access(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.mutate_access(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.mutate_access(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) TO service_role;
-
---
--- Name: FUNCTION mutate_access_impl(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.mutate_access_impl(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.mutate_access_impl(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) TO service_role;
-
---
--- Name: FUNCTION product_marketing_valid(instance jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.product_marketing_valid(instance jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.product_marketing_valid(instance jsonb) TO service_role;
-GRANT ALL ON FUNCTION public.product_marketing_valid(instance jsonb) TO authenticated;
-
---
--- Name: TABLE products; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT INSERT,DELETE,UPDATE ON TABLE public.products TO authenticated;
-GRANT ALL ON TABLE public.products TO service_role;
-
---
--- Name: COLUMN products.id; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(id) ON TABLE public.products TO anon;
-GRANT SELECT(id) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.name; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(name) ON TABLE public.products TO anon;
-GRANT SELECT(name) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.slug; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(slug) ON TABLE public.products TO anon;
-GRANT SELECT(slug) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.description; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(description) ON TABLE public.products TO anon;
-GRANT SELECT(description) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.long_description; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(long_description) ON TABLE public.products TO anon;
-GRANT SELECT(long_description) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.icon; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(icon) ON TABLE public.products TO anon;
-GRANT SELECT(icon) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.image_url; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(image_url) ON TABLE public.products TO anon;
-GRANT SELECT(image_url) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.thumbnail_url; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(thumbnail_url) ON TABLE public.products TO anon;
-GRANT SELECT(thumbnail_url) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.price; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(price) ON TABLE public.products TO anon;
-GRANT SELECT(price) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.currency; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(currency) ON TABLE public.products TO anon;
-GRANT SELECT(currency) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.vat_rate; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(vat_rate) ON TABLE public.products TO anon;
-GRANT SELECT(vat_rate) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.price_includes_vat; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(price_includes_vat) ON TABLE public.products TO anon;
-GRANT SELECT(price_includes_vat) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.features; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(features) ON TABLE public.products TO anon;
-GRANT SELECT(features) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.layout_template; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(layout_template) ON TABLE public.products TO anon;
-GRANT SELECT(layout_template) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.is_active; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(is_active) ON TABLE public.products TO anon;
-GRANT SELECT(is_active) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.is_featured; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(is_featured) ON TABLE public.products TO anon;
-GRANT SELECT(is_featured) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.is_listed; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(is_listed) ON TABLE public.products TO anon;
-GRANT SELECT(is_listed) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.available_from; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(available_from) ON TABLE public.products TO anon;
-GRANT SELECT(available_from) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.available_until; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(available_until) ON TABLE public.products TO anon;
-GRANT SELECT(available_until) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.auto_grant_duration_days; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(auto_grant_duration_days) ON TABLE public.products TO anon;
-GRANT SELECT(auto_grant_duration_days) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.content_delivery_type; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(content_delivery_type) ON TABLE public.products TO anon;
-GRANT SELECT(content_delivery_type) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.success_redirect_url; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(success_redirect_url) ON TABLE public.products TO anon;
-GRANT SELECT(success_redirect_url) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.pass_params_to_redirect; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(pass_params_to_redirect) ON TABLE public.products TO anon;
-GRANT SELECT(pass_params_to_redirect) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.is_refundable; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(is_refundable) ON TABLE public.products TO anon;
-GRANT SELECT(is_refundable) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.refund_period_days; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(refund_period_days) ON TABLE public.products TO anon;
-GRANT SELECT(refund_period_days) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.enable_waitlist; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(enable_waitlist) ON TABLE public.products TO anon;
-GRANT SELECT(enable_waitlist) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.allow_custom_price; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(allow_custom_price) ON TABLE public.products TO anon;
-GRANT SELECT(allow_custom_price) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.custom_price_min; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(custom_price_min) ON TABLE public.products TO anon;
-GRANT SELECT(custom_price_min) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.show_price_presets; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(show_price_presets) ON TABLE public.products TO anon;
-GRANT SELECT(show_price_presets) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.custom_price_presets; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(custom_price_presets) ON TABLE public.products TO anon;
-GRANT SELECT(custom_price_presets) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.created_at; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(created_at) ON TABLE public.products TO anon;
-GRANT SELECT(created_at) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.updated_at; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(updated_at) ON TABLE public.products TO anon;
-GRANT SELECT(updated_at) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.omnibus_exempt; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(omnibus_exempt) ON TABLE public.products TO anon;
-GRANT SELECT(omnibus_exempt) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.sale_price; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(sale_price) ON TABLE public.products TO anon;
-GRANT SELECT(sale_price) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.sale_price_until; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(sale_price_until) ON TABLE public.products TO anon;
-GRANT SELECT(sale_price_until) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.sale_quantity_limit; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(sale_quantity_limit) ON TABLE public.products TO anon;
-GRANT SELECT(sale_quantity_limit) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.sale_quantity_sold; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(sale_quantity_sold) ON TABLE public.products TO anon;
-GRANT SELECT(sale_quantity_sold) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.preview_video_url; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(preview_video_url) ON TABLE public.products TO anon;
-GRANT SELECT(preview_video_url) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.product_type; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(product_type) ON TABLE public.products TO anon;
-GRANT SELECT(product_type) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.billing_interval; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(billing_interval) ON TABLE public.products TO anon;
-GRANT SELECT(billing_interval) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.billing_interval_count; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(billing_interval_count) ON TABLE public.products TO anon;
-GRANT SELECT(billing_interval_count) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.recurring_price; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(recurring_price) ON TABLE public.products TO anon;
-GRANT SELECT(recurring_price) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.trial_days; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(trial_days) ON TABLE public.products TO anon;
-GRANT SELECT(trial_days) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.stripe_price_id; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(stripe_price_id) ON TABLE public.products TO anon;
-GRANT SELECT(stripe_price_id) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.seller_id; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(seller_id) ON TABLE public.products TO anon;
-GRANT SELECT(seller_id) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.checkout_template; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(checkout_template) ON TABLE public.products TO anon;
-GRANT SELECT(checkout_template) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.custom_checkout_fields; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(custom_checkout_fields) ON TABLE public.products TO anon;
-GRANT SELECT(custom_checkout_fields) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.preview_video_config; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(preview_video_config) ON TABLE public.products TO anon;
-GRANT SELECT(preview_video_config) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.issue_license_on_purchase; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(issue_license_on_purchase) ON TABLE public.products TO anon;
-GRANT SELECT(issue_license_on_purchase) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.license_duration_days; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(license_duration_days) ON TABLE public.products TO anon;
-GRANT SELECT(license_duration_days) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.vat_exempt; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(vat_exempt) ON TABLE public.products TO anon;
-GRANT SELECT(vat_exempt) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.vat_exempt_note; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(vat_exempt_note) ON TABLE public.products TO anon;
-GRANT SELECT(vat_exempt_note) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.is_bundle; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(is_bundle) ON TABLE public.products TO anon;
-GRANT SELECT(is_bundle) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.marketing_fields; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(marketing_fields) ON TABLE public.products TO anon;
-GRANT SELECT(marketing_fields) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.checkout_profile; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(checkout_profile) ON TABLE public.products TO anon;
-GRANT SELECT(checkout_profile) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.event_mode; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(event_mode) ON TABLE public.products TO anon;
-GRANT SELECT(event_mode) ON TABLE public.products TO authenticated;
-
---
--- Name: COLUMN products.archived_at; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(archived_at) ON TABLE public.products TO anon;
-GRANT SELECT(archived_at) ON TABLE public.products TO authenticated;
-
---
--- Name: FUNCTION mutate_product_as(event_actor jsonb, operation_param text, product_data jsonb, product_id uuid, actor_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.mutate_product_as(event_actor jsonb, operation_param text, product_data jsonb, product_id uuid, actor_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.mutate_product_as(event_actor jsonb, operation_param text, product_data jsonb, product_id uuid, actor_id uuid) TO service_role;
-
---
--- Name: FUNCTION mutate_product_offer(offer_product_id uuid, expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.mutate_product_offer(offer_product_id uuid, expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.mutate_product_offer(offer_product_id uuid, expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid) TO service_role;
-
---
--- Name: FUNCTION mutate_product_with_audit(operation_param text, product_data jsonb, product_id uuid, actor_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.mutate_product_with_audit(operation_param text, product_data jsonb, product_id uuid, actor_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.mutate_product_with_audit(operation_param text, product_data jsonb, product_id uuid, actor_id uuid) TO service_role;
-
---
--- Name: FUNCTION mutate_storefront_config(expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid, legacy_source jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.mutate_storefront_config(expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid, legacy_source jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.mutate_storefront_config(expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid, legacy_source jsonb) TO service_role;
-
---
--- Name: FUNCTION my_event_sessions(p_product_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.my_event_sessions(p_product_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.my_event_sessions(p_product_id uuid) TO service_role;
-GRANT ALL ON FUNCTION public.my_event_sessions(p_product_id uuid) TO authenticated;
-
---
--- Name: FUNCTION normalize_purchase_contact(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.normalize_purchase_contact() FROM PUBLIC;
-
---
--- Name: FUNCTION observe_payment_refund(p_transaction_id uuid, p_refund_id text, p_amount integer, p_currency text, p_status text, p_initial_status text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.observe_payment_refund(p_transaction_id uuid, p_refund_id text, p_amount integer, p_currency text, p_status text, p_initial_status text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.observe_payment_refund(p_transaction_id uuid, p_refund_id text, p_amount integer, p_currency text, p_status text, p_initial_status text) TO service_role;
-
---
--- Name: FUNCTION open_order_payment_attempt(p_id uuid, p_kind text, p_amount numeric, p_currency text, p_expires_at timestamp with time zone, p_now timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.open_order_payment_attempt(p_id uuid, p_kind text, p_amount numeric, p_currency text, p_expires_at timestamp with time zone, p_now timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.open_order_payment_attempt(p_id uuid, p_kind text, p_amount numeric, p_currency text, p_expires_at timestamp with time zone, p_now timestamp with time zone) TO service_role;
-
---
--- Name: FUNCTION order_awaits_participants(p_order_details jsonb, p_profile jsonb, p_status text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.order_awaits_participants(p_order_details jsonb, p_profile jsonb, p_status text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.order_awaits_participants(p_order_details jsonb, p_profile jsonb, p_status text) TO service_role;
-
---
--- Name: FUNCTION owns_product_access(p_product_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.owns_product_access(p_product_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.owns_product_access(p_product_id uuid) TO service_role;
-GRANT ALL ON FUNCTION public.owns_product_access(p_product_id uuid) TO anon;
-GRANT ALL ON FUNCTION public.owns_product_access(p_product_id uuid) TO authenticated;
-
---
--- Name: FUNCTION pending_free_grant_products(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.pending_free_grant_products() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.pending_free_grant_products() TO service_role;
-GRANT ALL ON FUNCTION public.pending_free_grant_products() TO authenticated;
-
---
--- Name: FUNCTION pick_due_webhook_deliveries(p_limit integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.pick_due_webhook_deliveries(p_limit integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.pick_due_webhook_deliveries(p_limit integer) TO service_role;
-
---
--- Name: FUNCTION place_order(p_order jsonb, p_lines jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.place_order(p_order jsonb, p_lines jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.place_order(p_order jsonb, p_lines jsonb) TO service_role;
-
---
--- Name: FUNCTION prepare_event_mail(p_email text, p_data jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.prepare_event_mail(p_email text, p_data jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.prepare_event_mail(p_email text, p_data jsonb) TO service_role;
-
---
--- Name: FUNCTION prepare_free_grant(p_email text, p_product_id uuid, p_values jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.prepare_free_grant(p_email text, p_product_id uuid, p_values jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.prepare_free_grant(p_email text, p_product_id uuid, p_values jsonb) TO service_role;
-
---
--- Name: FUNCTION prevent_delete_user_with_active_subscription(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.prevent_delete_user_with_active_subscription() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.prevent_delete_user_with_active_subscription() TO service_role;
-
---
--- Name: FUNCTION process_refund_request(request_id_param uuid, action_param text, admin_response_param text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) TO service_role;
-GRANT ALL ON FUNCTION public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) TO authenticated;
-
---
--- Name: FUNCTION process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) TO service_role;
-
---
--- Name: FUNCTION product_catalogue_snapshot(p public.products); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.product_catalogue_snapshot(p public.products) FROM PUBLIC;
-
---
--- Name: FUNCTION product_deletion_impact(p_product_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.product_deletion_impact(p_product_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.product_deletion_impact(p_product_id uuid) TO service_role;
-
---
--- Name: FUNCTION product_offer_config_schema(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.product_offer_config_schema() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.product_offer_config_schema() TO service_role;
-
---
--- Name: FUNCTION product_offer_config_valid(config jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.product_offer_config_valid(config jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.product_offer_config_valid(config jsonb) TO service_role;
-
---
--- Name: FUNCTION product_price_snapshot(p public.products); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.product_price_snapshot(p public.products) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.product_price_snapshot(p public.products) TO service_role;
-
---
--- Name: FUNCTION protect_payment_method_config_created_at(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.protect_payment_method_config_created_at() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.protect_payment_method_config_created_at() TO service_role;
-
---
--- Name: FUNCTION public_event_availability(p_product_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.public_event_availability(p_product_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.public_event_availability(p_product_id uuid) TO service_role;
-
---
--- Name: FUNCTION purchase_attribution_immutable(); Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON FUNCTION public.purchase_attribution_immutable() TO service_role;
-
---
--- Name: FUNCTION purge_attribution_click_ids(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.purge_attribution_click_ids() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.purge_attribution_click_ids() TO service_role;
-
---
--- Name: FUNCTION queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text) TO service_role;
-
---
--- Name: FUNCTION queue_pending_free_grant(p_email text, p_product_slug text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.queue_pending_free_grant(p_email text, p_product_slug text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.queue_pending_free_grant(p_email text, p_product_slug text) TO service_role;
-
---
--- Name: FUNCTION record_business_event(p_event text, p_product uuid, p_payload jsonb, p_key text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.record_business_event(p_event text, p_product uuid, p_payload jsonb, p_key text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.record_business_event(p_event text, p_product uuid, p_payload jsonb, p_key text) TO service_role;
-
---
--- Name: FUNCTION record_free_attribution(p_product uuid, p_user uuid, p_payload jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.record_free_attribution(p_product uuid, p_user uuid, p_payload jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.record_free_attribution(p_product uuid, p_user uuid, p_payload jsonb) TO service_role;
-
---
--- Name: FUNCTION record_free_attribution_from_ref(p_product uuid, p_user uuid, p_ref text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.record_free_attribution_from_ref(p_product uuid, p_user uuid, p_ref text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.record_free_attribution_from_ref(p_product uuid, p_user uuid, p_ref text) TO service_role;
-
---
--- Name: FUNCTION record_invoice_correction(p_transaction uuid, p_actor uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.record_invoice_correction(p_transaction uuid, p_actor uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.record_invoice_correction(p_transaction uuid, p_actor uuid) TO service_role;
-
---
--- Name: FUNCTION record_order_payment_refund(p_attempt uuid, p_refund_id text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.record_order_payment_refund(p_attempt uuid, p_refund_id text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.record_order_payment_refund(p_attempt uuid, p_refund_id text) TO service_role;
-
---
--- Name: FUNCTION record_template_credential_status(template_id text, expected_key text, expected_iv text, expected_tag text, verification_state text, checked_at timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.record_template_credential_status(template_id text, expected_key text, expected_iv text, expected_tag text, verification_state text, checked_at timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.record_template_credential_status(template_id text, expected_key text, expected_iv text, expected_tag text, verification_state text, checked_at timestamp with time zone) TO service_role;
-
---
--- Name: FUNCTION release_event_order(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.release_event_order() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.release_event_order() TO service_role;
-
---
--- Name: FUNCTION release_participant_recordings(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.release_participant_recordings() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.release_participant_recordings() TO service_role;
-
---
--- Name: FUNCTION release_transfer_access(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.release_transfer_access() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.release_transfer_access() TO service_role;
-
---
--- Name: FUNCTION release_unpaid_transfer(p_id uuid, p_now timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.release_unpaid_transfer(p_id uuid, p_now timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.release_unpaid_transfer(p_id uuid, p_now timestamp with time zone) TO service_role;
-
---
--- Name: FUNCTION remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) TO service_role;
-
---
--- Name: FUNCTION restore_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.restore_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.restore_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid) TO service_role;
-
---
--- Name: FUNCTION retain_disputed_access(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.retain_disputed_access() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.retain_disputed_access() TO service_role;
-
---
--- Name: FUNCTION retry_business_event(p_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.retry_business_event(p_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.retry_business_event(p_id uuid) TO service_role;
-
---
--- Name: FUNCTION revoke_issued_licenses(p_license_ids uuid[], p_actor uuid, p_reason text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.revoke_issued_licenses(p_license_ids uuid[], p_actor uuid, p_reason text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.revoke_issued_licenses(p_license_ids uuid[], p_actor uuid, p_reason text) TO service_role;
-
---
--- Name: FUNCTION revoke_license_for_disputed_order(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.revoke_license_for_disputed_order() FROM PUBLIC;
-
---
--- Name: FUNCTION revoke_order_licenses(p_product_id uuid, p_order_ids text[], p_reason text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.revoke_order_licenses(p_product_id uuid, p_order_ids text[], p_reason text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.revoke_order_licenses(p_product_id uuid, p_order_ids text[], p_reason text) TO service_role;
-
---
--- Name: FUNCTION revoke_terminal_order_licenses(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.revoke_terminal_order_licenses() FROM PUBLIC;
-
---
--- Name: FUNCTION rotate_webhook_secret(p_endpoint_id uuid, p_secret text, p_actor_id uuid, p_api_key_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.rotate_webhook_secret(p_endpoint_id uuid, p_secret text, p_actor_id uuid, p_api_key_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.rotate_webhook_secret(p_endpoint_id uuid, p_secret text, p_actor_id uuid, p_api_key_id uuid) TO service_role;
-
---
--- Name: FUNCTION save_attribution_config(p_retention_days integer, p_rules jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.save_attribution_config(p_retention_days integer, p_rules jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.save_attribution_config(p_retention_days integer, p_rules jsonb) TO service_role;
-GRANT ALL ON FUNCTION public.save_attribution_config(p_retention_days integer, p_rules jsonb) TO authenticated;
-
---
--- Name: FUNCTION save_bank_transfer_config(p_config jsonb, p_actor uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.save_bank_transfer_config(p_config jsonb, p_actor uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.save_bank_transfer_config(p_config jsonb, p_actor uuid) TO service_role;
-
---
--- Name: FUNCTION save_template_credential(template_id text, encrypted_key text, encryption_iv text, encryption_tag text, actor_user_id uuid, actor_method text, actor_api_key_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.save_template_credential(template_id text, encrypted_key text, encryption_iv text, encryption_tag text, actor_user_id uuid, actor_method text, actor_api_key_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.save_template_credential(template_id text, encrypted_key text, encryption_iv text, encryption_tag text, actor_user_id uuid, actor_method text, actor_api_key_id uuid) TO service_role;
-
---
--- Name: FUNCTION search_order_accesses(p_search text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.search_order_accesses(p_search text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.search_order_accesses(p_search text) TO service_role;
-
---
--- Name: FUNCTION search_order_leads(p_search text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.search_order_leads(p_search text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.search_order_leads(p_search text) TO service_role;
-
---
--- Name: FUNCTION search_payment_transactions(p_search text, p_include_identifiers boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.search_payment_transactions(p_search text, p_include_identifiers boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.search_payment_transactions(p_search text, p_include_identifiers boolean) TO service_role;
-
---
--- Name: FUNCTION seller_license_public_keys(seller uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.seller_license_public_keys(seller uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.seller_license_public_keys(seller uuid) TO service_role;
-GRANT ALL ON FUNCTION public.seller_license_public_keys(seller uuid) TO anon;
-GRANT ALL ON FUNCTION public.seller_license_public_keys(seller uuid) TO authenticated;
-
---
--- Name: FUNCTION seller_revoked_orders(seller uuid, hash_prefix text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.seller_revoked_orders(seller uuid, hash_prefix text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.seller_revoked_orders(seller uuid, hash_prefix text) TO service_role;
-
---
--- Name: FUNCTION send_monitoring_email(alert_type text, alert_details jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.send_monitoring_email(alert_type text, alert_details jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.send_monitoring_email(alert_type text, alert_details jsonb) TO service_role;
-
---
--- Name: FUNCTION set_access_grant_source(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.set_access_grant_source() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.set_access_grant_source() TO service_role;
-
---
--- Name: FUNCTION set_business_event_actor(p_actor jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.set_business_event_actor(p_actor jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.set_business_event_actor(p_actor jsonb) TO service_role;
-
---
--- Name: FUNCTION set_invoicing_auto_since(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.set_invoicing_auto_since() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.set_invoicing_auto_since() TO service_role;
-
---
--- Name: FUNCTION set_payment_order_buyer(p_buyer jsonb, p_session_id text, p_payment_intent_id text, p_only_if_missing boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.set_payment_order_buyer(p_buyer jsonb, p_session_id text, p_payment_intent_id text, p_only_if_missing boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.set_payment_order_buyer(p_buyer jsonb, p_session_id text, p_payment_intent_id text, p_only_if_missing boolean) TO service_role;
-
---
--- Name: FUNCTION set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text) TO service_role;
-
---
--- Name: FUNCTION set_product_webhook_revision(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.set_product_webhook_revision() FROM PUBLIC;
-
---
--- Name: FUNCTION set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) TO service_role;
-GRANT ALL ON FUNCTION public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) TO authenticated;
-
---
--- Name: FUNCTION set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[]); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[]) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[]) TO service_role;
-
---
--- Name: FUNCTION snapshot_event_tier_label(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.snapshot_event_tier_label() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.snapshot_event_tier_label() TO service_role;
-
---
--- Name: FUNCTION snapshot_purchase_attribution(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.snapshot_purchase_attribution() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.snapshot_purchase_attribution() TO service_role;
-
---
--- Name: FUNCTION snapshot_purchase_attribution_inserted(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.snapshot_purchase_attribution_inserted() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.snapshot_purchase_attribution_inserted() TO service_role;
-
---
--- Name: FUNCTION snapshot_purchase_attribution_row(n public.payment_transactions); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.snapshot_purchase_attribution_row(n public.payment_transactions) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.snapshot_purchase_attribution_row(n public.payment_transactions) TO service_role;
-
---
--- Name: FUNCTION snapshot_purchase_product_name(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.snapshot_purchase_product_name() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.snapshot_purchase_product_name() TO service_role;
-
---
--- Name: FUNCTION stamp_original_seller_id(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.stamp_original_seller_id() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.stamp_original_seller_id() TO service_role;
-
---
--- Name: FUNCTION store_checkout_attribution(p_ref text, p_payload jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.store_checkout_attribution(p_ref text, p_payload jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.store_checkout_attribution(p_ref text, p_payload jsonb) TO service_role;
-
---
--- Name: FUNCTION storefront_catalogue_boundary(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.storefront_catalogue_boundary() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.storefront_catalogue_boundary() TO service_role;
-
---
--- Name: FUNCTION storefront_catalogue_categories(category_ids uuid[]); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.storefront_catalogue_categories(category_ids uuid[]) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.storefront_catalogue_categories(category_ids uuid[]) TO service_role;
-
---
--- Name: FUNCTION storefront_catalogue_page(filters jsonb, after_created timestamp with time zone, after_id uuid, product_ids uuid[]); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.storefront_catalogue_page(filters jsonb, after_created timestamp with time zone, after_id uuid, product_ids uuid[]) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.storefront_catalogue_page(filters jsonb, after_created timestamp with time zone, after_id uuid, product_ids uuid[]) TO service_role;
-
---
--- Name: FUNCTION storefront_config_schema(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.storefront_config_schema() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.storefront_config_schema() TO service_role;
-
---
--- Name: FUNCTION storefront_config_stored_bytes(config jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.storefront_config_stored_bytes(config jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.storefront_config_stored_bytes(config jsonb) TO service_role;
-
---
--- Name: FUNCTION storefront_config_valid(config jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.storefront_config_valid(config jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.storefront_config_valid(config jsonb) TO service_role;
-
---
--- Name: FUNCTION submit_order_participants(p_order_id uuid, p_people jsonb); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.submit_order_participants(p_order_id uuid, p_people jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.submit_order_participants(p_order_id uuid, p_people jsonb) TO service_role;
-
---
--- Name: FUNCTION telemetry_claim_send(p_window_ms bigint, p_lease_ms bigint); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.telemetry_claim_send(p_window_ms bigint, p_lease_ms bigint) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.telemetry_claim_send(p_window_ms bigint, p_lease_ms bigint) TO service_role;
-
---
--- Name: FUNCTION telemetry_confirm_send(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.telemetry_confirm_send() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.telemetry_confirm_send() TO service_role;
-
---
--- Name: FUNCTION transfer_access_source(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.transfer_access_source() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.transfer_access_source() TO service_role;
-
---
--- Name: FUNCTION update_payment_method_config_timestamp(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.update_payment_method_config_timestamp() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.update_payment_method_config_timestamp() TO service_role;
-
---
--- Name: FUNCTION update_refund_request_timestamp(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.update_refund_request_timestamp() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.update_refund_request_timestamp() TO service_role;
-
---
--- Name: FUNCTION update_refunded_at(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.update_refunded_at() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.update_refunded_at() TO service_role;
-
---
--- Name: FUNCTION update_updated_at_column(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.update_updated_at_column() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.update_updated_at_column() TO service_role;
-
---
--- Name: FUNCTION update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) TO service_role;
-GRANT ALL ON FUNCTION public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) TO authenticated;
-
---
--- Name: FUNCTION validate_bundle_item(); Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON FUNCTION public.validate_bundle_item() TO service_role;
-
---
--- Name: FUNCTION validate_lead_consent_version(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.validate_lead_consent_version() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.validate_lead_consent_version() TO service_role;
-
---
--- Name: FUNCTION validate_payment_transaction(transaction_id uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.validate_payment_transaction(transaction_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.validate_payment_transaction(transaction_id uuid) TO service_role;
-
---
--- Name: FUNCTION validate_seller_embed_origins(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.validate_seller_embed_origins() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.validate_seller_embed_origins() TO service_role;
-
---
--- Name: FUNCTION verify_api_key(p_key_hash text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.verify_api_key(p_key_hash text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.verify_api_key(p_key_hash text) TO service_role;
-
---
--- Name: FUNCTION verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) TO service_role;
-GRANT ALL ON FUNCTION public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) TO anon;
-GRANT ALL ON FUNCTION public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) TO authenticated;
-
---
--- Name: TABLE admin_actions; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.admin_actions TO service_role;
-
---
--- Name: TABLE admin_users; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.admin_users TO service_role;
-GRANT SELECT ON TABLE public.admin_users TO authenticated;
-
---
--- Name: TABLE affiliate_commissions; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT,INSERT,UPDATE ON TABLE public.affiliate_commissions TO service_role;
-
---
--- Name: TABLE affiliate_membership_events; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT,INSERT ON TABLE public.affiliate_membership_events TO service_role;
-
---
--- Name: TABLE affiliate_payout_allocations; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT,INSERT,UPDATE ON TABLE public.affiliate_payout_allocations TO service_role;
-
---
--- Name: TABLE affiliate_program_versions; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT,INSERT ON TABLE public.affiliate_program_versions TO service_role;
-
---
--- Name: TABLE api_key_audit_log; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.api_key_audit_log TO service_role;
-GRANT SELECT ON TABLE public.api_key_audit_log TO authenticated;
-
---
--- Name: TABLE api_keys; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.api_keys TO service_role;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.api_keys TO authenticated;
-
---
--- Name: TABLE application_rate_limits; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.application_rate_limits TO service_role;
-
---
--- Name: TABLE attribution_channel_rules; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.attribution_channel_rules TO service_role;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.attribution_channel_rules TO authenticated;
-
---
--- Name: TABLE attribution_settings; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.attribution_settings TO service_role;
-GRANT SELECT,UPDATE ON TABLE public.attribution_settings TO authenticated;
-
---
--- Name: TABLE audit_log; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.audit_log TO service_role;
-
---
--- Name: TABLE bank_transfer_config; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.bank_transfer_config TO service_role;
-GRANT SELECT ON TABLE public.bank_transfer_config TO authenticated;
-
---
--- Name: TABLE bundle_items; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.bundle_items TO service_role;
-GRANT SELECT ON TABLE public.bundle_items TO anon;
-GRANT SELECT ON TABLE public.bundle_items TO authenticated;
-
---
--- Name: TABLE captcha_nonces; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.captcha_nonces TO service_role;
-
---
--- Name: TABLE categories; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.categories TO anon;
-GRANT SELECT ON TABLE public.categories TO authenticated;
-GRANT ALL ON TABLE public.categories TO service_role;
-
---
--- Name: TABLE checkout_attribution; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.checkout_attribution TO service_role;
-
---
--- Name: TABLE consent_logs; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.consent_logs TO service_role;
-
---
--- Name: TABLE coupon_redemptions; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.coupon_redemptions TO service_role;
-
---
--- Name: TABLE coupon_reservations; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.coupon_reservations TO service_role;
-
---
--- Name: TABLE coupons; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.coupons TO service_role;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.coupons TO authenticated;
-
---
--- Name: TABLE custom_scripts; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.custom_scripts TO service_role;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.custom_scripts TO authenticated;
-
---
--- Name: TABLE embed_checkout_log; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.embed_checkout_log TO service_role;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.embed_checkout_log TO authenticated;
-
---
--- Name: TABLE free_grant_contexts; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.free_grant_contexts TO service_role;
-
---
--- Name: TABLE guest_purchases; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.guest_purchases TO service_role;
-
---
--- Name: TABLE integrations_config; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.integrations_config TO service_role;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.integrations_config TO authenticated;
-
---
--- Name: TABLE invoices; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.invoices TO service_role;
-GRANT SELECT ON TABLE public.invoices TO authenticated;
-
---
--- Name: TABLE invoicing_config; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.invoicing_config TO service_role;
-
---
--- Name: TABLE lead_nonces; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.lead_nonces TO service_role;
-
---
--- Name: TABLE license_mail_receipts; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.license_mail_receipts TO service_role;
-
---
--- Name: TABLE product_price_history; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.product_price_history TO service_role;
-
---
--- Name: TABLE omnibus_price_history; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.omnibus_price_history TO service_role;
-GRANT SELECT ON TABLE public.omnibus_price_history TO anon;
-GRANT SELECT ON TABLE public.omnibus_price_history TO authenticated;
-
---
--- Name: TABLE order_bumps; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.order_bumps TO anon;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.order_bumps TO authenticated;
-GRANT ALL ON TABLE public.order_bumps TO service_role;
-
---
--- Name: TABLE order_payment_attempts; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.order_payment_attempts TO service_role;
-GRANT SELECT ON TABLE public.order_payment_attempts TO authenticated;
-
---
--- Name: TABLE oto_offers; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.oto_offers TO anon;
-GRANT SELECT,INSERT,UPDATE ON TABLE public.oto_offers TO authenticated;
-GRANT ALL ON TABLE public.oto_offers TO service_role;
-
---
--- Name: TABLE payment_disputes; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.payment_disputes TO service_role;
-
---
--- Name: TABLE payment_line_items; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.payment_line_items TO service_role;
-GRANT SELECT ON TABLE public.payment_line_items TO authenticated;
-
---
--- Name: TABLE payment_method_config; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.payment_method_config TO service_role;
-
---
--- Name: SEQUENCE payment_order_number_seq; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON SEQUENCE public.payment_order_number_seq TO service_role;
-
---
--- Name: TABLE payment_refund_events; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.payment_refund_events TO service_role;
-
---
--- Name: TABLE payment_refunds; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.payment_refunds TO service_role;
-
---
--- Name: TABLE payment_system_health; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.payment_system_health TO service_role;
-
---
--- Name: TABLE product_categories; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.product_categories TO anon;
-GRANT SELECT,INSERT,DELETE ON TABLE public.product_categories TO authenticated;
-GRANT ALL ON TABLE public.product_categories TO service_role;
-
---
--- Name: TABLE product_offer_config; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.product_offer_config TO authenticated;
-GRANT SELECT,INSERT,UPDATE ON TABLE public.product_offer_config TO service_role;
-
---
--- Name: TABLE product_offer_history; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.product_offer_history TO authenticated;
-GRANT SELECT,INSERT ON TABLE public.product_offer_history TO service_role;
-
---
--- Name: TABLE product_price_tiers; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.product_price_tiers TO service_role;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.product_price_tiers TO authenticated;
-
---
--- Name: TABLE product_sessions; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.product_sessions TO service_role;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.product_sessions TO authenticated;
-
---
--- Name: TABLE product_tags; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.product_tags TO anon;
-GRANT SELECT ON TABLE public.product_tags TO authenticated;
-GRANT ALL ON TABLE public.product_tags TO service_role;
-
---
--- Name: TABLE product_variant_groups; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.product_variant_groups TO anon;
-GRANT SELECT,INSERT,DELETE ON TABLE public.product_variant_groups TO authenticated;
-GRANT ALL ON TABLE public.product_variant_groups TO service_role;
-
---
--- Name: TABLE profiles; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT,UPDATE ON TABLE public.profiles TO authenticated;
-GRANT ALL ON TABLE public.profiles TO service_role;
-
---
--- Name: TABLE purchase_attribution; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.purchase_attribution TO service_role;
-GRANT SELECT ON TABLE public.purchase_attribution TO authenticated;
-
---
--- Name: TABLE rate_limits; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.rate_limits TO service_role;
-
---
--- Name: TABLE rate_limit_summary; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.rate_limit_summary TO service_role;
-
---
--- Name: TABLE revenue_goals; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.revenue_goals TO service_role;
-
---
--- Name: TABLE seat_reservations; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.seat_reservations TO service_role;
-GRANT SELECT ON TABLE public.seat_reservations TO authenticated;
-
---
--- Name: TABLE seller_customer_stats; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.seller_customer_stats TO service_role;
-
---
--- Name: TABLE seller_embed_settings; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.seller_embed_settings TO service_role;
-GRANT SELECT ON TABLE public.seller_embed_settings TO authenticated;
-
---
--- Name: TABLE seller_license_keys; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.seller_license_keys TO service_role;
-
---
--- Name: TABLE shop_config; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.shop_config TO service_role;
-
---
--- Name: COLUMN shop_config.id; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(id) ON TABLE public.shop_config TO anon;
-GRANT SELECT(id) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.shop_name; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(shop_name) ON TABLE public.shop_config TO anon;
-GRANT SELECT(shop_name) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.contact_email; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(contact_email) ON TABLE public.shop_config TO anon;
-GRANT SELECT(contact_email) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.default_currency; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(default_currency) ON TABLE public.shop_config TO anon;
-GRANT SELECT(default_currency) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.tax_rate; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(tax_rate) ON TABLE public.shop_config TO anon;
-GRANT SELECT(tax_rate) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.logo_url; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(logo_url) ON TABLE public.shop_config TO anon;
-GRANT SELECT(logo_url) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.font_family; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(font_family) ON TABLE public.shop_config TO anon;
-GRANT SELECT(font_family) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.checkout_theme; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(checkout_theme) ON TABLE public.shop_config TO anon;
-GRANT SELECT(checkout_theme) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.automatic_tax_enabled; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(automatic_tax_enabled) ON TABLE public.shop_config TO anon;
-GRANT SELECT(automatic_tax_enabled) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.tax_id_collection_enabled; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(tax_id_collection_enabled) ON TABLE public.shop_config TO anon;
-GRANT SELECT(tax_id_collection_enabled) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.checkout_billing_address; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(checkout_billing_address) ON TABLE public.shop_config TO anon;
-GRANT SELECT(checkout_billing_address) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.checkout_expires_hours; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(checkout_expires_hours) ON TABLE public.shop_config TO anon;
-GRANT SELECT(checkout_expires_hours) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.checkout_collect_terms; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(checkout_collect_terms) ON TABLE public.shop_config TO anon;
-GRANT SELECT(checkout_collect_terms) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.terms_of_service_url; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(terms_of_service_url) ON TABLE public.shop_config TO anon;
-GRANT SELECT(terms_of_service_url) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.privacy_policy_url; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(privacy_policy_url) ON TABLE public.shop_config TO anon;
-GRANT SELECT(privacy_policy_url) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.created_at; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(created_at) ON TABLE public.shop_config TO anon;
-GRANT SELECT(created_at) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.updated_at; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(updated_at) ON TABLE public.shop_config TO anon;
-GRANT SELECT(updated_at) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.omnibus_enabled; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(omnibus_enabled) ON TABLE public.shop_config TO anon;
-GRANT SELECT(omnibus_enabled) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.tax_mode; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(tax_mode) ON TABLE public.shop_config TO anon;
-GRANT SELECT(tax_mode) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: COLUMN shop_config.stripe_tax_rate_cache; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT(stripe_tax_rate_cache) ON TABLE public.shop_config TO anon;
-GRANT SELECT(stripe_tax_rate_cache) ON TABLE public.shop_config TO authenticated;
-
---
--- Name: TABLE storefront_config; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.storefront_config TO authenticated;
-GRANT SELECT,INSERT,UPDATE ON TABLE public.storefront_config TO service_role;
-
---
--- Name: TABLE storefront_config_history; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.storefront_config_history TO authenticated;
-GRANT SELECT,INSERT ON TABLE public.storefront_config_history TO service_role;
-
---
--- Name: TABLE stripe_configurations; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.stripe_configurations TO service_role;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.stripe_configurations TO authenticated;
-
---
--- Name: TABLE stripe_customers; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.stripe_customers TO service_role;
-GRANT SELECT ON TABLE public.stripe_customers TO authenticated;
-
---
--- Name: TABLE subscriptions; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.subscriptions TO service_role;
-GRANT SELECT ON TABLE public.subscriptions TO authenticated;
-
---
--- Name: TABLE tags; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.tags TO anon;
-GRANT SELECT ON TABLE public.tags TO authenticated;
-GRANT ALL ON TABLE public.tags TO service_role;
-
---
--- Name: TABLE telemetry_state; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.telemetry_state TO service_role;
-
---
--- Name: TABLE template_credentials; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.template_credentials TO service_role;
-
---
--- Name: TABLE tracking_logs; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.tracking_logs TO service_role;
-
---
--- Name: TABLE tutorial_progress; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.tutorial_progress TO service_role;
-GRANT SELECT,INSERT ON TABLE public.tutorial_progress TO authenticated;
-
---
--- Name: TABLE user_access_stats; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.user_access_stats TO service_role;
-
---
--- Name: TABLE user_product_access_detailed; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.user_product_access_detailed TO service_role;
-
---
--- Name: TABLE variant_groups; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.variant_groups TO anon;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.variant_groups TO authenticated;
-GRANT ALL ON TABLE public.variant_groups TO service_role;
-
---
--- Name: TABLE video_events; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.video_events TO authenticated;
-GRANT ALL ON TABLE public.video_events TO service_role;
-
---
--- Name: TABLE video_progress; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.video_progress TO authenticated;
-GRANT ALL ON TABLE public.video_progress TO service_role;
-
---
--- Name: TABLE webhook_endpoint_products; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.webhook_endpoint_products TO service_role;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.webhook_endpoint_products TO authenticated;
-
---
--- Name: TABLE webhook_endpoints; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.webhook_endpoints TO service_role;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.webhook_endpoints TO authenticated;
-
---
--- Name: DEFAULT PRIVILEGES FOR SEQUENCES; Type: DEFAULT ACL; Schema: public; Owner: postgres
---
-
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENCES  TO postgres;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT UPDATE ON SEQUENCES  TO anon;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT USAGE,UPDATE ON SEQUENCES  TO authenticated;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT USAGE,UPDATE ON SEQUENCES  TO service_role;
-
---
--- Name: DEFAULT PRIVILEGES FOR SEQUENCES; Type: DEFAULT ACL; Schema: public; Owner: supabase_admin
---
-
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON SEQUENCES  TO postgres;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON SEQUENCES  TO anon;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON SEQUENCES  TO authenticated;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON SEQUENCES  TO service_role;
-
---
--- Name: DEFAULT PRIVILEGES FOR FUNCTIONS; Type: DEFAULT ACL; Schema: public; Owner: postgres
---
-
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON FUNCTIONS  TO postgres;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON FUNCTIONS  TO service_role;
-
---
--- Name: DEFAULT PRIVILEGES FOR FUNCTIONS; Type: DEFAULT ACL; Schema: public; Owner: supabase_admin
---
-
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON FUNCTIONS  TO postgres;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON FUNCTIONS  TO anon;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON FUNCTIONS  TO authenticated;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON FUNCTIONS  TO service_role;
-
---
--- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: public; Owner: postgres
---
-
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES  TO postgres;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES  TO service_role;
-
---
--- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: public; Owner: supabase_admin
---
-
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON TABLES  TO postgres;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON TABLES  TO anon;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON TABLES  TO authenticated;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON TABLES  TO service_role;
-
---
 -- PostgreSQL database dump complete
 --
+
 
 -- ===== Objects outside the dumped schemas =====
 
@@ -23092,26 +21070,3241 @@ pgjwt | extensions
 plpgsql | pg_catalog
 supabase_vault | vault
 uuid-ossp | extensions
--- triggers on auth/storage tables calling public functions
-auth.users | CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user_registration()
-auth.users | CREATE TRIGGER on_auth_user_email_confirmed AFTER UPDATE OF email_confirmed_at ON auth.users FOR EACH ROW WHEN (((old.email_confirmed_at IS NULL) AND (new.email_confirmed_at IS NOT NULL))) EXECUTE FUNCTION handle_user_email_confirmation()
-auth.users | CREATE TRIGGER prevent_delete_user_with_active_subscription BEFORE DELETE ON auth.users FOR EACH ROW EXECUTE FUNCTION prevent_delete_user_with_active_subscription()
--- policies on auth/storage tables
+-- triggers outside the dumped schemas (table | trigger | enabled: O on, D off, R replica, A always | definition)
+auth.users | on_auth_user_created | O | CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user_registration()
+auth.users | on_auth_user_email_confirmed | O | CREATE TRIGGER on_auth_user_email_confirmed AFTER UPDATE OF email_confirmed_at ON auth.users FOR EACH ROW WHEN (((old.email_confirmed_at IS NULL) AND (new.email_confirmed_at IS NOT NULL))) EXECUTE FUNCTION handle_user_email_confirmation()
+auth.users | prevent_delete_user_with_active_subscription | O | CREATE TRIGGER prevent_delete_user_with_active_subscription BEFORE DELETE ON auth.users FOR EACH ROW EXECUTE FUNCTION prevent_delete_user_with_active_subscription()
+cron.job | cron_job_cache_invalidate | O | CREATE TRIGGER cron_job_cache_invalidate AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON cron.job FOR EACH STATEMENT EXECUTE FUNCTION cron.job_cache_invalidate()
+realtime.subscription | tr_check_filters | O | CREATE TRIGGER tr_check_filters BEFORE INSERT OR UPDATE ON realtime.subscription FOR EACH ROW EXECUTE FUNCTION realtime.subscription_check_filters()
+storage.buckets | enforce_bucket_name_length_trigger | O | CREATE TRIGGER enforce_bucket_name_length_trigger BEFORE INSERT OR UPDATE OF name ON storage.buckets FOR EACH ROW EXECUTE FUNCTION storage.enforce_bucket_name_length()
+storage.buckets | protect_buckets_delete | O | CREATE TRIGGER protect_buckets_delete BEFORE DELETE ON storage.buckets FOR EACH STATEMENT EXECUTE FUNCTION storage.protect_delete()
+storage.objects | protect_objects_delete | O | CREATE TRIGGER protect_objects_delete BEFORE DELETE ON storage.objects FOR EACH STATEMENT EXECUTE FUNCTION storage.protect_delete()
+storage.objects | update_objects_updated_at | O | CREATE TRIGGER update_objects_updated_at BEFORE UPDATE ON storage.objects FOR EACH ROW EXECUTE FUNCTION storage.update_updated_at_column()
+-- row level security of platform tables (table | enabled | forced)
+auth.audit_log_entries | t | f
+auth.custom_oauth_providers | f | f
+auth.flow_state | t | f
+auth.identities | t | f
+auth.instances | t | f
+auth.mfa_amr_claims | t | f
+auth.mfa_challenges | t | f
+auth.mfa_factors | t | f
+auth.oauth_authorizations | f | f
+auth.oauth_client_states | f | f
+auth.oauth_clients | f | f
+auth.oauth_consents | f | f
+auth.one_time_tokens | t | f
+auth.refresh_tokens | t | f
+auth.saml_providers | t | f
+auth.saml_relay_states | t | f
+auth.schema_migrations | t | f
+auth.sessions | t | f
+auth.sso_domains | t | f
+auth.sso_providers | t | f
+auth.users | t | f
+auth.webauthn_challenges | f | f
+auth.webauthn_credentials | f | f
+cron.job | t | f
+cron.job_run_details | t | f
+realtime.subscription | f | f
+storage.buckets | t | f
+storage.buckets_analytics | t | f
+storage.buckets_vectors | t | f
+storage.iceberg_namespaces | t | f
+storage.iceberg_tables | t | f
+storage.migrations | t | f
+storage.objects | t | f
+storage.s3_multipart_uploads | t | f
+storage.s3_multipart_uploads_parts | t | f
+storage.vector_indexes | t | f
+-- policies outside the dumped schemas (table | policy | permissive | roles | command | using | with check)
+cron.job | cron_job_policy | PERMISSIVE | {public} | ALL | (username = CURRENT_USER) | 
+cron.job_run_details | cron_job_run_details_policy | PERMISSIVE | {public} | ALL | (username = CURRENT_USER) | 
+-- privileges (object kind | object | grantee | privilege | grantor | grant option)
+column | public.products.allow_custom_price | anon | SELECT | postgres | 
+column | public.products.allow_custom_price | authenticated | SELECT | postgres | 
+column | public.products.archived_at | anon | SELECT | postgres | 
+column | public.products.archived_at | authenticated | SELECT | postgres | 
+column | public.products.auto_grant_duration_days | anon | SELECT | postgres | 
+column | public.products.auto_grant_duration_days | authenticated | SELECT | postgres | 
+column | public.products.available_from | anon | SELECT | postgres | 
+column | public.products.available_from | authenticated | SELECT | postgres | 
+column | public.products.available_until | anon | SELECT | postgres | 
+column | public.products.available_until | authenticated | SELECT | postgres | 
+column | public.products.billing_interval | anon | SELECT | postgres | 
+column | public.products.billing_interval | authenticated | SELECT | postgres | 
+column | public.products.billing_interval_count | anon | SELECT | postgres | 
+column | public.products.billing_interval_count | authenticated | SELECT | postgres | 
+column | public.products.checkout_profile | anon | SELECT | postgres | 
+column | public.products.checkout_profile | authenticated | SELECT | postgres | 
+column | public.products.checkout_template | anon | SELECT | postgres | 
+column | public.products.checkout_template | authenticated | SELECT | postgres | 
+column | public.products.content_delivery_type | anon | SELECT | postgres | 
+column | public.products.content_delivery_type | authenticated | SELECT | postgres | 
+column | public.products.created_at | anon | SELECT | postgres | 
+column | public.products.created_at | authenticated | SELECT | postgres | 
+column | public.products.currency | anon | SELECT | postgres | 
+column | public.products.currency | authenticated | SELECT | postgres | 
+column | public.products.custom_checkout_fields | anon | SELECT | postgres | 
+column | public.products.custom_checkout_fields | authenticated | SELECT | postgres | 
+column | public.products.custom_price_min | anon | SELECT | postgres | 
+column | public.products.custom_price_min | authenticated | SELECT | postgres | 
+column | public.products.custom_price_presets | anon | SELECT | postgres | 
+column | public.products.custom_price_presets | authenticated | SELECT | postgres | 
+column | public.products.description | anon | SELECT | postgres | 
+column | public.products.description | authenticated | SELECT | postgres | 
+column | public.products.enable_waitlist | anon | SELECT | postgres | 
+column | public.products.enable_waitlist | authenticated | SELECT | postgres | 
+column | public.products.event_mode | anon | SELECT | postgres | 
+column | public.products.event_mode | authenticated | SELECT | postgres | 
+column | public.products.features | anon | SELECT | postgres | 
+column | public.products.features | authenticated | SELECT | postgres | 
+column | public.products.icon | anon | SELECT | postgres | 
+column | public.products.icon | authenticated | SELECT | postgres | 
+column | public.products.id | anon | SELECT | postgres | 
+column | public.products.id | authenticated | SELECT | postgres | 
+column | public.products.image_url | anon | SELECT | postgres | 
+column | public.products.image_url | authenticated | SELECT | postgres | 
+column | public.products.is_active | anon | SELECT | postgres | 
+column | public.products.is_active | authenticated | SELECT | postgres | 
+column | public.products.is_bundle | anon | SELECT | postgres | 
+column | public.products.is_bundle | authenticated | SELECT | postgres | 
+column | public.products.is_featured | anon | SELECT | postgres | 
+column | public.products.is_featured | authenticated | SELECT | postgres | 
+column | public.products.is_listed | anon | SELECT | postgres | 
+column | public.products.is_listed | authenticated | SELECT | postgres | 
+column | public.products.is_refundable | anon | SELECT | postgres | 
+column | public.products.is_refundable | authenticated | SELECT | postgres | 
+column | public.products.issue_license_on_purchase | anon | SELECT | postgres | 
+column | public.products.issue_license_on_purchase | authenticated | SELECT | postgres | 
+column | public.products.layout_template | anon | SELECT | postgres | 
+column | public.products.layout_template | authenticated | SELECT | postgres | 
+column | public.products.license_duration_days | anon | SELECT | postgres | 
+column | public.products.license_duration_days | authenticated | SELECT | postgres | 
+column | public.products.long_description | anon | SELECT | postgres | 
+column | public.products.long_description | authenticated | SELECT | postgres | 
+column | public.products.marketing_fields | anon | SELECT | postgres | 
+column | public.products.marketing_fields | authenticated | SELECT | postgres | 
+column | public.products.name | anon | SELECT | postgres | 
+column | public.products.name | authenticated | SELECT | postgres | 
+column | public.products.omnibus_exempt | anon | SELECT | postgres | 
+column | public.products.omnibus_exempt | authenticated | SELECT | postgres | 
+column | public.products.pass_params_to_redirect | anon | SELECT | postgres | 
+column | public.products.pass_params_to_redirect | authenticated | SELECT | postgres | 
+column | public.products.preview_video_config | anon | SELECT | postgres | 
+column | public.products.preview_video_config | authenticated | SELECT | postgres | 
+column | public.products.preview_video_url | anon | SELECT | postgres | 
+column | public.products.preview_video_url | authenticated | SELECT | postgres | 
+column | public.products.price | anon | SELECT | postgres | 
+column | public.products.price | authenticated | SELECT | postgres | 
+column | public.products.price_includes_vat | anon | SELECT | postgres | 
+column | public.products.price_includes_vat | authenticated | SELECT | postgres | 
+column | public.products.product_type | anon | SELECT | postgres | 
+column | public.products.product_type | authenticated | SELECT | postgres | 
+column | public.products.recurring_price | anon | SELECT | postgres | 
+column | public.products.recurring_price | authenticated | SELECT | postgres | 
+column | public.products.refund_period_days | anon | SELECT | postgres | 
+column | public.products.refund_period_days | authenticated | SELECT | postgres | 
+column | public.products.sale_price | anon | SELECT | postgres | 
+column | public.products.sale_price | authenticated | SELECT | postgres | 
+column | public.products.sale_price_until | anon | SELECT | postgres | 
+column | public.products.sale_price_until | authenticated | SELECT | postgres | 
+column | public.products.sale_quantity_limit | anon | SELECT | postgres | 
+column | public.products.sale_quantity_limit | authenticated | SELECT | postgres | 
+column | public.products.sale_quantity_sold | anon | SELECT | postgres | 
+column | public.products.sale_quantity_sold | authenticated | SELECT | postgres | 
+column | public.products.seller_id | anon | SELECT | postgres | 
+column | public.products.seller_id | authenticated | SELECT | postgres | 
+column | public.products.show_price_presets | anon | SELECT | postgres | 
+column | public.products.show_price_presets | authenticated | SELECT | postgres | 
+column | public.products.slug | anon | SELECT | postgres | 
+column | public.products.slug | authenticated | SELECT | postgres | 
+column | public.products.stripe_price_id | anon | SELECT | postgres | 
+column | public.products.stripe_price_id | authenticated | SELECT | postgres | 
+column | public.products.success_redirect_url | anon | SELECT | postgres | 
+column | public.products.success_redirect_url | authenticated | SELECT | postgres | 
+column | public.products.thumbnail_url | anon | SELECT | postgres | 
+column | public.products.thumbnail_url | authenticated | SELECT | postgres | 
+column | public.products.trial_days | anon | SELECT | postgres | 
+column | public.products.trial_days | authenticated | SELECT | postgres | 
+column | public.products.updated_at | anon | SELECT | postgres | 
+column | public.products.updated_at | authenticated | SELECT | postgres | 
+column | public.products.vat_exempt | anon | SELECT | postgres | 
+column | public.products.vat_exempt | authenticated | SELECT | postgres | 
+column | public.products.vat_exempt_note | anon | SELECT | postgres | 
+column | public.products.vat_exempt_note | authenticated | SELECT | postgres | 
+column | public.products.vat_rate | anon | SELECT | postgres | 
+column | public.products.vat_rate | authenticated | SELECT | postgres | 
+column | public.shop_config.automatic_tax_enabled | anon | SELECT | postgres | 
+column | public.shop_config.automatic_tax_enabled | authenticated | SELECT | postgres | 
+column | public.shop_config.checkout_billing_address | anon | SELECT | postgres | 
+column | public.shop_config.checkout_billing_address | authenticated | SELECT | postgres | 
+column | public.shop_config.checkout_collect_terms | anon | SELECT | postgres | 
+column | public.shop_config.checkout_collect_terms | authenticated | SELECT | postgres | 
+column | public.shop_config.checkout_expires_hours | anon | SELECT | postgres | 
+column | public.shop_config.checkout_expires_hours | authenticated | SELECT | postgres | 
+column | public.shop_config.checkout_theme | anon | SELECT | postgres | 
+column | public.shop_config.checkout_theme | authenticated | SELECT | postgres | 
+column | public.shop_config.contact_email | anon | SELECT | postgres | 
+column | public.shop_config.contact_email | authenticated | SELECT | postgres | 
+column | public.shop_config.created_at | anon | SELECT | postgres | 
+column | public.shop_config.created_at | authenticated | SELECT | postgres | 
+column | public.shop_config.default_currency | anon | SELECT | postgres | 
+column | public.shop_config.default_currency | authenticated | SELECT | postgres | 
+column | public.shop_config.font_family | anon | SELECT | postgres | 
+column | public.shop_config.font_family | authenticated | SELECT | postgres | 
+column | public.shop_config.id | anon | SELECT | postgres | 
+column | public.shop_config.id | authenticated | SELECT | postgres | 
+column | public.shop_config.logo_url | anon | SELECT | postgres | 
+column | public.shop_config.logo_url | authenticated | SELECT | postgres | 
+column | public.shop_config.omnibus_enabled | anon | SELECT | postgres | 
+column | public.shop_config.omnibus_enabled | authenticated | SELECT | postgres | 
+column | public.shop_config.privacy_policy_url | anon | SELECT | postgres | 
+column | public.shop_config.privacy_policy_url | authenticated | SELECT | postgres | 
+column | public.shop_config.shop_name | anon | SELECT | postgres | 
+column | public.shop_config.shop_name | authenticated | SELECT | postgres | 
+column | public.shop_config.stripe_tax_rate_cache | anon | SELECT | postgres | 
+column | public.shop_config.stripe_tax_rate_cache | authenticated | SELECT | postgres | 
+column | public.shop_config.tax_id_collection_enabled | anon | SELECT | postgres | 
+column | public.shop_config.tax_id_collection_enabled | authenticated | SELECT | postgres | 
+column | public.shop_config.tax_mode | anon | SELECT | postgres | 
+column | public.shop_config.tax_mode | authenticated | SELECT | postgres | 
+column | public.shop_config.tax_rate | anon | SELECT | postgres | 
+column | public.shop_config.tax_rate | authenticated | SELECT | postgres | 
+column | public.shop_config.terms_of_service_url | anon | SELECT | postgres | 
+column | public.shop_config.terms_of_service_url | authenticated | SELECT | postgres | 
+column | public.shop_config.updated_at | anon | SELECT | postgres | 
+column | public.shop_config.updated_at | authenticated | SELECT | postgres | 
+default privileges | for postgres in public on functions | postgres | EXECUTE | postgres | 
+default privileges | for postgres in public on functions | service_role | EXECUTE | postgres | 
+default privileges | for postgres in public on sequences | anon | UPDATE | postgres | 
+default privileges | for postgres in public on sequences | authenticated | UPDATE | postgres | 
+default privileges | for postgres in public on sequences | authenticated | USAGE | postgres | 
+default privileges | for postgres in public on sequences | postgres | SELECT | postgres | 
+default privileges | for postgres in public on sequences | postgres | UPDATE | postgres | 
+default privileges | for postgres in public on sequences | postgres | USAGE | postgres | 
+default privileges | for postgres in public on sequences | service_role | UPDATE | postgres | 
+default privileges | for postgres in public on sequences | service_role | USAGE | postgres | 
+default privileges | for postgres in public on tables | postgres | DELETE | postgres | 
+default privileges | for postgres in public on tables | postgres | INSERT | postgres | 
+default privileges | for postgres in public on tables | postgres | REFERENCES | postgres | 
+default privileges | for postgres in public on tables | postgres | SELECT | postgres | 
+default privileges | for postgres in public on tables | postgres | TRIGGER | postgres | 
+default privileges | for postgres in public on tables | postgres | TRUNCATE | postgres | 
+default privileges | for postgres in public on tables | postgres | UPDATE | postgres | 
+default privileges | for postgres in public on tables | service_role | DELETE | postgres | 
+default privileges | for postgres in public on tables | service_role | INSERT | postgres | 
+default privileges | for postgres in public on tables | service_role | REFERENCES | postgres | 
+default privileges | for postgres in public on tables | service_role | SELECT | postgres | 
+default privileges | for postgres in public on tables | service_role | TRIGGER | postgres | 
+default privileges | for postgres in public on tables | service_role | TRUNCATE | postgres | 
+default privileges | for postgres in public on tables | service_role | UPDATE | postgres | 
+default privileges | for postgres in storage on functions | anon | EXECUTE | postgres | 
+default privileges | for postgres in storage on functions | authenticated | EXECUTE | postgres | 
+default privileges | for postgres in storage on functions | postgres | EXECUTE | postgres | 
+default privileges | for postgres in storage on functions | service_role | EXECUTE | postgres | 
+default privileges | for postgres in storage on sequences | anon | SELECT | postgres | 
+default privileges | for postgres in storage on sequences | anon | UPDATE | postgres | 
+default privileges | for postgres in storage on sequences | anon | USAGE | postgres | 
+default privileges | for postgres in storage on sequences | authenticated | SELECT | postgres | 
+default privileges | for postgres in storage on sequences | authenticated | UPDATE | postgres | 
+default privileges | for postgres in storage on sequences | authenticated | USAGE | postgres | 
+default privileges | for postgres in storage on sequences | postgres | SELECT | postgres | 
+default privileges | for postgres in storage on sequences | postgres | UPDATE | postgres | 
+default privileges | for postgres in storage on sequences | postgres | USAGE | postgres | 
+default privileges | for postgres in storage on sequences | service_role | SELECT | postgres | 
+default privileges | for postgres in storage on sequences | service_role | UPDATE | postgres | 
+default privileges | for postgres in storage on sequences | service_role | USAGE | postgres | 
+default privileges | for postgres in storage on tables | anon | DELETE | postgres | 
+default privileges | for postgres in storage on tables | anon | INSERT | postgres | 
+default privileges | for postgres in storage on tables | anon | REFERENCES | postgres | 
+default privileges | for postgres in storage on tables | anon | SELECT | postgres | 
+default privileges | for postgres in storage on tables | anon | TRIGGER | postgres | 
+default privileges | for postgres in storage on tables | anon | TRUNCATE | postgres | 
+default privileges | for postgres in storage on tables | anon | UPDATE | postgres | 
+default privileges | for postgres in storage on tables | authenticated | DELETE | postgres | 
+default privileges | for postgres in storage on tables | authenticated | INSERT | postgres | 
+default privileges | for postgres in storage on tables | authenticated | REFERENCES | postgres | 
+default privileges | for postgres in storage on tables | authenticated | SELECT | postgres | 
+default privileges | for postgres in storage on tables | authenticated | TRIGGER | postgres | 
+default privileges | for postgres in storage on tables | authenticated | TRUNCATE | postgres | 
+default privileges | for postgres in storage on tables | authenticated | UPDATE | postgres | 
+default privileges | for postgres in storage on tables | postgres | DELETE | postgres | 
+default privileges | for postgres in storage on tables | postgres | INSERT | postgres | 
+default privileges | for postgres in storage on tables | postgres | REFERENCES | postgres | 
+default privileges | for postgres in storage on tables | postgres | SELECT | postgres | 
+default privileges | for postgres in storage on tables | postgres | TRIGGER | postgres | 
+default privileges | for postgres in storage on tables | postgres | TRUNCATE | postgres | 
+default privileges | for postgres in storage on tables | postgres | UPDATE | postgres | 
+default privileges | for postgres in storage on tables | service_role | DELETE | postgres | 
+default privileges | for postgres in storage on tables | service_role | INSERT | postgres | 
+default privileges | for postgres in storage on tables | service_role | REFERENCES | postgres | 
+default privileges | for postgres in storage on tables | service_role | SELECT | postgres | 
+default privileges | for postgres in storage on tables | service_role | TRIGGER | postgres | 
+default privileges | for postgres in storage on tables | service_role | TRUNCATE | postgres | 
+default privileges | for postgres in storage on tables | service_role | UPDATE | postgres | 
+default privileges | for supabase_admin in cron on functions | postgres | EXECUTE | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in cron on sequences | postgres | SELECT | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in cron on sequences | postgres | UPDATE | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in cron on sequences | postgres | USAGE | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in cron on tables | postgres | DELETE | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in cron on tables | postgres | INSERT | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in cron on tables | postgres | REFERENCES | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in cron on tables | postgres | SELECT | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in cron on tables | postgres | TRIGGER | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in cron on tables | postgres | TRUNCATE | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in cron on tables | postgres | UPDATE | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in extensions on functions | postgres | EXECUTE | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in extensions on sequences | postgres | SELECT | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in extensions on sequences | postgres | UPDATE | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in extensions on sequences | postgres | USAGE | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in extensions on tables | postgres | DELETE | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in extensions on tables | postgres | INSERT | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in extensions on tables | postgres | REFERENCES | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in extensions on tables | postgres | SELECT | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in extensions on tables | postgres | TRIGGER | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in extensions on tables | postgres | TRUNCATE | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in extensions on tables | postgres | UPDATE | supabase_admin | WITH GRANT OPTION
+default privileges | for supabase_admin in graphql on functions | anon | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in graphql on functions | authenticated | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in graphql on functions | postgres | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in graphql on functions | service_role | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in graphql on sequences | anon | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql on sequences | anon | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in graphql on sequences | anon | USAGE | supabase_admin | 
+default privileges | for supabase_admin in graphql on sequences | authenticated | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql on sequences | authenticated | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in graphql on sequences | authenticated | USAGE | supabase_admin | 
+default privileges | for supabase_admin in graphql on sequences | postgres | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql on sequences | postgres | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in graphql on sequences | postgres | USAGE | supabase_admin | 
+default privileges | for supabase_admin in graphql on sequences | service_role | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql on sequences | service_role | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in graphql on sequences | service_role | USAGE | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | anon | DELETE | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | anon | INSERT | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | anon | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | anon | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | anon | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | anon | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | anon | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | authenticated | DELETE | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | authenticated | INSERT | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | authenticated | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | authenticated | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | authenticated | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | authenticated | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | authenticated | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | postgres | DELETE | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | postgres | INSERT | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | postgres | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | postgres | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | postgres | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | postgres | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | postgres | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | service_role | DELETE | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | service_role | INSERT | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | service_role | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | service_role | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | service_role | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | service_role | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in graphql on tables | service_role | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on functions | anon | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on functions | authenticated | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on functions | postgres | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on functions | service_role | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on sequences | anon | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on sequences | anon | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on sequences | anon | USAGE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on sequences | authenticated | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on sequences | authenticated | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on sequences | authenticated | USAGE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on sequences | postgres | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on sequences | postgres | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on sequences | postgres | USAGE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on sequences | service_role | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on sequences | service_role | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on sequences | service_role | USAGE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | anon | DELETE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | anon | INSERT | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | anon | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | anon | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | anon | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | anon | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | anon | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | authenticated | DELETE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | authenticated | INSERT | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | authenticated | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | authenticated | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | authenticated | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | authenticated | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | authenticated | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | postgres | DELETE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | postgres | INSERT | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | postgres | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | postgres | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | postgres | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | postgres | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | postgres | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | service_role | DELETE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | service_role | INSERT | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | service_role | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | service_role | SELECT | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | service_role | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | service_role | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in graphql_public on tables | service_role | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in public on functions | anon | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in public on functions | authenticated | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in public on functions | postgres | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in public on functions | service_role | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in public on sequences | anon | SELECT | supabase_admin | 
+default privileges | for supabase_admin in public on sequences | anon | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in public on sequences | anon | USAGE | supabase_admin | 
+default privileges | for supabase_admin in public on sequences | authenticated | SELECT | supabase_admin | 
+default privileges | for supabase_admin in public on sequences | authenticated | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in public on sequences | authenticated | USAGE | supabase_admin | 
+default privileges | for supabase_admin in public on sequences | postgres | SELECT | supabase_admin | 
+default privileges | for supabase_admin in public on sequences | postgres | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in public on sequences | postgres | USAGE | supabase_admin | 
+default privileges | for supabase_admin in public on sequences | service_role | SELECT | supabase_admin | 
+default privileges | for supabase_admin in public on sequences | service_role | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in public on sequences | service_role | USAGE | supabase_admin | 
+default privileges | for supabase_admin in public on tables | anon | DELETE | supabase_admin | 
+default privileges | for supabase_admin in public on tables | anon | INSERT | supabase_admin | 
+default privileges | for supabase_admin in public on tables | anon | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in public on tables | anon | SELECT | supabase_admin | 
+default privileges | for supabase_admin in public on tables | anon | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in public on tables | anon | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in public on tables | anon | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in public on tables | authenticated | DELETE | supabase_admin | 
+default privileges | for supabase_admin in public on tables | authenticated | INSERT | supabase_admin | 
+default privileges | for supabase_admin in public on tables | authenticated | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in public on tables | authenticated | SELECT | supabase_admin | 
+default privileges | for supabase_admin in public on tables | authenticated | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in public on tables | authenticated | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in public on tables | authenticated | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in public on tables | postgres | DELETE | supabase_admin | 
+default privileges | for supabase_admin in public on tables | postgres | INSERT | supabase_admin | 
+default privileges | for supabase_admin in public on tables | postgres | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in public on tables | postgres | SELECT | supabase_admin | 
+default privileges | for supabase_admin in public on tables | postgres | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in public on tables | postgres | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in public on tables | postgres | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in public on tables | service_role | DELETE | supabase_admin | 
+default privileges | for supabase_admin in public on tables | service_role | INSERT | supabase_admin | 
+default privileges | for supabase_admin in public on tables | service_role | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in public on tables | service_role | SELECT | supabase_admin | 
+default privileges | for supabase_admin in public on tables | service_role | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in public on tables | service_role | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in public on tables | service_role | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in realtime on functions | dashboard_user | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in realtime on functions | postgres | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in realtime on sequences | dashboard_user | SELECT | supabase_admin | 
+default privileges | for supabase_admin in realtime on sequences | dashboard_user | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in realtime on sequences | dashboard_user | USAGE | supabase_admin | 
+default privileges | for supabase_admin in realtime on sequences | postgres | SELECT | supabase_admin | 
+default privileges | for supabase_admin in realtime on sequences | postgres | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in realtime on sequences | postgres | USAGE | supabase_admin | 
+default privileges | for supabase_admin in realtime on tables | dashboard_user | DELETE | supabase_admin | 
+default privileges | for supabase_admin in realtime on tables | dashboard_user | INSERT | supabase_admin | 
+default privileges | for supabase_admin in realtime on tables | dashboard_user | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in realtime on tables | dashboard_user | SELECT | supabase_admin | 
+default privileges | for supabase_admin in realtime on tables | dashboard_user | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in realtime on tables | dashboard_user | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in realtime on tables | dashboard_user | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in realtime on tables | postgres | DELETE | supabase_admin | 
+default privileges | for supabase_admin in realtime on tables | postgres | INSERT | supabase_admin | 
+default privileges | for supabase_admin in realtime on tables | postgres | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in realtime on tables | postgres | SELECT | supabase_admin | 
+default privileges | for supabase_admin in realtime on tables | postgres | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in realtime on tables | postgres | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in realtime on tables | postgres | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on functions | anon | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on functions | authenticated | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on functions | postgres | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on functions | service_role | EXECUTE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on sequences | anon | SELECT | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on sequences | anon | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on sequences | anon | USAGE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on sequences | authenticated | SELECT | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on sequences | authenticated | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on sequences | authenticated | USAGE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on sequences | postgres | SELECT | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on sequences | postgres | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on sequences | postgres | USAGE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on sequences | service_role | SELECT | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on sequences | service_role | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on sequences | service_role | USAGE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | anon | DELETE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | anon | INSERT | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | anon | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | anon | SELECT | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | anon | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | anon | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | anon | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | authenticated | DELETE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | authenticated | INSERT | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | authenticated | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | authenticated | SELECT | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | authenticated | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | authenticated | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | authenticated | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | postgres | DELETE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | postgres | INSERT | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | postgres | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | postgres | SELECT | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | postgres | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | postgres | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | postgres | UPDATE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | service_role | DELETE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | service_role | INSERT | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | service_role | REFERENCES | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | service_role | SELECT | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | service_role | TRIGGER | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | service_role | TRUNCATE | supabase_admin | 
+default privileges | for supabase_admin in supabase_functions on tables | service_role | UPDATE | supabase_admin | 
+default privileges | for supabase_auth_admin in auth on functions | dashboard_user | EXECUTE | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on functions | postgres | EXECUTE | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on sequences | dashboard_user | SELECT | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on sequences | dashboard_user | UPDATE | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on sequences | dashboard_user | USAGE | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on sequences | postgres | SELECT | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on sequences | postgres | UPDATE | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on sequences | postgres | USAGE | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on tables | dashboard_user | DELETE | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on tables | dashboard_user | INSERT | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on tables | dashboard_user | REFERENCES | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on tables | dashboard_user | SELECT | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on tables | dashboard_user | TRIGGER | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on tables | dashboard_user | TRUNCATE | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on tables | dashboard_user | UPDATE | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on tables | postgres | DELETE | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on tables | postgres | INSERT | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on tables | postgres | REFERENCES | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on tables | postgres | SELECT | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on tables | postgres | TRIGGER | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on tables | postgres | TRUNCATE | supabase_auth_admin | 
+default privileges | for supabase_auth_admin in auth on tables | postgres | UPDATE | supabase_auth_admin | 
+function | postgrest.pre_config() | authenticator | EXECUTE | postgres | 
+function | postgrest.pre_config() | postgres | EXECUTE | postgres | 
+function | public._claim_guest_purchases_before_disputes(p_user_id uuid) | postgres | EXECUTE | postgres | 
+function | public._event_line_seats(p_transaction_id uuid, p_session_id uuid, p_tier_id uuid, p_at timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public._event_line_seats(p_transaction_id uuid, p_session_id uuid, p_tier_id uuid, p_at timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public._order_grant_and_record(p_transaction_id uuid, p_user_id uuid, p_existing_user_id uuid, p_requested_user_id uuid, p_coupon_id uuid, p_coupon_mode text) | postgres | EXECUTE | postgres | 
+function | public._order_grant_and_record(p_transaction_id uuid, p_user_id uuid, p_existing_user_id uuid, p_requested_user_id uuid, p_coupon_id uuid, p_coupon_mode text) | service_role | EXECUTE | postgres | 
+function | public._place_order_without_event(p_order jsonb, p_lines jsonb) | postgres | EXECUTE | postgres | 
+function | public._process_stripe_payment_completion_with_bump_impl(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | postgres | EXECUTE | postgres | 
+function | public._process_stripe_payment_completion_with_bump_impl(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | service_role | EXECUTE | postgres | 
+function | public._redeem_coupon_for_order(coupon_id_param uuid, current_user_id uuid, existing_user_id uuid, customer_email_param text, transaction_id_var uuid) | postgres | EXECUTE | postgres | 
+function | public._redeem_coupon_for_order(coupon_id_param uuid, current_user_id uuid, existing_user_id uuid, customer_email_param text, transaction_id_var uuid) | service_role | EXECUTE | postgres | 
+function | public._reopen_cancelled_transfer(p_id uuid) | postgres | EXECUTE | postgres | 
+function | public._reopen_cancelled_transfer(p_id uuid) | service_role | EXECUTE | postgres | 
+function | public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text) | postgres | EXECUTE | postgres | 
+function | public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text) | service_role | EXECUTE | postgres | 
+function | public._supersede_order_payment_attempts(p_id uuid) | postgres | EXECUTE | postgres | 
+function | public._supersede_order_payment_attempts(p_id uuid) | service_role | EXECUTE | postgres | 
+function | public.add_access_grant_source_to_event() | postgres | EXECUTE | postgres | 
+function | public.add_access_grant_source_to_event() | service_role | EXECUTE | postgres | 
+function | public.add_event_contract_fields() | postgres | EXECUTE | postgres | 
+function | public.admin_bank_transfer_order(p_id uuid, p_action text, p_amount numeric, p_paid_at timestamp with time zone, p_reason text, p_actor uuid, p_accept_cancelled boolean, p_accept_oversold boolean) | postgres | EXECUTE | postgres | 
+function | public.admin_bank_transfer_order(p_id uuid, p_action text, p_amount numeric, p_paid_at timestamp with time zone, p_reason text, p_actor uuid, p_accept_cancelled boolean, p_accept_oversold boolean) | service_role | EXECUTE | postgres | 
+function | public.admin_delete_oto_offer(source_product_id_param uuid) | postgres | EXECUTE | postgres | 
+function | public.admin_delete_oto_offer(source_product_id_param uuid) | service_role | EXECUTE | postgres | 
+function | public.admin_get_product_order_bumps(product_id_param uuid) | postgres | EXECUTE | postgres | 
+function | public.admin_get_product_order_bumps(product_id_param uuid) | service_role | EXECUTE | postgres | 
+function | public.admin_get_product_oto_offer(product_id_param uuid) | postgres | EXECUTE | postgres | 
+function | public.admin_get_product_oto_offer(product_id_param uuid) | service_role | EXECUTE | postgres | 
+function | public.admin_save_oto_offer(source_product_id_param uuid, oto_product_id_param uuid, discount_type_param text, discount_value_param numeric, duration_minutes_param integer, is_active_param boolean, downsell_product_id_param uuid, downsell_discount_type_param text, downsell_discount_value_param numeric, downsell_duration_minutes_param integer) | postgres | EXECUTE | postgres | 
+function | public.admin_save_oto_offer(source_product_id_param uuid, oto_product_id_param uuid, discount_type_param text, discount_value_param numeric, duration_minutes_param integer, is_active_param boolean, downsell_product_id_param uuid, downsell_discount_type_param text, downsell_discount_value_param numeric, downsell_duration_minutes_param integer) | service_role | EXECUTE | postgres | 
+function | public.affiliate_admin(p_actor uuid) | postgres | EXECUTE | postgres | 
+function | public.affiliate_apply(p_user uuid, p_code text, p_display_name text, p_channel text, p_terms_version text) | postgres | EXECUTE | postgres | 
+function | public.affiliate_apply(p_user uuid, p_code text, p_display_name text, p_channel text, p_terms_version text) | service_role | EXECUTE | postgres | 
+function | public.affiliate_apply_sync(p_payment uuid, p_token uuid, p_generation bigint, p_session_created_at timestamp with time zone, p_livemode boolean) | postgres | EXECUTE | postgres | 
+function | public.affiliate_apply_sync(p_payment uuid, p_token uuid, p_generation bigint, p_session_created_at timestamp with time zone, p_livemode boolean) | service_role | EXECUTE | postgres | 
+function | public.affiliate_audit(p_table text, p_old jsonb, p_new jsonb, p_actor uuid) | postgres | EXECUTE | postgres | 
+function | public.affiliate_binding_check() | postgres | EXECUTE | postgres | 
+function | public.affiliate_cancel_payout(p_actor uuid, p_payout uuid, p_expected_version bigint, p_no_transfer boolean, p_reason text) | postgres | EXECUTE | postgres | 
+function | public.affiliate_cancel_payout(p_actor uuid, p_payout uuid, p_expected_version bigint, p_no_transfer boolean, p_reason text) | service_role | EXECUTE | postgres | 
+function | public.affiliate_check_relations() | postgres | EXECUTE | postgres | 
+function | public.affiliate_claim_work(p_limit integer) | postgres | EXECUTE | postgres | 
+function | public.affiliate_claim_work(p_limit integer) | service_role | EXECUTE | postgres | 
+function | public.affiliate_complete_unbound_work(p_payment uuid, p_token uuid, p_generation bigint) | postgres | EXECUTE | postgres | 
+function | public.affiliate_complete_unbound_work(p_payment uuid, p_token uuid, p_generation bigint) | service_role | EXECUTE | postgres | 
+function | public.affiliate_coupon_bind(p_actor uuid, p_coupon uuid, p_member uuid, p_expected_version bigint) | postgres | EXECUTE | postgres | 
+function | public.affiliate_coupon_bind(p_actor uuid, p_coupon uuid, p_member uuid, p_expected_version bigint) | service_role | EXECUTE | postgres | 
+function | public.affiliate_enqueue() | postgres | EXECUTE | postgres | 
+function | public.affiliate_guard() | postgres | EXECUTE | postgres | 
+function | public.affiliate_immutable() | postgres | EXECUTE | postgres | 
+function | public.affiliate_lock_member(p_member uuid, p_currency text, p_payments uuid[], p_livemode boolean) | postgres | EXECUTE | postgres | 
+function | public.affiliate_manual_adjustment(p_actor uuid, p_commission uuid, p_expected_version bigint, p_amount_minor bigint, p_reason text, p_evidence_reference text, p_review_dispute boolean) | postgres | EXECUTE | postgres | 
+function | public.affiliate_manual_adjustment(p_actor uuid, p_commission uuid, p_expected_version bigint, p_amount_minor bigint, p_reason text, p_evidence_reference text, p_review_dispute boolean) | service_role | EXECUTE | postgres | 
+function | public.affiliate_mark_paid(p_actor uuid, p_payout uuid, p_expected_version bigint, p_bank_reference text, p_invoice_reference text, p_bank_amount_minor bigint, p_currency text, p_paid_at timestamp with time zone, p_full_settlement boolean, p_reason text, p_evidence_reference text, p_livemode boolean) | postgres | EXECUTE | postgres | 
+function | public.affiliate_mark_paid(p_actor uuid, p_payout uuid, p_expected_version bigint, p_bank_reference text, p_invoice_reference text, p_bank_amount_minor bigint, p_currency text, p_paid_at timestamp with time zone, p_full_settlement boolean, p_reason text, p_evidence_reference text, p_livemode boolean) | service_role | EXECUTE | postgres | 
+function | public.affiliate_member_update(p_actor uuid, p_member uuid, p_expected_version bigint, p_status text, p_reason text) | postgres | EXECUTE | postgres | 
+function | public.affiliate_member_update(p_actor uuid, p_member uuid, p_expected_version bigint, p_status text, p_reason text) | service_role | EXECUTE | postgres | 
+function | public.affiliate_portal_page(p_member uuid, p_currency text, p_cursor uuid, p_limit integer, p_as_of timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.affiliate_portal_page(p_member uuid, p_currency text, p_cursor uuid, p_limit integer, p_as_of timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public.affiliate_portal_summary(p_member uuid, p_as_of timestamp with time zone, p_livemode boolean) | postgres | EXECUTE | postgres | 
+function | public.affiliate_portal_summary(p_member uuid, p_as_of timestamp with time zone, p_livemode boolean) | service_role | EXECUTE | postgres | 
+function | public.affiliate_preview(p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_livemode boolean) | postgres | EXECUTE | postgres | 
+function | public.affiliate_preview(p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_livemode boolean) | service_role | EXECUTE | postgres | 
+function | public.affiliate_program_update(p_actor uuid, p_expected_version bigint, p_enabled boolean, p_terms_version text, p_terms jsonb, p_hold_days integer, p_buffer_days integer, p_thresholds jsonb) | postgres | EXECUTE | postgres | 
+function | public.affiliate_program_update(p_actor uuid, p_expected_version bigint, p_enabled boolean, p_terms_version text, p_terms jsonb, p_hold_days integer, p_buffer_days integer, p_thresholds jsonb) | service_role | EXECUTE | postgres | 
+function | public.affiliate_reserve(p_actor uuid, p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_member_version bigint, p_program_version bigint, p_payee_reference text, p_livemode boolean) | postgres | EXECUTE | postgres | 
+function | public.affiliate_reserve(p_actor uuid, p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_member_version bigint, p_program_version bigint, p_payee_reference text, p_livemode boolean) | service_role | EXECUTE | postgres | 
+function | public.affiliate_retry_work(p_payment uuid, p_token uuid, p_generation bigint, p_error text) | postgres | EXECUTE | postgres | 
+function | public.affiliate_retry_work(p_payment uuid, p_token uuid, p_generation bigint, p_error text) | service_role | EXECUTE | postgres | 
+function | public.affiliate_rule_create(p_actor uuid, p_product uuid, p_expected_revision integer, p_enabled boolean, p_percentage_bps integer, p_fixed_minor bigint, p_currency text) | postgres | EXECUTE | postgres | 
+function | public.affiliate_rule_create(p_actor uuid, p_product uuid, p_expected_revision integer, p_enabled boolean, p_percentage_bps integer, p_fixed_minor bigint, p_currency text) | service_role | EXECUTE | postgres | 
+function | public.affiliate_rule_guard() | postgres | EXECUTE | postgres | 
+function | public.affiliate_rule_guard() | service_role | EXECUTE | postgres | 
+function | public.affiliate_valid_program(p_terms jsonb, p_thresholds jsonb) | postgres | EXECUTE | postgres | 
+function | public.affiliate_valid_program(p_terms jsonb, p_thresholds jsonb) | service_role | EXECUTE | postgres | 
+function | public.affiliate_valid_reference(p_value text) | postgres | EXECUTE | postgres | 
+function | public.affiliate_valid_reference(p_value text) | service_role | EXECUTE | postgres | 
+function | public.affiliate_work_retry(p_actor uuid, p_payment uuid, p_generation bigint, p_reason text) | postgres | EXECUTE | postgres | 
+function | public.affiliate_work_retry(p_actor uuid, p_payment uuid, p_generation bigint, p_reason text) | service_role | EXECUTE | postgres | 
+function | public.apply_migration(migration_version text, migration_sql text, content_checksum text) | postgres | EXECUTE | postgres | 
+function | public.apply_migration(migration_version text, migration_sql text, content_checksum text) | service_role | EXECUTE | postgres | 
+function | public.apply_payment_dispute(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.apply_payment_dispute(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public.apply_payment_dispute_before_guest_claim(p_transaction_id uuid, p_dispute_id text, p_status text, p_closed boolean, p_reason text, p_amount integer, p_currency text, p_created timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.apply_shop_vat_defaults() | postgres | EXECUTE | postgres | 
+function | public.apply_shop_vat_defaults() | service_role | EXECUTE | postgres | 
+function | public.attach_order_payment_session(p_attempt uuid, p_session_id text, p_url text) | postgres | EXECUTE | postgres | 
+function | public.attach_order_payment_session(p_attempt uuid, p_session_id text, p_url text) | service_role | EXECUTE | postgres | 
+function | public.attribution_text(p jsonb, k text, max_len integer) | postgres | EXECUTE | postgres | 
+function | public.attribution_text(p jsonb, k text, max_len integer) | service_role | EXECUTE | postgres | 
+function | public.attribution_time(p jsonb, k text) | postgres | EXECUTE | postgres | 
+function | public.attribution_time(p jsonb, k text) | service_role | EXECUTE | postgres | 
+function | public.audit_checkout_profile() | postgres | EXECUTE | postgres | 
+function | public.audit_checkout_profile() | service_role | EXECUTE | postgres | 
+function | public.audit_trigger_function() | postgres | EXECUTE | postgres | 
+function | public.audit_trigger_function() | service_role | EXECUTE | postgres | 
+function | public.bank_transfer_order(p_order jsonb, p_lines jsonb) | postgres | EXECUTE | postgres | 
+function | public.bank_transfer_order(p_order jsonb, p_lines jsonb) | service_role | EXECUTE | postgres | 
+function | public.batch_check_user_product_access(product_slugs_param text[]) | anon | EXECUTE | postgres | 
+function | public.batch_check_user_product_access(product_slugs_param text[]) | authenticated | EXECUTE | postgres | 
+function | public.batch_check_user_product_access(product_slugs_param text[]) | postgres | EXECUTE | postgres | 
+function | public.batch_check_user_product_access(product_slugs_param text[]) | service_role | EXECUTE | postgres | 
+function | public.bind_access_license() | postgres | EXECUTE | postgres | 
+function | public.bind_access_license() | service_role | EXECUTE | postgres | 
+function | public.business_event_actor() | postgres | EXECUTE | postgres | 
+function | public.business_event_actor() | service_role | EXECUTE | postgres | 
+function | public.business_event_order(p_transaction uuid) | postgres | EXECUTE | postgres | 
+function | public.business_event_order(p_transaction uuid) | service_role | EXECUTE | postgres | 
+function | public.business_event_partner(p_member uuid) | postgres | EXECUTE | postgres | 
+function | public.business_event_partner(p_member uuid) | service_role | EXECUTE | postgres | 
+function | public.buyer_mail_locale(p_email text) | postgres | EXECUTE | postgres | 
+function | public.buyer_mail_locale(p_email text) | service_role | EXECUTE | postgres | 
+function | public.cancel_unpaid_order(p_transaction_id uuid, p_reason text) | postgres | EXECUTE | postgres | 
+function | public.cancel_unpaid_order(p_transaction_id uuid, p_reason text) | service_role | EXECUTE | postgres | 
+function | public.capture_business_event() | postgres | EXECUTE | postgres | 
+function | public.capture_business_event() | service_role | EXECUTE | postgres | 
+function | public.capture_commission_event() | postgres | EXECUTE | postgres | 
+function | public.capture_commission_event() | service_role | EXECUTE | postgres | 
+function | public.capture_due_renewal_notices() | postgres | EXECUTE | postgres | 
+function | public.capture_due_renewal_notices() | service_role | EXECUTE | postgres | 
+function | public.capture_expired_access() | postgres | EXECUTE | postgres | 
+function | public.capture_expired_access() | service_role | EXECUTE | postgres | 
+function | public.capture_expired_licenses() | postgres | EXECUTE | postgres | 
+function | public.capture_expired_licenses() | service_role | EXECUTE | postgres | 
+function | public.capture_license_expiry_updated() | postgres | EXECUTE | postgres | 
+function | public.capture_license_issued_event() | postgres | EXECUTE | postgres | 
+function | public.capture_license_status_event() | postgres | EXECUTE | postgres | 
+function | public.capture_payout_event() | postgres | EXECUTE | postgres | 
+function | public.capture_payout_event() | service_role | EXECUTE | postgres | 
+function | public.capture_product_event() | postgres | EXECUTE | postgres | 
+function | public.capture_product_event() | service_role | EXECUTE | postgres | 
+function | public.capture_product_lifecycle_event() | postgres | EXECUTE | postgres | 
+function | public.capture_refund_request_event() | postgres | EXECUTE | postgres | 
+function | public.capture_refund_request_event() | service_role | EXECUTE | postgres | 
+function | public.capture_sales_invoice_event() | postgres | EXECUTE | postgres | 
+function | public.capture_sales_invoice_event() | service_role | EXECUTE | postgres | 
+function | public.capture_sold_out_event() | postgres | EXECUTE | postgres | 
+function | public.capture_sold_out_event() | service_role | EXECUTE | postgres | 
+function | public.capture_subscription_period_access() | postgres | EXECUTE | postgres | 
+function | public.check_application_rate_limit(identifier_param text, action_type_param text, max_requests integer, window_minutes integer) | postgres | EXECUTE | postgres | 
+function | public.check_application_rate_limit(identifier_param text, action_type_param text, max_requests integer, window_minutes integer) | service_role | EXECUTE | postgres | 
+function | public.check_rate_limit(function_name_param text, max_calls integer, time_window_seconds integer, identifier_param text) | postgres | EXECUTE | postgres | 
+function | public.check_rate_limit(function_name_param text, max_calls integer, time_window_seconds integer, identifier_param text) | service_role | EXECUTE | postgres | 
+function | public.check_refund_eligibility(transaction_id_param uuid) | authenticated | EXECUTE | postgres | 
+function | public.check_refund_eligibility(transaction_id_param uuid) | postgres | EXECUTE | postgres | 
+function | public.check_refund_eligibility(transaction_id_param uuid) | service_role | EXECUTE | postgres | 
+function | public.check_user_product_access(product_slug_param text) | anon | EXECUTE | postgres | 
+function | public.check_user_product_access(product_slug_param text) | authenticated | EXECUTE | postgres | 
+function | public.check_user_product_access(product_slug_param text) | postgres | EXECUTE | postgres | 
+function | public.check_user_product_access(product_slug_param text) | service_role | EXECUTE | postgres | 
+function | public.check_waitlist_config() | authenticated | EXECUTE | postgres | 
+function | public.check_waitlist_config() | postgres | EXECUTE | postgres | 
+function | public.check_waitlist_config() | service_role | EXECUTE | postgres | 
+function | public.claim_auth_mail_retries(p_limit integer) | postgres | EXECUTE | postgres | 
+function | public.claim_auth_mail_retries(p_limit integer) | service_role | EXECUTE | postgres | 
+function | public.claim_business_events(p_limit integer) | postgres | EXECUTE | postgres | 
+function | public.claim_business_events(p_limit integer) | service_role | EXECUTE | postgres | 
+function | public.claim_guest_purchases_for_user(p_user_id uuid) | postgres | EXECUTE | postgres | 
+function | public.claim_guest_purchases_for_user(p_user_id uuid) | service_role | EXECUTE | postgres | 
+function | public.claim_license_mail(p_key text, p_email text, p_redirect_to text, p_data jsonb) | postgres | EXECUTE | postgres | 
+function | public.claim_license_mail(p_key text, p_email text, p_redirect_to text, p_data jsonb) | service_role | EXECUTE | postgres | 
+function | public.claim_paid_subscription_access(p_user_id uuid) | postgres | EXECUTE | postgres | 
+function | public.claim_paid_subscription_access(p_user_id uuid) | service_role | EXECUTE | postgres | 
+function | public.claim_webhook_delivery(p_id uuid) | postgres | EXECUTE | postgres | 
+function | public.claim_webhook_delivery(p_id uuid) | service_role | EXECUTE | postgres | 
+function | public.classify_attribution_channel(p_source text, p_medium text, p_campaign text, p_referrer_host text, p_click_type text) | postgres | EXECUTE | postgres | 
+function | public.classify_attribution_channel(p_source text, p_medium text, p_campaign text, p_referrer_host text, p_click_type text) | service_role | EXECUTE | postgres | 
+function | public.cleanup_application_rate_limits() | postgres | EXECUTE | postgres | 
+function | public.cleanup_application_rate_limits() | service_role | EXECUTE | postgres | 
+function | public.cleanup_audit_logs(retention_days integer) | postgres | EXECUTE | postgres | 
+function | public.cleanup_audit_logs(retention_days integer) | service_role | EXECUTE | postgres | 
+function | public.cleanup_captcha_nonces() | postgres | EXECUTE | postgres | 
+function | public.cleanup_captcha_nonces() | service_role | EXECUTE | postgres | 
+function | public.cleanup_expired_oto_coupons() | postgres | EXECUTE | postgres | 
+function | public.cleanup_expired_oto_coupons() | service_role | EXECUTE | postgres | 
+function | public.cleanup_old_admin_actions(retention_days integer) | postgres | EXECUTE | postgres | 
+function | public.cleanup_old_admin_actions(retention_days integer) | service_role | EXECUTE | postgres | 
+function | public.cleanup_old_guest_purchases(retention_days integer) | postgres | EXECUTE | postgres | 
+function | public.cleanup_old_guest_purchases(retention_days integer) | service_role | EXECUTE | postgres | 
+function | public.cleanup_old_price_history() | postgres | EXECUTE | postgres | 
+function | public.cleanup_old_price_history() | service_role | EXECUTE | postgres | 
+function | public.cleanup_old_rate_limits(retention_hours integer) | postgres | EXECUTE | postgres | 
+function | public.cleanup_old_rate_limits(retention_hours integer) | service_role | EXECUTE | postgres | 
+function | public.cleanup_rate_limits() | postgres | EXECUTE | postgres | 
+function | public.cleanup_rate_limits() | service_role | EXECUTE | postgres | 
+function | public.clear_admin_cache() | postgres | EXECUTE | postgres | 
+function | public.clear_admin_cache() | service_role | EXECUTE | postgres | 
+function | public.clear_license_dispute_owner() | postgres | EXECUTE | postgres | 
+function | public.clear_license_revocation_reason() | postgres | EXECUTE | postgres | 
+function | public.clear_pending_free_grant_on_access() | postgres | EXECUTE | postgres | 
+function | public.clear_pending_free_grant_on_access() | service_role | EXECUTE | postgres | 
+function | public.complete_offline_order(p_transaction_id uuid, p_paid_minor numeric) | postgres | EXECUTE | postgres | 
+function | public.complete_offline_order(p_transaction_id uuid, p_paid_minor numeric) | service_role | EXECUTE | postgres | 
+function | public.complete_order_payment_attempt(p_attempt uuid, p_session_id text, p_payment_intent text, p_amount numeric, p_now timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.complete_order_payment_attempt(p_attempt uuid, p_session_id text, p_payment_intent text, p_amount numeric, p_now timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public.confirm_event_order(p_transaction_id uuid) | postgres | EXECUTE | postgres | 
+function | public.confirm_event_order(p_transaction_id uuid) | service_role | EXECUTE | postgres | 
+function | public.confirm_lead_submission(p_token_hash text, p_email text) | postgres | EXECUTE | postgres | 
+function | public.confirm_lead_submission(p_token_hash text, p_email text) | service_role | EXECUTE | postgres | 
+function | public.confirm_refund_notification(p_refund_id text, p_version integer) | postgres | EXECUTE | postgres | 
+function | public.confirm_refund_notification(p_refund_id text, p_version integer) | service_role | EXECUTE | postgres | 
+function | public.copy_free_grant_fields() | postgres | EXECUTE | postgres | 
+function | public.copy_free_grant_fields() | service_role | EXECUTE | postgres | 
+function | public.create_refund_request(transaction_id_param uuid, reason_param text) | authenticated | EXECUTE | postgres | 
+function | public.create_refund_request(transaction_id_param uuid, reason_param text) | postgres | EXECUTE | postgres | 
+function | public.create_refund_request(transaction_id_param uuid, reason_param text) | service_role | EXECUTE | postgres | 
+function | public.currency_minor_factor(currency_code text) | postgres | EXECUTE | postgres | 
+function | public.currency_minor_factor(currency_code text) | PUBLIC | EXECUTE | postgres | 
+function | public.currency_minor_factor(currency_code text) | service_role | EXECUTE | postgres | 
+function | public.decide_refund_request(p_request_id uuid, p_status text, p_admin_id uuid, p_admin_response text, p_actor jsonb) | postgres | EXECUTE | postgres | 
+function | public.decide_refund_request(p_request_id uuid, p_status text, p_admin_id uuid, p_admin_response text, p_actor jsonb) | service_role | EXECUTE | postgres | 
+function | public.declare_transfer(p_id uuid, p_note text, p_now timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.declare_transfer(p_id uuid, p_note text, p_now timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public.defer_subscription_access_until_confirmation() | postgres | EXECUTE | postgres | 
+function | public.defer_subscription_access_until_confirmation() | service_role | EXECUTE | postgres | 
+function | public.enable_event_repeat_purchase() | postgres | EXECUTE | postgres | 
+function | public.enable_event_repeat_purchase() | service_role | EXECUTE | postgres | 
+function | public.end_refunded_subscription() | postgres | EXECUTE | postgres | 
+function | public.end_refunded_subscription_access() | postgres | EXECUTE | postgres | 
+function | public.enforce_product_type_immutable_after_sale() | postgres | EXECUTE | postgres | 
+function | public.enforce_product_type_immutable_after_sale() | service_role | EXECUTE | postgres | 
+function | public.enforce_whole_amounts_coupon() | postgres | EXECUTE | postgres | 
+function | public.enforce_whole_amounts_coupon() | service_role | EXECUTE | postgres | 
+function | public.enforce_whole_amounts_order_bump() | postgres | EXECUTE | postgres | 
+function | public.enforce_whole_amounts_order_bump() | service_role | EXECUTE | postgres | 
+function | public.enforce_whole_amounts_product() | postgres | EXECUTE | postgres | 
+function | public.enforce_whole_amounts_product() | service_role | EXECUTE | postgres | 
+function | public.enqueue_webhook_delivery(p_id uuid, p_endpoint_id uuid, p_event_type text, p_payload jsonb, p_delivery_key text, p_max_attempts integer) | postgres | EXECUTE | postgres | 
+function | public.enqueue_webhook_delivery(p_id uuid, p_endpoint_id uuid, p_event_type text, p_payload jsonb, p_delivery_key text, p_max_attempts integer) | service_role | EXECUTE | postgres | 
+function | public.event_availability(p_product_id uuid, p_at timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.event_availability(p_product_id uuid, p_at timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public.event_hold_limits(p_session_id uuid, p_email text, p_ip text) | postgres | EXECUTE | postgres | 
+function | public.event_hold_limits(p_session_id uuid, p_email text, p_ip text) | service_role | EXECUTE | postgres | 
+function | public.event_mail_access(p_email text, p_product_id uuid, p_transaction_id uuid) | postgres | EXECUTE | postgres | 
+function | public.event_mail_access(p_email text, p_product_id uuid, p_transaction_id uuid) | service_role | EXECUTE | postgres | 
+function | public.event_order_seats(p_transaction_id uuid, p_at timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.event_order_seats(p_transaction_id uuid, p_at timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public.event_session_admin(p_session_id uuid, p_offset integer) | postgres | EXECUTE | postgres | 
+function | public.event_session_admin(p_session_id uuid, p_offset integer) | service_role | EXECUTE | postgres | 
+function | public.expire_order_payment_attempt(p_session_id text) | postgres | EXECUTE | postgres | 
+function | public.expire_order_payment_attempt(p_session_id text) | service_role | EXECUTE | postgres | 
+function | public.expire_seat_reservations() | postgres | EXECUTE | postgres | 
+function | public.expire_seat_reservations() | service_role | EXECUTE | postgres | 
+function | public.fail_business_event(p_id uuid, p_error text) | postgres | EXECUTE | postgres | 
+function | public.fail_business_event(p_id uuid, p_error text) | service_role | EXECUTE | postgres | 
+function | public.find_auto_apply_coupon(customer_email_param text, product_id_param uuid) | authenticated | EXECUTE | postgres | 
+function | public.find_auto_apply_coupon(customer_email_param text, product_id_param uuid) | postgres | EXECUTE | postgres | 
+function | public.find_auto_apply_coupon(customer_email_param text, product_id_param uuid) | service_role | EXECUTE | postgres | 
+function | public.find_user_id_by_email(p_email text) | postgres | EXECUTE | postgres | 
+function | public.find_user_id_by_email(p_email text) | service_role | EXECUTE | postgres | 
+function | public.finish_license_mail(p_retry_id uuid, p_completed boolean, p_error text) | postgres | EXECUTE | postgres | 
+function | public.finish_license_mail(p_retry_id uuid, p_completed boolean, p_error text) | service_role | EXECUTE | postgres | 
+function | public.free_grant_context(p_product_id uuid, p_request_id uuid) | authenticated | EXECUTE | postgres | 
+function | public.free_grant_context(p_product_id uuid, p_request_id uuid) | postgres | EXECUTE | postgres | 
+function | public.free_grant_context(p_product_id uuid, p_request_id uuid) | service_role | EXECUTE | postgres | 
+function | public.generate_oto_coupon(source_product_id_param uuid, customer_email_param text, transaction_id_param uuid) | postgres | EXECUTE | postgres | 
+function | public.generate_oto_coupon(source_product_id_param uuid, customer_email_param text, transaction_id_param uuid) | service_role | EXECUTE | postgres | 
+function | public.get_abandoned_cart_stats(days_ago integer) | postgres | EXECUTE | postgres | 
+function | public.get_abandoned_cart_stats(days_ago integer) | service_role | EXECUTE | postgres | 
+function | public.get_abandoned_carts(days_ago integer, limit_count integer) | postgres | EXECUTE | postgres | 
+function | public.get_abandoned_carts(days_ago integer, limit_count integer) | service_role | EXECUTE | postgres | 
+function | public.get_admin_refund_requests(status_filter text, limit_param integer, offset_param integer) | authenticated | EXECUTE | postgres | 
+function | public.get_admin_refund_requests(status_filter text, limit_param integer, offset_param integer) | postgres | EXECUTE | postgres | 
+function | public.get_admin_refund_requests(status_filter text, limit_param integer, offset_param integer) | service_role | EXECUTE | postgres | 
+function | public.get_attribution_report(p_from timestamp with time zone, p_to timestamp with time zone, p_touch text, p_group_by text[], p_product uuid) | authenticated | EXECUTE | postgres | 
+function | public.get_attribution_report(p_from timestamp with time zone, p_to timestamp with time zone, p_touch text, p_group_by text[], p_product uuid) | postgres | EXECUTE | postgres | 
+function | public.get_attribution_report(p_from timestamp with time zone, p_to timestamp with time zone, p_touch text, p_group_by text[], p_product uuid) | service_role | EXECUTE | postgres | 
+function | public.get_checkout_funnel(p_days integer, p_product_id uuid) | postgres | EXECUTE | postgres | 
+function | public.get_checkout_funnel(p_days integer, p_product_id uuid) | service_role | EXECUTE | postgres | 
+function | public.get_cleanup_job_status() | postgres | EXECUTE | postgres | 
+function | public.get_cleanup_job_status() | service_role | EXECUTE | postgres | 
+function | public.get_dashboard_stats() | authenticated | EXECUTE | postgres | 
+function | public.get_dashboard_stats() | postgres | EXECUTE | postgres | 
+function | public.get_dashboard_stats() | service_role | EXECUTE | postgres | 
+function | public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start_date timestamp with time zone) | authenticated | EXECUTE | postgres | 
+function | public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start_date timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start_date timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) | authenticated | EXECUTE | postgres | 
+function | public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) | postgres | EXECUTE | postgres | 
+function | public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) | service_role | EXECUTE | postgres | 
+function | public.get_migration_status() | postgres | EXECUTE | postgres | 
+function | public.get_migration_status() | service_role | EXECUTE | postgres | 
+function | public.get_oto_coupon_info(coupon_code_param text, email_param text) | anon | EXECUTE | postgres | 
+function | public.get_oto_coupon_info(coupon_code_param text, email_param text) | authenticated | EXECUTE | postgres | 
+function | public.get_oto_coupon_info(coupon_code_param text, email_param text) | postgres | EXECUTE | postgres | 
+function | public.get_oto_coupon_info(coupon_code_param text, email_param text) | service_role | EXECUTE | postgres | 
+function | public.get_payment_statistics(start_date timestamp with time zone, end_date timestamp with time zone) | authenticated | EXECUTE | postgres | 
+function | public.get_payment_statistics(start_date timestamp with time zone, end_date timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.get_payment_statistics(start_date timestamp with time zone, end_date timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public.get_payment_summary(p_today_start timestamp with time zone, p_month_start timestamp with time zone) | authenticated | EXECUTE | postgres | 
+function | public.get_payment_summary(p_today_start timestamp with time zone, p_month_start timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.get_payment_summary(p_today_start timestamp with time zone, p_month_start timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public.get_product_order_bumps(product_id_param uuid) | anon | EXECUTE | postgres | 
+function | public.get_product_order_bumps(product_id_param uuid) | authenticated | EXECUTE | postgres | 
+function | public.get_product_order_bumps(product_id_param uuid) | postgres | EXECUTE | postgres | 
+function | public.get_product_order_bumps(product_id_param uuid) | service_role | EXECUTE | postgres | 
+function | public.get_public_integrations_config() | anon | EXECUTE | postgres | 
+function | public.get_public_integrations_config() | authenticated | EXECUTE | postgres | 
+function | public.get_public_integrations_config() | postgres | EXECUTE | postgres | 
+function | public.get_public_integrations_config() | service_role | EXECUTE | postgres | 
+function | public.get_revenue_goal(p_product_id uuid) | authenticated | EXECUTE | postgres | 
+function | public.get_revenue_goal(p_product_id uuid) | postgres | EXECUTE | postgres | 
+function | public.get_revenue_goal(p_product_id uuid) | service_role | EXECUTE | postgres | 
+function | public.get_revenue_groups(p_start timestamp with time zone, p_end timestamp with time zone, p_product_id uuid) | authenticated | EXECUTE | postgres | 
+function | public.get_revenue_groups(p_start timestamp with time zone, p_end timestamp with time zone, p_product_id uuid) | postgres | EXECUTE | postgres | 
+function | public.get_revenue_groups(p_start timestamp with time zone, p_end timestamp with time zone, p_product_id uuid) | service_role | EXECUTE | postgres | 
+function | public.get_sales_chart_data(p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_product_id uuid, p_timezone text) | authenticated | EXECUTE | postgres | 
+function | public.get_sales_chart_data(p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_product_id uuid, p_timezone text) | postgres | EXECUTE | postgres | 
+function | public.get_sales_chart_data(p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_product_id uuid, p_timezone text) | service_role | EXECUTE | postgres | 
+function | public.get_telemetry_metrics() | postgres | EXECUTE | postgres | 
+function | public.get_telemetry_metrics() | service_role | EXECUTE | postgres | 
+function | public.get_user_payment_history(user_id_param uuid) | authenticated | EXECUTE | postgres | 
+function | public.get_user_payment_history(user_id_param uuid) | postgres | EXECUTE | postgres | 
+function | public.get_user_payment_history(user_id_param uuid) | service_role | EXECUTE | postgres | 
+function | public.get_user_profile(user_id_param uuid) | authenticated | EXECUTE | postgres | 
+function | public.get_user_profile(user_id_param uuid) | postgres | EXECUTE | postgres | 
+function | public.get_user_profile(user_id_param uuid) | service_role | EXECUTE | postgres | 
+function | public.get_user_purchases_with_refund_status(user_id_param uuid) | authenticated | EXECUTE | postgres | 
+function | public.get_user_purchases_with_refund_status(user_id_param uuid) | postgres | EXECUTE | postgres | 
+function | public.get_user_purchases_with_refund_status(user_id_param uuid) | service_role | EXECUTE | postgres | 
+function | public.get_variant_group(p_group_id uuid) | anon | EXECUTE | postgres | 
+function | public.get_variant_group(p_group_id uuid) | authenticated | EXECUTE | postgres | 
+function | public.get_variant_group(p_group_id uuid) | postgres | EXECUTE | postgres | 
+function | public.get_variant_group(p_group_id uuid) | service_role | EXECUTE | postgres | 
+function | public.get_variant_group_by_slug(p_slug text) | anon | EXECUTE | postgres | 
+function | public.get_variant_group_by_slug(p_slug text) | authenticated | EXECUTE | postgres | 
+function | public.get_variant_group_by_slug(p_slug text) | postgres | EXECUTE | postgres | 
+function | public.get_variant_group_by_slug(p_slug text) | service_role | EXECUTE | postgres | 
+function | public.grant_bundle_component_access(user_id_param uuid, product_id_param uuid, max_retries integer) | postgres | EXECUTE | postgres | 
+function | public.grant_bundle_component_access(user_id_param uuid, product_id_param uuid, max_retries integer) | service_role | EXECUTE | postgres | 
+function | public.grant_bundle_component_access_impl(user_id_param uuid, product_id_param uuid, max_retries integer) | postgres | EXECUTE | postgres | 
+function | public.grant_bundle_component_access_impl(user_id_param uuid, product_id_param uuid, max_retries integer) | service_role | EXECUTE | postgres | 
+function | public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | authenticated | EXECUTE | postgres | 
+function | public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | postgres | EXECUTE | postgres | 
+function | public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | service_role | EXECUTE | postgres | 
+function | public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | authenticated | EXECUTE | postgres | 
+function | public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | postgres | EXECUTE | postgres | 
+function | public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | service_role | EXECUTE | postgres | 
+function | public.grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid) | authenticated | EXECUTE | postgres | 
+function | public.grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid) | postgres | EXECUTE | postgres | 
+function | public.grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid) | service_role | EXECUTE | postgres | 
+function | public.grant_product_access_service_role(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | postgres | EXECUTE | postgres | 
+function | public.grant_product_access_service_role(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | service_role | EXECUTE | postgres | 
+function | public.grant_product_access_service_role_impl(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | postgres | EXECUTE | postgres | 
+function | public.grant_product_access_service_role_impl(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | service_role | EXECUTE | postgres | 
+function | public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer) | postgres | EXECUTE | postgres | 
+function | public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer) | service_role | EXECUTE | postgres | 
+function | public.handle_new_user_registration() | postgres | EXECUTE | postgres | 
+function | public.handle_new_user_registration() | service_role | EXECUTE | postgres | 
+function | public.handle_user_email_confirmation() | postgres | EXECUTE | postgres | 
+function | public.handle_user_email_confirmation() | service_role | EXECUTE | postgres | 
+function | public.hold_transfer_for_invoice(p_id uuid, p_now timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.hold_transfer_for_invoice(p_id uuid, p_now timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public.increment_coupon_usage(coupon_id_param uuid) | postgres | EXECUTE | postgres | 
+function | public.increment_coupon_usage(coupon_id_param uuid) | service_role | EXECUTE | postgres | 
+function | public.increment_sale_quantity_sold(p_product_id uuid) | postgres | EXECUTE | postgres | 
+function | public.increment_sale_quantity_sold(p_product_id uuid) | service_role | EXECUTE | postgres | 
+function | public.increment_sale_quantity_sold(p_product_id uuid, p_quantity integer) | postgres | EXECUTE | postgres | 
+function | public.increment_sale_quantity_sold(p_product_id uuid, p_quantity integer) | service_role | EXECUTE | postgres | 
+function | public.increment_webhook_attempt(p_log_id uuid, p_status text, p_http_status integer, p_response_body text, p_error_message text, p_duration_ms integer, p_next_retry_at timestamp with time zone, p_failed_permanently_at timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.increment_webhook_attempt(p_log_id uuid, p_status text, p_http_status integer, p_response_body text, p_error_message text, p_duration_ms integer, p_next_retry_at timestamp with time zone, p_failed_permanently_at timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public.insert_purchase_attribution(p_tx uuid, p_product uuid, p_user uuid, p_kind text, p_payload jsonb, p_coupon uuid) | postgres | EXECUTE | postgres | 
+function | public.insert_purchase_attribution(p_tx uuid, p_product uuid, p_user uuid, p_kind text, p_payload jsonb, p_coupon uuid) | service_role | EXECUTE | postgres | 
+function | public.invoice_holds_transfer() | postgres | EXECUTE | postgres | 
+function | public.invoice_holds_transfer() | service_role | EXECUTE | postgres | 
+function | public.is_admin(user_id_param uuid) | anon | EXECUTE | postgres | 
+function | public.is_admin(user_id_param uuid) | authenticated | EXECUTE | postgres | 
+function | public.is_admin(user_id_param uuid) | postgres | EXECUTE | postgres | 
+function | public.is_admin(user_id_param uuid) | service_role | EXECUTE | postgres | 
+function | public.is_admin_cached() | anon | EXECUTE | postgres | 
+function | public.is_admin_cached() | authenticated | EXECUTE | postgres | 
+function | public.is_admin_cached() | postgres | EXECUTE | postgres | 
+function | public.is_admin_cached() | service_role | EXECUTE | postgres | 
+function | public.is_free_claimable_product(p_product_id uuid) | postgres | EXECUTE | postgres | 
+function | public.is_free_claimable_product(p_product_id uuid) | service_role | EXECUTE | postgres | 
+function | public.is_free_grantable_now(p_product_type text, p_available_from timestamp with time zone, p_available_until timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.is_free_grantable_now(p_product_type text, p_available_from timestamp with time zone, p_available_until timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) | authenticated | EXECUTE | postgres | 
+function | public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) | postgres | EXECUTE | postgres | 
+function | public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) | service_role | EXECUTE | postgres | 
+function | public.jsonschema_subset_matches(schema json, instance jsonb) | postgres | EXECUTE | postgres | 
+function | public.jsonschema_subset_matches(schema json, instance jsonb) | service_role | EXECUTE | postgres | 
+function | public.jsonschema_subset_pattern(pattern text) | postgres | EXECUTE | postgres | 
+function | public.jsonschema_subset_pattern(pattern text) | service_role | EXECUTE | postgres | 
+function | public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer) | postgres | EXECUTE | postgres | 
+function | public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer) | service_role | EXECUTE | postgres | 
+function | public.keep_refunded_subscription_access_ended() | postgres | EXECUTE | postgres | 
+function | public.keep_refunded_subscription_ended() | postgres | EXECUTE | postgres | 
+function | public.legacy_pending_free_grant_products() | postgres | EXECUTE | postgres | 
+function | public.license_event_snapshot(p_license issued_licenses) | postgres | EXECUTE | postgres | 
+function | public.license_mail_is_current(p_email text, p_keys jsonb) | postgres | EXECUTE | postgres | 
+function | public.license_mail_is_current(p_email text, p_keys jsonb) | service_role | EXECUTE | postgres | 
+function | public.license_order_references(p_order payment_transactions) | postgres | EXECUTE | postgres | 
+function | public.list_orders_missing_participants(p_unsent_only boolean, p_limit integer) | postgres | EXECUTE | postgres | 
+function | public.list_orders_missing_participants(p_unsent_only boolean, p_limit integer) | service_role | EXECUTE | postgres | 
+function | public.list_participants_reminders_due(p_now timestamp with time zone, p_limit integer) | postgres | EXECUTE | postgres | 
+function | public.list_participants_reminders_due(p_now timestamp with time zone, p_limit integer) | service_role | EXECUTE | postgres | 
+function | public.log_admin_action(action_name text, target_type text, target_id text, action_details jsonb) | postgres | EXECUTE | postgres | 
+function | public.log_admin_action(action_name text, target_type text, target_id text, action_details jsonb) | service_role | EXECUTE | postgres | 
+function | public.log_admin_action_trigger() | postgres | EXECUTE | postgres | 
+function | public.log_admin_action_trigger() | service_role | EXECUTE | postgres | 
+function | public.log_audit_entry(table_name_param text, operation_param text, old_values_param jsonb, new_values_param jsonb, user_id_param uuid) | postgres | EXECUTE | postgres | 
+function | public.log_audit_entry(table_name_param text, operation_param text, old_values_param jsonb, new_values_param jsonb, user_id_param uuid) | service_role | EXECUTE | postgres | 
+function | public.log_product_price_change() | postgres | EXECUTE | postgres | 
+function | public.log_product_price_change() | service_role | EXECUTE | postgres | 
+function | public.logs_monitoring_check(new_action_details jsonb) | postgres | EXECUTE | postgres | 
+function | public.logs_monitoring_check(new_action_details jsonb) | service_role | EXECUTE | postgres | 
+function | public.logs_monitoring_trigger() | postgres | EXECUTE | postgres | 
+function | public.logs_monitoring_trigger() | service_role | EXECUTE | postgres | 
+function | public.mark_checkout_details_missing() | postgres | EXECUTE | postgres | 
+function | public.mark_checkout_details_missing() | service_role | EXECUTE | postgres | 
+function | public.mark_expired_pending_payments() | postgres | EXECUTE | postgres | 
+function | public.mark_expired_pending_payments() | service_role | EXECUTE | postgres | 
+function | public.migrate_guest_payment_data_to_profile(p_user_id uuid) | postgres | EXECUTE | postgres | 
+function | public.migrate_guest_payment_data_to_profile(p_user_id uuid) | service_role | EXECUTE | postgres | 
+function | public.migrate_guest_purchases(p_user_id uuid, p_email text) | postgres | EXECUTE | postgres | 
+function | public.migrate_guest_purchases(p_user_id uuid, p_email text) | service_role | EXECUTE | postgres | 
+function | public.mutate_access(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) | postgres | EXECUTE | postgres | 
+function | public.mutate_access(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) | service_role | EXECUTE | postgres | 
+function | public.mutate_access_impl(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) | postgres | EXECUTE | postgres | 
+function | public.mutate_access_impl(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) | service_role | EXECUTE | postgres | 
+function | public.mutate_product_as(event_actor jsonb, operation_param text, product_data jsonb, product_id uuid, actor_id uuid) | postgres | EXECUTE | postgres | 
+function | public.mutate_product_as(event_actor jsonb, operation_param text, product_data jsonb, product_id uuid, actor_id uuid) | service_role | EXECUTE | postgres | 
+function | public.mutate_product_offer(offer_product_id uuid, expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid) | postgres | EXECUTE | postgres | 
+function | public.mutate_product_offer(offer_product_id uuid, expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid) | service_role | EXECUTE | postgres | 
+function | public.mutate_product_with_audit(operation_param text, product_data jsonb, product_id uuid, actor_id uuid) | postgres | EXECUTE | postgres | 
+function | public.mutate_product_with_audit(operation_param text, product_data jsonb, product_id uuid, actor_id uuid) | service_role | EXECUTE | postgres | 
+function | public.mutate_storefront_config(expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid, legacy_source jsonb) | postgres | EXECUTE | postgres | 
+function | public.mutate_storefront_config(expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid, legacy_source jsonb) | service_role | EXECUTE | postgres | 
+function | public.my_event_sessions(p_product_id uuid) | authenticated | EXECUTE | postgres | 
+function | public.my_event_sessions(p_product_id uuid) | postgres | EXECUTE | postgres | 
+function | public.my_event_sessions(p_product_id uuid) | service_role | EXECUTE | postgres | 
+function | public.normalize_purchase_contact() | postgres | EXECUTE | postgres | 
+function | public.observe_payment_refund(p_transaction_id uuid, p_refund_id text, p_amount integer, p_currency text, p_status text, p_initial_status text) | postgres | EXECUTE | postgres | 
+function | public.observe_payment_refund(p_transaction_id uuid, p_refund_id text, p_amount integer, p_currency text, p_status text, p_initial_status text) | service_role | EXECUTE | postgres | 
+function | public.open_order_payment_attempt(p_id uuid, p_kind text, p_amount numeric, p_currency text, p_expires_at timestamp with time zone, p_now timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.open_order_payment_attempt(p_id uuid, p_kind text, p_amount numeric, p_currency text, p_expires_at timestamp with time zone, p_now timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public.order_awaits_participants(p_order_details jsonb, p_profile jsonb, p_status text) | postgres | EXECUTE | postgres | 
+function | public.order_awaits_participants(p_order_details jsonb, p_profile jsonb, p_status text) | service_role | EXECUTE | postgres | 
+function | public.owns_product_access(p_product_id uuid) | anon | EXECUTE | postgres | 
+function | public.owns_product_access(p_product_id uuid) | authenticated | EXECUTE | postgres | 
+function | public.owns_product_access(p_product_id uuid) | postgres | EXECUTE | postgres | 
+function | public.owns_product_access(p_product_id uuid) | service_role | EXECUTE | postgres | 
+function | public.pending_free_grant_products() | authenticated | EXECUTE | postgres | 
+function | public.pending_free_grant_products() | postgres | EXECUTE | postgres | 
+function | public.pending_free_grant_products() | service_role | EXECUTE | postgres | 
+function | public.pick_due_webhook_deliveries(p_limit integer) | postgres | EXECUTE | postgres | 
+function | public.pick_due_webhook_deliveries(p_limit integer) | service_role | EXECUTE | postgres | 
+function | public.place_order(p_order jsonb, p_lines jsonb) | postgres | EXECUTE | postgres | 
+function | public.place_order(p_order jsonb, p_lines jsonb) | service_role | EXECUTE | postgres | 
+function | public.prepare_event_mail(p_email text, p_data jsonb) | postgres | EXECUTE | postgres | 
+function | public.prepare_event_mail(p_email text, p_data jsonb) | service_role | EXECUTE | postgres | 
+function | public.prepare_free_grant(p_email text, p_product_id uuid, p_values jsonb) | postgres | EXECUTE | postgres | 
+function | public.prepare_free_grant(p_email text, p_product_id uuid, p_values jsonb) | service_role | EXECUTE | postgres | 
+function | public.prevent_delete_user_with_active_subscription() | postgres | EXECUTE | postgres | 
+function | public.prevent_delete_user_with_active_subscription() | service_role | EXECUTE | postgres | 
+function | public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) | authenticated | EXECUTE | postgres | 
+function | public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) | postgres | EXECUTE | postgres | 
+function | public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) | service_role | EXECUTE | postgres | 
+function | public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | postgres | EXECUTE | postgres | 
+function | public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | service_role | EXECUTE | postgres | 
+function | public.product_catalogue_snapshot(p products) | postgres | EXECUTE | postgres | 
+function | public.product_deletion_impact(p_product_id uuid) | postgres | EXECUTE | postgres | 
+function | public.product_deletion_impact(p_product_id uuid) | service_role | EXECUTE | postgres | 
+function | public.product_marketing_valid(instance jsonb) | authenticated | EXECUTE | postgres | 
+function | public.product_marketing_valid(instance jsonb) | postgres | EXECUTE | postgres | 
+function | public.product_marketing_valid(instance jsonb) | service_role | EXECUTE | postgres | 
+function | public.product_offer_config_schema() | postgres | EXECUTE | postgres | 
+function | public.product_offer_config_schema() | service_role | EXECUTE | postgres | 
+function | public.product_offer_config_valid(config jsonb) | postgres | EXECUTE | postgres | 
+function | public.product_offer_config_valid(config jsonb) | service_role | EXECUTE | postgres | 
+function | public.product_price_snapshot(p products) | postgres | EXECUTE | postgres | 
+function | public.product_price_snapshot(p products) | service_role | EXECUTE | postgres | 
+function | public.protect_payment_method_config_created_at() | postgres | EXECUTE | postgres | 
+function | public.protect_payment_method_config_created_at() | service_role | EXECUTE | postgres | 
+function | public.public_event_availability(p_product_id uuid) | postgres | EXECUTE | postgres | 
+function | public.public_event_availability(p_product_id uuid) | service_role | EXECUTE | postgres | 
+function | public.purchase_attribution_immutable() | postgres | EXECUTE | postgres | 
+function | public.purchase_attribution_immutable() | PUBLIC | EXECUTE | postgres | 
+function | public.purchase_attribution_immutable() | service_role | EXECUTE | postgres | 
+function | public.purge_attribution_click_ids() | postgres | EXECUTE | postgres | 
+function | public.purge_attribution_click_ids() | service_role | EXECUTE | postgres | 
+function | public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text) | postgres | EXECUTE | postgres | 
+function | public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text) | service_role | EXECUTE | postgres | 
+function | public.queue_pending_free_grant(p_email text, p_product_slug text) | postgres | EXECUTE | postgres | 
+function | public.queue_pending_free_grant(p_email text, p_product_slug text) | service_role | EXECUTE | postgres | 
+function | public.record_business_event(p_event text, p_product uuid, p_payload jsonb, p_key text) | postgres | EXECUTE | postgres | 
+function | public.record_business_event(p_event text, p_product uuid, p_payload jsonb, p_key text) | service_role | EXECUTE | postgres | 
+function | public.record_free_attribution(p_product uuid, p_user uuid, p_payload jsonb) | postgres | EXECUTE | postgres | 
+function | public.record_free_attribution(p_product uuid, p_user uuid, p_payload jsonb) | service_role | EXECUTE | postgres | 
+function | public.record_free_attribution_from_ref(p_product uuid, p_user uuid, p_ref text) | postgres | EXECUTE | postgres | 
+function | public.record_free_attribution_from_ref(p_product uuid, p_user uuid, p_ref text) | service_role | EXECUTE | postgres | 
+function | public.record_invoice_correction(p_transaction uuid, p_actor uuid) | postgres | EXECUTE | postgres | 
+function | public.record_invoice_correction(p_transaction uuid, p_actor uuid) | service_role | EXECUTE | postgres | 
+function | public.record_order_payment_refund(p_attempt uuid, p_refund_id text) | postgres | EXECUTE | postgres | 
+function | public.record_order_payment_refund(p_attempt uuid, p_refund_id text) | service_role | EXECUTE | postgres | 
+function | public.record_template_credential_status(template_id text, expected_key text, expected_iv text, expected_tag text, verification_state text, checked_at timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.record_template_credential_status(template_id text, expected_key text, expected_iv text, expected_tag text, verification_state text, checked_at timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public.release_event_order() | postgres | EXECUTE | postgres | 
+function | public.release_event_order() | service_role | EXECUTE | postgres | 
+function | public.release_participant_recordings() | postgres | EXECUTE | postgres | 
+function | public.release_participant_recordings() | service_role | EXECUTE | postgres | 
+function | public.release_transfer_access() | postgres | EXECUTE | postgres | 
+function | public.release_transfer_access() | service_role | EXECUTE | postgres | 
+function | public.release_unpaid_transfer(p_id uuid, p_now timestamp with time zone) | postgres | EXECUTE | postgres | 
+function | public.release_unpaid_transfer(p_id uuid, p_now timestamp with time zone) | service_role | EXECUTE | postgres | 
+function | public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) | postgres | EXECUTE | postgres | 
+function | public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) | service_role | EXECUTE | postgres | 
+function | public.restore_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid) | postgres | EXECUTE | postgres | 
+function | public.restore_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid) | service_role | EXECUTE | postgres | 
+function | public.retain_disputed_access() | postgres | EXECUTE | postgres | 
+function | public.retain_disputed_access() | service_role | EXECUTE | postgres | 
+function | public.retry_business_event(p_id uuid) | postgres | EXECUTE | postgres | 
+function | public.retry_business_event(p_id uuid) | service_role | EXECUTE | postgres | 
+function | public.revoke_issued_licenses(p_license_ids uuid[], p_actor uuid, p_reason text) | postgres | EXECUTE | postgres | 
+function | public.revoke_issued_licenses(p_license_ids uuid[], p_actor uuid, p_reason text) | service_role | EXECUTE | postgres | 
+function | public.revoke_license_for_disputed_order() | postgres | EXECUTE | postgres | 
+function | public.revoke_order_licenses(p_product_id uuid, p_order_ids text[], p_reason text) | postgres | EXECUTE | postgres | 
+function | public.revoke_order_licenses(p_product_id uuid, p_order_ids text[], p_reason text) | service_role | EXECUTE | postgres | 
+function | public.revoke_terminal_order_licenses() | postgres | EXECUTE | postgres | 
+function | public.rotate_webhook_secret(p_endpoint_id uuid, p_secret text, p_actor_id uuid, p_api_key_id uuid) | postgres | EXECUTE | postgres | 
+function | public.rotate_webhook_secret(p_endpoint_id uuid, p_secret text, p_actor_id uuid, p_api_key_id uuid) | service_role | EXECUTE | postgres | 
+function | public.save_attribution_config(p_retention_days integer, p_rules jsonb) | authenticated | EXECUTE | postgres | 
+function | public.save_attribution_config(p_retention_days integer, p_rules jsonb) | postgres | EXECUTE | postgres | 
+function | public.save_attribution_config(p_retention_days integer, p_rules jsonb) | service_role | EXECUTE | postgres | 
+function | public.save_bank_transfer_config(p_config jsonb, p_actor uuid) | postgres | EXECUTE | postgres | 
+function | public.save_bank_transfer_config(p_config jsonb, p_actor uuid) | service_role | EXECUTE | postgres | 
+function | public.save_template_credential(template_id text, encrypted_key text, encryption_iv text, encryption_tag text, actor_user_id uuid, actor_method text, actor_api_key_id uuid) | postgres | EXECUTE | postgres | 
+function | public.save_template_credential(template_id text, encrypted_key text, encryption_iv text, encryption_tag text, actor_user_id uuid, actor_method text, actor_api_key_id uuid) | service_role | EXECUTE | postgres | 
+function | public.search_order_accesses(p_search text) | postgres | EXECUTE | postgres | 
+function | public.search_order_accesses(p_search text) | service_role | EXECUTE | postgres | 
+function | public.search_order_leads(p_search text) | postgres | EXECUTE | postgres | 
+function | public.search_order_leads(p_search text) | service_role | EXECUTE | postgres | 
+function | public.search_payment_transactions(p_search text, p_include_identifiers boolean) | postgres | EXECUTE | postgres | 
+function | public.search_payment_transactions(p_search text, p_include_identifiers boolean) | service_role | EXECUTE | postgres | 
+function | public.seller_license_public_keys(seller uuid) | anon | EXECUTE | postgres | 
+function | public.seller_license_public_keys(seller uuid) | authenticated | EXECUTE | postgres | 
+function | public.seller_license_public_keys(seller uuid) | postgres | EXECUTE | postgres | 
+function | public.seller_license_public_keys(seller uuid) | service_role | EXECUTE | postgres | 
+function | public.seller_revoked_orders(seller uuid, hash_prefix text) | postgres | EXECUTE | postgres | 
+function | public.seller_revoked_orders(seller uuid, hash_prefix text) | service_role | EXECUTE | postgres | 
+function | public.send_monitoring_email(alert_type text, alert_details jsonb) | postgres | EXECUTE | postgres | 
+function | public.send_monitoring_email(alert_type text, alert_details jsonb) | service_role | EXECUTE | postgres | 
+function | public.set_access_grant_source() | postgres | EXECUTE | postgres | 
+function | public.set_access_grant_source() | service_role | EXECUTE | postgres | 
+function | public.set_business_event_actor(p_actor jsonb) | postgres | EXECUTE | postgres | 
+function | public.set_business_event_actor(p_actor jsonb) | service_role | EXECUTE | postgres | 
+function | public.set_invoicing_auto_since() | postgres | EXECUTE | postgres | 
+function | public.set_invoicing_auto_since() | service_role | EXECUTE | postgres | 
+function | public.set_payment_order_buyer(p_buyer jsonb, p_session_id text, p_payment_intent_id text, p_only_if_missing boolean) | postgres | EXECUTE | postgres | 
+function | public.set_payment_order_buyer(p_buyer jsonb, p_session_id text, p_payment_intent_id text, p_only_if_missing boolean) | service_role | EXECUTE | postgres | 
+function | public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text) | postgres | EXECUTE | postgres | 
+function | public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text) | service_role | EXECUTE | postgres | 
+function | public.set_product_webhook_revision() | postgres | EXECUTE | postgres | 
+function | public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) | authenticated | EXECUTE | postgres | 
+function | public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) | postgres | EXECUTE | postgres | 
+function | public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) | service_role | EXECUTE | postgres | 
+function | public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[]) | postgres | EXECUTE | postgres | 
+function | public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[]) | service_role | EXECUTE | postgres | 
+function | public.snapshot_event_tier_label() | postgres | EXECUTE | postgres | 
+function | public.snapshot_event_tier_label() | service_role | EXECUTE | postgres | 
+function | public.snapshot_purchase_attribution() | postgres | EXECUTE | postgres | 
+function | public.snapshot_purchase_attribution() | service_role | EXECUTE | postgres | 
+function | public.snapshot_purchase_attribution_inserted() | postgres | EXECUTE | postgres | 
+function | public.snapshot_purchase_attribution_inserted() | service_role | EXECUTE | postgres | 
+function | public.snapshot_purchase_attribution_row(n payment_transactions) | postgres | EXECUTE | postgres | 
+function | public.snapshot_purchase_attribution_row(n payment_transactions) | service_role | EXECUTE | postgres | 
+function | public.snapshot_purchase_product_name() | postgres | EXECUTE | postgres | 
+function | public.snapshot_purchase_product_name() | service_role | EXECUTE | postgres | 
+function | public.stamp_original_seller_id() | postgres | EXECUTE | postgres | 
+function | public.stamp_original_seller_id() | service_role | EXECUTE | postgres | 
+function | public.store_checkout_attribution(p_ref text, p_payload jsonb) | postgres | EXECUTE | postgres | 
+function | public.store_checkout_attribution(p_ref text, p_payload jsonb) | service_role | EXECUTE | postgres | 
+function | public.storefront_catalogue_boundary() | postgres | EXECUTE | postgres | 
+function | public.storefront_catalogue_boundary() | service_role | EXECUTE | postgres | 
+function | public.storefront_catalogue_categories(category_ids uuid[]) | postgres | EXECUTE | postgres | 
+function | public.storefront_catalogue_categories(category_ids uuid[]) | service_role | EXECUTE | postgres | 
+function | public.storefront_catalogue_page(filters jsonb, after_created timestamp with time zone, after_id uuid, product_ids uuid[]) | postgres | EXECUTE | postgres | 
+function | public.storefront_catalogue_page(filters jsonb, after_created timestamp with time zone, after_id uuid, product_ids uuid[]) | service_role | EXECUTE | postgres | 
+function | public.storefront_config_schema() | postgres | EXECUTE | postgres | 
+function | public.storefront_config_schema() | service_role | EXECUTE | postgres | 
+function | public.storefront_config_stored_bytes(config jsonb) | postgres | EXECUTE | postgres | 
+function | public.storefront_config_stored_bytes(config jsonb) | service_role | EXECUTE | postgres | 
+function | public.storefront_config_valid(config jsonb) | postgres | EXECUTE | postgres | 
+function | public.storefront_config_valid(config jsonb) | service_role | EXECUTE | postgres | 
+function | public.submit_order_participants(p_order_id uuid, p_people jsonb) | postgres | EXECUTE | postgres | 
+function | public.submit_order_participants(p_order_id uuid, p_people jsonb) | service_role | EXECUTE | postgres | 
+function | public.telemetry_claim_send(p_window_ms bigint, p_lease_ms bigint) | postgres | EXECUTE | postgres | 
+function | public.telemetry_claim_send(p_window_ms bigint, p_lease_ms bigint) | service_role | EXECUTE | postgres | 
+function | public.telemetry_confirm_send() | postgres | EXECUTE | postgres | 
+function | public.telemetry_confirm_send() | service_role | EXECUTE | postgres | 
+function | public.transfer_access_source() | postgres | EXECUTE | postgres | 
+function | public.transfer_access_source() | service_role | EXECUTE | postgres | 
+function | public.update_payment_method_config_timestamp() | postgres | EXECUTE | postgres | 
+function | public.update_payment_method_config_timestamp() | service_role | EXECUTE | postgres | 
+function | public.update_refund_request_timestamp() | postgres | EXECUTE | postgres | 
+function | public.update_refund_request_timestamp() | service_role | EXECUTE | postgres | 
+function | public.update_refunded_at() | postgres | EXECUTE | postgres | 
+function | public.update_refunded_at() | service_role | EXECUTE | postgres | 
+function | public.update_updated_at_column() | postgres | EXECUTE | postgres | 
+function | public.update_updated_at_column() | service_role | EXECUTE | postgres | 
+function | public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) | authenticated | EXECUTE | postgres | 
+function | public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) | postgres | EXECUTE | postgres | 
+function | public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) | service_role | EXECUTE | postgres | 
+function | public.validate_bundle_item() | postgres | EXECUTE | postgres | 
+function | public.validate_bundle_item() | PUBLIC | EXECUTE | postgres | 
+function | public.validate_bundle_item() | service_role | EXECUTE | postgres | 
+function | public.validate_email_format(email_param text) | authenticated | EXECUTE | postgres | 
+function | public.validate_email_format(email_param text) | postgres | EXECUTE | postgres | 
+function | public.validate_email_format(email_param text) | service_role | EXECUTE | postgres | 
+function | public.validate_lead_consent_version() | postgres | EXECUTE | postgres | 
+function | public.validate_lead_consent_version() | service_role | EXECUTE | postgres | 
+function | public.validate_payment_transaction(transaction_id uuid) | postgres | EXECUTE | postgres | 
+function | public.validate_payment_transaction(transaction_id uuid) | service_role | EXECUTE | postgres | 
+function | public.validate_seller_embed_origins() | postgres | EXECUTE | postgres | 
+function | public.validate_seller_embed_origins() | service_role | EXECUTE | postgres | 
+function | public.verify_api_key(p_key_hash text) | postgres | EXECUTE | postgres | 
+function | public.verify_api_key(p_key_hash text) | service_role | EXECUTE | postgres | 
+function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | anon | EXECUTE | postgres | 
+function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | authenticated | EXECUTE | postgres | 
+function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | postgres | EXECUTE | postgres | 
+function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | service_role | EXECUTE | postgres | 
+schema | auth | anon | USAGE | supabase_admin | 
+schema | auth | authenticated | USAGE | supabase_admin | 
+schema | auth | dashboard_user | CREATE | supabase_admin | 
+schema | auth | dashboard_user | USAGE | supabase_admin | 
+schema | auth | postgres | USAGE | supabase_admin | 
+schema | auth | service_role | USAGE | supabase_admin | 
+schema | auth | supabase_admin | CREATE | supabase_admin | 
+schema | auth | supabase_admin | USAGE | supabase_admin | 
+schema | auth | supabase_auth_admin | CREATE | supabase_admin | 
+schema | auth | supabase_auth_admin | USAGE | supabase_admin | 
+schema | cron | postgres | USAGE | supabase_admin | WITH GRANT OPTION
+schema | cron | supabase_admin | CREATE | supabase_admin | 
+schema | cron | supabase_admin | USAGE | supabase_admin | 
+schema | postgrest | authenticator | USAGE | postgres | 
+schema | postgrest | postgres | CREATE | postgres | 
+schema | postgrest | postgres | USAGE | postgres | 
+schema | public | anon | USAGE | pg_database_owner | 
+schema | public | authenticated | USAGE | pg_database_owner | 
+schema | public | pg_database_owner | CREATE | pg_database_owner | 
+schema | public | pg_database_owner | USAGE | pg_database_owner | 
+schema | public | postgres | USAGE | pg_database_owner | 
+schema | public | PUBLIC | USAGE | pg_database_owner | 
+schema | public | service_role | USAGE | pg_database_owner | 
+schema | storage | anon | USAGE | supabase_admin | 
+schema | storage | authenticated | USAGE | supabase_admin | 
+schema | storage | dashboard_user | CREATE | supabase_admin | 
+schema | storage | dashboard_user | USAGE | supabase_admin | 
+schema | storage | postgres | USAGE | supabase_admin | 
+schema | storage | service_role | USAGE | supabase_admin | 
+schema | storage | supabase_admin | CREATE | supabase_admin | 
+schema | storage | supabase_admin | USAGE | supabase_admin | 
+schema | storage | supabase_storage_admin | CREATE | supabase_admin | 
+schema | storage | supabase_storage_admin | USAGE | supabase_admin | 
+sequence | auth.refresh_tokens_id_seq | dashboard_user | SELECT | supabase_auth_admin | 
+sequence | auth.refresh_tokens_id_seq | dashboard_user | UPDATE | supabase_auth_admin | 
+sequence | auth.refresh_tokens_id_seq | dashboard_user | USAGE | supabase_auth_admin | 
+sequence | auth.refresh_tokens_id_seq | postgres | SELECT | supabase_auth_admin | 
+sequence | auth.refresh_tokens_id_seq | postgres | UPDATE | supabase_auth_admin | 
+sequence | auth.refresh_tokens_id_seq | postgres | USAGE | supabase_auth_admin | 
+sequence | auth.refresh_tokens_id_seq | supabase_auth_admin | SELECT | supabase_auth_admin | 
+sequence | auth.refresh_tokens_id_seq | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+sequence | auth.refresh_tokens_id_seq | supabase_auth_admin | USAGE | supabase_auth_admin | 
+sequence | cron.jobid_seq | PUBLIC | SELECT | supabase_admin | 
+sequence | cron.jobid_seq | supabase_admin | SELECT | supabase_admin | 
+sequence | cron.jobid_seq | supabase_admin | UPDATE | supabase_admin | 
+sequence | cron.jobid_seq | supabase_admin | USAGE | supabase_admin | 
+sequence | cron.runid_seq | PUBLIC | SELECT | supabase_admin | 
+sequence | cron.runid_seq | supabase_admin | SELECT | supabase_admin | 
+sequence | cron.runid_seq | supabase_admin | UPDATE | supabase_admin | 
+sequence | cron.runid_seq | supabase_admin | USAGE | supabase_admin | 
+sequence | public.payment_order_number_seq | postgres | SELECT | postgres | 
+sequence | public.payment_order_number_seq | postgres | UPDATE | postgres | 
+sequence | public.payment_order_number_seq | postgres | USAGE | postgres | 
+sequence | public.payment_order_number_seq | service_role | SELECT | postgres | 
+sequence | public.payment_order_number_seq | service_role | UPDATE | postgres | 
+sequence | public.payment_order_number_seq | service_role | USAGE | postgres | 
+table | auth.audit_log_entries | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.audit_log_entries | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.audit_log_entries | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.audit_log_entries | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.audit_log_entries | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.audit_log_entries | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.audit_log_entries | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.audit_log_entries | postgres | DELETE | supabase_auth_admin | 
+table | auth.audit_log_entries | postgres | INSERT | supabase_auth_admin | 
+table | auth.audit_log_entries | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.audit_log_entries | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.audit_log_entries | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.audit_log_entries | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.audit_log_entries | postgres | UPDATE | supabase_auth_admin | 
+table | auth.audit_log_entries | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.audit_log_entries | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.audit_log_entries | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.audit_log_entries | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.audit_log_entries | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.audit_log_entries | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.audit_log_entries | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.custom_oauth_providers | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.custom_oauth_providers | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.custom_oauth_providers | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.custom_oauth_providers | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.custom_oauth_providers | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.custom_oauth_providers | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.custom_oauth_providers | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.custom_oauth_providers | postgres | DELETE | supabase_auth_admin | 
+table | auth.custom_oauth_providers | postgres | INSERT | supabase_auth_admin | 
+table | auth.custom_oauth_providers | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.custom_oauth_providers | postgres | SELECT | supabase_auth_admin | 
+table | auth.custom_oauth_providers | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.custom_oauth_providers | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.custom_oauth_providers | postgres | UPDATE | supabase_auth_admin | 
+table | auth.custom_oauth_providers | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.custom_oauth_providers | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.custom_oauth_providers | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.custom_oauth_providers | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.custom_oauth_providers | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.custom_oauth_providers | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.custom_oauth_providers | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.flow_state | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.flow_state | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.flow_state | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.flow_state | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.flow_state | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.flow_state | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.flow_state | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.flow_state | postgres | DELETE | supabase_auth_admin | 
+table | auth.flow_state | postgres | INSERT | supabase_auth_admin | 
+table | auth.flow_state | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.flow_state | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.flow_state | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.flow_state | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.flow_state | postgres | UPDATE | supabase_auth_admin | 
+table | auth.flow_state | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.flow_state | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.flow_state | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.flow_state | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.flow_state | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.flow_state | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.flow_state | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.identities | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.identities | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.identities | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.identities | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.identities | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.identities | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.identities | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.identities | postgres | DELETE | supabase_auth_admin | 
+table | auth.identities | postgres | INSERT | supabase_auth_admin | 
+table | auth.identities | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.identities | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.identities | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.identities | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.identities | postgres | UPDATE | supabase_auth_admin | 
+table | auth.identities | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.identities | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.identities | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.identities | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.identities | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.identities | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.identities | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.instances | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.instances | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.instances | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.instances | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.instances | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.instances | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.instances | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.instances | postgres | DELETE | supabase_auth_admin | 
+table | auth.instances | postgres | INSERT | supabase_auth_admin | 
+table | auth.instances | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.instances | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.instances | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.instances | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.instances | postgres | UPDATE | supabase_auth_admin | 
+table | auth.instances | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.instances | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.instances | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.instances | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.instances | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.instances | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.instances | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.mfa_amr_claims | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.mfa_amr_claims | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.mfa_amr_claims | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.mfa_amr_claims | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.mfa_amr_claims | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.mfa_amr_claims | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.mfa_amr_claims | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.mfa_amr_claims | postgres | DELETE | supabase_auth_admin | 
+table | auth.mfa_amr_claims | postgres | INSERT | supabase_auth_admin | 
+table | auth.mfa_amr_claims | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.mfa_amr_claims | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.mfa_amr_claims | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.mfa_amr_claims | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.mfa_amr_claims | postgres | UPDATE | supabase_auth_admin | 
+table | auth.mfa_amr_claims | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.mfa_amr_claims | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.mfa_amr_claims | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.mfa_amr_claims | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.mfa_amr_claims | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.mfa_amr_claims | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.mfa_amr_claims | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.mfa_challenges | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.mfa_challenges | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.mfa_challenges | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.mfa_challenges | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.mfa_challenges | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.mfa_challenges | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.mfa_challenges | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.mfa_challenges | postgres | DELETE | supabase_auth_admin | 
+table | auth.mfa_challenges | postgres | INSERT | supabase_auth_admin | 
+table | auth.mfa_challenges | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.mfa_challenges | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.mfa_challenges | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.mfa_challenges | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.mfa_challenges | postgres | UPDATE | supabase_auth_admin | 
+table | auth.mfa_challenges | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.mfa_challenges | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.mfa_challenges | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.mfa_challenges | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.mfa_challenges | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.mfa_challenges | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.mfa_challenges | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.mfa_factors | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.mfa_factors | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.mfa_factors | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.mfa_factors | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.mfa_factors | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.mfa_factors | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.mfa_factors | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.mfa_factors | postgres | DELETE | supabase_auth_admin | 
+table | auth.mfa_factors | postgres | INSERT | supabase_auth_admin | 
+table | auth.mfa_factors | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.mfa_factors | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.mfa_factors | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.mfa_factors | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.mfa_factors | postgres | UPDATE | supabase_auth_admin | 
+table | auth.mfa_factors | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.mfa_factors | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.mfa_factors | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.mfa_factors | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.mfa_factors | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.mfa_factors | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.mfa_factors | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.oauth_authorizations | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.oauth_authorizations | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.oauth_authorizations | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.oauth_authorizations | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.oauth_authorizations | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.oauth_authorizations | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.oauth_authorizations | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.oauth_authorizations | postgres | DELETE | supabase_auth_admin | 
+table | auth.oauth_authorizations | postgres | INSERT | supabase_auth_admin | 
+table | auth.oauth_authorizations | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.oauth_authorizations | postgres | SELECT | supabase_auth_admin | 
+table | auth.oauth_authorizations | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.oauth_authorizations | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.oauth_authorizations | postgres | UPDATE | supabase_auth_admin | 
+table | auth.oauth_authorizations | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.oauth_authorizations | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.oauth_authorizations | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.oauth_authorizations | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.oauth_authorizations | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.oauth_authorizations | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.oauth_authorizations | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.oauth_client_states | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.oauth_client_states | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.oauth_client_states | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.oauth_client_states | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.oauth_client_states | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.oauth_client_states | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.oauth_client_states | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.oauth_client_states | postgres | DELETE | supabase_auth_admin | 
+table | auth.oauth_client_states | postgres | INSERT | supabase_auth_admin | 
+table | auth.oauth_client_states | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.oauth_client_states | postgres | SELECT | supabase_auth_admin | 
+table | auth.oauth_client_states | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.oauth_client_states | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.oauth_client_states | postgres | UPDATE | supabase_auth_admin | 
+table | auth.oauth_client_states | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.oauth_client_states | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.oauth_client_states | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.oauth_client_states | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.oauth_client_states | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.oauth_client_states | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.oauth_client_states | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.oauth_clients | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.oauth_clients | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.oauth_clients | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.oauth_clients | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.oauth_clients | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.oauth_clients | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.oauth_clients | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.oauth_clients | postgres | DELETE | supabase_auth_admin | 
+table | auth.oauth_clients | postgres | INSERT | supabase_auth_admin | 
+table | auth.oauth_clients | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.oauth_clients | postgres | SELECT | supabase_auth_admin | 
+table | auth.oauth_clients | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.oauth_clients | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.oauth_clients | postgres | UPDATE | supabase_auth_admin | 
+table | auth.oauth_clients | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.oauth_clients | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.oauth_clients | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.oauth_clients | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.oauth_clients | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.oauth_clients | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.oauth_clients | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.oauth_consents | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.oauth_consents | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.oauth_consents | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.oauth_consents | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.oauth_consents | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.oauth_consents | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.oauth_consents | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.oauth_consents | postgres | DELETE | supabase_auth_admin | 
+table | auth.oauth_consents | postgres | INSERT | supabase_auth_admin | 
+table | auth.oauth_consents | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.oauth_consents | postgres | SELECT | supabase_auth_admin | 
+table | auth.oauth_consents | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.oauth_consents | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.oauth_consents | postgres | UPDATE | supabase_auth_admin | 
+table | auth.oauth_consents | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.oauth_consents | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.oauth_consents | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.oauth_consents | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.oauth_consents | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.oauth_consents | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.oauth_consents | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.one_time_tokens | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.one_time_tokens | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.one_time_tokens | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.one_time_tokens | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.one_time_tokens | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.one_time_tokens | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.one_time_tokens | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.one_time_tokens | postgres | DELETE | supabase_auth_admin | 
+table | auth.one_time_tokens | postgres | INSERT | supabase_auth_admin | 
+table | auth.one_time_tokens | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.one_time_tokens | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.one_time_tokens | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.one_time_tokens | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.one_time_tokens | postgres | UPDATE | supabase_auth_admin | 
+table | auth.one_time_tokens | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.one_time_tokens | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.one_time_tokens | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.one_time_tokens | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.one_time_tokens | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.one_time_tokens | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.one_time_tokens | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.refresh_tokens | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.refresh_tokens | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.refresh_tokens | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.refresh_tokens | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.refresh_tokens | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.refresh_tokens | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.refresh_tokens | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.refresh_tokens | postgres | DELETE | supabase_auth_admin | 
+table | auth.refresh_tokens | postgres | INSERT | supabase_auth_admin | 
+table | auth.refresh_tokens | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.refresh_tokens | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.refresh_tokens | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.refresh_tokens | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.refresh_tokens | postgres | UPDATE | supabase_auth_admin | 
+table | auth.refresh_tokens | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.refresh_tokens | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.refresh_tokens | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.refresh_tokens | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.refresh_tokens | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.refresh_tokens | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.refresh_tokens | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.saml_providers | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.saml_providers | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.saml_providers | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.saml_providers | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.saml_providers | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.saml_providers | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.saml_providers | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.saml_providers | postgres | DELETE | supabase_auth_admin | 
+table | auth.saml_providers | postgres | INSERT | supabase_auth_admin | 
+table | auth.saml_providers | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.saml_providers | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.saml_providers | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.saml_providers | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.saml_providers | postgres | UPDATE | supabase_auth_admin | 
+table | auth.saml_providers | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.saml_providers | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.saml_providers | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.saml_providers | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.saml_providers | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.saml_providers | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.saml_providers | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.saml_relay_states | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.saml_relay_states | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.saml_relay_states | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.saml_relay_states | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.saml_relay_states | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.saml_relay_states | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.saml_relay_states | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.saml_relay_states | postgres | DELETE | supabase_auth_admin | 
+table | auth.saml_relay_states | postgres | INSERT | supabase_auth_admin | 
+table | auth.saml_relay_states | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.saml_relay_states | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.saml_relay_states | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.saml_relay_states | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.saml_relay_states | postgres | UPDATE | supabase_auth_admin | 
+table | auth.saml_relay_states | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.saml_relay_states | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.saml_relay_states | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.saml_relay_states | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.saml_relay_states | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.saml_relay_states | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.saml_relay_states | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.schema_migrations | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.schema_migrations | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.schema_migrations | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.schema_migrations | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.schema_migrations | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.schema_migrations | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.schema_migrations | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.schema_migrations | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.sessions | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.sessions | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.sessions | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.sessions | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.sessions | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.sessions | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.sessions | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.sessions | postgres | DELETE | supabase_auth_admin | 
+table | auth.sessions | postgres | INSERT | supabase_auth_admin | 
+table | auth.sessions | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.sessions | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.sessions | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.sessions | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.sessions | postgres | UPDATE | supabase_auth_admin | 
+table | auth.sessions | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.sessions | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.sessions | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.sessions | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.sessions | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.sessions | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.sessions | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.sso_domains | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.sso_domains | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.sso_domains | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.sso_domains | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.sso_domains | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.sso_domains | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.sso_domains | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.sso_domains | postgres | DELETE | supabase_auth_admin | 
+table | auth.sso_domains | postgres | INSERT | supabase_auth_admin | 
+table | auth.sso_domains | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.sso_domains | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.sso_domains | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.sso_domains | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.sso_domains | postgres | UPDATE | supabase_auth_admin | 
+table | auth.sso_domains | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.sso_domains | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.sso_domains | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.sso_domains | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.sso_domains | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.sso_domains | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.sso_domains | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.sso_providers | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.sso_providers | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.sso_providers | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.sso_providers | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.sso_providers | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.sso_providers | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.sso_providers | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.sso_providers | postgres | DELETE | supabase_auth_admin | 
+table | auth.sso_providers | postgres | INSERT | supabase_auth_admin | 
+table | auth.sso_providers | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.sso_providers | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.sso_providers | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.sso_providers | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.sso_providers | postgres | UPDATE | supabase_auth_admin | 
+table | auth.sso_providers | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.sso_providers | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.sso_providers | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.sso_providers | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.sso_providers | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.sso_providers | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.sso_providers | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.users | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.users | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.users | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.users | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.users | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.users | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.users | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.users | postgres | DELETE | supabase_auth_admin | 
+table | auth.users | postgres | INSERT | supabase_auth_admin | 
+table | auth.users | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.users | postgres | SELECT | supabase_auth_admin | WITH GRANT OPTION
+table | auth.users | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.users | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.users | postgres | UPDATE | supabase_auth_admin | 
+table | auth.users | service_role | SELECT | postgres | 
+table | auth.users | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.users | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.users | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.users | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.users | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.users | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.users | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.webauthn_challenges | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.webauthn_challenges | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.webauthn_challenges | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.webauthn_challenges | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.webauthn_challenges | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.webauthn_challenges | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.webauthn_challenges | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.webauthn_challenges | postgres | DELETE | supabase_auth_admin | 
+table | auth.webauthn_challenges | postgres | INSERT | supabase_auth_admin | 
+table | auth.webauthn_challenges | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.webauthn_challenges | postgres | SELECT | supabase_auth_admin | 
+table | auth.webauthn_challenges | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.webauthn_challenges | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.webauthn_challenges | postgres | UPDATE | supabase_auth_admin | 
+table | auth.webauthn_challenges | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.webauthn_challenges | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.webauthn_challenges | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.webauthn_challenges | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.webauthn_challenges | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.webauthn_challenges | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.webauthn_challenges | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | auth.webauthn_credentials | dashboard_user | DELETE | supabase_auth_admin | 
+table | auth.webauthn_credentials | dashboard_user | INSERT | supabase_auth_admin | 
+table | auth.webauthn_credentials | dashboard_user | REFERENCES | supabase_auth_admin | 
+table | auth.webauthn_credentials | dashboard_user | SELECT | supabase_auth_admin | 
+table | auth.webauthn_credentials | dashboard_user | TRIGGER | supabase_auth_admin | 
+table | auth.webauthn_credentials | dashboard_user | TRUNCATE | supabase_auth_admin | 
+table | auth.webauthn_credentials | dashboard_user | UPDATE | supabase_auth_admin | 
+table | auth.webauthn_credentials | postgres | DELETE | supabase_auth_admin | 
+table | auth.webauthn_credentials | postgres | INSERT | supabase_auth_admin | 
+table | auth.webauthn_credentials | postgres | REFERENCES | supabase_auth_admin | 
+table | auth.webauthn_credentials | postgres | SELECT | supabase_auth_admin | 
+table | auth.webauthn_credentials | postgres | TRIGGER | supabase_auth_admin | 
+table | auth.webauthn_credentials | postgres | TRUNCATE | supabase_auth_admin | 
+table | auth.webauthn_credentials | postgres | UPDATE | supabase_auth_admin | 
+table | auth.webauthn_credentials | supabase_auth_admin | DELETE | supabase_auth_admin | 
+table | auth.webauthn_credentials | supabase_auth_admin | INSERT | supabase_auth_admin | 
+table | auth.webauthn_credentials | supabase_auth_admin | REFERENCES | supabase_auth_admin | 
+table | auth.webauthn_credentials | supabase_auth_admin | SELECT | supabase_auth_admin | 
+table | auth.webauthn_credentials | supabase_auth_admin | TRIGGER | supabase_auth_admin | 
+table | auth.webauthn_credentials | supabase_auth_admin | TRUNCATE | supabase_auth_admin | 
+table | auth.webauthn_credentials | supabase_auth_admin | UPDATE | supabase_auth_admin | 
+table | cron.job | postgres | SELECT | supabase_admin | WITH GRANT OPTION
+table | cron.job | PUBLIC | SELECT | supabase_admin | 
+table | cron.job | supabase_admin | DELETE | supabase_admin | 
+table | cron.job | supabase_admin | INSERT | supabase_admin | 
+table | cron.job | supabase_admin | REFERENCES | supabase_admin | 
+table | cron.job | supabase_admin | SELECT | supabase_admin | 
+table | cron.job | supabase_admin | TRIGGER | supabase_admin | 
+table | cron.job | supabase_admin | TRUNCATE | supabase_admin | 
+table | cron.job | supabase_admin | UPDATE | supabase_admin | 
+table | cron.job_run_details | postgres | DELETE | supabase_admin | WITH GRANT OPTION
+table | cron.job_run_details | postgres | INSERT | supabase_admin | WITH GRANT OPTION
+table | cron.job_run_details | postgres | REFERENCES | supabase_admin | WITH GRANT OPTION
+table | cron.job_run_details | postgres | SELECT | supabase_admin | WITH GRANT OPTION
+table | cron.job_run_details | postgres | TRIGGER | supabase_admin | WITH GRANT OPTION
+table | cron.job_run_details | postgres | TRUNCATE | supabase_admin | WITH GRANT OPTION
+table | cron.job_run_details | postgres | UPDATE | supabase_admin | WITH GRANT OPTION
+table | cron.job_run_details | PUBLIC | DELETE | supabase_admin | 
+table | cron.job_run_details | PUBLIC | SELECT | supabase_admin | 
+table | cron.job_run_details | supabase_admin | DELETE | supabase_admin | 
+table | cron.job_run_details | supabase_admin | INSERT | supabase_admin | 
+table | cron.job_run_details | supabase_admin | REFERENCES | supabase_admin | 
+table | cron.job_run_details | supabase_admin | SELECT | supabase_admin | 
+table | cron.job_run_details | supabase_admin | TRIGGER | supabase_admin | 
+table | cron.job_run_details | supabase_admin | TRUNCATE | supabase_admin | 
+table | cron.job_run_details | supabase_admin | UPDATE | supabase_admin | 
+table | public.admin_actions | postgres | DELETE | postgres | 
+table | public.admin_actions | postgres | INSERT | postgres | 
+table | public.admin_actions | postgres | REFERENCES | postgres | 
+table | public.admin_actions | postgres | SELECT | postgres | 
+table | public.admin_actions | postgres | TRIGGER | postgres | 
+table | public.admin_actions | postgres | TRUNCATE | postgres | 
+table | public.admin_actions | postgres | UPDATE | postgres | 
+table | public.admin_actions | service_role | DELETE | postgres | 
+table | public.admin_actions | service_role | INSERT | postgres | 
+table | public.admin_actions | service_role | REFERENCES | postgres | 
+table | public.admin_actions | service_role | SELECT | postgres | 
+table | public.admin_actions | service_role | TRIGGER | postgres | 
+table | public.admin_actions | service_role | TRUNCATE | postgres | 
+table | public.admin_actions | service_role | UPDATE | postgres | 
+table | public.admin_users | authenticated | SELECT | postgres | 
+table | public.admin_users | postgres | DELETE | postgres | 
+table | public.admin_users | postgres | INSERT | postgres | 
+table | public.admin_users | postgres | REFERENCES | postgres | 
+table | public.admin_users | postgres | SELECT | postgres | 
+table | public.admin_users | postgres | TRIGGER | postgres | 
+table | public.admin_users | postgres | TRUNCATE | postgres | 
+table | public.admin_users | postgres | UPDATE | postgres | 
+table | public.admin_users | service_role | DELETE | postgres | 
+table | public.admin_users | service_role | INSERT | postgres | 
+table | public.admin_users | service_role | REFERENCES | postgres | 
+table | public.admin_users | service_role | SELECT | postgres | 
+table | public.admin_users | service_role | TRIGGER | postgres | 
+table | public.admin_users | service_role | TRUNCATE | postgres | 
+table | public.admin_users | service_role | UPDATE | postgres | 
+table | public.affiliate_commissions | postgres | DELETE | postgres | 
+table | public.affiliate_commissions | postgres | INSERT | postgres | 
+table | public.affiliate_commissions | postgres | REFERENCES | postgres | 
+table | public.affiliate_commissions | postgres | SELECT | postgres | 
+table | public.affiliate_commissions | postgres | TRIGGER | postgres | 
+table | public.affiliate_commissions | postgres | TRUNCATE | postgres | 
+table | public.affiliate_commissions | postgres | UPDATE | postgres | 
+table | public.affiliate_commissions | service_role | INSERT | postgres | 
+table | public.affiliate_commissions | service_role | SELECT | postgres | 
+table | public.affiliate_commissions | service_role | UPDATE | postgres | 
+table | public.affiliate_coupon_bindings | postgres | DELETE | postgres | 
+table | public.affiliate_coupon_bindings | postgres | INSERT | postgres | 
+table | public.affiliate_coupon_bindings | postgres | REFERENCES | postgres | 
+table | public.affiliate_coupon_bindings | postgres | SELECT | postgres | 
+table | public.affiliate_coupon_bindings | postgres | TRIGGER | postgres | 
+table | public.affiliate_coupon_bindings | postgres | TRUNCATE | postgres | 
+table | public.affiliate_coupon_bindings | postgres | UPDATE | postgres | 
+table | public.affiliate_coupon_bindings | service_role | INSERT | postgres | 
+table | public.affiliate_coupon_bindings | service_role | SELECT | postgres | 
+table | public.affiliate_coupon_bindings | service_role | UPDATE | postgres | 
+table | public.affiliate_ledger | postgres | DELETE | postgres | 
+table | public.affiliate_ledger | postgres | INSERT | postgres | 
+table | public.affiliate_ledger | postgres | REFERENCES | postgres | 
+table | public.affiliate_ledger | postgres | SELECT | postgres | 
+table | public.affiliate_ledger | postgres | TRIGGER | postgres | 
+table | public.affiliate_ledger | postgres | TRUNCATE | postgres | 
+table | public.affiliate_ledger | postgres | UPDATE | postgres | 
+table | public.affiliate_ledger | service_role | INSERT | postgres | 
+table | public.affiliate_ledger | service_role | SELECT | postgres | 
+table | public.affiliate_membership_events | postgres | DELETE | postgres | 
+table | public.affiliate_membership_events | postgres | INSERT | postgres | 
+table | public.affiliate_membership_events | postgres | REFERENCES | postgres | 
+table | public.affiliate_membership_events | postgres | SELECT | postgres | 
+table | public.affiliate_membership_events | postgres | TRIGGER | postgres | 
+table | public.affiliate_membership_events | postgres | TRUNCATE | postgres | 
+table | public.affiliate_membership_events | postgres | UPDATE | postgres | 
+table | public.affiliate_membership_events | service_role | INSERT | postgres | 
+table | public.affiliate_membership_events | service_role | SELECT | postgres | 
+table | public.affiliate_memberships | postgres | DELETE | postgres | 
+table | public.affiliate_memberships | postgres | INSERT | postgres | 
+table | public.affiliate_memberships | postgres | REFERENCES | postgres | 
+table | public.affiliate_memberships | postgres | SELECT | postgres | 
+table | public.affiliate_memberships | postgres | TRIGGER | postgres | 
+table | public.affiliate_memberships | postgres | TRUNCATE | postgres | 
+table | public.affiliate_memberships | postgres | UPDATE | postgres | 
+table | public.affiliate_memberships | service_role | INSERT | postgres | 
+table | public.affiliate_memberships | service_role | SELECT | postgres | 
+table | public.affiliate_payout_allocations | postgres | DELETE | postgres | 
+table | public.affiliate_payout_allocations | postgres | INSERT | postgres | 
+table | public.affiliate_payout_allocations | postgres | REFERENCES | postgres | 
+table | public.affiliate_payout_allocations | postgres | SELECT | postgres | 
+table | public.affiliate_payout_allocations | postgres | TRIGGER | postgres | 
+table | public.affiliate_payout_allocations | postgres | TRUNCATE | postgres | 
+table | public.affiliate_payout_allocations | postgres | UPDATE | postgres | 
+table | public.affiliate_payout_allocations | service_role | INSERT | postgres | 
+table | public.affiliate_payout_allocations | service_role | SELECT | postgres | 
+table | public.affiliate_payout_allocations | service_role | UPDATE | postgres | 
+table | public.affiliate_payouts | postgres | DELETE | postgres | 
+table | public.affiliate_payouts | postgres | INSERT | postgres | 
+table | public.affiliate_payouts | postgres | REFERENCES | postgres | 
+table | public.affiliate_payouts | postgres | SELECT | postgres | 
+table | public.affiliate_payouts | postgres | TRIGGER | postgres | 
+table | public.affiliate_payouts | postgres | TRUNCATE | postgres | 
+table | public.affiliate_payouts | postgres | UPDATE | postgres | 
+table | public.affiliate_payouts | service_role | INSERT | postgres | 
+table | public.affiliate_payouts | service_role | SELECT | postgres | 
+table | public.affiliate_payouts | service_role | UPDATE | postgres | 
+table | public.affiliate_program_versions | postgres | DELETE | postgres | 
+table | public.affiliate_program_versions | postgres | INSERT | postgres | 
+table | public.affiliate_program_versions | postgres | REFERENCES | postgres | 
+table | public.affiliate_program_versions | postgres | SELECT | postgres | 
+table | public.affiliate_program_versions | postgres | TRIGGER | postgres | 
+table | public.affiliate_program_versions | postgres | TRUNCATE | postgres | 
+table | public.affiliate_program_versions | postgres | UPDATE | postgres | 
+table | public.affiliate_program_versions | service_role | INSERT | postgres | 
+table | public.affiliate_program_versions | service_role | SELECT | postgres | 
+table | public.affiliate_programs | postgres | DELETE | postgres | 
+table | public.affiliate_programs | postgres | INSERT | postgres | 
+table | public.affiliate_programs | postgres | REFERENCES | postgres | 
+table | public.affiliate_programs | postgres | SELECT | postgres | 
+table | public.affiliate_programs | postgres | TRIGGER | postgres | 
+table | public.affiliate_programs | postgres | TRUNCATE | postgres | 
+table | public.affiliate_programs | postgres | UPDATE | postgres | 
+table | public.affiliate_programs | service_role | INSERT | postgres | 
+table | public.affiliate_programs | service_role | SELECT | postgres | 
+table | public.affiliate_rules | postgres | DELETE | postgres | 
+table | public.affiliate_rules | postgres | INSERT | postgres | 
+table | public.affiliate_rules | postgres | REFERENCES | postgres | 
+table | public.affiliate_rules | postgres | SELECT | postgres | 
+table | public.affiliate_rules | postgres | TRIGGER | postgres | 
+table | public.affiliate_rules | postgres | TRUNCATE | postgres | 
+table | public.affiliate_rules | postgres | UPDATE | postgres | 
+table | public.affiliate_rules | service_role | INSERT | postgres | 
+table | public.affiliate_rules | service_role | SELECT | postgres | 
+table | public.affiliate_work | postgres | DELETE | postgres | 
+table | public.affiliate_work | postgres | INSERT | postgres | 
+table | public.affiliate_work | postgres | REFERENCES | postgres | 
+table | public.affiliate_work | postgres | SELECT | postgres | 
+table | public.affiliate_work | postgres | TRIGGER | postgres | 
+table | public.affiliate_work | postgres | TRUNCATE | postgres | 
+table | public.affiliate_work | postgres | UPDATE | postgres | 
+table | public.affiliate_work | service_role | DELETE | postgres | 
+table | public.affiliate_work | service_role | INSERT | postgres | 
+table | public.affiliate_work | service_role | SELECT | postgres | 
+table | public.affiliate_work | service_role | UPDATE | postgres | 
+table | public.api_key_audit_log | authenticated | SELECT | postgres | 
+table | public.api_key_audit_log | postgres | DELETE | postgres | 
+table | public.api_key_audit_log | postgres | INSERT | postgres | 
+table | public.api_key_audit_log | postgres | REFERENCES | postgres | 
+table | public.api_key_audit_log | postgres | SELECT | postgres | 
+table | public.api_key_audit_log | postgres | TRIGGER | postgres | 
+table | public.api_key_audit_log | postgres | TRUNCATE | postgres | 
+table | public.api_key_audit_log | postgres | UPDATE | postgres | 
+table | public.api_key_audit_log | service_role | DELETE | postgres | 
+table | public.api_key_audit_log | service_role | INSERT | postgres | 
+table | public.api_key_audit_log | service_role | REFERENCES | postgres | 
+table | public.api_key_audit_log | service_role | SELECT | postgres | 
+table | public.api_key_audit_log | service_role | TRIGGER | postgres | 
+table | public.api_key_audit_log | service_role | TRUNCATE | postgres | 
+table | public.api_key_audit_log | service_role | UPDATE | postgres | 
+table | public.api_keys | authenticated | DELETE | postgres | 
+table | public.api_keys | authenticated | INSERT | postgres | 
+table | public.api_keys | authenticated | SELECT | postgres | 
+table | public.api_keys | authenticated | UPDATE | postgres | 
+table | public.api_keys | postgres | DELETE | postgres | 
+table | public.api_keys | postgres | INSERT | postgres | 
+table | public.api_keys | postgres | REFERENCES | postgres | 
+table | public.api_keys | postgres | SELECT | postgres | 
+table | public.api_keys | postgres | TRIGGER | postgres | 
+table | public.api_keys | postgres | TRUNCATE | postgres | 
+table | public.api_keys | postgres | UPDATE | postgres | 
+table | public.api_keys | service_role | DELETE | postgres | 
+table | public.api_keys | service_role | INSERT | postgres | 
+table | public.api_keys | service_role | REFERENCES | postgres | 
+table | public.api_keys | service_role | SELECT | postgres | 
+table | public.api_keys | service_role | TRIGGER | postgres | 
+table | public.api_keys | service_role | TRUNCATE | postgres | 
+table | public.api_keys | service_role | UPDATE | postgres | 
+table | public.application_rate_limits | postgres | DELETE | postgres | 
+table | public.application_rate_limits | postgres | INSERT | postgres | 
+table | public.application_rate_limits | postgres | REFERENCES | postgres | 
+table | public.application_rate_limits | postgres | SELECT | postgres | 
+table | public.application_rate_limits | postgres | TRIGGER | postgres | 
+table | public.application_rate_limits | postgres | TRUNCATE | postgres | 
+table | public.application_rate_limits | postgres | UPDATE | postgres | 
+table | public.application_rate_limits | service_role | DELETE | postgres | 
+table | public.application_rate_limits | service_role | INSERT | postgres | 
+table | public.application_rate_limits | service_role | REFERENCES | postgres | 
+table | public.application_rate_limits | service_role | SELECT | postgres | 
+table | public.application_rate_limits | service_role | TRIGGER | postgres | 
+table | public.application_rate_limits | service_role | TRUNCATE | postgres | 
+table | public.application_rate_limits | service_role | UPDATE | postgres | 
+table | public.attribution_channel_rules | authenticated | DELETE | postgres | 
+table | public.attribution_channel_rules | authenticated | INSERT | postgres | 
+table | public.attribution_channel_rules | authenticated | SELECT | postgres | 
+table | public.attribution_channel_rules | authenticated | UPDATE | postgres | 
+table | public.attribution_channel_rules | postgres | DELETE | postgres | 
+table | public.attribution_channel_rules | postgres | INSERT | postgres | 
+table | public.attribution_channel_rules | postgres | REFERENCES | postgres | 
+table | public.attribution_channel_rules | postgres | SELECT | postgres | 
+table | public.attribution_channel_rules | postgres | TRIGGER | postgres | 
+table | public.attribution_channel_rules | postgres | TRUNCATE | postgres | 
+table | public.attribution_channel_rules | postgres | UPDATE | postgres | 
+table | public.attribution_channel_rules | service_role | DELETE | postgres | 
+table | public.attribution_channel_rules | service_role | INSERT | postgres | 
+table | public.attribution_channel_rules | service_role | REFERENCES | postgres | 
+table | public.attribution_channel_rules | service_role | SELECT | postgres | 
+table | public.attribution_channel_rules | service_role | TRIGGER | postgres | 
+table | public.attribution_channel_rules | service_role | TRUNCATE | postgres | 
+table | public.attribution_channel_rules | service_role | UPDATE | postgres | 
+table | public.attribution_settings | authenticated | SELECT | postgres | 
+table | public.attribution_settings | authenticated | UPDATE | postgres | 
+table | public.attribution_settings | postgres | DELETE | postgres | 
+table | public.attribution_settings | postgres | INSERT | postgres | 
+table | public.attribution_settings | postgres | REFERENCES | postgres | 
+table | public.attribution_settings | postgres | SELECT | postgres | 
+table | public.attribution_settings | postgres | TRIGGER | postgres | 
+table | public.attribution_settings | postgres | TRUNCATE | postgres | 
+table | public.attribution_settings | postgres | UPDATE | postgres | 
+table | public.attribution_settings | service_role | DELETE | postgres | 
+table | public.attribution_settings | service_role | INSERT | postgres | 
+table | public.attribution_settings | service_role | REFERENCES | postgres | 
+table | public.attribution_settings | service_role | SELECT | postgres | 
+table | public.attribution_settings | service_role | TRIGGER | postgres | 
+table | public.attribution_settings | service_role | TRUNCATE | postgres | 
+table | public.attribution_settings | service_role | UPDATE | postgres | 
+table | public.audit_log | postgres | DELETE | postgres | 
+table | public.audit_log | postgres | INSERT | postgres | 
+table | public.audit_log | postgres | REFERENCES | postgres | 
+table | public.audit_log | postgres | SELECT | postgres | 
+table | public.audit_log | postgres | TRIGGER | postgres | 
+table | public.audit_log | postgres | TRUNCATE | postgres | 
+table | public.audit_log | postgres | UPDATE | postgres | 
+table | public.audit_log | service_role | DELETE | postgres | 
+table | public.audit_log | service_role | INSERT | postgres | 
+table | public.audit_log | service_role | REFERENCES | postgres | 
+table | public.audit_log | service_role | SELECT | postgres | 
+table | public.audit_log | service_role | TRIGGER | postgres | 
+table | public.audit_log | service_role | TRUNCATE | postgres | 
+table | public.audit_log | service_role | UPDATE | postgres | 
+table | public.auth_mail_retries | postgres | DELETE | postgres | 
+table | public.auth_mail_retries | postgres | INSERT | postgres | 
+table | public.auth_mail_retries | postgres | REFERENCES | postgres | 
+table | public.auth_mail_retries | postgres | SELECT | postgres | 
+table | public.auth_mail_retries | postgres | TRIGGER | postgres | 
+table | public.auth_mail_retries | postgres | TRUNCATE | postgres | 
+table | public.auth_mail_retries | postgres | UPDATE | postgres | 
+table | public.auth_mail_retries | service_role | DELETE | postgres | 
+table | public.auth_mail_retries | service_role | INSERT | postgres | 
+table | public.auth_mail_retries | service_role | REFERENCES | postgres | 
+table | public.auth_mail_retries | service_role | SELECT | postgres | 
+table | public.auth_mail_retries | service_role | TRIGGER | postgres | 
+table | public.auth_mail_retries | service_role | TRUNCATE | postgres | 
+table | public.auth_mail_retries | service_role | UPDATE | postgres | 
+table | public.bank_transfer_config | authenticated | SELECT | postgres | 
+table | public.bank_transfer_config | postgres | DELETE | postgres | 
+table | public.bank_transfer_config | postgres | INSERT | postgres | 
+table | public.bank_transfer_config | postgres | REFERENCES | postgres | 
+table | public.bank_transfer_config | postgres | SELECT | postgres | 
+table | public.bank_transfer_config | postgres | TRIGGER | postgres | 
+table | public.bank_transfer_config | postgres | TRUNCATE | postgres | 
+table | public.bank_transfer_config | postgres | UPDATE | postgres | 
+table | public.bank_transfer_config | service_role | DELETE | postgres | 
+table | public.bank_transfer_config | service_role | INSERT | postgres | 
+table | public.bank_transfer_config | service_role | REFERENCES | postgres | 
+table | public.bank_transfer_config | service_role | SELECT | postgres | 
+table | public.bank_transfer_config | service_role | TRIGGER | postgres | 
+table | public.bank_transfer_config | service_role | TRUNCATE | postgres | 
+table | public.bank_transfer_config | service_role | UPDATE | postgres | 
+table | public.bundle_items | anon | SELECT | postgres | 
+table | public.bundle_items | authenticated | SELECT | postgres | 
+table | public.bundle_items | postgres | DELETE | postgres | 
+table | public.bundle_items | postgres | INSERT | postgres | 
+table | public.bundle_items | postgres | REFERENCES | postgres | 
+table | public.bundle_items | postgres | SELECT | postgres | 
+table | public.bundle_items | postgres | TRIGGER | postgres | 
+table | public.bundle_items | postgres | TRUNCATE | postgres | 
+table | public.bundle_items | postgres | UPDATE | postgres | 
+table | public.bundle_items | service_role | DELETE | postgres | 
+table | public.bundle_items | service_role | INSERT | postgres | 
+table | public.bundle_items | service_role | REFERENCES | postgres | 
+table | public.bundle_items | service_role | SELECT | postgres | 
+table | public.bundle_items | service_role | TRIGGER | postgres | 
+table | public.bundle_items | service_role | TRUNCATE | postgres | 
+table | public.bundle_items | service_role | UPDATE | postgres | 
+table | public.business_events | postgres | DELETE | postgres | 
+table | public.business_events | postgres | INSERT | postgres | 
+table | public.business_events | postgres | REFERENCES | postgres | 
+table | public.business_events | postgres | SELECT | postgres | 
+table | public.business_events | postgres | TRIGGER | postgres | 
+table | public.business_events | postgres | TRUNCATE | postgres | 
+table | public.business_events | postgres | UPDATE | postgres | 
+table | public.business_events | service_role | DELETE | postgres | 
+table | public.business_events | service_role | INSERT | postgres | 
+table | public.business_events | service_role | REFERENCES | postgres | 
+table | public.business_events | service_role | SELECT | postgres | 
+table | public.business_events | service_role | TRIGGER | postgres | 
+table | public.business_events | service_role | TRUNCATE | postgres | 
+table | public.business_events | service_role | UPDATE | postgres | 
+table | public.captcha_nonces | postgres | DELETE | postgres | 
+table | public.captcha_nonces | postgres | INSERT | postgres | 
+table | public.captcha_nonces | postgres | REFERENCES | postgres | 
+table | public.captcha_nonces | postgres | SELECT | postgres | 
+table | public.captcha_nonces | postgres | TRIGGER | postgres | 
+table | public.captcha_nonces | postgres | TRUNCATE | postgres | 
+table | public.captcha_nonces | postgres | UPDATE | postgres | 
+table | public.captcha_nonces | service_role | DELETE | postgres | 
+table | public.captcha_nonces | service_role | INSERT | postgres | 
+table | public.captcha_nonces | service_role | REFERENCES | postgres | 
+table | public.captcha_nonces | service_role | SELECT | postgres | 
+table | public.captcha_nonces | service_role | TRIGGER | postgres | 
+table | public.captcha_nonces | service_role | TRUNCATE | postgres | 
+table | public.captcha_nonces | service_role | UPDATE | postgres | 
+table | public.categories | anon | SELECT | postgres | 
+table | public.categories | authenticated | SELECT | postgres | 
+table | public.categories | postgres | DELETE | postgres | 
+table | public.categories | postgres | INSERT | postgres | 
+table | public.categories | postgres | REFERENCES | postgres | 
+table | public.categories | postgres | SELECT | postgres | 
+table | public.categories | postgres | TRIGGER | postgres | 
+table | public.categories | postgres | TRUNCATE | postgres | 
+table | public.categories | postgres | UPDATE | postgres | 
+table | public.categories | service_role | DELETE | postgres | 
+table | public.categories | service_role | INSERT | postgres | 
+table | public.categories | service_role | REFERENCES | postgres | 
+table | public.categories | service_role | SELECT | postgres | 
+table | public.categories | service_role | TRIGGER | postgres | 
+table | public.categories | service_role | TRUNCATE | postgres | 
+table | public.categories | service_role | UPDATE | postgres | 
+table | public.checkout_attribution | postgres | DELETE | postgres | 
+table | public.checkout_attribution | postgres | INSERT | postgres | 
+table | public.checkout_attribution | postgres | REFERENCES | postgres | 
+table | public.checkout_attribution | postgres | SELECT | postgres | 
+table | public.checkout_attribution | postgres | TRIGGER | postgres | 
+table | public.checkout_attribution | postgres | TRUNCATE | postgres | 
+table | public.checkout_attribution | postgres | UPDATE | postgres | 
+table | public.checkout_attribution | service_role | DELETE | postgres | 
+table | public.checkout_attribution | service_role | INSERT | postgres | 
+table | public.checkout_attribution | service_role | REFERENCES | postgres | 
+table | public.checkout_attribution | service_role | SELECT | postgres | 
+table | public.checkout_attribution | service_role | TRIGGER | postgres | 
+table | public.checkout_attribution | service_role | TRUNCATE | postgres | 
+table | public.checkout_attribution | service_role | UPDATE | postgres | 
+table | public.consent_logs | postgres | DELETE | postgres | 
+table | public.consent_logs | postgres | INSERT | postgres | 
+table | public.consent_logs | postgres | REFERENCES | postgres | 
+table | public.consent_logs | postgres | SELECT | postgres | 
+table | public.consent_logs | postgres | TRIGGER | postgres | 
+table | public.consent_logs | postgres | TRUNCATE | postgres | 
+table | public.consent_logs | postgres | UPDATE | postgres | 
+table | public.consent_logs | service_role | DELETE | postgres | 
+table | public.consent_logs | service_role | INSERT | postgres | 
+table | public.consent_logs | service_role | REFERENCES | postgres | 
+table | public.consent_logs | service_role | SELECT | postgres | 
+table | public.consent_logs | service_role | TRIGGER | postgres | 
+table | public.consent_logs | service_role | TRUNCATE | postgres | 
+table | public.consent_logs | service_role | UPDATE | postgres | 
+table | public.coupon_redemptions | postgres | DELETE | postgres | 
+table | public.coupon_redemptions | postgres | INSERT | postgres | 
+table | public.coupon_redemptions | postgres | REFERENCES | postgres | 
+table | public.coupon_redemptions | postgres | SELECT | postgres | 
+table | public.coupon_redemptions | postgres | TRIGGER | postgres | 
+table | public.coupon_redemptions | postgres | TRUNCATE | postgres | 
+table | public.coupon_redemptions | postgres | UPDATE | postgres | 
+table | public.coupon_redemptions | service_role | DELETE | postgres | 
+table | public.coupon_redemptions | service_role | INSERT | postgres | 
+table | public.coupon_redemptions | service_role | REFERENCES | postgres | 
+table | public.coupon_redemptions | service_role | SELECT | postgres | 
+table | public.coupon_redemptions | service_role | TRIGGER | postgres | 
+table | public.coupon_redemptions | service_role | TRUNCATE | postgres | 
+table | public.coupon_redemptions | service_role | UPDATE | postgres | 
+table | public.coupon_reservations | postgres | DELETE | postgres | 
+table | public.coupon_reservations | postgres | INSERT | postgres | 
+table | public.coupon_reservations | postgres | REFERENCES | postgres | 
+table | public.coupon_reservations | postgres | SELECT | postgres | 
+table | public.coupon_reservations | postgres | TRIGGER | postgres | 
+table | public.coupon_reservations | postgres | TRUNCATE | postgres | 
+table | public.coupon_reservations | postgres | UPDATE | postgres | 
+table | public.coupon_reservations | service_role | DELETE | postgres | 
+table | public.coupon_reservations | service_role | INSERT | postgres | 
+table | public.coupon_reservations | service_role | REFERENCES | postgres | 
+table | public.coupon_reservations | service_role | SELECT | postgres | 
+table | public.coupon_reservations | service_role | TRIGGER | postgres | 
+table | public.coupon_reservations | service_role | TRUNCATE | postgres | 
+table | public.coupon_reservations | service_role | UPDATE | postgres | 
+table | public.coupons | authenticated | DELETE | postgres | 
+table | public.coupons | authenticated | INSERT | postgres | 
+table | public.coupons | authenticated | SELECT | postgres | 
+table | public.coupons | authenticated | UPDATE | postgres | 
+table | public.coupons | postgres | DELETE | postgres | 
+table | public.coupons | postgres | INSERT | postgres | 
+table | public.coupons | postgres | REFERENCES | postgres | 
+table | public.coupons | postgres | SELECT | postgres | 
+table | public.coupons | postgres | TRIGGER | postgres | 
+table | public.coupons | postgres | TRUNCATE | postgres | 
+table | public.coupons | postgres | UPDATE | postgres | 
+table | public.coupons | service_role | DELETE | postgres | 
+table | public.coupons | service_role | INSERT | postgres | 
+table | public.coupons | service_role | REFERENCES | postgres | 
+table | public.coupons | service_role | SELECT | postgres | 
+table | public.coupons | service_role | TRIGGER | postgres | 
+table | public.coupons | service_role | TRUNCATE | postgres | 
+table | public.coupons | service_role | UPDATE | postgres | 
+table | public.custom_scripts | authenticated | DELETE | postgres | 
+table | public.custom_scripts | authenticated | INSERT | postgres | 
+table | public.custom_scripts | authenticated | SELECT | postgres | 
+table | public.custom_scripts | authenticated | UPDATE | postgres | 
+table | public.custom_scripts | postgres | DELETE | postgres | 
+table | public.custom_scripts | postgres | INSERT | postgres | 
+table | public.custom_scripts | postgres | REFERENCES | postgres | 
+table | public.custom_scripts | postgres | SELECT | postgres | 
+table | public.custom_scripts | postgres | TRIGGER | postgres | 
+table | public.custom_scripts | postgres | TRUNCATE | postgres | 
+table | public.custom_scripts | postgres | UPDATE | postgres | 
+table | public.custom_scripts | service_role | DELETE | postgres | 
+table | public.custom_scripts | service_role | INSERT | postgres | 
+table | public.custom_scripts | service_role | REFERENCES | postgres | 
+table | public.custom_scripts | service_role | SELECT | postgres | 
+table | public.custom_scripts | service_role | TRIGGER | postgres | 
+table | public.custom_scripts | service_role | TRUNCATE | postgres | 
+table | public.custom_scripts | service_role | UPDATE | postgres | 
+table | public.embed_checkout_log | authenticated | DELETE | postgres | 
+table | public.embed_checkout_log | authenticated | INSERT | postgres | 
+table | public.embed_checkout_log | authenticated | SELECT | postgres | 
+table | public.embed_checkout_log | authenticated | UPDATE | postgres | 
+table | public.embed_checkout_log | postgres | DELETE | postgres | 
+table | public.embed_checkout_log | postgres | INSERT | postgres | 
+table | public.embed_checkout_log | postgres | REFERENCES | postgres | 
+table | public.embed_checkout_log | postgres | SELECT | postgres | 
+table | public.embed_checkout_log | postgres | TRIGGER | postgres | 
+table | public.embed_checkout_log | postgres | TRUNCATE | postgres | 
+table | public.embed_checkout_log | postgres | UPDATE | postgres | 
+table | public.embed_checkout_log | service_role | DELETE | postgres | 
+table | public.embed_checkout_log | service_role | INSERT | postgres | 
+table | public.embed_checkout_log | service_role | REFERENCES | postgres | 
+table | public.embed_checkout_log | service_role | SELECT | postgres | 
+table | public.embed_checkout_log | service_role | TRIGGER | postgres | 
+table | public.embed_checkout_log | service_role | TRUNCATE | postgres | 
+table | public.embed_checkout_log | service_role | UPDATE | postgres | 
+table | public.free_grant_contexts | postgres | DELETE | postgres | 
+table | public.free_grant_contexts | postgres | INSERT | postgres | 
+table | public.free_grant_contexts | postgres | REFERENCES | postgres | 
+table | public.free_grant_contexts | postgres | SELECT | postgres | 
+table | public.free_grant_contexts | postgres | TRIGGER | postgres | 
+table | public.free_grant_contexts | postgres | TRUNCATE | postgres | 
+table | public.free_grant_contexts | postgres | UPDATE | postgres | 
+table | public.free_grant_contexts | service_role | DELETE | postgres | 
+table | public.free_grant_contexts | service_role | INSERT | postgres | 
+table | public.free_grant_contexts | service_role | REFERENCES | postgres | 
+table | public.free_grant_contexts | service_role | SELECT | postgres | 
+table | public.free_grant_contexts | service_role | TRIGGER | postgres | 
+table | public.free_grant_contexts | service_role | TRUNCATE | postgres | 
+table | public.free_grant_contexts | service_role | UPDATE | postgres | 
+table | public.guest_purchases | postgres | DELETE | postgres | 
+table | public.guest_purchases | postgres | INSERT | postgres | 
+table | public.guest_purchases | postgres | REFERENCES | postgres | 
+table | public.guest_purchases | postgres | SELECT | postgres | 
+table | public.guest_purchases | postgres | TRIGGER | postgres | 
+table | public.guest_purchases | postgres | TRUNCATE | postgres | 
+table | public.guest_purchases | postgres | UPDATE | postgres | 
+table | public.guest_purchases | service_role | DELETE | postgres | 
+table | public.guest_purchases | service_role | INSERT | postgres | 
+table | public.guest_purchases | service_role | REFERENCES | postgres | 
+table | public.guest_purchases | service_role | SELECT | postgres | 
+table | public.guest_purchases | service_role | TRIGGER | postgres | 
+table | public.guest_purchases | service_role | TRUNCATE | postgres | 
+table | public.guest_purchases | service_role | UPDATE | postgres | 
+table | public.integrations_config | authenticated | DELETE | postgres | 
+table | public.integrations_config | authenticated | INSERT | postgres | 
+table | public.integrations_config | authenticated | SELECT | postgres | 
+table | public.integrations_config | authenticated | UPDATE | postgres | 
+table | public.integrations_config | postgres | DELETE | postgres | 
+table | public.integrations_config | postgres | INSERT | postgres | 
+table | public.integrations_config | postgres | REFERENCES | postgres | 
+table | public.integrations_config | postgres | SELECT | postgres | 
+table | public.integrations_config | postgres | TRIGGER | postgres | 
+table | public.integrations_config | postgres | TRUNCATE | postgres | 
+table | public.integrations_config | postgres | UPDATE | postgres | 
+table | public.integrations_config | service_role | DELETE | postgres | 
+table | public.integrations_config | service_role | INSERT | postgres | 
+table | public.integrations_config | service_role | REFERENCES | postgres | 
+table | public.integrations_config | service_role | SELECT | postgres | 
+table | public.integrations_config | service_role | TRIGGER | postgres | 
+table | public.integrations_config | service_role | TRUNCATE | postgres | 
+table | public.integrations_config | service_role | UPDATE | postgres | 
+table | public.invoices | authenticated | SELECT | postgres | 
+table | public.invoices | postgres | DELETE | postgres | 
+table | public.invoices | postgres | INSERT | postgres | 
+table | public.invoices | postgres | REFERENCES | postgres | 
+table | public.invoices | postgres | SELECT | postgres | 
+table | public.invoices | postgres | TRIGGER | postgres | 
+table | public.invoices | postgres | TRUNCATE | postgres | 
+table | public.invoices | postgres | UPDATE | postgres | 
+table | public.invoices | service_role | DELETE | postgres | 
+table | public.invoices | service_role | INSERT | postgres | 
+table | public.invoices | service_role | REFERENCES | postgres | 
+table | public.invoices | service_role | SELECT | postgres | 
+table | public.invoices | service_role | TRIGGER | postgres | 
+table | public.invoices | service_role | TRUNCATE | postgres | 
+table | public.invoices | service_role | UPDATE | postgres | 
+table | public.invoicing_config | postgres | DELETE | postgres | 
+table | public.invoicing_config | postgres | INSERT | postgres | 
+table | public.invoicing_config | postgres | REFERENCES | postgres | 
+table | public.invoicing_config | postgres | SELECT | postgres | 
+table | public.invoicing_config | postgres | TRIGGER | postgres | 
+table | public.invoicing_config | postgres | TRUNCATE | postgres | 
+table | public.invoicing_config | postgres | UPDATE | postgres | 
+table | public.invoicing_config | service_role | DELETE | postgres | 
+table | public.invoicing_config | service_role | INSERT | postgres | 
+table | public.invoicing_config | service_role | REFERENCES | postgres | 
+table | public.invoicing_config | service_role | SELECT | postgres | 
+table | public.invoicing_config | service_role | TRIGGER | postgres | 
+table | public.invoicing_config | service_role | TRUNCATE | postgres | 
+table | public.invoicing_config | service_role | UPDATE | postgres | 
+table | public.issued_licenses | postgres | DELETE | postgres | 
+table | public.issued_licenses | postgres | INSERT | postgres | 
+table | public.issued_licenses | postgres | REFERENCES | postgres | 
+table | public.issued_licenses | postgres | SELECT | postgres | 
+table | public.issued_licenses | postgres | TRIGGER | postgres | 
+table | public.issued_licenses | postgres | TRUNCATE | postgres | 
+table | public.issued_licenses | postgres | UPDATE | postgres | 
+table | public.issued_licenses | service_role | DELETE | postgres | 
+table | public.issued_licenses | service_role | INSERT | postgres | 
+table | public.issued_licenses | service_role | REFERENCES | postgres | 
+table | public.issued_licenses | service_role | SELECT | postgres | 
+table | public.issued_licenses | service_role | TRIGGER | postgres | 
+table | public.issued_licenses | service_role | TRUNCATE | postgres | 
+table | public.issued_licenses | service_role | UPDATE | postgres | 
+table | public.lead_nonces | postgres | DELETE | postgres | 
+table | public.lead_nonces | postgres | INSERT | postgres | 
+table | public.lead_nonces | postgres | REFERENCES | postgres | 
+table | public.lead_nonces | postgres | SELECT | postgres | 
+table | public.lead_nonces | postgres | TRIGGER | postgres | 
+table | public.lead_nonces | postgres | TRUNCATE | postgres | 
+table | public.lead_nonces | postgres | UPDATE | postgres | 
+table | public.lead_nonces | service_role | DELETE | postgres | 
+table | public.lead_nonces | service_role | INSERT | postgres | 
+table | public.lead_nonces | service_role | REFERENCES | postgres | 
+table | public.lead_nonces | service_role | SELECT | postgres | 
+table | public.lead_nonces | service_role | TRIGGER | postgres | 
+table | public.lead_nonces | service_role | TRUNCATE | postgres | 
+table | public.lead_nonces | service_role | UPDATE | postgres | 
+table | public.lead_submissions | postgres | DELETE | postgres | 
+table | public.lead_submissions | postgres | INSERT | postgres | 
+table | public.lead_submissions | postgres | REFERENCES | postgres | 
+table | public.lead_submissions | postgres | SELECT | postgres | 
+table | public.lead_submissions | postgres | TRIGGER | postgres | 
+table | public.lead_submissions | postgres | TRUNCATE | postgres | 
+table | public.lead_submissions | postgres | UPDATE | postgres | 
+table | public.lead_submissions | service_role | DELETE | postgres | 
+table | public.lead_submissions | service_role | INSERT | postgres | 
+table | public.lead_submissions | service_role | REFERENCES | postgres | 
+table | public.lead_submissions | service_role | SELECT | postgres | 
+table | public.lead_submissions | service_role | TRIGGER | postgres | 
+table | public.lead_submissions | service_role | TRUNCATE | postgres | 
+table | public.lead_submissions | service_role | UPDATE | postgres | 
+table | public.license_mail_receipts | postgres | DELETE | postgres | 
+table | public.license_mail_receipts | postgres | INSERT | postgres | 
+table | public.license_mail_receipts | postgres | REFERENCES | postgres | 
+table | public.license_mail_receipts | postgres | SELECT | postgres | 
+table | public.license_mail_receipts | postgres | TRIGGER | postgres | 
+table | public.license_mail_receipts | postgres | TRUNCATE | postgres | 
+table | public.license_mail_receipts | postgres | UPDATE | postgres | 
+table | public.license_mail_receipts | service_role | DELETE | postgres | 
+table | public.license_mail_receipts | service_role | INSERT | postgres | 
+table | public.license_mail_receipts | service_role | REFERENCES | postgres | 
+table | public.license_mail_receipts | service_role | SELECT | postgres | 
+table | public.license_mail_receipts | service_role | TRIGGER | postgres | 
+table | public.license_mail_receipts | service_role | TRUNCATE | postgres | 
+table | public.license_mail_receipts | service_role | UPDATE | postgres | 
+table | public.order_bumps | anon | SELECT | postgres | 
+table | public.order_bumps | authenticated | DELETE | postgres | 
+table | public.order_bumps | authenticated | INSERT | postgres | 
+table | public.order_bumps | authenticated | SELECT | postgres | 
+table | public.order_bumps | authenticated | UPDATE | postgres | 
+table | public.order_bumps | postgres | DELETE | postgres | 
+table | public.order_bumps | postgres | INSERT | postgres | 
+table | public.order_bumps | postgres | REFERENCES | postgres | 
+table | public.order_bumps | postgres | SELECT | postgres | 
+table | public.order_bumps | postgres | TRIGGER | postgres | 
+table | public.order_bumps | postgres | TRUNCATE | postgres | 
+table | public.order_bumps | postgres | UPDATE | postgres | 
+table | public.order_bumps | service_role | DELETE | postgres | 
+table | public.order_bumps | service_role | INSERT | postgres | 
+table | public.order_bumps | service_role | REFERENCES | postgres | 
+table | public.order_bumps | service_role | SELECT | postgres | 
+table | public.order_bumps | service_role | TRIGGER | postgres | 
+table | public.order_bumps | service_role | TRUNCATE | postgres | 
+table | public.order_bumps | service_role | UPDATE | postgres | 
+table | public.order_payment_attempts | authenticated | SELECT | postgres | 
+table | public.order_payment_attempts | postgres | DELETE | postgres | 
+table | public.order_payment_attempts | postgres | INSERT | postgres | 
+table | public.order_payment_attempts | postgres | REFERENCES | postgres | 
+table | public.order_payment_attempts | postgres | SELECT | postgres | 
+table | public.order_payment_attempts | postgres | TRIGGER | postgres | 
+table | public.order_payment_attempts | postgres | TRUNCATE | postgres | 
+table | public.order_payment_attempts | postgres | UPDATE | postgres | 
+table | public.order_payment_attempts | service_role | DELETE | postgres | 
+table | public.order_payment_attempts | service_role | INSERT | postgres | 
+table | public.order_payment_attempts | service_role | REFERENCES | postgres | 
+table | public.order_payment_attempts | service_role | SELECT | postgres | 
+table | public.order_payment_attempts | service_role | TRIGGER | postgres | 
+table | public.order_payment_attempts | service_role | TRUNCATE | postgres | 
+table | public.order_payment_attempts | service_role | UPDATE | postgres | 
+table | public.oto_offers | anon | SELECT | postgres | 
+table | public.oto_offers | authenticated | INSERT | postgres | 
+table | public.oto_offers | authenticated | SELECT | postgres | 
+table | public.oto_offers | authenticated | UPDATE | postgres | 
+table | public.oto_offers | postgres | DELETE | postgres | 
+table | public.oto_offers | postgres | INSERT | postgres | 
+table | public.oto_offers | postgres | REFERENCES | postgres | 
+table | public.oto_offers | postgres | SELECT | postgres | 
+table | public.oto_offers | postgres | TRIGGER | postgres | 
+table | public.oto_offers | postgres | TRUNCATE | postgres | 
+table | public.oto_offers | postgres | UPDATE | postgres | 
+table | public.oto_offers | service_role | DELETE | postgres | 
+table | public.oto_offers | service_role | INSERT | postgres | 
+table | public.oto_offers | service_role | REFERENCES | postgres | 
+table | public.oto_offers | service_role | SELECT | postgres | 
+table | public.oto_offers | service_role | TRIGGER | postgres | 
+table | public.oto_offers | service_role | TRUNCATE | postgres | 
+table | public.oto_offers | service_role | UPDATE | postgres | 
+table | public.payment_disputes | postgres | DELETE | postgres | 
+table | public.payment_disputes | postgres | INSERT | postgres | 
+table | public.payment_disputes | postgres | REFERENCES | postgres | 
+table | public.payment_disputes | postgres | SELECT | postgres | 
+table | public.payment_disputes | postgres | TRIGGER | postgres | 
+table | public.payment_disputes | postgres | TRUNCATE | postgres | 
+table | public.payment_disputes | postgres | UPDATE | postgres | 
+table | public.payment_disputes | service_role | DELETE | postgres | 
+table | public.payment_disputes | service_role | INSERT | postgres | 
+table | public.payment_disputes | service_role | REFERENCES | postgres | 
+table | public.payment_disputes | service_role | SELECT | postgres | 
+table | public.payment_disputes | service_role | TRIGGER | postgres | 
+table | public.payment_disputes | service_role | TRUNCATE | postgres | 
+table | public.payment_disputes | service_role | UPDATE | postgres | 
+table | public.payment_line_items | authenticated | SELECT | postgres | 
+table | public.payment_line_items | postgres | DELETE | postgres | 
+table | public.payment_line_items | postgres | INSERT | postgres | 
+table | public.payment_line_items | postgres | REFERENCES | postgres | 
+table | public.payment_line_items | postgres | SELECT | postgres | 
+table | public.payment_line_items | postgres | TRIGGER | postgres | 
+table | public.payment_line_items | postgres | TRUNCATE | postgres | 
+table | public.payment_line_items | postgres | UPDATE | postgres | 
+table | public.payment_line_items | service_role | DELETE | postgres | 
+table | public.payment_line_items | service_role | INSERT | postgres | 
+table | public.payment_line_items | service_role | REFERENCES | postgres | 
+table | public.payment_line_items | service_role | SELECT | postgres | 
+table | public.payment_line_items | service_role | TRIGGER | postgres | 
+table | public.payment_line_items | service_role | TRUNCATE | postgres | 
+table | public.payment_line_items | service_role | UPDATE | postgres | 
+table | public.payment_method_config | postgres | DELETE | postgres | 
+table | public.payment_method_config | postgres | INSERT | postgres | 
+table | public.payment_method_config | postgres | REFERENCES | postgres | 
+table | public.payment_method_config | postgres | SELECT | postgres | 
+table | public.payment_method_config | postgres | TRIGGER | postgres | 
+table | public.payment_method_config | postgres | TRUNCATE | postgres | 
+table | public.payment_method_config | postgres | UPDATE | postgres | 
+table | public.payment_method_config | service_role | DELETE | postgres | 
+table | public.payment_method_config | service_role | INSERT | postgres | 
+table | public.payment_method_config | service_role | REFERENCES | postgres | 
+table | public.payment_method_config | service_role | SELECT | postgres | 
+table | public.payment_method_config | service_role | TRIGGER | postgres | 
+table | public.payment_method_config | service_role | TRUNCATE | postgres | 
+table | public.payment_method_config | service_role | UPDATE | postgres | 
+table | public.payment_refund_events | postgres | DELETE | postgres | 
+table | public.payment_refund_events | postgres | INSERT | postgres | 
+table | public.payment_refund_events | postgres | REFERENCES | postgres | 
+table | public.payment_refund_events | postgres | SELECT | postgres | 
+table | public.payment_refund_events | postgres | TRIGGER | postgres | 
+table | public.payment_refund_events | postgres | TRUNCATE | postgres | 
+table | public.payment_refund_events | postgres | UPDATE | postgres | 
+table | public.payment_refund_events | service_role | DELETE | postgres | 
+table | public.payment_refund_events | service_role | INSERT | postgres | 
+table | public.payment_refund_events | service_role | REFERENCES | postgres | 
+table | public.payment_refund_events | service_role | SELECT | postgres | 
+table | public.payment_refund_events | service_role | TRIGGER | postgres | 
+table | public.payment_refund_events | service_role | TRUNCATE | postgres | 
+table | public.payment_refund_events | service_role | UPDATE | postgres | 
+table | public.payment_refunds | postgres | DELETE | postgres | 
+table | public.payment_refunds | postgres | INSERT | postgres | 
+table | public.payment_refunds | postgres | REFERENCES | postgres | 
+table | public.payment_refunds | postgres | SELECT | postgres | 
+table | public.payment_refunds | postgres | TRIGGER | postgres | 
+table | public.payment_refunds | postgres | TRUNCATE | postgres | 
+table | public.payment_refunds | postgres | UPDATE | postgres | 
+table | public.payment_refunds | service_role | DELETE | postgres | 
+table | public.payment_refunds | service_role | INSERT | postgres | 
+table | public.payment_refunds | service_role | REFERENCES | postgres | 
+table | public.payment_refunds | service_role | SELECT | postgres | 
+table | public.payment_refunds | service_role | TRIGGER | postgres | 
+table | public.payment_refunds | service_role | TRUNCATE | postgres | 
+table | public.payment_refunds | service_role | UPDATE | postgres | 
+table | public.payment_transactions | authenticated | SELECT | postgres | 
+table | public.payment_transactions | authenticated | UPDATE | postgres | 
+table | public.payment_transactions | postgres | DELETE | postgres | 
+table | public.payment_transactions | postgres | INSERT | postgres | 
+table | public.payment_transactions | postgres | REFERENCES | postgres | 
+table | public.payment_transactions | postgres | SELECT | postgres | 
+table | public.payment_transactions | postgres | TRIGGER | postgres | 
+table | public.payment_transactions | postgres | TRUNCATE | postgres | 
+table | public.payment_transactions | postgres | UPDATE | postgres | 
+table | public.payment_transactions | service_role | DELETE | postgres | 
+table | public.payment_transactions | service_role | INSERT | postgres | 
+table | public.payment_transactions | service_role | REFERENCES | postgres | 
+table | public.payment_transactions | service_role | SELECT | postgres | 
+table | public.payment_transactions | service_role | TRIGGER | postgres | 
+table | public.payment_transactions | service_role | TRUNCATE | postgres | 
+table | public.payment_transactions | service_role | UPDATE | postgres | 
+table | public.product_categories | anon | SELECT | postgres | 
+table | public.product_categories | authenticated | DELETE | postgres | 
+table | public.product_categories | authenticated | INSERT | postgres | 
+table | public.product_categories | authenticated | SELECT | postgres | 
+table | public.product_categories | postgres | DELETE | postgres | 
+table | public.product_categories | postgres | INSERT | postgres | 
+table | public.product_categories | postgres | REFERENCES | postgres | 
+table | public.product_categories | postgres | SELECT | postgres | 
+table | public.product_categories | postgres | TRIGGER | postgres | 
+table | public.product_categories | postgres | TRUNCATE | postgres | 
+table | public.product_categories | postgres | UPDATE | postgres | 
+table | public.product_categories | service_role | DELETE | postgres | 
+table | public.product_categories | service_role | INSERT | postgres | 
+table | public.product_categories | service_role | REFERENCES | postgres | 
+table | public.product_categories | service_role | SELECT | postgres | 
+table | public.product_categories | service_role | TRIGGER | postgres | 
+table | public.product_categories | service_role | TRUNCATE | postgres | 
+table | public.product_categories | service_role | UPDATE | postgres | 
+table | public.product_offer_config | authenticated | SELECT | postgres | 
+table | public.product_offer_config | postgres | DELETE | postgres | 
+table | public.product_offer_config | postgres | INSERT | postgres | 
+table | public.product_offer_config | postgres | REFERENCES | postgres | 
+table | public.product_offer_config | postgres | SELECT | postgres | 
+table | public.product_offer_config | postgres | TRIGGER | postgres | 
+table | public.product_offer_config | postgres | TRUNCATE | postgres | 
+table | public.product_offer_config | postgres | UPDATE | postgres | 
+table | public.product_offer_config | service_role | INSERT | postgres | 
+table | public.product_offer_config | service_role | SELECT | postgres | 
+table | public.product_offer_config | service_role | UPDATE | postgres | 
+table | public.product_offer_history | authenticated | SELECT | postgres | 
+table | public.product_offer_history | postgres | DELETE | postgres | 
+table | public.product_offer_history | postgres | INSERT | postgres | 
+table | public.product_offer_history | postgres | REFERENCES | postgres | 
+table | public.product_offer_history | postgres | SELECT | postgres | 
+table | public.product_offer_history | postgres | TRIGGER | postgres | 
+table | public.product_offer_history | postgres | TRUNCATE | postgres | 
+table | public.product_offer_history | postgres | UPDATE | postgres | 
+table | public.product_offer_history | service_role | INSERT | postgres | 
+table | public.product_offer_history | service_role | SELECT | postgres | 
+table | public.product_price_history | postgres | DELETE | postgres | 
+table | public.product_price_history | postgres | INSERT | postgres | 
+table | public.product_price_history | postgres | REFERENCES | postgres | 
+table | public.product_price_history | postgres | SELECT | postgres | 
+table | public.product_price_history | postgres | TRIGGER | postgres | 
+table | public.product_price_history | postgres | TRUNCATE | postgres | 
+table | public.product_price_history | postgres | UPDATE | postgres | 
+table | public.product_price_history | service_role | DELETE | postgres | 
+table | public.product_price_history | service_role | INSERT | postgres | 
+table | public.product_price_history | service_role | REFERENCES | postgres | 
+table | public.product_price_history | service_role | SELECT | postgres | 
+table | public.product_price_history | service_role | TRIGGER | postgres | 
+table | public.product_price_history | service_role | TRUNCATE | postgres | 
+table | public.product_price_history | service_role | UPDATE | postgres | 
+table | public.product_price_tiers | authenticated | DELETE | postgres | 
+table | public.product_price_tiers | authenticated | INSERT | postgres | 
+table | public.product_price_tiers | authenticated | SELECT | postgres | 
+table | public.product_price_tiers | authenticated | UPDATE | postgres | 
+table | public.product_price_tiers | postgres | DELETE | postgres | 
+table | public.product_price_tiers | postgres | INSERT | postgres | 
+table | public.product_price_tiers | postgres | REFERENCES | postgres | 
+table | public.product_price_tiers | postgres | SELECT | postgres | 
+table | public.product_price_tiers | postgres | TRIGGER | postgres | 
+table | public.product_price_tiers | postgres | TRUNCATE | postgres | 
+table | public.product_price_tiers | postgres | UPDATE | postgres | 
+table | public.product_price_tiers | service_role | DELETE | postgres | 
+table | public.product_price_tiers | service_role | INSERT | postgres | 
+table | public.product_price_tiers | service_role | REFERENCES | postgres | 
+table | public.product_price_tiers | service_role | SELECT | postgres | 
+table | public.product_price_tiers | service_role | TRIGGER | postgres | 
+table | public.product_price_tiers | service_role | TRUNCATE | postgres | 
+table | public.product_price_tiers | service_role | UPDATE | postgres | 
+table | public.product_sessions | authenticated | DELETE | postgres | 
+table | public.product_sessions | authenticated | INSERT | postgres | 
+table | public.product_sessions | authenticated | SELECT | postgres | 
+table | public.product_sessions | authenticated | UPDATE | postgres | 
+table | public.product_sessions | postgres | DELETE | postgres | 
+table | public.product_sessions | postgres | INSERT | postgres | 
+table | public.product_sessions | postgres | REFERENCES | postgres | 
+table | public.product_sessions | postgres | SELECT | postgres | 
+table | public.product_sessions | postgres | TRIGGER | postgres | 
+table | public.product_sessions | postgres | TRUNCATE | postgres | 
+table | public.product_sessions | postgres | UPDATE | postgres | 
+table | public.product_sessions | service_role | DELETE | postgres | 
+table | public.product_sessions | service_role | INSERT | postgres | 
+table | public.product_sessions | service_role | REFERENCES | postgres | 
+table | public.product_sessions | service_role | SELECT | postgres | 
+table | public.product_sessions | service_role | TRIGGER | postgres | 
+table | public.product_sessions | service_role | TRUNCATE | postgres | 
+table | public.product_sessions | service_role | UPDATE | postgres | 
+table | public.product_tags | anon | SELECT | postgres | 
+table | public.product_tags | authenticated | SELECT | postgres | 
+table | public.product_tags | postgres | DELETE | postgres | 
+table | public.product_tags | postgres | INSERT | postgres | 
+table | public.product_tags | postgres | REFERENCES | postgres | 
+table | public.product_tags | postgres | SELECT | postgres | 
+table | public.product_tags | postgres | TRIGGER | postgres | 
+table | public.product_tags | postgres | TRUNCATE | postgres | 
+table | public.product_tags | postgres | UPDATE | postgres | 
+table | public.product_tags | service_role | DELETE | postgres | 
+table | public.product_tags | service_role | INSERT | postgres | 
+table | public.product_tags | service_role | REFERENCES | postgres | 
+table | public.product_tags | service_role | SELECT | postgres | 
+table | public.product_tags | service_role | TRIGGER | postgres | 
+table | public.product_tags | service_role | TRUNCATE | postgres | 
+table | public.product_tags | service_role | UPDATE | postgres | 
+table | public.product_variant_groups | anon | SELECT | postgres | 
+table | public.product_variant_groups | authenticated | DELETE | postgres | 
+table | public.product_variant_groups | authenticated | INSERT | postgres | 
+table | public.product_variant_groups | authenticated | SELECT | postgres | 
+table | public.product_variant_groups | postgres | DELETE | postgres | 
+table | public.product_variant_groups | postgres | INSERT | postgres | 
+table | public.product_variant_groups | postgres | REFERENCES | postgres | 
+table | public.product_variant_groups | postgres | SELECT | postgres | 
+table | public.product_variant_groups | postgres | TRIGGER | postgres | 
+table | public.product_variant_groups | postgres | TRUNCATE | postgres | 
+table | public.product_variant_groups | postgres | UPDATE | postgres | 
+table | public.product_variant_groups | service_role | DELETE | postgres | 
+table | public.product_variant_groups | service_role | INSERT | postgres | 
+table | public.product_variant_groups | service_role | REFERENCES | postgres | 
+table | public.product_variant_groups | service_role | SELECT | postgres | 
+table | public.product_variant_groups | service_role | TRIGGER | postgres | 
+table | public.product_variant_groups | service_role | TRUNCATE | postgres | 
+table | public.product_variant_groups | service_role | UPDATE | postgres | 
+table | public.products | authenticated | DELETE | postgres | 
+table | public.products | authenticated | INSERT | postgres | 
+table | public.products | authenticated | UPDATE | postgres | 
+table | public.products | postgres | DELETE | postgres | 
+table | public.products | postgres | INSERT | postgres | 
+table | public.products | postgres | REFERENCES | postgres | 
+table | public.products | postgres | SELECT | postgres | 
+table | public.products | postgres | TRIGGER | postgres | 
+table | public.products | postgres | TRUNCATE | postgres | 
+table | public.products | postgres | UPDATE | postgres | 
+table | public.products | service_role | DELETE | postgres | 
+table | public.products | service_role | INSERT | postgres | 
+table | public.products | service_role | REFERENCES | postgres | 
+table | public.products | service_role | SELECT | postgres | 
+table | public.products | service_role | TRIGGER | postgres | 
+table | public.products | service_role | TRUNCATE | postgres | 
+table | public.products | service_role | UPDATE | postgres | 
+table | public.profiles | authenticated | SELECT | postgres | 
+table | public.profiles | authenticated | UPDATE | postgres | 
+table | public.profiles | postgres | DELETE | postgres | 
+table | public.profiles | postgres | INSERT | postgres | 
+table | public.profiles | postgres | REFERENCES | postgres | 
+table | public.profiles | postgres | SELECT | postgres | 
+table | public.profiles | postgres | TRIGGER | postgres | 
+table | public.profiles | postgres | TRUNCATE | postgres | 
+table | public.profiles | postgres | UPDATE | postgres | 
+table | public.profiles | service_role | DELETE | postgres | 
+table | public.profiles | service_role | INSERT | postgres | 
+table | public.profiles | service_role | REFERENCES | postgres | 
+table | public.profiles | service_role | SELECT | postgres | 
+table | public.profiles | service_role | TRIGGER | postgres | 
+table | public.profiles | service_role | TRUNCATE | postgres | 
+table | public.profiles | service_role | UPDATE | postgres | 
+table | public.purchase_attribution | authenticated | SELECT | postgres | 
+table | public.purchase_attribution | postgres | DELETE | postgres | 
+table | public.purchase_attribution | postgres | INSERT | postgres | 
+table | public.purchase_attribution | postgres | REFERENCES | postgres | 
+table | public.purchase_attribution | postgres | SELECT | postgres | 
+table | public.purchase_attribution | postgres | TRIGGER | postgres | 
+table | public.purchase_attribution | postgres | TRUNCATE | postgres | 
+table | public.purchase_attribution | postgres | UPDATE | postgres | 
+table | public.purchase_attribution | service_role | DELETE | postgres | 
+table | public.purchase_attribution | service_role | INSERT | postgres | 
+table | public.purchase_attribution | service_role | REFERENCES | postgres | 
+table | public.purchase_attribution | service_role | SELECT | postgres | 
+table | public.purchase_attribution | service_role | TRIGGER | postgres | 
+table | public.purchase_attribution | service_role | TRUNCATE | postgres | 
+table | public.purchase_attribution | service_role | UPDATE | postgres | 
+table | public.rate_limits | postgres | DELETE | postgres | 
+table | public.rate_limits | postgres | INSERT | postgres | 
+table | public.rate_limits | postgres | REFERENCES | postgres | 
+table | public.rate_limits | postgres | SELECT | postgres | 
+table | public.rate_limits | postgres | TRIGGER | postgres | 
+table | public.rate_limits | postgres | TRUNCATE | postgres | 
+table | public.rate_limits | postgres | UPDATE | postgres | 
+table | public.rate_limits | service_role | DELETE | postgres | 
+table | public.rate_limits | service_role | INSERT | postgres | 
+table | public.rate_limits | service_role | REFERENCES | postgres | 
+table | public.rate_limits | service_role | SELECT | postgres | 
+table | public.rate_limits | service_role | TRIGGER | postgres | 
+table | public.rate_limits | service_role | TRUNCATE | postgres | 
+table | public.rate_limits | service_role | UPDATE | postgres | 
+table | public.refund_requests | authenticated | SELECT | postgres | 
+table | public.refund_requests | postgres | DELETE | postgres | 
+table | public.refund_requests | postgres | INSERT | postgres | 
+table | public.refund_requests | postgres | REFERENCES | postgres | 
+table | public.refund_requests | postgres | SELECT | postgres | 
+table | public.refund_requests | postgres | TRIGGER | postgres | 
+table | public.refund_requests | postgres | TRUNCATE | postgres | 
+table | public.refund_requests | postgres | UPDATE | postgres | 
+table | public.refund_requests | service_role | DELETE | postgres | 
+table | public.refund_requests | service_role | INSERT | postgres | 
+table | public.refund_requests | service_role | REFERENCES | postgres | 
+table | public.refund_requests | service_role | SELECT | postgres | 
+table | public.refund_requests | service_role | TRIGGER | postgres | 
+table | public.refund_requests | service_role | TRUNCATE | postgres | 
+table | public.refund_requests | service_role | UPDATE | postgres | 
+table | public.revenue_goals | postgres | DELETE | postgres | 
+table | public.revenue_goals | postgres | INSERT | postgres | 
+table | public.revenue_goals | postgres | REFERENCES | postgres | 
+table | public.revenue_goals | postgres | SELECT | postgres | 
+table | public.revenue_goals | postgres | TRIGGER | postgres | 
+table | public.revenue_goals | postgres | TRUNCATE | postgres | 
+table | public.revenue_goals | postgres | UPDATE | postgres | 
+table | public.revenue_goals | service_role | DELETE | postgres | 
+table | public.revenue_goals | service_role | INSERT | postgres | 
+table | public.revenue_goals | service_role | REFERENCES | postgres | 
+table | public.revenue_goals | service_role | SELECT | postgres | 
+table | public.revenue_goals | service_role | TRIGGER | postgres | 
+table | public.revenue_goals | service_role | TRUNCATE | postgres | 
+table | public.revenue_goals | service_role | UPDATE | postgres | 
+table | public.seat_reservations | authenticated | SELECT | postgres | 
+table | public.seat_reservations | postgres | DELETE | postgres | 
+table | public.seat_reservations | postgres | INSERT | postgres | 
+table | public.seat_reservations | postgres | REFERENCES | postgres | 
+table | public.seat_reservations | postgres | SELECT | postgres | 
+table | public.seat_reservations | postgres | TRIGGER | postgres | 
+table | public.seat_reservations | postgres | TRUNCATE | postgres | 
+table | public.seat_reservations | postgres | UPDATE | postgres | 
+table | public.seat_reservations | service_role | DELETE | postgres | 
+table | public.seat_reservations | service_role | INSERT | postgres | 
+table | public.seat_reservations | service_role | REFERENCES | postgres | 
+table | public.seat_reservations | service_role | SELECT | postgres | 
+table | public.seat_reservations | service_role | TRIGGER | postgres | 
+table | public.seat_reservations | service_role | TRUNCATE | postgres | 
+table | public.seat_reservations | service_role | UPDATE | postgres | 
+table | public.seller_embed_settings | authenticated | SELECT | postgres | 
+table | public.seller_embed_settings | postgres | DELETE | postgres | 
+table | public.seller_embed_settings | postgres | INSERT | postgres | 
+table | public.seller_embed_settings | postgres | REFERENCES | postgres | 
+table | public.seller_embed_settings | postgres | SELECT | postgres | 
+table | public.seller_embed_settings | postgres | TRIGGER | postgres | 
+table | public.seller_embed_settings | postgres | TRUNCATE | postgres | 
+table | public.seller_embed_settings | postgres | UPDATE | postgres | 
+table | public.seller_embed_settings | service_role | DELETE | postgres | 
+table | public.seller_embed_settings | service_role | INSERT | postgres | 
+table | public.seller_embed_settings | service_role | REFERENCES | postgres | 
+table | public.seller_embed_settings | service_role | SELECT | postgres | 
+table | public.seller_embed_settings | service_role | TRIGGER | postgres | 
+table | public.seller_embed_settings | service_role | TRUNCATE | postgres | 
+table | public.seller_embed_settings | service_role | UPDATE | postgres | 
+table | public.seller_license_keys | postgres | DELETE | postgres | 
+table | public.seller_license_keys | postgres | INSERT | postgres | 
+table | public.seller_license_keys | postgres | REFERENCES | postgres | 
+table | public.seller_license_keys | postgres | SELECT | postgres | 
+table | public.seller_license_keys | postgres | TRIGGER | postgres | 
+table | public.seller_license_keys | postgres | TRUNCATE | postgres | 
+table | public.seller_license_keys | postgres | UPDATE | postgres | 
+table | public.seller_license_keys | service_role | DELETE | postgres | 
+table | public.seller_license_keys | service_role | INSERT | postgres | 
+table | public.seller_license_keys | service_role | REFERENCES | postgres | 
+table | public.seller_license_keys | service_role | SELECT | postgres | 
+table | public.seller_license_keys | service_role | TRIGGER | postgres | 
+table | public.seller_license_keys | service_role | TRUNCATE | postgres | 
+table | public.seller_license_keys | service_role | UPDATE | postgres | 
+table | public.shop_config | postgres | DELETE | postgres | 
+table | public.shop_config | postgres | INSERT | postgres | 
+table | public.shop_config | postgres | REFERENCES | postgres | 
+table | public.shop_config | postgres | SELECT | postgres | 
+table | public.shop_config | postgres | TRIGGER | postgres | 
+table | public.shop_config | postgres | TRUNCATE | postgres | 
+table | public.shop_config | postgres | UPDATE | postgres | 
+table | public.shop_config | service_role | DELETE | postgres | 
+table | public.shop_config | service_role | INSERT | postgres | 
+table | public.shop_config | service_role | REFERENCES | postgres | 
+table | public.shop_config | service_role | SELECT | postgres | 
+table | public.shop_config | service_role | TRIGGER | postgres | 
+table | public.shop_config | service_role | TRUNCATE | postgres | 
+table | public.shop_config | service_role | UPDATE | postgres | 
+table | public.storefront_config | authenticated | SELECT | postgres | 
+table | public.storefront_config | postgres | DELETE | postgres | 
+table | public.storefront_config | postgres | INSERT | postgres | 
+table | public.storefront_config | postgres | REFERENCES | postgres | 
+table | public.storefront_config | postgres | SELECT | postgres | 
+table | public.storefront_config | postgres | TRIGGER | postgres | 
+table | public.storefront_config | postgres | TRUNCATE | postgres | 
+table | public.storefront_config | postgres | UPDATE | postgres | 
+table | public.storefront_config | service_role | INSERT | postgres | 
+table | public.storefront_config | service_role | SELECT | postgres | 
+table | public.storefront_config | service_role | UPDATE | postgres | 
+table | public.storefront_config_history | authenticated | SELECT | postgres | 
+table | public.storefront_config_history | postgres | DELETE | postgres | 
+table | public.storefront_config_history | postgres | INSERT | postgres | 
+table | public.storefront_config_history | postgres | REFERENCES | postgres | 
+table | public.storefront_config_history | postgres | SELECT | postgres | 
+table | public.storefront_config_history | postgres | TRIGGER | postgres | 
+table | public.storefront_config_history | postgres | TRUNCATE | postgres | 
+table | public.storefront_config_history | postgres | UPDATE | postgres | 
+table | public.storefront_config_history | service_role | INSERT | postgres | 
+table | public.storefront_config_history | service_role | SELECT | postgres | 
+table | public.stripe_configurations | authenticated | DELETE | postgres | 
+table | public.stripe_configurations | authenticated | INSERT | postgres | 
+table | public.stripe_configurations | authenticated | SELECT | postgres | 
+table | public.stripe_configurations | authenticated | UPDATE | postgres | 
+table | public.stripe_configurations | postgres | DELETE | postgres | 
+table | public.stripe_configurations | postgres | INSERT | postgres | 
+table | public.stripe_configurations | postgres | REFERENCES | postgres | 
+table | public.stripe_configurations | postgres | SELECT | postgres | 
+table | public.stripe_configurations | postgres | TRIGGER | postgres | 
+table | public.stripe_configurations | postgres | TRUNCATE | postgres | 
+table | public.stripe_configurations | postgres | UPDATE | postgres | 
+table | public.stripe_configurations | service_role | DELETE | postgres | 
+table | public.stripe_configurations | service_role | INSERT | postgres | 
+table | public.stripe_configurations | service_role | REFERENCES | postgres | 
+table | public.stripe_configurations | service_role | SELECT | postgres | 
+table | public.stripe_configurations | service_role | TRIGGER | postgres | 
+table | public.stripe_configurations | service_role | TRUNCATE | postgres | 
+table | public.stripe_configurations | service_role | UPDATE | postgres | 
+table | public.stripe_customers | authenticated | SELECT | postgres | 
+table | public.stripe_customers | postgres | DELETE | postgres | 
+table | public.stripe_customers | postgres | INSERT | postgres | 
+table | public.stripe_customers | postgres | REFERENCES | postgres | 
+table | public.stripe_customers | postgres | SELECT | postgres | 
+table | public.stripe_customers | postgres | TRIGGER | postgres | 
+table | public.stripe_customers | postgres | TRUNCATE | postgres | 
+table | public.stripe_customers | postgres | UPDATE | postgres | 
+table | public.stripe_customers | service_role | DELETE | postgres | 
+table | public.stripe_customers | service_role | INSERT | postgres | 
+table | public.stripe_customers | service_role | REFERENCES | postgres | 
+table | public.stripe_customers | service_role | SELECT | postgres | 
+table | public.stripe_customers | service_role | TRIGGER | postgres | 
+table | public.stripe_customers | service_role | TRUNCATE | postgres | 
+table | public.stripe_customers | service_role | UPDATE | postgres | 
+table | public.subscriptions | authenticated | SELECT | postgres | 
+table | public.subscriptions | postgres | DELETE | postgres | 
+table | public.subscriptions | postgres | INSERT | postgres | 
+table | public.subscriptions | postgres | REFERENCES | postgres | 
+table | public.subscriptions | postgres | SELECT | postgres | 
+table | public.subscriptions | postgres | TRIGGER | postgres | 
+table | public.subscriptions | postgres | TRUNCATE | postgres | 
+table | public.subscriptions | postgres | UPDATE | postgres | 
+table | public.subscriptions | service_role | DELETE | postgres | 
+table | public.subscriptions | service_role | INSERT | postgres | 
+table | public.subscriptions | service_role | REFERENCES | postgres | 
+table | public.subscriptions | service_role | SELECT | postgres | 
+table | public.subscriptions | service_role | TRIGGER | postgres | 
+table | public.subscriptions | service_role | TRUNCATE | postgres | 
+table | public.subscriptions | service_role | UPDATE | postgres | 
+table | public.tags | anon | SELECT | postgres | 
+table | public.tags | authenticated | SELECT | postgres | 
+table | public.tags | postgres | DELETE | postgres | 
+table | public.tags | postgres | INSERT | postgres | 
+table | public.tags | postgres | REFERENCES | postgres | 
+table | public.tags | postgres | SELECT | postgres | 
+table | public.tags | postgres | TRIGGER | postgres | 
+table | public.tags | postgres | TRUNCATE | postgres | 
+table | public.tags | postgres | UPDATE | postgres | 
+table | public.tags | service_role | DELETE | postgres | 
+table | public.tags | service_role | INSERT | postgres | 
+table | public.tags | service_role | REFERENCES | postgres | 
+table | public.tags | service_role | SELECT | postgres | 
+table | public.tags | service_role | TRIGGER | postgres | 
+table | public.tags | service_role | TRUNCATE | postgres | 
+table | public.tags | service_role | UPDATE | postgres | 
+table | public.telemetry_state | postgres | DELETE | postgres | 
+table | public.telemetry_state | postgres | INSERT | postgres | 
+table | public.telemetry_state | postgres | REFERENCES | postgres | 
+table | public.telemetry_state | postgres | SELECT | postgres | 
+table | public.telemetry_state | postgres | TRIGGER | postgres | 
+table | public.telemetry_state | postgres | TRUNCATE | postgres | 
+table | public.telemetry_state | postgres | UPDATE | postgres | 
+table | public.telemetry_state | service_role | DELETE | postgres | 
+table | public.telemetry_state | service_role | INSERT | postgres | 
+table | public.telemetry_state | service_role | REFERENCES | postgres | 
+table | public.telemetry_state | service_role | SELECT | postgres | 
+table | public.telemetry_state | service_role | TRIGGER | postgres | 
+table | public.telemetry_state | service_role | TRUNCATE | postgres | 
+table | public.telemetry_state | service_role | UPDATE | postgres | 
+table | public.template_credentials | postgres | DELETE | postgres | 
+table | public.template_credentials | postgres | INSERT | postgres | 
+table | public.template_credentials | postgres | REFERENCES | postgres | 
+table | public.template_credentials | postgres | SELECT | postgres | 
+table | public.template_credentials | postgres | TRIGGER | postgres | 
+table | public.template_credentials | postgres | TRUNCATE | postgres | 
+table | public.template_credentials | postgres | UPDATE | postgres | 
+table | public.template_credentials | service_role | SELECT | postgres | 
+table | public.tracking_logs | postgres | DELETE | postgres | 
+table | public.tracking_logs | postgres | INSERT | postgres | 
+table | public.tracking_logs | postgres | REFERENCES | postgres | 
+table | public.tracking_logs | postgres | SELECT | postgres | 
+table | public.tracking_logs | postgres | TRIGGER | postgres | 
+table | public.tracking_logs | postgres | TRUNCATE | postgres | 
+table | public.tracking_logs | postgres | UPDATE | postgres | 
+table | public.tracking_logs | service_role | DELETE | postgres | 
+table | public.tracking_logs | service_role | INSERT | postgres | 
+table | public.tracking_logs | service_role | REFERENCES | postgres | 
+table | public.tracking_logs | service_role | SELECT | postgres | 
+table | public.tracking_logs | service_role | TRIGGER | postgres | 
+table | public.tracking_logs | service_role | TRUNCATE | postgres | 
+table | public.tracking_logs | service_role | UPDATE | postgres | 
+table | public.tutorial_progress | authenticated | INSERT | postgres | 
+table | public.tutorial_progress | authenticated | SELECT | postgres | 
+table | public.tutorial_progress | postgres | DELETE | postgres | 
+table | public.tutorial_progress | postgres | INSERT | postgres | 
+table | public.tutorial_progress | postgres | REFERENCES | postgres | 
+table | public.tutorial_progress | postgres | SELECT | postgres | 
+table | public.tutorial_progress | postgres | TRIGGER | postgres | 
+table | public.tutorial_progress | postgres | TRUNCATE | postgres | 
+table | public.tutorial_progress | postgres | UPDATE | postgres | 
+table | public.tutorial_progress | service_role | DELETE | postgres | 
+table | public.tutorial_progress | service_role | INSERT | postgres | 
+table | public.tutorial_progress | service_role | REFERENCES | postgres | 
+table | public.tutorial_progress | service_role | SELECT | postgres | 
+table | public.tutorial_progress | service_role | TRIGGER | postgres | 
+table | public.tutorial_progress | service_role | TRUNCATE | postgres | 
+table | public.tutorial_progress | service_role | UPDATE | postgres | 
+table | public.user_product_access | authenticated | SELECT | postgres | 
+table | public.user_product_access | postgres | DELETE | postgres | 
+table | public.user_product_access | postgres | INSERT | postgres | 
+table | public.user_product_access | postgres | REFERENCES | postgres | 
+table | public.user_product_access | postgres | SELECT | postgres | 
+table | public.user_product_access | postgres | TRIGGER | postgres | 
+table | public.user_product_access | postgres | TRUNCATE | postgres | 
+table | public.user_product_access | postgres | UPDATE | postgres | 
+table | public.user_product_access | service_role | DELETE | postgres | 
+table | public.user_product_access | service_role | INSERT | postgres | 
+table | public.user_product_access | service_role | REFERENCES | postgres | 
+table | public.user_product_access | service_role | SELECT | postgres | 
+table | public.user_product_access | service_role | TRIGGER | postgres | 
+table | public.user_product_access | service_role | TRUNCATE | postgres | 
+table | public.user_product_access | service_role | UPDATE | postgres | 
+table | public.variant_groups | anon | SELECT | postgres | 
+table | public.variant_groups | authenticated | DELETE | postgres | 
+table | public.variant_groups | authenticated | INSERT | postgres | 
+table | public.variant_groups | authenticated | SELECT | postgres | 
+table | public.variant_groups | authenticated | UPDATE | postgres | 
+table | public.variant_groups | postgres | DELETE | postgres | 
+table | public.variant_groups | postgres | INSERT | postgres | 
+table | public.variant_groups | postgres | REFERENCES | postgres | 
+table | public.variant_groups | postgres | SELECT | postgres | 
+table | public.variant_groups | postgres | TRIGGER | postgres | 
+table | public.variant_groups | postgres | TRUNCATE | postgres | 
+table | public.variant_groups | postgres | UPDATE | postgres | 
+table | public.variant_groups | service_role | DELETE | postgres | 
+table | public.variant_groups | service_role | INSERT | postgres | 
+table | public.variant_groups | service_role | REFERENCES | postgres | 
+table | public.variant_groups | service_role | SELECT | postgres | 
+table | public.variant_groups | service_role | TRIGGER | postgres | 
+table | public.variant_groups | service_role | TRUNCATE | postgres | 
+table | public.variant_groups | service_role | UPDATE | postgres | 
+table | public.video_events | authenticated | SELECT | postgres | 
+table | public.video_events | postgres | DELETE | postgres | 
+table | public.video_events | postgres | INSERT | postgres | 
+table | public.video_events | postgres | REFERENCES | postgres | 
+table | public.video_events | postgres | SELECT | postgres | 
+table | public.video_events | postgres | TRIGGER | postgres | 
+table | public.video_events | postgres | TRUNCATE | postgres | 
+table | public.video_events | postgres | UPDATE | postgres | 
+table | public.video_events | service_role | DELETE | postgres | 
+table | public.video_events | service_role | INSERT | postgres | 
+table | public.video_events | service_role | REFERENCES | postgres | 
+table | public.video_events | service_role | SELECT | postgres | 
+table | public.video_events | service_role | TRIGGER | postgres | 
+table | public.video_events | service_role | TRUNCATE | postgres | 
+table | public.video_events | service_role | UPDATE | postgres | 
+table | public.video_progress | authenticated | SELECT | postgres | 
+table | public.video_progress | postgres | DELETE | postgres | 
+table | public.video_progress | postgres | INSERT | postgres | 
+table | public.video_progress | postgres | REFERENCES | postgres | 
+table | public.video_progress | postgres | SELECT | postgres | 
+table | public.video_progress | postgres | TRIGGER | postgres | 
+table | public.video_progress | postgres | TRUNCATE | postgres | 
+table | public.video_progress | postgres | UPDATE | postgres | 
+table | public.video_progress | service_role | DELETE | postgres | 
+table | public.video_progress | service_role | INSERT | postgres | 
+table | public.video_progress | service_role | REFERENCES | postgres | 
+table | public.video_progress | service_role | SELECT | postgres | 
+table | public.video_progress | service_role | TRIGGER | postgres | 
+table | public.video_progress | service_role | TRUNCATE | postgres | 
+table | public.video_progress | service_role | UPDATE | postgres | 
+table | public.webhook_endpoint_products | authenticated | DELETE | postgres | 
+table | public.webhook_endpoint_products | authenticated | INSERT | postgres | 
+table | public.webhook_endpoint_products | authenticated | SELECT | postgres | 
+table | public.webhook_endpoint_products | authenticated | UPDATE | postgres | 
+table | public.webhook_endpoint_products | postgres | DELETE | postgres | 
+table | public.webhook_endpoint_products | postgres | INSERT | postgres | 
+table | public.webhook_endpoint_products | postgres | REFERENCES | postgres | 
+table | public.webhook_endpoint_products | postgres | SELECT | postgres | 
+table | public.webhook_endpoint_products | postgres | TRIGGER | postgres | 
+table | public.webhook_endpoint_products | postgres | TRUNCATE | postgres | 
+table | public.webhook_endpoint_products | postgres | UPDATE | postgres | 
+table | public.webhook_endpoint_products | service_role | DELETE | postgres | 
+table | public.webhook_endpoint_products | service_role | INSERT | postgres | 
+table | public.webhook_endpoint_products | service_role | REFERENCES | postgres | 
+table | public.webhook_endpoint_products | service_role | SELECT | postgres | 
+table | public.webhook_endpoint_products | service_role | TRIGGER | postgres | 
+table | public.webhook_endpoint_products | service_role | TRUNCATE | postgres | 
+table | public.webhook_endpoint_products | service_role | UPDATE | postgres | 
+table | public.webhook_endpoints | authenticated | DELETE | postgres | 
+table | public.webhook_endpoints | authenticated | INSERT | postgres | 
+table | public.webhook_endpoints | authenticated | SELECT | postgres | 
+table | public.webhook_endpoints | authenticated | UPDATE | postgres | 
+table | public.webhook_endpoints | postgres | DELETE | postgres | 
+table | public.webhook_endpoints | postgres | INSERT | postgres | 
+table | public.webhook_endpoints | postgres | REFERENCES | postgres | 
+table | public.webhook_endpoints | postgres | SELECT | postgres | 
+table | public.webhook_endpoints | postgres | TRIGGER | postgres | 
+table | public.webhook_endpoints | postgres | TRUNCATE | postgres | 
+table | public.webhook_endpoints | postgres | UPDATE | postgres | 
+table | public.webhook_endpoints | service_role | DELETE | postgres | 
+table | public.webhook_endpoints | service_role | INSERT | postgres | 
+table | public.webhook_endpoints | service_role | REFERENCES | postgres | 
+table | public.webhook_endpoints | service_role | SELECT | postgres | 
+table | public.webhook_endpoints | service_role | TRIGGER | postgres | 
+table | public.webhook_endpoints | service_role | TRUNCATE | postgres | 
+table | public.webhook_endpoints | service_role | UPDATE | postgres | 
+table | public.webhook_logs | authenticated | SELECT | postgres | 
+table | public.webhook_logs | authenticated | UPDATE | postgres | 
+table | public.webhook_logs | postgres | DELETE | postgres | 
+table | public.webhook_logs | postgres | INSERT | postgres | 
+table | public.webhook_logs | postgres | REFERENCES | postgres | 
+table | public.webhook_logs | postgres | SELECT | postgres | 
+table | public.webhook_logs | postgres | TRIGGER | postgres | 
+table | public.webhook_logs | postgres | TRUNCATE | postgres | 
+table | public.webhook_logs | postgres | UPDATE | postgres | 
+table | public.webhook_logs | service_role | DELETE | postgres | 
+table | public.webhook_logs | service_role | INSERT | postgres | 
+table | public.webhook_logs | service_role | REFERENCES | postgres | 
+table | public.webhook_logs | service_role | SELECT | postgres | 
+table | public.webhook_logs | service_role | TRIGGER | postgres | 
+table | public.webhook_logs | service_role | TRUNCATE | postgres | 
+table | public.webhook_logs | service_role | UPDATE | postgres | 
+table | realtime.subscription | anon | SELECT | supabase_admin | 
+table | realtime.subscription | authenticated | SELECT | supabase_admin | 
+table | realtime.subscription | dashboard_user | DELETE | supabase_admin | 
+table | realtime.subscription | dashboard_user | INSERT | supabase_admin | 
+table | realtime.subscription | dashboard_user | REFERENCES | supabase_admin | 
+table | realtime.subscription | dashboard_user | SELECT | supabase_admin | 
+table | realtime.subscription | dashboard_user | TRIGGER | supabase_admin | 
+table | realtime.subscription | dashboard_user | TRUNCATE | supabase_admin | 
+table | realtime.subscription | dashboard_user | UPDATE | supabase_admin | 
+table | realtime.subscription | postgres | DELETE | supabase_admin | 
+table | realtime.subscription | postgres | INSERT | supabase_admin | 
+table | realtime.subscription | postgres | REFERENCES | supabase_admin | 
+table | realtime.subscription | postgres | SELECT | supabase_admin | 
+table | realtime.subscription | postgres | TRIGGER | supabase_admin | 
+table | realtime.subscription | postgres | TRUNCATE | supabase_admin | 
+table | realtime.subscription | postgres | UPDATE | supabase_admin | 
+table | realtime.subscription | service_role | SELECT | supabase_admin | 
+table | realtime.subscription | supabase_admin | DELETE | supabase_admin | 
+table | realtime.subscription | supabase_admin | INSERT | supabase_admin | 
+table | realtime.subscription | supabase_admin | REFERENCES | supabase_admin | 
+table | realtime.subscription | supabase_admin | SELECT | supabase_admin | 
+table | realtime.subscription | supabase_admin | TRIGGER | supabase_admin | 
+table | realtime.subscription | supabase_admin | TRUNCATE | supabase_admin | 
+table | realtime.subscription | supabase_admin | UPDATE | supabase_admin | 
+table | realtime.subscription | supabase_realtime_admin | DELETE | supabase_admin | 
+table | realtime.subscription | supabase_realtime_admin | INSERT | supabase_admin | 
+table | realtime.subscription | supabase_realtime_admin | REFERENCES | supabase_admin | 
+table | realtime.subscription | supabase_realtime_admin | SELECT | supabase_admin | 
+table | realtime.subscription | supabase_realtime_admin | TRIGGER | supabase_admin | 
+table | realtime.subscription | supabase_realtime_admin | TRUNCATE | supabase_admin | 
+table | realtime.subscription | supabase_realtime_admin | UPDATE | supabase_admin | 
+table | storage.buckets | anon | DELETE | supabase_storage_admin | 
+table | storage.buckets | anon | INSERT | supabase_storage_admin | 
+table | storage.buckets | anon | REFERENCES | supabase_storage_admin | 
+table | storage.buckets | anon | SELECT | supabase_storage_admin | 
+table | storage.buckets | anon | TRIGGER | supabase_storage_admin | 
+table | storage.buckets | anon | TRUNCATE | supabase_storage_admin | 
+table | storage.buckets | anon | UPDATE | supabase_storage_admin | 
+table | storage.buckets | authenticated | DELETE | supabase_storage_admin | 
+table | storage.buckets | authenticated | INSERT | supabase_storage_admin | 
+table | storage.buckets | authenticated | REFERENCES | supabase_storage_admin | 
+table | storage.buckets | authenticated | SELECT | supabase_storage_admin | 
+table | storage.buckets | authenticated | TRIGGER | supabase_storage_admin | 
+table | storage.buckets | authenticated | TRUNCATE | supabase_storage_admin | 
+table | storage.buckets | authenticated | UPDATE | supabase_storage_admin | 
+table | storage.buckets | postgres | DELETE | supabase_storage_admin | WITH GRANT OPTION
+table | storage.buckets | postgres | INSERT | supabase_storage_admin | WITH GRANT OPTION
+table | storage.buckets | postgres | REFERENCES | supabase_storage_admin | WITH GRANT OPTION
+table | storage.buckets | postgres | SELECT | supabase_storage_admin | WITH GRANT OPTION
+table | storage.buckets | postgres | TRIGGER | supabase_storage_admin | WITH GRANT OPTION
+table | storage.buckets | postgres | TRUNCATE | supabase_storage_admin | WITH GRANT OPTION
+table | storage.buckets | postgres | UPDATE | supabase_storage_admin | WITH GRANT OPTION
+table | storage.buckets | service_role | DELETE | supabase_storage_admin | 
+table | storage.buckets | service_role | INSERT | supabase_storage_admin | 
+table | storage.buckets | service_role | REFERENCES | supabase_storage_admin | 
+table | storage.buckets | service_role | SELECT | supabase_storage_admin | 
+table | storage.buckets | service_role | TRIGGER | supabase_storage_admin | 
+table | storage.buckets | service_role | TRUNCATE | supabase_storage_admin | 
+table | storage.buckets | service_role | UPDATE | supabase_storage_admin | 
+table | storage.buckets | supabase_storage_admin | DELETE | supabase_storage_admin | 
+table | storage.buckets | supabase_storage_admin | INSERT | supabase_storage_admin | 
+table | storage.buckets | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
+table | storage.buckets | supabase_storage_admin | SELECT | supabase_storage_admin | 
+table | storage.buckets | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
+table | storage.buckets | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
+table | storage.buckets | supabase_storage_admin | UPDATE | supabase_storage_admin | 
+table | storage.buckets_analytics | anon | DELETE | supabase_storage_admin | 
+table | storage.buckets_analytics | anon | INSERT | supabase_storage_admin | 
+table | storage.buckets_analytics | anon | REFERENCES | supabase_storage_admin | 
+table | storage.buckets_analytics | anon | SELECT | supabase_storage_admin | 
+table | storage.buckets_analytics | anon | TRIGGER | supabase_storage_admin | 
+table | storage.buckets_analytics | anon | TRUNCATE | supabase_storage_admin | 
+table | storage.buckets_analytics | anon | UPDATE | supabase_storage_admin | 
+table | storage.buckets_analytics | authenticated | DELETE | supabase_storage_admin | 
+table | storage.buckets_analytics | authenticated | INSERT | supabase_storage_admin | 
+table | storage.buckets_analytics | authenticated | REFERENCES | supabase_storage_admin | 
+table | storage.buckets_analytics | authenticated | SELECT | supabase_storage_admin | 
+table | storage.buckets_analytics | authenticated | TRIGGER | supabase_storage_admin | 
+table | storage.buckets_analytics | authenticated | TRUNCATE | supabase_storage_admin | 
+table | storage.buckets_analytics | authenticated | UPDATE | supabase_storage_admin | 
+table | storage.buckets_analytics | service_role | DELETE | supabase_storage_admin | 
+table | storage.buckets_analytics | service_role | INSERT | supabase_storage_admin | 
+table | storage.buckets_analytics | service_role | REFERENCES | supabase_storage_admin | 
+table | storage.buckets_analytics | service_role | SELECT | supabase_storage_admin | 
+table | storage.buckets_analytics | service_role | TRIGGER | supabase_storage_admin | 
+table | storage.buckets_analytics | service_role | TRUNCATE | supabase_storage_admin | 
+table | storage.buckets_analytics | service_role | UPDATE | supabase_storage_admin | 
+table | storage.buckets_analytics | supabase_storage_admin | DELETE | supabase_storage_admin | 
+table | storage.buckets_analytics | supabase_storage_admin | INSERT | supabase_storage_admin | 
+table | storage.buckets_analytics | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
+table | storage.buckets_analytics | supabase_storage_admin | SELECT | supabase_storage_admin | 
+table | storage.buckets_analytics | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
+table | storage.buckets_analytics | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
+table | storage.buckets_analytics | supabase_storage_admin | UPDATE | supabase_storage_admin | 
+table | storage.buckets_vectors | anon | SELECT | supabase_storage_admin | 
+table | storage.buckets_vectors | authenticated | SELECT | supabase_storage_admin | 
+table | storage.buckets_vectors | service_role | SELECT | supabase_storage_admin | 
+table | storage.buckets_vectors | supabase_storage_admin | DELETE | supabase_storage_admin | 
+table | storage.buckets_vectors | supabase_storage_admin | INSERT | supabase_storage_admin | 
+table | storage.buckets_vectors | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
+table | storage.buckets_vectors | supabase_storage_admin | SELECT | supabase_storage_admin | 
+table | storage.buckets_vectors | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
+table | storage.buckets_vectors | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
+table | storage.buckets_vectors | supabase_storage_admin | UPDATE | supabase_storage_admin | 
+table | storage.iceberg_namespaces | anon | SELECT | supabase_storage_admin | 
+table | storage.iceberg_namespaces | authenticated | SELECT | supabase_storage_admin | 
+table | storage.iceberg_namespaces | service_role | DELETE | supabase_storage_admin | 
+table | storage.iceberg_namespaces | service_role | INSERT | supabase_storage_admin | 
+table | storage.iceberg_namespaces | service_role | REFERENCES | supabase_storage_admin | 
+table | storage.iceberg_namespaces | service_role | SELECT | supabase_storage_admin | 
+table | storage.iceberg_namespaces | service_role | TRIGGER | supabase_storage_admin | 
+table | storage.iceberg_namespaces | service_role | TRUNCATE | supabase_storage_admin | 
+table | storage.iceberg_namespaces | service_role | UPDATE | supabase_storage_admin | 
+table | storage.iceberg_namespaces | supabase_storage_admin | DELETE | supabase_storage_admin | 
+table | storage.iceberg_namespaces | supabase_storage_admin | INSERT | supabase_storage_admin | 
+table | storage.iceberg_namespaces | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
+table | storage.iceberg_namespaces | supabase_storage_admin | SELECT | supabase_storage_admin | 
+table | storage.iceberg_namespaces | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
+table | storage.iceberg_namespaces | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
+table | storage.iceberg_namespaces | supabase_storage_admin | UPDATE | supabase_storage_admin | 
+table | storage.iceberg_tables | anon | SELECT | supabase_storage_admin | 
+table | storage.iceberg_tables | authenticated | SELECT | supabase_storage_admin | 
+table | storage.iceberg_tables | service_role | DELETE | supabase_storage_admin | 
+table | storage.iceberg_tables | service_role | INSERT | supabase_storage_admin | 
+table | storage.iceberg_tables | service_role | REFERENCES | supabase_storage_admin | 
+table | storage.iceberg_tables | service_role | SELECT | supabase_storage_admin | 
+table | storage.iceberg_tables | service_role | TRIGGER | supabase_storage_admin | 
+table | storage.iceberg_tables | service_role | TRUNCATE | supabase_storage_admin | 
+table | storage.iceberg_tables | service_role | UPDATE | supabase_storage_admin | 
+table | storage.iceberg_tables | supabase_storage_admin | DELETE | supabase_storage_admin | 
+table | storage.iceberg_tables | supabase_storage_admin | INSERT | supabase_storage_admin | 
+table | storage.iceberg_tables | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
+table | storage.iceberg_tables | supabase_storage_admin | SELECT | supabase_storage_admin | 
+table | storage.iceberg_tables | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
+table | storage.iceberg_tables | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
+table | storage.iceberg_tables | supabase_storage_admin | UPDATE | supabase_storage_admin | 
+table | storage.migrations | supabase_storage_admin | DELETE | supabase_storage_admin | 
+table | storage.migrations | supabase_storage_admin | INSERT | supabase_storage_admin | 
+table | storage.migrations | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
+table | storage.migrations | supabase_storage_admin | SELECT | supabase_storage_admin | 
+table | storage.migrations | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
+table | storage.migrations | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
+table | storage.migrations | supabase_storage_admin | UPDATE | supabase_storage_admin | 
+table | storage.objects | anon | DELETE | supabase_storage_admin | 
+table | storage.objects | anon | INSERT | supabase_storage_admin | 
+table | storage.objects | anon | REFERENCES | supabase_storage_admin | 
+table | storage.objects | anon | SELECT | supabase_storage_admin | 
+table | storage.objects | anon | TRIGGER | supabase_storage_admin | 
+table | storage.objects | anon | TRUNCATE | supabase_storage_admin | 
+table | storage.objects | anon | UPDATE | supabase_storage_admin | 
+table | storage.objects | authenticated | DELETE | supabase_storage_admin | 
+table | storage.objects | authenticated | INSERT | supabase_storage_admin | 
+table | storage.objects | authenticated | REFERENCES | supabase_storage_admin | 
+table | storage.objects | authenticated | SELECT | supabase_storage_admin | 
+table | storage.objects | authenticated | TRIGGER | supabase_storage_admin | 
+table | storage.objects | authenticated | TRUNCATE | supabase_storage_admin | 
+table | storage.objects | authenticated | UPDATE | supabase_storage_admin | 
+table | storage.objects | postgres | DELETE | supabase_storage_admin | WITH GRANT OPTION
+table | storage.objects | postgres | INSERT | supabase_storage_admin | WITH GRANT OPTION
+table | storage.objects | postgres | REFERENCES | supabase_storage_admin | WITH GRANT OPTION
+table | storage.objects | postgres | SELECT | supabase_storage_admin | WITH GRANT OPTION
+table | storage.objects | postgres | TRIGGER | supabase_storage_admin | WITH GRANT OPTION
+table | storage.objects | postgres | TRUNCATE | supabase_storage_admin | WITH GRANT OPTION
+table | storage.objects | postgres | UPDATE | supabase_storage_admin | WITH GRANT OPTION
+table | storage.objects | service_role | DELETE | supabase_storage_admin | 
+table | storage.objects | service_role | INSERT | supabase_storage_admin | 
+table | storage.objects | service_role | REFERENCES | supabase_storage_admin | 
+table | storage.objects | service_role | SELECT | supabase_storage_admin | 
+table | storage.objects | service_role | TRIGGER | supabase_storage_admin | 
+table | storage.objects | service_role | TRUNCATE | supabase_storage_admin | 
+table | storage.objects | service_role | UPDATE | supabase_storage_admin | 
+table | storage.objects | supabase_storage_admin | DELETE | supabase_storage_admin | 
+table | storage.objects | supabase_storage_admin | INSERT | supabase_storage_admin | 
+table | storage.objects | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
+table | storage.objects | supabase_storage_admin | SELECT | supabase_storage_admin | 
+table | storage.objects | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
+table | storage.objects | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
+table | storage.objects | supabase_storage_admin | UPDATE | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | anon | SELECT | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | authenticated | SELECT | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | service_role | DELETE | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | service_role | INSERT | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | service_role | REFERENCES | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | service_role | SELECT | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | service_role | TRIGGER | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | service_role | TRUNCATE | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | service_role | UPDATE | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | supabase_storage_admin | DELETE | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | supabase_storage_admin | INSERT | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | supabase_storage_admin | SELECT | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
+table | storage.s3_multipart_uploads | supabase_storage_admin | UPDATE | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | anon | SELECT | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | authenticated | SELECT | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | service_role | DELETE | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | service_role | INSERT | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | service_role | REFERENCES | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | service_role | SELECT | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | service_role | TRIGGER | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | service_role | TRUNCATE | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | service_role | UPDATE | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | supabase_storage_admin | DELETE | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | supabase_storage_admin | INSERT | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | supabase_storage_admin | SELECT | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
+table | storage.s3_multipart_uploads_parts | supabase_storage_admin | UPDATE | supabase_storage_admin | 
+table | storage.vector_indexes | anon | SELECT | supabase_storage_admin | 
+table | storage.vector_indexes | authenticated | SELECT | supabase_storage_admin | 
+table | storage.vector_indexes | service_role | SELECT | supabase_storage_admin | 
+table | storage.vector_indexes | supabase_storage_admin | DELETE | supabase_storage_admin | 
+table | storage.vector_indexes | supabase_storage_admin | INSERT | supabase_storage_admin | 
+table | storage.vector_indexes | supabase_storage_admin | REFERENCES | supabase_storage_admin | 
+table | storage.vector_indexes | supabase_storage_admin | SELECT | supabase_storage_admin | 
+table | storage.vector_indexes | supabase_storage_admin | TRIGGER | supabase_storage_admin | 
+table | storage.vector_indexes | supabase_storage_admin | TRUNCATE | supabase_storage_admin | 
+table | storage.vector_indexes | supabase_storage_admin | UPDATE | supabase_storage_admin | 
+type | public.line_item_type | postgres | USAGE | postgres | 
+type | public.line_item_type | PUBLIC | USAGE | postgres | 
+view | public.omnibus_price_history | anon | SELECT | postgres | 
+view | public.omnibus_price_history | authenticated | SELECT | postgres | 
+view | public.omnibus_price_history | postgres | DELETE | postgres | 
+view | public.omnibus_price_history | postgres | INSERT | postgres | 
+view | public.omnibus_price_history | postgres | REFERENCES | postgres | 
+view | public.omnibus_price_history | postgres | SELECT | postgres | 
+view | public.omnibus_price_history | postgres | TRIGGER | postgres | 
+view | public.omnibus_price_history | postgres | TRUNCATE | postgres | 
+view | public.omnibus_price_history | postgres | UPDATE | postgres | 
+view | public.omnibus_price_history | service_role | DELETE | postgres | 
+view | public.omnibus_price_history | service_role | INSERT | postgres | 
+view | public.omnibus_price_history | service_role | REFERENCES | postgres | 
+view | public.omnibus_price_history | service_role | SELECT | postgres | 
+view | public.omnibus_price_history | service_role | TRIGGER | postgres | 
+view | public.omnibus_price_history | service_role | TRUNCATE | postgres | 
+view | public.omnibus_price_history | service_role | UPDATE | postgres | 
+view | public.payment_system_health | postgres | DELETE | postgres | 
+view | public.payment_system_health | postgres | INSERT | postgres | 
+view | public.payment_system_health | postgres | REFERENCES | postgres | 
+view | public.payment_system_health | postgres | SELECT | postgres | 
+view | public.payment_system_health | postgres | TRIGGER | postgres | 
+view | public.payment_system_health | postgres | TRUNCATE | postgres | 
+view | public.payment_system_health | postgres | UPDATE | postgres | 
+view | public.payment_system_health | service_role | DELETE | postgres | 
+view | public.payment_system_health | service_role | INSERT | postgres | 
+view | public.payment_system_health | service_role | REFERENCES | postgres | 
+view | public.payment_system_health | service_role | SELECT | postgres | 
+view | public.payment_system_health | service_role | TRIGGER | postgres | 
+view | public.payment_system_health | service_role | TRUNCATE | postgres | 
+view | public.payment_system_health | service_role | UPDATE | postgres | 
+view | public.rate_limit_summary | postgres | DELETE | postgres | 
+view | public.rate_limit_summary | postgres | INSERT | postgres | 
+view | public.rate_limit_summary | postgres | REFERENCES | postgres | 
+view | public.rate_limit_summary | postgres | SELECT | postgres | 
+view | public.rate_limit_summary | postgres | TRIGGER | postgres | 
+view | public.rate_limit_summary | postgres | TRUNCATE | postgres | 
+view | public.rate_limit_summary | postgres | UPDATE | postgres | 
+view | public.rate_limit_summary | service_role | DELETE | postgres | 
+view | public.rate_limit_summary | service_role | INSERT | postgres | 
+view | public.rate_limit_summary | service_role | REFERENCES | postgres | 
+view | public.rate_limit_summary | service_role | SELECT | postgres | 
+view | public.rate_limit_summary | service_role | TRIGGER | postgres | 
+view | public.rate_limit_summary | service_role | TRUNCATE | postgres | 
+view | public.rate_limit_summary | service_role | UPDATE | postgres | 
+view | public.seller_customer_stats | postgres | DELETE | postgres | 
+view | public.seller_customer_stats | postgres | INSERT | postgres | 
+view | public.seller_customer_stats | postgres | REFERENCES | postgres | 
+view | public.seller_customer_stats | postgres | SELECT | postgres | 
+view | public.seller_customer_stats | postgres | TRIGGER | postgres | 
+view | public.seller_customer_stats | postgres | TRUNCATE | postgres | 
+view | public.seller_customer_stats | postgres | UPDATE | postgres | 
+view | public.seller_customer_stats | service_role | DELETE | postgres | 
+view | public.seller_customer_stats | service_role | INSERT | postgres | 
+view | public.seller_customer_stats | service_role | REFERENCES | postgres | 
+view | public.seller_customer_stats | service_role | SELECT | postgres | 
+view | public.seller_customer_stats | service_role | TRIGGER | postgres | 
+view | public.seller_customer_stats | service_role | TRUNCATE | postgres | 
+view | public.seller_customer_stats | service_role | UPDATE | postgres | 
+view | public.user_access_stats | postgres | DELETE | postgres | 
+view | public.user_access_stats | postgres | INSERT | postgres | 
+view | public.user_access_stats | postgres | REFERENCES | postgres | 
+view | public.user_access_stats | postgres | SELECT | postgres | 
+view | public.user_access_stats | postgres | TRIGGER | postgres | 
+view | public.user_access_stats | postgres | TRUNCATE | postgres | 
+view | public.user_access_stats | postgres | UPDATE | postgres | 
+view | public.user_access_stats | service_role | DELETE | postgres | 
+view | public.user_access_stats | service_role | INSERT | postgres | 
+view | public.user_access_stats | service_role | REFERENCES | postgres | 
+view | public.user_access_stats | service_role | SELECT | postgres | 
+view | public.user_access_stats | service_role | TRIGGER | postgres | 
+view | public.user_access_stats | service_role | TRUNCATE | postgres | 
+view | public.user_access_stats | service_role | UPDATE | postgres | 
+view | public.user_product_access_detailed | postgres | DELETE | postgres | 
+view | public.user_product_access_detailed | postgres | INSERT | postgres | 
+view | public.user_product_access_detailed | postgres | REFERENCES | postgres | 
+view | public.user_product_access_detailed | postgres | SELECT | postgres | 
+view | public.user_product_access_detailed | postgres | TRIGGER | postgres | 
+view | public.user_product_access_detailed | postgres | TRUNCATE | postgres | 
+view | public.user_product_access_detailed | postgres | UPDATE | postgres | 
+view | public.user_product_access_detailed | service_role | DELETE | postgres | 
+view | public.user_product_access_detailed | service_role | INSERT | postgres | 
+view | public.user_product_access_detailed | service_role | REFERENCES | postgres | 
+view | public.user_product_access_detailed | service_role | SELECT | postgres | 
+view | public.user_product_access_detailed | service_role | TRIGGER | postgres | 
+view | public.user_product_access_detailed | service_role | TRUNCATE | postgres | 
+view | public.user_product_access_detailed | service_role | UPDATE | postgres | 
 -- storage buckets (id | name | public | size limit | mime types)
 legal | legal | f | 5242880 | {text/html,text/plain}
--- cron jobs (name | schedule | command)
-cleanup-application-rate-limits | 15 * * * * | SELECT public.cleanup_application_rate_limits();
-cleanup-audit-logs | 0 3 * * 0 | SELECT public.cleanup_audit_logs(365);
-cleanup-captcha-nonces | 0 * * * * | SELECT public.cleanup_captcha_nonces();
-cleanup-expired-oto-coupons | 30 * * * * | SELECT public.cleanup_expired_oto_coupons();
-cleanup-lead-intake | 17 * * * * |
+-- cron jobs (name | schedule | active | database | user | node | port | command)
+cleanup-application-rate-limits | 15 * * * * | t | postgres | postgres | localhost | 5432 | SELECT public.cleanup_application_rate_limits();
+cleanup-audit-logs | 0 3 * * 0 | t | postgres | postgres | localhost | 5432 | SELECT public.cleanup_audit_logs(365);
+cleanup-captcha-nonces | 0 * * * * | t | postgres | postgres | localhost | 5432 | SELECT public.cleanup_captcha_nonces();
+cleanup-expired-oto-coupons | 30 * * * * | t | postgres | postgres | localhost | 5432 | SELECT public.cleanup_expired_oto_coupons();
+cleanup-lead-intake | 17 * * * * | t | postgres | postgres | localhost | 5432 | 
   DELETE FROM public.lead_nonces WHERE expires_at < now();
   DELETE FROM public.lead_submissions WHERE confirmed_at IS NULL AND expires_at < now();
 
-cleanup-rate-limits | 0 * * * * | SELECT cleanup_rate_limits();
-free-grant-context-cleanup | 17 * * * * | DELETE FROM public.free_grant_contexts WHERE expires_at<now() OR claimed_at<now()-interval '1 day'
-mark-expired-pending-payments | */15 * * * * | SELECT public.mark_expired_pending_payments();
-purchase-attribution-retention | 23 * * * * | SELECT public.purge_attribution_click_ids()
+cleanup-rate-limits | 0 * * * * | t | postgres | postgres | localhost | 5432 | SELECT cleanup_rate_limits();
+free-grant-context-cleanup | 17 * * * * | t | postgres | postgres | localhost | 5432 | DELETE FROM public.free_grant_contexts WHERE expires_at<now() OR claimed_at<now()-interval '1 day'
+mark-expired-pending-payments | */15 * * * * | t | postgres | postgres | localhost | 5432 | SELECT public.mark_expired_pending_payments();
+purchase-attribution-retention | 23 * * * * | t | postgres | postgres | localhost | 5432 | SELECT public.purge_attribution_click_ids()
 -- rows inserted by migrations, per public table (table | rows); content may hold random ids, counts do not
 admin_actions | 0
 admin_users | 0

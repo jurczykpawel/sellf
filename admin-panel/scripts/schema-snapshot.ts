@@ -36,37 +36,102 @@ const EXCLUDED_SERVICES = [
   'postgres-meta', 'studio', 'edge-runtime', 'logflare', 'vector', 'supavisor',
 ].join(',');
 
-/** Schemas owned by Sellf migrations. */
+/** Schemas owned by Sellf migrations: pg_dump writes their schema (privileges come from the extras). */
 const DUMP_SCHEMAS = ['public', 'postgrest'];
 
+/** Platform schemas whose tables Sellf relies on (auth.users triggers, storage policies, cron jobs). */
+const PLATFORM_SCHEMAS = ['auth', 'storage', 'cron'];
+
+const sqlList = (names: string[]): string => names.map((name) => `'${name}'`).join(', ');
+
+/** Every schema outside the dump that is not a Postgres system schema. */
+const OUTSIDE_DUMP = `n.nspname NOT IN (${sqlList([...DUMP_SCHEMAS, 'pg_catalog', 'information_schema', 'pg_toast'])})
+   AND n.nspname !~ '^pg_(toast_)?temp_'`;
+
+/** Last section of the snapshot; tests on a live stack (rows change there) cut the snapshot at it. */
+export const ROW_COUNTS_HEADING = '-- rows inserted by migrations, per public table (table | rows); content may hold random ids, counts do not';
+
 /**
- * Objects Sellf migrations create outside the dumped schemas. Platform objects (Supabase's own
- * storage triggers etc.) are filtered out so only our changes show up.
+ * State the schema-only dump does not carry. Platform objects are listed too: the pinned CLI makes
+ * them identical on every run, and a change to them (a disabled auth.users trigger, a grant on a
+ * platform table, an inactive cron job) breaks Sellf as surely as a change in `public`.
+ *
+ * Privileges are canonical records (object | grantee | privilege | grantor | grant option) from
+ * aclexplode, ordered, instead of pg_dump's GRANT lines, whose order follows the order the grants
+ * were made in. A NULL ACL is expanded to the built-in default, so "never granted" and "granted
+ * the default explicitly" are the same state.
  */
 const EXTRAS_SQL = String.raw`
 \pset format unaligned
 \pset tuples_only on
 \pset fieldsep ' | '
+CREATE TEMP VIEW snapshot_platform_tables AS
+  SELECT c.oid, format('%I.%I', n.nspname, c.relname) AS name, c.relkind, c.relrowsecurity, c.relforcerowsecurity
+    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+   WHERE c.relkind IN ('r', 'p', 'v', 'm', 'f', 'S') AND ${OUTSIDE_DUMP}
+     AND (n.nspname IN (${sqlList(PLATFORM_SCHEMAS)})
+          OR EXISTS (SELECT 1 FROM pg_trigger t WHERE t.tgrelid = c.oid AND NOT t.tgisinternal)
+          OR EXISTS (SELECT 1 FROM pg_policy p WHERE p.polrelid = c.oid));
+CREATE TEMP VIEW snapshot_acl_relations AS
+  SELECT c.oid, format('%I.%I', n.nspname, c.relname) AS name, c.relkind, c.relowner, c.relacl
+    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+   WHERE c.relkind IN ('r', 'p', 'v', 'm', 'f', 'S')
+     AND (n.nspname IN (${sqlList(DUMP_SCHEMAS)}) OR c.oid IN (SELECT oid FROM snapshot_platform_tables));
 \echo '-- extensions (name | schema)'
 SELECT e.extname, n.nspname FROM pg_extension e JOIN pg_namespace n ON n.oid = e.extnamespace ORDER BY 1;
-\echo '-- triggers on auth/storage tables calling public functions'
-SELECT c.relnamespace::regnamespace || '.' || c.relname, pg_get_triggerdef(t.oid)
+\echo '-- triggers outside the dumped schemas (table | trigger | enabled: O on, D off, R replica, A always | definition)'
+SELECT format('%I.%I', n.nspname, c.relname), t.tgname, t.tgenabled, pg_get_triggerdef(t.oid)
   FROM pg_trigger t
   JOIN pg_class c ON c.oid = t.tgrelid
-  JOIN pg_proc p ON p.oid = t.tgfoid
- WHERE NOT t.tgisinternal
-   AND c.relnamespace::regnamespace::text IN ('auth', 'storage')
-   AND p.pronamespace::regnamespace::text = 'public'
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+ WHERE NOT t.tgisinternal AND ${OUTSIDE_DUMP}
  ORDER BY 1, 2;
-\echo '-- policies on auth/storage tables'
+\echo '-- row level security of platform tables (table | enabled | forced)'
+SELECT name, relrowsecurity, relforcerowsecurity FROM snapshot_platform_tables WHERE relkind IN ('r', 'p') ORDER BY 1;
+\echo '-- policies outside the dumped schemas (table | policy | permissive | roles | command | using | with check)'
 SELECT schemaname || '.' || tablename, policyname, permissive, roles::text, cmd, coalesce(qual, ''), coalesce(with_check, '')
-  FROM pg_policies WHERE schemaname IN ('auth', 'storage') ORDER BY 1, 2;
+  FROM pg_policies WHERE schemaname NOT IN (${sqlList(DUMP_SCHEMAS)}) ORDER BY 1, 2;
+\echo '-- privileges (object kind | object | grantee | privilege | grantor | grant option)'
+WITH objects(kind, name, acl, dflt) AS (
+  SELECT 'schema', quote_ident(n.nspname), n.nspacl, acldefault('n', n.nspowner)
+    FROM pg_namespace n WHERE n.nspname IN (${sqlList([...DUMP_SCHEMAS, ...PLATFORM_SCHEMAS])})
+  UNION ALL
+  SELECT CASE r.relkind WHEN 'S' THEN 'sequence' WHEN 'v' THEN 'view' WHEN 'm' THEN 'materialized view'
+                        WHEN 'f' THEN 'foreign table' ELSE 'table' END,
+         r.name, r.relacl, acldefault(CASE r.relkind WHEN 'S' THEN 's' ELSE 'r' END::"char", r.relowner)
+    FROM snapshot_acl_relations r
+  UNION ALL
+  SELECT 'column', r.name || '.' || quote_ident(a.attname), a.attacl, NULL
+    FROM pg_attribute a JOIN snapshot_acl_relations r ON r.oid = a.attrelid
+   WHERE a.attnum > 0 AND NOT a.attisdropped AND a.attacl IS NOT NULL
+  UNION ALL
+  SELECT CASE p.prokind WHEN 'p' THEN 'procedure' ELSE 'function' END,
+         format('%I.%I(%s)', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)), p.proacl, acldefault('f', p.proowner)
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname IN (${sqlList(DUMP_SCHEMAS)})
+  UNION ALL
+  SELECT 'type', format('%I.%I', n.nspname, t.typname), t.typacl, acldefault('T', t.typowner)
+    FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+   WHERE n.nspname IN (${sqlList(DUMP_SCHEMAS)}) AND t.typrelid = 0
+     AND NOT EXISTS (SELECT 1 FROM pg_type e WHERE e.typarray = t.oid)
+  UNION ALL
+  SELECT 'default privileges', format('for %s in %s on %s', d.defaclrole::regrole,
+         CASE WHEN d.defaclnamespace = 0 THEN 'all schemas' ELSE d.defaclnamespace::regnamespace::text END,
+         CASE d.defaclobjtype WHEN 'r' THEN 'tables' WHEN 'S' THEN 'sequences' WHEN 'f' THEN 'functions'
+                              WHEN 'T' THEN 'types' WHEN 'n' THEN 'schemas' ELSE d.defaclobjtype::text END),
+         d.defaclacl, NULL
+    FROM pg_default_acl d
+)
+SELECT o.kind, o.name, CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE a.grantee::regrole::text END,
+       a.privilege_type, a.grantor::regrole, CASE WHEN a.is_grantable THEN 'WITH GRANT OPTION' ELSE '' END
+  FROM objects o, aclexplode(coalesce(o.acl, o.dflt)) a
+ ORDER BY 1, 2, 3, 4, 5, 6;
 \echo '-- storage buckets (id | name | public | size limit | mime types)'
 SELECT id, name, public, coalesce(file_size_limit::text, ''), coalesce(allowed_mime_types::text, '')
   FROM storage.buckets ORDER BY id;
-\echo '-- cron jobs (name | schedule | command)'
-SELECT jobname, schedule, command FROM cron.job ORDER BY jobname;
-\echo '-- rows inserted by migrations, per public table (table | rows); content may hold random ids, counts do not'
+\echo '-- cron jobs (name | schedule | active | database | user | node | port | command)'
+SELECT jobname, schedule, active, database, username, nodename, nodeport, command FROM cron.job ORDER BY jobname;
+\echo '${ROW_COUNTS_HEADING}'
 SELECT table_name,
        (xpath('/row/c/text()', query_to_xml(format('SELECT count(*) AS c FROM public.%I', table_name), false, true, '')))[1]::text
   FROM information_schema.tables
@@ -76,14 +141,34 @@ SELECT table_name,
 
 // ===== PURE HELPERS (unit-tested) =====
 
+const RESTRICT_RE = /^\\restrict (\S+)$/;
+const VERSION_BANNER_RE = /^-- Dumped (from database|by pg_dump) version /;
+
+/**
+ * Drops what changes between pg_dump runs without being SQL content: the version banner and the
+ * random `\restrict` key in the comment header before the first statement, and the matching
+ * `\unrestrict` line. Everything else, function bodies and their whitespace included, stays byte
+ * for byte.
+ */
 export function normalizeDump(dump: string): string {
-  const lines = dump
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .filter((line) => !/^-- Dumped (from database|by pg_dump) version /.test(line))
-    .filter((line) => !/^\\(un)?restrict\s/.test(line))
-    .map((line) => line.replace(/\s+$/, ''));
-  return `${lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()}\n`;
+  const out: string[] = [];
+  let key: string | null = null;
+  let inHeader = true;
+  for (const line of dump.split('\n')) {
+    if (inHeader && !(line === '' || line.startsWith('--') || RESTRICT_RE.test(line))) inHeader = false;
+    if (inHeader) {
+      const restrict = RESTRICT_RE.exec(line);
+      if (restrict) {
+        key = restrict[1];
+        continue;
+      }
+      if (VERSION_BANNER_RE.test(line)) continue;
+    } else if (key !== null && line === `\\unrestrict ${key}`) {
+      continue;
+    }
+    out.push(line);
+  }
+  return out.join('\n');
 }
 
 export interface SnapshotParts {
@@ -101,7 +186,8 @@ export function buildSnapshot({ cliVersion, serverVersion, dump, extras }: Snaps
     `-- supabase-cli: ${cliVersion}`,
     `-- postgres: ${serverVersion}`,
   ].join('\n');
-  return normalizeDump(`${header}\n\n${dump}\n\n-- ===== Objects outside the dumped schemas =====\n\n${extras}`);
+  const snapshot = `${header}\n\n${normalizeDump(dump)}\n-- ===== Objects outside the dumped schemas =====\n\n${extras}`;
+  return snapshot.endsWith('\n') ? snapshot : `${snapshot}\n`;
 }
 
 export function snapshotDiff(committed: string, actual: string): string | null {
@@ -145,6 +231,15 @@ function cliVersion(): string {
   return run(supabaseBin(), ['--version']).trim().split('\n')[0].trim();
 }
 
+/** Schema parts of a running local database container (the throwaway stack, or the test stack in tests). */
+export function captureSchema(container: string): Omit<SnapshotParts, 'cliVersion'> {
+  // --no-privileges: privileges are the canonical records in the extras, not GRANT lines in grant order.
+  const dump = run('docker', ['exec', container, 'pg_dump', '-U', 'postgres', '--schema-only', '--no-privileges', ...DUMP_SCHEMAS.flatMap((s) => ['--schema', s])]);
+  const extras = run('docker', ['exec', '-i', container, 'psql', '-X', '-q', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1'], { input: EXTRAS_SQL });
+  const serverVersion = run('docker', ['exec', container, 'psql', '-X', '-tA', '-U', 'postgres', '-c', 'SHOW server_version']).trim();
+  return { dump, extras, serverVersion };
+}
+
 export function buildSchemaFromMigrations(repoRoot: string): string {
   const version = cliVersion();
   if (version !== PINNED_SUPABASE_CLI) {
@@ -176,10 +271,7 @@ export function buildSchemaFromMigrations(repoRoot: string): string {
 
     try {
       run(supabaseBin(), ['start', '--workdir', work, '-x', EXCLUDED_SERVICES]);
-      const dump = run('docker', ['exec', container, 'pg_dump', '-U', 'postgres', '--schema-only', ...DUMP_SCHEMAS.flatMap((s) => ['--schema', s])]);
-      const extras = run('docker', ['exec', '-i', container, 'psql', '-X', '-q', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1'], { input: EXTRAS_SQL });
-      const serverVersion = run('docker', ['exec', container, 'psql', '-X', '-tA', '-U', 'postgres', '-c', 'SHOW server_version']).trim();
-      return buildSnapshot({ cliVersion: version, serverVersion, dump, extras });
+      return buildSnapshot({ cliVersion: version, ...captureSchema(container) });
     } finally {
       spawnSync(supabaseBin(), ['stop', '--no-backup', '--workdir', work], { encoding: 'utf8' });
     }

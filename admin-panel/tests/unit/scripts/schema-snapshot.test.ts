@@ -8,39 +8,45 @@ import {
 } from '@/../scripts/schema-snapshot';
 
 describe('normalizeDump', () => {
-  it('drops the client/server version banner and pg_dump restrict keys, keeps the schema', () => {
-    const dump = [
-      '--',
-      '-- PostgreSQL database dump',
-      '--',
-      '',
-      '\\restrict AbCdEf123',
-      '',
-      '-- Dumped from database version 15.8',
-      '-- Dumped by pg_dump version 15.8',
-      '',
-      'CREATE TABLE public.products (id uuid);   ',
-      '',
-      '',
-      '',
-      'GRANT ALL ON TABLE public.products TO service_role;',
-      '\\unrestrict AbCdEf123',
-      '',
-    ].join('\n');
+  const header = [
+    '--',
+    '-- PostgreSQL database dump',
+    '--',
+    '',
+    '\\restrict AbCdEf123',
+    '',
+    '-- Dumped from database version 15.8',
+    '-- Dumped by pg_dump version 15.8',
+    '',
+  ];
+
+  it('drops the version banner and the restrict keys, keeps every other byte', () => {
+    const body = ['CREATE TABLE public.products (id uuid);   ', '', '', '', 'ALTER TABLE public.products OWNER TO postgres;', ''];
+    const dump = [...header, ...body, '\\unrestrict AbCdEf123', ''].join('\n');
 
     const out = normalizeDump(dump);
 
     expect(out).not.toContain('Dumped from');
     expect(out).not.toContain('Dumped by');
     expect(out).not.toContain('restrict');
-    expect(out).toContain('CREATE TABLE public.products (id uuid);\n');
-    expect(out).toContain('GRANT ALL ON TABLE public.products TO service_role;');
-    expect(out).not.toMatch(/\n{3,}/);
-    expect(out.endsWith('\n')).toBe(true);
+    expect(out).toContain(['CREATE TABLE public.products (id uuid);   ', '', '', '', 'ALTER TABLE public.products OWNER TO postgres;'].join('\n'));
+  });
+
+  it('keeps function bodies byte for byte: a literal with two trailing spaces differs from one without (W256r probe)', () => {
+    const fn = (literal: string) => [...header, 'CREATE FUNCTION public.f() RETURNS text', '    LANGUAGE sql', `    AS $$ SELECT '${literal}' $$;`, ''].join('\n');
+    const withSpaces = normalizeDump(fn('a  \nb'));
+    expect(withSpaces).toContain("SELECT 'a  \nb'");
+    expect(withSpaces).not.toBe(normalizeDump(fn('a\nb')));
+  });
+
+  it('leaves look-alike lines inside the SQL alone (only the header and the matching key are metadata)', () => {
+    const body = ["    AS $$ SELECT '", '-- Dumped from database version 1', '\\unrestrict OtherKey', "' $$;"];
+    const out = normalizeDump([...header, 'CREATE FUNCTION public.g() RETURNS text', ...body, '\\unrestrict AbCdEf123', ''].join('\n'));
+    expect(out).toContain(body.join('\n'));
   });
 
   it('is idempotent', () => {
-    const once = normalizeDump('-- Dumped by pg_dump version 15.8\nCREATE TABLE public.a (id int);\n\n\n');
+    const once = normalizeDump([...header, 'CREATE TABLE public.a (id int);', '', '', '\\unrestrict AbCdEf123', ''].join('\n'));
     expect(normalizeDump(once)).toBe(once);
   });
 });
