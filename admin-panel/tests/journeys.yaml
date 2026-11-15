@@ -5105,6 +5105,30 @@
         "browser",
         "database"
       ]
+    },
+    {
+      "id": "J610",
+      "title": "Seller sees a paid Stripe payment for a deleted product waiting for a decision; the webhook does not loop",
+      "values": {
+        "persona": "admin",
+        "entry": "webhook",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "reconcile"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Not exercised; nothing can be granted for a deleted product (the seller refunds or grants manually).",
+        "seller": "Payments page shows the payment (Stripe payment id, buyer, amount, deleted product id) once, also after a redelivery; Stripe gets 200 instead of endless 500s.",
+        "integrator": "Not exercised; no outbound event."
+      },
+      "layers": [
+        "sandbox",
+        "database",
+        "browser",
+        "unit"
+      ]
     }
   ],
   "escapes": [

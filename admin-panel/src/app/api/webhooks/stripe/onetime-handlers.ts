@@ -11,9 +11,12 @@
 import { getStripeServer } from '@/lib/stripe/server';
 import { fulfillStripeOrder } from '@/lib/services/fulfill-paid-order';
 import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
+import { reconcilePaymentForMissingProduct } from '@/lib/stripe/payment-reconciliation';
 import type { createAdminClient } from '@/lib/supabase/admin';
 import { redactEmail } from '@/lib/logger';
 import type Stripe from 'stripe';
+
+const PRODUCT_UNAVAILABLE = 'Product not found or inactive';
 
 /**
  * Process successful payment from checkout session.
@@ -140,7 +143,11 @@ export async function handleCheckoutSessionCompleted(
       sessionId, productId, redactEmail(customerEmail), couponId ?? 'none',
       session.amount_total, result?.error ?? 'unknown'
     );
-    return { processed: false, message: (result?.error as string) || 'Payment processing failed' };
+    const reconciled = result?.error === PRODUCT_UNAVAILABLE ? await reconcilePaymentForMissingProduct(supabase, {
+      productId, sessionId, paymentIntentId: stripePaymentIntentId ?? null, amount: session.amount_total || 0,
+      currency: session.currency || 'usd', customerEmail, eventType: 'checkout.session',
+    }) : null;
+    return reconciled ?? { processed: false, message: (result?.error as string) || 'Payment processing failed' };
   }
 
   await backfillBuyerDetails(supabase, {
@@ -264,7 +271,11 @@ export async function handlePaymentIntentSucceeded(
       paymentIntent.id, productId, redactEmail(customerEmail), couponId ?? 'none',
       paymentIntent.amount, result?.error ?? 'unknown'
     );
-    return { processed: false, message: (result?.error as string) || 'Payment processing failed' };
+    const reconciled = result?.error === PRODUCT_UNAVAILABLE ? await reconcilePaymentForMissingProduct(supabase, {
+      productId, sessionId: ownerSession?.id ?? null, paymentIntentId: paymentIntent.id, amount: paymentIntent.amount,
+      currency: paymentIntent.currency, customerEmail, eventType: 'payment_intent',
+    }) : null;
+    return reconciled ?? { processed: false, message: (result?.error as string) || 'Payment processing failed' };
   }
 
   await fulfillStripeOrder({

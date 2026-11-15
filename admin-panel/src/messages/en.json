@@ -2859,6 +2859,11 @@
         }
       },
       "unpaidTutorialEmpty": "There is no unpaid bank transfer order. Enable bank transfers in Payment settings and place a test order using bank transfer. Then start this tutorial again.",
+      "reconciliation": {
+        "title": "{count, plural, one {# paid payment needs your decision} other {# paid payments need your decision}}",
+        "help": "Stripe charged the buyer for a product that was deleted from this shop, so access could not be granted. Refund the payment in Stripe or recreate the product and grant access manually.",
+        "payment": "Stripe payment", "email": "Buyer", "amount": "Amount", "product": "Deleted product", "recorded": "Recorded"
+      },
       "missingParticipants": {
         "title": "{count, plural, one {# order is missing participants} other {# orders are missing participants}}",
         "help": "The buyer chose to add participants after payment. Up to two reminder e-mails with a personal link are sent automatically (24 hours after purchase and, for events, 2 days before the event); the list appears in the order once the buyer saves it.",

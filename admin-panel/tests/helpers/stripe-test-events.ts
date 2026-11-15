@@ -1,8 +1,9 @@
 /** Provider-generated test events for receiver contract checks. */
 import { spawnSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { createHmac, randomUUID } from 'node:crypto';
 import Stripe from 'stripe';
+import type { APIRequestContext } from '@playwright/test';
 import type { Event } from 'stripe';
 
 export function testStripe(): Stripe {
@@ -20,6 +21,14 @@ export async function recordedEvent(type: string, matches: (event: Event) => boo
     await new Promise(resolve => setTimeout(resolve, 250));
   }
   throw new Error(`Stripe did not publish the expected ${type} event`);
+}
+/** Deliver a provider event to the app's Stripe webhook, signed like Stripe does with STRIPE_WEBHOOK_SECRET. */
+export async function sendStripeEvent(request: APIRequestContext, event: Event) {
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) throw new Error('STRIPE_WEBHOOK_SECRET is required');
+  const payload = JSON.stringify(event), timestamp = Math.floor(Date.now() / 1000);
+  const signature = createHmac('sha256', secret).update(`${timestamp}.${payload}`).digest('hex');
+  return request.post('/api/webhooks/stripe', { data: payload, headers: { 'Content-Type': 'application/json', 'stripe-signature': `t=${timestamp},v1=${signature}` } });
 }
 export function saveStripeRecording(name: string, event: Event): void {
   if (process.env.RECORD_STRIPE_FIXTURES !== '1') return;
@@ -39,7 +48,7 @@ export function saveStripeRecording(name: string, event: Event): void {
   mkdirSync('tests/fixtures/stripe', { recursive: true });
   writeFileSync(`tests/fixtures/stripe/${name}.json`, JSON.stringify(clean(event), null, 2) + '\n');
 }
-export async function paidCheckoutEvent(productId: string, email: string, amount = 4999): Promise<Event> {
+export async function paidCheckoutEvent(productId: string, email: string, amount = 4999, metadata: Record<string, string> = {}): Promise<Event> {
   const since = Math.floor(Date.now() / 1000) - 1;
   const result = spawnSync('stripe', ['trigger', 'checkout.session.completed',
     '--override', `price:unit_amount=${amount}`, '--remove', 'checkout_session:line_items',
@@ -49,6 +58,7 @@ export async function paidCheckoutEvent(productId: string, email: string, amount
     '--add', `product:metadata.test_run=${productId}`, '--add', `price:metadata.test_run=${productId}`,
     '--add', `checkout_session:metadata.product_id=${productId}`,
     '--add', 'checkout_session:metadata.first_name=Stripe', '--add', 'checkout_session:metadata.last_name=Tester',
+    ...Object.entries(metadata).flatMap(([key, value]) => ['--add', `checkout_session:metadata.${key}=${value}`]),
   ], { env: { ...process.env, STRIPE_API_KEY: process.env.STRIPE_SECRET_KEY }, encoding: 'utf8', timeout: 60000 });
   if (result.status !== 0) throw new Error((result.stderr || result.stdout).replace(/(?:sk|pk|rk)_(?:test|live)_[\w]+|whsec_[\w]+/g, '[redacted]'));
   const event = await recordedEvent('checkout.session.completed', item => (item.data.object as Stripe.Checkout.Session).metadata?.product_id === productId, since);

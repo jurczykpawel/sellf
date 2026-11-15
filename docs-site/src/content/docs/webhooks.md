@@ -553,24 +553,62 @@ the domain and holds no personal data.
 
 After verifying the Stripe signature, `/api/webhooks/stripe`:
 
-- answers HTTP 200 and skips an event whose marker belongs to another
-  installation (log: `foreign instance, skipped`);
 - always processes an event with its own marker;
+- answers HTTP 200 and skips an event whose marker belongs to another
+  installation (log: `foreign instance, skipped`), unless this database has a
+  record bound to that Stripe object (an order or pay-link attempt with the same
+  session or payment, or the same subscription). Then the event is processed as
+  its own (log: `marker mismatch, local record found`): this keeps open checkouts
+  and subscription renewals working after the identifier changed;
 - processes an event without a marker (created before this version, or by hand
   in Stripe) as before, except a one-time payment for a product this database
-  does not know: HTTP 200 and skipped
-  (log: `unmarked event for an unknown product, skipped`).
+  does not know, or a pay-link payment for an attempt it never had: HTTP 200 and
+  skipped (logs: `unmarked event for an unknown product, skipped`,
+  `unmarked quick pay attempt unknown here, skipped`);
+- for a refund or dispute it cannot match to a local payment, reads the marker of
+  the underlying payment in Stripe: another installation's payment is
+  acknowledged with 200.
 
 Stripe disables an endpoint that keeps failing, so these skips answer 200 rather
-than an error. A temporary error while processing your own event (for example
-the database is unavailable) still answers 5xx, and Stripe retries it.
+than an error. A temporary error while processing your own event, or while
+deciding whether the event is yours (for example the database is unavailable),
+still answers 5xx, and Stripe retries it. This includes
+`checkout.session.async_payment_succeeded`, the event that completes delayed
+payment methods.
 
-The identifier lives in the database (`telemetry_state`), so it survives
-restarts and upgrades. A copy restored from a database dump keeps the same
-identifier as its source: such a copy must not share the Stripe account with the
-original. Migrating to a new database without this row changes the identifier,
-and Stripe objects created before the move are then treated as another
-installation's. Finish or expire open checkouts before such a move.
+If your own paid event names a product that was deleted from this database,
+nothing can be granted and retrying would never help. Sellf records the payment
+(amount, Stripe payment id, buyer, product id) and shows it to the administrator
+under **Payments** as a paid payment waiting for a decision (refund it in Stripe
+or recreate the product and grant access manually), then answers 200. A product
+that still exists but is inactive keeps the normal handling.
+
+### Where the identifier comes from
+
+By default the identifier is derived from the database (`telemetry_state`), so
+it survives restarts and upgrades. Setting the environment variable
+`SELLF_INSTANCE_ID` (8 to 64 characters: letters, digits, `_`, `-`) replaces that
+source. A malformed value stops payments with an error rather than being guessed.
+
+**A copy restored from a database dump has the same database identifier as its
+source.** If such a copy (a release rehearsal, a local copy of production) can
+reach the same Stripe account, give it its own identifier **before its first
+start**:
+
+1. Restore the dump.
+2. Add `SELLF_INSTANCE_ID=<unique value, e.g. rehearsal-2026-11-15>` to the copy's
+   `.env.local` (or the container environment).
+3. Only then start the copy.
+
+Without step 2 the copy and the original would accept each other's events.
+Do not set `SELLF_INSTANCE_ID` on the original just to tell it apart: changing
+the identifier of a running installation makes its existing Stripe objects carry
+the old marker. Sellf still processes them when it finds the local order or
+subscription, but objects with no local record yet (for example a checkout
+started from the embed snippet on an external page before the change) would be
+skipped. The same
+applies when moving production to a new database without the `telemetry_state`
+row: keep the row, or finish or expire open checkouts before the move.
 
 ## Order and entitlement contracts
 

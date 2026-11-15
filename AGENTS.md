@@ -1468,11 +1468,17 @@ Admin screens carry clickable tutorials (store templates, offer page, business c
 
 Several installations may share one Stripe account, so every Stripe Checkout Session, PaymentIntent,
 subscription and refund Sellf creates carries `metadata.sellf_instance` (`stripeInstanceMetadata()` /
-`getStripeInstanceId()` in `src/lib/stripe/instance-marker.ts`: SHA-256 of `telemetry_state.instance_id`,
-32 hex). After the signature check, `/api/webhooks/stripe` runs `gateEventByInstance`
-(`instance-gate.ts`): another installation's marker → 200 skipped; our marker → always processed;
-no marker + one-time payment for a product id absent here → 200 skipped; a DB error while deciding →
-5xx. Any new Stripe create call for a payment object must spread the marker
+`getStripeInstanceId()` in `src/lib/stripe/instance-marker.ts`: SHA-256 of `SELLF_INSTANCE_ID` when set,
+else of `telemetry_state.instance_id`, 32 hex). A database copy restored from a dump that can reach the
+same Stripe account MUST set its own `SELLF_INSTANCE_ID` before the first start. After the signature
+check, `/api/webhooks/stripe` runs `gateEventByInstance` (`instance-gate.ts`): our marker → always
+processed; another installation's marker → 200 skipped unless a local order/pay-link attempt/subscription
+is bound to the object (then processed, log `marker mismatch, local record found`); no marker +
+one-time payment for a product id absent here, or a pay-link attempt absent here → 200 skipped; a DB
+error while deciding → 5xx for every event type. Unmatched refunds/disputes read the underlying payment's
+marker (`pending-payment.ts`). Our paid event for a deleted product is recorded in `admin_actions`
+(`stripe_payment_needs_reconciliation`, `src/lib/stripe/payment-reconciliation.ts`), shown in the payments
+dashboard and acknowledged. Any new Stripe create call for a payment object must spread the marker
 (guard: `tests/unit/stripe/instance-marker.test.ts`).
 
 ### Stable Versions & Known Issues

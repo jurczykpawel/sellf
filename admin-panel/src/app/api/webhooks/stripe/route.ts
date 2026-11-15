@@ -327,14 +327,20 @@ export async function POST(request: NextRequest) {
   // Handle events
   let result: { processed: boolean; message: string };
 
+  // Shared Stripe account: acknowledge another installation's events without processing them.
+  // Not knowing whether the event is ours (database error) always asks Stripe to redeliver.
   try {
-    // Shared Stripe account: acknowledge another installation's events without processing them.
     const gate = await gateEventByInstance(event, supabase);
     if (gate.skip) {
       console.log(`[Stripe Webhook] ${event.type} (${event.id}): ${gate.reason}`);
       return NextResponse.json({ received: true, skipped: gate.reason });
     }
+  } catch (err) {
+    console.error(`[Stripe Webhook] Instance check failed for ${event.type}:`, err instanceof Error ? err.message : 'Unknown error');
+    return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
+  }
 
+  try {
     // Online payment of an unpaid transfer order (pay link) has its own attempt ledger. @see lib/orders/quick-pay.ts
     const quickPayObject = ['checkout.session.completed', 'checkout.session.async_payment_succeeded', 'checkout.session.expired', 'payment_intent.succeeded'].includes(event.type)
       ? event.data.object as Stripe.Checkout.Session | Stripe.PaymentIntent : null;

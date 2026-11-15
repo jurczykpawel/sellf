@@ -350,14 +350,16 @@ describe.skipIf(!hasSupabase)('Stripe webhook — POST routing & gates', () => {
     expect(json.skipped).toBe('Missing product_id or customer_email in session');
   });
 
-  it('non-terminal completion failure (our marker, unknown product) → 500 so Stripe retries', async () => {
+  // A deleted product is acknowledged and recorded for reconciliation (W253b); an inactive one is not terminal.
+  it('non-terminal completion failure (our marker, inactive product) → 500 so Stripe retries', async () => {
     const email = uniq('buyer') + '@example.com';
+    const product = await createProduct({ is_active: false });
     const { status } = await post(
       checkoutEvent({
         id: uniq('cs'),
         mode: 'payment',
         payment_status: 'paid',
-        metadata: { product_id: '00000000-0000-0000-0000-000000000000', sellf_instance: OURS },
+        metadata: { product_id: product.id, sellf_instance: OURS },
         customer_details: { email },
         amount_total: 1000,
         amount_subtotal: 1000,
@@ -636,15 +638,16 @@ describe.skipIf(!hasSupabase)('payment_intent.succeeded — handler behavior', (
     expect(calls).toHaveLength(0);
   });
 
-  it('RPC failure (our marker, unknown product) → 500 so Stripe retries', async () => {
+  it('RPC failure (our marker, inactive product) → 500 so Stripe retries', async () => {
     const email = uniq('guest') + '@example.com';
+    const product = await createProduct({ is_active: false });
     const { status } = await post(
       piEvent({
         id: uniq('pi'),
         amount: 1000,
         currency: 'usd',
         receipt_email: email,
-        metadata: { product_id: '00000000-0000-0000-0000-000000000000', sellf_instance: OURS },
+        metadata: { product_id: product.id, sellf_instance: OURS },
       }),
     );
     expect(status).toBe(500);

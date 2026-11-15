@@ -6,7 +6,7 @@
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
@@ -45,6 +45,33 @@ describe('instance id', () => {
     const id = await getStripeInstanceId();
     expect(id).toBe(EXPECTED);
     expect(id).not.toContain('a3c1f0de-');
+  });
+
+  describe('SELLF_INSTANCE_ID (a restored copy of the database must not act as the original)', () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    it('when set, it is the source of the marker instead of the copied telemetry id', async () => {
+      vi.stubEnv('SELLF_INSTANCE_ID', 'rehearsal-copy-2026');
+      const id = await getStripeInstanceId();
+      expect(id).toBe(createHash('sha256').update('sellf-stripe-instance:env:rehearsal-copy-2026').digest('hex').slice(0, 32));
+      expect(id).not.toBe(EXPECTED);
+      expect(identity.readInstanceId).not.toHaveBeenCalled();
+    });
+
+    it('two copies with different values get different markers; unset falls back to the telemetry id', async () => {
+      vi.stubEnv('SELLF_INSTANCE_ID', 'copy-a-000');
+      const a = await getStripeInstanceId();
+      vi.stubEnv('SELLF_INSTANCE_ID', 'copy-b-000');
+      const b = await getStripeInstanceId();
+      vi.stubEnv('SELLF_INSTANCE_ID', '');
+      expect(a).not.toBe(b);
+      expect(await getStripeInstanceId()).toBe(EXPECTED);
+    });
+
+    it.each(['short', 'has space inside', 'ą-polish-chars', 'x'.repeat(65), 'semi;colon-value'])('rejects a malformed value %j instead of guessing', async (value) => {
+      vi.stubEnv('SELLF_INSTANCE_ID', value);
+      await expect(getStripeInstanceId()).rejects.toThrow(/SELLF_INSTANCE_ID/);
+    });
   });
 
   it('reads the marker from metadata and from a subscription invoice snapshot', () => {
