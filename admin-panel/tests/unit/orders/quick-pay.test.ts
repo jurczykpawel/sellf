@@ -1,6 +1,8 @@
 /** Online payment of an unpaid transfer order: quote per order state, Stripe session, webhook completion. Stripe events are clones
  * of the recorded checkout.session.completed (fixtures/stripe/checkout_completed_receiver.json) changing only the exercised fields. */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+// The Stripe instance marker comes from SELLF_INSTANCE_ID here, so this unit test needs no database.
+vi.hoisted(() => { process.env.SELLF_INSTANCE_ID = 'quick-pay-unit-test'; });
 const dispatch = vi.hoisted(() => vi.fn());
 const fulfill = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/orders/bank-transfer-service', () => ({ dispatchTransferEvent: dispatch, fulfillTransfer: fulfill }));
