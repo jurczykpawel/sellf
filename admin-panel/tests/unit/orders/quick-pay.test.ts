@@ -106,7 +106,7 @@ describe('webhook completion', () => {
     const { client, rpc } = db({}, { complete_order_payment_attempt: { result: 'duplicate', transaction_id: id } });
     const create = vi.fn(async () => ({ id: 're_dup' }));
     await handleQuickPayEvent(client, { refunds: { create } } as unknown as Stripe, 'checkout.session.completed', event(), NOW);
-    expect(create).toHaveBeenCalledWith({ payment_intent: quickPay.data.object.payment_intent, reason: 'duplicate', metadata: { sellf_payment_attempt: attemptId } }, { idempotencyKey: `sellf-dup-refund-${attemptId}` });
+    expect(create).toHaveBeenCalledWith({ payment_intent: quickPay.data.object.payment_intent, reason: 'duplicate', metadata: { sellf_payment_attempt: attemptId, sellf_instance: expect.any(String) } }, { idempotencyKey: `sellf-dup-refund-${attemptId}` });
     expect(rpc).toHaveBeenCalledWith('record_order_payment_refund', { p_attempt: attemptId, p_refund_id: 're_dup' });
     expect(fulfill).not.toHaveBeenCalled();
   });

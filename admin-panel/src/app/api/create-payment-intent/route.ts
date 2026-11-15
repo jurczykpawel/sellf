@@ -36,6 +36,7 @@ import { getOrCreateStripePriceForProduct } from '@/lib/stripe/product-price';
 import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checkout';
 import { createSubscriptionWithDynamicPrice } from '@/lib/stripe/subscription-dynamic-price';
 import { ensureStripeProduct } from '@/lib/stripe/ensure-product';
+import { getStripeInstanceId, STRIPE_INSTANCE_METADATA_KEY } from '@/lib/stripe/instance-marker';
 import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
 import { signCheckoutBinding } from '@/lib/security/checkout-binding';
 import { canRenewExpiredLicenseWithActiveAccess } from '@/lib/license-keys/renewal';
@@ -404,6 +405,7 @@ export async function POST(request: NextRequest) {
           taxRateId,
           automaticTax: checkoutConfig.automatic_tax,
           priceIncludesVat: subscriptionProduct.price_includes_vat,
+          instanceId: await getStripeInstanceId(),
         });
         await stripe.subscriptions.update(subscriptionId, { metadata: { locale: checkoutLocale } });
         const stripeObjectId = extractStripeObjectId(clientSecret);
@@ -413,6 +415,7 @@ export async function POST(request: NextRequest) {
             metadata: {
               locale: checkoutLocale, product_id: subscriptionProduct.id, product_type: 'subscription',
               subscription_id: subscriptionId, ...(user?.id ? { user_id: user.id } : {}),
+              [STRIPE_INSTANCE_METADATA_KEY]: await getStripeInstanceId(),
             },
           });
         }
@@ -440,6 +443,7 @@ export async function POST(request: NextRequest) {
         taxRateId,
         uiMode: 'elements',
         attributionRef,
+        instanceId: await getStripeInstanceId(),
       }) as CheckoutSessionCreateParams;
 
       const checkoutSession = await stripe.checkout.sessions.create(subscriptionSessionParams);
@@ -686,6 +690,8 @@ export async function POST(request: NextRequest) {
       is_pwyw: pricing.isPwyw ? 'true' : 'false',
       repurchase: explicitRepurchase ? 'true' : 'false',
       [ATTRIBUTION_REF_KEY]: attributionRef,
+      // Installation marker, also on the PaymentIntent (@see lib/stripe/instance-marker.ts)
+      [STRIPE_INSTANCE_METADATA_KEY]: await getStripeInstanceId(),
     };
 
     const returnUrl = buildCheckoutReturnUrl({ origin: getCanonicalOrigin(request), productId: product.id, productSlug: product.slug, locale: checkoutLocale, successUrl });

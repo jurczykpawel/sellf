@@ -17,6 +17,7 @@ import {
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { validateUUID } from '@/lib/validations/product';
 import { getStripeServer } from '@/lib/stripe/server';
+import { stripeInstanceMetadata } from '@/lib/stripe/instance-marker';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
@@ -156,6 +157,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const stripe = await getStripeServer();
 
     const refundData: Stripe.RefundCreateParams = {
+      metadata: await stripeInstanceMetadata(),
       payment_intent: payment.stripe_payment_intent_id,
     };
 

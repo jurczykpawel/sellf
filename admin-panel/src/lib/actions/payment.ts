@@ -5,6 +5,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getStripeServer } from '@/lib/stripe/server';
+import { stripeInstanceMetadata } from '@/lib/stripe/instance-marker';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { getPaymentRefundStatus, supportsStripeRefund, REFUNDABLE_PAYMENT_STATUSES } from '@/lib/refunds/payment-status';
@@ -63,6 +64,7 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
       metadata: {
         refunded_by: user.id,
         original_transaction_id: transaction.id,
+        ...(await stripeInstanceMetadata()),
       },
     });
 

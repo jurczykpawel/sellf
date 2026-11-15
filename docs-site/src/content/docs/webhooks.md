@@ -542,6 +542,36 @@ event enabled to reconcile these attempts. While the page remains alive, queued
 closure waits for creation to finish. Sellf also retains sessions whose
 PaymentIntent is processing, awaiting capture or additional action, or succeeded.
 
+## One Stripe account for several installations
+
+Several Sellf installations (for example production, a test server and a local
+copy) may use the same Stripe account or sandbox. Stripe then sends every
+endpoint the events of every installation. Sellf tells them apart by a marker:
+each Checkout Session, PaymentIntent, subscription and refund it creates carries
+`metadata.sellf_instance`, a fixed identifier of the installation. It is not
+the domain and holds no personal data.
+
+After verifying the Stripe signature, `/api/webhooks/stripe`:
+
+- answers HTTP 200 and skips an event whose marker belongs to another
+  installation (log: `foreign instance, skipped`);
+- always processes an event with its own marker;
+- processes an event without a marker (created before this version, or by hand
+  in Stripe) as before, except a one-time payment for a product this database
+  does not know: HTTP 200 and skipped
+  (log: `unmarked event for an unknown product, skipped`).
+
+Stripe disables an endpoint that keeps failing, so these skips answer 200 rather
+than an error. A temporary error while processing your own event (for example
+the database is unavailable) still answers 5xx, and Stripe retries it.
+
+The identifier lives in the database (`telemetry_state`), so it survives
+restarts and upgrades. A copy restored from a database dump keeps the same
+identifier as its source: such a copy must not share the Stripe account with the
+original. Migrating to a new database without this row changes the identifier,
+and Stripe objects created before the move are then treated as another
+installation's. Finish or expire open checkouts before such a move.
+
 ## Order and entitlement contracts
 
 `purchase.completed` always includes `data.order.orderId` (the immutable Sellf payment UUID) and

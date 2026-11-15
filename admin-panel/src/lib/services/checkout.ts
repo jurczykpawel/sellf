@@ -22,6 +22,7 @@ import { normalizeBumpIds } from '@/lib/validations/product';
 import { getOrCreateStripeCustomer } from '@/lib/stripe/customer';
 import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checkout';
 import { getOrCreateStripePriceForProduct } from '@/lib/stripe/product-price';
+import { stripeInstanceMetadata, getStripeInstanceId } from '@/lib/stripe/instance-marker';
 import { applyTosConsent } from '@/lib/stripe/tos-consent';
 import { isStripeAmountTooSmall } from '@/lib/payment/minimum-charge';
 
@@ -244,6 +245,8 @@ export class CheckoutService {
         resolveTaxRate: getOrCreateStripeTaxRate,
       });
 
+      // Installation marker on the session and its PaymentIntent (@see lib/stripe/instance-marker.ts)
+      const instanceMetadata = await stripeInstanceMetadata();
       // Prepare session configuration
       const sessionConfig: Record<string, unknown> = {
         ui_mode: 'embedded_page' as const,
@@ -287,7 +290,9 @@ export class CheckoutService {
             embed_session_id: options.embedSessionId,
           }),
           ...(options.attributionRef && { sf_attr_ref: options.attributionRef }),
+          ...instanceMetadata,
         },
+        payment_intent_data: { metadata: instanceMetadata },
         expires_at: Math.floor(Date.now() / 1000) + (checkoutConfig.expires_hours * 60 * 60),
         automatic_tax: checkoutConfig.automatic_tax,
         tax_id_collection: checkoutConfig.tax_id_collection,
@@ -392,6 +397,7 @@ export class CheckoutService {
       taxRateId,
       attributionRef: options.attributionRef,
       locale: options.locale,
+      instanceId: await getStripeInstanceId(),
     });
 
     const session = await this.stripe.checkout.sessions.create({ ...sessionConfig, locale: options.locale ?? 'auto' });

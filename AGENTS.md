@@ -1464,6 +1464,17 @@ days. Because it is anonymous with no personal data, **no DPA is required**.
 
 Admin screens carry clickable tutorials (store templates, offer page, business cart, events, bank transfer settings, unpaid orders, affiliates, licenses, purchase sources, payments). Registry: `src/lib/tutorials/registry.ts` (id, screen, ordered steps). A step highlights `[data-tour="<target>"]`; its texts are `tutorials.<id>.steps.<key>.{title,body[,bodyAct]}` in `messages/{en,pl}.json`. A screen opts in with `<TutorialTrigger id="…" />` (`auto={false}` or a condition keeps it menu-only until the feature is on); `TutorialProvider` (dashboard layout) starts it once on the user's first visit and stores it in `public.tutorial_progress` (RLS: own rows only, actions in `lib/actions/tutorial-progress.ts`). The "?" button in the header (`TutorialMenu`) replays the tutorials of the open screen and links to the others (`?tutorial=<id>` starts one on demand). A step with `requires` asks for a click until the element it reveals exists. Test servers (`E2E_MODE`) keep first-visit start off unless the `sellf_tutorial_autostart=on` cookie is set (`lib/tutorials/autostart.ts`); a new tutorial needs its registry entry, both locales, the `data-tour` markers (`tests/unit/tutorials/registry.test.ts` checks them) and a `@Jnn` journey.
 
+### Shared Stripe account (instance marker)
+
+Several installations may share one Stripe account, so every Stripe Checkout Session, PaymentIntent,
+subscription and refund Sellf creates carries `metadata.sellf_instance` (`stripeInstanceMetadata()` /
+`getStripeInstanceId()` in `src/lib/stripe/instance-marker.ts`: SHA-256 of `telemetry_state.instance_id`,
+32 hex). After the signature check, `/api/webhooks/stripe` runs `gateEventByInstance`
+(`instance-gate.ts`): another installation's marker → 200 skipped; our marker → always processed;
+no marker + one-time payment for a product id absent here → 200 skipped; a DB error while deciding →
+5xx. Any new Stripe create call for a payment object must spread the marker
+(guard: `tests/unit/stripe/instance-marker.test.ts`).
+
 ### Stable Versions & Known Issues
 
 - **Supabase CLI**: 2.101.0 (run via `npx supabase`) — pin via `npx supabase@2.101.0` if needed

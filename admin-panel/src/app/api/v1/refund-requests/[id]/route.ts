@@ -18,6 +18,7 @@ import {
 } from '@/lib/api';
 import { validateUUID } from '@/lib/validations/product';
 import { getStripeServer } from '@/lib/stripe/server';
+import { stripeInstanceMetadata } from '@/lib/stripe/instance-marker';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { getPaymentRefundStatus } from '@/lib/refunds/payment-status';
@@ -255,6 +256,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           metadata: {
             refund_request_id: id,
             refunded_by: adminUserId,
+            ...(await stripeInstanceMetadata()),
           },
         });
 

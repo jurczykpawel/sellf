@@ -298,6 +298,36 @@ nadal działa, kolejka czeka z zamknięciem na zakończenie tworzenia sesji. Sel
 zachowuje też sesje, których PaymentIntent jest przetwarzany, czeka na pobranie
 środków lub dodatkowe działanie klienta albo zakończył się powodzeniem.
 
+## Jedno konto Stripe dla kilku instalacji
+
+Kilka instalacji Sellf (na przykład produkcja, serwer testowy i kopia lokalna)
+może korzystać z tego samego konta lub sandboxa Stripe. Stripe wysyła wtedy
+każdemu endpointowi zdarzenia wszystkich instalacji. Sellf rozróżnia je znacznikiem:
+każda tworzona przez niego Checkout Session, PaymentIntent, subskrypcja i zwrot
+ma w `metadata.sellf_instance` stały identyfikator instalacji. To nie jest domena
+i nie zawiera danych osobowych.
+
+Po sprawdzeniu podpisu Stripe `/api/webhooks/stripe`:
+
+- odpowiada HTTP 200 i pomija zdarzenie ze znacznikiem innej instalacji
+  (log: `foreign instance, skipped`);
+- zawsze obsługuje zdarzenie z własnym znacznikiem;
+- zdarzenie bez znacznika (utworzone przed tą wersją albo ręcznie w Stripe)
+  obsługuje jak dotąd, z jednym wyjątkiem: płatność jednorazowa za produkt,
+  którego ta baza nie zna, dostaje HTTP 200 i jest pomijana
+  (log: `unmarked event for an unknown product, skipped`).
+
+Stripe wyłącza endpoint, który długo zwraca błędy, dlatego pominięcia odpowiadają
+200, a nie błędem. Chwilowy błąd przy obsłudze własnego zdarzenia (na przykład
+niedostępna baza) nadal zwraca 5xx i Stripe ponawia dostawę.
+
+Identyfikator jest zapisany w bazie (`telemetry_state`), więc przetrwa restarty
+i aktualizacje. Kopia odtworzona z kopii zapasowej bazy ma ten sam identyfikator
+co oryginał, dlatego nie może korzystać z tego samego konta Stripe. Przeniesienie
+na nową bazę bez tego wiersza zmienia identyfikator, a obiekty Stripe utworzone
+przed przeniesieniem są wtedy traktowane jak należące do innej instalacji. Przed
+takim przeniesieniem dokończ albo wygaś otwarte płatności.
+
 ## Kontrakt zamówienia i dostępu
 
 Każdy `purchase.completed` zawiera `data.order.orderId` (trwały UUID płatności Sellf) i `orderNumber`,
