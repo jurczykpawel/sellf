@@ -33,6 +33,6 @@ export default async function TransferPage({ params, searchParams }: { params: P
     {quote.mode === 'settle' && <QuickPayButton orderId={orderId} token={token!} amount={quote.amount} currency={quote.currency} />}
     {/* A cancelled order cannot be paid (W254); the buyer who still wants it places a new order from the product page. */}
     {cancelled && product?.is_active && <p className="my-4 print:hidden">{t('cancelledNewOrder')} <a className="underline" href={`/${locale}/p/${product.slug}`}>{t('cancelledProductLink')}</a></p>}
-    {unpaid && <TransferDeclaration orderId={orderId} token={token!} declaredAt={tx.transfer_declared_at} />}
+    {unpaid && <TransferDeclaration orderId={orderId} token={token!} declaredAt={tx.transfer_declared_at} overdue={overdue} />}
   </main>;
 }

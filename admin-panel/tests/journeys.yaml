@@ -3538,9 +3538,9 @@
         "operation": "reconcile"
       },
       "end_state": {
-        "buyer": "Clicks \"Wysłałem przelew\" once; the page confirms and the button disappears.",
-        "seller": "Reservation is extended by 72 h; payments detail shows the declaration badge with the note.",
-        "integrator": "Exactly one order.transfer_declared with the note and new releaseAt."
+        "buyer": "Clicks \"Wysłałem przelew\" once; the page confirms and the button disappears. Past the reservation deadline (before the job cancels) the button stays and after the click the page says the seller was told and may accept a transfer arriving after the cancellation, without promising an extension.",
+        "seller": "Reservation is extended by 72 h; payments detail shows the declaration badge with the note. A declaration past the deadline is marked \"po terminie rezerwacji\", does not move release_at and the job cancels the order on time.",
+        "integrator": "Exactly one order.transfer_declared with the note and new releaseAt (unchanged, in the past, for a declaration past the deadline)."
       },
       "status": "automated",
       "layers": [
