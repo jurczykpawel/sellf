@@ -58,6 +58,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
   const selectedProduct = availableProducts.find(product => product.id === selectedProductId);
   const definitions = validateCustomFieldDefinitions(selectedProduct?.custom_checkout_fields ?? []);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const loadUserAccess = useCallback(async () => {
     try {
@@ -81,6 +82,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
     setPreviousKey(requestKey);
     setLoading(true);
     setError(null);
+    setNotice(null);
     setRevokeLicenses({});
   }
 
@@ -124,6 +126,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
     try {
       setActionLoading('grant');
       setError(null);
+      setNotice(null);
 
       const response = await fetch(`/api/users/${user.id}/access`, {
         method: 'POST',
@@ -143,11 +146,17 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
       const responseData = await response.json();
       if (!response.ok) {
         setLicenseErrors(responseData.fieldErrors ?? {});
+        // The access itself was saved before the license step failed: show it.
+        if (responseData.access) {
+          await fetchUserAccess();
+          onAccessChange();
+        }
         throw new Error(responseData.error_code === 'LICENSE_ISSUANCE_FAILED' ? t('licenseError') : responseData.error?.message || responseData.error || t('grantAccessError'));
       }
 
       // Refresh user access
       await fetchUserAccess();
+      if (responseData.license?.email_pending) setNotice(t('licenseMailPending'));
       setShowAddForm(false);
       setRevokeLicenses(values => ({ ...values, [selectedProductId]: true }));
       setSelectedProductId('');
@@ -220,6 +229,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
             className="mb-4"
           />
         )}
+        {notice && <Message type="info" message={notice} className="mb-4" />}
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12">

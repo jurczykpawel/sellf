@@ -13,13 +13,17 @@ export function licenseMailKey(email: string, order: string): string {
   return createHash('sha256').update(JSON.stringify([email.trim().toLowerCase(), order])).digest('hex');
 }
 
+/** `pending`: the mail is parked in auth_mail_retries and the retry worker delivers it (e.g. after the auth mail limit). */
+export type LicenseMailDelivery = 'sent' | 'pending' | 'failed';
+
 /** Never throws: the grant and the lead webhook must not depend on mail delivery. */
-export async function sendLicenseMail(db: SupabaseClient, input: LicenseMailInput): Promise<boolean> {
-  if (isDemoMode()) return false;
+export async function sendLicenseMail(db: SupabaseClient, input: LicenseMailInput): Promise<LicenseMailDelivery> {
+  if (isDemoMode()) return 'failed';
   let retryId: string | undefined;
+  let locale: 'pl' | 'en' = input.locale ?? 'en';
   try {
     const account = input.locale || !input.userId ? null : (await db.auth.admin.getUserById(input.userId)).data;
-    const locale = input.locale ?? (account?.user?.user_metadata?.locale === 'pl' ? 'pl' : 'en');
+    locale = input.locale ?? (account?.user?.user_metadata?.locale === 'pl' ? 'pl' : 'en');
     const data: Record<string, string | Record<string, string>> = { ...input.mailData, locale, purchase_product: input.productName, license_key: input.token, ...(input.keys ? { license_keys: input.keys } : {}) };
     delete data.license_mail_managed;
     delete data.purchase_mail_pending;
@@ -29,8 +33,9 @@ export async function sendLicenseMail(db: SupabaseClient, input: LicenseMailInpu
     const claimed = await db.rpc('claim_license_mail', { p_key: mailKey, p_email: input.email, p_redirect_to: redirect.toString(), p_data: data });
     if (claimed.error) throw new Error('Mail registration unavailable');
     if (!claimed.data) {
-      const pending = await db.from('auth_mail_retries').select('id').eq('license_mail_key', mailKey).maybeSingle();
-      return !pending.error && !pending.data;
+      const pending = await db.from('auth_mail_retries').select('given_up_at').eq('license_mail_key', mailKey).maybeSingle();
+      if (pending.error || pending.data?.given_up_at) return 'failed';
+      return pending.data ? 'pending' : 'sent';
     }
     retryId = claimed.data;
     const result = await sendTrustedMagicLink({ transactionalOnly: true,
@@ -42,14 +47,16 @@ export async function sendLicenseMail(db: SupabaseClient, input: LicenseMailInpu
     const finished = await db.rpc('finish_license_mail', { p_retry_id: retryId, p_completed: result.ok, p_error: result.ok ? null : result.code });
     if (finished.error) console.error('[license-mail] Delivery state awaiting recovery');
     if (!result.ok) console.error('[license-mail] Delivery failed:', result.code, result.queued ? '(queued for retry)' : '');
-    return result.ok && !finished.error;
+    if (finished.error) return 'failed';
+    return result.ok ? 'sent' : 'pending';
   } catch {
     console.error('[license-mail] Delivery failed');
-    return false;
+    // A claimed mail keeps its queue row, so the retry worker still delivers it.
+    return retryId ? 'pending' : 'failed';
   } finally {
     if (retryId) {
-      // The key must not linger in account data once the mail was rendered.
-      const cleared = await db.rpc('prepare_event_mail', { p_email: input.email, p_data: { locale: 'en' } }).then(r => r, () => ({ error: true }));
+      // The key must not linger in account data once the mail was rendered; the buyer's language stays.
+      const cleared = await db.rpc('prepare_event_mail', { p_email: input.email, p_data: { locale } }).then(r => r, () => ({ error: true }));
       if (cleared.error) console.error('[license-mail] License key cleanup failed');
     }
   }

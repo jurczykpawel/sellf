@@ -11,7 +11,8 @@ import { minimumChargeAmount } from '@/lib/currency/minor-units';
 import { filterActiveAccess } from '@/lib/access/filter-active';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getProductLocalizations } from '@/lib/actions/product-localization';
-import { applyLocalized } from '@/lib/products/localized-metadata';
+import { applyLocalized, LOCALIZATION_BATCH_SIZE } from '@/lib/products/localized-metadata';
+import type { LocalizedProductText } from '@/lib/products/localized-metadata';
 
 interface Product {
   id: string;
@@ -165,7 +166,9 @@ export default function MyProductsPage() {
         .order('price', { ascending: true });
       const discoverProducts = (allProductsData || []) as unknown as Product[];
       // Text in the active locale; every field without a translation keeps the canonical value.
-      const localizations = await getProductLocalizations([...new Set([...ownedProducts.map(a => a.product.id), ...discoverProducts.map(p => p.id)])], locale);
+      const productIds = [...new Set([...ownedProducts.map(a => a.product.id), ...discoverProducts.map(p => p.id)])];
+      const batches = Array.from({ length: Math.ceil(productIds.length / LOCALIZATION_BATCH_SIZE) }, (_, i) => productIds.slice(i * LOCALIZATION_BATCH_SIZE, (i + 1) * LOCALIZATION_BATCH_SIZE));
+      const localizations: Record<string, LocalizedProductText> = Object.assign({}, ...await Promise.all(batches.map(batch => getProductLocalizations(batch, locale))));
       setUserProducts(ownedProducts.map(a => ({ ...a, product: applyLocalized(a.product, localizations[a.product.id]) })));
       setAllProducts(discoverProducts.map(p => applyLocalized(p, localizations[p.id])));
 

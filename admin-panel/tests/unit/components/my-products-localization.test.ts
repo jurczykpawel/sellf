@@ -7,7 +7,7 @@ import MyProductsPage from '@/app/[locale]/my-products/page';
 import pl from '@/messages/pl.json';
 import en from '@/messages/en.json';
 
-const mocks = vi.hoisted(() => ({ localizations: vi.fn() }));
+const mocks = vi.hoisted(() => ({ localizations: vi.fn(), discover: null as unknown[] | null }));
 vi.mock('@/lib/actions/product-localization', () => ({ getProductLocalizations: mocks.localizations }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1', email: 'a@b.pl' }, loading: false }) }));
 vi.mock('@/components/DashboardLayout', () => ({ default: ({ children }: { children: unknown }) => createElement('div', null, children as never) }));
@@ -21,7 +21,7 @@ vi.mock('@/lib/supabase/client', () => ({
     from: (table: string) => {
       const result = table === 'user_product_access'
         ? { data: [{ id: 'a1', access_granted_at: '2026-01-02T00:00:00Z', access_expires_at: null, product: owned, subscription: null }], error: null }
-        : { data: [other], error: null };
+        : { data: mocks.discover ?? [other], error: null };
       const chain: Record<string, unknown> = { then: (resolve: (value: unknown) => void) => resolve(result) };
       for (const method of ['select', 'eq', 'neq', 'order']) chain[method] = () => chain;
       return chain;
@@ -29,7 +29,7 @@ vi.mock('@/lib/supabase/client', () => ({
   }),
 }));
 
-afterEach(() => { cleanup(); vi.resetAllMocks(); });
+afterEach(() => { cleanup(); vi.resetAllMocks(); mocks.discover = null; });
 const view = (locale: 'pl' | 'en') => createElement(NextIntlClientProvider, { locale, messages: locale === 'pl' ? pl : en }, createElement(MyProductsPage));
 
 it('renders owned and available cards in the active locale with locale-preserving links and canonical fallback (GitHub #73)', async () => {
@@ -50,4 +50,16 @@ it('keeps canonical text and unprefixed links in the default locale when nothing
   render(view('en'));
   await waitFor(() => expect(screen.getByText('Owned canonical')).toBeTruthy());
   expect(screen.getAllByRole('link').map(link => link.getAttribute('href')).sort()).toEqual(['/p/other', '/p/owned']);
+});
+
+it('translates every card of a catalog larger than one server request (201 products)', async () => {
+  mocks.discover = Array.from({ length: 201 }, (_, i) => ({ ...base, id: `p-${i}`, name: `Canonical ${i}`, slug: `s-${i}`, description: `Canonical text ${i}`, image_url: null }));
+  // Same limit as the server action: more than 200 IDs in one call returns nothing.
+  mocks.localizations.mockImplementation(async (ids: string[]) => ids.length > 200 ? {} : Object.fromEntries(ids.map(id => [id, { name: `Przetłumaczony ${id}` }])));
+  render(view('pl'));
+  await screen.findByText('Przetłumaczony p-0');
+  expect(screen.getByText('Przetłumaczony p-199')).toBeTruthy();
+  expect(screen.getByText('Przetłumaczony p-200')).toBeTruthy();
+  expect(screen.queryByText('Canonical 0')).toBeNull();
+  for (const [ids] of mocks.localizations.mock.calls) expect((ids as string[]).length).toBeLessThanOrEqual(200);
 });

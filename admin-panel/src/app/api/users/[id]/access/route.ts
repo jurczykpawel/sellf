@@ -215,7 +215,7 @@ export async function POST(
         source: 'manual', origin: new URL(request.url).origin, license: options.data.license,
       });
       if (!issued.ok) return NextResponse.json({ error: issued.error, error_code: 'LICENSE_ISSUANCE_FAILED', access: newAccess, fieldErrors: issued.fieldErrors }, { status: issued.status });
-      license = { id: issued.license.id, status: 'issued', email_sent: issued.license.emailSent };
+      license = { id: issued.license.id, status: 'issued', email_sent: issued.license.emailSent, email_pending: issued.license.emailPending };
     }
 
     return NextResponse.json({

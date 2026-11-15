@@ -7,8 +7,8 @@ import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
 import { API_URL, supabaseAdmin } from './setup';
 useSupabaseBuyerEmails();
 const db = supabaseAdmin();
-let seller: string, adminId: string, buyer: string, key: string, narrow: string;
-const product = randomUUID(), plain = randomUUID(), missing = randomUUID();
+let seller: string, adminId: string, buyer: string, buyerEmail: string, key: string, narrow: string;
+const product = randomUUID(), second = randomUUID(), plain = randomUUID(), missing = randomUUID();
 const keyIds: string[] = [];
 async function makeKey(scopes: string[]) {
   const value = `sf_test_${randomBytes(32).toString('hex')}`;
@@ -26,6 +26,7 @@ beforeAll(async () => {
   await storeSellerKey(db, { sellerId: seller, ...generateSellerKeypair(), custody: 'managed' });
   expect((await db.from('products').insert([
     { id: product, name: 'Access API license', slug: product, price: 10, currency: 'PLN', seller_id: seller, is_active: true, issue_license_on_purchase: true, license_tier: 'pro' },
+    { id: second, name: 'Access API second license', slug: second, price: 10, currency: 'PLN', seller_id: seller, is_active: true, issue_license_on_purchase: true, license_tier: 'pro' },
     { id: plain, name: 'Access API plain', slug: plain, price: 10, currency: 'PLN', seller_id: seller, is_active: true, issue_license_on_purchase: false },
     { id: missing, name: 'Access API unconfigured', slug: missing, price: 10, currency: 'PLN', is_active: true, issue_license_on_purchase: true },
   ])).error).toBeNull();
@@ -33,19 +34,21 @@ beforeAll(async () => {
 });
 // A fresh buyer per test: Supabase Auth sends at most one email per user per minute, and every license grant mails the buyer.
 beforeEach(async () => {
-  const customer = await db.auth.admin.createUser({ email: `access-api-buyer-${randomUUID()}@example.com`, email_confirm: true });
+  buyerEmail = `access-api-buyer-${randomUUID()}@example.com`;
+  const customer = await db.auth.admin.createUser({ email: buyerEmail, email_confirm: true });
   expect(customer.error).toBeNull(); buyer = customer.data.user!.id;
 });
 afterEach(async () => {
-  await db.from('issued_licenses').delete().in('product_id', [product, plain, missing]);
+  await db.from('auth_mail_retries').delete().eq('email', buyerEmail);
+  await db.from('issued_licenses').delete().in('product_id', [product, second, plain, missing]);
   await db.from('user_product_access').delete().eq('user_id', buyer);
   await db.auth.admin.deleteUser(buyer);
 });
 afterAll(async () => {
   await db.from('api_keys').delete().in('id', keyIds);
-  await db.from('issued_licenses').delete().in('product_id', [product, plain, missing]);
-  await db.from('user_product_access').delete().in('product_id', [product, plain, missing]);
-  await db.from('products').delete().in('id', [product, plain, missing]);
+  await db.from('issued_licenses').delete().in('product_id', [product, second, plain, missing]);
+  await db.from('user_product_access').delete().in('product_id', [product, second, plain, missing]);
+  await db.from('products').delete().in('id', [product, second, plain, missing]);
   if (seller) { await db.from('seller_license_keys').delete().eq('seller_id', seller); await db.from('admin_users').delete().eq('user_id', seller); await db.auth.admin.deleteUser(seller); }
 });
 describe('access license API', () => {
@@ -106,6 +109,15 @@ describe('access license API', () => {
     } finally {
       await db.from('products').update({ custom_checkout_fields: [] }).eq('id', product);
     }
+  });
+  it('grants a second licensed product within a minute and reports its mail as pending @J197', async () => {
+    expect((await call('POST', key, { product_id: product })).status).toBe(201);
+    const grant = await call('POST', key, { product_id: second });
+    expect(grant.status).toBe(201);
+    const { data } = await grant.json();
+    expect(data.license).toMatchObject({ status: 'issued', email_sent: false, email_pending: true });
+    expect((await db.from('issued_licenses').select('id').eq('id', data.license.id).single()).error).toBeNull();
+    expect((await db.from('auth_mail_retries').select('kind').eq('email', buyerEmail)).data).toEqual([{ kind: 'license' }]);
   });
   it('reports issuance failure instead of a successful grant and allows retry', async () => {
     const grant = await call('POST', key, { product_id: missing });
