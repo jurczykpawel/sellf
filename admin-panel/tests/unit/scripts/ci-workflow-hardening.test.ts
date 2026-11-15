@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import path from 'path';
+import { PINNED_SUPABASE_CLI } from '@/../scripts/schema-snapshot';
 
 const WORKFLOWS_DIR = path.resolve(__dirname, '../../../../.github/workflows');
 const buildRelease = readFileSync(path.join(WORKFLOWS_DIR, 'build-release.yml'), 'utf8');
@@ -144,6 +145,33 @@ describe('lint-migrations.yml hardening', () => {
 
   it('pins its actions to full commit SHAs', () => {
     expect(unpinnedThirdPartyActions(lintMigrations)).toEqual([]);
+  });
+
+  it('runs the schema snapshot check', () => {
+    expect(lintMigrations).toMatch(/schema-snapshot:[\s\S]*?run: bun run schema:check/);
+  });
+});
+
+describe('migration gates use the pinned Supabase CLI', () => {
+  it('installs exactly PINNED_SUPABASE_CLI wherever schema:check runs', () => {
+    for (const workflow of [lintMigrations, buildRelease]) {
+      const versions = [...workflow.matchAll(/supabase\/setup-cli@[0-9a-f]{40}[^\n]*\n\s*with:\s*\n\s*version: ([\d.]+)/g)].map(m => m[1]);
+      expect(versions.length).toBeGreaterThan(0);
+      expect(new Set(versions)).toEqual(new Set([PINNED_SUPABASE_CLI]));
+    }
+  });
+});
+
+describe('build-release.yml migration gate', () => {
+  const migrationsJob = buildRelease.slice(buildRelease.indexOf('\n  migrations:\n'), buildRelease.indexOf('\n  verify-playerstack-bundle:\n'));
+
+  it('checks the schema snapshot', () => {
+    expect(migrationsJob).toContain('bun run schema:check');
+  });
+
+  it('blocks the tarball and the Docker image on the migration gate', () => {
+    expect(buildRelease).toMatch(/\n  build:\n[\s\S]*?needs: \[test, migrations, verify-playerstack-bundle\]/);
+    expect(buildRelease).toMatch(/\n  docker:\n[\s\S]*?needs: \[test, migrations, verify-playerstack-bundle\]/);
   });
 });
 

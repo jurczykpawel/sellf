@@ -10,6 +10,8 @@
     "start": "next start",
     "lint": "eslint src",
     "lint:migrations": "bun run scripts/lint-migrations.ts",
+    "schema:check": "bun scripts/schema-snapshot.ts check",
+    "schema:snapshot": "bun scripts/schema-snapshot.ts update",
     "typecheck": "tsc --noEmit",
     "template:schema": "bun scripts/generate-storefront-schema.ts",
     "template:check": "bun --no-env-file scripts/check-template.ts",
