@@ -5179,8 +5179,12 @@
       "upgrade_running": "An update is already running. Wait for it to finish.",
       "upgrade_starting": "An update is starting. Wait a few seconds.",
       "migration_failed": "Database migration failed: {cause}",
+      "pm2_stop_failed": "PM2 could not confirm that the application stopped, so the update was cancelled before any file or the database was changed.",
+      "pm2_stop_failed_offline": "PM2 could not confirm that the application stopped, so the update was cancelled before any file or the database was changed. PM2 also did not confirm that the application started again.",
       "unchanged": "Nothing was changed; the shop is still running version {version}.",
       "unchangedUnknown": "Nothing was changed; the shop is still running the previous version.",
+      "unchangedAppStopped": "Files and the database are still at version {version}, but PM2 does not confirm that the shop is running. Check it on the server with pm2 status; if the process is stopped, start it with pm2 start and the process name.",
+      "unchangedAppStoppedUnknown": "Files and the database are unchanged, but PM2 does not confirm that the shop is running. Check it on the server with pm2 status; if the process is stopped, start it with pm2 start and the process name.",
       "migrationRolledBack": "No migration of this release was applied and the previous code was restored; the shop is running version {version} again.",
       "retryAt": "You can try again after {time}.",
       "retrySoon": "Try again in a few minutes."

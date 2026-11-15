@@ -43,6 +43,18 @@ describe('describeUpdateFailure', () => {
       .toEqual(['failure.migration_failed {"cause":"Migration 2099_x failed: boom"}', 'failure.migrationRolledBack {"version":"2026.11.1"}']);
   });
 
+  it('explains a failed PM2 stop: nothing changed and the old version still runs', () => {
+    expect(describeUpdateFailure({ code: 'pm2_stop_failed', details: { installed_version: '2026.11.0' } }, { t, formatTime: time, attempt: true, fallback: 'English text' }))
+      .toEqual(['failure.pm2_stop_failed', 'failure.unchanged {"version":"2026.11.0"}']);
+  });
+
+  it('does not promise a running shop when PM2 did not bring the old process back', () => {
+    expect(describeUpdateFailure({ code: 'pm2_stop_failed_offline', details: { installed_version: '2026.11.0' } }, { t, formatTime: time, attempt: true, fallback: 'English text' }))
+      .toEqual(['failure.pm2_stop_failed_offline', 'failure.unchangedAppStopped {"version":"2026.11.0"}']);
+    expect(describeUpdateFailure({ code: 'pm2_stop_failed_offline', details: {} }, { t, formatTime: time, attempt: true }))
+      .toEqual(['failure.pm2_stop_failed_offline', 'failure.unchangedAppStoppedUnknown']);
+  });
+
   it('falls back to the script message for codes the panel does not localize', () => {
     expect(describeUpdateFailure({ code: 'migration_preflight', details: {} }, { t, formatTime: time, attempt: true, fallback: 'Migration 1 is recorded as x. Nothing was changed.' }))
       .toEqual(['Migration 1 is recorded as x. Nothing was changed.']);
@@ -51,7 +63,7 @@ describe('describeUpdateFailure', () => {
 
   it.each(['en', 'pl'])('has %s texts for every localized code and helper line', locale => {
     const messages = JSON.parse(readFileSync(path.resolve(__dirname, `../../../../src/messages/${locale}.json`), 'utf8')).systemUpdate.failure;
-    for (const key of [...LOCALIZED_FAILURE_CODES, 'githubSays', 'unchanged', 'unchangedUnknown', 'migrationRolledBack', 'retryAt', 'retrySoon', 'checkFailed']) {
+    for (const key of [...LOCALIZED_FAILURE_CODES, 'githubSays', 'unchanged', 'unchangedUnknown', 'unchangedAppStopped', 'unchangedAppStoppedUnknown', 'migrationRolledBack', 'retryAt', 'retrySoon', 'checkFailed']) {
       expect(typeof messages[key], `${locale}: failure.${key}`).toBe('string');
     }
   });

@@ -25,7 +25,7 @@ export interface UpdateFailure {
 export const LOCALIZED_FAILURE_CODES = [
   'github_unreachable', 'github_http', 'release_asset_missing', 'release_lookup_invalid', 'signature_invalid',
   'manifest_invalid', 'checksum_mismatch', 'archive_invalid', 'release_older', 'upgrade_running', 'upgrade_starting',
-  'migration_failed',
+  'migration_failed', 'pm2_stop_failed', 'pm2_stop_failed_offline',
 ] as const;
 
 const GITHUB_CODES = new Set(['github_unreachable', 'github_http']);
@@ -61,6 +61,9 @@ export function describeUpdateFailure(failure: UpdateFailure | undefined, option
   if (details.github_message) lines.push(t('failure.githubSays', { message: details.github_message }));
   if (failure.code === 'migration_failed') {
     if (rollback) lines.push(version ? t('failure.migrationRolledBack', { version }) : t('failure.unchangedUnknown'));
+  } else if (failure.code === 'pm2_stop_failed_offline') {
+    // PM2 did not bring the old process back: files and data are intact, but nothing serves the shop.
+    lines.push(version ? t('failure.unchangedAppStopped', { version }) : t('failure.unchangedAppStoppedUnknown'));
   } else if (attempt) {
     lines.push(version ? t('failure.unchanged', { version }) : t('failure.unchangedUnknown'));
   }
