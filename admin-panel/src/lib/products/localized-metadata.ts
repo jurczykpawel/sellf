@@ -1,6 +1,9 @@
 /** Customer-facing product text per locale, stored in `content_config.localized.<locale>`. @see lib/actions/product-localization.ts */
 import { locales } from '@/lib/locales';
 
+/** Most product IDs one `getProductLocalizations` call accepts; callers split longer lists. */
+export const LOCALIZATION_BATCH_SIZE = 200;
+
 export interface LocalizedProductText { name?: string; description?: string; imageAlt?: string }
 
 const LIMITS = { name: 200, description: 2000, image_alt: 500 } as const;

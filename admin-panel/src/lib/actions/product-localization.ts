@@ -9,10 +9,11 @@
 import { z } from 'zod';
 import { locales } from '@/lib/locales';
 import { readProductLocalizations } from '@/lib/products/localized-read';
+import { LOCALIZATION_BATCH_SIZE } from '@/lib/products/localized-metadata';
 import type { LocalizedProductText } from '@/lib/products/localized-metadata';
 import { createClient } from '@/lib/supabase/server';
 
-const inputSchema = z.object({ productIds: z.array(z.uuid()).max(200), locale: z.enum(locales) });
+const inputSchema = z.object({ productIds: z.array(z.uuid()).max(LOCALIZATION_BATCH_SIZE), locale: z.enum(locales) });
 
 export async function getProductLocalizations(productIds: string[], locale: string): Promise<Record<string, LocalizedProductText>> {
   const input = inputSchema.safeParse({ productIds, locale });
