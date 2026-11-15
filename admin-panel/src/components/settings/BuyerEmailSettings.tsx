@@ -5,6 +5,9 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { getMyShopConfig, updateShopConfig } from '@/lib/actions/shop-config';
 
+/** Supabase Auth facts: supabase.com/docs/guides/auth/rate-limits, /auth-smtp; github.com/supabase/auth configuration. */
+const LIMIT_KEYS = ['limitsCloud', 'limitsSmtp', 'limitsRecipient', 'limitsSelfHosted', 'limitsRetry', 'limitsAdvice'] as const;
+
 export default function BuyerEmailSettings() {
   const t = useTranslations('settings.buyerEmails');
   const [enabled, setEnabled] = useState(false);
@@ -38,5 +41,12 @@ export default function BuyerEmailSettings() {
     </label>
     <p className="text-sm text-sf-muted my-3">{t('warning')}</p>
     <a href="https://github.com/jurczykpawel/mailstack" target="_blank" rel="noopener noreferrer" className="text-sf-accent underline">{t('mailstack')}</a>
+    <section className="mt-6 border-t border-sf-border-medium pt-4" aria-labelledby="buyer-email-limits-title">
+      <h3 id="buyer-email-limits-title" className="text-base font-semibold text-sf-heading mb-2">{t('limitsTitle')}</h3>
+      <ul className="list-disc pl-5 space-y-1 text-sm text-sf-body">
+        {LIMIT_KEYS.map(key => <li key={key}>{t(key)}</li>)}
+      </ul>
+      <a href="https://supabase.com/docs/guides/auth/rate-limits" target="_blank" rel="noopener noreferrer" className="inline-block mt-3 text-sm text-sf-accent underline">{t('limitsDocs')}</a>
+    </section>
   </section>;
 }
