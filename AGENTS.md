@@ -614,14 +614,24 @@ the migration history must stay reviewable. Rules:
 4. **Consolidation is correct when the schema snapshot does not change**: `bun run schema:check`
    (admin-panel) passes with the consolidated files and `supabase/schema.snapshot.sql` is untouched
    in the consolidation commit. The check builds a clean database from all migrations and compares
-   the normalized `pg_dump --schema-only` (public, postgrest), our objects outside them (auth/storage
-   triggers, storage policies and buckets, cron jobs, extensions) and row counts per public table
-   with the snapshot; a difference fails with the diff. Never refresh the snapshot to make a
-   consolidation pass. (Replaces the manual two-database proof; its RED variant is covered by the
-   check's own tests and by W256's broken-consolidation run.)
-5. **Shared test environments (TEST, demo) must not get unreleased migrations applied ad hoc**
-   unless they can be reset; after consolidation register the new versions there as applied
-   (back up the registry first) instead of re-running SQL.
+   with the snapshot: `pg_dump --schema-only --no-privileges` of public and postgrest (only the
+   version banner and the random `\restrict` key are dropped; function bodies stay byte for byte),
+   privileges as canonical records (object, grantee, privilege, grantor, grant option — the order
+   grants were made in does not matter) for public, postgrest and the auth/storage/cron tables,
+   triggers outside public with their enabled state, RLS flags of platform tables, policies outside
+   public, storage buckets, the full `cron.job` rows (schedule, active, database, user, command),
+   extensions and row counts per public table; a difference fails with the diff. Never refresh the
+   snapshot to make a consolidation pass. (Replaces the manual two-database proof for the schema;
+   the probes W256r showed it missed are DB tests in `schema-snapshot-probes.integration.test.ts`.)
+   **The snapshot and the row counts do NOT prove that configuration or dictionary data is
+   equivalent** (a changed default setting or list value keeps the same count): for migrations that
+   insert or change such rows, the proof is the upgrade rehearsal on a copy of production data
+   (point 9 and the sellf-release skill).
+5. **Shared test environments (TEST, demo) never get migrations applied or registered by hand.**
+   Never mark migrations as applied in their registry (owner decision 2026-11-11: it hides failures).
+   They get a real update with the release runner: a candidate goes there only as a real upgrade,
+   and an environment that received unreleased migrations is reset to the released schema and
+   upgraded for real.
 6. **Upgrade runners apply all pending migrations in ONE transaction** (`admin-panel/scripts/upgrade.sh`,
    Stackpilot `local/setup-supabase-migrations.sh`) so a failure rolls everything back.
 7. Enforcement (CI `Migration lint` on every push/PR touching migrations, and the blocking
@@ -1682,12 +1692,14 @@ that no tag exists and that the files agree, then writes all locations:
 | `README.md` | version badge URL | `version-2026.3.0-blue` |
 
 A new place that carries the version goes into `VERSION_FILES` in `admin-panel/scripts/release-bump.ts`.
-The release build fails unless `bun run release:bump --check <tag version>` passes.
+The release build fails unless `bun run release:bump --check <tag version>` passes (all files agree,
+the version equals the tag and is valid CalVer).
 
 **Release notes** are drafted from Conventional Commit prefixes since the last tag (Sellf merges
 local branches without PRs, so there are no PR labels): `bun run release:notes --out /tmp/release-notes.md`.
 Sections: Breaking changes (`type!:` or a `BREAKING CHANGE: <what to do>` footer — write one for
-every incompatible change), New features (`feat`), Fixes (`fix`), Performance, Documentation, Tests,
+every incompatible change; the whole footer is copied, continuation lines and paragraphs included, up
+to the next footer such as `Co-Authored-By:`), New features (`feat`), Fixes (`fix`), Performance, Documentation, Tests,
 Dependencies (`chore(deps)`), Maintenance. Only the Highlights are written by hand (replace the
 marker); `bun run release:notes --check /tmp/release-notes.md` must pass before `gh release create`.
 
