@@ -4737,23 +4737,25 @@ CREATE FUNCTION public.declare_transfer(p_id uuid, p_note text, p_now timestamp 
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $$
-DECLARE tx public.payment_transactions%ROWTYPE; hold integer; note text:=nullif(btrim(p_note),'');
+DECLARE tx public.payment_transactions%ROWTYPE; hold integer; note text:=nullif(btrim(p_note),''); late boolean;
 BEGIN
   IF p_now IS NULL OR length(note)>200 OR note ~ '[[:cntrl:]]' THEN RAISE EXCEPTION 'Invalid declaration' USING ERRCODE='22023'; END IF;
   SELECT * INTO tx FROM public.payment_transactions WHERE id=p_id FOR UPDATE;
   IF NOT FOUND OR tx.payment_provider<>'bank_transfer' OR tx.status<>'awaiting_payment' THEN
     RETURN jsonb_build_object('success',false,'error','not_awaiting_payment');
   END IF;
+  -- Same moment the release job cancels at (release_at<=now): from then on the reservation is over.
+  late:=tx.release_at IS NOT NULL AND p_now>=tx.release_at;
   IF tx.transfer_declared_at IS NOT NULL THEN
-    RETURN jsonb_build_object('success',true,'already_declared',true,'releaseAt',tx.release_at,'declaredAt',tx.transfer_declared_at);
+    RETURN jsonb_build_object('success',true,'already_declared',true,'releaseAt',tx.release_at,'declaredAt',tx.transfer_declared_at,'afterDeadline',late);
   END IF;
   SELECT declared_hold_hours INTO STRICT hold FROM public.bank_transfer_config WHERE id;
   UPDATE public.payment_transactions SET transfer_declared_at=p_now,transfer_declared_note=note,
-    release_at=CASE WHEN release_at IS NULL THEN NULL ELSE greatest(release_at,p_now+make_interval(hours=>hold)) END,
+    release_at=CASE WHEN release_at IS NULL OR late THEN release_at ELSE greatest(release_at,p_now+make_interval(hours=>hold)) END,
     updated_at=now() WHERE id=tx.id RETURNING * INTO tx;
   INSERT INTO public.audit_log(table_name,operation,new_values) VALUES('payment_transactions','UPDATE',
-    jsonb_build_object('action','order.transfer_declared','transaction_id',tx.id,'release_at',tx.release_at));
-  RETURN jsonb_build_object('success',true,'already_declared',false,'releaseAt',tx.release_at,'declaredAt',tx.transfer_declared_at);
+    jsonb_build_object('action','order.transfer_declared','transaction_id',tx.id,'release_at',tx.release_at,'after_deadline',late));
+  RETURN jsonb_build_object('success',true,'already_declared',false,'releaseAt',tx.release_at,'declaredAt',tx.transfer_declared_at,'afterDeadline',late);
 END $$;
 
 ALTER FUNCTION public.declare_transfer(p_id uuid, p_note text, p_now timestamp with time zone) OWNER TO postgres;
