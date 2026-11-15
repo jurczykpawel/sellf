@@ -1,14 +1,16 @@
 'use client';
 /** Transfer administration uses the same operation as API v1. @see lib/orders/bank-transfer-actions.ts */
-import { useState, useId, useRef } from 'react';
+import { useEffect, useState, useId, useRef } from 'react';
 import { LoaderCircle } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import TutorialHelpButton from '@/components/tutorials/TutorialHelpButton';
 import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 import TransferInstructions from '@/components/checkout/TransferInstructions';
-import { updateBankTransfer } from '@/lib/orders/bank-transfer-actions';
+import { getLateTransferPreview, updateBankTransfer } from '@/lib/orders/bank-transfer-actions';
+import { formatPrice } from '@/lib/constants';
 import { fromMinorUnits, toMinorUnits, currencyExponent } from '@/lib/currency/minor-units';
 import { transferDeadline } from '@/lib/orders/transfer-format';
+import type { LateTransferPreview } from '@/lib/orders/late-transfer-preview';
 import type { PaymentTransaction } from '@/types/payment';
 const buttonStyle = 'inline-flex min-h-11 items-center justify-center gap-2 rounded px-4 py-2 font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:opacity-50 disabled:cursor-not-allowed';
 const primaryButton = `${buttonStyle} bg-sf-accent-bg text-sf-inverse hover:bg-sf-accent-hover`;
@@ -23,6 +25,16 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
   const [pending, setPending] = useState<string | null>(null);
   const busy = pending !== null;
   const [message, setMessage] = useState('');
+  const lateDecision = tx.payment_provider === 'bank_transfer' && tx.status === 'cancelled' && tx.invoice?.status !== 'corrected';
+  const [preview, setPreview] = useState<LateTransferPreview | null | 'error'>(null);
+  const [declined, setDeclined] = useState(false);
+  useEffect(() => {
+    if (!lateDecision) return;
+    let live = true;
+    getLateTransferPreview(tx.id).then(r => { if (live) setPreview(r.success && r.data ? r.data : 'error'); }).catch(() => { if (live) setPreview('error'); });
+    return () => { live = false; };
+  }, [lateDecision, tx.id]);
+  const price = (major: number) => formatPrice(major, tx.currency, locale);
   const progress = (action: string, label: string) => <>{pending === action && <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" />}{t(pending === action ? `${label}Pending` : label)}</>;
   const date = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
   // Receipt date window (UTC days, as sent to the server): order day … today. @see supabase/tests/transfer-paid-at-window.sql
@@ -73,14 +85,31 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
       {tx.reopened_at && <li>{t('reopened', { date: date(tx.reopened_at) })}</li>}
     </ul>
     {tx.status === 'awaiting_payment' && !tx.invoice_hold_at && <button type="button" data-tour="unpaid-invoice" aria-busy={busy} disabled={busy} onClick={() => void run('invoice-issued')} className={primaryButton}>{progress('invoice-issued', 'markInvoiceIssued')}</button>}
-    {tx.status === 'cancelled' && tx.invoice?.status !== 'corrected' && <div className="space-y-3">
+    {lateDecision && <div className="space-y-3">
       <p className="text-sm text-sf-muted">{t('lateHelp')}</p>
-      <form onSubmit={e => { e.preventDefault(); void run('accept-late'); }} className="flex flex-wrap gap-3 items-end" aria-label={t('acceptLate')}>
+      {/* Facts at the moment of the decision; acceptance always keeps the order price (plan D6, W254). */}
+      <section aria-label={t('latePreview')} className="rounded border border-sf-border p-3 text-sm">
+        <h4 className="font-semibold">{t('latePreview')}</h4>
+        {preview === 'error' && <p>{t('latePreviewError')}</p>}
+        {preview && preview !== 'error' && <ul className="mt-1 space-y-1">
+          <li>{t('latePrice', { then: price(preview.unitPrice), today: preview.unitPriceToday === null ? t('latePriceTodayUnavailable') : price(preview.unitPriceToday) })}{preview.priceChanged && preview.unitPriceToday !== null ? ` ${t('latePriceChanged')}` : ''}</li>
+          {preview.seats && <li className={preview.seats.oversold ? 'font-semibold text-sf-warning' : undefined}>{preview.seats.oversold ? t('lateSeatsOversold')
+            : preview.seats.remaining === null ? t('lateSeatsUnlimited') : t('lateSeatsFree', { remaining: preview.seats.remaining })}</li>}
+          {preview.seats?.started && <li className="font-semibold text-sf-warning">{t('lateSessionStarted')}</li>}
+          {preview.coupon && <li>{t('lateCoupon', { code: preview.coupon.code ?? '—', status: t(`lateCoupon_${preview.coupon.status}`) })}</li>}
+        </ul>}
+      </section>
+      {declined ? <div className="flex flex-wrap items-center gap-3">
+        <p role="status">{t('lateDeclined')}</p>
+        <button type="button" onClick={() => setDeclined(false)} className={`${buttonStyle} border border-sf-border`}>{t('lateReconsider')}</button>
+      </div> : <form onSubmit={e => { e.preventDefault(); void run('accept-late'); }} className="flex flex-wrap gap-3 items-end" aria-label={t('acceptLate')}>
         {paidFields}
         <label>{t('lateReason')}<input className={input} required maxLength={1000} value={lateReason} onChange={e => setLateReason(e.target.value)} /></label>
         <button aria-busy={busy} disabled={busy || !lateReason.trim()} className={primaryButton}>{progress('accept-late', 'acceptLate')}</button>
-      </form>
-      <p role="status">{message}</p>
+        {/* Declining changes nothing: the order stays cancelled and the money is returned outside Sellf. */}
+        <button type="button" disabled={busy} onClick={() => { setDeclined(true); setMessage(''); }} className={`${buttonStyle} border border-sf-border`}>{t('lateDecline')}</button>
+      </form>}
+      {!declined && <p role="status">{message}</p>}
     </div>}
   </section>;
 }

@@ -80,7 +80,7 @@ Błąd wystawiania licencji lub przerwana realizacja mogą zostać uzupełnione 
 kolejne zdarzenie lub weryfikację zakupu. Zapis zakończonej transakcji nie oznacza,
 że wszystkie dostawy już się zakończyły.
 
-Zamówienie przelewem opłacone kartą ze strony zamówienia wysyła `purchase.completed` z
+Zamówienie przelewem opłacone kartą ze strony zamówienia (tylko póki czeka na płatność, nigdy po anulowaniu) wysyła `purchase.completed` z
 `order.settledVia: "stripe"` i `order.paymentIntentId` Stripe (do uzgodnienia płatności i zwrotu);
 przelew zaksięgowany przez sprzedawcę ma `settledVia: "bank_transfer"` i `paymentIntentId: null`.
 `customer.firstName` / `lastName` są uzupełniane z kupującego zapisanego w `orderDetails.buyer`.
@@ -335,7 +335,7 @@ u siebie proformę, fakturę lub własny mail (n8n, Listmonk). Każde zdarzenie 
 | `order.payment_reminder` | Minął `reminderAt` (domyślnie 24 h) bez wpłaty i bez faktury. | Przypomnienie „zapłać do `releaseAt`” z linkiem. |
 | `order.transfer_declared` | Kupujący kliknął „Wysłałem przelew” (raz). | Sprawdzenie wyciągu; `releaseAt` jest już przedłużone (domyślnie o 72 h). |
 | `order.invoice_issued` | Dla nieopłaconego zamówienia wystawiono fakturę (w Sellf albo `POST /api/v1/payments/:id/invoice-issued`). | Status „faktura wystawiona, czeka na płatność”: `reservation = invoice`, `releaseAt = null`, brak wygasania. |
-| `order.cancelled` | Anulowanie: `cancelReason = payment_window_expired` (automatycznie po `releaseAt`) albo `admin` z tekstem administratora w `cancelReasonText`. `reservation = none`, `reminderAt`/`releaseAt` mają wartość `null`. `customer.userId` jest taki sam jak w `seats.released`. | Informacja dla kupującego, korekta faktury; `lateTransferPolicy = admin_decision`. |
+| `order.cancelled` | Anulowanie: `cancelReason = payment_window_expired` (automatycznie po `releaseAt`) albo `admin` z tekstem administratora w `cancelReasonText`. `reservation = none`, `reminderAt`/`releaseAt` mają wartość `null`. `customer.userId` jest taki sam jak w `seats.released`. | Informacja dla kupującego, korekta faktury; `lateTransferPolicy = admin_decision`: kupujący nie może już opłacić zamówienia (`payUrl` pokazuje je jako anulowane), spóźniony przelew może przyjąć tylko administrator. |
 | `order.overdue` | Minął termin płatności zamówienia bez rezerwacji czasowej. | Ponaglenie. |
 | `order.reopened` | Administrator przyjął przelew, który doszedł po anulowaniu (po cenie z zamówienia, także ponad limit miejsc). | Powiązanie wpłaty: `previousStatus = cancelled`; zaraz po nim `purchase.completed`. |
 | `order.participants_updated` | Kupujący uzupełnił listę uczestników po zapłacie (opcja produktu „uzupełnię później”). Wysyłane raz na zamówienie. | `orderDetails.participants.people` zawiera pełną listę (`first_name`, `last_name`, `email`), `orderDetails.quantity.value` liczbę; `purchase.completed` miało pustą listę. |

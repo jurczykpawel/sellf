@@ -7,6 +7,7 @@ import { test, expect } from '@playwright/test';
 import { loginAsAdmin, supabaseAdmin as db } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
 import { MAILPIT_URL } from './helpers/mailpit';
+import { signTransferToken } from '@/lib/orders/transfer-token';
 import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import type { APIRequestContext, Page } from '@playwright/test';
 
@@ -147,6 +148,23 @@ test('an unpaid order past its window is released: seat back on sale, buyer and 
   await page.goto(new URL(payUrl).pathname + new URL(payUrl).search);
   await expect(page.getByRole('alert')).toContainText('Anulowane');
   await expect(page.getByRole('button', { name: 'Wysłałem przelew' })).toHaveCount(0);
+  // W254: the buyer cannot pay a cancelled order in any way, whether the timer or the administrator cancelled it.
+  const { data: adminUser } = await db.from('admin_users').select('user_id').limit(1).single();
+  const byAdmin = await placeViaRpc(event.id, `unpaid-admin-cancel-${randomUUID()}@example.com`, sessionId);
+  expect(await checked(await db.rpc('admin_bank_transfer_order', { p_id: byAdmin, p_action: 'cancel', p_reason: 'Rezygnacja klienta', p_actor: adminUser!.user_id })))
+    .toMatchObject({ success: true, expire_sessions: [] });
+  for (const id of [orderId, byAdmin]) {
+    const token = id === orderId ? new URL(payUrl).searchParams.get('token')! : signTransferToken(id);
+    await page.goto(`/pl/order/${id}/transfer?token=${token}`);
+    await expect(page.getByRole('heading', { name: /zostało anulowane/ })).toBeVisible();
+    await expect(page.getByRole('main').getByRole('alert')).toContainText('Tego zamówienia nie można już opłacić');
+    await expect(page.getByRole('button', { name: /Zapłać online/ })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Przejdź do produktu' })).toHaveAttribute('href', `/pl/p/${event.slug}`);
+    const refused = await request.post(`/api/orders/${id}/pay`, { data: { token, expectedAmount: 10000 } });
+    expect(refused.status()).toBe(409); expect(await refused.json()).toEqual({ reason: 'order_cancelled' });
+    expect(await checked(await db.from('order_payment_attempts').select('id').eq('transaction_id', id))).toHaveLength(0);
+  }
+  await page.screenshot({ path: test.info().outputPath('order-page-cancelled.png'), fullPage: true });
 });
 
 test('admin accepts the late transfer at the order price although the promo seat was sold again @J184', async ({ page, request }) => {
@@ -157,6 +175,16 @@ test('admin accepts the late transfer at the order price although the promo seat
   const row = page.getByRole('row').filter({ hasText: buyer }); await row.getByRole('button', { name: /szczegóły/i }).click();
   const section = page.getByRole('region', { name: 'Przelew tradycyjny', exact: true });
   await expect(section.getByText('Anulowane automatycznie: minął termin rezerwacji')).toBeVisible();
+  // W254: before deciding the administrator sees today's price and the seat situation; acceptance keeps the order price.
+  const preview = section.getByRole('region', { name: 'Podgląd przed przyjęciem' });
+  // The session is full (capacity 1), so there is no price on sale today.
+  await expect(preview).toContainText(/Cena z zamówienia: 100,00\s?zł · cena dziś: niedostępna/);
+  await expect(preview).toContainText('Brak wolnych miejsc: przyjęcie przekroczy limit');
+  // "Do not accept" changes nothing: the order stays cancelled.
+  await section.getByRole('button', { name: 'Nie przyjmuj' }).click();
+  await expect(section.getByRole('status')).toContainText('Zamówienie pozostaje anulowane');
+  expect((await checked(await db.from('payment_transactions').select('status').eq('id', orderId).single())).status).toBe('cancelled');
+  await section.getByRole('button', { name: 'Jednak przyjmij' }).click();
   const form = section.getByRole('form', { name: 'Przyjmij spóźniony przelew po cenie z zamówienia' });
   await form.getByLabel('Data wpływu').fill(new Date().toISOString().slice(0, 10)); await form.getByLabel('Powód przyjęcia').fill('Przelew doszedł po terminie');
   await form.getByRole('button', { name: 'Przyjmij spóźniony przelew po cenie z zamówienia' }).click();
@@ -167,6 +195,10 @@ test('admin accepts the late transfer at the order price although the promo seat
   const reopened = await webhook('order.reopened', orderId);
   expect(reopened).toHaveLength(1); expect(reopened[0].data.order).toMatchObject({ status: 'completed', previousStatus: 'cancelled' });
   await expect.poll(async () => (await webhook('purchase.completed', orderId)).length).toBe(1);
+  const audit = await checked(await db.from('audit_log').select('new_values,performed_by').eq('new_values->>action', 'order.reopened').eq('new_values->>transaction_id', orderId));
+  expect(audit).toHaveLength(1); expect(audit[0].new_values).toMatchObject({ reason: 'Przelew doszedł po terminie', previous_status: 'cancelled', oversold: true });
+  expect(audit[0].performed_by).toBeTruthy();
+  expect(await checked(await db.from('guest_purchases').select('id').eq('transaction_id', orderId))).toHaveLength(1);
   expect((await checked(await db.from('payment_transactions').select('status').eq('id', other).single())).status).toBe('awaiting_payment');
   expect((await cron(request)).ok()).toBe(true); expect(await webhook('order.reopened', orderId)).toHaveLength(1);
 });

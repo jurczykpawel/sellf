@@ -1,9 +1,11 @@
 'use server';
 /** Private transfer settings and operations. @see bank-transfer-admin.ts */
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { withAdminAuth } from '@/lib/actions/admin-auth';
 import { bankTransferConfigSchema } from '@/lib/orders/bank-transfer-config';
 import { operateTransfer } from '@/lib/orders/bank-transfer-admin';
+import { previewLateTransfer } from '@/lib/orders/late-transfer-preview';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function saveBankTransferConfig(input: unknown) {
@@ -28,6 +30,14 @@ export async function updateBankTransfer(id: string, input: unknown) {
     if (result.success) revalidatePath('/dashboard');
     return result;
   }, { mutating: true });
+}
+/** Read-only facts the administrator weighs before accepting a transfer that arrived after cancellation. */
+export async function getLateTransferPreview(id: string) {
+  return withAdminAuth(async () => {
+    if (!z.uuid().safeParse(id).success) return { success: false, error: 'Invalid order' };
+    const data = await previewLateTransfer(createAdminClient(), id, new Date());
+    return data ? { success: true, data } : { success: false, error: 'Preview unavailable' };
+  });
 }
 export async function getOverdueTransferCount() {
   return withAdminAuth(async () => {

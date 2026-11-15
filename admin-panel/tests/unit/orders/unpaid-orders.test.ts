@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const trigger = vi.hoisted(() => vi.fn());
 const fulfill = vi.hoisted(() => vi.fn());
 const magic = vi.hoisted(() => vi.fn());
+const expireSession = vi.hoisted(() => vi.fn());
+const getStripe = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/stripe/server', () => ({ getStripeServer: getStripe }));
 vi.mock('@/lib/services/webhook-service', () => ({ WebhookService: { trigger } }));
 vi.mock('@/lib/services/fulfill-paid-order', () => ({ fulfillPaidOrder: fulfill }));
 vi.mock('@/lib/auth/magic-link/request', () => ({ sendTrustedMagicLink: magic }));
@@ -39,6 +42,7 @@ const payload = () => trigger.mock.calls[0][1] as { order: Record<string, unknow
 beforeEach(() => {
   vi.clearAllMocks(); vi.useRealTimers();
   trigger.mockResolvedValue(undefined); fulfill.mockResolvedValue(undefined); magic.mockResolvedValue({ ok: true });
+  expireSession.mockResolvedValue({}); getStripe.mockResolvedValue({ checkout: { sessions: { expire: expireSession } } });
   vi.stubEnv('CHECKOUT_BINDING_SECRET', 'test-binding-secret'); vi.stubEnv('SITE_URL', 'https://shop.example'); vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://shop.example');
 });
 
@@ -98,8 +102,10 @@ describe('reservation job', () => {
       { data: released }, { data: [] }, { data: [] }, {}, // order.cancelled dispatch
       { data: released }, { data: { slug: 'w', name: 'Warsztat' } }, {}, // cancellation mail
       { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, // recovery sweeps
-    ], name => name === 'release_unpaid_transfer' ? { data: { success: true, released: true } } : { data: { success: true } });
+    ], name => name === 'release_unpaid_transfer' ? { data: { success: true, released: true, expire_sessions: ['cs_test_stale'] } } : { data: { success: true } });
     const result = await runTransferJob(db, 'transfer-reservations');
+    // W254: an online payment page still open for the released order is closed on Stripe.
+    expect(expireSession).toHaveBeenCalledWith('cs_test_stale');
     expect(rpc).toHaveBeenCalledWith('release_unpaid_transfer', { p_id: id, p_now: '2026-02-03T12:00:00.000Z' });
     expect(trigger).toHaveBeenCalledWith('order.cancelled', expect.anything(), db, ['product']);
     expect(magic).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ mail_kind: 'order_cancelled' }) }));
@@ -145,6 +151,23 @@ describe('administrator decisions', () => {
     expect(rpc).toHaveBeenCalledWith('admin_bank_transfer_order', expect.objectContaining({ p_accept_cancelled: true, p_reason: 'Przelew po terminie' }));
     expect(trigger.mock.calls.map(c => c[0])).toEqual(['order.reopened']);
     expect(fulfill).toHaveBeenCalled();
+  });
+  // W254: the buyer must not finish paying an order that the administrator just closed (cancelled or marked paid).
+  it.each([
+    ['cancel', { action: 'cancel', reason: 'Rezygnacja' }, { ...row, status: 'cancelled', cancel_reason: 'admin' }],
+    ['mark-paid', { action: 'mark-paid', amount: 12300, paidAt: '2026-01-01T00:00:00Z' }, { ...row, status: 'completed' }],
+  ])('%s expires the Stripe page the buyer still has open', async (_, input, after) => {
+    const { db } = client([{ data: after }, { data: [] }, { data: [] }, {}, { data: after }, { data: { slug: 'w', name: 'Warsztat' } }, {}],
+      () => ({ data: { success: true, expire_sessions: ['cs_test_open'] } }));
+    expect((await operateTransfer(db, 'actor', id, input)).success).toBe(true);
+    expect(expireSession).toHaveBeenCalledWith('cs_test_open');
+  });
+  it('an order without an online payment in progress never contacts Stripe', async () => {
+    const after = { ...row, status: 'cancelled', cancel_reason: 'admin' };
+    const { db } = client([{ data: after }, { data: [] }, { data: [] }, {}, { data: after }, { data: { slug: 'w', name: 'Warsztat' } }, {}],
+      () => ({ data: { success: true, expire_sessions: [] } }));
+    expect((await operateTransfer(db, 'actor', id, { action: 'cancel', reason: 'Rezygnacja' })).success).toBe(true);
+    expect(getStripe).not.toHaveBeenCalled();
   });
   it('an integrator can mark an externally issued invoice so the order no longer expires', async () => {
     const held = { ...row, release_at: null, invoice_hold_at: '2026-02-01T12:00:00.000Z' };

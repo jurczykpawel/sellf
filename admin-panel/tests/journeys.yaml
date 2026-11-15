@@ -3560,7 +3560,7 @@
         "operation": "cancel"
       },
       "end_state": {
-        "buyer": "Gets the cancellation mail; the order link shows the order as cancelled without the declare button.",
+        "buyer": "Gets the cancellation mail; the order link shows the order as cancelled with a link to the product, without the declare or pay-online button; the pay endpoint refuses the order (order_cancelled), also after an administrator cancellation.",
         "seller": "Order is cancelled with reason payment_window_expired; seat and promo price are back on sale; placement access is withdrawn.",
         "integrator": "Exactly one order.cancelled with cancelReason payment_window_expired and lateTransferPolicy admin_decision."
       },
@@ -3604,7 +3604,7 @@
       },
       "end_state": {
         "buyer": "Order is completed again at the original order price.",
-        "seller": "Order is completed and marked oversold because the promo seat was resold; the other buyer keeps the seat.",
+        "seller": "Sees today's price and the seat situation before deciding; \"Do not accept\" changes nothing. After acceptance the order is completed and marked oversold because the promo seat was resold; the other buyer keeps the seat; audit order.reopened carries the reason.",
         "integrator": "order.reopened (previousStatus cancelled) then purchase.completed, each exactly once."
       },
       "status": "automated",
@@ -3634,11 +3634,11 @@
         "browser",
         "integration"
       ],
-      "limits": "Covers canceled transfer orders paid online, refunded before the first email link is opened."
+      "limits": "Covers unpaid transfer orders paid online, refunded before the first email link is opened. Cancelled orders cannot be paid online (J186)."
     },
     {
       "id": "J186",
-      "title": "Released order paid online is reopened only at a still-current price",
+      "title": "Cancelled transfer order cannot be paid online; quick-pay refund revokes the license",
       "values": {
         "persona": "guest",
         "entry": "email_link",
@@ -3648,9 +3648,9 @@
         "operation": "purchase"
       },
       "end_state": {
-        "buyer": "Pays and gets the same order back; after a price change sees only \"order again at the current price\".",
-        "seller": "Same order completed with reopened_at; no reopening at an outdated price. A full panel refund after quick-pay revokes its UUID-bound license.",
-        "integrator": "order.reopened then purchase.completed, once each. The original license order hash is present in CRL after refund."
+        "buyer": "A released or administrator-cancelled order shows no pay-online button, only a link to the product; the pay endpoint refuses it.",
+        "seller": "No payment attempt is opened for a cancelled order. A full panel refund after quick-pay of an unpaid order revokes its UUID-bound license.",
+        "integrator": "No order.reopened from the buyer. The original license order hash is present in CRL after refund."
       },
       "status": "automated",
       "layers": [

@@ -19,7 +19,9 @@ describe('cancelled bank transfer page', () => {
   });
   it('does not repeat the status as a plain line on the page', () => {
     const source = readFileSync('src/app/[locale]/order/[orderId]/transfer/page.tsx', 'utf8');
-    expect(source).toContain("cancelled={tx.status === 'cancelled'}");
+    expect(source).toContain("cancelled = tx.status === 'cancelled'");
+    expect(source).toContain('cancelled={cancelled}');
+    expect(source).toContain("{!cancelled && <p className=\"mt-3\">{t(`status_${tx.status}`)}</p>}");
   });
 });
 

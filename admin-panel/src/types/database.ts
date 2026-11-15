@@ -4995,6 +4995,10 @@ export type Database = {
         }
         Returns: Json
       }
+      _supersede_order_payment_attempts: {
+        Args: { p_id: string }
+        Returns: Json
+      }
       admin_bank_transfer_order: {
         Args: {
           p_accept_cancelled?: boolean

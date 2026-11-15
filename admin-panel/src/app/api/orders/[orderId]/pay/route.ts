@@ -21,15 +21,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!z.uuid().safeParse(orderId).success || !parsed.success) return reply({ error: 'Invalid request' }, 400);
     if (!verifyTransferToken(parsed.data.token, orderId)) return reply({ error: 'Not found' }, 404);
     const db = createAdminClient();
-    const { data: tx } = await db.from('payment_transactions').select('id,payment_provider,status,amount,currency,product_id,coupon_id,order_number,customer_email,metadata,products(name,slug)')
+    const { data: tx } = await db.from('payment_transactions').select('id,payment_provider,status,amount,currency,product_id,coupon_id,order_number,customer_email,metadata,products(name)')
       .eq('id', orderId).eq('payment_provider', 'bank_transfer').single();
     if (!tx) return reply({ error: 'Not found' }, 404);
     const now = new Date(), base = getSellfBaseUrl();
     const locale = (tx.metadata as Record<string, unknown> | null)?.locale === 'pl' ? 'pl' : 'en';
-    const product = (Array.isArray(tx.products) ? tx.products[0] : tx.products) as { name: string; slug: string } | null;
-    const quote = await quoteOrderPayment(db, tx, now);
+    const product = (Array.isArray(tx.products) ? tx.products[0] : tx.products) as { name: string } | null;
+    const quote = quoteOrderPayment(tx);
     if (quote.mode === 'paid') return reply({ reason: 'paid' }, 409);
-    if (quote.mode === 'unavailable') return reply({ reason: quote.reason, checkoutUrl: product ? `${base}/${locale}/checkout/${product.slug}` : null }, 409);
+    // Refused on the server whatever the page shows: a cancelled order is never payable by the buyer (W254).
+    if (quote.mode === 'unavailable') return reply({ reason: quote.reason }, 409);
     if (quote.amount !== parsed.data.expectedAmount) return reply({ reason: 'amount_changed', quote }, 409);
     const session = await createQuickPaySession(db, await getStripeServer(), tx, quote,
       { baseUrl: base, returnUrl: buildOrderPayLink(orderId, locale, base).url, now, productName: product?.name ?? 'Order' });

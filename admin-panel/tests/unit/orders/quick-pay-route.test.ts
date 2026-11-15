@@ -14,7 +14,7 @@ const call = (body: unknown, orderId = id) => POST(new NextRequest(`http://local
 beforeEach(() => {
   vi.clearAllMocks(); vi.stubEnv('CHECKOUT_BINDING_SECRET', 'test-binding-secret'); vi.stubEnv('SITE_URL', 'https://shop.example');
   limit.mockResolvedValue(true); single.mockResolvedValue({ data: { id, payment_provider: 'bank_transfer', status: 'awaiting_payment', amount: 8000, currency: 'PLN', metadata: { locale: 'pl' }, products: { name: 'Warsztat', slug: 'w' } }, error: null });
-  quote.mockResolvedValue({ mode: 'settle', amount: 8000, currency: 'PLN' }); create.mockResolvedValue({ url: 'https://checkout.stripe.com/c/pay/cs_quick' });
+  quote.mockReturnValue({ mode: 'settle', amount: 8000, currency: 'PLN' }); create.mockResolvedValue({ url: 'https://checkout.stripe.com/c/pay/cs_quick' });
 });
 describe('pay link endpoint', () => {
   it('rejects a forged link without quoting', async () => {
@@ -31,10 +31,11 @@ describe('pay link endpoint', () => {
     expect(response.status).toBe(409); expect(await response.json()).toMatchObject({ quote: { mode: 'settle', amount: 8000 } });
     expect(create).not.toHaveBeenCalled();
   });
-  it('an order that cannot be revived points to a new checkout at today\'s price', async () => {
-    quote.mockResolvedValue({ mode: 'unavailable', reason: 'price_changed' });
+  it('a cancelled order is refused on the server: no payment attempt, no Stripe session, no path to pay it', async () => {
+    quote.mockReturnValue({ mode: 'unavailable', reason: 'order_cancelled' });
     const response = await call({ token: signTransferToken(id), expectedAmount: 8000 });
-    expect(response.status).toBe(409); expect(await response.json()).toMatchObject({ reason: 'price_changed', checkoutUrl: 'https://shop.example/pl/checkout/w' });
+    expect(response.status).toBe(409); expect(await response.json()).toEqual({ reason: 'order_cancelled' });
+    expect(create).not.toHaveBeenCalled();
   });
   it('is rate limited', async () => {
     limit.mockResolvedValue(false);
