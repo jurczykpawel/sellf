@@ -23,7 +23,7 @@ test.use({ trace: 'retain-on-failure', screenshot: 'only-on-failure' });
 
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-const SHOTS = process.env.W223_SHOTS_DIR || path.resolve('test-results/w223a-invoice-section');
+const SHOTS = process.env.INVOICE_SECTION_SHOTS_DIR || path.resolve('test-results/invoice-section');
 const GUS: Record<string, Record<string, string>> = {
   '1181697228': { nazwa: 'Gmina Przykładowo', ulica: 'ul. Wzorcowa', nrNieruchomosci: '12', nrLokalu: '4', miejscowosc: 'Warszawa', kodPocztowy: '00-001', regon: '1', nip: '1181697228' },
   '5260250995': { nazwa: 'Szkoła Podstawowa nr 1 w Przykładowie', ulica: 'ul. Szkolna', nrNieruchomosci: '1', nrLokalu: '', miejscowosc: 'Przykładowo', kodPocztowy: '11-111', regon: '2', nip: '5260250995' },
@@ -202,7 +202,7 @@ test('with the shop setting on, a paid order carries the recipient to the order 
   expect(process.env.STRIPE_SECRET_KEY).toMatch(/^sk_test_/);
   await setRecipientSetting(true);
   // The delivery is persisted before any HTTP attempt; the .invalid host is never reachable.
-  const endpoint = await db.from('webhook_endpoints').insert({ url: 'https://w223a-receiver.invalid/hook', secret: 'whsec_w223a', events: ['purchase.completed'], is_active: true }).select('id').single();
+  const endpoint = await db.from('webhook_endpoints').insert({ url: 'https://invoice-section-receiver.invalid/hook', secret: 'whsec_invoice_section', events: ['purchase.completed'], is_active: true }).select('id').single();
   expect(endpoint.error).toBeNull();
   let sessionId: string | undefined;
   try {

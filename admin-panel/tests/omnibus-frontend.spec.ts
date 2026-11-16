@@ -2,6 +2,9 @@ import { test, expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession } from './helpers/admin-auth';
+import { openFormSection } from './helpers/product-form';
+
+const SALES_SECTION = /Sprzedaż i rozliczenia|Sales and settlement/;
 
 // Enforce single worker for database consistency
 test.describe.configure({ mode: 'serial' });
@@ -353,21 +356,8 @@ test.describe('Omnibus Frontend - Admin Side', () => {
     const modal = page.locator('[role="dialog"]').first();
     await expect(modal).toBeVisible({ timeout: 5000 });
 
-    // Navigate to step 3 (Sales & Settings) where Advanced Settings lives
-    // Use toPass to handle React re-renders swallowing clicks during wizard transitions
-    const advSettingsBtn = modal.locator('button', { hasText: /^E\b|Advanced$|Zaawansowane$|Advanced Settings|Ustawienia zaawansowane/i });
-    await expect(async () => {
-      // Click through step 1 → 2 → 3 if needed
-      const nextBtn = modal.getByRole('button', { name: /Dalej|Continue Setup/i });
-      if (await nextBtn.isVisible().catch(() => false)) {
-        await nextBtn.click();
-      }
-      await expect(advSettingsBtn).toBeVisible({ timeout: 2000 });
-    }).toPass({ timeout: 15000 });
-
-    // Expand Advanced Settings section (omnibus_exempt is inside)
-    await advSettingsBtn.scrollIntoViewIfNeeded();
-    await advSettingsBtn.click();
+    // Status and visibility (omnibus_exempt) live in the sales section
+    await openFormSection(page, SALES_SECTION);
 
     // Find omnibus_exempt checkbox
     const omnibusCheckbox = modal.locator('input[name="omnibus_exempt"]');
@@ -398,33 +388,18 @@ test.describe('Omnibus Frontend - Admin Side', () => {
     expect(updatedProduct!.omnibus_exempt).toBe(true);
 
     // Wait for the success toast to disappear before reopening the modal
-    // (toast can intercept Edit button clicks)
+    // (toast can intercept Edit button clicks). The pointer is moved off the toast first:
+    // the toast appears where the Update button was and stays while hovered.
+    await page.mouse.move(0, 0);
     await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 10000 });
 
     // Reopen modal and verify checkbox is still checked
     await row.locator('button[title*="Edit"], button[title*="Edytuj"]').first().click();
     await expect(modal).toBeVisible({ timeout: 5000 });
 
-    // Navigate to step 3 again — retry to handle re-renders
-    const advSettingsBtn2 = modal.locator('button', { hasText: /^E\b|Advanced$|Zaawansowane$|Advanced Settings|Ustawienia zaawansowane/i });
-    await expect(async () => {
-      const nextBtn = modal.getByRole('button', { name: /Dalej|Continue Setup/i });
-      if (await nextBtn.isVisible().catch(() => false)) {
-        await nextBtn.click();
-      }
-      await expect(advSettingsBtn2).toBeVisible({ timeout: 2000 });
-    }).toPass({ timeout: 15000 });
-
-    // Advanced Settings may already be expanded (defaultExpanded=true when omnibus_exempt=true)
+    await openFormSection(page, SALES_SECTION);
     const omnibusCheckbox2 = modal.locator('input[name="omnibus_exempt"]');
-    // Use expect().toBeVisible with retry instead of instant isVisible()
-    const advSettingsExpander = modal.locator('button', { hasText: /^E\b|Advanced$|Zaawansowane$|Advanced Settings|Ustawienia zaawansowane/i });
-    await expect(async () => {
-      if (!(await omnibusCheckbox2.isVisible().catch(() => false))) {
-        await advSettingsExpander.click();
-      }
-      await expect(omnibusCheckbox2).toBeVisible();
-    }).toPass({ timeout: 5000 });
+    await expect(omnibusCheckbox2).toBeVisible();
 
     await omnibusCheckbox2.scrollIntoViewIfNeeded();
     await expect(omnibusCheckbox2).toBeChecked();

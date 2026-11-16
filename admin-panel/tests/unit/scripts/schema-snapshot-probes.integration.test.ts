@@ -113,8 +113,8 @@ describe('schema snapshot probes', () => {
   // A standalone `CREATE TYPE ... AS (...)` has a pg_class row of relkind 'c', so `typrelid` is set;
   // With GRANT lines dumped away (--no-privileges) its USAGE must still reach the snapshot.
   describe('privileges of a standalone composite type', () => {
-    const type = 'public.w256c_probe_composite';
-    const role = 'w256c_probe_custom';
+    const type = 'public.snapshot_probe_composite';
+    const role = 'snapshot_probe_custom';
     const typeAcl = () => superuser(`SELECT coalesce(typacl::text, '-') FROM pg_type WHERE oid = '${type}'::regtype;`);
     const withType = (probe: (before: string) => void) => {
       try {
@@ -130,7 +130,7 @@ describe('schema snapshot probes', () => {
       expect(superuser(`SELECT has_type_privilege('${role}', '${type}', 'USAGE');`)).toBe('f');
       const diff = snapshotDiff(before, snapshot());
       expect(diff).not.toBeNull();
-      expect(diff).toMatch(/^-type \| public\.w256c_probe_composite \| PUBLIC \| USAGE \|/m);
+      expect(diff).toMatch(/^-type \| public\.snapshot_probe_composite \| PUBLIC \| USAGE \|/m);
     }));
 
     it('FAILs when a custom role gets USAGE WITH GRANT OPTION', () => withType((before) => {
@@ -138,12 +138,12 @@ describe('schema snapshot probes', () => {
       expect(typeAcl()).toContain(`${role}=U*/`);
       const diff = snapshotDiff(before, snapshot());
       expect(diff).not.toBeNull();
-      expect(diff).toMatch(/^\+type \| public\.w256c_probe_composite \| w256c_probe_custom \| USAGE \| .* \| WITH GRANT OPTION$/m);
+      expect(diff).toMatch(/^\+type \| public\.snapshot_probe_composite \| snapshot_probe_custom \| USAGE \| .* \| WITH GRANT OPTION$/m);
     }));
   });
 
   it('FAILs when a function literal loses two trailing spaces (function bodies compared byte for byte)', () => {
-    const fn = 'public.w256b_probe_literal';
+    const fn = 'public.snapshot_probe_literal';
     const create = (literal: string) => `CREATE OR REPLACE FUNCTION ${fn}() RETURNS text LANGUAGE sql AS $body$ SELECT '${literal}' $body$;`;
     try {
       superuser(create('a  \nb'));
@@ -158,7 +158,7 @@ describe('schema snapshot probes', () => {
   });
 
   it('PASSes when the same grants were made in the opposite order (ACL records are canonical)', () => {
-    const table = 'public.w256b_probe_acl';
+    const table = 'public.snapshot_probe_acl';
     const acl = () => superuser(`SELECT relacl::text FROM pg_class WHERE oid = '${table}'::regclass;`);
     try {
       // REVOKE first: default privileges already grant the new table to anon/authenticated.

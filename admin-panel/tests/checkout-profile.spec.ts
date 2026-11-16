@@ -71,7 +71,7 @@ async function party(page: Page, prefix: keyof typeof SECTION_IDS, nip = '526025
 const RECIPIENT = 'Faktura dla innej placówki (odbiorca)';
 /** Evidence of the profile's invoice section (only when a run asks for it). */
 async function sectionShot(page: Page, name: string) {
-  if (process.env.W223_SHOTS_DIR) await page.getByTestId('invoice-section').screenshot({ path: `${process.env.W223_SHOTS_DIR}/${name}.png` });
+  if (process.env.INVOICE_SECTION_SHOTS_DIR) await page.getByTestId('invoice-section').screenshot({ path: `${process.env.INVOICE_SECTION_SHOTS_DIR}/${name}.png` });
 }
 async function submit(page: Page) {
   const terms = page.getByRole('checkbox', { name: /Zgadzam|Akceptuję/ });

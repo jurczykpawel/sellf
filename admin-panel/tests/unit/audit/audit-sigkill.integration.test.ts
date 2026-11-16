@@ -19,7 +19,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const db = createClient(process.env.SUPABASE_URL ?? '', process.env.SUPABASE_SERVICE_ROLE_KEY ?? '');
 const root = resolve(__dirname, '../../..');
-const dir = mkdtempSync(join(tmpdir(), 'w256d-sigkill-'));
+const dir = mkdtempSync(join(tmpdir(), 'audit-sigkill-'));
 
 function runChild(kase: 'invoicing' | 'grant' | 'revoke', when: 'before' | 'after', ids: { actor: string; userId?: string; productId?: string }): string {
   const marker = join(dir, `${kase}-${when}`);
@@ -39,8 +39,8 @@ const product = crypto.randomUUID();
 const stamp = Date.now();
 
 beforeAll(async () => {
-  const admin = await db.auth.admin.createUser({ email: `w256d-sigkill-admin-${stamp}@example.com`, email_confirm: true });
-  const user = await db.auth.admin.createUser({ email: `w256d-sigkill-buyer-${stamp}@example.com`, email_confirm: true });
+  const admin = await db.auth.admin.createUser({ email: `audit-sigkill-admin-${stamp}@example.com`, email_confirm: true });
+  const user = await db.auth.admin.createUser({ email: `audit-sigkill-buyer-${stamp}@example.com`, email_confirm: true });
   if (admin.error || user.error) throw admin.error ?? user.error;
   actor = admin.data.user!.id;
   buyer = user.data.user!.id;
@@ -74,7 +74,7 @@ describe('SIGKILL at the change leaves no false audit entry', () => {
       expect(await auditRows('invoicing_config', 'UPDATE')).toBe(0);
 
       expect(runChild('invoicing', 'after', { actor })).toMatch(/^after 20\d /);
-      expect((await db.from('invoicing_config').select('template').eq('id', true).single()).data?.template).toBe('{product} w256d-sigkill');
+      expect((await db.from('invoicing_config').select('template').eq('id', true).single()).data?.template).toBe('{product} audit-sigkill');
       expect(await auditRows('invoicing_config', 'UPDATE')).toBe(1);
     } finally {
       const { id: _id, instance_id: _instance, auto_since: _since, ...restore } = config.data!;

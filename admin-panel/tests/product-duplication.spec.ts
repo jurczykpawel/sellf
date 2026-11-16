@@ -2,6 +2,7 @@ import { test, expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession } from './helpers/admin-auth';
+import { openFormSection } from './helpers/product-form';
 
 // Enforce single worker for admin tests
 test.describe.configure({ mode: 'serial' });
@@ -154,24 +155,16 @@ test.describe('Product Duplication', () => {
       await slugInput.fill('copy-original-product');
     }
 
-    // Description lives on step 2 after the redesign. Navigate there to
-    // verify it was copied across. The "Dalej"/"Continue Setup" button stays
-    // disabled until the wizard's shop-config fetch settles — wait for it to
-    // become enabled rather than guessing a fixed delay before clicking.
-    const continueBtn = page.getByRole('dialog').getByRole('button', { name: /Dalej|Next|Continue Setup/i });
-    await expect(continueBtn).toBeEnabled({ timeout: 15000 });
-    await continueBtn.click();
+    // Description lives in the offer section; the sale price in the sales section.
+    await openFormSection(page, /Oferta|Offer/);
     const descInput = page.locator('textarea[name="description"]');
     await expect(descInput).toBeVisible({ timeout: 10000 });
     const descValue = await descInput.inputValue();
     expect(descValue).toBe('Product to be duplicated');
 
-    // Navigate to step 3 (Sales & Settings) — one more Continue takes us there.
-    // Group A (Konwersja) is expanded by default and contains sale_price.
-    await expect(continueBtn).toBeEnabled({ timeout: 15000 });
-    await continueBtn.click();
+    await openFormSection(page, /Sprzedaż i rozliczenia|Sales and settlement/);
 
-    // Check that sale_price is copied on step 3
+    // Check that sale_price is copied
     const salePriceInput = page.locator('input#sale_price');
     await expect(salePriceInput).toBeVisible({ timeout: 10000 });
     const salePriceValue = await salePriceInput.inputValue();

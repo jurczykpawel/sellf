@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession } from './helpers/admin-auth';
+import { openFormSection } from './helpers/product-form';
 
 // Enforce single worker to avoid race conditions
 test.describe.configure({ mode: 'serial' });
@@ -730,26 +731,10 @@ test.describe('Refund System - Admin Product Form UI', () => {
     const modal = page.locator('[role="dialog"]').first();
     await expect(modal).toBeVisible({ timeout: 10000 });
 
-    // Navigate to step 3 (Sales & Settings) where Refund section lives.
-    // The "Dalej"/"Continue Setup" button stays disabled until the wizard's
-    // shop-config fetch settles — wait for it to become enabled and for the
-    // destination step's own marker to appear, rather than guessing a fixed
-    // delay after each click.
-    const continueBtn = modal.getByRole('button', { name: /Dalej|Continue Setup/i });
-    await expect(continueBtn).toBeEnabled({ timeout: 15000 });
-    await continueBtn.click();
+    // Refund settings live in the sales section.
+    await openFormSection(page, /Sprzedaż i rozliczenia|Sales and settlement/);
 
-    // Step 2 — the description field confirms the wizard actually advanced.
-    await expect(modal.locator('#description')).toBeVisible({ timeout: 10000 });
-    await expect(continueBtn).toBeEnabled({ timeout: 15000 });
-    await continueBtn.click();
-
-    // Step 3 groups (A-E) are collapsed by default. Expand group D (Refunds).
-    const refundsGroup = modal.locator('section[data-step3-group="D"]');
-    await expect(refundsGroup).toBeVisible({ timeout: 10000 });
-    await refundsGroup.locator('button[aria-expanded="false"]').click().catch(() => {});
-
-    // Should see the toggle for allowing refunds inside the expanded group
+    // Should see the toggle for allowing refunds
     await expect(page.locator('text=/Allow customers to request refunds/i')).toBeVisible({ timeout: 10000 });
   });
 
@@ -767,24 +752,10 @@ test.describe('Refund System - Admin Product Form UI', () => {
     await expect(productRow).toBeVisible({ timeout: 10000 });
     await productRow.locator('button[title*="Edit"], button[title*="Edytuj"]').click();
 
-    // Navigate to step 3 (Sales & Settings) where Refund section lives.
-    // The "Dalej"/"Continue Setup" button stays disabled until the wizard's
-    // shop-config fetch settles — wait for it to become enabled and for the
-    // destination step's own marker to appear, rather than guessing a fixed
-    // delay after each click.
+    // Refund settings live in the sales section.
     const modal = page.locator('[role="dialog"]').filter({ has: page.locator('#wizard-form') });
     await expect(modal).toBeVisible({ timeout: 10000 });
-    const continueBtn = modal.getByRole('button', { name: /Dalej|Continue Setup/i });
-    await expect(continueBtn).toBeEnabled({ timeout: 15000 });
-    await continueBtn.click();
-    await expect(modal.locator('#description')).toBeVisible({ timeout: 10000 });
-    await expect(continueBtn).toBeEnabled({ timeout: 15000 });
-    await continueBtn.click();
-
-    // Step 3 groups B-E are collapsed by default — expand group D (Refunds)
-    const refundsGroup = modal.locator('section[data-step3-group="D"]');
-    await expect(refundsGroup).toBeVisible({ timeout: 10000 });
-    await refundsGroup.locator('button[aria-expanded="false"]').click().catch(() => {});
+    await openFormSection(page, /Sprzedaż i rozliczenia|Sales and settlement/);
 
     // Find the refund toggle checkbox by its ID
     const refundToggle = page.locator('#is_refundable');

@@ -6,8 +6,8 @@ import type { TranslationFunction, ProductFormData } from '../types';
 import { PublishChecklist, getPublishChecklist } from './PublishChecklist';
 
 interface WizardFooterProps {
-  currentStep: number;
-  totalSteps: number;
+  isFirstSection: boolean;
+  isLastSection: boolean;
   isSubmitting: boolean;
   isEditMode: boolean;
   formData: ProductFormData;
@@ -30,8 +30,8 @@ interface WizardFooterProps {
 }
 
 export const WizardFooter: React.FC<WizardFooterProps> = ({
-  currentStep,
-  totalSteps,
+  isFirstSection,
+  isLastSection,
   isSubmitting,
   isEditMode,
   formData,
@@ -43,8 +43,6 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
   onCancel,
   t,
 }) => {
-  const isFirstStep = currentStep === 1;
-  const isLastStep = currentStep === totalSteps;
   const checklist = getPublishChecklist(formData, priceDisplayValue, t);
   const missing = checklist.filter((c) => !c.ok);
   const canPublish = isEditMode || missing.length === 0;
@@ -66,7 +64,7 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
       )}
       <div className="flex items-center justify-between">
         <div>
-          {isFirstStep ? (
+          {isFirstSection ? (
             <Button onClick={onCancel} variant="ghost">
               {t('wizard.cancel')}
             </Button>
@@ -99,7 +97,7 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
           >
             {submitLabel}
           </Button>
-          {!isLastStep && (
+          {!isLastSection && (
             <Button
               onClick={onContinue}
               variant="ghost"

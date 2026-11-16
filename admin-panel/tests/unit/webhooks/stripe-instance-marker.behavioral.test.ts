@@ -263,7 +263,7 @@ describe.skipIf(!hasSupabase)('Stripe webhook — identity changes only explicit
     const productId = await createProduct();
     const event = sessionEvent({ product_id: productId, [STRIPE_INSTANCE_METADATA_KEY]: ours });
     await pendingOrderFor(event, productId);
-    vi.stubEnv('SELLF_INSTANCE_ID', 'rehearsal-copy-w253c');
+    vi.stubEnv('SELLF_INSTANCE_ID', 'rehearsal-copy');
     expect(await postFull(event)).toEqual({ status: 200, body: { received: true, skipped: 'foreign instance, skipped' } });
     expect(await statusOf(event.data.object.id as string)).toBe('pending');
   });
@@ -272,7 +272,7 @@ describe.skipIf(!hasSupabase)('Stripe webhook — identity changes only explicit
     const productId = await createProduct();
     const event = sessionEvent({ product_id: productId, [STRIPE_INSTANCE_METADATA_KEY]: ours });
     await pendingOrderFor(event, productId);
-    vi.stubEnv('SELLF_INSTANCE_ID', 'moved-server-w253c');
+    vi.stubEnv('SELLF_INSTANCE_ID', 'moved-server');
     vi.stubEnv('SELLF_INSTANCE_ALIASES', ours);
     expect(await post(event)).toBe(200);
     expect(await statusOf(event.data.object.id as string)).toBe('completed');

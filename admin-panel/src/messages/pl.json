@@ -1760,6 +1760,7 @@
           "help": "Opcjonalne treści sprzedawcy. Tylko zwykły tekst; brakujące informacje pozostaw puste. Rezultat: 240 znaków. Do 12 narzędzi (po 80 znaków) i 12 wymagań (po 240 znaków). Łącznie: 8 KiB. Format opisuje treść, a nie płatności ani dostęp.",
           "invalid": "Sprawdź treści marketingowe: użyj zwykłego tekstu, różnych pozycji na listach i zachowaj limity znaków, liczby pozycji oraz łącznego rozmiaru.",
           "format": "Format",
+          "formatHint": "To etykieta przy opisie oferty. Dane kupującego, liczbę miejsc i uczestników ustawisz w sekcji „Dane w koszyku”.",
           "noFormat": "Nie określono",
           "sourceLocale": "Język źródłowy",
           "locale": "Edytowany język",
@@ -1914,13 +1915,6 @@
         "productListedHelp": "Ukryte produkty można nadal kupić przez bezpośredni link",
         "featuredProduct": "Produkt wyróżniony",
         "featuredProductHelp": "Wyróżniony w katalogu produktów",
-        "step3": {
-          "conversion": "Konwersja",
-          "formFields": "Pola formularza",
-          "availability": "Dostępność i dostęp",
-          "refunds": "Zwroty",
-          "advanced": "Zaawansowane"
-        },
         "conversionBadge": {
           "salePrice": "+6% do konwersji",
           "oto": "+4% do konwersji"
@@ -2015,10 +2009,7 @@
         "enabled": "Włączone",
         "wizard": {
           "title": "Utwórz nowy produkt",
-          "subtitle": "Skonfiguruj produkt w kilku prostych krokach",
-          "step1": "Podstawy",
-          "step2": "Treść i szczegóły",
-          "step3": "Sprzedaż i ustawienia",
+          "subtitle": "Zacznij od podstaw, resztę ustawisz w kolejnych sekcjach",
           "stepOf": "Krok {current} z {total}",
           "createProduct": "Utwórz produkt",
           "continueSetup": "Dalej",
@@ -2030,6 +2021,38 @@
           "exitMessage": "Masz niezapisane dane produktu. Zamknąć bez tworzenia?",
           "exitDiscard": "Odrzuć",
           "exitKeepEditing": "Kontynuuj edycję"
+        },
+        "sections": {
+          "nav": "Sekcje produktu",
+          "basics": {
+            "title": "Podstawy",
+            "effect": "Nazwa, adres strony i cena. Kupujący widzi je na stronie produktu i w koszyku."
+          },
+          "delivery": {
+            "title": "Co dostaje klient",
+            "effect": "Materiały i dostęp po zakupie: treści albo przekierowanie, składniki pakietu, czas dostępu i klucz licencyjny."
+          },
+          "cart": {
+            "title": "Dane w koszyku",
+            "effect": "Pola, które klient wypełni przed zakupem: kto kupuje, liczba miejsc, uczestnicy, dodatkowe pola i zgody. To zmienia formularz zakupu."
+          },
+          "schedule": {
+            "title": "Terminy i miejsca",
+            "effect": "Klient wybierze termin i liczbę miejsc, a cena może zależeć od progu. Potrzebne tylko dla wydarzeń."
+          },
+          "offer": {
+            "title": "Oferta",
+            "effect": "Opis i wygląd strony sprzedaży: tekst, zdjęcie, film, kategorie i tagi. Nie zmienia formularza zakupu."
+          },
+          "sales": {
+            "title": "Sprzedaż i rozliczenia",
+            "effect": "Kiedy i gdzie można kupić, promocje, co dzieje się po zakupie, zwroty i prowizje."
+          },
+          "groups": {
+            "visibility": "Aktywność i widoczność",
+            "refunds": "Zwroty",
+            "embed": "Sprzedaż na innych stronach"
+          }
         },
         "description": "Opis",
         "descriptionPlaceholder": "Opisz swój produkt",
@@ -6316,7 +6339,7 @@
     },
     "b2b-checkout-profile": {
       "name": "Koszyk dla firm: nabywca, odbiorca, uczestnicy",
-      "where": "Produkty, edycja produktu, Sprzedaż i ustawienia, Koszyk.",
+      "where": "Produkty, edycja produktu, Dane w koszyku.",
       "steps": {
         "intro": {
           "title": "Własny koszyk produktu",
@@ -6347,7 +6370,7 @@
     },
     "events": {
       "name": "Wydarzenia z terminami i progami cenowymi",
-      "where": "Produkty, edycja produktu, Sprzedaż i ustawienia, Terminy i ceny.",
+      "where": "Produkty, edycja produktu, Terminy i miejsca.",
       "steps": {
         "intro": {
           "title": "Wydarzenie",

@@ -1,21 +1,24 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useId, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { Product } from '@/types';
 import { BaseModal, ModalHeader, ModalBody, Message } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Modal';
 import { useProductForm } from '../hooks';
-import { WizardStepIndicator } from './WizardStepIndicator';
+import { EventSection } from '../sections/EventSection';
 import { WizardFooter } from './WizardFooter';
-import { StepEssentials } from './steps/StepEssentials';
-import { StepContentDetails } from './steps/StepContentDetails';
-import { StepSalesSettings } from './steps/StepSalesSettings';
+import { FormSection } from './FormSection';
+import { FormSectionNav } from './FormSectionNav';
+import { BasicsPanel } from './panels/BasicsPanel';
+import { DeliveryPanel } from './panels/DeliveryPanel';
+import { CartPanel } from './panels/CartPanel';
+import { OfferPanel } from './panels/OfferPanel';
+import { SalesPanel } from './panels/SalesPanel';
+import { FORM_SECTIONS, initialSection, sectionForErrors, type FormSectionId } from './form-sections';
 import { headerPriceBadge } from './header-price-badge';
 import type { ProductFormData } from '../types';
-
-const TOTAL_STEPS = 3;
 
 export interface ProductCreationWizardProps {
   tutorial?: string;
@@ -47,7 +50,12 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
 
   const isEditMode = !!(product && product.id);
 
-  const [currentStep, setCurrentStep] = useState(tutorial === 'events' || tutorial === 'b2b-checkout-profile' ? 3 : 1);
+  const titleId = useId();
+  const [currentSection, setCurrentSection] = useState<FormSectionId>(() => initialSection(tutorial));
+  const sectionIndex = FORM_SECTIONS.indexOf(currentSection);
+  const formRef = useRef<HTMLFormElement>(null);
+  // A newly shown section starts at its heading, not at the previous section's scroll position.
+  useEffect(() => { formRef.current?.parentElement?.scrollTo?.({ top: 0 }); }, [currentSection]);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [openingDuplicate, setOpeningDuplicate] = useState(!!product && !product.id);
   useEffect(() => {
@@ -115,39 +123,41 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     // The "Dalej" button is disabled while shopConfigLoaded is false
     // (WizardFooter) — this guards against it firing anyway (e.g. a
     // keyboard-triggered click on a not-yet-re-rendered disabled state).
-    // See useProductForm's handleSubmit for why: step-1 validation depends
-    // on taxMode/vat_rate, which are only trustworthy once the shop config
-    // fetch has settled.
+    // Basics validation depends on taxMode/vat_rate, which are only
+    // trustworthy once the shop config fetch has settled.
     if (!shopConfigLoaded) return;
-    if (currentStep === 1 && !validateStep1Fields()) {
-      return;
-    }
-    if (currentStep < TOTAL_STEPS) {
-      setCurrentStep(prev => prev + 1);
-    }
-  }, [currentStep, validateStep1Fields, shopConfigLoaded]);
+    if (currentSection === 'basics' && !validateStep1Fields()) return;
+    const next = FORM_SECTIONS[sectionIndex + 1];
+    if (next) setCurrentSection(next);
+  }, [currentSection, sectionIndex, validateStep1Fields, shopConfigLoaded]);
 
   const handleBack = useCallback(() => {
-    if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1);
-    }
-  }, [currentStep]);
+    const previous = FORM_SECTIONS[sectionIndex - 1];
+    if (previous) setCurrentSection(previous);
+  }, [sectionIndex]);
 
-  const handleStepClick = useCallback((step: number) => {
-    if (isEditMode || step < currentStep) {
-      setCurrentStep(step);
-    }
-  }, [currentStep, isEditMode]);
-
+  // A new error opens the section holding the first errored field and focuses that field.
   const [previousErrors, setPreviousErrors] = useState(fieldErrors);
+  const [focusError, setFocusError] = useState(0);
   if (previousErrors !== fieldErrors) {
     setPreviousErrors(fieldErrors);
-    const keys = Object.keys(fieldErrors);
-    const step1Keys = ['name', 'slug', 'price', 'recurring_price', 'custom_price_min', 'custom_price_presets', 'trial_days', 'vat_rate'];
-    if (keys.some(key => step1Keys.includes(key))) setCurrentStep(1);
-    else if (keys.includes('description') || keys.includes('marketing_fields') || keys.includes('content_url')) setCurrentStep(2);
-    else if (keys.includes('sale_price') || keys.includes('license_duration_days') || keys.includes('license_tier')) setCurrentStep(3);
+    const added = Object.keys(fieldErrors).filter(key => !(key in previousErrors));
+    const section = added.length ? sectionForErrors(Object.keys(fieldErrors)) : null;
+    if (section) {
+      setCurrentSection(section);
+      setFocusError(count => count + 1);
+    }
   }
+  useEffect(() => {
+    if (!focusError) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (document.activeElement?.getAttribute('aria-invalid') === 'true') return;
+      const field = document.querySelector<HTMLElement>('#wizard-form [aria-invalid="true"]');
+      field?.scrollIntoView({ block: 'center' });
+      field?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusError]);
 
   // Trigger the form submit via the hook's handleSubmit
   const handleWizardSubmit = useCallback(() => {
@@ -158,23 +168,17 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     handleSubmit(syntheticEvent);
   }, [handleSubmit]);
 
-  const steps = [
-    { number: 1, label: t('wizard.step1') },
-    { number: 2, label: t('wizard.step2') },
-    { number: 3, label: t('wizard.step3') },
-  ];
-
   const priceBadge = headerPriceBadge(formData, priceDisplayValue, t('free'), locale);
 
   if (!isOpen) return null;
 
   return (
     <>
-      <BaseModal isOpen={isOpen} onClose={handleClose} size="xl" closeOnBackdropClick={false}>
+      <BaseModal isOpen={isOpen} onClose={handleClose} size="xl" closeOnBackdropClick={false} labelledBy={titleId}>
         <ModalHeader
           title={
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span>{isEditMode ? t('editProduct') : t('wizard.title')}</span>
+              <span id={titleId}>{isEditMode ? t('editProduct') : t('wizard.title')}</span>
               {formData.name && (
                 <span className="inline-flex items-center gap-1.5 font-normal text-sf-muted">
                   <span className="truncate max-w-[180px]">{formData.name}</span>
@@ -207,12 +211,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
           ) : undefined}
         />
 
-        <WizardStepIndicator
-          steps={steps}
-          currentStep={currentStep}
-          onStepClick={handleStepClick}
-          isEditMode={isEditMode}
-        />
+        <FormSectionNav current={currentSection} onSelect={setCurrentSection} t={t} />
 
         <ModalBody>
           {error && (
@@ -224,74 +223,83 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
             />
           )}
 
-          <form id="wizard-form" onSubmit={handleSubmit} noValidate onClickCapture={(event) => {
+          <form ref={formRef} id="wizard-form" onSubmit={handleSubmit} noValidate onClickCapture={(event) => {
             if (openingDuplicate && event.detail > 0) { event.preventDefault(); event.stopPropagation(); }
           }}>
-            {currentStep === 1 && (
-              <StepEssentials
-                formData={formData}
-                setFormData={setFormData}
-                t={t}
-                nameInputRef={nameInputRef}
-                slugModified={slugModified}
-                setSlugModified={setSlugModified}
-                currentDomain={currentDomain}
-                generateSlug={generateSlug}
-                fieldErrors={fieldErrors}
-                setFieldErrors={setFieldErrors}
-                priceDisplayValue={priceDisplayValue}
-                setPriceDisplayValue={setPriceDisplayValue}
-                shopDefaultVatRate={shopDefaultVatRate}
-                taxMode={taxMode}
-                isEditing={isEditMode}
-              />
-            )}
-
-            {currentStep === 2 && (
-              <StepContentDetails
-                formData={formData}
-                setFormData={setFormData}
-                t={t}
-                onIconSelect={handleIconSelect}
-                urlValidation={urlValidation}
-                setUrlValidation={setUrlValidation}
-                validateContentItemUrl={validateContentItemUrl}
-                allCategories={allCategories}
-                loadingCategories={loadingCategories}
-                allTags={allTags}
-                loadingTags={loadingTags}
-                fieldErrors={fieldErrors}
-                setFieldErrors={setFieldErrors}
-                products={products}
-                currentProductId={product?.id}
-              />
-            )}
-
-            {currentStep === 3 && (
-              <StepSalesSettings
-                formData={formData}
-                setFormData={setFormData}
-                t={t}
-                salePriceDisplayValue={salePriceDisplayValue}
-                setSalePriceDisplayValue={setSalePriceDisplayValue}
-                omnibusEnabled={omnibusEnabled}
-                hasWaitlistWebhook={hasWaitlistWebhook}
-                products={products}
-                loadingProducts={loadingProducts}
-                currentProductId={product?.id}
-                oto={oto}
-                setOto={setOto}
-                hasLicenseIssuance={hasLicenseIssuance}
-                fieldErrors={fieldErrors}
-                setFieldErrors={setFieldErrors}
-              />
-            )}
+            <FormSection id={currentSection} t={t}>
+              {currentSection === 'basics' && (
+                <BasicsPanel
+                  formData={formData}
+                  setFormData={setFormData}
+                  t={t}
+                  nameInputRef={nameInputRef}
+                  slugModified={slugModified}
+                  setSlugModified={setSlugModified}
+                  currentDomain={currentDomain}
+                  generateSlug={generateSlug}
+                  fieldErrors={fieldErrors}
+                  setFieldErrors={setFieldErrors}
+                  priceDisplayValue={priceDisplayValue}
+                  setPriceDisplayValue={setPriceDisplayValue}
+                  shopDefaultVatRate={shopDefaultVatRate}
+                  taxMode={taxMode}
+                  isEditing={isEditMode}
+                />
+              )}
+              {currentSection === 'delivery' && (
+                <DeliveryPanel
+                  formData={formData}
+                  setFormData={setFormData}
+                  t={t}
+                  urlValidation={urlValidation}
+                  setUrlValidation={setUrlValidation}
+                  validateContentItemUrl={validateContentItemUrl}
+                  products={products}
+                  currentProductId={product?.id}
+                  hasLicenseIssuance={hasLicenseIssuance}
+                  fieldErrors={fieldErrors}
+                  setFieldErrors={setFieldErrors}
+                />
+              )}
+              {currentSection === 'cart' && <CartPanel formData={formData} setFormData={setFormData} t={t} />}
+              {currentSection === 'schedule' && <EventSection formData={formData} setFormData={setFormData} />}
+              {currentSection === 'offer' && (
+                <OfferPanel
+                  formData={formData}
+                  setFormData={setFormData}
+                  t={t}
+                  onIconSelect={handleIconSelect}
+                  allCategories={allCategories}
+                  loadingCategories={loadingCategories}
+                  allTags={allTags}
+                  loadingTags={loadingTags}
+                  fieldErrors={fieldErrors}
+                  setFieldErrors={setFieldErrors}
+                />
+              )}
+              {currentSection === 'sales' && (
+                <SalesPanel
+                  formData={formData}
+                  setFormData={setFormData}
+                  t={t}
+                  salePriceDisplayValue={salePriceDisplayValue}
+                  setSalePriceDisplayValue={setSalePriceDisplayValue}
+                  omnibusEnabled={omnibusEnabled}
+                  hasWaitlistWebhook={hasWaitlistWebhook}
+                  products={products}
+                  loadingProducts={loadingProducts}
+                  currentProductId={product?.id}
+                  oto={oto}
+                  setOto={setOto}
+                />
+              )}
+            </FormSection>
           </form>
         </ModalBody>
 
         <WizardFooter
-          currentStep={currentStep}
-          totalSteps={TOTAL_STEPS}
+          isFirstSection={sectionIndex === 0}
+          isLastSection={sectionIndex === FORM_SECTIONS.length - 1}
           isSubmitting={isSubmitting}
           isEditMode={isEditMode}
           formData={formData}

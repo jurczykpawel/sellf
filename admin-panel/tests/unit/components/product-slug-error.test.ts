@@ -2,7 +2,7 @@
 import { createElement, createRef, useState } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { StepEssentials } from '@/components/ProductFormModal/wizard/steps/StepEssentials';
+import { BasicsPanel } from '@/components/ProductFormModal/wizard/panels/BasicsPanel';
 import { initialFormData } from '@/components/ProductFormModal/types';
 vi.mock('next-intl', () => ({ useLocale: () => 'en' }));
 vi.mock('@/components/ProductFormModal/sections', async () => {
@@ -13,7 +13,7 @@ afterEach(cleanup);
 function Form() {
   const [formData, setFormData] = useState({ ...initialFormData, slug: 'Zła Ścieżka!' });
   const [fieldErrors, setFieldErrors] = useState({ slug: 'invalid', name: 'required' });
-  return createElement(StepEssentials, { formData, setFormData, fieldErrors, setFieldErrors, t: key => key,
+  return createElement(BasicsPanel, { formData, setFormData, fieldErrors, setFieldErrors, t: key => key,
     nameInputRef: createRef(), slugModified: true, setSlugModified: vi.fn(), currentDomain: '', generateSlug: value => value,
     priceDisplayValue: '0', setPriceDisplayValue: vi.fn(), shopDefaultVatRate: null });
 }

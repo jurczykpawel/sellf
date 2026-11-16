@@ -5,6 +5,7 @@ import { test, expect } from '@playwright/test';
 import { createTestAdmin, createTestUser, setAuthSession, supabaseAdmin as db } from './helpers/admin-auth';
 import en from '../src/messages/en.json';
 import pl from '../src/messages/pl.json';
+import { openFormSection } from './helpers/product-form';
 
 test('aligns the registered user count and renders seller forms in both languages', async ({ page, browser }) => {
   test.setTimeout(180000);
@@ -45,9 +46,7 @@ test('aligns the registered user count and renders seller forms in both language
       await page.screenshot({ path: `/tmp/rcfix-core-shots/coupon-${locale}-${width}.png`, fullPage: true, animations: 'disabled' });
       await page.goto(`/${locale}/dashboard/products`);
       await page.getByRole('button', { name: messages.admin.products.editLabel.replace('{name}', product.data!.name), exact: true }).click();
-      if (width < 640) await page.getByRole('button', { name: '3', exact: true }).click();
-      else await page.getByText(messages.admin.products.form.wizard.step3, { exact: true }).click();
-      await page.locator('[data-step3-group="E"] > button').click();
+      await openFormSection(page, messages.admin.products.form.sections.sales.title);
       const save = page.getByRole('button', { name: messages.affiliates.products.ruleSave, exact: true });
       await expect(save).toBeEnabled();
       await save.scrollIntoViewIfNeeded();

@@ -12,8 +12,8 @@ vi.mock('@/lib/affiliates/products/actions', () => ({
   getAffiliateProduct: async () => ({ success: true, data: { product: { product_type: 'one_time', currency: 'PLN' }, rule: { revision: 7, percentage_bps: 2000, enabled: true } } }),
   createAffiliateRule: state.save,
 }));
-vi.mock('@/components/ProductFormModal/sections', () => Object.fromEntries(['SalePriceSection', 'AvailabilitySection', 'AccessSection', 'LicenseSection', 'EmbedSection', 'PostPurchaseSection', 'RefundSection', 'AdvancedSection', 'BadgeGeneratorSection', 'CustomCheckoutFieldsSection', 'FeaturedToggle'].map(name => [name, () => null])));
-import { StepSalesSettings } from '@/components/ProductFormModal/wizard/steps/StepSalesSettings';
+vi.mock('@/components/ProductFormModal/sections', () => Object.fromEntries(['SalePriceSection', 'AvailabilitySection', 'EmbedSection', 'PostPurchaseSection', 'RefundSection', 'AdvancedSection', 'BadgeGeneratorSection', 'FeaturedToggle'].map(name => [name, () => null])));
+import { SalesPanel } from '@/components/ProductFormModal/wizard/panels/SalesPanel';
 import { AffiliateRuleEditor } from '@/components/affiliates/products/Settings';
 import { productAffiliateMessages } from '@/components/affiliates/products/messages';
 import type { ComponentProps } from 'react';
@@ -48,11 +48,11 @@ it('retains the commission draft and its expected revision after a conflict', as
   expect(screen.queryByText(/Commission saved/)).toBeNull();
 });
 
-it('shows commission outside the collapsible product settings', async () => {
-  const props = { formData: {}, setFormData: vi.fn(), t: (key: string) => key, salePriceDisplayValue: '', setSalePriceDisplayValue: vi.fn(), omnibusEnabled: false, hasWaitlistWebhook: false, products: [], loadingProducts: false, currentProductId: 'product', oto: {}, setOto: vi.fn() } as ComponentProps<typeof StepSalesSettings>;
-  render(createElement(StepSalesSettings, props));
+it('shows commission in the sales section without collapsing it', async () => {
+  const props = { formData: {}, setFormData: vi.fn(), t: (key: string) => key, salePriceDisplayValue: '', setSalePriceDisplayValue: vi.fn(), omnibusEnabled: false, hasWaitlistWebhook: false, products: [], loadingProducts: false, currentProductId: 'product', oto: {}, setOto: vi.fn() } as ComponentProps<typeof SalesPanel>;
+  render(createElement(SalesPanel, props));
   const heading = screen.getByRole('heading', { name: 'Affiliate commission' });
-  expect(heading.closest('[data-step3-group]')).toBeNull();
+  expect(heading.closest('[hidden], [aria-expanded="false"]')).toBeNull();
   await waitFor(() => expect((screen.getByRole('button', { name: 'Save commission now' }) as HTMLButtonElement).disabled).toBe(false));
 });
 

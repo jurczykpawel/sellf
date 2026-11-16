@@ -51,9 +51,9 @@ function laterFragment() {
 }
 
 async function pendingOrder(orderDetails: unknown, customFieldValues: unknown = { note: 'before' }) {
-  const sessionId = `cs_test_w223d_${crypto.randomUUID().replaceAll('-', '')}`;
+  const sessionId = `cs_test_order_details_${crypto.randomUUID().replaceAll('-', '')}`;
   const tx = await db.from('payment_transactions').insert({
-    product_id: productId, customer_email: `w223d-${crypto.randomUUID()}@example.com`, session_id: sessionId,
+    product_id: productId, customer_email: `order-details-${crypto.randomUUID()}@example.com`, session_id: sessionId,
     amount: 1000, currency: 'PLN', status: 'pending', order_details: orderDetails, custom_field_values: customFieldValues,
   }).select('id').single();
   if (tx.error) throw tx.error;

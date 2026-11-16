@@ -21,3 +21,4 @@ export { ConversionBadge } from './ConversionBadge';
 export { TaxHelper, computeTaxHelperMessage } from './TaxHelper';
 export { default as BadgeGeneratorSection } from './BadgeGeneratorSection';
 export { EmbedSection } from './EmbedSection';
+export { LeadConsentSection } from './LeadConsentSection';
