@@ -91,18 +91,20 @@ for (const locale of ['pl', 'en'] as const) {
       await expect(buyer).toBeEnabled();
       await buyer.selectOption('organization');
       await page.locator('[id="buyer.first_name"]').fill('Jan');
-      await page.locator('[id="buyer.company_name"]').fill('Example workshop');
+      // The organization uses the standard invoice section (W223b): manual path for the company.
+      await page.getByRole('button', { name: locale === 'pl' ? 'Nie mam NIP albo firma jest spoza UE' : 'I have no NIP or the company is outside the EU' }).click();
+      await page.locator('#companyName').fill('Example workshop');
       await page.locator('#phone').fill('500100200');
       await page.locator('#checkoutQuantity').fill('2');
-      const recipient = page.getByRole('checkbox', { name: locale === 'pl' ? 'Inny odbiorca' : 'Different recipient' });
+      const recipient = page.getByRole('checkbox', { name: locale === 'pl' ? 'Faktura dla innej placówki (odbiorca)' : 'Invoice for another institution (recipient)' });
       await recipient.check();
-      await page.locator('[id="recipient.city"]').fill('Warszawa');
+      await page.locator('#recipientNip').fill('5260250995');
       await page.locator('[id="participants.0.first_name"]').fill('Ala');
       await expect(page.locator('[id="participants.1.first_name"]')).toBeEnabled();
       await expect(buyer).toHaveValue('organization');
       await expect(page.locator('[id="buyer.first_name"]')).toHaveValue('Jan');
-      await expect(page.locator('[id="buyer.company_name"]')).toHaveValue('Example workshop');
-      await expect(page.locator('[id="recipient.city"]')).toHaveValue('Warszawa');
+      await expect(page.locator('#companyName')).toHaveValue('Example workshop');
+      await expect(page.locator('#recipientNip')).toHaveValue('5260250995');
       await expect(page.locator('[id="participants.0.first_name"]')).toHaveValue('Ala');
       await expect(page.locator('#phone')).toHaveValue('500100200');
       expect(errors).toEqual([]);

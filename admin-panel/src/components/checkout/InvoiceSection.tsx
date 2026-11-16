@@ -20,6 +20,8 @@ interface InvoiceSectionProps {
   disabled?: boolean;
   /** Stripe Tax needs the buyer's country even without a company invoice. */
   personCountry?: { value: string; onChange(value: string): void } | null;
+  /** Checkout profile: the buyer type "organization" already asked for the invoice, so no checkbox. */
+  fixed?: boolean;
 }
 
 const INPUT = 'w-full px-3 py-2.5 bg-sf-input border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed';
@@ -184,7 +186,7 @@ function TaxIdLookup({ section, role, disabled }: { section: InvoiceSectionState
   );
 }
 
-export default function InvoiceSection({ section, disabled, personCountry }: InvoiceSectionProps) {
+export default function InvoiceSection({ section, disabled, personCountry, fixed = false }: InvoiceSectionProps) {
   const t = useTranslations('checkout.invoiceSection');
   const locale = useLocale();
 
@@ -198,10 +200,12 @@ export default function InvoiceSection({ section, disabled, personCountry }: Inv
           </select>
         </div>
       )}
-      <label className="flex items-center gap-3 min-h-11 cursor-pointer font-medium text-sf-body">
-        <input type="checkbox" id="wantInvoice" checked={section.want} onChange={e => section.setWant(e.target.checked)} disabled={disabled} className="h-5 w-5 accent-sf-accent" />
-        {t('wantInvoice')}
-      </label>
+      {!fixed && (
+        <label className="flex items-center gap-3 min-h-11 cursor-pointer font-medium text-sf-body">
+          <input type="checkbox" id="wantInvoice" checked={section.want} onChange={e => section.setWant(e.target.checked)} disabled={disabled} className="h-5 w-5 accent-sf-accent" />
+          {t('wantInvoice')}
+        </label>
+      )}
 
       {section.want && (
         <div className="grid gap-4 rounded-xl bg-sf-input/60 border border-sf-border p-4">

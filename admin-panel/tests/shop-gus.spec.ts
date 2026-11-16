@@ -1,4 +1,4 @@
-/** Shop company lookup in both checkout forms. @see src/hooks/useInvoiceData.ts @see src/hooks/useInvoiceSection.ts */
+/** Shop company lookup in both checkout forms. @see src/hooks/useInvoiceSection.ts */
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { expect } from '@playwright/test';
@@ -26,18 +26,17 @@ for (const mode of ['ordinary', 'profile', 'legacy-profile']) {
         // Standard checkout invoice section (W223a): the NIP field opens with "I want a company invoice".
         await page.locator('#wantInvoice').check();
       }
-      const nip = page.locator(mode === 'ordinary' ? '#nip' : '[id="buyer.nip"]');
-      const company = page.locator(mode === 'ordinary' ? '#companyName' : '[id="buyer.company_name"]');
+      // Both checkouts share the invoice section (W223b), so the same fields and company card.
+      const nip = page.locator('#nip');
+      const company = page.locator('#companyName');
       await expect(nip).toBeEnabled();
       const response = page.waitForResponse('**/api/gus/fetch-company-data');
       await nip.fill('5260250274'); await nip.blur(); await response;
       if (configured) {
-        if (mode === 'ordinary') {
-          await expect(page.getByTestId('buyer-company-card')).toContainText('PRZYKŁADOWA SPÓŁKA Z O.O.');
-          await page.getByRole('button', { name: 'Popraw dane' }).click();
-        }
+        await expect(page.getByTestId('buyer-company-card')).toContainText('PRZYKŁADOWA SPÓŁKA Z O.O.');
+        await page.getByRole('button', { name: 'Popraw dane' }).click();
         await expect(company).toHaveValue('PRZYKŁADOWA SPÓŁKA Z O.O.');
-        await expect(page.locator(mode === 'ordinary' ? '#city' : '[id="buyer.city"]')).toHaveValue('Warszawa');
+        await expect(page.locator('#city')).toHaveValue('Warszawa');
       } else {
         await expect(company).toHaveValue(''); await company.fill('Ręcznie wpisana firma');
         await expect(company).toHaveValue('Ręcznie wpisana firma');

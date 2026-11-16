@@ -93,13 +93,20 @@ export type InvoiceSectionResult =
 const ADDRESS_LIMITS = { company_name: 200, address: 300, postal_code: 20, city: 100 } as const;
 const COUNTRY_CODES: ReadonlySet<string> = new Set(countryOptions.en.map(c => c.code));
 
-function checkAddress(prefix: string, party: Record<keyof typeof ADDRESS_LIMITS, string>, errors: InvoiceFieldError[]): Record<keyof typeof ADDRESS_LIMITS, string> {
-  const out = {} as Record<keyof typeof ADDRESS_LIMITS, string>;
-  for (const [key, max] of Object.entries(ADDRESS_LIMITS) as [keyof typeof ADDRESS_LIMITS, number][]) {
+type AddressKey = keyof typeof ADDRESS_LIMITS;
+export type InvoicePartyKey = AddressKey | 'tax_id' | 'country';
+/** A field error of one party, named without its prefix (the caller places it on its own field). */
+export interface InvoicePartyError { key: InvoicePartyKey; code: InvoiceFieldErrorCode }
+export interface InvoicePartyInput { tax_id: string; company_name: string; address: string; postal_code: string; city: string }
+export interface InvoicePartyResult { party: InvoiceParty; errors: InvoicePartyError[] }
+
+function checkAddress(party: Record<AddressKey, string>, errors: InvoicePartyError[]): Record<AddressKey, string> {
+  const out = {} as Record<AddressKey, string>;
+  for (const [key, max] of Object.entries(ADDRESS_LIMITS) as [AddressKey, number][]) {
     const value = (party[key] ?? '').trim();
-    if (!value) errors.push({ field: `${prefix}.${key}`, code: 'required' });
-    else if (value.length > max) errors.push({ field: `${prefix}.${key}`, code: 'too_long' });
-    else if (/[\u0000-\u001f\u007f<>]/.test(value)) errors.push({ field: `${prefix}.${key}`, code: 'invalid_text' });
+    if (!value) errors.push({ key, code: 'required' });
+    else if (value.length > max) errors.push({ key, code: 'too_long' });
+    else if (/[\u0000-\u001f\u007f<>]/.test(value)) errors.push({ key, code: 'invalid_text' });
     out[key] = value;
   }
   return out;
@@ -116,6 +123,48 @@ function manualTaxIdError(taxId: string, type: TaxIdType): TaxIdErrorCode {
   return detected.status === 'invalid' ? detected.code : 'nip_checksum';
 }
 
+/**
+ * The invoice buyer (company). NIP path: the number is required and decides the country. Manual
+ * path: a chosen country, an optional number checked by that country's pattern. Shared by the
+ * standard checkout section and the checkout profile buyer module.
+ */
+export function validateInvoiceBuyer(input: InvoicePartyInput & { country: string }, mode: 'tax_id' | 'manual'): InvoicePartyResult {
+  const errors: InvoicePartyError[] = [];
+  let tax: Pick<InvoiceParty, 'nip' | 'tax_id_type' | 'tax_id_country'> = { nip: '' };
+  let country = (input.country ?? '').trim().toUpperCase();
+  if (mode === 'tax_id') {
+    const detected = detectTaxId(input.tax_id);
+    if (detected.status === 'empty') errors.push({ key: 'tax_id', code: 'tax_id_required' });
+    else if (detected.status === 'invalid') errors.push({ key: 'tax_id', code: detected.code });
+    else { country = detected.country; tax = taxFields(detected.normalized, detected.type, detected.country); }
+  } else {
+    if (!COUNTRY_CODES.has(country)) errors.push({ key: 'country', code: 'invalid_country' });
+    const taxId = (input.tax_id ?? '').trim();
+    if (taxId.length > TAX_ID_MAX_LENGTH) errors.push({ key: 'tax_id', code: 'tax_id_too_long' });
+    else if (taxId && COUNTRY_CODES.has(country)) {
+      const classified = classifyTaxId(taxId, country);
+      if (classified.valid) tax = taxFields(classified.normalized, classified.type, classified.country);
+      else errors.push({ key: 'tax_id', code: manualTaxIdError(taxId, classified.type) });
+    }
+  }
+  const address = checkAddress(input, errors);
+  return { party: { ...address, country, ...tax }, errors };
+}
+
+/** A different invoice recipient: an institution in Poland, always with a Polish NIP. */
+export function validateInvoiceRecipient(input: InvoicePartyInput): InvoicePartyResult {
+  const errors: InvoicePartyError[] = [];
+  let tax: Pick<InvoiceParty, 'nip' | 'tax_id_type' | 'tax_id_country'> = { nip: '' };
+  const detected = detectTaxId(input.tax_id, { allowEu: false });
+  if (detected.status === 'empty') errors.push({ key: 'tax_id', code: 'tax_id_required' });
+  else if (detected.status === 'invalid') errors.push({ key: 'tax_id', code: detected.code });
+  else tax = taxFields(detected.normalized, detected.type, detected.country);
+  return { party: { ...checkAddress(input, errors), country: 'PL', ...tax }, errors };
+}
+
+const prefixed = (prefix: string, errors: InvoicePartyError[]): InvoiceFieldError[] =>
+  errors.map(e => ({ field: `${prefix}.${e.key}`, code: e.code }));
+
 /** Validate the whole section. Without "I want a company invoice" nothing about a company is kept. */
 export function validateInvoiceSection(input: InvoiceSectionInput, { recipientEnabled }: { recipientEnabled: boolean }): InvoiceSectionResult {
   const parsed = invoiceSectionSchema.safeParse(input);
@@ -123,42 +172,19 @@ export function validateInvoiceSection(input: InvoiceSectionInput, { recipientEn
   const value = parsed.data;
   if (!value.want) return { ok: true, buyer: null, recipient: null };
 
-  const errors: InvoiceFieldError[] = [];
-  let buyerTax: Pick<InvoiceParty, 'nip' | 'tax_id_type' | 'tax_id_country'> = { nip: '' };
-  let country = value.buyer.country.trim().toUpperCase();
-
-  if (value.mode === 'tax_id') {
-    const detected = detectTaxId(value.buyer.tax_id);
-    if (detected.status === 'empty') errors.push({ field: 'invoice.tax_id', code: 'tax_id_required' });
-    else if (detected.status === 'invalid') errors.push({ field: 'invoice.tax_id', code: detected.code });
-    else { country = detected.country; buyerTax = taxFields(detected.normalized, detected.type, detected.country); }
-  } else {
-    if (!COUNTRY_CODES.has(country)) errors.push({ field: 'invoice.country', code: 'invalid_country' });
-    const taxId = value.buyer.tax_id.trim();
-    if (taxId.length > TAX_ID_MAX_LENGTH) errors.push({ field: 'invoice.tax_id', code: 'tax_id_too_long' });
-    else if (taxId && COUNTRY_CODES.has(country)) {
-      const classified = classifyTaxId(taxId, country);
-      if (classified.valid) buyerTax = taxFields(classified.normalized, classified.type, classified.country);
-      else errors.push({ field: 'invoice.tax_id', code: manualTaxIdError(taxId, classified.type) });
-    }
-  }
-  const buyerAddress = checkAddress('invoice', value.buyer, errors);
-
+  const buyer = validateInvoiceBuyer(value.buyer, value.mode);
+  const errors = prefixed('invoice', buyer.errors);
   let recipient: InvoiceParty | null = null;
   if (value.recipient) {
     if (!recipientEnabled) errors.push({ field: 'recipient', code: 'recipient_disabled' });
     else {
-      const detected = detectTaxId(value.recipient.tax_id, { allowEu: false });
-      let tax: Pick<InvoiceParty, 'nip' | 'tax_id_type' | 'tax_id_country'> = { nip: '' };
-      if (detected.status === 'empty') errors.push({ field: 'recipient.tax_id', code: 'tax_id_required' });
-      else if (detected.status === 'invalid') errors.push({ field: 'recipient.tax_id', code: detected.code });
-      else tax = taxFields(detected.normalized, detected.type, detected.country);
-      recipient = { ...checkAddress('recipient', value.recipient, errors), country: 'PL', ...tax };
+      const checked = validateInvoiceRecipient(value.recipient);
+      errors.push(...prefixed('recipient', checked.errors));
+      recipient = checked.party;
     }
   }
-
   if (errors.length > 0) return { ok: false, errors };
-  return { ok: true, buyer: { ...buyerAddress, country, ...buyerTax }, recipient };
+  return { ok: true, buyer: buyer.party, recipient };
 }
 
 /**

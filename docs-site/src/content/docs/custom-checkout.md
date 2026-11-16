@@ -9,10 +9,13 @@ Products without a profile keep their existing checkout and webhook format.
 
 ## Modules
 
-- **Buyer:** allow people, organizations, or both. Organizations provide their company name,
-  tax ID and billing address. GUS lookup requires the GUS integration to be enabled.
-- **Recipient:** an organization buyer can specify a different recipient with its own tax ID
-  and address. Leave it off when the buyer is also the recipient.
+- **Buyer:** allow people, organizations, or both. An organization fills in the same invoice
+  section as the ordinary checkout: one "NIP or EU VAT number" field (the number sets the
+  company country, a Polish NIP fetches the company from GUS), or "I have no NIP or the company
+  is outside the EU" with a country choice; the address always uses separate fields.
+- **Recipient:** an organization buyer can name a different recipient — an institution with
+  a Polish NIP (for example a school) — inside the same invoice section. Leave it off when the
+  buyer is also the recipient.
 - **Phone:** optional or required; stored in international E.164 format (for example `+48500100200`).
 - **Quantity:** set minimum and maximum seats (1–100). Choose a hidden fixed minimum,
   a checkout selector, or a product-page selector.
@@ -28,6 +31,8 @@ use quantities above one. Invalid combinations are rejected when saving.
 Set the GUS key once in **Settings → Integrations**. With the integration enabled,
 a valid Polish buyer NIP triggers company lookup in both ordinary and profile checkouts.
 Without a key, buyers can enter details manually without a configuration error.
+The same rules and messages apply to online payment and to a bank transfer order in a
+profile checkout.
 There is no product GUS switch. Legacy `buyer.gus` values in saved profiles are ignored
 and removed by the database upgrade. Omit this field when writing profiles through
 API v1 or MCP: it is rejected like other unknown profile fields.

@@ -53,10 +53,12 @@ export interface UseInvoiceSectionOptions {
   recipientEnabled: boolean;
   /** Company data saved in the signed-in buyer's profile; applied once when it arrives. */
   prefill?: InvoicePartyFields | null;
+  /** The checkout profile asks for the company through its buyer type, so the section starts open. */
+  initialWant?: boolean;
 }
 
-export function useInvoiceSection({ recipientEnabled, prefill }: UseInvoiceSectionOptions) {
-  const [want, setWantState] = useState(false);
+export function useInvoiceSection({ recipientEnabled, prefill, initialWant = false }: UseInvoiceSectionOptions) {
+  const [want, setWantState] = useState(initialWant);
   const [mode, setModeState] = useState<InvoiceMode>('tax_id');
   const [buyer, setBuyer] = useState<InvoicePartyState>(emptyParty);
   const [recipient, setRecipient] = useState<InvoicePartyState>(emptyParty);

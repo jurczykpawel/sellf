@@ -8,7 +8,6 @@ import CheckoutProfileFields from '@/components/checkout/CheckoutProfileFields';
 import { formatPrice } from '@/lib/constants';
 import { formatBillingIntervalLabel } from '@/lib/product-pricing-display';
 import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
-import { shouldRequestInvoice } from '@/lib/checkout/invoice-form-logic';
 import { useTracking } from '@/hooks/useTracking';
 import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
 import InvoiceSection from '@/components/checkout/InvoiceSection';
@@ -237,18 +236,8 @@ export default function CustomPaymentForm({
             moduleValues: profile ? profileForm.values : undefined,
             fullName: invoice.fullName,
             termsAccepted: showTos ? termsAccepted : undefined,
-            ...(profile ? {
-              needsInvoice: shouldRequestInvoice(invoice.nip, invoice.country),
-              nip: invoice.nip || undefined,
-              companyName: invoice.companyName || undefined,
-              address: invoice.address || undefined,
-              city: invoice.city || undefined,
-              postalCode: invoice.postalCode || undefined,
-              country: invoice.country || undefined,
-            } : {
-              invoice: invoiceSection.toSubmit(),
-              country: invoice.country || 'PL',
-            }),
+            // A profile sends its company in moduleValues; every other checkout sends the invoice section.
+            ...(profile ? {} : { invoice: invoiceSection.toSubmit(), country: invoice.country || 'PL' }),
             customFieldValues:
               customFieldDefs.length > 0 ? customFieldValues : undefined,
           }),
@@ -322,20 +311,20 @@ export default function CustomPaymentForm({
       // All PaymentElement billing fields are 'never' (paired group), so we
       // must push them via updateBillingAddress. Optional invoice fields fall
       // back to null — Stripe accepts nullable address members.
+      // Both checkouts keep the company in the same invoice section state.
+      const profileCompany = profile && profileForm.buyerType === 'organization' ? profileForm.invoiceSection.buyer.fields : null;
+      const company = invoiceBuyer ?? profileCompany;
       const billingAddressUpdate = await checkout.updateBillingAddress({
         name: profile
-          ? (profileForm.buyerType === 'organization'
-            ? profileForm.party.company_name
-            : `${profileForm.person.first_name} ${profileForm.person.last_name}`)
+          ? (profileCompany ? profileCompany.companyName : `${profileForm.person.first_name} ${profileForm.person.last_name}`)
           : invoice.fullName,
-        // Standard checkout: the invoice section's company address; profile checkout: the profile fields.
         address: {
-          country: invoiceBuyer?.country || invoice.country || 'PL',
-          line1: (invoiceBuyer ? invoiceBuyer.address : invoice.address) || null,
+          country: company?.country || invoice.country || 'PL',
+          line1: (company ? company.address : invoice.address) || null,
           line2: null,
-          city: (invoiceBuyer ? invoiceBuyer.city : invoice.city) || null,
+          city: (company ? company.city : invoice.city) || null,
           state: null,
-          postal_code: (invoiceBuyer ? invoiceBuyer.postalCode : invoice.postalCode) || null,
+          postal_code: (company ? company.postalCode : invoice.postalCode) || null,
         },
       });
       if (billingAddressUpdate.type === 'error') {
@@ -430,7 +419,7 @@ export default function CustomPaymentForm({
           className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
         />
       </div>}
-      {profile && !profileHandled && <CheckoutProfileFields profile={profile} state={profileForm} invoice={invoice} errors={moduleErrors} disabled={isProcessing} />}
+      {profile && !profileHandled && <CheckoutProfileFields profile={profile} state={profileForm} errors={moduleErrors} disabled={isProcessing} />}
 
       {/* Terms & Conditions — guests only, and only when collect_terms_of_service is ON */}
       {showTos && (

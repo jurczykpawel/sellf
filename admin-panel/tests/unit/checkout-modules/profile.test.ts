@@ -65,7 +65,7 @@ describe('module values', () => {
   });
   it('reports field errors for missing recipient NIP', () => {
     const result = validate([buyer, { id: 'recipient', for: ['organization'] }], { buyer: company, recipient: { differs: true, company_name: 'School', address: 'A', postal_code: '00-001', city: 'City', nip: '123' } }, { ...ctx, buyerType: 'organization' });
-    expect(result).toMatchObject({ success: false, errors: expect.arrayContaining([{ field: 'recipient.nip', code: 'invalid_nip' }]) });
+    expect(result).toMatchObject({ success: false, errors: expect.arrayContaining([{ field: 'recipient.nip', code: 'nip_length' }]) });
   });
   it('checks allowed buyer type, names, company address, email and strict values', () => {
     for (const value of [{ ...person, email: 'bad' }, { ...person, first_name: '' }, { ...person, first_name: 'Jan\u0000' }, { ...company, address: 'Prosta\u0000' }, { ...person, price: 1 }, { ...company, city: '' }, { ...company, nip: '1234567890' }]) {
@@ -135,18 +135,23 @@ describe('module values', () => {
 });
 
 
-describe('country-specific organization tax numbers', () => {
+describe('country-specific organization tax numbers (the shared invoice rules, W223b)', () => {
   it.each([
     ['PL', '5252248481', true], ['PL', '1234567890', false],
     ['DE', 'DE123456789', true], ['DE', 'FR123456789', false],
-    ['FR', 'FRAB123456789', true], ['FR', '', false],
+    ['FR', 'FRAB123456789', true], ['FR', '', true],
     ['GR', 'EL123456789', true], ['DE', 'DE12<>3456789', false],
     ['US', 'AB-123', true], ['US', '', true], ['US', '<invalid>', false],
     ['US', 'a'.repeat(41), false],
-  ])('%s number %s has validity %s for buyer and recipient', (country, nip, valid) => {
-    const party = { ...company, country, nip };
+  ])('%s buyer number %s has validity %s', (country, nip, valid) => {
+    const result = validateModuleValues(checkoutProfileSchema.parse({ v: 1, modules: [buyer] }), { buyer: { ...company, country, nip } }, { ...ctx, buyerType: 'organization' });
+    expect(result.success).toBe(valid);
+  });
+  it.each([
+    ['5252248481', true], ['PL 525-224-84-81', true], ['1234567890', false], ['DE123456789', false], ['', false],
+  ])('recipient number %s has validity %s (always a Polish NIP)', (nip, valid) => {
     const result = validateModuleValues(checkoutProfileSchema.parse({ v: 1, modules: [buyer, { id: 'recipient', for: ['organization'] }] }),
-      { buyer: party, recipient: { company_name: party.company_name, country, nip, address: party.address, city: party.city, postal_code: party.postal_code, differs: true } }, { ...ctx, buyerType: 'organization' });
+      { buyer: company, recipient: { company_name: 'Szkoła', nip, address: 'Szkolna 1', city: 'Warszawa', postal_code: '00-001', differs: true } }, { ...ctx, buyerType: 'organization' });
     expect(result.success).toBe(valid);
   });
 });
@@ -157,12 +162,10 @@ describe('stored tax identifier carries its type and country', () => {
     ['DE', '123456789', 'DE123456789', 'eu_vat'],
     ['US', 'EIN 12-3456789', 'EIN 12-3456789', 'other'],
   ])('%s organization stores %s as %s (%s)', (country, nip, stored, type) => {
-    const party = { ...company, country, nip };
-    const result = validateModuleValues(checkoutProfileSchema.parse({ v: 1, modules: [buyer, { id: 'recipient', for: ['organization'] }] }),
-      { buyer: party, recipient: { company_name: party.company_name, country, nip, address: party.address, city: party.city, postal_code: party.postal_code, differs: true } }, { ...ctx, buyerType: 'organization' });
+    const result = validateModuleValues(checkoutProfileSchema.parse({ v: 1, modules: [buyer] }), { buyer: { ...company, country, nip } }, { ...ctx, buyerType: 'organization' });
     expect(result.success).toBe(true);
     if (!result.success) return;
-    for (const key of ['buyer', 'recipient'] as const) expect(result.details[key]).toMatchObject({ nip: stored, tax_id_type: type, tax_id_country: country });
+    expect(result.details.buyer).toMatchObject({ nip: stored, tax_id_type: type, tax_id_country: country });
   });
   it('omits the type when an organization outside the EU leaves the number empty', () => {
     const result = validateModuleValues(checkoutProfileSchema.parse({ v: 1, modules: [buyer] }), { buyer: { ...company, country: 'US', nip: '' } }, { ...ctx, buyerType: 'organization' });

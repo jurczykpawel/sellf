@@ -5206,6 +5206,24 @@
         "seller": "Settings → Shop → Invoice recipient is off by default and saved at once; other custom settings stay untouched",
         "integrator": "GET/PATCH /api/v1/settings/checkout with system:read/system:write; unknown fields are rejected"
       }
+    },
+    {
+      "id": "J623",
+      "title": "Checkout profile organization (online payment and bank transfer) uses the standard invoice section: one NIP/EU VAT field, GUS, manual path, recipient with a Polish NIP",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "b2b_quantity",
+        "payment": "bank_transfer",
+        "moment": "immediate",
+        "operation": "issue_invoice"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Choosing \"Organization\" shows the same invoice section as the ordinary checkout (no extra checkbox) with the same messages; the recipient sits inside it and needs a Polish NIP",
+        "seller": "order_details.buyer keeps the normalized tax id with its type and the country taken from the number; a recipient is stored in Poland with its NIP; transfer and online orders refuse the same invalid data",
+        "integrator": "purchase.completed orderDetails/invoice keep their keys; recipient values are now always a Polish NIP institution"
+      }
     }
   ],
   "escapes": [

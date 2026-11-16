@@ -314,10 +314,10 @@ describe('profile tax identity routing', () => {
     const party = { company_name: 'Company', address: 'Street 1', city: 'Berlin', postal_code: '10115' };
     const res = await POST(makeRequest(SESSION_ID, { moduleValues: {
       buyer: { ...party, type: 'organization', country: 'DE', nip: 'DE123456789' },
-      recipient: { ...party, differs: true, country: 'FR', nip: 'FRAB123456789' },
+      recipient: { ...party, city: 'Warszawa', postal_code: '00-001', differs: true, nip: '5260250995' },
     } }));
     expect(res.status).toBe(200);
-    expect(mocks.adminRpc).toHaveBeenCalledWith('set_payment_order_details', expect.objectContaining({ p_details: expect.objectContaining({ buyer: expect.objectContaining({ nip: 'DE123456789' }), recipient: expect.objectContaining({ nip: 'FRAB123456789' }) }) }));
+    expect(mocks.adminRpc).toHaveBeenCalledWith('set_payment_order_details', expect.objectContaining({ p_details: expect.objectContaining({ buyer: expect.objectContaining({ nip: 'DE123456789' }), recipient: expect.objectContaining({ nip: '5260250995', country: 'PL' }) }) }));
     if (tax_mode === 'stripe_tax') expect(applyBuyerTaxIdentityToCustomer).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'cus_profile', identity: { country: 'DE', taxId: 'DE123456789', address: 'Street 1', city: 'Berlin', postalCode: '10115' } }));
     else expect(applyBuyerTaxIdentityToCustomer).not.toHaveBeenCalled();
   });

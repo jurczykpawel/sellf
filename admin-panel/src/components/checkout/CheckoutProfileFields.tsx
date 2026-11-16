@@ -1,10 +1,16 @@
 'use client';
 
-/** Profile UI uses the same values as the server module registry. @see lib/checkout-modules/registry.ts */
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
-import { getCountryOptions } from '@/lib/checkout/countries';
+/**
+ * Profile UI uses the same values as the server module registry. The organization buyer and the
+ * recipient use the standard checkout invoice section (W223b): same fields, rules and messages.
+ * @see lib/checkout-modules/registry.ts
+ * @see components/checkout/InvoiceSection.tsx
+ */
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useTranslations } from 'next-intl';
 import { validateModuleValues } from '@/lib/checkout-modules/registry';
+import { useInvoiceSection } from '@/hooks/useInvoiceSection';
+import InvoiceSection from '@/components/checkout/InvoiceSection';
 import ParticipantsEditor from '@/components/checkout/ParticipantsEditor';
 import type { ReactNode } from 'react';
 import type { CheckoutProfile } from '@/lib/checkout-modules/profile';
@@ -12,27 +18,44 @@ import type { FieldError } from '@/lib/checkout-modules/registry';
 import type { UseInvoiceDataReturn } from '@/hooks/useInvoiceData';
 
 interface Person { first_name: string; last_name: string; email: string }
-interface Party { company_name: string; nip: string; address: string; city: string; postal_code: string; country: string }
 const noopSubscribe = () => () => {};
 function useProfileInteractive(): boolean {
   return useSyncExternalStore(noopSubscribe, () => true, () => false);
 }
-const emptyParty: Party = { company_name: '', nip: '', address: '', city: '', postal_code: '', country: 'PL' };
+/** Module party fields → invoice section fields (the number is `nip` in the module, `tax_id` in the section). */
+const SECTION_FIELD: Record<string, string> = {
+  'buyer.nip': 'invoice.tax_id', 'buyer.company_name': 'invoice.company_name', 'buyer.address': 'invoice.address',
+  'buyer.postal_code': 'invoice.postal_code', 'buyer.city': 'invoice.city', 'buyer.country': 'invoice.country',
+  'recipient.nip': 'recipient.tax_id',
+};
+const toSectionErrors = (errors: FieldError[]) => errors
+  .map(error => ({ field: SECTION_FIELD[error.field] ?? error.field, code: error.code }))
+  .filter(error => error.field.startsWith('invoice.') || error.field.startsWith('recipient.'));
 
 export function useCheckoutProfileValues(profile: CheckoutProfile | null, invoice: UseInvoiceDataReturn, email: string, quantity: number) {
-  const [errors, setErrors] = useState<FieldError[]>([]);
+  const [errors, setErrorsState] = useState<FieldError[]>([]);
   const buyerConfig = profile?.modules.find(module => module.id === 'buyer');
   const [buyerType, setBuyerType] = useState<'person' | 'organization'>(buyerConfig?.types[0] ?? 'person');
   const [names, setNames] = useState<Partial<Person>>({});
-  const [differs, setDiffers] = useState(false);
-  const [recipient, setRecipient] = useState<Party>(emptyParty);
+  const invoiceSection = useInvoiceSection({
+    recipientEnabled: !!profile?.modules.some(module => module.id === 'recipient'),
+    initialWant: true,
+    prefill: invoice.nip || invoice.companyName
+      ? { taxId: invoice.nip, companyName: invoice.companyName, address: invoice.address, postalCode: invoice.postalCode, city: invoice.city, country: invoice.country }
+      : null,
+  });
+  const { applyServerErrors } = invoiceSection;
+  // Module errors (client gate or server 422) also land on the invoice section fields.
+  const setErrors = useCallback((list: FieldError[]) => { setErrorsState(list); applyServerErrors(toSectionErrors(list)); }, [applyServerErrors]);
   const [phone, setPhone] = useState('');
   const [participants, setParticipants] = useState<Record<number, Partial<Person>>>({});
   const [includeParticipants, setIncludeParticipants] = useState(false);
   const [later, setLater] = useState(false);
   const words = invoice.fullName.trim().split(/\s+/);
   const person = { first_name: names.first_name ?? words[0] ?? '', last_name: names.last_name ?? words.slice(1).join(' '), email };
-  const party: Party = { company_name: invoice.companyName, nip: invoice.nip, address: invoice.address, city: invoice.city, postal_code: invoice.postalCode, country: invoice.country };
+  const sectionValue = invoiceSection.toSubmit();
+  const party = { company_name: sectionValue.buyer.company_name, nip: sectionValue.buyer.tax_id, address: sectionValue.buyer.address, city: sectionValue.buyer.city, postal_code: sectionValue.buyer.postal_code, country: sectionValue.buyer.country, tax_id_mode: invoiceSection.mode };
+  const recipient = sectionValue.recipient;
   const participantConfig = profile?.modules.find(module => module.id === 'participants');
   const people = Array.from({ length: quantity }, (_, index) => ({
     ...(quantity === 1 && participantConfig?.prefill_from_buyer ? person : { first_name: '', last_name: '', email: '' }),
@@ -42,7 +65,9 @@ export function useCheckoutProfileValues(profile: CheckoutProfile | null, invoic
   for (const config of profile?.modules ?? []) {
     switch (config.id) {
       case 'buyer': values.buyer = buyerType === 'person' ? { type: buyerType, ...person } : { type: buyerType, ...party, email, ...(person.first_name ? { first_name: person.first_name } : {}), ...(person.last_name ? { last_name: person.last_name } : {}) }; break;
-      case 'recipient': values.recipient = buyerType === 'organization' && differs ? { differs: true, ...recipient } : { differs: false }; break;
+      case 'recipient': values.recipient = buyerType === 'organization' && recipient
+        ? { differs: true, company_name: recipient.company_name, nip: recipient.tax_id, address: recipient.address, postal_code: recipient.postal_code, city: recipient.city }
+        : { differs: false }; break;
       case 'phone': values.phone = phone; break;
       case 'quantity': values.quantity = quantity; break;
       case 'participants': values.participants = !(config.allow_later && later) && (config.required || includeParticipants) ? people : []; break;
@@ -54,17 +79,16 @@ export function useCheckoutProfileValues(profile: CheckoutProfile | null, invoic
     setErrors(result.success ? [] : result.errors);
     return result.success;
   };
-  return { validate, errors, setErrors, values, buyerType, setBuyerType, person, setNames, party, differs, setDiffers, recipient, setRecipient, phone, setPhone, people, setParticipants, includeParticipants, setIncludeParticipants, later, setLater };
+  return { validate, errors, setErrors, values, buyerType, setBuyerType, person, setNames, invoiceSection, phone, setPhone, people, setParticipants, includeParticipants, setIncludeParticipants, later, setLater };
 }
 
 type ModuleConfig = CheckoutProfile['modules'][number];
 type ProfileFormState = ReturnType<typeof useCheckoutProfileValues>;
-interface Props { profile: CheckoutProfile; state: ProfileFormState; invoice: UseInvoiceDataReturn; errors: FieldError[]; disabled: boolean }
-export default function CheckoutProfileFields({ profile, state, invoice, errors, disabled: processing }: Props) {
+interface Props { profile: CheckoutProfile; state: ProfileFormState; errors: FieldError[]; disabled: boolean }
+export default function CheckoutProfileFields({ profile, state, errors, disabled: processing }: Props) {
   const interactive = useProfileInteractive();
   const disabled = !interactive || processing;
   const t = useTranslations('checkout.profile');
-  const locale = useLocale();
   const fieldsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (errors.length && !disabled) {
@@ -81,36 +105,23 @@ export default function CheckoutProfileFields({ profile, state, invoice, errors,
   const field = (id: string, label: string, value: string, onChange: (value: string) => void, type = 'text', onBlur?: () => void) => (
     <div key={id}>
       <label htmlFor={id} className="mb-1 block text-sm font-medium text-sf-body">{label}</label>
-      {id.endsWith('.country') ? <select id={id} value={value} disabled={disabled} aria-invalid={!!errorText(id)} aria-describedby={errorText(id) ? `${id}-error` : undefined} className={inputClass} onChange={event => onChange(event.target.value)}>
-        {getCountryOptions(locale, value).map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
-      </select> : <input id={id} type={type} value={value} onChange={event => onChange(event.target.value)} onBlur={onBlur}
-        disabled={disabled} className={errorText(id) ? inputClass.replace('border-sf-border', 'border-sf-danger') : inputClass} aria-invalid={!!errorText(id)} aria-describedby={errorText(id) ? `${id}-error` : undefined} />}
+      <input id={id} type={type} value={value} onChange={event => onChange(event.target.value)} onBlur={onBlur}
+        disabled={disabled} className={errorText(id) ? inputClass.replace('border-sf-border', 'border-sf-danger') : inputClass} aria-invalid={!!errorText(id)} aria-describedby={errorText(id) ? `${id}-error` : undefined} />
       {errorText(id) && <p id={`${id}-error`} role="alert" className="mt-1 text-sm text-sf-danger">{errorText(id)}</p>}
     </div>
   );
   const personFields = (prefix: string, person: Person, update: (key: keyof Person, value: string) => void, includeEmail: boolean) =>
     (includeEmail ? ['first_name', 'last_name', 'email'] as const : ['first_name', 'last_name'] as const).map(key =>
       field(`${prefix}.${key}`, t(key), person[key], value => update(key, value), key === 'email' ? 'email' : 'text'));
-  const partyFields = (prefix: string, party: Party, update: (key: keyof Party, value: string) => void, lookupBuyer = false) =>
-    (['company_name', 'nip', 'address', 'postal_code', 'city', 'country'] as const).map(key =>
-      field(`${prefix}.${key}`, t(key), party[key], value => update(key, value), 'text', key === 'nip' && lookupBuyer && party.country === 'PL' ? invoice.handleNIPBlur : undefined));
-  const buyerSetters = { company_name: invoice.setCompanyName, nip: invoice.setNip, address: invoice.setAddress, city: invoice.setCity, postal_code: invoice.setPostalCode, country: invoice.setCountry };
-  const forms: Record<Exclude<ModuleConfig['id'], 'quantity'>, (config: ModuleConfig) => ReactNode> = {
+  const forms: Record<Exclude<ModuleConfig['id'], 'quantity' | 'recipient'>, (config: ModuleConfig) => ReactNode> = {
     buyer: config => config.id === 'buyer' && <>
         <label className="block text-sm text-sf-body" htmlFor="buyer.type">{t('buyerType')}</label>
         <select id="buyer.type" value={state.buyerType} className={inputClass} onChange={event => state.setBuyerType(event.target.value as 'person' | 'organization')}>
           {config.types.map(type => <option key={type} value={type}>{t(type)}</option>)}
         </select>
         {personFields('buyer', state.person, (key, value) => state.setNames(previous => ({ ...previous, [key]: value })), false)}
-        {state.buyerType === 'organization' && <>
-          {partyFields('buyer', state.party, (key, value) => buyerSetters[key](value), true)}
-          {invoice.isLoadingGUS && <p role="status">{t('loadingCompany')}</p>}
-          {invoice.gusError && <p role="alert" className="text-sm text-sf-danger">{invoice.gusError}</p>}
-        </>}
-      </>,
-    recipient: () => <>
-        <label className="flex items-center gap-2 text-sf-body"><input type="checkbox" checked={state.differs} onChange={event => state.setDiffers(event.target.checked)} />{t('differs')}</label>
-        {state.differs && partyFields('recipient', state.recipient, (key, value) => state.setRecipient(previous => ({ ...previous, [key]: value })))}
+        {/* The same invoice section as the standard checkout; the recipient (when the profile has it) sits inside it. */}
+        {state.buyerType === 'organization' && <InvoiceSection section={state.invoiceSection} disabled={disabled} fixed />}
       </>,
     phone: () => field('phone', t('phone'), state.phone, state.setPhone, 'tel'),
     participants: config => config.id === 'participants' && <ParticipantsEditor people={state.people as Person[]} required={config.required} allowLater={!!config.allow_later} later={state.later} setLater={state.setLater}
@@ -119,7 +130,8 @@ export default function CheckoutProfileFields({ profile, state, invoice, errors,
         fill={rows => state.setParticipants(Object.fromEntries(rows.map((row, index) => [index, row])))} />,
   };
   return <div ref={fieldsRef} className="space-y-6">{profile.modules.map(config => {
-    if (config.id === 'quantity' || (config.id === 'recipient' && state.buyerType !== 'organization')) return null;
+    // The recipient is part of the organization's invoice section (rendered by the buyer module).
+    if (config.id === 'quantity' || config.id === 'recipient') return null;
     if (config.id === 'phone') return <div key={config.id} className="rounded-xl border border-sf-border p-4">{forms.phone(config)}</div>;
     return <fieldset key={config.id} disabled={disabled} className="space-y-3 rounded-xl border border-sf-border p-4">
       <legend className="px-1 font-semibold text-sf-heading">{t(config.id)}</legend>
