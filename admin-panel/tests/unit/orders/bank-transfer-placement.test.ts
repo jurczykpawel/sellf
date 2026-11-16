@@ -122,3 +122,36 @@ it('returns 403 for an invalid token with the configured ALTCHA provider', async
     expect(mocks.rpc).not.toHaveBeenCalled();
   } finally { vi.unstubAllEnvs(); }
 });
+
+describe('order size', () => {
+  // 100 participants valid for the modules: the placed payload is far over the place_order limit.
+  const bigProfile = { v: 1, modules: [
+    { id: 'buyer', types: ['organization'], gus: false, bank_transfer_for: ['organization'] },
+    { id: 'quantity', min: 1, max: 100, mode: 'checkout' },
+    { id: 'participants', required: true, prefill_from_buyer: false },
+  ] };
+  const name = '漢'.repeat(100);
+  const participants = Array.from({ length: 100 }, (_, i) => ({ first_name: name, last_name: name, email: `${'u'.repeat(60)}${i}@${'d'.repeat(60)}.example.com` }));
+  const bigBody = { ...body, moduleValues: { ...body.moduleValues, quantity: 100, participants } };
+  const rpcNames = () => mocks.rpc.mock.calls.map(([rpcName]) => rpcName);
+
+  it('refuses an order whose placed payload exceeds the place_order limit with a field error, before any write', async () => {
+    const old = product.checkout_profile;
+    try {
+      Object.assign(product, { checkout_profile: bigProfile });
+      const response = await POST(request(bigBody));
+      expect(response.status).toBe(422);
+      expect(await response.json()).toEqual({ errors: [{ field: 'moduleValues', code: 'details_too_large' }] });
+      expect(rpcNames()).not.toContain('store_checkout_attribution');
+      expect(rpcNames()).not.toContain('bank_transfer_order');
+    } finally { product.checkout_profile = old; }
+  });
+
+  it('does not read every invalid-argument refusal (22023) from the placement as a size problem', async () => {
+    mocks.rpc.mockImplementation(async (rpcName: string) => rpcName === 'get_product_order_bumps' ? { data: [], error: null }
+      : rpcName === 'bank_transfer_order' ? { data: null, error: { code: '22023', message: 'Transfer unavailable' } } : { data: null, error: null });
+    const response = await POST(request(body));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: 'Order placement failed' });
+  });
+});
