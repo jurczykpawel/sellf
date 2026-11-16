@@ -11,7 +11,9 @@ API administracyjne Sellf jest dostępne pod adresem `https://twoja-domena.pl/ap
 `PATCH /settings/checkout` (`system:write`) przyjmuje dokładnie `{ "invoice_recipient_enabled": true }`
 (inne pola → `400`). Ustawienie (domyślnie wyłączone) pozwala w zwykłym koszyku podać osobnego
 odbiorcę faktury — placówkę, zawsze z polskim NIP. Odbiorca trafia do zamówienia i do webhooka
-`purchase.completed` jako `invoice.recipient`. Zmiana jest zapisywana w dzienniku audytu.
+`purchase.completed` jako `invoice.recipient`. Subskrypcje nie przyjmują osobnego odbiorcy. Każda
+zmiana trafia do dziennika audytu z identyfikatorem administratora (dla klucza API: jego właściciela);
+jeśli wpisu audytu nie da się zapisać, zmiana jest cofana, a API zwraca `500`.
 
 ## Jednostki kwot w v1
 

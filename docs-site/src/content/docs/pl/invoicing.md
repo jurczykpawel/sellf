@@ -22,8 +22,9 @@ stawki zw w Fakturowni. Szablon pozycji obsługuje `{product}`, `{date}`, `{sess
 i `{tier}`. Ceny, ilości, podatki i rozdzielony kupon pochodzą z zapisanych pozycji
 zamówienia. Dodatki są osobnymi pozycjami. Osobny odbiorca zachowuje nazwę, adres i NIP.
 W zwykłym koszyku kupujący poda odbiorcę tylko wtedy, gdy włączysz Ustawienia → Sklep →
-Odbiorca faktury (domyślnie wyłączone); firma kupująca bez NIP dostaje fakturę z nazwą i adresem,
-bez numeru podatkowego.
+Odbiorca faktury (domyślnie wyłączone; nie dotyczy subskrypcji); firma kupująca bez NIP dostaje
+fakturę z nazwą i adresem, bez numeru podatkowego. Odbiorca to zawsze placówka z polskim NIP-em,
+również w koszyku z profilem.
 
 Uruchamiaj `/api/cron?job=invoices-retry` co minutę z nagłówkiem Bearer zawierającym
 `CRON_SECRET`. Ponowienia następują po 1, 2, 4 i 8 minutach, maksymalnie pięć prób.
