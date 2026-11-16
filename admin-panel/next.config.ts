@@ -176,6 +176,8 @@ const nextConfig: NextConfig = {
       })),
       // Signing keys are cacheable; revocations reflect each current status change.
       { source: '/api/licenses/jwks', headers: buildPublicCacheHeaders() },
+      // The API description is public and identical for every caller (ETag revalidation).
+      { source: '/api/v1/openapi.json', headers: buildPublicCacheHeaders() },
       { source: '/api/licenses/revoked', headers: [{ key: 'Cache-Control', value: 'no-store' }] },
       // Embeddable cross-domain endpoints — relax CORP only.
       // Listed AFTER /api/:path* so CORP override wins.

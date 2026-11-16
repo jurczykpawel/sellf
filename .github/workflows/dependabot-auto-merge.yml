@@ -1,7 +1,7 @@
 name: Dependabot Auto-Merge
 
 # Classifies every Dependabot PR:
-#   safe          docs-site, github-actions, mcp-server devDependencies, non-major only
+#   safe          docs-site, github-actions, non-major only
 #                 -> merged by this workflow once every other check is green.
 #   security      fixes a vulnerability (label `security`) -> never merged here.
 #   release-batch everything else (admin-panel incl. all Bun PRs, runtime deps, Docker,
@@ -47,9 +47,6 @@ jobs:
           elif jq -e 'any(.[]; .updateType == "version-update:semver-major")' <<<"$UPDATES" >/dev/null; then
             kind=release-batch
           elif [ "$ECOSYSTEM" = "github_actions" ] || { [ "$ECOSYSTEM" = "npm_and_yarn" ] && [ "$dir" = "/docs-site" ]; }; then
-            kind=safe
-          elif [ "$ECOSYSTEM" = "npm_and_yarn" ] && [ "$dir" = "/mcp-server" ] \
-               && jq -e 'all(.[]; .dependencyType == "direct:development")' <<<"$UPDATES" >/dev/null; then
             kind=safe
           else
             kind=release-batch

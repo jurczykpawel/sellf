@@ -70,7 +70,7 @@ const FEATURE_DETAILS: Record<FeatureKey, FeatureConfig> = {
   mcp: {
     icon: BotMessageSquare,
     snippet:
-      'claude mcp add sellf -- npx -y @sellf/mcp-server\n# 45 tools · 4 resources · 6 prompts',
+      'claude mcp add --transport http sellf https://your-shop/api/mcp \\\n  --header "Authorization: Bearer sf_live_…"',
     snippetLabel: 'claude',
   },
 };

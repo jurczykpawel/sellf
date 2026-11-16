@@ -1,13 +1,17 @@
 /** Bounded JSON transport and offline stored-size calculation. @see spec/contracts/storefront-config.md */
+import { z } from 'zod';
 export const CONFIG_BYTES = 102400;
 export const ENVELOPE_BYTES = 131072;
-export interface ValidationIssue {
-  code: 'SCHEMA' | 'LIMIT' | 'UNKNOWN_TEMPLATE' | 'UNKNOWN_SECTION' | 'BINDING' | 'CONTENT_MISSING' | 'CONTENT_KIND' | 'URL' | 'CONTRAST' | 'ENTITLEMENT' | 'COMPATIBILITY' | 'TRANSLATION_FALLBACK' | 'UNAVAILABLE_PRODUCT';
-  path: string;
-  message: string;
-  limit?: number;
-}
-export interface ValidationResult { validatorVersion: 1; valid: boolean; errors: ValidationIssue[]; warnings: ValidationIssue[] }
+export const validationIssueSchema = z.object({
+  code: z.enum(['SCHEMA', 'LIMIT', 'UNKNOWN_TEMPLATE', 'UNKNOWN_SECTION', 'BINDING', 'CONTENT_MISSING', 'CONTENT_KIND', 'URL', 'CONTRAST', 'ENTITLEMENT', 'COMPATIBILITY', 'TRANSLATION_FALLBACK', 'UNAVAILABLE_PRODUCT']),
+  path: z.string().describe('JSON Pointer into the submitted config'),
+  message: z.string(),
+  limit: z.number().optional(),
+});
+/** Validator verdict returned by every template/offer operation (also the OpenAPI response schema). */
+export const validationResultSchema = z.object({ validatorVersion: z.literal(1), valid: z.boolean(), errors: z.array(validationIssueSchema), warnings: z.array(validationIssueSchema) });
+export type ValidationIssue = z.infer<typeof validationIssueSchema>;
+export type ValidationResult = z.infer<typeof validationResultSchema>;
 export function result(errors: ValidationIssue[] = [], warnings: ValidationIssue[] = []): ValidationResult {
   return { validatorVersion: 1, valid: errors.length === 0, errors, warnings };
 }

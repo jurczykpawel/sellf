@@ -11,7 +11,7 @@ import { templateKeyFormatError } from '@/lib/storefront-templates/template-lice
 import { createPlatformClient } from '@/lib/supabase/admin';
 
 const templateId = z.enum(['storefront-a', 'storefront-b', 'storefront-c']);
-const statusSchema = z.object({
+export const templateLicenseStatusSchema = z.object({
   templateId,
   state: z.enum(['valid', 'missing', 'expired', 'revoked', 'invalid', 'unknown']),
   verifiedAt: z.iso.datetime({ offset: true }).nullable(),
@@ -19,7 +19,7 @@ const statusSchema = z.object({
 export const templateCredentialInputSchema = z.strictObject({ templateId, token: z.string().min(1).max(16384)
   .refine(value => value.trim().length > 0 && Buffer.byteLength(value, 'utf8') <= 16384).transform(value => value.trim()) })
   .refine(input => templateKeyFormatError(input.token, input.templateId) === null);
-export type TemplateLicenseStatus = z.infer<typeof statusSchema>;
+export type TemplateLicenseStatus = z.infer<typeof templateLicenseStatusSchema>;
 type CredentialResult<T> = { success: true; data: T } | {
   success: false; code: 'FORBIDDEN' | 'INVALID' | 'UNAVAILABLE' | 'RATE_LIMITED';
 };
@@ -38,7 +38,7 @@ export async function saveTemplateCredential(auth: unknown, input: unknown): Pro
       encryption_iv: encrypted.iv, encryption_tag: encrypted.tag,
       actor_user_id: actor.userId, actor_method: actor.method, actor_api_key_id: actor.apiKeyId ?? undefined,
     });
-    const response = z.object({ success: z.literal(true), status: statusSchema }).safeParse(data);
+    const response = z.object({ success: z.literal(true), status: templateLicenseStatusSchema }).safeParse(data);
     if (error || !response.success) {
       const denied = z.object({ success: z.literal(false), code: z.literal('FORBIDDEN') }).safeParse(data);
       return { success: false, code: denied.success ? 'FORBIDDEN' : 'UNAVAILABLE' };
@@ -55,7 +55,7 @@ export async function readTemplateLicenseStatuses(auth: unknown): Promise<Creden
     const { data, error } = await createPlatformClient().from('template_credentials')
       .select('template_id,state,verified_at').order('template_id');
     if (error || !data) return { success: false, code: 'UNAVAILABLE' };
-    const parsed = z.array(statusSchema).safeParse(data.map(row => ({ templateId: row.template_id, state: row.state, verifiedAt: row.verified_at })));
+    const parsed = z.array(templateLicenseStatusSchema).safeParse(data.map(row => ({ templateId: row.template_id, state: row.state, verifiedAt: row.verified_at })));
     return parsed.success ? { success: true, data: parsed.data.map(status => status.state === 'valid' ? getTemplateLicenseStatus(status.templateId) : status) } : { success: false, code: 'UNAVAILABLE' };
   } catch { return { success: false, code: 'UNAVAILABLE' }; }
 }

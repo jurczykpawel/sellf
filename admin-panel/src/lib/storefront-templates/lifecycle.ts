@@ -21,7 +21,8 @@ import type { TemplateRights } from '@/lib/storefront-templates/rights';
 import type { StorefrontConfig } from '@/lib/storefront-templates/schemas';
 import type { EffectiveToken } from '@/lib/storefront-templates/public-theme';
 
-const readSchema = z.discriminatedUnion('operation', [
+/** Read-side lifecycle operations; also the source of the OpenAPI request bodies. */
+export const storefrontReadSchema = z.discriminatedUnion('operation', [
   z.strictObject({ operation: z.literal('read') }),
   z.strictObject({ operation: z.literal('validate'), config: z.unknown(), mode: z.enum(['draft', 'publish']) }),
   z.strictObject({ operation: z.literal('diff'), fromRevision: revisionSchema, toRevision: revisionSchema }),
@@ -37,7 +38,7 @@ export interface TemplateDiffResult {
 export type LifecycleResult = StorefrontMutationResult | { success: true; data: TemplateReadResult | TemplateDiffResult | ValidationResult | StorefrontHistorySnapshot[] };
 
 export async function storefrontLifecycle(auth: unknown, input: unknown): Promise<LifecycleResult> {
-  const parsed = isPlainJson(input) ? readSchema.safeParse(input) : null;
+  const parsed = isPlainJson(input) ? storefrontReadSchema.safeParse(input) : null;
   const fail = (code: Parameters<typeof templateFailure>[0], validation: ValidationResult | null = null): StorefrontMutationResult =>
     templateFailure(code, validation, null, parsed?.success ? parsed.data.operation : 'request');
   if (!parsed?.success) {

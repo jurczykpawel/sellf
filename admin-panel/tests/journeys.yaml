@@ -5267,6 +5267,49 @@
       "layers": [
         "integration"
       ]
+    },
+    {
+      "id": "J700",
+      "title": "An AI agent drives the shop through the built-in MCP endpoint with a scoped API key",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "paid",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "authenticate"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "A write outside the key's scopes leaves the product unchanged.",
+        "integrator": "POST /api/mcp lists only the tools the key's scopes allow, calls return the real API JSON, a missing key or a panel session alone gets 401."
+      },
+      "layers": [
+        "http"
+      ]
+    },
+    {
+      "id": "J701",
+      "title": "An integrator generates a client from the OpenAPI document and the real responses match it",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "paid",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "browse"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "Products and product offers created through the API are saved as sent.",
+        "integrator": "Product, offer and storefront responses validate against the schema /api/v1/openapi.json documents for that status, including SQL nulls and 207 warnings."
+      },
+      "layers": [
+        "http",
+        "unit"
+      ]
     }
   ],
   "escapes": [

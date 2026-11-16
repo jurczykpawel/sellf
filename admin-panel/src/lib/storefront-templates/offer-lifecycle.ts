@@ -24,7 +24,8 @@ import type { Json } from '@/types/database';
 
 const base = { productId: z.uuid() };
 const expectedRevision = revisionSchema;
-const schema = z.discriminatedUnion('operation', [
+/** Offer lifecycle operations; also the source of the OpenAPI request bodies. */
+export const offerOperationSchema = z.discriminatedUnion('operation', [
   z.strictObject({ ...base, operation: z.literal('read') }),
   z.strictObject({ ...base, operation: z.literal('history'), beforeRevision: revisionSchema.optional(), limit: z.number().int().min(1).max(50).optional() }),
   z.strictObject({ ...base, operation: z.literal('diff'), fromRevision: revisionSchema, toRevision: revisionSchema }),
@@ -60,7 +61,7 @@ export async function offerLifecycle(auth: unknown, input: unknown): Promise<Off
     const validation = validatePhase2(input.config, 'offer-config');
     if (!validation.valid) return templateFailure(validation.errors.some(issue => issue.code === 'LIMIT') ? 'LIMIT' : 'INVALID', validation);
   }
-  const parsed = isPlainJson(input) ? schema.safeParse(input) : null;
+  const parsed = isPlainJson(input) ? offerOperationSchema.safeParse(input) : null;
   if (!parsed?.success) {
     const limit = parsed && parsed.error.issues.some(issue => issue.path.some(part => String(part).includes('Revision')));
     return templateFailure(limit ? 'LIMIT' : 'INVALID');

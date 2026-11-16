@@ -133,6 +133,7 @@ describe('Security headers', () => {
       const rules = await nextConfig.headers!();
       expect(resolveHeaders(rules as never, '/api/licenses/revoked').get('Cache-Control')).toBe('no-store');
       expect(resolveHeaders(rules as never, '/api/licenses/jwks').get('Cache-Control')).toBe('public, max-age=300, s-maxage=300');
+      expect(resolveHeaders(rules as never, '/api/v1/openapi.json').get('Cache-Control')).toBe('public, max-age=300, s-maxage=300');
     });
 
     it('leaves unrelated API routes on the strict no-store default and same-site CORP', async () => {
