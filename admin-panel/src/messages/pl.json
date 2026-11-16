@@ -2036,7 +2036,7 @@
           },
           "payment": {
             "oneTime": "po jednorazowej płatności",
-            "subscription": "w abonamencie",
+            "subscription": "na czas opłacania abonamentu",
             "customPrice": "po wpłacie wybranej przez siebie kwoty",
             "free": "za darmo"
           },
@@ -2052,7 +2052,12 @@
             "transfer": "przelew tradycyjny",
             "transferOrganization": "przelew dla organizacji",
             "transferPerson": "przelew dla osób prywatnych"
-          }
+          },
+          "conditions": {
+            "beforeDate": "(gdy do terminu zostało ponad {hours} h)"
+          },
+          "more": "pokaż więcej",
+          "less": "pokaż mniej"
         },
         "sections": {
           "nav": "Sekcje produktu",
@@ -6108,7 +6113,7 @@
   },
   "events": {
     "modeUnavailable": "Tryb wydarzenia działa tylko dla produktu jednorazowego bez dowolnej ceny, który nie jest zestawem. Zmień typ produktu lub wyłącz dowolną cenę, aby go włączyć.",
-    "errors": {"starts_at": "Podaj datę i godzinę początku.", "ends_at": "Koniec musi być po początku.", "timezone": "Nieznana strefa czasowa (np. Europe/Warsaw).", "online_url": "Podaj pełny link zaczynający się od https://.", "capacity": "Pula miejsc musi być liczbą całkowitą większą od zera.", "sort": "Kolejność: liczba całkowita 0–10000.", "tiers": "Dodaj przynajmniej jeden próg cenowy.", "tier_price": "Cena nie może być ujemna.", "tier_price_whole": "Cena w tej walucie musi być liczbą całkowitą.", "tier_seats": "Miejsca w progu: liczba całkowita większa od zera.", "tier_seats_capacity": "Próg nie może mieć więcej miejsc niż pula terminu.", "tier_sort": "Kolejność progów musi być unikalna (0–10000).", "tier_sale_ends_at": "Nieprawidłowa data końca sprzedaży.", "invalid": "Nieprawidłowa wartość."},
+    "errors": {"starts_at": "Podaj datę i godzinę początku.", "ends_at": "Koniec musi być po początku.", "timezone": "Nieznana strefa czasowa (np. Europe/Warsaw).", "online_url": "Podaj pełny link zaczynający się od https://.", "capacity": "Pula miejsc musi być liczbą całkowitą większą od zera.", "sort": "Kolejność: liczba całkowita 0–10000.", "tiers": "Dodaj przynajmniej jeden próg cenowy.", "tiers_max": "Termin może mieć najwyżej 50 progów cenowych. Usuń nadmiarowe.", "sessions_max": "Produkt może mieć najwyżej 50 terminów. Usuń nadmiarowe.", "tier_price": "Cena nie może być ujemna.", "tier_price_whole": "Cena w tej walucie musi być liczbą całkowitą.", "tier_seats": "Miejsca w progu: liczba całkowita większa od zera.", "tier_seats_capacity": "Próg nie może mieć więcej miejsc niż pula terminu.", "tier_sort": "Kolejność progów musi być unikalna (0–10000).", "tier_sale_ends_at": "Nieprawidłowa data końca sprzedaży.", "invalid": "Nieprawidłowa wartość."},
     "csvFilename": "uczestnicy",
     "csvPhone": "Telefon",
     "repeat": "Pozwól na ponowny zakup",

@@ -5,7 +5,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import TutorialHelpButton from '@/components/tutorials/TutorialHelpButton';
 import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 import { currencyExponent } from '@/lib/currency/minor-units';
-import { eventFieldErrors, isEventCompatible } from '@/lib/events/schema';
+import { EVENT_LIST_ERROR, EVENT_LIST_MAX, eventFieldErrors, isEventCompatible } from '@/lib/events/schema';
 import { getEventAdmin, exportEventParticipants } from '@/lib/events/actions';
 import { formatEventDate, participantRows, participantFilename, eventLocalDate, eventUTCDate } from '@/lib/events/presentation';
 import type { EventAdminInfo } from '@/lib/events/actions';
@@ -23,6 +23,12 @@ export function EventSection({ formData, setFormData, showErrors = false }: { fo
   // Field messages appear once the seller leaves the field (B8/B3), never mid-typing; a refused save shows them all.
   const shown = (path?: string) => !!path && (showErrors || touched.has(path)) && !!fieldErrors[path];
   const fieldError = (path: string) => shown(path) ? <span role="alert" className="block text-xs text-sf-danger">{t(`errors.${fieldErrors[path]}`)}</span> : null;
+  // A whole list is wrong (no tiers, too many sessions): the message and focus go to the button that repairs it.
+  const listErrorId = (path: string) => `event-error-${path.replace(/\./g, '-')}`;
+  const listError = (path: string) => showErrors && fieldErrors[path] ? <p id={listErrorId(path)} role="alert" className="text-xs text-sf-danger">{t(`errors.${fieldErrors[path]}`)}</p> : null;
+  const listInvalid = (path: string, at = true) => showErrors && at && !!fieldErrors[path] ? { 'aria-invalid': true as const, 'aria-describedby': listErrorId(path) } : {};
+  // Too long a list: the first entry over the limit carries the message on its remove button.
+  const overLimit = (index: number, length = sessions.length) => index === EVENT_LIST_MAX && length > EVENT_LIST_MAX;
   const input = (key: string, value: string | number | null | undefined, change: (v: string) => void, type = 'text', path?: string) => <label className="block text-sm" key={key}>{t(key === 'title' ? 'titleField' : key)}<input className="block w-full rounded border border-sf-border bg-sf-input p-2" type={type} value={value ?? ''} aria-invalid={shown(path) ? true : undefined} onBlur={() => path && setTouched(p => new Set(p).add(path))} onChange={e => change(e.target.value)} />{path && fieldError(path)}</label>;
   const dateInput = (key: string, value: string | null | undefined, timezone: string, change: (v: string | null) => void, path?: string) => input(key, eventLocalDate(value ?? '', timezone), v => change(v ? eventUTCDate(v, timezone) : null), 'datetime-local', path);
   const buttonClass = 'inline-flex items-center rounded border border-sf-border bg-sf-raised px-4 py-2 text-sm font-medium hover:bg-sf-hover focus-visible:ring-2 focus-visible:ring-sf-accent';
@@ -42,11 +48,14 @@ export function EventSection({ formData, setFormData, showErrors = false }: { fo
       {s.tiers.map((tier, n) => <fieldset key={tier.id ?? n} data-tour="event-tier" className="grid gap-3 rounded border border-sf-border p-3 sm:grid-cols-2"><legend>{t('tier')} {n + 1}</legend>
         {(['label', 'price', 'seats', 'sort'] as const).map(k => input(k, tier[k], v => patch(index, { tiers: s.tiers.map((x, j) => j === n ? { ...x, [k]: k === 'label' ? v : v ? Number(v) : k === 'seats' ? null : 0 } : x) }), k === 'label' ? 'text' : 'number', `${index}.tiers.${n}.${k}`))}
         {dateInput('sale_ends_at', tier.sale_ends_at, s.timezone, v => patch(index, { tiers: s.tiers.map((x,j) => j === n ? { ...x, sale_ends_at: v } : x) }), `${index}.tiers.${n}.sale_ends_at`)}
-        <button className={`${buttonClass} self-start justify-self-start`} type="button" onClick={() => patch(index, { tiers: s.tiers.filter((_,j) => j !== n) })}>{t('removeTier')}</button></fieldset>)}
-      <button data-tour="event-add-tier" className={buttonClass} type="button" onClick={() => patch(index, { tiers: [...s.tiers, { label: '', price: formData.price, seats: null, sort: Math.max(-1,...s.tiers.map(v => v.sort))+1 }] })}>{t('addTier')}</button>
-      <button className={`${buttonClass} ml-4`} type="button" onClick={() => update(sessions.filter((_,i) => i !== index))}>{t('removeSession')}</button>
+        {overLimit(n, s.tiers.length) && listError(`${index}.tiers`)}
+        <button className={`${buttonClass} self-start justify-self-start`} type="button" {...listInvalid(`${index}.tiers`, overLimit(n, s.tiers.length))} onClick={() => patch(index, { tiers: s.tiers.filter((_,j) => j !== n) })}>{t('removeTier')}</button></fieldset>)}
+      {s.tiers.length <= EVENT_LIST_MAX && listError(`${index}.tiers`)}
+      <button data-tour="event-add-tier" className={buttonClass} type="button" {...listInvalid(`${index}.tiers`, s.tiers.length <= EVENT_LIST_MAX)} onClick={() => patch(index, { tiers: [...s.tiers, { label: '', price: formData.price, seats: null, sort: Math.max(-1,...s.tiers.map(v => v.sort))+1 }] })}>{t('addTier')}</button>
+      {overLimit(index) && listError(EVENT_LIST_ERROR)}
+      <button className={`${buttonClass} ml-4`} type="button" {...listInvalid(EVENT_LIST_ERROR, overLimit(index))} onClick={() => update(sessions.filter((_,i) => i !== index))}>{t('removeSession')}</button>
       {s.id ? <button data-tour="event-preview" className={`${buttonClass} ml-4`} type="button" onClick={() => void load(s.id!)}>{t('preview')}</button> : <p>{t('savePreview')}</p>}
-    </fieldset>)}<button data-tour="event-add-session" className={buttonClass} type="button" onClick={() => update([...sessions, { starts_at: '', timezone: 'Europe/Warsaw', capacity: null, sales_open: true, sort: sessions.length, tiers: [{ label: '', price: formData.price, seats: null, sort: 0 }] }])}>{t('addSession')}</button>
+    </fieldset>)}{sessions.length <= EVENT_LIST_MAX && listError(EVENT_LIST_ERROR)}<button data-tour="event-add-session" className={buttonClass} type="button" {...listInvalid(EVENT_LIST_ERROR, sessions.length <= EVENT_LIST_MAX)} onClick={() => update([...sessions, { starts_at: '', timezone: 'Europe/Warsaw', capacity: null, sales_open: true, sort: sessions.length, tiers: [{ label: '', price: formData.price, seats: null, sort: 0 }] }])}>{t('addSession')}</button>
     {Object.keys(fieldErrors).length > 0 && <p role="alert" className="text-sf-danger">{t('invalid')}</p>}</>}
     {error && <p role="alert">{error}</p>}
     {info && <section aria-label={t('preview')} className="space-y-3 rounded-lg border border-sf-border p-4"><h4 className="font-medium text-sf-heading">{t('preview')}</h4><p>{info.data.availability.title} · {formatEventDate(info.data.availability.starts_at, info.data.availability.timezone, locale)}</p><p>{info.data.availability.venue} {info.data.availability.extra_days}</p><p>{t('sold')}: {info.data.sold} · {t('held')}: {info.data.held} · {t('remaining')}: {info.data.availability.remaining ?? '∞'}</p>

@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FORM_SECTIONS, initialSection, sectionForErrors } from '@/components/ProductFormModal/wizard/form-sections';
 import ProductCreationWizard from '@/components/ProductFormModal/wizard/ProductCreationWizard';
 import type { Product } from '@/types';
@@ -49,6 +49,10 @@ vi.mock('@/components/tutorials/TutorialTrigger', () => ({ default: () => null }
 vi.mock('@/components/affiliates/products/Settings', () => ({ AffiliateRuleEditor: () => null }));
 vi.mock('@/components/player/VideoOptionsPanel', () => ({ VideoOptionsPanel: () => null }));
 vi.mock('@stripe/stripe-js', () => ({ loadStripe: vi.fn() }));
+// The shop's bank-transfer switch; each test may override it (the summary must follow the same rule as checkout).
+const transferAvailability = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/orders/transfer-public', () => ({ getTransferAvailability: transferAvailability }));
+beforeEach(() => { transferAvailability.mockResolvedValue({ enabled: true, dueDays: 14, reservationHours: null }); });
 afterEach(cleanup);
 
 const pl = (path: string) => lookup(`admin.products.form.sections.${path}`) as string;
@@ -214,6 +218,32 @@ describe('rejected save', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it('shows a session without price tiers at "Add tier", with focus on it', async () => {
+    const { nav, onSubmit } = await openEdit({ event_mode: true, sessions: [session({ tiers: [] })] } as Partial<Product>);
+    await showSection(nav, 'offer');
+    await save();
+    expect(currentSection()).toBe('schedule');
+    const field = document.activeElement as HTMLElement;
+    expect(field.textContent).toBe(lookup('events.addTier'));
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+    expect(describedText(field)).toContain(lookup('events.errors.tiers') as string);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('shows too many sessions at the first one over the limit, with focus on its remove button', async () => {
+    const sessions = Array.from({ length: 51 }, (_, sort) => session({ sort }));
+    const { nav, onSubmit } = await openEdit({ event_mode: true, sessions } as Partial<Product>);
+    await showSection(nav, 'offer');
+    await save();
+    expect(currentSection()).toBe('schedule');
+    const field = document.activeElement as HTMLElement;
+    expect(field.textContent).toBe(lookup('events.removeSession'));
+    expect(field.closest('fieldset')?.querySelector('legend')?.textContent).toBe(`${lookup('events.session')} 51`);
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+    expect(describedText(field)).toContain(lookup('events.errors.sessions_max') as string);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it('marks event mode that no longer fits the product', async () => {
     const { nav, onSubmit } = await openEdit({ event_mode: true, sessions: [session()], is_bundle: true } as Partial<Product>);
     await showSection(nav, 'offer');
@@ -296,5 +326,43 @@ describe('section counts and buyer summary', () => {
   it('sums up a school event: date, seats, buyer and recipient, participants later, transfer for organisations', async () => {
     await openEdit({ event_mode: true, sessions: [session()], checkout_profile: schoolProfile } as Partial<Product>);
     expect(buyerSummary()).toBe('Kupujący otrzyma: dostęp do produktu po jednorazowej płatności, wybór terminu, liczbę miejsc, dane nabywcy i odbiorcy, możliwość późniejszego podania uczestników i przelew dla organizacji.');
+  });
+
+  it('does not promise a bank transfer the shop has switched off', async () => {
+    transferAvailability.mockResolvedValue({ enabled: false, dueDays: 14, reservationHours: null });
+    await openEdit({ event_mode: true, sessions: [session()], checkout_profile: schoolProfile } as Partial<Product>);
+    expect(buyerSummary()).not.toContain('przelew');
+  });
+
+  it('describes a transfer that depends on how soon the date starts', async () => {
+    transferAvailability.mockResolvedValue({ enabled: true, dueDays: 14, reservationHours: 48 });
+    await openEdit({ event_mode: true, sessions: [session()], checkout_profile: schoolProfile } as Partial<Product>);
+    expect(buyerSummary()).toContain('przelew dla organizacji (gdy do terminu zostało ponad 48 h)');
+  });
+
+  it('describes subscription access without the one-off access length', async () => {
+    await openEdit({ product_type: 'subscription', price: 30, auto_grant_duration_days: 7 } as Partial<Product>);
+    expect(buyerSummary()).toBe('Kupujący otrzyma: dostęp do produktu na czas opłacania abonamentu, bez wyboru terminu i uczestników.');
+  });
+});
+
+// ===== BUYER SUMMARY ON A PHONE: one line, expandable =====
+
+describe('buyer summary on a phone', () => {
+  it('starts as one line and expands from the keyboard-reachable toggle', async () => {
+    await openEdit();
+    const summary = document.querySelector<HTMLElement>('[data-buyer-summary]')!;
+    const toggle = screen.getByRole('button', { name: lookup('admin.products.form.summary.more') as string });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle.getAttribute('aria-controls')).toBe(summary.id);
+    expect(summary.className).toContain('line-clamp-1');
+    expect(toggle.className).toContain('sm:hidden');
+    expect(summary.className).toContain('sm:line-clamp-none');
+    await act(async () => { fireEvent.click(toggle); });
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle.textContent).toBe(lookup('admin.products.form.summary.less'));
+    expect(summary.className).not.toContain('line-clamp-1');
+    await act(async () => { fireEvent.click(toggle); });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 });
