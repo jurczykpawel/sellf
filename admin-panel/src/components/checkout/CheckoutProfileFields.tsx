@@ -102,10 +102,10 @@ export default function CheckoutProfileFields({ profile, state, errors, disabled
     const error = errors.find(error => error.field === field);
     return error ? error.maximum ? t('errors.tooLong', { max: error.maximum }) : t(`errors.${t.has(`errors.${error.code}`) ? error.code : 'invalid'}`) : null;
   };
-  const field = (id: string, label: string, value: string, onChange: (value: string) => void, type = 'text', onBlur?: () => void) => (
+  const field = (id: string, label: string, value: string, onChange: (value: string) => void, type = 'text') => (
     <div key={id}>
       <label htmlFor={id} className="mb-1 block text-sm font-medium text-sf-body">{label}</label>
-      <input id={id} type={type} value={value} onChange={event => onChange(event.target.value)} onBlur={onBlur}
+      <input id={id} type={type} value={value} onChange={event => onChange(event.target.value)}
         disabled={disabled} className={errorText(id) ? inputClass.replace('border-sf-border', 'border-sf-danger') : inputClass} aria-invalid={!!errorText(id)} aria-describedby={errorText(id) ? `${id}-error` : undefined} />
       {errorText(id) && <p id={`${id}-error`} role="alert" className="mt-1 text-sm text-sf-danger">{errorText(id)}</p>}
     </div>
