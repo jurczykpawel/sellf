@@ -112,7 +112,9 @@ WITH objects(kind, name, acl, dflt) AS (
   UNION ALL
   SELECT 'type', format('%I.%I', n.nspname, t.typname), t.typacl, acldefault('T', t.typowner)
     FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
-   WHERE n.nspname IN (${sqlList(DUMP_SCHEMAS)}) AND t.typrelid = 0
+   WHERE n.nspname IN (${sqlList(DUMP_SCHEMAS)})
+     -- standalone CREATE TYPE ... AS (...) (relkind 'c'), never the row type of a table/view
+     AND (t.typrelid = 0 OR EXISTS (SELECT 1 FROM pg_class c WHERE c.oid = t.typrelid AND c.relkind = 'c'))
      AND NOT EXISTS (SELECT 1 FROM pg_type e WHERE e.typarray = t.oid)
   UNION ALL
   SELECT 'default privileges', format('for %s in %s on %s', d.defaclrole::regrole,

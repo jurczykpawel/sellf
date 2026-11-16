@@ -110,6 +110,38 @@ describe('schema snapshot probes (W256r)', () => {
     expect(snapshot()).toBe(before);
   });
 
+  // A standalone `CREATE TYPE ... AS (...)` has a pg_class row of relkind 'c', so `typrelid` is set;
+  // with GRANT lines dumped away (--no-privileges) its USAGE must still reach the snapshot (W256rb).
+  describe('privileges of a standalone composite type', () => {
+    const type = 'public.w256c_probe_composite';
+    const role = 'w256c_probe_custom';
+    const typeAcl = () => superuser(`SELECT coalesce(typacl::text, '-') FROM pg_type WHERE oid = '${type}'::regtype;`);
+    const withType = (probe: (before: string) => void) => {
+      try {
+        superuser(`SET client_min_messages = warning; DROP TYPE IF EXISTS ${type}; DROP ROLE IF EXISTS ${role}; CREATE ROLE ${role} NOLOGIN; CREATE TYPE ${type} AS (x int);`);
+        probe(snapshot());
+      } finally {
+        superuser(`DROP TYPE IF EXISTS ${type}; DROP ROLE IF EXISTS ${role};`);
+      }
+    };
+
+    it('FAILs when USAGE is revoked from PUBLIC', () => withType((before) => {
+      superuser(`REVOKE USAGE ON TYPE ${type} FROM PUBLIC;`);
+      expect(superuser(`SELECT has_type_privilege('${role}', '${type}', 'USAGE');`)).toBe('f');
+      const diff = snapshotDiff(before, snapshot());
+      expect(diff).not.toBeNull();
+      expect(diff).toMatch(/^-type \| public\.w256c_probe_composite \| PUBLIC \| USAGE \|/m);
+    }));
+
+    it('FAILs when a custom role gets USAGE WITH GRANT OPTION', () => withType((before) => {
+      superuser(`GRANT USAGE ON TYPE ${type} TO ${role} WITH GRANT OPTION;`);
+      expect(typeAcl()).toContain(`${role}=U*/`);
+      const diff = snapshotDiff(before, snapshot());
+      expect(diff).not.toBeNull();
+      expect(diff).toMatch(/^\+type \| public\.w256c_probe_composite \| w256c_probe_custom \| USAGE \| .* \| WITH GRANT OPTION$/m);
+    }));
+  });
+
   it('FAILs when a function literal loses two trailing spaces (function bodies compared byte for byte)', () => {
     const fn = 'public.w256b_probe_literal';
     const create = (literal: string) => `CREATE OR REPLACE FUNCTION ${fn}() RETURNS text LANGUAGE sql AS $body$ SELECT '${literal}' $body$;`;
