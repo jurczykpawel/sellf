@@ -6943,6 +6943,7 @@ export type Database = {
       }
       set_payment_order_details: {
         Args: {
+          p_custom_field_values?: Json
           p_details: Json
           p_payment_intent_id?: string
           p_product_id: string

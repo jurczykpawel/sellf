@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { validateCheckoutModules } from '@/lib/checkout-modules/validate';
-import { ORDER_DETAILS_MAX_BYTES, orderDetailsByteLength } from '@/lib/checkout-modules/order-details';
+import { ORDER_DETAILS_TOO_LARGE_SQLSTATE } from '@/lib/checkout-modules/order-details';
 import { annotateViesStatus } from '@/lib/validation/vies';
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { getStripeServer } from '@/lib/stripe/server';
@@ -19,6 +19,7 @@ import {
   validateCustomFieldDefinitions,
   validateCustomFieldValues,
 } from '@/lib/validations/custom-checkout-fields';
+import type { CustomFieldValues } from '@/lib/validations/custom-checkout-fields';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { buildBuyerDetails } from '@/lib/payment/buyer-details';
 import type { BuyerDetails } from '@/lib/payment/buyer-details';
@@ -302,6 +303,8 @@ export async function POST(request: NextRequest) {
       }
     }
     let persistCustomFields: () => Promise<Response | null> = async () => null;
+    // Validated custom field values; the profile path saves them inside set_payment_order_details.
+    let customFieldsToSave: CustomFieldValues | null = null;
     // Phase 3a: validate + persist custom_field_values on the pending row.
     // Definitions come from DB (not the client) so the buyer cannot spoof
     // their own field shape; values from the request body are validated
@@ -350,6 +353,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      customFieldsToSave = valuesResult.values;
       persistCustomFields = async () => {
         const sessionId = isCheckoutSession ? stripeObjectId : null;
         const piId = isCheckoutSession ? null : stripeObjectId;
@@ -383,17 +387,16 @@ export async function POST(request: NextRequest) {
       const detailsTooLarge = () => NextResponse.json({
         success: false, errors: [{ field: 'moduleValues', code: 'details_too_large' }],
       }, { status: 422 });
-      // Checked before the first write (custom_field_values), so this 422 leaves nothing saved (W223c).
-      if (orderDetailsByteLength(result.details) > ORDER_DETAILS_MAX_BYTES) return detailsTooLarge();
-      const customError = await persistCustomFields();
-      if (customError) return customError;
+      // Custom field values and the MERGED details are saved in one transaction; the database measures
+      // order_details || p_details before writing, so this 422 leaves nothing saved.
       const { data: saved, error: saveError } = await admin.rpc('set_payment_order_details', {
         p_details: result.details,
         p_product_id: productId,
         p_quantity: rawQuantity,
         ...(isCheckoutSession ? { p_session_id: stripeObjectId } : { p_payment_intent_id: stripeObjectId }),
+        ...(customFieldsToSave ? { p_custom_field_values: customFieldsToSave } : {}),
       });
-      if (saveError && ['22023', '23514'].includes(saveError.code)) return detailsTooLarge();
+      if (saveError?.code === ORDER_DETAILS_TOO_LARGE_SQLSTATE) return detailsTooLarge();
       if (saveError) return NextResponse.json({ success: false, error: 'Failed to save order details' }, { status: 500 });
       if (saved !== 1) return NextResponse.json({ success: false, code: 'quantity_snapshot_mismatch' }, { status: 409 });
       const personalFields = new Set([

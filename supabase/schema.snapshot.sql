@@ -11883,19 +11883,20 @@ $$;
 ALTER FUNCTION public.set_payment_order_buyer(p_buyer jsonb, p_session_id text, p_payment_intent_id text, p_only_if_missing boolean) OWNER TO postgres;
 
 --
--- Name: set_payment_order_details(jsonb, uuid, integer, text, text); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: set_payment_order_details(jsonb, uuid, integer, text, text, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text DEFAULT NULL::text, p_payment_intent_id text DEFAULT NULL::text) RETURNS integer
+CREATE FUNCTION public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text DEFAULT NULL::text, p_payment_intent_id text DEFAULT NULL::text, p_custom_field_values jsonb DEFAULT NULL::jsonb) RETURNS integer
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $$
-DECLARE tx public.payment_transactions; v_quantity integer;
+DECLARE tx public.payment_transactions; v_quantity integer; v_merged jsonb;
 BEGIN
   IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501'; END IF;
-  IF p_details IS NULL OR jsonb_typeof(p_details) <> 'object' OR octet_length(p_details::text) > 65536
+  IF p_details IS NULL OR jsonb_typeof(p_details) <> 'object'
      OR p_product_id IS NULL OR p_quantity IS NULL OR p_quantity NOT BETWEEN 1 AND 100
-     OR (p_session_id IS NULL) = (p_payment_intent_id IS NULL) THEN
+     OR (p_session_id IS NULL) = (p_payment_intent_id IS NULL)
+     OR (p_custom_field_values IS NOT NULL AND jsonb_typeof(p_custom_field_values) <> 'object') THEN
     RAISE EXCEPTION 'Invalid order details' USING ERRCODE = '22023';
   END IF;
   SELECT * INTO tx FROM public.payment_transactions
@@ -11905,12 +11906,21 @@ BEGIN
   SELECT quantity INTO v_quantity FROM public.payment_line_items
     WHERE transaction_id = tx.id AND product_id = p_product_id AND item_type = 'main_product';
   IF v_quantity IS DISTINCT FROM p_quantity THEN RETURN -1; END IF;
-  UPDATE public.payment_transactions SET order_details = coalesce(order_details, '{}'::jsonb) || p_details, updated_at = now() WHERE id = tx.id;
+  v_merged := coalesce(tx.order_details, '{}'::jsonb) || p_details;
+  -- Same measure as the payment_transactions_order_details_check constraint.
+  IF octet_length(v_merged::text) > 65536 THEN
+    RAISE EXCEPTION 'details_too_large' USING ERRCODE = '54000';
+  END IF;
+  UPDATE public.payment_transactions
+  SET order_details = v_merged,
+      custom_field_values = coalesce(p_custom_field_values, custom_field_values),
+      updated_at = now()
+  WHERE id = tx.id;
   RETURN 1;
 END $$;
 
 
-ALTER FUNCTION public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text) OWNER TO postgres;
+ALTER FUNCTION public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text, p_custom_field_values jsonb) OWNER TO postgres;
 
 --
 -- Name: set_product_webhook_revision(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -22281,8 +22291,8 @@ function | public.set_invoicing_auto_since() | postgres | EXECUTE | postgres | -
 function | public.set_invoicing_auto_since() | service_role | EXECUTE | postgres | -
 function | public.set_payment_order_buyer(p_buyer jsonb, p_session_id text, p_payment_intent_id text, p_only_if_missing boolean) | postgres | EXECUTE | postgres | -
 function | public.set_payment_order_buyer(p_buyer jsonb, p_session_id text, p_payment_intent_id text, p_only_if_missing boolean) | service_role | EXECUTE | postgres | -
-function | public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text) | postgres | EXECUTE | postgres | -
-function | public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text) | service_role | EXECUTE | postgres | -
+function | public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text, p_custom_field_values jsonb) | postgres | EXECUTE | postgres | -
+function | public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text, p_custom_field_values jsonb) | service_role | EXECUTE | postgres | -
 function | public.set_product_webhook_revision() | postgres | EXECUTE | postgres | -
 function | public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) | authenticated | EXECUTE | postgres | -
 function | public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) | postgres | EXECUTE | postgres | -

@@ -38,6 +38,9 @@ export interface WebhookOrderDetails {
 /** Size limit of order details checked by the database (set_payment_order_details, order_details CHECK). */
 export const ORDER_DETAILS_MAX_BYTES = 65536;
 
+/** SQLSTATE set_payment_order_details raises when the merged order details would exceed the limit. */
+export const ORDER_DETAILS_TOO_LARGE_SQLSTATE = '54000';
+
 const encoder = new TextEncoder();
 const utf8Bytes = (text: string): number => encoder.encode(text).length;
 
@@ -56,3 +59,4 @@ export function orderDetailsByteLength(value: unknown): number {
   }
   return utf8Bytes(JSON.stringify(value) ?? 'null');
 }
+
