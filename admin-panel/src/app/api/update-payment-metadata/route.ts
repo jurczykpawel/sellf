@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { validateCheckoutModules } from '@/lib/checkout-modules/validate';
 import { annotateViesStatus } from '@/lib/validation/vies';
-import { classifyTaxId } from '@/lib/validation/tax-id';
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
@@ -21,7 +20,8 @@ import {
 } from '@/lib/validations/custom-checkout-fields';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { buildBuyerDetails } from '@/lib/payment/buyer-details';
-import { validateInvoiceSection } from '@/lib/checkout/invoice-section';
+import type { BuyerDetails } from '@/lib/payment/buyer-details';
+import { invoiceSectionFromFlatFields, validateInvoiceSection } from '@/lib/checkout/invoice-section';
 import { readInvoiceRecipientEnabled } from '@/lib/checkout/invoice-recipient-setting';
 import { saveOrderRecipient, toStoredRecipient } from '@/lib/payment/order-recipient';
 import type { StoredRecipient } from '@/lib/payment/order-recipient';
@@ -162,46 +162,8 @@ export async function POST(request: NextRequest) {
     if (shouldShowTosCheckbox(checkoutConfig.collect_terms_of_service, !sessionUser) && termsAccepted !== true) {
       return NextResponse.json({ success: false, error: 'Terms acceptance required' }, { status: 400 });
     }
-    const taxCountry = typeof country === 'string' && /^[A-Z]{2}$/.test(country) ? country : 'PL';
-    let buyerInput: Parameters<typeof buildBuyerDetails>[0];
-    let recipientToStore: StoredRecipient | null = null;
-    if (invoice !== undefined) {
-      // Invoice section (W223a): the same rules as the browser; the number decides the company country.
-      const recipientEnabled = await readInvoiceRecipientEnabled(createAdminClient());
-      const section = validateInvoiceSection(invoice, { recipientEnabled });
-      if (!section.ok) return NextResponse.json({ success: false, errors: section.errors }, { status: 422 });
-      const party = section.buyer;
-      buyerInput = party
-        ? { firstName, lastName, fullName, termsAccepted, needsInvoice: true, buyerType: 'organization', nip: party.nip, companyName: party.company_name, address: party.address, city: party.city, postalCode: party.postal_code, country: party.country }
-        : { firstName, lastName, fullName, termsAccepted, needsInvoice: false, buyerType: 'person', country: taxCountry };
-      if (recipientEnabled) recipientToStore = toStoredRecipient(section.recipient);
-    } else {
-      // Legacy flat fields: the tax id follows the company country, as in the profile checkout.
-      let taxId: unknown = nip;
-      if (typeof nip === 'string' && nip.trim()) {
-        const classified = classifyTaxId(nip, taxCountry);
-        if (!classified.valid) return NextResponse.json({ success: false, error: 'invalid_tax_id' }, { status: 400 });
-        taxId = classified.normalized;
-      }
-      buyerInput = { firstName, lastName, fullName, termsAccepted, needsInvoice, nip: taxId, companyName, address, city, postalCode, country };
-    }
     const stripe = await getStripeServer();
-    const buyer = buildBuyerDetails(buyerInput, 'checkout');
     const localeMetadata: Record<string, string> = locale === 'pl' || locale === 'en' ? { locale } : {};
-    const metadata = {
-      ...localeMetadata,
-      first_name: buyer.first_name,
-      last_name: buyer.last_name,
-      full_name: buyer.full_name,
-      terms_accepted: buyer.terms_accepted ? 'true' : '',
-      needs_invoice: buyer.needs_invoice ? 'true' : 'false',
-      nip: buyer.nip,
-      company_name: buyer.company_name,
-      address: buyer.address,
-      city: buyer.city,
-      postal_code: buyer.postal_code,
-      country: buyer.country,
-    };
 
     let stripeMetadata: Record<string, string> = {};
     let productIdFromStripe: string | null = null;
@@ -274,6 +236,43 @@ export async function POST(request: NextRequest) {
         .select('checkout_profile, currency').eq('id', productId).single();
       if (error || !data) return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
       profileProduct = data;
+    }
+    // The rules follow the product configuration on the server, never the shape of the request:
+    // a checkout profile validates its modules; every other checkout runs the invoice section,
+    // also when an older client sends the flat fields (W223ar #2).
+    const usesProfile = !isSubscription && profileProduct?.checkout_profile != null;
+    let standard: { buyer: BuyerDetails; metadata: Record<string, string>; recipientToStore: StoredRecipient | null } | null = null;
+    if (!usesProfile) {
+      // A subscription has no pending order row to keep a recipient on, so it never takes one (W223ar #7).
+      const recipientEnabled = !isSubscription && await readInvoiceRecipientEnabled(createAdminClient());
+      const section = validateInvoiceSection(
+        invoice !== undefined ? invoice : invoiceSectionFromFlatFields({ needsInvoice, nip, companyName, address, city, postalCode, country }),
+        { recipientEnabled },
+      );
+      if (!section.ok) return NextResponse.json({ success: false, errors: section.errors }, { status: 422 });
+      const party = section.buyer;
+      const personCountry = typeof country === 'string' && /^[A-Z]{2}$/.test(country) ? country : 'PL';
+      const buyer = buildBuyerDetails(party
+        ? { firstName, lastName, fullName, termsAccepted, needsInvoice: true, buyerType: 'organization', nip: party.nip, companyName: party.company_name, address: party.address, city: party.city, postalCode: party.postal_code, country: party.country }
+        : { firstName, lastName, fullName, termsAccepted, needsInvoice: false, buyerType: 'person', country: personCountry }, 'checkout');
+      standard = {
+        buyer,
+        recipientToStore: recipientEnabled ? toStoredRecipient(section.recipient) : null,
+        metadata: {
+          ...localeMetadata,
+          first_name: buyer.first_name,
+          last_name: buyer.last_name,
+          full_name: buyer.full_name,
+          terms_accepted: buyer.terms_accepted ? 'true' : '',
+          needs_invoice: buyer.needs_invoice ? 'true' : 'false',
+          nip: buyer.nip,
+          company_name: buyer.company_name,
+          address: buyer.address,
+          city: buyer.city,
+          postal_code: buyer.postal_code,
+          country: buyer.country,
+        },
+      };
     }
     if (!isSubscription && stripeMetadata.coupon_id) {
       const buyerEmail = z.email().max(254).safeParse(
@@ -371,58 +370,57 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    if (!isSubscription) {
+    if (usesProfile) {
       const admin = createAdminClient();
       const product = profileProduct!;
-      if (product.checkout_profile != null) {
-        const result = validateCheckoutModules(product.checkout_profile, moduleValues, {
-          locale, currency: product.currency, termsAccepted,
-        });
-        if (!result.success) return NextResponse.json({ success: false, errors: result.errors }, { status: result.status });
-        await annotateViesStatus(result.details);
-        const rawQuantity = result.quantity;
-        const customError = await persistCustomFields();
-        if (customError) return customError;
-        const { data: saved, error: saveError } = await admin.rpc('set_payment_order_details', {
-          p_details: result.details,
-          p_product_id: productId,
-          p_quantity: rawQuantity,
-          ...(isCheckoutSession ? { p_session_id: stripeObjectId } : { p_payment_intent_id: stripeObjectId }),
-        });
-        if (saveError && ['22023', '23514'].includes(saveError.code)) {
-          return NextResponse.json({
-            success: false, errors: [{ field: 'moduleValues', code: 'details_too_large' }],
-          }, { status: 422 });
-        }
-        if (saveError) return NextResponse.json({ success: false, error: 'Failed to save order details' }, { status: 500 });
-        if (saved !== 1) return NextResponse.json({ success: false, code: 'quantity_snapshot_mismatch' }, { status: 409 });
-        const personalFields = new Set([
-          'first_name', 'last_name', 'full_name', 'email', 'nip', 'tax_id', 'company_name',
-          'address', 'city', 'postal_code', 'country', 'phone', 'buyer', 'recipient',
-          'participants', 'participant_emails',
-        ]);
-        const profileMetadata = Object.fromEntries(
-          Object.entries(stripeMetadata).map(([key, value]) => [key, personalFields.has(key) ? '' : value]),
-        );
-        Object.assign(profileMetadata, localeMetadata);
-        if (isCheckoutSession) await stripe.checkout.sessions.update(stripeObjectId, { metadata: profileMetadata });
-        else await stripe.paymentIntents.update(stripeObjectId, { metadata: profileMetadata });
-        const party = result.details.buyer;
-        if (stripeTaxCustomerId && party && typeof party === 'object' && !Array.isArray(party)) {
-          if (shouldForwardTaxIdentityToStripe(checkoutConfig.tax_mode)) {
-            const text = (key: string) => typeof party[key] === 'string' ? party[key] : undefined;
-            await applyBuyerTaxIdentityToCustomer({
-              stripe, customerId: stripeTaxCustomerId,
-              identity: {
-                country: text('country'), taxId: text('nip'), address: text('address'),
-                city: text('city'), postalCode: text('postal_code'),
-              },
-            });
-          }
-        }
-        return NextResponse.json({ success: true });
+      const result = validateCheckoutModules(product.checkout_profile, moduleValues, {
+        locale, currency: product.currency, termsAccepted,
+      });
+      if (!result.success) return NextResponse.json({ success: false, errors: result.errors }, { status: result.status });
+      await annotateViesStatus(result.details);
+      const rawQuantity = result.quantity;
+      const customError = await persistCustomFields();
+      if (customError) return customError;
+      const { data: saved, error: saveError } = await admin.rpc('set_payment_order_details', {
+        p_details: result.details,
+        p_product_id: productId,
+        p_quantity: rawQuantity,
+        ...(isCheckoutSession ? { p_session_id: stripeObjectId } : { p_payment_intent_id: stripeObjectId }),
+      });
+      if (saveError && ['22023', '23514'].includes(saveError.code)) {
+        return NextResponse.json({
+          success: false, errors: [{ field: 'moduleValues', code: 'details_too_large' }],
+        }, { status: 422 });
       }
+      if (saveError) return NextResponse.json({ success: false, error: 'Failed to save order details' }, { status: 500 });
+      if (saved !== 1) return NextResponse.json({ success: false, code: 'quantity_snapshot_mismatch' }, { status: 409 });
+      const personalFields = new Set([
+        'first_name', 'last_name', 'full_name', 'email', 'nip', 'tax_id', 'company_name',
+        'address', 'city', 'postal_code', 'country', 'phone', 'buyer', 'recipient',
+        'participants', 'participant_emails',
+      ]);
+      const profileMetadata = Object.fromEntries(
+        Object.entries(stripeMetadata).map(([key, value]) => [key, personalFields.has(key) ? '' : value]),
+      );
+      Object.assign(profileMetadata, localeMetadata);
+      if (isCheckoutSession) await stripe.checkout.sessions.update(stripeObjectId, { metadata: profileMetadata });
+      else await stripe.paymentIntents.update(stripeObjectId, { metadata: profileMetadata });
+      const party = result.details.buyer;
+      if (stripeTaxCustomerId && party && typeof party === 'object' && !Array.isArray(party)) {
+        if (shouldForwardTaxIdentityToStripe(checkoutConfig.tax_mode)) {
+          const text = (key: string) => typeof party[key] === 'string' ? party[key] : undefined;
+          await applyBuyerTaxIdentityToCustomer({
+            stripe, customerId: stripeTaxCustomerId,
+            identity: {
+              country: text('country'), taxId: text('nip'), address: text('address'),
+              city: text('city'), postalCode: text('postal_code'),
+            },
+          });
+        }
+      }
+      return NextResponse.json({ success: true });
     }
+    const { buyer, metadata, recipientToStore } = standard!;
     const customError = await persistCustomFields();
     if (customError) return customError;
     if (isCheckoutSession) await stripe.checkout.sessions.update(stripeObjectId, { metadata });

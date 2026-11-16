@@ -133,7 +133,8 @@ export default function CustomPaymentForm({
   const { errors: moduleErrors, setErrors: setModuleErrors } = profileForm;
   // Invoice section of the standard checkout (W223a); a saved profile company opens it filled in.
   const invoiceSection = useInvoiceSection({
-    recipientEnabled: collectInvoiceRecipient,
+    // A subscription has no order row to keep a recipient on, so it never offers one (W223ar #7).
+    recipientEnabled: collectInvoiceRecipient && !isSubscription,
     prefill: !profile && (invoice.nip || invoice.companyName)
       ? { taxId: invoice.nip, companyName: invoice.companyName, address: invoice.address, postalCode: invoice.postalCode, city: invoice.city, country: invoice.country }
       : null,

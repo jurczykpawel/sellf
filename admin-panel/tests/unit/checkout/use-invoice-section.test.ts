@@ -143,4 +143,51 @@ describe('useInvoiceSection', () => {
     rerender({ prefill: { taxId: '', companyName: 'Fundacja', address: 'Prosta 1', postalCode: '00-001', city: 'Warszawa', country: 'PL' } });
     expect(result.current.buyer.fields.companyName).toBe('Moja Firma');
   });
+  it('a late GUS answer never overwrites data typed after switching to the manual path (W223ar #3)', async () => {
+    let resolveLate: (value: unknown) => void = () => {};
+    lookup.mockImplementationOnce(() => new Promise(resolve => { resolveLate = resolve; }));
+    const { result } = renderHook(() => useInvoiceSection({ recipientEnabled: false }));
+    act(() => { result.current.setWant(true); result.current.setTaxId('buyer', '1181697228'); });
+    expect(result.current.buyer.lookup).toBe('loading');
+    act(() => result.current.setMode('manual'));
+    act(() => { result.current.setField('buyer', 'country', 'US'); result.current.setField('buyer', 'companyName', 'MANUAL COMPANY'); });
+    await act(async () => { resolveLate({ ...FOUND, party: { ...FOUND.party, company_name: 'LATE GUS COMPANY' } }); });
+    expect(result.current.mode).toBe('manual');
+    expect(result.current.buyer.fields).toMatchObject({ companyName: 'MANUAL COMPANY', country: 'US' });
+  });
+
+  it('a late GUS answer never overwrites a field the buyer edited meanwhile (W223ar #3)', async () => {
+    let resolveLate: (value: unknown) => void = () => {};
+    lookup.mockImplementationOnce(() => new Promise(resolve => { resolveLate = resolve; }));
+    const { result } = renderHook(() => useInvoiceSection({ recipientEnabled: false }));
+    act(() => { result.current.setWant(true); result.current.setTaxId('buyer', '1181697228'); });
+    act(() => result.current.setField('buyer', 'companyName', 'TYPED'));
+    await act(async () => { resolveLate(FOUND); });
+    expect(result.current.buyer.fields.companyName).toBe('TYPED');
+  });
+
+  it('the "no NIP" path drops the hidden number, so it cannot block the purchase (W223ar #4)', () => {
+    const { result } = renderHook(() => useInvoiceSection({ recipientEnabled: false }));
+    act(() => { result.current.setWant(true); result.current.setTaxId('buyer', '123'); });
+    act(() => result.current.setMode('manual'));
+    act(() => {
+      result.current.setField('buyer', 'companyName', 'Fundacja Przykład');
+      result.current.setField('buyer', 'address', 'ul. Prosta 1');
+      result.current.setField('buyer', 'postalCode', '00-001');
+      result.current.setField('buyer', 'city', 'Warszawa');
+    });
+    let ok = false;
+    act(() => { ok = result.current.validate(); });
+    expect(ok).toBe(true);
+    expect(result.current.toSubmit().buyer.tax_id).toBe('');
+  });
+
+  it('manual path back to Poland: the number field disappears and its value is not sent (W223ar #4)', () => {
+    const { result } = renderHook(() => useInvoiceSection({ recipientEnabled: false }));
+    act(() => { result.current.setWant(true); result.current.setMode('manual'); });
+    act(() => { result.current.setField('buyer', 'country', 'US'); result.current.setField('buyer', 'taxId', 'EIN-1'); });
+    act(() => result.current.setField('buyer', 'country', 'PL'));
+    expect(result.current.toSubmit().buyer.tax_id).toBe('');
+  });
+
 });

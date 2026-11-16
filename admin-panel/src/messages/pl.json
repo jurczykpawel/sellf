@@ -230,6 +230,7 @@
         "not_tax_id": "To nie wygląda na NIP ani numer VAT UE.",
         "nip_only": "Odbiorca musi mieć polski NIP (10 cyfr).",
         "invalid_tax_id": "Ten numer podatkowy zawiera niedozwolone znaki.",
+        "tax_id_too_long": "Numer może mieć najwyżej 40 znaków.",
         "too_long": "Ten tekst jest za długi.",
         "invalid_text": "To pole zawiera niedozwolone znaki.",
         "invalid_country": "Wybierz kraj z listy.",

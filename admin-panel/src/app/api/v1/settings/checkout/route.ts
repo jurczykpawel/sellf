@@ -22,7 +22,7 @@ import {
   parseJsonBody,
   successResponse,
 } from '@/lib/api';
-import { readInvoiceRecipientEnabled, saveInvoiceRecipientEnabled } from '@/lib/checkout/invoice-recipient-setting';
+import { changeInvoiceRecipientEnabled, readInvoiceRecipientEnabled } from '@/lib/checkout/invoice-recipient-setting';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import type { SettingsClient } from '@/lib/checkout/invoice-recipient-setting';
 
@@ -50,21 +50,16 @@ export async function PATCH(request: NextRequest) {
       return apiError(request, 'INVALID_INPUT', 'Expected exactly { "invoice_recipient_enabled": boolean }');
     }
     const enabled = parsed.data.invoice_recipient_enabled;
-    const saved = await saveInvoiceRecipientEnabled(auth.supabase as unknown as SettingsClient, enabled);
+    // Setting + audit entry together: the entry names the admin by auth user UUID (for an API key,
+    // the key owner's admin_users.user_id); without it the change is undone and the call fails.
+    const saved = await changeInvoiceRecipientEnabled(auth.supabase as unknown as SettingsClient, enabled, {
+      auditClient: createPlatformClient() as unknown as SettingsClient,
+      performedBy: auth.admin.userId,
+      details: { auth: auth.method },
+    });
     if (!saved.ok) {
       console.error('[PATCH /api/v1/settings/checkout] Error:', saved.error);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to update checkout settings');
-    }
-    try {
-      await createPlatformClient().from('audit_log').insert({
-        user_id: auth.admin.userId,
-        operation: 'UPDATE',
-        table_name: 'shop_config',
-        performed_by: auth.admin.email || 'unknown',
-        new_values: { invoice_recipient_enabled: enabled, auth: auth.method },
-      });
-    } catch (auditError) {
-      console.error('[PATCH /api/v1/settings/checkout] Audit log insert failed:', auditError instanceof Error ? auditError.message : 'Unknown error');
     }
     return jsonResponse(successResponse({ invoice_recipient_enabled: enabled }), request);
   } catch (error) {

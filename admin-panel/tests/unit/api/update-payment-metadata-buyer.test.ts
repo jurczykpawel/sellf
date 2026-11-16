@@ -123,13 +123,12 @@ describe('POST /api/update-payment-metadata — buyer details on the pending row
     expect(args.p_session_id).toBeUndefined();
   });
 
-  it('sanitizes values before storing them', async () => {
-    await POST(makeRequest(SESSION_ID, { companyName: `  Acme\u0000\u0007  ${'x'.repeat(400)}` }));
-
-    const company = mocks.adminRpc.mock.calls[0][1].p_buyer.company_name as string;
-    expect(company.startsWith('Acme')).toBe(true);
-    expect(company).not.toMatch(/[\u0000-\u001f]/);
-    expect(company.length).toBeLessThanOrEqual(200);
+  it('refuses control characters and over-long text with field errors instead of storing a cut value (W223b)', async () => {
+    const res = await POST(makeRequest(SESSION_ID, { companyName: `  Acme\u0000\u0007  ${'x'.repeat(250)}` }));
+    expect(res.status).toBe(422);
+    expect((await res.json()).errors).toEqual([{ field: 'invoice.company_name', code: 'too_long' }]);
+    expect(mocks.adminRpc).not.toHaveBeenCalled();
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
   });
 
   it('answers 409 details_not_saved when no pending row matches', async () => {
@@ -351,11 +350,11 @@ describe('optional VIES check of an EU buyer', () => {
 });
 
 describe('legacy invoice form: tax id validated by the company country on the server', () => {
-  it.each([['PL', '1234567890'], ['DE', 'DE12345'], ['US', '<script>']])('rejects %s %s', async (country, nip) => {
+  it.each([['PL', '1234567890', 'nip_checksum'], ['DE', 'DE12345', 'eu_vat_format'], ['US', '<script>', 'invalid_tax_id']])('rejects %s %s with the invoice section code %s', async (country, nip, code) => {
     mocks.sessionsRetrieve.mockResolvedValue({ id: SESSION_ID, status: 'open', metadata: { product_id: PRODUCT_ID } });
     const res = await POST(makeRequest(SESSION_ID, { nip, country, needsInvoice: true, companyName: 'Firma' }));
-    expect(res.status).toBe(400);
-    expect(await res.json()).toMatchObject({ success: false, error: 'invalid_tax_id' });
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({ success: false, errors: [{ field: 'invoice.tax_id', code }] });
     expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
   });
   it('accepts a German VAT number entered without its prefix and stores it normalized', async () => {

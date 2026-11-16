@@ -12,6 +12,7 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { getCountryOptions } from '@/lib/checkout/countries';
+import { TAX_ID_MAX_LENGTH } from '@/lib/validation/tax-id';
 import type { InvoicePartyFields, InvoiceRole, InvoiceSectionState } from '@/hooks/useInvoiceSection';
 
 interface InvoiceSectionProps {
@@ -114,6 +115,7 @@ function AddressBlock({ section, role, disabled }: { section: InvoiceSectionStat
             type="text"
             id="taxIdManual"
             value={party.fields.taxId}
+            maxLength={TAX_ID_MAX_LENGTH}
             onChange={e => section.setField('buyer', 'taxId', e.target.value)}
             disabled={disabled}
             autoComplete="off"
@@ -152,7 +154,7 @@ function TaxIdLookup({ section, role, disabled }: { section: InvoiceSectionState
           placeholder={role === 'buyer' ? t('taxIdPlaceholder') : t('recipientPlaceholder')}
           inputMode={role === 'buyer' ? 'text' : 'numeric'}
           autoComplete="off"
-          maxLength={40}
+          maxLength={TAX_ID_MAX_LENGTH}
           disabled={disabled}
           aria-invalid={!!code}
           aria-describedby={code ? `${id}-error` : undefined}

@@ -4,14 +4,15 @@
  * @see src/lib/checkout/invoice-recipient-setting.ts
  */
 import { describe, expect, it, vi } from 'vitest';
-import { readInvoiceRecipientEnabled, saveInvoiceRecipientEnabled } from '@/lib/checkout/invoice-recipient-setting';
+import { changeInvoiceRecipientEnabled, readInvoiceRecipientEnabled } from '@/lib/checkout/invoice-recipient-setting';
 import type { SettingsClient } from '@/lib/checkout/invoice-recipient-setting';
 
 function client(row: { id: string; custom_settings: unknown } | null) {
   const update = vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) }));
   const insert = vi.fn(async () => ({ error: null }));
   const db = { from: vi.fn(() => ({ select: () => ({ maybeSingle: async () => ({ data: row, error: null }) }), update, insert })) };
-  return { db: db as unknown as SettingsClient, update, insert };
+  const audit = { auditClient: { from: () => ({ insert: async () => ({ error: null }) }) } as unknown as SettingsClient, performedBy: '00000000-0000-4000-8000-000000000001' };
+  return { db: db as unknown as SettingsClient, update, insert, audit };
 }
 
 describe('invoice recipient shop setting @J622', () => {
@@ -28,14 +29,14 @@ describe('invoice recipient shop setting @J622', () => {
   });
 
   it('saving keeps the other custom settings', async () => {
-    const { db, update } = client({ id: 'cfg', custom_settings: { default_locale: 'pl', timezone: 'Europe/Warsaw' } });
-    expect(await saveInvoiceRecipientEnabled(db, true)).toEqual({ ok: true });
+    const { db, update, audit } = client({ id: 'cfg', custom_settings: { default_locale: 'pl', timezone: 'Europe/Warsaw' } });
+    expect(await changeInvoiceRecipientEnabled(db, true, audit)).toEqual({ ok: true });
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ custom_settings: { default_locale: 'pl', timezone: 'Europe/Warsaw', invoice_recipient_enabled: true } }));
   });
 
   it('saving on a fresh install creates the shop row', async () => {
-    const { db, insert } = client(null);
-    expect(await saveInvoiceRecipientEnabled(db, false)).toEqual({ ok: true });
+    const { db, insert, audit } = client(null);
+    expect(await changeInvoiceRecipientEnabled(db, false, audit)).toEqual({ ok: true });
     expect(insert).toHaveBeenCalledWith(expect.objectContaining({ custom_settings: { invoice_recipient_enabled: false } }));
   });
 });

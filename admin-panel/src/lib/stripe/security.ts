@@ -15,6 +15,7 @@
 
 import { minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
 import { isRefundablePaymentStatus } from '@/lib/refunds/payment-status';
+import { TAX_ID_MAX_LENGTH } from '@/lib/validation/tax-id';
 
 // ===== CLIENT SECRET PARSING =====
 
@@ -69,7 +70,7 @@ export function sanitizePaymentMetadata(input: PaymentMetadata): PaymentMetadata
     first_name: sanitizeMetadataField(input.first_name, 100),
     last_name: sanitizeMetadataField(input.last_name, 100),
     company_name: sanitizeMetadataField(input.company_name, 200),
-    nip: sanitizeMetadataField(input.nip, 20),
+    nip: sanitizeMetadataField(input.nip, TAX_ID_MAX_LENGTH),
     address: sanitizeMetadataField(input.address, 300),
   };
 }

@@ -9,6 +9,7 @@
  */
 
 import type { createAdminClient } from '@/lib/supabase/admin';
+import type { Json } from '@/types/database';
 
 export const INVOICE_RECIPIENT_SETTING = 'invoice_recipient_enabled';
 
@@ -34,14 +35,51 @@ export async function readInvoiceRecipientEnabled(client: SettingsClient): Promi
   }
 }
 
-/** Store the flag, keeping every other custom setting. */
-export async function saveInvoiceRecipientEnabled(client: SettingsClient, enabled: boolean): Promise<{ ok: true } | { ok: false; error: string }> {
+type SaveResult = { ok: true } | { ok: false; error: string };
+
+async function writeCustomSettings(client: SettingsClient, rowId: string | undefined, custom_settings: Record<string, unknown>): Promise<SaveResult> {
+  const updated_at = new Date().toISOString();
+  const values = { custom_settings: custom_settings as Json, updated_at };
+  const { error } = rowId
+    ? await client.from('shop_config').update(values).eq('id', rowId)
+    : await client.from('shop_config').insert(values);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+export interface SettingAudit {
+  /** Where audit_log lives (the platform client for API keys, the panel's data client otherwise). */
+  auditClient: SettingsClient;
+  /** UUID of the admin's auth user (audit_log.performed_by references auth.users). */
+  performedBy: string;
+  /** Extra context stored with the new value, e.g. how the admin authenticated. */
+  details?: Record<string, Json>;
+}
+
+/**
+ * Change the flag, keeping every other custom setting, with an audit entry (panel and API v1).
+ * No change stays without a trace: when
+ * the audit entry is not written the previous settings are put back and the caller gets an error.
+ */
+export async function changeInvoiceRecipientEnabled(client: SettingsClient, enabled: boolean, audit: SettingAudit): Promise<SaveResult> {
   const { data: row, error: readError } = await client.from('shop_config').select('id, custom_settings').maybeSingle();
   if (readError) return { ok: false, error: readError.message };
-  const custom_settings = { ...asObject(row?.custom_settings), [INVOICE_RECIPIENT_SETTING]: enabled };
-  const updated_at = new Date().toISOString();
-  const { error } = row?.id
-    ? await client.from('shop_config').update({ custom_settings, updated_at }).eq('id', row.id)
-    : await client.from('shop_config').insert({ custom_settings, updated_at });
-  return error ? { ok: false, error: error.message } : { ok: true };
+  const previous = asObject(row?.custom_settings);
+  const saved = await writeCustomSettings(client, row?.id, { ...previous, [INVOICE_RECIPIENT_SETTING]: enabled });
+  if (!saved.ok) return saved;
+
+  const { error: auditError } = await audit.auditClient.from('audit_log').insert({
+    user_id: audit.performedBy,
+    performed_by: audit.performedBy,
+    table_name: 'shop_config',
+    operation: 'UPDATE',
+    old_values: { [INVOICE_RECIPIENT_SETTING]: previous[INVOICE_RECIPIENT_SETTING] === true },
+    new_values: { [INVOICE_RECIPIENT_SETTING]: enabled, ...audit.details },
+  });
+  if (!auditError) return { ok: true };
+
+  // On a fresh install the row was just created, so look its id up again before restoring.
+  const rowId = row?.id ?? (await client.from('shop_config').select('id, custom_settings').maybeSingle()).data?.id;
+  const restored = await writeCustomSettings(client, rowId, previous);
+  if (!restored.ok) console.error('[changeInvoiceRecipientEnabled] Could not restore the previous setting:', restored.error);
+  return { ok: false, error: `audit_log: ${auditError.message}` };
 }

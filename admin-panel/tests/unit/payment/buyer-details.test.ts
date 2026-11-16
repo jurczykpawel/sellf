@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
+import { backfillBuyerDetails, buildBuyerDetails } from '@/lib/payment/buyer-details';
+import { TAX_ID_MAX_LENGTH } from '@/lib/validation/tax-id';
 
 /**
  * Safety net: a paid order always ends up with order_details.buyer, filled from
@@ -100,5 +101,12 @@ describe('backfillBuyerDetails', () => {
     await expect(
       backfillBuyerDetails(client, { sessionId: 'cs_test_5', metadata: METADATA, customerDetails: null }),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('buildBuyerDetails — tax id length (W223b, W223ar #5)', () => {
+  it('keeps an accepted tax id whole up to the shared limit', () => {
+    const taxId = 'X'.repeat(TAX_ID_MAX_LENGTH);
+    expect(buildBuyerDetails({ nip: taxId }, 'checkout').nip).toBe(taxId);
   });
 });

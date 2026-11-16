@@ -9,6 +9,7 @@
  */
 
 import { sanitizeMetadataField } from '@/lib/stripe/security';
+import { TAX_ID_MAX_LENGTH } from '@/lib/validation/tax-id';
 import type { createAdminClient } from '@/lib/supabase/admin';
 import type Stripe from 'stripe';
 
@@ -70,7 +71,8 @@ export function buildBuyerDetails(input: RawBuyerInput, source: BuyerDetails['so
     last_name: lastName,
     full_name: fullNameInput || `${firstName} ${lastName}`.trim(),
     needs_invoice: input.needsInvoice === true,
-    nip: text(input.nip, 20),
+    // The shared limit: every accepted number is stored whole (validation refuses longer ones).
+    nip: text(input.nip, TAX_ID_MAX_LENGTH),
     company_name: text(input.companyName, 200),
     address: text(input.address, 300),
     city: text(input.city, 100),

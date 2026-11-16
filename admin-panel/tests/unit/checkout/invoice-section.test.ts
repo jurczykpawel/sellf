@@ -119,3 +119,21 @@ describe('validateInvoiceSection: what reaches the order', () => {
     expect(validateInvoiceSection(section({ want: false, recipient }), { recipientEnabled: true })).toEqual({ ok: true, buyer: null, recipient: null });
   });
 });
+
+describe('W223b: one source of truth for formats and limits', () => {
+  it.each(['IE1+23456A', 'IE1*23456A'])('%s: characters are judged by the country pattern, as in classifyTaxId (W223ar #6)', input => {
+    expect(detectTaxId(input)).toEqual({ status: 'valid', type: 'eu_vat', country: 'IE', normalized: input });
+  });
+
+  it('a plus sign in a Polish NIP is still not a NIP', () => {
+    expect(detectTaxId('118+169728')).toEqual({ status: 'invalid', code: 'not_tax_id' });
+  });
+
+  it('one length limit: 40 characters accepted whole, 41 refused with a clear code (W223ar #5)', () => {
+    const ok = 'A'.repeat(40);
+    const okResult = validateInvoiceSection(section({ mode: 'manual', buyer: { tax_id: ok, country: 'US', ...ADDRESS } }), { recipientEnabled: false });
+    expect(okResult.ok && okResult.buyer?.nip).toBe(ok);
+    expect(codes(validateInvoiceSection(section({ mode: 'manual', buyer: { tax_id: 'A'.repeat(41), country: 'US', ...ADDRESS } }), { recipientEnabled: false }))).toEqual(['invoice.tax_id:tax_id_too_long']);
+    expect(detectTaxId('1'.repeat(41))).toEqual({ status: 'invalid', code: 'tax_id_too_long' });
+  });
+});

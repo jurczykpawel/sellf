@@ -18,7 +18,7 @@ import { classifyTaxId, TAX_ID_MAX_LENGTH } from '@/lib/validation/tax-id';
 import { validateNIPChecksum } from '@/lib/validation/nip';
 import type { TaxIdType } from '@/lib/validation/tax-id';
 
-export type TaxIdErrorCode = 'nip_length' | 'nip_checksum' | 'unknown_prefix' | 'eu_vat_format' | 'not_tax_id' | 'nip_only' | 'invalid_tax_id';
+export type TaxIdErrorCode = 'nip_length' | 'nip_checksum' | 'unknown_prefix' | 'eu_vat_format' | 'not_tax_id' | 'nip_only' | 'invalid_tax_id' | 'tax_id_too_long';
 export type InvoiceFieldErrorCode = TaxIdErrorCode | 'required' | 'tax_id_required' | 'too_long' | 'invalid_text' | 'invalid_country' | 'recipient_disabled';
 
 export type TaxIdDetection =
@@ -36,11 +36,14 @@ function euCountryForPrefix(prefix: string): string | null {
 /**
  * Read the single tax id field. A two-letter prefix other than PL means an EU VAT number of that
  * country; digits (with or without PL) mean a Polish NIP. The recipient field takes only a NIP.
+ * One length limit (TAX_ID_MAX_LENGTH) for the form, this check and the stored value; which
+ * characters a VAT number may hold (Irish numbers carry + or *) is left to the country pattern.
  */
 export function detectTaxId(raw: string, { allowEu = true }: { allowEu?: boolean } = {}): TaxIdDetection {
   const cleaned = (raw ?? '').replace(/[\s.-]/g, '').toUpperCase();
   if (!cleaned) return { status: 'empty' };
-  if (cleaned.length > TAX_ID_MAX_LENGTH || !/^[A-Z0-9]+$/.test(cleaned)) return { status: 'invalid', code: 'not_tax_id' };
+  if ((raw ?? '').trim().length > TAX_ID_MAX_LENGTH) return { status: 'invalid', code: 'tax_id_too_long' };
+  if (!/^[A-Z0-9+*]+$/.test(cleaned)) return { status: 'invalid', code: 'not_tax_id' };
   const prefix = /^[A-Z]{2}/.test(cleaned) ? cleaned.slice(0, 2) : null;
   if (prefix && prefix !== 'PL') {
     if (!allowEu) return { status: 'invalid', code: 'nip_only' };
@@ -132,7 +135,8 @@ export function validateInvoiceSection(input: InvoiceSectionInput, { recipientEn
   } else {
     if (!COUNTRY_CODES.has(country)) errors.push({ field: 'invoice.country', code: 'invalid_country' });
     const taxId = value.buyer.tax_id.trim();
-    if (taxId && COUNTRY_CODES.has(country)) {
+    if (taxId.length > TAX_ID_MAX_LENGTH) errors.push({ field: 'invoice.tax_id', code: 'tax_id_too_long' });
+    else if (taxId && COUNTRY_CODES.has(country)) {
       const classified = classifyTaxId(taxId, country);
       if (classified.valid) buyerTax = taxFields(classified.normalized, classified.type, classified.country);
       else errors.push({ field: 'invoice.tax_id', code: manualTaxIdError(taxId, classified.type) });
@@ -155,4 +159,30 @@ export function validateInvoiceSection(input: InvoiceSectionInput, { recipientEn
 
   if (errors.length > 0) return { ok: false, errors };
   return { ok: true, buyer: { ...buyerAddress, country, ...buyerTax }, recipient };
+}
+
+/**
+ * The older flat request fields (needsInvoice, nip, companyName, …) as an invoice section, so a
+ * standard checkout request without `invoice` meets exactly the same rules (W223ar #2). Flat data
+ * always named the company country, so it maps to the manual path: chosen country, number checked
+ * by that country's pattern, the whole address required.
+ */
+export function invoiceSectionFromFlatFields(flat: {
+  needsInvoice?: unknown; nip?: unknown; companyName?: unknown; address?: unknown; city?: unknown; postalCode?: unknown; country?: unknown;
+}): InvoiceSectionInput {
+  const str = (value: unknown) => (typeof value === 'string' ? value : '');
+  const taxId = str(flat.nip).trim();
+  return {
+    want: flat.needsInvoice === true || taxId !== '',
+    mode: 'manual',
+    buyer: {
+      tax_id: taxId,
+      company_name: str(flat.companyName),
+      address: str(flat.address),
+      postal_code: str(flat.postalCode),
+      city: str(flat.city),
+      country: str(flat.country).trim().toUpperCase() || 'PL',
+    },
+    recipient: null,
+  };
 }

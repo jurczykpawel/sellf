@@ -151,12 +151,12 @@ describe('Stripe Integration Security', () => {
         const longName = 'A'.repeat(200);
         const input: PaymentMetadata = {
           first_name: longName,
-          nip: '12345678901234567890123456789', // 29 chars, limit 20
+          nip: '1'.repeat(45), // limit TAX_ID_MAX_LENGTH (40), the one tax id limit
         };
 
         const result = sanitizePaymentMetadata(input);
         expect(result.first_name?.length).toBe(100);
-        expect(result.nip?.length).toBe(20);
+        expect(result.nip?.length).toBe(40);
       });
     });
 

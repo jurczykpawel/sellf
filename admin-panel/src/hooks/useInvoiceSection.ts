@@ -91,10 +91,17 @@ export function useInvoiceSection({ recipientEnabled, prefill }: UseInvoiceSecti
     });
   }, []);
 
+  /** A company lookup still on its way must not replace what the buyer did after asking (W223ar #3). */
+  const dropPendingLookup = useCallback((role: InvoiceRole) => {
+    lookupSeq.current[role]++;
+    setParty(role, party => party.lookup === 'loading' ? { ...party, lookup: 'idle', editing: true } : party);
+  }, [setParty]);
+
   const setField = useCallback((role: InvoiceRole, key: keyof InvoicePartyFields, value: string) => {
+    dropPendingLookup(role);
     setParty(role, party => ({ ...party, fields: { ...party.fields, [key]: value } }));
     clearError(`${ROLE_PREFIX[role]}.${FIELD_KEYS[key]}`);
-  }, [setParty, clearError]);
+  }, [setParty, clearError, dropPendingLookup]);
 
   const setTaxId = useCallback((role: InvoiceRole, value: string) => {
     clearError(`${ROLE_PREFIX[role]}.tax_id`);
@@ -130,7 +137,7 @@ export function useInvoiceSection({ recipientEnabled, prefill }: UseInvoiceSecti
 
   const startEditing = useCallback((role: InvoiceRole) => setParty(role, party => ({ ...party, editing: true })), [setParty]);
 
-  const setWant = useCallback((value: boolean) => { setWantState(value); setErrors({}); }, []);
+  const setWant = useCallback((value: boolean) => { setWantState(value); setErrors({}); dropPendingLookup('buyer'); dropPendingLookup('recipient'); }, [dropPendingLookup]);
   const setWantRecipient = useCallback((value: boolean) => {
     setWantRecipientState(value);
     setErrors(current => Object.fromEntries(Object.entries(current).filter(([field]) => !field.startsWith('recipient'))));
@@ -138,6 +145,12 @@ export function useInvoiceSection({ recipientEnabled, prefill }: UseInvoiceSecti
   const setMode = useCallback((value: InvoiceMode) => {
     setModeState(value);
     setErrors(current => Object.fromEntries(Object.entries(current).filter(([field]) => !field.startsWith('invoice'))));
+    dropPendingLookup('buyer');
+    if (value === 'manual') {
+      // "No NIP or outside the EU": the number typed on the NIP path is gone, so a value the buyer
+      // can no longer see never blocks the purchase (W223ar #4).
+      setBuyer(party => ({ ...party, fields: { ...party.fields, taxId: '' } }));
+    }
     if (value === 'tax_id') {
       // Back on the NIP path the country follows the number again.
       setBuyer(party => {
@@ -145,7 +158,7 @@ export function useInvoiceSection({ recipientEnabled, prefill }: UseInvoiceSecti
         return detected.status === 'valid' ? { ...party, fields: { ...party.fields, country: detected.country }, editing: true } : party;
       });
     }
-  }, []);
+  }, [dropPendingLookup]);
 
   const view = useCallback((role: InvoiceRole): InvoiceSectionView => {
     const party = role === 'buyer' ? buyer : recipient;
@@ -160,7 +173,8 @@ export function useInvoiceSection({ recipientEnabled, prefill }: UseInvoiceSecti
     return {
       want,
       mode,
-      buyer: { ...party(buyer.fields), country: buyer.fields.country },
+      // The manual path for Poland shows no number field, so no number is sent from it.
+      buyer: { ...party(buyer.fields), country: buyer.fields.country, ...(mode === 'manual' && buyer.fields.country === 'PL' ? { tax_id: '' } : {}) },
       recipient: want && recipientEnabled && wantRecipient ? party(recipient.fields) : null,
     };
   }, [want, mode, buyer, recipient, wantRecipient, recipientEnabled]);

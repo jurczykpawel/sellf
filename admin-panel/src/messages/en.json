@@ -230,6 +230,7 @@
         "not_tax_id": "This doesn't look like a NIP or an EU VAT number.",
         "nip_only": "The recipient needs a Polish NIP (10 digits).",
         "invalid_tax_id": "This tax number contains characters that are not allowed.",
+        "tax_id_too_long": "The number can have at most 40 characters.",
         "too_long": "This text is too long.",
         "invalid_text": "This field contains characters that are not allowed.",
         "invalid_country": "Choose a country from the list.",
