@@ -990,9 +990,15 @@ validate by hand carry a short `bodyHint`. `src/lib/api/openapi/spec.ts` turns t
 OpenAPI 3.1, served publicly at `GET /api/v1/openapi.json` (relative server URL, ETag, 5-min cache).
 
 **Adding or changing a v1 route = updating its registry entry.** `bun run test:api-contract`
-(in PR CI and the release build) fails on a route without an entry or a stale entry, on a scope
-or query parameter that differs from what the route source checks/reads (static rules in
-`tests/unit/lib/api/route-inventory.ts`), and on an invalid OpenAPI document. A validator you
+(in PR CI and the release build) fails on a route without an entry or a stale entry (any HTTP
+method and export form; only the standard CORS preflight OPTIONS is skipped), on a scope or query
+parameter that differs from what the route source checks/reads, on a flow the reader cannot follow
+(computed scope list, searchParams passed on, non-literal name — declare `queryFromRoute` or make
+it literal), and on an invalid OpenAPI document. The reader works on the TypeScript AST
+(`tests/unit/lib/api/route-inventory.ts`), so comments never count. Product responses are checked
+against the spec with Ajv (`openapi-product-responses.test.ts`, SQL nulls; `ProductResponseDTO` is a
+read schema mirroring `schema.snapshot.sql`, not the input validator); offers and the storefront
+against a running app in `tests/api/openapi-responses.test.ts`. A validator you
 want in the document must be exported from `src/lib/` (route files may only export handlers).
 
 ### MCP endpoint (generated from the registry)

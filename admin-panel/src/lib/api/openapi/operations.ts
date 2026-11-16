@@ -169,7 +169,7 @@ const PRODUCTS: ApiOperation[] = [
   },
   {
     operationId: 'create_product', method: 'POST', path: '/products', tag: 'Products', scope: S.PRODUCTS_WRITE, status: [201],
-    summary: 'Create a product', description: 'Amounts are in major currency units (29 = 29.00). Partial relation failures return 207 with _warnings.',
+    summary: 'Create a product', description: 'Amounts are in major currency units (29 = 29.00).',
     body: z.intersection(ProductCreateDTO, ProductRelationsDTO), response: ProductResponseDTO,
   },
   {
@@ -177,8 +177,8 @@ const PRODUCTS: ApiOperation[] = [
     summary: 'Get a product', query: z.object({ embed: z.string().optional().describe('CSV: categories,tags') }), response: ProductResponseDTO,
   },
   {
-    operationId: 'update_product', method: 'PATCH', path: '/products/{id}', tag: 'Products', scope: S.PRODUCTS_WRITE,
-    summary: 'Update a product', description: 'Partial update. categories/tags/bundleItemIds replace the whole set when present.',
+    operationId: 'update_product', method: 'PATCH', path: '/products/{id}', tag: 'Products', scope: S.PRODUCTS_WRITE, status: [200, 207],
+    summary: 'Update a product', description: 'Partial update. categories/tags/bundleItemIds replace the whole set when present. 207: the product was saved but a category/tag write failed; see _warnings.',
     body: z.intersection(ProductUpdateDTO, ProductRelationsDTO), response: ProductResponseDTO,
   },
   {
@@ -384,7 +384,7 @@ const API_KEYS: ApiOperation[] = [
   { ...sessionOnly, operationId: 'get_api_key', method: 'GET', path: '/api-keys/{id}', summary: 'Get an API key' },
   { ...sessionOnly, operationId: 'update_api_key', method: 'PATCH', path: '/api-keys/{id}', summary: 'Rename or deactivate an API key', bodyHint: 'name?, is_active?' },
   { ...sessionOnly, operationId: 'revoke_api_key', method: 'DELETE', path: '/api-keys/{id}', summary: 'Revoke an API key', query: z.object({ reason: z.string().optional() }) },
-  { ...sessionOnly, operationId: 'rotate_api_key', method: 'POST', path: '/api-keys/{id}/rotate', summary: 'Rotate an API key (old key keeps working during the grace period)' },
+  { ...sessionOnly, operationId: 'rotate_api_key', method: 'POST', path: '/api-keys/{id}/rotate', status: [201, 207], summary: 'Rotate an API key (old key keeps working during the grace period)' },
 ];
 
 const META: ApiOperation[] = [

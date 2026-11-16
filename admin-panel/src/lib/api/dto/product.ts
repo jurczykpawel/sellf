@@ -148,15 +148,43 @@ export const ProductDeletionImpactDTO = z.object({
 /** DELETE /api/v1/products/:id of a product with history: archived, not deleted (200). */
 export const ProductArchivedDTO = z.object({ id: z.uuid(), status: z.literal('archived'), impact: ProductDeletionImpactDTO });
 
-/** Product as returned by /api/v1/products (the writable columns plus server-managed fields). */
-export const ProductResponseDTO = z.object(baseShape).extend({
+// ===== READ SCHEMA =====
+// Responses describe what the database returns, not what the API accepts: SQL constraints and
+// nullability (supabase/schema.snapshot.sql), not the stricter input validators above.
+// tests/unit/lib/api/openapi-product-responses.test.ts ties every selected column to the snapshot.
+
+const columns = (names: string, type: z.ZodType): Record<string, z.ZodType> => Object.fromEntries(names.split(/\s+/).map((name) => [name, type]));
+const jsonObject = z.record(z.string(), z.unknown());
+const productSession = z.object({
+  id: z.uuid(), starts_at: z.string(), ends_at: z.string().nullable(), timezone: z.string(), title: z.string().nullable(), venue: z.string().nullable(),
+  online_url: z.string().nullable(), extra_days: z.string().nullable(), capacity: z.number().int().nullable(), sales_open: z.boolean(), sort: z.number().int(),
+  tiers: z.array(z.object({ id: z.uuid(), label: z.string().nullable(), price: z.number(), seats: z.number().int().nullable(), sale_ends_at: z.string().nullable(), sort: z.number().int() })),
+});
+
+/** Product as returned by /api/v1/products: the columns of PRODUCT_API_FIELDS as SQL stores them. */
+export const ProductResponseDTO = z.object({
   id: z.uuid(),
-  archived_at: z.string().nullable().optional().describe('Set when the product is archived (DELETE of a product with history)'),
-  created_at: z.string(),
-  updated_at: z.string(),
+  ...columns('event_mode allow_repeat_purchase is_active is_featured is_listed is_bundle is_refundable enable_waitlist allow_custom_price show_price_presets price_includes_vat vat_exempt omnibus_exempt pass_params_to_redirect lead_consent_required embed_enabled issue_license_on_purchase', z.boolean()),
+  ...columns('name slug currency layout_template lead_consent_version lead_consent_text_pl lead_consent_text_en created_at updated_at', z.string()),
+  ...columns('description long_description icon image_url thumbnail_url preview_video_url available_from available_until vat_exempt_note sale_price_until success_redirect_url license_tier', z.string().nullable()),
+  ...columns('vat_rate custom_price_min sale_price recurring_price', z.number().nullable()),
+  ...columns('auto_grant_duration_days refund_period_days sale_quantity_limit billing_interval_count trial_days license_duration_days', z.number().int().nullable()),
+  ...columns('preview_video_config content_config marketing_fields', jsonObject),
+  price: z.number().describe('Major currency units'),
+  product_type: productType,
+  content_delivery_type: z.enum(['content', 'redirect']),
+  checkout_template: z.enum(['default', 'tip-jar', 'oto']),
+  billing_interval: z.enum(['day', 'week', 'month', 'year']).nullable(),
+  features: z.array(jsonObject).nullable(),
+  custom_price_presets: z.array(z.number()).nullable(),
+  checkout_profile: jsonObject.nullable(),
+  custom_checkout_fields: z.array(jsonObject),
+  archived_at: z.string().nullable().describe('Set when the product is archived (DELETE of a product with history)'),
+  sessions: z.array(productSession).describe('Event sessions with their price tiers (empty unless event_mode)'),
   categories: z.array(embeddedTerm).optional().describe('Present with ?embed=categories'),
   tags: z.array(embeddedTerm).optional().describe('Present with ?embed=tags'),
   bundle_item_count: z.number().int().optional().describe('List rows: number of bundle components'),
+  _warnings: z.array(z.string()).optional().describe('PATCH answered 207: relation writes that failed (the product itself was saved)'),
 }).loose();
 
 const DATE_FIELDS = ['available_from', 'available_until', 'sale_price_until'] as const;

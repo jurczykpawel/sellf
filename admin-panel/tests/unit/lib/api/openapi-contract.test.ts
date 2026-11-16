@@ -58,6 +58,16 @@ describe('API v1 operation registry ↔ route tree', () => {
     expect(mismatches).toEqual([]);
   });
 
+  it('can follow every handler, scope check and query read (an unrecognised flow needs an explicit entry)', () => {
+    const unproven = routes.flatMap((route) => {
+      const op = registry.get(key(route.method, route.path));
+      // `queryFromRoute`: the registry query object is the zod schema the route itself parses.
+      const reasons = route.unresolved.filter((reason) => !(op?.queryFromRoute && reason.startsWith('query:')));
+      return reasons.map((reason) => `${key(route.method, route.path)}: ${reason}`);
+    });
+    expect(unproven).toEqual([]);
+  });
+
   it('documents exactly the query parameters the route reads', () => {
     const mismatches = routes.flatMap((route) => {
       const op = registry.get(key(route.method, route.path));
