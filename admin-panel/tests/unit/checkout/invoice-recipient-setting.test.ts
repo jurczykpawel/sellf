@@ -1,6 +1,7 @@
 /**
  * W223a: "collect the invoice recipient" is a shop setting, OFF by default (owner 10.11: rare,
- * mostly public institutions). Stored in shop_config.custom_settings without touching other keys.
+ * mostly public institutions). Stored in shop_config.custom_settings without touching other keys
+ * (the database side is covered by invoice-recipient-setting.integration.test.ts).
  * @see src/lib/checkout/invoice-recipient-setting.ts
  */
 import { describe, expect, it, vi } from 'vitest';
@@ -8,11 +9,8 @@ import { changeInvoiceRecipientEnabled, readInvoiceRecipientEnabled } from '@/li
 import type { SettingsClient } from '@/lib/checkout/invoice-recipient-setting';
 
 function client(row: { id: string; custom_settings: unknown } | null) {
-  const update = vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) }));
-  const insert = vi.fn(async () => ({ error: null }));
-  const db = { from: vi.fn(() => ({ select: () => ({ maybeSingle: async () => ({ data: row, error: null }) }), update, insert })) };
-  const audit = { auditClient: { from: () => ({ insert: async () => ({ error: null }) }) } as unknown as SettingsClient, performedBy: '00000000-0000-4000-8000-000000000001' };
-  return { db: db as unknown as SettingsClient, update, insert, audit };
+  const db = { from: vi.fn(() => ({ select: () => ({ maybeSingle: async () => ({ data: row, error: null }) }) })), rpc: vi.fn(async () => ({ data: false, error: null })) };
+  return { db: db as unknown as SettingsClient, rpc: db.rpc, from: db.from };
 }
 
 describe('invoice recipient shop setting @J622', () => {
@@ -28,15 +26,18 @@ describe('invoice recipient shop setting @J622', () => {
     expect(await readInvoiceRecipientEnabled(db)).toBe(false);
   });
 
-  it('saving keeps the other custom settings', async () => {
-    const { db, update, audit } = client({ id: 'cfg', custom_settings: { default_locale: 'pl', timezone: 'Europe/Warsaw' } });
-    expect(await changeInvoiceRecipientEnabled(db, true, audit)).toEqual({ ok: true });
-    expect(update).toHaveBeenCalledWith(expect.objectContaining({ custom_settings: { default_locale: 'pl', timezone: 'Europe/Warsaw', invoice_recipient_enabled: true } }));
+  it('saving goes through the one atomic database call, never a direct table write (W223c)', async () => {
+    const { db, rpc, from } = client({ id: 'cfg', custom_settings: { default_locale: 'pl' } });
+    expect(await changeInvoiceRecipientEnabled(db, true, { performedBy: '00000000-0000-4000-8000-000000000001', details: { auth: 'session' } })).toEqual({ ok: true });
+    expect(rpc).toHaveBeenCalledWith('set_invoice_recipient_enabled', { p_enabled: true, p_performed_by: '00000000-0000-4000-8000-000000000001', p_details: { auth: 'session' } });
+    expect(from).not.toHaveBeenCalled();
   });
 
-  it('saving on a fresh install creates the shop row', async () => {
-    const { db, insert, audit } = client(null);
-    expect(await changeInvoiceRecipientEnabled(db, false, audit)).toEqual({ ok: true });
-    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ custom_settings: { invoice_recipient_enabled: false } }));
+  it('a refused call is reported as an error (nothing to undo)', async () => {
+    const { db, rpc, from } = client(null);
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'insert or update on table "audit_log" violates foreign key constraint' } } as never);
+    expect(await changeInvoiceRecipientEnabled(db, false, { performedBy: '00000000-0000-4000-8000-000000000001' })).toEqual({ ok: false, error: expect.stringContaining('audit_log') });
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(from).not.toHaveBeenCalled();
   });
 });

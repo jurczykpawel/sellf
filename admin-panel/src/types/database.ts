@@ -6887,6 +6887,10 @@ export type Database = {
         Returns: undefined
       }
       set_business_event_actor: { Args: { p_actor: Json }; Returns: undefined }
+      set_invoice_recipient_enabled: {
+        Args: { p_details?: Json; p_enabled: boolean; p_performed_by: string }
+        Returns: boolean
+      }
       set_payment_order_buyer: {
         Args: {
           p_buyer: Json

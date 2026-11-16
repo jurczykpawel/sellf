@@ -14,7 +14,7 @@ export async function setInvoiceRecipientSetting(input: unknown): Promise<Action
   const parsed = z.boolean().safeParse(input);
   if (!parsed.success) return { success: false, error: 'Invalid setting', errorCode: 'INVALID_INPUT' };
   return withAdminClient(async ({ dataClient, user }) => {
-    const saved = await changeInvoiceRecipientEnabled(dataClient, parsed.data, { auditClient: dataClient, performedBy: user.id, details: { auth: 'session' } });
+    const saved = await changeInvoiceRecipientEnabled(dataClient, parsed.data, { performedBy: user.id, details: { auth: 'session' } });
     if (!saved.ok) {
       console.error('[setInvoiceRecipientSetting] Error:', saved.error);
       return { success: false, error: 'Setting not saved', errorCode: 'DATABASE_ERROR' };

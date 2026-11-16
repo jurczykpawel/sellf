@@ -1,8 +1,9 @@
 /**
- * W223b (W223ar #1): every change of the shop setting "collect a different invoice recipient" leaves
- * an audit entry with the admin's user UUID (audit_log.performed_by references auth.users). When the
- * audit entry cannot be written the change is undone and the caller gets an error, so no change
- * happens without a trace — from the panel and from API v1 alike.
+ * W223b (W223ar #1), W223c: every change of the shop setting "collect a different invoice recipient"
+ * leaves an audit entry with the admin's user UUID (audit_log.performed_by references auth.users).
+ * Setting and entry are saved in one database transaction (set_invoice_recipient_enabled); when the
+ * entry is refused nothing is saved and the caller gets an error — from the panel and API v1 alike.
+ * The transaction itself is proven against the real database in invoice-recipient-setting.integration.test.ts.
  *
  * @see src/lib/checkout/invoice-recipient-setting.ts
  * @see src/app/api/v1/settings/checkout/route.ts
@@ -14,22 +15,13 @@ import { NextRequest } from 'next/server';
 const ADMIN_USER_ID = '6f1c1c3e-9b7a-4d55-8a5e-2a8b9c0d1e2f';
 
 const h = vi.hoisted(() => ({
-  auditInsert: vi.fn(),
-  update: vi.fn(),
-  row: { id: 'cfg', custom_settings: { default_locale: 'pl', invoice_recipient_enabled: false } as Record<string, unknown> },
+  rpc: vi.fn(),
+  from: vi.fn(),
   authenticate: vi.fn(),
 }));
 
 function settingsClient() {
-  return {
-    from: vi.fn((table: string) => table === 'audit_log'
-      ? { insert: h.auditInsert }
-      : {
-        select: () => ({ maybeSingle: async () => ({ data: h.row, error: null }) }),
-        update: (values: unknown) => ({ eq: async () => { h.update(values); return { error: null }; } }),
-        insert: vi.fn(async () => ({ error: null })),
-      }),
-  };
+  return { rpc: h.rpc, from: h.from };
 }
 
 vi.mock('@/lib/supabase/admin', () => ({ createPlatformClient: () => settingsClient(), createAdminClient: () => settingsClient() }));
@@ -50,47 +42,46 @@ const patch = (body: unknown) => new NextRequest('http://localhost/api/v1/settin
 
 beforeEach(() => {
   vi.clearAllMocks();
-  h.row = { id: 'cfg', custom_settings: { default_locale: 'pl', invoice_recipient_enabled: false } };
-  h.auditInsert.mockResolvedValue({ error: null });
+  h.rpc.mockResolvedValue({ data: false, error: null });
   h.authenticate.mockResolvedValue({ method: 'api_key', supabase: settingsClient(), admin: { userId: ADMIN_USER_ID, adminId: 'adm-1', email: null }, scopes: ['system:write'] });
 });
 
+const refused = { data: null, error: { code: '23503', message: 'insert or update on table "audit_log" violates foreign key constraint' } };
+
 describe('invoice recipient setting — audited change @J622', () => {
-  it('stores the change with an audit entry naming the admin by UUID', async () => {
+  it('stores the change and the audit entry naming the admin by UUID in one database call', async () => {
     const client = settingsClient() as unknown as SettingsClient;
-    expect(await changeInvoiceRecipientEnabled(client, true, { auditClient: client, performedBy: ADMIN_USER_ID })).toEqual({ ok: true });
-    expect(h.update).toHaveBeenCalledTimes(1);
-    expect(h.auditInsert).toHaveBeenCalledWith(expect.objectContaining({
-      table_name: 'shop_config', operation: 'UPDATE', performed_by: ADMIN_USER_ID,
-      old_values: { invoice_recipient_enabled: false }, new_values: expect.objectContaining({ invoice_recipient_enabled: true }),
-    }));
+    expect(await changeInvoiceRecipientEnabled(client, true, { performedBy: ADMIN_USER_ID })).toEqual({ ok: true });
+    expect(h.rpc).toHaveBeenCalledTimes(1);
+    expect(h.rpc).toHaveBeenCalledWith('set_invoice_recipient_enabled', { p_enabled: true, p_performed_by: ADMIN_USER_ID, p_details: {} });
+    expect(h.from).not.toHaveBeenCalled();
   });
 
-  it('an audit insert error (returned, not thrown) undoes the change', async () => {
-    h.auditInsert.mockResolvedValue({ error: { code: '22P02', message: 'invalid input syntax for type uuid' } });
-    const client = settingsClient() as unknown as SettingsClient;
-    const result = await changeInvoiceRecipientEnabled(client, true, { auditClient: client, performedBy: ADMIN_USER_ID });
+  it('a refused audit entry is an error and nothing is written afterwards (no compensating rollback)', async () => {
+    h.rpc.mockResolvedValue(refused);
+    const result = await changeInvoiceRecipientEnabled(settingsClient() as unknown as SettingsClient, true, { performedBy: ADMIN_USER_ID });
     expect(result.ok).toBe(false);
-    expect(h.update).toHaveBeenCalledTimes(2);
-    expect(h.update).toHaveBeenLastCalledWith(expect.objectContaining({ custom_settings: { default_locale: 'pl', invoice_recipient_enabled: false } }));
+    expect(h.rpc).toHaveBeenCalledTimes(1);
+    expect(h.from).not.toHaveBeenCalled();
   });
 
   it('API v1 PATCH: performed_by is the key owner\'s user UUID, never an e-mail', async () => {
     const res = await PATCH(patch({ invoice_recipient_enabled: true }));
     expect(res.status).toBe(200);
-    expect(h.auditInsert).toHaveBeenCalledWith(expect.objectContaining({ performed_by: ADMIN_USER_ID, user_id: ADMIN_USER_ID }));
+    expect(h.rpc).toHaveBeenCalledWith('set_invoice_recipient_enabled', { p_enabled: true, p_performed_by: ADMIN_USER_ID, p_details: { auth: 'api_key' } });
   });
 
-  it('API v1 PATCH: a failed audit entry is an error and the setting stays as it was', async () => {
-    h.auditInsert.mockResolvedValue({ error: { code: '22P02', message: 'boom' } });
+  it('API v1 PATCH: a refused audit entry answers 500', async () => {
+    h.rpc.mockResolvedValue(refused);
     const res = await PATCH(patch({ invoice_recipient_enabled: true }));
     expect(res.status).toBe(500);
-    expect(h.update).toHaveBeenLastCalledWith(expect.objectContaining({ custom_settings: { default_locale: 'pl', invoice_recipient_enabled: false } }));
+    expect(h.from).not.toHaveBeenCalled();
   });
 
-  it('panel: a failed audit entry is reported as a failure', async () => {
-    h.auditInsert.mockResolvedValue({ error: { code: '42501', message: 'denied' } });
-    const result = await setInvoiceRecipientSetting(true);
-    expect(result.success).toBe(false);
+  it('panel: the change names the signed-in admin; a refused audit entry is reported as a failure', async () => {
+    expect((await setInvoiceRecipientSetting(true)).success).toBe(true);
+    expect(h.rpc).toHaveBeenCalledWith('set_invoice_recipient_enabled', { p_enabled: true, p_performed_by: ADMIN_USER_ID, p_details: { auth: 'session' } });
+    h.rpc.mockResolvedValue(refused);
+    expect((await setInvoiceRecipientSetting(true)).success).toBe(false);
   });
 });

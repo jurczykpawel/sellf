@@ -23,7 +23,6 @@ import {
   successResponse,
 } from '@/lib/api';
 import { changeInvoiceRecipientEnabled, readInvoiceRecipientEnabled } from '@/lib/checkout/invoice-recipient-setting';
-import { createPlatformClient } from '@/lib/supabase/admin';
 import type { SettingsClient } from '@/lib/checkout/invoice-recipient-setting';
 
 const patchSchema = z.object({ invoice_recipient_enabled: z.boolean() }).strict();
@@ -50,10 +49,9 @@ export async function PATCH(request: NextRequest) {
       return apiError(request, 'INVALID_INPUT', 'Expected exactly { "invoice_recipient_enabled": boolean }');
     }
     const enabled = parsed.data.invoice_recipient_enabled;
-    // Setting + audit entry together: the entry names the admin by auth user UUID (for an API key,
-    // the key owner's admin_users.user_id); without it the change is undone and the call fails.
+    // Setting + audit entry in one transaction: the entry names the admin by auth user UUID (for an
+    // API key, the key owner's admin_users.user_id); when it is refused nothing is saved.
     const saved = await changeInvoiceRecipientEnabled(auth.supabase as unknown as SettingsClient, enabled, {
-      auditClient: createPlatformClient() as unknown as SettingsClient,
       performedBy: auth.admin.userId,
       details: { auth: auth.method },
     });

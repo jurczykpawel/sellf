@@ -82,3 +82,4 @@
 20261115100000_queue_retries.sql
 20261115110000_cancelled_order_no_payment.sql
 20261115120000_stripe_marker_reconciliation.sql
+20261116110000_invoice_recipient_setting_atomic.sql
